@@ -1,0 +1,10 @@
+import "core-js/stable";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "regenerator-runtime/runtime";
+import PlayApp from "./PlayApp";
+import "./index.css";
+import reportWebVitals from "./reportWebVitals";
+const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
+root.render(<PlayApp />);
+reportWebVitals();
