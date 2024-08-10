@@ -60,6 +60,7 @@ const SSOController: React.FC = () => {
     },
     [authenticator]
   );
+  console.log(provider);
   useEffect(() => {
     const checkURL = async (uid: string, token: string, persist: number) => {
       if (!authenticator) return;
@@ -72,6 +73,8 @@ const SSOController: React.FC = () => {
     const checkStorage = async (partnerId: number) => {
       if (!authenticator) return;
       const userJSON = localStorage.getItem("user");
+      console.log("partnerId:" + partnerId);
+      console.log(userJSON);
       let u = null;
       if (userJSON !== null) {
         const userObj = JSON.parse(userJSON);
@@ -79,6 +82,7 @@ const SSOController: React.FC = () => {
           u = await authByToken({ uid: userObj["uid"], token: userObj["token"] });
         }
       }
+      authComplete(u, 1);
       buildProvider(u);
       gsap.to(loadingRef.current, { autoAlpha: 0, duration: 0.7 });
     };

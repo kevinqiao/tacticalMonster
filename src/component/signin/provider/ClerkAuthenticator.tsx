@@ -4,7 +4,7 @@ import { useConvex } from "convex/react";
 import { gsap } from "gsap";
 import { AppsConfiguration } from "model/PageConfiguration";
 import { PageConfig } from "model/PageProps";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
@@ -18,6 +18,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
+  const [initCompleted, setInitCompleted] = useState(0);
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
   const { user, authComplete } = useUserManager();
@@ -25,7 +26,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   const { currentPage, openPage, prevPage } = usePageManager();
   const { event: accountEvent } = useEventSubscriber([], ["account"]);
   const convex = useConvex();
-
+  console.log(user);
   const redirectURL = useMemo(() => {
     if (partner && currentPage) {
       if (partner.pid > 0) {
@@ -45,22 +46,34 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   }, [user, isSignedIn, signOut]);
 
   useEffect(() => {
-    if (provider?.isOpen) open();
-    else close();
+    if (provider?.isOpen) {
+      console.log("initial opening....");
+      open();
+      setTimeout(() => setInitCompleted(1), 800);
+    } else {
+      console.log("initial closing....");
+      close();
+      setTimeout(() => setInitCompleted(1), 100);
+    }
   }, [provider]);
   useEffect(() => {
-    if (!currentPage) return;
+    if (!currentPage || !initCompleted) return;
     const role = user ? user.role ?? 1 : 0;
     const appCfg: any = AppsConfiguration.find((c) => c.name === currentPage.app);
     if (appCfg?.navs) {
       const pageCfg: PageConfig | undefined = appCfg.navs.find((s: any) => s.name === currentPage.name);
       if (pageCfg) {
         const cauth = pageCfg.auth ?? 0;
-        if (role < cauth) open();
-        else close();
+        if (role < cauth) {
+          console.log("opening....");
+          open();
+        } else {
+          console.log("closing....");
+          close();
+        }
       }
     }
-  }, [user, currentPage]);
+  }, [user, initCompleted, currentPage]);
 
   useEffect(() => {
     if (accountEvent && accountEvent?.name === "signin") {
@@ -81,7 +94,6 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   }, []);
 
   const close = useCallback(() => {
-    console.log("closing....");
     const tl = gsap.timeline({
       onComplete: () => {
         tl.kill();
