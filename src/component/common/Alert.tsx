@@ -9,9 +9,9 @@ const Alert: React.FC = () => {
   const confirmRef = useRef<HTMLDivElement>(null);
   const { event } = useEventSubscriber([], ["alert"]);
   const { partner } = usePartnerManager();
-  useEffect(() => {
-    if (partner) cancel();
-  }, [partner]);
+  // useEffect(() => {
+  //   if (partner) cancel();
+  // }, [partner]);
   useEffect(() => {
     if (event) open();
   }, [event]);
@@ -54,7 +54,8 @@ const Alert: React.FC = () => {
           width: "100%",
           height: "100%",
           opacity: 0,
-          backgroundColor: "black",
+          visibility: "hidden",
+          backgroundColor: partner ? "black" : "blue",
         }}
       ></div>
 
@@ -71,6 +72,7 @@ const Alert: React.FC = () => {
           width: "100%",
           height: "100%",
           opacity: 0,
+          visibility: "hidden",
         }}
         onClick={cancel}
       >

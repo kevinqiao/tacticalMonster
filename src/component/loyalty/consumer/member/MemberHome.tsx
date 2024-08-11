@@ -3,6 +3,7 @@ import { useConvex } from "convex/react";
 import { gsap } from "gsap";
 import PageProps from "model/PageProps";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePageManager } from "service/PageManager";
 import useCoord from "service/TerminalManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/_generated/api";
@@ -97,7 +98,7 @@ const MenuControl: React.FC<{ menuComponent: any | null | undefined; onClose: ()
 const MemberHome: React.FC<PageProps> = (pageProp) => {
   const { width, height } = useCoord();
   const { user, logout } = useUserManager();
-
+  const { openEntry } = usePageManager();
   const [menu, setMenu] = useState<string | null>(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [components, setComponents] = useState<{ name: string; component: any }[]>([]);
@@ -112,7 +113,6 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
     if (pageProp.config?.children) {
       const cs: { name: string; component: any }[] = [];
       for (const child of pageProp.config.children) {
-        console.log(child);
         const c = child.uri ? lazy(() => import(`${child.path}`)) : null;
         if (c) cs.push({ name: child.name, component: c });
       }
@@ -157,6 +157,25 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
               {c.name}
             </div>
           ))}
+          <div
+            key={"home"}
+            style={{
+              cursor: "pointer",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              width: "70%",
+              height: 60,
+              backgroundColor: "blue",
+              color: "white",
+              borderStyle: "solid",
+              borderWidth: "2px 2px 2px 2px",
+              borderColor: "white",
+            }}
+            onClick={openEntry}
+          >
+            Back To Home
+          </div>
         </div>
 
         <div

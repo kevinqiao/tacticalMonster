@@ -22,7 +22,7 @@ export const EventProvider = ({ children }: { children: React.ReactNode }) => {
   return <EventContext.Provider value={{ subject: subject }}>{children}</EventContext.Provider>;
 };
 
-const useEventSubscriber = (selectors: string[], topics?: string[]) => {
+const useEventSubscriber = (selectors?: string[], topics?: string[]) => {
   const [event, setEvent] = useState<EventModel | null>(null);
   const { subject } = useContext(EventContext);
   useEffect(() => {
@@ -30,15 +30,15 @@ const useEventSubscriber = (selectors: string[], topics?: string[]) => {
       const observable = subject.asObservable();
       const subscription = observable.subscribe((event: EventModel) => {
         if (
-          (!topics || topics.length === 0 || !event.topic || topics?.includes(event.topic)) &&
-          (selectors?.length === 0 || selectors.includes(event.name))
+          (topics?.length === 0 || !event.topic || topics?.includes(event.topic)) &&
+          (selectors?.length === 0 || selectors?.includes(event.name))
         ) {
           setEvent(event);
         }
       });
       return () => subscription.unsubscribe();
     }
-  }, [selectors, topics, subject]);
+  }, [subject]);
 
   const createEvent = useCallback(
     (event: EventModel) => {

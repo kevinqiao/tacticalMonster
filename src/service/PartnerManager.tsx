@@ -2,6 +2,7 @@ import { useConvex } from "convex/react";
 import { PartnerModel } from "model/PartnerModel";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "../convex/_generated/api";
+import useEventSubscriber from "./EventManager";
 import { usePageManager } from "./PageManager";
 export type Authenticator = {
   partnerId: number;
@@ -35,6 +36,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
   const { currentPage } = usePageManager();
   const [partner, setPartner] = useState<PartnerModel | null>(null);
   const [authenticator, setAuthenticator] = useState<Authenticator | null>(null);
+  const { createEvent } = useEventSubscriber(undefined, undefined);
 
   const convex = useConvex();
 
@@ -76,8 +78,9 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
     };
 
     if (currentPage) {
-      const params: { [k: string]: string } = currentPage.params ?? {};
-      const partnerId = Number(currentPage.params?.partner ?? 0);
+      const cpage = JSON.parse(JSON.stringify(currentPage));
+      const params: { [k: string]: string } = cpage.params ?? {};
+      const partnerId = Number(cpage.params?.partner ?? 0);
       if (!partner || (partnerId > 0 && partnerId !== partner["pid"])) {
         fetchPartner().then((p) => {
           if (p) {
@@ -85,22 +88,24 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
               setApp({ name: params.app, params });
             }
             setPartner(p);
-            const au = getAuthenticator(p, { name: currentPage.app, params }, currentPage.name);
+            const au = getAuthenticator(p, { name: cpage.app, params }, cpage.name);
             setAuthenticator(au);
+          } else {
+            console.log("partner not found");
+            createEvent({ name: "PartnerNotFound", topic: "alert", data: "Partner Not Found", delay: 0 });
           }
         });
       } else if (!app || params.app !== app.name) {
         setApp({ name: params.app, params });
-        const au = getAuthenticator(partner, { name: currentPage.app, params }, currentPage.name);
+        const au = getAuthenticator(partner, { name: cpage.app, params }, cpage.name);
         setAuthenticator(au);
       }
     }
-  }, [currentPage]);
+  }, [currentPage, createEvent]);
 
   return <PartnerContext.Provider value={{ partner, app, authenticator }}> {children} </PartnerContext.Provider>;
 };
 export const usePartnerManager = () => {
-  const ctx = useContext(PartnerContext);
-  return ctx;
+  return useContext(PartnerContext);
 };
 export default PartnerProvider;

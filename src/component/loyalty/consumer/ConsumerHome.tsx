@@ -18,7 +18,6 @@ const ConsumerHome: React.FC<PageProps> = (pageProp) => {
     let url =
       window.location.protocol + "//" + window.location.host + "/loyalty/gameplay" + "?u=" + uid + "&t=" + token;
     if (partner.pid > 0) url = url + "&partner=" + partner.pid;
-    console.log(url);
     window.open(url, "_blank");
   }, [partner, user]);
   return (

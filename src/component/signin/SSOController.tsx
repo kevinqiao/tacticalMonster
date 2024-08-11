@@ -1,4 +1,3 @@
-import { Loading } from "component/common/StyledComponents";
 import { useAction } from "convex/react";
 import { gsap } from "gsap";
 import { AppsConfiguration } from "model/PageConfiguration";
@@ -8,6 +7,7 @@ import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/_generated/api";
 import "./signin.css";
+import { Loading } from "component/common/StyledComponents";
 export interface AuthProps {
   provider:
     | {
@@ -60,7 +60,7 @@ const SSOController: React.FC = () => {
     },
     [authenticator]
   );
-  console.log(provider);
+
   useEffect(() => {
     const checkURL = async (uid: string, token: string, persist: number) => {
       if (!authenticator) return;
@@ -73,8 +73,6 @@ const SSOController: React.FC = () => {
     const checkStorage = async (partnerId: number) => {
       if (!authenticator) return;
       const userJSON = localStorage.getItem("user");
-      console.log("partnerId:" + partnerId);
-      console.log(userJSON);
       let u = null;
       if (userJSON !== null) {
         const userObj = JSON.parse(userJSON);
@@ -127,13 +125,14 @@ const SSOController: React.FC = () => {
         ref={loadingRef}
         style={{
           position: "absolute",
-          zIndex: 2100,
+          zIndex: 1100,
           top: 0,
           left: 0,
           width: "100vw",
           height: "100vh",
           color: "white",
           backgroundColor: "blue",
+          opacity: 0,
           visibility: "hidden",
         }}
       >

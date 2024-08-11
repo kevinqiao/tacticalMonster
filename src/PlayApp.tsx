@@ -25,7 +25,6 @@ const MainApp = () => {
     <>
       <div style={{ position: "relative", top: 0, left: 0, width: "100%", height: "100%" }}>
         <NavPage />
-        {/* <StackController /> */}
       </div>
       {controller}
     </>
@@ -50,7 +49,7 @@ const FlattenedProviderTree = (providers: any): any => {
     ...providers,
   ]);
 };
-function StyleApp() {
+const StyleApp = () => {
   const { locale } = useLocalization();
   // console.log("style locale:" + locale);
   const theme = {
@@ -76,7 +75,7 @@ function StyleApp() {
       <Alert />
     </Providers>
   );
-}
+};
 
 const PlayApp: React.FC = () => {
   const Providers = FlattenedProviderTree([[ConvexProvider, { client: convex }], [LocalizationProvider]]);

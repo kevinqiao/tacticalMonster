@@ -79,10 +79,10 @@ export const Consumer =
             uri: "/home",
         },
         {
-            name: "orderAct",
+            name: "orderScan",
             auth: 0,
             path: "./loyalty/consumer/OrderAct",
-            uri: "/orderact",
+            uri: "/scan/order",
         },
         {
             name: "member",

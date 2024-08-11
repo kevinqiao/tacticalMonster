@@ -7,7 +7,6 @@ import { PageConfig } from "model/PageProps";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";
-import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import { buildNavURL, getCurrentAppConfig } from "util/PageUtils";
 import { api } from "../../../convex/_generated/api";
@@ -15,6 +14,7 @@ import { AuthProps } from "../SSOController";
 import "../signin.css";
 
 const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
@@ -22,23 +22,15 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
   const { user, authComplete } = useUserManager();
-  const { partner } = usePartnerManager();
-  const { currentPage, openPage, prevPage } = usePageManager();
+  const { currentPage, openPage, getPrePage } = usePageManager();
   const { event: accountEvent } = useEventSubscriber([], ["account"]);
   const convex = useConvex();
-  console.log(user);
   const redirectURL = useMemo(() => {
-    if (partner && currentPage) {
-      if (partner.pid > 0) {
-        currentPage.params
-          ? (currentPage.params["partner"] = "" + partner.pid)
-          : (currentPage.params = { partner: "" + partner.pid });
-      }
+    if (currentPage) {
       const url = buildNavURL(currentPage);
-
       return url;
     }
-  }, [partner, user, currentPage]);
+  }, [currentPage]);
   useEffect(() => {
     if (user && isSignedIn) {
       signOut();
@@ -46,18 +38,23 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   }, [user, isSignedIn, signOut]);
 
   useEffect(() => {
+    if (!provider) return;
+    const tl = gsap.timeline({
+      onComplete: () => {
+        setInitCompleted(1);
+        tl.kill();
+      },
+    });
     if (provider?.isOpen) {
       console.log("initial opening....");
-      open();
-      setTimeout(() => setInitCompleted(1), 800);
+      open(tl);
     } else {
       console.log("initial closing....");
-      close();
-      setTimeout(() => setInitCompleted(1), 100);
+      close(tl);
     }
   }, [provider]);
   useEffect(() => {
-    if (!currentPage || !initCompleted) return;
+    if (!currentPage || initCompleted === 0) return;
     const role = user ? user.role ?? 1 : 0;
     const appCfg: any = AppsConfiguration.find((c) => c.name === currentPage.app);
     if (appCfg?.navs) {
@@ -66,10 +63,10 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
         const cauth = pageCfg.auth ?? 0;
         if (role < cauth) {
           console.log("opening....");
-          open();
+          open(null);
         } else {
           console.log("closing....");
-          close();
+          close(null);
         }
       }
     }
@@ -77,47 +74,74 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
 
   useEffect(() => {
     if (accountEvent && accountEvent?.name === "signin") {
-      open();
+      open(null);
     }
   }, [accountEvent]);
 
-  const open = useCallback(() => {
-    const tl = gsap.timeline({
-      onComplete: () => {
-        tl.kill();
-      },
-    });
-    tl.to(maskRef.current, { autoAlpha: 0.7, duration: 0.8 });
-    tl.to(closeBtnRef.current, { autoAlpha: 1, duration: 0.8 }, "<");
-    tl.to(controllerRef.current, { autoAlpha: 1, scale: 1.0, duration: 0.8 }, "<");
-    tl.play();
+  const open = useCallback((timeline: any) => {
+    let timeout = 0;
+    let tl = timeline;
+    if (timeline == null) {
+      const gtl = timelineRef.current;
+      if (!gtl || !gtl.isActive) {
+        tl = gsap.timeline({
+          onComplete: () => {
+            tl.kill();
+          },
+        });
+        timelineRef.current = tl;
+      } else {
+        tl = gtl;
+        timeout = gtl.totalDuration() - gtl.totalTime();
+      }
+    }
+    setTimeout(() => {
+      tl.to(maskRef.current, { autoAlpha: 0.7, duration: 0.8 });
+      tl.to(closeBtnRef.current, { autoAlpha: 1, duration: 0.8 }, "<");
+      tl.to(controllerRef.current, { autoAlpha: 1, scale: 1.0, duration: 0.8 }, "<");
+      tl.play();
+    }, timeout);
   }, []);
 
-  const close = useCallback(() => {
-    const tl = gsap.timeline({
-      onComplete: () => {
-        tl.kill();
-      },
-    });
-    tl.to(maskRef.current, { autoAlpha: 0, duration: 0.1 });
-    tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.1 }, "<");
-    tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.6, duration: 0.1 }, "<");
-    tl.play();
+  const close = useCallback((timeline: any) => {
+    let timeout = 0;
+    let tl = timeline;
+    if (timeline == null) {
+      const gtl = timelineRef.current;
+      if (!gtl || !gtl.isActive) {
+        tl = gsap.timeline({
+          onComplete: () => {
+            tl.kill();
+          },
+        });
+        timelineRef.current = tl;
+      } else {
+        tl = gtl;
+        timeout = gtl.totalDuration() - gtl.totalTime();
+      }
+    }
+    setTimeout(() => {
+      tl.to(maskRef.current, { autoAlpha: 0, duration: 0.1 });
+      tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.1 }, "<");
+      tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.6, duration: 0.1 }, "<");
+      tl.play();
+    }, timeout);
   }, []);
+
   const cancel = useCallback(() => {
+    const prevPage = getPrePage();
     if (prevPage) openPage(prevPage);
     else {
       const appConfig = getCurrentAppConfig();
       if (appConfig.entry) openPage({ name: appConfig.entry, app: appConfig.name });
     }
-    close();
+    close(null);
   }, []);
 
   useEffect(() => {
     const channelAuth = async () => {
       const t: string | null = await getToken();
       if (t && provider) {
-        // const res = await convex.action(api.authoize.authorizeClerk, { jwttoken: t, partner: partner.pid });
         const res = await convex.action(api.authoize.authorize, {
           data: { jwttoken: t },
           channelId: provider.channel,
@@ -129,7 +153,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
       }
     };
     if (provider && isSignedIn) {
-      close();
+      close(null);
       channelAuth();
     }
   }, [isSignedIn, provider, signOut]);
@@ -139,12 +163,12 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
         ref={maskRef}
         className="mask"
         style={{
-          zIndex: 1990,
+          zIndex: 990,
           width: "100vw",
           height: "100vh",
           opacity: 0,
           visibility: "hidden",
-          backgroundColor: prevPage ? "black" : "yellow",
+          backgroundColor: getPrePage() ? "black" : "yellow",
         }}
       ></div>
       <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={cancel} />
@@ -152,7 +176,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
         ref={controllerRef}
         className="signin_control"
         style={{
-          zIndex: 2000,
+          zIndex: 1000,
           opacity: 0,
           visibility: "hidden",
         }}

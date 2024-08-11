@@ -70,6 +70,7 @@ module.exports = {
         enforce: "pre",
       },
       // 处理 .ts 或 .tsx 文件
+
       {
         test: /\.(ts|tsx)$/, // 处理.ts和.tsx文件
         exclude: /node_modules/,

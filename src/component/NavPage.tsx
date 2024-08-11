@@ -8,7 +8,7 @@ import "./popup.css";
 
 const NavPage: React.FC = () => {
   const { user } = useUserManager();
-  const { currentPage, prevPage } = usePageManager();
+  const { currentPage, getPrePage } = usePageManager();
   const [pageProp, setPageProp] = useState<any>(null);
 
   useEffect(() => {
@@ -23,14 +23,13 @@ const NavPage: React.FC = () => {
           if (!pageProp || currentPage.app !== pageProp.app || currentPage.name !== pageProp.name) {
             if (config.child) currentPage.child = config.child;
             const url = buildNavURL(currentPage);
-            if (prevPage) window.history.pushState({}, "", url);
+            if (getPrePage()) window.history.pushState({}, "", url);
             setPageProp(prop);
-            // setCurrentPageStatus(1);
           }
         }
       }
     }
-  }, [currentPage, prevPage, user]);
+  }, [currentPage, getPrePage, user]);
 
   const render = useMemo(() => {
     if (pageProp?.config.path) {

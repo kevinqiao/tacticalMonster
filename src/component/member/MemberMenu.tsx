@@ -21,16 +21,16 @@ const pageIndexs = [
 ];
 const MemberMenu: React.FC = () => {
   const coord = useCoord();
-  const { prevPage, currentPage, openPage } = usePageManager();
+  const { currentPage, openPage } = usePageManager();
 
-  useEffect(() => {
-    if (prevPage) {
-      // const preicon = "#men-" + preIndexRef.current;
-      // gsap.to(preicon, { y: 0, duration: 1 });
-      const premenu = "#menu-" + prevPage.name;
-      gsap.to(premenu, { fill: "grey", duration: 1 });
-    }
-  }, [prevPage]);
+  // useEffect(() => {
+  //   if (prevPage) {
+  //     // const preicon = "#men-" + preIndexRef.current;
+  //     // gsap.to(preicon, { y: 0, duration: 1 });
+  //     const premenu = "#menu-" + prevPage.name;
+  //     gsap.to(premenu, { fill: "grey", duration: 1 });
+  //   }
+  // }, [prevPage]);
   useEffect(() => {
     if (currentPage) {
       const curmenu = "#menu-" + currentPage.name;

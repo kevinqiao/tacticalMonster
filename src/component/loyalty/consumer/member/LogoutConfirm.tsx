@@ -38,6 +38,7 @@ const LogoutConfirm: React.FC<Props> = ({ confirmOpen, onCancel }) => {
   const confirm = useCallback(() => {
     logout();
     openEntry();
+    close();
   }, [logout, openEntry]);
   useEffect(() => {
     if (confirmOpen) open();

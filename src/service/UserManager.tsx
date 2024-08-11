@@ -33,7 +33,7 @@ const UserContext = createContext<IUserContext>({
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-  const { stacks, openPage } = usePageManager();
+  const { openPage } = usePageManager();
   const [user, setUser] = useState<any>(null);
   const { createEvent } = useEventSubscriber([], ["account"]);
   const [lastTime, setLastTime] = useState<number>(0);
@@ -69,12 +69,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         pageItem.name = "lobbyPlay";
         openPage(pageItem);
       } else {
-        pageItem.name = "battlePlay";
-        const stack = stacks.find((s) => s.name === "battlePlay");
-        if (!stack) openPage(pageItem);
+        // pageItem.name = "battlePlay";
+        // const stack = stacks.find((s) => s.name === "battlePlay");
+        // if (!stack) openPage(pageItem);
       }
     },
-    [openPage, stacks]
+    [openPage]
   );
 
   const authComplete = useCallback(
