@@ -10,15 +10,15 @@ import { api } from "../../../../convex/_generated/api";
 import "../consumer.css";
 import LogoutConfirm from "./LogoutConfirm";
 
-const MenuControl: React.FC<{ menuComponent: any | null | undefined; onClose: () => void }> = ({
-  menuComponent,
+const MenuControl: React.FC<{ menu: { name: string; path: string } | null; onClose: () => void }> = ({
+  menu,
   onClose,
 }) => {
   const { width, height } = useCoord();
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
-  const SelectedComponent: FunctionComponent = menuComponent?.component;
+
   const open = useCallback(() => {
     const tl = gsap.timeline({
       onComplete: () => {
@@ -45,12 +45,23 @@ const MenuControl: React.FC<{ menuComponent: any | null | undefined; onClose: ()
   }, []);
 
   useEffect(() => {
-    if (menuComponent) {
+    if (menu) {
       open();
     } else {
       close();
     }
-  }, [menuComponent]);
+  }, [menu]);
+
+  const render = useMemo(() => {
+    if (menu) {
+      const SelectedComponent: FunctionComponent = lazy(() => import(`${menu.path}`));
+      return (
+        <Suspense fallback={<div />}>
+          <SelectedComponent />
+        </Suspense>
+      );
+    }
+  }, [menu]);
   return (
     <>
       <div
@@ -69,56 +80,19 @@ const MenuControl: React.FC<{ menuComponent: any | null | undefined; onClose: ()
         }}
       >
         <MemberMenuCloseBtn ref={closeBtnRef} style={{ zIndex: 2001 }} onClick={onClose} />
-        {SelectedComponent ? (
-          <Suspense
-            fallback={
-              <div
-                style={{
-                  position: "fixed",
-                  top: 0,
-                  left: 0,
-                  width: "100vw",
-                  height: "100vh",
-                  color: "white",
-                  backgroundColor: "blue",
-                }}
-              >
-                Loading
-              </div>
-            }
-          >
-            <SelectedComponent />
-          </Suspense>
-        ) : null}
+        {render}
       </div>
     </>
   );
 };
 
 const MemberHome: React.FC<PageProps> = (pageProp) => {
-  const { width, height } = useCoord();
   const { user, logout } = useUserManager();
-  const { openEntry } = usePageManager();
-  const [menu, setMenu] = useState<string | null>(null);
+  const { openPage } = usePageManager();
+  const [selectedMenu, setSelectedMenu] = useState<{ name: string; path: string } | null>(null);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [components, setComponents] = useState<{ name: string; component: any }[]>([]);
   const convex = useConvex();
-  const component = useMemo(() => {
-    if (menu) {
-      return components.find((c) => c.name === menu);
-    } else return null;
-  }, [menu]);
 
-  useEffect(() => {
-    if (pageProp.config?.children) {
-      const cs: { name: string; component: any }[] = [];
-      for (const child of pageProp.config.children) {
-        const c = child.uri ? lazy(() => import(`${child.path}`)) : null;
-        if (c) cs.push({ name: child.name, component: c });
-      }
-      setComponents(cs);
-    }
-  }, [pageProp]);
   useEffect(() => {
     const asyncCall = async () => {
       const reward = await convex.query(api.loyalty.reward.openReward, { partnerId: "1000", orderId: "12344" });
@@ -132,11 +106,11 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
   // }, [logout, openEntry]);
 
   const render = useMemo(() => {
+    if (!pageProp.config.children) return;
     return (
       <>
-        <div style={{ height: "40vh", width: "100vw" }}></div>
-        <div style={{ width: "100vw" }}>
-          {components.map((c, index) => (
+        <div style={{ width: "100vw", height: "100vh" }}>
+          {pageProp.config.children.map((c, index) => (
             <div
               key={c.name}
               style={{
@@ -152,7 +126,7 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
                 borderWidth: "2px 2px 2px 2px",
                 borderColor: "white",
               }}
-              onClick={() => setMenu(c.name)}
+              onClick={() => setSelectedMenu(c)}
             >
               {c.name}
             </div>
@@ -172,7 +146,7 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
               borderWidth: "2px 2px 2px 2px",
               borderColor: "white",
             }}
-            onClick={openEntry}
+            onClick={() => openPage({ name: "home", app: "consumer" })}
           >
             Back To Home
           </div>
@@ -206,11 +180,11 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
             Logout
           </div>
         </div>
-        <MenuControl menuComponent={component} onClose={() => setMenu(null)} />
+        <MenuControl menu={selectedMenu} onClose={() => setSelectedMenu(null)} />
         <LogoutConfirm confirmOpen={logoutConfirmOpen} onCancel={() => setLogoutConfirmOpen(false)} />
       </>
     );
-  }, [pageProp, components, component, logoutConfirmOpen, user, height, width]);
+  }, [pageProp, logoutConfirmOpen, user]);
   return <>{render}</>;
 };
 

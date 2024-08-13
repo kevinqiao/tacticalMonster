@@ -1,69 +1,102 @@
-import { AppsConfiguration } from "model/PageConfiguration";
-import { PageConfig, PageItem } from "model/PageProps";
+import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { getCurrentAppConfig, parseURL } from "util/PageUtils";
-
+const STACK_SIZE = 3;
 export interface PageEvent {
   name: string;
   page: string;
 }
 
 interface IPageContext {
+  renderPage: PageItem | null;
   currentPage: PageItem | null;
   openEntry: () => void;
   openPage: (page: PageItem) => void;
+  cancelCurrent: () => void;
+  startRender: () => void;
   getPrePage: () => PageItem | null;
 }
 const PageContext = createContext<IPageContext>({
   currentPage: null,
+  renderPage: null,
   openEntry: () => null,
   openPage: (p: PageItem) => null,
+  cancelCurrent: () => null,
+  startRender: () => null,
   getPrePage: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
-  const preRef = useRef<PageItem | null>(null);
+  const preRef = useRef<PageItem[]>([]);
   const [currentPage, setCurrentPage] = useState<PageItem | null>(null);
-
-  const openPage = useCallback((page: PageItem) => {
-    const app = AppsConfiguration.find((a) => a.name === page.app);
-    const cfg: PageConfig | undefined = app.navs.find((p: any) => p.name === page.name);
-    if (cfg) {
-      setCurrentPage((pre) => {
-        if (pre) preRef.current = pre;
-        console.log({ ...page });
-        return { ...page, t: 2 };
-      });
+  const [renderPage, setRenderPage] = useState<PageItem | null>(null);
+  console.log("page Provider");
+  const unshift = useCallback((p: PageItem) => {
+    preRef.current.unshift(p);
+    if (preRef.current.length > STACK_SIZE) {
+      preRef.current.pop();
     }
   }, []);
+  const shift = useCallback(() => {
+    if (preRef.current.length === 0) return undefined;
+    else return preRef.current.shift();
+  }, []);
+
+  const openPage = useCallback(
+    (page: PageItem) => {
+      console.log("opening page...");
+      if (currentPage) {
+        preRef.current.unshift(currentPage);
+        if (preRef.current.length > STACK_SIZE) {
+          preRef.current.pop();
+        }
+      }
+      setCurrentPage(page);
+    },
+    [currentPage, setCurrentPage]
+  );
+
+  const cancelCurrent = useCallback(() => {
+    if (!renderPage || currentPage?.name !== renderPage.name) {
+      const prePage = shift();
+      if (prePage) setCurrentPage(prePage);
+    }
+  }, [currentPage]);
+
   const openEntry = useCallback(() => {
     const appConfig = getCurrentAppConfig();
-    if (appConfig) {
-      setCurrentPage((pre) => {
-        if (pre) preRef.current = pre;
-        return { name: appConfig.entry, app: appConfig.name };
-      });
-    }
+    // if (appConfig) {
+    //   setCurrentPage((pre) => {
+    //     if (pre) unshift(pre);
+    //     return { name: appConfig.entry, app: appConfig.name };
+    //   });
+    // }
   }, []);
+
+  const startRender = useCallback(() => {
+    console.log("set render page");
+    if (currentPage) setRenderPage({ ...currentPage });
+  }, [currentPage]);
+
   const getPrePage = useCallback(() => {
-    return preRef.current;
+    if (preRef.current.length > 0) return preRef.current[0];
+    else return null;
   }, []);
 
   useEffect(() => {
     const handlePopState = (event: any) => {
-      console.log("pop page");
+      console.log("pop handling..");
       const prop = parseURL(window.location);
       setCurrentPage((pre) => {
-        if (pre) preRef.current = pre;
+        if (pre) unshift(pre);
         return prop["navItem"] ?? null;
       });
     };
-
+    console.log("pop handling..");
     const prop = parseURL(window.location);
-    if (prop.ctx) {
-      console.log(prop);
+    if (prop.ctx && prop.navItem) {
       setCurrentPage((pre) => {
-        if (pre) preRef.current = pre;
+        if (pre) unshift(pre);
         return prop["navItem"] ?? null;
       });
     }
@@ -76,7 +109,10 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const value = {
     currentPage,
+    renderPage,
+    cancelCurrent,
     openPage,
+    startRender,
     openEntry,
     getPrePage,
   };
@@ -84,8 +120,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const usePageManager = () => {
-  const ctx = useContext(PageContext);
-
-  return ctx;
+  return useContext(PageContext);
 };
 export default PageProvider;

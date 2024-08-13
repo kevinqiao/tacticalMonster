@@ -46,7 +46,7 @@ export const TerminalProvider = ({ children }: { children: ReactNode }) => {
     LobbyMenuH: 0,
     LobbyMenuW: 0,
   });
-
+  console.log("terminal provider");
   const updateCoord = () => {
     const w = window.innerWidth as number;
     const h = window.innerHeight as number;

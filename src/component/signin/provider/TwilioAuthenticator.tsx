@@ -23,17 +23,22 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
   const { user, authComplete } = useUserManager();
-  const { currentPage, renderPage, getPrePage, cancelCurrent } = usePageManager();
-  const { event: accountEvent } = useEventSubscriber(["signin"], ["account"]);
+  const { currentPage, renderPage, openPage, getPrePage } = usePageManager();
+  const { event: accountEvent } = useEventSubscriber([], ["account"]);
   const convex = useConvex();
-  console.log("clerk provider");
+
+  // const redirectURL = useMemo(() => {
+  //   if (currentPage) {
+  //     const url = buildNavURL(currentPage);
+  //     return url;
+  //   }
+  // }, [currentPage]);
   useEffect(() => {
     if (!currentPage) return;
     if (!renderPage || renderPage.name !== currentPage?.name) {
       setRedirectURL(buildNavURL(currentPage));
-    } else setRedirectURL("/loyalty/member");
+    } else setRedirectURL(buildNavURL(renderPage));
   }, [currentPage, renderPage, getPrePage]);
-
   useEffect(() => {
     if (user && isSignedIn) {
       signOut();
@@ -133,9 +138,14 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   }, []);
 
   const cancel = useCallback(() => {
-    cancelCurrent();
+    // const prevPage = getPrePage();
+    // if (prevPage) openPage(prevPage);
+    // else {
+    //   const appConfig = getCurrentAppConfig();
+    //   if (appConfig.entry) openPage({ name: appConfig.entry, app: appConfig.name });
+    // }
     close(null);
-  }, [cancelCurrent, close]);
+  }, [currentPage, renderPage]);
 
   useEffect(() => {
     const channelAuth = async () => {
@@ -186,7 +196,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   );
 };
 
-const ClerkAuthenticator: React.FC<AuthProps> = ({ provider }) => {
+const TwilioAuthenticator: React.FC<AuthProps> = ({ provider }) => {
   return (
     <ClerkProvider publishableKey="pk_test_bGVuaWVudC1sb3VzZS04Ni5jbGVyay5hY2NvdW50cy5kZXYk">
       <AuthorizeToken provider={provider} />
@@ -194,4 +204,4 @@ const ClerkAuthenticator: React.FC<AuthProps> = ({ provider }) => {
   );
 };
 
-export default ClerkAuthenticator;
+export default TwilioAuthenticator;

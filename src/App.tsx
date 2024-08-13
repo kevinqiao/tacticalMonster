@@ -1,15 +1,15 @@
 import Alert from "component/common/Alert";
 import GlobalStyle from "component/common/GlobalStyle";
 import Head from "component/common/Head";
-import NavPage from "component/NavPage";
+import RenderApp from "component/RenderApp";
 import SSOController from "component/signin/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React, { useMemo } from "react";
 import { EventProvider } from "service/EventManager";
-import useLocalization, { LocalizationProvider } from "service/LocalizationManager";
+import { LocalizationProvider } from "service/LocalizationManager";
 import PartnerProvider from "service/PartnerManager";
-import SceneProvider from "service/SceneManager";
 import { TerminalProvider } from "service/TerminalManager";
+import TestProvider from "service/TestManager";
 import { ThemeProvider } from "styled-components";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
@@ -19,16 +19,21 @@ const convex = new ConvexReactClient("https://dazzling-setter-839.convex.cloud")
 //   skipConvexDeploymentUrlCheck: true,
 // });
 const MainApp = () => {
-  const controller = useMemo(() => <SSOController />, []);
-
-  return (
-    <>
-      <div style={{ position: "relative", top: 0, left: 0, width: "100%", height: "100%" }}>
-        <NavPage />
-      </div>
-      {controller}
-    </>
+  console.log("main app...");
+  const render = useMemo(
+    () => (
+      <>
+        <div style={{ position: "relative", top: 0, left: 0, width: "100vh", height: "100vw" }}>
+          {/* <NavPage /> */}
+          <RenderApp />
+        </div>
+        <SSOController />
+      </>
+    ),
+    []
   );
+
+  return <>{render}</>;
 };
 
 const FlattenedProviderTree = (providers: any): any => {
@@ -50,7 +55,7 @@ const FlattenedProviderTree = (providers: any): any => {
   ]);
 };
 const StyleApp = () => {
-  const { locale } = useLocalization();
+  // const { locale } = useLocalization();
   // console.log("style locale:" + locale);
   const theme = {
     primaryColor: "#4CAF50",
@@ -58,9 +63,10 @@ const StyleApp = () => {
     backgroundColor: "#F0F0F0",
   };
   const Providers = FlattenedProviderTree([
-    [SceneProvider],
-    [EventProvider],
+    // [SceneProvider],
     [PageProvider],
+    [TestProvider],
+    [EventProvider],
     [TerminalProvider],
     [PartnerProvider],
     [ThemeProvider, { theme }],
@@ -77,8 +83,9 @@ const StyleApp = () => {
   );
 };
 
-const PlayApp: React.FC = () => {
+const App: React.FC = () => {
   const Providers = FlattenedProviderTree([[ConvexProvider, { client: convex }], [LocalizationProvider]]);
+  console.log("app....");
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <Providers>
@@ -87,4 +94,4 @@ const PlayApp: React.FC = () => {
     </div>
   );
 };
-export default PlayApp;
+export default App;

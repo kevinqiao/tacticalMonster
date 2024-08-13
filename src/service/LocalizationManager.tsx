@@ -28,6 +28,7 @@ export const LocalizationProvider = ({ children }: { children: ReactNode }) => {
   const [resources, setResources] = useState<{ [k: string]: { [k: string]: string } }>({});
   const convex = useConvex();
   const [locale, setLocale] = useState<string>("en-US");
+  console.log("locale provider");
   useEffect(() => {
     const handleLanguageChange = () => {
       const lan = navigator.language;

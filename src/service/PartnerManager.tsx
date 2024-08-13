@@ -37,7 +37,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
   const [partner, setPartner] = useState<PartnerModel | null>(null);
   const [authenticator, setAuthenticator] = useState<Authenticator | null>(null);
   const { createEvent } = useEventSubscriber(undefined, undefined);
-
+  console.log("partner provider");
   const convex = useConvex();
 
   const getAuthenticator = useCallback((p: PartnerModel, a: App, page: string): Authenticator | null => {

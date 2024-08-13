@@ -1,9 +1,7 @@
 import { useQuery } from "convex/react";
-import { BATTLE_LOAD } from "model/Constants";
-import { PageItem } from "model/PageProps";
 import { User } from "model/User";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { buildStackURL, getCurrentAppConfig, getURIParam } from "util/PageUtils";
+import { getCurrentAppConfig } from "util/PageUtils";
 import { api } from "../convex/_generated/api";
 import useEventSubscriber from "./EventManager";
 import { usePageManager } from "./PageManager";
@@ -39,43 +37,40 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [lastTime, setLastTime] = useState<number>(0);
   const { app } = usePartnerManager();
   // const authByToken = useAction(api.UserService.authByToken);
-
+  console.log("user provider");
   const userEvent: any = useQuery(api.events.getByUser, {
     uid: user?.uid ?? "###",
     lastTime,
   });
 
-  const openPlay = useCallback(
-    (player: any, battleId: string | null) => {
-      const appConfig: any = getCurrentAppConfig();
+  const openPlay = useCallback((player: any, battleId: string | null) => {
+    const appConfig: any = getCurrentAppConfig();
 
-      const pageItem: PageItem = {
-        name: "battlePlay",
-        app: appConfig.name,
-        // data: battleId ? { battleId, load: BATTLE_LOAD.PLAY } : undefined,
-        // params: battleId ? { battleId, load: BATTLE_LOAD.PLAY } : null,
-      };
-      if (battleId) {
-        pageItem.data = { battleId, load: BATTLE_LOAD.PLAY + "" };
-        pageItem.params = { battleId, load: BATTLE_LOAD.PLAY + "" };
-      }
-      const mode = getURIParam("m");
+    // const pageItem: PageItem = {
+    //   name: "battlePlay",
+    //   app: appConfig.name,
+    //   // data: battleId ? { battleId, load: BATTLE_LOAD.PLAY } : undefined,
+    //   // params: battleId ? { battleId, load: BATTLE_LOAD.PLAY } : null,
+    // };
+    // if (battleId) {
+    //   pageItem.data = { battleId, load: BATTLE_LOAD.PLAY + "" };
+    //   pageItem.params = { battleId, load: BATTLE_LOAD.PLAY + "" };
+    // }
+    // const mode = getURIParam("m");
 
-      if (window.Telegram) {
-        pageItem.params = { uid: player.uid, token: player.token, m: "1" };
-        const url = buildStackURL(pageItem);
-        window.Telegram.WebApp.openLink(url);
-      } else if (mode && mode === "1") {
-        pageItem.name = "lobbyPlay";
-        openPage(pageItem);
-      } else {
-        // pageItem.name = "battlePlay";
-        // const stack = stacks.find((s) => s.name === "battlePlay");
-        // if (!stack) openPage(pageItem);
-      }
-    },
-    [openPage]
-  );
+    // if (window.Telegram) {
+    //   pageItem.params = { uid: player.uid, token: player.token, m: "1" };
+    //   const url = buildStackURL(pageItem);
+    //   window.Telegram.WebApp.openLink(url);
+    // } else if (mode && mode === "1") {
+    //   pageItem.name = "lobbyPlay";
+    //   openPage(pageItem);
+    // } else {
+    //   // pageItem.name = "battlePlay";
+    //   // const stack = stacks.find((s) => s.name === "battlePlay");
+    //   // if (!stack) openPage(pageItem);
+    // }
+  }, []);
 
   const authComplete = useCallback(
     (u: User, persist: number): number => {
@@ -87,8 +82,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       // const mode = getURIParam("m"); //mode=1 one time play session
 
       if (persist) {
-        console.log("persist user to local storage");
-        console.log(u);
         localStorage.setItem("user", JSON.stringify(u));
       }
       if (u.battleId) {

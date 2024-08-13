@@ -8,6 +8,7 @@ const ConsumerHome: React.FC<PageProps> = (pageProp) => {
   const { partner } = usePartnerManager();
   const { user, logout } = useUserManager();
   const { openPage } = usePageManager();
+  console.log("consumer home");
   const openMemberCenter = useCallback(() => {
     const page = { name: "member", app: "consumer" };
     openPage(page);

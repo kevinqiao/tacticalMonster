@@ -16,6 +16,7 @@ export const EventContext = createContext<IContextProps>({
 } as IContextProps);
 
 export const EventProvider = ({ children }: { children: React.ReactNode }) => {
+  console.log("event provider");
   const subject = useMemo(() => {
     return new Subject<EventModel>();
   }, []);

@@ -79,14 +79,14 @@ export const Consumer =
             uri: "/home",
         },
         {
-            name: "orderScan",
+            name: "scanOrder",
             auth: 0,
-            path: "./loyalty/consumer/OrderAct",
+            path: "./loyalty/consumer/order/OrderScan",
             uri: "/scan/order",
         },
         {
             name: "member",
-            auth: 1,
+            auth: 0,
             path: "./loyalty/consumer/member/MemberHome",
             uri: "/member",
             children: [
@@ -95,13 +95,8 @@ export const Consumer =
                 { name: "booking", path: "./BookingHome", uri: "booking" },
                 { name: "setting", path: "./SettingHome", uri: "setting" },
             ]
-        },
-        {
-            name: "gameplay",
-            auth: 1,
-            path: "./loyalty/consumer/GameHome",
-            uri: "/gameplay",
         }
+
     ],
 }
 export const Merchant =

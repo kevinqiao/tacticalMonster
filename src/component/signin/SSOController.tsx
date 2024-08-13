@@ -1,3 +1,4 @@
+import { Loading } from "component/common/StyledComponents";
 import { useAction } from "convex/react";
 import { gsap } from "gsap";
 import { AppsConfiguration } from "model/PageConfiguration";
@@ -7,7 +8,6 @@ import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/_generated/api";
 import "./signin.css";
-import { Loading } from "component/common/StyledComponents";
 export interface AuthProps {
   provider:
     | {
@@ -25,6 +25,7 @@ export interface AuthProps {
 }
 // gsap.registerPlugin(MotionPathPlugin);
 const SSOController: React.FC = () => {
+  console.log("SSO controller");
   const loadingRef = useRef<HTMLDivElement | null>(null);
   const [provider, setProvider] = useState<
     | {
