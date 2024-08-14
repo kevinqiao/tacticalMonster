@@ -10,6 +10,7 @@ export const TestContext = createContext<IContextProps>({
 
 export const TestProvider = ({ children }: { children: React.ReactNode }) => {
   const [status, setStatus] = useState(0);
+  // const { getPrePage } = usePageManager();
   console.log("test provider");
   return <TestContext.Provider value={{ status }}>{children}</TestContext.Provider>;
 };

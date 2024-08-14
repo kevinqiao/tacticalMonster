@@ -54,4 +54,5 @@ export interface PageItem {
     params?: { [key: string]: string };
     hash?: { [key: string]: string };
     child?: string;
+    time?: number;
 }

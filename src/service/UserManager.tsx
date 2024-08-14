@@ -1,10 +1,7 @@
-import { useQuery } from "convex/react";
 import { User } from "model/User";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { getCurrentAppConfig } from "util/PageUtils";
-import { api } from "../convex/_generated/api";
 import useEventSubscriber from "./EventManager";
-import { usePageManager } from "./PageManager";
 import { usePartnerManager } from "./PartnerManager";
 interface UserEvent {
   id: string;
@@ -31,17 +28,17 @@ const UserContext = createContext<IUserContext>({
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-  const { openPage } = usePageManager();
   const [user, setUser] = useState<any>(null);
-  const { createEvent } = useEventSubscriber([], ["account"]);
+  const { createEvent } = useEventSubscriber(undefined, undefined, "userProvider");
   const [lastTime, setLastTime] = useState<number>(0);
   const { app } = usePartnerManager();
   // const authByToken = useAction(api.UserService.authByToken);
   console.log("user provider");
-  const userEvent: any = useQuery(api.events.getByUser, {
-    uid: user?.uid ?? "###",
-    lastTime,
-  });
+  const [userEvent, setUserEvent] = useState<any>(null);
+  // const userEvent: any = useQuery(api.events.getByUser, {
+  //   uid: user?.uid ?? "###",
+  //   lastTime,
+  // });
 
   const openPlay = useCallback((player: any, battleId: string | null) => {
     const appConfig: any = getCurrentAppConfig();
@@ -86,8 +83,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       }
       if (u.battleId) {
         openPlay(u, u.battleId);
-      } else if (u["insearch"]) {
-        createEvent({ name: "searchOpen", topic: "search", delay: 0 });
       }
       if (u.timestamp) setLastTime(u.timestamp);
       setUser(u);
@@ -110,8 +105,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     if (app) {
       localStorage.removeItem("user");
       setUser(null);
+      createEvent({ name: "signout", topic: "account", delay: 0 });
     }
-  }, [app, createEvent]);
+  }, [app]);
   useEffect(() => {
     if (userEvent && user) {
       if (userEvent?.name === "battleCreated") {

@@ -1,5 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Subject } from "rxjs";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 export declare type EventModel = {
   name: string;
   topic?: string;
@@ -7,48 +6,41 @@ export declare type EventModel = {
   delay: number;
   data?: any;
 };
-interface IContextProps {
-  subject: Subject<EventModel> | null;
+interface IEventContext {
+  event: EventModel | null;
+  createEvent: (event: EventModel) => void;
 }
 
-export const EventContext = createContext<IContextProps>({
-  subject: null,
-} as IContextProps);
+const EventContext = createContext<IEventContext | undefined>(undefined);
 
 export const EventProvider = ({ children }: { children: React.ReactNode }) => {
-  console.log("event provider");
-  const subject = useMemo(() => {
-    return new Subject<EventModel>();
+  const [event, setEvent] = useState<EventModel | null>(null);
+  const createEvent = useCallback((e: EventModel) => {
+    console.log(e);
+    setEvent(e);
+    // setTimeout(() => {
+    //   setEvent(e);
+    // }, e.delay);
   }, []);
-  return <EventContext.Provider value={{ subject: subject }}>{children}</EventContext.Provider>;
+
+  return <EventContext.Provider value={{ event, createEvent }}>{children}</EventContext.Provider>;
 };
 
-const useEventSubscriber = (selectors?: string[], topics?: string[]) => {
-  const [event, setEvent] = useState<EventModel | null>(null);
-  const { subject } = useContext(EventContext);
-  useEffect(() => {
-    if (subject) {
-      const observable = subject.asObservable();
-      const subscription = observable.subscribe((event: EventModel) => {
-        if (
-          (topics?.length === 0 || !event.topic || topics?.includes(event.topic)) &&
-          (selectors?.length === 0 || selectors?.includes(event.name))
-        ) {
-          setEvent(event);
-        }
-      });
-      return () => subscription.unsubscribe();
-    }
-  }, [subject]);
+const useEventSubscriber = (selectors?: string[], topics?: string[], subscriber?: string) => {
+  const [filterEvent, setFilterEvent] = useState<EventModel | null>(null);
+  const { event, createEvent } = useContext(EventContext) as IEventContext;
 
-  const createEvent = useCallback(
-    (event: EventModel) => {
-      if (subject) {
-        setTimeout(() => subject.next(event), event.delay);
-      }
-    },
-    [subject]
-  );
-  return { event, createEvent };
+  useEffect(() => {
+    if (
+      event &&
+      ((topics && topics.length === 0) || (topics && event.topic && topics.includes(event.topic))) &&
+      ((selectors && selectors.length === 0) || (selectors && selectors.includes(event.name)))
+    ) {
+      // console.log(event);
+      setFilterEvent(event);
+    }
+  }, [event, selectors, topics]);
+
+  return { event: filterEvent, createEvent };
 };
 export default useEventSubscriber;

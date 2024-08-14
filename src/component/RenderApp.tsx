@@ -1,42 +1,33 @@
 import { gsap } from "gsap";
 import { AppsConfiguration } from "model/PageConfiguration";
-import PageProps from "model/PageProps";
-import React, { FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import PageProps, { PageItem } from "model/PageProps";
+import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import { buildNavURL } from "util/PageUtils";
 import "./popup.css";
 interface NavProp {
   pageConfig: any;
+  onRender: (page: PageItem) => void;
 }
 
-const PageContainer: React.FC<NavProp> = ({ pageConfig }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+const PageContainer: React.FC<NavProp> = ({ pageConfig, onRender }) => {
   const { user } = useUserManager();
-  const { currentPage, renderPage, startRender, getPrePage } = usePageManager();
+  const { currentPage } = usePageManager();
   const [pageProp, setPageProp] = useState<any>(null);
 
   useEffect(() => {
-    const prePage = getPrePage();
-    if (pageConfig.name === prePage?.name && renderPage?.name === currentPage?.name) {
-      gsap.to(containerRef.current, { autoAlpha: 0, duration: 0.4 });
-    }
-  }, [pageConfig, currentPage, renderPage, getPrePage]);
-
-  useEffect(() => {
-    // if (currentPage && (!prevPage || prevPage.name !== currentPage.name || prevPage.app !== currentPage.app)) {
-    if (currentPage && currentPage.name === pageConfig.name && (!renderPage || currentPage.name !== renderPage.name)) {
+    if (currentPage && currentPage.name === pageConfig.name) {
       const role = user ? user.role ?? 1 : 0;
       if (pageConfig && (!pageConfig.auth || role >= pageConfig.auth)) {
         const prop = { ...currentPage, config: pageConfig };
-        startRender();
-        gsap.to(containerRef.current, { autoAlpha: 1, duration: 0.4 });
         const url = buildNavURL(currentPage);
         window.history.pushState({}, "", url);
         setPageProp(prop);
+        onRender({ ...currentPage });
       }
     }
-  }, [currentPage, startRender, pageConfig, user]);
+  }, [currentPage, pageConfig, user]);
   const render = useMemo(() => {
     if (pageProp?.config.path) {
       const SelectedComponent: FunctionComponent<PageProps> = lazy(() => import(`${pageProp.config.path}`));
@@ -47,29 +38,13 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig }) => {
       );
     }
   }, [pageProp]);
-  return (
-    <>
-      <div
-        ref={containerRef}
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          visibility: "hidden",
-          opacity: 0,
-          width: "100vw",
-          height: "100vh",
-        }}
-      >
-        {render}
-      </div>
-    </>
-  );
+  return <>{render}</>;
 };
 
 const RenderApp: React.FC = () => {
+  const containersRef = useRef<{ [name: string]: HTMLDivElement }>({});
   const [appConfig, setAppConfig] = useState<any>(null);
-  const { currentPage } = usePageManager();
+  const { currentPage, getPrePage } = usePageManager();
   console.log("render app...");
   useEffect(() => {
     if (!currentPage) return;
@@ -79,10 +54,51 @@ const RenderApp: React.FC = () => {
     }
   }, [currentPage]);
 
+  const onRender = useCallback(
+    (page: PageItem) => {
+      const tl = gsap.timeline({
+        onComplete: () => {
+          tl.kill();
+        },
+      });
+      const curElement = containersRef.current[page.name];
+      if (curElement) tl.to(curElement, { autoAlpha: 1, duration: 0.7 });
+      const prePage = getPrePage();
+      if (prePage) {
+        const preElement = containersRef.current[prePage.name];
+        tl.to(preElement, { autoAlpha: 0, duration: 0.7 }, "<");
+      }
+      tl.play();
+    },
+    [appConfig, getPrePage]
+  );
+  const load = useCallback((name: string, ele: HTMLDivElement | null) => {
+    if (ele) {
+      containersRef.current[name] = ele;
+    } else delete containersRef.current[name];
+  }, []);
   const render = useMemo(() => {
     if (appConfig) {
       return (
-        <>{appConfig?.navs.map((pageConfig: any) => <PageContainer pageConfig={pageConfig} key={pageConfig.name} />)}</>
+        <>
+          {appConfig?.navs.map((pageConfig: any) => (
+            <div
+              key={pageConfig.name}
+              ref={(ele) => load(pageConfig.name, ele)}
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                visibility: "hidden",
+                opacity: 0,
+                width: "100vw",
+                height: "100vh",
+              }}
+            >
+              <PageContainer pageConfig={pageConfig} onRender={onRender} />
+            </div>
+          ))}
+        </>
       );
     }
   }, [appConfig]);

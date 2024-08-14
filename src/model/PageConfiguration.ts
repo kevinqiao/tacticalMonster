@@ -86,7 +86,7 @@ export const Consumer =
         },
         {
             name: "member",
-            auth: 0,
+            auth: 1,
             path: "./loyalty/consumer/member/MemberHome",
             uri: "/member",
             children: [

@@ -45,6 +45,7 @@ const MenuControl: React.FC<{ menu: { name: string; path: string } | null; onClo
   }, []);
 
   useEffect(() => {
+    console.log(menu);
     if (menu) {
       open();
     } else {
@@ -184,7 +185,7 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
         <LogoutConfirm confirmOpen={logoutConfirmOpen} onCancel={() => setLogoutConfirmOpen(false)} />
       </>
     );
-  }, [pageProp, logoutConfirmOpen, user]);
+  }, [pageProp, logoutConfirmOpen, selectedMenu, user]);
   return <>{render}</>;
 };
 

@@ -1,73 +1,49 @@
 import { Loading } from "component/common/StyledComponents";
 import { useAction } from "convex/react";
 import { gsap } from "gsap";
-import { AppsConfiguration } from "model/PageConfiguration";
-import { PageConfig } from "model/PageProps";
-import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import useEventSubscriber from "service/EventManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/_generated/api";
 import "./signin.css";
+export interface AuthProvider {
+  partnerId: number;
+  app: string;
+  page: string;
+  channel: number;
+  user: any;
+  path: string;
+  redirectURL: string | null;
+  params?: { [k: string]: string };
+}
 export interface AuthProps {
-  provider:
-    | {
-        partnerId: number;
-        app: string;
-        page: string;
-        channel: number;
-        isOpen: number;
-        path: string;
-        params: { [k: string]: string };
-      }
-    | null
-    | undefined;
+  provider?: AuthProvider;
   close?: () => void;
 }
 // gsap.registerPlugin(MotionPathPlugin);
 const SSOController: React.FC = () => {
-  console.log("SSO controller");
   const loadingRef = useRef<HTMLDivElement | null>(null);
-  const [provider, setProvider] = useState<
-    | {
-        partnerId: number;
-        app: string;
-        page: string;
-        channel: number;
-        isOpen: number;
-        path: string;
-        params: { [k: string]: string };
-      }
-    | null
-    | undefined
-  >(null);
+  const [provider, setProvider] = useState<AuthProvider | null>(null);
+
   const { authenticator } = usePartnerManager();
   const { authComplete } = useUserManager();
+  const { event } = useEventSubscriber(["signout"], ["account"], "SSOController");
   const authByToken = useAction(api.UserService.authByToken);
-  const buildProvider = useCallback(
-    (user: any) => {
-      if (!authenticator) return;
-      const role = user ? user.role ?? 1 : 0;
-      const appCfg: any = AppsConfiguration.find((c) => c.name === authenticator?.app);
-      if (appCfg?.navs) {
-        const pageCfg: PageConfig | undefined = appCfg.navs.find((s: any) => s.name === authenticator?.page);
-        if (pageCfg) {
-          const cauth = pageCfg.auth ?? 0;
-          setProvider({
-            ...authenticator,
-            isOpen: role >= cauth ? 0 : 1,
-          });
-        }
-      }
-    },
-    [authenticator]
-  );
+  useEffect(() => {
+    console.log(event);
+    if (event && authenticator) {
+      console.log("change provider with signout");
+      setProvider({ ...authenticator, user: null });
+    }
+  }, [event, authenticator]);
 
   useEffect(() => {
     const checkURL = async (uid: string, token: string, persist: number) => {
       if (!authenticator) return;
       const u = await authByToken({ uid, token });
       authComplete(u, persist);
-      buildProvider(u);
+      // setProvider({ ...authenticator, user: u });
       gsap.to(loadingRef.current, { autoAlpha: 0, duration: 0.7 });
     };
 
@@ -82,12 +58,14 @@ const SSOController: React.FC = () => {
         }
       }
       authComplete(u, 1);
-      buildProvider(u);
+      setProvider({ ...authenticator, user: u });
       gsap.to(loadingRef.current, { autoAlpha: 0, duration: 0.7 });
     };
 
     if (authenticator) {
-      const { u, t, p } = authenticator.params;
+      const u = authenticator.params?.u;
+      const t = authenticator.params?.t;
+      const p = authenticator.params?.p;
       if (u && t) checkURL(u, t, p ? +p : 0);
       else checkStorage(authenticator.partnerId);
     }

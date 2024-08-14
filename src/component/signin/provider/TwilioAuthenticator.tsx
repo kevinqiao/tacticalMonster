@@ -23,22 +23,10 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
   const { user, authComplete } = useUserManager();
-  const { currentPage, renderPage, openPage, getPrePage } = usePageManager();
+  const { currentPage, openPage, getPrePage } = usePageManager();
   const { event: accountEvent } = useEventSubscriber([], ["account"]);
   const convex = useConvex();
 
-  // const redirectURL = useMemo(() => {
-  //   if (currentPage) {
-  //     const url = buildNavURL(currentPage);
-  //     return url;
-  //   }
-  // }, [currentPage]);
-  useEffect(() => {
-    if (!currentPage) return;
-    if (!renderPage || renderPage.name !== currentPage?.name) {
-      setRedirectURL(buildNavURL(currentPage));
-    } else setRedirectURL(buildNavURL(renderPage));
-  }, [currentPage, renderPage, getPrePage]);
   useEffect(() => {
     if (user && isSignedIn) {
       signOut();
@@ -145,7 +133,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
     //   if (appConfig.entry) openPage({ name: appConfig.entry, app: appConfig.name });
     // }
     close(null);
-  }, [currentPage, renderPage]);
+  }, [currentPage]);
 
   useEffect(() => {
     const channelAuth = async () => {

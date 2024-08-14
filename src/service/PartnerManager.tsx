@@ -1,6 +1,8 @@
 import { useConvex } from "convex/react";
+import { PageItem } from "model/PageProps";
 import { PartnerModel } from "model/PartnerModel";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
+import { buildNavURL } from "util/PageUtils";
 import { api } from "../convex/_generated/api";
 import useEventSubscriber from "./EventManager";
 import { usePageManager } from "./PageManager";
@@ -12,7 +14,8 @@ export type Authenticator = {
   name: string;
   path: string;
   role: number;
-  params: { [k: string]: string };
+  redirectURL: string | null;
+  params?: { [k: string]: string };
 };
 
 export type App = {
@@ -40,24 +43,27 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
   console.log("partner provider");
   const convex = useConvex();
 
-  const getAuthenticator = useCallback((p: PartnerModel, a: App, page: string): Authenticator | null => {
-    const auth: { channels: number[]; role: number } | undefined = p.auth[a.name];
+  const getAuthenticator = useCallback((p: PartnerModel, page: PageItem): Authenticator | null => {
+    const auth: { channels: number[]; role: number } | undefined = p.auth[page.app];
     if (auth) {
-      const cid = a.params["c"] ? Number(a.params["c"]) : auth.channels[0];
+      const cid = page.params?.c ? Number(page.params["c"]) : auth.channels[0];
       if (cid) {
         const channel = p.channels.find((c) => c.id === cid);
         if (channel && p.authProviders) {
           const pro = p.authProviders.find((a) => a.name === channel.provider);
+
           if (pro) {
+            const redirectURL = buildNavURL(page);
             return {
               partnerId: p.pid,
-              app: a.name,
-              page,
+              app: page.app,
+              page: page.name,
               channel: cid,
               name: pro.name,
               path: pro.path,
               role: auth.role,
-              params: a.params,
+              redirectURL,
+              params: page.params,
             };
           }
         }
@@ -78,9 +84,9 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
     };
 
     if (currentPage) {
-      const cpage = JSON.parse(JSON.stringify(currentPage));
-      const params: { [k: string]: string } = cpage.params ?? {};
-      const partnerId = Number(cpage.params?.partner ?? 0);
+      // const cpage = JSON.parse(JSON.stringify(currentPage));
+      const params: { [k: string]: string } = currentPage.params ?? {};
+      const partnerId = Number(currentPage.params?.partner ?? 0);
       if (!partner || (partnerId > 0 && partnerId !== partner["pid"])) {
         fetchPartner().then((p) => {
           if (p) {
@@ -88,7 +94,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
               setApp({ name: params.app, params });
             }
             setPartner(p);
-            const au = getAuthenticator(p, { name: cpage.app, params }, cpage.name);
+            const au = getAuthenticator(p, currentPage);
             setAuthenticator(au);
           } else {
             console.log("partner not found");
@@ -97,7 +103,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
         });
       } else if (!app || params.app !== app.name) {
         setApp({ name: params.app, params });
-        const au = getAuthenticator(partner, { name: cpage.app, params }, cpage.name);
+        const au = getAuthenticator(partner, currentPage);
         setAuthenticator(au);
       }
     }
