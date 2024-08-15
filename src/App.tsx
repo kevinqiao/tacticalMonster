@@ -9,7 +9,6 @@ import { EventProvider } from "service/EventManager";
 import { LocalizationProvider } from "service/LocalizationManager";
 import PartnerProvider from "service/PartnerManager";
 import { TerminalProvider } from "service/TerminalManager";
-import TestProvider from "service/TestManager";
 import { ThemeProvider } from "styled-components";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
@@ -65,7 +64,6 @@ const StyleApp = () => {
   const Providers = FlattenedProviderTree([
     // [SceneProvider],
     [PageProvider],
-    [TestProvider],
     [EventProvider],
     [TerminalProvider],
     [PartnerProvider],
@@ -77,7 +75,10 @@ const StyleApp = () => {
     <Providers>
       <Head />
       <GlobalStyle />
-      <MainApp />
+      <div style={{ position: "relative", top: 0, left: 0, width: "100vh", height: "100vw" }}>
+        <RenderApp />
+      </div>
+      <SSOController />
       <Alert />
     </Providers>
   );

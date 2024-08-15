@@ -111,6 +111,7 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
     return (
       <>
         <div style={{ width: "100vw", height: "100vh" }}>
+          <div style={{ height: "30%" }} />
           {pageProp.config.children.map((c, index) => (
             <div
               key={c.name}

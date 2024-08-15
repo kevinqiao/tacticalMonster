@@ -4,7 +4,6 @@ import { PartnerModel } from "model/PartnerModel";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import { buildNavURL } from "util/PageUtils";
 import { api } from "../convex/_generated/api";
-import useEventSubscriber from "./EventManager";
 import { usePageManager } from "./PageManager";
 export type Authenticator = {
   partnerId: number;
@@ -39,7 +38,6 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
   const { currentPage } = usePageManager();
   const [partner, setPartner] = useState<PartnerModel | null>(null);
   const [authenticator, setAuthenticator] = useState<Authenticator | null>(null);
-  const { createEvent } = useEventSubscriber(undefined, undefined);
   console.log("partner provider");
   const convex = useConvex();
 
@@ -98,7 +96,6 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
             setAuthenticator(au);
           } else {
             console.log("partner not found");
-            createEvent({ name: "PartnerNotFound", topic: "alert", data: "Partner Not Found", delay: 0 });
           }
         });
       } else if (!app || params.app !== app.name) {
@@ -107,7 +104,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
         setAuthenticator(au);
       }
     }
-  }, [currentPage, createEvent]);
+  }, [currentPage]);
 
   return <PartnerContext.Provider value={{ partner, app, authenticator }}> {children} </PartnerContext.Provider>;
 };

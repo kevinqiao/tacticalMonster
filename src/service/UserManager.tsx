@@ -29,7 +29,7 @@ const UserContext = createContext<IUserContext>({
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
-  const { createEvent } = useEventSubscriber(undefined, undefined, "userProvider");
+  const { createEvent } = useEventSubscriber(["signin"], ["account"], "userProvider");
   const [lastTime, setLastTime] = useState<number>(0);
   const { app } = usePartnerManager();
   // const authByToken = useAction(api.UserService.authByToken);
