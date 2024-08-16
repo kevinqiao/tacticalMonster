@@ -17,7 +17,7 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, onRender }) => {
   const [pageProp, setPageProp] = useState<any>(null);
 
   useEffect(() => {
-    if (currentPage && currentPage.name === pageConfig.name) {
+    if (currentPage && currentPage.name === pageConfig.name && (!currentPage.render || currentPage.render === 0)) {
       const role = user && user.uid ? user.role ?? 1 : 0;
       if (pageConfig && (!pageConfig.auth || role >= pageConfig.auth)) {
         const prop = { ...currentPage, config: pageConfig };

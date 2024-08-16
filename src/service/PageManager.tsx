@@ -54,10 +54,13 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const cancelCurrent = useCallback(() => {
     setCurrentPage((pre) => {
-      const prev = shift();
-      if (prev) {
-        return prev;
+      if (pre && (!pre.render || pre.render === 0)) {
+        const prev = shift();
+        if (prev) {
+          return prev;
+        }
       }
+      return pre;
     });
   }, []);
 

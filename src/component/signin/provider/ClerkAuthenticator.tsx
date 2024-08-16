@@ -9,7 +9,7 @@ import { api } from "../../../convex/_generated/api";
 import { AuthProps } from "../SSOController";
 import "../signin.css";
 
-const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
+const AuthorizeToken: React.FC<AuthProps> = ({ provider, onClose }) => {
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
@@ -116,10 +116,10 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   );
 };
 
-const ClerkAuthenticator: React.FC<AuthProps> = ({ provider }) => {
+const ClerkAuthenticator: React.FC<AuthProps> = ({ provider, onClose }) => {
   return (
     <ClerkProvider publishableKey="pk_test_bGVuaWVudC1sb3VzZS04Ni5jbGVyay5hY2NvdW50cy5kZXYk">
-      <AuthorizeToken provider={provider} />
+      <AuthorizeToken provider={provider} onClose={onClose} />
     </ClerkProvider>
   );
 };

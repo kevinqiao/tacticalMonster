@@ -3,12 +3,12 @@ import { gsap } from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
 import { usePageManager } from "service/PageManager";
 import { AuthProps } from "../SSOController";
-const CustomProvider: React.FC<AuthProps> = ({ provider }) => {
+const CustomProvider: React.FC<AuthProps> = ({ provider, onClose }) => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
   const { cancelCurrent } = usePageManager();
-  console.log(provider);
+
   useEffect(() => {
     const tl = gsap.timeline({
       onComplete: () => {
@@ -52,6 +52,7 @@ const CustomProvider: React.FC<AuthProps> = ({ provider }) => {
   const close = useCallback(() => {
     playClose(null);
     cancelCurrent();
+    onClose();
   }, []);
   return (
     <>

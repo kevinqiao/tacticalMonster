@@ -30,7 +30,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   const { partner } = usePartnerManager();
   const { currentPage } = usePageManager();
-  const { createEvent } = useEventSubscriber(["signin"], ["account"], "userProvider");
+  const { createEvent } = useEventSubscriber(["signin"], ["account"]);
   const { app } = usePartnerManager();
   console.log("user provider");
   const convex = useConvex();
