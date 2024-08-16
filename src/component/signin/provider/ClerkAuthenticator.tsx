@@ -9,7 +9,7 @@ import { api } from "../../../convex/_generated/api";
 import { AuthProps } from "../SSOController";
 import "../signin.css";
 
-const AuthorizeToken: React.FC<AuthProps> = ({ provider, onClose }) => {
+const AuthorizeToken: React.FC<AuthProps> = ({ provider, redirectURL, afterSignedURL, open, onClose }) => {
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
@@ -20,15 +20,11 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, onClose }) => {
   const { cancelCurrent } = usePageManager();
   const convex = useConvex();
 
-  console.log("clerk provider redirect");
+  console.log("clerk provider redirect:" + open);
   useEffect(() => {
-    const tl = gsap.timeline({
-      onComplete: () => {
-        tl.kill();
-      },
-    });
-    playOpen(tl);
-  }, [provider]);
+    if (open && open > 0) playOpen(null);
+    else playClose(null);
+  }, [open]);
 
   const playOpen = useCallback((timeline: any) => {
     let tl = timeline;
@@ -64,7 +60,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, onClose }) => {
   const close = useCallback(() => {
     playClose(null);
     cancelCurrent();
-    // cancel();
+    onClose();
   }, []);
 
   useEffect(() => {
@@ -110,16 +106,23 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, onClose }) => {
           visibility: "hidden",
         }}
       >
-        {!isSignedIn ? <SignIn redirectUrl={provider?.redirectURL} afterSignInUrl={provider?.afterSignedUrl} /> : null}
+        {!isSignedIn ? <SignIn redirectUrl={redirectURL} afterSignInUrl={afterSignedURL} /> : null}
       </div>
     </>
   );
 };
 
-const ClerkAuthenticator: React.FC<AuthProps> = ({ provider, onClose }) => {
+const ClerkAuthenticator: React.FC<AuthProps> = ({ provider, redirectURL, afterSignedURL, open, onClose }) => {
+  console.log("clerk authenticator:" + open);
   return (
     <ClerkProvider publishableKey="pk_test_bGVuaWVudC1sb3VzZS04Ni5jbGVyay5hY2NvdW50cy5kZXYk">
-      <AuthorizeToken provider={provider} onClose={onClose} />
+      <AuthorizeToken
+        provider={provider}
+        redirectURL={redirectURL}
+        afterSignedURL={afterSignedURL}
+        open={open}
+        onClose={onClose}
+      />
     </ClerkProvider>
   );
 };
