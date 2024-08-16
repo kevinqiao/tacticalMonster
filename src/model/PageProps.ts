@@ -55,4 +55,5 @@ export interface PageItem {
     hash?: { [key: string]: string };
     child?: string;
     time?: number;
+    render?: number;//0-unrender 1-render completed
 }

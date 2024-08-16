@@ -18,13 +18,14 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, onRender }) => {
 
   useEffect(() => {
     if (currentPage && currentPage.name === pageConfig.name) {
-      const role = user ? user.role ?? 1 : 0;
+      const role = user && user.uid ? user.role ?? 1 : 0;
       if (pageConfig && (!pageConfig.auth || role >= pageConfig.auth)) {
         const prop = { ...currentPage, config: pageConfig };
         const url = buildNavURL(currentPage);
         window.history.pushState({}, "", url);
         setPageProp(prop);
         onRender({ ...currentPage });
+        currentPage.render = 1;
       }
     }
   }, [currentPage, pageConfig, user]);
@@ -64,6 +65,7 @@ const RenderApp: React.FC = () => {
       const curElement = containersRef.current[page.name];
       if (curElement) tl.to(curElement, { autoAlpha: 1, duration: 0.7 });
       const prePage = getPrePage();
+      console.log(prePage);
       if (prePage) {
         const preElement = containersRef.current[prePage.name];
         tl.to(preElement, { autoAlpha: 0, duration: 0.7 }, "<");

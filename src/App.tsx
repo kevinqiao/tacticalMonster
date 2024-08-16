@@ -61,6 +61,7 @@ const StyleApp = () => {
     secondaryColor: "#45A049",
     backgroundColor: "#F0F0F0",
   };
+
   const Providers = FlattenedProviderTree([
     // [SceneProvider],
     [PageProvider],
@@ -70,7 +71,7 @@ const StyleApp = () => {
     [ThemeProvider, { theme }],
     [UserProvider],
   ]);
-
+  console.log("style app...");
   return (
     <Providers>
       <Head />

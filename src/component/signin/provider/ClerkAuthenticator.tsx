@@ -2,10 +2,7 @@ import { ClerkProvider, SignIn, useAuth, useClerk } from "@clerk/clerk-react";
 import { AuthCloseBtn } from "component/common/StyledComponents";
 import { useConvex } from "convex/react";
 import { gsap } from "gsap";
-import { AppsConfiguration } from "model/PageConfiguration";
-import { PageConfig } from "model/PageProps";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import useEventSubscriber from "service/EventManager";
+import React, { useCallback, useEffect, useRef } from "react";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../convex/_generated/api";
@@ -17,95 +14,58 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
-  const [redirectURL, setRedirectURL] = useState<string | null>(provider ? provider.redirectURL : null);
   const { signOut } = useClerk();
-  const { getToken } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
   const { authComplete } = useUserManager();
-  const { currentPage, getPrePage, cancelCurrent } = usePageManager();
-  const { event: accountEvent } = useEventSubscriber(["signin"], ["account"], "ClerkAuthenticator");
-  const [auth, setAuth] = useState<{ user: any; status: number }>({ user: provider?.user, status: 1 });
+  const { cancelCurrent } = usePageManager();
   const convex = useConvex();
 
   console.log("clerk provider redirect");
-
   useEffect(() => {
-    if (!currentPage || auth.user || auth.status === 1) return;
-    const role = auth.user ? auth.user.role ?? 1 : 0;
-    const appCfg: any = AppsConfiguration.find((c) => c.name === currentPage.app);
-    if (appCfg?.navs) {
-      const pageCfg: PageConfig | undefined = appCfg.navs.find((s: any) => s.name === currentPage.name);
-      if (pageCfg) {
-        const cauth = pageCfg.auth ?? 0;
-        console.log(role + ":" + cauth);
-        if (role < cauth) {
-          playOpen(null);
-        } else {
-          playClose(null);
-        }
-      }
-    }
-  }, [auth, currentPage]);
-
-  useEffect(() => {
-    if (currentPage && accountEvent && accountEvent?.name === "signin") {
-      playOpen(null);
-    }
-  }, [accountEvent, currentPage]);
+    const tl = gsap.timeline({
+      onComplete: () => {
+        tl.kill();
+      },
+    });
+    playOpen(tl);
+  }, [provider]);
 
   const playOpen = useCallback((timeline: any) => {
-    let timeout = 0;
     let tl = timeline;
     if (timeline == null) {
-      const gtl = timelineRef.current;
-      if (!gtl || !gtl.isActive) {
-        tl = gsap.timeline({
-          onComplete: () => {
-            tl.kill();
-          },
-        });
-        timelineRef.current = tl;
-      } else {
-        tl = gtl;
-        timeout = gtl.totalDuration() - gtl.totalTime();
-      }
+      tl = gsap.timeline({
+        onComplete: () => {
+          tl.kill();
+        },
+      });
     }
-    setTimeout(() => {
-      tl.to(maskRef.current, { autoAlpha: 0.7, duration: 0.8 });
-      tl.to(closeBtnRef.current, { autoAlpha: 1, duration: 0.8 }, "<");
-      tl.to(controllerRef.current, { autoAlpha: 1, scale: 1.0, duration: 0.8 }, "<");
-      tl.play();
-    }, timeout);
+    tl.to(maskRef.current, { autoAlpha: 0.7, duration: 0.8 });
+    tl.to(closeBtnRef.current, { autoAlpha: 1, duration: 0.8 }, "<");
+    tl.to(controllerRef.current, { autoAlpha: 1, scale: 1.0, duration: 0.8 }, "<");
+    tl.play();
   }, []);
 
   const playClose = useCallback((timeline: any) => {
-    let timeout = 0;
     let tl = timeline;
     if (timeline == null) {
-      const gtl = timelineRef.current;
-      if (!gtl || !gtl.isActive) {
-        tl = gsap.timeline({
-          onComplete: () => {
-            tl.kill();
-          },
-        });
-        timelineRef.current = tl;
-      } else {
-        tl = gtl;
-        timeout = gtl.totalDuration() - gtl.totalTime();
-      }
+      tl = gsap.timeline({
+        onComplete: () => {
+          tl.kill();
+        },
+      });
     }
-    setTimeout(() => {
-      tl.to(maskRef.current, { autoAlpha: 0, duration: 0.4 });
-      tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.4 }, "<");
-      tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.6, duration: 0.4 }, "<");
-      tl.play();
-    }, timeout);
+
+    tl.to(maskRef.current, { autoAlpha: 0, duration: 0.4 });
+    tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.4 }, "<");
+    tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.6, duration: 0.4 }, "<");
+    tl.play();
   }, []);
 
-  const cancel = useCallback(() => {
-    cancelCurrent();
+  const close = useCallback(() => {
     playClose(null);
-  }, [cancelCurrent]);
+    cancelCurrent();
+    // cancel();
+  }, []);
 
   useEffect(() => {
     const channelAuth = async () => {
@@ -114,20 +74,16 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
       if (t && provider) {
         const res = await convex.action(api.authoize.authorize, {
           data: { jwttoken: t },
-          channelId: provider.channel,
+          channelId: provider.channelId,
           partnerId: provider.partnerId,
         });
         if (res?.ok) {
           signOut();
           authComplete(res.message, 1);
-          setAuth({ user: res.message, status: 2 });
         }
-      } else setAuth({ user: null, status: 2 });
+      }
     };
-    console.log(provider);
-    if (provider && provider.user === null) {
-      channelAuth();
-    }
+    channelAuth();
   }, [provider]);
 
   return (
@@ -141,10 +97,10 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
           height: "100vh",
           opacity: 0,
           visibility: "hidden",
-          backgroundColor: getPrePage() ? "black" : "yellow",
+          backgroundColor: "black",
         }}
       ></div>
-      <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={cancel} />
+      <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={close} />
       <div
         ref={controllerRef}
         className="signin_control"
@@ -154,9 +110,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
           visibility: "hidden",
         }}
       >
-        {auth.status === 2 && auth.user === null ? (
-          <SignIn redirectUrl={redirectURL} afterSignInUrl={redirectURL} />
-        ) : null}
+        {!isSignedIn ? <SignIn redirectUrl={provider?.redirectURL} afterSignInUrl={provider?.afterSignedUrl} /> : null}
       </div>
     </>
   );

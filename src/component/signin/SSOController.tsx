@@ -1,82 +1,108 @@
-import { useConvex } from "convex/react";
-import { gsap } from "gsap";
-import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import useEventSubscriber from "service/EventManager";
+import { AppsConfiguration } from "model/PageConfiguration";
+import React, { FunctionComponent, lazy, Suspense, useMemo, useRef } from "react";
+import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
-import { api } from "../../convex/_generated/api";
+import { buildNavURL } from "util/PageUtils";
 import "./signin.css";
+export type Authenticator = {
+  partnerId: number;
+  app: string;
+  page: string;
+  channelId: number;
+  name: string;
+  params?: { [k: string]: string };
+};
 export interface AuthProvider {
   partnerId: number;
   app: string;
   page: string;
-  channel: number;
-  user: any;
-  path: string;
+  name: string;
+  channelId: number;
   redirectURL: string | null;
+  afterSignedUrl: string | undefined | null;
   params?: { [k: string]: string };
 }
 export interface AuthProps {
   provider?: AuthProvider;
-  close?: () => void;
+  cancel?: () => void;
 }
 // gsap.registerPlugin(MotionPathPlugin);
-const SSOController: React.FC = React.memo(() => {
+const SSOController: React.FC = () => {
   const loadingRef = useRef<HTMLDivElement | null>(null);
-  const [provider, setProvider] = useState<AuthProvider | null>(null);
+  const { user } = useUserManager();
+  const { partner } = usePartnerManager();
+  const { currentPage } = usePageManager();
+  // const selectors = useMemo(() => ["signout"], []);
+  // const topics = useMemo(() => ["account"], []);
+  // const [open, setOpen] = useState<number>(0);
 
-  const { authenticator } = usePartnerManager();
-  const { authComplete } = useUserManager();
-  const selectors = useMemo(() => ["signout"], []);
-  const topics = useMemo(() => ["account"], []);
-  const { event } = useEventSubscriber(selectors, topics, "SSOController");
-  const convex = useConvex();
-  // const authByToken = useAction(api.UserService.authByToken);
+  // const { event } = useEventSubscriber(selectors, topics, "SSOController");
+
   console.log("sso provider");
-  const authByToken = useCallback(
-    async ({ uid, token }: { uid: string; token: string }) => {
-      return await convex.action(api.UserService.authByToken, { uid, token });
-    },
-    [convex]
-  );
+  console.log(currentPage);
 
-  // useEffect(() => {
-  //   console.log(event);
-  //   if (event && authenticator) {
-  //     console.log("change provider with signout");
-  //     setProvider({ ...authenticator, user: null });
-  //   }
-  // }, [event, authenticator]);
-
-   
-
-  const render = useMemo(() => {
-    if (provider) {
-      const SelectedComponent: FunctionComponent<AuthProps> = lazy(() => import(`${provider.path}`));
-      return (
-        <Suspense
-          fallback={
-            <div
-              style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                width: "100vw",
-                height: "100vh",
-                color: "white",
-                backgroundColor: "blue",
-              }}
-            >
-              Loading
-            </div>
+  const provider = useMemo(() => {
+    if (!partner || !currentPage || !user) return null;
+    const channelId = currentPage.params?.c ? Number(currentPage.params.c) : 0;
+    const auth: { channels: number[]; role: number } | undefined = partner.auth[currentPage.app];
+    if (auth) {
+      const cid = channelId > 0 ? channelId : auth.channels[0];
+      const channel = partner.channels.find((c) => c.id === cid);
+      if (channel && partner.authProviders) {
+        const pro = partner.authProviders.find((a) => a.name === channel.provider);
+        if (pro) {
+          const role = user.uid ? user.role ?? 1 : 0;
+          const appConfig = AppsConfiguration.find((a) => a.name === currentPage.app);
+          if (appConfig) {
+            const pageConfig = appConfig.navs.find((nav: any) => nav.name === currentPage.name);
+            if (pageConfig && role < pageConfig.auth) {
+              const afterSignedUrl = buildNavURL(currentPage);
+              console.log(afterSignedUrl);
+              const redirectURL = window.location.pathname + window.location.search + window.location.hash;
+              console.log(redirectURL);
+              return {
+                partnerId: partner.pid,
+                app: currentPage.app,
+                page: currentPage.name,
+                name: pro.name,
+                channelId: cid,
+                redirectURL,
+                afterSignedUrl,
+                params: currentPage.params,
+              };
+            }
           }
-        >
-          <SelectedComponent provider={provider} />
-        </Suspense>
-      );
+        }
+      }
     }
+  }, [partner, currentPage, user]);
+
+  const SelectedComponent: FunctionComponent<AuthProps> | null = useMemo(() => {
+    if (provider) {
+      // 为了避免直接使用模板字符串，考虑传递实际的模块，而不是字符串路径。
+      switch (provider.name) {
+        case "clerk":
+          return lazy(() => import("./provider/CustomProvider"));
+        default:
+          return null;
+      }
+    }
+    return null;
   }, [provider]);
-  return <>{render}</>;
-});
-SSOController.displayName = "SSOController";
+
+  if (!SelectedComponent || !provider) return null;
+  // return (
+  //   <>
+  //     <CustomProvider provider={provider} />{" "}
+  //   </>
+  // );
+  return (
+    // <>{provider ? <ClerkAuthenticator provider={provider} /> : null} </>
+    <Suspense fallback={<></>}>
+      <SelectedComponent provider={provider} />
+    </Suspense>
+  );
+};
+
 export default SSOController;

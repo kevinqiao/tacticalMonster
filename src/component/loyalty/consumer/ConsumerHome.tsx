@@ -67,7 +67,7 @@ const ConsumerHome: React.FC<PageProps> = (pageProp) => {
           open game center
         </div>
         <div style={{ height: 100 }} />
-        {user ? (
+        {user?.uid ? (
           <div
             style={{
               cursor: "pointer",

@@ -30,7 +30,7 @@ const CloverAuthenticator: React.FC<AuthProps> = ({ provider }) => {
       show();
       const res = await convex.action(api.authoize.authorize, {
         data,
-        channelId: provider.channel,
+        channelId: provider.channelId,
         partnerId: provider?.partnerId,
       });
 

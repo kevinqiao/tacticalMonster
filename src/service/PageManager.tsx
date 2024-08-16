@@ -9,8 +9,8 @@ export interface PageEvent {
 
 interface IPageContext {
   // renderPage: PageItem | null;
-  currentPage: PageItem | null;
-  openEntry: () => void;
+  currentPage: PageItem | null | undefined;
+  openEntry: (params?: { [k: string]: string }) => void;
   openPage: (page: PageItem) => void;
   cancelCurrent: () => void;
   getPrePage: () => PageItem | null;
@@ -18,7 +18,7 @@ interface IPageContext {
 const PageContext = createContext<IPageContext>({
   // renderPage: null,
   currentPage: null,
-  openEntry: () => null,
+  openEntry: (params?: { [k: string]: string }) => null,
   openPage: (p: PageItem) => null,
   cancelCurrent: () => null,
   getPrePage: () => null,
@@ -26,8 +26,14 @@ const PageContext = createContext<IPageContext>({
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const preRef = useRef<PageItem[]>([]);
-  const [currentPage, setCurrentPage] = useState<PageItem | null>(null);
+  // const prestack = useMemo(() => {
+  //   const stacks: PageItem[] = [];
+  //   return stacks;
+  // }, []);
+
+  const [currentPage, setCurrentPage] = useState<PageItem | null | undefined>(null);
   console.log("page provider");
+  console.log(currentPage);
   const unshift = useCallback((p: PageItem) => {
     preRef.current.unshift(p);
     if (preRef.current.length > STACK_SIZE) {
@@ -47,40 +53,44 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const cancelCurrent = useCallback(() => {
-    const prePage = shift();
-    if (prePage) setCurrentPage(prePage);
+    setCurrentPage((pre) => {
+      const prev = shift();
+      if (prev) {
+        return prev;
+      }
+    });
   }, []);
 
-  const openEntry = useCallback(() => {
+  const openEntry = useCallback((params?: { [k: string]: string }) => {
     const appConfig = getCurrentAppConfig();
     if (appConfig) {
       setCurrentPage((pre) => {
         if (pre) unshift(pre);
-        return { name: appConfig.entry, app: appConfig.name };
+        return { name: appConfig.entry, app: appConfig.name, params };
       });
     }
   }, []);
 
   const getPrePage = useCallback(() => {
-    if (preRef.current.length > 0) return preRef.current[0];
-    else return null;
+    return null;
   }, []);
 
   useEffect(() => {
     const handlePopState = (event: any) => {
       const prop = parseURL(window.location);
-      setCurrentPage((pre) => {
-        if (pre) unshift(pre);
-        return prop["navItem"] ?? null;
-      });
+      const page = prop["navItem"];
+      if (page) {
+        setCurrentPage((pre) => {
+          if (pre) unshift(pre);
+          return page;
+        });
+      }
     };
 
     const prop = parseURL(window.location);
-    if (prop.ctx && prop.navItem) {
-      setCurrentPage((pre) => {
-        if (pre) unshift(pre);
-        return prop["navItem"] ?? null;
-      });
+    const page = prop["navItem"];
+    if (prop.ctx && page) {
+      setCurrentPage(page);
     }
     window.addEventListener("popstate", handlePopState);
 
