@@ -7,7 +7,7 @@ const CustomProvider: React.FC<AuthProps> = ({ provider, onClose }) => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
-  const { cancelCurrent } = usePageManager();
+  const { goBack, currentPage } = usePageManager();
 
   useEffect(() => {
     const tl = gsap.timeline({
@@ -42,7 +42,6 @@ const CustomProvider: React.FC<AuthProps> = ({ provider, onClose }) => {
         },
       });
     }
-
     tl.to(maskRef.current, { autoAlpha: 0, duration: 0.4 });
     tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.4 }, "<");
     tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.6, duration: 0.4 }, "<");
@@ -51,9 +50,9 @@ const CustomProvider: React.FC<AuthProps> = ({ provider, onClose }) => {
 
   const close = useCallback(() => {
     playClose(null);
-    cancelCurrent();
     onClose();
-  }, []);
+    if (!currentPage?.render || currentPage.render === 0) goBack();
+  }, [currentPage]);
   return (
     <>
       <div

@@ -17,7 +17,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, redirectURL, afterSigne
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
   const { authComplete } = useUserManager();
-  const { cancelCurrent } = usePageManager();
+  const { currentPage, goBack } = usePageManager();
   const convex = useConvex();
 
   console.log("clerk provider redirect:" + open);
@@ -58,10 +58,15 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, redirectURL, afterSigne
   }, []);
 
   const close = useCallback(() => {
-    playClose(null);
-    cancelCurrent();
-    onClose();
-  }, []);
+    const tl = gsap.timeline({
+      onComplete: () => {
+        onClose();
+        if (!currentPage?.render || currentPage.render === 0) goBack();
+        tl.kill();
+      },
+    });
+    playClose(tl);
+  }, [currentPage]);
 
   useEffect(() => {
     const channelAuth = async () => {

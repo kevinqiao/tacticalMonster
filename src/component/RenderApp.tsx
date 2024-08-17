@@ -4,7 +4,6 @@ import PageProps, { PageItem } from "model/PageProps";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
-import { buildNavURL } from "util/PageUtils";
 import "./popup.css";
 interface NavProp {
   pageConfig: any;
@@ -17,15 +16,13 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, onRender }) => {
   const [pageProp, setPageProp] = useState<any>(null);
 
   useEffect(() => {
-    if (currentPage && currentPage.name === pageConfig.name && (!currentPage.render || currentPage.render === 0)) {
+    if (currentPage && currentPage.name === pageConfig.name) {
       const role = user && user.uid ? user.role ?? 1 : 0;
       if (pageConfig && (!pageConfig.auth || role >= pageConfig.auth)) {
         const prop = { ...currentPage, config: pageConfig };
-        const url = buildNavURL(currentPage);
-        window.history.pushState({}, "", url);
         setPageProp(prop);
-        onRender({ ...currentPage });
         currentPage.render = 1;
+        onRender({ ...currentPage });
       }
     }
   }, [currentPage, pageConfig, user]);

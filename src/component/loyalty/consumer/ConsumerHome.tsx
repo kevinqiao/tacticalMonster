@@ -18,6 +18,10 @@ const ConsumerHome: React.FC<PageProps> = (pageProp) => {
     const page = { name: "member", app: "consumer" };
     openPage(page);
   }, [openPage]);
+  const openScan = useCallback(() => {
+    const page = { name: "scanOrder", app: "consumer" };
+    openPage(page);
+  }, [openPage]);
   const openGameCenter = useCallback(() => {
     if (!user || !partner) return;
     const { uid, token } = user;
@@ -67,9 +71,9 @@ const ConsumerHome: React.FC<PageProps> = (pageProp) => {
             backgroundColor: "blue",
             color: "white",
           }}
-          onClick={() => openGameCenter()}
+          onClick={() => openScan()}
         >
-          open game center
+          Scan
         </div>
         <div style={{ height: 50 }} />
         <div
