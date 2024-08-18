@@ -14,7 +14,7 @@ export interface PageEvent {
 interface IPageContext {
   app: App | null;
   currentPage: PageItem | null | undefined;
-  openEntry: (params?: { [k: string]: string }) => void;
+  // openEntry: (params?: { [k: string]: string }) => void;
   openPage: (page: PageItem) => void;
   getPrePage: () => PageItem | null;
   goBack: () => void;
@@ -24,7 +24,7 @@ const PageContext = createContext<IPageContext>({
   // renderPage: null,
   app: null,
   currentPage: null,
-  openEntry: (params?: { [k: string]: string }) => null,
+  // openEntry: (params?: { [k: string]: string }) => null,
   openPage: (p: PageItem) => null,
   goBack: () => null,
   goForward: () => null,
@@ -37,19 +37,31 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentPage, setCurrentPage] = useState<PageItem | null | undefined>(null);
   console.log("page provider");
 
-  const openPage = useCallback((page: PageItem) => {
-    if (!app || app.name !== page.app) setApp({ name: page.app, params: page.params });
-    setCurrentPage((pre) => {
-      if (pre) prePageRef.current = pre;
-      return page;
-    });
-    const url = buildNavURL(page);
-    window.history.pushState({}, "", url);
-  }, []);
+  const openPage = useCallback(
+    (page: PageItem) => {
+      if (!app || app.name !== page.app) setApp({ name: page.app, params: page.params });
+      setCurrentPage((pre) => {
+        if (pre) {
+          if ((!pre.render || pre.render === 0) && pre.name === page.name && pre.app === page.app) return { ...pre };
+          prePageRef.current = pre;
+        }
+        return page;
+      });
+    },
+    [app]
+  );
 
   const goBack = useCallback(() => {
-    window.history.back();
+    setCurrentPage((pre) => {
+      console.log(pre);
+      if (pre && (!pre.render || pre.render === 0)) {
+        const prePage = prePageRef.current;
+        if (prePage) return prePage;
+        else return pre;
+      } else return pre;
+    });
   }, []);
+  console.log(currentPage);
   const goForward = useCallback(() => {
     window.history.forward();
   }, []);
@@ -85,7 +97,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
     };
-
+    console.log(window.location.href);
     const prop = parseURL(window.location);
     const page = prop["navItem"];
     if (prop.ctx && page) {
@@ -103,7 +115,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     app,
     currentPage,
     openPage,
-    openEntry,
     getPrePage,
     goBack,
     goForward,

@@ -1,6 +1,5 @@
 import { gsap } from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
-import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import "../consumer.css";
@@ -12,7 +11,7 @@ const LogoutConfirm: React.FC<Props> = ({ confirmOpen, onCancel }) => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const { logout } = useUserManager();
-  const { openEntry } = usePageManager();
+  // const { openEntry } = usePageManager();
   const { partner } = usePartnerManager();
 
   const open = useCallback(() => {
@@ -40,9 +39,9 @@ const LogoutConfirm: React.FC<Props> = ({ confirmOpen, onCancel }) => {
   const confirm = useCallback(() => {
     if (!partner) return;
     logout();
-    openEntry({ partner: partner.pid + "" });
+    // openEntry({ partner: partner.pid + "" });
     close();
-  }, [logout, openEntry, partner]);
+  }, [logout, partner]);
   useEffect(() => {
     if (confirmOpen) open();
     else close();

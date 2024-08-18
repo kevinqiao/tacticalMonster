@@ -4,6 +4,7 @@ import PageProps, { PageItem } from "model/PageProps";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
+import { buildNavURL } from "util/PageUtils";
 import "./popup.css";
 interface NavProp {
   pageConfig: any;
@@ -23,6 +24,8 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, onRender }) => {
         setPageProp(prop);
         currentPage.render = 1;
         onRender({ ...currentPage });
+        const url = buildNavURL(currentPage);
+        window.history.pushState({}, "", url);
       }
     }
   }, [currentPage, pageConfig, user]);
@@ -60,12 +63,12 @@ const RenderApp: React.FC = () => {
         },
       });
       const curElement = containersRef.current[page.name];
-      if (curElement) tl.to(curElement, { autoAlpha: 1, duration: 0.7 });
+      if (curElement) tl.to(curElement, { autoAlpha: 1, duration: 0.9 });
       const prePage = getPrePage();
       console.log(prePage);
       if (prePage) {
         const preElement = containersRef.current[prePage.name];
-        tl.to(preElement, { autoAlpha: 0, duration: 0.7 }, "<");
+        tl.to(preElement, { autoAlpha: 0, duration: 0.9 }, "<");
       }
       tl.play();
     },

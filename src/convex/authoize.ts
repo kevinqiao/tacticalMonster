@@ -20,6 +20,7 @@ const verifyClerk = async (data: any): Promise<{ cid: string; username: string; 
         mode: "cors",
       },
     });
+    console.log(res)
     const json = await res.json();
     if (json.ok) {
       const { cid, username, email, phone, token } = json.message;
@@ -91,10 +92,14 @@ const verifyClover = async ({ merchantId, code, employeeId, accessToken }: { mer
 export const authorize = action({
   args: { partnerId: v.number(), app: v.optional(v.string()), channelId: v.number(), data: v.any() },
   handler: async (ctx, { app, channelId, partnerId, data }): Promise<any> => {
+
     const partner = await ctx.runQuery(internal.partner.findById, { pid: partnerId })
+    // console.log("authorize:" + partnerId + ":" + channelId)
     const channel = await ctx.runQuery(internal.authchannel.find, { id: channelId })
+    // console.log(channel)
     if (!channel) return;
     let auth: { cid: string; username: string; email?: string; phone?: string; token: string; role?: number } | null = null;
+
     switch (channel.provider) {
 
       case "clover": {
