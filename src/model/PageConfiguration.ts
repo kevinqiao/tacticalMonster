@@ -136,6 +136,8 @@ export const W3Home =
 {
     name: "w3",
     context: "/w3",
+    entry: "home",
+    auth: 0,
     navs: [
         {
             name: "home",
@@ -144,30 +146,28 @@ export const W3Home =
         }
     ],
 }
-export const Covers = [
-    {
-        name: "signin",
-        path: "./signin/LogIn",
-        uri: "signin",
-        position: {
-            closeControl: { btn: 0, confirm: 1, maskActive: 1 },
-            direction: 2,
-            width: 500,
-            height: 1,
-        }
-    },
-    {
-        name: "member",
-        path: "./member/MemberHome",
-        uri: "signin",
-        nohistory: true,
-        position: {
-            closeControl: { btn: 0, confirm: 1, maskActive: 1 },
-            direction: 2,
-            width: 500,
-            height: 1,
-        }
-    }
-]
 
-export const AppsConfiguration: any[] = [PlayPlace, Consumer, Merchant, W3Home]
+export interface AppConfig {
+    name: string;
+    context: string;
+    entry: string;
+    auth: number;
+    navs: any[];
+}
+export interface PageConfig {
+    name: string;
+    path: string;
+    uri: string;
+    auth: number;
+    children?: {
+        name: string;
+        path: string;
+        uri: string;
+        auth: number;
+    }[]
+
+}
+export const AppsConfiguration: any[] = [PlayPlace, Consumer, Merchant, W3Home];
+export const AppModules: { [k: string]: { apps: string[], configs: AppConfig[] } } = {
+    consumer: { apps: ["consumer", "w3"], configs: [Consumer, W3Home] }
+}

@@ -1,6 +1,5 @@
 import { AppsConfiguration } from "model/PageConfiguration";
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import useEventSubscriber from "service/EventManager";
+import React, { lazy, Suspense, useMemo } from "react";
 import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
@@ -27,24 +26,13 @@ export interface AuthInit {
 export interface AuthProps {
   provider?: AuthProvider;
   authInit: AuthInit | null;
-  reqOpen: number;
-  onClose: () => void;
 }
 // gsap.registerPlugin(MotionPathPlugin);
 const SSOController: React.FC = () => {
-  // const loadingRef = useRef<HTMLDivElement | null>(null);
-  const [reqOpen, setReqOpen] = useState<number>(-1);
   const { user } = useUserManager();
   const { partner } = usePartnerManager();
   const { app, currentPage } = usePageManager();
   console.log("sso controller");
-  const { event } = useEventSubscriber(["signin"], ["account"]);
-
-  useEffect(() => {
-    if (event) {
-      setReqOpen(1);
-    }
-  }, [event]);
 
   const authInit = useMemo(() => {
     if (!currentPage || !user || !partner) return null;
@@ -94,9 +82,6 @@ const SSOController: React.FC = () => {
       }
     }
   }, [partner, app, channelId]);
-  const onClose = useCallback(() => {
-    setReqOpen(0);
-  }, []);
 
   const SelectedComponent: React.FC<AuthProps> | null = useMemo(() => {
     return provider ? lazy(() => import(`${provider.path}`)) : null;
@@ -107,7 +92,7 @@ const SSOController: React.FC = () => {
 
   return (
     <Suspense fallback={<></>}>
-      <SelectedComponent provider={provider} authInit={authInit} reqOpen={reqOpen} onClose={onClose} />
+      <SelectedComponent provider={provider} authInit={authInit} />
     </Suspense>
   );
 };

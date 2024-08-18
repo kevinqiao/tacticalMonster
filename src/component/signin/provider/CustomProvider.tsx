@@ -4,7 +4,7 @@ import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef 
 import { usePageManager } from "service/PageManager";
 import { AuthenticatorHandle, AuthProps } from "../SSOController";
 
-const CustomProvider = forwardRef<AuthenticatorHandle, AuthProps>(({ provider, authInit, reqOpen }, ref) => {
+const CustomProvider = forwardRef<AuthenticatorHandle, AuthProps>(({ provider, authInit }, ref) => {
   useImperativeHandle(ref, () => {
     return {
       someMethod() {

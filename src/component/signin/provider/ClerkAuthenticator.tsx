@@ -2,17 +2,17 @@ import { ClerkProvider, SignIn, useAuth, useClerk } from "@clerk/clerk-react";
 import { AuthCloseBtn } from "component/common/StyledComponents";
 import { useConvex } from "convex/react";
 import { gsap } from "gsap";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../convex/_generated/api";
 import { AuthProps } from "../SSOController";
 import "../signin.css";
+import useClerkAnimate from "./hook/useClerkAnimate";
 
-const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit, reqOpen, onClose }) => {
-  // const divRef = useRef<HTMLDivElement>(null);
-
-  // const timelineRef = useRef<gsap.core.Timeline | null>(null);
+const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
+  const loadingRef = useRef<HTMLDivElement | null>(null);
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
@@ -20,83 +20,42 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit, reqOpen, onCl
   const { getToken, isSignedIn } = useAuth();
   const { authComplete } = useUserManager();
   const { getPrePage } = usePageManager();
+  const { event } = useEventSubscriber(["signin"], ["account"]);
+  const [reqOpen, setReqOpen] = useState<number>(-1);
 
+  const { playOpen, playDirectOpen, playRedirectOpen, playClose } = useClerkAnimate({
+    loadingRef,
+    maskRef,
+    controllerRef,
+    closeBtnRef,
+  });
   const convex = useConvex();
 
   useEffect(() => {
-    if (reqOpen === 1) setTimeout(() => playOpen(null), 200);
+    if (reqOpen === 1) playOpen(null);
     else if (reqOpen === 0) playClose(null);
   }, [reqOpen]);
+
+  useEffect(() => {
+    if (event) setReqOpen(1);
+  }, [event]);
 
   useEffect(() => {
     if (authInit === null) return;
     const { open, params } = authInit;
     if (open > 0) {
       if (params && params.redirect) playRedirectOpen(null);
-      else if (getPrePage() === null) playDirectOpen(null);
-      else playOpen(null);
+      else if (getPrePage() === null) {
+        console.log("start direct open");
+        playDirectOpen(null);
+      } else playOpen(null);
     } else playClose(null);
-  }, [authInit, isSignedIn]);
-  const playRedirectOpen = useCallback((timeline: any) => {
-    let tl = timeline;
-    if (timeline == null) {
-      tl = gsap.timeline({
-        onComplete: () => {
-          tl.kill();
-        },
-      });
-    }
-    tl.fromTo(maskRef.current, { backgroundColor: "yellow" }, { autoAlpha: 1.0, duration: 0.2 });
-    tl.play();
-  }, []);
-  
-  const playDirectOpen = useCallback((timeline: any) => {
-    let tl = timeline;
-    if (timeline == null) {
-      tl = gsap.timeline({
-        onComplete: () => {
-          tl.kill();
-        },
-      });
-    }
-    tl.fromTo(maskRef.current, { backgroundColor: "yellow" }, { autoAlpha: 0.7, duration: 0.8 });
-    tl.to(controllerRef.current, { autoAlpha: 1, scale: 1.0, duration: 0.8 }, "<");
-    tl.play();
-  }, []);
-  const playOpen = useCallback((timeline: any) => {
-    let tl = timeline;
-    if (timeline == null) {
-      tl = gsap.timeline({
-        onComplete: () => {
-          tl.kill();
-        },
-      });
-    }
-    tl.fromTo(maskRef.current, { backgroundColor: "black" }, { autoAlpha: 0.7, duration: 0.8 });
-    tl.to(controllerRef.current, { autoAlpha: 1, scale: 1.0, duration: 0.8 }, "<");
-    tl.to(closeBtnRef.current, { autoAlpha: 1, duration: 0.2 }, ">=-0.2");
-    tl.play();
-  }, []);
-
-  const playClose = useCallback((timeline: any) => {
-    let tl = timeline;
-    if (timeline == null) {
-      tl = gsap.timeline({
-        onComplete: () => {
-          tl.kill();
-        },
-      });
-    }
-    tl.to(maskRef.current, { autoAlpha: 0, duration: 0.4 });
-    tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.4 }, "<");
-    tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.6, duration: 0.4 }, "<");
-    tl.play();
-  }, []);
+  }, [authInit]);
 
   const close = useCallback(() => {
     const tl = gsap.timeline({
       onComplete: () => {
-        onClose();
+        setReqOpen(0);
         tl.kill();
       },
     });
@@ -125,28 +84,13 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit, reqOpen, onCl
 
   return (
     <>
-      <div
-        ref={maskRef}
-        className="mask"
-        style={{
-          zIndex: 990,
-          width: "100vw",
-          height: "100vh",
-          opacity: 0,
-          visibility: "hidden",
-          backgroundColor: "black",
-        }}
-      ></div>
+      <div ref={maskRef} className="clerk_mask">
+        <div ref={loadingRef} style={{ color: "white", fontSize: 20 }}>
+          Loading....
+        </div>
+      </div>
       <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={close} />
-      <div
-        ref={controllerRef}
-        className="signin_control"
-        style={{
-          zIndex: 1000,
-          opacity: 0,
-          visibility: "hidden",
-        }}
-      >
+      <div ref={controllerRef} className="signin_control">
         {!isSignedIn && authInit && (authInit.open > 0 || reqOpen > 0) ? (
           <SignIn redirectUrl={authInit.redirectURL} afterSignInUrl={authInit.afterSignedURL} />
         ) : null}
@@ -162,5 +106,4 @@ const ClerkAuthenticator: React.FC<AuthProps> = (props) => {
     </ClerkProvider>
   );
 };
-
 export default ClerkAuthenticator;

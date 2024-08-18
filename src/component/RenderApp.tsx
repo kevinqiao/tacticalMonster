@@ -13,7 +13,7 @@ interface NavProp {
 
 const PageContainer: React.FC<NavProp> = ({ pageConfig, onRender }) => {
   const { user } = useUserManager();
-  const { currentPage } = usePageManager();
+  const { currentPage, getPrePage } = usePageManager();
   const [pageProp, setPageProp] = useState<any>(null);
 
   useEffect(() => {
@@ -24,8 +24,11 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, onRender }) => {
         setPageProp(prop);
         currentPage.render = 1;
         onRender({ ...currentPage });
-        const url = buildNavURL(currentPage);
-        window.history.pushState({}, "", url);
+        if (getPrePage() !== null) {
+          console.log(getPrePage());
+          const url = buildNavURL(currentPage);
+          window.history.pushState({}, "", url);
+        }
       }
     }
   }, [currentPage, pageConfig, user]);
@@ -45,15 +48,16 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, onRender }) => {
 const RenderApp: React.FC = () => {
   const containersRef = useRef<{ [name: string]: HTMLDivElement }>({});
   const [appConfig, setAppConfig] = useState<any>(null);
-  const { currentPage, getPrePage } = usePageManager();
-  console.log("render app...");
+  const { app, getPrePage } = usePageManager();
+
   useEffect(() => {
-    if (!currentPage) return;
-    if (!appConfig || currentPage.app !== appConfig.name) {
-      const appConfig = AppsConfiguration.find((a) => a.name === currentPage.app);
+    if (!app) return;
+    if (!appConfig || app.name !== appConfig.name) {
+      console.log("render app...");
+      const appConfig = AppsConfiguration.find((a) => a.name === app.name);
       setAppConfig(appConfig);
     }
-  }, [currentPage]);
+  }, [app]);
 
   const onRender = useCallback(
     (page: PageItem) => {
@@ -65,14 +69,13 @@ const RenderApp: React.FC = () => {
       const curElement = containersRef.current[page.name];
       if (curElement) tl.to(curElement, { autoAlpha: 1, duration: 0.9 });
       const prePage = getPrePage();
-      console.log(prePage);
       if (prePage) {
         const preElement = containersRef.current[prePage.name];
         tl.to(preElement, { autoAlpha: 0, duration: 0.9 }, "<");
       }
       tl.play();
     },
-    [appConfig, getPrePage]
+    [getPrePage]
   );
   const load = useCallback((name: string, ele: HTMLDivElement | null) => {
     if (ele) {
