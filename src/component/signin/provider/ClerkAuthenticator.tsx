@@ -3,6 +3,7 @@ import { AuthCloseBtn } from "component/common/StyledComponents";
 import { useConvex } from "convex/react";
 import { gsap } from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
+import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../convex/_generated/api";
 import { AuthProps } from "../SSOController";
@@ -18,6 +19,8 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit, reqOpen, onCl
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
   const { authComplete } = useUserManager();
+  const { getPrePage } = usePageManager();
+
   const convex = useConvex();
 
   useEffect(() => {
@@ -27,11 +30,39 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit, reqOpen, onCl
 
   useEffect(() => {
     if (authInit === null) return;
-    const { open } = authInit;
-    if (open > 0 && !isSignedIn) setTimeout(() => playOpen(null), 200);
-    else playClose(null);
+    const { open, params } = authInit;
+    if (open > 0) {
+      if (params && params.redirect) playRedirectOpen(null);
+      else if (getPrePage() === null) playDirectOpen(null);
+      else playOpen(null);
+    } else playClose(null);
   }, [authInit, isSignedIn]);
-
+  const playRedirectOpen = useCallback((timeline: any) => {
+    let tl = timeline;
+    if (timeline == null) {
+      tl = gsap.timeline({
+        onComplete: () => {
+          tl.kill();
+        },
+      });
+    }
+    tl.fromTo(maskRef.current, { backgroundColor: "yellow" }, { autoAlpha: 1.0, duration: 0.2 });
+    tl.play();
+  }, []);
+  
+  const playDirectOpen = useCallback((timeline: any) => {
+    let tl = timeline;
+    if (timeline == null) {
+      tl = gsap.timeline({
+        onComplete: () => {
+          tl.kill();
+        },
+      });
+    }
+    tl.fromTo(maskRef.current, { backgroundColor: "yellow" }, { autoAlpha: 0.7, duration: 0.8 });
+    tl.to(controllerRef.current, { autoAlpha: 1, scale: 1.0, duration: 0.8 }, "<");
+    tl.play();
+  }, []);
   const playOpen = useCallback((timeline: any) => {
     let tl = timeline;
     if (timeline == null) {
@@ -41,9 +72,8 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit, reqOpen, onCl
         },
       });
     }
-    tl.to(maskRef.current, { autoAlpha: 0.7, duration: 0.8 });
+    tl.fromTo(maskRef.current, { backgroundColor: "black" }, { autoAlpha: 0.7, duration: 0.8 });
     tl.to(controllerRef.current, { autoAlpha: 1, scale: 1.0, duration: 0.8 }, "<");
-
     tl.to(closeBtnRef.current, { autoAlpha: 1, duration: 0.2 }, ">=-0.2");
     tl.play();
   }, []);
@@ -57,7 +87,6 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit, reqOpen, onCl
         },
       });
     }
-
     tl.to(maskRef.current, { autoAlpha: 0, duration: 0.4 });
     tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.4 }, "<");
     tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.6, duration: 0.4 }, "<");

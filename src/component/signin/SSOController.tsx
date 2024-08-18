@@ -22,6 +22,7 @@ export interface AuthInit {
   open: number;
   redirectURL: string;
   afterSignedURL: string;
+  params?: { [k: string]: string };
 }
 export interface AuthProps {
   provider?: AuthProvider;
@@ -56,9 +57,9 @@ const SSOController: React.FC = () => {
         const params: { [k: string]: string } = currentPage?.params
           ? { ...currentPage.params, partner: partner.pid + "" }
           : { partner: partner.pid + "" };
-        const url = buildNavURL({ ...currentPage, params }) ?? "";
+        const url = buildNavURL({ ...currentPage, params: { ...params, redirect: "1" } }) ?? "";
 
-        return { open, redirectURL: url, afterSignedURL: url };
+        return { open, redirectURL: url, afterSignedURL: url, params };
       }
       return null;
     }
