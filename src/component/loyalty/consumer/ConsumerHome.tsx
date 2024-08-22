@@ -10,6 +10,7 @@ const ConsumerHome: React.FC<PageProps> = (pageProp) => {
   const { user, logout } = useUserManager();
   const { openPage } = usePageManager();
   const { createEvent } = useEventSubscriber([], []);
+  console.log("consumer home...");
   const signin = useCallback(() => {
     const loginEvent = { name: "signin", topic: "account", delay: 0 };
     createEvent(loginEvent);

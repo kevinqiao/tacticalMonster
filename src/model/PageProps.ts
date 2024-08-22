@@ -34,21 +34,15 @@ export interface PageConfig {
     }
 }
 export default interface PageProps {
+    app: string;
     name: string;
-    ctx?: string;
-    data?: any;
-    params?: any;
-    child?: string;
-    // anchor?: string;
-    config: PageConfig;
-    dimension?: PagePattern;
-    disableCloseBtn?: () => void;
-    close?: (type: number) => void;
+    params?: { [k: string]: string };
 }
 
 export interface PageItem {
     name: string;
     app: string; //null|undefined-cover
+    history?: number;
     ctx?: string;
     data?: { [key: string]: any };
     params?: { [key: string]: string };

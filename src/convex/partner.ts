@@ -3,9 +3,9 @@ import { internalQuery, mutation, query } from "./_generated/server";
 
 export const find = query({
   //app:consumer/merchant
-  args: { pid: v.optional(v.number()), host: v.optional(v.string()), app: v.string() },
-  handler: async (ctx, { pid, host, app }) => {
-    console.log(pid + ":" + host + ":" + app)
+  args: { pid: v.optional(v.number()), host: v.optional(v.string()) },
+  handler: async (ctx, { pid, host }) => {
+    console.log(pid + ":" + host)
     const res: { ok: boolean; message?: any; errorCode?: number } = { ok: false };
     let partner;
     if (pid) {

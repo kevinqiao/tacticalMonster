@@ -38,7 +38,7 @@ const LogoutConfirm: React.FC<Props> = ({ confirmOpen, onCancel }) => {
 
   const confirm = useCallback(() => {
     if (!partner) return;
-    logout();
+
     // openEntry({ partner: partner.pid + "" });
     close();
   }, [logout, partner]);

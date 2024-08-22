@@ -79,7 +79,6 @@ const StyleApp = () => {
       <div style={{ position: "relative", top: 0, left: 0, width: "100vh", height: "100vw" }}>
         <RenderApp />
       </div>
-      <SSOController />
       <Alert />
     </Providers>
   );

@@ -1,4 +1,4 @@
-import { AppsConfiguration, Covers } from "model/PageConfiguration";
+import { AppsConfiguration } from "model/PageConfiguration";
 import { PageConfig, PageItem } from "model/PageProps";
 
 export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; stackItems?: PageItem[] } => {
@@ -98,32 +98,7 @@ export const buildNavURL = (pageItem: PageItem): string | null => {
     }
     return null;
 };
-export const buildStackURL = (pageItem: PageItem): string | null => {
-    let uri = window.location.search ? window.location.href + "&" : window.location.href;
-    if (pageItem.params) {
-        uri = uri + "?"
-        Object.keys(pageItem.params).forEach((k, index) => {
-            if (pageItem.params) {
-                const v = pageItem.params[k];
-                if (Object.keys(pageItem.params).length === index + 1) {
-                    uri = uri + k + "=" + v;
-                } else uri = uri + k + "=" + v + "&";
-            }
-        });
-    }
 
-    if (pageItem.app) {
-        const app: any = AppsConfiguration.find((a) => a.name === pageItem.app);
-        if (app?.stacks) {
-            const stack = app.stacks.find((s: any) => s.name === pageItem.name);
-            if (stack) return uri + "#@" + pageItem.name;
-        }
-    } else {
-        const cover = Covers.find((c) => c.name === pageItem.name);
-        if (cover) return uri + "#@" + pageItem.name;
-    }
-    return null;
-};
 export const getCurrentAppConfig = () => {
     const ps = window.location.pathname.split("/");
     const app: any = AppsConfiguration.find((a) => a.context === (ps[1].length === 0 ? "/" : ps[1]));

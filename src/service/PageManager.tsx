@@ -1,7 +1,7 @@
 import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { buildNavURL, getCurrentAppConfig, parseURL } from "util/PageUtils";
-const STACK_SIZE = 3;
+
 export type App = {
   name: string;
   params?: { [k: string]: string };
@@ -17,8 +17,6 @@ interface IPageContext {
   // openEntry: (params?: { [k: string]: string }) => void;
   openPage: (page: PageItem) => void;
   getPrePage: () => PageItem | null;
-  goBack: () => void;
-  goForward: () => void;
 }
 const PageContext = createContext<IPageContext>({
   // renderPage: null,
@@ -26,8 +24,6 @@ const PageContext = createContext<IPageContext>({
   currentPage: null,
   // openEntry: (params?: { [k: string]: string }) => null,
   openPage: (p: PageItem) => null,
-  goBack: () => null,
-  goForward: () => null,
   getPrePage: () => null,
 });
 
@@ -37,33 +33,26 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentPage, setCurrentPage] = useState<PageItem | null | undefined>(null);
   console.log("page provider");
 
-  const openPage = useCallback(
-    (page: PageItem) => {
-      if (!app || app.name !== page.app) setApp({ name: page.app, params: page.params });
-      setCurrentPage((pre) => {
-        if (pre) {
-          if ((!pre.render || pre.render === 0) && pre.name === page.name && pre.app === page.app) return { ...pre };
-          prePageRef.current = pre;
-        }
-        return page;
-      });
-    },
-    [app]
-  );
-
-  const goBack = useCallback(() => {
-    setCurrentPage((pre) => {
-      console.log(pre);
-      if (pre && (!pre.render || pre.render === 0)) {
-        const prePage = prePageRef.current;
-        if (prePage) return prePage;
-        else return pre;
-      } else return pre;
+  const openPage = useCallback((page: PageItem) => {
+    setApp((pre) => {
+      if (!app || app.name !== page.app) return { name: page.app, params: page.params };
+      else return pre;
     });
+    setCurrentPage((pre) => {
+      if (pre) prePageRef.current = pre;
+      return page;
+    });
+    window.history.pushState({}, "", buildNavURL(page));
   }, []);
-  console.log(currentPage);
-  const goForward = useCallback(() => {
-    window.history.forward();
+  const popPage = useCallback((page: PageItem) => {
+    setApp((pre) => {
+      if (!app || app.name !== page.app) return { name: page.app, params: page.params };
+      else return pre;
+    });
+    setCurrentPage((pre) => {
+      if (pre) prePageRef.current = pre;
+      return { ...page, history: 1 };
+    });
   }, []);
 
   const openEntry = useCallback((params?: { [k: string]: string }) => {
@@ -83,29 +72,21 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const getPrePage = useCallback(() => {
     return prePageRef.current;
   }, []);
-
   useEffect(() => {
     const handlePopState = (event: any) => {
-      console.log("pop page");
+      console.log("pop event");
       const prop = parseURL(window.location);
       const page = prop["navItem"];
-      if (page) {
-        if (!app || app.name !== page.app) setApp({ name: page.app, params: page.params });
-        setCurrentPage((pre) => {
-          if (pre) prePageRef.current = { ...pre, render: 0 };
-          return page;
-        });
-      }
+      if (page) popPage(page);
     };
-    console.log(window.location.href);
+
+    window.addEventListener("popstate", handlePopState);
     const prop = parseURL(window.location);
     const page = prop["navItem"];
-    if (prop.ctx && page) {
-      if (!app || app.name !== page.app) setApp({ name: page.app, params: page.params });
+    if (page) {
+      setApp({ name: page.app, params: page.params });
       setCurrentPage(page);
     }
-    window.addEventListener("popstate", handlePopState);
-
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
@@ -116,8 +97,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     currentPage,
     openPage,
     getPrePage,
-    goBack,
-    goForward,
   };
   return <PageContext.Provider value={value}>{children}</PageContext.Provider>;
 };

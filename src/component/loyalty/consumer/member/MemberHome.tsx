@@ -6,6 +6,7 @@ import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMe
 import { usePageManager } from "service/PageManager";
 import useCoord from "service/TerminalManager";
 import { useUserManager } from "service/UserManager";
+import { getPageConfig } from "util/PageUtils";
 import { api } from "../../../../convex/_generated/api";
 import "../consumer.css";
 import LogoutConfirm from "./LogoutConfirm";
@@ -101,18 +102,16 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
     };
     asyncCall();
   }, []);
-  // const signout = useCallback(() => {
-  //   logout();
-  //   openEntry();
-  // }, [logout, openEntry]);
 
   const render = useMemo(() => {
-    if (!pageProp.config.children) return;
+    const { app, name } = pageProp;
+    const pageConfig = getPageConfig(app, name);
+    if (!pageConfig || !pageConfig.children) return;
     return (
       <>
         <div style={{ width: "100vw", height: "100vh" }}>
           <div style={{ height: "30%" }} />
-          {pageProp.config.children.map((c, index) => (
+          {pageConfig.children.map((c, index) => (
             <div
               key={c.name}
               style={{

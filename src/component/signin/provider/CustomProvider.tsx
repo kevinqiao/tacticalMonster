@@ -15,7 +15,7 @@ const CustomProvider = forwardRef<AuthenticatorHandle, AuthProps>(({ provider, a
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
-  const { goBack, currentPage } = usePageManager();
+  const { currentPage } = usePageManager();
 
   useEffect(() => {
     const tl = gsap.timeline({
@@ -58,7 +58,6 @@ const CustomProvider = forwardRef<AuthenticatorHandle, AuthProps>(({ provider, a
 
   const close = useCallback(() => {
     playClose(null);
-    if (!currentPage?.render || currentPage.render === 0) goBack();
   }, [currentPage]);
   return (
     <>

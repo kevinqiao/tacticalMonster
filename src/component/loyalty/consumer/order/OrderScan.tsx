@@ -1,6 +1,6 @@
-import { useConvex } from "convex/react";
 import PageProps from "model/PageProps";
 import React, { useCallback, useState } from "react";
+import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import OrderCollect from "./OrderCollect";
 import OrderRedeem from "./OrderRedeem";
@@ -10,7 +10,7 @@ export interface OrderProps {
 const OrderScan: React.FC<PageProps> = (prop) => {
   const [order, setOrder] = useState<{ id: string; status: number } | null>(null);
   const { user } = useUserManager();
-  const convex = useConvex();
+  const { openPage, getPrePage } = usePageManager();
   // useEffect(() => {
   //   const fetchOrder = async (orderId: string) => {
   //     const o = await convex.query(api.loyalty.consumer.findOrder, { orderId });
@@ -23,7 +23,8 @@ const OrderScan: React.FC<PageProps> = (prop) => {
   // }, [prop]);
 
   const goBack = useCallback(() => {
-    window.history.back();
+    const prePage = getPrePage();
+    if (prePage) openPage(prePage);
   }, []);
   return (
     <>

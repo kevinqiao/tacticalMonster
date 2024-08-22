@@ -1,5 +1,6 @@
 import PageProps, { PageConfig } from "model/PageProps";
 import React, { createContext, useCallback, useContext } from "react";
+import { getPageConfig } from "util/PageUtils";
 
 interface IContextProps {
   name: string;
@@ -8,23 +9,24 @@ interface IContextProps {
   params?: any;
   child?: string;
   anchor?: string;
-  config: PageConfig | null;
+  config: PageConfig | undefined;
   disableCloseBtn?: () => void;
   exit: () => void;
 }
 
 export const PagePropContext = createContext<IContextProps>({
   name: "",
-  config: null,
+  config: undefined,
   disableCloseBtn: () => null,
   exit: () => null,
 });
 
 export const PagePropProvider = ({ pageProp, children }: { pageProp: PageProps; children: React.ReactNode }) => {
+  const config = getPageConfig(pageProp.app, pageProp.name);
   const exit = useCallback(() => {
-    if (pageProp.close) pageProp.close(0);
+    return;
   }, [pageProp]);
-  const value = { ...pageProp, close: undefined, exit };
+  const value = { ...pageProp, config, close: undefined, exit };
   return <PagePropContext.Provider value={value}>{children}</PagePropContext.Provider>;
 };
 

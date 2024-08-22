@@ -152,9 +152,10 @@ export interface AppConfig {
     context: string;
     entry: string;
     auth: number;
-    navs: any[];
+    navs: NavConfig[];
 }
-export interface PageConfig {
+export interface NavConfig {
+    app?: string;
     name: string;
     path: string;
     uri: string;
@@ -168,6 +169,6 @@ export interface PageConfig {
 
 }
 export const AppsConfiguration: any[] = [PlayPlace, Consumer, Merchant, W3Home];
-export const AppModules: { [k: string]: { apps: string[], configs: AppConfig[] } } = {
-    consumer: { apps: ["consumer", "w3"], configs: [Consumer, W3Home] }
+export const AppModules: { [k: string]: { apps: string[] } } = {
+    consumer: { apps: ["consumer", "w3"] }
 }

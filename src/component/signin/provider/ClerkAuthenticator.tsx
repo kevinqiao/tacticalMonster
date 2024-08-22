@@ -1,66 +1,58 @@
 import { ClerkProvider, SignIn, useAuth, useClerk } from "@clerk/clerk-react";
 import { AuthCloseBtn } from "component/common/StyledComponents";
 import { useConvex } from "convex/react";
-import { gsap } from "gsap";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import useEventSubscriber from "service/EventManager";
+import React, { useEffect, useRef, useState } from "react";
 import { usePageManager } from "service/PageManager";
+import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
+import { buildNavURL, getPageConfig } from "util/PageUtils";
 import { api } from "../../../convex/_generated/api";
-import { AuthProps } from "../SSOController";
+import { AuthInit, AuthProps } from "../SSOController";
 import "../signin.css";
 import useClerkAnimate from "./hook/useClerkAnimate";
 
-const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
+const AuthorizeToken: React.FC<AuthProps> = ({ provider }) => {
   const loadingRef = useRef<HTMLDivElement | null>(null);
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
-  const { authComplete } = useUserManager();
-  const { getPrePage } = usePageManager();
-  const { event } = useEventSubscriber(["signin"], ["account"]);
-  const [reqOpen, setReqOpen] = useState<number>(-1);
+  const { user, authComplete } = useUserManager();
+  const { partner } = usePartnerManager();
+  const { currentPage } = usePageManager();
+  // const { event } = useEventSubscriber(["signin"], ["account"]);
+  // const [reqOpen, setReqOpen] = useState<number>(-1);
+  const [authInit, setAuthInit] = useState<AuthInit | null>(null);
 
-  const { playOpen, playDirectOpen, playRedirectOpen, playClose } = useClerkAnimate({
+  useEffect(() => {
+    if (!currentPage || !user || !partner) return;
+    const role = user.uid ? user.role ?? 1 : 0;
+
+    const pageConfig = getPageConfig(currentPage.app, currentPage.name);
+    if (pageConfig) {
+      const open = role < (pageConfig.auth ?? 0) ? 1 : 0;
+      console.log("open:" + open);
+      const params: { [k: string]: string } = currentPage?.params
+        ? { ...currentPage.params, partner: partner.pid + "" }
+        : { partner: partner.pid + "" };
+      const url = buildNavURL({ ...currentPage, params: { ...params, redirect: "1" } }) ?? "";
+      setAuthInit({ open, redirectURL: url, afterSignedURL: url, params });
+    }
+  }, [partner, currentPage, user]);
+
+  useClerkAnimate({
     loadingRef,
     maskRef,
     controllerRef,
     closeBtnRef,
+    authInit,
   });
   const convex = useConvex();
 
-  useEffect(() => {
-    if (reqOpen === 1) playOpen(null);
-    else if (reqOpen === 0) playClose(null);
-  }, [reqOpen]);
-
-  useEffect(() => {
-    if (event) setReqOpen(1);
-  }, [event]);
-
-  useEffect(() => {
-    if (authInit === null) return;
-    const { open, params } = authInit;
-    if (open > 0) {
-      if (params && params.redirect) playRedirectOpen(null);
-      else if (getPrePage() === null) {
-        console.log("start direct open");
-        playDirectOpen(null);
-      } else playOpen(null);
-    } else playClose(null);
-  }, [authInit]);
-
-  const close = useCallback(() => {
-    const tl = gsap.timeline({
-      onComplete: () => {
-        setReqOpen(0);
-        tl.kill();
-      },
-    });
-    playClose(tl);
-  }, []);
+  // const close = useCallback(() => {
+  //   setReqOpen(0);
+  // }, []);
 
   useEffect(() => {
     const channelAuth = async () => {
@@ -72,10 +64,9 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
           channelId: provider.channelId,
           partnerId: provider.partnerId,
         });
-        console.log(res);
         if (res?.ok) {
           signOut();
-          authComplete(res.message, 1);
+          if (authComplete) authComplete(res.message, 1);
         }
       }
     };
@@ -84,17 +75,19 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
 
   return (
     <>
-      <div ref={maskRef} className="clerk_mask">
-        <div ref={loadingRef} style={{ color: "white", fontSize: 20 }}>
-          Loading....
+      <>
+        <div ref={maskRef} className="clerk_mask">
+          {/* <div ref={loadingRef} style={{ color: "white", fontSize: 20, opacity: 0, visibility: "hidden" }}>
+              Loading....
+            </div> */}
         </div>
-      </div>
-      <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={close} />
-      <div ref={controllerRef} className="signin_control">
-        {!isSignedIn && authInit && (authInit.open > 0 || reqOpen > 0) ? (
-          <SignIn redirectUrl={authInit.redirectURL} afterSignInUrl={authInit.afterSignedURL} />
-        ) : null}
-      </div>
+        <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} />
+        <div ref={controllerRef} className="signin_control">
+          {!isSignedIn && authInit ? (
+            <SignIn redirectUrl={authInit.redirectURL} afterSignInUrl={authInit.afterSignedURL} />
+          ) : null}
+        </div>
+      </>
     </>
   );
 };

@@ -35,7 +35,7 @@ const CloverAuthenticator: React.FC<AuthProps> = ({ provider }) => {
       });
 
       if (res?.ok) {
-        authComplete(res.message, 1);
+        if (authComplete) authComplete(res.message, 1);
         close();
       } else setError(res.errorCode);
     };
