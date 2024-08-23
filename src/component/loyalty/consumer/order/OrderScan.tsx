@@ -1,7 +1,10 @@
+import { useConvex } from "convex/react";
 import PageProps from "model/PageProps";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { usePageManager } from "service/PageManager";
+import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
+import { api } from "../../../../convex/_generated/api";
 import OrderCollect from "./OrderCollect";
 import OrderRedeem from "./OrderRedeem";
 export interface OrderProps {
@@ -9,22 +12,25 @@ export interface OrderProps {
 }
 const OrderScan: React.FC<PageProps> = (prop) => {
   const [order, setOrder] = useState<{ id: string; status: number } | null>(null);
+  const { partner } = usePartnerManager();
   const { user } = useUserManager();
   const { openPage, getPrePage } = usePageManager();
-  // useEffect(() => {
-  //   const fetchOrder = async (orderId: string) => {
-  //     const o = await convex.query(api.loyalty.consumer.findOrder, { orderId });
-  //     setOrder(o);
-  //   };
-  //   if (prop.params?.orderId) {
-  //     const orderId = prop.params.orderId;
-  //     fetchOrder(orderId);
-  //   }
-  // }, [prop]);
+  const convex = useConvex();
+  useEffect(() => {
+    const fetchOrder = async (orderId: string) => {
+      const o = await convex.query(api.loyalty.consumer.findOrder, { orderId });
+      setOrder(o);
+    };
+    if (prop.params?.orderId && partner) {
+      const orderId = prop.params.orderId;
+      fetchOrder(orderId);
+    }
+  }, [prop, partner]);
 
   const goBack = useCallback(() => {
-    const prePage = getPrePage();
-    if (prePage) openPage(prePage);
+    window.history.back();
+    // const prePage = getPrePage();
+    // if (prePage) openPage(prePage);
   }, []);
   return (
     <>
@@ -48,7 +54,7 @@ const OrderScan: React.FC<PageProps> = (prop) => {
           <span style={{ fontSize: 20 }}>Scan Order</span>
         </div>
       )}
-      <div
+      {/* <div
         key={"home"}
         style={{
           position: "fixed",
@@ -69,7 +75,7 @@ const OrderScan: React.FC<PageProps> = (prop) => {
         onClick={() => goBack()}
       >
         Back To Home
-      </div>
+      </div> */}
     </>
   );
 };

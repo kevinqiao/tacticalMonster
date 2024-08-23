@@ -1,8 +1,9 @@
 import { useConvex } from "convex/react";
 import { PartnerModel } from "model/PartnerModel";
-import React, { ReactNode, createContext, useContext, useEffect, useState } from "react";
+import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import { getURIParam } from "util/PageUtils";
 import { api } from "../convex/_generated/api";
+import { useUserManager } from "./UserManager";
 
 interface IPartnerContext {
   partner: PartnerModel | null;
@@ -12,20 +13,27 @@ const PartnerContext = createContext<IPartnerContext>({
 });
 
 const PartnerProvider = ({ children }: { children: ReactNode }) => {
-  // const { currentPage } = usePageManager();
   const [partner, setPartner] = useState<PartnerModel | null>(null);
+  const [checkCompleted, setCheckCompleted] = useState(0);
+  const { user } = useUserManager();
   console.log("partner provider");
+
   const convex = useConvex();
-
+  const fetchPartner = useCallback(async (pid: number) => {
+    const res = await convex.query(api.partner.find, {
+      pid,
+      host: window.location.hostname,
+    });
+    return res.ok ? res.message : null;
+  }, []);
   useEffect(() => {
-    const fetchPartner = async (pid: number) => {
-      const res = await convex.query(api.partner.find, {
-        pid,
-        host: window.location.hostname,
+    if (checkCompleted > 0 && user.partner) {
+      fetchPartner(user.partner).then((p) => {
+        setPartner(p);
       });
-      return res.ok ? res.message : null;
-    };
-
+    }
+  }, [user, checkCompleted]);
+  useEffect(() => {
     const partnerId = Number(getURIParam("partner") ?? 0);
     if (!partner || (partnerId > 0 && partnerId !== partner["pid"])) {
       console.log("fetch partner");
@@ -34,6 +42,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
           setPartner(p);
         } else {
           console.log("partner not found");
+          setCheckCompleted(1);
         }
       });
     }

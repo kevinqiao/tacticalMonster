@@ -14,7 +14,7 @@ export interface PageEvent {
 interface IPageContext {
   app: App | null;
   currentPage: PageItem | null | undefined;
-  // openEntry: (params?: { [k: string]: string }) => void;
+  openEntry: (params?: { [k: string]: string }) => void;
   openPage: (page: PageItem) => void;
   getPrePage: () => PageItem | null;
 }
@@ -22,7 +22,7 @@ const PageContext = createContext<IPageContext>({
   // renderPage: null,
   app: null,
   currentPage: null,
-  // openEntry: (params?: { [k: string]: string }) => null,
+  openEntry: (params?: { [k: string]: string }) => null,
   openPage: (p: PageItem) => null,
   getPrePage: () => null,
 });
@@ -35,7 +35,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const openPage = useCallback((page: PageItem) => {
     setApp((pre) => {
-      if (!app || app.name !== page.app) return { name: page.app, params: page.params };
+      console.log(page);
+      console.log(pre);
+      if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
       else return pre;
     });
     setCurrentPage((pre) => {
@@ -46,7 +48,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
   const popPage = useCallback((page: PageItem) => {
     setApp((pre) => {
-      if (!app || app.name !== page.app) return { name: page.app, params: page.params };
+      console.log(page);
+      console.log(pre);
+      if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
       else return pre;
     });
     setCurrentPage((pre) => {
@@ -64,8 +68,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         if (pre) prePageRef.current = pre;
         return page;
       });
-      const url = buildNavURL(page);
-      window.history.pushState({}, "", url);
     }
   }, []);
 
@@ -84,18 +86,22 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     const prop = parseURL(window.location);
     const page = prop["navItem"];
     if (page) {
-      setApp({ name: page.app, params: page.params });
+      setApp((pre) => {
+        if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
+        else return pre;
+      });
       setCurrentPage(page);
     }
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [popPage]);
 
   const value = {
     app,
     currentPage,
     openPage,
+    openEntry,
     getPrePage,
   };
   return <PageContext.Provider value={value}>{children}</PageContext.Provider>;

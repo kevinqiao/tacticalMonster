@@ -2,7 +2,6 @@ import { useConvex } from "convex/react";
 import React, { useEffect } from "react";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
-import { api } from "../../../convex/_generated/api";
 import { AuthProps } from "../SSOController";
 const TelegramProvider: React.FC<AuthProps> = ({ provider }) => {
   // const { authTgbot } = useAuthorize();
@@ -22,14 +21,14 @@ const TelegramProvider: React.FC<AuthProps> = ({ provider }) => {
       console.log(telegramData);
       // const res = await authTgbot(telegramData);
       // console.log(res);
-      const res = await convex.action(api.authoize.authorize, {
-        data: { authData: telegramData },
-        channelId: provider.channel,
-        partnerId: provider.partnerId,
-      });
-      if (res.ok) {
-        authComplete(res.message, 0);
-      }
+      // const res = await convex.action(api.authoize.authorize, {
+      //   data: { authData: telegramData },
+      //   channelId: provider.channel,
+      //   partnerId: provider.partnerId,
+      // });
+      // if (res.ok) {
+      //   // authComplete(res.message, 0);
+      // }
     };
     script.onerror = () => {
       console.error(`Error loading ${src}`);

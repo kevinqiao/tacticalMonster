@@ -17,7 +17,7 @@ interface NavProp {
 const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
   const { user } = useUserManager();
   const [renderCompleted, setRenderCompleted] = useState<number>(0);
-  const { currentPage, getPrePage } = usePageManager();
+  const { currentPage } = usePageManager();
   const [params, setParams] = useState<{ [k: string]: string } | undefined>(undefined);
 
   useEffect(() => {

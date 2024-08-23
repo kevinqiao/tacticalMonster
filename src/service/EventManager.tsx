@@ -22,7 +22,7 @@ export const EventProvider = ({ children }: { children: React.ReactNode }) => {
   return <EventContext.Provider value={{ subject: subject }}>{children}</EventContext.Provider>;
 };
 
-const useEventSubscriber = (selectors: string[], topics?: string[]) => {
+const useEventSubscriber = (selectors?: string[], topics?: string[]) => {
   const [event, setEvent] = useState<EventModel | null>(null);
   const { subject } = useContext(EventContext);
   useEffect(() => {

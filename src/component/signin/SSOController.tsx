@@ -1,7 +1,9 @@
+import { PageItem } from "model/PageProps";
 import React, { FunctionComponent, lazy, Suspense, useEffect, useState } from "react";
 import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
-import { getURIParam } from "util/PageUtils";
+import { useUserManager } from "service/UserManager";
+import { getPageConfig, getURIParam } from "util/PageUtils";
 import "./signin.css";
 export interface AuthenticatorHandle extends HTMLDivElement {
   someMethod(): void;
@@ -13,13 +15,13 @@ export interface AuthProvider {
   name: string;
   path: string;
   channelId: number;
-  params?: { [k: string]: string };
 }
 export interface AuthInit {
   open: number;
-  redirectURL: string;
-  afterSignedURL: string;
-  params?: { [k: string]: string };
+  cancelPage: PageItem | null;
+  // redirectURL: string;
+  // afterSignedURL: string;
+  afterSignedPage: PageItem;
 }
 export interface AuthProps {
   provider?: AuthProvider;
@@ -27,13 +29,29 @@ export interface AuthProps {
 }
 // gsap.registerPlugin(MotionPathPlugin);
 const SSOController: React.FC = () => {
-  // const { user } = useUserManager();
+  const { user } = useUserManager();
   const { partner } = usePartnerManager();
-  const { app } = usePageManager();
+  const { app, currentPage, getPrePage } = usePageManager();
   const [provider, setProvider] = useState<any>(null);
   console.log("sso controller");
-  // console.log(user);
+  const [authInit, setAuthInit] = useState<AuthInit | undefined>(undefined);
 
+  useEffect(() => {
+    if (!currentPage || !user || !partner) return;
+    const role = user.uid ? user.role ?? 1 : 0;
+
+    const pageConfig = getPageConfig(currentPage.app, currentPage.name);
+    if (pageConfig) {
+      const cancelPage = getPrePage();
+      const open = role < (pageConfig.auth ?? 0) ? 1 : 0;
+      console.log("open:" + open);
+      // const params: { [k: string]: string } = currentPage?.params
+      //   ? { ...currentPage.params, partner: partner.pid + "" }
+      //   : { partner: partner.pid + "" };
+      // const url = buildNavURL({ ...currentPage, params: { ...params, redirect: "1" } }) ?? "";
+      setAuthInit({ open, afterSignedPage: currentPage, cancelPage });
+    }
+  }, [partner, currentPage, getPrePage, user]);
   useEffect(() => {
     if (!partner || !app) return;
     let channelId = 0;
@@ -45,12 +63,12 @@ const SSOController: React.FC = () => {
       if (channel && partner.authProviders) {
         const pro = partner.authProviders.find((a) => a.name === channel.provider);
         if (pro) {
+          console.log(pro);
           setProvider({
             ...pro,
             partnerId: partner.pid,
             app: app.name,
             channelId: cid,
-            params: channel.data,
           });
         }
       }
@@ -62,11 +80,9 @@ const SSOController: React.FC = () => {
 
   return (
     <>
-      {provider ? (
-        <Suspense fallback={<></>}>
-          <SelectedComponent provider={provider} />
-        </Suspense>
-      ) : null}
+      <Suspense fallback={<></>}>
+        <SelectedComponent provider={provider} authInit={authInit} />
+      </Suspense>
     </>
   );
 };

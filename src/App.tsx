@@ -67,9 +67,9 @@ const StyleApp = () => {
     [PageProvider],
     [EventProvider],
     [TerminalProvider],
-    [PartnerProvider],
     [ThemeProvider, { theme }],
     [UserProvider],
+    [PartnerProvider],
   ]);
   console.log("style app...");
   return (

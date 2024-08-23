@@ -1,4 +1,5 @@
 import React from "react";
+
 import useEventSubscriber from "service/EventManager";
 import { useUserManager } from "service/UserManager";
 import { OrderProps } from "./OrderScan";
@@ -21,7 +22,7 @@ const OrderRedeem: React.FC<OrderProps> = ({ order }) => {
       >
         <div>
           <div> Order Detail</div>
-          {user ? (
+          {user?.uid ? (
             <div
               style={{
                 cursor: "pointer",
