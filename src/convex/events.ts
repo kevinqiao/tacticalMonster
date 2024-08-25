@@ -168,11 +168,5 @@ export const hi = internalMutation(
     await ctx.db.insert("events", { name: "test", uid: "kevin", data: {} });
   }
 );
-export const findByLocale = query({
-  args: { locale: v.string() },
-  handler: async (ctx, { locale }) => {
-    const resources = await ctx.db.query("localization").withIndex("by_locale", (q) => q.eq("locale", locale)).collect();
-    return resources;
-  },
-});
+
 

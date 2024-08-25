@@ -70,11 +70,12 @@ export default defineSchema({
         diffcult: v.string(),
     }).index("by_type_status_duetime", ["type", "status", "dueTime"]),
 
-    localization: defineTable({
-        name: v.string(),
+
+    resource: defineTable({
+        app: v.string(),
         locale: v.string(),
-        data: v.any(),
-    }).index("by_locale", ["locale"]),
+        resource: v.any(),
+    }).index("by_app_locale", ['app', 'locale']),
 
     tournament: defineTable({
         id: v.string(),
@@ -223,4 +224,17 @@ export default defineSchema({
         stamp: v.number(),
         status: v.number(),//0-active 1-suspend
     }),
+    inventory_item: defineTable({
+        id: v.string(),
+        name: v.any(),
+        partnerId: v.number(),
+        price: v.number(),//0-active 1-suspend
+        categories: v.array(v.string())
+    }).index("by_partner", ["partnerId"]),
+    inventory_category: defineTable({
+        id: v.string(),
+        name: v.any(),
+        partnerId: v.number(),
+        parent: v.optional(v.string())
+    }).index("by_partner", ["partnerId"]),
 });

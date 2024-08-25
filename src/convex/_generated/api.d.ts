@@ -33,6 +33,7 @@ import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as localization from "../localization.js";
 import type * as loyalty_consumer from "../loyalty/consumer.js";
+import type * as loyalty_register from "../loyalty/register.js";
 import type * as loyalty_reward from "../loyalty/reward.js";
 import type * as matchqueue from "../matchqueue.js";
 import type * as message from "../message.js";
@@ -73,6 +74,7 @@ declare const fullApi: ApiFromModules<{
   leaderboard: typeof leaderboard;
   localization: typeof localization;
   "loyalty/consumer": typeof loyalty_consumer;
+  "loyalty/register": typeof loyalty_register;
   "loyalty/reward": typeof loyalty_reward;
   matchqueue: typeof matchqueue;
   message: typeof message;

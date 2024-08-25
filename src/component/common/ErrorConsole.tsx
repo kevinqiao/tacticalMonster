@@ -1,18 +1,23 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
 import useEventSubscriber from "service/EventManager";
+import { usePageManager } from "service/PageManager";
 
-const Alert: React.FC = () => {
+const ErrorConsole: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const maskRef = useRef<HTMLDivElement>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
   const { event } = useEventSubscriber([], ["alert"]);
-
+  const { error } = usePageManager();
+  console.log(error);
   useEffect(() => {
     console.log(event);
     if (event) open();
   }, [event]);
-  console.log(event);
+  useEffect(() => {
+    if (error) open();
+  }, [error]);
+
   const open = useCallback(() => {
     const tl = gsap.timeline({
       onComplete: () => {
@@ -48,8 +53,8 @@ const Alert: React.FC = () => {
           border: 0,
           top: 0,
           left: 0,
-          width: "100%",
-          height: "100%",
+          width: "100vw",
+          height: "100vh",
           opacity: 0,
           visibility: "hidden",
           backgroundColor: "black",
@@ -66,8 +71,8 @@ const Alert: React.FC = () => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          width: "100%",
-          height: "100%",
+          width: "100vw",
+          height: "100vh",
           opacity: 0,
           visibility: "hidden",
         }}
@@ -97,7 +102,7 @@ const Alert: React.FC = () => {
               color: "white",
             }}
           >
-            {event?.data}
+            {JSON.stringify(error)}
           </div>
           <div
             style={{
@@ -121,4 +126,4 @@ const Alert: React.FC = () => {
   );
 };
 
-export default Alert;
+export default ErrorConsole;

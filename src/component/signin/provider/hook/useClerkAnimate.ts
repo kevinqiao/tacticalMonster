@@ -16,6 +16,7 @@ const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef, auth
     const authInitRef = useRef<AuthInit | undefined>(undefined)
     const { event } = useEventSubscriber(["signin"], ["account"]);
     useEffect(() => {
+        // console.log(authInit)
         authInitRef.current = authInit;
         if (authInit) {
             const redirect = getURIParam("redirect");
@@ -58,7 +59,6 @@ const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef, auth
 
     }, [closeBtnRef]);
     useEffect(() => {
-        console.log(event)
         if (event) playOpen(null)
     }, [event]);
 
@@ -105,7 +105,7 @@ const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef, auth
         }
         // tl.to(loadingRef.current, { autoAlpha: 0, duration: 0 })
         tl.fromTo(maskRef.current, { backgroundColor: authInit?.cancelPage ? "black" : "blue" }, { autoAlpha: authInit?.cancelPage ? 0.4 : 1.0, duration: 0.1 }, "<");
-        tl.fromTo(controllerRef.current, { autoAlpha: 0, scale: 0.3 }, { autoAlpha: 1, scale: 1.0, duration: 0.7 }, "<=+0.4");
+        tl.fromTo(controllerRef.current, { autoAlpha: 0, scale: 0.3 }, { autoAlpha: 1, scale: 1.0, duration: 0.7 }, "<=+0.3");
         if (authInit?.cancelPage !== null) {
             tl.fromTo(closeBtnRef.current, { autoAlpha: 0 }, { autoAlpha: 1.0, duration: 0.3 }, ">=-0.3")
         }

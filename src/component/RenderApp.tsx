@@ -5,7 +5,9 @@ import { AppModules, AppsConfiguration, NavConfig } from "model/PageConfiguratio
 import PageProps, { PageItem } from "model/PageProps";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageManager } from "service/PageManager";
+import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
+import ErrorConsole from "./common/ErrorConsole";
 import "./popup.css";
 import SSOController from "./signin/SSOController";
 gsap.registerPlugin(CSSPlugin);
@@ -33,7 +35,6 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
 
   const render = useMemo(() => {
     if (pageConfig.app && pageConfig.path && renderCompleted > 0) {
-      console.log("render page...");
       const SelectedComponent: FunctionComponent<PageProps> = lazy(() => import(`${pageConfig.path}`));
       return (
         <Suspense fallback={<div />}>
@@ -51,6 +52,7 @@ const RenderApp: React.FC = () => {
   const containersRef = useRef<{ [name: string]: { ele: HTMLDivElement; visible: number } }>({});
   // const [appConfig, setAppConfig] = useState<any>(null);
   const [navsConfig, setNavsConfig] = useState<NavConfig[]>([]);
+  const { partner } = usePartnerManager();
   const { getPrePage } = usePageManager();
   console.log("render app");
 
@@ -69,10 +71,10 @@ const RenderApp: React.FC = () => {
 
   const load = useCallback((name: string, ele: HTMLDivElement | null) => {
     if (ele) {
-      console.log("load element:" + name);
+      // console.log("load element:" + name);
       containersRef.current[name] = { ele, visible: 0 };
     } else {
-      console.log("unload element:" + name);
+      // console.log("unload element:" + name);
       delete containersRef.current[name];
     }
   }, []);
@@ -107,28 +109,33 @@ const RenderApp: React.FC = () => {
     if (navsConfig) {
       return (
         <>
-          {navsConfig?.map((navConfig: NavConfig, index: number) => (
-            <div
-              key={navConfig.app + "-" + navConfig.name}
-              ref={(ele) => load(navConfig.app + "-" + navConfig.name, ele)}
-              style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                visibility: "hidden",
-                opacity: 0,
-                width: "100vw",
-                height: "100vh",
-              }}
-            >
-              <PageContainer pageConfig={navConfig} playRender={playRenderPage} />
-            </div>
-          ))}
-          <SSOController />
+          {partner ? (
+            <>
+              {navsConfig?.map((navConfig: NavConfig, index: number) => (
+                <div
+                  key={navConfig.app + "-" + navConfig.name}
+                  ref={(ele) => load(navConfig.app + "-" + navConfig.name, ele)}
+                  style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    visibility: "hidden",
+                    opacity: 0,
+                    width: "100vw",
+                    height: "100vh",
+                  }}
+                >
+                  <PageContainer pageConfig={navConfig} playRender={playRenderPage} />
+                </div>
+              ))}
+              <SSOController />
+            </>
+          ) : null}
+          <ErrorConsole />
         </>
       );
     }
-  }, [navsConfig]);
+  }, [navsConfig, partner]);
   return <>{render}</>;
 };
 

@@ -1,10 +1,8 @@
-import Alert from "component/common/Alert";
 import GlobalStyle from "component/common/GlobalStyle";
 import Head from "component/common/Head";
 import RenderApp from "component/RenderApp";
-import SSOController from "component/signin/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { useMemo } from "react";
+import React from "react";
 import { EventProvider } from "service/EventManager";
 import { LocalizationProvider } from "service/LocalizationManager";
 import PartnerProvider from "service/PartnerManager";
@@ -17,23 +15,6 @@ const convex = new ConvexReactClient("https://dazzling-setter-839.convex.cloud")
 // const convex = new ConvexReactClient("https://1252780878078152844.discordsays.com/convex-api", {
 //   skipConvexDeploymentUrlCheck: true,
 // });
-const MainApp = () => {
-  console.log("main app...");
-  const render = useMemo(
-    () => (
-      <>
-        <div style={{ position: "relative", top: 0, left: 0, width: "100vh", height: "100vw" }}>
-          {/* <NavPage /> */}
-          <RenderApp />
-        </div>
-        <SSOController />
-      </>
-    ),
-    []
-  );
-
-  return <>{render}</>;
-};
 
 const FlattenedProviderTree = (providers: any): any => {
   if (providers?.length === 1) {
@@ -67,6 +48,7 @@ const StyleApp = () => {
     [PageProvider],
     [EventProvider],
     [TerminalProvider],
+    [LocalizationProvider],
     [ThemeProvider, { theme }],
     [UserProvider],
     [PartnerProvider],
@@ -79,7 +61,6 @@ const StyleApp = () => {
       <div style={{ position: "relative", top: 0, left: 0, width: "100vh", height: "100vw" }}>
         <RenderApp />
       </div>
-      <Alert />
     </Providers>
   );
 };

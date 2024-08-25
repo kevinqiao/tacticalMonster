@@ -13,30 +13,36 @@ export interface PageEvent {
 
 interface IPageContext {
   app: App | null;
+  error: { [k: string]: any } | null;
   currentPage: PageItem | null | undefined;
   openEntry: (params?: { [k: string]: string }) => void;
   openPage: (page: PageItem) => void;
+  openError: (error: { [k: string]: any }) => void;
   getPrePage: () => PageItem | null;
 }
 const PageContext = createContext<IPageContext>({
   // renderPage: null,
   app: null,
+  error: null,
   currentPage: null,
   openEntry: (params?: { [k: string]: string }) => null,
   openPage: (p: PageItem) => null,
+  openError: (error: { [k: string]: any }) => null,
   getPrePage: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const prePageRef = useRef<PageItem | null>(null);
+  const [sysReady, setSysReady] = useState<boolean>(false);
   const [app, setApp] = useState<App | null>(null);
+  const [error, setError] = useState<{ [k: string]: any } | null>(null);
   const [currentPage, setCurrentPage] = useState<PageItem | null | undefined>(null);
   console.log("page provider");
-
+  const openError = useCallback((error: { [k: string]: any }) => {
+    setError(error);
+  }, []);
   const openPage = useCallback((page: PageItem) => {
     setApp((pre) => {
-      console.log(page);
-      console.log(pre);
       if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
       else return pre;
     });
@@ -91,6 +97,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         else return pre;
       });
       setCurrentPage(page);
+      setSysReady(true);
     }
     return () => {
       window.removeEventListener("popstate", handlePopState);
@@ -99,12 +106,14 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const value = {
     app,
+    error,
     currentPage,
+    openError,
     openPage,
     openEntry,
     getPrePage,
   };
-  return <PageContext.Provider value={value}>{children}</PageContext.Provider>;
+  return <>{sysReady ? <PageContext.Provider value={value}>{children}</PageContext.Provider> : null}</>;
 };
 
 export const usePageManager = () => {

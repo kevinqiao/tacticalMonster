@@ -1,15 +1,7 @@
-import { SignIn } from "@clerk/clerk-react";
 import PageProps from "model/PageProps";
-import React, { useMemo } from "react";
+import React from "react";
 
 const LogIn: React.FC<PageProps> = (pageProp) => {
-  const redirectURL = useMemo(() => {
-    const url = pageProp.data?.src
-      ? window.location.pathname + "?redirect=" + pageProp.data.src
-      : window.location.pathname;
-    return url;
-  }, [pageProp]);
-
   return (
     <div
       style={{
@@ -23,7 +15,6 @@ const LogIn: React.FC<PageProps> = (pageProp) => {
       }}
     >
       <div style={{ fontSize: "20px", color: "blue" }}>Welcome!</div>
-      <SignIn redirectUrl={redirectURL} afterSignInUrl={redirectURL} />
     </div>
   );
 };

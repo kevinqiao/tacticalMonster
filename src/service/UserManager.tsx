@@ -4,13 +4,13 @@ import { getURIParam } from "util/PageUtils";
 import { api } from "../convex/_generated/api";
 
 interface IUserContext {
-  user: any | null;
+  user: any;
   authComplete: (user: any, persist: number) => void;
   logout: () => void;
   updateAsset: (asset: number, amount: number) => void;
 }
 
-const UserContext = createContext<IUserContext | null>({
+const UserContext = createContext<IUserContext>({
   user: null,
   logout: () => null,
   authComplete: (user: any, persist: number) => null,
@@ -21,12 +21,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
   console.log("user provider");
   const authByToken = useAction(api.UserService.authByToken);
-
   const authComplete = useCallback((u: any, persist: number) => {
-    setUser(u);
+    setUser((pre: any) => (!pre || pre.uid !== u.uid ? u : pre));
     if (u.uid && u.token && persist > 0) localStorage.setItem("user", JSON.stringify(u));
-    return 1;
   }, []);
+
   const updateAsset = useCallback((asset: number, amount: number) => {
     if (user.assets) {
       const as = user.assets.find((a: { asset: number; amount: number }) => a.asset === asset);
@@ -36,7 +35,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
   const logout = useCallback(() => {
     localStorage.removeItem("user");
-    setUser({});
+    setUser(null);
     // createEvent({ name: "signout", topic: "account", delay: 0 });
   }, []);
   useEffect(() => {
@@ -45,15 +44,16 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       let u;
       if (userJSON !== null) {
         const userObj = JSON.parse(userJSON);
-        console.log(userObj);
+        // console.log(userObj);
         if (userObj && userObj["uid"] && userObj["token"]) {
           u = await authByToken({ uid: userObj["uid"], token: userObj["token"] });
+          console.log(u);
+          if (u !== null) authComplete(u, 1);
         }
       }
-      authComplete(u ?? {}, 1);
     };
-    if (!getURIParam("u") && !getURIParam("t")) checkStorage();
-  }, []);
+    if (!getURIParam("u") || !getURIParam("t")) checkStorage();
+  }, [authByToken, authComplete]);
 
   useEffect(() => {
     const checkURL = async (uid: string, token: string, persist: number) => {
@@ -68,15 +68,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <>
-      {user ? (
-        <UserContext.Provider value={{ user, updateAsset, authComplete, logout }}>{children}</UserContext.Provider>
-      ) : null}
+      <UserContext.Provider value={{ user, updateAsset, authComplete, logout }}>{children}</UserContext.Provider>
     </>
   );
 };
-
 export const useUserManager = () => {
-  const ctx = useContext(UserContext);
-  return { ...ctx };
+  return useContext(UserContext);
 };
 export default UserProvider;

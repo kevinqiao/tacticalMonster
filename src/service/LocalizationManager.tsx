@@ -1,6 +1,7 @@
 import { useConvex } from "convex/react";
 import React, { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { api } from "../convex/_generated/api";
+import { usePageManager } from "./PageManager";
 const locales = [
   {
     locale: "en-US",
@@ -17,7 +18,7 @@ const locales = [
 ];
 interface IResourceContext {
   locale: string;
-  resources: { [k: string]: { [k: string]: string } };
+  resources: { [k: string]: any };
 }
 const ResourceContext = createContext<IResourceContext>({
   locale: "en-US",
@@ -25,7 +26,10 @@ const ResourceContext = createContext<IResourceContext>({
 });
 
 export const LocalizationProvider = ({ children }: { children: ReactNode }) => {
-  const [resources, setResources] = useState<{ [k: string]: { [k: string]: string } }>({});
+  const [resources, setResources] = useState<{
+    [k: string]: any;
+  }>({});
+  const { app } = usePageManager();
   const convex = useConvex();
   const [locale, setLocale] = useState<string>("en-US");
   console.log("locale provider");
@@ -44,19 +48,19 @@ export const LocalizationProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener("languagechange", handleLanguageChange);
   }, []);
   useEffect(() => {
-    const fetchResources = async (locale: string) => {
-      const result: { [k: string]: { [k: string]: string } } = {};
-      const res = await convex.query(api.localization.findByLocale, { locale });
-      for (const r of res) {
-        result[r.name] = r.data;
+    const fetchResources = async (locale: string, appName: string) => {
+      console.log(locale + ":" + appName);
+      const res = await convex.query(api.localization.findByApp, { locale, app: appName });
+      console.log(res);
+      if (res?.resource) {
+        setResources(res.resource);
       }
-      setResources(result);
     };
 
-    if (locale) {
-      fetchResources(locale);
+    if (locale && app) {
+      fetchResources(locale, app.name);
     }
-  }, [locale]);
+  }, [locale, app]);
   return <ResourceContext.Provider value={{ resources, locale }}> {children} </ResourceContext.Provider>;
 };
 const useLocalization = () => {

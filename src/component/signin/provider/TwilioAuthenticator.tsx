@@ -54,9 +54,11 @@ const TwilioAuthenticator = React.memo(({ provider, authInit }: AuthProps) => {
     gsap.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.2 });
     setCodeRequest(req);
   }, []);
+  
   const onComplete = useCallback(() => {
     console.log("complete code input:" + codeRef.current);
   }, []);
+
   return (
     <>
       <div ref={maskRef} className="auth_mask"></div>

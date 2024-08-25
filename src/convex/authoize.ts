@@ -20,7 +20,6 @@ const verifyClerk = async (data: any): Promise<{ cid: string; username: string; 
         mode: "cors",
       },
     });
-    console.log(res)
     const json = await res.json();
     if (json.ok) {
       const { cid, username, email, phone, token } = json.message;
@@ -118,7 +117,7 @@ export const authorize = action({
       case "telegram":
         auth = await verifyTelegram(data);
         break;
-      case "4":
+      case "twilio":
 
         break;
       case "5":

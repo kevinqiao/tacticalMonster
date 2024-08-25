@@ -6,7 +6,7 @@ import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import PageProps from "../../../model/PageProps";
 
-const ConsumerHome: React.FC<PageProps> = (pageProp) => {
+const RegisterHome: React.FC<PageProps> = (pageProp) => {
   const { partner } = usePartnerManager();
   const { user, logout } = useUserManager();
   const { openPage } = usePageManager();
@@ -116,4 +116,4 @@ const ConsumerHome: React.FC<PageProps> = (pageProp) => {
     </>
   );
 };
-export default ConsumerHome;
+export default RegisterHome;
