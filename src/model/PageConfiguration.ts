@@ -85,13 +85,19 @@ export const Consumer =
             uri: "/scan/order",
         },
         {
+            name: "register",
+            auth: 0,
+            path: "./loyalty/register/RegisterHome",
+            uri: "/register",
+        },
+        {
             name: "member",
             auth: 1,
             path: "./loyalty/consumer/member/MemberHome",
             uri: "/member",
             children: [
                 { name: "orderhistory", path: "./OrderHistoryHome", uri: "order" },
-                { name: "inbox", path: "./InboxHome", uri: "inbox" },
+                { name: "register", path: "./InboxHome", uri: "inbox" },
                 { name: "booking", path: "./BookingHome", uri: "booking" },
                 { name: "setting", path: "./SettingHome", uri: "setting" },
             ]

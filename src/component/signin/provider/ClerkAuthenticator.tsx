@@ -1,9 +1,11 @@
 import { ClerkProvider, SignIn, useAuth, useClerk } from "@clerk/clerk-react";
 import { AuthCloseBtn } from "component/common/StyledComponents";
 import { useConvex } from "convex/react";
-import React, { useEffect, useMemo, useRef } from "react";
+import { gsap } from "gsap";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import useEventSubscriber from "service/EventManager";
 import { useUserManager } from "service/UserManager";
-import { buildNavURL } from "util/PageUtils";
+import { buildNavURL, getURIParam } from "util/PageUtils";
 import { api } from "../../../convex/_generated/api";
 import { AuthProps } from "../SSOController";
 import "../signin.css";
@@ -17,16 +19,31 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
   const { authComplete } = useUserManager();
+  const [reqOpen, setReqOpen] = useState<number>(0);
+  const { event } = useEventSubscriber(["signin"], ["account"]);
 
-  useClerkAnimate({
+  const { playClose, playForceOpen, playOpen, playRedirectOpen } = useClerkAnimate({
     loadingRef,
     maskRef,
     controllerRef,
     closeBtnRef,
-    authInit,
   });
   const convex = useConvex();
-  console.log(authInit);
+  useEffect(() => {
+    if (event) {
+      playOpen(null);
+      setReqOpen(1);
+    }
+  }, [event]);
+  useEffect(() => {
+    if (authInit && authInit.open > 0) {
+      setReqOpen(1);
+      const redirect = getURIParam("redirect");
+      if (redirect) {
+        playRedirectOpen(null);
+      } else playForceOpen(null, authInit.cancelPage ? true : false);
+    } else playClose(null);
+  }, [authInit]);
   useEffect(() => {
     const channelAuth = async () => {
       const t: string | null = await getToken();
@@ -39,6 +56,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
         });
         if (res?.ok) {
           signOut();
+          playClose(null);
           authComplete(res.message, 1);
         }
       }
@@ -55,7 +73,17 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
       return url;
     }
   }, [authInit, provider]);
-  console.log(afterSignedURL);
+
+  const close = useCallback(() => {
+    const tl = gsap.timeline({
+      onComplete: () => {
+        if (authInit && authInit.open > 0) window.history.back();
+        setReqOpen(0);
+        tl.kill();
+      },
+    });
+    playClose(tl);
+  }, [authInit]);
 
   return (
     <>
@@ -65,9 +93,9 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
           Authenticating....
         </div>
       </div>
-      <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} />
+      <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={close} />
       <div ref={controllerRef} className="signin_control">
-        {!isSignedIn ? (
+        {!isSignedIn && reqOpen > 0 ? (
           <SignIn key={afterSignedURL} redirectUrl={afterSignedURL} afterSignInUrl={afterSignedURL} />
         ) : null}
       </div>

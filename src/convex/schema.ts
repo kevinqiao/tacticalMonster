@@ -229,12 +229,38 @@ export default defineSchema({
         name: v.any(),
         partnerId: v.number(),
         price: v.number(),//0-active 1-suspend
-        categories: v.array(v.string())
+        categories: v.array(v.string()),
+        modifierGroups: v.optional(v.array(v.string()))
     }).index("by_partner", ["partnerId"]),
     inventory_category: defineTable({
         id: v.string(),
         name: v.any(),
         partnerId: v.number(),
         parent: v.optional(v.string())
+    }).index("by_partner", ["partnerId"]),
+    inventory_modifier_group: defineTable({
+        id: v.string(),
+        name: v.any(),
+        description: v.optional(v.string()),
+        partnerId: v.number(),
+        min_selection: v.optional(v.number()),
+        max_selection: v.optional(v.number()),
+        modifiers: v.array(v.string()),
+    }).index("by_partner", ["partnerId"]),
+    inventory_modifier: defineTable({
+        id: v.string(),
+        name: v.any(),
+        partnerId: v.number(),
+        description: v.optional(v.string()),
+        min_quanity: v.optional(v.number()),
+        max_quantity: v.optional(v.number()),
+        price: v.number()
+    }).index("by_partner", ["partnerId"]),
+    inventory_discount: defineTable({
+        id: v.string(),
+        name: v.any(),
+        partnerId: v.number(),
+        percent: v.optional(v.number()),
+        amount:v.optional(v.number())
     }).index("by_partner", ["partnerId"]),
 });

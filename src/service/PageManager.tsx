@@ -67,8 +67,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const openEntry = useCallback((params?: { [k: string]: string }) => {
     const appConfig = getCurrentAppConfig();
+    console.log(appConfig);
     if (appConfig) {
-      if (!app || app.name !== appConfig.name) setApp({ name: appConfig.app, params: params });
+      if (params) setApp({ name: appConfig.name, params: params });
       const page: PageItem = { name: appConfig.entry, app: appConfig.name, params };
       setCurrentPage((pre) => {
         if (pre) prePageRef.current = pre;

@@ -37,6 +37,7 @@ export default interface PageProps {
     app: string;
     name: string;
     params?: { [k: string]: string };
+    visible?: number;
 }
 
 export interface PageItem {

@@ -32,6 +32,11 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
       }
     }
   }, [currentPage, pageConfig, user]);
+  // const visible = useMemo(() => {
+  //   if (currentPage) {
+  //     return pageConfig.app === currentPage.app && pageConfig.name == currentPage.name ? 1 : 0;
+  //   } else return 0;
+  // }, [currentPage]);
 
   const render = useMemo(() => {
     if (pageConfig.app && pageConfig.path && renderCompleted > 0) {

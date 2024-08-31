@@ -1,66 +1,14 @@
 
-import { AuthInit } from "component/signin/SSOController";
 import { gsap } from "gsap";
-import { useCallback, useEffect, useRef } from "react";
-import useEventSubscriber from "service/EventManager";
-import { getURIParam } from "util/PageUtils";
+import { useCallback } from "react";
 export interface ClerkAnimateProps {
     loadingRef: React.MutableRefObject<HTMLDivElement | null>;
     maskRef: React.MutableRefObject<HTMLDivElement | null>;
     controllerRef: React.MutableRefObject<HTMLDivElement | null>;
     closeBtnRef: React.MutableRefObject<HTMLDivElement | null>;
-    authInit: AuthInit | undefined,
 }
 
-const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef, authInit }: ClerkAnimateProps) => {
-    const authInitRef = useRef<AuthInit | undefined>(undefined)
-    const { event } = useEventSubscriber(["signin"], ["account"]);
-    useEffect(() => {
-        // console.log(authInit)
-        authInitRef.current = authInit;
-        if (authInit) {
-            const redirect = getURIParam("redirect");
-            if (redirect) {
-                if (authInit.open === 1)
-                    playRedirectOpen(null);
-                else
-                    playClose(null)
-            } else {
-                if (authInit.open > 0)
-                    playForceOpen(null)
-                else
-                    playClose(null)
-
-            }
-        }
-    }, [authInit]);
-
-    useEffect(() => {
-
-        const handleClick = () => {
-            const tl = gsap.timeline({
-                onComplete: () => {
-                    const au = authInitRef.current;
-                    if (au?.open && au.open > 0)
-                        window.history.back();
-                    tl.kill();
-                },
-            });
-            playClose(tl)
-        };
-
-        // 添加 click 事件监听
-        closeBtnRef.current?.addEventListener('click', handleClick);
-
-        // 清理函数，确保组件卸载时移除事件监听
-        return () => {
-            closeBtnRef.current?.removeEventListener('click', handleClick);
-        };
-
-    }, [closeBtnRef]);
-    useEffect(() => {
-        if (event) playOpen(null)
-    }, [event]);
+const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef }: ClerkAnimateProps) => {
 
     const playOpen = useCallback((timeline: any) => {
 
@@ -93,7 +41,7 @@ const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef, auth
         tl.fromTo(maskRef.current, { autoAlpha: 0, backgroundColor: "blue" }, { autoAlpha: 1.0, duration: 0.2 }, "<");
         tl.play();
     }, []);
-    const playForceOpen = useCallback((timeline: any) => {
+    const playForceOpen = useCallback((timeline: any, canCancel: boolean) => {
         console.log("playing direct open");
         let tl = timeline;
         if (timeline == null) {
@@ -104,13 +52,13 @@ const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef, auth
             });
         }
         // tl.to(loadingRef.current, { autoAlpha: 0, duration: 0 })
-        tl.fromTo(maskRef.current, { backgroundColor: authInit?.cancelPage ? "black" : "blue" }, { autoAlpha: authInit?.cancelPage ? 0.4 : 1.0, duration: 0.1 }, "<");
+        tl.fromTo(maskRef.current, { backgroundColor: canCancel ? "black" : "blue" }, { autoAlpha: canCancel ? 0.4 : 1.0, duration: 0.1 }, "<");
         tl.fromTo(controllerRef.current, { autoAlpha: 0, scale: 0.3 }, { autoAlpha: 1, scale: 1.0, duration: 0.7 }, "<=+0.3");
-        if (authInit?.cancelPage !== null) {
+        if (canCancel) {
             tl.fromTo(closeBtnRef.current, { autoAlpha: 0 }, { autoAlpha: 1.0, duration: 0.3 }, ">=-0.3")
         }
         tl.play();
-    }, [authInit]);
+    }, []);
 
     const playClose = useCallback((timeline: any) => {
         let tl = timeline;
@@ -126,9 +74,9 @@ const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef, auth
         tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.4 }, "<");
         tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.8, duration: 0.4 }, "<");
         tl.play();
-    }, [authInit]);
+    }, []);
 
 
-    return
+    return { playClose, playForceOpen, playOpen, playRedirectOpen }
 }
 export default useClerkAnimate

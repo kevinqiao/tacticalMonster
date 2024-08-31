@@ -17,7 +17,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
   const [partner, setPartner] = useState<PartnerModel | null>(null);
   const [checkCompleted, setCheckCompleted] = useState(0);
   const { user } = useUserManager();
-  const { openPage, openError } = usePageManager();
+  const { openError } = usePageManager();
   console.log("partner provider");
 
   const convex = useConvex();

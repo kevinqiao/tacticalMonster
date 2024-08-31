@@ -9,7 +9,7 @@ import { useUserManager } from "./UserManager";
 const useTournamentManager = () => {
   const { createEvent } = useEventSubscriber([], [])
   const { openPage } = usePageManager()
-  const { user, openPlay } = useUserManager();
+  const { user } = useUserManager();
 
   const convex = useConvex();
 
@@ -29,7 +29,7 @@ const useTournamentManager = () => {
     }
     return null
 
-  }, [user, openPage, createEvent, openPlay])
+  }, [user, openPage, createEvent])
   const listActives = useCallback(
     async (): Promise<any[]> => {
       if (!user) return [];
