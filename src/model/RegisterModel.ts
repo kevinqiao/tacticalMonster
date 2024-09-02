@@ -25,6 +25,7 @@ export interface OrderLineItemModel {
 }
 export interface Discount {
     id: string;
+    time?: number;
     amount?: number;
     percent?: number;
 }
@@ -40,7 +41,7 @@ export interface TaxRate {
 }
 export interface ServiceCharge {
     id: string;
-    name: string;
+    time?: number;
     amount?: number;
     percent?: number;
 }
@@ -77,11 +78,11 @@ export interface InventoryModifier {
     price: number;
 }
 
-export interface InventoryService {
+export interface InventoryServiceCharge {
     id: string;
     name: string;
-    description?: string;
-    price: number;
+    amount?: number;
+    percent?: number;
 }
 export interface InventoryCategory {
     id: string;

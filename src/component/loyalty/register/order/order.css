@@ -64,6 +64,7 @@
   border-color: black;
   border-width: 2px 0px 0px 0px;
   border-style: solid;
+  margin:0px 10px 0px 10px
 }
 
 .subtotal-container {
@@ -77,25 +78,33 @@
 .subtotal-item {
   display:flex;
   justify-content: space-between;
-  height:35px;
-  width: 100%;
+  height:25px;
+  width: 95%;
+  margin:10px 10px 0px 10px;
+}
+.subtotal-item-delete{
+  cursor: pointer;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  width:50px;
+  height:30px;
+  color:blue;
+  font-size: 25px;
+  background-color:grey
 }
 .subtotal-item-cell {
   display:flex;
   align-items:center;
   height:35px;
-  margin:0px 5px 0px 5px;
 }
 .orderItem-container {
-  position:fixed;
-  z-index: 1000;
+  position:relative;
   top:0px;
   left:0px;
-  width: 100%;
-  height:100vh;
-  opacity:0;
-  visibility: hidden;
-  background-color: rgb(225, 225, 237);
+  width:100%;
+  height:100%;
+  background-color: white;
 }
 .orderItem-done {
   position:absolute;

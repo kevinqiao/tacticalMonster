@@ -1,38 +1,23 @@
-import { gsap } from "gsap";
 import { Discount, OrderLineItemModel } from "model/RegisterModel";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import DiscountPanel from "../addition/DiscountPanel";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useCartManager } from "../context/CartManager";
 import { useInventoryManager } from "../context/InventoryManager";
+import { usePopManager } from "../context/PopManager";
+import { POP_DATA_TYPE, PopProps } from "../RegisterHome";
 import "./order.css";
-interface Props {
-  itemId: string | null;
-  onClose: () => void;
-}
-const OrderItem: React.FC<Props> = ({ itemId, onClose }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+
+const OrderItem: React.FC<PopProps> = ({ data, onClose }) => {
   const { cart, updateItem } = useCartManager();
-  const [discountOpen, setDiscountOpen] = useState<boolean>(false);
+  const { openPop } = usePopManager(null, null, null);
   const { discounts, modifiers } = useInventoryManager();
   const [item, setItem] = useState<OrderLineItemModel | null>(null);
   useEffect(() => {
-    if (cart && itemId) {
-      const activeItem = cart?.lineItems.find((item, index) => item.id === itemId);
+    console.log(data);
+    if (cart && data?.obj.id) {
+      const activeItem = cart?.lineItems.find((item, index) => item.id === data.obj.id);
       if (activeItem && activeItem !== item) setItem(activeItem);
     }
-  }, [itemId, cart]);
-  console.log(item);
-  useEffect(() => {
-    if (itemId !== null) {
-      open();
-    } else close();
-  }, [itemId]);
-  const open = useCallback(() => {
-    gsap.fromTo(containerRef.current, { top: "100%", autoAlpha: 1 }, { top: 0, duration: 0.6 });
-  }, []);
-  const close = useCallback(() => {
-    gsap.to(containerRef.current, { top: "100%", duration: 0.6 });
-  }, []);
+  }, [data, cart]);
   const modifierName = useCallback(
     (mid: string) => {
       const modifier = modifiers.find((m) => m.id === mid);
@@ -97,19 +82,18 @@ const OrderItem: React.FC<Props> = ({ itemId, onClose }) => {
     },
     [updateItem, item]
   );
-  const onDiscountSelect = useCallback(
+  const removeDiscount = useCallback(
     (dis: Discount) => {
-      if (item) {
-        item.discounts = item.discounts ? [...item.discounts, dis] : [dis];
+      if (item?.discounts) {
+        item.discounts = item.discounts.filter((d) => d.time !== dis.time);
         updateItem(item);
-        setDiscountOpen(false);
       }
     },
-    [item, cart]
+    [item]
   );
   return (
     <>
-      <div ref={containerRef} className="orderItem-container">
+      <div className="orderItem-container">
         <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
           <div className="btn" onClick={onClose}>
             Close1
@@ -151,10 +135,15 @@ const OrderItem: React.FC<Props> = ({ itemId, onClose }) => {
             item.discounts.map((dis, index) => (
               <div key={dis.id + "-" + index} className="item-row">
                 <div className="subtotal-item-cell">{discountTitle(dis)}</div>
+                <div className="subtotal-item-cell">
+                  <div className="subtotal-item-delete" onClick={() => removeDiscount(dis)}>
+                    X
+                  </div>
+                </div>
                 <div className="subtotal-item-cell">{Number(0 - discount(dis)).toFixed(2)}</div>
               </div>
             ))}
-          <div className="item-row" onClick={() => setDiscountOpen(true)}>
+          <div className="item-row" onClick={() => openPop("discount", { type: POP_DATA_TYPE.ORDER_ITEM, obj: item })}>
             <div style={{ fontSize: 18, color: "blue" }}>Add DISCOUNT</div>
             <div></div>
           </div>
@@ -167,7 +156,7 @@ const OrderItem: React.FC<Props> = ({ itemId, onClose }) => {
         </div>
         <div className="orderItem-done" />
       </div>
-      <DiscountPanel open={discountOpen} onClose={() => setDiscountOpen(false)} onComplete={onDiscountSelect} />
+      {/* <DiscountPanel open={discountOpen} onClose={() => setDiscountOpen(false)} onComplete={onDiscountSelect} /> */}
     </>
   );
 };

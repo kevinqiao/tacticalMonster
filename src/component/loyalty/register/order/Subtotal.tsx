@@ -1,7 +1,7 @@
 import { Discount, ServiceCharge, TaxRate } from "model/RegisterModel";
 import React, { useCallback, useMemo } from "react";
 import { useCartManager } from "../context/CartManager";
-import "../register.css";
+import { useInventoryManager } from "../context/InventoryManager";
 import "./order.css";
 interface Props {
   addition?: boolean;
@@ -9,7 +9,8 @@ interface Props {
   onServiceChargeOpen?: () => void;
 }
 const Subtotal: React.FC<Props> = ({ addition, onDiscountOpen, onServiceChargeOpen }) => {
-  const { cart } = useCartManager();
+  const { cart, removeDiscount, removeServiceCharge } = useCartManager();
+  const { discounts, serviceCharges } = useInventoryManager();
   const subtotal = useMemo(() => {
     const sub = cart?.lineItems.reduce((total, item) => {
       let itemTotal = item.price * item.quantity;
@@ -27,19 +28,23 @@ const Subtotal: React.FC<Props> = ({ addition, onDiscountOpen, onServiceChargeOp
     (dis: Discount) => {
       if (subtotal) {
         const amount = dis.amount ?? (dis.percent ? dis.percent * subtotal : 0);
-        return amount;
+        return (0 - amount).toFixed(2);
       }
       return 0;
     },
     [subtotal]
   );
   const tax = useCallback(
-    (t: TaxRate) => {
+    (tax: TaxRate) => {
       if (subtotal && cart) {
         const discounts = cart.discounts.reduce((t, dis) => {
           return t + (dis.amount ?? (dis.percent ? dis.percent * subtotal : 0));
         }, 0);
-        const tamount = (subtotal - discounts) * t.amount;
+        const nettotal = subtotal - discounts;
+        // const charges = cart.serviceCharges?.reduce((t, service) => {
+        //   return t + (service.amount ?? (service.percent ? service.percent * nettotal : 0));
+        // }, 0);
+        const tamount = Math.round(100 * nettotal * tax.amount) / 100;
         return tamount.toFixed(2);
       }
       return 0;
@@ -49,12 +54,17 @@ const Subtotal: React.FC<Props> = ({ addition, onDiscountOpen, onServiceChargeOp
   const serviceCharge = useCallback(
     (t: ServiceCharge) => {
       if (subtotal) {
-        const amount = t.amount ?? (t.percent ? t.percent * subtotal : 0);
+        const discounts = cart
+          ? cart.discounts.reduce((t, dis) => {
+              return t + (dis.amount ?? (dis.percent ? dis.percent * subtotal : 0));
+            }, 0)
+          : 0;
+        const amount = t.amount ?? (t.percent ? t.percent * (subtotal - discounts) : 0);
         return amount.toFixed(2);
       }
       return 0;
     },
-    [subtotal]
+    [subtotal, cart]
   );
   const total = useMemo(() => {
     if (subtotal > 0) {
@@ -63,24 +73,46 @@ const Subtotal: React.FC<Props> = ({ addition, onDiscountOpen, onServiceChargeOp
             return t + (dis.amount ?? (dis.percent ? dis.percent * subtotal : 0));
           }, 0)
         : 0;
-      const nettotal = subtotal - discounts;
-      const taxs =
-        cart && cart.taxRates
-          ? cart.taxRates.reduce((t, tax) => {
-              return t + tax.amount * nettotal;
-            }, 0)
-          : 0;
-
       const serviceCharges =
         cart && cart.serviceCharges
           ? cart.serviceCharges.reduce((t, ser) => {
-              return t + (ser.amount ?? (ser.percent ? ser.percent * nettotal : 0));
+              if (ser.amount) return t + ser.amount;
+              else if (ser.percent) {
+                const s = Math.round(100 * (subtotal - discounts) * ser.percent) / 100;
+                return t + s;
+              }
+              return 0;
             }, 0)
           : 0;
 
-      return (nettotal + taxs + serviceCharges).toFixed(2);
+      const taxs =
+        cart && cart.taxRates
+          ? cart.taxRates.reduce((t, tax) => {
+              const s = Math.round(100 * (subtotal - discounts) * tax.amount) / 100;
+              return t + s;
+            }, 0)
+          : 0;
+      return (subtotal - discounts + serviceCharges + taxs).toFixed(2);
     }
   }, [subtotal, cart]);
+  const getServiceName = useCallback(
+    (service: ServiceCharge) => {
+      if (serviceCharges) {
+        const scharge = serviceCharges.find((c) => c.id === service.id);
+        return scharge?.name;
+      }
+    },
+    [serviceCharges]
+  );
+  const getDiscountName = useCallback(
+    (discount: Discount) => {
+      if (discounts) {
+        const dis = discounts.find((c) => c.id === discount.id);
+        return dis?.name;
+      }
+    },
+    [discounts]
+  );
   return (
     <>
       <div className="subtotal-container">
@@ -91,27 +123,37 @@ const Subtotal: React.FC<Props> = ({ addition, onDiscountOpen, onServiceChargeOp
         {cart &&
           cart.discounts.map((dis, index) => (
             <div key={dis.id + "-" + index} className="subtotal-item">
-              <div className="subtotal-item-cell">{dis.id}</div>
+              <div className="subtotal-item-cell">{getDiscountName(dis)}</div>
+              <div className="subtotal-item-cell">
+                <div className="subtotal-item-delete" onClick={() => removeDiscount(dis)}>
+                  X
+                </div>
+              </div>
               <div className="subtotal-item-cell">{discount(dis)}</div>
             </div>
           ))}
         {addition ? (
-          <div style={{ display: "flex", justifyContent: "flex-start", width: "100%" }}>
+          <div className="subtotal-item">
             <div className="btn" style={{ width: "auto" }} onClick={onDiscountOpen}>
               Add Discount
             </div>
           </div>
         ) : null}
         {cart?.serviceCharges &&
-          cart.serviceCharges.map((service) => (
-            <div key={service.id} className="subtotal-item">
-              <div className="subtotal-item-cell">{service.name}</div>
+          cart.serviceCharges.map((service, index) => (
+            <div key={service.id + "-" + index} className="subtotal-item">
+              <div className="subtotal-item-cell">{getServiceName(service)}</div>
+              <div className="subtotal-item-cell">
+                <div className="subtotal-item-delete" onClick={() => removeServiceCharge(service)}>
+                  X
+                </div>
+              </div>
               <div className="subtotal-item-cell">{serviceCharge(service)}</div>
             </div>
           ))}
         {addition ? (
-          <div style={{ display: "flex", justifyContent: "flex-start", width: "100%", marginTop: 10 }}>
-            <div className="btn" style={{ width: "auto" }}>
+          <div className="subtotal-item">
+            <div className="btn" style={{ width: "auto" }} onClick={onServiceChargeOpen}>
               Add Service Charge
             </div>
           </div>

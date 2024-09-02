@@ -5,6 +5,7 @@ import {
   InventoryItem,
   InventoryModifier,
   InventoryModifierGroup,
+  InventoryServiceCharge,
 } from "model/RegisterModel";
 import React, { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import useLocalization from "service/LocalizationManager";
@@ -16,6 +17,7 @@ interface InventoryModel {
   modifierGroups: InventoryModifierGroup[];
   modifiers: InventoryModifier[];
   discounts: InventoryDiscount[];
+  serviceCharges: InventoryServiceCharge[];
 }
 interface IInventoryContext {
   categories: InventoryCategory[];
@@ -23,6 +25,7 @@ interface IInventoryContext {
   modifierGroups: InventoryModifierGroup[];
   modifiers: InventoryModifier[];
   discounts: InventoryDiscount[];
+  serviceCharges: InventoryServiceCharge[];
 }
 const InventoryContext = createContext<IInventoryContext>({
   categories: [],
@@ -30,6 +33,7 @@ const InventoryContext = createContext<IInventoryContext>({
   modifierGroups: [],
   modifiers: [],
   discounts: [],
+  serviceCharges: [],
 });
 
 const InventoryProvider = ({ children }: { children: ReactNode }) => {

@@ -89,6 +89,14 @@ export const Consumer =
             auth: 0,
             path: "./loyalty/register/RegisterHome",
             uri: "/register",
+            children: [
+                { name: "orderReview", path: "./order/OrderReview", uri: "order" },
+                { name: "orderAddition", path: "./addition/OrderBaseAdd", uri: "order/addition" },
+                { name: "orderItem", path: "./order/OrderItem", uri: "order/item" },
+                { name: "discount", path: "./addition/DiscountPanel", uri: "discount" },
+                { name: "serviceCharge", path: "./addition/ServiceChargePanel", uri: "service_charge" },
+                { name: "modifier", path: "./addition/Modifier", uri: "modifier" },
+            ]
         },
         {
             name: "member",

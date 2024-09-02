@@ -1,13 +1,15 @@
 import { gsap } from "gsap";
 import React, { useEffect, useMemo, useRef } from "react";
-import { ActiveType, useCartManager } from "./context/CartManager";
-import { useInventoryManager } from "./context/InventoryManager";
-import "./register.css";
+import { useCartManager } from "../context/CartManager";
+import { useInventoryManager } from "../context/InventoryManager";
+import { usePopManager } from "../context/PopManager";
+import "../register.css";
 
 const CartBar: React.FC = () => {
   const addRef = useRef<HTMLDivElement | null>(null);
   const { items } = useInventoryManager();
-  const { lastItemAdded, openActive } = useCartManager();
+  const { lastItemAdded } = useCartManager();
+  const { openPop } = usePopManager(null, null, null);
   useEffect(() => {
     console.log(lastItemAdded);
     if (!lastItemAdded) return;
@@ -40,11 +42,7 @@ const CartBar: React.FC = () => {
       <div className="cartbar-container">
         <div className="cartbar-left"></div>
         <div className="cartbar-right">
-          <div
-            className="btn"
-            style={{ width: 120 }}
-            onClick={() => openActive({ type: ActiveType.ORDER, model: null })}
-          >
+          <div className="btn" style={{ width: 120 }} onClick={() => openPop("orderReview", null)}>
             Review Order
           </div>
         </div>

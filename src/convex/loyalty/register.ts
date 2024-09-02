@@ -14,7 +14,11 @@ export const findInventory = query({
     const modifierGroups = modifierGrpDocs.map((c, index) => ({ ...c, _id: undefined, _creationTime: undefined, name: c.name[loc] }));
     const discountDocs = await ctx.db.query("inventory_discount").withIndex("by_partner", (q) => q.eq("partnerId", partnerId)).collect();
     const discounts = discountDocs.map((c, index) => ({ ...c, _id: undefined, _creationTime: undefined, name: c.name[loc] }))
-    return { categories, items, modifierGroups: modifierGroups ?? [], modifiers: modifiers ?? [], discounts: discounts ?? [] }
+    const serviceChargeDocs = await ctx.db.query("inventory_service_charge").withIndex("by_partner", (q) => q.eq("partnerId", partnerId)).collect();
+    const serviceCharges = serviceChargeDocs.map((c, index) => ({ ...c, _id: undefined, _creationTime: undefined, name: c.name[loc] }))
+    return {
+      categories, items, modifierGroups: modifierGroups ?? [], modifiers: modifiers ?? [], discounts: discounts ?? [], serviceCharges: serviceCharges ?? []
+    }
   }
 })
 export const findOrder = action({

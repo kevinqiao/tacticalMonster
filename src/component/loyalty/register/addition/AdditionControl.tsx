@@ -1,11 +1,11 @@
 import { gsap } from "gsap";
 import React, { useCallback, useRef } from "react";
-import { ActiveType, useCartManager } from "../context/CartManager";
+import { usePopManager } from "../context/PopManager";
 import "../register.css";
-const AdditionHome: React.FC = () => {
+const AdditionControl: React.FC = () => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const { openActive } = useCartManager();
+  const { openPop } = usePopManager(null, null, null);
   const openMenu = useCallback(() => {
     console.log("open menu");
     const tl = gsap.timeline({
@@ -29,7 +29,7 @@ const AdditionHome: React.FC = () => {
   }, []);
   const doAction = useCallback(() => {
     closeMenu();
-    openActive({ type: ActiveType.DISCOUNT, model: null });
+    openPop("orderAddition", null);
   }, []);
   return (
     <>
@@ -52,4 +52,4 @@ const AdditionHome: React.FC = () => {
   );
 };
 
-export default AdditionHome;
+export default AdditionControl;

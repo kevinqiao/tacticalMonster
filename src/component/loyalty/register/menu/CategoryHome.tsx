@@ -1,8 +1,8 @@
 import { InventoryCategory } from "model/RegisterModel";
 import React, { useCallback, useMemo, useState } from "react";
-import { useCartManager } from "./context/CartManager";
-import { useInventoryManager } from "./context/InventoryManager";
-import "./register.css";
+import { useCartManager } from "../context/CartManager";
+import { useInventoryManager } from "../context/InventoryManager";
+import "../register.css";
 
 const CategoryHome: React.FC = () => {
   const [curCategory, setCurCategory] = useState<InventoryCategory | null>(null);

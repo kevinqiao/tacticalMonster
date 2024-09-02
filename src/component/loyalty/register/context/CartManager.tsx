@@ -33,10 +33,10 @@ export interface CartModel {
 interface ICartContext {
   visible: number;
   lastItemAdded: OrderLineItemModel | null;
-  activeComponent: ActiveComponent | null;
+  // activeComponent: ActiveComponent | null;
   cart: CartModel | null;
-  openActive: (c: ActiveComponent) => void;
-  closeActive: () => void;
+  // openActive: (c: ActiveComponent) => void;
+  // closeActive: () => void;
 
   selectInventory: (item: InventoryItem) => void;
   updateItem: (item: OrderLineItemModel) => void;
@@ -53,10 +53,10 @@ interface ICartContext {
 const CartContext = createContext<ICartContext>({
   visible: 0,
   lastItemAdded: null,
-  activeComponent: null,
+  // activeComponent: null,
   cart: null,
-  openActive: (c: ActiveComponent) => null,
-  closeActive: () => null,
+  // openActive: (c: ActiveComponent) => null,
+  // closeActive: () => null,
   selectInventory: (item: InventoryItem) => null,
   updateItem: (item: OrderLineItemModel) => null,
   removeItem: (item: OrderLineItemModel) => null,
@@ -73,14 +73,14 @@ const taxRates = [
   { id: "t0001", name: "HST", amount: 0.07 },
   { id: "t0002", name: "GST", amount: 0.06 },
 ];
-const discounts = [
-  { id: "d0001", name: "discount1", percent: 0.1 },
-  { id: "d0002", name: "discount2", amount: 2 },
-];
-const serviceCharges = [
-  { id: "s0001", name: "service1", percent: 0.12 },
-  { id: "s0002", name: "service2", amount: 2 },
-];
+// const discounts = [
+//   { id: "d0001", name: "discount1", percent: 0.1 },
+//   { id: "d0002", name: "discount2", amount: 2 },
+// ];
+// const serviceCharges = [
+//   { id: "s0001", name: "service1", percent: 0.12 },
+//   { id: "s0002", name: "service2", amount: 2 },
+// ];
 const CartProvider = ({ children, visible }: { children: ReactNode; visible: number }) => {
   const [cart, setCart] = useState<CartModel>({ lineItems: [], discounts: [], taxRates, serviceCharges: [] });
   const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
@@ -121,7 +121,7 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
       if (index >= 0) {
         const citem = pre.lineItems.splice(index, 1)[0];
         Object.assign(citem, item);
-        pre.lineItems.push({ ...citem });
+        pre.lineItems.splice(index, 0, { ...citem });
         localStorage.setItem("cart", JSON.stringify(pre));
         return { ...pre };
       }
@@ -137,9 +137,10 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
 
   const addServiceCharge = useCallback((service: ServiceCharge) => {
     setCart((pre) => {
-      const services = pre.serviceCharges ?? [];
-      services.push(service);
-      return { ...pre, serviceCharges: services };
+      const charges = pre.serviceCharges ?? [];
+      const c = { ...pre, serviceCharges: [...charges, { ...service, time: Date.now() }] };
+      localStorage.setItem("cart", JSON.stringify(c));
+      return c;
     });
   }, []);
   const updateServiceCharge = useCallback((service: ServiceCharge) => {
@@ -156,14 +157,16 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
   const removeServiceCharge = useCallback((service: ServiceCharge) => {
     setCart((pre) => {
       const services = pre.serviceCharges ?? [];
-      const citems = services.filter((c) => c.id !== service.id);
-      return { ...pre, serviceCharges: citems };
+      const citems = services.filter((c) => c.time !== service.time);
+      const c = { ...pre, serviceCharges: citems };
+      localStorage.setItem("cart", JSON.stringify(c));
+      return c;
     });
   }, []);
   const addDiscount = useCallback((discount: Discount) => {
     setCart((pre) => {
       const discounts = pre.discounts ?? [];
-      const c = { ...pre, discounts: [...discounts, discount] };
+      const c = { ...pre, discounts: [...discounts, { ...discount, time: Date.now() }] };
       localStorage.setItem("cart", JSON.stringify(c));
       return c;
     });
@@ -182,8 +185,10 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
   const removeDiscount = useCallback((discount: Discount) => {
     setCart((pre) => {
       const discounts = pre.discounts ?? [];
-      const citems = discounts.filter((c) => c.id !== discount.id);
-      return { ...pre, discounts: citems };
+      const citems = discounts.filter((c) => c.time !== discount.time);
+      const c = { ...pre, discounts: citems };
+      localStorage.setItem("cart", JSON.stringify(c));
+      return c;
     });
   }, []);
   const addTaxRate = useCallback((taxRate: TaxRate) => {
@@ -200,19 +205,14 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
       return { ...pre, taxRates: citems };
     });
   }, []);
-  const openActive = useCallback((active: ActiveComponent) => {
-    setActiveComponent(active);
-  }, []);
-  const closeActive = useCallback(() => {
-    setActiveComponent(null);
-  }, []);
+
   const value = {
     visible,
     lastItemAdded,
-    activeComponent,
+    // activeComponent,
     cart,
-    openActive,
-    closeActive,
+    // openActive,
+    // closeActive,
     selectInventory,
     updateItem,
     removeItem,

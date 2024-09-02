@@ -1,7 +1,7 @@
 import { gsap } from "gsap";
 import React, { useEffect, useRef } from "react";
-import { ActiveType, useCartManager } from "./context/CartManager";
-import "./register.css";
+import { ActiveType, useCartManager } from "../context/CartManager";
+import "../register.css";
 const ProductHome: React.FC = () => {
   const productRef = useRef<HTMLDivElement | null>(null);
   const { visible, activeComponent, closeActive } = useCartManager();
@@ -16,13 +16,19 @@ const ProductHome: React.FC = () => {
   }, [activeComponent]);
   return (
     <div ref={productRef} className="active-container">
-      <div style={{ width: "100%", height: "100%", backgroundColor: "red" }}>
+      <div style={{ width: "100%", height: "100%" }}>
         <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
           <div className="btn" onClick={closeActive}>
             Close
           </div>
         </div>
-        product Home
+        <div id="product-price"></div>
+        <div id="product-desc"></div>
+        <div id="product-modifier-groups">
+          <div id="nav-group">
+            
+          </div>
+        </div>
       </div>
     </div>
   );

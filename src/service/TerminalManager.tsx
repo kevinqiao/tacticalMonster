@@ -1,7 +1,7 @@
 import { gsap } from "gsap";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 interface ITerminalContext {
-  terminal: number;
+  terminal: number; //0-desktop 1-pad 2-phone
   connect: number;
   width: number;
   height: number;
@@ -29,6 +29,7 @@ const TerminalContext = createContext<ITerminalContext>({
 
 export const TerminalProvider = ({ children }: { children: ReactNode }) => {
   const terminalRef = useRef(-1);
+  const [terminal, setTerminal] = useState<number>(-1);
   const [visible, setVisible] = useState(true);
   const [connect, setConnect] = useState(1);
   const [dimension, setDimension] = useState<{
@@ -50,6 +51,7 @@ export const TerminalProvider = ({ children }: { children: ReactNode }) => {
   const updateCoord = () => {
     const w = window.innerWidth as number;
     const h = window.innerHeight as number;
+    const t = w > 1000 && h > 1000 ? 0 : w > 768 && h > 768 ? 1 : w > 500 || h > 500 ? 2 : 3;
     const headH = Math.floor(Math.max(50, Math.min(w * 0.06, 100)));
     const LobbyMenuH = w > h ? h - headH : (50 * w) / 500;
     const LobbyMenuW = w < h ? w : Math.max(250, w * 0.14);
@@ -66,6 +68,7 @@ export const TerminalProvider = ({ children }: { children: ReactNode }) => {
       isMobile,
     };
     setDimension(v);
+    setTerminal(t);
 
     const loadMain = document.getElementById("main-loader");
     if (loadMain)
@@ -105,9 +108,9 @@ export const TerminalProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
   const value = {
+    terminal,
     visible,
     ...dimension,
-    terminal: terminalRef.current,
     connect,
     changeConnect: useCallback((status: number) => {
       setConnect(status);

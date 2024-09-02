@@ -261,6 +261,13 @@ export default defineSchema({
         name: v.any(),
         partnerId: v.number(),
         percent: v.optional(v.number()),
-        amount:v.optional(v.number())
+        amount: v.optional(v.number())
+    }).index("by_partner", ["partnerId"]),
+    inventory_service_charge: defineTable({
+        id: v.string(),
+        name: v.any(),
+        partnerId: v.number(),
+        percent: v.optional(v.number()),
+        amount: v.optional(v.number())
     }).index("by_partner", ["partnerId"]),
 });
