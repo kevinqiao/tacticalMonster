@@ -1,13 +1,15 @@
 import { InventoryCategory } from "model/RegisterModel";
 import React, { useCallback, useMemo, useState } from "react";
+import { usePageManager } from "service/PageManager";
 import { useCartManager } from "../context/CartManager";
 import { useInventoryManager } from "../context/InventoryManager";
-import "../register.css";
+import "./menu.css";
 
 const CategoryHome: React.FC = () => {
   const [curCategory, setCurCategory] = useState<InventoryCategory | null>(null);
   const { selectInventory } = useCartManager();
   const { categories, items } = useInventoryManager();
+  const { openNav } = usePageManager();
 
   const catChildren = useMemo(() => {
     if (curCategory === null) {
@@ -31,39 +33,37 @@ const CategoryHome: React.FC = () => {
 
   return (
     <>
-      <div style={{ width: "100vw", height: "100vh", overflowY: "auto", backgroundColor: "white" }}>
-        <div className="category-head">
-          {curCategory ? (
-            <div className="btn" onClick={back}>
-              {"<"}
-            </div>
-          ) : (
-            <div className="btn" onClick={() => window.history.back()}>
-              Home
-            </div>
-          )}
-          <div>{curCategory?.name}</div>
-          <div className="btn-blank"></div>
-        </div>
+      <div className="category-head">
+        {curCategory ? (
+          <div className="btn" onClick={back}>
+            {"<"}
+          </div>
+        ) : (
+          <div className="btn" onClick={openNav}>
+            Home
+          </div>
+        )}
+        <div>{curCategory?.name}</div>
+        <div className="btn-blank"></div>
+      </div>
 
-        <div className="category-container">
-          {catChildren?.items?.map((c) => {
-            return (
-              <div key={c.id} className="category-item" onClick={() => selectInventory(c)}>
-                <span style={{ color: "white", fontSize: 15 }}>{c["name"]}</span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="category-container">
-          {catChildren?.categories.map((c) => {
-            return (
-              <div key={c.id} className="category-item" onClick={() => setCurCategory(c)}>
-                <span style={{ color: "white", fontSize: 15 }}>{c.name}</span>
-              </div>
-            );
-          })}
-        </div>
+      <div className="category-container">
+        {catChildren?.items?.map((c) => {
+          return (
+            <div key={c.id} className="category-item" onClick={() => selectInventory(c)}>
+              <span style={{ color: "white", fontSize: 15 }}>{c["name"]}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="category-container">
+        {catChildren?.categories.map((c) => {
+          return (
+            <div key={c.id} className="category-item" onClick={() => setCurCategory(c)}>
+              <span style={{ color: "white", fontSize: 15 }}>{c.name}</span>
+            </div>
+          );
+        })}
       </div>
     </>
   );

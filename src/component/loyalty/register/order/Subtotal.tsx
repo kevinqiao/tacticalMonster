@@ -26,6 +26,7 @@ const Subtotal: React.FC<Props> = ({ addition, onDiscountOpen, onServiceChargeOp
   }, [cart]);
   const discount = useCallback(
     (dis: Discount) => {
+      console.log(dis);
       if (subtotal) {
         const amount = dis.amount ?? (dis.percent ? dis.percent * subtotal : 0);
         return (0 - amount).toFixed(2);
@@ -108,7 +109,7 @@ const Subtotal: React.FC<Props> = ({ addition, onDiscountOpen, onServiceChargeOp
     (discount: Discount) => {
       if (discounts) {
         const dis = discounts.find((c) => c.id === discount.id);
-        return dis?.name;
+        return dis ? dis.name : discount.amount ? "discount" : discount.percent ? discount.percent * 100 + "%Off" : "";
       }
     },
     [discounts]

@@ -109,10 +109,7 @@ export const getCurrentAppConfig = () => {
 }
 export const getPageConfig = (appName: string, page: string) => {
     const app = AppsConfiguration.find((a) => a.name === appName);
-    let cfg: PageConfig | undefined = app.navs.find((p: any) => p.name === page);
-    if (!cfg) {
-        cfg = app.stacks.find((p: any) => p.name === page);
-    }
+    const cfg: PageConfig | undefined = app.navs.find((p: any) => p.name === page);
     return cfg
 }
 export const getUriByPop = (stacks: PageItem[], pop: string): string => {

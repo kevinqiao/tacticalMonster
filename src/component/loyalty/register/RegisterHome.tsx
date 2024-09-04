@@ -2,33 +2,33 @@ import PageProps from "model/PageProps";
 import React, { FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePageManager } from "service/PageManager";
 import { getPageConfig } from "util/PageUtils";
-import AdditionControl from "./addition/AdditionControl";
 import CartProvider from "./context/CartManager";
 import InventoryProvider from "./context/InventoryManager";
 import PopProvider, { PopComponent, usePopManager } from "./context/PopManager";
-import CategoryHome from "./menu/CategoryHome";
-import CartBar from "./order/CartBar";
+import GroundLayout from "./GroundLayout";
 import "./register.css";
 export const POP_DATA_TYPE = Object.freeze({
   ORDER: 0,
   ORDER_ITEM: 1,
 });
 export interface PopProps {
-  onClose: () => void;
-  data: { type: number; obj: any };
+  onClose?: () => void;
+  data?: { type: number; obj: any };
 }
 export interface PopConfig {
   name: string;
   path: string;
+  exit?: number;
 }
 interface ContainerProps {
   popConfig: PopConfig;
 }
 const PopContainer: React.FC<ContainerProps> = ({ popConfig }) => {
   const maskRef = useRef<HTMLDivElement | null>(null);
+  const exitRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderCompleted, setRenderCompleted] = useState<number>(0);
-  const { stacks, closePop, playOpen, playClose } = usePopManager(containerRef, maskRef, popConfig);
+  const { stacks, exit, closePop, playOpen, playClose } = usePopManager(containerRef, maskRef, popConfig);
 
   const popComponent = useMemo(() => {
     const stack: PopComponent | undefined = stacks.find((s) => s.name === popConfig.name);
@@ -41,23 +41,29 @@ const PopContainer: React.FC<ContainerProps> = ({ popConfig }) => {
     } else playClose();
   }, [popComponent]);
 
-  const render = useMemo(() => {
-    if (popConfig.path && renderCompleted > 0) {
-      const SelectedComponent: FunctionComponent<PopProps> = lazy(() => import(`${popConfig.path}`));
-      return (
-        <Suspense fallback={<div />}>
-          <SelectedComponent onClose={() => closePop(popConfig.name)} data={popComponent ? popComponent.data : null} />
-        </Suspense>
-      );
-    }
-    return null;
-  }, [popConfig, renderCompleted]);
+  const SelectedComponent: FunctionComponent<PopProps> = useMemo(() => {
+    return lazy(() => import(`${popConfig.path}`));
+  }, [popConfig.path]);
 
   return (
     <>
       <div ref={maskRef} className="mask"></div>
       <div ref={containerRef} className="active-container">
-        {render}
+        {renderCompleted > 0 ? (
+          <Suspense fallback={<div />}>
+            <SelectedComponent
+              onClose={() => closePop(popConfig.name)}
+              data={popComponent ? popComponent.data : null}
+            />
+          </Suspense>
+        ) : null}
+        {popConfig.exit && popConfig.exit > 0 ? (
+          <div ref={exitRef} style={{ position: "absolute", top: 0, left: 0 }}>
+            <div className="btn" onClick={exit}>
+              <span style={{ color: "blue" }}>Close</span>
+            </div>
+          </div>
+        ) : null}
       </div>
     </>
   );
@@ -73,18 +79,17 @@ const RegisterHome: React.FC<PageProps> = ({ app, name }) => {
     }
     return [];
   }, [app, name]);
+
   const visible = useMemo(() => {
     if (currentPage) {
       return app === currentPage.app && name == currentPage.name ? 1 : 0;
     } else return 0;
   }, [currentPage]);
   return (
-    <PopProvider>
+    <PopProvider visible={visible}>
       <InventoryProvider>
-        <CartProvider visible={visible}>
-          <CategoryHome />
-          <CartBar />
-          <AdditionControl />
+        <CartProvider>
+          <GroundLayout />
           {popConfigs.map((p) => (
             <PopContainer key={p.name} popConfig={p} />
           ))}

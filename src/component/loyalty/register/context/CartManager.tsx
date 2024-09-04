@@ -9,6 +9,8 @@ import {
   TaxRate,
 } from "model/RegisterModel";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
+import { POP_DATA_TYPE } from "../RegisterHome";
+import { usePopManager } from "./PopManager";
 export const ActiveType = {
   INVENTORY: 1,
   ORDER: 2,
@@ -31,12 +33,8 @@ export interface CartModel {
 }
 
 interface ICartContext {
-  visible: number;
   lastItemAdded: OrderLineItemModel | null;
-  // activeComponent: ActiveComponent | null;
   cart: CartModel | null;
-  // openActive: (c: ActiveComponent) => void;
-  // closeActive: () => void;
 
   selectInventory: (item: InventoryItem) => void;
   updateItem: (item: OrderLineItemModel) => void;
@@ -49,9 +47,9 @@ interface ICartContext {
   removeDiscount: (discount: Discount) => void;
   addTaxRate: (taxRate: TaxRate) => void;
   removeTaxRate: (taxRate: TaxRate) => void;
+  clear: () => void;
 }
 const CartContext = createContext<ICartContext>({
-  visible: 0,
   lastItemAdded: null,
   // activeComponent: null,
   cart: null,
@@ -68,6 +66,7 @@ const CartContext = createContext<ICartContext>({
   removeDiscount: (discount: Discount) => null,
   addTaxRate: (taxRate: TaxRate) => null,
   removeTaxRate: (taxRate: TaxRate) => null,
+  clear: () => null,
 });
 const taxRates = [
   { id: "t0001", name: "HST", amount: 0.07 },
@@ -81,12 +80,10 @@ const taxRates = [
 //   { id: "s0001", name: "service1", percent: 0.12 },
 //   { id: "s0002", name: "service2", amount: 2 },
 // ];
-const CartProvider = ({ children, visible }: { children: ReactNode; visible: number }) => {
+const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartModel>({ lineItems: [], discounts: [], taxRates, serviceCharges: [] });
   const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
-  const [activeComponent, setActiveComponent] = useState<ActiveComponent | null>(null);
-
-  console.log("cart provider:" + visible);
+  const { openPop } = usePopManager(null, null, null);
   const convex = useConvex();
   useEffect(() => {
     const cartJSON = localStorage.getItem("cart");
@@ -96,14 +93,15 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
   const selectInventory = useCallback(
     (item: InventoryItem) => {
       if (item.modifierGroups && item.modifierGroups.length > 0) {
-        setActiveComponent({ type: ActiveType.INVENTORY, model: item });
+        openPop("inventoryItem", { type: POP_DATA_TYPE.ORDER, obj: item });
         return null;
       } else {
         const index = cart.lineItems.findIndex((c) => c.id === item.id);
         if (index >= 0) {
           const citem = cart.lineItems.splice(index, 1)[0];
           citem.quantity++;
-          cart.lineItems.push({ ...citem });
+          cart.lineItems.splice(index, 0, { ...citem });
+          // cart.lineItems.push({ ...citem });
         } else {
           const citem = { id: item.id, quantity: 1, price: item.price };
           cart.lineItems.push(citem);
@@ -112,7 +110,7 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
         localStorage.setItem("cart", JSON.stringify(cart));
       }
     },
-    [cart]
+    [cart, openPop]
   );
 
   const updateItem = useCallback((item: OrderLineItemModel) => {
@@ -205,9 +203,12 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
       return { ...pre, taxRates: citems };
     });
   }, []);
+  const clear = useCallback(() => {
+    localStorage.removeItem("cart");
+    setCart({ lineItems: [], discounts: [], taxRates, serviceCharges: [] });
+  }, []);
 
   const value = {
-    visible,
     lastItemAdded,
     // activeComponent,
     cart,
@@ -224,6 +225,7 @@ const CartProvider = ({ children, visible }: { children: ReactNode; visible: num
     removeServiceCharge,
     addTaxRate,
     removeTaxRate,
+    clear,
   };
 
   return <>{cart !== null ? <CartContext.Provider value={value}> {children} </CartContext.Provider> : null}</>;

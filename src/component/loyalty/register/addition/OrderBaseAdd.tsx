@@ -9,11 +9,7 @@ const OrderBaseAdd: React.FC<PopProps> = ({ onClose, data }) => {
     <>
       <div className="order-container">
         <div className="active-content">
-          <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
-            <div className="btn" onClick={onClose}>
-              Close
-            </div>
-          </div>
+          <div style={{ height: 60 }}></div>
           <Subtotal
             addition={true}
             onDiscountOpen={() => openPop("discount", { type: POP_DATA_TYPE.ORDER })}

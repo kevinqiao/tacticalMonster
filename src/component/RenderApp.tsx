@@ -8,6 +8,7 @@ import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import ErrorConsole from "./common/ErrorConsole";
+import NavController from "./menu/NavController";
 import "./popup.css";
 import SSOController from "./signin/SSOController";
 gsap.registerPlugin(CSSPlugin);
@@ -133,6 +134,7 @@ const RenderApp: React.FC = () => {
                   <PageContainer pageConfig={navConfig} playRender={playRenderPage} />
                 </div>
               ))}
+              <NavController />
               <SSOController />
             </>
           ) : null}

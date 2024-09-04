@@ -5,7 +5,7 @@ export const PopAnimateConfigs =
         {
             type: 0,
             terminals: ["1-2"],
-            targets: ["orderReview", "orderItem"],
+            targets: ["orderReview", "orderItem", "inventoryItem"],
             from: { top: "100%", autoAlpha: 1 },
             to: { top: 0, duration: 0.3 }
         },

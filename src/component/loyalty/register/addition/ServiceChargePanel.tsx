@@ -16,7 +16,7 @@ const ServiceChargePanel: React.FC<PopProps> = ({ data, onClose }) => {
   const onComplete = useCallback(
     (service: ServiceCharge) => {
       addServiceCharge(service);
-      onClose();
+      if (onClose) onClose();
     },
     [addServiceCharge]
   );

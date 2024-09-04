@@ -27,7 +27,7 @@ const DiscountCustom: React.FC<Props> = ({ type, onCancel, onComplete }) => {
     setAmount(0);
     const dis: Discount = { id: "####" };
     if (type === 2) dis["amount"] = amount;
-    else dis["percent"] = amount;
+    else dis["percent"] = amount / 100;
     onComplete(dis);
   }, [amount]);
   const cancel = useCallback(() => {

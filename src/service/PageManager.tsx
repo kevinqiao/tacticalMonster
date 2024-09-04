@@ -13,28 +13,35 @@ export interface PageEvent {
 
 interface IPageContext {
   app: App | null;
+  navOpen: boolean;
   error: { [k: string]: any } | null;
   currentPage: PageItem | null | undefined;
   openEntry: (params?: { [k: string]: string }) => void;
   openPage: (page: PageItem) => void;
   openError: (error: { [k: string]: any }) => void;
   getPrePage: () => PageItem | null;
+  openNav: () => void;
+  closeNav: () => void;
 }
 const PageContext = createContext<IPageContext>({
   // renderPage: null,
   app: null,
+  navOpen: false,
   error: null,
   currentPage: null,
   openEntry: (params?: { [k: string]: string }) => null,
   openPage: (p: PageItem) => null,
   openError: (error: { [k: string]: any }) => null,
   getPrePage: () => null,
+  openNav: () => null,
+  closeNav: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const prePageRef = useRef<PageItem | null>(null);
   const [sysReady, setSysReady] = useState<boolean>(false);
   const [app, setApp] = useState<App | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
   const [error, setError] = useState<{ [k: string]: any } | null>(null);
   const [currentPage, setCurrentPage] = useState<PageItem | null | undefined>(null);
   console.log("page provider");
@@ -77,7 +84,12 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       });
     }
   }, []);
-
+  const openNav = useCallback(() => {
+    setNavOpen(true);
+  }, []);
+  const closeNav = useCallback(() => {
+    setNavOpen(false);
+  }, []);
   const getPrePage = useCallback(() => {
     return prePageRef.current;
   }, []);
@@ -107,12 +119,15 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const value = {
     app,
+    navOpen,
     error,
     currentPage,
     openError,
     openPage,
     openEntry,
     getPrePage,
+    openNav,
+    closeNav,
   };
   return <>{sysReady ? <PageContext.Provider value={value}>{children}</PageContext.Provider> : null}</>;
 };

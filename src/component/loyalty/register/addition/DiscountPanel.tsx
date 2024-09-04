@@ -12,6 +12,7 @@ const DiscountPanel: React.FC<PopProps> = ({ data, onClose }) => {
   const onComplete = useCallback(
     (dis: Discount) => {
       console.log(data);
+      if (!data) return;
       if (data.type === POP_DATA_TYPE.ORDER) {
         console.log(dis);
         addDiscount(dis);
@@ -22,7 +23,7 @@ const DiscountPanel: React.FC<PopProps> = ({ data, onClose }) => {
           : [{ ...dis, time: Date.now() }];
         updateItem(item);
       }
-      onClose();
+      if (onClose) onClose();
     },
     [data]
   );

@@ -20,7 +20,7 @@ const PopContext = createContext<IPopContext>({
   openPop: (name: string, data: any) => null,
 });
 
-const PopProvider = ({ children }: { children: ReactNode }) => {
+const PopProvider = ({ children, visible }: { children: ReactNode; visible: number }) => {
   const [stacks, setStacks] = useState<PopComponent[]>([]);
   const exit = useCallback(() => {
     setStacks([]);

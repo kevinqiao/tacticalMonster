@@ -94,11 +94,7 @@ const OrderItem: React.FC<PopProps> = ({ data, onClose }) => {
   return (
     <>
       <div className="orderItem-container">
-        <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
-          <div className="btn" onClick={onClose}>
-            Close1
-          </div>
-        </div>
+        <div style={{ height: 50 }} />
         <div id="modifier-content">
           {item?.modifications?.map((m) => (
             <div key={m.id}>
@@ -154,7 +150,14 @@ const OrderItem: React.FC<PopProps> = ({ data, onClose }) => {
             <span>{total}</span>
           </div>
         </div>
-        <div className="orderItem-done" />
+        <div className="orderItem-done">
+          {/* <div className="btn" style={{ color: "blue" }} onClick={onClose}>
+            Cancel
+          </div> */}
+          <div className="btn" style={{ color: "blue" }} onClick={onClose}>
+            Done
+          </div>
+        </div>
       </div>
       {/* <DiscountPanel open={discountOpen} onClose={() => setDiscountOpen(false)} onComplete={onDiscountSelect} /> */}
     </>

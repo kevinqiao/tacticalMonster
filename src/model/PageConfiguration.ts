@@ -90,12 +90,13 @@ export const Consumer =
             path: "./loyalty/register/RegisterHome",
             uri: "/register",
             children: [
-                { name: "orderReview", path: "./order/OrderReview", uri: "order" },
-                { name: "orderAddition", path: "./addition/OrderBaseAdd", uri: "order/addition" },
-                { name: "orderItem", path: "./order/OrderItem", uri: "order/item" },
-                { name: "discount", path: "./addition/DiscountPanel", uri: "discount" },
-                { name: "serviceCharge", path: "./addition/ServiceChargePanel", uri: "service_charge" },
-                { name: "modifier", path: "./addition/Modifier", uri: "modifier" },
+                { name: "orderReview", path: "./order/OrderReview", uri: "order", exit: 1 },
+                { name: "orderAddition", path: "./addition/OrderBaseAdd", uri: "order/addition", exit: 1 },
+                { name: "orderItem", path: "./order/OrderItem", uri: "order/item", exit: 1 },
+                { name: "inventoryItem", path: "./menu/InventoryItemMain", uri: "inventory/item", exit: 1 },
+                { name: "discount", path: "./addition/DiscountPanel", uri: "discount", exit: 0 },
+                { name: "serviceCharge", path: "./addition/ServiceChargePanel", uri: "service_charge", exit: 0 },
+                { name: "modifier", path: "./addition/Modifier", uri: "modifier", exit: 1 },
             ]
         },
         {
