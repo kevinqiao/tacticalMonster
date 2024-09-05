@@ -8,7 +8,7 @@ import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import ErrorConsole from "./common/ErrorConsole";
-import NavController from "./menu/NavController";
+import NavController from "./nav/NavController";
 import "./popup.css";
 import SSOController from "./signin/SSOController";
 gsap.registerPlugin(CSSPlugin);
@@ -56,7 +56,6 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
 
 const RenderApp: React.FC = () => {
   const containersRef = useRef<{ [name: string]: { ele: HTMLDivElement; visible: number } }>({});
-  // const [appConfig, setAppConfig] = useState<any>(null);
   const [navsConfig, setNavsConfig] = useState<NavConfig[]>([]);
   const { partner } = usePartnerManager();
   const { getPrePage } = usePageManager();

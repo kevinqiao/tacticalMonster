@@ -7,6 +7,10 @@ import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { action } from "./_generated/server";
 
+const verifyCustom = async (data: any): Promise<{ cid: string; username: string; email?: string; phone?: string; token: string } | null> => {
+
+  return null;
+}
 
 const verifyClerk = async (data: any): Promise<{ cid: string; username: string; email?: string; phone?: string; token: string } | null> => {
   const { jwttoken } = data;
@@ -44,9 +48,7 @@ const verifyTelegram = async (data: any): Promise<{ cid: string; username: strin
   }
   return null;
 }
-const verifyCloverEmbed = async (data: { accessToken: string }, pos: { merchantId: string }): Promise<{ cid: string; username: string; email?: string; phone?: string; token: string; role: number } | null> => {
-  return { cid: "10000010001", username: "test", token: crypto.randomBytes(24).toString("hex"), role: 2 }
-}
+
 const verifyCloverByCode = async (data: { accessToken: string }, pos: { merchantId: string }): Promise<{ cid: string; username: string; email?: string; phone?: string; token: string; role: number } | null> => {
   return { cid: "10000010002", username: "test", token: crypto.randomBytes(24).toString("hex"), role: 2 }
   // const CLOVER_URL = "https://apisandbox.dev.clover.com/v3/merchants/YOUR_MERCHANT_ID/employees";
@@ -116,6 +118,13 @@ export const authorize = action({
         break;
       case "telegram":
         auth = await verifyTelegram(data);
+        break;
+      case "custom":
+        {
+          const { employeeId, password } = data;
+          
+
+        }
         break;
       case "twilio":
 

@@ -43,8 +43,8 @@ const padCell = {
   marginTop: "4px",
 };
 interface Props {
-  nums: number;
-  disable: boolean;
+  // nums: number;
+  // disable: boolean;
   onComplete: (code: string) => void;
 }
 const CodeCell: React.FC<{ codeNums: number[]; index: number }> = ({ codeNums, index }) => {
@@ -59,7 +59,7 @@ const CodeCell: React.FC<{ codeNums: number[]; index: number }> = ({ codeNums, i
 
   return <div style={codeCell}>{cellCode}</div>;
 };
-const VerifyCode: React.FC<Props> = ({ nums, disable, onComplete }) => {
+const VerifyCode: React.FC<Props> = ({ onComplete }) => {
   const codeRef = useRef<HTMLDivElement>(null);
   const padRef = useRef<HTMLDivElement>(null);
   const [codeNums, setCodeNums] = useState<number[]>([]);
@@ -102,10 +102,10 @@ const VerifyCode: React.FC<Props> = ({ nums, disable, onComplete }) => {
               {c}
             </div>
           ))}
-          <div key={"00-pad"} style={padCell}>
-            00
+          <div key={"00-pad"} style={padCell} onClick={() => setCodeNums([])}>
+            CLR
           </div>
-          <div key={"0-pad"} style={padCell}>
+          <div key={"0-pad"} style={padCell} onClick={() => addNum(0)}>
             0
           </div>
           <div key={"x-pad"} style={padCell} onClick={back}>

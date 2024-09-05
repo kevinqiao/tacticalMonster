@@ -1,17 +1,10 @@
 import { AuthCloseBtn } from "component/common/StyledComponents";
 import { gsap } from "gsap";
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import React, { forwardRef, useCallback, useEffect, useRef } from "react";
 import { usePageManager } from "service/PageManager";
 import { AuthenticatorHandle, AuthProps } from "../SSOController";
 
 const CustomProvider = forwardRef<AuthenticatorHandle, AuthProps>(({ provider, authInit }, ref) => {
-  useImperativeHandle(ref, () => {
-    return {
-      someMethod() {
-        console.log("Method in ClerkAuthenticator called");
-      },
-    } as AuthenticatorHandle; // 类型断言为 ClerkAuthenticatorHandle
-  });
   const maskRef = useRef<HTMLDivElement | null>(null);
   const controllerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLDivElement | null>(null);

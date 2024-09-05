@@ -61,9 +61,11 @@ export const BATTLE_STATUS = {
 }
 
 export const CHANNEL_AUTH = {
-    CLERK: 0,
-    TELEGRAM_BOT: 1,
-    THIRD_WEB: 2,
+    CUSTOM: 0,
+    CLERK: 1,
+    TELEGRAM_BOT: 2,
+    DISCORD: 3,
+
 };
 export const GAME_TYPE = {
     MATCH3: 1,

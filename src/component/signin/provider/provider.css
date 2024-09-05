@@ -93,6 +93,46 @@
   /* 输入框的样式 */
   height:35px;
 }
+.password-container{
+  width:30%;
+  max-width:500px;
+  min-width:300px;
+}
+.password-enter{
+  width:cal(100%-10px);
+  height:40px;
+  border-style: solid;
+  border-radius: 4px;
+  border-width: 2px;
+  border-color: rgb(249, 242, 242);
+  margin: 4px 10px 4px 4px;
+
+}
+.keypad-container{
+   width: 100%;
+   display:flex;
+   justify-content: space-around;
+   flex-wrap: wrap
+}
+.keypad-panel{
+   width: 100%;
+   display:flex;
+   justify-content: space-around;
+   flex-wrap: wrap
+}
+.keypad-cell{
+  width: 30%;
+  height:60px;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 25px;
+  border-style: solid;
+  border-radius: 4px;
+  border-width: 2px;
+  border-color: white;
+  margin-top: 4px;
+}
 
 
 

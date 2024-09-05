@@ -3,10 +3,9 @@ import { v } from "convex/values";
 
 export default defineSchema({
     authprovider: defineTable({
-        id: v.string(),
         name: v.string(),
         path: v.string(),
-    }).index("by_name", ['name']).index("by_pid", ["id"]),
+    }).index("by_name", ['name']),
     authchannel: defineTable({
         id: v.number(),
         provider: v.string(),
@@ -136,7 +135,14 @@ export default defineSchema({
         desc: v.optional(v.string()),
         email: v.optional(v.string())
     }).index("by_host", ["host"]).index("by_domain", ['domain']).index("by_name", ['name']).index("by_pid", ['pid']),
-
+    employee: defineTable({
+        name: v.optional(v.string()),
+        email: v.optional(v.string()),
+        phone: v.optional(v.string()),
+        employeeId: v.string(),
+        password: v.string(),
+        partner: v.number(),
+    }).index("by_partner_employee", ['partner', 'employeeId']),
     transaction: defineTable({
         tid: v.string(),
         type: v.number(),//0-credit 1-debit

@@ -58,7 +58,7 @@ const PopContainer: React.FC<ContainerProps> = ({ popConfig }) => {
           </Suspense>
         ) : null}
         {popConfig.exit && popConfig.exit > 0 ? (
-          <div ref={exitRef} style={{ position: "absolute", top: 0, left: 0 }}>
+          <div ref={exitRef} style={{ position: "absolute", top: 0, right: 0 }}>
             <div className="btn" onClick={exit}>
               <span style={{ color: "blue" }}>Close</span>
             </div>

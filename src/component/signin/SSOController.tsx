@@ -40,7 +40,9 @@ const SSOController: React.FC = () => {
 
   useEffect(() => {
     if (provider) {
+      console.log(provider);
       const loadComponent = async () => {
+        // const module = await import("./provider/CustomAuthenticator");
         const module = await import(`${provider.path}`);
         setSelectedComponent(() => module.default);
       };
@@ -66,6 +68,7 @@ const SSOController: React.FC = () => {
     let channelId = 0;
     if (getURIParam("c")) channelId = Number(getURIParam("c"));
     const auth: { channels: number[]; role: number } | undefined = partner.auth[app.name];
+    console.log(auth);
     if (auth) {
       const cid = channelId > 0 ? channelId : auth.channels[0];
       const channel = partner.channels.find((c) => c.id === cid);
@@ -84,6 +87,7 @@ const SSOController: React.FC = () => {
   }, [partner, app]);
 
   if (!provider || !SelectedComponent) return null;
+  console.log(provider);
   return (
     <>
       <SelectedComponent provider={provider} authInit={authInit} />

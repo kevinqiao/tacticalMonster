@@ -1,40 +1,36 @@
 import { gsap } from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
-import useEventSubscriber from "service/EventManager";
 import useLocalization from "service/LocalizationManager";
 import { usePageManager } from "service/PageManager";
+import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 
-const NavController: React.FC = () => {
+const MerchantNav: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const { partner } = usePartnerManager();
   const { user, logout } = useUserManager();
-  const { navOpen, closeNav, openPage } = usePageManager();
-  const { createEvent } = useEventSubscriber([], []);
+  const { app, navOpen, closeNav, openPage } = usePageManager();
   const { resources } = useLocalization();
   console.log("consumer home...");
-  const signin = useCallback(() => {
-    const loginEvent = { name: "signin", topic: "account", delay: 0 };
-    createEvent(loginEvent);
-  }, [createEvent]);
-  const openMemberCenter = useCallback(() => {
-    const page = { name: "member", app: "consumer" };
-    openPage(page);
-  }, [openPage]);
-  const openScan = useCallback(() => {
-    const page = { name: "scanOrder", app: "consumer" };
-    openPage(page);
-  }, [openPage]);
-  const openRegister = useCallback(() => {
-    const page = { name: "register", app: "consumer" };
-    openPage(page);
-  }, [openPage]);
-  console.log("nav open:" + navOpen);
-  useEffect(() => {
-    if (navOpen) {
-      gsap.to(containerRef.current, { autoAlpha: 1, zIndex: 5000, duration: 0.5 });
-    } else gsap.to(containerRef.current, { autoAlpha: 0, duration: 0.5 });
-  }, [navOpen]);
 
+  const openNav = useCallback(
+    (app: string, name: string) => {
+      const tl = gsap.timeline({
+        onComplete: () => {
+          openPage({ app, name });
+          tl.kill();
+        },
+      });
+      tl.to(containerRef.current, { left: "-50vw", duration: 0.3 });
+      tl.play();
+    },
+    [openPage]
+  );
+  useEffect(() => {
+    if (navOpen && app?.name === "consumer") {
+      gsap.fromTo(containerRef.current, { autoAlpha: 1, left: "-50%" }, { left: 0, duration: 0.6 });
+    }
+  }, [app, navOpen]);
   return (
     <>
       <div
@@ -47,7 +43,7 @@ const NavController: React.FC = () => {
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          width: "100vw",
+          width: "50vw",
           height: "100vh",
           color: "blue",
           backgroundColor: "red",
@@ -66,7 +62,6 @@ const NavController: React.FC = () => {
             backgroundColor: "blue",
             color: "white",
           }}
-          onClick={() => openMemberCenter()}
         >
           open my member
         </div>
@@ -82,7 +77,7 @@ const NavController: React.FC = () => {
             backgroundColor: "blue",
             color: "white",
           }}
-          onClick={() => openScan()}
+          onClick={() => openNav("consumer", "scanOrder")}
         >
           Scan
         </div>
@@ -98,7 +93,7 @@ const NavController: React.FC = () => {
             backgroundColor: "blue",
             color: "white",
           }}
-          onClick={() => openRegister()}
+          onClick={() => openNav("consumer", "register")}
         >
           Register
         </div>
@@ -114,9 +109,9 @@ const NavController: React.FC = () => {
             backgroundColor: "blue",
             color: "white",
           }}
-          onClick={() => closeNav()}
         >
-          SignIn
+          Sign In
+          {/* Sign In{`${resources["member"]["record"]}`} */}
         </div>
         <div style={{ height: 100 }} />
         {user?.uid ? (
@@ -131,7 +126,6 @@ const NavController: React.FC = () => {
               backgroundColor: "blue",
               color: "white",
             }}
-            onClick={logout}
           >
             Logout
           </div>
@@ -140,4 +134,4 @@ const NavController: React.FC = () => {
     </>
   );
 };
-export default NavController;
+export default MerchantNav;

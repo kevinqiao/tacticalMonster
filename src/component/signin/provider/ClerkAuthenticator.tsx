@@ -29,6 +29,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
     closeBtnRef,
   });
   const convex = useConvex();
+
   useEffect(() => {
     if (event) {
       playOpen(null);

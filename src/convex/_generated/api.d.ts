@@ -16,7 +16,6 @@ import type {
 } from "convex/server";
 import type * as asset from "../asset.js";
 import type * as authchannel from "../authchannel.js";
-import type * as authenticator from "../authenticator.js";
 import type * as authoize from "../authoize.js";
 import type * as battle from "../battle.js";
 import type * as botHook from "../botHook.js";
@@ -57,7 +56,6 @@ import type * as UserService from "../UserService.js";
 declare const fullApi: ApiFromModules<{
   asset: typeof asset;
   authchannel: typeof authchannel;
-  authenticator: typeof authenticator;
   authoize: typeof authoize;
   battle: typeof battle;
   botHook: typeof botHook;
