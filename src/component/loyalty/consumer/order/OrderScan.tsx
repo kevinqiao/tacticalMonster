@@ -29,7 +29,7 @@ const OrderScan: React.FC<PageProps> = (prop) => {
 
   return (
     <>
-      <div style={{ position: "fixed", top: 0, left: 0 }}>
+      <div style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh" }}>
         <div className="btn" onClick={openNav}>
           Home
         </div>
@@ -51,7 +51,7 @@ const OrderScan: React.FC<PageProps> = (prop) => {
             color: "white",
           }}
         >
-          <span style={{ fontSize: 20 }}>Scan Order</span>
+          <span style={{ fontSize: 20, color: "red" }}>Scan Order</span>
         </div>
       )}
     </>

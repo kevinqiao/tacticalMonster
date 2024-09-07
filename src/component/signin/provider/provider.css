@@ -51,8 +51,8 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 40%;
-  height: 30%;
+  width: 90%;
+  height: 400px;
   background-color: rgb(234, 34, 34)
 }
 .twilio_phone_input{
@@ -60,8 +60,8 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 40%;
-  height: 30%;
+  width: 100%;
+  max-width: 350px;
   background-color: rgb(230, 215, 215)
 }
 .twilio_phone_container {
@@ -81,13 +81,17 @@
 }
 .twilio_signup_btn{
     cursor: pointer;
-    width: 200px;
+    width: 100px;
     height: 40px;
     display: flex;
     justify-content: center;
     align-items: center;
     background-color: blue;
     color: white;
+}
+.btn_disable{
+  cursor:default;
+  background-color: grey;
 }
 .PhoneInputInput {
   /* 输入框的样式 */

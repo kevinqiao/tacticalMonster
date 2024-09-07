@@ -20,7 +20,7 @@ interface NavProp {
 const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
   const { user } = useUserManager();
   const [renderCompleted, setRenderCompleted] = useState<number>(0);
-  const { currentPage } = usePageManager();
+  const { currentPage, closeNav } = usePageManager();
   const [params, setParams] = useState<{ [k: string]: string } | undefined>(undefined);
 
   useEffect(() => {
@@ -29,6 +29,7 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
       if (pageConfig && (!pageConfig.auth || role >= pageConfig.auth)) {
         setRenderCompleted((pre) => (pre === 0 ? 1 : pre));
         playRender(currentPage);
+        closeNav();
         if (currentPage.params) setParams(currentPage.params);
       }
     }

@@ -1,11 +1,12 @@
 import { gsap } from "gsap";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import useLocalization from "service/LocalizationManager";
 import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
-
+import "./nav.css";
 const MerchantNav: React.FC = () => {
+  const maskRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { partner } = usePartnerManager();
   const { user, logout } = useUserManager();
@@ -13,26 +14,40 @@ const MerchantNav: React.FC = () => {
   const { resources } = useLocalization();
   console.log("consumer home...");
 
-  const openNav = useCallback(
-    (app: string, name: string) => {
+  // const openNav = useCallback(
+  //   (app: string, name: string) => {
+  //     openPage({ app, name });
+  //     // const tl = gsap.timeline({
+  //     //   onComplete: () => {
+  //     //     openPage({ app, name });
+  //     //     tl.kill();
+  //     //   },
+  //     // });
+  //     // tl.to(containerRef.current, { left: "-50vw", duration: 0.3 });
+  //     // tl.play();
+  //   },
+  //   [openPage]
+  // );
+  useEffect(() => {
+    if (app?.name === "consumer") {
       const tl = gsap.timeline({
         onComplete: () => {
-          openPage({ app, name });
           tl.kill();
         },
       });
-      tl.to(containerRef.current, { left: "-50vw", duration: 0.3 });
+      if (navOpen) {
+        tl.fromTo(containerRef.current, { zIndex: 9001, autoAlpha: 1, left: "-80%" }, { left: 0, duration: 0.6 });
+        tl.fromTo(maskRef.current, { zIndex: 9000, autoAlpha: 0 }, { autoAlpha: 0.7, duration: 0.6 }, "<");
+      } else {
+        tl.to(containerRef.current, { left: "-80%", duration: 0.3 });
+        tl.to(maskRef.current, { autoAlpha: 0, duration: 0.3 }, "<");
+      }
       tl.play();
-    },
-    [openPage]
-  );
-  useEffect(() => {
-    if (navOpen && app?.name === "consumer") {
-      gsap.fromTo(containerRef.current, { autoAlpha: 1, left: "-50%" }, { left: 0, duration: 0.6 });
     }
   }, [app, navOpen]);
   return (
     <>
+      <div ref={maskRef} className="nav_mask"></div>
       <div
         ref={containerRef}
         style={{
@@ -43,7 +58,7 @@ const MerchantNav: React.FC = () => {
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          width: "50vw",
+          width: "70vw",
           height: "100vh",
           color: "blue",
           backgroundColor: "red",
@@ -54,7 +69,7 @@ const MerchantNav: React.FC = () => {
         <div
           style={{
             cursor: "pointer",
-            width: "200px",
+            width: "80%",
             height: "40px",
             display: "flex",
             justifyContent: "center",
@@ -69,7 +84,7 @@ const MerchantNav: React.FC = () => {
         <div
           style={{
             cursor: "pointer",
-            width: "200px",
+            width: "80%",
             height: "40px",
             display: "flex",
             justifyContent: "center",
@@ -77,7 +92,7 @@ const MerchantNav: React.FC = () => {
             backgroundColor: "blue",
             color: "white",
           }}
-          onClick={() => openNav("consumer", "scanOrder")}
+          onClick={() => openPage({ app: "consumer", name: "scanOrder" })}
         >
           Scan
         </div>
@@ -85,7 +100,7 @@ const MerchantNav: React.FC = () => {
         <div
           style={{
             cursor: "pointer",
-            width: "200px",
+            width: "80%",
             height: "40px",
             display: "flex",
             justifyContent: "center",
@@ -93,7 +108,7 @@ const MerchantNav: React.FC = () => {
             backgroundColor: "blue",
             color: "white",
           }}
-          onClick={() => openNav("consumer", "register")}
+          onClick={() => openPage({ app: "consumer", name: "register" })}
         >
           Register
         </div>
@@ -101,7 +116,7 @@ const MerchantNav: React.FC = () => {
         <div
           style={{
             cursor: "pointer",
-            width: "200px",
+            width: "80%",
             height: "40px",
             display: "flex",
             justifyContent: "center",
@@ -118,7 +133,7 @@ const MerchantNav: React.FC = () => {
           <div
             style={{
               cursor: "pointer",
-              width: "200px",
+              width: "80%",
               height: "40px",
               display: "flex",
               justifyContent: "center",
@@ -126,6 +141,7 @@ const MerchantNav: React.FC = () => {
               backgroundColor: "blue",
               color: "white",
             }}
+            onClick={logout}
           >
             Logout
           </div>

@@ -51,14 +51,15 @@ const SSOController: React.FC = () => {
   }, [provider]);
 
   useEffect(() => {
-    if (!currentPage || !partner) return;
+    if (!currentPage || !partner || !user) return;
+    console.log(user);
     const role = user?.uid ? user.role ?? 1 : 0;
 
     const pageConfig = getPageConfig(currentPage.app, currentPage.name);
     if (pageConfig) {
       const cancelPage = getPrePage();
       const open = role < (pageConfig.auth ?? 0) ? 1 : 0;
-      // console.log("role:" + role + " auth:" + pageConfig.auth + " open:" + open);
+      console.log("role:" + role + " auth:" + pageConfig.auth + " open:" + open);
       console.log(currentPage);
       setAuthInit({ open, afterSignedPage: currentPage, cancelPage });
     }

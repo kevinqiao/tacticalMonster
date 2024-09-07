@@ -15,6 +15,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as asset from "../asset.js";
+import type * as auth_twilio from "../auth/twilio.js";
 import type * as authchannel from "../authchannel.js";
 import type * as authoize from "../authoize.js";
 import type * as battle from "../battle.js";
@@ -35,6 +36,7 @@ import type * as loyalty_consumer from "../loyalty/consumer.js";
 import type * as loyalty_register from "../loyalty/register.js";
 import type * as loyalty_reward from "../loyalty/reward.js";
 import type * as matchqueue from "../matchqueue.js";
+import type * as merchant_employee from "../merchant/employee.js";
 import type * as message from "../message.js";
 import type * as model_Defender from "../model/Defender.js";
 import type * as model_Tournament from "../model/Tournament.js";
@@ -55,6 +57,7 @@ import type * as UserService from "../UserService.js";
  */
 declare const fullApi: ApiFromModules<{
   asset: typeof asset;
+  "auth/twilio": typeof auth_twilio;
   authchannel: typeof authchannel;
   authoize: typeof authoize;
   battle: typeof battle;
@@ -75,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   "loyalty/register": typeof loyalty_register;
   "loyalty/reward": typeof loyalty_reward;
   matchqueue: typeof matchqueue;
+  "merchant/employee": typeof merchant_employee;
   message: typeof message;
   "model/Defender": typeof model_Defender;
   "model/Tournament": typeof model_Tournament;

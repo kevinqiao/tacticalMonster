@@ -49,7 +49,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     setError(error);
   }, []);
   const openPage = useCallback((page: PageItem) => {
-    setNavOpen((pre) => (pre ? false : pre));
+    // setNavOpen((pre) => (pre ? false : pre));
     setApp((pre) => {
       if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
       else return pre;

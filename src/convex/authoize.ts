@@ -121,8 +121,7 @@ export const authorize = action({
         break;
       case "custom":
         {
-          const { employeeId, password } = data;
-          
+          const { employeeId, password } = data;          
 
         }
         break;

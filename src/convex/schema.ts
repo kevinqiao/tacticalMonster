@@ -2,10 +2,17 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+    phonecode: defineTable({
+        partner: v.number(),
+        phone: v.string(),
+        code: v.string(),
+        expire: v.number()
+    }).index("by_phone_expire", ['phone', 'expire']),
     authprovider: defineTable({
         name: v.string(),
         path: v.string(),
     }).index("by_name", ['name']),
+
     authchannel: defineTable({
         id: v.number(),
         provider: v.string(),
@@ -142,7 +149,7 @@ export default defineSchema({
         employeeId: v.string(),
         password: v.string(),
         partner: v.number(),
-    }).index("by_partner_employee", ['partner', 'employeeId']),
+    }).index("by_partner_employee", ['partner', 'employeeId']).index("by_partner", ["partner"]),
     transaction: defineTable({
         tid: v.string(),
         type: v.number(),//0-credit 1-debit
