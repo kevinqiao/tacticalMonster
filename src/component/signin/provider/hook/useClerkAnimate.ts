@@ -22,9 +22,10 @@ const useClerkAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef }: Cl
         }
 
         // tl.to(loadingRef.current, { autoAlpha: 0, duration: 0 })
-        tl.fromTo(maskRef.current, { autoAlpha: 0, backgroundColor: "black" }, { autoAlpha: 0.3, duration: 0.8 }, "<");
-        tl.fromTo(controllerRef.current, { autoAlpha: 0, scale: 0.3 }, { autoAlpha: 1.0, scale: 1.0, duration: 0.8 }, "<=+0.3");
-        tl.to(closeBtnRef.current, { autoAlpha: 1, duration: 0.2 }, ">=-0.2");
+        tl.fromTo(maskRef.current, { zIndex: 2000, autoAlpha: 0, backgroundColor: "black" }, { autoAlpha: 0.3, duration: 0.8 }, "<");
+        tl.fromTo(controllerRef.current, { zIndex: 2001, autoAlpha: 0, scale: 0.3 }, { autoAlpha: 1.0, scale: 1.0, duration: 0.8 }, "<=+0.3");
+        if (closeBtnRef.current)
+            tl.fromTo(closeBtnRef.current, { zIndex: 2001, autoAlpha: 0 }, { autoAlpha: 1, duration: 0.2 }, ">=-0.2");
         tl.play();
     }, []);
 

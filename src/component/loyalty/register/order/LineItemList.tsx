@@ -2,11 +2,11 @@ import { Discount, OrderLineItemModel } from "model/RegisterModel";
 import React, { useCallback } from "react";
 import { useCartManager } from "../context/CartManager";
 import { useInventoryManager } from "../context/InventoryManager";
-import { usePopManager } from "../context/PopManager";
+import { usePageChildManager } from "../context/PageChildManager";
 import { POP_DATA_TYPE } from "../RegisterHome";
 import "./order.css";
 const LineItemList: React.FC = () => {
-  const { openPop } = usePopManager(null, null, null);
+  const { openPop } = usePageChildManager(null, null, null);
   const { cart } = useCartManager();
   const { items, discounts } = useInventoryManager();
 

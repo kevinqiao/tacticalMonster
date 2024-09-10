@@ -1,10 +1,8 @@
 import PageProps from "model/PageProps";
 import React, { FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { usePageManager } from "service/PageManager";
-import { getPageConfig } from "util/PageUtils";
 import CartProvider from "./context/CartManager";
 import InventoryProvider from "./context/InventoryManager";
-import PopProvider, { PopComponent, usePopManager } from "./context/PopManager";
+import { NavChildComponent, usePageChildManager } from "./context/PageChildManager";
 import GroundLayout from "./GroundLayout";
 import "./register.css";
 export const POP_DATA_TYPE = Object.freeze({
@@ -28,10 +26,10 @@ const PopContainer: React.FC<ContainerProps> = ({ popConfig }) => {
   const exitRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [renderCompleted, setRenderCompleted] = useState<number>(0);
-  const { stacks, exit, closePop, playOpen, playClose } = usePopManager(containerRef, maskRef, popConfig);
+  const { stacks, exit, closePop, playOpen, playClose } = usePageChildManager(containerRef, maskRef, popConfig);
 
   const popComponent = useMemo(() => {
-    const stack: PopComponent | undefined = stacks.find((s) => s.name === popConfig.name);
+    const stack: NavChildComponent | undefined = stacks.find((s) => s.name === popConfig.name);
     return stack;
   }, [stacks]);
   useEffect(() => {
@@ -68,34 +66,34 @@ const PopContainer: React.FC<ContainerProps> = ({ popConfig }) => {
     </>
   );
 };
-const RegisterHome: React.FC<PageProps> = ({ app, name }) => {
-  const { currentPage } = usePageManager();
-  const popConfigs = useMemo(() => {
-    if (app && name) {
-      const pageConfig = getPageConfig(app, name);
-      if (pageConfig?.children) {
-        return pageConfig.children;
-      }
-    }
-    return [];
-  }, [app, name]);
+const RegisterHome: React.FC<PageProps> = ({ visible, data }) => {
+  // const { currentPage } = usePageManager();
+  // const popConfigs = useMemo(() => {
+  //   if (app && name) {
+  //     const pageConfig = getPageConfig(app, name);
+  //     if (pageConfig?.children) {
+  //       return pageConfig.children;
+  //     }
+  //   }
+  //   return [];
+  // }, [app, name]);
 
-  const visible = useMemo(() => {
-    if (currentPage) {
-      return app === currentPage.app && name == currentPage.name ? 1 : 0;
-    } else return 0;
-  }, [currentPage]);
+  // const visible = useMemo(() => {
+  //   if (currentPage) {
+  //     return app === currentPage.app && name == currentPage.name ? 1 : 0;
+  //   } else return 0;
+  // }, [currentPage]);
   return (
-    <PopProvider visible={visible}>
-      <InventoryProvider>
-        <CartProvider>
-          <GroundLayout />
-          {popConfigs.map((p) => (
+    // <NavChildProvider visible={visible}>
+    <InventoryProvider>
+      <CartProvider>
+        <GroundLayout />
+        {/* {popConfigs.map((p) => (
             <PopContainer key={p.name} popConfig={p} />
-          ))}
-        </CartProvider>
-      </InventoryProvider>
-    </PopProvider>
+          ))} */}
+      </CartProvider>
+    </InventoryProvider>
+    // </NavChildProvider>
   );
 };
 

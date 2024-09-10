@@ -34,21 +34,17 @@ export interface PageConfig {
     }
 }
 export default interface PageProps {
-    app: string;
-    name: string;
-    params?: { [k: string]: string };
+    // app: string;
+    // name: string;
     visible?: number;
+    data: { [k: string]: any } | null
 }
 
 export interface PageItem {
     name: string;
     app: string; //null|undefined-cover
-    history?: number;
-    ctx?: string;
     data?: { [key: string]: any };
     params?: { [key: string]: string };
     hash?: { [key: string]: string };
     child?: string;
-    time?: number;
-    render?: number;//0-unrender 1-render completed
 }

@@ -10,7 +10,7 @@ import {
 } from "model/RegisterModel";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import { POP_DATA_TYPE } from "../RegisterHome";
-import { usePopManager } from "./PopManager";
+import { usePageChildManager } from "./PageChildManager";
 export const ActiveType = {
   INVENTORY: 1,
   ORDER: 2,
@@ -83,7 +83,7 @@ const taxRates = [
 const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartModel>({ lineItems: [], discounts: [], taxRates, serviceCharges: [] });
   const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
-  const { openPop } = usePopManager(null, null, null);
+  const { openPop } = usePageChildManager(null, null, null);
   const convex = useConvex();
   useEffect(() => {
     const cartJSON = localStorage.getItem("cart");

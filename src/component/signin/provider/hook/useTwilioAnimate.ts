@@ -24,7 +24,7 @@ const useTwilioAnimate = ({ maskRef, controllerRef, closeBtnRef }: TwilioAnimate
 
         tl.fromTo(maskRef.current, { autoAlpha: 0, backgroundColor: "black" }, { autoAlpha: 0.7, duration: 0.8 }, "<");
         tl.fromTo(controllerRef.current, { autoAlpha: 0, scale: 0.3 }, { autoAlpha: 1.0, scale: 1.0, duration: 0.8 }, "<=+0.3");
-        if (canClose) tl.to(closeBtnRef.current, { autoAlpha: 1, duration: 0.2 }, ">=-0.2");
+        if (canClose) tl.fromTo(closeBtnRef.current, { zIndex: 2000 }, { autoAlpha: 1, duration: 0.2 }, ">=-0.2");
         tl.play();
     }, []);
 

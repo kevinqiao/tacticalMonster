@@ -2,13 +2,13 @@ import { Discount, OrderLineItemModel } from "model/RegisterModel";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useCartManager } from "../context/CartManager";
 import { useInventoryManager } from "../context/InventoryManager";
-import { usePopManager } from "../context/PopManager";
+import { usePageChildManager } from "../context/PageChildManager";
 import { POP_DATA_TYPE, PopProps } from "../RegisterHome";
 import "./order.css";
 
 const OrderItem: React.FC<PopProps> = ({ data, onClose }) => {
   const { cart, updateItem } = useCartManager();
-  const { openPop } = usePopManager(null, null, null);
+  const { openPop } = usePageChildManager(null, null, null);
   const { discounts, modifiers } = useInventoryManager();
   const [item, setItem] = useState<OrderLineItemModel | null>(null);
   useEffect(() => {

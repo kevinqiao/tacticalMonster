@@ -34,7 +34,7 @@ const PlayHome: React.FC<PageProps> = (pageProp) => {
   return (
     <>
       <div ref={sceneRef} className="play_container">
-        <BattleProvider battleId={pageProp.data.battleId} pagePosition={pagePosition}>
+        <BattleProvider battleId={pageProp.params?.battleId} pagePosition={pagePosition}>
           <BattleGround>
             <BattleConsole />
             <PlayGame />

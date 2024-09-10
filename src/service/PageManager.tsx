@@ -15,11 +15,14 @@ interface IPageContext {
   app: App | null;
   navOpen: boolean;
   error: { [k: string]: any } | null;
+  stacks: PageItem[];
   currentPage: PageItem | null | undefined;
   openEntry: (params?: { [k: string]: string }) => void;
   openPage: (page: PageItem) => void;
   openError: (error: { [k: string]: any }) => void;
   getPrePage: () => PageItem | null;
+  closeStack: () => void;
+  cleanStacks: () => void;
   openNav: () => void;
   closeNav: () => void;
 }
@@ -28,6 +31,7 @@ const PageContext = createContext<IPageContext>({
   app: null,
   navOpen: false,
   error: null,
+  stacks: [],
   currentPage: null,
   openEntry: (params?: { [k: string]: string }) => null,
   openPage: (p: PageItem) => null,
@@ -35,6 +39,8 @@ const PageContext = createContext<IPageContext>({
   getPrePage: () => null,
   openNav: () => null,
   closeNav: () => null,
+  closeStack: () => null,
+  cleanStacks: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
@@ -43,23 +49,36 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const [app, setApp] = useState<App | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [error, setError] = useState<{ [k: string]: any } | null>(null);
+  const [stacks, setStacks] = useState<PageItem[]>([]);
   const [currentPage, setCurrentPage] = useState<PageItem | null | undefined>(null);
   console.log("page provider");
+  console.log(stacks);
   const openError = useCallback((error: { [k: string]: any }) => {
     setError(error);
   }, []);
   const openPage = useCallback((page: PageItem) => {
-    // setNavOpen((pre) => (pre ? false : pre));
     setApp((pre) => {
       if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
       else return pre;
     });
     setCurrentPage((pre) => {
+      const prePage = prePageRef.current;
+      console.log(prePage);
+      console.log(page);
+
+      if (!prePage || (prePage.app == page.app && prePage.name === page.name && page.child)) {
+        console.log("push stacsk");
+        setStacks((s) => {
+          s.push(page);
+          return [...s];
+        });
+      } else setStacks([]);
       if (pre) prePageRef.current = pre;
       return page;
     });
     window.history.pushState({}, "", buildNavURL(page));
   }, []);
+
   const popPage = useCallback((page: PageItem) => {
     setApp((pre) => {
       console.log(page);
@@ -84,6 +103,15 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         return page;
       });
     }
+  }, []);
+  const closeStack = useCallback(() => {
+    setStacks((pre) => {
+      pre.pop();
+      return [...pre];
+    });
+  }, []);
+  const cleanStacks = useCallback(() => {
+    setStacks([]);
   }, []);
   const openNav = useCallback(() => {
     setNavOpen(true);
@@ -122,6 +150,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     app,
     navOpen,
     error,
+    stacks,
     currentPage,
     openError,
     openPage,
@@ -129,6 +158,8 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     getPrePage,
     openNav,
     closeNav,
+    closeStack,
+    cleanStacks,
   };
   return <>{sysReady ? <PageContext.Provider value={value}>{children}</PageContext.Provider> : null}</>;
 };

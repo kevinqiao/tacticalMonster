@@ -19,7 +19,6 @@
   background-color: rgba(0, 0, 0, 0.7);
 }
 .signin_control {
-   z-index: 1000;
    opacity: 0;
    visibility: hidden;
    position: absolute;
@@ -39,7 +38,6 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 990;
   width: 100vw;
   height: 100vh;
   opacity: 0;

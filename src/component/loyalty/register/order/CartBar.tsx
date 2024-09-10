@@ -1,15 +1,16 @@
 import { gsap } from "gsap";
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { usePageManager } from "service/PageManager";
 import { useCartManager } from "../context/CartManager";
 import { useInventoryManager } from "../context/InventoryManager";
-import { usePopManager } from "../context/PopManager";
 import "../register.css";
 
 const CartBar: React.FC = () => {
   const addRef = useRef<HTMLDivElement | null>(null);
   const { items } = useInventoryManager();
   const { lastItemAdded } = useCartManager();
-  const { openPop } = usePopManager(null, null, null);
+  const { currentPage, openPage } = usePageManager();
+  // const { openPop } = usePageChildManager(null, null, null);
   useEffect(() => {
     console.log(lastItemAdded);
     if (!lastItemAdded) return;
@@ -28,6 +29,9 @@ const CartBar: React.FC = () => {
       return item?.name;
     }
   }, [lastItemAdded, items]);
+  const openReview = useCallback(() => {
+    if (currentPage) openPage({ app: currentPage.app, name: currentPage.name, child: "orderReview" });
+  }, [openPage, currentPage]);
   return (
     <>
       <div ref={addRef} className="cartadd-container">
@@ -42,7 +46,7 @@ const CartBar: React.FC = () => {
       <div className="cartbar-container">
         <div className="cartbar-left"></div>
         <div className="cartbar-right">
-          <div className="btn" style={{ width: 120 }} onClick={() => openPop("orderReview", null)}>
+          <div className="btn" style={{ width: 120 }} onClick={openReview}>
             Review Order
           </div>
         </div>

@@ -1,11 +1,11 @@
 import { gsap } from "gsap";
 import React, { useCallback, useRef } from "react";
-import { usePopManager } from "../context/PopManager";
+import { usePageChildManager } from "../context/PageChildManager";
 import "../register.css";
 const AdditionControl: React.FC = () => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const { openPop } = usePopManager(null, null, null);
+  const { openPop } = usePageChildManager(null, null, null);
   const openMenu = useCallback(() => {
     console.log("open menu");
     const tl = gsap.timeline({

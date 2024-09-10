@@ -1,10 +1,10 @@
 import React from "react";
-import { usePopManager } from "../context/PopManager";
+import { usePageChildManager } from "../context/PageChildManager";
 import Subtotal from "../order/Subtotal";
 import "../register.css";
 import { POP_DATA_TYPE, PopProps } from "../RegisterHome";
 const OrderBaseAdd: React.FC<PopProps> = ({ onClose, data }) => {
-  const { openPop } = usePopManager(null, null, null);
+  const { openPop } = usePageChildManager(null, null, null);
   return (
     <>
       <div className="order-container">

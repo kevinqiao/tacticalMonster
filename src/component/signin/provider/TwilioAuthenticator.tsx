@@ -94,9 +94,9 @@ const TwilioAuthenticator = React.memo(({ provider, authInit }: AuthProps) => {
 
   return (
     <>
-      <div ref={maskRef} className="mask"></div>
+      <div ref={maskRef} className="auth_mask"></div>
       {authInit?.cancelPage ? (
-        <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={close} />
+        <AuthCloseBtn ref={closeBtnRef} style={{ opacity: 0, visibility: "hidden" }} onClick={close} />
       ) : null}
       <div ref={controllerRef} className="signin_control">
         <div className="twilio_phone_input">

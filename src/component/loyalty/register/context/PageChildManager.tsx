@@ -3,25 +3,28 @@ import React, { ReactNode, createContext, useCallback, useContext, useState } fr
 import { useTerminal } from "service/TerminalManager";
 import { PopConfig } from "../RegisterHome";
 import { PopAnimateConfigs } from "../animate/PopAnimateConfigs";
-export interface PopComponent {
+export interface NavChildComponent {
   name: string;
   data: any;
 }
-interface IPopContext {
-  stacks: PopComponent[];
+interface INavChildContext {
+  ground: NavChildComponent | null;
+  stacks: NavChildComponent[];
   exit: () => void;
   closePop: (name: string) => void;
   openPop: (name: string, data: any) => void;
 }
-const PopContext = createContext<IPopContext>({
+const NavChildContext = createContext<INavChildContext>({
+  ground: null,
   stacks: [],
   exit: () => null,
   closePop: (name: string) => null,
   openPop: (name: string, data: any) => null,
 });
 
-const PopProvider = ({ children, visible }: { children: ReactNode; visible: number }) => {
-  const [stacks, setStacks] = useState<PopComponent[]>([]);
+const PageChildProvider = ({ children, visible }: { children: ReactNode; visible: number }) => {
+  const [ground, setGround] = useState<NavChildComponent | null>(null);
+  const [stacks, setStacks] = useState<NavChildComponent[]>([]);
   const exit = useCallback(() => {
     setStacks([]);
   }, [stacks]);
@@ -47,20 +50,21 @@ const PopProvider = ({ children, visible }: { children: ReactNode; visible: numb
     [stacks]
   );
   const value = {
+    ground,
     stacks,
     exit,
     closePop,
     openPop,
   };
-  return <PopContext.Provider value={value}> {children} </PopContext.Provider>;
+  return <NavChildContext.Provider value={value}> {children} </NavChildContext.Provider>;
 };
-export const usePopManager = (
+export const usePageChildManager = (
   containerRef: React.MutableRefObject<HTMLDivElement | null> | null,
   maskRef: React.MutableRefObject<HTMLDivElement | null> | null,
   popConfig: PopConfig | null
 ) => {
   const { terminal, direction } = useTerminal();
-  const ctx = useContext(PopContext);
+  const ctx = useContext(NavChildContext);
   const playOpen = useCallback(() => {
     if (popConfig === null || containerRef === null) return;
     const sindex = ctx.stacks.findIndex((s) => s.name === popConfig.name);
@@ -102,4 +106,4 @@ export const usePopManager = (
   }, [ctx.stacks, terminal, direction]);
   return { ...ctx, playOpen, playClose };
 };
-export default PopProvider;
+export default PageChildProvider;

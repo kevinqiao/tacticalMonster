@@ -5,7 +5,7 @@ import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import "./nav.css";
-const MerchantNav: React.FC = () => {
+const QRScanNav: React.FC = () => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { partner } = usePartnerManager();
@@ -15,7 +15,7 @@ const MerchantNav: React.FC = () => {
   console.log("consumer home...");
 
   useEffect(() => {
-    if (app?.name === "consumer") {
+    if (app?.name === "qrscan") {
       const tl = gsap.timeline({
         onComplete: () => {
           tl.kill();
@@ -137,4 +137,4 @@ const MerchantNav: React.FC = () => {
     </>
   );
 };
-export default MerchantNav;
+export default QRScanNav;
