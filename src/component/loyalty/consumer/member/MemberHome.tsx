@@ -104,7 +104,6 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
   }, []);
 
   const render = useMemo(() => {
-    const { app, name } = pageProp;
     const pageConfig = getPageConfig(app, name);
     if (!pageConfig || !pageConfig.children) return;
     return (

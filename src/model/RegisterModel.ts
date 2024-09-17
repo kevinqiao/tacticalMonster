@@ -17,6 +17,7 @@ export interface OrderModel {
 }
 export interface OrderLineItemModel {
     id: string;
+    inventoryId: string;
     price: number;
     quantity: number;
     discounts?: Discount[];
@@ -30,7 +31,7 @@ export interface Discount {
     percent?: number;
 }
 export interface Modification {
-    id: string;
+    id: string;//inventory modifier id
     quantity: number;
     price: number;
 }

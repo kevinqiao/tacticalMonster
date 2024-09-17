@@ -1,6 +1,6 @@
 //type:0-open 1-close
 //termianl:(0:horization 1:vertical)-(0-desktop 1-pad 2-phone)
-export const PopAnimateConfigs =
+export const PopAnimateConfigs = Object.freeze(
     [
         {
             id: 1,
@@ -23,3 +23,4 @@ export const PopAnimateConfigs =
         }
 
     ]
+)

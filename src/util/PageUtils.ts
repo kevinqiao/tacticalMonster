@@ -1,5 +1,5 @@
-import { AppsConfiguration } from "model/PageConfiguration";
-import { PageConfig, PageItem } from "model/PageProps";
+import { AppsConfiguration, NavConfig } from "model/PageConfiguration";
+import { PageItem } from "model/PageProps";
 
 export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; stackItems?: PageItem[] } => {
 
@@ -109,9 +109,19 @@ export const getCurrentAppConfig = () => {
 }
 export const getPageConfig = (appName: string, page: string) => {
     const app = AppsConfiguration.find((a) => a.name === appName);
-    const cfg: PageConfig | undefined = app.navs.find((p: any) => p.name === page);
+    const cfg: NavConfig | undefined = app.navs.find((p: any) => p.name === page);
     return cfg
 }
+export const getNavConfig = (appName: string, page: string, child?: string) => {
+    const app = AppsConfiguration.find((a) => a.name === appName);
+    const cfg: NavConfig | undefined = app.navs.find((p: any) => p.name === page);
+    if (child && cfg?.children) {
+        const cnav = cfg.children.find((c) => c.name === child);
+        return cnav
+    }
+    return cfg
+}
+
 export const getUriByPop = (stacks: PageItem[], pop: string): string => {
     let url = window.location.pathname;
     if (window.location.search) {

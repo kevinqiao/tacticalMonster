@@ -1,10 +1,8 @@
 import { ClerkProvider, SignIn, useAuth, useClerk } from "@clerk/clerk-react";
 import { AuthCloseBtn } from "component/common/StyledComponents";
 import { useConvex } from "convex/react";
-import { gsap } from "gsap";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import useEventSubscriber from "service/EventManager";
-import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import { buildNavURL } from "util/PageUtils";
 import { api } from "../../../convex/_generated/api";
@@ -20,7 +18,6 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
   const { signOut } = useClerk();
   const { getToken, isSignedIn } = useAuth();
   const { authComplete } = useUserManager();
-  const { openPage } = usePageManager();
   // const [reqOpen, setReqOpen] = useState<number>(0);
   const { event } = useEventSubscriber(["signin"], ["account"]);
 
@@ -39,12 +36,7 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
   }, [event]);
   useEffect(() => {
     if (authInit && authInit.open > 0) {
-      // setReqOpen(1);
-      // const redirect = getURIParam("redirect");
-      // if (redirect) {
-      //   playRedirectOpen(null);
-      // } else
-      playForceOpen(null, authInit.cancelPage ? true : false);
+      playForceOpen(null, true);
     } else playClose(null);
   }, [authInit]);
   useEffect(() => {
@@ -77,16 +69,6 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
     }
   }, [authInit, provider]);
 
-  const close = useCallback(() => {
-    const tl = gsap.timeline({
-      onComplete: () => {
-        if (authInit?.cancelPage) openPage(authInit.cancelPage);
-        tl.kill();
-      },
-    });
-    playClose(tl);
-  }, [authInit]);
-
   return (
     <>
       <div ref={maskRef} className="auth_mask"></div>
@@ -95,9 +77,13 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
           Authenticating....
         </div>
       </div>
-      {authInit?.cancelPage ? (
-        <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={close} />
-      ) : null}
+
+      <AuthCloseBtn
+        ref={closeBtnRef}
+        style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }}
+        onClick={() => authInit?.cancel()}
+      />
+
       <div ref={controllerRef} className="signin_control">
         {!isSignedIn ? (
           <SignIn key={afterSignedURL} redirectUrl={afterSignedURL} afterSignInUrl={afterSignedURL} />

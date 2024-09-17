@@ -16,9 +16,9 @@ const usePopAnimate = ({ containerRef, maskRef, exitRef, pop }: PopAnimProps) =>
         console.log(pop)
         if (!pop) return;
         const device = direction + "-" + terminal;
-        console.log(device)
+        // console.log(device)
         const animate = PopAnimateConfigs.find((c) => c.id === pop.open && c.terminals.includes(device));
-        console.log(animate)
+        // console.log(animate)
         const tl = gsap.timeline({
             onComplete: () => {
                 tl.kill();
@@ -26,7 +26,7 @@ const usePopAnimate = ({ containerRef, maskRef, exitRef, pop }: PopAnimProps) =>
         });
         if (animate) {
             if (animate.from) {
-                tl.fromTo(containerRef.current, { ...animate.from, zIndex }, animate.to)
+                tl.fromTo(containerRef.current, { ...animate.from, zIndex }, { ...animate.to })
             } else
                 tl.to(containerRef.current, { ...animate.to, zIndex })
             tl.fromTo(maskRef.current, { autoAlpha: 0, zIndex: zIndex - 1 }, { autoAlpha: 0.6, duration: 0.3 }, "<");
@@ -36,8 +36,10 @@ const usePopAnimate = ({ containerRef, maskRef, exitRef, pop }: PopAnimProps) =>
     }, [terminal, direction]);
 
     const playClose = useCallback(() => {
+        // console.log(pop)
         if (!pop) return;
         const device = direction + "-" + terminal;
+        // console.log(PopAnimateConfigs)
         const animate = PopAnimateConfigs.find((c) => c.id === pop.close && c.terminals.includes(device));
         const tl = gsap.timeline({
             onComplete: () => {
@@ -45,11 +47,11 @@ const usePopAnimate = ({ containerRef, maskRef, exitRef, pop }: PopAnimProps) =>
             },
         });
         if (animate) {
-            console.log(animate)
+            // console.log(animate)
             if (animate.from) {
-                tl.fromTo(containerRef.current, { ...animate.from }, animate.to)
+                tl.fromTo(containerRef.current, { ...animate.from }, { ...animate.to })
             } else
-                tl.to(containerRef.current, animate.to)
+                tl.to(containerRef.current, { ...animate.to })
             tl.to(maskRef.current, { autoAlpha: 0, duration: 0.3 }, "<");
         }
         tl.play();

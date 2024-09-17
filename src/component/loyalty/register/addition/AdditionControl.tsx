@@ -1,11 +1,11 @@
 import { gsap } from "gsap";
 import React, { useCallback, useRef } from "react";
-import { usePageChildManager } from "../context/PageChildManager";
+import { usePageManager } from "service/PageManager";
 import "../register.css";
 const AdditionControl: React.FC = () => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const { openPop } = usePageChildManager(null, null, null);
+  const { openChild } = usePageManager();
   const openMenu = useCallback(() => {
     console.log("open menu");
     const tl = gsap.timeline({
@@ -29,7 +29,7 @@ const AdditionControl: React.FC = () => {
   }, []);
   const doAction = useCallback(() => {
     closeMenu();
-    openPop("orderAddition", null);
+    openChild("orderAddition", {});
   }, []);
   return (
     <>

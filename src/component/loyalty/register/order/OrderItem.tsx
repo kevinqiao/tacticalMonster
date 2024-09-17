@@ -1,14 +1,15 @@
 import { Discount, OrderLineItemModel } from "model/RegisterModel";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { usePageManager } from "service/PageManager";
 import { useCartManager } from "../context/CartManager";
 import { useInventoryManager } from "../context/InventoryManager";
-import { usePageChildManager } from "../context/PageChildManager";
-import { POP_DATA_TYPE, PopProps } from "../RegisterHome";
+
+import { PopProps } from "component/RenderApp";
 import "./order.css";
 
 const OrderItem: React.FC<PopProps> = ({ data, onClose }) => {
   const { cart, updateItem } = useCartManager();
-  const { openPop } = usePageChildManager(null, null, null);
+  const { openChild } = usePageManager();
   const { discounts, modifiers } = useInventoryManager();
   const [item, setItem] = useState<OrderLineItemModel | null>(null);
   useEffect(() => {
@@ -91,11 +92,18 @@ const OrderItem: React.FC<PopProps> = ({ data, onClose }) => {
     },
     [item]
   );
+  const modifierTotal = useMemo(() => {
+    if (item?.modifications) {
+      const mtotal = item.modifications.reduce((t, p) => (t = t + p.price), 0);
+      return +mtotal.toFixed(2);
+    }
+    return 0;
+  }, [item]);
   return (
     <>
       <div className="orderItem-container">
         <div style={{ height: 50 }} />
-        <div id="modifier-content">
+        {/* <div id="modifier-content">
           {item?.modifications?.map((m) => (
             <div key={m.id}>
               {modifierName(m.id)}
@@ -103,7 +111,15 @@ const OrderItem: React.FC<PopProps> = ({ data, onClose }) => {
               {m.price}
             </div>
           ))}
-        </div>
+        </div> */}
+        {modifierTotal > 0 ? (
+          <div className="item-part">
+            <div className="item-row">
+              <span>Modifiers</span>
+              <span>{modifierTotal.toFixed(2)}</span>
+            </div>
+          </div>
+        ) : null}
         <div className="item-part">
           <div className="item-row">
             <span>Price</span>
@@ -139,7 +155,7 @@ const OrderItem: React.FC<PopProps> = ({ data, onClose }) => {
                 <div className="subtotal-item-cell">{Number(0 - discount(dis)).toFixed(2)}</div>
               </div>
             ))}
-          <div className="item-row" onClick={() => openPop("discount", { type: POP_DATA_TYPE.ORDER_ITEM, obj: item })}>
+          <div className="item-row" onClick={() => openChild("discount", { type: 2, obj: item })}>
             <div style={{ fontSize: 18, color: "blue" }}>Add DISCOUNT</div>
             <div></div>
           </div>

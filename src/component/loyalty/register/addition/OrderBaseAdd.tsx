@@ -1,10 +1,10 @@
 import React from "react";
-import { usePageChildManager } from "../context/PageChildManager";
+import { usePageManager } from "service/PageManager";
 import Subtotal from "../order/Subtotal";
 import "../register.css";
-import { POP_DATA_TYPE, PopProps } from "../RegisterHome";
+import { PopProps } from "../RegisterHome";
 const OrderBaseAdd: React.FC<PopProps> = ({ onClose, data }) => {
-  const { openPop } = usePageChildManager(null, null, null);
+  const { openChild } = usePageManager();
   return (
     <>
       <div className="order-container">
@@ -12,8 +12,8 @@ const OrderBaseAdd: React.FC<PopProps> = ({ onClose, data }) => {
           <div style={{ height: 60 }}></div>
           <Subtotal
             addition={true}
-            onDiscountOpen={() => openPop("discount", { type: POP_DATA_TYPE.ORDER })}
-            onServiceChargeOpen={() => openPop("serviceCharge", { type: POP_DATA_TYPE.ORDER })}
+            onDiscountOpen={() => openChild("discount", { type: 1 })}
+            onServiceChargeOpen={() => openChild("serviceCharge", { type: 1 })}
           />
         </div>
       </div>

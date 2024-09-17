@@ -9,8 +9,7 @@ import {
   TaxRate,
 } from "model/RegisterModel";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
-import { POP_DATA_TYPE } from "../RegisterHome";
-import { usePageChildManager } from "./PageChildManager";
+import { usePageManager } from "service/PageManager";
 export const ActiveType = {
   INVENTORY: 1,
   ORDER: 2,
@@ -37,6 +36,7 @@ interface ICartContext {
   cart: CartModel | null;
 
   selectInventory: (item: InventoryItem) => void;
+  addItem: (item: OrderLineItemModel) => void;
   updateItem: (item: OrderLineItemModel) => void;
   removeItem: (item: OrderLineItemModel) => void;
   addServiceCharge: (service: ServiceCharge) => void;
@@ -51,11 +51,9 @@ interface ICartContext {
 }
 const CartContext = createContext<ICartContext>({
   lastItemAdded: null,
-  // activeComponent: null,
   cart: null,
-  // openActive: (c: ActiveComponent) => null,
-  // closeActive: () => null,
   selectInventory: (item: InventoryItem) => null,
+  addItem: (item: OrderLineItemModel) => null,
   updateItem: (item: OrderLineItemModel) => null,
   removeItem: (item: OrderLineItemModel) => null,
   addServiceCharge: (service: ServiceCharge) => null,
@@ -83,36 +81,49 @@ const taxRates = [
 const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartModel>({ lineItems: [], discounts: [], taxRates, serviceCharges: [] });
   const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
-  const { openPop } = usePageChildManager(null, null, null);
+  const { openChild } = usePageManager();
   const convex = useConvex();
   useEffect(() => {
     const cartJSON = localStorage.getItem("cart");
     if (cartJSON) setCart(JSON.parse(cartJSON));
   }, []);
-
+  console.log(cart);
   const selectInventory = useCallback(
     (item: InventoryItem) => {
       if (item.modifierGroups && item.modifierGroups.length > 0) {
-        openPop("inventoryItem", { type: POP_DATA_TYPE.ORDER, obj: item });
-        return null;
+        // openPop("inventoryItem", { type: POP_DATA_TYPE.ORDER, obj: item });
+        openChild("addOrderItem", item);
+        return;
       } else {
-        const index = cart.lineItems.findIndex((c) => c.id === item.id);
+        let citem;
+        const index = cart.lineItems.findIndex((c) => c.inventoryId === item.id);
         if (index >= 0) {
-          const citem = cart.lineItems.splice(index, 1)[0];
+          citem = cart.lineItems.splice(index, 1)[0];
           citem.quantity++;
           cart.lineItems.splice(index, 0, { ...citem });
           // cart.lineItems.push({ ...citem });
         } else {
-          const citem = { id: item.id, quantity: 1, price: item.price };
+          citem = { id: Date.now() + "", inventoryId: item.id, quantity: 1, price: item.price };
           cart.lineItems.push(citem);
         }
-        setLastItemAdded({ id: item.id, quantity: 1, price: item.price });
+        setLastItemAdded({ id: citem.id, inventoryId: item.id, quantity: 1, price: item.price });
         localStorage.setItem("cart", JSON.stringify(cart));
       }
     },
-    [cart, openPop]
+    [cart, openChild]
   );
-
+  const addItem = useCallback(
+    (item: OrderLineItemModel) => {
+      setCart((pre) => {
+        pre.lineItems.push(item);
+        localStorage.setItem("cart", JSON.stringify(pre));
+        pre.lineItems = [...pre.lineItems];
+        setLastItemAdded(item);
+        return pre;
+      });
+    },
+    [cart]
+  );
   const updateItem = useCallback((item: OrderLineItemModel) => {
     setCart((pre) => {
       const index = pre.lineItems.findIndex((c) => c.id === item.id);
@@ -215,6 +226,7 @@ const CartProvider = ({ children }: { children: ReactNode }) => {
     // openActive,
     // closeActive,
     selectInventory,
+    addItem,
     updateItem,
     removeItem,
     addDiscount,
@@ -227,7 +239,7 @@ const CartProvider = ({ children }: { children: ReactNode }) => {
     removeTaxRate,
     clear,
   };
-
+  console.log(cart);
   return <>{cart !== null ? <CartContext.Provider value={value}> {children} </CartContext.Provider> : null}</>;
 };
 export const useCartManager = () => {

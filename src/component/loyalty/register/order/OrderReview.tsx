@@ -1,8 +1,8 @@
+import { PopProps } from "component/RenderApp";
 import React, { useEffect, useRef, useState } from "react";
 import { useTerminal } from "service/TerminalManager";
 import { useCartManager } from "../context/CartManager";
 import "../register.css";
-import { PopProps } from "../RegisterHome";
 import LineItemList from "./LineItemList";
 import "./order.css";
 import Subtotal from "./Subtotal";

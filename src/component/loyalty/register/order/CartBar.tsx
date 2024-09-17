@@ -1,5 +1,5 @@
 import { gsap } from "gsap";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { usePageManager } from "service/PageManager";
 import { useCartManager } from "../context/CartManager";
 import { useInventoryManager } from "../context/InventoryManager";
@@ -9,7 +9,7 @@ const CartBar: React.FC = () => {
   const addRef = useRef<HTMLDivElement | null>(null);
   const { items } = useInventoryManager();
   const { lastItemAdded } = useCartManager();
-  const { currentPage, openPage } = usePageManager();
+  const { openChild } = usePageManager();
   // const { openPop } = usePageChildManager(null, null, null);
   useEffect(() => {
     console.log(lastItemAdded);
@@ -25,13 +25,11 @@ const CartBar: React.FC = () => {
   }, [lastItemAdded]);
   const addedName = useMemo(() => {
     if (items && lastItemAdded) {
-      const item = items.find((c) => c.id === lastItemAdded.id);
+      const item = items.find((c) => c.id === lastItemAdded.inventoryId);
       return item?.name;
     }
   }, [lastItemAdded, items]);
-  const openReview = useCallback(() => {
-    if (currentPage) openPage({ app: currentPage.app, name: currentPage.name, child: "orderReview" });
-  }, [openPage, currentPage]);
+
   return (
     <>
       <div ref={addRef} className="cartadd-container">
@@ -46,7 +44,7 @@ const CartBar: React.FC = () => {
       <div className="cartbar-container">
         <div className="cartbar-left"></div>
         <div className="cartbar-right">
-          <div className="btn" style={{ width: 120 }} onClick={openReview}>
+          <div className="btn" style={{ width: 120 }} onClick={() => openChild("orderReview")}>
             Review Order
           </div>
         </div>

@@ -90,13 +90,13 @@ export const Consumer =
             path: "./loyalty/register/RegisterHome",
             uri: "/register",
             children: [
-                { name: "orderReview", path: "./loyalty/register/order/OrderReview", uri: "order", pop: { open: 1, close: 2 } },
-                { name: "orderAddition", path: "./loyalty/register/addition/OrderBaseAdd", uri: "order/addition", pop: { open: 1, close: 1 } },
-                { name: "orderItem", path: "./loyalty/register/order/OrderItem", uri: "order/item", pop: { open: 1, close: 1 } },
-                { name: "inventoryItem", path: "./loyalty/register/menu/InventoryItemMain", uri: "inventory/item", pop: { open: 1, close: 1 } },
-                { name: "discount", path: "./loyalty/register/addition/DiscountPanel", uri: "discount", pop: { open: 1, close: 1 } },
-                { name: "serviceCharge", path: "./loyalty/register/addition/ServiceChargePanel", uri: "service_charge", pop: { open: 1, close: 1 } },
-                { name: "modifier", path: "./loyalty/register/addition/Modifier", uri: "modifier", pop: { open: 1, close: 1 } },
+                { name: "orderReview", path: "./loyalty/register/order/OrderReview", uri: "order", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
+                { name: "orderAddition", path: "./loyalty/register/addition/OrderBaseAdd", uri: "order/addition", pop: { open: 1, close: 2 } },
+                { name: "orderItem", path: "./loyalty/register/order/OrderItem", uri: "order/item", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
+                { name: "addOrderItem", path: "./loyalty/register/order/AddOrderItem", uri: "order/additem", pop: { open: 1, close: 2 } },
+                { name: "discount", path: "./loyalty/register/addition/DiscountPanel", uri: "discount", pop: { open: 1, close: 2 } },
+                { name: "serviceCharge", path: "./loyalty/register/addition/ServiceChargePanel", uri: "service_charge", pop: { open: 1, close: 2 } },
+                { name: "modifier", path: "./loyalty/register/addition/Modifier", uri: "modifier", pop: { open: 1, close: 2 } },
             ]
         },
         {
@@ -173,17 +173,18 @@ export interface AppConfig {
     navs: NavConfig[];
 }
 export interface NavConfig {
-    app: string;
+    app?: string;
     name: string;
     path: string;
     uri: string;
-    auth: number;
+    auth?: number;
     pop?: { open: number; close: number; exit?: number }
     children?: {
         name: string;
         path: string;
         uri: string;
-        auth: number;
+        auth?: number;
+        pop?: { open: number; close: number; exit?: number }
     }[]
 
 }

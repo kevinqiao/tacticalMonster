@@ -1,8 +1,8 @@
 import DiscountCustom from "component/loyalty/register/addition/DiscountCustom";
+import { PopProps } from "component/RenderApp";
 import { Discount, OrderLineItemModel } from "model/RegisterModel";
 import React, { useCallback, useState } from "react";
 import { useCartManager } from "../context/CartManager";
-import { POP_DATA_TYPE, PopProps } from "../RegisterHome";
 import "./addition.css";
 import DiscountSelector from "./DiscountSelector";
 
@@ -13,7 +13,7 @@ const DiscountPanel: React.FC<PopProps> = ({ data, onClose }) => {
     (dis: Discount) => {
       console.log(data);
       if (!data) return;
-      if (data.type === POP_DATA_TYPE.ORDER) {
+      if (data.type === 1) {
         console.log(dis);
         addDiscount(dis);
       } else {

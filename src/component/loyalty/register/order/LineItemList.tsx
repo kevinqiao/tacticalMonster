@@ -2,11 +2,11 @@ import { Discount, OrderLineItemModel } from "model/RegisterModel";
 import React, { useCallback } from "react";
 import { useCartManager } from "../context/CartManager";
 import { useInventoryManager } from "../context/InventoryManager";
-import { usePageChildManager } from "../context/PageChildManager";
-import { POP_DATA_TYPE } from "../RegisterHome";
+
+import { usePageManager } from "service/PageManager";
 import "./order.css";
 const LineItemList: React.FC = () => {
-  const { openPop } = usePageChildManager(null, null, null);
+  const { openChild } = usePageManager();
   const { cart } = useCartManager();
   const { items, discounts } = useInventoryManager();
 
@@ -32,14 +32,9 @@ const LineItemList: React.FC = () => {
     <>
       <div className="order-content">
         {cart?.lineItems.map((c) => {
-          console.log(c);
-          const citem = items.find((item) => item.id === c.id);
+          const citem = items.find((item) => item.id === c.inventoryId);
           return (
-            <div
-              key={c.id}
-              className="lineItem-container"
-              onClick={() => openPop("orderItem", { type: POP_DATA_TYPE.ORDER_ITEM, obj: c })}
-            >
+            <div key={c.id} className="lineItem-container" onClick={() => openChild("orderItem", { type: 2, obj: c })}>
               <div className="lineItem-row">
                 <div className="lineItem-cell">{citem?.name}</div>
                 <div className="lineItem-cell">{c.quantity + "x" + c.price}</div>
@@ -56,7 +51,6 @@ const LineItemList: React.FC = () => {
           );
         })}
       </div>
-      {/* <OrderItem itemId={activeId} onClose={() => setActiveId(null)} /> */}
     </>
   );
 };

@@ -1,6 +1,6 @@
 import { PageItem } from "model/PageProps";
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { buildNavURL, getCurrentAppConfig, parseURL } from "util/PageUtils";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { buildNavURL, getNavConfig, parseURL } from "util/PageUtils";
 
 export type App = {
   name: string;
@@ -12,106 +12,129 @@ export interface PageEvent {
 }
 
 interface IPageContext {
+  history: PageItem[];
   app: App | null;
   navOpen: boolean;
   error: { [k: string]: any } | null;
   stacks: PageItem[];
-  currentPage: PageItem | null | undefined;
-  openEntry: (params?: { [k: string]: string }) => void;
+  currentPage: PageItem | null;
+  openChild: (child: string, data?: { [k: string]: any }) => void;
   openPage: (page: PageItem) => void;
   openError: (error: { [k: string]: any }) => void;
   getPrePage: () => PageItem | null;
-  closeStack: () => void;
+  cancel: () => void;
   cleanStacks: () => void;
   openNav: () => void;
   closeNav: () => void;
 }
 const PageContext = createContext<IPageContext>({
-  // renderPage: null,
+  history: [],
   app: null,
   navOpen: false,
   error: null,
   stacks: [],
   currentPage: null,
-  openEntry: (params?: { [k: string]: string }) => null,
+  openChild: (child: string, data?: { [k: string]: any }) => null,
   openPage: (p: PageItem) => null,
   openError: (error: { [k: string]: any }) => null,
   getPrePage: () => null,
   openNav: () => null,
   closeNav: () => null,
-  closeStack: () => null,
+  cancel: () => null,
   cleanStacks: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
-  const prePageRef = useRef<PageItem | null>(null);
+  const historyRef = useRef<PageItem[]>([]);
   const [sysReady, setSysReady] = useState<boolean>(false);
   const [app, setApp] = useState<App | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [error, setError] = useState<{ [k: string]: any } | null>(null);
-  const [stacks, setStacks] = useState<PageItem[]>([]);
-  const [currentPage, setCurrentPage] = useState<PageItem | null | undefined>(null);
+  // const [stacks, setStacks] = useState<PageItem[]>([]);
+  const [currentPage, setCurrentPage] = useState<PageItem | null>(null);
   console.log("page provider");
-  console.log(stacks);
+
+  const stacks = useMemo(() => {
+    const pops: PageItem[] = [];
+    if (currentPage?.pid) {
+      const cindex = historyRef.current.findIndex((c) => c.pid === currentPage.pid);
+      for (let i = cindex; i >= 0; i--) {
+        const p = historyRef.current[i];
+        if (currentPage.app === p.app && currentPage.name === p.name && p.child) {
+          const navCfg = getNavConfig(p.app, p.name, p.child);
+          if (navCfg?.pop) {
+            const eindex = pops.findIndex((c) => c.child === p.child);
+            if (eindex < 0) pops.unshift(p);
+          }
+        } else break;
+      }
+    }
+    return pops;
+  }, [currentPage]);
+
   const openError = useCallback((error: { [k: string]: any }) => {
     setError(error);
   }, []);
+
+  const openChild = useCallback(
+    (child: string, data?: { [k: string]: any }) => {
+      if (currentPage) {
+        const { app, name } = currentPage;
+        const page = { app, name, child, data };
+        openPage(page);
+      }
+    },
+    [currentPage]
+  );
+
   const openPage = useCallback((page: PageItem) => {
     setApp((pre) => {
       if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
       else return pre;
     });
-    setCurrentPage((pre) => {
-      const prePage = prePageRef.current;
-      console.log(prePage);
+    if (!page.pid || page.pid === 0) {
       console.log(page);
-
-      if (!prePage || (prePage.app == page.app && prePage.name === page.name && page.child)) {
-        console.log("push stacsk");
-        setStacks((s) => {
-          s.push(page);
-          return [...s];
-        });
-      } else setStacks([]);
-      if (pre) prePageRef.current = pre;
-      return page;
-    });
-    window.history.pushState({}, "", buildNavURL(page));
+      const len = historyRef.current.length;
+      if (page.child) {
+        console.log("len:" + len);
+        if (len === 0) historyRef.current.push({ ...page, child: undefined });
+        else {
+          const cp = historyRef.current[len - 1];
+          if (cp && (cp.app != page.app || cp.name != page.name))
+            historyRef.current.push({ ...page, child: undefined, pid: Date.now() });
+        }
+      }
+      page.pid = Date.now() + 1;
+      historyRef.current.push(page);
+    }
+    const url = buildNavURL(page);
+    window.history.replaceState({ pid: page.pid }, "", url);
+    setCurrentPage(page);
   }, []);
 
-  const popPage = useCallback((page: PageItem) => {
-    setApp((pre) => {
-      console.log(page);
-      console.log(pre);
-      if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
-      else return pre;
-    });
-    setCurrentPage((pre) => {
-      if (pre) prePageRef.current = pre;
-      return { ...page, history: 1 };
-    });
-  }, []);
-
-  const openEntry = useCallback((params?: { [k: string]: string }) => {
-    const appConfig = getCurrentAppConfig();
-    console.log(appConfig);
-    if (appConfig) {
-      if (params) setApp({ name: appConfig.name, params: params });
-      const page: PageItem = { name: appConfig.entry, app: appConfig.name, params };
-      setCurrentPage((pre) => {
-        if (pre) prePageRef.current = pre;
-        return page;
-      });
+  const cancel = useCallback(() => {
+    const page = historyRef.current.pop();
+    const len = historyRef.current.length;
+    if (len > 0) {
+      const cpage = historyRef.current[len - 1];
+      if (cpage) {
+        const url = buildNavURL(cpage);
+        window.history.replaceState({ pid: cpage.pid }, "", url);
+        setCurrentPage(cpage);
+      }
     }
   }, []);
-  const closeStack = useCallback(() => {
-    setStacks((pre) => {
-      pre.pop();
-      return [...pre];
-    });
-  }, []);
   const cleanStacks = useCallback(() => {
-    setStacks([]);
+    const history = historyRef.current;
+    while (history.length > 0) {
+      const s = history.pop();
+      if (s && !s.child) {
+        const url = buildNavURL(s);
+        window.history.replaceState({ pid: s.pid }, "", url);
+        setCurrentPage(s);
+        break;
+      }
+    }
   }, []);
   const openNav = useCallback(() => {
     setNavOpen(true);
@@ -120,33 +143,35 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     setNavOpen(false);
   }, []);
   const getPrePage = useCallback(() => {
-    return prePageRef.current;
-  }, []);
+    if (currentPage) {
+      const history = historyRef.current;
+      const index = history.findIndex((c) => c.pid === currentPage.pid);
+      if (index > 0) return history[index - 1];
+    }
+    return null;
+  }, [currentPage]);
   useEffect(() => {
-    const handlePopState = (event: any) => {
-      console.log("pop event");
-      const prop = parseURL(window.location);
-      const page = prop["navItem"];
-      if (page) popPage(page);
-    };
+    // const handlePopState = (event: any) => {};
 
-    window.addEventListener("popstate", handlePopState);
+    // window.addEventListener("popstate", handlePopState);
     const prop = parseURL(window.location);
     const page = prop["navItem"];
     if (page) {
-      setApp((pre) => {
-        if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
-        else return pre;
-      });
-      setCurrentPage(page);
+      openPage(page);
+      // setApp((pre) => {
+      //   if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
+      //   else return pre;
+      // });
+      // setCurrentPage(page);
       setSysReady(true);
     }
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [popPage]);
+    // return () => {
+    //   window.removeEventListener("popstate", handlePopState);
+    // };
+  }, []);
 
   const value = {
+    history: historyRef.current,
     app,
     navOpen,
     error,
@@ -154,11 +179,11 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     currentPage,
     openError,
     openPage,
-    openEntry,
+    openChild,
     getPrePage,
     openNav,
     closeNav,
-    closeStack,
+    cancel,
     cleanStacks,
   };
   return <>{sysReady ? <PageContext.Provider value={value}>{children}</PageContext.Provider> : null}</>;

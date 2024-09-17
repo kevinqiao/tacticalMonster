@@ -40,7 +40,8 @@ const useTwilioAnimate = ({ maskRef, controllerRef, closeBtnRef }: TwilioAnimate
             });
         }
         tl.to(maskRef.current, { autoAlpha: 0, duration: 0.4 });
-        tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.4 }, "<");
+        if (closeBtnRef.current)
+            tl.to(closeBtnRef.current, { autoAlpha: 0, duration: 0.4 }, "<");
         tl.to(controllerRef.current, { autoAlpha: 0, scale: 0.8, duration: 0.4 }, "<");
         tl.play();
     }, []);

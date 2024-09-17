@@ -16,33 +16,25 @@ export interface PagePosition {
     height: number;
     // direction: number
 }
-export interface PageConfig {
-    name: string;
-    path?: string;
-    uri: string;
-    auth?: number;
-    nohistory?: boolean;
-    child?: string;
-    children?: { name: string; path: string; uri: string; exit?: number }[];
-    position?: {
-        closeControl?: { btn: number; confirm: number; maskActive: number };
-        direction: number;
-        animate?: { from: any; to: any }
-        width: number;
-        height: number;
-        maxWidth?: number;
-    }
-}
+// export interface PageConfig {
+//     name: string;
+//     path?: string;
+//     uri: string;
+//     auth?: number;
+//     children?: { name: string; path: string; uri: string; exit?: number }[];
+
+// }
 export default interface PageProps {
-    // app: string;
-    // name: string;
     visible?: number;
-    data: { [k: string]: any } | null
+    data: { [k: string]: any } | null;
+    param?: { [k: string]: string }
+    children?: React.ReactNode
 }
 
 export interface PageItem {
     name: string;
-    app: string; //null|undefined-cover
+    app: string; //null|undefined-cover;
+    pid?: number;
     data?: { [key: string]: any };
     params?: { [key: string]: string };
     hash?: { [key: string]: string };

@@ -19,8 +19,9 @@ interface NavProp {
   pageConfig: NavConfig;
   playRender: (page: PageItem) => void;
 }
-export interface PopProp {
+export interface PopProps {
   data: { [k: string]: any } | null;
+  visible: boolean;
   onClose?: () => void;
 }
 
@@ -28,51 +29,56 @@ const PopContainer: React.FC<{ app: string; page: string; popConfig: NavConfig }
   const maskRef = useRef<HTMLDivElement | null>(null);
   const exitRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState<boolean>(false);
   const [popData, setPopData] = useState<{ [k: string]: any } | null>(null);
-  const { stacks } = usePageManager();
+  const { history, stacks, cleanStacks, cancel } = usePageManager();
   const { user } = useUserManager();
   const [renderCompleted, setRenderCompleted] = useState<number>(0);
   const { playOpen, playClose } = usePopAnimate({ containerRef, maskRef, exitRef, pop: popConfig.pop });
-
+  const navChild = useMemo(() => {
+    return stacks.find((s) => s.app === app && s.name === page && s.child === popConfig.name);
+  }, [stacks]);
   useEffect(() => {
-    console.log(app + ":" + page + ":" + popConfig.name);
-    const index = stacks.findIndex((s) => s.app === app && s.name === page && s.child === popConfig.name);
-    const navChild = stacks[index];
     const role = user && user.uid ? user.role ?? 1 : 0;
     let auth = popConfig.auth;
     if (!auth) {
       const pageConfig = getPageConfig(app, page);
       auth = pageConfig?.auth ?? 0;
     }
-    console.log(popConfig.name + ">" + role + ":" + auth);
+
     if (navChild && role >= auth) {
       if (navChild.data) setPopData(navChild.data);
       setRenderCompleted((pre) => (pre === 0 ? 1 : pre));
-      console.log("play open popup");
+      const index = history.findIndex((c) => c.pid === navChild.pid);
       playOpen(index + 1000);
+      setVisible(true);
+    } else {
+      playClose();
+      setVisible(false);
     }
-  }, [stacks, popConfig, user]);
+  }, [navChild, history, popConfig, user]);
 
-  const SelectedComponent: FunctionComponent<PopProp> = useMemo(() => {
+  const SelectedComponent: FunctionComponent<PopProps> = useMemo(() => {
     return lazy(() => import(`${popConfig.path}`));
   }, [popConfig.path]);
 
-  console.log(renderCompleted);
   return (
     <>
       <div ref={maskRef} className="mask"></div>
       <div ref={containerRef} className="active-container">
         {renderCompleted > 0 ? (
           <Suspense fallback={<div />}>
-            <SelectedComponent onClose={playClose} data={popData} />
+            <SelectedComponent onClose={cancel} data={popData} visible={visible} />
           </Suspense>
         ) : null}
 
-        <div ref={exitRef} style={{ position: "absolute", top: 0, right: 0 }}>
-          <div className="btn" onClick={playClose}>
-            <span style={{ color: "blue" }}>Close</span>
+        {popConfig.pop?.exit ? (
+          <div ref={exitRef} style={{ position: "absolute", top: 0, right: 0 }}>
+            <div className="btn" onClick={cleanStacks}>
+              <span style={{ color: "blue" }}>Close</span>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
     </>
   );
@@ -89,7 +95,6 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
       const role = user && user.uid ? user.role ?? 1 : 0;
       if (pageConfig && (!pageConfig.auth || role >= pageConfig.auth)) {
         setRenderCompleted((pre) => (pre === 0 ? 1 : pre));
-        console.log(pageConfig);
         if (currentPage.data) setPageData(currentPage.data);
         playRender(currentPage);
         closeNav();
@@ -109,13 +114,16 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
     <>
       {SelectedComponent ? (
         <Suspense fallback={<div />}>
-          <SelectedComponent data={pageData} visible={visible} />
+          <SelectedComponent data={pageData} visible={visible}>
+            <>
+              {app &&
+                pageConfig.children?.map((c) => (
+                  <PopContainer key={c.name} app={app?.name} page={pageConfig.name} popConfig={c} />
+                ))}
+            </>
+          </SelectedComponent>
         </Suspense>
       ) : null}
-      {app &&
-        pageConfig.children?.map((c) => (
-          <PopContainer key={c.name} app={app?.name} page={pageConfig.name} popConfig={{ ...c, app: app.name }} />
-        ))}
     </>
   );
 };

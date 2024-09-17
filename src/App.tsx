@@ -16,7 +16,7 @@ const convex = new ConvexReactClient("https://dazzling-setter-839.convex.cloud")
 //   skipConvexDeploymentUrlCheck: true,
 // });
 
-const FlattenedProviderTree = (providers: any): any => {
+export const FlattenedProviderTree = (providers: any): any => {
   if (providers?.length === 1) {
     return providers[0][0];
   }
