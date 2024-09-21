@@ -93,10 +93,8 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       else return pre;
     });
     if (!page.pid || page.pid === 0) {
-      console.log(page);
       const len = historyRef.current.length;
       if (page.child) {
-        console.log("len:" + len);
         if (len === 0) historyRef.current.push({ ...page, child: undefined });
         else {
           const cp = historyRef.current[len - 1];

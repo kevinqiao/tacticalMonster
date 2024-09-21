@@ -81,22 +81,15 @@ export const Consumer =
         {
             name: "scanOrder",
             auth: 0,
-            path: "./loyalty/consumer/order/OrderScan",
-            uri: "/scan/order",
-        },
-        {
-            name: "register",
-            auth: 0,
-            path: "./loyalty/register/RegisterHome",
-            uri: "/register",
+            path: "./loyalty/consumer/shopping/DineIn",
+            uri: "/dinein",
             children: [
-                { name: "orderReview", path: "./loyalty/register/order/OrderReview", uri: "order", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
-                { name: "orderAddition", path: "./loyalty/register/addition/OrderBaseAdd", uri: "order/addition", pop: { open: 1, close: 2 } },
-                { name: "orderItem", path: "./loyalty/register/order/OrderItem", uri: "order/item", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
-                { name: "addOrderItem", path: "./loyalty/register/order/AddOrderItem", uri: "order/additem", pop: { open: 1, close: 2 } },
-                { name: "discount", path: "./loyalty/register/addition/DiscountPanel", uri: "discount", pop: { open: 1, close: 2 } },
-                { name: "serviceCharge", path: "./loyalty/register/addition/ServiceChargePanel", uri: "service_charge", pop: { open: 1, close: 2 } },
-                { name: "modifier", path: "./loyalty/register/addition/Modifier", uri: "modifier", pop: { open: 1, close: 2 } },
+                { name: "orderReview", path: "./loyalty/cart/OrderReview", uri: "order", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
+                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
+                { name: "cartReview", path: "./loyalty/cart/CartBox", uri: "cart", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
+                { name: "cartItem", path: "./loyalty/cart/CartItem", uri: "cart/item", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
+                { name: "addCartItem", path: "./loyalty/cart/AddCartItem", uri: "cart/additem", pop: { open: 1, close: 2 } },
+                { name: "modifier", path: "./loyalty/cart/EditCartModification", uri: "modifier", pop: { open: 1, close: 2 } },
             ]
         },
         {

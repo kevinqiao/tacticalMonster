@@ -10,4 +10,5 @@ export const Coin = styled.div`
   height: 100%;
   background-image: url("icons/coin.svg");
   background-size: contain;
+  background-repeat: no-repeat;
 `;
