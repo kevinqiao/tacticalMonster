@@ -1,7 +1,6 @@
 import { useConvex } from "convex/react";
 import { gsap } from "gsap";
-import { AppsConfiguration } from "model/PageConfiguration";
-import { PageConfig } from "model/PageProps";
+import { AppsConfiguration, NavConfig } from "model/PageConfiguration";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";
@@ -49,7 +48,7 @@ const CloverAuthenticator: React.FC<AuthProps> = ({ provider }) => {
     if (!currentPage) return;
     const app: any = AppsConfiguration.find((c) => c.name === currentPage.app);
     if (app?.navs) {
-      const config: PageConfig | undefined = app.navs.find((s: any) => s.name === currentPage.name);
+      const config: NavConfig | undefined = app.navs.find((s: any) => s.name === currentPage.name);
       const role = user ? user.role ?? 1 : 0;
       if (config?.auth && role < config.auth) {
         open();

@@ -7,6 +7,7 @@ import GroundLayout from "./GroundLayout";
 import "./register.css";
 
 const RegisterHome: React.FC<PageProps> = ({ visible, data, children }) => {
+  console.log("register:" + visible);
   return (
     <InventoryProvider>
       <OrderProvider>

@@ -93,6 +93,21 @@ export const Consumer =
             ]
         },
         {
+            name: "onlineOrder",
+            auth: 0,
+            path: "./loyalty/consumer/shopping/OnlineOrder",
+            uri: "/online",
+            children: [
+                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "discount", path: "./loyatly/order/addition/DiscountPanel", uri: "discount", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "modifier", path: "./loyalty/order/addition/Modifier", uri: "modifier", pop: { open: 1, close: 2, exit: 1 } },
+            ]
+        },
+        {
             name: "member",
             auth: 1,
             path: "./loyalty/consumer/member/MemberHome",
@@ -121,24 +136,18 @@ export const Merchant =
             uri: "/landing",
         },
         {
-            name: "home",
-            auth: 2,
-            path: "./loyalty/merchant/MerchantHome",
-            uri: "/home",
-        },
-        {
             name: "register",
-            auth: 2,
-            path: "./loyalty/register/RegisterHome",
+            auth: 0,
+            path: "./loyalty/merchant/register/RegisterHome",
             uri: "/register",
             children: [
-                { name: "orderReview", path: "./order/OrderReview", uri: "order", exit: 1 },
-                { name: "orderAddition", path: "./addition/OrderBaseAdd", uri: "order/addition", exit: 1 },
-                { name: "orderItem", path: "./order/OrderItem", uri: "order/item", exit: 1 },
-                { name: "inventoryItem", path: "./menu/InventoryItemMain", uri: "inventory/item", exit: 1 },
-                { name: "discount", path: "./addition/DiscountPanel", uri: "discount", exit: 0 },
-                { name: "serviceCharge", path: "./addition/ServiceChargePanel", uri: "service_charge", exit: 0 },
-                { name: "modifier", path: "./addition/Modifier", uri: "modifier", exit: 1 },
+                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "discount", path: "./loyatly/order/addition/DiscountPanel", uri: "discount", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "modifier", path: "./loyalty/order/addition/Modifier", uri: "modifier", pop: { open: 1, close: 2, exit: 1 } },
             ]
         }
     ],
@@ -181,7 +190,7 @@ export interface NavConfig {
     }[]
 
 }
-export const AppsConfiguration: any[] = [PlayPlace, Consumer, Merchant, W3Home];
+export const AppsConfiguration: any[] = [Consumer, Merchant, W3Home];
 export const AppModules: { [k: string]: { apps: string[] } } = {
     consumer: { apps: ["consumer", "w3"] }
 }

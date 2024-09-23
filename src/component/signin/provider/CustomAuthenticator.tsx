@@ -57,17 +57,6 @@ const CustomAuthenticator: React.FC<AuthProps> = ({ provider, authInit }) => {
     } else playClose(null);
   }, [authInit]);
 
-  // const afterSignedURL = useMemo(() => {
-  //   if (authInit && provider) {
-  //     const { app, name } = authInit.afterSignedPage;
-  //     const params = authInit.afterSignedPage.params
-  //       ? { ...authInit.afterSignedPage.params, redirect: "1", partner: provider.partnerId + "" }
-  //       : { redirect: "1", partner: provider.partnerId + "" };
-  //     const url = buildNavURL({ app, name, params });
-  //     return url;
-  //   }
-  // }, [authInit, provider]);
-
   const close = useCallback(() => {
     const tl = gsap.timeline({
       onComplete: () => {
@@ -93,9 +82,8 @@ const CustomAuthenticator: React.FC<AuthProps> = ({ provider, authInit }) => {
           Authenticating....
         </div>
       </div>
-      {authInit?.cancelPage ? (
-        <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={close} />
-      ) : null}
+      <AuthCloseBtn ref={closeBtnRef} style={{ zIndex: 2001, opacity: 0, visibility: "hidden" }} onClick={close} />
+
       <div ref={controllerRef} className="signin_control">
         <div className="password-container">
           <div id="code_enter" className="keypad-panel">

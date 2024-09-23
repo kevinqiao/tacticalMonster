@@ -1,7 +1,7 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
 // Register the plugin
-import { AppModules, AppsConfiguration, NavConfig } from "model/PageConfiguration";
+import { AppsConfiguration, NavConfig } from "model/PageConfiguration";
 import PageProps, { PageItem } from "model/PageProps";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageManager } from "service/PageManager";
@@ -132,21 +132,27 @@ const RenderApp: React.FC = () => {
   const containersRef = useRef<{ [name: string]: { ele: HTMLDivElement; visible: number } }>({});
   const [navsConfig, setNavsConfig] = useState<NavConfig[]>([]);
   const { partner } = usePartnerManager();
-  const { getPrePage } = usePageManager();
+  const { module, getPrePage } = usePageManager();
   console.log("render app");
 
   useEffect(() => {
-    const appModule = AppModules["consumer"];
+    console.log("module:" + module);
+    if (!module) return;
+    // const appModule = AppModules[module];
     const navs: NavConfig[] = [];
-    for (const app of appModule.apps) {
-      const appCfg = AppsConfiguration.find((a) => a.name === app);
-      if (appCfg) {
-        const ns = appCfg.navs.map((a: NavConfig) => ({ ...a, app }));
-        navs.push(...ns);
-      }
+    for (const appConfig of AppsConfiguration) {
+      const ns = appConfig.navs.map((a: NavConfig) => ({ ...a, app: appConfig.name }));
+      navs.push(...ns);
     }
+    // for (const app of appModule.apps) {
+    //   const appCfg = AppsConfiguration.find((a) => a.name === app);
+    //   if (appCfg) {
+    //     const ns = appCfg.navs.map((a: NavConfig) => ({ ...a, app }));
+    //     navs.push(...ns);
+    //   }
+    // }
     setNavsConfig(navs);
-  }, []);
+  }, [module]);
 
   const load = useCallback((name: string, ele: HTMLDivElement | null) => {
     if (ele) {

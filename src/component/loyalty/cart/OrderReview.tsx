@@ -19,8 +19,6 @@ const OrderReview: React.FC<PopProps> = ({ onClose, data }) => {
     });
     return grps;
   }, [order]);
-  console.log(order);
-  console.log(groups);
   return (
     <div className="cart-container">
       <div style={{ height: 80, width: "100%", backgroundColor: "red", marginBottom: 10 }}>Shopping Cart</div>

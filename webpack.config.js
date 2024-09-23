@@ -10,18 +10,16 @@ const crypto = require("crypto");
 const env = dotenv.config({ path: ".env.local" }).parsed;
 
 // 将 .env 文件中的变量转换为 webpack 可以使用的格式
+
 const envKeys = Object.keys(env).reduce((prev, next) => {
   prev[`process.env.${next}`] = JSON.stringify(env[next]);
   return prev;
 }, {});
 
 module.exports = {
-  entry: {
-    // w3: "./src/index_sso.tsx", // 第一个入口点
-    match3: "./src/index_play.tsx", // 第一个入口点
-  },
+  entry: "./src/index.tsx",
   output: {
-    filename: "[name].bundle.js",
+    filename: "bundle.js",
     path: path.resolve(__dirname, "dist"),
     publicPath: "/",
   },
@@ -117,7 +115,6 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: "./public/index.html",
       filename: "index.html",
-      chunks: ["match3"],
     }),
     // new HtmlWebpackPlugin({
     //   template: "./public/index.html",
@@ -177,7 +174,7 @@ module.exports = {
     historyApiFallback: {
       rewrites: [
         // 重定向规则
-        { from: /^\/match3\.bundle\.js$/, to: "/match3.bundle.js" },
+        { from: /^\/match3\.bundle\.js$/, to: "/consumer.bundle.js" },
         { from: /^\/.*\.(js|css|png|jpg|jpeg|gif|svg)$/, to: (context) => context.parsedUrl.pathname },
         { from: /^\/$/, to: "/index.html" },
         // 你可以添加更多的重定向规则

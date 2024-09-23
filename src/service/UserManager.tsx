@@ -2,6 +2,7 @@ import { useAction } from "convex/react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { getURIParam } from "util/PageUtils";
 import { api } from "../convex/_generated/api";
+import { usePageManager } from "./PageManager";
 
 interface IUserContext {
   user: any;
@@ -19,9 +20,11 @@ const UserContext = createContext<IUserContext>({
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
+  const { loadModule } = usePageManager();
   console.log("user provider");
   const authByToken = useAction(api.UserService.authByToken);
   const authComplete = useCallback((u: any, persist: number) => {
+    if (u.role > 1) loadModule("merchant");
     setUser(u);
     if (u?.uid && persist > 0) localStorage.setItem("user", JSON.stringify(u));
     else localStorage.removeItem("user");

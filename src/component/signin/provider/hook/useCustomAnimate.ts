@@ -32,6 +32,7 @@ const useCustomAnimate = ({ loadingRef, maskRef, controllerRef, closeBtnRef }: C
 
 
     const playClose = useCallback((timeline: any) => {
+        console.log("close custom authenticator")
         let tl = timeline;
         if (timeline == null) {
             tl = gsap.timeline({

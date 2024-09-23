@@ -5,7 +5,7 @@ import InventoryProvider from "../../service/InventoryManager";
 import OrderProvider from "../../service/OrderManager";
 import GroundLayout from "./GroundLayout";
 
-const DineOut: React.FC<PageProps> = ({ visible, data, children }) => {
+const OnlineOrder: React.FC<PageProps> = ({ visible, data, children }) => {
   return (
     <InventoryProvider>
       <OrderProvider type={OrderType.PICKUP}>
@@ -16,4 +16,4 @@ const DineOut: React.FC<PageProps> = ({ visible, data, children }) => {
   );
 };
 
-export default DineOut;
+export default OnlineOrder;

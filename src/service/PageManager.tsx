@@ -12,6 +12,7 @@ export interface PageEvent {
 }
 
 interface IPageContext {
+  module?: string;
   history: PageItem[];
   app: App | null;
   navOpen: boolean;
@@ -26,6 +27,7 @@ interface IPageContext {
   cleanStacks: () => void;
   openNav: () => void;
   closeNav: () => void;
+  loadModule: (module: string) => void;
 }
 const PageContext = createContext<IPageContext>({
   history: [],
@@ -42,15 +44,16 @@ const PageContext = createContext<IPageContext>({
   closeNav: () => null,
   cancel: () => null,
   cleanStacks: () => null,
+  loadModule: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const historyRef = useRef<PageItem[]>([]);
   const [sysReady, setSysReady] = useState<boolean>(false);
+  const [module, setModule] = useState<string>("consumer");
   const [app, setApp] = useState<App | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [error, setError] = useState<{ [k: string]: any } | null>(null);
-  // const [stacks, setStacks] = useState<PageItem[]>([]);
   const [currentPage, setCurrentPage] = useState<PageItem | null>(null);
   console.log("page provider");
 
@@ -71,7 +74,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     }
     return pops;
   }, [currentPage]);
-
+  const loadModule = useCallback((m: string) => {
+    setModule(m);
+  }, []);
   const openError = useCallback((error: { [k: string]: any }) => {
     setError(error);
   }, []);
@@ -169,6 +174,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const value = {
+    module,
     history: historyRef.current,
     app,
     navOpen,
@@ -183,6 +189,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     closeNav,
     cancel,
     cleanStacks,
+    loadModule,
   };
   return <>{sysReady ? <PageContext.Provider value={value}>{children}</PageContext.Provider> : null}</>;
 };

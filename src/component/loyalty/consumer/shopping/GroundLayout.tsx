@@ -25,7 +25,6 @@ const GroundLayout: React.FC = () => {
         >
           <CategoryHome />
           <CartBar />
-          {/* <AdditionControl /> */}
           <div
             style={{
               display: "flex",

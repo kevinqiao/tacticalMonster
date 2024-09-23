@@ -45,7 +45,7 @@ const StyleApp = () => {
 
   const Providers = FlattenedProviderTree([
     // [SceneProvider],
-    [PageProvider],
+    // [PageProvider],
     [EventProvider],
     [TerminalProvider],
     [LocalizationProvider],
@@ -66,7 +66,11 @@ const StyleApp = () => {
 };
 
 const App: React.FC = () => {
-  const Providers = FlattenedProviderTree([[ConvexProvider, { client: convex }], [LocalizationProvider]]);
+  const Providers = FlattenedProviderTree([
+    [ConvexProvider, { client: convex }],
+    [LocalizationProvider],
+    [PageProvider],
+  ]);
   console.log("app....");
   return (
     <div style={{ width: "100vw", height: "100vh" }}>

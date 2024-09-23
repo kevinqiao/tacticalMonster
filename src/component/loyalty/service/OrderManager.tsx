@@ -338,12 +338,11 @@ export const useCartManager = () => {
     }
   }, [cart, order]);
   const clear = useCallback(() => {
-    if (cart) {
-      cart.lineItems.length = 0;
-      cart.lineItems = [];
-      localStorage.setItem("cart", JSON.stringify(cart));
-    }
-    setCart((pre) => ({ ...pre }));
+    setCart((pre) => {
+      pre.lineItems.length = 0;
+      localStorage.removeItem("cart");
+      return { ...pre };
+    });
   }, []);
   return {
     cart,

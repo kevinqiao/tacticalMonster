@@ -5,7 +5,7 @@ import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { useUserManager } from "service/UserManager";
 import "./nav.css";
-const MerchantNav: React.FC = () => {
+const ConsumerNav: React.FC = () => {
   const maskRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { partner } = usePartnerManager();
@@ -65,7 +65,7 @@ const MerchantNav: React.FC = () => {
             color: "white",
           }}
         >
-          Dine In
+          Online Order
         </div>
         <div style={{ height: 50 }} />
         <div
@@ -81,7 +81,7 @@ const MerchantNav: React.FC = () => {
           }}
           onClick={() => openPage({ app: "consumer", name: "scanOrder" })}
         >
-          Takeout
+          Game Center
         </div>
         <div style={{ height: 50 }} />
         <div
@@ -97,7 +97,7 @@ const MerchantNav: React.FC = () => {
           }}
           onClick={() => openPage({ app: "consumer", name: "register" })}
         >
-          Order Records
+          Contact
         </div>
         <div style={{ height: 50 }} />
         <div
@@ -112,28 +112,11 @@ const MerchantNav: React.FC = () => {
             color: "white",
           }}
         >
-          Customer
+          My Account
           {/* Sign In{`${resources["member"]["record"]}`} */}
-        </div>
-        <div style={{ height: 100 }} />
-
-        <div
-          style={{
-            cursor: "pointer",
-            width: "80%",
-            height: "40px",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "blue",
-            color: "white",
-          }}
-          onClick={logout}
-        >
-          Logout
         </div>
       </div>
     </>
   );
 };
-export default MerchantNav;
+export default ConsumerNav;

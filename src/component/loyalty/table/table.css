@@ -1,0 +1,16 @@
+.table-container {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.table-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 49%;
+  height:60px;
+  background-color: #5590f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+

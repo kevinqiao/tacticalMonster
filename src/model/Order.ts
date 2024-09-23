@@ -10,9 +10,7 @@ export interface OrderModel {
     // isVat: boolean;
     status?: number;//"open","locked"
     type?: number;//0-dineIn 1-takeout 2-pickup
-    // manualTransaction: boolean;
-    // groupLineItems: boolean;
-
+    tableNo?: number;
     deliver?: { phone: string; address?: string; name?: string };
     groupCount?: number;
     createdTime: number;

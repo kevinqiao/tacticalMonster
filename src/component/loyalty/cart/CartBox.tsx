@@ -14,6 +14,10 @@ const CartBox: React.FC<PopProps> = ({ onClose, data }) => {
     submit();
     if (onClose) onClose();
   }, [submit]);
+  const clearBox = useCallback(() => {
+    clear();
+    if (onClose) onClose();
+  }, []);
   return (
     <div className="cart-container">
       <div style={{ height: 80, width: "100%", backgroundColor: "red", marginBottom: 10 }}>Shopping Cart</div>
@@ -30,7 +34,7 @@ const CartBox: React.FC<PopProps> = ({ onClose, data }) => {
       </div>
       <div style={{ height: 70 }} />
       <div className="cart-control">
-        <div className="btn" onClick={clear}>
+        <div className="btn" onClick={clearBox}>
           Clear
         </div>
         <div className="btn" onClick={confirm}>
