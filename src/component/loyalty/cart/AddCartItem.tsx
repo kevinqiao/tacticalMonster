@@ -5,7 +5,7 @@ import { PopProps } from "component/RenderApp";
 import { useCartManager } from "../service/OrderManager";
 import OrderModifier from "./OrderModifier";
 const AddCartItem: React.FC<PopProps> = ({ data, visible, onClose }) => {
-  const { cart, addItem, updateItem } = useCartManager();
+  const { cart, addCartItem, updateItem } = useCartManager();
   const modificationsRef = useRef<Modification[]>([]);
   const inventoryItem: InventoryItem = data as InventoryItem;
   useEffect(() => {
@@ -20,7 +20,7 @@ const AddCartItem: React.FC<PopProps> = ({ data, visible, onClose }) => {
   );
   const onModificationComplete = useCallback(() => {
     if (cart) {
-      addItem(inventoryItem, [...modificationsRef.current]);
+      addCartItem(inventoryItem, [...modificationsRef.current]);
       modificationsRef.current.length = 0;
       if (onClose) onClose();
     }

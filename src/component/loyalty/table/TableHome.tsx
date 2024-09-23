@@ -3,12 +3,12 @@ import { InventoryCategory } from "model/Order";
 import React, { useCallback, useMemo, useState } from "react";
 import { usePageManager } from "service/PageManager";
 import { useInventoryManager } from "../service/InventoryManager";
-import { useCartManager } from "../service/OrderManager";
+import { useOrderManager } from "../service/OrderManager";
 import "./table.css";
 
 const TableHome: React.FC<PopProps> = ({ onClose, data }) => {
   const [curCategory, setCurCategory] = useState<InventoryCategory | null>(null);
-  const { selectInventory } = useCartManager();
+  const { selectInventory } = useOrderManager();
   const { categories, items } = useInventoryManager();
   const { openNav } = usePageManager();
 

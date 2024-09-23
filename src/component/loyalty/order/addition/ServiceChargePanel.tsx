@@ -1,15 +1,11 @@
+import { PopProps } from "component/RenderApp";
 import { ServiceCharge } from "model/Order";
 import React, { useCallback, useState } from "react";
-import { PopProps } from "../../merchant/register/RegisterHome";
 import { useCartManager } from "../../service/CartManager";
 import "./addition.css";
 import ServiceChargeCustom from "./ServiceChargeCustom";
 import ServiceChargeSelector from "./ServiceChargeSelector";
-interface Props {
-  open: boolean;
-  onClose: () => void;
-  onComplete: (service: ServiceCharge) => void;
-}
+
 const ServiceChargePanel: React.FC<PopProps> = ({ data, onClose }) => {
   const [type, setType] = useState<number>(0); //0-fixed 1-custom percent 2-custom amount
   const { addServiceCharge } = useCartManager();

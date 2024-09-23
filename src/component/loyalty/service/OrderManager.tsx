@@ -6,11 +6,13 @@ import {
   OrderLineItemModel,
   OrderModel,
   OrderStatus,
+  OrderType,
   ServiceCharge,
   TaxRate,
 } from "model/Order";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import { usePageManager } from "service/PageManager";
+import { useTerminal } from "service/TerminalManager";
 import { useUserManager } from "service/UserManager";
 export const ActiveType = {
   INVENTORY: 1,
@@ -40,6 +42,8 @@ interface IOrderContext {
   setOrder: React.Dispatch<React.SetStateAction<OrderModel>>;
   setLastItemAdded: React.Dispatch<React.SetStateAction<OrderLineItemModel | null>>;
   setOrderType: React.Dispatch<React.SetStateAction<number>>;
+  selectInventory: (item: InventoryItem) => void;
+  addItem: (lineItems: OrderLineItemModel[], item: InventoryItem, modifications: Modification[]) => void;
   // updateItem: (item: OrderLineItemModel) => void;
   // removeItem: (item: OrderLineItemModel) => void;
   // addServiceCharge: (service: ServiceCharge) => void;
@@ -66,7 +70,9 @@ const OrderContext = createContext<IOrderContext>({
   setLastItemAdded: () => {},
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   setOrderType: () => {},
-  // updateItem: (item: OrderLineItemModel) => null,
+  selectInventory: (item: InventoryItem) => null,
+
+  addItem: (lineItems: OrderLineItemModel[], item: InventoryItem, modifications: Modification[]) => null,
   // removeItem: (item: OrderLineItemModel) => null,
   // addServiceCharge: (service: ServiceCharge) => null,
   // updateServiceCharge: (service: ServiceCharge) => null,
@@ -92,6 +98,8 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
   const [orderType, setOrderType] = useState<number>(type ?? 0);
   const [canEdit, setCanEdit] = useState<number>(0);
   const { user } = useUserManager();
+  const { terminal } = useTerminal();
+  const { app, openChild } = usePageManager();
   useEffect(() => {
     if (user?.role > 0 && (!order?.status || order.status < OrderStatus.PAID)) setCanEdit(1);
     else setCanEdit(0);
@@ -110,6 +118,66 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
     return null;
   }, []);
 
+  const addItem = useCallback(
+    (lineItems: OrderLineItemModel[], inventoryItem: InventoryItem, modifications: Modification[]) => {
+      let orderItem: OrderLineItemModel | null = null;
+      const orderItems = lineItems.filter((c) => c.inventoryId === inventoryItem.id);
+      for (const item of orderItems) {
+        if (item.modifications?.length === modifications.length) {
+          let modiEqual = true;
+          for (const mod of modifications) {
+            const modi = item.modifications.find((m) => {
+              return m.id === mod.id && m.quantity === mod.quantity ? true : false;
+            });
+            if (!modi) {
+              modiEqual = false;
+              break;
+            }
+          }
+          if (modiEqual) orderItem = item;
+        }
+      }
+
+      if (orderItem) {
+        orderItem.quantity++;
+      } else {
+        orderItem = {
+          id: Date.now() + "",
+          quantity: 1,
+          inventoryId: inventoryItem.id,
+          price: inventoryItem.price,
+          modifications: [...modifications],
+        };
+        lineItems.push(orderItem);
+      }
+      if (terminal === 2) setLastItemAdded(orderItem);
+    },
+    [cart, terminal]
+  );
+  const selectInventory = useCallback(
+    (item: InventoryItem) => {
+      if (app && item.modifierGroups && item.modifierGroups.length > 0) {
+        if (app.name === "consumer" && orderType === OrderType.DINEIN) {
+          console.log("add cart item");
+          openChild("addCartItem", item);
+        } else {
+          console.log("add order item");
+          openChild("addOrderItem", item);
+        }
+      } else {
+        if (app?.name === "consumer" && orderType === OrderType.DINEIN) {
+          addItem(cart.lineItems, item, []);
+          cart.lineItems = [...cart.lineItems];
+          setCart({ ...cart });
+          localStorage.setItem("cart", JSON.stringify(cart));
+        } else {
+          addItem(order.lineItems, item, []);
+          setOrder({ ...order });
+        }
+      }
+    },
+    [app, cart, order, orderType, openChild]
+  );
   const value = {
     cart,
     order,
@@ -121,18 +189,21 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
     setOrder,
     setLastItemAdded,
     setOrderType,
+    selectInventory,
+    addItem,
   };
 
   return <OrderContext.Provider value={value}> {children} </OrderContext.Provider>;
 };
 
 export const useOrderManager = () => {
-  const { order, canEdit } = useContext(OrderContext);
-  const addItem = useCallback(
-    (item: OrderLineItemModel) => {
+  const { order, canEdit, addItem, setOrder, selectInventory } = useContext(OrderContext);
+
+  const addOrderItem = useCallback(
+    (item: InventoryItem, modifications: Modification[]) => {
       if (order) {
-        order.lineItems.push(item);
-        order.lineItems = [...order.lineItems];
+        addItem(order.lineItems, item, modifications);
+        setOrder({ ...order });
       }
     },
     [order]
@@ -231,7 +302,7 @@ export const useOrderManager = () => {
   return {
     order,
     canEdit,
-    addItem,
+    addOrderItem,
     updateItem,
     removeItem,
     addServiceCharge,
@@ -242,61 +313,73 @@ export const useOrderManager = () => {
     removeDiscount,
     addTaxRate,
     removeTaxRate,
+    selectInventory,
   };
 };
 export const useCartManager = () => {
-  const { cart, order, orderType, lastItemAdded, setLastItemAdded, setCart, setOrder } = useContext(OrderContext);
-  const { openChild } = usePageManager();
+  const { cart, order, orderType, lastItemAdded, setLastItemAdded, setCart, addItem, setOrder } =
+    useContext(OrderContext);
+  // const { openChild } = usePageManager();
 
-  const selectInventory = useCallback(
-    (item: InventoryItem) => {
-      console.log(item);
-      if (item.modifierGroups && item.modifierGroups.length > 0) {
-        openChild("addCartItem", item);
-        return;
-      } else {
-        addItem(item, []);
-      }
-    },
-    [cart, openChild]
-  );
+  // const selectInventory = useCallback(
+  //   (item: InventoryItem) => {
+  //     console.log(item);
+  //     if (item.modifierGroups && item.modifierGroups.length > 0) {
+  //       openChild("addCartItem", item);
+  //       return;
+  //     } else {
+  //       addItem(item, []);
+  //     }
+  //   },
+  //   [cart, openChild]
+  // );
 
-  const addItem = useCallback(
-    (inventoryItem: InventoryItem, modifications: Modification[]) => {
+  // const addItem = useCallback(
+  //   (inventoryItem: InventoryItem, modifications: Modification[]) => {
+  //     if (cart) {
+  //       let orderItem: OrderLineItemModel | null = null;
+  //       const orderItems = cart.lineItems.filter((c) => c.inventoryId === inventoryItem.id);
+  //       for (const item of orderItems) {
+  //         if (item.modifications?.length === modifications.length) {
+  //           let modiEqual = true;
+  //           for (const mod of modifications) {
+  //             const modi = item.modifications.find((m) => {
+  //               return m.id === mod.id && m.quantity === mod.quantity ? true : false;
+  //             });
+  //             if (!modi) {
+  //               modiEqual = false;
+  //               break;
+  //             }
+  //           }
+  //           if (modiEqual) orderItem = item;
+  //         }
+  //       }
+
+  //       if (orderItem) {
+  //         orderItem.quantity++;
+  //       } else {
+  //         orderItem = {
+  //           id: Date.now() + "",
+  //           quantity: 1,
+  //           inventoryId: inventoryItem.id,
+  //           price: inventoryItem.price,
+  //           modifications: [...modifications],
+  //         };
+  //         cart.lineItems.push(orderItem);
+  //         cart.lineItems = [...cart.lineItems];
+  //       }
+  //       localStorage.setItem("cart", JSON.stringify(cart));
+  //       setLastItemAdded({ ...orderItem });
+  //     }
+  //   },
+  //   [cart]
+  // );
+  const addCartItem = useCallback(
+    (item: InventoryItem, modifications: Modification[]) => {
       if (cart) {
-        let orderItem: OrderLineItemModel | null = null;
-        const orderItems = cart.lineItems.filter((c) => c.inventoryId === inventoryItem.id);
-        for (const item of orderItems) {
-          if (item.modifications?.length === modifications.length) {
-            let modiEqual = true;
-            for (const mod of modifications) {
-              const modi = item.modifications.find((m) => {
-                return m.id === mod.id && m.quantity === mod.quantity ? true : false;
-              });
-              if (!modi) {
-                modiEqual = false;
-                break;
-              }
-            }
-            if (modiEqual) orderItem = item;
-          }
-        }
-
-        if (orderItem) {
-          orderItem.quantity++;
-        } else {
-          orderItem = {
-            id: Date.now() + "",
-            quantity: 1,
-            inventoryId: inventoryItem.id,
-            price: inventoryItem.price,
-            modifications: [...modifications],
-          };
-          cart.lineItems.push(orderItem);
-          cart.lineItems = [...cart.lineItems];
-        }
+        addItem(cart.lineItems, item, modifications);
         localStorage.setItem("cart", JSON.stringify(cart));
-        setLastItemAdded({ ...orderItem });
+        setCart({ ...cart });
       }
     },
     [cart]
@@ -322,6 +405,8 @@ export const useCartManager = () => {
       if (cart) {
         const citems = cart.lineItems.filter((c) => c.id !== item.id);
         cart.lineItems = citems;
+        localStorage.setItem("cart", JSON.stringify(cart));
+        setCart({ ...cart });
       }
     },
     [cart]
@@ -348,12 +433,12 @@ export const useCartManager = () => {
     cart,
     orderType,
     lastItemAdded,
-    addItem,
+    addCartItem,
     updateItem,
     removeItem,
-    selectInventory,
     clear,
     submit,
+    setLastItemAdded,
   };
 };
 export default OrderProvider;

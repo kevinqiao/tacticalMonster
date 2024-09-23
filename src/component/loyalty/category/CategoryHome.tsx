@@ -2,12 +2,12 @@ import { InventoryCategory } from "model/Order";
 import React, { useCallback, useMemo, useState } from "react";
 import { usePageManager } from "service/PageManager";
 import { useInventoryManager } from "../service/InventoryManager";
-import { useCartManager } from "../service/OrderManager";
+import { useOrderManager } from "../service/OrderManager";
 import "./menu.css";
 
 const CategoryHome: React.FC = () => {
   const [curCategory, setCurCategory] = useState<InventoryCategory | null>(null);
-  const { selectInventory } = useCartManager();
+  const { selectInventory } = useOrderManager();
   const { categories, items } = useInventoryManager();
   const { openNav } = usePageManager();
 
@@ -33,7 +33,7 @@ const CategoryHome: React.FC = () => {
 
   return (
     <>
-      <div className="category-head">
+      {/* <div className="category-head">
         {curCategory ? (
           <div className="btn" onClick={back}>
             {"<"}
@@ -45,9 +45,21 @@ const CategoryHome: React.FC = () => {
         )}
         <div>{curCategory?.name}</div>
         <div className="btn-blank"></div>
-      </div>
+      </div> */}
 
       <div className="category-container">
+        {curCategory ? (
+          <div className="category-item" onClick={back}>
+            <span>返回上一级</span>
+          </div>
+        ) : null}
+        {catChildren?.categories.map((c) => {
+          return (
+            <div key={c.id} className="category-item" onClick={() => setCurCategory(c)}>
+              <span style={{ color: "white", fontSize: 15 }}>{c.name}</span>
+            </div>
+          );
+        })}
         {catChildren?.items?.map((c) => {
           return (
             <div key={c.id} className="category-item" onClick={() => selectInventory(c)}>
@@ -56,7 +68,7 @@ const CategoryHome: React.FC = () => {
           );
         })}
       </div>
-      <div className="category-container">
+      {/* <div className="category-container">
         {catChildren?.categories.map((c) => {
           return (
             <div key={c.id} className="category-item" onClick={() => setCurCategory(c)}>
@@ -64,7 +76,7 @@ const CategoryHome: React.FC = () => {
             </div>
           );
         })}
-      </div>
+      </div> */}
     </>
   );
 };

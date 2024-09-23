@@ -1,10 +1,13 @@
+import OrderBar from "component/loyalty/order/OrderBar";
 import React from "react";
+import { usePageManager } from "service/PageManager";
 import { useTerminal } from "service/TerminalManager";
 import CategoryHome from "../../category/CategoryHome";
-import CartBar from "../../order/OrderBar";
 import AdditionControl from "../../order/addition/AdditionControl";
+import OrderPanel from "./OrderPanel";
 const GroundLayout: React.FC = () => {
   const { terminal, direction } = useTerminal();
+  const { openNav } = usePageManager();
   console.log("terminal:" + terminal);
   return (
     <>
@@ -20,9 +23,14 @@ const GroundLayout: React.FC = () => {
             backgroundColor: "white",
           }}
         >
+          <div className="register-head">
+            <div className="btn" onClick={openNav}>
+              Home
+            </div>
+          </div>
           <CategoryHome />
-          <CartBar />
-          <AdditionControl />
+          <OrderBar />
+          {/* <AdditionControl /> */}
         </div>
       ) : null}
       {terminal <= 1 ? (
@@ -38,12 +46,16 @@ const GroundLayout: React.FC = () => {
               backgroundColor: "white",
             }}
           >
-            <div style={{ width: "60%", height: "100%" }}>
+            <div style={{ width: "50%", height: "100%" }}>
               <div style={{ width: "90%", height: "100%" }}>
+                <div className="register-head"></div>
                 <CategoryHome />
               </div>
             </div>
-            <div style={{ width: "40%", height: "100%" }}></div>
+            <div style={{ width: "50%", height: "100%" }}>
+              <div className="register-head"></div>
+              <OrderPanel />
+            </div>
           </div>
           <AdditionControl />
         </>

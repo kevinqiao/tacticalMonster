@@ -8,7 +8,7 @@ import { useCartManager } from "../service/OrderManager";
 const CartBar: React.FC = () => {
   const addRef = useRef<HTMLDivElement | null>(null);
   const { items } = useInventoryManager();
-  const { lastItemAdded } = useCartManager();
+  const { lastItemAdded, setLastItemAdded } = useCartManager();
 
   const { openChild } = usePageManager();
   // const { openPop } = usePageChildManager(null, null, null);
@@ -16,6 +16,7 @@ const CartBar: React.FC = () => {
     if (lastItemAdded) {
       const tl = gsap.timeline({
         onComplete: () => {
+          setLastItemAdded(null);
           tl.kill();
         },
       });
@@ -23,7 +24,7 @@ const CartBar: React.FC = () => {
       tl.to(addRef.current, { autoAlpha: 0, duration: 0.7 }, ">=+1.2");
       tl.play();
     }
-  }, [lastItemAdded]);
+  }, [lastItemAdded, setLastItemAdded]);
   const addedName = useMemo(() => {
     if (items && lastItemAdded) {
       const item = items.find((c) => c.id === lastItemAdded.inventoryId);

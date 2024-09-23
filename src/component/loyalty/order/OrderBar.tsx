@@ -8,7 +8,7 @@ import { useCartManager } from "../service/OrderManager";
 const OrderBar: React.FC = () => {
   const addRef = useRef<HTMLDivElement | null>(null);
   const { items } = useInventoryManager();
-  const { lastItemAdded, clear } = useCartManager();
+  const { lastItemAdded, setLastItemAdded, clear } = useCartManager();
 
   const { openChild } = usePageManager();
   // const { openPop } = usePageChildManager(null, null, null);
@@ -16,6 +16,7 @@ const OrderBar: React.FC = () => {
     if (lastItemAdded) {
       const tl = gsap.timeline({
         onComplete: () => {
+          setLastItemAdded(null);
           tl.kill();
         },
       });

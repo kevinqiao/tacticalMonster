@@ -3,9 +3,9 @@ import React, { useCallback, useEffect, useRef } from "react";
 
 import { PopProps } from "component/RenderApp";
 import ModifierSelector from "../category/ModifierSelector";
-import { useCartManager } from "../service/OrderManager";
+import { useOrderManager } from "../service/OrderManager";
 const EditOrderModification: React.FC<PopProps> = ({ data, visible, onClose }) => {
-  const { cart, addItem, updateItem } = useCartManager();
+  const { order, addOrderItem, updateItem } = useOrderManager();
   const modificationsRef = useRef<Modification[]>([]);
   const inventoryItem: InventoryItem = data as InventoryItem;
   useEffect(() => {
@@ -19,12 +19,12 @@ const EditOrderModification: React.FC<PopProps> = ({ data, visible, onClose }) =
     [updateItem]
   );
   const onModificationComplete = useCallback(() => {
-    if (cart) {
-      addItem(inventoryItem, [...modificationsRef.current]);
+    if (order) {
+      addOrderItem(inventoryItem, [...modificationsRef.current]);
       modificationsRef.current.length = 0;
       if (onClose) onClose();
     }
-  }, [cart]);
+  }, [order]);
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "white" }}>
       <div className="inventory-price">

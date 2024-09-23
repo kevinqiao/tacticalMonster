@@ -144,6 +144,7 @@ export const Merchant =
                 { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { open: 1, close: 2, exit: 1 } },
                 { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition", pop: { open: 1, close: 2, exit: 1 } },
                 { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "addOrderItem", path: "./loyalty/order/AddOrderItem", uri: "order/additem", pop: { open: 1, close: 2 } },
                 { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item", pop: { open: 1, close: 2, exit: 1 } },
                 { name: "discount", path: "./loyatly/order/addition/DiscountPanel", uri: "discount", pop: { open: 1, close: 2, exit: 1 } },
                 { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { open: 1, close: 2, exit: 1 } },
