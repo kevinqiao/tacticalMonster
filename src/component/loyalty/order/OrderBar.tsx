@@ -1,9 +1,9 @@
 import { gsap } from "gsap";
 import React, { useEffect, useMemo, useRef } from "react";
 import { usePageManager } from "service/PageManager";
-import "../merchant/register/register.css";
 import { useInventoryManager } from "../service/InventoryManager";
 import { useCartManager } from "../service/OrderManager";
+import "./order.css";
 
 const OrderBar: React.FC = () => {
   const addRef = useRef<HTMLDivElement | null>(null);
@@ -43,9 +43,10 @@ const OrderBar: React.FC = () => {
           </>
         ) : null}
       </div>
-      <div className="cartbar-container">
-        <div className="cartbar-left" onClick={clear}></div>
-        <div className="cartbar-right">
+      <div className="order-bar">
+        {/* <div className="cartbar-container"> */}
+        <div className="orderbar-left" onClick={clear}></div>
+        <div className="orderbar-right">
           <div className="btn" style={{ width: 120 }} onClick={() => openChild("orderReview")}>
             Review Order
           </div>

@@ -34,7 +34,7 @@ const PopContainer: React.FC<{ app: string; page: string; popConfig: NavConfig }
   const { history, stacks, cleanStacks, cancel } = usePageManager();
   const { user } = useUserManager();
   const [renderCompleted, setRenderCompleted] = useState<number>(0);
-  const { playOpen, playClose } = usePopAnimate({ containerRef, maskRef, exitRef, pop: popConfig.pop });
+  const { playInit, playOpen, playClose } = usePopAnimate({ containerRef, maskRef, exitRef, pop: popConfig.pop });
   const navChild = useMemo(() => {
     return stacks.find((s) => s.app === app && s.name === page && s.child === popConfig.name);
   }, [stacks]);
@@ -50,13 +50,17 @@ const PopContainer: React.FC<{ app: string; page: string; popConfig: NavConfig }
       if (navChild.data) setPopData(navChild.data);
       setRenderCompleted((pre) => (pre === 0 ? 1 : pre));
       const index = history.findIndex((c) => c.pid === navChild.pid);
-      playOpen(index + 1000);
+      console.log("index:" + index);
+      playOpen(index + 8000);
       setVisible(true);
     } else {
       playClose();
       setVisible(false);
     }
   }, [navChild, history, popConfig, user]);
+  useEffect(() => {
+    if (playInit) playInit();
+  }, [playInit]);
 
   const SelectedComponent: FunctionComponent<PopProps> = useMemo(() => {
     return lazy(() => import(`${popConfig.path}`));
@@ -65,7 +69,7 @@ const PopContainer: React.FC<{ app: string; page: string; popConfig: NavConfig }
   return (
     <>
       <div ref={maskRef} className="mask"></div>
-      <div ref={containerRef} className="active-container">
+      <div ref={containerRef} className="pop-container">
         {renderCompleted > 0 ? (
           <Suspense fallback={<div />}>
             <SelectedComponent onClose={cancel} data={popData} visible={visible} />
@@ -105,14 +109,14 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
     return currentPage && pageConfig.app === currentPage.app && pageConfig.name == currentPage.name ? 1 : 0;
   }, [currentPage]);
 
-  const SelectedComponent: FunctionComponent<PageProps> | null = useMemo(() => {
-    if (pageConfig && renderCompleted > 0) return lazy(() => import(`${pageConfig.path}`));
-    else return null;
+  const SelectedComponent: FunctionComponent<PageProps> = useMemo(() => {
+    return lazy(() => import(`${pageConfig.path}`));
   }, [pageConfig, renderCompleted]);
 
-  return (
-    <>
-      {SelectedComponent ? (
+  const render = useMemo(() => {
+    console.log(pageConfig.name + ":" + visible);
+    return (
+      <>
         <Suspense fallback={<div />}>
           <SelectedComponent data={pageData} visible={visible}>
             <>
@@ -123,9 +127,10 @@ const PageContainer: React.FC<NavProp> = ({ pageConfig, playRender }) => {
             </>
           </SelectedComponent>
         </Suspense>
-      ) : null}
-    </>
-  );
+      </>
+    );
+  }, [pageData, visible, app, pageConfig]);
+  return <>{render}</>;
 };
 
 const RenderApp: React.FC = () => {
@@ -165,6 +170,7 @@ const RenderApp: React.FC = () => {
   }, []);
   const playRenderPage = useCallback(
     (page: PageItem) => {
+      console.log(page);
       const app = page.app;
       const name = page.name;
       const tl = gsap.timeline({

@@ -6,10 +6,8 @@ import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMe
 import { usePageManager } from "service/PageManager";
 import useCoord from "service/TerminalManager";
 import { useUserManager } from "service/UserManager";
-import { getPageConfig } from "util/PageUtils";
 import { api } from "../../../../convex/_generated/api";
 import "../consumer.css";
-import LogoutConfirm from "./LogoutConfirm";
 
 const MenuControl: React.FC<{ menu: { name: string; path: string } | null; onClose: () => void }> = ({
   menu,
@@ -103,89 +101,7 @@ const MemberHome: React.FC<PageProps> = (pageProp) => {
     asyncCall();
   }, []);
 
-  const render = useMemo(() => {
-    const pageConfig = getPageConfig(app, name);
-    if (!pageConfig || !pageConfig.children) return;
-    return (
-      <>
-        <div style={{ width: "100vw", height: "100vh" }}>
-          <div style={{ height: "30%" }} />
-          {pageConfig.children.map((c, index) => (
-            <div
-              key={c.name}
-              style={{
-                cursor: "pointer",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                width: "70%",
-                height: 60,
-                backgroundColor: "blue",
-                color: "white",
-                borderStyle: "solid",
-                borderWidth: "2px 2px 2px 2px",
-                borderColor: "white",
-              }}
-              onClick={() => setSelectedMenu(c)}
-            >
-              {c.name}
-            </div>
-          ))}
-          <div
-            key={"home"}
-            style={{
-              cursor: "pointer",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              width: "70%",
-              height: 60,
-              backgroundColor: "blue",
-              color: "white",
-              borderStyle: "solid",
-              borderWidth: "2px 2px 2px 2px",
-              borderColor: "white",
-            }}
-            onClick={() => openPage({ name: "home", app: "consumer" })}
-          >
-            Back To Home
-          </div>
-        </div>
-
-        <div
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            cursor: "pointer",
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              cursor: "pointer",
-              width: "200px",
-              height: "40px",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              backgroundColor: "blue",
-              color: "white",
-            }}
-            onClick={() => setLogoutConfirmOpen(true)}
-          >
-            Logout
-          </div>
-        </div>
-        <MenuControl menu={selectedMenu} onClose={() => setSelectedMenu(null)} />
-        <LogoutConfirm confirmOpen={logoutConfirmOpen} onCancel={() => setLogoutConfirmOpen(false)} />
-      </>
-    );
-  }, [pageProp, logoutConfirmOpen, selectedMenu, user]);
-  return <>{render}</>;
+  return <></>;
 };
 
 export default MemberHome;

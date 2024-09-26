@@ -10,6 +10,7 @@ const AddCartItem: React.FC<PopProps> = ({ data, visible, onClose }) => {
   const modificationsRef = useRef<Modification[]>([]);
   const inventoryItem: InventoryItem = data as InventoryItem;
   useEffect(() => {
+    console.log(visible);
     if (visible) modificationsRef.current.length = 0;
   }, [visible]);
   const onUpdate = useCallback(

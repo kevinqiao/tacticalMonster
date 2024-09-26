@@ -1,5 +1,5 @@
 import PageProps from "model/PageProps";
-import React from "react";
+import React, { useMemo } from "react";
 import InventoryProvider from "../../service/InventoryManager";
 
 import { OrderType } from "model/Order";
@@ -9,14 +9,18 @@ import "./register.css";
 
 const RegisterHome: React.FC<PageProps> = ({ visible, data, children }) => {
   console.log("register:" + visible);
-  return (
-    <InventoryProvider>
-      <OrderProvider type={OrderType.DINEIN}>
-        <GroundLayout />
-        {children}
-      </OrderProvider>
-    </InventoryProvider>
-  );
+  const render = useMemo(() => {
+    if (visible && visible > 0)
+      return (
+        <InventoryProvider>
+          <OrderProvider type={OrderType.DINEIN}>
+            <GroundLayout />
+            {children}
+          </OrderProvider>
+        </InventoryProvider>
+      );
+  }, [visible]);
+  return <>{render}</>;
 };
 
 export default RegisterHome;

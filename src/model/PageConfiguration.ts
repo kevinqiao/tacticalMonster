@@ -84,12 +84,12 @@ export const Consumer =
             path: "./loyalty/consumer/shopping/DineIn",
             uri: "/dinein",
             children: [
-                { name: "orderReview", path: "./loyalty/cart/OrderReview", uri: "order", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
-                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
-                { name: "cartReview", path: "./loyalty/cart/CartBox", uri: "cart", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
-                { name: "cartItem", path: "./loyalty/cart/CartItem", uri: "cart/item", auth: 0, pop: { open: 1, close: 2, exit: 1 } },
-                { name: "addCartItem", path: "./loyalty/cart/AddCartItem", uri: "cart/additem", pop: { open: 1, close: 2 } },
-                { name: "modifier", path: "./loyalty/cart/EditCartModification", uri: "modifier", pop: { open: 1, close: 2 } },
+                { name: "orderReview", path: "./loyalty/cart/OrderReview", uri: "order", auth: 0 },
+                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", auth: 0 },
+                { name: "cartReview", path: "./loyalty/cart/CartBox", uri: "cart", auth: 0 },
+                { name: "cartItem", path: "./loyalty/cart/CartItem", uri: "cart/item", auth: 0 },
+                { name: "addCartItem", path: "./loyalty/cart/AddCartItem", uri: "cart/additem" },
+                { name: "modifier", path: "./loyalty/cart/EditCartModification", uri: "modifier" },
             ]
         },
         {
@@ -98,13 +98,13 @@ export const Consumer =
             path: "./loyalty/consumer/shopping/OnlineOrder",
             uri: "/online",
             children: [
-                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "discount", path: "./loyatly/order/addition/DiscountPanel", uri: "discount", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "modifier", path: "./loyalty/order/addition/Modifier", uri: "modifier", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order" },
+                { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition" },
+                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", },
+                { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item" },
+                { name: "discount", path: "./loyatly/order/addition/DiscountPanel", uri: "discount" },
+                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge" },
+                { name: "modifier", path: "./loyalty/order/addition/Modifier", uri: "modifier" },
             ]
         },
         {
@@ -141,14 +141,14 @@ export const Merchant =
             path: "./loyalty/merchant/register/RegisterHome",
             uri: "/register",
             children: [
-                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "addOrderItem", path: "./loyalty/order/AddOrderItem", uri: "order/additem", pop: { open: 1, close: 2 } },
-                { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "discount", path: "./loyatly/order/addition/DiscountPanel", uri: "discount", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { open: 1, close: 2, exit: 1 } },
-                { name: "modifier", path: "./loyalty/order/addition/Modifier", uri: "modifier", pop: { open: 1, close: 2, exit: 1 } },
+                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { animates: [{ terminals: ["1-2"], id: 5 }, { terminals: [], id: 1 }], exit: 1 } },
+                { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
+                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", pop: { animates: [{ terminals: ["1-2"], id: 4 }, { terminals: [], id: 1 }], exit: 1 } },
+                { name: "addOrderItem", path: "./loyalty/order/AddOrderItem", uri: "order/additem", pop: { animates: [{ terminals: [], id: 2 }] } },
+                { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
+                { name: "discount", path: "./loyatly/order/addition/DiscountPanel", uri: "discount", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
+                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
+                { name: "modifier", path: "./loyalty/order/addition/Modifier", uri: "modifier", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
             ]
         }
     ],
@@ -181,13 +181,13 @@ export interface NavConfig {
     path: string;
     uri: string;
     auth?: number;
-    pop?: { open: number; close: number; exit?: number }
+    pop?: { init?: any; animates: { terminals: string[]; id: number }[], exit?: number }
     children?: {
         name: string;
         path: string;
         uri: string;
         auth?: number;
-        pop?: { open: number; close: number; exit?: number }
+        pop?: { init?: any; animates: { terminals: string[]; id: number }[], exit?: number }
     }[]
 
 }

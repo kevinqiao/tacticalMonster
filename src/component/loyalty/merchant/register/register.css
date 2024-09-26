@@ -35,9 +35,6 @@
   display:flex;
   justify-content: space-around;
   align-items: center;
-  position:absolute;
-  bottom:60px;
-  left:0px;
   height:60px;
   width: 100%;
   opacity:0;
@@ -49,9 +46,6 @@
 }
 .cartbar-container {
   display:flex;
-  position:absolute;
-  bottom:0px;
-  left:0px;
   height:60px;
   width: 100%;
   background-color: white;

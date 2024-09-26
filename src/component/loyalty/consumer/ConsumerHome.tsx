@@ -112,7 +112,7 @@ const ConsumerHome: React.FC<PageProps> = (pageProp) => {
           }}
           onClick={() => signin()}
         >
-          Sign In{`${resources["member"]["record"]}`}
+          {/* Sign In{`${resources["member"]["record"]}`} */}
         </div>
         <div style={{ height: 100 }} />
         {user?.uid ? (

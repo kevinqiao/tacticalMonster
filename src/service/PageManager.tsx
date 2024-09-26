@@ -74,6 +74,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     }
     return pops;
   }, [currentPage]);
+
   const loadModule = useCallback((m: string) => {
     setModule(m);
   }, []);
