@@ -2,6 +2,7 @@ import PageProps from "model/PageProps";
 import React, { useMemo } from "react";
 import InventoryProvider from "../../service/InventoryManager";
 
+import TableProvider from "component/loyalty/service/TableManager";
 import { OrderType } from "model/Order";
 import OrderProvider from "../../service/OrderManager";
 import GroundLayout from "./GroundLayout";
@@ -13,10 +14,12 @@ const RegisterHome: React.FC<PageProps> = ({ visible, data, children }) => {
     if (visible && visible > 0)
       return (
         <InventoryProvider>
-          <OrderProvider type={OrderType.DINEIN}>
-            <GroundLayout />
-            {children}
-          </OrderProvider>
+          <TableProvider>
+            <OrderProvider type={OrderType.DINEIN}>
+              <GroundLayout />
+              {children}
+            </OrderProvider>
+          </TableProvider>
         </InventoryProvider>
       );
   }, [visible]);

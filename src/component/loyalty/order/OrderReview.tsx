@@ -1,5 +1,5 @@
 import { PopProps } from "component/RenderApp";
-import React from "react";
+import React, { useEffect } from "react";
 import "../merchant/register/register.css";
 import LineItemList from "./LineItemList";
 import "./order.css";
@@ -16,6 +16,10 @@ const OrderReview: React.FC<PopProps> = ({ onClose, data }) => {
   //   }
   // }, [height]);
   // console.log(height);
+
+  useEffect(() => {
+    console.log("order review");
+  }, [data]);
   return (
     <div className="order-container">
       <div style={{ height: 80, width: "100%", backgroundColor: "red", marginBottom: 10 }}>Order Basic Info</div>

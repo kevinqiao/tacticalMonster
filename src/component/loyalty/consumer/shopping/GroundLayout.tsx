@@ -8,7 +8,6 @@ import AdditionControl from "../../order/addition/AdditionControl";
 const GroundLayout: React.FC = () => {
   const { terminal, direction } = useTerminal();
   const { openChild } = usePageManager();
-  console.log("terminal:" + terminal);
   return (
     <>
       {terminal > 1 ? (
