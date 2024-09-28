@@ -18,18 +18,20 @@ const ServiceChargePanel: React.FC<PopProps> = ({ data, onClose }) => {
   );
   return (
     <>
-      <div className="discount-container ">
-        <div className="discount-head">
-          <div className="btn" onClick={onClose}>
-            X
+      <div className="discount-panel">
+        <div className="discount-container ">
+          <div className="discount-head">
+            <div className="btn" onClick={onClose}>
+              X
+            </div>
           </div>
-        </div>
-        <div className="discount-content">
-          {type === 0 ? (
-            <ServiceChargeSelector onCustom={(t) => setType(t)} onSelect={onComplete} />
-          ) : (
-            <ServiceChargeCustom type={type} onComplete={onComplete} onCancel={() => setType(0)} />
-          )}
+          <div className="discount-content">
+            {type === 0 ? (
+              <ServiceChargeSelector onCustom={(t) => setType(t)} onSelect={onComplete} />
+            ) : (
+              <ServiceChargeCustom type={type} onComplete={onComplete} onCancel={() => setType(0)} />
+            )}
+          </div>
         </div>
       </div>
     </>

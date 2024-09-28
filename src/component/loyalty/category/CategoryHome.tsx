@@ -1,15 +1,13 @@
 import { InventoryCategory } from "model/Order";
-import React, { useCallback, useMemo, useState } from "react";
-import { usePageManager } from "service/PageManager";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useInventoryManager } from "../service/InventoryManager";
 import { useOrderManager } from "../service/OrderManager";
 import "./menu.css";
 
-const CategoryHome: React.FC = () => {
+const CategoryHome: React.FC<{ reset?: string }> = ({ reset }) => {
   const [curCategory, setCurCategory] = useState<InventoryCategory | null>(null);
   const { selectInventory } = useOrderManager();
   const { categories, items } = useInventoryManager();
-  const { openNav } = usePageManager();
 
   const catChildren = useMemo(() => {
     if (curCategory === null) {
@@ -30,23 +28,12 @@ const CategoryHome: React.FC = () => {
       } else return pre;
     });
   }, [categories]);
+  useEffect(() => {
+    if (reset) setCurCategory(null);
+  }, [reset]);
 
   return (
     <>
-      {/* <div className="category-head">
-        {curCategory ? (
-          <div className="btn" onClick={back}>
-            {"<"}
-          </div>
-        ) : (
-          <div className="btn" onClick={openNav}>
-            Home
-          </div>
-        )}
-        <div>{curCategory?.name}</div>
-        <div className="btn-blank"></div>
-      </div> */}
-
       <div className="category-container">
         {curCategory ? (
           <div className="category-item" onClick={back}>
@@ -68,15 +55,6 @@ const CategoryHome: React.FC = () => {
           );
         })}
       </div>
-      {/* <div className="category-container">
-        {catChildren?.categories.map((c) => {
-          return (
-            <div key={c.id} className="category-item" onClick={() => setCurCategory(c)}>
-              <span style={{ color: "white", fontSize: 15 }}>{c.name}</span>
-            </div>
-          );
-        })}
-      </div> */}
     </>
   );
 };

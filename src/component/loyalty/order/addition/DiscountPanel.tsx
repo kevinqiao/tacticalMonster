@@ -28,7 +28,7 @@ const DiscountPanel: React.FC<PopProps> = ({ data, onClose }) => {
     [data]
   );
   return (
-    <>
+    <div className="discount-panel">
       <div className="discount-container ">
         <div className="discount-head">
           <div className="btn" onClick={onClose}>
@@ -43,7 +43,7 @@ const DiscountPanel: React.FC<PopProps> = ({ data, onClose }) => {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

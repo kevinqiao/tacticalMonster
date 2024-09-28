@@ -13,38 +13,7 @@ export interface AnimateConfig {
     translate?: { scale?: number }
 }
 //termianl:(0:horization 1:vertical)-(0-desktop 1-pad 2-phone)
-// export const PopAnimateConfigs = Object.freeze(
-//     [
-//         {
-//             id: 1,
-//             type: 0,
-//             terminals: ["1-0", "1-1", "1-2", "0-0", "0-1", "0-2"],
-//             from: { x: "100%", autoAlpha: 1 },
-//             to: { x: 0, duration: 0.3 }
-//         },
-//         {
-//             id: 2,
-//             type: 1,
-//             terminals: ["1-0", "1-1", "1-2", "0-0", "0-1", "0-2"],
-//             to: { x: "100%", duration: 0.3 }
-//         },
-//         {
-//             id: 3,
-//             type: 1,
-//             terminals: ["1-2"],
-//             to: { scale: 0.7, autoAlpha: 0, duration: 0.3 }
-//         }
-//         ,
-//         {
-//             id: 4,
-//             type: 0,
-//             terminals: ["0-2", "0-1", "0-1"],
-//             from: { x: "100%", autoAlpha: 1 },
-//             to: { x: "100%", autoAlpha: 0, duration: 0.3 }
-//         }
 
-//     ]
-// )
 export const PopAnimates: AnimateConfig[] =
     [
         {
@@ -61,7 +30,7 @@ export const PopAnimates: AnimateConfig[] =
         {
             id: 3,
             direction: POP_DIRECTION.CENTER,
-            init: { width: "50%", height: "100%" },
+            init: { width: "50%", height: "100%", scale: 0.5 },
         },
         {
             id: 4,
@@ -72,7 +41,7 @@ export const PopAnimates: AnimateConfig[] =
         {
             id: 5,
             direction: POP_DIRECTION.BOTTOM,
-            init: { width: "100%", height: "80%" },
+            init: { width: "100%", height: "100%" },
 
         }
     ]

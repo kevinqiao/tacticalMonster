@@ -1,6 +1,7 @@
 import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { buildNavURL, getNavConfig, parseURL } from "util/PageUtils";
+import { useTerminal } from "./TerminalManager";
 
 export type App = {
   name: string;
@@ -55,6 +56,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const [navOpen, setNavOpen] = useState(false);
   const [error, setError] = useState<{ [k: string]: any } | null>(null);
   const [currentPage, setCurrentPage] = useState<PageItem | null>(null);
+  const { terminal, direction } = useTerminal();
   console.log("page provider");
 
   const stacks = useMemo(() => {
@@ -73,7 +75,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
     return pops;
-  }, [currentPage]);
+  }, [currentPage, terminal, direction]);
 
   const loadModule = useCallback((m: string) => {
     setModule(m);

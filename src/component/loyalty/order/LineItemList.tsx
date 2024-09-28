@@ -1,5 +1,5 @@
 import { Discount, OrderLineItemModel } from "model/Order";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback } from "react";
 import { useInventoryManager } from "../service/InventoryManager";
 
 import { usePageManager } from "service/PageManager";
@@ -10,9 +10,9 @@ const LineItemList: React.FC = () => {
   const { order } = useOrderManager();
   const { items, discounts } = useInventoryManager();
 
-  useEffect(() => {
-    console.log(order);
-  }, [order, items, discounts]);
+  // useEffect(() => {
+  //   console.log(order);
+  // }, [order, items, discounts]);
   const discountName = useCallback(
     (dis: Discount) => {
       if (discounts) {

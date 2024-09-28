@@ -16,30 +16,39 @@ const usePopAnimate = ({ containerRef, maskRef, exitRef, pop }: PopAnimProps) =>
     const [actionCompleted, setActionCompleted] = useState<{ type: number; zIndex: number; width: number; height: number; complete: number } | null>(null)
 
     const getOpenProps = useCallback((animateCfg: AnimateConfig, width: number, height: number): { from?: any; to?: any } => {
-        const { width: vw, height: vh } = animateCfg.init;
+        const { scale, width: vw, height: vh } = animateCfg.init;
         const w = width * (parseFloat(vw) / 100);
         const h = height * (parseFloat(vh) / 100);
         const prop: { from?: any; to?: any } = {};
         switch (animateCfg.direction) {
             case POP_DIRECTION.TOP:
-
-                break;
+                {
+                    prop['from'] = { y: -height, x: 0, autoAlpha: 1 };
+                    prop['to'] = { y: 0, duration: 0.3 }
+                    break;
+                }
             case POP_DIRECTION.RIGHT:
                 {
-                    prop['from'] = { x: width, autoAlpha: 1 };
+                    prop['from'] = { x: width, y: 0, autoAlpha: 1 };
                     prop['to'] = { x: width - w, duration: 0.3 }
                     break;
                 }
             case POP_DIRECTION.BOTTOM:
                 {
-                    prop['from'] = { y: height, autoAlpha: 1 };
+                    prop['from'] = { y: height, x: 0, autoAlpha: 1 };
                     prop['to'] = { y: height - h, duration: 0.3 }
                     break;
                 }
             case POP_DIRECTION.LEFT:
                 {
-                    prop['from'] = { x: -w, autoAlpha: 1 };
+                    prop['from'] = { x: -w, y: 0, autoAlpha: 1 };
                     prop['to'] = { x: 0, duration: 0.3 }
+                    break;
+                }
+            case POP_DIRECTION.CENTER:
+                {
+                    prop['from'] = { x: (width - w) / 2, y: 0, transformOrigin: '50% 50%', scale: scale ?? 1.0, autoAlpha: 1 };
+                    prop['to'] = { scale: 1.0, duration: 0.3 }
                     break;
                 }
 
@@ -50,7 +59,7 @@ const usePopAnimate = ({ containerRef, maskRef, exitRef, pop }: PopAnimProps) =>
     }, [])
 
     const getCloseProps = useCallback((animateCfg: AnimateConfig): { from?: any; to?: any } => {
-        const { width, height } = animateCfg.init;
+        const { scale, width, height } = animateCfg.init;
         const w = window.innerWidth * (parseFloat(width) / 100);
         const h = window.innerHeight * (parseFloat(height) / 100);
         const prop: { from?: any; to?: any } = {};
@@ -73,7 +82,10 @@ const usePopAnimate = ({ containerRef, maskRef, exitRef, pop }: PopAnimProps) =>
                     prop['to'] = { x: - w, duration: 0.3 }
                     break;
                 }
-
+            case POP_DIRECTION.CENTER: {
+                prop['to'] = { scale: scale ?? 1.0, autoAlpha: 0, duration: 0.3 }
+                break;
+            }
             default:
                 break;
         }
@@ -87,7 +99,8 @@ const usePopAnimate = ({ containerRef, maskRef, exitRef, pop }: PopAnimProps) =>
         // console.log(device)
         const animateCfg: AnimateConfig | undefined = PopAnimates.find((c) => c.id === animate?.id);
         if (animateCfg) {
-            const props = getOpenProps(animateCfg, width, height)
+            const props = getOpenProps(animateCfg, width, height);
+            console.log(props)
             const tl = gsap.timeline({
                 onComplete: () => {
                     if (!actionRef.current)

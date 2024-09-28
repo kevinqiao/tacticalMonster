@@ -13,8 +13,8 @@ const AdditionControl: React.FC = () => {
         tl.kill();
       },
     });
-    tl.to(maskRef.current, { autoAlpha: 0.7, duration: 0.6 });
-    tl.fromTo(menuRef.current, { autoAlpha: 1, right: "-30%" }, { right: 0, duration: 0.6 }, "<");
+    tl.fromTo(maskRef.current, { autoAlpha: 0 }, { autoAlpha: 0.6, duration: 0.5 });
+    tl.fromTo(menuRef.current, { x: "100%", autoAlpha: 1 }, { x: 0, duration: 0.5 }, "<");
     tl.play();
   }, []);
   const closeMenu = useCallback(() => {
@@ -23,8 +23,8 @@ const AdditionControl: React.FC = () => {
         tl.kill();
       },
     });
-    tl.to(maskRef.current, { autoAlpha: 0, duration: 0.6 });
-    tl.fromTo(menuRef.current, { autoAlpha: 1, right: 0 }, { right: "-30%", duration: 0.6 }, "<");
+    tl.to(maskRef.current, { autoAlpha: 0, duration: 0.3 });
+    tl.to(menuRef.current, { x: "100%", duration: 0.3 }, "<");
     tl.play();
   }, []);
   const doAction = useCallback(() => {
@@ -33,20 +33,25 @@ const AdditionControl: React.FC = () => {
   }, []);
   return (
     <>
-      <div ref={maskRef} className="mask" onClick={closeMenu}></div>
-      <div className="addition-btn-container" onClick={openMenu}>
-        <div className="btn">
-          <span style={{ fontSize: "10px" }}>More</span>
+      <div style={{ display: "flex", justifyContent: "flex-end", width: 140 }}>
+        <div className="more-btn-container" onClick={openMenu}>
+          <div className="btn">
+            <span style={{ fontSize: "10px" }}>More</span>
+          </div>
         </div>
       </div>
-      <div ref={menuRef} className="addition-menu">
-        <div className="addition-menu-item" onClick={doAction}>
+      <div ref={maskRef} className="amask" onClick={closeMenu}></div>
+      <div ref={menuRef} className="more-menu">
+        <div className="more-menu-item" onClick={doAction}>
           Order Discount
         </div>
-        <div className="addition-menu-item">Menu2</div>
-        <div className="addition-menu-item">Menu3</div>
-        <div className="addition-menu-item">Menu4</div>
-        <div className="addition-menu-item">Menu5</div>
+        <div className="more-menu-item">Menu2</div>
+        <div className="more-menu-item">Menu3</div>
+        <div className="more-menu-item">Menu4</div>
+        <div className="more-menu-item">Menu5</div>
+        <div className="more-menu-item" onClick={closeMenu}>
+          close
+        </div>
       </div>
     </>
   );

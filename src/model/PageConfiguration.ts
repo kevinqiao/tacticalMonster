@@ -138,16 +138,32 @@ export const Merchant =
         {
             name: "register",
             auth: 0,
-            path: "./loyalty/merchant/register/RegisterHome",
+            path: "./loyalty/merchant/register/dinein/DineIn",
             uri: "/register",
             children: [
-                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { animates: [{ terminals: ["1-2"], id: 5 }, { terminals: [], id: 1 }], exit: 1 } },
+                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { animates: [{ terminals: ["1-2"], id: 5 }, { terminals: [], id: 2 }], exit: 1 } },
                 { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
                 { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", pop: { animates: [{ terminals: ["1-2"], id: 4 }, { terminals: [], id: 1 }], exit: 1 } },
                 { name: "addOrderItem", path: "./loyalty/order/AddOrderItem", uri: "order/additem", pop: { animates: [{ terminals: [], id: 2 }] } },
                 { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
-                { name: "discount", path: "./loyatly/order/addition/DiscountPanel", uri: "discount", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
-                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
+                { name: "discount", path: "./loyalty/order/addition/DiscountPanel", uri: "discount", pop: { animates: [{ terminals: [], id: 3 }], exit: 0 } },
+                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { animates: [{ terminals: [], id: 3 }], exit: 0 } },
+                { name: "modifier", path: "./loyalty/order/addition/Modifier", uri: "modifier", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
+            ]
+        },
+        {
+            name: "online",
+            auth: 0,
+            path: "./loyalty/merchant/register/online/OnlineOrder",
+            uri: "/online",
+            children: [
+                { name: "orderReview", path: "./loyalty/order/OrderReview", uri: "order", pop: { animates: [{ terminals: ["1-2"], id: 5 }, { terminals: [], id: 2 }], exit: 1 } },
+                { name: "orderAddition", path: "./loyalty/order/addition/OrderBaseAdd", uri: "order/addition", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
+                { name: "orderItem", path: "./loyalty/order/OrderItem", uri: "order/item", pop: { animates: [{ terminals: ["1-2"], id: 4 }, { terminals: [], id: 1 }], exit: 1 } },
+                { name: "addOrderItem", path: "./loyalty/order/AddOrderItem", uri: "order/additem", pop: { animates: [{ terminals: [], id: 2 }] } },
+                { name: "inventoryItem", path: "./loyalty/category/InventoryItemMain", uri: "inventory/item", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
+                { name: "discount", path: "./loyalty/order/addition/DiscountPanel", uri: "discount", pop: { animates: [{ terminals: [], id: 3 }], exit: 0 } },
+                { name: "serviceCharge", path: "./loyalty/order/addition/ServiceChargePanel", uri: "service_charge", pop: { animates: [{ terminals: [], id: 3 }], exit: 0 } },
                 { name: "modifier", path: "./loyalty/order/addition/Modifier", uri: "modifier", pop: { animates: [{ terminals: [], id: 1 }], exit: 1 } },
             ]
         }

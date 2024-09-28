@@ -22,7 +22,19 @@ const OrderReview: React.FC<PopProps> = ({ onClose, data }) => {
   }, [data]);
   return (
     <div className="order-container">
-      <div style={{ height: 80, width: "100%", backgroundColor: "red", marginBottom: 10 }}>Order Basic Info</div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: 80,
+          width: "100%",
+          backgroundColor: "red",
+          marginBottom: 10,
+        }}
+      >
+        Order Detail
+      </div>
       <div style={{ width: "100%", height: "100%", overflowX: "hidden" }}>
         <LineItemList />
       </div>

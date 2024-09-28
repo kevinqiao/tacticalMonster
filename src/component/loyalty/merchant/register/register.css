@@ -31,6 +31,7 @@
   background-color: #298aeb;
 }
 
+
 .cartadd-container {
   display:flex;
   justify-content: space-around;
@@ -97,25 +98,7 @@
   width:100px;
   background-color: transparent;
 }
-.addition-menu {
-  position:fixed;
-  top:10px;
-  right:0px;
-  width: 30%;
-  opacity:0;
-  visibility: hidden;
-  background-color: white;
-}
-.addition-menu-item {
-  display:flex;
-  justify-content: center;
-  align-items: center;
-  height:35px;
-  width: 100%;
-  margin:4px 4px 4px 4px;
-  border-radius: 2px;
-  background-color: blue;
-}
+
 .mask {
   position:fixed;
   top:0px;

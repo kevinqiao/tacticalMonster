@@ -150,7 +150,7 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
         };
         lineItems.push(orderItem);
       }
-      if (terminal === 2) setLastItemAdded(orderItem);
+      setLastItemAdded(orderItem);
     },
     [cart, terminal]
   );

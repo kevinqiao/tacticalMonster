@@ -11,6 +11,7 @@ const OrderBar: React.FC = () => {
   const { lastItemAdded, setLastItemAdded, clear } = useCartManager();
 
   const { openChild } = usePageManager();
+  console.log(lastItemAdded);
   // const { openPop } = usePageChildManager(null, null, null);
   useEffect(() => {
     if (lastItemAdded) {

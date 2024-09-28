@@ -1,14 +1,14 @@
 import PageProps from "model/PageProps";
 import React, { useMemo } from "react";
-import InventoryProvider from "../../service/InventoryManager";
+import InventoryProvider from "../../../service/InventoryManager";
 
 import TableProvider from "component/loyalty/service/TableManager";
 import { OrderType } from "model/Order";
-import OrderProvider from "../../service/OrderManager";
+import OrderProvider from "../../../service/OrderManager";
+import "../register.css";
 import GroundLayout from "./GroundLayout";
-import "./register.css";
 
-const RegisterHome: React.FC<PageProps> = ({ visible, data, children }) => {
+const OnlineOrder: React.FC<PageProps> = ({ visible, data, children }) => {
   console.log("register:" + visible);
   const render = useMemo(() => {
     if (visible && visible > 0)
@@ -26,4 +26,4 @@ const RegisterHome: React.FC<PageProps> = ({ visible, data, children }) => {
   return <>{render}</>;
 };
 
-export default RegisterHome;
+export default OnlineOrder;
