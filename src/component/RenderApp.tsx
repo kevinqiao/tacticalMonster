@@ -21,7 +21,7 @@ interface NavProp {
 }
 export interface PopProps {
   data: { [k: string]: any } | null;
-  visible: boolean;
+  visible?: boolean;
   onClose?: () => void;
 }
 

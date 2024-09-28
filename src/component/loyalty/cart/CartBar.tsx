@@ -4,7 +4,7 @@ import { usePageManager } from "service/PageManager";
 import "../merchant/register/register.css";
 import { useInventoryManager } from "../service/InventoryManager";
 import { useCartManager } from "../service/OrderManager";
-
+import "./cart.css";
 const CartBar: React.FC = () => {
   const addRef = useRef<HTMLDivElement | null>(null);
   const { items } = useInventoryManager();
@@ -14,13 +14,14 @@ const CartBar: React.FC = () => {
   // const { openPop } = usePageChildManager(null, null, null);
   useEffect(() => {
     if (lastItemAdded) {
+      console.log(lastItemAdded);
       const tl = gsap.timeline({
         onComplete: () => {
-          setLastItemAdded(null);
+          // setLastItemAdded(null);
           tl.kill();
         },
       });
-      tl.to(addRef.current, { autoAlpha: 1, duration: 0.7 });
+      tl.fromTo(addRef.current, { y: 0, autoAlpha: 1 }, { y: -100, duration: 0.6 });
       tl.to(addRef.current, { autoAlpha: 0, duration: 0.7 }, ">=+1.2");
       tl.play();
     }
@@ -31,27 +32,28 @@ const CartBar: React.FC = () => {
       return item?.name;
     }
   }, [lastItemAdded, items]);
-
+  console.log(addedName);
   return (
-    <>
-      <div ref={addRef} className="cartadd-container">
+    <div style={{ position: "relative", height: "60px", width: "100%", color: "black" }}>
+      <div ref={addRef} className="add-container">
         {lastItemAdded ? (
           <>
-            <div className="lineItem-cell">{lastItemAdded.id}</div>
+            <div>{lastItemAdded.id}</div>
             <div>{addedName}</div>
             <div>{lastItemAdded.price}</div>
           </>
         ) : null}
       </div>
-      <div className="cartbar-container">
+
+      <div className="bar-container">
         <div className="cartbar-left" onClick={() => openChild("cartbox")}></div>
         <div className="cartbar-right">
           <div className="btn" style={{ width: 120 }} onClick={() => openChild("cartReview")}>
-            Check Out
+            Check1 Out
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

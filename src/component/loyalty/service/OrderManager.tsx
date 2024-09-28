@@ -431,6 +431,7 @@ export const useCartManager = () => {
   }, []);
   return {
     cart,
+    order,
     orderType,
     lastItemAdded,
     addCartItem,

@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 
 import { PopProps } from "component/RenderApp";
 import { useCartManager } from "../service/OrderManager";
-import OrderModifier from "./OrderModifier";
+import OrderModifier from "./CartOrderModifier";
 const AddCartItem: React.FC<PopProps> = ({ data, visible, onClose }) => {
   const { cart, addCartItem, updateItem } = useCartManager();
   const modificationsRef = useRef<Modification[]>([]);
