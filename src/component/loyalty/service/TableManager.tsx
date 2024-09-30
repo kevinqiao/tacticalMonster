@@ -3,11 +3,16 @@ import { useConvex } from "convex/react";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import useLocalization from "service/LocalizationManager";
 import { usePartnerManager } from "service/PartnerManager";
+
 export interface TableModel {
   id: string;
   no: number;
+  orderId?: string;
   size: number;
+  checkIn?: number;
+  status?: number; //0-open 1-in service 2-reserved 3-disable
 }
+
 interface ITableContext {
   tables: TableModel[];
   selectedTable: TableModel | null;

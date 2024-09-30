@@ -1,14 +1,14 @@
+import { useOrderManager } from "component/loyalty/service/OrderManager";
 import { PopProps } from "component/RenderApp";
 import { ServiceCharge } from "model/Order";
 import React, { useCallback, useState } from "react";
-import { useCartManager } from "../../service/CartManager";
 import "./addition.css";
 import ServiceChargeCustom from "./ServiceChargeCustom";
 import ServiceChargeSelector from "./ServiceChargeSelector";
 
 const ServiceChargePanel: React.FC<PopProps> = ({ data, onClose }) => {
   const [type, setType] = useState<number>(0); //0-fixed 1-custom percent 2-custom amount
-  const { addServiceCharge } = useCartManager();
+  const { addServiceCharge } = useOrderManager();
   const onComplete = useCallback(
     (service: ServiceCharge) => {
       addServiceCharge(service);

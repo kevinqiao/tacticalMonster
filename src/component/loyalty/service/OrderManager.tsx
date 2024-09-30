@@ -92,13 +92,14 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
     discounts: [],
     taxRates,
     serviceCharges: [],
+    location: { tableNo: 1, phone: "", address: "", name: "" },
   });
   const [cart, setCart] = useState<CartModel>({ createdTime: Date.now(), lineItems: [] });
   const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
   const [orderType, setOrderType] = useState<number>(type ?? 0);
   const [canEdit, setCanEdit] = useState<number>(0);
   const { user } = useUserManager();
-  const { terminal } = useTerminal();
+  const { terminal, direction } = useTerminal();
   const { app, openChild } = usePageManager();
   useEffect(() => {
     if (user?.role > 0 && (!order?.status || order.status < OrderStatus.PAID)) setCanEdit(1);
@@ -150,9 +151,10 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
         };
         lineItems.push(orderItem);
       }
-      setLastItemAdded(orderItem);
+      console.log(direction);
+      if (terminal > 1) setLastItemAdded(orderItem);
     },
-    [cart, terminal]
+    [cart, direction]
   );
   const selectInventory = useCallback(
     (item: InventoryItem) => {
@@ -197,7 +199,8 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
 };
 
 export const useOrderManager = () => {
-  const { order, canEdit, addItem, setOrder, selectInventory } = useContext(OrderContext);
+  const { order, canEdit, addItem, setOrder, selectInventory, lastItemAdded, setLastItemAdded } =
+    useContext(OrderContext);
 
   const addOrderItem = useCallback(
     (item: InventoryItem, modifications: Modification[]) => {
@@ -299,9 +302,16 @@ export const useOrderManager = () => {
       order.taxRates = citems;
     }
   }, []);
+  const clear = useCallback(() => {
+    setOrder((pre) => {
+      pre.lineItems.length = 0;
+      return { ...pre };
+    });
+  }, []);
   return {
     order,
     canEdit,
+    clear,
     addOrderItem,
     updateItem,
     removeItem,
@@ -314,66 +324,14 @@ export const useOrderManager = () => {
     addTaxRate,
     removeTaxRate,
     selectInventory,
+    lastItemAdded,
+    setLastItemAdded,
   };
 };
 export const useCartManager = () => {
   const { cart, order, orderType, lastItemAdded, setLastItemAdded, setCart, addItem, setOrder } =
     useContext(OrderContext);
-  // const { openChild } = usePageManager();
 
-  // const selectInventory = useCallback(
-  //   (item: InventoryItem) => {
-  //     console.log(item);
-  //     if (item.modifierGroups && item.modifierGroups.length > 0) {
-  //       openChild("addCartItem", item);
-  //       return;
-  //     } else {
-  //       addItem(item, []);
-  //     }
-  //   },
-  //   [cart, openChild]
-  // );
-
-  // const addItem = useCallback(
-  //   (inventoryItem: InventoryItem, modifications: Modification[]) => {
-  //     if (cart) {
-  //       let orderItem: OrderLineItemModel | null = null;
-  //       const orderItems = cart.lineItems.filter((c) => c.inventoryId === inventoryItem.id);
-  //       for (const item of orderItems) {
-  //         if (item.modifications?.length === modifications.length) {
-  //           let modiEqual = true;
-  //           for (const mod of modifications) {
-  //             const modi = item.modifications.find((m) => {
-  //               return m.id === mod.id && m.quantity === mod.quantity ? true : false;
-  //             });
-  //             if (!modi) {
-  //               modiEqual = false;
-  //               break;
-  //             }
-  //           }
-  //           if (modiEqual) orderItem = item;
-  //         }
-  //       }
-
-  //       if (orderItem) {
-  //         orderItem.quantity++;
-  //       } else {
-  //         orderItem = {
-  //           id: Date.now() + "",
-  //           quantity: 1,
-  //           inventoryId: inventoryItem.id,
-  //           price: inventoryItem.price,
-  //           modifications: [...modifications],
-  //         };
-  //         cart.lineItems.push(orderItem);
-  //         cart.lineItems = [...cart.lineItems];
-  //       }
-  //       localStorage.setItem("cart", JSON.stringify(cart));
-  //       setLastItemAdded({ ...orderItem });
-  //     }
-  //   },
-  //   [cart]
-  // );
   const addCartItem = useCallback(
     (item: InventoryItem, modifications: Modification[]) => {
       if (cart) {

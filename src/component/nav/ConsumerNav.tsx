@@ -1,5 +1,5 @@
 import { gsap } from "gsap";
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import useLocalization from "service/LocalizationManager";
 import { usePageManager } from "service/PageManager";
 import { usePartnerManager } from "service/PartnerManager";
@@ -31,6 +31,15 @@ const ConsumerNav: React.FC = () => {
       tl.play();
     }
   }, [app, navOpen]);
+  const openNavMenu = useCallback(
+    (name: string, appName?: string) => {
+      if (!app) return;
+      closeNav();
+      const pitem = { app: appName ?? app.name, name };
+      openPage(pitem);
+    },
+    [app, openPage, closeNav]
+  );
 
   return (
     <>
@@ -64,6 +73,7 @@ const ConsumerNav: React.FC = () => {
             backgroundColor: "blue",
             color: "white",
           }}
+          onClick={() => openNavMenu("onlineOrder", "consumer")}
         >
           Online Order
         </div>

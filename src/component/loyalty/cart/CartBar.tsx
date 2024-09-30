@@ -17,7 +17,7 @@ const CartBar: React.FC = () => {
       console.log(lastItemAdded);
       const tl = gsap.timeline({
         onComplete: () => {
-          // setLastItemAdded(null);
+          setLastItemAdded(null);
           tl.kill();
         },
       });
@@ -46,10 +46,10 @@ const CartBar: React.FC = () => {
       </div>
 
       <div className="bar-container">
-        <div className="cartbar-left" onClick={() => openChild("cartbox")}></div>
+        <div className="cartbar-left" onClick={() => openChild("cartReview")}></div>
         <div className="cartbar-right">
           <div className="btn" style={{ width: 120 }} onClick={() => openChild("cartReview")}>
-            Check1 Out
+            Cart Review
           </div>
         </div>
       </div>

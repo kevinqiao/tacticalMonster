@@ -1,13 +1,13 @@
 import DiscountCustom from "component/loyalty/order/addition/DiscountCustom";
+import { useOrderManager } from "component/loyalty/service/OrderManager";
 import { PopProps } from "component/RenderApp";
 import { Discount, OrderLineItemModel } from "model/Order";
 import React, { useCallback, useState } from "react";
-import { useCartManager } from "../../service/CartManager";
 import "./addition.css";
 import DiscountSelector from "./DiscountSelector";
 
 const DiscountPanel: React.FC<PopProps> = ({ data, onClose }) => {
-  const { addDiscount, updateItem } = useCartManager();
+  const { addDiscount, updateItem } = useOrderManager();
   const [type, setType] = useState<number>(0); //0-fixed 1-custom percent 2-custom amount
   const onComplete = useCallback(
     (dis: Discount) => {

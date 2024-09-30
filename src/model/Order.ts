@@ -9,9 +9,8 @@ export interface OrderModel {
     // taxRemoved: boolean;
     // isVat: boolean;
     status?: number;//"open","locked"
-    type?: number;//0-dineIn 1-takeout 2-pickup
-    tableNo?: number;
-    deliver?: { phone: string; address?: string; name?: string };
+    type?: number;//0-dineIn 1-takeout 2-pickup 3-deliver
+    location: OrderLocation;
     groupCount?: number;
     createdTime: number;
     modifiedTime?: number;
@@ -30,6 +29,12 @@ export interface OrderLineItemModel {
     discounts?: Discount[];
     modifications?: Modification[];
     taxRates?: TaxRate[];
+}
+export interface OrderLocation {
+    tableNo?: number;
+    phone?: string;
+    address?: string;
+    name?: string
 }
 export interface Discount {
     id: string;
@@ -104,6 +109,7 @@ export interface InventoryDiscount {
     amount?: number;
     percent?: number;
 }
+
 export enum OrderType {
     DINEIN = 0,
     TAKEOUT = 1,
@@ -116,6 +122,7 @@ export enum OrderStatus {
     PAID = 2,
     CANCELLED = 3,
 }
+
 
 
 
