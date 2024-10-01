@@ -1,5 +1,7 @@
 import { gsap } from "gsap";
-import React, { useEffect, useMemo, useRef } from "react";
+import { OrderLineItemModel } from "model/Order";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";
 import { useInventoryManager } from "../service/InventoryManager";
 import { useOrderManager } from "../service/OrderManager";
@@ -8,16 +10,16 @@ import "./order.css";
 const OrderBar: React.FC = () => {
   const addRef = useRef<HTMLDivElement | null>(null);
   const { items } = useInventoryManager();
-  const { lastItemAdded, setLastItemAdded, clear } = useOrderManager();
-
+  const { clear } = useOrderManager();
+  const { event } = useEventSubscriber(["orderItemAdded"], ["order"]);
+  const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
   const { openChild } = usePageManager();
   console.log(lastItemAdded);
   useEffect(() => {
-    if (lastItemAdded) {
-      console.log(lastItemAdded);
+    if (event) {
+      setLastItemAdded(event.data);
       const tl = gsap.timeline({
         onComplete: () => {
-          setLastItemAdded(null);
           tl.kill();
         },
       });
@@ -25,7 +27,7 @@ const OrderBar: React.FC = () => {
       tl.to(addRef.current, { autoAlpha: 0, duration: 0.7 }, ">=+1.2");
       tl.play();
     }
-  }, [lastItemAdded, setLastItemAdded]);
+  }, [event]);
   const addedName = useMemo(() => {
     if (items && lastItemAdded) {
       const item = items.find((c) => c.id === lastItemAdded.inventoryId);

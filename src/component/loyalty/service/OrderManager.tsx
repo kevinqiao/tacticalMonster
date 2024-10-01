@@ -11,8 +11,8 @@ import {
   TaxRate,
 } from "model/Order";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
+import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";
-import { useTerminal } from "service/TerminalManager";
 import { useUserManager } from "service/UserManager";
 export const ActiveType = {
   INVENTORY: 1,
@@ -36,29 +36,17 @@ interface IOrderContext {
   order: OrderModel | null;
   orderType: number;
   canEdit: number; //0-uneditable 1-editable
-  lastItemAdded: OrderLineItemModel | null;
   fetchOrder: (orderId: string) => OrderModel | null;
   setCart: React.Dispatch<React.SetStateAction<CartModel>>;
   setOrder: React.Dispatch<React.SetStateAction<OrderModel>>;
-  setLastItemAdded: React.Dispatch<React.SetStateAction<OrderLineItemModel | null>>;
+  // setLastItemAdded: React.Dispatch<React.SetStateAction<OrderLineItemModel | null>>;
   setOrderType: React.Dispatch<React.SetStateAction<number>>;
   selectInventory: (item: InventoryItem) => void;
   addItem: (lineItems: OrderLineItemModel[], item: InventoryItem, modifications: Modification[]) => void;
-  // updateItem: (item: OrderLineItemModel) => void;
-  // removeItem: (item: OrderLineItemModel) => void;
-  // addServiceCharge: (service: ServiceCharge) => void;
-  // updateServiceCharge: (service: ServiceCharge) => void;
-  // removeServiceCharge: (service: ServiceCharge) => void;
-  // addDiscount: (discount: Discount) => void;
-  // updateDiscount: (discount: Discount) => void;
-  // removeDiscount: (discount: Discount) => void;
-  // addTaxRate: (taxRate: TaxRate) => void;
-  // removeTaxRate: (taxRate: TaxRate) => void;
 }
 const OrderContext = createContext<IOrderContext>({
   cart: { createdTime: Date.now(), lineItems: [] },
   order: null,
-  lastItemAdded: null,
   orderType: 0,
   canEdit: 0,
   fetchOrder: (orderId: string) => null,
@@ -67,21 +55,10 @@ const OrderContext = createContext<IOrderContext>({
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   setOrder: () => {},
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  setLastItemAdded: () => {},
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   setOrderType: () => {},
   selectInventory: (item: InventoryItem) => null,
 
   addItem: (lineItems: OrderLineItemModel[], item: InventoryItem, modifications: Modification[]) => null,
-  // removeItem: (item: OrderLineItemModel) => null,
-  // addServiceCharge: (service: ServiceCharge) => null,
-  // updateServiceCharge: (service: ServiceCharge) => null,
-  // removeServiceCharge: (service: ServiceCharge) => null,
-  // addDiscount: (discount: Discount) => null,
-  // updateDiscount: (discount: Discount) => null,
-  // removeDiscount: (discount: Discount) => null,
-  // addTaxRate: (taxRate: TaxRate) => null,
-  // removeTaxRate: (taxRate: TaxRate) => null,
 });
 
 const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: number; children: ReactNode }) => {
@@ -95,12 +72,12 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
     location: { tableNo: 1, phone: "", address: "", name: "" },
   });
   const [cart, setCart] = useState<CartModel>({ createdTime: Date.now(), lineItems: [] });
-  const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
+  // const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
   const [orderType, setOrderType] = useState<number>(type ?? 0);
   const [canEdit, setCanEdit] = useState<number>(0);
   const { user } = useUserManager();
-  const { terminal, direction } = useTerminal();
   const { app, openChild } = usePageManager();
+  const { createEvent } = useEventSubscriber([], []);
   useEffect(() => {
     if (user?.role > 0 && (!order?.status || order.status < OrderStatus.PAID)) setCanEdit(1);
     else setCanEdit(0);
@@ -151,10 +128,9 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
         };
         lineItems.push(orderItem);
       }
-      console.log(direction);
-      if (terminal > 1) setLastItemAdded(orderItem);
+      createEvent({ name: "orderItemAdded", topic: "order", data: orderItem, delay: 0 });
     },
-    [cart, direction]
+    [cart]
   );
   const selectInventory = useCallback(
     (item: InventoryItem) => {
@@ -185,11 +161,9 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
     order,
     orderType,
     canEdit,
-    lastItemAdded,
     fetchOrder,
     setCart,
     setOrder,
-    setLastItemAdded,
     setOrderType,
     selectInventory,
     addItem,
@@ -199,8 +173,7 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
 };
 
 export const useOrderManager = () => {
-  const { order, canEdit, addItem, setOrder, selectInventory, lastItemAdded, setLastItemAdded } =
-    useContext(OrderContext);
+  const { order, canEdit, addItem, setOrder, selectInventory } = useContext(OrderContext);
 
   const addOrderItem = useCallback(
     (item: InventoryItem, modifications: Modification[]) => {
@@ -324,13 +297,10 @@ export const useOrderManager = () => {
     addTaxRate,
     removeTaxRate,
     selectInventory,
-    lastItemAdded,
-    setLastItemAdded,
   };
 };
 export const useCartManager = () => {
-  const { cart, order, orderType, lastItemAdded, setLastItemAdded, setCart, addItem, setOrder } =
-    useContext(OrderContext);
+  const { cart, order, orderType, setCart, addItem, setOrder } = useContext(OrderContext);
 
   const addCartItem = useCallback(
     (item: InventoryItem, modifications: Modification[]) => {
@@ -391,13 +361,11 @@ export const useCartManager = () => {
     cart,
     order,
     orderType,
-    lastItemAdded,
     addCartItem,
     updateItem,
     removeItem,
     clear,
     submit,
-    setLastItemAdded,
   };
 };
 export default OrderProvider;

@@ -37,7 +37,7 @@ const SoloControl: React.FC = () => {
         </div>
 
         <div style={{ width: "49%", height: "100%" }}>
-          <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%" }}>
+          <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflow: "hidden" }}>
             <div className="register-head">
               <div style={{ width: 40 }}></div>
               {selectedTable && <div>{"Table " + selectedTable?.no} </div>}
@@ -45,7 +45,7 @@ const SoloControl: React.FC = () => {
                 <AdditionControl />
               </div>
             </div>
-            <div style={{ position: "relative", top: 0, left: 0, width: "100%", height: "100%", overflowY: "auto" }}>
+            <div style={{ position: "relative", top: 0, left: 0, width: "100%", height: "100%" }}>
               <CategoryHome reset={selectedTable?.id} />
               <div
                 style={{
