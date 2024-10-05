@@ -1,5 +1,5 @@
 import { PopProps } from "component/RenderApp";
-import { OrderLineItemModel } from "model/Order";
+import { OrderLineItemModel } from "component/loyalty/model/Order";
 import React, { useMemo } from "react";
 import "../merchant/register/register.css";
 import { useInventoryManager } from "../service/InventoryManager";
@@ -12,10 +12,10 @@ const CartOrderReview: React.FC<PopProps> = ({ onClose, data }) => {
   const groups: { [k: number]: OrderLineItemModel[] } = useMemo(() => {
     const grps: { [k: number]: OrderLineItemModel[] } = {};
     order?.lineItems.forEach((item) => {
-      if (item.groupId) {
-        const grp = grps[item.groupId];
+      if (item.hash) {
+        const grp = grps[item.hash];
         if (grp) grp.push(item);
-        else grps[item.groupId] = [item];
+        else grps[item.hash] = [item];
       }
     });
     return grps;

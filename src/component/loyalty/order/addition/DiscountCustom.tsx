@@ -1,4 +1,4 @@
-import { Discount } from "model/Order";
+import { Discount } from "component/loyalty/model/Order";
 import React, { useCallback, useRef, useState } from "react";
 import "./addition.css";
 

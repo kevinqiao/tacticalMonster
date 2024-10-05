@@ -1,4 +1,4 @@
-import { ServiceCharge } from "model/Order";
+import { ServiceCharge } from "component/loyalty/model/Order";
 import React, { useCallback, useRef, useState } from "react";
 import "./addition.css";
 

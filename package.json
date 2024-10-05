@@ -32,6 +32,7 @@
     "jest": "^27.4.3",
     "jest-resolve": "^27.4.2",
     "jest-watch-typeahead": "^1.0.0",
+    "json-rules-engine": "^6.5.0",
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.11.7",
     "mini-css-extract-plugin": "^2.4.5",

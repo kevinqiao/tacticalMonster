@@ -11,7 +11,7 @@ export interface OrderModel {
     status?: number;//"open","locked"
     type?: number;//0-dineIn 1-takeout 2-pickup 3-deliver
     location: OrderLocation;
-    groupCount?: number;
+    hash?: number;
     createdTime: number;
     modifiedTime?: number;
     serviceCharges?: ServiceCharge[];
@@ -22,13 +22,20 @@ export interface OrderModel {
 }
 export interface OrderLineItemModel {
     id?: string;
-    inventoryId: string;
+    name?: string;
+    inventoryId?: string;
     price: number;
     quantity: number;
-    groupId?: number;
+    hash?: number;
     discounts?: Discount[];
     modifications?: Modification[];
-    taxRates?: TaxRate[];
+    comboItems?: ComboItem[];
+}
+export interface OrderReward {
+    discounts?: Discount[];
+    coupons?: Discount[];
+    points?: number;
+    stamps?: number;
 }
 export interface OrderLocation {
     tableNo?: number;
@@ -38,9 +45,16 @@ export interface OrderLocation {
 }
 export interface Discount {
     id: string;
+    inventoryId?: string;
     time?: number;
     amount?: number;
     percent?: number;
+}
+export interface ComboItem {
+    inventoryId: string;
+    groupId?: string;
+    quantity?: number;
+    price: number;
 }
 export interface Modification {
     id: string;//inventory modifier id
@@ -72,7 +86,6 @@ export interface InventoryItem {
     description?: string;
     price: number;
     modifierGroups?: string[];
-    categories: string[]
 }
 export interface InventoryModifierGroup {
     id: string;
@@ -97,19 +110,47 @@ export interface InventoryServiceCharge {
     amount?: number;
     percent?: number;
 }
+
 export interface InventoryCategory {
     id: string;
     name: string;
     description?: string;
     parent?: string;
+    inventories?: string[];
+    combos?: string[]
 }
-export interface InventoryDiscount {
+export interface ComboGroup {
+    id: string;
+    name?: string;
+    description?: string;
+    min_selection?: number;
+    max_selection?: number;
+    inventories: ComboItem[];
+}
+export interface Combo {
     id: string;
     name: string;
-    amount?: number;
-    percent?: number;
+    description?: string;
+    price: number;
+    combogrps: string[];
 }
-
+export interface DiscountPreset {
+    id: string;
+    name: { [k: string]: string };
+    percent: number;
+}
+export interface ServiceChargePreset {
+    id: string;
+    name: { [k: string]: string };
+    percent: number;
+}
+export interface PromotionRule {
+    id: string;
+    conditions: any;
+    event: any;
+    priority: number;
+    status: boolean;
+}
 export enum OrderType {
     DINEIN = 0,
     TAKEOUT = 1,
@@ -122,6 +163,16 @@ export enum OrderStatus {
     PAID = 2,
     CANCELLED = 3,
 }
+export enum RewardType {
+    DISCOUNT = 0,
+    COUPON = 1,
+    GIFT = 2,
+    POINTS = 3,
+    STAMP = 4,
+    FREE_SHIPPING = 5,
+    BONUS_CREDIT = 6  //额外充值奖励
+}
+
 
 
 

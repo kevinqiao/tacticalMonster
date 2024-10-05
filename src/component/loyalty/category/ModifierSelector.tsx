@@ -1,4 +1,4 @@
-import { InventoryModifier, Modification } from "model/Order";
+import { InventoryModifier, Modification } from "component/loyalty/model/Order";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useInventoryManager } from "../service/InventoryManager";
 import "./menu.css";

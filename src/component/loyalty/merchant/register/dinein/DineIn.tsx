@@ -2,8 +2,8 @@ import PageProps from "model/PageProps";
 import React, { useMemo } from "react";
 import InventoryProvider from "../../../service/InventoryManager";
 
+import { OrderType } from "component/loyalty/model/Order";
 import TableProvider from "component/loyalty/service/TableManager";
-import { OrderType } from "model/Order";
 import OrderProvider from "../../../service/OrderManager";
 import "../register.css";
 import GroundLayout from "./GroundLayout";

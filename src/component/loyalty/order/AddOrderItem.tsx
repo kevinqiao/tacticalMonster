@@ -1,4 +1,4 @@
-import { InventoryItem, Modification } from "model/Order";
+import { InventoryItem, Modification } from "component/loyalty/model/Order";
 import React, { useCallback, useEffect, useRef } from "react";
 
 import { PopProps } from "component/RenderApp";

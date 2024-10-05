@@ -1,5 +1,5 @@
 import { PopProps } from "component/RenderApp";
-import { InventoryCategory } from "model/Order";
+import { InventoryCategory } from "component/loyalty/model/Order";
 import React, { useCallback, useMemo, useState } from "react";
 import { usePageManager } from "service/PageManager";
 import { useInventoryManager } from "../service/InventoryManager";
@@ -18,8 +18,8 @@ const TableHome: React.FC<PopProps> = ({ onClose, data }) => {
       return { categories: cats };
     } else {
       const cats = categories.filter((c) => c.parent === curCategory.id);
-      const citems = items.filter((item) => item.categories.includes(curCategory.id));
-      return { categories: cats, items: citems };
+      // const citems = items.filter((item) => item.categories.includes(curCategory.id));
+      return { categories: cats, items: [] };
     }
   }, [curCategory, categories, items]);
 
@@ -49,13 +49,13 @@ const TableHome: React.FC<PopProps> = ({ onClose, data }) => {
       </div>
 
       <div className="category-container">
-        {catChildren?.items?.map((c) => {
+        {/* {catChildren?.items?.map((c) => {
           return (
             <div key={c.id} className="category-item" onClick={() => selectInventory(c)}>
               <span style={{ color: "white", fontSize: 15 }}>{c["name"]}</span>
             </div>
           );
-        })}
+        })} */}
       </div>
       <div className="category-container">
         {catChildren?.categories.map((c) => {

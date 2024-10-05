@@ -9,7 +9,7 @@ import {
   OrderType,
   ServiceCharge,
   TaxRate,
-} from "model/Order";
+} from "component/loyalty/model/Order";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";
@@ -64,7 +64,7 @@ const OrderContext = createContext<IOrderContext>({
 const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: number; children: ReactNode }) => {
   const [order, setOrder] = useState<OrderModel>({
     createdTime: Date.now(),
-    groupCount: 1400,
+    hash: 1400,
     lineItems: [],
     discounts: [],
     taxRates,
@@ -341,8 +341,8 @@ export const useCartManager = () => {
   );
   const submit = useCallback(() => {
     if (cart && order) {
-      order.groupCount = (order.groupCount ?? 0) + 1;
-      cart.lineItems.forEach((item) => (item.groupId = order.groupCount));
+      order.hash = (order.hash ?? 0) + 1;
+      cart.lineItems.forEach((item) => (item.hash = order.hash));
       order.lineItems.push(...cart.lineItems);
       cart.lineItems = [];
       localStorage.setItem("cart", JSON.stringify(cart));

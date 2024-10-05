@@ -1,0 +1,44 @@
+[
+  {
+    "id": "servc1",
+    "name": { "en-US": "10%tips", "zh-CN": "小费10%" },
+    "partnerId": 1000,
+    "percent": 0.1
+  },
+  {
+    "id": "servc2",
+    "partnerId": 1000,
+    "name": { "en-US": "12%tips", "zh-CN": "小费12%" },
+    "percent": 0.12
+  },
+  {
+    "id": "serv3",
+    "partnerId": 1000,
+    "name": { "en-US": "15%tips", "zh-CN": "小费15%" },
+    "percent": 0.15
+  },
+  {
+    "id": "servc4",
+    "partnerId": 1000,
+    "name": { "en-US": "18%tips", "zh-CN": "小费18%" },
+    "percent": 0.18
+  },
+  {
+    "id": "servc5",
+    "partnerId": 1000,
+    "name": { "en-US": "20%tips", "zh-CN": "小费20%" },
+    "percent": 0.2
+  },
+  {
+    "id": "servc6",
+    "partnerId": 1000,
+    "name": { "en-US": "25%tips", "zh-CN": "小费25%" },
+    "percent": 0.25
+  },
+  {
+    "id": "servc7",
+    "partnerId": 1000,
+    "name": { "en-US": "30%tips", "zh-CN": "小费30%" },
+    "percent": 0.3
+  }
+]

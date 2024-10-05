@@ -1,6 +1,6 @@
+import { ServiceCharge } from "component/loyalty/model/Order";
 import { useOrderManager } from "component/loyalty/service/OrderManager";
 import { PopProps } from "component/RenderApp";
-import { ServiceCharge } from "model/Order";
 import React, { useCallback, useState } from "react";
 import "./addition.css";
 import ServiceChargeCustom from "./ServiceChargeCustom";

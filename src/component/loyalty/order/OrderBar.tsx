@@ -1,5 +1,5 @@
+import { OrderLineItemModel } from "component/loyalty/model/Order";
 import { gsap } from "gsap";
-import { OrderLineItemModel } from "model/Order";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";

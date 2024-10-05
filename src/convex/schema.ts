@@ -197,35 +197,58 @@ export default defineSchema({
         data: v.optional(v.any()),
     }).index("by_location", ["partnerId", "locationId"]).index("by_partner_oid", ['partnerId', 'oid']).index("by_partner_customer", ['partnerId', 'uid']),
 
-    loyalty_reward_collect_rule: defineTable({
-        partnerId: v.number(),
-        type: v.number(),//0-order 1-review
-        rule: v.any(),//{amount,points,stamp},{star,points,stamp} 
-        status: v.number(),//0-active 1-inactive
-    }),
+    // loyalty_reward_collect_rule: defineTable({
+    //     partnerId: v.number(),
+    //     type: v.number(),//0-order 1-review
+    //     rule: v.any(),//{amount,points,stamp},{star,points,stamp} 
+    //     status: v.number(),//0-active 1-inactive
+    // }),
 
-    loyalty_reward_record: defineTable({
+    // loyalty_reward_record: defineTable({
+    //     uid: v.string(),
+    //     transactionType: v.number(),//0-earned 1-spent
+    //     sourceType: v.number(),//0-order 1-review 2-coupon
+    //     sourceId: v.string(),
+    //     stamp: v.optional(v.number()),
+    //     point: v.optional(v.number()),
+    //     status: v.number(),//0-created 1-cancelled
+    // }).index("by_user", ['uid']),
+
+    // loyalty_reward_claim_rule: defineTable({
+    //     partnerId: v.number(),
+    //     claim: v.object({ type: v.number(), itemId: v.optional(v.string()) }),//type:0-order 1-review
+    //     stamp: v.number(),
+    //     point: v.number(),
+    //     status: v.number(),//0-active 1-inactive
+    // }),
+    loyalty_promotion_rule: defineTable({
+        rid: v.string(),
+        conditions: v.any(),
+        event: v.any(),
+        priority: v.number(),
+        status: v.boolean(),
+        partnerId: v.number(),
+    }),
+    loyalty_transaction: defineTable({
         uid: v.string(),
-        transactionType: v.number(),//0-earned 1-spent
-        sourceType: v.number(),//0-order 1-review 2-coupon
-        sourceId: v.string(),
-        stamp: v.optional(v.number()),
-        point: v.optional(v.number()),
-        status: v.number(),//0-created 1-cancelled
-    }).index("by_user", ['uid']),
-
-    loyalty_reward_claim_rule: defineTable({
         partnerId: v.number(),
-        claim: v.object({ type: v.number(), itemId: v.optional(v.string()) }),//type:0-order 1-review
-        stamp: v.number(),
-        point: v.number(),
-        status: v.number(),//0-active 1-inactive
+        asset: v.number(),  //0-points 1-stamp  2-cash  
+        quantity: v.number(),
+        type: v.number(),//0-credit 1-debit
+        source: v.optional(v.object({ refId: v.optional(v.string()), type: v.number() }))
     }),
-
+    loyalty_asset: defineTable({
+        uid: v.string(),
+        partnerId: v.number(),
+        type: v.number(),  //0-points 1-stamp    
+        amount: v.number(),
+    }),
     loyalty_coupon: defineTable({
         uid: v.string(),
-        itemId: v.string(),
-        orderId: v.optional(v.string()),
+        type: v.number(),//0-cash 1-voucher
+        inventoryId: v.optional(v.string()),
+        amount: v.number(),
+        source: v.optional(v.object({ refId: v.optional(v.string()), type: v.number() })),
         redeemTime: v.optional(v.number()),
         status: v.number(),//0-open 1-redeemed
     }),
@@ -242,14 +265,15 @@ export default defineSchema({
         name: v.any(),
         partnerId: v.number(),
         price: v.number(),//0-active 1-suspend
-        categories: v.array(v.string()),
         modifierGroups: v.optional(v.array(v.string()))
     }).index("by_partner", ["partnerId"]),
     inventory_category: defineTable({
         id: v.string(),
         name: v.any(),
         partnerId: v.number(),
-        parent: v.optional(v.string())
+        parent: v.optional(v.string()),
+        combos: v.optional(v.array(v.string())),
+        inventories: v.optional(v.array(v.string()))
     }).index("by_partner", ["partnerId"]),
     inventory_modifier_group: defineTable({
         id: v.string(),
@@ -283,4 +307,22 @@ export default defineSchema({
         percent: v.optional(v.number()),
         amount: v.optional(v.number())
     }).index("by_partner", ["partnerId"]),
+    inventory_combo_group: defineTable({
+        id: v.string(),
+        name: v.any(),
+        description: v.optional(v.string()),
+        partnerId: v.number(),
+        min_selection: v.optional(v.number()),
+        max_selection: v.optional(v.number()),
+        inventories: v.array(v.object({ inventoryId: v.string(), price: v.number() })),
+    }).index("by_partner", ["partnerId"]),
+    inventory_combo: defineTable({
+        id: v.string(),
+        name: v.any(),
+        partnerId: v.number(),
+        description: v.optional(v.string()),
+        price: v.number(),
+        combogrps: v.array(v.string())
+    }).index("by_partner", ["partnerId"]),
+
 });

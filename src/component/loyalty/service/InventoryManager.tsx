@@ -1,39 +1,39 @@
-import { useConvex } from "convex/react";
 import {
+  Combo,
+  ComboGroup,
   InventoryCategory,
-  InventoryDiscount,
   InventoryItem,
   InventoryModifier,
   InventoryModifierGroup,
-  InventoryServiceCharge,
-} from "model/Order";
+} from "component/loyalty/model/Order";
+import { useConvex } from "convex/react";
 import React, { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import useLocalization from "service/LocalizationManager";
 import { usePartnerManager } from "service/PartnerManager";
 import { api } from "../../../convex/_generated/api";
 interface InventoryModel {
   categories: InventoryCategory[];
+  comboGroups: ComboGroup[];
+  combos: Combo[];
   items: InventoryItem[];
   modifierGroups: InventoryModifierGroup[];
   modifiers: InventoryModifier[];
-  discounts: InventoryDiscount[];
-  serviceCharges: InventoryServiceCharge[];
 }
 interface IInventoryContext {
+  comboGroups: ComboGroup[];
+  combos: Combo[];
   categories: InventoryCategory[];
   items: InventoryItem[];
   modifierGroups: InventoryModifierGroup[];
   modifiers: InventoryModifier[];
-  discounts: InventoryDiscount[];
-  serviceCharges: InventoryServiceCharge[];
 }
 const InventoryContext = createContext<IInventoryContext>({
+  comboGroups: [],
+  combos: [],
   categories: [],
   items: [],
   modifierGroups: [],
   modifiers: [],
-  discounts: [],
-  serviceCharges: [],
 });
 
 const InventoryProvider = ({ children }: { children: ReactNode }) => {

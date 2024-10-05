@@ -1,7 +1,7 @@
+import { Discount, OrderLineItemModel } from "component/loyalty/model/Order";
 import DiscountCustom from "component/loyalty/order/addition/DiscountCustom";
 import { useOrderManager } from "component/loyalty/service/OrderManager";
 import { PopProps } from "component/RenderApp";
-import { Discount, OrderLineItemModel } from "model/Order";
 import React, { useCallback, useState } from "react";
 import "./addition.css";
 import DiscountSelector from "./DiscountSelector";

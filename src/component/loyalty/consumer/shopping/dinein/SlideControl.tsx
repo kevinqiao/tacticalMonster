@@ -20,9 +20,7 @@ const SlideControl: React.FC = () => {
             <Coin></Coin>
           </div>
         </div>
-        <div style={{ width: "100%", height: "100%" }}>
-          <CategoryHome />
-        </div>
+        <CategoryHome />
         <CartBar />
       </div>
     </>

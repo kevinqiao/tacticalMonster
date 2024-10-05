@@ -1,0 +1,68 @@
+[
+  {
+    "id": "disc1",
+    "name": { "en-US": "10%Off", "zh-CN": "优惠10%" },
+    "partnerId": 1000,
+    "percent": 0.1
+  },
+  {
+    "id": "disc2",
+    "partnerId": 1000,
+    "name": { "en-US": "15%Off", "zh-CN": "优惠15%" },
+    "percent": 0.15
+  },
+  {
+    "id": "disc3",
+    "partnerId": 1000,
+    "name": { "en-US": "20%Off", "zh-CN": "优惠20%" },
+    "percent": 0.2
+  },
+  {
+    "id": "disc4",
+    "partnerId": 1000,
+    "name": { "en-US": "25%Off", "zh-CN": "优惠25%" },
+    "percent": 0.25
+  },
+  {
+    "id": "disc5",
+    "partnerId": 1000,
+    "name": { "en-US": "30%Off", "zh-CN": "优惠30%" },
+    "percent": 0.3
+  },
+  {
+    "id": "disc6",
+    "partnerId": 1000,
+    "name": { "en-US": "35%Off", "zh-CN": "优惠35%" },
+    "percent": 0.35
+  },
+  {
+    "id": "disc6",
+    "partnerId": 1000,
+    "name": { "en-US": "40%Off", "zh-CN": "优惠40%" },
+    "percent": 0.4
+  },
+  {
+    "id": "disc7",
+    "partnerId": 1000,
+    "name": { "en-US": "45%Off", "zh-CN": "优惠450%" },
+    "percent": 0.45
+  },
+  {
+    "id": "disc8",
+    "partnerId": 1000,
+    "name": { "en-US": "60%Off", "zh-CN": "优惠60%" },
+    "percent": 0.6
+  },
+  {
+    "id": "disc9",
+    "partnerId": 1000,
+    "name": { "en-US": "70%Off", "zh-CN": "优惠70%" },
+    "percent": 0.7
+  },
+  {
+    "id": "disc10",
+    "partnerId": 1000,
+    "name": { "en-US": "80%Off", "zh-CN": "优惠80%" },
+    "percent": 0.8
+  }
+]

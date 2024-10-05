@@ -1,4 +1,4 @@
-import { OrderType } from "model/Order";
+import { OrderType } from "component/loyalty/model/Order";
 import PageProps from "model/PageProps";
 import React from "react";
 import InventoryProvider from "../../service/InventoryManager";

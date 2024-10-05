@@ -1,5 +1,5 @@
+import { OrderLineItemModel } from "component/loyalty/model/Order";
 import { gsap } from "gsap";
-import { OrderLineItemModel } from "model/Order";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import useEventSubscriber from "service/EventManager";
 import { usePageManager } from "service/PageManager";
@@ -11,11 +11,9 @@ const CartBar: React.FC = () => {
   const { items } = useInventoryManager();
   const [lastItemAdded, setLastItemAdded] = useState<OrderLineItemModel | null>(null);
   const { event } = useEventSubscriber(["orderItemAdded"], ["order"]);
-
   const { openChild } = usePageManager();
-  // const { openPop } = usePageChildManager(null, null, null);
+
   useEffect(() => {
-    console.log(event);
     if (event) {
       setLastItemAdded(event.data);
       const tl = gsap.timeline({
@@ -34,7 +32,7 @@ const CartBar: React.FC = () => {
       return item?.name;
     }
   }, [lastItemAdded, items]);
-  console.log(addedName);
+
   return (
     <div style={{ position: "relative", height: "60px", width: "100%", color: "black" }}>
       <div ref={addRef} className="add-container">

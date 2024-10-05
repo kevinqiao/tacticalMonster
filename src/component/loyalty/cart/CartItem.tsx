@@ -1,17 +1,20 @@
-import { Discount, OrderLineItemModel } from "model/Order";
+import { Discount, OrderLineItemModel } from "component/loyalty/model/Order";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePageManager } from "service/PageManager";
 
 import { useInventoryManager } from "../service/InventoryManager";
 
 import { PopProps } from "component/RenderApp";
+import useLocalization from "service/LocalizationManager";
+import discounts from "../constant/discount.json";
 import { useCartManager } from "../service/OrderManager";
 import "./cart.css";
 
 const CartItem: React.FC<PopProps> = ({ data, onClose }) => {
+  const { locale } = useLocalization();
   const { cart, updateItem } = useCartManager();
   const { openChild } = usePageManager();
-  const { discounts, modifiers } = useInventoryManager();
+  const { modifiers } = useInventoryManager();
   const [item, setItem] = useState<OrderLineItemModel | null>(null);
   useEffect(() => {
     if (cart && data?.obj.id) {
@@ -69,17 +72,14 @@ const CartItem: React.FC<PopProps> = ({ data, onClose }) => {
     }
   }, [subtotal, item]);
 
-  const discountTitle = useCallback(
-    (dis: Discount) => {
-      if (dis.id === "####") {
-        return "discount";
-      } else {
-        const discount = discounts.find((d) => d.id === dis.id);
-        return discount?.name;
-      }
-    },
-    [discounts]
-  );
+  const discountTitle = useCallback((dis: Discount) => {
+    if (dis.id === "####") {
+      return "discount";
+    } else {
+      const discount = discounts.find((d) => d.id === dis.id);
+      return discount?.name;
+    }
+  }, []);
   const increment = useCallback(
     (incr: number) => {
       if (item) {
@@ -149,17 +149,26 @@ const CartItem: React.FC<PopProps> = ({ data, onClose }) => {
         </div>
         <div className="item-part">
           {item?.discounts &&
-            item.discounts.map((dis, index) => (
-              <div key={dis.id + "-" + index} className="item-row">
-                <div className="subtotal-item-cell">{discountTitle(dis)}</div>
-                <div className="subtotal-item-cell">
-                  <div className="subtotal-item-delete" onClick={() => removeDiscount(dis)}>
-                    X
+            item.discounts.map((dis, index) => {
+              const discountObj = discounts.find((d) => d.id === dis.id);
+              let title = "discount";
+              if (discountObj?.name) {
+                const loc = locale ?? "en-US";
+                title = discountObj.name["en-US"];
+              }
+              // const title = discountObj?.name ? discountObj["name"][locale ?? "en-US"] : "discount";
+              return (
+                <div key={dis.id + "-" + index} className="item-row">
+                  <div className="subtotal-item-cell">{title}</div>
+                  <div className="subtotal-item-cell">
+                    <div className="subtotal-item-delete" onClick={() => removeDiscount(dis)}>
+                      X
+                    </div>
                   </div>
+                  <div className="subtotal-item-cell">{Number(0 - discount(dis)).toFixed(2)}</div>
                 </div>
-                <div className="subtotal-item-cell">{Number(0 - discount(dis)).toFixed(2)}</div>
-              </div>
-            ))}
+              );
+            })}
         </div>
         <div className="item-part">
           <div className="item-row">

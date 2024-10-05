@@ -15,9 +15,14 @@ export const findInventory = query({
     const discountDocs = await ctx.db.query("inventory_discount").withIndex("by_partner", (q) => q.eq("partnerId", partnerId)).collect();
     const discounts = discountDocs.map((c, index) => ({ ...c, _id: undefined, _creationTime: undefined, name: c.name[loc] }))
     const serviceChargeDocs = await ctx.db.query("inventory_service_charge").withIndex("by_partner", (q) => q.eq("partnerId", partnerId)).collect();
-    const serviceCharges = serviceChargeDocs.map((c, index) => ({ ...c, _id: undefined, _creationTime: undefined, name: c.name[loc] }))
+    const serviceCharges = serviceChargeDocs.map((c, index) => ({ ...c, _id: undefined, _creationTime: undefined, name: c.name[loc] }));
+    const comboDocs = await ctx.db.query("inventory_combo").withIndex("by_partner", (q) => q.eq("partnerId", partnerId)).collect();
+    const combos = comboDocs.map((c, index) => ({ ...c, _id: undefined, _creationTime: undefined, name: c.name[loc] }))
+    const comboGrpDocs = await ctx.db.query("inventory_combo_group").withIndex("by_partner", (q) => q.eq("partnerId", partnerId)).collect();
+    const comboGroups = comboGrpDocs.map((c, index) => ({ ...c, _id: undefined, _creationTime: undefined, name: c.name[loc] }));
+
     return {
-      categories, items, modifierGroups: modifierGroups ?? [], modifiers: modifiers ?? [], discounts: discounts ?? [], serviceCharges: serviceCharges ?? []
+      categories, items, comboGroups: comboGroups ?? [], combos: combos ?? [], modifierGroups: modifierGroups ?? [], modifiers: modifiers ?? [], discounts: discounts ?? [], serviceCharges: serviceCharges ?? []
     }
   }
 })
