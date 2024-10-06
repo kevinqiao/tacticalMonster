@@ -53,7 +53,7 @@ const EditCartModification: React.FC<PopProps> = ({ data, visible, onClose }) =>
         <div style={{ width: 100 }}></div>
       </div>
       {data ? (
-        <ModifierSelector initial={data.modifications ?? []} inventoryId={data.inventoryId} onUpdate={onUpdate} />
+        <ModifierSelector initial={data.modifications ?? []} inventoryId={data.inventoryId} onComplete={onUpdate} />
       ) : null}
       <div
         style={{

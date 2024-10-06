@@ -9,20 +9,25 @@ const SlideControl: React.FC = () => {
 
   return (
     <>
-      <div style={{ display: "flex", flexDirection: "column", width: "100vw", height: "100vh" }}>
-        <div className="register-head">
-          <div className="btn" onClick={openNav}>
-            Home
-          </div>
-          <div style={{ color: "blue" }}>
-            <OnlineSelector />
-          </div>
-          <div style={{ width: 45, height: 45 }}></div>
-        </div>
-        <div style={{ width: "100%", height: "100%" }}>
-          <CategoryHome />
-        </div>
-        <OrderBar />
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", width: "100vw", height: "100vh" }}>
+        <CategoryHome
+          renderBar={(isCategory) => {
+            return isCategory ? (
+              <>
+                <div className="register-head">
+                  <div className="btn" onClick={openNav}>
+                    Home
+                  </div>
+                  <div style={{ color: "blue" }}>
+                    <OnlineSelector />
+                  </div>
+                  <div style={{ width: 45, height: 45 }}></div>
+                </div>
+                <OrderBar />
+              </>
+            ) : null;
+          }}
+        />
       </div>
     </>
   );

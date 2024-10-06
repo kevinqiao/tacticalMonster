@@ -43,7 +43,7 @@ const EditOrderModification: React.FC<PopProps> = ({ data, visible, onClose }) =
         </div>
         <div style={{ width: 100 }}></div>
       </div>
-      <ModifierSelector initial={data?.modifications ?? []} inventoryId={inventoryItem.id} onUpdate={onUpdate} />
+      <ModifierSelector initial={data?.modifications ?? []} inventoryId={inventoryItem.id} onComplete={onUpdate} />
       <div
         style={{
           display: "flex",

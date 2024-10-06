@@ -36,7 +36,7 @@ const OrderBar: React.FC = () => {
   }, [lastItemAdded, items]);
 
   return (
-    <div style={{ position: "relative", height: "60px", width: "100%", color: "black" }}>
+    <div style={{ position: "absolute", bottom: 0, left: 0, height: "60px", width: "100%", color: "black" }}>
       <div ref={addRef} className="add-notice">
         {lastItemAdded ? (
           <>

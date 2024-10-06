@@ -13,13 +13,13 @@ interface ModifierGroup {
 interface Props {
   initial: Modification[];
   inventoryId: string;
-  onUpdate: (modifications: Modification[]) => void;
+  onComplete: (modifications: Modification[]) => void;
 }
-const ModifierSelector: React.FC<Props> = ({ initial, inventoryId, onUpdate }) => {
+const ModifierSelector: React.FC<Props> = ({ initial, inventoryId, onComplete }) => {
   const [modifications, setModifications] = useState<Modification[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<ModifierGroup | null>(null);
   const { items, modifierGroups, modifiers } = useInventoryManager();
-  console.log(initial);
+
   const mgroups: ModifierGroup[] = useMemo(() => {
     const mgrps: ModifierGroup[] = [];
     if (modifiers && modifierGroups && items) {
@@ -59,7 +59,6 @@ const ModifierSelector: React.FC<Props> = ({ initial, inventoryId, onUpdate }) =
         if (modies) {
           const newUpdate = [...modies, { id: m.id, quantity: 1, price: m.price }];
           setModifications(newUpdate);
-          onUpdate(newUpdate);
         }
       }
     },
@@ -99,6 +98,9 @@ const ModifierSelector: React.FC<Props> = ({ initial, inventoryId, onUpdate }) =
             </div>
           ))}
         </div>
+      </div>
+      <div className="modifier-command-bar" onClick={() => onComplete(modifications)}>
+        Ok
       </div>
     </>
   );

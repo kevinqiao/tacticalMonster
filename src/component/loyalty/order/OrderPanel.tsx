@@ -1,8 +1,8 @@
 import React from "react";
 import "../merchant/register/register.css";
-import LineItemList from "./LineItemList";
 import OnlineSelector from "./OnlineSelector";
 import "./order.css";
+import LineItemList from "./OrderLineItemList";
 import OrderLocation from "./OrderLocation";
 import Subtotal from "./Subtotal";
 const OrderPanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {

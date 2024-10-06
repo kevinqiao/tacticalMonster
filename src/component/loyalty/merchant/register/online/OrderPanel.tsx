@@ -1,4 +1,4 @@
-import LineItemList from "component/loyalty/order/LineItemList";
+import LineItemList from "component/loyalty/order/OrderLineItemList";
 import Subtotal from "component/loyalty/order/Subtotal";
 import React from "react";
 import "../register.css";

@@ -127,6 +127,10 @@ const CartItem: React.FC<PopProps> = ({ data, onClose }) => {
         ) : null}
         <div className="item-part">
           <div className="item-row">
+            <span>Name</span>
+            <span>{item?.name}</span>
+          </div>
+          <div className="item-row">
             <span>Price</span>
             <span>{item?.price}</span>
           </div>

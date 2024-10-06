@@ -1,5 +1,7 @@
 import {
   CartModel,
+  Combo,
+  ComboItem,
   Discount,
   InventoryItem,
   Modification,
@@ -42,6 +44,7 @@ interface IOrderContext {
   // setLastItemAdded: React.Dispatch<React.SetStateAction<OrderLineItemModel | null>>;
   setOrderType: React.Dispatch<React.SetStateAction<number>>;
   selectInventory: (item: InventoryItem) => void;
+  addCombo: (combo: Combo, items: ComboItem[]) => void;
   addItem: (lineItems: OrderLineItemModel[], item: InventoryItem, modifications: Modification[]) => void;
 }
 const OrderContext = createContext<IOrderContext>({
@@ -57,7 +60,7 @@ const OrderContext = createContext<IOrderContext>({
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   setOrderType: () => {},
   selectInventory: (item: InventoryItem) => null,
-
+  addCombo: () => null,
   addItem: (lineItems: OrderLineItemModel[], item: InventoryItem, modifications: Modification[]) => null,
 });
 
@@ -145,7 +148,7 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
       } else {
         if (app?.name === "consumer" && orderType === OrderType.DINEIN) {
           addItem(cart.lineItems, item, []);
-          cart.lineItems = [...cart.lineItems];
+          // cart.lineItems = [...cart.lineItems];
           setCart({ ...cart });
           localStorage.setItem("cart", JSON.stringify(cart));
         } else {
@@ -155,6 +158,31 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
       }
     },
     [app, cart, order, orderType, openChild]
+  );
+  const addCombo = useCallback(
+    (combo: Combo, items: ComboItem[]) => {
+      console.log(combo);
+      console.log(items);
+
+      const lineItem: OrderLineItemModel = {
+        id: Date.now() + "",
+        name: combo.name,
+        price: combo.price,
+        quantity: 1,
+        combo: { id: combo.id, items },
+      };
+      console.log(lineItem);
+      if (app?.name === "consumer" && orderType === OrderType.DINEIN) {
+        cart.lineItems = [...cart.lineItems, lineItem];
+        console.log(cart);
+        setCart({ ...cart });
+        localStorage.setItem("cart", JSON.stringify(cart));
+      } else {
+        order.lineItems = [...order.lineItems, lineItem];
+        setOrder({ ...order });
+      }
+    },
+    [app, cart, order, orderType]
   );
   const value = {
     cart,
@@ -166,6 +194,7 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
     setOrder,
     setOrderType,
     selectInventory,
+    addCombo,
     addItem,
   };
 
@@ -173,7 +202,7 @@ const OrderProvider = ({ orderId, type, children }: { orderId?: string; type?: n
 };
 
 export const useOrderManager = () => {
-  const { order, canEdit, addItem, setOrder, selectInventory } = useContext(OrderContext);
+  const { order, canEdit, addItem, setOrder, selectInventory, addCombo } = useContext(OrderContext);
 
   const addOrderItem = useCallback(
     (item: InventoryItem, modifications: Modification[]) => {
@@ -297,10 +326,11 @@ export const useOrderManager = () => {
     addTaxRate,
     removeTaxRate,
     selectInventory,
+    addCombo,
   };
 };
 export const useCartManager = () => {
-  const { cart, order, orderType, setCart, addItem, setOrder } = useContext(OrderContext);
+  const { cart, order, orderType, setCart, addItem, setOrder, addCombo } = useContext(OrderContext);
 
   const addCartItem = useCallback(
     (item: InventoryItem, modifications: Modification[]) => {
@@ -341,6 +371,7 @@ export const useCartManager = () => {
   );
   const submit = useCallback(() => {
     if (cart && order) {
+      console.log(JSON.parse(JSON.stringify(cart)));
       order.hash = (order.hash ?? 0) + 1;
       cart.lineItems.forEach((item) => (item.hash = order.hash));
       order.lineItems.push(...cart.lineItems);
@@ -366,6 +397,7 @@ export const useCartManager = () => {
     removeItem,
     clear,
     submit,
+    addCombo,
   };
 };
 export default OrderProvider;

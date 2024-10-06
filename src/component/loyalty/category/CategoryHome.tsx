@@ -1,13 +1,16 @@
-import { Combo, InventoryCategory, InventoryItem } from "component/loyalty/model/Order";
+import { Combo, ComboItem, InventoryCategory, InventoryItem } from "component/loyalty/model/Order";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useInventoryManager } from "../service/InventoryManager";
 import { useOrderManager } from "../service/OrderManager";
 import ComboSelector from "./ComboSelector";
 import "./menu.css";
-
-const CategoryHome: React.FC<{ reset?: string }> = ({ reset }) => {
+interface Props {
+  reset?: string;
+  renderBar?: (isMenu: boolean) => React.ReactNode;
+}
+const CategoryHome: React.FC<Props> = ({ reset, renderBar }) => {
   const [curCategory, setCurCategory] = useState<InventoryCategory | null>(null);
-  const { selectInventory } = useOrderManager();
+  const { selectInventory, addCombo } = useOrderManager();
   const { categories, items, combos } = useInventoryManager();
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
 
@@ -49,21 +52,32 @@ const CategoryHome: React.FC<{ reset?: string }> = ({ reset }) => {
     });
   }, [categories]);
   const openCombo = useCallback((combo: Combo) => {
+    console.log(combo);
     setSelectedCombo(combo);
   }, []);
+  const onSelect = useCallback(
+    (citems: ComboItem[]) => {
+      if (selectedCombo) {
+        addCombo(selectedCombo, citems);
+        setSelectedCombo(null);
+      }
+    },
+    [selectedCombo]
+  );
   useEffect(() => {
     if (reset) setCurCategory(null);
   }, [reset]);
 
   return (
     <>
+      {renderBar ? renderBar(selectedCombo ? false : true) : null}
       {selectedCombo ? (
         <>
           <div className="combo-container">
-            <div className="category-item" style={{ width: "100%" }} onClick={() => setSelectedCombo(null)}>
+            <div className="btn" onClick={() => setSelectedCombo(null)}>
               <span>返回</span>
             </div>
-            <ComboSelector combo={selectedCombo} />
+            <ComboSelector combo={selectedCombo} onClose={() => setSelectedCombo(null)} onSelect={onSelect} />
           </div>
         </>
       ) : (

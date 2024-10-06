@@ -29,7 +29,7 @@ export interface OrderLineItemModel {
     hash?: number;
     discounts?: Discount[];
     modifications?: Modification[];
-    comboItems?: ComboItem[];
+    combo?: { id: string; items: ComboItem[] };
 }
 export interface OrderReward {
     discounts?: Discount[];
@@ -50,12 +50,7 @@ export interface Discount {
     amount?: number;
     percent?: number;
 }
-export interface ComboItem {
-    inventoryId: string;
-    groupId?: string;
-    quantity?: number;
-    price: number;
-}
+
 export interface Modification {
     id: string;//inventory modifier id
     quantity: number;
@@ -133,6 +128,13 @@ export interface Combo {
     description?: string;
     price: number;
     combogrps: string[];
+}
+export interface ComboItem {
+    inventoryId: string;
+    groupId?: string;
+    quantity?: number;
+    modifications?: Modification[];
+    price: number;
 }
 export interface DiscountPreset {
     id: string;

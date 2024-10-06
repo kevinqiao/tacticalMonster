@@ -89,6 +89,12 @@
    align-items: center;
    width:30%;
 }
+.combo-item-title{
+   display:flex;
+   justify-content: flex-end;
+   align-items: center;
+   width:30%;
+}
 .lineItem-row{
   display:flex;
   justify-content: space-around;
@@ -97,10 +103,6 @@
   height:25px;
 }
 .lineItem-container {
-  /* display:flex;
-  justify-content: space-around;
-  align-items: center;
-  min-height:60px; */
   width: 100%;
   /* background-color: white; */
   border-color: black;
@@ -108,7 +110,13 @@
   border-style: solid;
   margin:0px 10px 0px 10px
 }
-
+.comboItem-container {
+  display:flex;
+  justify-content:space-around;
+  align-items: center;
+  width: 100%;
+  margin:0px 10px 0px 10px
+}
 .subtotal-container {
   width: 100%;
   background-color: white;
@@ -220,4 +228,13 @@
  background-color: rgb(93, 92, 92);
  margin:4px 0px 4px 0px;
 }
+.combo-item{
+  width:100%;
+}
+.combo-item-row{
+   display:flex;
+   justify-content: flex-start;
+   width:100%;
+}
+
 

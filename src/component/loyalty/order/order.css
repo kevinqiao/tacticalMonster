@@ -290,4 +290,11 @@
     visibility: hidden;
     background-color: rgba(0, 0, 0, 0.7);
   }
+  .comboItem-container {
+  display:flex;
+  justify-content:space-around;
+  align-items: center;
+  width: 100%;
+  margin:0px 10px 0px 10px
+}
 
