@@ -143,7 +143,6 @@ module.exports = {
         { from: "public/icons", to: "icons" }, // 将 public 目录下的所有内容复制到构建目录下的 public
         { from: "public/www", to: "www" }, // 将 public 目录下的所有内容复制到构建目录下的 public
         { from: "public/assets", to: "assets" }, // 将 public 目录下的所有内容复制到构建目录下的 public
-        { from: "public/*.png", to: "images/[name][ext]", noErrorOnMissing: true },
       ],
     }),
   ],
@@ -172,30 +171,30 @@ module.exports = {
     open: true, // 自动打开浏览器
     hot: true, // 启用热模块替换
     historyApiFallback: {
-      rewrites: [
-        // 重定向规则
-        { from: /^\/match3\.bundle\.js$/, to: "/consumer.bundle.js" },
-        { from: /^\/.*\.(js|css|png|jpg|jpeg|gif|svg)$/, to: (context) => context.parsedUrl.pathname },
-        { from: /^\/$/, to: "/index.html" },
-        // 你可以添加更多的重定向规则
-      ],
+      // rewrites: [
+      //   // 重定向规则
+      //   { from: /^\/match3\.bundle\.js$/, to: "/consumer.bundle.js" },
+      //   { from: /^\/.*\.(js|css|png|jpg|jpeg|gif|svg)$/, to: (context) => context.parsedUrl.pathname },
+      //   { from: /^\/$/, to: "/index.html" },
+      //   // 你可以添加更多的重定向规则
+      // ],
     },
-    // setupMiddlewares: (middlewares, devServer) => {
-    //   if (!devServer) {
-    //     throw new Error("webpack-dev-server is not defined");
-    //   }
+    setupMiddlewares: (middlewares, devServer) => {
+      if (!devServer) {
+        throw new Error("webpack-dev-server is not defined");
+      }
 
-    //   devServer.app.use((req, res, next) => {
-    //     const nonce = crypto.randomBytes(16).toString("base64");
-    //     res.locals.nonce = nonce;
-    //     res.setHeader(
-    //       "Content-Security-Policy",
-    //       `default-src 'self'; script-src 'self' https://trusted.cdn.com  'nonce-${nonce}' https://lenient-louse-86.clerk.accounts.dev; style-src 'self' 'unsafe-inline'  https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;img-src 'self' data: https://img.clerk.com;; connect-src 'self' wss://dazzling-setter-839.convex.cloud https://discord.com https://canary.discord.com https://ptb.discord.com https://cdn.discordapp.com https://media.discordapp.net wss://1252780878078152844.discordsays.com  https://lenient-louse-86.clerk.accounts.dev wss://fungift.fungift.org:3000/ws wss://dazzling-setter-839.convex.cloud data: blob: wss://dazzling-setter-839.convex.cloud; worker-src 'self' https://fungift.fungift.org;`
-    //     );
-    //     next();
-    //   });
+      // devServer.app.use((req, res, next) => {
+      //   const nonce = crypto.randomBytes(16).toString("base64");
+      //   res.locals.nonce = nonce;
+      //   res.setHeader(
+      //     "Content-Security-Policy",
+      //     `default-src 'self'; script-src 'self' https://trusted.cdn.com  'nonce-${nonce}' https://lenient-louse-86.clerk.accounts.dev; style-src 'self' 'unsafe-inline'  https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;img-src 'self' data: https://img.clerk.com;; connect-src 'self' wss://dazzling-setter-839.convex.cloud https://discord.com https://canary.discord.com https://ptb.discord.com https://cdn.discordapp.com https://media.discordapp.net wss://1252780878078152844.discordsays.com  https://lenient-louse-86.clerk.accounts.dev wss://fungift.fungift.org:3000/ws wss://dazzling-setter-839.convex.cloud data: blob: wss://dazzling-setter-839.convex.cloud; worker-src 'self' https://fungift.fungift.org;`
+      //   );
+      //   next();
+      // });
 
-    //   return middlewares;
-    // },
+      return middlewares;
+    },
   },
 };

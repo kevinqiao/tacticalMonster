@@ -79,6 +79,12 @@ export const Consumer =
             uri: "/home",
         },
         {
+            name: "map",
+            auth: 0,
+            path: "./kumu/KumuApp",
+            uri: "/map",
+        },
+        {
             name: "scanOrder",
             auth: 0,
             path: "./loyalty/consumer/shopping/dinein/DineIn",
