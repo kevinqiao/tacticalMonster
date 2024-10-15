@@ -138,17 +138,48 @@
 .hexagon:hover {
     background-color: #45a049;
 }
-.hexagon-div {
+.hexagon-obstacle {
   width:100%;
   height:100%;
-  background-image: url('../../../public/assets/headshot.jpg'); /* 设置 PNG 背景图 */
+  /* background-image: url('../../../public/assets/headshot.jpg');  */
   background-size: contain; /* 使背景图覆盖整个六边形 */
   background-position: center; /* 背景图居中 */
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); /* 将图片裁剪为六边形 */
   margin: 0;
 }
-
-
+.hexagon-character {
+  width:100%;
+  height:100%;
+  background-size: contain; /* 使背景图覆盖整个六边形 */
+  background-position: center; /* 背景图居中 */
+  background-repeat: no-repeat;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  margin: 0;
+}
+.character-cover {
+  position:absolute;
+  top:0px;
+  left:0px;
+  display:flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width:100%;
+  height:100%;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  background-color: rgba(0, 0, 0, 0.5); /* 半透明的背景颜色 (黑色，透明度50%) */
+  color: #ffffff; /* 文字颜色为白色 */
+  margin: 0;
+}
+.act-btn{
+  width:50px;
+  height:26px;
+  display:flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgb(57, 211, 238); /* 半透明的背景颜色 (黑色，透明度50%) */
+  font-size: 10px;
+  margin-top:5px;
+}
 /* 响应式调整：根据不同屏幕尺寸调整布局 */
 @media (max-width: 600px) {
     .hexagon {

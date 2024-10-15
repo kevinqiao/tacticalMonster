@@ -16,8 +16,9 @@ const cells = [
 ];
 // 六边形格子组件
 const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
-  const cell = cells.find((c) => c.row === row && c.col === col);
-  return <>{cell ? <div className="hexagon-div" /> : null}</>;
+  const { obstacles } = useCombatManager();
+  const cell = obstacles.find((c) => c.row === row && c.col === col);
+  return <>{cell ? <div className="hexagon-obstacle" style={{ backgroundImage: `url(${cell.asset})` }} /> : null}</>;
 };
 
 const ObstacleGrid: React.FC = () => {

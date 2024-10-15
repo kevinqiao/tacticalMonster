@@ -1,4 +1,5 @@
 import React from "react";
+import ObstacleGrid from "./battle/ObstacleGrid";
 import "./map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
 import CharacterGrid from "./svg/CharacterGrid";
@@ -7,6 +8,7 @@ import PathGrid from "./svg/PathGrid";
 const BattleVenue: React.FC = () => {
   const { map } = useCombatManager();
   const { top, left } = map;
+  console.log(top + "-" + left);
   return (
     <div
       style={{
@@ -16,9 +18,9 @@ const BattleVenue: React.FC = () => {
       }}
     >
       <div style={{ position: "relative", width: "100%", height: "100%", margin: 0 }}>
-        {/* <VenueLayer top={top} left={left}>
+        <div style={{ position: "absolute", top, left, margin: 0 }}>
           <ObstacleGrid />
-        </VenueLayer> */}
+        </div>
         <div style={{ position: "absolute", top, left, margin: 0 }}>
           <PathGrid />
         </div>

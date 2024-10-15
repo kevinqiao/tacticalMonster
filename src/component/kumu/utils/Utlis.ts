@@ -53,8 +53,8 @@ export interface HexNode {
 // 定义网格类型
 export type GridMap = HexNode[][];
 
-// A* 算法实现
-const aStarSearch = (grid: GridMap, start: HexNode, end: HexNode): HexNode[] | null => {
+// A*算法实现
+const aStarSearch = (grid: HexNode[][], start: HexNode, end: HexNode): HexNode[] | null => {
     const openList: HexNode[] = [];
     const closedList: Set<string> = new Set();
 
@@ -106,37 +106,71 @@ const aStarSearch = (grid: GridMap, start: HexNode, end: HexNode): HexNode[] | n
     return null;
 };
 
-// 获取六边形网格的邻居节点
-const getHexNeighbors = (grid: GridMap, node: HexNode): HexNode[] => {
+// 获取邻居节点（奇数行右偏移半格）
+const getHexNeighbors = (grid: HexNode[][], node: HexNode): HexNode[] => {
     const { x, y } = node;
     const neighbors: HexNode[] = [];
 
-    // 六边形的六个方向
-    const directions = [
-        { dx: 1, dy: 0 },   // 右
-        { dx: -1, dy: 0 },  // 左
-        { dx: 0, dy: 1 },   // 右下
-        { dx: 0, dy: -1 },  // 左上
-        { dx: 1, dy: -1 },  // 右上
-        { dx: -1, dy: 1 }   // 左下
+    // 奇数行的邻居偏移
+    const directionsOdd = [
+        { dx: 1, dy: 0 },    // 右
+        { dx: -1, dy: 0 },   // 左
+        { dx: 1, dy: 1 },    // 右下
+        { dx: 1, dy: -1 },   // 右上
+        { dx: -1, dy: 1 },   // 左下
+        { dx: -1, dy: -1 }   // 左上
     ];
 
-    directions.forEach(({ dx, dy }) => {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx >= 0 && ny >= 0 && nx < grid.length && ny < grid[0].length) {
-            neighbors.push(grid[nx][ny]);
-        }
-    });
+    // 偶数行的邻居偏移
+    const directionsEven = [
+        { dx: 1, dy: 0 },    // 右
+        { dx: -1, dy: 0 },   // 左
+        { dx: 0, dy: 1 },    // 右下
+        { dx: 0, dy: -1 },   // 右上
+        { dx: -1, dy: 1 },   // 左下
+        { dx: -1, dy: -1 }   // 左上
+    ];
 
+    // 根据行号 y 是奇数还是偶数，选择相应的方向偏移
+    const directions = y % 2 === 0 ? directionsEven : directionsOdd;
+
+    const rlen = grid.length;     // 网格的行数
+    const clen = grid[0].length;  // 网格的列数
+
+    // 遍历邻居方向，计算新的列号和行号
+    for (const { dx, dy } of directions) {
+        const nx = x + dx;  // 新的列号
+        const ny = y + dy;  // 新的行号
+
+        // 边界检查，确保计算出的 nx 和 ny 在网格范围内
+        if (nx >= 0 && ny >= 0 && nx < clen && ny < rlen) {
+            neighbors.push(grid[ny][nx]);  // 使用 [ny][nx] 访问网格，因为 x 是列，y 是行
+        }
+    }
+    console.log(node)
+    console.log(neighbors)
     return neighbors;
 };
 
-// 启发式函数（六边形网格的距离计算）
-const heuristic = (a: HexNode, b: HexNode): number =>
-    (Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + Math.abs(a.x + a.y - b.x - b.y)) / 2;
+// 启发式函数，计算两个节点的距离
+const heuristic = (a: HexNode, b: HexNode): number => {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);  // 曼哈顿距离或其他启发式函数
+};
 
-// 初始化网格
+
+const oddRToCube = (x: number, y: number): { q: number, r: number, s: number } => {
+    const q = x;
+    const r = y - (x % 2 === 0 ? (x + 1) / 2 : x / 2);
+    const s = -q - r;
+    return { q, r, s };
+};
+
+// 立方坐标系之间的距离计算
+const cubeDistance = (a: { q: number, r: number, s: number }, b: { q: number, r: number, s: number }): number => {
+    return Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(a.s - b.s));
+};
+
+
 const initializeGrid = (width: number, height: number): GridMap =>
     Array.from({ length: width }, (_, x) =>
         Array.from({ length: height }, (_, y) => ({
@@ -150,6 +184,11 @@ const initializeGrid = (width: number, height: number): GridMap =>
         }))
     );
 
+const getPosition = (size: number, x: number, y: number): { col: number; row: number } => {
+    const row = Math.floor(y / (size * 0.75));
+    const col = row % 2 === 0 ? Math.floor(x / size) : Math.floor((x - size / 2) / size);
+    return { col, row }
+}
 // 示例用法
 const grid = initializeGrid(10, 10);
 const start = grid[0][0];
@@ -161,5 +200,5 @@ if (path) {
 } else {
     console.log("未找到路径");
 }
-export { aStarSearch, getLinePath };
+export { aStarSearch, getLinePath, getPosition };
 
