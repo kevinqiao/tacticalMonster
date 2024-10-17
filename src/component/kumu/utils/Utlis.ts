@@ -2,6 +2,7 @@ interface Point {
     x: number;
     y: number;
 }
+
 const getLinePath = (x0: number, y0: number, x1: number, y1: number): Point[] => {
     const path: Point[] = [];
 
@@ -39,6 +40,11 @@ const getLinePath = (x0: number, y0: number, x1: number, y1: number): Point[] =>
 
     return path;
 };
+interface Character {
+    x: number;  // 当前列号
+    y: number;  // 当前行号
+    movementRange: number;  // 角色可移动的最大范围
+}
 // 定义HexNode接口
 export interface HexNode {
     x: number;
@@ -51,7 +57,7 @@ export interface HexNode {
 }
 
 // 定义网格类型
-export type GridMap = HexNode[][];
+// export type GridMap = HexNode[][];
 
 // A*算法实现
 const aStarSearch = (grid: HexNode[][], start: HexNode, end: HexNode): HexNode[] | null => {
@@ -147,8 +153,6 @@ const getHexNeighbors = (grid: HexNode[][], node: HexNode): HexNode[] => {
             neighbors.push(grid[ny][nx]);  // 使用 [ny][nx] 访问网格，因为 x 是列，y 是行
         }
     }
-    console.log(node)
-    console.log(neighbors)
     return neighbors;
 };
 
@@ -156,22 +160,90 @@ const getHexNeighbors = (grid: HexNode[][], node: HexNode): HexNode[] => {
 const heuristic = (a: HexNode, b: HexNode): number => {
     return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);  // 曼哈顿距离或其他启发式函数
 };
+// HexNode类型定义
+export interface HexNode {
+    x: number;  // 列号
+    y: number;  // 行号
+    walkable: boolean;  // 该格子是否可通行
+}
 
+// 角色定义
+interface Character {
+    x: number;  // 当前列号
+    y: number;  // 当前行号
+    movementRange: number;  // 角色可移动的最大范围
+}
 
-const oddRToCube = (x: number, y: number): { q: number, r: number, s: number } => {
-    const q = x;
-    const r = y - (x % 2 === 0 ? (x + 1) / 2 : x / 2);
-    const s = -q - r;
-    return { q, r, s };
+// 可行走的格子返回类型，包含距离
+export interface ReachableHexNode extends HexNode {
+    distance: number;  // 距离角色的步数
+}
+
+// 获取角色可行走的所有格子，并包含每个格子与角色的距离
+const getReachableTiles = (grid: HexNode[][], character: Character): ReachableHexNode[] => {
+    const reachable: ReachableHexNode[] = [];
+    const visited: Set<string> = new Set();  // 防止重复访问
+    const queue: { node: HexNode, distance: number }[] = [];  // BFS 队列
+
+    const startNode = grid[character.y][character.x];  // 角色的起始位置
+    queue.push({ node: startNode, distance: 0 });
+    visited.add(`${character.x},${character.y}`);
+
+    const directionsOdd = [
+        { dx: 1, dy: 0 },    // 右
+        { dx: -1, dy: 0 },   // 左
+        { dx: 1, dy: 1 },    // 右下
+        { dx: 1, dy: -1 },   // 右上
+        { dx: -1, dy: 1 },   // 左下
+        { dx: -1, dy: -1 }   // 左上
+    ];
+
+    const directionsEven = [
+        { dx: 1, dy: 0 },    // 右
+        { dx: -1, dy: 0 },   // 左
+        { dx: 0, dy: 1 },    // 右下
+        { dx: 0, dy: -1 },   // 右上
+        { dx: -1, dy: 1 },   // 左下
+        { dx: -1, dy: -1 }   // 左上
+    ];
+
+    const rlen = grid.length;
+    const clen = grid[0].length;
+
+    // BFS 搜索
+    while (queue.length > 0) {
+        const { node, distance } = queue.shift()!;  // 取出队列中的第一个元素
+        reachable.push({ ...node, distance });  // 将当前节点和距离添加到结果数组中
+
+        // 如果达到移动上限，停止扩展
+        if (distance >= character.movementRange) continue;
+
+        // 选择方向，根据奇偶行来选择偏移量
+        const directions = node.y % 2 === 0 ? directionsEven : directionsOdd;
+
+        // 遍历所有邻居
+        for (const { dx, dy } of directions) {
+            const nx = node.x + dx;
+            const ny = node.y + dy;
+
+            // 边界检查并且不能重复访问
+            if (nx >= 0 && ny >= 0 && nx < clen && ny < rlen && !visited.has(`${nx},${ny}`)) {
+                const neighbor = grid[ny][nx];
+
+                // 只处理可通行的格子
+                if (neighbor.walkable) {
+                    queue.push({ node: neighbor, distance: distance + 1 });  // 邻居距离是当前距离加1
+                    visited.add(`${nx},${ny}`);
+                }
+            }
+        }
+    }
+
+    return reachable.filter((r) => r.x !== character.x || r.y !== character.y);
 };
 
-// 立方坐标系之间的距离计算
-const cubeDistance = (a: { q: number, r: number, s: number }, b: { q: number, r: number, s: number }): number => {
-    return Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(a.s - b.s));
-};
 
-
-const initializeGrid = (width: number, height: number): GridMap =>
+const initializeGrid = (width: number, height: number): HexNode[][] =>
     Array.from({ length: width }, (_, x) =>
         Array.from({ length: height }, (_, y) => ({
             x,
@@ -200,5 +272,5 @@ if (path) {
 } else {
     console.log("未找到路径");
 }
-export { aStarSearch, getLinePath, getPosition };
+export { aStarSearch, getLinePath, getPosition, getReachableTiles };
 

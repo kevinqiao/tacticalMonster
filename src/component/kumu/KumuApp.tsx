@@ -3,7 +3,8 @@ import ObstacleGrid from "./battle/ObstacleGrid";
 import "./map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
 import CharacterGrid from "./svg/CharacterGrid";
-import PathGrid from "./svg/PathGrid";
+import PathGrid from "./svg/GridGround";
+import GridCover from "./svg/GridCover";
 
 const BattleVenue: React.FC = () => {
   const { map } = useCombatManager();
@@ -17,7 +18,7 @@ const BattleVenue: React.FC = () => {
         margin: 0,
       }}
     >
-      <div style={{ position: "relative", width: "100%", height: "100%", margin: 0 }}>
+      <div className="map-background" style={{ position: "relative", width: "100%", height: "100%", margin: 0 }}>
         <div style={{ position: "absolute", top, left, margin: 0 }}>
           <ObstacleGrid />
         </div>
@@ -26,6 +27,9 @@ const BattleVenue: React.FC = () => {
         </div>
         <div style={{ position: "absolute", top, left, margin: 0 }}>
           <CharacterGrid />
+        </div>
+        <div style={{ position: "absolute", top, left, margin: 0 }}>
+          <GridCover />
         </div>
       </div>
     </div>

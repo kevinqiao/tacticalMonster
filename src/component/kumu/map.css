@@ -16,12 +16,8 @@
 }
 
 
-/* .hexagon {
-    position: relative;
-    width: 8vw;   
-    height: calc(8vw * 0.577);
-    margin: calc(8vw * 0.01); 
-    background-color: #6C9;
+.hexagon {
+    background-color: rgba(27, 25, 25, 0.3);
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     display: flex;
     justify-content: center;
@@ -39,11 +35,11 @@
     height: inherit;
     background-color: inherit;
     clip-path: inherit;
-} */
-.hexagon {
+} 
+/* .hexagon {
     position: relative;
     width: 8vw;
-    height: calc(8vw * 0.577); /* 标准六边形高度 */
+    height: calc(8vw * 0.577);
     margin: calc(8vw * 0.02);
     background-color: #6C9;
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
@@ -54,7 +50,7 @@
     font-size: 2vw;
     text-align: center;
     z-index: 1;
-}
+} */
 
 /* 用伪元素模拟六边形的边框 */
 /* .hexagon::before {
@@ -166,19 +162,39 @@
   width:100%;
   height:100%;
   clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  background-color: rgba(0, 0, 0, 0.5); /* 半透明的背景颜色 (黑色，透明度50%) */
-  color: #ffffff; /* 文字颜色为白色 */
+  background-color: rgba(0, 0, 0, 0.7); 
+  color: #ffffff;
   margin: 0;
 }
-.act-btn{
-  width:50px;
+.cell-cover{
+  display:flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0,0.7); 
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);         
+}
+.action-btn{
+  width:60px;
   height:26px;
   display:flex;
   justify-content: center;
   align-items: center;
-  background-color: rgb(57, 211, 238); /* 半透明的背景颜色 (黑色，透明度50%) */
-  font-size: 10px;
+  font-size: 12px;
   margin-top:5px;
+  background-color:rgba(250, 19, 85); 
+  color:white
+}
+.map-background {
+  position:relative;
+  width:100%;
+  height:100%;
+  background-size: contain; 
+  background-position: center; 
+  background-image:  url('../../../public/assets/ground.png');
+  margin: 0;
 }
 /* 响应式调整：根据不同屏幕尺寸调整布局 */
 @media (max-width: 600px) {

@@ -9,7 +9,7 @@ const CharacterGrid: React.FC = () => {
   return (
     <>
       {characters.map((c, index) => (
-        <CharacterCell key={c.id + "-" + index} character={c} />
+        <CharacterCell key={"character-" + c.id + "-" + index} character={c} />
       ))}
     </>
   );
