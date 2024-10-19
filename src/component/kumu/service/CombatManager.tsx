@@ -3,7 +3,7 @@ import useLocalization from "service/LocalizationManager";
 import { usePartnerManager } from "service/PartnerManager";
 
 import useCombatAnimate from "../animation/useCombatAnimate";
-import { HexNode, ReachableHexNode } from "../utils/Utlis";
+import { HexNode } from "../utils/Utlis";
 import useCombatAct from "./useCombatAct";
 
 export interface Player {
@@ -44,9 +44,11 @@ export interface CharacterUnit {
   id: number;
   uid?: string;
   position: { x: number; y: number };
+  movementRange?: number;
+  attackRange?: number;
   asset: string;
   container?: HTMLDivElement;
-  walkablCells?: ReachableHexNode[];
+  walkables?: HexNode[];
   attackables?: CharacterUnit[];
   healables?: CharacterUnit[];
 }
@@ -150,7 +152,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     return null;
   }, [obstacles, pathCells, size]);
   const { getRunables, attack, walk, heal } = useCombatAct({ gridMap, players });
-  const { playSelectHero, playInit } = useCombatAnimate(pathCells, map);
+  const { playSelect, playInit } = useCombatAnimate(pathCells, map);
   const { partner } = usePartnerManager();
   const { locale } = useLocalization();
 
@@ -189,11 +191,12 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   }, [resourceLoad, players, playInit]);
   const select = useCallback(
     (character: CharacterUnit) => {
-      const walkablCells: ReachableHexNode[] | undefined = getRunables(character);
+      const walkablCells: { node: HexNode; path: HexNode[]; totalCost: number }[] | undefined = getRunables(character);
       if (walkablCells) {
         setSelectedCharacter((pre) => {
-          playSelectHero({ unselects: pre?.walkablCells, walkables: walkablCells });
-          return { ...character, walkablCells };
+          const walkables: HexNode[] = walkablCells.map((c) => c.node);
+          playSelect({ unselects: pre?.walkables, walkables });
+          return { ...character, walkables };
         });
       }
     },

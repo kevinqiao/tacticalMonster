@@ -2,7 +2,7 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { CharacterUnit, MapModel, PathCell } from "../service/CombatManager";
-import { ReachableHexNode } from "../utils/Utlis";
+import { HexNode } from "../utils/Utlis";
 
 const useCombatAnimate = (pathCells: PathCell[][] | null, map: MapModel) => {
     const playInit = useCallback((characters: CharacterUnit[]) => {
@@ -30,13 +30,32 @@ const useCombatAnimate = (pathCells: PathCell[][] | null, map: MapModel) => {
         tl.play();
 
     }, [map, pathCells])
-    const playSelectHero = useCallback(({ unselects, walkables }: { unselects?: ReachableHexNode[]; walkables?: ReachableHexNode[] }) => {
+    const playSelect = useCallback(({ unselects, walkables }: { unselects?: HexNode[]; walkables?: HexNode[] }) => {
         if (!pathCells || !walkables) return;
-        console.log(unselects)
+        let i = 0;
         const cells = walkables.map((c) => ({ ...c, ...pathCells[c.y][c.x] }));
+        const tl = gsap.timeline();
+        if (unselects) {
+            i = 0;
+            const ucells = unselects.map((c) => ({ ...c, ...pathCells[c.y][c.x] }));
+            for (const cell of ucells) {
+                if (i === 0)
+                    tl.to(cell.container, { autoAlpha: 0.3, duration: 0.7 });
+                else
+                    tl.to(cell.container, { autoAlpha: 0.3, duration: 0.7 }, "<");
+                i++;
+            }
+
+        }
+        for (const cell of cells) {
+            tl.to(cell.container, { autoAlpha: 1, duration: 0.7 }, i === 0 ? ">" : "<");
+            i++;
+        }
+
+        tl.play();
         console.log(cells)
     }, [pathCells])
 
-    return { playSelectHero, playInit }
+    return { playSelect, playInit }
 }
 export default useCombatAnimate

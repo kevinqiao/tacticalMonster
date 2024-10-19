@@ -22,6 +22,7 @@ const useCombatAct = ({ gridMap, players }: Props) => {
       );
       const { x, y } = character.position;
       const walkablCells = getReachableTiles(grids, { x, y, movementRange: 2 });
+      console.log(walkablCells);
       return walkablCells;
     },
     [gridMap]

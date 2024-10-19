@@ -71,12 +71,12 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeC
         ref={loadContainer}
         width={size}
         height={hexHeight}
-        opacity={"0.4"}
+        opacity={"0.3"}
         // visibility={"hidden"}
         viewBox={`0 0 ${size} ${hexHeight}`}
         xmlns="http://www.w3.org/2000/svg"
       >
-        <polygon ref={loadElement} points={points} fill={"black"} stroke={strokeColor} strokeWidth={strokeWidth} />
+        <polygon ref={loadElement} points={points} fill={"grey"} stroke={strokeColor} strokeWidth={strokeWidth} />
       </svg>
     </>
   );
