@@ -18,7 +18,17 @@ const cells = [
 const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
   const { obstacles } = useCombatManager();
   const cell = obstacles.find((c) => c.row === row && c.col === col);
-  return <>{cell ? <div className="hexagon-obstacle" style={{ backgroundImage: `url(${cell.asset})` }} /> : null}</>;
+  return (
+    <>
+      {cell ? (
+        <div
+          className="hexagon-obstacle"
+          style={{ backgroundImage: `url(${cell.asset})` }}
+          onClick={() => console.log("obstacle clicked")}
+        />
+      ) : null}
+    </>
+  );
 };
 
 const ObstacleGrid: React.FC = () => {

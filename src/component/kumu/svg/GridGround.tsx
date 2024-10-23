@@ -1,41 +1,103 @@
-import React, { useCallback, useRef } from "react";
+import gsap from "gsap";
+import React, { useCallback, useEffect, useRef } from "react";
 import "../map.css";
-import { PathCell, useCombatManager } from "../service/CombatManager";
+import { CharacterUnit, GridCell, useCombatManager } from "../service/CombatManager";
 
 interface HexagonProps {
   size: number; // 六边形的边长
   row: number;
   col: number;
-  cell: PathCell;
+  cell: GridCell;
   fillColor: string; // 六边形的填充颜色
   strokeColor: string; // 边框颜色
   strokeWidth: number; // 边框宽度
 }
 
 const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeColor, strokeWidth }) => {
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const polygonRef = useRef<SVGPolygonElement | null>(null);
-  const { pathCells, setResourceLoad } = useCombatManager();
-  const points = [
+  const containerRef = useRef<SVGSVGElement | null>(null);
+  const groundRef = useRef<SVGPolygonElement | null>(null);
+  const standRef = useRef<SVGPolygonElement | null>(null);
+  const attackRef = useRef<SVGCircleElement | null>(null);
+  const { map, gridCells, players, selectedCharacter, setResourceLoad } = useCombatManager();
+  const points: [number, number][] = [
     [size / 2, 0], // 顶点1
     [size, size * 0.25], // 顶点2
     [size, size * 0.75], // 顶点3
     [size / 2, size * 1.0], // 顶点4
     [0, size * 0.75], // 顶点5
     [0, size * 0.25], // 顶点6
-  ]
-    .map((point) => point.join(",")) // 将每个点的坐标转换为字符串格式 "x,y"
-    .join(" "); // 用空格连接所有的点，生成 SVG 的 "points" 属性值
+  ];
+  // .map((point) => point.join(","))
+  // .join(" ");
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const scaleFactor = 0.8;
+
+  // 缩放函数
+  const scalePoint = (point: [number, number], scaleFactor: number): [number, number] => {
+    const [x, y] = point;
+    return [
+      centerX + (x - centerX) * scaleFactor, // 缩放 x 坐标
+      centerY + (y - centerY) * scaleFactor, // 缩放 y 坐标
+    ];
+  };
+
+  // 内六边形的顶点
+  const innerPoints = points.map((point) => scalePoint(point, scaleFactor));
+
+  const outerPolygonPoints = points.map((point) => point.join(",")).join(" ");
+  const innerPolygonPoints = innerPoints.map((point) => point.join(",")).join(" ");
 
   const hexHeight = size * 1; // 六边形的标准高度为边长的 sqrt(3)/2
-
+  useEffect(() => {
+    if (!map) return;
+    const { disables } = map;
+    const disable = disables?.find((d) => d.x === col && d.y === row);
+    if (disable) {
+      console.log(disable);
+      gsap.set(groundRef.current, { autoAlpha: 0 });
+    } else gsap.set(groundRef.current, { autoAlpha: 0.3 });
+  }, [row, col, map]);
+  useEffect(() => {
+    const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
+    const character = characters.find((c) => c.position.x === col && c.position.y === row);
+    if (character) {
+      if (
+        selectedCharacter &&
+        character.position.x === selectedCharacter.position.x &&
+        character.position.y === selectedCharacter.position.y
+      ) {
+        console.log(character);
+        gsap.set(standRef.current, { autoAlpha: 1 });
+      }
+    }
+  }, [players, selectedCharacter]);
   const loadContainer = useCallback(
     (ele: SVGSVGElement) => {
-      if (pathCells) {
-        const cell = pathCells[row][col];
-        if (cell) cell.container = ele;
-        svgRef.current = ele;
-        const loaded = pathCells.every((row) => row.every((item) => (item.container ? true : false)));
+      if (gridCells) {
+        const cell = gridCells[row][col];
+        if (cell) cell.gridContainer = ele;
+        containerRef.current = ele;
+        const loaded = gridCells.every((row) => row.every((item) => (item.gridContainer ? true : false)));
+        if (loaded) {
+          setResourceLoad((pre) => {
+            if (pre.gridContainer === 0) return { ...pre, gridContainer: 1 };
+            else return pre;
+          });
+        }
+      }
+    },
+    [gridCells, setResourceLoad]
+  );
+  const loadGround = useCallback(
+    (ele: SVGPolygonElement) => {
+      groundRef.current = ele;
+      if (gridCells) {
+        const cell = gridCells[row][col];
+        if (cell) {
+          cell.gridGround = ele;
+        }
+        const loaded = gridCells.every((row) => row.every((item) => (item.gridGround ? true : false)));
         if (loaded) {
           setResourceLoad((pre) => {
             if (pre.gridGround === 0) return { ...pre, gridGround: 1 };
@@ -44,25 +106,45 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeC
         }
       }
     },
-    [pathCells, setResourceLoad]
+    [gridCells, setResourceLoad]
   );
-  const loadElement = useCallback(
+  const loadStand = useCallback(
     (ele: SVGPolygonElement) => {
-      if (pathCells) {
-        const cell = pathCells[row][col];
+      standRef.current = ele;
+      if (gridCells) {
+        const cell = gridCells[row][col];
         if (cell) {
-          cell.element = ele;
+          cell.gridStand = ele;
         }
-        const loaded = pathCells.every((row) => row.every((item) => (item.element ? true : false)));
+        const loaded = gridCells.every((row) => row.every((item) => (item.gridStand ? true : false)));
         if (loaded) {
           setResourceLoad((pre) => {
-            if (pre.grid === 0) return { ...pre, grid: 1 };
+            if (pre.gridStand === 0) return { ...pre, gridStand: 1 };
             else return pre;
           });
         }
       }
     },
-    [pathCells, setResourceLoad]
+    [gridCells, setResourceLoad]
+  );
+  const loadAttack = useCallback(
+    (ele: SVGCircleElement) => {
+      attackRef.current = ele;
+      if (gridCells) {
+        const cell = gridCells[row][col];
+        if (cell) {
+          cell.gridAttack = ele;
+        }
+        const loaded = gridCells.every((row) => row.every((item) => (item.gridAttack ? true : false)));
+        if (loaded) {
+          setResourceLoad((pre) => {
+            if (pre.gridAttack === 0) return { ...pre, gridAttack: 1 };
+            else return pre;
+          });
+        }
+      }
+    },
+    [gridCells, setResourceLoad]
   );
 
   return (
@@ -71,12 +153,42 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeC
         ref={loadContainer}
         width={size}
         height={hexHeight}
-        opacity={"0.3"}
+        // opacity={"0.3"}
         // visibility={"hidden"}
         viewBox={`0 0 ${size} ${hexHeight}`}
         xmlns="http://www.w3.org/2000/svg"
       >
-        <polygon ref={loadElement} points={points} fill={"grey"} stroke={strokeColor} strokeWidth={strokeWidth} />
+        <polygon
+          ref={loadGround}
+          points={outerPolygonPoints}
+          fill={"black"}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          opacity={"0.3"}
+          visibility={"hidden"}
+          onClick={() => console.log(row + ":" + col)}
+        />
+        <polygon
+          ref={loadStand}
+          points={innerPolygonPoints}
+          fill={"none"}
+          stroke={"white"}
+          strokeWidth={3}
+          opacity={"0.3"}
+          visibility={"hidden"}
+        />
+        <circle
+          ref={loadAttack}
+          cx={size / 2} // 圆心X坐标，位于SVG的水平中心
+          cy={hexHeight / 2} // 圆心Y坐标，位于SVG的垂直中心
+          r={size * 0.4} // 半径，取六边形大小的20%作为示例
+          fill="none" // 圆心不填充
+          stroke="white" // 圆环的颜色
+          strokeWidth="2" // 圆环的宽度
+          strokeDasharray="25, 15"
+          opacity={"0"}
+          visibility={"hidden"}
+        />
       </svg>
     </>
   );
@@ -88,11 +200,36 @@ interface Props {
 }
 
 const GridGround: React.FC = () => {
-  const { map, pathCells } = useCombatManager();
+  const { selectedCharacter, map, gridCells, players, gridMap, walk } = useCombatManager();
   const { size, rows, cols } = map;
+
+  const handleClick = useCallback(
+    (x: number, y: number) => {
+      console.log("handle click on:" + x + "-" + y);
+      const player = players.find((p) => p.uid === "1");
+      const opponent = players.find((p) => p.uid !== "1");
+      const teamCharacter = player?.characters.find((c) => c.position.x === x && c.position.y === y);
+      if (teamCharacter) {
+        //help();
+        return;
+      }
+      const opponentCharacter = opponent?.characters.find((c) => c.position.x === x && c.position.y === y);
+      if (opponentCharacter) {
+        //attack
+        return;
+      }
+      if (selectedCharacter?.walkables) {
+        const move = selectedCharacter.walkables.find((c) => c.x === x && c.y === y);
+        if (move) {
+          walk(selectedCharacter, move);
+        }
+      }
+    },
+    [gridMap, selectedCharacter]
+  );
   return (
     <>
-      {pathCells ? (
+      {gridCells ? (
         <>
           {Array.from({ length: rows }).map((_, row) => (
             <div
@@ -113,11 +250,12 @@ const GridGround: React.FC = () => {
                     height: `${size}px`,
                     margin: 1,
                   }}
+                  // onClick={() => handleClick(col, row)}
                 >
                   <GroundCell
                     row={row}
                     col={col}
-                    cell={pathCells[row][col]}
+                    cell={gridCells[row][col]}
                     size={size}
                     fillColor="blue"
                     strokeColor="none"

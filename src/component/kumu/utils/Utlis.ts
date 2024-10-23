@@ -1,5 +1,5 @@
 
-interface Character {
+export interface Character {
     x: number;  // 当前列号
     y: number;  // 当前行号
     movementRange: number;  // 角色可移动的最大范围
@@ -8,12 +8,8 @@ interface Character {
 export interface HexNode {
     x: number;
     y: number;
-    // g: number; // 从起点到该节点的实际代价
-    // h: number; // 从该节点到终点的估算代价
-    // f: number; // 总代价 f = g + h
-    walkable: boolean; // 该节点是否可通行
+    walkable?: boolean;
     cost?: number;
-    // parent: HexNode | null; // 用于路径回溯
 }
 
 // 定义网格类型
@@ -116,85 +112,11 @@ const getHexNeighbors = (grid: HexNode[][], node: HexNode): HexNode[] => {
     return neighbors;
 };
 
-// 启发式函数，计算两个节点的距离
-// const heuristic = (a: HexNode, b: HexNode): number => {
-//     return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);  // 曼哈顿距离或其他启发式函数
-// };
-
-
-
-// 可行走的格子返回类型，包含距离
-export interface ReachableHexNode extends HexNode {
-    distance: number;  // 距离角色的步数
-}
-
-// 获取角色可行走的所有格子，并包含每个格子与角色的距离
-// const getReachableTiles = (grid: HexNode[][], character: Character): ReachableHexNode[] => {
-//     const reachable: ReachableHexNode[] = [];
-//     const visited: Set<string> = new Set();  // 防止重复访问
-//     const queue: { node: HexNode, distance: number }[] = [];  // BFS 队列
-
-//     const startNode = grid[character.y][character.x];  // 角色的起始位置
-//     queue.push({ node: startNode, distance: 0 });
-//     visited.add(`${character.x},${character.y}`);
-
-//     const directionsOdd = [
-//         { dx: 1, dy: 0 },    // 右
-//         { dx: -1, dy: 0 },   // 左
-//         { dx: 1, dy: 1 },    // 右下
-//         { dx: 1, dy: -1 },   // 右上
-//         { dx: -1, dy: 1 },   // 左下
-//         { dx: -1, dy: -1 }   // 左上
-//     ];
-
-//     const directionsEven = [
-//         { dx: 1, dy: 0 },    // 右
-//         { dx: -1, dy: 0 },   // 左
-//         { dx: 0, dy: 1 },    // 右下
-//         { dx: 0, dy: -1 },   // 右上
-//         { dx: -1, dy: 1 },   // 左下
-//         { dx: -1, dy: -1 }   // 左上
-//     ];
-
-//     const rlen = grid.length;
-//     const clen = grid[0].length;
-
-//     // BFS 搜索
-//     while (queue.length > 0) {
-//         const { node, distance } = queue.shift()!;  // 取出队列中的第一个元素
-//         reachable.push({ ...node, distance });  // 将当前节点和距离添加到结果数组中
-
-//         // 如果达到移动上限，停止扩展
-//         if (distance >= character.movementRange) continue;
-
-//         // 选择方向，根据奇偶行来选择偏移量
-//         const directions = node.y % 2 === 0 ? directionsEven : directionsOdd;
-
-//         // 遍历所有邻居
-//         for (const { dx, dy } of directions) {
-//             const nx = node.x + dx;
-//             const ny = node.y + dy;
-
-//             // 边界检查并且不能重复访问
-//             if (nx >= 0 && ny >= 0 && nx < clen && ny < rlen && !visited.has(`${nx},${ny}`)) {
-//                 const neighbor = grid[ny][nx];
-
-//                 // 只处理可通行的格子
-//                 if (neighbor.walkable) {
-//                     queue.push({ node: neighbor, distance: distance + 1 });  // 邻居距离是当前距离加1
-//                     visited.add(`${nx},${ny}`);
-//                 }
-//             }
-//         }
-//     }
-
-//     return reachable.filter((r) => r.x !== character.x || r.y !== character.y);
-// };
 
 // 获取可移动范围内的每个格子的路径
 const getReachableTiles = (grid: HexNode[][], character: Character): { node: HexNode, path: HexNode[], totalCost: number }[] => {
     const reachableTiles: { node: HexNode, path: HexNode[], totalCost: number }[] = [];
-    const costMap: Map<string, number> = new Map();  // 用于记录到达每个格子的最小代价
+    const costMap: Map<string, number> = new Map();  // 记录到达每个格子的最小代价
     const queue: { node: HexNode, path: HexNode[], totalCost: number }[] = [];  // 队列
 
     // 起始点
@@ -208,8 +130,8 @@ const getReachableTiles = (grid: HexNode[][], character: Character): { node: Hex
         { dx: -1, dy: 0 },   // 左
         { dx: 1, dy: 1 },    // 右下
         { dx: 1, dy: -1 },   // 右上
-        { dx: -1, dy: 1 },   // 左下
-        { dx: -1, dy: -1 }   // 左上
+        { dx: 0, dy: 1 },   // 左下
+        { dx: 0, dy: -1 }   // 左上
     ];
 
     const directionsEven = [
@@ -234,7 +156,7 @@ const getReachableTiles = (grid: HexNode[][], character: Character): { node: Hex
         if (totalCost > character.movementRange) continue;
 
         // 将当前格子及其路径加入可移动范围列表
-        reachableTiles.push({ node, path, totalCost });
+        reachableTiles.push({ node, path: JSON.parse(JSON.stringify(path)), totalCost });  // 深拷贝 path 确保没有引用问题
 
         // 选择方向，根据奇偶行来选择偏移量
         const directions = node.y % 2 === 0 ? directionsEven : directionsOdd;
@@ -255,9 +177,11 @@ const getReachableTiles = (grid: HexNode[][], character: Character): { node: Hex
 
                     // 如果累积代价不超过角色的最大移动力，继续扩展
                     if (newTotalCost <= character.movementRange && (!costMap.has(key) || newTotalCost < costMap.get(key)!)) {
+                        const newPath = JSON.parse(JSON.stringify(path));  // 深拷贝路径
+                        newPath.push(neighbor);  // 扩展路径
                         queue.push({
                             node: neighbor,
-                            path: [...path, neighbor],  // 将当前路径扩展
+                            path: newPath,  // 将当前路径扩展
                             totalCost: newTotalCost
                         });
                         costMap.set(key, newTotalCost);
@@ -266,9 +190,10 @@ const getReachableTiles = (grid: HexNode[][], character: Character): { node: Hex
             }
         }
     }
-
     return reachableTiles;
 };
+
+
 const isEnemyInMeleeRange = (grid: HexNode[][], character: Character, enemy: { x: number; y: number }): boolean => {
     // 获取我方角色的可行走格子
     const reachableTiles = getReachableTiles(grid, character);

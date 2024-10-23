@@ -7,11 +7,12 @@ interface Props {
   cols: number;
 }
 const CoverCell: React.FC<{ row: number; col: number }> = ({ row, col }) => {
-  const { players, selectedCharacter, select } = useCombatManager();
+  const { players, select, selectedCharacter, currentRound } = useCombatManager();
+
   const render = useMemo(() => {
     const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
     const character = characters.find((c) => c.position.x === col && c.position.y === row);
-    if (character) {
+    if (character && currentRound) {
       if (character.uid === "1") {
         if (!selectedCharacter || selectedCharacter.id !== character.id)
           return (
@@ -25,9 +26,7 @@ const CoverCell: React.FC<{ row: number; col: number }> = ({ row, col }) => {
       } else
         return (
           <div className="cell-cover">
-            <div className="action-btn" onClick={() => select(character)}>
-              attack
-            </div>
+            <div className="action-btn">attack</div>
           </div>
         );
     }
@@ -36,17 +35,17 @@ const CoverCell: React.FC<{ row: number; col: number }> = ({ row, col }) => {
   return <>{render}</>;
 };
 const GridCover: React.FC = () => {
-  const { map, pathCells, setResourceLoad } = useCombatManager();
+  const { map, gridCells, setResourceLoad } = useCombatManager();
   const { size, rows, cols } = map;
 
   const load = useCallback(
     (ele: HTMLDivElement | null, row: number, col: number) => {
-      if (pathCells) {
-        const cell = pathCells[row][col];
+      if (gridCells) {
+        const cell = gridCells[row][col];
         if (cell) {
-          cell.cover = ele;
+          cell.gridCover = ele;
         }
-        const loaded = pathCells.every((row) => row.every((item) => (item.cover ? true : false)));
+        const loaded = gridCells.every((row) => row.every((item) => (item.gridCover ? true : false)));
         if (loaded) {
           setResourceLoad((pre) => {
             if (pre.gridCover === 0) return { ...pre, gridCover: 1 };
@@ -55,11 +54,11 @@ const GridCover: React.FC = () => {
         }
       }
     },
-    [pathCells, setResourceLoad]
+    [gridCells, setResourceLoad]
   );
   return (
     <>
-      {pathCells ? (
+      {gridCells ? (
         <>
           {Array.from({ length: rows }).map((_, row) => (
             <div
@@ -69,6 +68,8 @@ const GridCover: React.FC = () => {
                 justifyContent: "flex-start",
                 marginLeft: row % 2 !== 0 ? `${size / 2}px` : "0", // 奇数行右移半个六边形的宽度
                 marginBottom: `${-size * 0.25}px`,
+                opacity: 0,
+                visibility: "hidden",
               }}
             >
               {Array.from({ length: cols }).map((_, col) => (
@@ -84,7 +85,7 @@ const GridCover: React.FC = () => {
                     visibility: "hidden",
                   }}
                 >
-                  <CoverCell row={row} col={col} />
+                  {/* <CoverCell row={row} col={col} /> */}
                 </div>
               ))}
             </div>
