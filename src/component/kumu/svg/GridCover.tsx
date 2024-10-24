@@ -35,8 +35,8 @@ const CoverCell: React.FC<{ row: number; col: number }> = ({ row, col }) => {
   return <>{render}</>;
 };
 const GridCover: React.FC = () => {
-  const { map, gridCells, setResourceLoad } = useCombatManager();
-  const { size, rows, cols } = map;
+  const { cellSize: size, map, gridCells, setResourceLoad } = useCombatManager();
+  const { rows, cols } = map;
 
   const load = useCallback(
     (ele: HTMLDivElement | null, row: number, col: number) => {

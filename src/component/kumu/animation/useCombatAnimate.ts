@@ -10,10 +10,10 @@ const useCombatAnimate = () => {
         const tl = gsap.timeline();
         for (const character of characters) {
             const { x, y } = character.position;
-            const dx = y % 2 !== 0 ? x * (cellSize + 2) + cellSize / 2 : x * (cellSize + 2);
-            const dy = y * (cellSize * 0.75 + 2);
+            const dx = y % 2 !== 0 ? x * cellSize + cellSize / 2 : x * cellSize;
+            const dy = y * (cellSize * 0.75);
             if (character.container) {
-                console.log(character)
+                // console.log(character)
                 tl.fromTo(character.container, { x: dx, y: dy, autoAlpha: 1, scale: 0.4 }, { scale: 0.6, duration: 1 }, "<");
             }
         }
@@ -46,15 +46,15 @@ const useCombatAnimate = () => {
         //         i++;
         //     }
         // }
-        console.log(cells)
+        // console.log(cells)
         for (const cell of cells) {
-            tl.to(cell.gridGround, { autoAlpha: cell.level === 0 ? 0.6 : 0.8, duration: 0.7 }, i === 0 ? ">" : "<");
+            tl.to(cell.gridGround, { autoAlpha: cell.level === 0 ? 0.5 : 0.9, duration: 0.7 }, i === 0 ? ">" : "<");
             // tl.to(cell.gridCover, { pointerEvents: "auto" }, "<");
             i++;
         }
 
         tl.play();
-        console.log(cells)
+        // console.log(cells)
     }, [])
 
     const playWalk = useCallback((character: CharacterUnit, path: { x: number; y: number }[], cellSize: number, timeline: gsap.core.Timeline | null) => {

@@ -138,10 +138,10 @@ const RenderApp: React.FC = () => {
   const [navsConfig, setNavsConfig] = useState<NavConfig[]>([]);
   const { partner } = usePartnerManager();
   const { module, getPrePage } = usePageManager();
-  console.log("render app");
+  // console.log("render app");
 
   useEffect(() => {
-    console.log("module:" + module);
+    // console.log("module:" + module);
     if (!module) return;
     // const appModule = AppModules[module];
     const navs: NavConfig[] = [];
@@ -170,7 +170,7 @@ const RenderApp: React.FC = () => {
   }, []);
   const playRenderPage = useCallback(
     (page: PageItem) => {
-      console.log(page);
+      // console.log(page);
       const app = page.app;
       const name = page.name;
       const tl = gsap.timeline({

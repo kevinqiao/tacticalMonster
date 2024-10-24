@@ -207,7 +207,7 @@
   font-size: 12px;
   margin:2px;
 }
-.map-container{
+.plaza-container{
   position: absolute;
   margin: 0;
   width:100%;
@@ -215,7 +215,7 @@
   perspective: 1200px;
 /* background-color: blueviolet; */
 }
-.map-background {
+.plaza-layer {
   position:absolute;
   width:100%;
   height:100%;

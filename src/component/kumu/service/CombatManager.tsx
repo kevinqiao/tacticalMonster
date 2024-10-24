@@ -81,11 +81,9 @@ export interface CharacterUnit {
   skillables?: SkillableNode[];
 }
 export interface MapModel {
-  width: number;
-  height: number;
   rows: number;
   cols: number;
-  size: number;
+  obstacles?: ObstacleCell[];
   disables?: { x: number; y: number }[];
 }
 export interface Skill {
@@ -93,11 +91,11 @@ export interface Skill {
 }
 
 interface ICombatContext {
-  mapSize: { rows: number; cols: number };
+  cellSize: number;
+  // mapSize: { rows: number; cols: number };
   map: MapModel;
   gridMap: HexNode[][] | null;
   gridCells: GridCell[][] | null;
-  obstacles: ObstacleCell[];
   players: Player[];
   currentRound: CombatRound | null;
   selectedCharacter: CharacterUnit | null;
@@ -116,13 +114,14 @@ interface ICombatContext {
   >;
   setSelectedCharacter: React.Dispatch<React.SetStateAction<CharacterUnit | null>>;
   changeMap: React.Dispatch<React.SetStateAction<MapModel>>;
+  changeCellSize: React.Dispatch<React.SetStateAction<number>>;
 }
 const CombatContext = createContext<ICombatContext>({
-  mapSize: { rows: 7, cols: 8 },
-  map: { rows: 7, cols: 8, size: 0, height: 0, width: 0 },
+  cellSize: 0,
+  // mapSize: { rows: 7, cols: 8 },
+  map: { rows: 7, cols: 8 },
   gridMap: null,
   gridCells: null,
-  obstacles: [],
   players: [],
   currentRound: null,
   selectedCharacter: null,
@@ -132,6 +131,7 @@ const CombatContext = createContext<ICombatContext>({
   setResourceLoad: () => null,
   setSelectedCharacter: () => null,
   changeMap: () => null,
+  changeCellSize: () => null,
 });
 
 const allPlayers = [
@@ -157,13 +157,12 @@ const allObstacles = [
 
 const CombatProvider = ({ children }: { children: ReactNode }) => {
   const initRef = useRef<boolean>(false);
-  const [mapSize, setMapSize] = useState<{ rows: number; cols: number }>({ rows: 7, cols: 8 });
+  const [cellSize, setCellSize] = useState<number>(0);
+  // const [mapSize, setMapSize] = useState<{ rows: number; cols: number }>({ rows: 7, cols: 8 });
   const [map, setMap] = useState<MapModel>({
-    rows: 0,
-    cols: 0,
-    size: 0,
-    height: 0,
-    width: 0,
+    rows: 7,
+    cols: 8,
+    obstacles: allObstacles,
     disables: [
       { x: 0, y: 0 },
       { x: 7, y: 0 },
@@ -175,7 +174,6 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     ],
   });
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
-  const [obstacles, setObstacles] = useState<ObstacleCell[]>(allObstacles);
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentRound, setCurrentRound] = useState<CombatRound | null>({
     no: 1,
@@ -197,12 +195,12 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridCover: 1, gridStand: 0, gridAttack: 0 });
 
   const gridMap: HexNode[][] | null = useMemo(() => {
-    if (gridCells && obstacles && mapSize) {
-      const { rows, cols } = mapSize;
+    if (gridCells && map) {
+      const { rows, cols } = map;
       const mapGrid: HexNode[][] = Array.from({ length: rows }, (_, y) =>
         Array.from({ length: cols }, (_, x) => {
           const node = { x, y, walkable: true };
-          const obstacle = obstacles.find((o) => o.col === x && o.row === y);
+          const obstacle = map.obstacles?.find((o) => o.col === x && o.row === y);
           if (obstacle) node.walkable = false;
           return node;
         })
@@ -210,9 +208,10 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
       return mapGrid;
     }
     return null;
-  }, [obstacles, gridCells, mapSize]);
+  }, [gridCells, map]);
 
   const { walk, getWalkables } = useCombatAct({
+    cellSize,
     gridCells,
     gridMap,
     players,
@@ -235,14 +234,9 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     setPlayers(playerList);
   }, []);
   useEffect(() => {
-    if (!mapSize) return;
-    const { rows, cols } = mapSize;
-    // const updateMap = () => {
-    //   const newSize = Math.min(window.innerWidth / (cols + 1), window.innerHeight / ((rows + 1.5) * 0.75)); // 最大六边形边长为100px
-    //   const dw = (window.innerWidth - (newSize + 1) * (cols + 0.5)) / 2;
-    //   const dh = (window.innerHeight - newSize * 0.75 * (rows + 0.5)) / 2;
-    //   setMap({ rows, cols, top: dh, left: dw, size: Math.floor(newSize) });
-    // };
+    if (!map || map.cols === 0 || map.rows === 0) return;
+    const { rows, cols } = map;
+    // setMap((pre) => ({ ...pre, rows, cols }));
     setGridCells(
       Array.from({ length: rows }, (_, y) =>
         Array.from({ length: cols }, (_, x) => ({
@@ -256,19 +250,17 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
         }))
       )
     );
-    // updateMap(); // 初始化时设置一次
-    // window.addEventListener("resize", updateMap); // 监听屏幕变化
-    // return () => window.removeEventListener("resize", updateMap); // 清除监听器
-  }, [mapSize]);
+    console.log("initialize map...");
+  }, [map]);
   useEffect(() => {
     const allLoaded = Object.values(resourceLoad).every((value) => value === 1);
     console.log(resourceLoad);
     if (!initRef.current && players && gridCells && allLoaded) {
       initRef.current = true;
       const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-      playInit(gridCells, characters, map.size);
+      playInit(gridCells, characters, cellSize);
     }
-  }, [resourceLoad, players, gridCells, map, playInit]);
+  }, [resourceLoad, players, gridCells, cellSize, playInit]);
 
   useEffect(() => {
     if (gridCells && selectedCharacter) {
@@ -282,7 +274,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
       const walkables: WalkableNode[] | undefined = getWalkables(character);
       if (walkables && gridCells) {
         character.walkables = walkables;
-        console.log(character);
+        // console.log(character);
         setSelectedCharacter((pre) => {
           playSelect({ gridCells, unselects: pre?.walkables, walkables });
           return character;
@@ -305,11 +297,10 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const value = {
-    mapSize,
+    cellSize,
     map,
     gridMap,
     gridCells,
-    obstacles,
     players,
     currentRound,
     selectedCharacter,
@@ -319,6 +310,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     setResourceLoad,
     setSelectedCharacter,
     changeMap: setMap,
+    changeCellSize: setCellSize,
   };
 
   return <CombatContext.Provider value={value}> {children} </CombatContext.Provider>;

@@ -1,4 +1,5 @@
-import React from "react";
+import gsap from "gsap";
+import React, { useEffect, useRef } from "react";
 import "../map.css";
 import { useCombatManager } from "../service/CombatManager";
 interface Props {
@@ -16,24 +17,26 @@ const cells = [
 ];
 // 六边形格子组件
 const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
-  const { obstacles } = useCombatManager();
-  const cell = obstacles.find((c) => c.row === row && c.col === col);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const { map } = useCombatManager();
+  const cell = map.obstacles?.find((c) => c.row === row && c.col === col);
+  useEffect(() => {
+    gsap.set(containerRef.current, { scale: 0.7 });
+  }, []);
   return (
     <>
-      {cell ? (
-        <div
-          className="hexagon-obstacle"
-          style={{ backgroundImage: `url(${cell.asset})` }}
-          onClick={() => console.log("obstacle clicked")}
-        />
-      ) : null}
+      <div
+        ref={containerRef}
+        className="hexagon-obstacle"
+        style={{ backgroundImage: cell ? `url(${cell.asset})` : "" }}
+      />
     </>
   );
 };
 
 const ObstacleGrid: React.FC = () => {
-  const { map } = useCombatManager();
-  const { size, rows, cols } = map;
+  const { map, cellSize: size } = useCombatManager();
+  const { rows, cols } = map;
   return (
     <>
       {Array.from({ length: rows }).map((_, row) => (
@@ -52,7 +55,7 @@ const ObstacleGrid: React.FC = () => {
               style={{
                 width: `${size}px`,
                 height: `${size}px`,
-                margin: 1,
+                margin: 0,
               }}
             >
               <ObstacleCell row={row} col={col} />

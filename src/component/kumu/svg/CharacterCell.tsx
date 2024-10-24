@@ -7,15 +7,15 @@ interface Props {
 }
 
 const CharacterCell: React.FC<Props> = ({ character }) => {
-  const { map, setResourceLoad } = useCombatManager();
-  const { size } = map;
+  const { cellSize: size, setResourceLoad } = useCombatManager();
+
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!containerRef.current && size > 0) return;
     const { x, y } = character.position;
-    const dx = Math.floor(y % 2 !== 0 ? x * (size + 2) + size / 2 : x * (size + 2));
-    const dy = Math.floor(y * (size * 0.75 + 2));
+    const dx = Math.floor(y % 2 !== 0 ? x * size + size / 2 : x * size);
+    const dy = Math.floor(y * (size * 0.75));
     console.log("initialize character");
     gsap.set(containerRef.current, { scale: 0.7, x: dx, y: dy });
   }, [character, size]);
@@ -39,7 +39,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
           left: 0,
           width: `${size}px`,
           height: `${size}px`,
-          margin: 1,
+          margin: 0,
           // opacity: 0,
           // visibility: "hidden",
           pointerEvents: "auto",

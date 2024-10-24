@@ -1,20 +1,17 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
 import "../map.css";
-import { CharacterUnit, GridCell, useCombatManager } from "../service/CombatManager";
+import { CharacterUnit, useCombatManager } from "../service/CombatManager";
 
 interface HexagonProps {
   size: number; // 六边形的边长
   row: number;
   col: number;
-  cell: GridCell;
-  fillColor: string; // 六边形的填充颜色
-  strokeColor: string; // 边框颜色
-  strokeWidth: number; // 边框宽度
 }
 
-const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeColor, strokeWidth }) => {
+const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
   const containerRef = useRef<SVGSVGElement | null>(null);
+  const baseRef = useRef<SVGPolygonElement | null>(null);
   const groundRef = useRef<SVGPolygonElement | null>(null);
   const standRef = useRef<SVGPolygonElement | null>(null);
   const attackRef = useRef<SVGCircleElement | null>(null);
@@ -54,10 +51,9 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeC
     const { disables } = map;
     const disable = disables?.find((d) => d.x === col && d.y === row);
     if (disable) {
-      console.log(disable);
-      gsap.set(groundRef.current, { autoAlpha: 0 });
-    } else gsap.set(groundRef.current, { autoAlpha: 0.3 });
-  }, [row, col, map]);
+      gsap.set(baseRef.current, { autoAlpha: 0 });
+    }
+  }, [row, col]);
   useEffect(() => {
     const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
     const character = characters.find((c) => c.position.x === col && c.position.y === row);
@@ -67,7 +63,6 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeC
         character.position.x === selectedCharacter.position.x &&
         character.position.y === selectedCharacter.position.y
       ) {
-        console.log(character);
         gsap.set(standRef.current, { autoAlpha: 1 });
       }
     }
@@ -159,12 +154,21 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeC
         xmlns="http://www.w3.org/2000/svg"
       >
         <polygon
+          ref={baseRef}
+          points={outerPolygonPoints}
+          fill={"grey"}
+          stroke={"white"}
+          strokeWidth={3}
+          opacity={"0.1"}
+          onClick={() => console.log("base:" + row + ":" + col)}
+        />
+        <polygon
           ref={loadGround}
           points={outerPolygonPoints}
           fill={"black"}
-          stroke={strokeColor}
-          strokeWidth={strokeWidth}
-          opacity={"0.3"}
+          stroke={"green"}
+          strokeWidth={4}
+          opacity={"1"}
           visibility={"hidden"}
           onClick={() => console.log(row + ":" + col)}
         />
@@ -172,7 +176,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size, fillColor, strokeC
           ref={loadStand}
           points={innerPolygonPoints}
           fill={"none"}
-          stroke={"white"}
+          stroke={"red"}
           strokeWidth={3}
           opacity={"0.3"}
           visibility={"hidden"}
@@ -200,8 +204,8 @@ interface Props {
 }
 
 const GridGround: React.FC = () => {
-  const { selectedCharacter, map, gridCells, players, gridMap, walk } = useCombatManager();
-  const { size, rows, cols } = map;
+  const { selectedCharacter, map, cellSize: size, gridCells, players, gridMap, walk } = useCombatManager();
+  const { rows, cols } = map;
 
   const handleClick = useCallback(
     (x: number, y: number) => {
@@ -248,19 +252,11 @@ const GridGround: React.FC = () => {
                     position: "relative",
                     width: `${size}px`,
                     height: `${size}px`,
-                    margin: 1,
+                    margin: 0,
                   }}
                   // onClick={() => handleClick(col, row)}
                 >
-                  <GroundCell
-                    row={row}
-                    col={col}
-                    cell={gridCells[row][col]}
-                    size={size}
-                    fillColor="blue"
-                    strokeColor="none"
-                    strokeWidth={0}
-                  />
+                  <GroundCell row={row} col={col} size={size} />
                 </div>
               ))}
             </div>

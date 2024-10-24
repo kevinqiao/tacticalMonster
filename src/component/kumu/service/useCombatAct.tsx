@@ -5,6 +5,7 @@ import { getReachableTiles, HexNode } from "../utils/Utlis";
 import { ACT_CODE, CharacterUnit, CombatRound, GridCell, MapModel, Player, WalkableNode } from "./CombatManager";
 
 interface Props {
+  cellSize: number;
   currentRound: CombatRound | null;
   gridMap: HexNode[][] | null;
   gridCells: GridCell[][] | null;
@@ -13,7 +14,7 @@ interface Props {
   selectedCharacter: CharacterUnit | null;
   setSelectedCharacter: React.Dispatch<React.SetStateAction<CharacterUnit | null>>;
 }
-const useCombatAct = ({ gridMap, players, map, currentRound, selectedCharacter, setSelectedCharacter }: Props) => {
+const useCombatAct = ({ cellSize, gridMap, players, map, currentRound, selectedCharacter }: Props) => {
   const { playWalk, playTurnOver, playTurnReady } = useCombatAnimate();
   const getWalkables = useCallback(
     (character: CharacterUnit) => {
@@ -55,7 +56,7 @@ const useCombatAct = ({ gridMap, players, map, currentRound, selectedCharacter, 
       if (actor) {
         actor.actions.push({ code: ACT_CODE.WALK, data: to, time: Date.now() });
         if (to.level === 0 || actor.actions.length === 2) actor.actCompleted = true;
-        playWalk(character, path, map.size, null);
+        playWalk(character, path, cellSize, null);
       }
     },
     [map, currentRound]
