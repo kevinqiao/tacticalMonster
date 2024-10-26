@@ -20,6 +20,7 @@ export interface HexNode {
   x: number;
   y: number;
   walkable?: boolean;
+  type?: number; //0-field 1-obstacle 2-unavailable
 }
 export interface Player {
   uid: string;
@@ -69,12 +70,10 @@ export interface SkillableNode extends HexNode {
 }
 export interface CharacterUnit {
   id: number;
-  uid?: string;
   position: { x: number; y: number };
   movementRange: number;
   attackRange?: number;
   asset: string;
-  skills?: Skill[];
   container?: HTMLDivElement;
   walkables?: WalkableNode[];
   attackables?: AttackableNode[];
@@ -86,22 +85,18 @@ export interface MapModel {
   obstacles?: ObstacleCell[];
   disables?: { x: number; y: number }[];
 }
-export interface Skill {
-  id: number;
-}
 
-interface ICombatContext {
+export interface ICombatContext {
   cellSize: number;
   // mapSize: { rows: number; cols: number };
   map: MapModel;
   gridMap: HexNode[][] | null;
   gridCells: GridCell[][] | null;
-  players: Player[];
+  players: Player[] | null;
   currentRound: CombatRound | null;
   selectedCharacter: CharacterUnit | null;
-  select: (character: CharacterUnit) => void;
-  selectSkill: (skill: Skill) => void;
-  walk: (character: CharacterUnit, to: WalkableNode) => void;
+  // select: (character: CharacterUnit) => void;
+  // walk: (character: CharacterUnit, to: WalkableNode) => void;
   setResourceLoad: React.Dispatch<
     React.SetStateAction<{
       character: number;
@@ -125,9 +120,8 @@ const CombatContext = createContext<ICombatContext>({
   players: [],
   currentRound: null,
   selectedCharacter: null,
-  select: () => null,
-  selectSkill: () => null,
-  walk: () => null,
+  // select: () => null,
+  // walk: () => null,
   setResourceLoad: () => null,
   setSelectedCharacter: () => null,
   changeMap: () => null,
@@ -174,7 +168,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     ],
   });
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<Player[] | null>(null);
   const [currentRound, setCurrentRound] = useState<CombatRound | null>({
     no: 1,
     uid: "1",
@@ -193,15 +187,23 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     gridStand: number;
     gridAttack: number;
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridCover: 1, gridStand: 0, gridAttack: 0 });
-
+  const { playInit } = useCombatAnimate();
   const gridMap: HexNode[][] | null = useMemo(() => {
     if (gridCells && map) {
       const { rows, cols } = map;
       const mapGrid: HexNode[][] = Array.from({ length: rows }, (_, y) =>
         Array.from({ length: cols }, (_, x) => {
-          const node = { x, y, walkable: true };
+          const node: HexNode = { x, y, walkable: true, type: 0 };
           const obstacle = map.obstacles?.find((o) => o.col === x && o.row === y);
-          if (obstacle) node.walkable = false;
+          if (obstacle) {
+            node.walkable = false;
+            node.type = 1;
+          }
+          const disable = map.disables?.find((d) => d.x === x && d.y === y);
+          if (disable) {
+            node.walkable = false;
+            node.type = 2;
+          }
           return node;
         })
       );
@@ -210,33 +212,24 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     return null;
   }, [gridCells, map]);
 
-  const { walk, getWalkables } = useCombatAct({
-    cellSize,
-    gridCells,
-    gridMap,
-    players,
-    map,
-    currentRound,
-    selectedCharacter,
-    setSelectedCharacter,
-  });
-  const { playSelect, playInit } = useCombatAnimate();
   const { partner } = usePartnerManager();
   const { locale } = useLocalization();
-
   useEffect(() => {
-    const playerList: Player[] = [];
-    for (const player of allPlayers) {
-      const characters = player.characters.map((c, index) => ({ ...c, uid: player.uid }));
-      playerList.push({ ...player, characters });
-      if (player.uid === "1") setSelectedCharacter(player.characters[0]);
+    const allLoaded = Object.values(resourceLoad).every((value) => value === 1);
+    if (!initRef.current && players && gridCells && allLoaded) {
+      initRef.current = true;
+      const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
+      playInit(gridCells, characters, cellSize);
     }
-    setPlayers(playerList);
+  }, [resourceLoad, players, gridCells, cellSize, playInit]);
+  useEffect(() => {
+    const player = allPlayers.find((p) => p.uid === "1");
+    if (player) setSelectedCharacter(player.characters[0]);
+    setPlayers(allPlayers);
   }, []);
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;
     const { rows, cols } = map;
-    // setMap((pre) => ({ ...pre, rows, cols }));
     setGridCells(
       Array.from({ length: rows }, (_, y) =>
         Array.from({ length: cols }, (_, x) => ({
@@ -250,17 +243,39 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
         }))
       )
     );
-    console.log("initialize map...");
   }, [map]);
-  useEffect(() => {
-    const allLoaded = Object.values(resourceLoad).every((value) => value === 1);
-    console.log(resourceLoad);
-    if (!initRef.current && players && gridCells && allLoaded) {
-      initRef.current = true;
-      const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-      playInit(gridCells, characters, cellSize);
-    }
-  }, [resourceLoad, players, gridCells, cellSize, playInit]);
+
+  const value = {
+    cellSize,
+    map,
+    gridMap,
+    gridCells,
+    players,
+    currentRound,
+    selectedCharacter,
+    setResourceLoad,
+    setSelectedCharacter,
+    changeMap: setMap,
+    changeCellSize: setCellSize,
+  };
+
+  return <CombatContext.Provider value={value}> {children} </CombatContext.Provider>;
+};
+
+export const useCombatManager = () => {
+  const ctx = useContext(CombatContext);
+  const { cellSize, map, gridMap, gridCells, players, currentRound, selectedCharacter, setSelectedCharacter } = ctx;
+  const { playSelect } = useCombatAnimate();
+  const { walk, getWalkables } = useCombatAct({
+    cellSize,
+    map,
+    gridMap,
+    gridCells,
+    players,
+    currentRound,
+    selectedCharacter,
+    setSelectedCharacter,
+  });
 
   useEffect(() => {
     if (gridCells && selectedCharacter) {
@@ -271,7 +286,9 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   }, [gridCells, selectedCharacter]);
   const select = useCallback(
     (character: CharacterUnit) => {
+      console.log(character);
       const walkables: WalkableNode[] | undefined = getWalkables(character);
+
       if (walkables && gridCells) {
         character.walkables = walkables;
         // console.log(character);
@@ -290,32 +307,8 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
         console.log(currentRound?.actors);
       }
     },
-    [currentRound, gridCells, getWalkables]
+    [currentRound, gridCells]
   );
-  const selectSkill = useCallback((skill: Skill) => {
-    console.log("select skill");
-  }, []);
-
-  const value = {
-    cellSize,
-    map,
-    gridMap,
-    gridCells,
-    players,
-    currentRound,
-    selectedCharacter,
-    select,
-    selectSkill,
-    walk,
-    setResourceLoad,
-    setSelectedCharacter,
-    changeMap: setMap,
-    changeCellSize: setCellSize,
-  };
-
-  return <CombatContext.Provider value={value}> {children} </CombatContext.Provider>;
-};
-export const useCombatManager = () => {
-  return useContext(CombatContext);
+  return { ...ctx, walk, select };
 };
 export default CombatProvider;

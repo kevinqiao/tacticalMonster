@@ -1,0 +1,52 @@
+{
+  "character_id": "mage_001",
+  "name": "法师",
+  "class": "Mage",
+  "attributes": {
+    "health": 80,
+    "mana": 100,
+    "strength": 30,
+    "agility": 40,
+    "intelligence": 90
+  },
+  "skills": [
+    {
+      "skill_id": "fireball",
+      "name": "火球术",
+      "description": "召唤一个火球，对单个敌人造成魔法伤害。",
+      "type": "active",
+      "range": 4,
+      "effects": [{ "damage": 40, "type": "magical" }],
+      "requirements": {
+        "min_level": 1
+      },
+      "resource_cost": {
+        "mana": 15
+      },
+      "cooldown": 1,
+      "upgrade_path": [{ "damage": 50 }, { "damage": 60, "range": 5 }],
+      "is_passive": false,
+      "trigger_conditions": [],
+      "tags": ["ranged", "single_target"]
+    },
+    {
+      "skill_id": "ice_barrier",
+      "name": "寒冰屏障",
+      "description": "生成一个保护盾，吸收一定量的伤害。",
+      "type": "active",
+      "range": 0,
+      "effects": [{ "shield": 30, "type": "magical" }],
+      "requirements": {
+        "min_level": 3
+      },
+      "resource_cost": {
+        "mana": 20
+      },
+      "cooldown": 4,
+      "upgrade_path": [{ "shield": 40 }, { "shield": 50, "cooldown": 3 }],
+      "is_passive": false,
+      "trigger_conditions": [],
+      "tags": ["defensive", "self"]
+    }
+  ]
+}

@@ -7,7 +7,7 @@ interface Props {
 }
 
 const CharacterCell: React.FC<Props> = ({ character }) => {
-  const { cellSize: size, setResourceLoad } = useCombatManager();
+  const { cellSize: size, setResourceLoad, select } = useCombatManager();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -16,13 +16,12 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
     const { x, y } = character.position;
     const dx = Math.floor(y % 2 !== 0 ? x * size + size / 2 : x * size);
     const dy = Math.floor(y * (size * 0.75));
-    console.log("initialize character");
     gsap.set(containerRef.current, { scale: 0.7, x: dx, y: dy });
   }, [character, size]);
   const loadContainer = useCallback(
-    (ele: HTMLDivElement) => {
+    (ele: HTMLDivElement | null) => {
       containerRef.current = ele;
-      character.container = ele;
+      character.container = ele ?? undefined;
       // onLoad(0);
       setResourceLoad((pre) => ({ ...pre, character: 1 }));
     },
@@ -44,7 +43,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
           // visibility: "hidden",
           pointerEvents: "auto",
         }}
-        onClick={() => console.log("character clicked")}
+        onClick={() => select(character)}
       >
         <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} />
       </div>

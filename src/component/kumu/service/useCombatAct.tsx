@@ -2,14 +2,14 @@ import gsap from "gsap";
 import { useCallback } from "react";
 import useCombatAnimate from "../animation/useCombatAnimate";
 import { getReachableTiles, HexNode } from "../utils/Utlis";
-import { ACT_CODE, CharacterUnit, CombatRound, GridCell, MapModel, Player, WalkableNode } from "./CombatManager";
+import { CharacterUnit, CombatRound, GridCell, MapModel, Player } from "./CombatManager";
 
 interface Props {
   cellSize: number;
   currentRound: CombatRound | null;
   gridMap: HexNode[][] | null;
   gridCells: GridCell[][] | null;
-  players: Player[];
+  players: Player[] | null;
   map: MapModel;
   selectedCharacter: CharacterUnit | null;
   setSelectedCharacter: React.Dispatch<React.SetStateAction<CharacterUnit | null>>;
@@ -19,10 +19,10 @@ const useCombatAct = ({ cellSize, gridMap, players, map, currentRound, selectedC
   const getWalkables = useCallback(
     (character: CharacterUnit) => {
       if (!gridMap) return undefined;
-      const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
+      const characters = players?.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
       const grids: HexNode[][] = gridMap.map<HexNode[]>((row, y) =>
         row.map((node, x) => {
-          const c = characters.find((c) => c.position.x === x && c.position.y === y);
+          const c = characters?.find((c) => c.position.x === x && c.position.y === y);
           return { ...node, x, y, walkable: c ? false : node.walkable };
         })
       );
@@ -49,17 +49,24 @@ const useCombatAct = ({ cellSize, gridMap, players, map, currentRound, selectedC
     [gridMap, players]
   );
   const walk = useCallback(
-    (character: CharacterUnit, to: WalkableNode) => {
-      if (!map || !currentRound || !to.path) return;
-      const path: { x: number; y: number }[] = to.path;
-      const actor = currentRound.actors.find((a) => a.id === character.id);
-      if (actor) {
-        actor.actions.push({ code: ACT_CODE.WALK, data: to, time: Date.now() });
-        if (to.level === 0 || actor.actions.length === 2) actor.actCompleted = true;
-        playWalk(character, path, cellSize, null);
+    (to: { x: number; y: number }) => {
+      console.log(players);
+      if (!map || !currentRound || !selectedCharacter || !selectedCharacter.walkables) return;
+      console.log(selectedCharacter);
+      const walkNode = selectedCharacter.walkables.find((w) => w.x === to.x && w.y === to.y);
+      if (walkNode?.path) {
+        const path: { x: number; y: number }[] = walkNode.path;
+        console.log(path);
+        playWalk(selectedCharacter, path, cellSize, null);
+        // const actor = currentRound.actors.find((a) => a.id === character.id);
+        // if (actor) {
+        //   actor.actions.push({ code: ACT_CODE.WALK, data: to, time: Date.now() });
+        //   if (to.level === 0 || actor.actions.length === 2) actor.actCompleted = true;
+        //   playWalk(selectedCharacter, path, cellSize, null);
+        // }
       }
     },
-    [map, currentRound]
+    [players, map, currentRound, selectedCharacter]
   );
   const heal = useCallback(
     (character: CharacterUnit) => {

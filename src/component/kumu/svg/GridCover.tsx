@@ -10,26 +10,25 @@ const CoverCell: React.FC<{ row: number; col: number }> = ({ row, col }) => {
   const { players, select, selectedCharacter, currentRound } = useCombatManager();
 
   const render = useMemo(() => {
-    const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-    const character = characters.find((c) => c.position.x === col && c.position.y === row);
+    const characters = players?.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
+    const character = characters?.find((c) => c.position.x === col && c.position.y === row);
     if (character && currentRound) {
-      if (character.uid === "1") {
-        if (!selectedCharacter || selectedCharacter.id !== character.id)
-          return (
-            <div className="cell-cover">
-              <div className="action-btn" onClick={() => select(character)}>
-                SELECT
-              </div>
-              <div className="action-btn">HEAL</div>
-            </div>
-          );
-      } else
+      if (!selectedCharacter || selectedCharacter.id !== character.id)
         return (
           <div className="cell-cover">
-            <div className="action-btn">attack</div>
+            <div className="action-btn" onClick={() => select(character)}>
+              SELECT
+            </div>
+            <div className="action-btn">HEAL</div>
           </div>
         );
-    }
+    } else
+      return (
+        <div className="cell-cover">
+          <div className="action-btn">attack</div>
+        </div>
+      );
+
     return <></>;
   }, [players, selectedCharacter]);
   return <>{render}</>;

@@ -48,7 +48,7 @@ const useCombatAnimate = () => {
         // }
         // console.log(cells)
         for (const cell of cells) {
-            tl.to(cell.gridGround, { autoAlpha: cell.level === 0 ? 0.5 : 0.9, duration: 0.7 }, i === 0 ? ">" : "<");
+            tl.to(cell.gridGround, { autoAlpha: cell.level === 0 ? 0.3 : 0.6, duration: 0.7 }, i === 0 ? ">" : "<");
             // tl.to(cell.gridCover, { pointerEvents: "auto" }, "<");
             i++;
         }
@@ -67,7 +67,7 @@ const useCombatAnimate = () => {
             tl.to(ele, {
                 x: Math.floor(dx),
                 y: Math.floor(dy),
-                duration: 0.5,
+                duration: 0.2,
                 onStart: () => {
                     console.log(`Moving to hex: (${x}, ${y})`);
                 }

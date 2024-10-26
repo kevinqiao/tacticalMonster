@@ -1,0 +1,52 @@
+{
+  "character_id": "warrior_001",
+  "name": "战士",
+  "class": "Warrior",
+  "attributes": {
+    "health": 150,
+    "mana": 30,
+    "strength": 90,
+    "agility": 50,
+    "intelligence": 30
+  },
+  "skills": [
+    {
+      "skill_id": "power_strike",
+      "name": "强力打击",
+      "description": "对单个敌人造成巨大的物理伤害。",
+      "type": "active",
+      "range": 1,
+      "effects": [{ "damage": 50, "type": "physical" }],
+      "requirements": {
+        "min_level": 1
+      },
+      "resource_cost": {
+        "mana": 5
+      },
+      "cooldown": 1,
+      "upgrade_path": [{ "damage": 60 }, { "damage": 70, "critical_chance": 10 }],
+      "is_passive": false,
+      "trigger_conditions": [],
+      "tags": ["melee", "single_target"]
+    },
+    {
+      "skill_id": "whirlwind",
+      "name": "旋风斩",
+      "description": "旋转武器，对周围所有敌人造成伤害。",
+      "type": "active",
+      "range": 1,
+      "effects": [{ "damage": 40, "type": "physical", "target": "aoe" }],
+      "requirements": {
+        "min_level": 5
+      },
+      "resource_cost": {
+        "mana": 15
+      },
+      "cooldown": 3,
+      "upgrade_path": [{ "damage": 50 }, { "damage": 60, "cooldown": 2 }],
+      "is_passive": false,
+      "trigger_conditions": [],
+      "tags": ["melee", "aoe"]
+    }
+  ]
+}

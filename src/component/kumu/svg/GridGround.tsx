@@ -15,7 +15,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
   const groundRef = useRef<SVGPolygonElement | null>(null);
   const standRef = useRef<SVGPolygonElement | null>(null);
   const attackRef = useRef<SVGCircleElement | null>(null);
-  const { map, gridCells, players, selectedCharacter, setResourceLoad } = useCombatManager();
+  const { walk, gridMap, gridCells, players, selectedCharacter, setResourceLoad } = useCombatManager();
   const points: [number, number][] = [
     [size / 2, 0], // 顶点1
     [size, size * 0.25], // 顶点2
@@ -47,16 +47,16 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
 
   const hexHeight = size * 1; // 六边形的标准高度为边长的 sqrt(3)/2
   useEffect(() => {
-    if (!map) return;
-    const { disables } = map;
-    const disable = disables?.find((d) => d.x === col && d.y === row);
-    if (disable) {
+    // if (!map) return;
+    // const { disables } = map;
+    // const disable = disables?.find((d) => d.x === col && d.y === row);
+    if (gridMap && gridMap[row][col] && gridMap[row][col].type === 2) {
       gsap.set(baseRef.current, { autoAlpha: 0 });
     }
-  }, [row, col]);
+  }, [gridMap, row, col]);
   useEffect(() => {
-    const characters = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-    const character = characters.find((c) => c.position.x === col && c.position.y === row);
+    const characters = players?.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
+    const character = characters?.find((c) => c.position.x === col && c.position.y === row);
     if (character) {
       if (
         selectedCharacter &&
@@ -170,7 +170,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
           strokeWidth={4}
           opacity={"1"}
           visibility={"hidden"}
-          onClick={() => console.log(row + ":" + col)}
+          onClick={() => walk({ x: col, y: row })}
         />
         <polygon
           ref={loadStand}
@@ -210,8 +210,8 @@ const GridGround: React.FC = () => {
   const handleClick = useCallback(
     (x: number, y: number) => {
       console.log("handle click on:" + x + "-" + y);
-      const player = players.find((p) => p.uid === "1");
-      const opponent = players.find((p) => p.uid !== "1");
+      const player = players?.find((p) => p.uid === "1");
+      const opponent = players?.find((p) => p.uid !== "1");
       const teamCharacter = player?.characters.find((c) => c.position.x === x && c.position.y === y);
       if (teamCharacter) {
         //help();
@@ -225,7 +225,7 @@ const GridGround: React.FC = () => {
       if (selectedCharacter?.walkables) {
         const move = selectedCharacter.walkables.find((c) => c.x === x && c.y === y);
         if (move) {
-          walk(selectedCharacter, move);
+          walk(move);
         }
       }
     },

@@ -1,0 +1,52 @@
+{
+  "character_id": "archer_001",
+  "name": "弓箭手",
+  "class": "Archer",
+  "attributes": {
+    "health": 100,
+    "mana": 50,
+    "strength": 60,
+    "agility": 80,
+    "intelligence": 40
+  },
+  "skills": [
+    {
+      "skill_id": "arrow_shot",
+      "name": "箭矢射击",
+      "description": "射出一支箭，对单个敌人造成伤害。",
+      "type": "active",
+      "range": 3,
+      "effects": [{ "damage": 30, "type": "physical" }],
+      "requirements": {
+        "min_level": 1
+      },
+      "resource_cost": {
+        "mana": 10
+      },
+      "cooldown": 1,
+      "upgrade_path": [{ "damage": 40 }, { "damage": 50, "range": 4 }],
+      "is_passive": false,
+      "trigger_conditions": [],
+      "tags": ["ranged", "single_target"]
+    },
+    {
+      "skill_id": "multi_shot",
+      "name": "多重射击",
+      "description": "同时向多个敌人射出箭矢。",
+      "type": "active",
+      "range": 3,
+      "effects": [{ "damage": 20, "type": "physical", "target": "multiple" }],
+      "requirements": {
+        "min_level": 5
+      },
+      "resource_cost": {
+        "mana": 20
+      },
+      "cooldown": 3,
+      "upgrade_path": [{ "damage": 25 }, { "damage": 30, "range": 4 }],
+      "is_passive": false,
+      "trigger_conditions": [],
+      "tags": ["ranged", "aoe"]
+    }
+  ]
+}
