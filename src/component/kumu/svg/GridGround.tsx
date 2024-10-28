@@ -1,7 +1,8 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
 import "../map.css";
-import { CharacterUnit, useCombatManager } from "../service/CombatManager";
+import { useCombatManager } from "../service/CombatManager";
+import { CharacterUnit } from "../service/CombatModels";
 
 interface HexagonProps {
   size: number; // 六边形的边长
@@ -64,7 +65,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
         character.position.y === selectedCharacter.position.y
       ) {
         gsap.set(standRef.current, { autoAlpha: 1 });
-      }
+      } else gsap.set(standRef.current, { autoAlpha: 0 });
     }
   }, [players, selectedCharacter]);
   const loadContainer = useCallback(

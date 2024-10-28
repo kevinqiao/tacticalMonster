@@ -1,8 +1,8 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import useCombatAnimate from "../animation/useCombatAnimate";
-import { getReachableTiles, HexNode } from "../utils/Utlis";
-import { CharacterUnit, CombatRound, GridCell, MapModel, Player } from "./CombatManager";
+import { HexNode } from "../utils/Utlis";
+import { CharacterUnit, CombatRound, GridCell, MapModel, Player } from "./CombatModels";
 
 interface Props {
   cellSize: number;
@@ -14,34 +14,9 @@ interface Props {
   selectedCharacter: CharacterUnit | null;
   setSelectedCharacter: React.Dispatch<React.SetStateAction<CharacterUnit | null>>;
 }
-const useCombatAct = ({ cellSize, gridMap, players, map, currentRound, selectedCharacter }: Props) => {
-  const { playWalk, playTurnOver, playTurnReady } = useCombatAnimate();
-  const getWalkables = useCallback(
-    (character: CharacterUnit) => {
-      if (!gridMap) return undefined;
-      const characters = players?.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-      const grids: HexNode[][] = gridMap.map<HexNode[]>((row, y) =>
-        row.map((node, x) => {
-          const c = characters?.find((c) => c.position.x === x && c.position.y === y);
-          return { ...node, x, y, walkable: c ? false : node.walkable };
-        })
-      );
-      const { x, y } = character.position;
-      const walkablCells = getReachableTiles(grids, { x, y, movementRange: character.movementRange });
-      if (walkablCells)
-        return walkablCells
-          .filter((w) => w.node.walkable)
-          .map((c) => ({
-            x: c.node.x,
-            y: c.node.y,
-            path: c.path,
-            distance: c.totalCost,
-            level: c.totalCost < character.movementRange ? 1 : 0,
-          }));
-      return undefined;
-    },
-    [gridMap, players]
-  );
+const useCombatAct = ({ cellSize, gridMap, gridCells, players, map, currentRound, selectedCharacter }: Props) => {
+  const { playWalk, playUnSelect, playTurnOver, playTurnReady } = useCombatAnimate();
+
   const attack = useCallback(
     (character: CharacterUnit, dx: number, dy: number) => {
       console.log("walking");
@@ -52,12 +27,30 @@ const useCombatAct = ({ cellSize, gridMap, players, map, currentRound, selectedC
     (to: { x: number; y: number }) => {
       console.log(players);
       if (!map || !currentRound || !selectedCharacter || !selectedCharacter.walkables) return;
-      console.log(selectedCharacter);
+
       const walkNode = selectedCharacter.walkables.find((w) => w.x === to.x && w.y === to.y);
-      if (walkNode?.path) {
+      if (walkNode?.path && gridCells) {
+        const { x: cx, y: cy } = selectedCharacter.position;
         const path: { x: number; y: number }[] = walkNode.path;
-        console.log(path);
-        playWalk(selectedCharacter, path, cellSize, null);
+        const timeline = gsap.timeline({
+          onComplete: () => {
+            selectedCharacter.position = to;
+            timeline.kill();
+          },
+        });
+        const cell = gridCells[cy][cx];
+        if (cell) {
+          timeline.to(cell.gridStand, { autoAlpha: 0, duration: 0.1 });
+          playUnSelect({ gridCells, walkables: selectedCharacter.walkables, timeline });
+        }
+        timeline.to({}, {}, ">");
+        playWalk(selectedCharacter, path, cellSize, timeline);
+        if (walkNode.level === 0) {
+          console.log("complete turn");
+        } else {
+          console.log("play stand to do next");
+        }
+        timeline.play();
         // const actor = currentRound.actors.find((a) => a.id === character.id);
         // if (actor) {
         //   actor.actions.push({ code: ACT_CODE.WALK, data: to, time: Date.now() });
@@ -66,11 +59,11 @@ const useCombatAct = ({ cellSize, gridMap, players, map, currentRound, selectedC
         // }
       }
     },
-    [players, map, currentRound, selectedCharacter]
+    [players, gridCells, map, currentRound, selectedCharacter]
   );
-  const heal = useCallback(
+  const stand = useCallback(
     (character: CharacterUnit) => {
-      console.log("healing...");
+      console.log("stand...");
     },
     [gridMap, players]
   );
@@ -79,6 +72,6 @@ const useCombatAct = ({ cellSize, gridMap, players, map, currentRound, selectedC
     // if (selectedCharacter?.walkables) {
     // }
   }, [gridMap, players, selectedCharacter]);
-  return { walk, attack, heal, defend, getWalkables };
+  return { walk, attack, defend };
 };
 export default useCombatAct;

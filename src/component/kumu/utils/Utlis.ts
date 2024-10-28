@@ -1,3 +1,4 @@
+import { CharacterUnit, Player } from "../service/CombatModels";
 
 export interface Character {
     x: number;  // 当前列号
@@ -12,63 +13,7 @@ export interface HexNode {
     cost?: number;
 }
 
-// 定义网格类型
-// export type GridMap = HexNode[][];
 
-// A*算法实现
-// const aStarSearch = (grid: HexNode[][], start: HexNode, end: HexNode): HexNode[] | null => {
-//     const openList: HexNode[] = [];
-//     const closedList: Set<string> = new Set();
-
-//     openList.push(start);
-
-//     while (openList.length > 0) {
-//         // 从开放列表中找出F值最小的节点
-//         const currentNode = openList.reduce((prev, curr) => (prev.f < curr.f ? prev : curr));
-
-//         // 如果找到目标节点，生成路径
-//         if (currentNode.x === end.x && currentNode.y === end.y) {
-//             const path: HexNode[] = [];
-//             let current: HexNode | null = currentNode;
-//             while (current) {
-//                 path.unshift(current);
-//                 current = current.parent;
-//             }
-//             return path;
-//         }
-
-//         // 移出开放列表，加入封闭列表
-//         openList.splice(openList.indexOf(currentNode), 1);
-//         closedList.add(`${currentNode.x},${currentNode.y}`);
-
-//         // 遍历邻居节点
-//         const neighbors = getHexNeighbors(grid, currentNode);
-//         for (const neighbor of neighbors) {
-//             if (closedList.has(`${neighbor.x},${neighbor.y}`) || !neighbor.walkable) {
-//                 continue;
-//             }
-
-//             const tentativeG = currentNode.g + 1; // 假设移动代价为1
-
-//             if (!openList.includes(neighbor)) {
-//                 neighbor.g = tentativeG;
-//                 neighbor.h = heuristic(neighbor, end);
-//                 neighbor.f = neighbor.g + neighbor.h;
-//                 neighbor.parent = currentNode;
-//                 openList.push(neighbor);
-//             } else if (tentativeG < neighbor.g) {
-//                 neighbor.g = tentativeG;
-//                 neighbor.f = neighbor.g + neighbor.h;
-//                 neighbor.parent = currentNode;
-//             }
-//         }
-//     }
-
-//     // 找不到路径
-//     return null;
-// };
-
-// 获取邻居节点（奇数行右偏移半格）
 const getHexNeighbors = (grid: HexNode[][], node: HexNode): HexNode[] => {
     const { x, y } = node;
     const neighbors: HexNode[] = [];
@@ -193,7 +138,29 @@ const getReachableTiles = (grid: HexNode[][], character: Character): { node: Hex
     return reachableTiles;
 };
 
+const findWalkables = (character: CharacterUnit, gridMap: HexNode[][], players: Player[]) => {
 
+    const characters = players?.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
+    const grids: HexNode[][] = gridMap.map<HexNode[]>((row, y) =>
+        row.map((node, x) => {
+            const c = characters?.find((c) => c.position.x === x && c.position.y === y);
+            return { ...node, x, y, walkable: c ? false : node.walkable };
+        })
+    );
+    const { x, y } = character.position;
+    const walkablCells = getReachableTiles(grids, { x, y, movementRange: character.movementRange });
+    if (walkablCells)
+        return walkablCells
+            .filter((w) => w.node.walkable)
+            .map((c) => ({
+                x: c.node.x,
+                y: c.node.y,
+                path: c.path,
+                distance: c.totalCost,
+                level: c.totalCost < character.movementRange ? 1 : 0,
+            }));
+    return;
+}
 const isEnemyInMeleeRange = (grid: HexNode[][], character: Character, enemy: { x: number; y: number }): boolean => {
     // 获取我方角色的可行走格子
     const reachableTiles = getReachableTiles(grid, character);
@@ -230,16 +197,6 @@ const getPosition = (size: number, x: number, y: number): { col: number; row: nu
     const col = row % 2 === 0 ? Math.floor(x / size) : Math.floor((x - size / 2) / size);
     return { col, row }
 }
-// 示例用法
-// const grid = initializeGrid(10, 10);
-// const start = grid[0][0];
-// const end = grid[9][9];
-// const path = aStarSearch(grid, start, end);
 
-// if (path) {
-//     console.log("找到路径:", path.map(node => `(${node.x}, ${node.y})`).join(" -> "));
-// } else {
-//     console.log("未找到路径");
-// }
-export { distance, getPosition, getReachableTiles, isEnemyInMeleeRange };
+export { distance, findWalkables, getPosition, isEnemyInMeleeRange };
 

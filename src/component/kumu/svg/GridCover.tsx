@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import "../map.css";
-import { CharacterUnit, useCombatManager } from "../service/CombatManager";
+import { useCombatManager } from "../service/CombatManager";
+import { CharacterUnit } from "../service/CombatModels";
 interface Props {
   size: number;
   rows: number;

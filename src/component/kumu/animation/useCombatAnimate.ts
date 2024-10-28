@@ -1,7 +1,8 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
-import { CharacterUnit, GridCell, WalkableNode } from "../service/CombatManager";
+import { CharacterUnit, GridCell, WalkableNode } from "../service/CombatModels";
+
 
 const useCombatAnimate = () => {
     const playInit = useCallback((pathCells: GridCell[][], characters: CharacterUnit[], cellSize: number) => {
@@ -29,32 +30,46 @@ const useCombatAnimate = () => {
         tl.play();
 
     }, [])
-    const playSelect = useCallback(({ gridCells, unselects, walkables }: { gridCells: GridCell[][], unselects?: WalkableNode[]; walkables?: WalkableNode[] }) => {
+    const playUnSelect = useCallback(({ gridCells, walkables, timeline }: { gridCells: GridCell[][]; walkables?: WalkableNode[]; timeline: gsap.core.Timeline | null }) => {
 
         if (!walkables) return;
-        let i = 0;
-        const cells = walkables.map((c) => ({ ...c, ...gridCells[c.y][c.x] }));
-        const tl = gsap.timeline();
-        // if (unselects && unselects.length > 0) {
-        //     i = 0;
-        //     const ucells = unselects.map((c) => ({ ...c, ...gridCells[c.y][c.x] }));
-        //     for (const cell of ucells) {
-        //         if (i === 0)
-        //             tl.to(cell.gridContainer, { autoAlpha: 0.3, duration: 0.7 });
-        //         else
-        //             tl.to(cell.gridContainer, { autoAlpha: 0.3, duration: 0.7 }, "<");
-        //         i++;
-        //     }
-        // }
-        // console.log(cells)
-        for (const cell of cells) {
-            tl.to(cell.gridGround, { autoAlpha: cell.level === 0 ? 0.3 : 0.6, duration: 0.7 }, i === 0 ? ">" : "<");
-            // tl.to(cell.gridCover, { pointerEvents: "auto" }, "<");
-            i++;
-        }
 
-        tl.play();
-        // console.log(cells)
+        const cells = walkables.map((c) => ({ ...c, ...gridCells[c.y][c.x] }));
+        const tl = timeline ?? gsap.timeline();
+        for (const cell of cells) {
+            tl.to(cell.gridGround, { autoAlpha: 0, duration: 0.1 }, "<");
+        }
+        if (!timeline) {
+            tl.play();
+        } else
+            console.log("play unselect")
+
+    }, [])
+    const playSelect = useCallback(({ gridCells, walkables, timeline }: { gridCells: GridCell[][]; walkables?: WalkableNode[]; timeline: gsap.core.Timeline | null }) => {
+
+        if (!walkables) return;
+        const cells = walkables.map((c) => ({ ...c, ...gridCells[c.y][c.x] }));
+        const tl = timeline ?? gsap.timeline({ defaults: { ease: "none" }, autoRemoveChildren: false });
+        let distance = 1;
+        const maxDistance = Math.max(...cells.map(c => c.distance)); // 计算 cells 中最大 distance 值
+        while (distance <= maxDistance) {  // 添加上限来防止无限循环
+            const nodes = cells.filter((c) => c.distance === distance);
+            nodes.forEach((node) => {
+                const cell = gridCells[node.y][node.x];
+                tl.to(cell.gridGround, { autoAlpha: node.level === 0 ? 0.3 : 0.6, duration: 0.7 }, "<");
+            })
+
+            if (nodes.length === 0) {
+                break;
+            } else
+                tl.to({}, {}, ">-0.6");
+            distance++;
+        }
+        if (!timeline) {
+            tl.play();
+        } else
+            console.log("play select")
+
     }, [])
 
     const playWalk = useCallback((character: CharacterUnit, path: { x: number; y: number }[], cellSize: number, timeline: gsap.core.Timeline | null) => {
@@ -102,6 +117,6 @@ const useCombatAnimate = () => {
 
     }, [])
 
-    return { playSelect, playWalk, playInit, playTurnOver, playTurnReady }
+    return { playSelect, playUnSelect, playWalk, playInit, playTurnOver, playTurnReady }
 }
 export default useCombatAnimate

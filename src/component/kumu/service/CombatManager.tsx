@@ -1,116 +1,22 @@
+import gsap from "gsap";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import useLocalization from "service/LocalizationManager";
 import { usePartnerManager } from "service/PartnerManager";
-
 import useCombatAnimate from "../animation/useCombatAnimate";
+import { findWalkables } from "../utils/Utlis";
+import {
+  CharacterUnit,
+  CombatAction,
+  CombatRound,
+  GridCell,
+  HexNode,
+  ICombatContext,
+  MapModel,
+  Player,
+  WalkableNode,
+} from "./CombatModels";
 import useCombatAct from "./useCombatAct";
-export enum ACT_CODE {
-  WALK = 1,
-  ATTACK = 2,
-  DEFEND = 3,
-  STANDBY = 4,
-}
-export interface Character {
-  x: number; // 当前列号
-  y: number; // 当前行号
-  movementRange: number; // 角色可移动的最大范围
-}
-// 定义HexNode接口
-export interface HexNode {
-  x: number;
-  y: number;
-  walkable?: boolean;
-  type?: number; //0-field 1-obstacle 2-unavailable
-}
-export interface Player {
-  uid: string;
-  characters: CharacterUnit[];
-}
-interface CombatAction {
-  code: number;
-  data: any;
-  time: number;
-}
-export interface CombatRound {
-  no: number;
-  uid: string;
-  actors: { id: number; actions: CombatAction[]; actCompleted: boolean }[];
-  startTime: number;
-  endTime?: number;
-}
-export interface GridCell {
-  x: number;
-  y: number;
-  gridContainer: SVGSVGElement | null;
-  gridGround: SVGPolygonElement | null;
-  gridStand: SVGPolygonElement | null;
-  gridAttack: SVGCircleElement | null;
-  gridCover: HTMLDivElement | null;
-}
-export interface ObstacleCell {
-  row: number;
-  col: number;
-  asset: string;
-  type?: number;
-  walkable?: boolean;
-  element?: HTMLDivElement;
-}
-export interface WalkableNode extends HexNode {
-  path?: { x: number; y: number }[];
-  distance: number; // 距离角色的步数
-  level?: number;
-}
-export interface AttackableNode extends HexNode {
-  distance: number; // 距离角色的步数
-  level?: number;
-}
-export interface SkillableNode extends HexNode {
-  distance: number; // 距离角色的步数
-  level?: number;
-}
-export interface CharacterUnit {
-  id: number;
-  position: { x: number; y: number };
-  movementRange: number;
-  attackRange?: number;
-  asset: string;
-  container?: HTMLDivElement;
-  walkables?: WalkableNode[];
-  attackables?: AttackableNode[];
-  skillables?: SkillableNode[];
-}
-export interface MapModel {
-  rows: number;
-  cols: number;
-  obstacles?: ObstacleCell[];
-  disables?: { x: number; y: number }[];
-}
 
-export interface ICombatContext {
-  cellSize: number;
-  // mapSize: { rows: number; cols: number };
-  map: MapModel;
-  gridMap: HexNode[][] | null;
-  gridCells: GridCell[][] | null;
-  players: Player[] | null;
-  currentRound: CombatRound | null;
-  selectedCharacter: CharacterUnit | null;
-  // select: (character: CharacterUnit) => void;
-  // walk: (character: CharacterUnit, to: WalkableNode) => void;
-  setResourceLoad: React.Dispatch<
-    React.SetStateAction<{
-      character: number;
-      gridContainer: number;
-      gridGround: number;
-      gridCover: number;
-      gridStand: number;
-      gridAttack: number;
-    }>
-  >;
-  setSelectedCharacter: React.Dispatch<React.SetStateAction<CharacterUnit | null>>;
-  changeMap: React.Dispatch<React.SetStateAction<MapModel>>;
-  changeCellSize: React.Dispatch<React.SetStateAction<number>>;
-}
 const CombatContext = createContext<ICombatContext>({
   cellSize: 0,
   // mapSize: { rows: 7, cols: 8 },
@@ -119,6 +25,7 @@ const CombatContext = createContext<ICombatContext>({
   gridCells: null,
   players: [],
   currentRound: null,
+  currentAction: null,
   selectedCharacter: null,
   // select: () => null,
   // walk: () => null,
@@ -169,6 +76,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   });
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
   const [players, setPlayers] = useState<Player[] | null>(null);
+  const [currentAction, setCurrentAction] = useState<CombatAction | null>(null);
   const [currentRound, setCurrentRound] = useState<CombatRound | null>({
     no: 1,
     uid: "1",
@@ -223,8 +131,8 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [resourceLoad, players, gridCells, cellSize, playInit]);
   useEffect(() => {
-    const player = allPlayers.find((p) => p.uid === "1");
-    if (player) setSelectedCharacter(player.characters[0]);
+    // const player = allPlayers.find((p) => p.uid === "1");
+    // if (player) setSelectedCharacter(player.characters[0]);
     setPlayers(allPlayers);
   }, []);
   useEffect(() => {
@@ -252,6 +160,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     gridCells,
     players,
     currentRound,
+    currentAction,
     selectedCharacter,
     setResourceLoad,
     setSelectedCharacter,
@@ -265,8 +174,8 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
 export const useCombatManager = () => {
   const ctx = useContext(CombatContext);
   const { cellSize, map, gridMap, gridCells, players, currentRound, selectedCharacter, setSelectedCharacter } = ctx;
-  const { playSelect } = useCombatAnimate();
-  const { walk, getWalkables } = useCombatAct({
+  const { playSelect, playUnSelect } = useCombatAnimate();
+  const { walk } = useCombatAct({
     cellSize,
     map,
     gridMap,
@@ -277,25 +186,23 @@ export const useCombatManager = () => {
     setSelectedCharacter,
   });
 
-  useEffect(() => {
-    if (gridCells && selectedCharacter) {
-      const walkables: WalkableNode[] | undefined = getWalkables(selectedCharacter);
-      selectedCharacter.walkables = walkables;
-      playSelect({ gridCells, unselects: [], walkables });
-    }
-  }, [gridCells, selectedCharacter]);
   const select = useCallback(
     (character: CharacterUnit) => {
-      console.log(character);
-      const walkables: WalkableNode[] | undefined = getWalkables(character);
+      if (!gridMap || !players || character === selectedCharacter) return;
+      const walkables: WalkableNode[] | undefined = findWalkables(character, gridMap, players);
 
       if (walkables && gridCells) {
         character.walkables = walkables;
-        // console.log(character);
-        setSelectedCharacter((pre) => {
-          playSelect({ gridCells, unselects: pre?.walkables, walkables });
-          return character;
-        });
+
+        const timeline = gsap.timeline({ defaults: { ease: "none" }, autoRemoveChildren: false });
+        if (selectedCharacter) {
+          playUnSelect({ gridCells, walkables: selectedCharacter.walkables, timeline });
+          timeline.to({}, {}, ">");
+        }
+        playSelect({ gridCells, walkables: character.walkables, timeline });
+        timeline.play();
+        setSelectedCharacter(character);
+
         if (currentRound) {
           const index = currentRound.actors.findIndex((a) => a.id === character.id);
           if (index >= 0) {
@@ -307,7 +214,7 @@ export const useCombatManager = () => {
         console.log(currentRound?.actors);
       }
     },
-    [currentRound, gridCells]
+    [currentRound, gridCells, players, gridMap, selectedCharacter]
   );
   return { ...ctx, walk, select };
 };
