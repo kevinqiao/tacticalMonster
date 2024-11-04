@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import ObstacleGrid from "./battle/ObstacleGrid";
 import "./map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
+import useCombatHandlers from "./service/useCombatHandlers";
 import CharacterGrid from "./svg/CharacterGrid";
 import GridGround from "./svg/GridGround";
 const CombatActPanel: React.FC = () => {
+  const { currentAction } = useCombatManager();
   return (
     <div className="action-panel" style={{ left: 0 }}>
       <div className="action-panel-item">SKILL</div>
@@ -48,7 +50,12 @@ const BattleVenue: React.FC = () => {
     width: number;
     height: number;
   } | null>(null);
-  const { map, changeCellSize } = useCombatManager();
+  const { map, changeCellSize, currentRound } = useCombatManager();
+  useCombatHandlers();
+
+  useEffect(() => {
+    console.log(currentRound);
+  }, [currentRound]);
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;

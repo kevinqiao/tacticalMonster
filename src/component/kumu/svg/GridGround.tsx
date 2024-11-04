@@ -1,8 +1,6 @@
-import gsap from "gsap";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import "../map.css";
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit } from "../service/CombatModels";
 
 interface HexagonProps {
   size: number; // 六边形的边长
@@ -16,7 +14,8 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
   const groundRef = useRef<SVGPolygonElement | null>(null);
   const standRef = useRef<SVGPolygonElement | null>(null);
   const attackRef = useRef<SVGCircleElement | null>(null);
-  const { walk, gridMap, gridCells, players, selectedCharacter, setResourceLoad } = useCombatManager();
+  const { gridMap, gridCells, players, setResourceLoad, walk } = useCombatManager();
+
   const points: [number, number][] = [
     [size / 2, 0], // 顶点1
     [size, size * 0.25], // 顶点2
@@ -47,27 +46,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
   const innerPolygonPoints = innerPoints.map((point) => point.join(",")).join(" ");
 
   const hexHeight = size * 1; // 六边形的标准高度为边长的 sqrt(3)/2
-  useEffect(() => {
-    // if (!map) return;
-    // const { disables } = map;
-    // const disable = disables?.find((d) => d.x === col && d.y === row);
-    if (gridMap && gridMap[row][col] && gridMap[row][col].type === 2) {
-      gsap.set(baseRef.current, { autoAlpha: 0 });
-    }
-  }, [gridMap, row, col]);
-  useEffect(() => {
-    const characters = players?.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-    const character = characters?.find((c) => c.position.x === col && c.position.y === row);
-    if (character) {
-      if (
-        selectedCharacter &&
-        character.position.x === selectedCharacter.position.x &&
-        character.position.y === selectedCharacter.position.y
-      ) {
-        gsap.set(standRef.current, { autoAlpha: 1 });
-      } else gsap.set(standRef.current, { autoAlpha: 0 });
-    }
-  }, [players, selectedCharacter]);
+
   const loadContainer = useCallback(
     (ele: SVGSVGElement) => {
       if (gridCells) {
@@ -160,17 +139,19 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
           fill={"grey"}
           stroke={"white"}
           strokeWidth={3}
-          opacity={"0.1"}
+          opacity={"0"}
+          pointerEvents="auto"
           onClick={() => console.log("base:" + row + ":" + col)}
         />
         <polygon
           ref={loadGround}
           points={outerPolygonPoints}
           fill={"black"}
-          stroke={"green"}
+          stroke={"white"}
           strokeWidth={4}
-          opacity={"1"}
+          opacity={"0"}
           visibility={"hidden"}
+          pointerEvents="auto"
           onClick={() => walk({ x: col, y: row })}
         />
         <polygon
@@ -205,33 +186,9 @@ interface Props {
 }
 
 const GridGround: React.FC = () => {
-  const { selectedCharacter, map, cellSize: size, gridCells, players, gridMap, walk } = useCombatManager();
+  const { map, cellSize: size, gridCells, players, gridMap } = useCombatManager();
   const { rows, cols } = map;
 
-  const handleClick = useCallback(
-    (x: number, y: number) => {
-      console.log("handle click on:" + x + "-" + y);
-      const player = players?.find((p) => p.uid === "1");
-      const opponent = players?.find((p) => p.uid !== "1");
-      const teamCharacter = player?.characters.find((c) => c.position.x === x && c.position.y === y);
-      if (teamCharacter) {
-        //help();
-        return;
-      }
-      const opponentCharacter = opponent?.characters.find((c) => c.position.x === x && c.position.y === y);
-      if (opponentCharacter) {
-        //attack
-        return;
-      }
-      if (selectedCharacter?.walkables) {
-        const move = selectedCharacter.walkables.find((c) => c.x === x && c.y === y);
-        if (move) {
-          walk(move);
-        }
-      }
-    },
-    [gridMap, selectedCharacter]
-  );
   return (
     <>
       {gridCells ? (
@@ -254,6 +211,7 @@ const GridGround: React.FC = () => {
                     width: `${size}px`,
                     height: `${size}px`,
                     margin: 0,
+                    pointerEvents: "none",
                   }}
                   // onClick={() => handleClick(col, row)}
                 >

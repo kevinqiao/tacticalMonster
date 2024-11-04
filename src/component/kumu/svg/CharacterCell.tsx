@@ -8,7 +8,7 @@ interface Props {
 }
 
 const CharacterCell: React.FC<Props> = ({ character }) => {
-  const { cellSize: size, setResourceLoad, select } = useCombatManager();
+  const { cellSize: size, setResourceLoad } = useCombatManager();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -40,11 +40,10 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
           width: `${size}px`,
           height: `${size}px`,
           margin: 0,
-          // opacity: 0,
-          // visibility: "hidden",
+          opacity: 0,
+          visibility: "hidden",
           pointerEvents: "auto",
         }}
-        onClick={() => select(character)}
       >
         <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} />
       </div>

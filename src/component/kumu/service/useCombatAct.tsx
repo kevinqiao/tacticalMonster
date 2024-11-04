@@ -1,21 +1,43 @@
-import gsap from "gsap";
-import { useCallback } from "react";
-import useCombatAnimate from "../animation/useCombatAnimate";
-import { HexNode } from "../utils/Utlis";
-import { CharacterUnit, CombatRound, GridCell, MapModel, Player } from "./CombatModels";
+import { useCallback, useMemo } from "react";
+import { getHexNeighbors } from "../utils/Utlis";
+import {
+  ACT_CODE,
+  CharacterUnit,
+  CombatAction,
+  CombatEvent,
+  CombatRound,
+  CombatTurn,
+  EVENT_TYPE,
+  HexNode,
+  Player,
+  WalkableNode,
+} from "./CombatModels";
 
 interface Props {
-  cellSize: number;
-  currentRound: CombatRound | null;
+  eventQueue: CombatEvent[];
   gridMap: HexNode[][] | null;
-  gridCells: GridCell[][] | null;
   players: Player[] | null;
-  map: MapModel;
-  selectedCharacter: CharacterUnit | null;
-  setSelectedCharacter: React.Dispatch<React.SetStateAction<CharacterUnit | null>>;
+  currentRound: CombatRound | null;
+  currentTurn: CombatTurn | null;
+  currentAction: CombatAction | null;
+  setCurrentRound: React.Dispatch<React.SetStateAction<CombatRound | null>>;
+  setCurrentTurn: React.Dispatch<React.SetStateAction<CombatTurn | null>>;
+  setCurrentAction: React.Dispatch<React.SetStateAction<CombatAction | null>>;
 }
-const useCombatAct = ({ cellSize, gridMap, gridCells, players, map, currentRound, selectedCharacter }: Props) => {
-  const { playWalk, playUnSelect, playTurnOver, playTurnReady } = useCombatAnimate();
+const useCombatAct = ({
+  eventQueue,
+  gridMap,
+  players,
+  currentAction,
+  currentTurn,
+  currentRound,
+  setCurrentAction,
+  setCurrentTurn,
+  setCurrentRound,
+}: Props) => {
+  const characters = useMemo(() => {
+    if (players) return players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
+  }, [players]);
 
   const attack = useCallback(
     (character: CharacterUnit, dx: number, dy: number) => {
@@ -25,53 +47,49 @@ const useCombatAct = ({ cellSize, gridMap, gridCells, players, map, currentRound
   );
   const walk = useCallback(
     (to: { x: number; y: number }) => {
-      console.log(players);
-      if (!map || !currentRound || !selectedCharacter || !selectedCharacter.walkables) return;
+      if (!currentTurn || !currentRound || !characters || !gridMap) return;
+      const character = characters.find((c) => c.id === currentTurn.character);
+      if (character) {
+        const walkNode = character.walkables?.find((w) => w.x === to.x && w.y === to.y);
+        if (walkNode) {
+          const action: CombatAction = { id: Date.now() + "", code: ACT_CODE.WALK, data: to, status: 0 };
+          // setCurrentAction(action);
+          eventQueue.push({ type: EVENT_TYPE.TURN_ACT, data: action });
+          if (walkNode.turnEnd) {
+            const nextTurn = currentRound.turns.find((t) => t.no === currentTurn.no + 1);
+            if (nextTurn) {
+              eventQueue.push({ type: EVENT_TYPE.TURN_INIT, data: nextTurn });
+            }
+          } else {
+            const neighbors: HexNode[] = getHexNeighbors(gridMap, to);
+            const nodes = neighbors.filter((n) => {
+              const ch = characters.find((c) => c.position.x == n.x && c.position.y === n.y);
+              return !ch || (ch.id === character.id && ch.uid === character.uid) ? true : false;
+            });
+            console.log(nodes);
 
-      const walkNode = selectedCharacter.walkables.find((w) => w.x === to.x && w.y === to.y);
-      if (walkNode?.path && gridCells) {
-        const { x: cx, y: cy } = selectedCharacter.position;
-        const path: { x: number; y: number }[] = walkNode.path;
-        const timeline = gsap.timeline({
-          onComplete: () => {
-            selectedCharacter.position = to;
-            timeline.kill();
-          },
-        });
-        const cell = gridCells[cy][cx];
-        if (cell) {
-          timeline.to(cell.gridStand, { autoAlpha: 0, duration: 0.1 });
-          playUnSelect({ gridCells, walkables: selectedCharacter.walkables, timeline });
+            nodes.forEach((c) => {
+              const w: WalkableNode = c as WalkableNode;
+              w.path = [to, { x: c.x, y: c.y }];
+              w.turnEnd = 1;
+            });
+            action.result = { walkables: nodes };
+          }
         }
-        timeline.to({}, {}, ">");
-        playWalk(selectedCharacter, path, cellSize, timeline);
-        if (walkNode.level === 0) {
-          console.log("complete turn");
-        } else {
-          console.log("play stand to do next");
-        }
-        timeline.play();
-        // const actor = currentRound.actors.find((a) => a.id === character.id);
-        // if (actor) {
-        //   actor.actions.push({ code: ACT_CODE.WALK, data: to, time: Date.now() });
-        //   if (to.level === 0 || actor.actions.length === 2) actor.actCompleted = true;
-        //   playWalk(selectedCharacter, path, cellSize, null);
-        // }
       }
     },
-    [players, gridCells, map, currentRound, selectedCharacter]
+    [currentTurn, currentRound, characters, gridMap]
   );
-  const stand = useCallback(
+
+  const standBy = useCallback(
     (character: CharacterUnit) => {
       console.log("stand...");
     },
     [gridMap, players]
   );
   const defend = useCallback(() => {
-    const tl = gsap.timeline();
-    // if (selectedCharacter?.walkables) {
-    // }
-  }, [gridMap, players, selectedCharacter]);
-  return { walk, attack, defend };
+    console.log("defend....");
+  }, [gridMap, players]);
+  return { walk, attack, defend, standBy };
 };
 export default useCombatAct;

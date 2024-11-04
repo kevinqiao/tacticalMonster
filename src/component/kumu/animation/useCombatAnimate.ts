@@ -1,122 +1,106 @@
-
 import gsap from "gsap";
-import { useCallback } from "react";
-import { CharacterUnit, GridCell, WalkableNode } from "../service/CombatModels";
+import { useCallback, useEffect, useMemo } from "react";
+import { useCombatManager } from "../service/CombatManager";
+import { CharacterUnit, CombatAction, CombatRound, CombatTurn, GridCell, HexNode, Player } from "../service/CombatModels";
+import playCombatInit from "./playCombatInit";
 
+import playTurnSet from "./playTurnSet";
 
+interface Props {
+    cellSize: number;
+    gridMap: HexNode[][] | null;
+    gridCells: GridCell[][] | null;
+    players: Player[] | null;
+    currentRound: CombatRound | null;
+    currentTurn: CombatTurn | null;
+    currentAction: CombatAction | null;
+    resourceLoad: {
+        character: number;
+        gridContainer: number;
+        gridGround: number;
+        gridCover: number;
+        gridStand: number;
+        gridAttack: number;
+    } | null;
+    setCurrentRound: React.Dispatch<React.SetStateAction<CombatRound | null>>;
+    setCurrentTurn: React.Dispatch<React.SetStateAction<CombatTurn | null>>;
+    setCurrentAction: React.Dispatch<React.SetStateAction<CombatAction | null>>;
+
+}
 const useCombatAnimate = () => {
-    const playInit = useCallback((pathCells: GridCell[][], characters: CharacterUnit[], cellSize: number) => {
-        console.log("play init...")
-        if (!pathCells) return;
-        const tl = gsap.timeline();
-        for (const character of characters) {
-            const { x, y } = character.position;
-            const dx = y % 2 !== 0 ? x * cellSize + cellSize / 2 : x * cellSize;
-            const dy = y * (cellSize * 0.75);
-            if (character.container) {
-                // console.log(character)
-                tl.fromTo(character.container, { x: dx, y: dy, autoAlpha: 1, scale: 0.4 }, { scale: 0.6, duration: 1 }, "<");
-            }
-        }
-        // let i = 0;
-        // for (const character of characters) {
-        //     const { x, y } = character.position;
-        //     const cell = pathCells[y][x];
-        //     if (cell) {
-        //         tl.to(cell.gridCover, { pointerEvents: 'auto', autoAlpha: 1, duration: 0.7 }, i === 0 ? ">+0.4" : "<");
-        //         i++;
-        //     }
-        // }
-        tl.play();
+    const { cellSize, resourceLoad, gridMap, gridCells, players, currentRound, currentTurn, currentAction, setCurrentTurn, setCurrentAction } = useCombatManager();
 
-    }, [])
-    const playUnSelect = useCallback(({ gridCells, walkables, timeline }: { gridCells: GridCell[][]; walkables?: WalkableNode[]; timeline: gsap.core.Timeline | null }) => {
+    console.log("combat animate....")
+    console.log(currentTurn)
+    const characters = useMemo(() => {
+        if (players)
+            return players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
+    }, [players])
+    const isResourceReady = resourceLoad ? Object.values(resourceLoad).every((value) => value === 1) : false
+    useEffect(() => {
+        if (!isResourceReady || !gridMap || !characters || !gridCells) return;
+        playCombatInit({ gridMap, gridCells, characters });
+    }, [characters, gridMap, gridCells, isResourceReady])
 
-        if (!walkables) return;
+    useEffect(() => {
+        if (!isResourceReady) return;
+        if (currentRound?.status === 0) {
+            playRoundStart();
+            console.log("play round start and set round statu=1")
+        } else if (currentRound?.status === 2)
+            playRoundOver();
+        console.log("play round over")
 
-        const cells = walkables.map((c) => ({ ...c, ...gridCells[c.y][c.x] }));
-        const tl = timeline ?? gsap.timeline();
-        for (const cell of cells) {
-            tl.to(cell.gridGround, { autoAlpha: 0, duration: 0.1 }, "<");
-        }
-        if (!timeline) {
-            tl.play();
-        } else
-            console.log("play unselect")
+    }, [currentRound, isResourceReady])
 
-    }, [])
-    const playSelect = useCallback(({ gridCells, walkables, timeline }: { gridCells: GridCell[][]; walkables?: WalkableNode[]; timeline: gsap.core.Timeline | null }) => {
-
-        if (!walkables) return;
-        const cells = walkables.map((c) => ({ ...c, ...gridCells[c.y][c.x] }));
-        const tl = timeline ?? gsap.timeline({ defaults: { ease: "none" }, autoRemoveChildren: false });
-        let distance = 1;
-        const maxDistance = Math.max(...cells.map(c => c.distance)); // 计算 cells 中最大 distance 值
-        while (distance <= maxDistance) {  // 添加上限来防止无限循环
-            const nodes = cells.filter((c) => c.distance === distance);
-            nodes.forEach((node) => {
-                const cell = gridCells[node.y][node.x];
-                tl.to(cell.gridGround, { autoAlpha: node.level === 0 ? 0.3 : 0.6, duration: 0.7 }, "<");
+    useEffect(() => {
+        if (!isResourceReady || !gridCells || !characters || !currentTurn) return;
+        if (currentTurn?.status === 0) {
+            const tl = gsap.timeline({
+                onComplete: () => setCurrentTurn((pre) => pre ? { ...pre, status: 1 } : pre)
             })
-
-            if (nodes.length === 0) {
-                break;
-            } else
-                tl.to({}, {}, ">-0.6");
-            distance++;
-        }
-        if (!timeline) {
+            playTurnStart(tl);
             tl.play();
-        } else
-            console.log("play select")
+        } else if (currentTurn?.status === 2)
+            playTurnOver();
+        else if (currentTurn?.status === 1) {
+            playTurnSet({ currentTurn, characters, gridCells });
+        }
 
-    }, [])
+    }, [currentTurn, gridCells, characters, isResourceReady])
 
-    const playWalk = useCallback((character: CharacterUnit, path: { x: number; y: number }[], cellSize: number, timeline: gsap.core.Timeline | null) => {
-        const ele = character.container;
-        if (!ele) return;
-        const tl = timeline ?? gsap.timeline({ defaults: { ease: "none" }, autoRemoveChildren: false });
-        path.forEach(({ x, y }, index) => {
-            const dx = y % 2 !== 0 ? x * cellSize + cellSize / 2 : x * cellSize;
-            const dy = y * cellSize * 0.75;
-            tl.to(ele, {
-                x: Math.floor(dx),
-                y: Math.floor(dy),
-                duration: 0.2,
-                onStart: () => {
-                    console.log(`Moving to hex: (${x}, ${y})`);
+
+    useEffect(() => {
+
+        if (currentAction?.status === 0) {
+            const timeline = gsap.timeline({
+                onComplete: () => {
+                    console.log("turn action complete")
+                    setCurrentAction((pre) => pre ? ({ ...pre, status: 1 }) : pre)
+                    timeline.kill();
                 }
-            });
-        });
-
-        tl.play();
-
-    }, [])
-    const playTurnOver = useCallback((gridCells: GridCell[][], character: CharacterUnit, timeline: gsap.core.Timeline | null) => {
-        const tl = timeline ?? gsap.timeline();
-        if (character.walkables) {
-            character.walkables.forEach((node) => {
-                const { x, y } = node;
-                const cell = gridCells[y][x];
-                tl.to(cell.gridGround, { autoAlpha: 0.3, duration: 0.4 })
             })
+            // playTurnAct(currentAction);
+            // playTurnAct({ action: currentAction, currentTurn, characters, gridCells, cellSize, timeline });
+            timeline.play();
         }
-        tl.play();
+    }, [currentAction])
 
+    const playRoundStart = useCallback(() => {
+        console.log("play round start")
     }, [])
-    const playTurnReady = useCallback((gridCells: GridCell[][], character: CharacterUnit, timeline: gsap.core.Timeline | null) => {
-        const tl = timeline ?? gsap.timeline();
-        if (character.walkables) {
-            character.walkables.forEach((node) => {
-                const { x, y } = node;
-                const cell = gridCells[y][x];
-                tl.to(cell.gridGround, { autoAlpha: 0.3, duration: 0.4 })
-            })
-        }
-        tl.play();
-
+    const playRoundOver = useCallback(() => {
+        console.log("play round over")
     }, [])
+    const playTurnStart = useCallback((timeline: gsap.core.Timeline) => {
 
-    return { playSelect, playUnSelect, playWalk, playInit, playTurnOver, playTurnReady }
+        console.log("play turn start")
+
+    }, [currentTurn])
+
+    const playTurnOver = useCallback(() => {
+        console.log("play turn over")
+    }, [currentTurn])
+
 }
 export default useCombatAnimate

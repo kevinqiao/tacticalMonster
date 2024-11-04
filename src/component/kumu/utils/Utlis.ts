@@ -14,21 +14,20 @@ export interface HexNode {
 }
 
 
-const getHexNeighbors = (grid: HexNode[][], node: HexNode): HexNode[] => {
+export const getHexNeighbors = (grid: HexNode[][], node: { x: number; y: number }): HexNode[] => {
+    console.log(node)
     const { x, y } = node;
     const neighbors: HexNode[] = [];
 
-    // 奇数行的邻居偏移
     const directionsOdd = [
         { dx: 1, dy: 0 },    // 右
         { dx: -1, dy: 0 },   // 左
         { dx: 1, dy: 1 },    // 右下
         { dx: 1, dy: -1 },   // 右上
-        { dx: -1, dy: 1 },   // 左下
-        { dx: -1, dy: -1 }   // 左上
+        { dx: 0, dy: 1 },   // 左下
+        { dx: 0, dy: -1 }   // 左上
     ];
 
-    // 偶数行的邻居偏移
     const directionsEven = [
         { dx: 1, dy: 0 },    // 右
         { dx: -1, dy: 0 },   // 左
@@ -37,6 +36,8 @@ const getHexNeighbors = (grid: HexNode[][], node: HexNode): HexNode[] => {
         { dx: -1, dy: 1 },   // 左下
         { dx: -1, dy: -1 }   // 左上
     ];
+
+
 
     // 根据行号 y 是奇数还是偶数，选择相应的方向偏移
     const directions = y % 2 === 0 ? directionsEven : directionsOdd;
@@ -54,6 +55,7 @@ const getHexNeighbors = (grid: HexNode[][], node: HexNode): HexNode[] => {
             neighbors.push(grid[ny][nx]);  // 使用 [ny][nx] 访问网格，因为 x 是列，y 是行
         }
     }
+    console.log(neighbors)
     return neighbors;
 };
 
@@ -157,7 +159,7 @@ const findWalkables = (character: CharacterUnit, gridMap: HexNode[][], players: 
                 y: c.node.y,
                 path: c.path,
                 distance: c.totalCost,
-                level: c.totalCost < character.movementRange ? 1 : 0,
+                turnEnd: c.totalCost < character.movementRange ? 0 : 1,
             }));
     return;
 }

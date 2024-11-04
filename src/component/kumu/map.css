@@ -242,6 +242,15 @@
   background-position: center; 
   background-image:  url('../../../public/assets/ground.png');
 }
+hex-tile {
+  position: absolute;
+  width: 100px;
+  height: 86.6px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background-color: rgba(0, 150, 255, 0.5);
+  cursor: pointer;
+  pointer-events: bounding-box;
+}
 /* 响应式调整：根据不同屏幕尺寸调整布局 */
 @media (max-width: 600px) {
     .hexagon {
