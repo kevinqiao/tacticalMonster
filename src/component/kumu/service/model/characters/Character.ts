@@ -9,17 +9,18 @@ export abstract class Character {
     stats: Stats;
     activeEffects: Effect[] = [];
     skillCooldowns: { [skill_id: string]: number } = {};
-    skillManager: SkillManager;
+    public skillManager!: SkillManager;
 
-    constructor(id: string, name: string, attributes: Attributes, stats: Stats, skillManager: SkillManager) {
+    constructor(id: string, name: string, attributes: Attributes, stats: Stats) {
         this._id = id;
         this.name = name;
 
         this.attributes = attributes;
         this.stats = stats;
-        this.skillManager = skillManager;
     }
-
+    setSkillManager(_skillManager: SkillManager) {
+        this.skillManager = _skillManager;
+    }
     // 更新角色的生命值
     updateHealth(newHp: number) {
         this.stats.hp.current = Math.max(0, Math.min(newHp, this.stats.hp.max));
@@ -63,13 +64,13 @@ export abstract class Character {
         }
 
         // 将效果添加到活跃效果列表中，以便后续管理
-        this.activeEffects.push({ ...effect, remaining_duration: effect.duration });
+        this.activeEffects.push({ ...effect, remaining_duration: effect.remaining_duration });
     }
 
     // 在每回合结束时更新效果的持续时间
     updateEffects() {
         this.activeEffects = this.activeEffects.filter(effect => {
-            effect.remaining_duration = (effect.remaining_duration || effect.duration) - 1;
+            effect.remaining_duration = (effect.remaining_duration || effect.remaining_duration) - 1;
             if (effect.remaining_duration > 0) {
                 return true;
             } else {

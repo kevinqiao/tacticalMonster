@@ -3,7 +3,7 @@ import { Character } from './model/characters/Character';
 import { Effect, Skill } from './model/characters/CharacterAttributes';
 
 export abstract class SkillManager {
-    protected character: Character;
+    protected character!: Character;
     protected skills: Skill[];
 
     constructor(character: Character) {
@@ -99,7 +99,6 @@ export class DefaultSkillManager extends SkillManager {
             eventType,
             probability: Math.random()
         };
-
         const { events } = await this.engine.run(facts);
         events.forEach(event => this.executeSkill(event.params?.skillId, target));
     }
@@ -175,8 +174,8 @@ export class DefaultSkillManager extends SkillManager {
                 break;
             case 'buff':
             case 'debuff':
-                recipient.activeEffects.push({ ...effect, remaining_duration: effect.duration });
-                console.log(`${recipient.name} is affected by ${effect.name} for ${effect.duration} turns.`);
+                recipient.activeEffects.push({ ...effect, remaining_duration: effect.remaining_duration });
+                console.log(`${recipient.name} is affected by ${effect.name} for ${effect.remaining_duration} turns.`);
                 break;
             default:
                 console.warn(`Unknown effect type: ${effect.effect_type}`);

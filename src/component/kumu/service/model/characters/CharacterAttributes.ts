@@ -71,11 +71,10 @@ export interface Stats {
 export interface Effect {
     effect_id: string;                          // 唯一标识符
     name: string;                               // 效果名称，如"Poison", "Burn"
-    source: "equipment" | "status";             // 来源，标识是装备效果还是状态效果
+    // source: "equipment" | "status";             // 来源，标识是装备效果还是状态效果
     effect_type: "damage" | "heal" | "buff" | "debuff" | "dot" | "hot" | "poison" | "burn" | "stun"; // 效果类型
     target_attribute: keyof Stats;                   // 影响的属性，例如"hp", "attack", "defense"
     value: number;                              // 效果的值，正数表示增益，负数表示减益
-    duration: number;                           // 效果的初始持续回合数
     remaining_duration: number;                 // 当前剩余回合数
 }
 

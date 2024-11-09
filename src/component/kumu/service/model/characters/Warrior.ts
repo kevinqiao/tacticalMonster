@@ -1,10 +1,9 @@
-import { SkillManager } from "../../SkillManager";
 import { Character } from "./Character";
 import { Attributes, Stats } from "./CharacterAttributes";
 
 export class Warrior extends Character {
-    constructor(id: string, name: string, attributes: Attributes, stats: Stats, skillManager: SkillManager) {
-        super(id, name, attributes, stats, skillManager);
+    constructor(id: string, name: string, attributes: Attributes, stats: Stats) {
+        super(id, name, attributes, stats);
     }
 
     // Warrior 的专属技能：强力攻击
