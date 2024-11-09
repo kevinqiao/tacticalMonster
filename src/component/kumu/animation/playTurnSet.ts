@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { CharacterUnit, CombatTurn, GridCell } from "../service/CombatModels";
+import { CharacterUnit, CombatTurn, GridCell } from "../service/model/CombatModels";
 interface Props {
     currentTurn: CombatTurn;
     gridCells: GridCell[][];

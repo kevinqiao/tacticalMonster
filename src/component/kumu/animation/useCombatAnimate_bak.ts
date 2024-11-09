@@ -1,5 +1,5 @@
 
-import { CombatAction, CombatRound, CombatTurn, GridCell, HexNode, Player } from "../service/CombatModels";
+import { CombatAction, CombatRound, CombatTurn, GridCell, HexNode, Player } from "../service/model/CombatModels";
 interface Props {
     cellSize: number;
     gridMap: HexNode[][] | null;

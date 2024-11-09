@@ -42,6 +42,8 @@ import type * as model_Defender from "../model/Defender.js";
 import type * as model_Tournament from "../model/Tournament.js";
 import type * as order from "../order.js";
 import type * as partner from "../partner.js";
+import type * as rule_test from "../rule/test.js";
+import type * as service_tmGameService from "../service/tmGameService.js";
 import type * as tournaments from "../tournaments.js";
 import type * as tournamentService from "../tournamentService.js";
 import type * as user from "../user.js";
@@ -84,6 +86,8 @@ declare const fullApi: ApiFromModules<{
   "model/Tournament": typeof model_Tournament;
   order: typeof order;
   partner: typeof partner;
+  "rule/test": typeof rule_test;
+  "service/tmGameService": typeof service_tmGameService;
   tournaments: typeof tournaments;
   tournamentService: typeof tournamentService;
   user: typeof user;

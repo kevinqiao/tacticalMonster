@@ -2,6 +2,35 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+    tmgame: defineTable({
+        id: v.string(),
+        players: v.array(v.object({ uid: v.string(), characters: v.array(v.object({ id: v.number(), move_arrange: v.number(), position: v.object({ x: v.number(), y: v.number() }) })) })),
+        obstacles: v.array(v.object({ x: v.number(), y: v.number(), asset: v.number(), type: v.optional(v.number()) })),
+        disables: v.array(v.object({ x: v.number(), y: v.number() })),
+        status: v.number(),
+    }),
+    combatEvent: defineTable({
+        type: v.number(),
+        gameId: v.string(),
+        time: v.optional(v.number()),
+        data: v.any(),
+    }).index("by_game", ["gameId"]),
+    games: defineTable({
+        uid: v.string(),
+        tid: v.string(),//tournament type(config) id
+        battleId: v.string(),
+        ref: v.optional(v.string()),
+        seed: v.string(),
+        diffcult: v.string(),
+        laststep: v.optional(v.number()),
+        startTime: v.optional(v.number()),
+        dueTime: v.optional(v.number()),
+        result: v.optional(v.object({ base: v.number(), time: v.number(), goal: v.number() })),//{base:number;time:number;goal:number}
+        score: v.optional(v.number()),//final score used by index
+        status: v.optional(v.number()),//0-open 1-settled 2-rewarded
+        type: v.number(),//0-one time battle tournament 1-leaderboard with pvp 2-leaderboard with best score;
+        data: v.object({ cells: v.array(v.any()), matched: v.optional(v.array(v.any())), skillBuff: v.array(v.object({ skill: v.number(), progress: v.number() })), move: v.optional(v.number()), lastCellId: v.number(), goalCompleteTime: v.optional(v.number()) })
+    }).index("by_seed", ["seed"]).index("by_user_type", ["uid", "type"]).index("by_score", ["score"]).index("by_battle", ['battleId']).index("by_tournament_user", ["tid", "uid"]),
     phonecode: defineTable({
         partner: v.number(),
         phone: v.string(),
@@ -27,22 +56,6 @@ export default defineSchema({
         average: v.number(),
         counts: v.number()
     }),
-    games: defineTable({
-        uid: v.string(),
-        tid: v.string(),//tournament type(config) id
-        battleId: v.string(),
-        ref: v.optional(v.string()),
-        seed: v.string(),
-        diffcult: v.string(),
-        laststep: v.optional(v.number()),
-        startTime: v.optional(v.number()),
-        dueTime: v.optional(v.number()),
-        result: v.optional(v.object({ base: v.number(), time: v.number(), goal: v.number() })),//{base:number;time:number;goal:number}
-        score: v.optional(v.number()),//final score used by index
-        status: v.optional(v.number()),//0-open 1-settled 2-rewarded
-        type: v.number(),//0-one time battle tournament 1-leaderboard with pvp 2-leaderboard with best score;
-        data: v.object({ cells: v.array(v.any()), matched: v.optional(v.array(v.any())), skillBuff: v.array(v.object({ skill: v.number(), progress: v.number() })), move: v.optional(v.number()), lastCellId: v.number(), goalCompleteTime: v.optional(v.number()) })
-    }).index("by_seed", ["seed"]).index("by_user_type", ["uid", "type"]).index("by_score", ["score"]).index("by_battle", ['battleId']).index("by_tournament_user", ["tid", "uid"]),
     events: defineTable({
         name: v.string(),
         battleId: v.optional(v.string()),
@@ -197,30 +210,6 @@ export default defineSchema({
         data: v.optional(v.any()),
     }).index("by_location", ["partnerId", "locationId"]).index("by_partner_oid", ['partnerId', 'oid']).index("by_partner_customer", ['partnerId', 'uid']),
 
-    // loyalty_reward_collect_rule: defineTable({
-    //     partnerId: v.number(),
-    //     type: v.number(),//0-order 1-review
-    //     rule: v.any(),//{amount,points,stamp},{star,points,stamp} 
-    //     status: v.number(),//0-active 1-inactive
-    // }),
-
-    // loyalty_reward_record: defineTable({
-    //     uid: v.string(),
-    //     transactionType: v.number(),//0-earned 1-spent
-    //     sourceType: v.number(),//0-order 1-review 2-coupon
-    //     sourceId: v.string(),
-    //     stamp: v.optional(v.number()),
-    //     point: v.optional(v.number()),
-    //     status: v.number(),//0-created 1-cancelled
-    // }).index("by_user", ['uid']),
-
-    // loyalty_reward_claim_rule: defineTable({
-    //     partnerId: v.number(),
-    //     claim: v.object({ type: v.number(), itemId: v.optional(v.string()) }),//type:0-order 1-review
-    //     stamp: v.number(),
-    //     point: v.number(),
-    //     status: v.number(),//0-active 1-inactive
-    // }),
     loyalty_promotion_rule: defineTable({
         rid: v.string(),
         conditions: v.any(),

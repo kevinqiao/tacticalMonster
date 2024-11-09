@@ -1,4 +1,4 @@
-import { HexNode } from "component/kumu/service/CombatModels";
+import { HexNode } from "component/kumu/service/model/CombatModels";
 import gsap from "gsap";
 import { ActionProps } from "../playTurnAct";
 

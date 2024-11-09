@@ -1,4 +1,6 @@
+import { useAction } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
+import { api } from "../../convex/_generated/api";
 import ObstacleGrid from "./battle/ObstacleGrid";
 import "./map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
@@ -7,11 +9,14 @@ import CharacterGrid from "./svg/CharacterGrid";
 import GridGround from "./svg/GridGround";
 const CombatActPanel: React.FC = () => {
   const { currentAction } = useCombatManager();
+  const doSomething = useAction(api.rule.test.doSomething);
   return (
     <div className="action-panel" style={{ left: 0 }}>
       <div className="action-panel-item">SKILL</div>
       <div className="action-panel-item">STANDBY</div>
-      <div className="action-panel-item">DEFEND</div>
+      <div className="action-panel-item" onClick={() => doSomething()}>
+        DEFEND
+      </div>
     </div>
   );
 };

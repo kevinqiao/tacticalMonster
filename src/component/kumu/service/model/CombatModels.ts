@@ -15,11 +15,6 @@ export enum EVENT_TYPE {
     TURN_OVER = 6,
     TURN_ACT = 7
 }
-export interface Character {
-    x: number; // 当前列号
-    y: number; // 当前行号
-    movementRange: number; // 角色可移动的最大范围
-}
 
 export interface Player {
     uid: string;
@@ -27,30 +22,33 @@ export interface Player {
 }
 export interface CombatEvent {
     type: number;
+    gameId?: string;
     data: CombatRound | CombatTurn | CombatAction;
 }
 export interface CombatAction {
     id: string;
+    round?: number;
+    turn?: number;
     parent?: string;
-    type?: number;//0-user act 1-pre auto 2-post auto 
+    type?: number;//0-user act 1-auto in round start 2-auto in round over 3-auto in turn start 4-auto in turn over 
     code: number;
     data?: object;
     result?: { [k: string]: any };
-    status: number;//0-acting 1-over
+    status: number;//0-open 1-end
 }
 export interface CombatTurn {
     no: number;
+    round: number;
     character: number;
     uid: string;
-    actions: CombatAction[];
-    auto?: CombatAction[];//key:pre pro post
+    actions?: CombatAction[];
     status: number;//0-open 1-inited 2-over
 }
 export interface CombatRound {
     no: number;
     turns: CombatTurn[];
     endTime?: number;
-    auto?: CombatAction[];//key:pre pro post
+    actions?: CombatAction[];
     status: number;//0-open 1-inited 2-over
 }
 export interface GridCell {
@@ -88,7 +86,7 @@ export interface AttackableNode extends HexNode {
 
 export interface CharacterUnit {
     id: number;
-    uid: string;
+    uid?: string;
     speed: number;
     position: { x: number; y: number };
     movementRange: number;

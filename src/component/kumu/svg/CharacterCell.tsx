@@ -2,7 +2,7 @@ import gsap from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
 import "../map.css";
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit } from "../service/CombatModels";
+import { CharacterUnit } from "../service/model/CombatModels";
 interface Props {
   character: CharacterUnit;
 }

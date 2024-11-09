@@ -1,0 +1,99 @@
+{
+  "character_id": "char1",
+  "name": "Mage",
+  "class": "Wizard",
+  "race": "Elf",
+  "level_data": [
+    {
+      "level": 1,
+      "required_exp": 0,
+      "attribute_growth": {
+        "strength": 0,
+        "dexterity": 1,
+        "constitution": 1,
+        "intelligence": 2,
+        "wisdom": 2,
+        "charisma": 0
+      },
+      "new_skills": []
+    },
+    {
+      "level": 2,
+      "required_exp": 100,
+      "attribute_growth": {
+        "strength": 0,
+        "dexterity": 1,
+        "constitution": 1,
+        "intelligence": 2,
+        "wisdom": 1,
+        "charisma": 0
+      },
+      "new_skills": ["arcane_blast"]
+    },
+    {
+      "level": 3,
+      "required_exp": 250,
+      "attribute_growth": {
+        "strength": 0,
+        "dexterity": 1,
+        "constitution": 1,
+        "intelligence": 2,
+        "wisdom": 1,
+        "charisma": 1
+      },
+      "new_skills": []
+    },
+    {
+      "level": 4,
+      "required_exp": 450,
+      "attribute_growth": {
+        "strength": 0,
+        "dexterity": 1,
+        "constitution": 2,
+        "intelligence": 3,
+        "wisdom": 1,
+        "charisma": 1
+      },
+      "new_skills": ["magic_missile"]
+    },
+    {
+      "level": 5,
+      "required_exp": 700,
+      "attribute_growth": {
+        "strength": 1,
+        "dexterity": 1,
+        "constitution": 1,
+        "intelligence": 3,
+        "wisdom": 2,
+        "charisma": 1
+      },
+      "new_skills": ["elemental_barrier"]
+    },
+    {
+      "level": 6,
+      "required_exp": 1050,
+      "attribute_growth": {
+        "strength": 1,
+        "dexterity": 2,
+        "constitution": 2,
+        "intelligence": 3,
+        "wisdom": 2,
+        "charisma": 1
+      },
+      "new_skills": []
+    },
+    {
+      "level": 7,
+      "required_exp": 1450,
+      "attribute_growth": {
+        "strength": 1,
+        "dexterity": 1,
+        "constitution": 1,
+        "intelligence": 4,
+        "wisdom": 2,
+        "charisma": 1
+      },
+      "new_skills": ["arcane_shield"]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "skill_id": "fireball",
+    "name": "Fireball",
+    "description": "Throws a fireball that deals fire damage to the enemy.",
+    "type": "attack",
+    "range": { "area_type": "single", "distance": 3 },
+    "effects": [
+      {
+        "effect_id": "burn",
+        "name": "Burn",
+        "source": "skill",
+        "effect_type": "damage",
+        "target_attribute": "hp",
+        "value": -30,
+        "duration": 3
+      }
+    ],
+    "requirements": { "min_level": 1, "required_class": "Wizard", "required_skills": [] },
+    "resource_cost": { "mp": 20, "hp": 0 },
+    "cooldown": 2,
+    "upgrade_path": [
+      {
+        "level": 2,
+        "upgrade_description": "Increases damage by 10.",
+        "upgraded_effects": [{ "effect_id": "burn", "value": -40 }]
+      }
+    ],
+    "is_passive": false,
+    "trigger_conditions": [{ "trigger_type": "onAttack", "probability": 0.5 }],
+    "tags": ["fire", "damage", "AOE"]
+  },
+  {
+    "skill_id": "arcane_shield",
+    "name": "Arcane Shield",
+    "description": "Creates a magical shield that absorbs damage.",
+    "type": "defense",
+    "range": { "area_type": "self", "distance": 0 },
+    "effects": [
+      {
+        "effect_id": "shield",
+        "name": "Shield",
+        "source": "skill",
+        "effect_type": "buff",
+        "target_attribute": "defense",
+        "value": 20,
+        "duration": 2
+      }
+    ],
+    "requirements": { "min_level": 3, "required_class": "Wizard", "required_skills": [] },
+    "resource_cost": { "mp": 15, "hp": 0 },
+    "cooldown": 3,
+    "is_passive": false,
+    "trigger_conditions": [{ "trigger_type": "onHit", "probability": 0.3 }],
+    "tags": ["buff", "defense"]
+  }
+]

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 
 import { playTurnAct } from "../animation/playTurnAct";
 import { useCombatManager } from "./CombatManager";
-import { CharacterUnit, CombatAction, CombatRound, CombatTurn, HexNode } from "./CombatModels";
+import { CharacterUnit, CombatAction, CombatRound, CombatTurn, HexNode } from "./model/CombatModels";
 interface Props {
     gridMap: HexNode[][] | null;
     characters?: CharacterUnit[];

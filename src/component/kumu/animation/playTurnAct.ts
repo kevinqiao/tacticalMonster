@@ -1,4 +1,4 @@
-import { CharacterUnit, CombatAction, GridCell } from "../service/CombatModels";
+import { CharacterUnit, CombatAction, GridCell } from "../service/model/CombatModels";
 export interface ActionProps {
     character: CharacterUnit, currentAction: CombatAction | null, gridCells: GridCell[][] | null, cellSize: number, setCurrentAction: React.Dispatch<React.SetStateAction<CombatAction | null>>;
 }

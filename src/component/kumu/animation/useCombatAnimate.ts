@@ -1,7 +1,7 @@
 import gsap from "gsap";
 import { useCallback, useEffect, useMemo } from "react";
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit, CombatAction, CombatRound, CombatTurn, GridCell, HexNode, Player } from "../service/CombatModels";
+import { CharacterUnit, CombatAction, CombatRound, CombatTurn, GridCell, HexNode, Player } from "../service/model/CombatModels";
 import playCombatInit from "./playCombatInit";
 
 import playTurnSet from "./playTurnSet";

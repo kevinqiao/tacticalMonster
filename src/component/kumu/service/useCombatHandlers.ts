@@ -2,10 +2,10 @@ import { useEffect, useMemo } from "react";
 
 import playCombatInit from "../animation/playCombatInit";
 import { useCombatManager } from "./CombatManager";
-import { CharacterUnit } from "./CombatModels";
 import useActionHandler from "./useActionHandler";
 import useEventHandler from "./useEventHandler";
 import useTurnHandler from "./useTurnHandler";
+import { CharacterUnit } from "./model/CombatModels";
 
 const useCombatHandlers = () => {
     const combat = useCombatManager();

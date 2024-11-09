@@ -1,0 +1,112 @@
+{
+  "character_id": "char2",
+  "name": "Warrior",
+  "class": "Fighter",
+  "race": "Human",
+  "level_data": [
+    {
+      "level": 1,
+      "required_exp": 0,
+      "attribute_growth": {
+        "strength": 2,
+        "dexterity": 1,
+        "constitution": 2,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 0
+      },
+      "new_skills": []
+    },
+    {
+      "level": 2,
+      "required_exp": 100,
+      "attribute_growth": {
+        "strength": 2,
+        "dexterity": 1,
+        "constitution": 3,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 0
+      },
+      "new_skills": ["shield_bash"]
+    },
+    {
+      "level": 3,
+      "required_exp": 250,
+      "attribute_growth": {
+        "strength": 3,
+        "dexterity": 1,
+        "constitution": 2,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 0
+      },
+      "new_skills": []
+    },
+    {
+      "level": 4,
+      "required_exp": 450,
+      "attribute_growth": {
+        "strength": 2,
+        "dexterity": 2,
+        "constitution": 3,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 1
+      },
+      "new_skills": ["power_strike"]
+    },
+    {
+      "level": 5,
+      "required_exp": 700,
+      "attribute_growth": {
+        "strength": 3,
+        "dexterity": 2,
+        "constitution": 3,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 1
+      },
+      "new_skills": []
+    },
+    {
+      "level": 6,
+      "required_exp": 1050,
+      "attribute_growth": {
+        "strength": 3,
+        "dexterity": 1,
+        "constitution": 4,
+        "intelligence": 0,
+        "wisdom": 2,
+        "charisma": 1
+      },
+      "new_skills": ["fortify"]
+    },
+    {
+      "level": 7,
+      "required_exp": 1450,
+      "attribute_growth": {
+        "strength": 4,
+        "dexterity": 2,
+        "constitution": 3,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 1
+      },
+      "new_skills": ["whirlwind"]
+    },
+    {
+      "level": 8,
+      "required_exp": 1950,
+      "attribute_growth": {
+        "strength": 3,
+        "dexterity": 2,
+        "constitution": 3,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 1
+      },
+      "new_skills": []
+    }
+  ]
+}

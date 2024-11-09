@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { CharacterUnit, GridCell, HexNode } from "../service/CombatModels";
+import { CharacterUnit, GridCell, HexNode } from "../service/model/CombatModels";
 interface Props {
     gridMap: HexNode[][];
     gridCells: GridCell[][];

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit } from "../service/CombatModels";
+import { CharacterUnit } from "../service/model/CombatModels";
 import CharacterCell from "./CharacterCell";
 
 const CharacterGrid: React.FC = () => {

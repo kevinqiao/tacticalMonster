@@ -1,0 +1,27 @@
+{
+  "character_id": "char1",
+  "name": "Mage",
+  "class": "Wizard",
+  "race": "Elf",
+  "level": 5,
+  "experience": 200,
+  "attributes": {
+    "strength": 3,
+    "dexterity": 5,
+    "constitution": 7,
+    "intelligence": 12,
+    "wisdom": 9,
+    "charisma": 6
+  },
+  "stats": {
+    "hp": { "current": 50, "max": 50 },
+    "mp": { "current": 80, "max": 80 },
+    "stamina": { "current": 10, "max": 10 },
+    "attack": 10,
+    "defense": 5,
+    "speed": 7,
+    "crit_rate": 0.1,
+    "evasion": 0.05
+  },
+  "skills": ["fireball", "arcane_shield"]
+}

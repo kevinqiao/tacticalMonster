@@ -1,0 +1,27 @@
+{
+  "character_id": "char2",
+  "name": "Warrior",
+  "class": "Fighter",
+  "race": "Human",
+  "level": 7,
+  "experience": 450,
+  "attributes": {
+    "strength": 10,
+    "dexterity": 7,
+    "constitution": 12,
+    "intelligence": 5,
+    "wisdom": 6,
+    "charisma": 4
+  },
+  "stats": {
+    "hp": { "current": 80, "max": 80 },
+    "mp": { "current": 20, "max": 20 },
+    "stamina": { "current": 30, "max": 30 },
+    "attack": 15,
+    "defense": 10,
+    "speed": 5,
+    "crit_rate": 0.15,
+    "evasion": 0.1
+  },
+  "skills": ["power_strike", "fortify"]
+}

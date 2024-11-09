@@ -1,0 +1,57 @@
+[
+  {
+    "skill_id": "power_strike",
+    "name": "Power Strike",
+    "description": "A powerful strike that deals extra damage.",
+    "type": "attack",
+    "range": { "area_type": "single", "distance": 1 },
+    "effects": [
+      {
+        "effect_id": "extra_damage",
+        "name": "Extra Damage",
+        "source": "skill",
+        "effect_type": "damage",
+        "target_attribute": "hp",
+        "value": -40,
+        "duration": 0
+      }
+    ],
+    "requirements": { "min_level": 2, "required_class": "Fighter", "required_skills": [] },
+    "resource_cost": { "mp": 5, "hp": 0, "stamina": 10 },
+    "cooldown": 1,
+    "upgrade_path": [
+      {
+        "level": 3,
+        "upgrade_description": "Increases damage by 15.",
+        "upgraded_effects": [{ "effect_id": "extra_damage", "value": -55 }]
+      }
+    ],
+    "is_passive": false,
+    "trigger_conditions": [{ "trigger_type": "onAttack", "probability": 0.4 }],
+    "tags": ["melee", "damage"]
+  },
+  {
+    "skill_id": "fortify",
+    "name": "Fortify",
+    "description": "Raises defense temporarily.",
+    "type": "defense",
+    "range": { "area_type": "self", "distance": 0 },
+    "effects": [
+      {
+        "effect_id": "fortify_buff",
+        "name": "Fortify Buff",
+        "source": "skill",
+        "effect_type": "buff",
+        "target_attribute": "defense",
+        "value": 10,
+        "duration": 3
+      }
+    ],
+    "requirements": { "min_level": 4, "required_class": "Fighter", "required_skills": [] },
+    "resource_cost": { "mp": 0, "hp": 0, "stamina": 15 },
+    "cooldown": 4,
+    "is_passive": false,
+    "trigger_conditions": [{ "trigger_type": "onTurnStart", "probability": 0.2 }],
+    "tags": ["buff", "defense"]
+  }
+]

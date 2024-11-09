@@ -5,6 +5,7 @@ import useLocalization from "service/LocalizationManager";
 import { usePartnerManager } from "service/PartnerManager";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { findWalkables } from "../utils/Utlis";
+import { allObstacles, allPlayers } from "./data/CombatData";
 import {
   CharacterUnit,
   CombatAction,
@@ -17,8 +18,7 @@ import {
   MapModel,
   Player,
   WalkableNode,
-} from "./CombatModels";
-import { allObstacles, allPlayers } from "./data/CombatData";
+} from "./model/CombatModels";
 import useCombatAct from "./useCombatAct";
 
 // 注册 MotionPathPlugin
@@ -111,6 +111,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
         .sort((a, b) => a.speed - b.speed)
         .map((c, index) => ({
           no: index,
+          round: 0,
           character: c.id,
           uid: player.uid,
           actions: [],

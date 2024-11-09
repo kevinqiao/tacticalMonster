@@ -1,4 +1,4 @@
-import { CharacterUnit, Player } from "../service/CombatModels";
+import { CharacterUnit, Player } from "../service/model/CombatModels";
 
 export interface Character {
     x: number;  // 当前列号

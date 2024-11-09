@@ -11,7 +11,7 @@ import {
   HexNode,
   Player,
   WalkableNode,
-} from "./CombatModels";
+} from "./model/CombatModels";
 
 interface Props {
   eventQueue: CombatEvent[];
@@ -66,8 +66,6 @@ const useCombatAct = ({
               const ch = characters.find((c) => c.position.x == n.x && c.position.y === n.y);
               return !ch || (ch.id === character.id && ch.uid === character.uid) ? true : false;
             });
-            console.log(nodes);
-
             nodes.forEach((c) => {
               const w: WalkableNode = c as WalkableNode;
               w.path = [to, { x: c.x, y: c.y }];
