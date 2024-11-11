@@ -1,9 +1,9 @@
 import { Character } from "./Character";
-import { Attributes, Stats } from "./CharacterAttributes";
+import { Attributes } from "./CharacterAttributes";
 
 export class Warrior extends Character {
-    constructor(id: string, name: string, attributes: Attributes, stats: Stats) {
-        super(id, name, attributes, stats);
+    constructor(id: string, name: string, level: number, attributes: Attributes, equipment: { weapon_bonus: number; armor_bonus: number }) {
+        super(id, name, level, attributes, equipment);
     }
 
     // Warrior 的专属技能：强力攻击

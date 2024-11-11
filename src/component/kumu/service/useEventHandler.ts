@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-
 import { useCombatManager } from "./CombatManager";
-import { CombatAction, CombatEvent, CombatRound, CombatTurn, EVENT_TYPE, Player } from "./CombatModels";
+import { CombatAction, CombatEvent, CombatRound, CombatTurn, EVENT_TYPE, Player } from "./model/CombatModels";
 
 const useEventHandler = () => {
     const currentActionRef = useRef<CombatAction | null>(null);

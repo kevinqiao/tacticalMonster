@@ -5,18 +5,47 @@ import { Attributes, Effect, Stats } from "./CharacterAttributes";
 export abstract class Character {
     _id: string;
     name: string;
+    level: number;
     attributes: Attributes;
     stats: Stats;
     activeEffects: Effect[] = [];
     skillCooldowns: { [skill_id: string]: number } = {};
     public skillManager!: SkillManager;
+    equipment: {
+        weapon_bonus: number;
+        armor_bonus: number;
+    };
 
-    constructor(id: string, name: string, attributes: Attributes, stats: Stats) {
+    constructor(id: string, name: string, level: number, attributes: Attributes, equipment: { weapon_bonus: number; armor_bonus: number }) {
         this._id = id;
         this.name = name;
-
+        this.level = level;
         this.attributes = attributes;
-        this.stats = stats;
+        this.equipment = equipment;
+        this.stats = this.initializeStats(); // 动态生成 stats
+    }
+    private initializeStats(): Stats {
+        const { strength, dexterity, constitution, intelligence } = this.attributes;
+
+        const hpMax = constitution * 10 + this.level * 5;
+        const mpMax = intelligence * 5 + this.level * 3;
+        const staminaMax = constitution * 2 + dexterity * 3;
+        const attack = strength * 2 + this.equipment.weapon_bonus;
+        const defense = constitution * 1.5 + this.equipment.armor_bonus;
+        const speed = dexterity + Math.floor(this.level / 2);
+        const critRate = dexterity / 100 + 0.05;
+        const evasion = dexterity / 200 + 0.02;
+
+        return {
+            hp: { current: hpMax, max: hpMax },
+            mp: { current: mpMax, max: mpMax },
+            stamina: { current: staminaMax, max: staminaMax },
+            attack,
+            defense,
+            speed,
+            crit_rate: critRate,
+            evasion
+        };
     }
     setSkillManager(_skillManager: SkillManager) {
         this.skillManager = _skillManager;

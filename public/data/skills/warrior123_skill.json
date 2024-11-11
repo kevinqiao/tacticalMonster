@@ -1,0 +1,80 @@
+[
+  {
+    "skill_id": "power_strike",
+    "name": "Power Strike",
+    "description": "A strong melee attack that deals extra damage.",
+    "type": "attack",
+    "range": {
+      "area_type": "single",
+      "distance": 1
+    },
+    "effects": [
+      {
+        "effect_id": "physical_damage",
+        "name": "Physical Damage",
+        "effect_type": "damage",
+        "target_attribute": "hp",
+        "value": 25,
+        "duration": 1
+      }
+    ],
+    "requirements": {
+      "min_level": 1,
+      "required_class": "Warrior",
+      "required_skills": []
+    },
+    "resource_cost": {
+      "stamina": 10
+    },
+    "cooldown": 2,
+    "upgrade_path": [
+      {
+        "level": 3,
+        "upgrade_description": "Increases damage by 10.",
+        "upgraded_effects": [{ "effect_id": "physical_damage", "value": 35 }]
+      }
+    ],
+    "is_passive": false,
+    "trigger_conditions": null,
+    "tags": ["melee", "damage"]
+  },
+  {
+    "skill_id": "fortify",
+    "name": "Fortify",
+    "description": "Increases defense temporarily.",
+    "type": "buff",
+    "range": {
+      "area_type": "self",
+      "distance": 0
+    },
+    "effects": [
+      {
+        "effect_id": "defense_boost",
+        "name": "Defense Boost",
+        "effect_type": "buff",
+        "target_attribute": "defense",
+        "value": 8,
+        "duration": 3
+      }
+    ],
+    "requirements": {
+      "min_level": 2,
+      "required_class": "Warrior",
+      "required_skills": []
+    },
+    "resource_cost": {
+      "stamina": 5
+    },
+    "cooldown": 4,
+    "upgrade_path": [
+      {
+        "level": 4,
+        "upgrade_description": "Increases defense boost by 4.",
+        "upgraded_effects": [{ "effect_id": "defense_boost", "value": 12 }]
+      }
+    ],
+    "is_passive": false,
+    "trigger_conditions": null,
+    "tags": ["buff", "defense"]
+  }
+]

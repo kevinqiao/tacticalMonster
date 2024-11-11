@@ -1,0 +1,23 @@
+{
+  "_id": "mage123",
+  "name": "Mage",
+  "class": "Mage",
+  "attributes": {
+    "strength": 5,
+    "dexterity": 7,
+    "constitution": 6,
+    "intelligence": 15,
+    "wisdom": 12,
+    "charisma": 8
+  },
+  "stats": {
+    "hp": { "current": 50, "max": 50 },
+    "mp": { "current": 100, "max": 100 },
+    "stamina": { "current": 30, "max": 30 },
+    "attack": 10,
+    "defense": 5,
+    "speed": 7,
+    "crit_rate": 0.1,
+    "evasion": 0.05
+  }
+}

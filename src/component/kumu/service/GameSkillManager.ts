@@ -6,8 +6,6 @@ import { Mage } from "./model/characters/Mage";
 import { Warrior } from "./model/characters/Warrior";
 import { DefaultSkillManager } from "./SkillManager";
 
-import fs from 'fs/promises';
-
 class GameSkillManager {
     private characters: Map<string, Character> = new Map();
     private skillManagers: Map<string, DefaultSkillManager> = new Map();
@@ -42,11 +40,11 @@ class GameSkillManager {
         }
     }
 
-    // 从文件中加载角色数据
     private async loadCharacterDataFromFile(filePath: string): Promise<any | null> {
         try {
-            const data = await fs.readFile(filePath, 'utf-8');
-            return JSON.parse(data);
+            const response = await fetch(filePath);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return await response.json();
         } catch (error) {
             console.error(`Error loading file ${filePath}:`, error);
             return null;
@@ -116,8 +114,8 @@ class GameSkillManager {
         const warriorAttributes: Attributes = { strength: 12, dexterity: 10, constitution: 15, intelligence: 5, wisdom: 6, charisma: 4 };
         const warriorStats: Stats = { hp: { current: 100, max: 100 }, mp: { current: 20, max: 20 }, stamina: { current: 30, max: 30 }, attack: 15, defense: 10, speed: 5, crit_rate: 0.15, evasion: 0.05 };
 
-        const mage = new Mage("0001", "Gandalf", mageAttributes, mageStats);
-        const warrior = new Warrior("0002", "Arthur", warriorAttributes, warriorStats);
+        const mage = new Mage("0001", "Gandalf", 1, mageAttributes, { weapon_bonus: 100, armor_bonus: 100 });
+        const warrior = new Warrior("0002", "Arthur", 1, warriorAttributes, { weapon_bonus: 100, armor_bonus: 100 });
 
         // 创建角色和技能管理器
         const mageSkillManager = new DefaultSkillManager(mage, "./skills/mageSkills.json");

@@ -1,0 +1,23 @@
+{
+  "_id": "warrior123",
+  "name": "Warrior",
+  "class": "Warrior",
+  "attributes": {
+    "strength": 15,
+    "dexterity": 10,
+    "constitution": 12,
+    "intelligence": 5,
+    "wisdom": 6,
+    "charisma": 7
+  },
+  "stats": {
+    "hp": { "current": 80, "max": 80 },
+    "mp": { "current": 20, "max": 20 },
+    "stamina": { "current": 40, "max": 40 },
+    "attack": 20,
+    "defense": 12,
+    "speed": 5,
+    "crit_rate": 0.15,
+    "evasion": 0.1
+  }
+}

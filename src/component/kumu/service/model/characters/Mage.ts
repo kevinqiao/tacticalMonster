@@ -1,10 +1,10 @@
 import { Character } from "./Character";
-import { Attributes, Stats } from "./CharacterAttributes";
+import { Attributes } from "./CharacterAttributes";
 
 
 export class Mage extends Character {
-    constructor(id: string, name: string, attributes: Attributes, stats: Stats) {
-        super(id, name, attributes, stats);
+    constructor(id: string, name: string, level: number, attributes: Attributes, equipment: { weapon_bonus: number; armor_bonus: number }) {
+        super(id, name, level, attributes, equipment);
     }
 
     // Mage 的专属技能：火球术

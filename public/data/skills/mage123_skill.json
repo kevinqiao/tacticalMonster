@@ -1,0 +1,80 @@
+[
+  {
+    "skill_id": "fireball",
+    "name": "Fireball",
+    "description": "A powerful fire spell that damages the enemy.",
+    "type": "attack",
+    "range": {
+      "area_type": "single",
+      "distance": 3
+    },
+    "effects": [
+      {
+        "effect_id": "fire_damage",
+        "name": "Fire Damage",
+        "effect_type": "damage",
+        "target_attribute": "hp",
+        "value": 20,
+        "duration": 1
+      }
+    ],
+    "requirements": {
+      "min_level": 1,
+      "required_class": "Mage",
+      "required_skills": []
+    },
+    "resource_cost": {
+      "mp": 20
+    },
+    "cooldown": 2,
+    "upgrade_path": [
+      {
+        "level": 2,
+        "upgrade_description": "Increases fireball damage by 10.",
+        "upgraded_effects": [{ "effect_id": "fire_damage", "value": 30 }]
+      }
+    ],
+    "is_passive": false,
+    "trigger_conditions": null,
+    "tags": ["fire", "damage"]
+  },
+  {
+    "skill_id": "arcane_shield",
+    "name": "Arcane Shield",
+    "description": "Creates a magical shield to reduce damage.",
+    "type": "defense",
+    "range": {
+      "area_type": "self",
+      "distance": 0
+    },
+    "effects": [
+      {
+        "effect_id": "arcane_shield_buff",
+        "name": "Damage Reduction",
+        "effect_type": "buff",
+        "target_attribute": "defense",
+        "value": 5,
+        "duration": 3
+      }
+    ],
+    "requirements": {
+      "min_level": 2,
+      "required_class": "Mage",
+      "required_skills": []
+    },
+    "resource_cost": {
+      "mp": 15
+    },
+    "cooldown": 3,
+    "upgrade_path": [
+      {
+        "level": 3,
+        "upgrade_description": "Increases shield duration by 1 turn.",
+        "upgraded_effects": [{ "effect_id": "arcane_shield_buff", "duration": 4 }]
+      }
+    ],
+    "is_passive": false,
+    "trigger_conditions": null,
+    "tags": ["shield", "buff"]
+  }
+]
