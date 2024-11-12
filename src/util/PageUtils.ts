@@ -61,8 +61,10 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
     return res;
 };
 export const buildNavURL = (pageItem: PageItem): string | null => {
+    console.log(pageItem)
     const appCfg = AppsConfiguration.find((a) => a.name === pageItem.app);
     if (appCfg) {
+        console.log(appCfg)
         let url = "/" + (appCfg.context !== "/" ? appCfg.context : "");
         const nav = appCfg.navs.find((nav: any) => nav.name === pageItem.name);
         if (nav) {

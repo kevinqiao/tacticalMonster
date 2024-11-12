@@ -11,7 +11,7 @@ import { ThemeProvider } from "styled-components";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
 
-const convex = new ConvexReactClient("https://dazzling-setter-839.convex.cloud");
+const convex = new ConvexReactClient("https://shocking-leopard-487.convex.cloud");
 // const convex = new ConvexReactClient("https://1252780878078152844.discordsays.com/convex-api", {
 //   skipConvexDeploymentUrlCheck: true,
 // });

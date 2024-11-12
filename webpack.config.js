@@ -11,11 +11,6 @@ const env = dotenv.config({ path: ".env.local" }).parsed;
 
 // 将 .env 文件中的变量转换为 webpack 可以使用的格式
 
-const envKeys = Object.keys(env).reduce((prev, next) => {
-  prev[`process.env.${next}`] = JSON.stringify(env[next]);
-  return prev;
-}, {});
-
 module.exports = {
   entry: "./src/index.tsx",
   output: {
@@ -106,7 +101,7 @@ module.exports = {
     // new HtmlWebpackPlugin({
     //   template: "./public/index.html",
     // }),
-    new webpack.DefinePlugin(envKeys),
+    // new webpack.DefinePlugin(envKeys),
     // new HtmlWebpackPlugin({
     //   template: "./public/index.html",
     //   filename: "index.html",

@@ -138,7 +138,6 @@ const RenderApp: React.FC = () => {
   const [navsConfig, setNavsConfig] = useState<NavConfig[]>([]);
   const { partner } = usePartnerManager();
   const { module, getPrePage } = usePageManager();
-  // console.log("render app");
 
   useEffect(() => {
     // console.log("module:" + module);
@@ -149,13 +148,6 @@ const RenderApp: React.FC = () => {
       const ns = appConfig.navs.map((a: NavConfig) => ({ ...a, app: appConfig.name }));
       navs.push(...ns);
     }
-    // for (const app of appModule.apps) {
-    //   const appCfg = AppsConfiguration.find((a) => a.name === app);
-    //   if (appCfg) {
-    //     const ns = appCfg.navs.map((a: NavConfig) => ({ ...a, app }));
-    //     navs.push(...ns);
-    //   }
-    // }
     setNavsConfig(navs);
   }, [module]);
 

@@ -2,7 +2,6 @@ import { useConvex } from "convex/react";
 import { gsap } from "gsap";
 import { BATTLE_LOAD } from "model/Constants";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import usePageProp from "service/PagePropProvider";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../convex/_generated/api";
 import { useBattleManager } from "../../../service/BattleManager";
@@ -35,7 +34,6 @@ const BattleReport: React.FC = () => {
     toCollect?: number;
   } | null>(null);
 
-  const { exit } = usePageProp();
   const convex = useConvex();
   const { user } = useUserManager();
   // console.log(report);
@@ -78,7 +76,6 @@ const BattleReport: React.FC = () => {
     const tl = gsap.timeline({
       onComplete: () => {
         tl.kill();
-        exit();
       },
     });
     tl.to(maskDivRef.current, { autoAlpha: 0, duration: 0.3 }).to(
@@ -140,7 +137,8 @@ const BattleReport: React.FC = () => {
                 <span>Collect</span>
               </div>
             ) : (
-              <div className="collect_btn" onClick={exit}>
+              <div className="collect_btn"
+              >
                 <span>Ok</span>
               </div>
             )}

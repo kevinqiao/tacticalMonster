@@ -210,108 +210,112 @@ export default defineSchema({
         data: v.optional(v.any()),
     }).index("by_location", ["partnerId", "locationId"]).index("by_partner_oid", ['partnerId', 'oid']).index("by_partner_customer", ['partnerId', 'uid']),
 
-    loyalty_promotion_rule: defineTable({
-        rid: v.string(),
-        conditions: v.any(),
-        event: v.any(),
-        priority: v.number(),
-        status: v.boolean(),
-        partnerId: v.number(),
-    }),
-    loyalty_transaction: defineTable({
-        uid: v.string(),
-        partnerId: v.number(),
-        asset: v.number(),  //0-points 1-stamp  2-cash  
-        quantity: v.number(),
-        type: v.number(),//0-credit 1-debit
-        source: v.optional(v.object({ refId: v.optional(v.string()), type: v.number() }))
-    }),
-    loyalty_asset: defineTable({
-        uid: v.string(),
-        partnerId: v.number(),
-        type: v.number(),  //0-points 1-stamp    
-        amount: v.number(),
-    }),
-    loyalty_coupon: defineTable({
-        uid: v.string(),
-        type: v.number(),//0-cash 1-voucher
-        inventoryId: v.optional(v.string()),
-        amount: v.number(),
-        source: v.optional(v.object({ refId: v.optional(v.string()), type: v.number() })),
-        redeemTime: v.optional(v.number()),
-        status: v.number(),//0-open 1-redeemed
-    }),
+    // loyalty_promotion_rule: defineTable({
+    //     rid: v.string(),
+    //     conditions: v.any(),
+    //     event: v.any(),
+    //     priority: v.number(),
+    //     status: v.boolean(),
+    //     partnerId: v.number(),
+    // }),
+    // loyalty_transaction: defineTable({
+    //     uid: v.string(),
+    //     partnerId: v.number(),
+    //     asset: v.number(),  //0-points 1-stamp  2-cash  
+    //     quantity: v.number(),
+    //     type: v.number(),//0-credit 1-debit
+    //     source: v.optional(v.object({ refId: v.optional(v.string()), type: v.number() }))
+    // }),
+    // loyalty_asset: defineTable({
+    //     uid: v.string(),
+    //     partnerId: v.number(),
+    //     type: v.number(),  //0-points 1-stamp    
+    //     amount: v.number(),
+    // }),
+    // loyalty_coupon: defineTable({
+    //     uid: v.string(),
+    //     type: v.number(),//0-cash 1-voucher
+    //     inventoryId: v.optional(v.string()),
+    //     amount: v.number(),
+    //     source: v.optional(v.object({ refId: v.optional(v.string()), type: v.number() })),
+    //     redeemTime: v.optional(v.number()),
+    //     status: v.number(),//0-open 1-redeemed
+    // }),
 
-    loyalty_member: defineTable({
-        uid: v.string(),
-        star: v.number(),
-        points: v.number(),
-        stamp: v.number(),
-        status: v.number(),//0-active 1-suspend
-    }),
-    inventory_item: defineTable({
-        id: v.string(),
-        name: v.any(),
-        partnerId: v.number(),
-        price: v.number(),//0-active 1-suspend
-        modifierGroups: v.optional(v.array(v.string()))
-    }).index("by_partner", ["partnerId"]),
-    inventory_category: defineTable({
-        id: v.string(),
-        name: v.any(),
-        partnerId: v.number(),
-        parent: v.optional(v.string()),
-        combos: v.optional(v.array(v.string())),
-        inventories: v.optional(v.array(v.string()))
-    }).index("by_partner", ["partnerId"]),
-    inventory_modifier_group: defineTable({
-        id: v.string(),
-        name: v.any(),
-        description: v.optional(v.string()),
-        partnerId: v.number(),
-        min_selection: v.optional(v.number()),
-        max_selection: v.optional(v.number()),
-        modifiers: v.array(v.string()),
-    }).index("by_partner", ["partnerId"]),
-    inventory_modifier: defineTable({
-        id: v.string(),
-        name: v.any(),
-        partnerId: v.number(),
-        description: v.optional(v.string()),
-        min_quanity: v.optional(v.number()),
-        max_quantity: v.optional(v.number()),
-        price: v.number()
-    }).index("by_partner", ["partnerId"]),
-    inventory_discount: defineTable({
-        id: v.string(),
-        name: v.any(),
-        partnerId: v.number(),
-        percent: v.optional(v.number()),
-        amount: v.optional(v.number())
-    }).index("by_partner", ["partnerId"]),
-    inventory_service_charge: defineTable({
-        id: v.string(),
-        name: v.any(),
-        partnerId: v.number(),
-        percent: v.optional(v.number()),
-        amount: v.optional(v.number())
-    }).index("by_partner", ["partnerId"]),
-    inventory_combo_group: defineTable({
-        id: v.string(),
-        name: v.any(),
-        description: v.optional(v.string()),
-        partnerId: v.number(),
-        min_selection: v.optional(v.number()),
-        max_selection: v.optional(v.number()),
-        inventories: v.array(v.object({ inventoryId: v.string(), price: v.number() })),
-    }).index("by_partner", ["partnerId"]),
-    inventory_combo: defineTable({
-        id: v.string(),
-        name: v.any(),
-        partnerId: v.number(),
-        description: v.optional(v.string()),
-        price: v.number(),
-        combogrps: v.array(v.string())
-    }).index("by_partner", ["partnerId"]),
+    // loyalty_member: defineTable({
+    //     uid: v.string(),
+    //     star: v.number(),
+    //     points: v.number(),
+    //     stamp: v.number(),
+    //     status: v.number(),//0-active 1-suspend
+    // }),
+    // // inventory_item: defineTable({
+    //     id: v.string(),
+    //     name: v.any(),
+    //     partnerId: v.number(),
+    //     price: v.number(),//0-active 1-suspend
+    //     modifierGroups: v.optional(v.array(v.string()))
+    // }).index("by_partner", ["partnerId"]),
+    // inventory_category: defineTable({
+    //     id: v.string(),
+    //     name: v.any(),
+    //     partnerId: v.number(),
+    //     parent: v.optional(v.string()),
+    //     combos: v.optional(v.array(v.string())),
+    //     inventories: v.optional(v.array(v.string()))
+    // }).index("by_partner", ["partnerId"]),
+    // inventory_modifier_group: defineTable({
+    //     id: v.string(),
+    //     name: v.any(),
+    //     description: v.optional(v.string()),
+    //     partnerId: v.number(),
+    //     min_selection: v.optional(v.number()),
+    //     max_selection: v.optional(v.number()),
+    //     modifiers: v.array(v.string()),
+    // }).index("by_partner", ["partnerId"]),
+    // inventory_modifier: defineTable({
+    //     id: v.string(),
+    //     name: v.any(),
+    //     partnerId: v.number(),
+    //     description: v.optional(v.string()),
+    //     min_quanity: v.optional(v.number()),
+    //     max_quantity: v.optional(v.number()),
+    //     price: v.number()
+    // }).index("by_partner", ["partnerId"]),
+    // inventory_discount: defineTable({
+    //     id: v.string(),
+    //     name: v.any(),
+    //     partnerId: v.number(),
+    //     percent: v.optional(v.number()),
+    //     amount: v.optional(v.number())
+    // }).index("by_partner", ["partnerId"]),
+    // inventory_service_charge: defineTable({
+    //     id: v.string(),
+    //     name: v.any(),
+    //     partnerId: v.number(),
+    //     percent: v.optional(v.number()),
+    //     amount: v.optional(v.number())
+    // }).index("by_partner", ["partnerId"]),
+    // inventory_combo_group: defineTable({
+    //     id: v.string(),
+    //     name: v.any(),
+    //     description: v.optional(v.string()),
+    //     partnerId: v.number(),
+    //     min_selection: v.optional(v.number()),
+    //     max_selection: v.optional(v.number()),
+    //     inventories: v.array(v.object({ inventoryId: v.string(), price: v.number() })),
+    // }).index("by_partner", ["partnerId"]),
+    // inventory_combo: defineTable({
+    //     id: v.string(),
+    //     name: v.any(),
+    //     partnerId: v.number(),
+    //     description: v.optional(v.string()),
+    //     price: v.number(),
+    //     combogrps: v.array(v.string())
+    // }).index("by_partner", ["partnerId"]),
+    tm_skill: defineTable({
+        character_id: v.string(),
+
+    })
 
 });

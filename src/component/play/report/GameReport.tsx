@@ -2,7 +2,7 @@ import { useConvex } from "convex/react";
 import { gsap } from "gsap";
 import { BATTLE_LOAD } from "model/Constants";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import usePageProp from "service/PagePropProvider";
+// import usePageProp from "service/PagePropProvider";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../convex/_generated/api";
 import { useBattleManager } from "../../../service/BattleManager";
@@ -27,7 +27,6 @@ const GameReport: React.FC = () => {
     null
   );
 
-  const { exit } = usePageProp();
   const convex = useConvex();
   const { user } = useUserManager();
 

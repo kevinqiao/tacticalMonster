@@ -96,6 +96,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const openPage = useCallback((page: PageItem) => {
+    console.log(page);
     setApp((pre) => {
       if (!pre || pre.name !== page.app) return { name: page.app, params: page.params };
       else return pre;
@@ -114,17 +115,18 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       historyRef.current.push(page);
     }
     const url = buildNavURL(page);
+    console.log(url);
     window.history.replaceState({ pid: page.pid }, "", url);
     setCurrentPage(page);
   }, []);
 
   const cancel = useCallback(() => {
-    const page = historyRef.current.pop();
     const len = historyRef.current.length;
     if (len > 0) {
       const cpage = historyRef.current[len - 1];
       if (cpage) {
         const url = buildNavURL(cpage);
+        console.log(url);
         window.history.replaceState({ pid: cpage.pid }, "", url);
         setCurrentPage(cpage);
       }
