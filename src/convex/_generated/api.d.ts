@@ -36,7 +36,6 @@ import type * as matchqueue from "../matchqueue.js";
 import type * as message from "../message.js";
 import type * as model_Defender from "../model/Defender.js";
 import type * as model_Tournament from "../model/Tournament.js";
-import type * as order from "../order.js";
 import type * as partner from "../partner.js";
 import type * as rule_test from "../rule/test.js";
 import type * as service_tmGameService from "../service/tmGameService.js";
@@ -76,7 +75,6 @@ declare const fullApi: ApiFromModules<{
   message: typeof message;
   "model/Defender": typeof model_Defender;
   "model/Tournament": typeof model_Tournament;
-  order: typeof order;
   partner: typeof partner;
   "rule/test": typeof rule_test;
   "service/tmGameService": typeof service_tmGameService;
