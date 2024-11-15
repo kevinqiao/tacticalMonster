@@ -210,10 +210,17 @@ export default defineSchema({
     //     data: v.optional(v.any()),
     // }).index("by_location", ["partnerId", "locationId"]).index("by_partner_oid", ['partnerId', 'oid']).index("by_partner_customer", ['partnerId', 'uid']),
 
-
     tm_skill: defineTable({
         character_id: v.string(),
-
+        skills: v.array(v.any())
+    }),
+    tm_level: defineTable({
+        character_id: v.string(),
+        levels: v.array(v.any())
+    }),
+    tm_character: defineTable({
+        character_id: v.string(),
+        name: v.string(),
+        level: v.number()
     })
-
 });

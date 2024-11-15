@@ -1,51 +1,60 @@
-// 技能效果接口
+import { TopLevelCondition } from "json-rules-engine";
 
+export type SkillEffectType =
+    | "damage"
+    | "heal"
+    | "buff"
+    | "debuff"
+    | "dot"
+    | "hot"
+    | "poison"
+    | "burn"
+    | "stun";
 
-// 技能升级路径接口
-export interface SkillUpgrade {
-    level: number;                      // 技能等级
-    upgrade_description: string;        // 等级提升描述
-    upgraded_effects: Effect[];    // 每一级的效果变化
+export interface SkillEffect {
+    effect_id?: string;
+    effect_type: SkillEffectType; // 类型，例如 "damage" 或 "heal"
+    value: string | number;      // 效果值，支持字符串 (动态计算) 或直接的数值
+    remaining_duration?: number; // 效果持续时间（可选）
+    name?: string;               // 效果名称（例如 "Burn" 或 "Poison"）
+    target_attribute?: keyof Stats; // 目标的属性（例如 "hp", "attack"）
 }
-export interface TriggerCondition {
-    trigger_type: string;
-    probability: number;
-}
-// 技能接口
+
+export type TriggerCondition = {
+    conditions: { [key: string]: any }; // JSON Rule Engine 支持的条件结构
+    effects: SkillEffect[];           // 满足条件时触发的效果
+};
+
+// export interface Skill {
+//     id: string;                       // 技能唯一标识符
+//     name: string;                     // 技能名称
+//     type: "active" | "passive";       // 技能类型（主动或被动）
+//     resourceCost?: { mana: number };  // 资源消耗，例如法力值
+//     cooldown?: number;                // 冷却时间（回合数，仅限主动技能）
+//     target?: "self" | "ally" | "enemy"; // 技能目标类型
+//     unlockConditions?: {              // 技能解锁条件
+//         level?: number;               // 解锁所需等级
+//         questsCompleted?: string[];   // 解锁所需完成的任务
+//     };
+//     effects?: SkillEffect[];          // 主动技能的效果列表
+//     triggerConditions?: TriggerCondition[]; // 被动技能的触发条件列表
+// }
+
 export interface Skill {
-    skill_id: string;                    // 技能ID，唯一标识
-    name: string;                        // 技能名称
-    description: string;                 // 技能描述，简要介绍技能效果和用途
-    type: string;                        // 技能类型，如"攻击", "防御", "支援", "治疗"
-    range: {
-        area_type: string;               // 技能作用范围类型，如"单体", "范围", "直线", "自身"
-        distance: number;                // 技能施放距离，单位为格
+    id: string; // Unique identifier for the skill
+    name: string; // Skill name
+    type: "active" | "passive"; // Whether the skill is active or passive
+    unlockConditions?: {
+        level?: number; // Level required to unlock the skill
+        questsCompleted?: string[]; // Quests required to unlock the skill
     };
-    effects: Effect[];              // 技能效果数组，包含多个技能效果（如伤害、状态效果等）
-    requirements: {                      // 技能使用需求和限制条件
-        min_level: number;               // 使用技能所需的角色最低等级
-        required_class: string;          // 使用技能所需的职业（若有限制）
-        required_skills: string[];       // 使用技能所需的其他技能（如技能树中的前置技能）
-    };
-    resource_cost: {                     // 技能消耗资源
-        mp: number;                      // 使用技能所需的魔法值（MP）消耗
-        hp: number;                      // 使用技能可能消耗的生命值（HP）
-        stamina?: number;                // 体力（耐力）消耗
-    };
-    cooldown: number;                    // 技能冷却时间（以回合为单位）
-    upgrade_path: SkillUpgrade[];        // 技能升级路径，用于TRPG中的技能成长设计
-    is_passive: boolean;                 // 是否为被动技能（被动技能不需要主动使用）
-    trigger_conditions: TriggerCondition[];             // 触发几率（0到1[];
-    tags: string[];                      // 技能标签，用于分类或筛选（如AOE、控制、增益等）
-}
-
-// 装备接口
-export interface Equipment {
-    equipment_id: string;                // 装备ID
-    type: "weapon" | "armor" | "accessory"; // 装备类型
-    durability?: number;                 // 装备耐久度
-    effects: Effect[];
-    custom_attributes?: { [k: string]: number };      // 自定义效果
+    resourceCost?: { mana: number }; // Resource cost for active skills
+    cooldown?: number; // Cooldown time for active skills
+    effects?: SkillEffect[]; // Effects of the skill
+    triggerConditions?: {
+        conditions: TopLevelCondition; // Trigger conditions for passive skills
+        effects: SkillEffect[]; // Effects triggered by the conditions
+    }[];
 }
 
 export interface Attributes {
@@ -68,15 +77,15 @@ export interface Stats {
     evasion: number;    // 回避率
 }
 
-export interface Effect {
-    effect_id: string;                          // 唯一标识符
-    name: string;                               // 效果名称，如"Poison", "Burn"
-    // source: "equipment" | "status";             // 来源，标识是装备效果还是状态效果
-    effect_type: "damage" | "heal" | "buff" | "debuff" | "dot" | "hot" | "poison" | "burn" | "stun"; // 效果类型
-    target_attribute: keyof Stats;                   // 影响的属性，例如"hp", "attack", "defense"
-    value: number;                              // 效果的值，正数表示增益，负数表示减益
-    remaining_duration: number;                 // 当前剩余回合数
-}
+// export interface Effect {
+//     effect_id: string;                          // 唯一标识符
+//     name: string;                               // 效果名称，如"Poison", "Burn"
+//     // source: "equipment" | "status";             // 来源，标识是装备效果还是状态效果
+//     effect_type: "damage" | "heal" | "buff" | "debuff" | "dot" | "hot" | "poison" | "burn" | "stun"; // 效果类型
+//     target_attribute: keyof Stats;                   // 影响的属性，例如"hp", "attack", "defense"
+//     value: number;                              // 效果的值，正数表示增益，负数表示减益
+//     remaining_duration: number;                 // 当前剩余回合数
+// }
 
 
 // 角色接口
@@ -91,14 +100,9 @@ export interface Character {
     move_arrange: number;
     attack_range: { min: number; max: number };
     stats: Stats;
-    skills: string[]; // 技能ID数组，用于从技能数据库中查找详细信息
-    equipment: {
-        weapon?: string;                 // 引用武器ID
-        armor?: string;                  // 引用护甲ID
-        accessories: string[];           // 引用饰品ID数组
-    };
-    activeEffects: Effect[];
-    skillCooldowns: { [skill_id: string]: number }; // 每个技能当前的冷却剩余回合数
-
+    questsCompleted: string[];
+    skills: string[];
+    statusEffects: SkillEffect[];
+    cooldowns: { [skillId: string]: number };
 }
 

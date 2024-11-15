@@ -1,0 +1,87 @@
+{
+  "skills": [
+    {
+      "id": "fireball",
+      "name": "Fireball",
+      "type": "active",
+      "resourceCost": { "mana": 20 },
+      "cooldown": 3,
+      "effects": [
+        {
+          "effect_type": "damage",
+          "value": "calculateFireballDamage",
+          "target_attribute": "hp"
+        },
+        {
+          "effect_type": "dot",
+          "value": 10,
+          "remaining_duration": 2,
+          "name": "Burn",
+          "target_attribute": "hp"
+        }
+      ],
+      "unlockConditions": {
+        "level": 5,
+        "questsCompleted": ["quest_fire_magic_training"]
+      }
+    },
+    {
+      "id": "heal",
+      "name": "Heal",
+      "type": "active",
+      "resourceCost": { "mana": 15 },
+      "cooldown": 2,
+      "effects": [
+        {
+          "effect_type": "heal",
+          "value": "calculateHealAmount",
+          "target_attribute": "hp"
+        }
+      ],
+      "unlockConditions": {
+        "level": 3,
+        "questsCompleted": ["quest_healing_herbs_collection"]
+      }
+    },
+    {
+      "id": "battle_cry",
+      "name": "Battle Cry",
+      "type": "active",
+      "resourceCost": { "mana": 10 },
+      "cooldown": 4,
+      "effects": [
+        {
+          "effect_type": "buff",
+          "value": 10,
+          "remaining_duration": 3,
+          "name": "Attack Buff",
+          "target_attribute": "attack"
+        }
+      ],
+      "unlockConditions": {
+        "level": 2,
+        "questsCompleted": ["quest_battle_training"]
+      }
+    }
+  ],
+  "characters": [
+    {
+      "id": "mage_1",
+      "name": "Mage",
+      "class": "Mage",
+      "race": "Human",
+      "level": 5,
+      "questsCompleted": ["quest_fire_magic_training"],
+      "skills": ["fireball"]
+    },
+    {
+      "id": "warrior_1",
+      "name": "Warrior",
+      "class": "Warrior",
+      "race": "Orc",
+      "level": 3,
+      "questsCompleted": ["quest_battle_training"],
+      "skills": ["battle_cry"]
+    }
+  ]
+}
