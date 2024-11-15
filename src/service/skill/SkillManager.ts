@@ -14,20 +14,27 @@ interface ConditionSet {
 // ** Check Skill Unlocks **
 const checkSkillUnlocks = async (character: Character, skillsData: Skill[]) => {
     skillsData.forEach(skill => {
+        // Skip if the skill is already unlocked
         if (character.skills.includes(skill.id)) return;
 
         const unlockConditions = skill.unlockConditions || {};
-        const meetsLevel = unlockConditions.level === undefined || character.level >= unlockConditions.level;
-        const meetsQuests = unlockConditions.questsCompleted === undefined || unlockConditions.questsCompleted.every((q: string) =>
-            character.questsCompleted.includes(q)
-        );
 
+        // Check level requirement
+        const meetsLevel = unlockConditions.level === undefined || character.level >= unlockConditions.level;
+
+        // Check quest completion requirement
+        const meetsQuests =
+            unlockConditions.questsCompleted === undefined ||
+            unlockConditions.questsCompleted.every((quest: string) => character.questsCompleted.includes(quest));
+
+        // Unlock the skill if all conditions are met
         if (meetsLevel && meetsQuests) {
             character.skills.push(skill.id);
             console.log(`${character.name} has unlocked the skill: ${skill.name}`);
         }
     });
 };
+
 
 // ** Check Passive Skill Triggers **
 const checkPassiveSkillTriggers = async (
