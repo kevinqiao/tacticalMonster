@@ -1,0 +1,18 @@
+[
+  {
+    "character_id": "mage_1",
+    "name": "Mage",
+    "class": "Mage",
+    "race": "Human",
+    "move_arrange": 3,
+    "attack_range": { "min": 1, "max": 3 }
+  },
+  {
+    "character_id": "warrior_1",
+    "name": "Warrior",
+    "class": "Warrior",
+    "race": "Orc",
+    "move_arrange": 4,
+    "attack_range": { "min": 1, "max": 2 }
+  }
+]
