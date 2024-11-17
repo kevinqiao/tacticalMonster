@@ -1,4 +1,4 @@
-import { Attributes, Character, Stats } from "component/kumu/service/model/characters/CharacterAttributes";
+import { Attributes, Character, Stats } from "component/kumu/service/model/CharacterModels";
 
 //key-character_id
 interface LevelData {
@@ -10,11 +10,12 @@ interface LevelData {
 
 export const generateStats = (character: Character): Stats => {
     const attributes = character.attributes;
-    const hpMax = attributes.constitution * 10; // Example formula for HP
-    const mpMax = attributes.intelligence * 5; // Example formula for MP
-    const attack = attributes.strength * 2; // Example formula for attack
-    const defense = attributes.constitution + attributes.dexterity; // Example for defense
-    const speed = attributes.dexterity * 2; // Example for speed
+
+    const hpMax = attributes ? attributes.constitution * 10 : 0; // Example formula for HP
+    const mpMax = attributes ? attributes.intelligence * 5 : 0; // Example formula for MP
+    const attack = attributes ? attributes.strength * 2 : 0; // Example formula for attack
+    const defense = attributes ? attributes.constitution + attributes.dexterity : 0; // Example for defense
+    const speed = attributes ? attributes.dexterity * 2 : 0; // Example for speed
 
     return {
         hp: { current: hpMax, max: hpMax },
@@ -23,15 +24,15 @@ export const generateStats = (character: Character): Stats => {
         attack,
         defense,
         speed,
-        crit_rate: 0.05 + attributes.dexterity * 0.001, // Example crit rate formula
-        evasion: 0.03 + attributes.dexterity * 0.001 // Example evasion formula
+        crit_rate: 0.05 + (attributes ? attributes.dexterity * 0.001 : 0), // Example crit rate formula
+        evasion: 0.03 + (attributes ? attributes.dexterity * 0.001 : 0)// Example evasion formula
     };
 }
 
 export const levelUp = (character: Character, nextLevel: LevelData) => {
 
 
-    if (character.experience < nextLevel.experience_required) {
+    if (!character.experience || character.experience < nextLevel.experience_required) {
         console.log(`${character.name} does not have enough experience to level up.`);
         return;
     }

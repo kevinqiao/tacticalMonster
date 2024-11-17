@@ -1,30 +1,53 @@
-
+const attributes = {
+    strength: 0,
+    dexterity: 0,
+    constitution: 0,
+    intelligence: 0,
+    wisdom: 0,
+    charisma: 0
+}
+const stats = {
+    hp: { current: 0, max: 10 },
+    mp: { current: 0, max: 10 },
+    stamina: { current: 0, max: 10 },
+    attack: 0,
+    defense: 0,
+    speed: 0,
+    crit_rate: 0,
+    evasion: 0
+}
 export const allPlayers = [
     {
         uid: "1",
         characters: [
             {
-                id: 1,
+                character_id: "1",
                 uid: "1",
-                speed: 1,
+                level: 1,
+                attributes,
+                stats,
                 position: { x: 0, y: 1 },
                 asset: "/assets/hero_baboon.png",
                 movementRange: 3,
                 attackRange: { min: 1, max: 1 },
             },
             {
-                id: 2,
+                character_id: "2",
                 uid: "1",
-                speed: 2,
+                level: 1,
+                attributes,
+                stats,
                 position: { x: 1, y: 4 },
                 asset: "/assets/hero_tiger.png",
                 movementRange: 2,
                 attackRange: { min: 1, max: 4 },
             },
             {
-                id: 3,
+                character_id: "3",
                 uid: "1",
-                speed: 3,
+                level: 1,
+                attributes,
+                stats,
                 position: { x: 2, y: 6 },
                 asset: "/assets/hero_tiger.png",
                 movementRange: 2,
@@ -35,8 +58,8 @@ export const allPlayers = [
     {
         uid: "2",
         characters: [
-            { id: 1, uid: "2", speed: 1, position: { x: 6, y: 2 }, asset: "/assets/hero_elephant.png", movementRange: 2 },
-            { id: 2, uid: "2", speed: 2, position: { x: 5, y: 5 }, asset: "/assets/hero_rhino.png", movementRange: 2 },
+            { character_id: "1", attributes, level: 1, uid: "2", stats, position: { x: 6, y: 2 }, asset: "/assets/hero_elephant.png", movementRange: 2 },
+            { character_id: "2", attributes, level: 1, uid: "2", stats, position: { x: 5, y: 5 }, asset: "/assets/hero_rhino.png", movementRange: 2 },
         ],
     },
 ];

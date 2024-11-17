@@ -1,3 +1,5 @@
+import { Character } from "./CharacterModels";
+
 export enum ACT_CODE {
     WALK = 1,
     ATTACK = 2,
@@ -39,7 +41,7 @@ export interface CombatAction {
 export interface CombatTurn {
     no: number;
     round: number;
-    character: number;
+    character: string;
     uid: string;
     actions?: CombatAction[];
     status: number;//0-open 1-inited 2-over
@@ -84,13 +86,7 @@ export interface AttackableNode extends HexNode {
     distance: number; // 距离角色的步数
 }
 
-export interface CharacterUnit {
-    id: number;
-    uid?: string;
-    speed: number;
-    position: { x: number; y: number };
-    movementRange: number;
-    attackRange?: { min: number; max: number };
+export interface CharacterUnit extends Character {
     asset: string;
     container?: HTMLDivElement;
     walkables?: WalkableNode[];

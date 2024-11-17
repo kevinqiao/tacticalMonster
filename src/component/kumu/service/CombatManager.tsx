@@ -108,11 +108,11 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     const player = allPlayers.find((p) => p.uid === "1");
     if (player?.characters) {
       const turns = player.characters
-        .sort((a, b) => a.speed - b.speed)
+        .sort((a, b) => a.stats.speed - b.stats.speed)
         .map((c, index) => ({
           no: index,
           round: 0,
-          character: c.id,
+          character: c.character_id,
           uid: player.uid,
           actions: [],
           status: 0,

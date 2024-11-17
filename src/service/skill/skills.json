@@ -4,20 +4,24 @@
       "id": "fireball",
       "name": "Fireball",
       "type": "active",
+      "category": "attack",
+      "description": "Deals damage to an enemy and applies a burning effect over time.",
       "resourceCost": { "mana": 20 },
       "cooldown": 3,
       "effects": [
         {
           "effect_type": "damage",
           "value": "calculateFireballDamage",
-          "target_attribute": "hp"
+          "target_attribute": "hp",
+          "trigger_phase": "immediate"
         },
         {
           "effect_type": "dot",
           "value": 10,
           "remaining_duration": 2,
           "name": "Burn",
-          "target_attribute": "hp"
+          "target_attribute": "hp",
+          "trigger_phase": "turn_start"
         }
       ],
       "unlockConditions": {
@@ -29,13 +33,16 @@
       "id": "heal",
       "name": "Heal",
       "type": "active",
+      "category": "healing",
+      "description": "Restores health to an ally.",
       "resourceCost": { "mana": 15 },
       "cooldown": 2,
       "effects": [
         {
           "effect_type": "heal",
           "value": "calculateHealAmount",
-          "target_attribute": "hp"
+          "target_attribute": "hp",
+          "trigger_phase": "immediate"
         }
       ],
       "unlockConditions": {
@@ -47,6 +54,8 @@
       "id": "battle_cry",
       "name": "Battle Cry",
       "type": "active",
+      "category": "buff",
+      "description": "Boosts attack power for a few turns.",
       "resourceCost": { "mana": 10 },
       "cooldown": 4,
       "effects": [
@@ -55,12 +64,69 @@
           "value": 10,
           "remaining_duration": 3,
           "name": "Attack Buff",
-          "target_attribute": "attack"
+          "target_attribute": "attack",
+          "trigger_phase": "turn_start"
         }
       ],
       "unlockConditions": {
         "level": 2,
         "questsCompleted": ["quest_battle_training"]
+      }
+    },
+    {
+      "id": "retaliation",
+      "name": "Retaliation",
+      "type": "passive",
+      "category": "counter",
+      "description": "When attacked, counterattack to deal damage to the attacker.",
+      "triggerConditions": [
+        {
+          "conditions": {
+            "all": [
+              { "fact": "event", "operator": "equal", "value": "attackReceived" },
+              { "fact": "hp", "operator": "greaterThan", "value": 10 }
+            ]
+          },
+          "effects": [
+            {
+              "effect_type": "damage",
+              "value": 15,
+              "target_attribute": "hp",
+              "name": "Counterattack"
+            }
+          ]
+        }
+      ],
+      "unlockConditions": {
+        "level": 4,
+        "questsCompleted": ["quest_defense_training"]
+      }
+    },
+    {
+      "id": "resilience_aura",
+      "name": "Resilience Aura",
+      "type": "passive",
+      "category": "aura",
+      "description": "At the start of the battle, grant a shield to all allies.",
+      "triggerConditions": [
+        {
+          "conditions": {
+            "all": [{ "fact": "event", "operator": "equal", "value": "battleStart" }]
+          },
+          "effects": [
+            {
+              "effect_type": "buff",
+              "value": 20,
+              "remaining_duration": 3,
+              "name": "Shield",
+              "target_attribute": "hp"
+            }
+          ]
+        }
+      ],
+      "unlockConditions": {
+        "level": 6,
+        "questsCompleted": ["quest_protection_training"]
       }
     }
   ],
@@ -72,16 +138,16 @@
       "race": "Human",
       "level": 5,
       "questsCompleted": ["quest_fire_magic_training"],
-      "skills": ["fireball"]
+      "skills": ["fireball", "resilience_aura"]
     },
     {
       "id": "warrior_1",
       "name": "Warrior",
       "class": "Warrior",
       "race": "Orc",
-      "level": 3,
-      "questsCompleted": ["quest_battle_training"],
-      "skills": ["battle_cry"]
+      "level": 4,
+      "questsCompleted": ["quest_battle_training", "quest_defense_training"],
+      "skills": ["battle_cry", "retaliation"]
     }
   ]
 }
