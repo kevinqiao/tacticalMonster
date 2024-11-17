@@ -92,19 +92,19 @@ class SkillManager {
     }
 
     // ** Apply Multiple Effects **
-    applyEffects(
-        character: Character,
-        effects: SkillEffect[],
-        target: Character | null,
-        options: { phase?: "immediate" | "turn_start" | "turn_end"; event?: string },
-    ) {
-        const { phase, event } = options;
-        effects.forEach(effect => {
-            if ((phase && effect.trigger_phase === phase) || (event && effect.trigger_event === event) || (!effect.trigger_phase && !effect.trigger_event)) {
-                this.applyEffect(character, effect, target);
-            }
-        });
-    }
+    // applyEffects(
+    //     character: Character,
+    //     effects: SkillEffect[],
+    //     target: Character | null,
+    //     options: { phase?: "immediate" | "turn_start" | "turn_end"; event?: string },
+    // ) {
+    //     const { phase, event } = options;
+    //     effects.forEach(effect => {
+    //         if ((phase && effect.trigger_phase === phase) || (event && effect.trigger_event === event) || (!effect.trigger_phase && !effect.trigger_event)) {
+    //             this.applyEffect(character, effect, target);
+    //         }
+    //     });
+    // }
 
     // ** Execute Skill (Active Skills) **
     async executeSkill(character: Character, skillId: string, target: Character | null, skillsData: Skill[]) {
@@ -137,14 +137,14 @@ class SkillManager {
         character.cooldowns[skillId] = skill.cooldown || 0;
 
         console.log(`${character.name} uses ${skill.name}, remaining MP: ${character.stats.mp.current}`);
-        const effects = skill.effects?.filter((eff) => eff.trigger_phase === "immediate" || (!eff.trigger_phase && !eff.trigger_event))
-        effects?.forEach((effect) => {
+        // const effects = skill.effects?.filter((eff) => eff.trigger_phase === "immediate" || (!eff.trigger_phase && !eff.trigger_event))
+        skill.effects?.forEach((effect) => {
             this.applyEffect(character, effect, target);
         })
     }
 
     // ** Check Skill Triggers (Passive Skills) **
-    async checkSkillTriggers(character: Character, options: { phase?: "turn_start" | "turn_end"; event?: string }, target: Character | null, skillsData: Skill[]) {
+    async triggerSkills(character: Character, options: { phase?: "round_start" | "round_end" | "turn_start" | "turn_end"; event?: string }, target: Character | null, skillsData: Skill[]) {
         this.engine = new Engine();
 
         character.skills?.forEach(skillId => {
@@ -167,7 +167,23 @@ class SkillManager {
 
         this.engine.on<TriggerSkillParams>("trigger_skill", async (params) => {
             if (params?.effects) {
-                this.applyEffects(character, params.effects, target, options);
+                /**
+                 * 如何技能是群攻，计算出targets
+                 */
+                const targets: (Character | null)[] = [];
+                const skillId = params.skillId;
+                const skill = skillsData.find(s => s.id === skillId);
+                if (target === null) {
+                    if (skill?.range?.area_type === "aoe")
+                        targets.push(null);
+                } else
+                    targets.push(target)
+
+                params.effects?.forEach((effect) => {
+                    targets.forEach((t) => {
+                        this.applyEffect(character, effect, t);
+                    })
+                })
             }
         });
 
@@ -190,8 +206,20 @@ class SkillManager {
             }
         });
     }
-
-    // ** Process Turn-Based Effects **
+    // ** Process Passive Skills **
+    processTurnSkills(character: Character, phase: "turn_start" | "turn_end", skillData: Skill[]) {
+        console.log(`${character.name}: Processing skills for phase: ${phase}`);
+        this.triggerSkills(character, { phase }, null, skillData);
+    }
+    processRoundSkills(character: Character, phase: "round_start" | "round_end", skillData: Skill[]) {
+        console.log(`${character.name}: Processing skills for phase: ${phase}`);
+        this.triggerSkills(character, { phase }, null, skillData);
+    }
+    processEventSkills(character: Character, event: string, skillData: Skill[]) {
+        console.log(`${character.name}: Processing skills for event: ${event}`);
+        this.triggerSkills(character, { event }, null, skillData);
+    }
+    // ** Process Status Effects **
     processTurnEffects(character: Character, phase: "turn_start" | "turn_end") {
         console.log(`${character.name}: Processing effects for phase: ${phase}`);
         this.triggerEffects(character, { phase }, null);
