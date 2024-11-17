@@ -27,25 +27,24 @@ class SkillManager {
     // ** Trigger Effects by Phase or Event **
     triggerEffects(
         character: Character,
-        options: { phase?: "turn_start" | "turn_end"; event?: string },
+        options: { phase?: "round_start" | "round_end" | "turn_start" | "turn_end"; event?: string },
         target: Character | null
     ) {
         const { phase, event } = options;
 
-        character.statusEffects = character.statusEffects?.filter(effect => {
+        character.statusEffects?.forEach((effect) => {
             if ((phase && effect.trigger_phase === phase) || (event && effect.trigger_event === event)) {
                 this.applyEffect(character, effect, target);
             }
 
             // Decrease remaining duration if applicable
-            if (effect.remaining_duration !== undefined) {
+            if (phase === "turn_end" && effect.remaining_duration !== undefined) {
                 effect.remaining_duration -= 1;
                 if (effect.remaining_duration <= 0) {
                     console.log(`${effect.name} has expired.`);
                     return false; // Remove expired effect
                 }
             }
-            return true; // Keep valid effect
         });
     }
 
@@ -72,7 +71,6 @@ class SkillManager {
             console.log(`${target?.name} is affected by ${effect.name} (${effect.effect_type}) for ${effect.remaining_duration} turns.`);
         } else if (effect.target_attribute && character.stats) {
             const isNumericStat = (effect.target_attribute as NumericStatKey) in character.stats;
-
             if (isNumericStat) {
                 const statKey = effect.target_attribute as NumericStatKey;
                 const modifier = effect.effect_type === "buff" ? +finalValue : -finalValue;
@@ -91,6 +89,21 @@ class SkillManager {
         } else {
             console.warn(`Effect type ${effect.effect_type} or target_attribute is not supported.`);
         }
+    }
+
+    // ** Apply Multiple Effects **
+    applyEffects(
+        character: Character,
+        effects: SkillEffect[],
+        target: Character | null,
+        options: { phase?: "immediate" | "turn_start" | "turn_end"; event?: string },
+    ) {
+        const { phase, event } = options;
+        effects.forEach(effect => {
+            if ((phase && effect.trigger_phase === phase) || (event && effect.trigger_event === event) || (!effect.trigger_phase && !effect.trigger_event)) {
+                this.applyEffect(character, effect, target);
+            }
+        });
     }
 
     // ** Execute Skill (Active Skills) **
@@ -124,34 +137,10 @@ class SkillManager {
         character.cooldowns[skillId] = skill.cooldown || 0;
 
         console.log(`${character.name} uses ${skill.name}, remaining MP: ${character.stats.mp.current}`);
-        this.applyEffects(character, skill.effects || [], target, { phase: "immediate" });
-    }
-
-    // ** Reduce Cooldowns **
-    reduceCooldowns(character: Character) {
-        for (const skillId in character.cooldowns) {
-            if (character.cooldowns[skillId] > 0) {
-                character.cooldowns[skillId] -= 1;
-                if (character.cooldowns[skillId] === 0) {
-                    console.log(`${skillId} is now ready to use.`);
-                }
-            }
-        }
-    }
-
-    // ** Apply Multiple Effects **
-    applyEffects(
-        character: Character,
-        effects: SkillEffect[],
-        target: Character | null,
-        options: { phase?: "immediate" | "turn_start" | "turn_end"; event?: string },
-    ) {
-        const { phase, event } = options;
-        effects.forEach(effect => {
-            if ((phase && effect.trigger_phase === phase) || (event && effect.trigger_event === event) || (!effect.trigger_phase && !effect.trigger_event)) {
-                this.applyEffect(character, effect, target);
-            }
-        });
+        const effects = skill.effects?.filter((eff) => eff.trigger_phase === "immediate" || (!eff.trigger_phase && !eff.trigger_event))
+        effects?.forEach((effect) => {
+            this.applyEffect(character, effect, target);
+        })
     }
 
     // ** Check Skill Triggers (Passive Skills) **
@@ -206,6 +195,25 @@ class SkillManager {
     processTurnEffects(character: Character, phase: "turn_start" | "turn_end") {
         console.log(`${character.name}: Processing effects for phase: ${phase}`);
         this.triggerEffects(character, { phase }, null);
+    }
+    processRoundEffects(character: Character, phase: "round_start" | "round_end") {
+        console.log(`${character.name}: Processing effects for phase: ${phase}`);
+        this.triggerEffects(character, { phase }, null);
+    }
+    processEventEffects(character: Character, event: string) {
+        console.log(`${character.name}: Processing effects for event: ${event}`);
+        this.triggerEffects(character, { event }, null);
+    }
+    // ** Reduce Cooldowns **
+    reduceCooldowns(character: Character) {
+        for (const skillId in character.cooldowns) {
+            if (character.cooldowns[skillId] > 0) {
+                character.cooldowns[skillId] -= 1;
+                if (character.cooldowns[skillId] === 0) {
+                    console.log(`${skillId} is now ready to use.`);
+                }
+            }
+        }
     }
 }
 

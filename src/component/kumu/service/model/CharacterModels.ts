@@ -21,10 +21,14 @@ export interface SkillEffect {
     effect_id?: string; // 效果的唯一标识符（可选，用于跟踪）
     effect_type: SkillEffectType; // 效果类型，例如 "damage" 或 "heal"
     value: string | number; // 效果值，可直接指定数值或通过函数动态计算
+    range?: {
+        area_type: "single" | "aoe"; // 范围类型：单体或范围攻击
+        distance: number; // 技能效果有效距离
+    };
     remaining_duration?: number; // 持续时间（以回合计，可选）
     name?: string; // 效果名称，例如 "Burn" 或 "Poison"
     target_attribute?: keyof Stats; // 目标属性，例如 "hp", "attack"（可选）
-    trigger_phase?: "immediate" | "turn_start" | "turn_end" | "event"; // 触发时机
+    trigger_phase?: "immediate" | "turn_start" | "turn_end"; // 触发时机
     trigger_event?: string; // 指定的触发事件（用于 `event` 类型触发效果）
 }
 
