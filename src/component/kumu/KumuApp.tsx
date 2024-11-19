@@ -8,7 +8,6 @@ import useCombatHandlers from "./service/useCombatHandlers";
 import CharacterGrid from "./svg/CharacterGrid";
 import GridGround from "./svg/GridGround";
 const CombatActPanel: React.FC = () => {
-  const { currentAction } = useCombatManager();
   const doSomething = useAction(api.rule.test.doSomething);
   return (
     <div className="action-panel" style={{ left: 0 }}>
@@ -55,12 +54,8 @@ const BattleVenue: React.FC = () => {
     width: number;
     height: number;
   } | null>(null);
-  const { map, changeCellSize, currentRound } = useCombatManager();
+  const { map, changeCellSize } = useCombatManager();
   useCombatHandlers();
-
-  useEffect(() => {
-    console.log(currentRound);
-  }, [currentRound]);
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;

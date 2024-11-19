@@ -106,9 +106,9 @@ export interface ICombatContext {
     gridCells: GridCell[][] | null;
     players: Player[] | null;
     eventQueue: CombatEvent[];
-    currentRound: CombatRound | null;
-    currentTurn: CombatTurn | null;
-    currentAction: CombatAction | null;
+    // currentRound: CombatRound | null;
+    // currentTurn: CombatTurn | null;
+    // currentAction: CombatAction | null;
     resourceLoad: {
         character: number;
         gridContainer: number;
@@ -127,9 +127,9 @@ export interface ICombatContext {
             gridAttack: number;
         }>
     >;
-    setCurrentRound: React.Dispatch<React.SetStateAction<CombatRound | null>>;
-    setCurrentTurn: React.Dispatch<React.SetStateAction<CombatTurn | null>>;
-    setCurrentAction: React.Dispatch<React.SetStateAction<CombatAction | null>>;
+    // setCurrentRound: React.Dispatch<React.SetStateAction<CombatRound | null>>;
+    // setCurrentTurn: React.Dispatch<React.SetStateAction<CombatTurn | null>>;
+    // setCurrentAction: React.Dispatch<React.SetStateAction<CombatAction | null>>;
     changeMap: React.Dispatch<React.SetStateAction<MapModel>>;
     changeCellSize: React.Dispatch<React.SetStateAction<number>>;
     walk: (to: { x: number; y: number }) => void;

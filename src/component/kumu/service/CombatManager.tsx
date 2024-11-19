@@ -8,10 +8,7 @@ import { findWalkables } from "../utils/Utlis";
 import { allObstacles, allPlayers } from "./data/CombatData";
 import {
   CharacterUnit,
-  CombatAction,
   CombatEvent,
-  CombatRound,
-  CombatTurn,
   GridCell,
   HexNode,
   ICombatContext,
@@ -31,13 +28,13 @@ export const CombatContext = createContext<ICombatContext>({
   gridCells: null,
   players: [],
   eventQueue: [],
-  currentRound: null,
-  currentTurn: null,
-  currentAction: null,
+  // currentRound: null,
+  // currentTurn: null,
+  // currentAction: null,
   setResourceLoad: () => null,
-  setCurrentRound: () => null,
-  setCurrentTurn: () => null,
-  setCurrentAction: () => null,
+  // setCurrentRound: () => null,
+  // setCurrentTurn: () => null,
+  // setCurrentAction: () => null,
   changeMap: () => null,
   changeCellSize: () => null,
   walk: () => null,
@@ -63,9 +60,9 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   });
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
   const [players, setPlayers] = useState<Player[] | null>(null);
-  const [currentAction, setCurrentAction] = useState<CombatAction | null>(null);
-  const [currentTurn, setCurrentTurn] = useState<CombatTurn | null>(null);
-  const [currentRound, setCurrentRound] = useState<CombatRound | null>(null);
+  // const [currentAction, setCurrentAction] = useState<CombatAction | null>(null);
+  // const [currentTurn, setCurrentTurn] = useState<CombatTurn | null>(null);
+  // const [currentRound, setCurrentRound] = useState<CombatRound | null>(null);
   const [resourceLoad, setResourceLoad] = useState<{
     character: number;
     gridContainer: number;
@@ -120,12 +117,12 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
       const character: CharacterUnit = player.characters[0];
       character.walkables = walkables;
       console.log(character);
-      setCurrentRound({
-        no: 0,
-        gameId: "1",
-        actors: [],
-        status: 0,
-      });
+      // setCurrentRound({
+      //   no: 0,
+      //   gameId: "1",
+      //   actors: [],
+      //   status: 0,
+      // });
       // setCurrentTurn(turns[0]);
     }
 
@@ -154,12 +151,6 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     eventQueue: eventQueueRef.current,
     gridMap,
     players,
-    currentAction,
-    currentTurn,
-    currentRound,
-    setCurrentAction,
-    setCurrentTurn,
-    setCurrentRound,
   });
   const value = {
     cellSize,
@@ -168,14 +159,14 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     gridCells,
     players,
     eventQueue: eventQueueRef.current,
-    currentRound,
-    currentTurn,
-    currentAction,
+    // currentRound,
+    // currentTurn,
+    // currentAction,
     resourceLoad,
     setResourceLoad,
-    setCurrentRound,
-    setCurrentTurn,
-    setCurrentAction,
+    // setCurrentRound,
+    // setCurrentTurn,
+    // setCurrentAction,
     changeMap: setMap,
     changeCellSize: setCellSize,
     walk,

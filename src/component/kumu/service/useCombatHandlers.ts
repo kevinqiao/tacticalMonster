@@ -2,10 +2,8 @@ import { useEffect, useMemo } from "react";
 
 import playCombatInit from "../animation/playCombatInit";
 import { useCombatManager } from "./CombatManager";
-import useActionHandler from "./useActionHandler";
-import useEventHandler from "./useEventHandler";
-import useTurnHandler from "./useTurnHandler";
 import { CharacterUnit } from "./model/CombatModels";
+import useEventHandler from "./useEventHandler";
 
 const useCombatHandlers = () => {
     const combat = useCombatManager();
@@ -21,7 +19,7 @@ const useCombatHandlers = () => {
         playCombatInit({ gridMap, gridCells, characters });
     }, [characters, gridMap, gridCells, isResourceReady])
     useEventHandler();
-    useActionHandler();
-    useTurnHandler();
+    // useActionHandler();
+    // useTurnHandler();
 }
 export default useCombatHandlers
