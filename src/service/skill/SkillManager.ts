@@ -19,34 +19,47 @@ interface ConditionSet {
 
 class SkillManager {
     private engine: Engine;
-
     constructor() {
         this.engine = new Engine();
     }
 
     // ** Trigger Effects by Phase or Event **
-    triggerEffects(
+    async triggerEffects(
         character: Character,
         options: { phase?: "round_start" | "round_end" | "turn_start" | "turn_end"; event?: string },
         target: Character | null
-    ) {
+    ): Promise<void> {
         const { phase, event } = options;
 
-        character.statusEffects?.forEach((effect) => {
+        // 创建一个数组，用于收集所有 applyEffect 的异步调用
+        const effectPromises: Promise<void>[] = [];
+
+        character.statusEffects = character.statusEffects?.filter((effect) => {
             if ((phase && effect.trigger_phase === phase) || (event && effect.trigger_event === event)) {
-                this.applyEffect(character, effect, target);
+                // 包装 applyEffect 为一个 Promise
+                const effectPromise = new Promise<void>((resolve) => {
+                    this.applyEffect(character, effect, target);
+                    resolve(); // 因为 applyEffect 是同步的，调用后直接 resolve
+                });
+                effectPromises.push(effectPromise);
             }
 
-            // Decrease remaining duration if applicable
+            // 处理持续时间减少逻辑
             if (phase === "turn_end" && effect.remaining_duration !== undefined) {
                 effect.remaining_duration -= 1;
                 if (effect.remaining_duration <= 0) {
                     console.log(`${effect.name} has expired.`);
-                    return false; // Remove expired effect
+                    return false; // 移除过期效果
                 }
             }
-        });
+
+            return true; // 保留未过期效果
+        }) || [];
+
+        // 等待所有包装的 Promise 完成
+        await Promise.all(effectPromises);
     }
+
 
     // ** Apply a Single Effect **
     applyEffect(character: Character, effect: SkillEffect, target: Character | null) {
@@ -91,20 +104,6 @@ class SkillManager {
         }
     }
 
-    // ** Apply Multiple Effects **
-    // applyEffects(
-    //     character: Character,
-    //     effects: SkillEffect[],
-    //     target: Character | null,
-    //     options: { phase?: "immediate" | "turn_start" | "turn_end"; event?: string },
-    // ) {
-    //     const { phase, event } = options;
-    //     effects.forEach(effect => {
-    //         if ((phase && effect.trigger_phase === phase) || (event && effect.trigger_event === event) || (!effect.trigger_phase && !effect.trigger_event)) {
-    //             this.applyEffect(character, effect, target);
-    //         }
-    //     });
-    // }
 
     // ** Execute Skill (Active Skills) **
     async executeSkill(character: Character, skillId: string, target: Character | null, skillsData: Skill[]) {
@@ -147,6 +146,9 @@ class SkillManager {
     async triggerSkills(character: Character, options: { phase?: "round_start" | "round_end" | "turn_start" | "turn_end"; event?: string }, target: Character | null, skillsData: Skill[]) {
         this.engine = new Engine();
 
+        // 收集所有触发的事件和效果处理的 Promise
+        const eventPromises: Promise<void>[] = [];
+
         character.skills?.forEach(skillId => {
             const skill = skillsData.find(s => s.id === skillId);
             skill?.triggerConditions?.forEach((conditionSet: ConditionSet) => {
@@ -162,32 +164,45 @@ class SkillManager {
                 });
             });
         });
+
         const { phase, event } = options;
         const facts = { event, phase, hp: character.stats?.hp.current };
 
         this.engine.on<TriggerSkillParams>("trigger_skill", async (params) => {
-            if (params?.effects) {
-                /**
-                 * 如何技能是群攻，计算出targets
-                 */
-                const targets: (Character | null)[] = [];
-                const skillId = params.skillId;
-                const skill = skillsData.find(s => s.id === skillId);
-                if (target === null) {
-                    if (skill?.range?.area_type === "aoe")
-                        targets.push(null);
-                } else
-                    targets.push(target)
+            const eventPromise = (async () => {
+                if (params?.effects) {
+                    const targets: (Character | null)[] = [];
+                    const skillId = params.skillId;
+                    const skill = skillsData.find(s => s.id === skillId);
 
-                params.effects?.forEach((effect) => {
-                    targets.forEach((t) => {
-                        this.applyEffect(character, effect, t);
-                    })
-                })
-            }
+                    if (target === null) {
+                        if (skill?.range?.area_type === "aoe") {
+                            targets.push(null);
+                        }
+                    } else {
+                        targets.push(target);
+                    }
+
+                    // 收集所有 applyEffect 的 Promise
+                    const effectPromises = params.effects.map((effect) =>
+                        Promise.all(
+                            targets.map((t) => this.applyEffect(character, effect, t))
+                        )
+                    );
+
+                    // 等待所有效果应用完成
+                    await Promise.all(effectPromises);
+                }
+            })();
+
+            // 将事件 Promise 添加到数组中
+            eventPromises.push(eventPromise);
         });
 
         await this.engine.run(facts);
+
+        // 等待所有事件和效果处理完成
+        await Promise.all(eventPromises);
     }
 
     // ** Check Skill Unlocks **

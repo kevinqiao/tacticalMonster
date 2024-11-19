@@ -210,17 +210,71 @@ export default defineSchema({
     //     data: v.optional(v.any()),
     // }).index("by_location", ["partnerId", "locationId"]).index("by_partner_oid", ['partnerId', 'oid']).index("by_partner_customer", ['partnerId', 'uid']),
 
-    tm_skill: defineTable({
-        character_id: v.string(),
-        skills: v.array(v.any())
+    tm_skill_data: defineTable({
+        skill_id: v.string(),
+        name: v.string(),
+        type: v.union(v.string()),
+        description: v.optional(v.string()),
+        range: v.optional(v.object({ area_type: v.union(v.string()), distance: v.number() })),
+        unlockConditions: v.optional(v.object({ level: v.number(), questsCompleted: v.array(v.string()) })),
+        resourceCost: v.optional(v.object({ mana: v.number() })),
+        cooldown: v.optional(v.number()),
+        effects: v.optional(v.array(v.any())),
+        triggerConditions: v.optional(v.array(v.any()))
     }),
-    tm_level: defineTable({
+    tm_level_data: defineTable({
         character_id: v.string(),
-        levels: v.array(v.any())
+        levels: v.array(v.object({ level: v.number(), required_exp: v.number(), attributes: v.any() }))
     }),
-    tm_character: defineTable({
+    tm_character_data: defineTable({
         character_id: v.string(),
         name: v.string(),
-        level: v.number()
-    })
+        skills: v.array(v.string()),
+        move_arrange: v.number(),
+        attack_range: v.object({ min: v.number(), max: v.number() })
+    }),
+    tm_user_character: defineTable({
+        character_id: v.string(),
+        uid: v.string(),
+        level: v.number(),
+        exp: v.number(),
+        status: v.number(),
+    }),
+    tm_game_character: defineTable({
+        character_id: v.string(),
+        uid: v.string(),
+        gameId: v.string(),
+        level: v.number(),
+        stats: v.any(),
+        position: v.object({ x: v.number(), y: v.number() }),
+        statusEffects: v.array(v.any()),
+        unlockSkills: v.array(v.string()),
+        cooldowns: v.any(),
+        move_arrange: v.number(),
+        attack_range: v.object({ min: v.number(), max: v.number() })
+    }).index("by_game", ['gameId']),
+    tm_game: defineTable({
+        challenger: v.string(),
+        challengee: v.string(),
+        currentRound: v.number(),
+        turns: v.array(v.object({ uid: v.string(), character_id: v.string(), status: v.number() })),
+        timeClock: v.number(),
+        obstacles: v.array(v.object({ x: v.number(), y: v.number(), type: v.number() })),
+        disables: v.array(v.object({ x: v.number(), y: v.number() })),
+    }).index("by_challenger", ["challenger"]).index("by_challengee", ["challengee"]),
+    tm_game_action: defineTable({
+        gameId: v.string(),
+        round: v.number(),
+        uid: v.string(),
+        character_id: v.string(),
+        act: v.number(),
+        data: v.any()
+    }).index("by_game", ["gameId"]),
+    tm_game_event: defineTable({
+        gameId: v.string(),
+        category: v.string(),
+        name: v.string(),
+        time: v.number(),
+        data: v.any()
+    }).index("by_game_time", ["gameId", "time"]).index("by_category", ["gameId", "category"])
 });

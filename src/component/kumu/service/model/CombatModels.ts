@@ -23,20 +23,18 @@ export interface Player {
     characters: CharacterUnit[];
 }
 export interface CombatEvent {
-    type: number;
-    gameId?: string;
+    type: number;//0-phase 1-action 2-effect;
+    name: string;
+    gameId: string;
     data: CombatRound | CombatTurn | CombatAction;
 }
 export interface CombatAction {
-    id: string;
+    gameId: string;
     round?: number;
     turn?: number;
-    parent?: string;
-    type?: number;//0-user act 1-auto in round start 2-auto in round over 3-auto in turn start 4-auto in turn over 
-    code: number;
+    actor: string;
+    act: number;
     data?: object;
-    result?: { [k: string]: any };
-    status: number;//0-open 1-end
 }
 export interface CombatTurn {
     no: number;
@@ -44,13 +42,14 @@ export interface CombatTurn {
     character: string;
     uid: string;
     actions?: CombatAction[];
+    dueTime: number;
+    endTime?: number;
     status: number;//0-open 1-inited 2-over
 }
 export interface CombatRound {
     no: number;
-    turns: CombatTurn[];
-    endTime?: number;
-    actions?: CombatAction[];
+    gameId: string;
+    actors: { character: string; status: number }[];
     status: number;//0-open 1-inited 2-over
 }
 export interface GridCell {

@@ -114,7 +114,6 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
           round: 0,
           character: c.character_id,
           uid: player.uid,
-          actions: [],
           status: 0,
         }));
       const walkables: WalkableNode[] | undefined = findWalkables(player.characters[0], gridMap, allPlayers);
@@ -123,10 +122,11 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
       console.log(character);
       setCurrentRound({
         no: 0,
-        turns,
+        gameId: "1",
+        actors: [],
         status: 0,
       });
-      setCurrentTurn(turns[0]);
+      // setCurrentTurn(turns[0]);
     }
 
     setPlayers(allPlayers);
