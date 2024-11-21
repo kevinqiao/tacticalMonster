@@ -133,7 +133,6 @@ export interface ICombatContext {
             gridAttack: number;
         }>
     >;
-    changeMap: React.Dispatch<React.SetStateAction<MapModel>>;
     changeCellSize: React.Dispatch<React.SetStateAction<number>>;
     walk: (to: { x: number; y: number }) => void;
 }
