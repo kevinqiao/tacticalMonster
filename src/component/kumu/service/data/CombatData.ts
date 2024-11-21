@@ -16,9 +16,10 @@ const stats = {
     crit_rate: 0,
     evasion: 0
 }
-export const allPlayers = [
+export const players = [
     {
         uid: "1",
+        name: "test1",
         characters: [
             {
                 character_id: "1",
@@ -28,7 +29,7 @@ export const allPlayers = [
                 stats,
                 position: { x: 0, y: 1 },
                 asset: "/assets/hero_baboon.png",
-                movementRange: 3,
+                move_range: 3,
                 attackRange: { min: 1, max: 1 },
             },
             {
@@ -39,8 +40,8 @@ export const allPlayers = [
                 stats,
                 position: { x: 1, y: 4 },
                 asset: "/assets/hero_tiger.png",
-                movementRange: 2,
-                attackRange: { min: 1, max: 4 },
+                move_range: 2,
+                attack_range: { min: 1, max: 4 },
             },
             {
                 character_id: "3",
@@ -57,6 +58,7 @@ export const allPlayers = [
     },
     {
         uid: "2",
+        name: "test2",
         characters: [
             { character_id: "1", attributes, level: 1, uid: "2", stats, position: { x: 6, y: 2 }, asset: "/assets/hero_elephant.png", movementRange: 2 },
             { character_id: "2", attributes, level: 1, uid: "2", stats, position: { x: 5, y: 5 }, asset: "/assets/hero_rhino.png", movementRange: 2 },

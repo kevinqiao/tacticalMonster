@@ -1,5 +1,5 @@
 import { CombatAction } from "./model/CombatModels";
-import { Game } from "./model/GameModel";
+import { Game } from "./model/TMGameModel";
 
 const createGame = () => {
     return;

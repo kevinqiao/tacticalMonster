@@ -5,6 +5,7 @@ import ObstacleGrid from "./battle/ObstacleGrid";
 import "./map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
 import useCombatHandlers from "./service/useCombatHandlers";
+import useGameInit from "./service/useGameInit";
 import CharacterGrid from "./svg/CharacterGrid";
 import GridGround from "./svg/GridGround";
 const CombatActPanel: React.FC = () => {
@@ -56,6 +57,7 @@ const BattleVenue: React.FC = () => {
   } | null>(null);
   const { map, changeCellSize } = useCombatManager();
   useCombatHandlers();
+  useGameInit();
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;

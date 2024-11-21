@@ -90,7 +90,7 @@ export interface Character {
     experience?: number;
     attributes: Attributes;
     position: { x: number; y: number };
-    move_arrange?: number;
+    move_range?: number;
     attack_range?: { min: number; max: number };
     stats?: Stats;
     unlockSkills?: string[];

@@ -1,39 +1,12 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import "../map.css";
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit } from "../service/model/CombatModels";
 interface Props {
   size: number;
   rows: number;
   cols: number;
 }
-const CoverCell: React.FC<{ row: number; col: number }> = ({ row, col }) => {
-  const { players, select, selectedCharacter, currentRound } = useCombatManager();
 
-  const render = useMemo(() => {
-    const characters = players?.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-    const character = characters?.find((c) => c.position.x === col && c.position.y === row);
-    if (character && currentRound) {
-      if (!selectedCharacter || selectedCharacter.id !== character.id)
-        return (
-          <div className="cell-cover">
-            <div className="action-btn" onClick={() => select(character)}>
-              SELECT
-            </div>
-            <div className="action-btn">HEAL</div>
-          </div>
-        );
-    } else
-      return (
-        <div className="cell-cover">
-          <div className="action-btn">attack</div>
-        </div>
-      );
-
-    return <></>;
-  }, [players, selectedCharacter]);
-  return <>{render}</>;
-};
 const GridCover: React.FC = () => {
   const { cellSize: size, map, gridCells, setResourceLoad } = useCombatManager();
   const { rows, cols } = map;

@@ -1,40 +1,35 @@
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
-import useLocalization from "service/LocalizationManager";
-import { usePartnerManager } from "service/PartnerManager";
+import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
-import { findWalkables } from "../utils/Utlis";
-import { allObstacles, allPlayers } from "./data/CombatData";
+import { allObstacles, players } from "./data/CombatData";
 import {
   CharacterUnit,
   CombatEvent,
+  CombatRound,
   GridCell,
-  HexNode,
   ICombatContext,
   MapModel,
   Player,
-  WalkableNode,
 } from "./model/CombatModels";
 import useCombatAct from "./useCombatAct";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
+
+const characterList = players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
 export const CombatContext = createContext<ICombatContext>({
   cellSize: 0,
   resourceLoad: null,
   map: { rows: 7, cols: 8 },
-  gridMap: null,
   gridCells: null,
-  players: [],
+  challenger: null,
+  challengee: null,
+  characters: null,
+  currentRound: null,
+  timeClock: 0,
   eventQueue: [],
-  // currentRound: null,
-  // currentTurn: null,
-  // currentAction: null,
   setResourceLoad: () => null,
-  // setCurrentRound: () => null,
-  // setCurrentTurn: () => null,
-  // setCurrentAction: () => null,
   changeMap: () => null,
   changeCellSize: () => null,
   walk: () => null,
@@ -59,10 +54,12 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     ],
   });
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
-  const [players, setPlayers] = useState<Player[] | null>(null);
-  // const [currentAction, setCurrentAction] = useState<CombatAction | null>(null);
-  // const [currentTurn, setCurrentTurn] = useState<CombatTurn | null>(null);
-  // const [currentRound, setCurrentRound] = useState<CombatRound | null>(null);
+  const [challenger, setChallenger] = useState<Player | null>(null);
+  const [challengee, setChallengee] = useState<Player | null>(null);
+  const [characters, setCharacters] = useState<CharacterUnit[] | null>(characterList);
+  const [timeClock, setTimeClock] = useState<number>(0);
+  const [currentRound, setCurrentRound] = useState<CombatRound | null>(null);
+
   const [resourceLoad, setResourceLoad] = useState<{
     character: number;
     gridContainer: number;
@@ -72,69 +69,32 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     gridAttack: number;
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridCover: 1, gridStand: 0, gridAttack: 0 });
 
-  const gridReady = resourceLoad ? resourceLoad["gridContainer"] === 1 && resourceLoad["gridGround"] === 1 : false;
-  const gridMap: HexNode[][] | null = useMemo(() => {
-    if (gridReady && map) {
-      const { rows, cols } = map;
-      const mapGrid: HexNode[][] = Array.from({ length: rows }, (_, y) =>
-        Array.from({ length: cols }, (_, x) => {
-          const node: HexNode = { x, y, walkable: true, type: 0 };
-          const obstacle = map.obstacles?.find((o) => o.col === x && o.row === y);
-          if (obstacle) {
-            node.walkable = false;
-            node.type = 1;
-          }
-          const disable = map.disables?.find((d) => d.x === x && d.y === y);
-          if (disable) {
-            node.walkable = false;
-            node.type = 2;
-          }
-          return node;
-        })
-      );
-      return mapGrid;
-    }
-    return null;
-  }, [gridReady, map]);
-
-  const { partner } = usePartnerManager();
-  const { locale } = useLocalization();
-
-  useEffect(() => {
-    if (!gridMap) return;
-    const player = allPlayers.find((p) => p.uid === "1");
-    if (player?.characters) {
-      const turns = player.characters
-        .sort((a, b) => a.stats.speed - b.stats.speed)
-        .map((c, index) => ({
-          no: index,
-          round: 0,
-          character: c.character_id,
-          uid: player.uid,
-          status: 0,
-        }));
-      const walkables: WalkableNode[] | undefined = findWalkables(player.characters[0], gridMap, allPlayers);
-      const character: CharacterUnit = player.characters[0];
-      character.walkables = walkables;
-      console.log(character);
-      // setCurrentRound({
-      //   no: 0,
-      //   gameId: "1",
-      //   actors: [],
-      //   status: 0,
-      // });
-      // setCurrentTurn(turns[0]);
-    }
-
-    setPlayers(allPlayers);
-  }, [gridMap]);
+  // useEffect(() => {
+  //   if (!gridMap) return;
+  //   const player = allPlayers.find((p) => p.uid === "1");
+  //   if (player?.characters) {
+  //     const turns = player.characters
+  //       .sort((a, b) => a.stats.speed - b.stats.speed)
+  //       .map((c, index) => ({
+  //         no: index,
+  //         round: 0,
+  //         character: c.character_id,
+  //         uid: player.uid,
+  //         status: 0,
+  //       }));
+  //     const walkables: WalkableNode[] | undefined = findWalkables(player.characters[0], gridMap, allPlayers);
+  //     const character: CharacterUnit = player.characters[0];
+  //     character.walkables = walkables;
+  //   }
+  // }, [gridMap]);
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;
-    const { rows, cols } = map;
-    setGridCells(
-      Array.from({ length: rows }, (_, y) =>
-        Array.from({ length: cols }, (_, x) => ({
+    const { rows, cols, obstacles, disables } = map;
+
+    const cells: GridCell[][] = Array.from({ length: rows }, (_, y) =>
+      Array.from({ length: cols }, (_, x) => {
+        const cell: GridCell = {
           x,
           y,
           gridContainer: null,
@@ -142,31 +102,39 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
           gridStand: null,
           gridAttack: null,
           gridCover: null,
-        }))
-      )
+          walkable: true,
+          type: 0,
+        };
+        const obstacle = obstacles?.find((o) => o.col === x && o.row === y);
+        if (obstacle) {
+          cell.walkable = false;
+          cell.type = 1;
+        }
+        const disable = disables?.find((d) => d.x === x && d.y === y);
+        if (disable) {
+          cell.walkable = false;
+          cell.type = 2;
+        }
+        return cell;
+      })
     );
+    // console.log(cells);
+    setGridCells(cells);
   }, [map]);
 
-  const { walk } = useCombatAct({
-    eventQueue: eventQueueRef.current,
-    gridMap,
-    players,
-  });
+  const { walk } = useCombatAct();
   const value = {
     cellSize,
     map,
-    gridMap,
     gridCells,
-    players,
+    challenger,
+    challengee,
+    currentRound,
+    characters,
+    timeClock,
     eventQueue: eventQueueRef.current,
-    // currentRound,
-    // currentTurn,
-    // currentAction,
     resourceLoad,
     setResourceLoad,
-    // setCurrentRound,
-    // setCurrentTurn,
-    // setCurrentAction,
     changeMap: setMap,
     changeCellSize: setCellSize,
     walk,

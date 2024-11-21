@@ -1,22 +1,22 @@
 import gsap from "gsap";
-import { CharacterUnit, GridCell, HexNode } from "../service/model/CombatModels";
-interface Props {
-    gridMap: HexNode[][];
-    gridCells: GridCell[][];
-    characters: CharacterUnit[];
-}
-const playCombatInit = ({ gridMap, gridCells, characters }: Props) => {
+import { CharacterUnit, GridCell } from "../service/model/CombatModels";
+
+export const playInitPlaza = (gridCells: GridCell[][]) => {
 
     const tl = gsap.timeline();
-    gridMap?.forEach((row) => {
-        row.forEach((col) => {
-            if (col.walkable || (col.type && col.type < 2)) {
-                const cell = gridCells[col.y][col.x]
+    tl.to({}, {}, ">1")
+    for (let row = 0; row < gridCells.length; row++) {
+        for (let col = 0; col < gridCells[row].length; col++) {
+            const cell = gridCells[row][col];
+            if (cell.walkable || (cell.type && cell.type < 2))
                 tl.to(cell.gridGround, { autoAlpha: 0.1, duration: 0.1 }, "<")
-            }
-        })
-    })
+        }
+    }
+    tl.play();
 
+}
+export const playInitCharacters = (characters: CharacterUnit[]) => {
+    const tl = gsap.timeline();
     for (const character of characters) {
         if (character.container)
             tl.to(character.container, { autoAlpha: 1, duration: 0.7 }, "<")
@@ -24,4 +24,3 @@ const playCombatInit = ({ gridMap, gridCells, characters }: Props) => {
     tl.play();
 
 }
-export default playCombatInit

@@ -3,18 +3,17 @@ import "../map.css";
 import { useCombatManager } from "../service/CombatManager";
 
 interface HexagonProps {
-  size: number; // 六边形的边长
   row: number;
   col: number;
 }
 
-const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
+const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
   const containerRef = useRef<SVGSVGElement | null>(null);
   const baseRef = useRef<SVGPolygonElement | null>(null);
   const groundRef = useRef<SVGPolygonElement | null>(null);
   const standRef = useRef<SVGPolygonElement | null>(null);
   const attackRef = useRef<SVGCircleElement | null>(null);
-  const { gridMap, gridCells, players, setResourceLoad, walk } = useCombatManager();
+  const { cellSize: size, gridCells, setResourceLoad, walk } = useCombatManager();
 
   const points: [number, number][] = [
     [size / 2, 0], // 顶点1
@@ -49,7 +48,8 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
 
   const loadContainer = useCallback(
     (ele: SVGSVGElement) => {
-      if (gridCells) {
+      if (gridCells && ele) {
+        // console.log(row + ":" + col);
         const cell = gridCells[row][col];
         if (cell) cell.gridContainer = ele;
         containerRef.current = ele;
@@ -67,7 +67,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
   const loadGround = useCallback(
     (ele: SVGPolygonElement) => {
       groundRef.current = ele;
-      if (gridCells) {
+      if (gridCells && ele) {
         const cell = gridCells[row][col];
         if (cell) {
           cell.gridGround = ele;
@@ -86,7 +86,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
   const loadStand = useCallback(
     (ele: SVGPolygonElement) => {
       standRef.current = ele;
-      if (gridCells) {
+      if (gridCells && ele) {
         const cell = gridCells[row][col];
         if (cell) {
           cell.gridStand = ele;
@@ -105,7 +105,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col, size }) => {
   const loadAttack = useCallback(
     (ele: SVGCircleElement) => {
       attackRef.current = ele;
-      if (gridCells) {
+      if (gridCells && gridCells.length > 0 && gridCells[0].length > 0 && ele) {
         const cell = gridCells[row][col];
         if (cell) {
           cell.gridAttack = ele;
@@ -186,42 +186,40 @@ interface Props {
 }
 
 const GridGround: React.FC = () => {
-  const { map, cellSize: size, gridCells, players, gridMap } = useCombatManager();
-  const { rows, cols } = map;
+  const { cellSize: size, gridCells } = useCombatManager();
+  // const { rows, cols } = map;
 
+  const rows = gridCells ? gridCells.length : 0;
+  const cols = gridCells ? gridCells[0].length : 0;
   return (
     <>
-      {gridCells ? (
-        <>
-          {Array.from({ length: rows }).map((_, row) => (
+      {Array.from({ length: rows }).map((_, row) => (
+        <div
+          key={row}
+          style={{
+            display: "flex",
+            justifyContent: "flex-start",
+            marginLeft: row % 2 !== 0 ? `${size / 2}px` : "0", // 奇数行右移半个六边形的宽度
+            marginBottom: `${-size * 0.25}px`,
+          }}
+        >
+          {Array.from({ length: cols }).map((_, col) => (
             <div
-              key={row}
+              key={`${row}-${col}`}
               style={{
-                display: "flex",
-                justifyContent: "flex-start",
-                marginLeft: row % 2 !== 0 ? `${size / 2}px` : "0", // 奇数行右移半个六边形的宽度
-                marginBottom: `${-size * 0.25}px`,
+                position: "relative",
+                width: `${size}px`,
+                height: `${size}px`,
+                margin: 0,
+                pointerEvents: "none",
               }}
+              // onClick={() => handleClick(col, row)}
             >
-              {Array.from({ length: cols }).map((_, col) => (
-                <div
-                  key={`${row}-${col}`}
-                  style={{
-                    position: "relative",
-                    width: `${size}px`,
-                    height: `${size}px`,
-                    margin: 0,
-                    pointerEvents: "none",
-                  }}
-                  // onClick={() => handleClick(col, row)}
-                >
-                  <GroundCell row={row} col={col} size={size} />
-                </div>
-              ))}
+              <GroundCell row={row} col={col} />
             </div>
           ))}
-        </>
-      ) : null}
+        </div>
+      ))}
     </>
   );
 };

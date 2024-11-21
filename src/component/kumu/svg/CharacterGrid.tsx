@@ -1,15 +1,21 @@
 import React, { useMemo } from "react";
 
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit } from "../service/model/CombatModels";
 import CharacterCell from "./CharacterCell";
 
 const CharacterGrid: React.FC = () => {
-  const { players } = useCombatManager();
-  const characters = useMemo(() => {
-    if (players) return players.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-  }, [players]);
-  return <>{characters?.map((c, index) => <CharacterCell key={"character-" + c.id + "-" + index} character={c} />)}</>;
+  const { characters } = useCombatManager();
+  const render = useMemo(() => {
+    console.log(characters);
+    return (
+      <>
+        {characters?.map((c, index) => (
+          <CharacterCell key={"character-" + c.character_id + "-" + index} character={c} />
+        ))}
+      </>
+    );
+  }, [characters]);
+  return <>{render}</>;
 };
 
 export default CharacterGrid;

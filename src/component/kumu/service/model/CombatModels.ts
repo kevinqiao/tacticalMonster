@@ -20,41 +20,35 @@ export enum EVENT_TYPE {
 
 export interface Player {
     uid: string;
-    characters: CharacterUnit[];
+    name?: string;
+    avatar?: string;
 }
+
 export interface CombatEvent {
-    type: number;//0-phase 1-action 2-effect;
+    category: string;//phase 1-action 2-effect;
     name: string;
     gameId: string;
+    time: number;
     data: CombatRound | CombatTurn | CombatAction;
 }
 export interface CombatAction {
     gameId: string;
     round?: number;
-    turn?: number;
     actor: string;
     act: number;
     data?: object;
 }
 export interface CombatTurn {
-    no: number;
-    round: number;
     character: string;
     uid: string;
-    actions?: CombatAction[];
-    dueTime: number;
-    endTime?: number;
-    status: number;//0-open 1-inited 2-over
 }
 export interface CombatRound {
     no: number;
     gameId: string;
-    actors: { character: string; status: number }[];
-    status: number;//0-open 1-inited 2-over
+    turns: { uid: string; character: string; status: number }[];
 }
-export interface GridCell {
-    x: number;
-    y: number;
+export interface GridCell extends HexNode {
+
     gridContainer: SVGSVGElement | null;
     gridGround: SVGPolygonElement | null;
     gridStand: SVGPolygonElement | null;
@@ -97,18 +91,30 @@ export interface MapModel {
     obstacles?: ObstacleCell[];
     disables?: { x: number; y: number }[];
 }
+export interface TMGame {
+    id: string;
+    challenger: Player;
+    challengee: Player;
+    currentRound: CombatRound;
+    timeClock: number;
+    characters: CharacterUnit[];
+    obstacles: ObstacleCell[];
+    disables: { x: number; y: number }[];
+    status: number;
+}
 
 export interface ICombatContext {
     cellSize: number;
     // mapSize: { rows: number; cols: number };
     map: MapModel;
-    gridMap: HexNode[][] | null;
+    // gridMap: HexNode[][] | null;
     gridCells: GridCell[][] | null;
-    players: Player[] | null;
+    challenger: Player | null;
+    challengee: Player | null;
+    timeClock: number;
+    characters: CharacterUnit[] | null;
+    currentRound: CombatRound | null;
     eventQueue: CombatEvent[];
-    // currentRound: CombatRound | null;
-    // currentTurn: CombatTurn | null;
-    // currentAction: CombatAction | null;
     resourceLoad: {
         character: number;
         gridContainer: number;
@@ -127,9 +133,6 @@ export interface ICombatContext {
             gridAttack: number;
         }>
     >;
-    // setCurrentRound: React.Dispatch<React.SetStateAction<CombatRound | null>>;
-    // setCurrentTurn: React.Dispatch<React.SetStateAction<CombatTurn | null>>;
-    // setCurrentAction: React.Dispatch<React.SetStateAction<CombatAction | null>>;
     changeMap: React.Dispatch<React.SetStateAction<MapModel>>;
     changeCellSize: React.Dispatch<React.SetStateAction<number>>;
     walk: (to: { x: number; y: number }) => void;

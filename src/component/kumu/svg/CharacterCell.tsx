@@ -40,8 +40,8 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
           width: `${size}px`,
           height: `${size}px`,
           margin: 0,
-          opacity: 0,
-          visibility: "hidden",
+          // opacity: 0,
+          // visibility: "hidden",
           pointerEvents: "auto",
         }}
       >

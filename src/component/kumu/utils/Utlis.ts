@@ -1,4 +1,3 @@
-import { CharacterUnit, Player } from "../service/model/CombatModels";
 
 export interface Character {
     x: number;  // 当前列号
@@ -61,7 +60,7 @@ export const getHexNeighbors = (grid: HexNode[][], node: { x: number; y: number 
 
 
 // 获取可移动范围内的每个格子的路径
-const getReachableTiles = (grid: HexNode[][], character: Character): { node: HexNode, path: HexNode[], totalCost: number }[] => {
+const getReachableTiles = (grid: HexNode[][], character: { x: number; y: number; movementRange: number }): { node: HexNode, path: HexNode[], totalCost: number }[] => {
     const reachableTiles: { node: HexNode, path: HexNode[], totalCost: number }[] = [];
     const costMap: Map<string, number> = new Map();  // 记录到达每个格子的最小代价
     const queue: { node: HexNode, path: HexNode[], totalCost: number }[] = [];  // 队列
@@ -140,17 +139,14 @@ const getReachableTiles = (grid: HexNode[][], character: Character): { node: Hex
     return reachableTiles;
 };
 
-const findWalkables = (character: CharacterUnit, gridMap: HexNode[][], players: Player[]) => {
-
-    const characters = players?.reduce<CharacterUnit[]>((acc, cur) => [...acc, ...cur.characters], []);
-    const grids: HexNode[][] = gridMap.map<HexNode[]>((row, y) =>
+const findWalkables = (character: { x: number; y: number; movementRange: number }, characters: { x: number; y: number }[], gridCells: HexNode[][]) => {
+    const grids: HexNode[][] = gridCells.map<HexNode[]>((row, y) =>
         row.map((node, x) => {
-            const c = characters?.find((c) => c.position.x === x && c.position.y === y);
+            const c = characters?.find((c) => c.x === x && c.y === y);
             return { ...node, x, y, walkable: c ? false : node.walkable };
         })
     );
-    const { x, y } = character.position;
-    const walkablCells = getReachableTiles(grids, { x, y, movementRange: character.movementRange });
+    const walkablCells = getReachableTiles(grids, character);
     if (walkablCells)
         return walkablCells
             .filter((w) => w.node.walkable)
@@ -159,7 +155,7 @@ const findWalkables = (character: CharacterUnit, gridMap: HexNode[][], players: 
                 y: c.node.y,
                 path: c.path,
                 distance: c.totalCost,
-                turnEnd: c.totalCost < character.movementRange ? 0 : 1,
+                turnEnd: (character.movementRange && c.totalCost < character.movementRange) ? 0 : 1,
             }));
     return;
 }
