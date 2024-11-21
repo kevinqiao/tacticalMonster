@@ -6,8 +6,8 @@ import "./map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
 import useCombatHandlers from "./service/useCombatHandlers";
 import useGameInit from "./service/useGameInit";
-import CharacterGrid from "./svg/CharacterGrid";
-import GridGround from "./svg/GridGround";
+import CharacterGrid from "./sprite/CharacterGrid";
+import GridGround from "./sprite/GridGround";
 const CombatActPanel: React.FC = () => {
   const doSomething = useAction(api.rule.test.doSomething);
   return (

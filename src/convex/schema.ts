@@ -186,30 +186,6 @@ export default defineSchema({
         collected: v.optional(v.number())
     }).index("by_user", ['uid']).index("by_tournament_term_score", ["tournamentId", "term", "score"]).index("by_tournament_term_uid", ["tournamentId", "term", "uid"]),
 
-    // review: defineTable({
-    //     email: v.optional(v.string()),
-    //     phone: v.optional(v.string()),
-    //     partnerId: v.number(),
-    //     app: v.number(),//1-google 2-facebook 3-twitter
-    //     aid: v.string(),//reviewId from app;
-    //     star: v.number(),
-    //     comment: v.string(),
-    //     status: v.number(),//0-created 1-deleted
-    // }).index("by_partner", ['partnerId']).index("by_email", ['partnerId', 'email']).index("by_phone", ['partnerId', 'phone']),
-
-    // order: defineTable({
-    //     email: v.optional(v.string()),
-    //     phone: v.optional(v.string()),
-    //     uid: v.optional(v.string()),
-    //     locationId: v.optional(v.string()),
-    //     tableNo: v.optional(v.number()),
-    //     partnerId: v.number(),//partner id
-    //     oid: v.string(),//original order id created by pos
-    //     status: v.number(),//0-open 1-paid 2-collected 3-cancelled
-    //     amount: v.number(),
-    //     data: v.optional(v.any()),
-    // }).index("by_location", ["partnerId", "locationId"]).index("by_partner_oid", ['partnerId', 'oid']).index("by_partner_customer", ['partnerId', 'uid']),
-
     tm_skill_data: defineTable({
         skill_id: v.string(),
         name: v.string(),

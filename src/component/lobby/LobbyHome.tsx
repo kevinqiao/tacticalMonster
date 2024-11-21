@@ -1,4 +1,3 @@
-import OpponentSearch from "component/play/match/OpponentSearch";
 import { SlideNavProvider } from "component/SlideNavManager";
 import PageProps from "model/PageProps";
 import React, { useMemo } from "react";
@@ -22,7 +21,6 @@ const LobbyHome: React.FC<PageProps> = (prop) => {
                 <LobbyContent />
               </SlideNavProvider>
             </div>
-            <OpponentSearch />
           </>
         ) : null}
       </>

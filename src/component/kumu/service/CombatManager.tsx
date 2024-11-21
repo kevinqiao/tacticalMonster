@@ -102,7 +102,6 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     // console.log(cells);
     setGridCells(cells);
   }, [map]);
-
   const { walk } = useCombatAct();
   const value = {
     cellSize,

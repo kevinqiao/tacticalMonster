@@ -1,5 +1,5 @@
 import { CombatAction } from "./model/CombatModels";
-import { Game } from "./model/TMGameModel";
+
 
 const createGame = () => {
     return;
@@ -10,7 +10,7 @@ const createRound = () => {
 const createTurn = () => {
     return;
 }
-const createAction = (action: CombatAction, game: Game) => {
+const createAction = (action: CombatAction) => {
     return;
 }
 const completeAction = () => {
@@ -22,17 +22,17 @@ const completeTurn = () => {
 const completeRound = () => {
     return;
 }
-const move = (uid: string, character: number, to: { x: number; y: number }, game: Game) => {
+const move = (uid: string, character: number, to: { x: number; y: number }) => {
     //validate act
     //build action object
     return;
 }
-const defend = (uid: string, character: number, game: Game) => {
+const defend = (uid: string, character: number) => {
     return;
 }
-const standBy = (uid: string, character: number, game: Game) => {
+const standBy = (uid: string, character: number) => {
     return;
 }
-const attack = (attacker: { uid: string, character: number }, attackees: { uid: string, character: number }[], game: Game) => {
+const attack = (attacker: { uid: string, character: number }, attackees: { uid: string, character: number }[]) => {
     return;
 }
