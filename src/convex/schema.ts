@@ -185,10 +185,17 @@ export default defineSchema({
         reward: v.optional(v.array(v.object({ asset: v.number(), amount: v.number() }))),
         collected: v.optional(v.number())
     }).index("by_user", ['uid']).index("by_tournament_term_score", ["tournamentId", "term", "score"]).index("by_tournament_term_uid", ["tournamentId", "term", "uid"]),
-
+    tm_player: defineTable({
+        uid: v.string(),
+        level: v.number(),
+        exp: v.number(),
+        name: v.optional(v.string()),
+        avatar: v.optional(v.string())
+    }).index("by_uid", ["uid"]),
     tm_skill_data: defineTable({
         skill_id: v.string(),
         name: v.string(),
+        category: v.string(),
         type: v.union(v.string()),
         description: v.optional(v.string()),
         range: v.optional(v.object({ area_type: v.union(v.string()), distance: v.number() })),
@@ -205,17 +212,18 @@ export default defineSchema({
     tm_character_data: defineTable({
         character_id: v.string(),
         name: v.string(),
-        skills: v.array(v.string()),
-        move_arrange: v.number(),
+        class: v.optional(v.string()),
+        race: v.optional(v.string()),
+        asset: v.optional(v.string()),
+        move_range: v.number(),
         attack_range: v.object({ min: v.number(), max: v.number() })
     }).index("by_character_id", ["character_id"]),
-    tm_user_character: defineTable({
+    tm_player_character: defineTable({
         character_id: v.string(),
         uid: v.string(),
         level: v.number(),
-        exp: v.number(),
-        status: v.number(),
-    }).index("by_user", ["uid"]),
+        status: v.optional(v.number()),
+    }).index("by_player", ["uid", "character_id"]),
     tm_game_character: defineTable({
         character_id: v.string(),
         uid: v.string(),

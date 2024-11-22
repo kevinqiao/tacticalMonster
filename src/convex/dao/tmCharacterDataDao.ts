@@ -5,8 +5,10 @@ export const create = internalMutation({
     args: {
         character_id: v.string(),
         name: v.string(),
-        skills: v.array(v.string()),
-        move_arrange: v.number(),
+        class: v.optional(v.string()),
+        race: v.optional(v.string()),
+        asset: v.optional(v.string()),
+        move_range: v.number(),
         attack_range: v.object({ min: v.number(), max: v.number() })
     },
     handler: async (ctx, args) => {

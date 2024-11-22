@@ -5,6 +5,7 @@ export const create = internalMutation({
     args: {
         skill_id: v.string(),
         name: v.string(),
+        category: v.string(),
         type: v.union(v.string()),
         description: v.optional(v.string()),
         range: v.optional(v.object({ area_type: v.union(v.string()), distance: v.number() })),
