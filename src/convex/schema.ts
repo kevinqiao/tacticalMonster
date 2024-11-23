@@ -229,12 +229,12 @@ export default defineSchema({
         uid: v.string(),
         gameId: v.string(),
         level: v.number(),
-        stats: v.any(),
-        position: v.object({ x: v.number(), y: v.number() }),
-        statusEffects: v.array(v.any()),
-        unlockSkills: v.array(v.string()),
-        cooldowns: v.any(),
-        move_arrange: v.number(),
+        stats: v.optional(v.any()),
+        position: v.optional(v.object({ x: v.number(), y: v.number() })),
+        statusEffects: v.optional(v.array(v.any())),
+        unlockSkills: v.optional(v.array(v.string())),
+        cooldowns: v.optional(v.any()),
+        move_range: v.number(),
         attack_range: v.object({ min: v.number(), max: v.number() })
     }).index("by_game", ['gameId']),
     tm_game: defineTable({

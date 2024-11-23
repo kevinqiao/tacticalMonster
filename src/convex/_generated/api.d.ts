@@ -24,12 +24,13 @@ import type * as crons from "../crons.js";
 import type * as cuser from "../cuser.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_tmCharacterDataDao from "../dao/tmCharacterDataDao.js";
-import type * as dao_tmCharacterLevelDataDao from "../dao/tmCharacterLevelDataDao.js";
-import type * as dao_tmCharacterSkillDataDao from "../dao/tmCharacterSkillDataDao.js";
 import type * as dao_tmGameCharacterDao from "../dao/tmGameCharacterDao.js";
 import type * as dao_tmGameDao from "../dao/tmGameDao.js";
 import type * as dao_tmGameEventDao from "../dao/tmGameEventDao.js";
+import type * as dao_tmLevelDataDao from "../dao/tmLevelDataDao.js";
 import type * as dao_tmPlayerCharacterDao from "../dao/tmPlayerCharacterDao.js";
+import type * as dao_tmPlayerDao from "../dao/tmPlayerDao.js";
+import type * as dao_tmSkillDataDao from "../dao/tmSkillDataDao.js";
 import type * as data_TournamentData from "../data/TournamentData.js";
 import type * as diffcult from "../diffcult.js";
 import type * as events from "../events.js";
@@ -41,15 +42,18 @@ import type * as leaderboard from "../leaderboard.js";
 import type * as localization from "../localization.js";
 import type * as matchqueue from "../matchqueue.js";
 import type * as message from "../message.js";
+import type * as model_CharacterModels from "../model/CharacterModels.js";
 import type * as model_Defender from "../model/Defender.js";
 import type * as model_Tournament from "../model/Tournament.js";
 import type * as partner from "../partner.js";
 import type * as rule_test from "../rule/test.js";
 import type * as service_tmGameProxy from "../service/tmGameProxy.js";
+import type * as service_tmGameService from "../service/tmGameService.js";
 import type * as tournaments from "../tournaments.js";
 import type * as tournamentService from "../tournamentService.js";
 import type * as user from "../user.js";
 import type * as UserService from "../UserService.js";
+import type * as utils_Utlis from "../utils/Utlis.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -70,12 +74,13 @@ declare const fullApi: ApiFromModules<{
   cuser: typeof cuser;
   "custom/session": typeof custom_session;
   "dao/tmCharacterDataDao": typeof dao_tmCharacterDataDao;
-  "dao/tmCharacterLevelDataDao": typeof dao_tmCharacterLevelDataDao;
-  "dao/tmCharacterSkillDataDao": typeof dao_tmCharacterSkillDataDao;
   "dao/tmGameCharacterDao": typeof dao_tmGameCharacterDao;
   "dao/tmGameDao": typeof dao_tmGameDao;
   "dao/tmGameEventDao": typeof dao_tmGameEventDao;
+  "dao/tmLevelDataDao": typeof dao_tmLevelDataDao;
   "dao/tmPlayerCharacterDao": typeof dao_tmPlayerCharacterDao;
+  "dao/tmPlayerDao": typeof dao_tmPlayerDao;
+  "dao/tmSkillDataDao": typeof dao_tmSkillDataDao;
   "data/TournamentData": typeof data_TournamentData;
   diffcult: typeof diffcult;
   events: typeof events;
@@ -87,15 +92,18 @@ declare const fullApi: ApiFromModules<{
   localization: typeof localization;
   matchqueue: typeof matchqueue;
   message: typeof message;
+  "model/CharacterModels": typeof model_CharacterModels;
   "model/Defender": typeof model_Defender;
   "model/Tournament": typeof model_Tournament;
   partner: typeof partner;
   "rule/test": typeof rule_test;
   "service/tmGameProxy": typeof service_tmGameProxy;
+  "service/tmGameService": typeof service_tmGameService;
   tournaments: typeof tournaments;
   tournamentService: typeof tournamentService;
   user: typeof user;
   UserService: typeof UserService;
+  "utils/Utlis": typeof utils_Utlis;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

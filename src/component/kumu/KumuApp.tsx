@@ -10,9 +10,12 @@ import CharacterGrid from "./sprite/CharacterGrid";
 import GridGround from "./sprite/GridGround";
 const CombatActPanel: React.FC = () => {
   const doSomething = useAction(api.rule.test.doSomething);
+  const startGame = useAction(api.service.tmGameProxy.start);
   return (
     <div className="action-panel" style={{ left: 0 }}>
-      <div className="action-panel-item">SKILL</div>
+      <div className="action-panel-item" onClick={() => startGame()}>
+        START
+      </div>
       <div className="action-panel-item">STANDBY</div>
       <div className="action-panel-item" onClick={() => doSomething()}>
         DEFEND
