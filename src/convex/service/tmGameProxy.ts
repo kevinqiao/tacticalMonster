@@ -1,12 +1,11 @@
 import { v } from "convex/values";
-
 import { action } from "../_generated/server";
 import { sessionAction } from "../custom/session";
-import tmGameService from "./tmGameService";
+import GameManager from "./tmGameManager";
 export const start = action({
     args: {},
     handler: async (ctx, args) => {
-        const gameService = new tmGameService(ctx);
+        const gameService = new GameManager(ctx);
         await gameService.createGame();
     }
 })

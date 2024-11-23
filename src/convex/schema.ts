@@ -2,13 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-    tmgame: defineTable({
-        id: v.string(),
-        players: v.array(v.object({ uid: v.string(), characters: v.array(v.object({ id: v.number(), move_arrange: v.number(), position: v.object({ x: v.number(), y: v.number() }) })) })),
-        obstacles: v.array(v.object({ x: v.number(), y: v.number(), asset: v.number(), type: v.optional(v.number()) })),
-        disables: v.array(v.object({ x: v.number(), y: v.number() })),
-        status: v.number(),
-    }),
+
     combatEvent: defineTable({
         type: v.number(),
         gameId: v.string(),
@@ -243,15 +237,20 @@ export default defineSchema({
         round: v.number(),
         turns: v.array(v.object({ uid: v.string(), character_id: v.string(), status: v.number() })),
         timeClock: v.number(),
-        obstacles: v.array(v.object({ x: v.number(), y: v.number(), type: v.number() })),
-        disables: v.array(v.object({ x: v.number(), y: v.number() })),
+        map: v.optional(v.object({ map_id: v.optional(v.string()), rows: v.number(), cols: v.number(), obstacles: v.optional(v.array(v.object({ x: v.number(), y: v.number(), type: v.number(), asset: v.string() }))), disables: v.optional(v.array(v.object({ x: v.number(), y: v.number() }))) }))
     }).index("by_challenger", ["challenger"]).index("by_challengee", ["challengee"]),
-
-    tm_game_event: defineTable({
-        gameId: v.string(),
-        category: v.string(),
+    tm_map_data: defineTable({
+        map_id: v.string(),
+        rows: v.number(),
+        cols: v.number(),
+        obstacles: v.array(v.object({ x: v.number(), y: v.number(), type: v.number(), asset: v.string() })),
+        disables: v.array(v.object({ x: v.number(), y: v.number() })),
+    }).index("by_map_id", ["map_id"]),
+    tm_event: defineTable({
+        uid: v.optional(v.string()),
+        gameId: v.optional(v.string()),
+        category: v.optional(v.string()),
         name: v.string(),
-        time: v.number(),
-        data: v.any()
-    }).index("by_game_time", ["gameId", "time"]).index("by_category", ["gameId", "category"])
+        data: v.optional(v.any())
+    }).index("by_game", ["gameId"]).index("by_player", ["uid"])
 });
