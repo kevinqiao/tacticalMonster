@@ -7,6 +7,12 @@ export const PlayPlace =
     auth: 0,//0-public 1-consumer 2-worker 3-admin
     navs: [
         {
+            name: "main",
+            auth: 0,
+            path: "./kumu/PlayGround",
+            uri: "/ground",
+        },
+        {
             name: "map",
             auth: 0,
             path: "./kumu/KumuApp",
@@ -142,15 +148,14 @@ export interface AppConfig {
     context: string;
     entry: string;
     auth: number;
-    navs: NavConfig[];
+    navs: PageConfig[];
 }
-export interface NavConfig {
+export interface PageConfig {
     app?: string;
     name: string;
     path: string;
     uri: string;
     auth?: number;
-    pop?: { init?: any; animates: { terminals: string[]; id: number }[], exit?: number }
     children?: {
         name: string;
         path: string;
@@ -160,5 +165,5 @@ export interface NavConfig {
     }[]
 
 }
-export const AppsConfiguration: any[] = [PlayPlace];
+export const AppsConfiguration: AppConfig[] = [PlayPlace];
 

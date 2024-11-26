@@ -3,7 +3,6 @@ import { PartnerModel } from "model/PartnerModel";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 import { getURIParam } from "util/PageUtils";
 import { api } from "../convex/_generated/api";
-import { usePageManager } from "./PageManager";
 import { useUserManager } from "./UserManager";
 
 interface IPartnerContext {
@@ -17,7 +16,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
   const [partner, setPartner] = useState<PartnerModel | null>(null);
   const [checkCompleted, setCheckCompleted] = useState(0);
   const { user } = useUserManager();
-  const { openError } = usePageManager();
+
   console.log("partner provider");
 
   const convex = useConvex();
@@ -34,7 +33,7 @@ const PartnerProvider = ({ children }: { children: ReactNode }) => {
         fetchPartner(user.partner).then((p) => {
           setPartner(p);
         });
-      } else openError({ name: "PartnerNotFound" });
+      }
     }
   }, [user, checkCompleted]);
   useEffect(() => {

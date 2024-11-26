@@ -1,4 +1,3 @@
-import { useSlideNavManager } from "component/SlideNavManager";
 import React, { useEffect, useState } from "react";
 import useEventSubscriber from "service/EventManager";
 import { useUserManager } from "service/UserManager";
@@ -22,11 +21,10 @@ const AssetListHome: React.FC = () => {
   const { width, height, headH, LobbyMenuH } = useCoord();
   const { user } = useUserManager();
   const [assets, setAssets] = useState<{ asset: number; amount: number }[]>([]);
-  const { menuIndex } = useSlideNavManager();
   const { createEvent } = useEventSubscriber([], []);
   useEffect(() => {
     if (user?.assets) setAssets(user.assets);
-  }, [menuIndex, user]);
+  }, [user]);
   return (
     <Container height={`${height - headH}px`}>
       <div style={{ width: "100%", height: "100%" }}>

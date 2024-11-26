@@ -11,6 +11,7 @@ import GridGround from "./sprite/GridGround";
 const CombatActPanel: React.FC = () => {
   const doSomething = useAction(api.rule.test.doSomething);
   const startGame = useAction(api.service.tmGameProxy.start);
+
   return (
     <div className="action-panel" style={{ left: 0 }}>
       <div className="action-panel-item" onClick={() => startGame()}>
@@ -117,7 +118,8 @@ const BattleVenue: React.FC = () => {
     </div>
   );
 };
-const KumuApp: React.FC = () => {
+const KumuApp: React.FC = (props) => {
+  console.log(props);
   return (
     <BattleProvider>
       <BattleVenue></BattleVenue>

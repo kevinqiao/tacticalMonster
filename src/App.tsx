@@ -3,7 +3,6 @@ import Head from "component/common/Head";
 import RenderApp from "component/RenderApp";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React from "react";
-import { EventProvider } from "service/EventManager";
 import { LocalizationProvider } from "service/LocalizationManager";
 import PartnerProvider from "service/PartnerManager";
 import { TerminalProvider } from "service/TerminalManager";
@@ -46,7 +45,7 @@ const StyleApp = () => {
   const Providers = FlattenedProviderTree([
     // [SceneProvider],
     // [PageProvider],
-    [EventProvider],
+    // [EventProvider],
     [TerminalProvider],
     [LocalizationProvider],
     [ThemeProvider, { theme }],

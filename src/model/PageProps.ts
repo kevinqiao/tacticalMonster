@@ -34,9 +34,6 @@ export default interface PageProps {
 export interface PageItem {
     name: string;
     app: string; //null|undefined-cover;
-    pid?: number;
     data?: { [key: string]: any };
-    params?: { [key: string]: string };
-    hash?: { [key: string]: string };
     child?: string;
 }
