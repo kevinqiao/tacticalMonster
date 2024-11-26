@@ -1,8 +1,7 @@
-import gsap from "gsap";
 import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { parseURL } from "util/PageUtils";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { buildNavURL, parseURL } from "util/PageUtils";
 
 export type App = {
   name: string;
@@ -25,6 +24,7 @@ interface IPageContext {
   app: App | null;
   navOpen: boolean;
   pageContainers: PageContainer[];
+  containersLoaded: number;
   // openChild: (child: string, data?: { [k: string]: any }) => void;
   openPage: (page: PageItem) => void;
   openNav: () => void;
@@ -43,6 +43,7 @@ const PageContext = createContext<IPageContext>({
   app: null,
   navOpen: false,
   pageContainers: [],
+  containersLoaded: 0,
   openPage: (p: PageItem) => null,
   openNav: () => null,
   closeNav: () => null,
@@ -50,6 +51,7 @@ const PageContext = createContext<IPageContext>({
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
+  const currentIndexRef = useRef(0);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [pageQueue, setPageQueue] = useState<PageItem[]>([]);
   const [pageConfigs, setPageConfigs] = useState<PageConfig[]>(allPageConfigs);
@@ -62,8 +64,12 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     }
     return [];
   }, [pageConfigs]);
+
   const openPage = useCallback((page: PageItem) => {
     setPageQueue((pre) => [page, ...pre]);
+    const url = buildNavURL(page);
+    const newIndex = currentIndexRef.current + 1; // 新索引递增
+    history.pushState({ index: newIndex }, "", url);
   }, []);
 
   const openNav = useCallback(() => {
@@ -74,42 +80,28 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // const handlePopState = (event: any) => {};
-    console.log("container loaded:" + containersLoaded);
-    // window.addEventListener("popstate", handlePopState);
+    const handlePopState = (event: any) => {
+      const prop = parseURL(window.location);
+      const page = prop["navItem"];
+      if (page) {
+        setPageQueue((pre) => [page, ...pre]);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+
     const prop = parseURL(window.location);
     const page = prop["navItem"];
     if (page) {
-      openPage(page);
+      setPageQueue((pre) => [page, ...pre]);
     }
-    // return () => {
-    //   window.removeEventListener("popstate", handlePopState);
-    // };
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, []);
-  useEffect(() => {
-    if (containersLoaded && pageQueue.length > 0) {
-      const container = pageContainers.find((c) => c.app === pageQueue[0].app && c.name === pageQueue[0].name);
-      if (container) {
-        console.log(container);
-        const tl = gsap.timeline({
-          onComplete: () => {
-            tl.kill();
-          },
-        });
-        tl.to(container.ele, { autoAlpha: 1, duration: 1.2 });
-        if (pageQueue.length > 1) {
-          const preContainer = pageContainers.find((c) => c.app === pageQueue[1].app && c.name === pageQueue[1].name);
-          if (preContainer) {
-            tl.to(preContainer.ele, { autoAlpha: 0, duration: 1.2 }, "<");
-          }
-        }
-        tl.play();
-      }
-    }
-  }, [pageContainers, containersLoaded, pageQueue]);
 
   const value = {
     pageContainers,
+    containersLoaded,
     pageQueue,
     app,
     navOpen,
