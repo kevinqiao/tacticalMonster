@@ -80,6 +80,12 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    if (pageQueue.length > 3) {
+      pageQueue.pop();
+      console.log(pageQueue);
+    }
+  }, [pageQueue]);
+  useEffect(() => {
     const handlePopState = (event: any) => {
       const prop = parseURL(window.location);
       const page = prop["navItem"];
@@ -88,10 +94,11 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
     window.addEventListener("popstate", handlePopState);
-
+    console.log(window.location.href);
     const prop = parseURL(window.location);
     const page = prop["navItem"];
     if (page) {
+      console.log(page);
       setPageQueue((pre) => [page, ...pre]);
     }
     return () => {

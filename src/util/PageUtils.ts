@@ -1,4 +1,4 @@
-import { AppsConfiguration, NavConfig } from "model/PageConfiguration";
+import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
 
 export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; stackItems?: PageItem[] } => {
@@ -69,30 +69,8 @@ export const buildNavURL = (pageItem: PageItem): string | null => {
         if (nav) {
             url = url + nav.uri;
             if (pageItem.child) {
-                const child = nav.children.find((c: any) => c.name === pageItem.child);
+                const child = nav.children?.find((c: any) => c.name === pageItem.child);
                 if (child) url = url + "/" + child.uri;
-            }
-            if (pageItem.params && Object.keys(pageItem.params).length > 0) {
-                url = url + "?"
-                Object.keys(pageItem.params).forEach((k, index) => {
-                    if (pageItem.params) {
-                        const v = pageItem.params[k];
-                        if (Object.keys(pageItem.params).length === index + 1) {
-                            url = url + k + "=" + v;
-                        } else url = url + k + "=" + v + "&";
-                    }
-                })
-            }
-            const hashParams = pageItem.hash
-            if (hashParams && Object.keys(hashParams).length > 0) {
-                url = url + "#"
-                Object.keys(hashParams).forEach((k, index) => {
-                    const v = hashParams[k];
-                    if (Object.keys(hashParams).length === index + 1) {
-                        url = url + k + "=" + v;
-                    } else url = url + k + "=" + v + "&";
-
-                })
             }
         }
         return url;
@@ -110,12 +88,12 @@ export const getCurrentAppConfig = () => {
 }
 export const getPageConfig = (appName: string, page: string) => {
     const app = AppsConfiguration.find((a) => a.name === appName);
-    const cfg: NavConfig | undefined = app.navs.find((p: any) => p.name === page);
+    const cfg: PageConfig | undefined = app?.navs.find((p: any) => p.name === page);
     return cfg
 }
 export const getNavConfig = (appName: string, page: string, child?: string) => {
     const app = AppsConfiguration.find((a) => a.name === appName);
-    const cfg: NavConfig | undefined = app.navs.find((p: any) => p.name === page);
+    const cfg: PageConfig | undefined = app?.navs.find((p: any) => p.name === page);
     if (child && cfg?.children) {
         const cnav = cfg.children.find((c) => c.name === child);
         return cnav
@@ -123,26 +101,7 @@ export const getNavConfig = (appName: string, page: string, child?: string) => {
     return cfg
 }
 
-export const getUriByPop = (stacks: PageItem[], pop: string): string => {
-    let url = window.location.pathname;
-    if (window.location.search) {
-        const searchParams = new URLSearchParams(window.location.search);
-        const toPop = stacks.find((s) => s.name === pop)
-        if (toPop?.params)
-            Object.keys(toPop.params).forEach((k) => {
-                if (searchParams.has(k)) searchParams.delete(k);
-            });
 
-        if (Object.keys(searchParams).length > 0) url = url + "?" + searchParams.toString();
-    }
-    const hash = window.location.hash;
-    if (hash) {
-        const hs: string[] = hash.split("@");
-        const nhash = hs.filter((h) => h !== pop).join("@");
-        url = url + (nhash !== "#" ? nhash : "");
-    }
-    return url
-}
 
 export const getURIParam = (name: string): string | null => {
     const urlObj = new URL(window.location.href);

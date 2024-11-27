@@ -10,7 +10,7 @@ export const PlayPlace =
             name: "main",
             auth: 0,
             path: "./kumu/PlayGround",
-            uri: "/ground",
+            uri: "/main",
         },
         {
             name: "map",
@@ -162,7 +162,8 @@ export interface PageConfig {
         uri: string;
         auth?: number;
         pop?: { init?: any; animates: { terminals: string[]; id: number }[], exit?: number }
-    }[]
+    }[];
+    ele?: HTMLDivElement | null;
 
 }
 export const AppsConfiguration: AppConfig[] = [PlayPlace];

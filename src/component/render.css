@@ -7,15 +7,16 @@
     width: 100vw;
     height: 100vh
   }
-.pop-container {
-  position:fixed;
-  top:0px;
-  left:0px;
+.children-group {
+  position:relative;
+  height:100%;
+  width:100%;
+}
+.child-container {
+  position:absolute;
   height:100%;
   width:100%;
   opacity: 0;
   visibility: hidden;
 }
-
-  
   
