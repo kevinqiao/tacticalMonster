@@ -12,14 +12,13 @@ export interface PageContainer {
 }
 interface IPageChildrenContext {
   childrenGround: PageConfig | null;
-  childContainers: PageConfig[];
+  childContainers?: PageConfig[];
   containersLoaded: number;
   setContainersLoaded: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const PageChildrenContext = createContext<IPageChildrenContext>({
   childrenGround: null,
-  childContainers: [],
   containersLoaded: 0,
   setContainersLoaded: () => null,
 });
@@ -33,13 +32,14 @@ export const PageChildrenProvider = ({
 }) => {
   const { pageQueue } = usePageManager();
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
-  console.log(pageQueue);
+  console.log(pageConfig);
   const childrenGround = useMemo(() => {
     if (pageConfig) return { ...pageConfig, children: undefined };
     return null;
   }, [pageConfig]);
 
   const childContainers = useMemo(() => {
+    if (!pageConfig || pageQueue.length === 0) return;
     const childs: PageContainer[] = [];
     for (const page of pageQueue) {
       if (page.app !== pageConfig.app || page.name !== pageConfig.name) break;
@@ -47,6 +47,7 @@ export const PageChildrenProvider = ({
       if (child) childs.push({ ...child, data: page.data });
       else break;
     }
+    console.log(childs);
     return childs;
   }, [pageConfig, pageQueue]);
 

@@ -10,7 +10,7 @@ export const PlayPlace =
             name: "main",
             auth: 0,
             path: "./kumu/PlayGround",
-            uri: "/main",
+            uri: "main",
             children: [
                 { name: "child1", path: "./kumu/component/Child1", uri: "c1", auth: 0 },
                 { name: "child2", path: "./kumu/component/Child2", uri: "c2", auth: 0 },
@@ -21,7 +21,7 @@ export const PlayPlace =
             name: "map",
             auth: 0,
             path: "./kumu/KumuApp",
-            uri: "/map",
+            uri: "map",
         }
     ]
 

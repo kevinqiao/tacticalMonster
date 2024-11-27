@@ -9,12 +9,13 @@ import "./render.css";
 import SSOController from "./signin/SSOController";
 gsap.registerPlugin(CSSPlugin);
 
-interface PageProp {
+export interface PageProp {
   data: any;
   visible?: number;
 }
 
 const ChildComponent: React.FC<{ container: PageContainer }> = ({ container }) => {
+  console.log(container);
   const SelectedComponent: FunctionComponent<PageProp> = useMemo(() => {
     return lazy(() => import(`${container.path}`));
   }, [container]);
@@ -34,7 +35,7 @@ const ChildrenGroup: React.FC = () => {
     <>
       {childrenGround ? (
         <div ref={(ele) => (childrenGround.ele = ele ?? undefined)} className="children-group">
-          {childContainers.map((c: PageContainer) => (
+          {childContainers?.map((c: PageContainer) => (
             <div ref={(ele) => (c.ele = ele ?? undefined)} key={c.name} className="child-container">
               <ChildComponent container={c} />
             </div>

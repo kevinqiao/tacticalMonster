@@ -1,6 +1,8 @@
+import { PageProp } from "component/RenderApp";
 import React from "react";
 
-const Child1: React.FC = (props) => {
+const Child1: React.FC<PageProp> = (props) => {
+  console.log(props.data);
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
       <div className="action-panel-item">Child1</div>
