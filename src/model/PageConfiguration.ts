@@ -11,6 +11,11 @@ export const PlayPlace =
             auth: 0,
             path: "./kumu/PlayGround",
             uri: "/main",
+            children: [
+                { name: "child1", path: "./kumu/component/Child1", uri: "c1", auth: 0 },
+                { name: "child2", path: "./kumu/component/Child2", uri: "c2", auth: 0 },
+                { name: "child3", path: "./kumu/component/Child3", uri: "c3", auth: 0 },
+            ]
         },
         {
             name: "map",

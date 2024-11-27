@@ -1,26 +1,20 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
 // Register the plugin
-import { PageConfig } from "model/PageConfiguration";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useMemo } from "react";
-import PageChildrenProvider, { ChildContainer, usePageChildrenManager } from "service/PageChildrenManager";
+import PageChildrenProvider, { usePageChildrenManager } from "service/PageChildrenManager";
 import { PageContainer, usePageManager } from "service/PageManager";
 import usePageAnimate from "../animate/usePageAnimate";
 import "./render.css";
 import SSOController from "./signin/SSOController";
 gsap.registerPlugin(CSSPlugin);
-interface ChildProp {
-  container: ChildContainer;
-}
-interface ContainerProp {
-  pageConfig: PageConfig;
-}
+
 interface PageProp {
   data: any;
   visible?: number;
 }
 
-const ChildComponent: React.FC<ChildProp> = ({ container }) => {
+const ChildComponent: React.FC<{ container: PageContainer }> = ({ container }) => {
   const SelectedComponent: FunctionComponent<PageProp> = useMemo(() => {
     return lazy(() => import(`${container.path}`));
   }, [container]);
@@ -40,7 +34,7 @@ const ChildrenGroup: React.FC = () => {
     <>
       {childrenGround ? (
         <div ref={(ele) => (childrenGround.ele = ele ?? undefined)} className="children-group">
-          {childContainers.map((c: ChildContainer) => (
+          {childContainers.map((c: PageContainer) => (
             <div ref={(ele) => (c.ele = ele ?? undefined)} key={c.name} className="child-container">
               <ChildComponent container={c} />
             </div>
@@ -51,18 +45,18 @@ const ChildrenGroup: React.FC = () => {
   );
 };
 
-const PageComponent: React.FC<ContainerProp> = ({ pageConfig }) => {
+const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) => {
   const { pageQueue } = usePageManager();
   const visible = useMemo(() => {
-    return pageQueue.length > 0 && pageConfig.app === pageQueue[0].app && pageConfig.name == pageQueue[0].name ? 1 : 0;
+    return pageQueue.length > 0 && container.app === pageQueue[0].app && container.name == pageQueue[0].name ? 1 : 0;
   }, [pageQueue]);
 
   const SelectedComponent: FunctionComponent<PageProp> = useMemo(() => {
-    return lazy(() => import(`${pageConfig.path}`));
-  }, [pageConfig]);
+    return lazy(() => import(`${container.path}`));
+  }, [container]);
   return (
     <>
-      <PageChildrenProvider pageConfig={pageConfig}>
+      <PageChildrenProvider pageConfig={container}>
         <>
           <Suspense fallback={<div />}>
             <SelectedComponent data={visible ? pageQueue[0]["data"] : {}} visible={visible}></SelectedComponent>
@@ -91,7 +85,7 @@ const RenderApp: React.FC = () => {
     <>
       {pageContainers?.map((container, index: number) => (
         <div key={container.app + "-" + container.name} ref={(ele) => load(container, ele)} className="page_container">
-          <PageComponent pageConfig={container as PageConfig} />
+          <PageComponent container={container} />
         </div>
       ))}
       {/* <NavController /> */}

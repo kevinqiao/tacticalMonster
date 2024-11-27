@@ -1,11 +1,42 @@
 import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
-
+export const parseLocation = (): PageItem | undefined => {
+    const page: { [k: string]: any } = {}
+    const ps: string[] = window.location.pathname.split("/");
+    if (ps.length < 2) return
+    const app = AppsConfiguration.find((a) => a.context === ps[1]);
+    if (app) {
+        page.app = app.name;
+        if (ps.length > 2)
+            page.name = ps[2]
+        if (ps.length > 3)
+            page.child = ps[3]
+    } else {
+        const root = AppsConfiguration.find((a) => a.context === "/");
+        if (root) {
+            page.app = root.name;
+            if (ps.length > 2)
+                page.name = ps[2]
+            if (ps.length > 3)
+                page.child = ps[3]
+        }
+    }
+    if (location.search) {
+        const params: { [key: string]: string } = {};
+        const searchParams = new URLSearchParams(location.search);
+        for (const param of searchParams) {
+            params[param[0]] = param[1];
+        }
+        page.data = params;
+    }
+    return page as PageItem
+}
 export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; stackItems?: PageItem[] } => {
 
     const res: any = {};
     const navItem: any = {};
     const ps = location.pathname.split("/");
+    console.log(ps)
     res["ctx"] = ps[1].length === 0 ? "/" : ps[1];
     let app: any = AppsConfiguration.find((a) => a.context === res['ctx']);
     if (!app) {
@@ -14,12 +45,14 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
     }
 
     if (app) {
+        console.log(app)
 
         const uri = res['ctx'] === "/" ? location.pathname : location.pathname.substring(res['ctx'].length);
-        let navCfg: any = app.navs.find((nav: any) => uri.includes(nav.uri));
-        if (!navCfg) {
-            navCfg = app.navs[0]
-        }
+        console.log(uri)
+        const navCfg: any = app.navs.find((nav: any) => uri.includes(nav.uri));
+        // if (!navCfg) {
+        //     navCfg = app.navs[0]
+        // }
 
         if (navCfg) {
             navItem["ctx"] = app.context;

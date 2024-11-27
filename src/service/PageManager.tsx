@@ -1,7 +1,7 @@
 import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { buildNavURL, parseURL } from "util/PageUtils";
+import { buildNavURL, parseLocation } from "util/PageUtils";
 
 export type App = {
   name: string;
@@ -17,7 +17,8 @@ export interface PageContainer {
   path: string;
   uri: string;
   auth?: number;
-  ele: HTMLDivElement | null;
+  data?: any;
+  ele?: HTMLDivElement | null;
 }
 interface IPageContext {
   pageQueue: PageItem[];
@@ -60,7 +61,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const pageContainers = useMemo(() => {
     if (pageConfigs) {
-      return pageConfigs.map((c) => ({ ...c, ele: null }));
+      return pageConfigs.map((c) => ({ ...c }));
     }
     return [];
   }, [pageConfigs]);
@@ -87,16 +88,14 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, [pageQueue]);
   useEffect(() => {
     const handlePopState = (event: any) => {
-      const prop = parseURL(window.location);
-      const page = prop["navItem"];
+      const page = parseLocation();
       if (page) {
         setPageQueue((pre) => [page, ...pre]);
       }
     };
     window.addEventListener("popstate", handlePopState);
-    console.log(window.location.href);
-    const prop = parseURL(window.location);
-    const page = prop["navItem"];
+
+    const page = parseLocation();
     if (page) {
       console.log(page);
       setPageQueue((pre) => [page, ...pre]);

@@ -2,7 +2,7 @@ import { PageConfig } from "model/PageConfiguration";
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { usePageManager } from "./PageManager";
 
-export interface ChildContainer {
+export interface PageContainer {
   name: string;
   path: string;
   uri: string;
@@ -33,18 +33,18 @@ export const PageChildrenProvider = ({
 }) => {
   const { pageQueue } = usePageManager();
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
-
+  console.log(pageQueue);
   const childrenGround = useMemo(() => {
     if (pageConfig) return { ...pageConfig, children: undefined };
     return null;
   }, [pageConfig]);
 
   const childContainers = useMemo(() => {
-    const childs: ChildContainer[] = [];
+    const childs: PageContainer[] = [];
     for (const page of pageQueue) {
       if (page.app !== pageConfig.app || page.name !== pageConfig.name) break;
       const child = pageConfig.children?.find((c) => c.name === page.child);
-      if (child) childs.push({ ...child });
+      if (child) childs.push({ ...child, data: page.data });
       else break;
     }
     return childs;
