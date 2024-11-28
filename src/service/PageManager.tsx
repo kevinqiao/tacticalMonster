@@ -7,10 +7,7 @@ export type App = {
   name: string;
   params?: { [k: string]: string };
 };
-export interface PageEvent {
-  name: string;
-  page: string;
-}
+
 export interface PageContainer {
   app?: string;
   name: string;
@@ -22,6 +19,7 @@ export interface PageContainer {
 }
 interface IPageContext {
   pageQueue: PageItem[];
+  changeEvent: { type: number; index: number } | null;
   app: App | null;
   navOpen: boolean;
   pageContainers: PageContainer[];
@@ -40,6 +38,7 @@ const allPageConfigs: PageConfig[] = AppsConfiguration.reduce<PageConfig[]>((acc
 }, []);
 
 const PageContext = createContext<IPageContext>({
+  changeEvent: null,
   pageQueue: [],
   app: null,
   navOpen: false,
@@ -53,8 +52,10 @@ const PageContext = createContext<IPageContext>({
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const currentIndexRef = useRef(0);
+  const pageQueueRef = useRef<PageItem[]>([]);
+  const [changeEvent, setChangeEvent] = useState<{ type: number; index: number } | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
-  const [pageQueue, setPageQueue] = useState<PageItem[]>([]);
+  // const [pageQueue, setPageQueue] = useState<PageItem[]>([]);
   const [pageConfigs, setPageConfigs] = useState<PageConfig[]>(allPageConfigs);
   const [app, setApp] = useState<App | null>(null);
   const [navOpen, setNavOpen] = useState(false);
@@ -67,10 +68,13 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, [pageConfigs]);
 
   const openPage = useCallback((page: PageItem) => {
-    setPageQueue((pre) => [page, ...pre]);
+    pageQueueRef.current.push(page);
     const url = buildNavURL(page);
-    const newIndex = currentIndexRef.current + 1; // 新索引递增
+    const currentIndex = history.state?.index ?? 0; // 确保获取最新的历史索引
+    const newIndex = currentIndex + 1; // 新索引递增
+    currentIndexRef.current = newIndex;
     history.pushState({ index: newIndex }, "", url);
+    setChangeEvent({ type: 0, index: newIndex });
   }, []);
 
   const openNav = useCallback(() => {
@@ -81,34 +85,37 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (pageQueue.length > 3) {
-      pageQueue.pop();
-      console.log(pageQueue);
+    if (!history.state || typeof history.state.index === "undefined") {
+      history.replaceState({ index: 0 }, ""); // 初始页面索引为 0
     }
-  }, [pageQueue]);
-  useEffect(() => {
+    const page = parseLocation();
+    if (page) {
+      pageQueueRef.current.push(page);
+      setChangeEvent({ type: 0, index: 0 });
+    }
     const handlePopState = (event: any) => {
-      const page = parseLocation();
-      if (page) {
-        setPageQueue((pre) => [page, ...pre]);
+      const newIndex = event.state?.index ?? 0; // 获取新索引
+      const prevIndex = currentIndexRef.current; // 获取之前的索引
+      // 根据索引判断方向
+      if (newIndex < prevIndex) {
+        setChangeEvent({ type: 1, index: newIndex });
+      } else if (newIndex > prevIndex) {
+        setChangeEvent({ type: 2, index: newIndex });
       }
+      currentIndexRef.current = newIndex;
     };
     window.addEventListener("popstate", handlePopState);
 
-    const page = parseLocation();
-    if (page) {
-      console.log(page);
-      setPageQueue((pre) => [page, ...pre]);
-    }
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
   const value = {
+    changeEvent,
     pageContainers,
     containersLoaded,
-    pageQueue,
+    pageQueue: pageQueueRef.current,
     app,
     navOpen,
     openPage,

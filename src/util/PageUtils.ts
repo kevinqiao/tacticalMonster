@@ -111,7 +111,7 @@ export const buildNavURL = (pageItem: PageItem): string | null => {
         let url = appCfg.context !== "/" ? "/" + appCfg.context : "";
         const nav = appCfg.navs.find((nav: any) => nav.name === pageItem.name);
         if (nav) {
-            url = url + nav.uri;
+            url = url + "/" + nav.uri;
             if (pageItem.child) {
                 const child = nav.children?.find((c: any) => c.name === pageItem.child);
                 if (child) url = url + "/" + child.uri;

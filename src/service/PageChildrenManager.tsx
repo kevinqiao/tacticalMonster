@@ -32,25 +32,25 @@ export const PageChildrenProvider = ({
 }) => {
   const { pageQueue } = usePageManager();
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
-  console.log(pageConfig);
   const childrenGround = useMemo(() => {
     if (pageConfig) return { ...pageConfig, children: undefined };
     return null;
   }, [pageConfig]);
-
+  console.log(pageQueue);
   const childContainers = useMemo(() => {
     if (!pageConfig || pageQueue.length === 0) return;
     const childs: PageContainer[] = [];
+
     for (const page of pageQueue) {
+      console.log(page);
       if (page.app !== pageConfig.app || page.name !== pageConfig.name) break;
       const child = pageConfig.children?.find((c) => c.name === page.child);
-      if (child) childs.push({ ...child, data: page.data });
+      if (child) childs.unshift({ ...child, data: page.data });
       else break;
     }
-    console.log(childs);
     return childs;
   }, [pageConfig, pageQueue]);
-
+  console.log(childContainers);
   const value = {
     childrenGround,
     childContainers,

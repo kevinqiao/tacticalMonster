@@ -22,12 +22,29 @@ const PlayGround: React.FC<PageProp> = (props) => {
       setLastTime(events[events.length - 1]["time"]);
     }
   }, [events]);
+  const openChild = (name: string) => {
+    console.log("openChild");
+    openPage({ app: "playPlace", name: "main", child: name });
+  };
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
-      <div className="action-panel-item" onClick={() => startGame()}>
-        START
+    <>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
+        <div className="action-panel-item" onClick={() => startGame()}>
+          START
+        </div>
       </div>
-    </div>
+      <div className="action-panel" style={{ left: 0 }}>
+        <div className="action-panel-item" onClick={() => openChild("child1")}>
+          Child
+        </div>
+        <div className="action-panel-item" onClick={() => openChild("child2")}>
+          STANDBY
+        </div>
+        <div className="action-panel-item" onClick={() => openChild("child3")}>
+          DEFEND
+        </div>
+      </div>
+    </>
   );
 };
 
