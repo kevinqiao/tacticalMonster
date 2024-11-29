@@ -9,6 +9,8 @@ const usePageAnimate = () => {
         if (changeEvent && pageContainers && containersLoaded) {
             const { type, index } = changeEvent;
             console.log(changeEvent)
+            console.log(pageQueue)
+            console.log(pageQueue[index])
             const container = pageContainers.find((c) => c.app === pageQueue[index].app && c.name === pageQueue[index].name);
 
             if (container?.ele) {

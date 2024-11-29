@@ -85,9 +85,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!history.state || typeof history.state.index === "undefined") {
-      history.replaceState({ index: 0 }, ""); // 初始页面索引为 0
-    }
+    history.replaceState({ index: 0 }, "", window.location.href);
     const page = parseLocation();
     if (page) {
       pageQueueRef.current.push(page);
@@ -96,7 +94,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     const handlePopState = (event: any) => {
       const newIndex = event.state?.index ?? 0; // 获取新索引
       const prevIndex = currentIndexRef.current; // 获取之前的索引
-      // 根据索引判断方向
+
       if (newIndex < prevIndex) {
         setChangeEvent({ type: 1, index: newIndex });
       } else if (newIndex > prevIndex) {

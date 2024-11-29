@@ -24,6 +24,13 @@ export const PlayPlace =
             path: "./kumu/KumuApp",
             uri: "map",
         }
+        ,
+        {
+            name: "lobby",
+            auth: 0,
+            path: "./kumu/Lobby",
+            uri: "lobby",
+        }
     ]
 
 }
