@@ -24,6 +24,19 @@
   transform:translate(-50%, -50%);
   opacity: 0;
   visibility: hidden;
+  pointer-events: auto;
   /* background-color: red; */
+}
+.exit-menu{
+  position:absolute;
+  cursor:pointer;
+  right:0px;
+  top:0px;
+  width:30px;
+  height:30px;
+  /* opacity:0;
+  visibility:hidden; */
+  background-color: grey;
+  pointer-events:auto
 }
   

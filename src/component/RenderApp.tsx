@@ -30,7 +30,6 @@ const ChildComponent: React.FC<{ container: PageContainer }> = ({ container }) =
 
 const ChildrenGroup: React.FC = () => {
   const { childContainers, setContainersLoaded } = usePageChildrenManager();
-  console.log(childContainers);
   usePageChildAnimate();
   const loadChildContainer = useCallback(
     (container: PageContainer, ele: HTMLDivElement | null) => {
@@ -42,25 +41,29 @@ const ChildrenGroup: React.FC = () => {
     },
     [childContainers]
   );
+  const close = useCallback((container: PageContainer) => {
+    if (container.ele) gsap.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.7 });
+  }, []);
+
   return (
     <>
-      <div className="children-group">
-        {childContainers?.map((c: PageContainer) => (
-          <div ref={(ele) => loadChildContainer(c, ele)} key={c.name} className="child-container">
-            <ChildComponent container={c} />
-          </div>
-        ))}
-      </div>
+      {/* <div className="children-group"> */}
+      {childContainers?.map((c: PageContainer) => (
+        <div ref={(ele) => loadChildContainer(c, ele)} key={c.name} className="child-container">
+          <ChildComponent container={c} />
+          {c.exit ? <div ref={(ele) => (c.closeEle = ele)} className="exit-menu" onClick={() => close(c)}></div> : null}
+        </div>
+      ))}
+      {/* </div> */}
     </>
   );
 };
 
 const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) => {
-  const { pageQueue } = usePageManager();
+  const { currentPage, changeEvent } = usePageManager();
   const visible = useMemo(() => {
-    return pageQueue.length > 0 && container.app === pageQueue[0].app && container.name == pageQueue[0].name ? 1 : 0;
-  }, [pageQueue]);
-  console.log(pageQueue);
+    return container.app === currentPage?.app && container.name == currentPage?.name ? 1 : 0;
+  }, [currentPage, changeEvent]);
   const SelectedComponent: FunctionComponent<PageProp> = useMemo(() => {
     return lazy(() => import(`${container.path}`));
   }, [container]);
@@ -69,9 +72,8 @@ const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) =>
       <PageChildrenProvider pageConfig={container}>
         <>
           <Suspense fallback={<div />}>
-            <SelectedComponent data={visible ? pageQueue[0]["data"] : {}} visible={visible}></SelectedComponent>
+            <SelectedComponent data={visible ? currentPage?.data : {}} visible={visible}></SelectedComponent>
           </Suspense>
-
           {visible ? <ChildrenGroup /> : null}
         </>
       </PageChildrenProvider>

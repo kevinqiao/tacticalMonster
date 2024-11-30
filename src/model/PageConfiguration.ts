@@ -12,9 +12,9 @@ export const PlayPlace =
             path: "./kumu/PlayGround",
             uri: "main",
             children: [
-                { name: "child1", path: "./kumu/component/Child1", uri: "c1", auth: 0 },
-                { name: "child2", path: "./kumu/component/Child2", uri: "c2", auth: 0 },
-                { name: "child3", path: "./kumu/component/Child3", uri: "c3", auth: 0 },
+                { name: "child1", path: "./kumu/component/Child1", uri: "c1", auth: 0, exit: 1 },
+                { name: "child2", path: "./kumu/component/Child2", uri: "c2", auth: 0, exit: 0 },
+                { name: "child3", path: "./kumu/component/Child3", uri: "c3", auth: 0, exit: 1 },
             ]
         }
         ,
@@ -174,9 +174,9 @@ export interface PageConfig {
         path: string;
         uri: string;
         auth?: number;
-        pop?: { init?: any; animates: { terminals: string[]; id: number }[], exit?: number }
     }[];
-    ele?: HTMLDivElement | null;
+    // ele?: HTMLDivElement | null;
+    exit?: number;
 
 }
 export const AppsConfiguration: AppConfig[] = [PlayPlace];

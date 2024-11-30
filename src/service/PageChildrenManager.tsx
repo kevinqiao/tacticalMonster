@@ -1,6 +1,5 @@
 import { PageConfig } from "model/PageConfiguration";
 import React, { createContext, useContext, useMemo, useState } from "react";
-import { usePageManager } from "./PageManager";
 
 export interface PageContainer {
   name: string;
@@ -12,7 +11,7 @@ export interface PageContainer {
 }
 interface IPageChildrenContext {
   childrenGround: PageConfig | null;
-  childContainers?: PageConfig[];
+  childContainers?: PageContainer[];
   containersLoaded: number;
   setContainersLoaded: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -30,27 +29,17 @@ export const PageChildrenProvider = ({
   pageConfig: PageConfig;
   children: React.ReactNode;
 }) => {
-  const { pageQueue } = usePageManager();
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const childrenGround = useMemo(() => {
     if (pageConfig) return { ...pageConfig, children: undefined };
     return null;
   }, [pageConfig]);
-  console.log(pageQueue);
-  const childContainers = useMemo(() => {
-    if (!pageConfig || pageQueue.length === 0) return;
-    const childs: PageContainer[] = [];
 
-    for (const page of pageQueue) {
-      console.log(page);
-      if (page.app !== pageConfig.app || page.name !== pageConfig.name) break;
-      const child = pageConfig.children?.find((c) => c.name === page.child);
-      if (child) childs.unshift({ ...child, data: page.data });
-      else break;
-    }
+  const childContainers = useMemo(() => {
+    const childs: PageContainer[] | undefined = pageConfig?.children?.map((c) => ({ ...c }));
     return childs;
-  }, [pageConfig, pageQueue]);
-  console.log(childContainers);
+  }, [pageConfig]);
+
   const value = {
     childrenGround,
     childContainers,

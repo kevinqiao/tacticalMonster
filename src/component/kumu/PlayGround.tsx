@@ -35,13 +35,13 @@ const PlayGround: React.FC<PageProp> = (props) => {
       </div>
       <div className="action-panel" style={{ left: 0 }}>
         <div className="action-panel-item" onClick={() => openChild("child1")}>
-          Child
+          Child1
         </div>
         <div className="action-panel-item" onClick={() => openChild("child2")}>
-          STANDBY
+          Child2
         </div>
         <div className="action-panel-item" onClick={() => openChild("child3")}>
-          DEFEND
+          Child3
         </div>
       </div>
     </>

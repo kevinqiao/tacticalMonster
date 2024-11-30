@@ -15,6 +15,7 @@ const Child1: React.FC<PageProp> = (props) => {
       }}
     >
       <div className="action-panel-item">Child1</div>
+      <div className="action-panel-item">Close</div>
     </div>
   );
 };

@@ -14,12 +14,15 @@ export interface PageContainer {
   path: string;
   uri: string;
   auth?: number;
+  exit?: number;
   data?: any;
   ele?: HTMLDivElement | null;
+  closeEle?: HTMLDivElement | null;
 }
 interface IPageContext {
-  pageQueue: PageItem[];
-  changeEvent: { type: number; index: number } | null;
+  // pageQueue: PageItem[];
+  currentPage: PageItem | undefined | null;
+  changeEvent: { type: number; index: number; prepage: PageItem | undefined | null } | null;
   app: App | null;
   navOpen: boolean;
   pageContainers: PageContainer[];
@@ -39,7 +42,7 @@ const allPageConfigs: PageConfig[] = AppsConfiguration.reduce<PageConfig[]>((acc
 
 const PageContext = createContext<IPageContext>({
   changeEvent: null,
-  pageQueue: [],
+  currentPage: null,
   app: null,
   navOpen: false,
   pageContainers: [],
@@ -51,9 +54,13 @@ const PageContext = createContext<IPageContext>({
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
-  const currentIndexRef = useRef(0);
-  const pageQueueRef = useRef<PageItem[]>([]);
-  const [changeEvent, setChangeEvent] = useState<{ type: number; index: number } | null>(null);
+  const currentPageRef = useRef<{ index: number; page: PageItem | undefined | null }>({ index: 0, page: null });
+  // const pageQueueRef = useRef<PageItem[]>([]);
+  const [changeEvent, setChangeEvent] = useState<{
+    type: number;
+    index: number;
+    prepage: PageItem | undefined | null;
+  } | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   // const [pageQueue, setPageQueue] = useState<PageItem[]>([]);
   const [pageConfigs, setPageConfigs] = useState<PageConfig[]>(allPageConfigs);
@@ -68,13 +75,14 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, [pageConfigs]);
 
   const openPage = useCallback((page: PageItem) => {
-    pageQueueRef.current.push(page);
+    // pageQueueRef.current.push(page);
     const url = buildNavURL(page);
-    const currentIndex = history.state?.index ?? 0; // 确保获取最新的历史索引
+    const currentIndex = currentPageRef.current.index; // 确保获取最新的历史索引
     const newIndex = currentIndex + 1; // 新索引递增
-    currentIndexRef.current = newIndex;
     history.pushState({ index: newIndex }, "", url);
-    setChangeEvent({ type: 0, index: newIndex });
+    const prepage = currentPageRef.current.page;
+    setChangeEvent({ type: 0, index: newIndex, prepage });
+    currentPageRef.current = { index: newIndex, page };
   }, []);
 
   const openNav = useCallback(() => {
@@ -85,22 +93,24 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    history.replaceState({ index: 0 }, "", window.location.href);
+    const newIndex = history.state?.index ?? 0;
+    if (newIndex === 0) history.replaceState({ index: 0 }, "", window.location.href);
     const page = parseLocation();
     if (page) {
-      pageQueueRef.current.push(page);
-      setChangeEvent({ type: 0, index: 0 });
+      currentPageRef.current = { index: newIndex, page };
+      setChangeEvent({ type: 0, index: newIndex, prepage: null });
     }
     const handlePopState = (event: any) => {
       const newIndex = event.state?.index ?? 0; // 获取新索引
-      const prevIndex = currentIndexRef.current; // 获取之前的索引
+      const prevIndex = currentPageRef.current.index; // 获取之前的索引
 
       if (newIndex < prevIndex) {
-        setChangeEvent({ type: 1, index: newIndex });
+        setChangeEvent({ type: 1, index: newIndex, prepage: currentPageRef.current.page });
       } else if (newIndex > prevIndex) {
-        setChangeEvent({ type: 2, index: newIndex });
+        setChangeEvent({ type: 2, index: newIndex, prepage: currentPageRef.current.page });
       }
-      currentIndexRef.current = newIndex;
+      const page = parseLocation();
+      currentPageRef.current = { index: newIndex, page };
     };
     window.addEventListener("popstate", handlePopState);
 
@@ -113,7 +123,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     changeEvent,
     pageContainers,
     containersLoaded,
-    pageQueue: pageQueueRef.current,
+    currentPage: currentPageRef.current.page,
     app,
     navOpen,
     openPage,

@@ -1,38 +1,35 @@
 import gsap from "gsap";
-import { PageConfig } from "model/PageConfiguration";
 import { useEffect } from "react";
 import { usePageChildrenManager } from "service/PageChildrenManager";
-interface Props {
-    childrenGround: PageConfig | null;
-    childContainers?: PageConfig[];
-    containersLoaded: number;
-}
+import { PageContainer, usePageManager } from "service/PageManager";
+
 
 const usePageChildAnimate = () => {
+    const { changeEvent, currentPage } = usePageManager();
     const { childContainers, containersLoaded } = usePageChildrenManager();
+
     useEffect(() => {
-        console.log("page child animation")
-    }, [])
-    useEffect(() => {
-        if (!childContainers || childContainers?.length === 0 || !containersLoaded) return;
+
+        if (!childContainers || childContainers?.length === 0 || !containersLoaded || !changeEvent || !currentPage) return;
         const tl = gsap.timeline();
-        const len = childContainers.length;
-        console.log(childContainers)
-        childContainers.forEach((c, index) => {
-            if (c?.ele) {
-                if (index < len - 1)
-                    tl.set(c.ele, { zIndex: index + 100, scale: 1, autoAlpha: 1 })
-                else
-                    tl.fromTo(
-                        c.ele,
-                        { zIndex: index + 100, scale: 0.6, autoAlpha: 0.6 },
-                        { scale: 1, autoAlpha: 1, duration: 0.7 }
-                    );
+        if (currentPage.child) {
+            const { prepage } = changeEvent;
+            if (prepage?.child) {
+                const precontainer = childContainers.find((c) => c.name === prepage.child);
+                if (precontainer?.ele)
+                    tl.to(precontainer.ele, { scale: 0.5, autoAlpha: 0, duration: 0.3 })
             }
-        })
+            const container: PageContainer | undefined = childContainers.find((c) => c.name === currentPage.child);
+            if (container?.ele)
+                tl.fromTo(container.ele, { scale: 0.5, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.3 }, "<");
+            // if (container?.exit && container?.closeEle)
+            //     tl.set(container.closeEle, { autoAlpha: 1 });
+
+        }
+
         tl.play();
 
-    }, [childContainers, containersLoaded]);
+    }, [childContainers, containersLoaded, changeEvent, currentPage]);
 
 };
 export default usePageChildAnimate
