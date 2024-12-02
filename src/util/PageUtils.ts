@@ -2,39 +2,40 @@ import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
 export const parseLocation = (): PageItem | undefined => {
     const page: { [k: string]: any } = {}
-    const ps: string[] = window.location.pathname.split("/");
-    if (ps.length < 2) return
-    let app = AppsConfiguration.find((a) => a.context === ps[1]);
-    if (!app) {
-        app = AppsConfiguration.find((a) => a.context === "/");
-        if (app && ps.length > 1) {
-            page.app = app.name;
-            const nav = app.navs.find((nav) => nav.uri === ps[1]);
-            if (nav) {
-                page.name = nav.name;
-                if (ps.length > 2) {
-                    const child = nav.children?.find((c) => c.uri === ps[2])
-                    if (child)
-                        page.child = child.name;
-                }
-            }
-        }
-    } else if (ps.length > 2) {
-        page.app = app.name;
-        const nav = app.navs.find((nav) => nav.uri === ps[2]);
-        if (nav) {
-            page.name = nav.name;
-            if (ps.length > 3) {
-                const child = nav.children?.find((c) => c.uri === ps[3])
-                if (child)
-                    page.child = child.name;
-            }
-        }
-    }
+    page.uri = window.location.pathname;
+    // const ps: string[] = window.location.pathname.split("/");
+    // if (ps.length < 2) return
+    // let app = AppsConfiguration.find((a) => a.context === ps[1]);
+    // if (!app) {
+    //     app = AppsConfiguration.find((a) => a.context === "/");
+    //     if (app && ps.length > 1) {
+    //         page.app = app.name;
+    //         const nav = app.navs.find((nav) => nav.uri === ps[1]);
+    //         if (nav) {
+    //             page.name = nav.name;
+    //             if (ps.length > 2) {
+    //                 const child = nav.children?.find((c) => c.uri === ps[2])
+    //                 if (child)
+    //                     page.child = child.name;
+    //             }
+    //         }
+    //     }
+    // } else if (ps.length > 2) {
+    //     page.app = app.name;
+    //     const nav = app.navs.find((nav) => nav.uri === ps[2]);
+    //     if (nav) {
+    //         page.name = nav.name;
+    //         if (ps.length > 3) {
+    //             const child = nav.children?.find((c) => c.uri === ps[3])
+    //             if (child)
+    //                 page.child = child.name;
+    //         }
+    //     }
+    // }
 
     if (location.search) {
         const params: { [key: string]: string } = {};
-        const searchParams = new URLSearchParams(location.search);
+        const searchParams = new URLSearchParams(window.location.search);
         for (const param of searchParams) {
             params[param[0]] = param[1];
         }
@@ -104,23 +105,31 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
     console.log(res)
     return res;
 };
-export const buildNavURL = (pageItem: PageItem): string | null => {
-    const appCfg = AppsConfiguration.find((a) => a.name === pageItem.app);
-    if (appCfg) {
-
-        let url = appCfg.context !== "/" ? "/" + appCfg.context : "";
-        const nav = appCfg.navs.find((nav: any) => nav.name === pageItem.name);
-        if (nav) {
-            url = url + "/" + nav.uri;
-            if (pageItem.child) {
-                const child = nav.children?.find((c: any) => c.name === pageItem.child);
-                if (child) url = url + "/" + child.uri;
-            }
-        }
-        return url;
+export const getURLParams = (location: any) => {
+    const params: { [key: string]: string } = {};
+    const searchParams = new URLSearchParams(location.search);
+    for (const param of searchParams) {
+        params[param[0]] = param[1];
     }
-    return null;
-};
+    return params
+}
+// export const buildNavURL = (pageItem: PageItem): string | null => {
+//     const appCfg = AppsConfiguration.find((a) => a.name === pageItem.app);
+//     if (appCfg) {
+
+//         let url = appCfg.context !== "/" ? "/" + appCfg.context : "";
+//         const nav = appCfg.navs.find((nav: any) => nav.name === pageItem.name);
+//         if (nav) {
+//             url = url + "/" + nav.uri;
+//             if (pageItem.child) {
+//                 const child = nav.children?.find((c: any) => c.name === pageItem.child);
+//                 if (child) url = url + "/" + child.uri;
+//             }
+//         }
+//         return url;
+//     }
+//     return null;
+// };
 
 export const getCurrentAppConfig = () => {
     const ps = window.location.pathname.split("/");

@@ -3,7 +3,7 @@ export const PlayPlace =
 {
     name: "playPlace",
     entry: "playcenter",
-    context: "play",
+    context: "/play",
     auth: 0,//0-public 1-consumer 2-worker 3-admin
     navs: [
         {
@@ -16,15 +16,13 @@ export const PlayPlace =
                 { name: "child2", path: "./kumu/component/Child2", uri: "c2", auth: 0, exit: 0 },
                 { name: "child3", path: "./kumu/component/Child3", uri: "c3", auth: 0, exit: 1 },
             ]
-        }
-        ,
+        },
         {
             name: "map",
             auth: 0,
             path: "./kumu/KumuApp",
             uri: "map",
-        }
-        ,
+        },
         {
             name: "lobby",
             auth: 0,

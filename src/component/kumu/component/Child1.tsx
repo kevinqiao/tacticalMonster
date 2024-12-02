@@ -2,7 +2,6 @@ import { PageProp } from "component/RenderApp";
 import React from "react";
 
 const Child1: React.FC<PageProp> = (props) => {
-  console.log(props.data);
   return (
     <div
       style={{

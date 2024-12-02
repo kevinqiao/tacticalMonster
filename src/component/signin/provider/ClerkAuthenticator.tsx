@@ -4,7 +4,6 @@ import { useConvex } from "convex/react";
 import React, { useEffect, useMemo, useRef } from "react";
 import useEventSubscriber from "service/EventManager";
 import { useUserManager } from "service/UserManager";
-import { buildNavURL } from "util/PageUtils";
 import { api } from "../../../convex/_generated/api";
 import { AuthProps } from "../SSOController";
 import "../signin.css";
@@ -60,12 +59,13 @@ const AuthorizeToken: React.FC<AuthProps> = ({ provider, authInit }) => {
   }, [provider]);
   const afterSignedURL = useMemo(() => {
     if (authInit && provider) {
-      const { app, name } = authInit.afterSignedPage;
-      const params = authInit.afterSignedPage.params
-        ? { ...authInit.afterSignedPage.params, redirect: "1", partner: provider.partnerId + "" }
-        : { redirect: "1", partner: provider.partnerId + "" };
-      const url = buildNavURL({ app, name, params });
-      return url;
+      return "/";
+      // const { app, name } = authInit.afterSignedPage;
+      // const params = authInit.afterSignedPage.params
+      //   ? { ...authInit.afterSignedPage.params, redirect: "1", partner: provider.partnerId + "" }
+      //   : { redirect: "1", partner: provider.partnerId + "" };
+      // const url = buildNavURL({ app, name, params });
+      // return url;
     }
   }, [authInit, provider]);
 

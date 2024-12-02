@@ -1,8 +1,20 @@
 import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { buildNavURL, parseLocation } from "util/PageUtils";
+import { parseLocation } from "util/PageUtils";
 
+const isAllLoaded = (container: PageContainer): boolean => {
+  if (!container.ele) return false;
+
+  // 遍历子节点
+  if (container.children)
+    for (const ccontainer of container.children) {
+      const result: boolean = isAllLoaded(ccontainer); // 递归查找
+      if (!result) return false;
+    }
+
+  return true;
+};
 export type App = {
   name: string;
   params?: { [k: string]: string };
@@ -16,6 +28,8 @@ export interface PageContainer {
   auth?: number;
   exit?: number;
   data?: any;
+  parentURI?: string;
+  children?: PageContainer[];
   ele?: HTMLDivElement | null;
   closeEle?: HTMLDivElement | null;
 }
@@ -31,14 +45,8 @@ interface IPageContext {
   openPage: (page: PageItem) => void;
   openNav: () => void;
   closeNav: () => void;
-  setContainersLoaded: React.Dispatch<React.SetStateAction<number>>;
+  onLoad: (ele: HTMLDivElement | null) => void;
 }
-const allPageConfigs: PageConfig[] = AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
-  config.navs.forEach((nav) => {
-    nav.app = config.name;
-  });
-  return acc.concat(config.navs);
-}, []);
 
 const PageContext = createContext<IPageContext>({
   changeEvent: null,
@@ -50,36 +58,35 @@ const PageContext = createContext<IPageContext>({
   openPage: (p: PageItem) => null,
   openNav: () => null,
   closeNav: () => null,
-  setContainersLoaded: () => null,
+  onLoad: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const currentPageRef = useRef<{ index: number; page: PageItem | undefined | null }>({ index: 0, page: null });
-  // const pageQueueRef = useRef<PageItem[]>([]);
   const [changeEvent, setChangeEvent] = useState<{
     type: number;
     index: number;
     prepage: PageItem | undefined | null;
   } | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
-  // const [pageQueue, setPageQueue] = useState<PageItem[]>([]);
-  const [pageConfigs, setPageConfigs] = useState<PageConfig[]>(allPageConfigs);
   const [app, setApp] = useState<App | null>(null);
   const [navOpen, setNavOpen] = useState(false);
-
   const pageContainers = useMemo(() => {
-    if (pageConfigs) {
-      return pageConfigs.map((c) => ({ ...c }));
-    }
-    return [];
-  }, [pageConfigs]);
+    return AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
+      return acc.concat(
+        config.navs.map((nav) => ({
+          ...nav,
+          app: config.name,
+          uri: config.context === "/" ? config.context + nav.uri : config.context + "/" + nav.uri,
+        }))
+      );
+    }, []);
+  }, []);
 
   const openPage = useCallback((page: PageItem) => {
-    // pageQueueRef.current.push(page);
-    const url = buildNavURL(page);
     const currentIndex = currentPageRef.current.index; // 确保获取最新的历史索引
     const newIndex = currentIndex + 1; // 新索引递增
-    history.pushState({ index: newIndex }, "", url);
+    history.pushState({ index: newIndex }, "", page.uri);
     const prepage = currentPageRef.current.page;
     setChangeEvent({ type: 0, index: newIndex, prepage });
     currentPageRef.current = { index: newIndex, page };
@@ -91,6 +98,23 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const closeNav = useCallback(() => {
     setNavOpen(false);
   }, []);
+
+  const onLoad = useCallback(
+    (ele: HTMLDivElement | null) => {
+      console.log(ele);
+      if (!pageContainers) return;
+
+      if (ele) {
+        let loadCompleted = true;
+        for (const container of pageContainers) {
+          loadCompleted = isAllLoaded(container);
+        }
+        console.log(loadCompleted);
+        if (loadCompleted) setContainersLoaded((pre) => (pre === 0 ? 1 : pre));
+      } else setContainersLoaded(0);
+    },
+    [pageContainers]
+  );
 
   useEffect(() => {
     const newIndex = history.state?.index ?? 0;
@@ -129,7 +153,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     openPage,
     openNav,
     closeNav,
-    setContainersLoaded,
+    onLoad,
   };
   return (
     <>

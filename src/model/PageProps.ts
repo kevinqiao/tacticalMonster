@@ -32,8 +32,6 @@ export default interface PageProps {
 }
 
 export interface PageItem {
-    name: string;
-    app: string; //null|undefined-cover;
     data?: { [key: string]: any };
-    child?: string;
+    uri: string;
 }

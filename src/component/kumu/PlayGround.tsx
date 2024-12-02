@@ -16,16 +16,13 @@ const PlayGround: React.FC<PageProp> = (props) => {
       for (const event of events) {
         const gameEvent = event as { name: string; uid: string; time: number; data: any; id: string };
         if (gameEvent.name === "GameCreated") {
-          openPage({ name: "map", app: "playPlace", data: gameEvent.data });
+          // openPage({ name: "map", app: "playPlace", data: gameEvent.data });
         }
       }
       setLastTime(events[events.length - 1]["time"]);
     }
   }, [events]);
-  const openChild = (name: string) => {
-    console.log("openChild");
-    openPage({ app: "playPlace", name: "main", child: name });
-  };
+
   return (
     <>
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
@@ -34,13 +31,13 @@ const PlayGround: React.FC<PageProp> = (props) => {
         </div>
       </div>
       <div className="action-panel" style={{ left: 0 }}>
-        <div className="action-panel-item" onClick={() => openChild("child1")}>
+        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main/c1" })}>
           Child1
         </div>
-        <div className="action-panel-item" onClick={() => openChild("child2")}>
+        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main/c2" })}>
           Child2
         </div>
-        <div className="action-panel-item" onClick={() => openChild("child3")}>
+        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main/c3" })}>
           Child3
         </div>
       </div>
