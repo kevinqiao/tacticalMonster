@@ -1,4 +1,5 @@
 import gsap from "gsap";
+import { animates } from "model/PageConfiguration";
 import { useEffect, useMemo } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 const flattenContainers = (container: PageContainer) => {
@@ -26,30 +27,45 @@ const usePageAnimate = () => {
     useEffect(() => {
         if (changeEvent && containers && containersLoaded && currentPage) {
             const { prepage } = changeEvent;
-            const tcontainers = containers.filter((c) => currentPage.uri.indexOf(c.uri) === 0);
-            if (tcontainers.length > 0) {
 
-                const tl = gsap.timeline({
-                    onComplete: () => {
-                        tl.kill();
-                    },
-                });
-                tcontainers?.forEach((c) => {
-                    console.log(c.ele)
-                    if (c.ele)
+            const tcontainers = containers.filter((c) => currentPage.uri.indexOf(c.uri) === 0 && currentPage.uri !== c.uri);
+            const container = containers.find((c) => c.uri === currentPage.uri)
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    tl.kill();
+                },
+            });
+            tcontainers.forEach((c) => {
+                if (c.ele) {
+                    if (prepage)
                         tl.to(c.ele, { autoAlpha: 1, duration: 1.2 }, "<");
+                    else
+                        tl.set(c.ele, { autoAlpha: 1 })
+                }
+            })
+            if (container?.ele && container?.animate) {
+                const open = animates[container.animate.open];
+                if (Array.isArray(open) && open.length > 1)
+                    tl.fromTo(container.ele, open[0], open[1], "<")
+                else
+                    tl.to(container.ele, open)
+            }
+
+            if (prepage) {
+                // const pcontainer = containers.find((c) => c.uri === prepage.uri);
+                const pcontainers = containers.filter((c) => prepage.uri.indexOf(c.uri) === 0);
+                const ancestors = pcontainers.filter((c) => !tcontainers.includes(c));
+                ancestors.forEach((c) => {
+                    if (c.ele && c.animate) {
+                        const close = animates[c.animate.close];
+                        tl.to(c.ele, close, "<")
+                    }
                 })
 
-
-                if (prepage) {
-                    const preContainer = pageContainers.find((c) => c.uri === prepage.uri);
-                    if (preContainer?.ele) {
-                        tl.to(preContainer.ele, { autoAlpha: 0, duration: 1.2 }, "<");
-                    }
-                }
-
-                tl.play();
             }
+
+            tl.play();
+
         }
     }, [containers, containersLoaded, currentPage, changeEvent]);
 

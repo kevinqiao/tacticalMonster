@@ -1,6 +1,7 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
 // Register the plugin
+import { animates } from "model/PageConfiguration";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useMemo } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 import usePageAnimate from "../animate/usePageAnimate";
@@ -33,6 +34,10 @@ const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) =>
 
   const close = useCallback(() => {
     if (container.ele) gsap.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.7 });
+    if (container.ele && container.animate) {
+      const closeEffect = animates[container.animate.close];
+      gsap.to(container.ele, closeEffect);
+    }
   }, [container]);
 
   const SelectedComponent: FunctionComponent<PageProp> = useMemo(() => {

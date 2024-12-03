@@ -32,6 +32,7 @@ export interface PageContainer {
   children?: PageContainer[];
   ele?: HTMLDivElement | null;
   closeEle?: HTMLDivElement | null;
+  animate?: { open: number; close: number; child?: number };
 }
 interface IPageContext {
   // pageQueue: PageItem[];
