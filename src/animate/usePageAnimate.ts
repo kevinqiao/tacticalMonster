@@ -25,24 +25,24 @@ const usePageAnimate = () => {
     }, [pageContainers, containersLoaded])
 
     useEffect(() => {
+
         if (changeEvent && containers && containersLoaded && currentPage) {
             const { prepage } = changeEvent;
 
-            const tcontainers = containers.filter((c) => currentPage.uri.indexOf(c.uri) === 0 && currentPage.uri !== c.uri);
+            const tcontainers = containers.filter((c) => currentPage.uri.indexOf(c.uri) === 0);
             const container = containers.find((c) => c.uri === currentPage.uri)
             const tl = gsap.timeline({
                 onComplete: () => {
                     tl.kill();
                 },
             });
+
             tcontainers.forEach((c) => {
                 if (c.ele) {
-                    if (prepage)
-                        tl.to(c.ele, { autoAlpha: 1, duration: 1.2 }, "<");
-                    else
-                        tl.set(c.ele, { autoAlpha: 1 })
+                    tl.to(c.ele, { autoAlpha: 1, duration: 1.2 }, "<");
                 }
             })
+            /**handle open animate*/
             if (container?.ele && container?.animate) {
                 const open = animates[container.animate.open];
                 if (Array.isArray(open) && open.length > 1)
@@ -50,9 +50,8 @@ const usePageAnimate = () => {
                 else
                     tl.to(container.ele, open)
             }
-
+            /**handle close animate*/
             if (prepage) {
-                // const pcontainer = containers.find((c) => c.uri === prepage.uri);
                 const pcontainers = containers.filter((c) => prepage.uri.indexOf(c.uri) === 0);
                 const ancestors = pcontainers.filter((c) => !tcontainers.includes(c));
                 ancestors.forEach((c) => {

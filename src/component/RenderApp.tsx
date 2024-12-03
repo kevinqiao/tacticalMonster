@@ -15,7 +15,7 @@ export interface PageProp {
 }
 
 const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) => {
-  const { currentPage, onLoad } = usePageManager();
+  const { openPage, currentPage, onLoad } = usePageManager();
 
   const visible = useMemo(() => {
     if (currentPage?.uri.indexOf(container.uri) === 0) return 1;
@@ -37,6 +37,7 @@ const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) =>
     if (container.ele && container.animate) {
       const closeEffect = animates[container.animate.close];
       gsap.to(container.ele, closeEffect);
+      if (container.parentURI) openPage({ uri: container.parentURI });
     }
   }, [container]);
 
@@ -54,7 +55,7 @@ const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) =>
 
   return (
     <>
-      <div key={container.app + "-" + container.name} ref={load} className="page_container">
+      <div key={container.app + "-" + container.name} ref={load} className={container.class}>
         <Suspense fallback={<div />}>
           <SelectedComponent data={currentPage?.data} visible={visible}></SelectedComponent>
         </Suspense>

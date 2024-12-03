@@ -30,6 +30,7 @@ export interface PageContainer {
   data?: any;
   parentURI?: string;
   children?: PageContainer[];
+  class?: string;
   ele?: HTMLDivElement | null;
   closeEle?: HTMLDivElement | null;
   animate?: { open: number; close: number; child?: number };
