@@ -48,12 +48,13 @@ const usePageAnimate = () => {
                 if (Array.isArray(open) && open.length > 1)
                     tl.fromTo(container.ele, open[0], open[1], "<")
                 else
-                    tl.to(container.ele, open)
+                    tl.to(container.ele, open, "<")
             }
             /**handle close animate*/
             if (prepage) {
                 const pcontainers = containers.filter((c) => prepage.uri.indexOf(c.uri) === 0);
                 const ancestors = pcontainers.filter((c) => !tcontainers.includes(c));
+                console.log(ancestors)
                 ancestors.forEach((c) => {
                     if (c.ele && c.animate) {
                         const close = animates[c.animate.close];

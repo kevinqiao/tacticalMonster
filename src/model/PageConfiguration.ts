@@ -33,7 +33,13 @@ export const PlayPlace =
             path: "./kumu/Lobby",
             uri: "lobby",
             class: "page_container",
-            animate: { open: 1, close: 2 },
+            initStyle: "initSlider",
+            animate: { open: 1, close: 2, children: { effect: "slide", entry: "child1" } },
+            children: [
+                { name: "child1", class: "page_container", path: "./kumu/component/Child1", uri: "c1", auth: 0 },
+                { name: "child2", class: "page_container", path: "./kumu/component/Child2", uri: "c2", auth: 0 },
+                { name: "child3", class: "page_container", path: "./kumu/component/Child3", uri: "c3", auth: 0 },
+            ]
         }
     ]
 
@@ -187,6 +193,7 @@ export interface PageConfig {
         auth?: number;
     }[];
     class?: string;
+    initStyle?: string;
     exit?: number;
     animate?: { open: number; close: number; child?: number }
 
