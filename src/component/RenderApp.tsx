@@ -7,6 +7,7 @@ import { PageContainer, usePageManager } from "service/PageManager";
 import usePageAnimate from "../animate/usePageAnimate";
 import "./render.css";
 import SSOController from "./signin/SSOController";
+import { PageInitFunctions } from "./util/PageInitFunctions";
 gsap.registerPlugin(CSSPlugin);
 
 export interface PageProp {
@@ -14,13 +15,14 @@ export interface PageProp {
   visible?: number;
 }
 
-const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) => {
+const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const { openPage, currentPage, onLoad } = usePageManager();
 
   const visible = useMemo(() => {
     if (currentPage?.uri.indexOf(container.uri) === 0) return 1;
     else return 0;
   }, [currentPage]);
+
   const childContainers = useMemo(() => {
     if (container?.children) {
       container.children = container.children.map((c) => ({
@@ -48,6 +50,10 @@ const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) =>
   const load = useCallback(
     (ele: HTMLDivElement | null) => {
       container.ele = ele;
+      if (ele && container.init) {
+        const initFunction = PageInitFunctions[container.init as keyof typeof PageInitFunctions];
+        initFunction({ parent, container });
+      }
       onLoad(ele);
     },
     [onLoad, container]
@@ -63,7 +69,7 @@ const PageComponent: React.FC<{ container: PageContainer }> = ({ container }) =>
           <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
         ) : null}
       </div>
-      {childContainers?.map((c: PageContainer) => <PageComponent key={c.uri} container={c} />)}
+      {childContainers?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
     </>
   );
 };

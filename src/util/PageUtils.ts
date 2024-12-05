@@ -1,5 +1,6 @@
-import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
+import { AppsConfiguration } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
+import { PageContainer } from "service/PageManager";
 export const parseLocation = (): PageItem | undefined => {
     const page: { [k: string]: any } = {}
     page.uri = window.location.pathname;
@@ -131,40 +132,28 @@ export const getURLParams = (location: any) => {
 //     return null;
 // };
 
-export const getCurrentAppConfig = () => {
-    const ps = window.location.pathname.split("/");
-    const app: any = AppsConfiguration.find((a) => a.context === (ps[1].length === 0 ? "/" : ps[1]));
-    if (!app) {
-        return AppsConfiguration.find((a) => a.context === "/")
-    }
-    return app;
-}
-export const getPageConfig = (appName: string, page: string) => {
-    const app = AppsConfiguration.find((a) => a.name === appName);
-    const cfg: PageConfig | undefined = app?.navs.find((p: any) => p.name === page);
-    return cfg
-}
-export const getNavConfig = (appName: string, page: string, child?: string) => {
-    const app = AppsConfiguration.find((a) => a.name === appName);
-    const cfg: PageConfig | undefined = app?.navs.find((p: any) => p.name === page);
-    if (child && cfg?.children) {
-        const cnav = cfg.children.find((c) => c.name === child);
-        return cnav
-    }
-    return cfg
-}
-
-
 
 export const getURIParam = (name: string): string | null => {
     const urlObj = new URL(window.location.href);
     const params = new URLSearchParams(urlObj.search);
     return params.get(name);
 }
-export const getURIHashParam = (name: string): string | null => {
-    const urlObj = new URL(window.location.href);
-    const fragment = urlObj.hash;
-    const params = new URLSearchParams(fragment.slice(1));
-    const res = params.get(name);
-    return res
+export const findContainerByURI = (container: PageContainer, uri: string): PageContainer | null => {
+    // 如果当前节点的 id 匹配，返回当前节点
+    if (container.uri === uri) {
+        return container;
+    }
+
+    // 如果当前节点有子节点，递归搜索子节点
+    if (container.children && Array.isArray(container.children)) {
+        for (const child of container.children) {
+            const result = findContainerByURI(child, uri);
+            if (result) {
+                return result;
+            }
+        }
+    }
+
+    // 如果未找到，返回 null
+    return null;
 }

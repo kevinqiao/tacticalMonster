@@ -19,7 +19,11 @@ export type App = {
   name: string;
   params?: { [k: string]: string };
 };
-
+export interface PageEvent {
+  type: number; //0-new  1-back 2-forward 3-start from browser
+  index: number;
+  prepage?: PageItem | undefined | null;
+}
 export interface PageContainer {
   app?: string;
   name: string;
@@ -28,17 +32,18 @@ export interface PageContainer {
   auth?: number;
   exit?: number;
   data?: any;
+  init?: string;
   parentURI?: string;
   children?: PageContainer[];
   class?: string;
   ele?: HTMLDivElement | null;
   closeEle?: HTMLDivElement | null;
-  animate?: { open: number; close: number; child?: number };
+  animate?: { open: number; close: number; children?: { effect: string; entry: string } };
 }
 interface IPageContext {
   // pageQueue: PageItem[];
   currentPage: PageItem | undefined | null;
-  changeEvent: { type: number; index: number; prepage: PageItem | undefined | null } | null;
+  changeEvent: PageEvent | null;
   app: App | null;
   navOpen: boolean;
   pageContainers: PageContainer[];
@@ -65,11 +70,7 @@ const PageContext = createContext<IPageContext>({
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const currentPageRef = useRef<{ index: number; page: PageItem | undefined | null }>({ index: 0, page: null });
-  const [changeEvent, setChangeEvent] = useState<{
-    type: number;
-    index: number;
-    prepage: PageItem | undefined | null;
-  } | null>(null);
+  const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
   const [navOpen, setNavOpen] = useState(false);
@@ -103,7 +104,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const onLoad = useCallback(
     (ele: HTMLDivElement | null) => {
-      console.log(ele);
       if (!pageContainers) return;
 
       if (ele) {
@@ -111,7 +111,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         for (const container of pageContainers) {
           loadCompleted = isAllLoaded(container);
         }
-        console.log(loadCompleted);
         if (loadCompleted) setContainersLoaded((pre) => (pre === 0 ? 1 : pre));
       } else setContainersLoaded(0);
     },
@@ -124,7 +123,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     const page = parseLocation();
     if (page) {
       currentPageRef.current = { index: newIndex, page };
-      setChangeEvent({ type: 0, index: newIndex, prepage: null });
+      setChangeEvent({ type: 3, index: newIndex, prepage: null });
     }
     const handlePopState = (event: any) => {
       const newIndex = event.state?.index ?? 0; // 获取新索引

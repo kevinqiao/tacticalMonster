@@ -1,5 +1,5 @@
 .page_container {
-    position: fixed;
+    position: absolute;
     top: 0px;
     left: 0px;
     visibility: hidden;
@@ -15,16 +15,15 @@
   width:100%;
   pointer-events: none;
 }
-.child-container {
-  position:absolute;
-  top:50%;
-  left:50%;
-  height:50%;
-  width:50%;
-  transform:translate(-50%, -50%);
+.child_container {
+  position:fixed;
+  top: 0px;
+  left: 0px;
   opacity: 0;
   visibility: hidden;
-  pointer-events: auto;
+  width: 100vw;
+  height: 100vh
+  /* pointer-events: auto; */
   /* background-color: red; */
 }
 .exit-menu{
