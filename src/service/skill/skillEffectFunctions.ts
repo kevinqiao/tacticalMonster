@@ -1,4 +1,4 @@
-import { Character } from "component/kumu/service/model/CharacterModels";
+import { Character } from "component/kumu/battle/model/CharacterModels";
 
 export const skillEffectFunctions = {
     calculateFireballDamage: (character: Character, target: Character | null): number => {

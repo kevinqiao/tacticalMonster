@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from "react";
-import "../map.css";
+import "../../map.css";
 import { useCombatManager } from "../service/CombatManager";
 
 interface HexagonProps {
@@ -179,11 +179,6 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
     </>
   );
 };
-interface Props {
-  size: number;
-  rows: number;
-  cols: number;
-}
 
 const GridGround: React.FC = () => {
   const { cellSize: size, gridCells } = useCombatManager();

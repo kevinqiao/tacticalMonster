@@ -1,5 +1,5 @@
 
-import { Character, Skill, SkillEffect, Stats } from "component/kumu/service/model/CharacterModels";
+import { Character, Skill, SkillEffect, Stats } from "component/kumu/battle/model/CharacterModels";
 import { Engine, TopLevelCondition } from "json-rules-engine";
 import { skillEffectFunctions } from "./skillEffectFunctions";
 

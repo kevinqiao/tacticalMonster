@@ -89,7 +89,6 @@ export interface Character {
     level: number;
     experience?: number;
     attributes: Attributes;
-    position: { x: number; y: number };
     move_range?: number;
     attack_range?: { min: number; max: number };
     stats?: Stats;

@@ -10,13 +10,12 @@ const PlayGround: React.FC<PageProp> = (props) => {
   const events = useQuery(api.dao.tmEventDao.find, { uid: "1", lastTime });
   const startGame = useAction(api.service.tmGameProxy.start);
   useEffect(() => {
-    console.log(props);
     if (typeof events === "number") setLastTime((pre) => (!pre || pre !== events ? events : pre));
     else if (events && events.length > 0) {
       for (const event of events) {
         const gameEvent = event as { name: string; uid: string; time: number; data: any; id: string };
         if (gameEvent.name === "GameCreated") {
-          // openPage({ name: "map", app: "playPlace", data: gameEvent.data });
+          openPage({ uri: "/play/map", data: gameEvent.data });
         }
       }
       setLastTime(events[events.length - 1]["time"]);

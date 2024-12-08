@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { CharacterUnit, CombatEvent, HexNode, Player } from "./model/CombatModels";
+import { CharacterUnit, CombatEvent, HexNode, Player } from "../model/CombatModels";
 
 interface Props {
   eventQueue: CombatEvent[];

@@ -1,20 +1,13 @@
 import gsap from "gsap";
 import React, { useEffect, useRef } from "react";
-import "../map.css";
+import "../../map.css";
 import { useCombatManager } from "../service/CombatManager";
-interface Props {
-  size: number;
-  rows: number;
-  cols: number;
-}
+
 interface HexagonCellProps {
   row: number;
   col: number;
 }
-const cells = [
-  { row: 0, col: 3 },
-  { row: 2, col: 4 },
-];
+
 // 六边形格子组件
 const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);

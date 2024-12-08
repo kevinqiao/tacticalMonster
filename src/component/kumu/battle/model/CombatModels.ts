@@ -1,3 +1,4 @@
+import { Hex } from "../../utils/PathFind";
 import { Character } from "./CharacterModels";
 
 export enum ACT_CODE {
@@ -47,14 +48,27 @@ export interface CombatRound {
     gameId: string;
     turns: { uid: string; character: string; status: number }[];
 }
-export interface GridCell extends HexNode {
 
-    gridContainer: SVGSVGElement | null;
-    gridGround: SVGPolygonElement | null;
-    gridStand: SVGPolygonElement | null;
-    gridAttack: SVGCircleElement | null;
-    gridCover: HTMLDivElement | null;
+export enum GridCellType {
+    Field = 0,
+    Obstacle = 1,
+    Unavailable = 2,
 }
+
+export interface HexNode {
+    x: number; // 六边形的 x 坐标（列）
+    y: number; // 边形的 y 坐标（行）
+    walkable?: boolean; // 指示该格子是否可行走
+    type?: GridCellType; // 格子的类型
+}
+
+export interface GridCell extends HexNode {
+    gridContainer: SVGSVGElement | null; // 六边形格子的 SVG 容器
+    gridGround: SVGPolygonElement | null; // 表示地面的多边形元素
+    gridStand: SVGPolygonElement | null; // 表示站立区域的多边形元素
+    gridAttack: SVGCircleElement | null; // 表示攻击范围的圆形元素
+}
+
 export interface ObstacleCell {
     row: number;
     col: number;
@@ -63,13 +77,7 @@ export interface ObstacleCell {
     walkable?: boolean;
     element?: HTMLDivElement;
 }
-// 定义HexNode接口
-export interface HexNode {
-    x: number;
-    y: number;
-    walkable?: boolean;
-    type?: number; //0-field 1-obstacle 2-unavailable
-}
+
 export interface WalkableNode extends HexNode {
     path: { x: number; y: number }[];
     distance?: number; // 距离角色的步数
@@ -80,7 +88,11 @@ export interface AttackableNode extends HexNode {
 }
 
 export interface CharacterUnit extends Character {
+    id: string;
+    character_id: string;
     asset: string;
+    q: number;
+    r: number;
     container?: HTMLDivElement;
     walkables?: WalkableNode[];
     attackables?: AttackableNode[];
@@ -119,7 +131,6 @@ export interface ICombatContext {
         character: number;
         gridContainer: number;
         gridGround: number;
-        gridCover: number;
         gridStand: number;
         gridAttack: number;
     } | null;
@@ -128,12 +139,16 @@ export interface ICombatContext {
             character: number;
             gridContainer: number;
             gridGround: number;
-            gridCover: number;
             gridStand: number;
             gridAttack: number;
         }>
     >;
     changeCellSize: React.Dispatch<React.SetStateAction<number>>;
-    walk: (to: { x: number; y: number }) => void;
+    walk: (to: { q: number; r: number }) => void;
+    findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;
+    getPixelPosition: (x: number, y: number) => { x: number, y: number };
+    paths: Record<string, Hex[]>;
+    setPaths: React.Dispatch<React.SetStateAction<Record<string, Hex[]>>>;
+    updateCharacterPosition: (characterId: string, x: number, y: number) => void;
 }
 

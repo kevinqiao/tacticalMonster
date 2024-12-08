@@ -1,4 +1,4 @@
-import { Attributes, Character, Stats } from "component/kumu/service/model/CharacterModels";
+import { Attributes, Character, Stats } from "component/kumu/battle/model/CharacterModels";
 
 //key-character_id
 interface LevelData {

@@ -1,8 +1,8 @@
 import gsap from "gsap";
-import React, { useCallback, useEffect, useRef } from "react";
-import "../map.css";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import "../../map.css";
+import { CharacterUnit } from "../model/CombatModels";
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit } from "../service/model/CombatModels";
 interface Props {
   character: CharacterUnit;
 }
@@ -51,4 +51,18 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
   );
 };
 
-export default CharacterCell;
+const CharacterGrid: React.FC = () => {
+  const { characters } = useCombatManager();
+  const render = useMemo(() => {
+    return (
+      <>
+        {characters?.map((c, index) => (
+          <CharacterCell key={"character-" + c.character_id + "-" + index} character={c} />
+        ))}
+      </>
+    );
+  }, [characters]);
+  return <>{render}</>;
+};
+
+export default CharacterGrid;

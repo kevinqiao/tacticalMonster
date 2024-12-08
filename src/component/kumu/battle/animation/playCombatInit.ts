@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { CharacterUnit, GridCell } from "../service/model/CombatModels";
+import { CharacterUnit, GridCell } from "../model/CombatModels";
 
 export const playInitPlaza = (gridCells: GridCell[][]) => {
 

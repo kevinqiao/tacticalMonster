@@ -1,19 +1,19 @@
 import { useAction } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
-import { api } from "../../convex/_generated/api";
-import ObstacleGrid from "./battle/ObstacleGrid";
-import "./map.css";
+import { api } from "../../../convex/_generated/api";
+import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
 import useCombatHandlers from "./service/useCombatHandlers";
 import useGameInit from "./service/useGameInit";
-import CharacterGrid from "./sprite/CharacterGrid";
-import GridGround from "./sprite/GridGround";
+import CharacterGrid from "./view/CharacterGrid";
+import GridGround from "./view/GridGround";
+import ObstacleGrid from "./view/ObstacleGrid";
 const CombatActPanel: React.FC = () => {
   const doSomething = useAction(api.rule.test.doSomething);
   const startGame = useAction(api.service.tmGameProxy.start);
 
   return (
-    <div className="action-panel" style={{ left: 0 }}>
+    <div className="action-control" style={{ left: 0 }}>
       <div className="action-panel-item" onClick={() => startGame()}>
         START
       </div>
@@ -36,9 +36,6 @@ const CombatPlaza: React.FC = () => {
       <div className="plaza-layer" style={{ top: 0, left: 0, pointerEvents: "none" }}>
         <CharacterGrid />
       </div>
-      {/* <div className="map-background" style={{ pointerEvents: "none" }}>
-        <GridCover />
-      </div> */}
     </div>
   );
 };
@@ -118,7 +115,7 @@ const BattleVenue: React.FC = () => {
     </div>
   );
 };
-const KumuApp: React.FC = (props) => {
+const BattlePlayer: React.FC = (props) => {
   console.log(props);
   return (
     <BattleProvider>
@@ -126,4 +123,4 @@ const KumuApp: React.FC = (props) => {
     </BattleProvider>
   );
 };
-export default KumuApp;
+export default BattlePlayer;

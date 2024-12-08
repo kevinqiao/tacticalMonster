@@ -1,4 +1,4 @@
-import GlobalStyle from "component/common/GlobalStyle";
+import GlobalStyle from "./component/common/GlobalStyle";
 import Head from "component/common/Head";
 import RenderApp from "component/RenderApp";
 import { ConvexProvider, ConvexReactClient } from "convex/react";

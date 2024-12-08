@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
+import { CombatEvent } from "../model/CombatModels";
 import { useCombatManager } from "./CombatManager";
-import { CombatEvent } from "./model/CombatModels";
 
 const useEventHandler = () => {
 

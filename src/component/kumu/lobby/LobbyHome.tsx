@@ -1,8 +1,8 @@
 import { PageProp } from "component/RenderApp";
 import React from "react";
 import { usePageManager } from "service/PageManager";
-import "./map.css";
-const Lobby: React.FC<PageProp> = (props) => {
+import "../map.css";
+const LobbyHome: React.FC<PageProp> = (props) => {
   const { openPage } = usePageManager();
 
   return (
@@ -10,7 +10,7 @@ const Lobby: React.FC<PageProp> = (props) => {
       <div className="head-control">
         <span style={{ cursor: "pointer", color: "transparent" }}>Play Head</span>
       </div>
-      <div
+      {/* <div
         style={{
           display: "flex",
           justifyContent: "center",
@@ -23,7 +23,7 @@ const Lobby: React.FC<PageProp> = (props) => {
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main" })}>
           Play
         </div>
-      </div>
+      </div> */}
       <div className="action-control">
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c1" })}>
           Child11
@@ -39,4 +39,4 @@ const Lobby: React.FC<PageProp> = (props) => {
   );
 };
 
-export default Lobby;
+export default LobbyHome;
