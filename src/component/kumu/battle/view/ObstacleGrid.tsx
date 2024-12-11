@@ -1,7 +1,8 @@
 import gsap from "gsap";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import "../../map.css";
 import { useCombatManager } from "../service/CombatManager";
+import { calculateHexPoints, pointsToPath } from '../utils/gridUtils';
 
 interface HexagonCellProps {
   row: number;
@@ -11,8 +12,13 @@ interface HexagonCellProps {
 // 六边形格子组件
 const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { map } = useCombatManager();
+  const { map, hexCell } = useCombatManager();
   const cell = map.obstacles?.find((c) => c.row === row && c.col === col);
+  const size = hexCell.width;
+  const hexPath = useMemo(() => {
+    const points = calculateHexPoints(size);
+    return pointsToPath(points);
+  }, [size]);
   useEffect(() => {
     gsap.set(containerRef.current, { scale: 0.7 });
   }, []);
@@ -28,7 +34,8 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
 };
 
 const ObstacleGrid: React.FC = () => {
-  const { map, cellSize: size } = useCombatManager();
+  const { map, hexCell } = useCombatManager();
+  const {width,height} = hexCell;
   const { rows, cols } = map;
   return (
     <>
@@ -38,16 +45,16 @@ const ObstacleGrid: React.FC = () => {
           style={{
             display: "flex",
             justifyContent: "flex-start",
-            marginLeft: row % 2 !== 0 ? `${size / 2}px` : "0", // 奇数行右移半个六边形的宽度
-            marginBottom: `${-size * 0.25}px`, // 行间距
+            marginLeft: row % 2 !== 0 ? `${width / 2}px` : "0", // 奇数行右移半个六边形的宽度
+            marginBottom: `${-height * 0.25}px`, // 行间距
           }}
         >
           {Array.from({ length: cols }).map((_, col) => (
             <div
               key={`${row}-${col}`}
               style={{
-                width: `${size}px`,
-                height: `${size}px`,
+                width: `${width}px`,
+                height: `${height}px`,
                 margin: 0,
               }}
             >

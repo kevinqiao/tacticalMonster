@@ -95,6 +95,22 @@ module.exports = {
           filename: "images/[name][ext]", // 输出到 dist/images 目录下
         },
       },
+      {
+        test: /\.(png|jpe?g|gif|atlas)$/i,
+        use: [
+          {
+            loader: 'file-loader',
+            options: {
+              name: '[path][name].[ext]',
+            },
+          },
+        ],
+      },
+      {
+        test: /\.json$/,
+        type: 'javascript/auto',
+        use: ['file-loader'],
+      }
     ],
   },
   plugins: [

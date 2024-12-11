@@ -27,7 +27,7 @@ export interface SkillEffect {
     };
     remaining_duration?: number; // 持续时间（以回合计，可选）
     name?: string; // 效果名称，例如 "Burn" 或 "Poison"
-    target_attribute?: keyof Stats; // 目标属性，例如 "hp", "attack"（可选）
+    target_attribute?: keyof Stats; // ���标属性，例如 "hp", "attack"（可选）
     trigger_phase?: "immediate" | "turn_start" | "turn_end"; // 触发时机
     trigger_event?: string; // 指定的触发事件（用于 `event` 类型触发效果）
 }
@@ -96,5 +96,11 @@ export interface Character {
     skills?: string[];
     statusEffects?: SkillEffect[];
     cooldowns?: { [skillId: string]: number };
+}
+
+export enum CharacterAnimState {
+  IDLE = "stand",
+  WALK = "walk",
+  ATTACK = "melee"
 }
 

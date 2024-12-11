@@ -14,22 +14,23 @@ import {
   Player,
 } from "../model/CombatModels";
 
-import { hexToPixel } from "../../utils/hexUtil";
 import { aStar, Hex } from "../../utils/PathFind";
+import { calculateHexMetrics } from "../utils/gridUtils";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 
-const characterList = players.reduce<CharacterUnit[]>((acc, cur) => [
-  ...acc,
-  ...cur.characters.map(char => ({
-    ...char,
-    id: char.character_id,
-    asset: char.asset ?? '',
-    q: 0,
-    r: 0,
-  }))
-], []);
+const characterList = players.reduce<CharacterUnit[]>(
+  (acc, cur) => [
+    ...acc,
+    ...cur.characters.map((char) => ({
+      ...char,
+      id: char.character_id,
+      asset: char.asset ?? "",
+    })),
+  ],
+  []
+);
 const mapData = {
   rows: 7,
   cols: 8,
@@ -41,11 +42,10 @@ const mapData = {
     { x: 0, y: 6 },
     { x: 7, y: 6 },
     { x: 7, y: 5 },
-    { x: 7, y: 3 },
   ],
 };
 export const CombatContext = createContext<ICombatContext>({
-  cellSize: 0,
+  hexCell: { width: 0, height: 0 },
   resourceLoad: null,
   map: { rows: 7, cols: 8 },
   gridCells: null,
@@ -56,7 +56,7 @@ export const CombatContext = createContext<ICombatContext>({
   timeClock: 0,
   eventQueue: [],
   setResourceLoad: () => null,
-  changeCellSize: () => null,
+  changeCell: () => null,
   walk: () => null,
   findPath: () => null,
   getPixelPosition: () => ({ x: 0, y: 0 }),
@@ -68,7 +68,7 @@ export const CombatContext = createContext<ICombatContext>({
 const CombatProvider = ({ children }: { children: ReactNode }) => {
   // console.log("combat provider....");
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
-  const [cellSize, setCellSize] = useState<number>(0);
+  const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [map, setMap] = useState<MapModel>(mapData);
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
   const [challenger, setChallenger] = useState<Player | null>({ uid: "1" });
@@ -88,9 +88,10 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   const [paths, setPaths] = useState<Record<string, Hex[]>>({});
 
   const updateCharacterPosition = (characterId: string, x: number, y: number) => {
-    setCharacters(prev => prev?.map(char => 
-      char.character_id === characterId ? { ...char, position: { x, y } } : char
-    ) ?? null);
+    setCharacters(
+      (prev) =>
+        prev?.map((char) => (char.character_id === characterId ? { ...char, position: { x, y } } : char)) ?? null
+    );
   };
 
   useEffect(() => {
@@ -126,7 +127,6 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     setGridCells(cells);
   }, [map]);
 
-
   const isWalkable = (q: number, r: number): boolean => {
     if (!gridCells) return false;
     // Check bounds
@@ -134,30 +134,31 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     return gridCells[r][q].walkable ?? false;
   };
 
-  const findPath = (from: { q: number, r: number }, to: { q: number, r: number }): Hex[] | null => {
+  const findPath = (from: { q: number; r: number }, to: { q: number; r: number }): Hex[] | null => {
     const start: Hex = { q: from.q, r: from.r };
     const goal: Hex = { q: to.q, r: to.r };
     return aStar(start, goal, isWalkable);
   };
 
-  const getPixelPosition = (x: number, y: number) => {
-    return hexToPixel(x, y, cellSize);
+  const getPixelPosition = (q: number, r: number) => {
+    const metrics = calculateHexMetrics(hexCell.width);
+    return {
+      x: q * metrics.width + ((r % 2) * metrics.width) / 2,
+      y: (r * metrics.height * 3) / 4,
+    };
   };
 
   const walk = async (to: { q: number; r: number }) => {
-    const character = characters?.find(c => c.id === currentRound?.turns[0].character);
+    const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
     if (!character) return;
 
-    const path = findPath(
-      { q: character.q, r: character.r },
-      to
-    );
+    const path = findPath({ q: character.q, r: character.r }, to);
 
     if (!path) return;
 
     // Convert path to pixel coordinates for animation
-    const pixelPath = path.map(hex => getPixelPosition(hex.q, hex.r));
-    
+    const pixelPath = path.map((hex) => getPixelPosition(hex.q, hex.r));
+
     // Add to event queue
     eventQueueRef.current.push({
       category: "action",
@@ -168,13 +169,13 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
         gameId: "current",
         actor: character.id,
         act: ACT_CODE.WALK,
-        data: { path: pixelPath }
-      }
+        data: { path: pixelPath },
+      },
     });
   };
 
   const value = {
-    cellSize,
+    hexCell,
     map,
     gridCells,
     challenger,
@@ -185,7 +186,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     eventQueue: eventQueueRef.current,
     resourceLoad,
     setResourceLoad,
-    changeCellSize: setCellSize,
+    changeCell: setHexCell,
     walk,
     findPath,
     getPixelPosition,

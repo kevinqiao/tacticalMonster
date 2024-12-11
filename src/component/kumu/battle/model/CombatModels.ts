@@ -116,7 +116,7 @@ export interface TMGame {
 }
 
 export interface ICombatContext {
-    cellSize: number;
+    hexCell: {width:number,height:number};
     // mapSize: { rows: number; cols: number };
     map: MapModel;
     // gridMap: HexNode[][] | null;
@@ -143,7 +143,7 @@ export interface ICombatContext {
             gridAttack: number;
         }>
     >;
-    changeCellSize: React.Dispatch<React.SetStateAction<number>>;
+    changeCell: React.Dispatch<React.SetStateAction<{width:number,height:number}>>;
     walk: (to: { q: number; r: number }) => void;
     findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;
     getPixelPosition: (x: number, y: number) => { x: number, y: number };
