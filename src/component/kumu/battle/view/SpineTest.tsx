@@ -1,6 +1,6 @@
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { hexToPixel } from "../../utils/hexUtil";
 import { useCombatManager } from "../service/CombatManager";
 
@@ -16,32 +16,47 @@ const CHARACTERS: CharacterData[] = [
     { col: 5, row: 3, animation: "stand" }
 ];
 
-// 添加资源加载状态
-let spineResources: {
-    atlas: any;
-    spineData: any;
-} | null = null;
 
-// 添加资源加载函数
-const loadSpineResources = async () => {
-    if (spineResources) return spineResources;
 
-    try {
-        const [atlas, spineData] = await Promise.all([
-            PIXI.Assets.load('/assets/monster_cat/monster_cat.atlas'),
-            PIXI.Assets.load('/assets/monster_cat/monster_cat.json')
-        ]);
+// 修改基准尺寸常量
+const BASE_CELL_SIZE = {
+    width: 100,
+    height: 150
+};
 
-        if (!atlas || !spineData) {
-            throw new Error('Failed to load spine resources');
-        }
+// 修改角色更新函数
+const updateCharacterPositions = (
+    container: PIXI.Container,
+    spines: Map<string, Spine>,
+    hexCellSize: { width: number; height: number }
+) => {
+    // 计算缩放系数
+    const scaleFactor = Math.min(
+        hexCellSize.width / BASE_CELL_SIZE.width,
+        hexCellSize.height / BASE_CELL_SIZE.height
+    );
 
-        spineResources = { atlas, spineData };
-        return spineResources;
-    } catch (error) {
-        console.error('Failed to load spine resources:', error);
-        throw error;
-    }
+    // 使用更小的参考尺寸
+    const REFERENCE_SIZE = {
+        width: 100,
+        height: 150
+    };
+
+    CHARACTERS.forEach((charData, index) => {
+        const spine = spines.get(`char_${index}`);
+        if (!spine) return;
+
+        const pos = hexToPixel(charData.col, charData.row, hexCellSize.width, hexCellSize.height);
+
+        // 进一步减小基础缩放比例
+        const baseScale = (BASE_CELL_SIZE.width * 0.2) / REFERENCE_SIZE.width; // 改为0.2倍格子宽度
+        const finalScale = baseScale * scaleFactor;
+
+        spine.scale.set(finalScale);
+        spine.pivot.set(REFERENCE_SIZE.width / 2, REFERENCE_SIZE.height);
+        spine.x = pos.x + hexCellSize.width / 2;
+        spine.y = pos.y + hexCellSize.height / 1.1;
+    });
 };
 
 const SpineTest = () => {
@@ -50,11 +65,34 @@ const SpineTest = () => {
     const appRef = useRef<PIXI.Application | null>(null);
     const containerRef = useRef<PIXI.Container | null>(null);
     const spinesRef = useRef<Map<string, Spine>>(new Map());
+    const [spineResources, setSpineResources] = useState<{
+        atlas: any;
+        spineData: any;
+    } | null>(null);
+    
+    useEffect(() => {
+        (async () => {
+            if (spineResources) return;
+            try {
+                const [atlas, spineData] = await Promise.all([
+                    PIXI.Assets.load('/assets/monster_cat/monster_cat.atlas'),
+                    PIXI.Assets.load('/assets/monster_cat/monster_cat.json')
+                ]);
 
+                if (!atlas || !spineData) {
+                    throw new Error('Failed to load spine resources');
+                }
+                setSpineResources({ atlas, spineData });
+            } catch (error) {
+                console.error('Failed to load spine resources:', error);
+                throw error;
+            }
+        })();
+    }, [])
+    // 创建 PIXI 应用
     useEffect(() => {
         if (!canvasRef.current) return;
 
-        // 创建 PIXI 应用
         const app = new PIXI.Application({
             width: canvasRef.current.offsetWidth,
             height: canvasRef.current.offsetHeight,
@@ -65,105 +103,87 @@ const SpineTest = () => {
             autoDensity: true
         });
 
-        // 设置视图样式
         const view = app.view as HTMLCanvasElement;
         view.style.width = '100%';
         view.style.height = '100%';
         view.style.position = 'absolute';
         view.style.top = '0';
         view.style.left = '0';
-        
+
         appRef.current = app;
         canvasRef.current.appendChild(view);
 
-        // 创建容器
         const container = new PIXI.Container();
         containerRef.current = container;
         container.position.set(0, 0);
         app.stage.addChild(container);
 
-        // 处理窗口大小变化
+        return () => {
+            app.destroy(true, {
+                children: true,
+                texture: false,
+                baseTexture: false
+            });
+        };
+    }, []);
+
+    // 处理窗口大小变化
+    useEffect(() => {
+        if (!canvasRef.current || !appRef.current) return;
+
         const handleResize = () => {
-            if (canvasRef.current && app.renderer) {
-                const parent = canvasRef.current;
-                app.renderer.resize(parent.offsetWidth, parent.offsetHeight);
-            }
+            const app = appRef.current;
+            const container = containerRef.current;
+            if (!app?.renderer || !container) return;
+
+            const parent = canvasRef.current;
+            if (!parent) return;
+
+            app.renderer.resize(parent.offsetWidth, parent.offsetHeight);
+            updateCharacterPositions(container, spinesRef.current, hexCell);
         };
 
         const resizeObserver = new ResizeObserver(handleResize);
         resizeObserver.observe(canvasRef.current);
 
-        // 添加动画
-        let time = 0;
-        const animate = () => {
-            time += 0.05;
-
-            // 移动所有 spine
-            spinesRef.current.forEach((spine) => {
-                if (spine && spine.parent) {
-                    spine.x = spine.x + Math.cos(time) * 0.5;
-                }
-            });
-        };
-
-        app.ticker.add(animate);
-
-        // 修改资源加载和角色创建部分
-        (async () => {
-            try {
-                const resources = await loadSpineResources();
-
-                CHARACTERS.forEach((charData, index) => {
-                    try {
-                        const spine = new Spine(resources.spineData.spineData);
-                        const id = `char_${index}`;
-                        spinesRef.current.set(id, spine);
-
-                        // 设置位置和动画
-                        const pos = hexToPixel(charData.col, charData.row, hexCell.width, hexCell.height);
-                        
-                        // 获取spine的边界框来计算合适的缩放比例
-                        const bounds = spine.getBounds();
-                        const scale = (hexCell.width * 0.6) / bounds.width;
-                        
-                        spine.scale.set(scale);
-                        spine.pivot.set(bounds.width / 2, bounds.height);
-                        spine.x = pos.x + hexCell.width / 2;
-                        spine.y = pos.y + hexCell.height;
-                        
-                        spine.state.setAnimation(0, charData.animation, true);
-                        spine.visible = true;
-                        spine.alpha = 1;
-                        spine.zIndex = 1;
-
-                        container.addChild(spine);
-                        console.log(`Added spine ${id}:`, {
-                            position: { x: spine.x, y: spine.y },
-                            scale: spine.scale,
-                            bounds: bounds,
-                            visible: spine.visible
-                        });
-                    } catch (error) {
-                        console.error(`Failed to create spine ${index}:`, error);
-                    }
-                });
-
-            } catch (error) {
-                console.error('Failed to initialize characters:', error);
-            }
-        })();
-
         return () => {
-            // 清理时不销毁资源
             resizeObserver.disconnect();
-            app.ticker.remove(animate);
-            app.destroy(true, {
-                children: true,
-                texture: false, // 不销毁纹理
-                baseTexture: false // 不销毁基础纹理
-            });
         };
     }, [hexCell]);
+
+    // 加载和创建角色
+    useEffect(() => {
+        const app = appRef.current;
+        const container = containerRef.current;
+        if (!app || !container || !spineResources || !hexCell) return;
+
+        CHARACTERS.forEach((charData, index) => {
+            try {
+                const spine = new Spine(spineResources.spineData.spineData);
+                const id = `char_${index}`;
+                spinesRef.current.set(id, spine);
+
+                spine.visible = true;
+                spine.alpha = 1;
+                spine.zIndex = 1;
+                spine.state.setAnimation(0, charData.animation, true);
+                container.addChild(spine);
+            } catch (error) {
+                console.error(`Failed to create spine ${index}:`, error);
+            }
+        });
+
+        updateCharacterPositions(container, spinesRef.current, hexCell); 
+
+        return () => {
+            // 清理时移除所有spine
+            spinesRef.current.forEach(spine => {
+                spine.destroy();
+            });
+            spinesRef.current.clear();
+        };
+    }, [hexCell, spineResources]);
+
 
     return (
         <div
