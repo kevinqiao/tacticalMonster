@@ -1,7 +1,7 @@
-import { hexToPixel } from "component/kumu/utils/hexUtil";
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
+import { hexToPixel } from "../../utils/hexUtil";
 import { useCombatManager } from "../service/CombatManager";
 
 interface CharacterData {
@@ -16,116 +16,154 @@ const CHARACTERS: CharacterData[] = [
     { col: 5, row: 3, animation: "stand" }
 ];
 
+// 添加资源加载状态
+let spineResources: {
+    atlas: any;
+    spineData: any;
+} | null = null;
+
+// 添加资源加载函数
+const loadSpineResources = async () => {
+    if (spineResources) return spineResources;
+
+    try {
+        const [atlas, spineData] = await Promise.all([
+            PIXI.Assets.load('/assets/monster_cat/monster_cat.atlas'),
+            PIXI.Assets.load('/assets/monster_cat/monster_cat.json')
+        ]);
+
+        if (!atlas || !spineData) {
+            throw new Error('Failed to load spine resources');
+        }
+
+        spineResources = { atlas, spineData };
+        return spineResources;
+    } catch (error) {
+        console.error('Failed to load spine resources:', error);
+        throw error;
+    }
+};
+
 const SpineTest = () => {
     const { hexCell } = useCombatManager();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const appRef = useRef<PIXI.Application | null>(null);
     const containerRef = useRef<PIXI.Container | null>(null);
-    const resizeTimeoutRef = useRef<number>();
     const spinesRef = useRef<Map<string, Spine>>(new Map());
 
-    // 清理函数
-    const cleanup = useCallback(() => {
-        if (containerRef.current) {
-            spinesRef.current.forEach(spine => {
-                containerRef.current?.removeChild(spine);
-                spine.destroy();
-            });
-            spinesRef.current.clear();
-        }
-    }, []);
-
-    // 初始化角色
-    const initCharacter = useCallback((spine: Spine, data: CharacterData) => {
-        if (!containerRef.current) return;
-
-        const bounds = spine.getBounds();
-        const baseScale = (hexCell.width * 0.9) / bounds.width;
-
-        spine.scale.set(baseScale);
-        spine.pivot.set(bounds.width * baseScale / 2, bounds.height * baseScale / 2);
-
-        const { x, y } = hexToPixel(data.col, data.row, hexCell.width, hexCell.height);
-        spine.position.set(
-            x + hexCell.width / 1.6,
-            y + hexCell.height / 1.2
-        );
-
-        spine.state.setAnimation(0, data.animation, true);
-        containerRef.current.addChild(spine);
-    }, [hexCell]);
-
-    // 清理 PIXI 应用
-    const destroyApp = useCallback(() => {
-        if (appRef.current) {
-            // 移除所有子元素
-            appRef.current.stage.removeChildren();
-            // 移除视图
-            if (appRef.current.view.parentNode) {
-                appRef.current.view.parentNode.removeChild(appRef.current.view);
-            }
-            // 销毁应用
-            appRef.current.destroy(false, { children: true, texture: true, baseTexture: true });
-            appRef.current = null;
-        }
-    }, []);
-
-    // 初始化 PIXI 和加载资源
     useEffect(() => {
-        if (!canvasRef.current || hexCell.width === 0) return;
+        if (!canvasRef.current) return;
 
-        if (resizeTimeoutRef.current) {
-            window.clearTimeout(resizeTimeoutRef.current);
-        }
+        // 创建 PIXI 应用
+        const app = new PIXI.Application({
+            width: canvasRef.current.offsetWidth,
+            height: canvasRef.current.offsetHeight,
+            backgroundAlpha: 0,
+            backgroundColor: 0x000000,
+            antialias: true,
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true
+        });
 
-        resizeTimeoutRef.current = window.setTimeout(() => {
-            // 创建 PIXI 应用
-            console.log('create app');
-            const app = new PIXI.Application({
-                width: canvasRef.current!.offsetWidth,
-                height: canvasRef.current!.offsetHeight,
-                backgroundAlpha: 0,
-                backgroundColor: 0x000000,
-                antialias: true,
-                resizeTo: canvasRef.current! // 使用 resizeTo 代替手动设置尺寸
+        // 设置视图样式
+        const view = app.view as HTMLCanvasElement;
+        view.style.width = '100%';
+        view.style.height = '100%';
+        view.style.position = 'absolute';
+        view.style.top = '0';
+        view.style.left = '0';
+        
+        appRef.current = app;
+        canvasRef.current.appendChild(view);
+
+        // 创建容器
+        const container = new PIXI.Container();
+        containerRef.current = container;
+        container.position.set(0, 0);
+        app.stage.addChild(container);
+
+        // 处理窗口大小变化
+        const handleResize = () => {
+            if (canvasRef.current && app.renderer) {
+                const parent = canvasRef.current;
+                app.renderer.resize(parent.offsetWidth, parent.offsetHeight);
+            }
+        };
+
+        const resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(canvasRef.current);
+
+        // 添加动画
+        let time = 0;
+        const animate = () => {
+            time += 0.05;
+
+            // 移动所有 spine
+            spinesRef.current.forEach((spine) => {
+                if (spine && spine.parent) {
+                    spine.x = spine.x + Math.cos(time) * 0.5;
+                }
             });
-            appRef.current = app;
-            canvasRef.current!.appendChild(app.view as unknown as Node);
+        };
 
-            // 创建容器
-            const container = new PIXI.Container();
-            containerRef.current = container;
-            container.position.set(0, 0);
-            app.stage.addChild(container);
+        app.ticker.add(animate);
 
-            // 加载资源
-            (async () => {
-                try {
-                    await PIXI.Assets.load('/assets/monster_cat/monster_cat.png');
-                    await PIXI.Assets.load('/assets/monster_cat/monster_cat.atlas');
-                    const spineData = await PIXI.Assets.load('/assets/monster_cat/monster_cat.json');
+        // 修改资源加载和角色创建部分
+        (async () => {
+            try {
+                const resources = await loadSpineResources();
 
-                    // 创建多个角色
-                    CHARACTERS.forEach((charData, index) => {
-                        const spine = new Spine(spineData.spineData);
+                CHARACTERS.forEach((charData, index) => {
+                    try {
+                        const spine = new Spine(resources.spineData.spineData);
                         const id = `char_${index}`;
                         spinesRef.current.set(id, spine);
-                        initCharacter(spine, charData);
-                    });
-                } catch (error) {
-                    console.error('Failed to load spine:', error);
-                }
-            })();
-        }, 200);
+
+                        // 设置位置和动画
+                        const pos = hexToPixel(charData.col, charData.row, hexCell.width, hexCell.height);
+                        
+                        // 获取spine的边界框来计算合适的缩放比例
+                        const bounds = spine.getBounds();
+                        const scale = (hexCell.width * 0.6) / bounds.width;
+                        
+                        spine.scale.set(scale);
+                        spine.pivot.set(bounds.width / 2, bounds.height);
+                        spine.x = pos.x + hexCell.width / 2;
+                        spine.y = pos.y + hexCell.height;
+                        
+                        spine.state.setAnimation(0, charData.animation, true);
+                        spine.visible = true;
+                        spine.alpha = 1;
+                        spine.zIndex = 1;
+
+                        container.addChild(spine);
+                        console.log(`Added spine ${id}:`, {
+                            position: { x: spine.x, y: spine.y },
+                            scale: spine.scale,
+                            bounds: bounds,
+                            visible: spine.visible
+                        });
+                    } catch (error) {
+                        console.error(`Failed to create spine ${index}:`, error);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Failed to initialize characters:', error);
+            }
+        })();
 
         return () => {
-            if (resizeTimeoutRef.current) {
-                window.clearTimeout(resizeTimeoutRef.current);
-            }
-            cleanup();
-            destroyApp();
+            // 清理时不销毁资源
+            resizeObserver.disconnect();
+            app.ticker.remove(animate);
+            app.destroy(true, {
+                children: true,
+                texture: false, // 不销毁纹理
+                baseTexture: false // 不销毁基础纹理
+            });
         };
-    }, [hexCell, cleanup, destroyApp, initCharacter]);
+    }, [hexCell]);
 
     return (
         <div
