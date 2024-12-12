@@ -35,7 +35,7 @@ const CombatPlaza: React.FC = () => {
       </div>
       <div className="plaza-layer" style={{ top: 0, left: 0, pointerEvents: "none" }}>
         {/* <CharacterGrid /> */}
-          <SpineTest />
+        <SpineTest />
       </div>
     </div>
   );
@@ -67,9 +67,10 @@ const BattleVenue: React.FC = () => {
     // 对于尖角朝上的正六边形：
     // 高度 = hexHeight * (1 + (rows - 1) * 3/4)
     // 宽度 = hexWidth * (cols + 0.5) = (hexHeight * √3/2) * (cols + 0.5)
-    const mapRatio = ((cols + 0.5) * Math.sqrt(3)) / 2 /  (1 + ((rows - 1) * 3) / 4);
+    const mapRatio = ((cols + 0.5) * Math.sqrt(3)) / 2 / (1 + ((rows - 1) * 3) / 4);
 
     const updateMap = () => {
+      console.log("updateMap")
       if (containerRef.current) {
         const windowRatio = window.innerWidth / window.innerHeight;
 
@@ -78,7 +79,7 @@ const BattleVenue: React.FC = () => {
         const mheight = mapRatio < windowRatio ? window.innerHeight : window.innerWidth / mapRatio;
 
         // 计算六边形尺寸
-        const hexHeight = mheight * 0.92/ (1 + ((rows - 1) * 3) / 4);
+        const hexHeight = mheight * 0.92 / (1 + ((rows - 1) * 3) / 4);
         const hexWidth = (hexHeight * Math.sqrt(3)) / 2;
 
         // 计算总宽度
@@ -89,11 +90,11 @@ const BattleVenue: React.FC = () => {
         const dh = (window.innerHeight - mheight) / 2;
 
         changeCell({ width: hexWidth, height: hexHeight });
-        setPlazaPosition({ 
-          top:0,  // 1 - 0.92
-          left: left + 0.25 * hexWidth, 
-          width: totalWidth, 
-          height: mheight * 0.92 
+        setPlazaPosition({
+          top: 0,  // 1 - 0.92
+          left: left + 0.25 * hexWidth,
+          width: totalWidth,
+          height: mheight * 0.92
         });
         setPlacePosition({ top: dh, left: dw, width: mwidth, height: mheight });
       }
@@ -106,7 +107,6 @@ const BattleVenue: React.FC = () => {
 
   return (
     <div className="battle-container">
-
       <div
         ref={containerRef}
         style={{
@@ -117,15 +117,9 @@ const BattleVenue: React.FC = () => {
       >
         <div style={{ position: "absolute", ...plazaPosition }}>
           <CombatPlaza />
-          {/* <div style={{ 
-            width: '100%', 
-            height: '100%',
-            position: 'relative',
-          }}>
-            <SpineTest />
-          </div> */}
+
         </div>
-        <CombatActPanel />       
+        <CombatActPanel />
       </div>
     </div>
   );
