@@ -1,3 +1,4 @@
+import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import "../../map.css";
 import { CharacterUnit } from "../model/CombatModels";
@@ -18,7 +19,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
     const { q: x, r: y } = character;
     const dx = Math.floor(y % 2 !== 0 ? x * width + width / 2 : x * width);
     const dy = Math.floor(y * (height * 0.75));
-    // gsap.set(containerRef.current, { scale: 0.7, x: dx, y: dy });
+    gsap.set(containerRef.current, { scale: 0.7, x: dx, y: dy });
   }, [character, width]);
   const loadContainer = useCallback(
     (ele: HTMLDivElement | null) => {
@@ -47,7 +48,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
         }}
       >
         {/* <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} /> */}
-        <SpineSprite width={width} height={height} />
+        <SpineSprite width={width} height={height} isFacingRight={true} />
       </div>
     </>
   );

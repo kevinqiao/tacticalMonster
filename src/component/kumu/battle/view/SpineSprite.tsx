@@ -7,14 +7,11 @@ interface IProps {
   animation?: string;
   width: number;
   height: number;
+  isFacingRight?: boolean;
 }
 
-const BASE_CELL_SIZE = {
-  width: 100,
-  height: 150
-};
 
-const SpineSprite = ({ asset, animation, width, height }: IProps) => {
+const SpineSprite = ({ asset, animation, width, height, isFacingRight = true }: IProps) => {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const containerRef = useRef<PIXI.Container | null>(null);
@@ -45,6 +42,8 @@ const SpineSprite = ({ asset, animation, width, height }: IProps) => {
   }, []);
 
   useEffect(() => {
+    if (appRef.current || width === 0 || height === 0) return;
+
     const app = new PIXI.Application({
       width: width,
       height: height,
@@ -60,7 +59,7 @@ const SpineSprite = ({ asset, animation, width, height }: IProps) => {
     view.style.width = '100%';
     view.style.height = '100%';
     view.style.position = 'absolute';
-    view.style.backgroundColor = 'red';
+    // view.style.backgroundColor = 'red';
     view.style.top = '0';
     view.style.left = '0';
 
@@ -73,13 +72,7 @@ const SpineSprite = ({ asset, animation, width, height }: IProps) => {
     container.position.set(width / 2, height / 2);
     app.stage.addChild(container);
 
-    return () => {
-      app.destroy(true, {
-        children: true,
-        texture: false,
-        baseTexture: false
-      });
-    };
+
   }, [width, height]);
 
   useEffect(() => {
@@ -89,18 +82,33 @@ const SpineSprite = ({ asset, animation, width, height }: IProps) => {
     if (!app || !container || !spineResources) return;
 
     try {
+      const parent = canvasRef.current;
+      if (!parent) return;
+      const { offsetWidth, offsetHeight } = parent;
       const spine = new Spine(spineResources.spineData.spineData);
       spineRef.current = spine;
-
+      const bounds = spine.getBounds();
+      console.log(bounds);
       spine.visible = true;
       spine.alpha = 1;
       spine.zIndex = 1;
-      spine.scale.set(0.2);
-      spine.position.set(0, 0);
-      spine.pivot.set(BASE_CELL_SIZE.width / 2, BASE_CELL_SIZE.height);
-      spine.state.setAnimation(0, "stand", true);
 
-      container.addChild(spine);
+      // 2. 计算合适的缩放比例
+      const scale = Math.min(
+        offsetWidth / bounds.width,
+        offsetHeight / bounds.height
+      );
+
+      spine.pivot.set(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      const x = offsetWidth / 2;
+      const y = offsetHeight / 2;
+      spine.scale.set(scale, scale);
+      spine.scale.x = isFacingRight ? Math.abs(spine.scale.x) : -Math.abs(spine.scale.x);
+      spine.rotation = 0;
+      spine.position.set(x, y);
+      spine.state.setAnimation(0, "walk", true);
+
+      app.stage.addChild(spine);
 
     } catch (error) {
       console.error(`Failed to create spine:`, error);
