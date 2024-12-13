@@ -7,14 +7,14 @@ import { calculatePerspective, hexToPixel } from "../../utils/hexUtil";
 import { useCombatManager } from "../service/CombatManager";
 
 declare module "pixi-spine" {
-    interface Spine {
-        isMoving?: boolean;
-    }
+  interface Spine {
+    isMoving?: boolean;
+  }
 }
 
 const SpineStage = () => {
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  const { characters, hexCell, paths, setPaths, updateCharacterPosition } = useCombatManager();
+  const { characters, hexCell } = useCombatManager();
 
   const spineCharactersRef = useRef<Record<string, Spine>>({});
   const graphicsRef = useRef<PIXI.Graphics | null>(null);
@@ -72,7 +72,7 @@ const SpineStage = () => {
             );
 
             // 设置位置和缩放
-            const {width, height} = hexCell;
+            const { width, height } = hexCell;
             const { x, y } = hexToPixel(character.q, character.r, width, height);
             spineCharacter.position.set(x, y);
             spineCharacter.scale.set(scale);
@@ -107,7 +107,7 @@ const SpineStage = () => {
       const app = appRef.current;
       const container = canvasRef.current;
       if (!app || !container || !characters) return;
-      
+
       // 使用父容器的尺寸
       const { clientWidth, clientHeight } = container;
       app.renderer.resize(clientWidth, clientHeight);

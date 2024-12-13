@@ -67,19 +67,12 @@ const SpineSprite = ({ asset, animation, width, height, isFacingRight = true }: 
       canvasRef.current.appendChild(view);
     }
 
-    const container = new PIXI.Container();
-    containerRef.current = container;
-    container.position.set(width / 2, height / 2);
-    app.stage.addChild(container);
-
 
   }, [width, height]);
 
   useEffect(() => {
     const app = appRef.current;
-    const container = containerRef.current;
-
-    if (!app || !container || !spineResources) return;
+    if (!app || !spineResources) return;
 
     try {
       const parent = canvasRef.current;

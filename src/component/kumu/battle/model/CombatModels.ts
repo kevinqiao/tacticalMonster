@@ -1,4 +1,4 @@
-import { Hex } from "../../utils/PathFind";
+import { Spine } from "pixi-spine";
 import { Character } from "./CharacterModels";
 
 export enum ACT_CODE {
@@ -94,6 +94,7 @@ export interface CharacterUnit extends Character {
     q: number;
     r: number;
     container?: HTMLDivElement;
+    skeleton?: Spine;
     walkables?: WalkableNode[];
     attackables?: AttackableNode[];
 }
@@ -145,10 +146,10 @@ export interface ICombatContext {
     >;
     changeCell: React.Dispatch<React.SetStateAction<{width:number,height:number}>>;
     walk: (to: { q: number; r: number }) => void;
-    findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;
-    getPixelPosition: (x: number, y: number) => { x: number, y: number };
-    paths: Record<string, Hex[]>;
-    setPaths: React.Dispatch<React.SetStateAction<Record<string, Hex[]>>>;
-    updateCharacterPosition: (characterId: string, x: number, y: number) => void;
+    // findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;
+    // getPixelPosition: (x: number, y: number) => { x: number, y: number };
+    // paths: Record<string, Hex[]>;
+    // setPaths: React.Dispatch<React.SetStateAction<Record<string, Hex[]>>>;
+    // updateCharacterPosition: (characterId: string, x: number, y: number) => void;
 }
 

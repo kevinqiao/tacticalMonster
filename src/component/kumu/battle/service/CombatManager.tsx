@@ -4,18 +4,15 @@ import React, { createContext, ReactNode, useContext, useEffect, useRef, useStat
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { allObstacles, players } from "../data/CombatData";
 import {
-  ACT_CODE,
   CharacterUnit,
   CombatEvent,
   CombatRound,
   GridCell,
   ICombatContext,
   MapModel,
-  Player,
+  Player
 } from "../model/CombatModels";
 
-import { aStar, Hex, gridToHex, hexToGrid } from "../../utils/PathFind";
-import { calculateHexMetrics } from "../utils/gridUtils";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
@@ -58,11 +55,11 @@ export const CombatContext = createContext<ICombatContext>({
   setResourceLoad: () => null,
   changeCell: () => null,
   walk: () => null,
-  findPath: () => null,
-  getPixelPosition: () => ({ x: 0, y: 0 }),
-  paths: {},
-  setPaths: () => null,
-  updateCharacterPosition: () => null,
+  // findPath: () => null,
+  // getPixelPosition: () => ({ x: 0, y: 0 }),
+  // paths: {},
+  // setPaths: () => null,
+  // updateCharacterPosition: () => null,
 });
 
 const CombatProvider = ({ children }: { children: ReactNode }) => {
@@ -85,14 +82,9 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     gridAttack: number;
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridStand: 0, gridAttack: 0 });
 
-  const [paths, setPaths] = useState<Record<string, Hex[]>>({});
+  // const [paths, setPaths] = useState<Record<string, Hex[]>>({});
 
-  const updateCharacterPosition = (characterId: string, x: number, y: number) => {
-    setCharacters(
-      (prev) =>
-        prev?.map((char) => (char.character_id === characterId ? { ...char, position: { x, y } } : char)) ?? null
-    );
-  };
+
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;
@@ -127,51 +119,26 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     setGridCells(cells);
   }, [map]);
 
-  const isWalkable = (q: number, r: number): boolean => {
-    if (!gridCells) return false;
-    // Check bounds
-    if (r < 0 || r >= map.rows || q < 0 || q >= map.cols) return false;
-    return gridCells[r][q].walkable ?? false;
-  };
 
-  const findPath = (from: { q: number; r: number }, to: { q: number; r: number }): Hex[] | null => {
-    const start: Hex = { q: from.q, r: from.r };
-    const goal: Hex = { q: to.q, r: to.r };
-    return aStar(start, goal, isWalkable);
-  };
-
-  const getPixelPosition = (q: number, r: number) => {
-    const metrics = calculateHexMetrics(hexCell.width);
-    return {
-      x: q * metrics.width + ((r % 2) * metrics.width) / 2,
-      y: (r * metrics.height * 3) / 4,
-    };
-  };
 
   const walk = async (to: { q: number; r: number }) => {
     const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
     if (!character) return;
 
-    const path = findPath({ q: character.q, r: character.r }, to);
-
-    if (!path) return;
-
-    // Convert path to pixel coordinates for animation
-    const pixelPath = path.map((hex) => getPixelPosition(hex.q, hex.r));
 
     // Add to event queue
-    eventQueueRef.current.push({
-      category: "action",
-      name: "walk",
-      gameId: "current",
-      time: Date.now(),
-      data: {
-        gameId: "current",
-        actor: character.id,
-        act: ACT_CODE.WALK,
-        data: { path: pixelPath },
-      },
-    });
+    // eventQueueRef.current.push({
+    //   category: "action",
+    //   name: "walk",
+    //   gameId: "current",
+    //   time: Date.now(),
+    //   data: {
+    //     gameId: "current",
+    //     actor: character.id,
+    //     act: ACT_CODE.WALK,
+    //     data: { path: pixelPath },
+    //   },
+    // });
   };
 
   const value = {
@@ -188,11 +155,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     setResourceLoad,
     changeCell: setHexCell,
     walk,
-    findPath,
-    getPixelPosition,
-    paths,
-    setPaths,
-    updateCharacterPosition,
+
   };
   return <CombatContext.Provider value={value}> {children} </CombatContext.Provider>;
 };
