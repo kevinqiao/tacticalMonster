@@ -2,7 +2,9 @@ import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef, useState } from "react";
 import { hexToPixel } from "../../utils/hexUtil";
+import { PathFind } from "../../utils/PathFind";
 import { useCombatManager } from "../service/CombatManager";
+import { GridPosition } from "../types/GridTypes";
 
 interface CharacterData {
     col: number;
@@ -49,7 +51,7 @@ const updateCharacterPositions = (
         const pos = hexToPixel(charData.col, charData.row, hexCellSize.width, hexCellSize.height);
 
         // 进一步减小基础缩放比例
-        const baseScale = (BASE_CELL_SIZE.width * 0.2) / REFERENCE_SIZE.width; // 改为0.2倍格子宽度
+        const baseScale = (BASE_CELL_SIZE.width * 0.2) / REFERENCE_SIZE.width; // 改为0.2倍格子度
         const finalScale = baseScale * scaleFactor;
 
         spine.scale.set(finalScale);
@@ -57,6 +59,117 @@ const updateCharacterPositions = (
         spine.x = pos.x + hexCellSize.width / 2;
         spine.y = pos.y + hexCellSize.height / 1.1;
     });
+};
+
+// 添加移动函数
+const moveSpine = (
+    spine: Spine,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    app: PIXI.Application,
+    onComplete?: () => void
+) => {
+    let progress = 0;
+    const animate = () => {
+        progress += 0.02;
+
+        if (progress >= 1) {
+            app.ticker.remove(animate);
+            spine.state.setAnimation(0, "stand", true);
+            onComplete?.();
+            return;
+        }
+
+        spine.x = from.x + (to.x - from.x) * progress;
+        spine.y = from.y + (to.y - from.y) * progress;
+    };
+
+    spine.state.setAnimation(0, "walk", true);
+    app.ticker.add(animate);
+};
+
+// 添加网格配置
+const GRID_CONFIG = {
+    width: 8,  // 网格宽度
+    height: 7  // 网格高度
+};
+
+// 修改点击处理函数
+const handleGridClick = (
+    event: MouseEvent,
+    app: PIXI.Application,
+    container: PIXI.Container,
+    hexCell: { width: number; height: number }
+) => {
+    // 获取点击的 SVG 元素
+    const target = event.target as SVGElement;
+    const hexData = target.dataset;
+
+    // 如果点击到了六边形格子
+    if (hexData.q !== undefined && hexData.r !== undefined) {
+        const col = parseInt(hexData.q);
+        const row = parseInt(hexData.r);
+
+        // 确保坐标在有效范围内
+        if (col >= 0 && col < GRID_CONFIG.width &&
+            row >= 0 && row < GRID_CONFIG.height) {
+            return { col, row } as GridPosition;
+        }
+    }
+
+    return null;
+};
+
+// 修改移动处理
+const moveSpineToGrid = (
+    spine: Spine,
+    fromGrid: GridPosition,
+    toGrid: GridPosition,
+    hexCell: { width: number; height: number },
+    app: PIXI.Application
+) => {
+    // 使用 PathFind 找到路径
+    const pathFinder = new PathFind(GRID_CONFIG.width, GRID_CONFIG.height);
+    const path = pathFinder.findPath(fromGrid, toGrid);
+
+    if (!path || path.length === 0) return;
+
+    // 移动到路径上的每个点
+    let currentIndex = 0;
+    const moveNext = () => {
+        if (currentIndex >= path.length - 1) return;
+
+        const currentPos = hexToPixel(path[currentIndex].col, path[currentIndex].row, hexCell.width, hexCell.height);
+        const nextPos = hexToPixel(path[currentIndex + 1].col, path[currentIndex + 1].row, hexCell.width, hexCell.height);
+
+        // 设置朝向
+        if (path[currentIndex + 1].col < path[currentIndex].col) {
+            spine.scale.x = -Math.abs(spine.scale.x);
+        } else if (path[currentIndex + 1].col > path[currentIndex].col) {
+            spine.scale.x = Math.abs(spine.scale.x);
+        }
+
+        moveSpine(
+            spine,
+            {
+                x: currentPos.x + hexCell.width / 2,
+                y: currentPos.y + hexCell.height / 1.1
+            },
+            {
+                x: nextPos.x + hexCell.width / 2,
+                y: nextPos.y + hexCell.height / 1.1
+            },
+            app,
+            () => {
+                currentIndex++;
+                if (currentIndex < path.length - 1) {
+                    moveNext();
+                }
+            }
+        );
+    };
+
+    moveNext();
 };
 
 const SpineTest = () => {
@@ -69,7 +182,10 @@ const SpineTest = () => {
         atlas: any;
         spineData: any;
     } | null>(null);
-    
+
+    // 添加当前位置状态
+    const currentPosRef = useRef({ col: 4, row: 4 }); // 初始位置
+
     useEffect(() => {
         (async () => {
             if (spineResources) return;
@@ -173,7 +289,7 @@ const SpineTest = () => {
             }
         });
 
-        updateCharacterPositions(container, spinesRef.current, hexCell); 
+        updateCharacterPositions(container, spinesRef.current, hexCell);
 
         return () => {
             // 清理时移除所有spine
@@ -184,6 +300,36 @@ const SpineTest = () => {
         };
     }, [hexCell, spineResources]);
 
+    // 修改 SpineTest 组件中的点击处理
+    useEffect(() => {
+        const app = appRef.current;
+        const container = containerRef.current;
+        if (!app || !container) return;
+
+        const onClick = (event: MouseEvent) => {
+
+            const targetGrid = handleGridClick(event, app, container, hexCell);
+            const spine = spinesRef.current.get('char_0');
+            if (!spine || !targetGrid) return;
+            console.log('targetGrid', targetGrid);
+            moveSpineToGrid(
+                spine,
+                currentPosRef.current,
+                targetGrid,
+                hexCell,
+                app
+            );
+
+            // 更新当前位置
+            currentPosRef.current = targetGrid;
+        };
+
+        canvasRef.current?.addEventListener('click', onClick);
+
+        return () => {
+            canvasRef.current?.removeEventListener('click', onClick);
+        };
+    }, [hexCell]);
 
     return (
         <div
@@ -194,7 +340,7 @@ const SpineTest = () => {
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                pointerEvents: 'none'
+                pointerEvents: 'none' // 改为 auto 以启用点击
             }}
         />
     );

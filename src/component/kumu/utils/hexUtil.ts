@@ -59,3 +59,66 @@ export const calculatePerspective = (
 
     return { scale, skewX };
 };
+
+export const pixelToHex = (x: number, y: number, hexWidth: number, hexHeight: number) => {
+
+    // 调整Y坐标以考虑3D透视压缩
+    const adjustedY = y / 0.75;  // 反向补偿垂直压缩
+
+    // 计算粗略的行号
+    const row = Math.floor(adjustedY / hexHeight);
+    
+    // 确定是否为奇数行
+    const isOddRow = row % 2 !== 0;
+    
+    // 计算X轴偏移
+    const offset = isOddRow ? hexWidth / 2 : 0;
+    
+    // 计算列号，考虑奇数行的偏移
+    const col = Math.floor((x - offset) / hexWidth);
+
+    // 计算六边形的中心点
+    const centerX = col * hexWidth + offset + hexWidth / 2;
+    const centerY = row * hexHeight * 0.75 + hexHeight / 2;
+
+    // 计算点击位置到中心的距离
+    const dx = x - centerX;
+    const dy = y - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // 如果点击位置在六边形边缘区域，需要进行额外的碰撞检测
+    if (distance > hexWidth * 0.4) {  // 可以调整这个阈值
+        // 检查周围的六边形
+        const neighbors = [
+            { col, row },
+            { col: col + 1, row },
+            { col: col - 1, row },
+            { col: isOddRow ? col + 1 : col, row: row - 1 },
+            { col: isOddRow ? col : col - 1, row: row - 1 },
+            { col: isOddRow ? col + 1 : col, row: row + 1 },
+            { col: isOddRow ? col : col - 1, row: row + 1 }
+        ];
+
+        // 找到最近的六边形中心
+        let minDistance = distance;
+        let closestHex = { col, row };
+
+        neighbors.forEach(hex => {
+            const hexCenterX = hex.col * hexWidth + (hex.row % 2 ? hexWidth / 2 : 0) + hexWidth / 2;
+            const hexCenterY = hex.row * hexHeight * 0.75 + hexHeight / 2;
+            const dist = Math.sqrt(
+                Math.pow(x - hexCenterX, 2) + 
+                Math.pow(y - hexCenterY, 2)
+            );
+            if (dist < minDistance) {
+                minDistance = dist;
+                closestHex = hex;
+            }
+        });
+         console.log('closestHex', closestHex);
+         console.log(x,y)
+        return closestHex;
+    }
+
+    return { col, row };
+};

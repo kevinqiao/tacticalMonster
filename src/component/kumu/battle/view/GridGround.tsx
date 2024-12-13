@@ -25,17 +25,17 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
   const centerY = height / 2;
   const hexHeight = height;
 
-  const innerPoints = useMemo(() => 
+  const innerPoints = useMemo(() =>
     points.map(point => scalePoint(point, centerX, centerY, SCALE_FACTOR)),
     [points, centerX, centerY]
   );
 
-  const outerPolygonPoints = useMemo(() => 
+  const outerPolygonPoints = useMemo(() =>
     points.map(point => `${point.x},${point.y}`).join(" "),
     [points]
   );
 
-  const innerPolygonPoints = useMemo(() => 
+  const innerPolygonPoints = useMemo(() =>
     innerPoints.map(point => `${point.x},${point.y}`).join(" "),
     [innerPoints]
   );
@@ -68,13 +68,15 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
       />
       <polygon
         ref={loadGround}
+        data-q={col}
+        data-r={row}
         points={outerPolygonPoints}
         fill="black"
         stroke="white"
         strokeWidth={4}
         opacity={0}
         visibility="hidden"
-        pointerEvents="auto"
+        pointerEvents="none"
         role="button"
         aria-label={`Ground grid at row ${row}, column ${col}`}
         onClick={handleClick}
@@ -106,7 +108,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
 
 const GridContainer: React.FC = () => {
   const { hexCell, gridCells } = useCombatManager();
-  
+
 
   if (!gridCells) {
     return <div>Loading grid...</div>;

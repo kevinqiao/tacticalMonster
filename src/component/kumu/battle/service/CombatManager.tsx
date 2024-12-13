@@ -14,7 +14,7 @@ import {
   Player,
 } from "../model/CombatModels";
 
-import { aStar, Hex } from "../../utils/PathFind";
+import { aStar, Hex, gridToHex, hexToGrid } from "../../utils/PathFind";
 import { calculateHexMetrics } from "../utils/gridUtils";
 
 // 注册 MotionPathPlugin

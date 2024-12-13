@@ -3,11 +3,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
-import useCombatHandlers from "./service/useCombatHandlers";
-import useGameInit from "./service/useGameInit";
+import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
-import SpineTest from "./view/SpineTest";
+import useGameInit from "./service/useGameInit";
 const CombatActPanel: React.FC = () => {
   const doSomething = useAction(api.rule.test.doSomething);
   const startGame = useAction(api.service.tmGameProxy.start);
@@ -30,12 +29,12 @@ const CombatPlaza: React.FC = () => {
       <div className="plaza-layer" style={{ top: 0, left: 0 }}>
         <ObstacleGrid />
       </div>
-      <div className="plaza-layer" style={{ top: 0, left: 0 }}>
+      <div className="plaza-layer" style={{ top: 0, left: 0 }} onClick={() => console.log('click round')}>
         <GridGround />
       </div>
       <div className="plaza-layer" style={{ top: 0, left: 0, pointerEvents: "none" }}>
-        {/* <CharacterGrid /> */}
-        <SpineTest />
+        {/* <SpineTest /> */}
+        <CharacterGrid />
       </div>
     </div>
   );
@@ -56,7 +55,7 @@ const BattleVenue: React.FC = () => {
     height: number;
   } | null>(null);
   const { map, changeCell } = useCombatManager();
-  useCombatHandlers();
+  // useCombatHandlers();
   useGameInit();
 
   useEffect(() => {
@@ -117,7 +116,6 @@ const BattleVenue: React.FC = () => {
       >
         <div style={{ position: "absolute", ...plazaPosition }}>
           <CombatPlaza />
-
         </div>
         <CombatActPanel />
       </div>

@@ -37,4 +37,9 @@ export interface HexMetrics {
 export interface HexPoint {
   x: number;
   y: number;
+}
+
+export interface GridPosition {
+    col: number;
+    row: number;
 } 
