@@ -3,10 +3,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
+import useEventHandler from "./service/useEventHandler";
+import useGameInit from "./service/useGameInit";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
-import useGameInit from "./service/useGameInit";
 const CombatActPanel: React.FC = () => {
   const doSomething = useAction(api.rule.test.doSomething);
   const startGame = useAction(api.service.tmGameProxy.start);
@@ -29,7 +30,7 @@ const CombatPlaza: React.FC = () => {
       <div className="plaza-layer" style={{ top: 0, left: 0 }}>
         <ObstacleGrid />
       </div>
-      <div className="plaza-layer" style={{ top: 0, left: 0 }} onClick={() => console.log('click round')}>
+      <div className="plaza-layer" style={{ top: 0, left: 0 }}>
         <GridGround />
       </div>
       <div className="plaza-layer" style={{ top: 0, left: 0, pointerEvents: "none" }}>
@@ -55,7 +56,7 @@ const BattleVenue: React.FC = () => {
     height: number;
   } | null>(null);
   const { map, changeCell } = useCombatManager();
-  // useCombatHandlers();
+  useEventHandler();
   useGameInit();
 
   useEffect(() => {
@@ -72,30 +73,38 @@ const BattleVenue: React.FC = () => {
       console.log("updateMap")
       if (containerRef.current) {
         const windowRatio = window.innerWidth / window.innerHeight;
-
+        const plazaSize: { width: number, height: number } = { width: 0, height: 0 }
         // 根据地图比例和窗口比例决定容器尺寸
-        const mwidth = mapRatio < windowRatio ? window.innerHeight * mapRatio : window.innerWidth;
-        const mheight = mapRatio < windowRatio ? window.innerHeight : window.innerWidth / mapRatio;
+        if (mapRatio < windowRatio) {
+          plazaSize.width = window.innerHeight * mapRatio;
+          plazaSize.height = window.innerHeight;
+        } else {
+          plazaSize.width = window.innerWidth;
+          plazaSize.height = window.innerWidth / mapRatio;
+        }
+        // const mwidth = mapRatio < windowRatio ? window.innerHeight * mapRatio : window.innerWidth;
+        // const mheight = mapRatio < windowRatio ? window.innerHeight : window.innerWidth / mapRatio;
 
         // 计算六边形尺寸
-        const hexHeight = mheight * 0.92 / (1 + ((rows - 1) * 3) / 4);
+        const mapHeight = plazaSize.height * 0.92;
+        const hexHeight = plazaSize.height * 0.92 / (1 + ((rows - 1) * 3) / 4);
         const hexWidth = (hexHeight * Math.sqrt(3)) / 2;
 
         // 计算总宽度
-        const totalWidth = hexWidth * (cols + 0.5);
+        const mapWidth = hexWidth * (cols + 0.5);
 
-        const left = (mwidth - totalWidth) / 2;
-        const dw = (window.innerWidth - mwidth) / 2;
-        const dh = (window.innerHeight - mheight) / 2;
+        const left = (plazaSize.width - mapWidth) / 2;
+        const dw = (window.innerWidth - plazaSize.width) / 2;
+        const dh = (window.innerHeight - plazaSize.height) / 2;
 
         changeCell({ width: hexWidth, height: hexHeight });
         setPlazaPosition({
           top: 0,  // 1 - 0.92
           left: left + 0.25 * hexWidth,
-          width: totalWidth,
-          height: mheight * 0.92
+          width: mapWidth,
+          height: mapHeight
         });
-        setPlacePosition({ top: dh, left: dw, width: mwidth, height: mheight });
+        setPlacePosition({ top: dh, left: dw, width: plazaSize.width, height: plazaSize.height });
       }
     };
 

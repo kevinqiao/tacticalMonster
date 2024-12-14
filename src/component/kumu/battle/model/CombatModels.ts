@@ -10,13 +10,9 @@ export enum ACT_CODE {
     HEAL = 6,
 }
 export enum EVENT_TYPE {
-    GAME_INIT = 1,
-    GAME_OVER = 2,
-    ROUND_INIT = 3,
-    ROUND_OVER = 4,
-    TURN_INIT = 5,
-    TURN_OVER = 6,
-    TURN_ACT = 7
+   PHASE = 0,
+   ACTION = 1,
+   EFFECT = 2,
 }
 
 export interface Player {
@@ -26,10 +22,11 @@ export interface Player {
 }
 
 export interface CombatEvent {
-    category: string;//phase 1-action 2-effect;
+    type: number;//0-phase 1-action 2-effect;
     name: string;
     gameId: string;
     time: number;
+    status: number;//
     data: CombatRound | CombatTurn | CombatAction;
 }
 export interface CombatAction {

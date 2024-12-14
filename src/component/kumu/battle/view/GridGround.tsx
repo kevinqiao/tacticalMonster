@@ -64,7 +64,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
         pointerEvents="auto"
         role="button"
         aria-label={`Base grid at row ${row}, column ${col}`}
-        onClick={() => console.log(`base:${row}:${col}`)}
+        onClick={() => walk({ q: col, r: row })}
       />
       <polygon
         ref={loadGround}

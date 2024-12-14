@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { allObstacles, players } from "../data/CombatData";
 import {
@@ -12,6 +12,7 @@ import {
   MapModel,
   Player
 } from "../model/CombatModels";
+import { findPath } from "../utils/PathFind";
 
 
 // 注册 MotionPathPlugin
@@ -121,25 +122,34 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
 
 
 
-  const walk = async (to: { q: number; r: number }) => {
-    const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
-    if (!character) return;
 
 
-    // Add to event queue
+  const walk = useCallback(async (to: { q: number; r: number }) => {
+    console.log('walk', to);
+    // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
+    if (!characters || !gridCells) return;
+    console.log('characters', characters[0]);
+    const path = findPath(gridCells,
+      { x: characters[0].q, y: characters[0].r },
+      { x: to.q, y: to.r }
+    );
+    console.log('path', path);
+    // if (!path) return;
+
     // eventQueueRef.current.push({
     //   category: "action",
     //   name: "walk",
+    //   status: 0,
     //   gameId: "current",
     //   time: Date.now(),
     //   data: {
     //     gameId: "current",
     //     actor: character.id,
     //     act: ACT_CODE.WALK,
-    //     data: { path: pixelPath },
+    //     data: { path, target: to },
     //   },
     // });
-  };
+  }, [characters, currentRound, gridCells]);
 
   const value = {
     hexCell,

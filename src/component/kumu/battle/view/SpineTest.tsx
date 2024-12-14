@@ -2,9 +2,10 @@ import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef, useState } from "react";
 import { hexToPixel } from "../../utils/hexUtil";
-import { PathFind } from "../../utils/PathFind";
 import { useCombatManager } from "../service/CombatManager";
 import { GridPosition } from "../types/GridTypes";
+import { findPath } from "../utils/PathFind";
+import { GridCell } from "../model/CombatModels";
 
 interface CharacterData {
     col: number;
@@ -105,7 +106,7 @@ const handleGridClick = (
     const target = event.target as SVGElement;
     const hexData = target.dataset;
 
-    // 如果点击到了六边形格子
+    // 如果击到了六边形格子
     if (hexData.q !== undefined && hexData.r !== undefined) {
         const col = parseInt(hexData.q);
         const row = parseInt(hexData.r);
@@ -126,11 +127,13 @@ const moveSpineToGrid = (
     fromGrid: GridPosition,
     toGrid: GridPosition,
     hexCell: { width: number; height: number },
-    app: PIXI.Application
+    app: PIXI.Application,
+    gridCells: GridCell[][]
 ) => {
-    // 使用 PathFind 找到路径
-    const pathFinder = new PathFind(GRID_CONFIG.width, GRID_CONFIG.height);
-    const path = pathFinder.findPath(fromGrid, toGrid);
+    const path = findPath(gridCells, 
+        { x: fromGrid.col, y: fromGrid.row },
+        { x: toGrid.col, y: toGrid.row }
+    );
 
     if (!path || path.length === 0) return;
 
@@ -139,13 +142,13 @@ const moveSpineToGrid = (
     const moveNext = () => {
         if (currentIndex >= path.length - 1) return;
 
-        const currentPos = hexToPixel(path[currentIndex].col, path[currentIndex].row, hexCell.width, hexCell.height);
-        const nextPos = hexToPixel(path[currentIndex + 1].col, path[currentIndex + 1].row, hexCell.width, hexCell.height);
+        const currentPos = hexToPixel(path[currentIndex].x, path[currentIndex].y, hexCell.width, hexCell.height);
+        const nextPos = hexToPixel(path[currentIndex + 1].x, path[currentIndex + 1].y, hexCell.width, hexCell.height);
 
         // 设置朝向
-        if (path[currentIndex + 1].col < path[currentIndex].col) {
+        if (path[currentIndex + 1].x < path[currentIndex].x) {
             spine.scale.x = -Math.abs(spine.scale.x);
-        } else if (path[currentIndex + 1].col > path[currentIndex].col) {
+        } else if (path[currentIndex + 1].x > path[currentIndex].x) {
             spine.scale.x = Math.abs(spine.scale.x);
         }
 
@@ -173,7 +176,7 @@ const moveSpineToGrid = (
 };
 
 const SpineTest = () => {
-    const { hexCell } = useCombatManager();
+    const { hexCell, gridCells } = useCombatManager();
     const canvasRef = useRef<HTMLDivElement | null>(null);
     const appRef = useRef<PIXI.Application | null>(null);
     const containerRef = useRef<PIXI.Container | null>(null);
@@ -292,7 +295,7 @@ const SpineTest = () => {
         updateCharacterPositions(container, spinesRef.current, hexCell);
 
         return () => {
-            // 清理时移除所有spine
+            // 理时移除所有spine
             spinesRef.current.forEach(spine => {
                 spine.destroy();
             });
@@ -304,32 +307,28 @@ const SpineTest = () => {
     useEffect(() => {
         const app = appRef.current;
         const container = containerRef.current;
-        if (!app || !container) return;
+        if (!app || !container || !gridCells) return;
 
         const onClick = (event: MouseEvent) => {
-
             const targetGrid = handleGridClick(event, app, container, hexCell);
             const spine = spinesRef.current.get('char_0');
             if (!spine || !targetGrid) return;
-            console.log('targetGrid', targetGrid);
+
             moveSpineToGrid(
                 spine,
                 currentPosRef.current,
                 targetGrid,
                 hexCell,
-                app
+                app,
+                gridCells
             );
 
-            // 更新当前位置
             currentPosRef.current = targetGrid;
         };
 
         canvasRef.current?.addEventListener('click', onClick);
-
-        return () => {
-            canvasRef.current?.removeEventListener('click', onClick);
-        };
-    }, [hexCell]);
+        return () => canvasRef.current?.removeEventListener('click', onClick);
+    }, [hexCell, gridCells]);
 
     return (
         <div
