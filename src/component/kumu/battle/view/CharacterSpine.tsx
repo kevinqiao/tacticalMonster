@@ -95,7 +95,7 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
       spine.pivot.set(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       const x = offsetWidth / 2;
       const y = offsetHeight / 2;
-      spine.scale.set(scale, scale);
+      spine.scale.set(scale * 0.9, scale * 0.9);
       spine.scale.x = isFacingRight ? Math.abs(spine.scale.x) : -Math.abs(spine.scale.x);
       spine.rotation = 0;
       spine.position.set(x, y);

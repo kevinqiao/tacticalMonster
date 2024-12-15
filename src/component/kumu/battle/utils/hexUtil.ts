@@ -8,7 +8,7 @@
  * @param hexHeight - 六边形高度
  * @returns 六边形中心点的像素坐标 {x, y}
  */
-export const hexToPixel = (q: number, r: number, hexWidth: number, hexHeight: number): { x: number; y: number } => {
+export const hexToPixel = (q: number, r: number, hexWidth: number, hexHeight: number): {q:number;r:number;x: number; y: number } => {
     console.log("hexToPixel",q,r,hexWidth,hexHeight);
     // 奇数行的列号需要偏移
     const isOddRow = r % 2 !== 0;
@@ -20,7 +20,7 @@ export const hexToPixel = (q: number, r: number, hexWidth: number, hexHeight: nu
     const x = q * hexWidth + offset;  // 加上半个宽度得到中心点
     const y = r * hexHeight * 0.75;  // 加上半个高度得到中心点
 
-    return { x, y };
+    return {q,r,x, y };
 };
 
 /**

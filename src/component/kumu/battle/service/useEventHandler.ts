@@ -22,8 +22,8 @@ const useEventHandler = () => {
                    console.log("walk",data);
                    const action = event.data as CombatAction;
                    const character = characters?.find((c) => c.id === action.character);
-                   if(character&&action.data.path){          
-                        playWalk(character,action.data.path,hexCell);                    
+                   if(character&&action.data.path&&gridCells){          
+                        playWalk(character,action.data.path,hexCell,gridCells);                    
                    }
                    eventQueue.shift();
                 }
@@ -39,7 +39,7 @@ const useEventHandler = () => {
         }, 100); // 每秒检查一次消息队列
 
         return () => clearInterval(intervalId);
-    }, [hexCell]);
+    }, [hexCell,gridCells]);
 
 
 }
