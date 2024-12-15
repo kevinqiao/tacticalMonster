@@ -3,7 +3,9 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import "../../map.css";
 import { CharacterUnit } from "../model/CombatModels";
 import { useCombatManager } from "../service/CombatManager";
-import SpineSprite from "./SpineSprite";
+import { hexToPixel } from "../utils/hexUtil";
+import CharacterSpine from "./CharacterSpine";
+
 interface Props {
   character: CharacterUnit;
 }
@@ -13,13 +15,12 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
   const { width, height } = hexCell;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  console.log(character);
+
   useEffect(() => {
     if (!containerRef.current && width > 0) return;
-    const { q: x, r: y } = character;
-    const dx = Math.floor(y % 2 !== 0 ? x * width + width / 2 : x * width);
-    const dy = Math.floor(y * (height * 0.75));
-    gsap.set(containerRef.current, { scale: 0.7, x: dx, y: dy });
+    const { q, r } = character;
+    const { x, y } = hexToPixel(q, r, width, height);
+    gsap.set(containerRef.current, { x, y });
   }, [character, width]);
   const loadContainer = useCallback(
     (ele: HTMLDivElement | null) => {
@@ -48,7 +49,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
         }}
       >
         {/* <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} /> */}
-        <SpineSprite width={width} height={height} isFacingRight={true} />
+        <CharacterSpine character={character} width={width} height={height} isFacingRight={true} />
       </div>
     </>
   );

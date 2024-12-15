@@ -30,3 +30,5 @@ export const HEX_RATIO = {
   HEIGHT_TO_WIDTH: 2 / Math.sqrt(3),  // 高宽比
   SIDE_TO_WIDTH: 1 / Math.sqrt(3),    // 边长与宽度比
 }; 
+
+export const CHARACTER_SCALE = 0.7;

@@ -24,3 +24,4 @@ export const playInitCharacters = (characters: CharacterUnit[]) => {
     tl.play();
 
 }
+

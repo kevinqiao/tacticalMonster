@@ -14,7 +14,17 @@ export enum EVENT_TYPE {
    ACTION = 1,
    EFFECT = 2,
 }
-
+export enum EVENT_NAME {
+   WALK = "walk",
+   ATTACK = "attack",
+   DEFEND = "defend",
+   STAND = "stand",
+   HEAL = "heal",
+   NEW_ROUND = "new_round", 
+   END_ROUND = "end_round",
+   END_GAME = "end_game",   
+   EFFECT = "effect",
+}
 export interface Player {
     uid: string;
     name?: string;
@@ -27,19 +37,19 @@ export interface CombatEvent {
     gameId: string;
     time: number;
     status: number;//
-    data: CombatRound | CombatTurn | CombatAction;
+    data: CombatAction|CombatRound;
 }
 export interface CombatAction {
-    gameId: string;
-    round?: number;
-    actor: string;
-    act: number;
-    data?: object;
-}
-export interface CombatTurn {
-    character: string;
     uid: string;
+    round?: number;
+    character: string;
+    act: number;
+    data?: any;
 }
+// export interface CombatTurn {
+//     character: string;
+//     uid: string;
+// }
 export interface CombatRound {
     no: number;
     gameId: string;

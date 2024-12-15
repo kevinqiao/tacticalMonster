@@ -3,8 +3,8 @@ import { gsap } from "gsap";
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef } from "react";
-import { calculatePerspective, hexToPixel } from "../../utils/hexUtil";
 import { useCombatManager } from "../service/CombatManager";
+import { calculatePerspective, hexToPixel } from "../utils/hexUtil";
 
 declare module "pixi-spine" {
   interface Spine {

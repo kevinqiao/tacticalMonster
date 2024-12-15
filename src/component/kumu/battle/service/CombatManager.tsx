@@ -4,9 +4,11 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { allObstacles, players } from "../data/CombatData";
 import {
+  ACT_CODE,
   CharacterUnit,
   CombatEvent,
   CombatRound,
+  EVENT_TYPE,
   GridCell,
   ICombatContext,
   MapModel,
@@ -125,7 +127,6 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
 
 
   const walk = useCallback(async (to: { q: number; r: number }) => {
-    console.log('walk', to);
     // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
     if (!characters || !gridCells) return;
     console.log('characters', characters[0]);
@@ -133,22 +134,22 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
       { x: characters[0].q, y: characters[0].r },
       { x: to.q, y: to.r }
     );
-    console.log('path', path);
-    // if (!path) return;
 
-    // eventQueueRef.current.push({
-    //   category: "action",
-    //   name: "walk",
-    //   status: 0,
-    //   gameId: "current",
-    //   time: Date.now(),
-    //   data: {
-    //     gameId: "current",
-    //     actor: character.id,
-    //     act: ACT_CODE.WALK,
-    //     data: { path, target: to },
-    //   },
-    // });
+    if (!path) return;
+
+    eventQueueRef.current.push({
+      type: EVENT_TYPE.ACTION,
+      name: "walk",
+      status: 0,
+      gameId: "current",
+      time: Date.now(),
+      data: {
+        uid: "1",
+        character: characters[0].id,
+        act: ACT_CODE.WALK,
+        data: { path },
+      },
+    });
   }, [characters, currentRound, gridCells]);
 
   const value = {

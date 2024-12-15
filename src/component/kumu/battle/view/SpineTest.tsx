@@ -1,11 +1,11 @@
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef, useState } from "react";
-import { hexToPixel } from "../../utils/hexUtil";
+import { GridCell } from "../model/CombatModels";
 import { useCombatManager } from "../service/CombatManager";
 import { GridPosition } from "../types/GridTypes";
+import { hexToPixel } from "../utils/hexUtil";
 import { findPath } from "../utils/PathFind";
-import { GridCell } from "../model/CombatModels";
 
 interface CharacterData {
     col: number;
@@ -130,7 +130,7 @@ const moveSpineToGrid = (
     app: PIXI.Application,
     gridCells: GridCell[][]
 ) => {
-    const path = findPath(gridCells, 
+    const path = findPath(gridCells,
         { x: fromGrid.col, y: fromGrid.row },
         { x: toGrid.col, y: toGrid.row }
     );

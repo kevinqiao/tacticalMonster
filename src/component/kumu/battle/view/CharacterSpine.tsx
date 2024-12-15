@@ -1,20 +1,19 @@
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef, useState } from "react";
+import { CharacterUnit } from "../model/CombatModels";
 
 interface IProps {
-  asset?: string;
-  animation?: string;
+  character: CharacterUnit;
   width: number;
   height: number;
   isFacingRight?: boolean;
 }
 
 
-const SpineSprite = ({ asset, animation, width, height, isFacingRight = true }: IProps) => {
+const CharacterSpine = ({ character, width, height, isFacingRight = true }: IProps) => {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<PIXI.Application | null>(null);
-  const containerRef = useRef<PIXI.Container | null>(null);
   const spineRef = useRef<Spine | null>(null);
   const [spineResources, setSpineResources] = useState<{
     atlas: any;
@@ -43,7 +42,8 @@ const SpineSprite = ({ asset, animation, width, height, isFacingRight = true }: 
 
   useEffect(() => {
     if (appRef.current || width === 0 || height === 0) return;
-
+    // console.log(width, height);
+    // console.log(canvasRef.current?.offsetWidth, canvasRef.current?.offsetHeight);
     const app = new PIXI.Application({
       width: width,
       height: height,
@@ -80,8 +80,8 @@ const SpineSprite = ({ asset, animation, width, height, isFacingRight = true }: 
       const { offsetWidth, offsetHeight } = parent;
       const spine = new Spine(spineResources.spineData.spineData);
       spineRef.current = spine;
+      character.skeleton = spine;
       const bounds = spine.getBounds();
-      console.log(bounds);
       spine.visible = true;
       spine.alpha = 1;
       spine.zIndex = 1;
@@ -99,7 +99,7 @@ const SpineSprite = ({ asset, animation, width, height, isFacingRight = true }: 
       spine.scale.x = isFacingRight ? Math.abs(spine.scale.x) : -Math.abs(spine.scale.x);
       spine.rotation = 0;
       spine.position.set(x, y);
-      spine.state.setAnimation(0, "walk", true);
+      spine.state.setAnimation(0, "stand", true);
 
       app.stage.addChild(spine);
 
@@ -117,4 +117,4 @@ const SpineSprite = ({ asset, animation, width, height, isFacingRight = true }: 
   return <div ref={canvasRef} style={{ width: width, height: height }} />;
 };
 
-export default SpineSprite;
+export default CharacterSpine;

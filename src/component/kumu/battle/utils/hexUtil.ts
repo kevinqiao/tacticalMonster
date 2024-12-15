@@ -1,19 +1,24 @@
 // src/utils/hexUtils.ts
 
 /**
- * 将六边形坐标转换为像素坐标（基于奇数行偏移坐标系）
- * @param q - 六边形的 q 坐标 (0-7，奇数行从1开始)
- * @param r - 六边形的 r 坐标 (0-6)
+ * 将六边形网格坐标转换为像素坐标（中心点）
+ * @param q - 列坐标
+ * @param r - 行坐标
+ * @param hexWidth - 六边形宽度
+ * @param hexHeight - 六边形高度
+ * @returns 六边形中心点的像素坐标 {x, y}
  */
-export const hexToPixel = (q: number, r: number, width: number, height: number): { x: number; y: number } => {
+export const hexToPixel = (q: number, r: number, hexWidth: number, hexHeight: number): { x: number; y: number } => {
+    console.log("hexToPixel",q,r,hexWidth,hexHeight);
     // 奇数行的列号需要偏移
     const isOddRow = r % 2 !== 0;
     
+    // 奇数行向右偏移半个六边形宽度
+    const offset = isOddRow ? hexWidth / 2 : 0;
 
-    const offset = isOddRow ? width / 2 : 0;
-
-    const x = q*width + offset;
-    const y = r*height*0.75;  // 使用调整后的行号
+    // 计算六边形中心点的像素坐标
+    const x = q * hexWidth + offset;  // 加上半个宽度得到中心点
+    const y = r * hexHeight * 0.75;  // 加上半个高度得到中心点
 
     return { x, y };
 };
@@ -53,7 +58,7 @@ export const calculatePerspective = (
     // 距越远（depth越大），缩放越小
     const scale = baseScale * (1 - depthRatio * 0.3);
     
-    // 基于深度和旋转角度计算倾斜
+    // 基于深度和转角度计算倾斜
     // 距离越远，倾斜越大
     const skewX = (depthRatio * rotateXAngle) / perspective;
 
