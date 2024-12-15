@@ -37,7 +37,7 @@ export interface CombatEvent {
     gameId: string;
     time: number;
     status: number;//
-    data: CombatAction|CombatRound;
+    data?: CombatAction|CombatRound;
 }
 export interface CombatAction {
     uid: string;

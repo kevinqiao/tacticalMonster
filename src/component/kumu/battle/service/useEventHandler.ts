@@ -1,6 +1,8 @@
 import { useCallback, useEffect } from "react";
 import { playWalk } from "../animation/playAction";
+import { playWalkable } from "../animation/playPhase";
 import { CombatAction, CombatEvent, EVENT_TYPE } from "../model/CombatModels";
+import { getMovableNodes } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
 const useEventHandler = () => {
@@ -26,6 +28,20 @@ const useEventHandler = () => {
                         playWalk(character,action.data.path,hexCell,gridCells);                    
                    }
                    eventQueue.shift();
+                }
+            }else if(type === EVENT_TYPE.PHASE){
+                if(name === "round"&&characters){
+                    const character = characters[0]
+                    console.log(character)
+                    if(character&&gridCells){
+                        const nodes = getMovableNodes(gridCells,
+                            { x: character.q, y: character.r },
+                            character.move_range || 2
+                        );
+                        console.log(nodes);
+                        playWalkable(character,nodes,gridCells);
+                        eventQueue.shift();
+                    }
                 }
             }
         }

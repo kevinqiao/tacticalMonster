@@ -96,3 +96,74 @@ export const findPath = (
 
     return [start]; // 如果找不到路径，返回起点
 };
+
+export interface MovableNode extends HexNode {
+    distance: number;  // 到起点的距离
+}
+
+export const getMovableNodes = (
+    gridCells: GridCell[][],
+    start: { x: number, y: number },
+    moveRange: number
+): MovableNode[] => {
+    const movableNodes: MovableNode[] = [];
+    const visited = new Set<string>();
+    const queue: { node: HexNode, distance: number }[] = [];
+
+    // 添加起始点
+    queue.push({ node: { x: start.x, y: start.y }, distance: 0 });
+    visited.add(`${start.x},${start.y}`);
+
+    // 六边形网格的邻居方向
+    const getNeighbors = (pos: HexNode): HexNode[] => {
+        const directions = pos.y % 2 === 0 ? [
+            { x: 1, y: 0 },   // 右
+            { x: 0, y: -1 },  // 右上
+            { x: -1, y: -1 }, // 左上
+            { x: -1, y: 0 },  // 左
+            { x: -1, y: 1 },  // 左下
+            { x: 0, y: 1 },   // 右下
+        ] : [
+            { x: 1, y: 0 },   // 右
+            { x: 1, y: -1 },  // 右上
+            { x: 0, y: -1 },  // 左上
+            { x: -1, y: 0 },  // 左
+            { x: 0, y: 1 },   // 左下
+            { x: 1, y: 1 },   // 右下
+        ];
+
+        return directions
+            .map(dir => ({
+                x: pos.x + dir.x,
+                y: pos.y + dir.y
+            }))
+            .filter(neighbor => {
+                if (neighbor.y < 0 || neighbor.y >= gridCells.length ||
+                    neighbor.x < 0 || neighbor.x >= gridCells[0].length) return false;
+                return gridCells[neighbor.y][neighbor.x].walkable ?? false;
+            });
+    };
+
+    while (queue.length > 0) {
+        const { node, distance } = queue.shift()!;
+
+        // 添加到可移动格子列表，包含距离信息
+        movableNodes.push({ ...node, distance });
+
+        if (distance < moveRange) {
+            const neighbors = getNeighbors(node);
+            for (const neighbor of neighbors) {
+                const key = `${neighbor.x},${neighbor.y}`;
+                if (!visited.has(key)) {
+                    visited.add(key);
+                    queue.push({
+                        node: neighbor,
+                        distance: distance + 1
+                    });
+                }
+            }
+        }
+    }
+
+    return movableNodes;
+};

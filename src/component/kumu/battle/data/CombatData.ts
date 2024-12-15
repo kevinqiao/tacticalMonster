@@ -30,7 +30,7 @@ export const players = [
                 q:2,
                 r:6,
                 asset: "/assets/hero_baboon.png",
-                move_range: 3,
+                move_range: 2,
                 attackRange: { min: 1, max: 1 },
             },
             {

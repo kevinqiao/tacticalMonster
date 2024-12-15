@@ -19,7 +19,7 @@ export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], 
             spine.state.setAnimation(0, "stand", true);
             gsap.to(container, {
                 scaleX: initialScale,
-                duration: 0.3,
+                duration: 0.8,
                 ease: "power2.inOut"
             });
         }

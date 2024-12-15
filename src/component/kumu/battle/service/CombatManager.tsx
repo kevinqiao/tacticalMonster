@@ -86,8 +86,27 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridStand: 0, gridAttack: 0 });
 
   // const [paths, setPaths] = useState<Record<string, Hex[]>>({});
-
-
+  const { character, gridContainer, gridGround, gridStand, gridAttack } = resourceLoad;
+  // 添加状态来存储可移动格子
+  useEffect(() => {
+    if (gridGround) {
+      console.log("gridGround loaded");
+      setTimeout(() => {
+        eventQueueRef.current.push({
+          type: EVENT_TYPE.PHASE,
+          name: "round",
+          status: 0,
+          gameId: "current",
+          time: Date.now(),
+          data: {
+            no: 1,
+            gameId: "current",
+            turns: [],
+          },
+        });
+      }, 1000);
+    }
+  }, [gridGround]);
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;
@@ -121,8 +140,6 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
     // console.log(cells);
     setGridCells(cells);
   }, [map]);
-
-
 
 
 
