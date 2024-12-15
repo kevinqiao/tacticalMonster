@@ -41,7 +41,9 @@ export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], 
         if (currentScale !== targetScale) {
             stepTl.to(container, {
                 scaleX: targetScale,
-                duration: 0.1,
+                duration: 0.15,
+                ease: "power1.inOut",  // 使用平滑的缓动
+                overwrite: "auto"  // 防止动画冲突
             }, 0);
             currentScale = targetScale;
         }
@@ -49,10 +51,12 @@ export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], 
         stepTl.to(container, {
             x: pos.x,
             y: pos.y,
-            duration: 0.2,
+                duration: 0.2,
+            ease: "power1.inOut",  // 使用平滑的缓动
+            overwrite: "auto"  // 防止动画冲突
         }, 0);
 
-        tl.add(stepTl, i > 0 ? ">-0.05" : "+=0");
+        tl.add(stepTl, i > 0 ? ">-0.1" : "+=0");
     });
 
     return tl.play();
