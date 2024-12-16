@@ -3,7 +3,7 @@ import { CharacterUnit, GridCell } from "../model/CombatModels";
 import { MovableNode } from "../utils/PathFind";
 
 export const playWalkable = (character:CharacterUnit,nodes: MovableNode[],gridCells:GridCell[][]) => {
-     console.log(nodes);   
+
     const tl = gsap.timeline();
     nodes.forEach((node)=>{
         const {x,y} = node;

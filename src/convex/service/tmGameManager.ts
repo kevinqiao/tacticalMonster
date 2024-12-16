@@ -13,7 +13,19 @@ class GameManager {
         if (players) {
             const map = await this.dbCtx.runQuery(internal.dao.tmMapDataDao.find, { mapId: "1" });
             const game = { challenger: "1", challengee: "2", map, round: 0, turns: [{ uid: "1", character_id: "mage_1", status: 0 }, { uid: "2", character_id: "warrior_1", status: 0 }], timeClock: 30 }
-            const gameId = await this.dbCtx.runMutation(internal.dao.tmGameDao.create, game);
+            const gameId = await this.dbCtx.runMutation(internal.dao.tmGameDao.create, {
+                ...game,
+                startTime: Date.now(),
+                currentRound: {
+                    no: 1,
+                    gameId: "current",
+                    turns: game.turns.map(t => ({
+                        uid: t.uid,
+                        character: t.character_id,
+                        status: t.status
+                    }))
+                }
+            });
             for (const player of players) {
                 const characters = await this.dbCtx.runQuery(internal.dao.tmPlayerCharacterDao.findAll, { uid: player.uid });
 

@@ -90,7 +90,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   // 添加状态来存储可移动格子
   useEffect(() => {
     if (gridGround) {
-      console.log("gridGround loaded");
+
       setTimeout(() => {
         eventQueueRef.current.push({
           type: EVENT_TYPE.PHASE,
@@ -101,6 +101,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
           data: {
             no: 1,
             gameId: "current",
+            currentTurn: { uid: "1", character: "1", startTime: Date.now() },
             turns: [],
           },
         });

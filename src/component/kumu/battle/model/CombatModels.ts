@@ -46,14 +46,14 @@ export interface CombatAction {
     act: number;
     data?: any;
 }
-// export interface CombatTurn {
-//     character: string;
-//     uid: string;
-// }
+
 export interface CombatRound {
     no: number;
     gameId: string;
-    turns: { uid: string; character: string; status: number }[];
+    startTime?:number;
+    completeTime?:number;
+    currentTurn?:{uid:string,character:string,startTime:number};
+    turns: { uid: string; character: string; status: number;startTime?:number;completeTime?:number }[];
 }
 
 export enum GridCellType {
