@@ -133,9 +133,9 @@ const BattleVenue: React.FC = () => {
   );
 };
 const BattlePlayer: React.FC<PageProp> = (props) => {
-  console.log(props);
+  if (!props.data?.gameId) return null;
   return (
-    <BattleProvider gameId={props.data?.gameId}>
+    <BattleProvider gameId={props.data.gameId}>
       <BattleVenue></BattleVenue>
     </BattleProvider>
   );

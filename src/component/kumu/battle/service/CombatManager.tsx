@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
-import { useQuery } from "convex/react";
+import { useConvex, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { allObstacles, players } from "../data/CombatData";
 import {
@@ -94,27 +94,40 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     gridWalk: number;
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 });
   const events = useQuery(api.dao.tmEventDao.find, { uid: "1", lastTime });
+  const convex = useConvex();
+  // useEffect(() => {
+  //   if (Array.isArray(events) && events.length > 0) {
 
+  //     eventQueueRef.current.push({
+  //       type: EVENT_TYPE.PHASE,
+  //       name: "round",
+  //       status: 0,
+  //       gameId: "current",
+  //       time: Date.now(),
+  //       data: {
+  //         no: 1,
+  //         gameId: "current",
+  //         currentTurn: { uid: "1", character: "1", startTime: Date.now() },
+  //         turns: [],
+  //       },
+  //     });
+
+  //   }
+  // }, [events]);
   useEffect(() => {
-    if (Array.isArray(events) && events.length > 0) {
+    const fetchGame = async () => {
+      if (gameId) {
+        console.log("gameId", gameId);
+        const game = await convex.query(api.dao.tmGameDao.findBySession, {
+          gameId, uid: "1",
+          token: "test-token"
+        });
+        console.log(game);
+      }
+    };
 
-      eventQueueRef.current.push({
-        type: EVENT_TYPE.PHASE,
-        name: "round",
-        status: 0,
-        gameId: "current",
-        time: Date.now(),
-        data: {
-          no: 1,
-          gameId: "current",
-          currentTurn: { uid: "1", character: "1", startTime: Date.now() },
-          turns: [],
-        },
-      });
-
-    }
-  }, [events]);
-
+    fetchGame();
+  }, [gameId]);
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;

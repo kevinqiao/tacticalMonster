@@ -9,10 +9,8 @@ class GameManager {
     }
     async createGame() {
         const players = await this.dbCtx.runQuery(internal.dao.tmPlayerDao.findAll);
-        console.log(players);
         if (players) {
             const map = await this.dbCtx.runQuery(internal.dao.tmMapDataDao.find, { mapId: "1" });
-            console.log(map);
             const game = { 
                 challenger: "1", 
                 challengee: "2", 
