@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import { playInitCharacters, playInitPlaza } from "../animation/playCombatInit";
 import { playWalkable } from "../animation/playPhase";
-import { getMovableNodes } from "../utils/PathFind";
+import { getWalkableNodes } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
 const useGameInit = () => {
@@ -30,7 +30,7 @@ const useGameInit = () => {
            if(uid&&character_id){
             const character=characters.find(c=>c.character_id===character_id)
             if(character&&gridCells){
-                const nodes = getMovableNodes(gridCells,
+                const nodes = getWalkableNodes(gridCells,
                     { x: character.q, y: character.r },
                     character.move_range || 2
                 );

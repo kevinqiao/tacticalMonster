@@ -87,10 +87,10 @@ export interface ObstacleCell {
 }
 
 export interface WalkableNode extends HexNode {
-    path: { x: number; y: number }[];
+    // path: { x: number; y: number }[];
     distance?: number; // 距离角色的步数
-    turnEnd?: number;
 }
+
 export interface AttackableNode extends HexNode {
     distance: number; // 距离角色的步数
 }
@@ -101,6 +101,8 @@ export interface CharacterUnit extends Character {
     asset: string;
     q: number;
     r: number;
+    walkables?: WalkableNode[];
+    attackables?: AttackableNode[];
     container?: HTMLDivElement;
     standEle?: HTMLDivElement;
     attackEle?: HTMLDivElement;    
@@ -113,17 +115,17 @@ export interface MapModel {
     obstacles?: ObstacleCell[];
     disables?: { x: number; y: number }[];
 }
-export interface TMGame {
-    id: string;
-    challenger: Player;
-    challengee: Player;
-    currentRound: CombatRound;
-    timeClock: number;
-    characters: CharacterUnit[];
-    obstacles: ObstacleCell[];
-    disables: { x: number; y: number }[];
-    status: number;
-}
+// export interface TMGame {
+//     id: string;
+//     challenger: Player;
+//     challengee: Player;
+//     currentRound: CombatRound;
+//     timeClock: number;
+//     characters: CharacterUnit[];
+//     obstacles: ObstacleCell[];
+//     disables: { x: number; y: number }[];
+//     status: number;
+// }
 
 export interface ICombatContext {
     hexCell: {width:number,height:number};

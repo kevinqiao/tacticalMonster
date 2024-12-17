@@ -1,4 +1,4 @@
-import { GridCell, HexNode } from "../model/CombatModels";
+import { GridCell, HexNode, WalkableNode } from "../model/CombatModels";
 
 export const findPath = (
     grid: GridCell[][],
@@ -97,16 +97,14 @@ export const findPath = (
     return [start]; // 如果找不到路径，返回起点
 };
 
-export interface MovableNode extends HexNode {
-    distance: number;  // 到起点的距离
-}
 
-export const getMovableNodes = (
+
+export const getWalkableNodes = (
     gridCells: GridCell[][],
     start: { x: number, y: number },
     moveRange: number
-): MovableNode[] => {
-    const movableNodes: MovableNode[] = [];
+): WalkableNode[] => {
+    const movableNodes: WalkableNode[] = [];
     const visited = new Set<string>();
     const queue: { node: HexNode, distance: number }[] = [];
 

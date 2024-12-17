@@ -1,8 +1,8 @@
 import gsap from "gsap";
-import { CharacterUnit, GridCell } from "../model/CombatModels";
-import { MovableNode } from "../utils/PathFind";
+import { CharacterUnit, GridCell, WalkableNode } from "../model/CombatModels";
 
-export const playWalkable = (character:CharacterUnit,nodes: MovableNode[],gridCells:GridCell[][]) => {
+
+export const playWalkable = (character: CharacterUnit, nodes: WalkableNode[], gridCells: GridCell[][]) => {
 
     const tl = gsap.timeline();
     if(character?.standEle){    
