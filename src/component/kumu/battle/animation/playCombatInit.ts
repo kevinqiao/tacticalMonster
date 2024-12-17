@@ -16,12 +16,15 @@ export const playInitPlaza = (gridCells: GridCell[][]) => {
 
 }
 export const playInitCharacters = (characters: CharacterUnit[]) => {
-    const tl = gsap.timeline();
-    for (const character of characters) {
-        if (character.container)
-            tl.to(character.container, { autoAlpha: 1, duration: 0.7 }, "<")
-    }
+        const tl = gsap.timeline();
+    characters.forEach(character => {
+        if (character.container) {
+            tl.to(character.container, {
+                autoAlpha: 1,
+                duration: 0.7,
+            },">");
+        }
+    });
     tl.play();
-
-}
+};
 

@@ -23,7 +23,7 @@ const useEventHandler = () => {
                 if (name === "walk") {
                    console.log("walk",data);
                    const action = event.data as CombatAction;
-                   const character = characters?.find((c) => c.id === action.character);
+                   const character = characters?.find((c) => c.character_id === action.character);
                    if(character&&action.data.path&&gridCells){          
                         playWalk(character,action.data.path,hexCell,gridCells);                    
                    }

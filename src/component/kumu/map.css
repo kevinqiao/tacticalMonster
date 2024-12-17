@@ -83,6 +83,39 @@
 .hexagon-character {
   width: 100%;
   height: 100%;
+  background-color: #45a049;
+  background-size: contain;
+  /* 使背景图覆盖整个六边形 */
+  background-position: center;
+  /* 背景图居中 */
+  background-repeat: no-repeat;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  margin: 0;
+}
+
+.character-stand {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #45a049;
+  background-size: contain;
+  /* 使背景图覆盖整个六边形 */
+  background-position: center;
+  /* 背景图居中 */
+  opacity: 0;
+  visibility: hidden;
+  background-repeat: no-repeat;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  margin: 0;
+}
+
+.character-attack {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  visibility: hidden;
+  background-color: #f20da6;
   background-size: contain;
   /* 使背景图覆盖整个六边形 */
   background-position: center;

@@ -5,7 +5,7 @@ import { SCALE_FACTOR, STYLES } from '../constants/GridConstants';
 import { useGridElementLoader } from '../hooks/useGridElements';
 import { useCombatManager } from '../service/CombatManager';
 import { HexagonProps } from '../types/GridTypes';
-import { calculateHexPoints, createDebounceClick, pointsToPath, scalePoint } from '../utils/gridUtils';
+import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils';
 
 const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
   const { hexCell, walk } = useCombatManager();
@@ -14,8 +14,8 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
   // 使用自定义 Hook 加载网格元素
   const loadContainer = useGridElementLoader('container', row, col);
   const loadGround = useGridElementLoader('ground', row, col);
-  const loadStand = useGridElementLoader('stand', row, col);
-  const loadAttack = useGridElementLoader('attack', row, col);
+  const loadWalk = useGridElementLoader('walk', row, col);
+  ;
 
   // 使用 useMemo 缓存计算结果
   const points = useMemo(() => calculateHexPoints(width), [width]);
@@ -40,10 +40,10 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
     [innerPoints]
   );
 
-  const handleClick = useCallback(
-    createDebounceClick(() => walk({ q: col, r: row })),
-    [walk, col, row]
-  );
+  const handleClick = useCallback(() => {
+    console.log("click", { q: col, r: row });
+    walk({ q: col, r: row });
+  }, [walk, col, row]);
 
   return (
     <svg
@@ -64,7 +64,6 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
         pointerEvents="auto"
         role="button"
         aria-label={`Base grid at row ${row}, column ${col}`}
-        onClick={() => walk({ q: col, r: row })}
       />
       <polygon
         ref={loadGround}
@@ -79,18 +78,32 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
         pointerEvents="none"
         role="button"
         aria-label={`Ground grid at row ${row}, column ${col}`}
-        onClick={handleClick}
       />
       <polygon
-        ref={loadStand}
+        ref={loadWalk}
+        data-q={col}
+        data-r={row}
+        points={innerPolygonPoints}
+        fill="black"
+        stroke="white"
+        strokeWidth={4}
+        opacity={0}
+        visibility="hidden"
+        pointerEvents="auto"
+        role="button"
+        aria-label={`Ground grid at row ${row}, column ${col}`}
+        onClick={handleClick}
+      />
+      {/* <polygon
+        ref={loadWalk}
         points={innerPolygonPoints}
         fill="none"
         stroke="red"
         strokeWidth={3}
         opacity={0.3}
         visibility="hidden"
-      />
-      <circle
+      /> */}
+      {/* <circle
         ref={loadAttack}
         cx={width / 2}
         cy={hexHeight / 2}
@@ -101,7 +114,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
         strokeDasharray="25, 15"
         opacity={0}
         visibility="hidden"
-      />
+      /> */}
     </svg>
   );
 };

@@ -234,11 +234,30 @@ export default defineSchema({
     tm_game: defineTable({
         challenger: v.string(),
         challengee: v.string(),
-        startTime: v.number(),
-        currentRound:v.object({no:v.number(),startTime:v.number(),currentTurn:v.object({uid:v.string(),character:v.string(),startTime:v.number(),completeTime:v.number()}),turns: v.array(v.object({ uid: v.string(), character: v.string(), status: v.number(),startTime:v.number(),completeTime:v.optional(v.number()) }))}),
+        lastUpdate: v.number(),
+        currentRound:v.string(),
+        currentTurn:v.optional(v.object({uid:v.string(),character:v.string(),startTime:v.number(),completeTime:v.number()})),
         timeClock: v.number(),
-        map: v.optional(v.object({ map_id: v.optional(v.string()), rows: v.number(), cols: v.number(), obstacles: v.optional(v.array(v.object({ x: v.number(), y: v.number(), type: v.number(), asset: v.string() }))), disables: v.optional(v.array(v.object({ x: v.number(), y: v.number() }))) }))
+        map:v.string(),
+        status:v.optional(v.number())
     }).index("by_challenger", ["challenger"]).index("by_challengee", ["challengee"]),
+    tm_round: defineTable({
+        gameId: v.id("tm_game"),
+        no: v.number(),
+        startTime: v.number(),
+        endTime: v.optional(v.number()),
+        status: v.number(),
+        currentTurn: v.object({ uid: v.string(), character: v.string(), startTime: v.number(), completeTime: v.number() }),
+        turns: v.array(v.object({ uid: v.string(), character: v.string(), status: v.number(), startTime: v.number(), completeTime: v.optional(v.number()) }))
+    }).index("by_game_no", ["gameId", "no"]),
+    tm_action: defineTable({
+        gameId: v.id("tm_game"),
+        round: v.number(),
+        uid: v.string(),
+        character: v.string(),
+        act: v.number(),
+        data: v.any()
+    }).index("by_game_round_uid_character", ["gameId", "round", "uid", "character"]),
     tm_map_data: defineTable({
         map_id: v.string(),
         rows: v.number(),
@@ -249,8 +268,8 @@ export default defineSchema({
     tm_event: defineTable({
         uid: v.optional(v.string()),
         gameId: v.optional(v.string()),
-        category: v.optional(v.string()),
-        name: v.string(),
+        type: v.optional(v.number()),//0-phase 1-action 2-skill 
+        name:v.string(),
         data: v.optional(v.any())
     }).index("by_game", ["gameId"]).index("by_player", ["uid"])
 });

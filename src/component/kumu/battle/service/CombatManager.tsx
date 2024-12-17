@@ -46,7 +46,7 @@ const mapData = {
 };
 export const CombatContext = createContext<ICombatContext>({
   hexCell: { width: 0, height: 0 },
-  resourceLoad: null,
+  resourceLoad: { character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 },
   map: { rows: 7, cols: 8 },
   gridCells: null,
   challenger: null,
@@ -64,6 +64,13 @@ export const CombatContext = createContext<ICombatContext>({
   // setPaths: () => null,
   // updateCharacterPosition: () => null,
 });
+const round: CombatRound = {
+  no: 1,
+  gameId: "current",
+  currentTurn: { uid: "1", character: "1", startTime: Date.now() },
+  turns: [],
+  status: 1
+};
 
 const CombatProvider = ({ children }: { children: ReactNode }) => {
   // console.log("combat provider....");
@@ -75,39 +82,38 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   const [challengee, setChallengee] = useState<Player | null>({ uid: "2" });
   const [characters, setCharacters] = useState<CharacterUnit[] | null>(characterList);
   const [timeClock, setTimeClock] = useState<number>(0);
-  const [currentRound, setCurrentRound] = useState<CombatRound | null>(null);
+  const [currentRound, setCurrentRound] = useState<CombatRound | null>(round);
 
   const [resourceLoad, setResourceLoad] = useState<{
     character: number;
     gridContainer: number;
     gridGround: number;
-    gridStand: number;
-    gridAttack: number;
-  }>({ character: 0, gridContainer: 0, gridGround: 0, gridStand: 0, gridAttack: 0 });
+    gridWalk: number;
+  }>({ character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 });
 
   // const [paths, setPaths] = useState<Record<string, Hex[]>>({});
-  const { character, gridContainer, gridGround, gridStand, gridAttack } = resourceLoad;
   // 添加状态来存储可移动格子
-  useEffect(() => {
-    if (gridGround) {
+  // useEffect(() => {
+  //   if (gridGround) {
 
-      setTimeout(() => {
-        eventQueueRef.current.push({
-          type: EVENT_TYPE.PHASE,
-          name: "round",
-          status: 0,
-          gameId: "current",
-          time: Date.now(),
-          data: {
-            no: 1,
-            gameId: "current",
-            currentTurn: { uid: "1", character: "1", startTime: Date.now() },
-            turns: [],
-          },
-        });
-      }, 1000);
-    }
-  }, [gridGround]);
+  //     setTimeout(() => {
+  //       eventQueueRef.current.push({
+  //         type: EVENT_TYPE.PHASE,
+  //         name: "round",
+  //         status: 0,
+  //         gameId: "current",
+  //         time: Date.now(),
+  //         data: {
+  //           no: 1,
+  //           gameId: "current",
+  //           currentTurn: { uid: "1", character: "1", startTime: Date.now() },
+  //           turns: [],
+  //         },
+  //       });
+  //     }, 1000);
+  //   }
+  // }, [gridGround]);
+
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;
@@ -120,8 +126,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
           y,
           gridContainer: null,
           gridGround: null,
-          gridStand: null,
-          gridAttack: null,
+          gridWalk: null,
           walkable: true,
           type: 0,
         };
@@ -163,7 +168,7 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
       time: Date.now(),
       data: {
         uid: "1",
-        character: characters[0].id,
+        character: characters[0].character_id,
         act: ACT_CODE.WALK,
         data: { path },
       },

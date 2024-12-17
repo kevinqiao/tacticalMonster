@@ -4,8 +4,7 @@ import { useCombatManager } from '../service/CombatManager';
 const gridPropertyMap = {
   container: 'gridContainer',
   ground: 'gridGround',
-  stand: 'gridStand',
-  attack: 'gridAttack'
+  walk: 'gridWalk',
 } as const;
 
 export const useGridElementLoader = (

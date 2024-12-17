@@ -52,6 +52,7 @@ export interface CombatRound {
     gameId: string;
     startTime?:number;
     completeTime?:number;
+    status?:number;//0-pending 1-inited 2-completed
     currentTurn?:{uid:string,character:string,startTime:number};
     turns: { uid: string; character: string; status: number;startTime?:number;completeTime?:number }[];
 }
@@ -72,8 +73,8 @@ export interface HexNode {
 export interface GridCell extends HexNode {
     gridContainer: SVGSVGElement | null; // 六边形格子的 SVG 容器
     gridGround: SVGPolygonElement | null; // 表示地面的多边形元素
-    gridStand: SVGPolygonElement | null; // 表示站立区域的多边形元素
-    gridAttack: SVGCircleElement | null; // 表示攻击范围的圆形元素
+    gridWalk: SVGPolygonElement | null; // 表示站立区域的多边形元素
+
 }
 
 export interface ObstacleCell {
@@ -95,15 +96,16 @@ export interface AttackableNode extends HexNode {
 }
 
 export interface CharacterUnit extends Character {
-    id: string;
+    uid: string;
     character_id: string;
     asset: string;
     q: number;
     r: number;
     container?: HTMLDivElement;
+    standEle?: HTMLDivElement;
+    attackEle?: HTMLDivElement;    
     skeleton?: Spine;
-    walkables?: WalkableNode[];
-    attackables?: AttackableNode[];
+
 }
 export interface MapModel {
     rows: number;
@@ -139,16 +141,14 @@ export interface ICombatContext {
         character: number;
         gridContainer: number;
         gridGround: number;
-        gridStand: number;
-        gridAttack: number;
-    } | null;
+        gridWalk: number;
+    } ;
     setResourceLoad: React.Dispatch<
         React.SetStateAction<{
             character: number;
             gridContainer: number;
             gridGround: number;
-            gridStand: number;
-            gridAttack: number;
+            gridWalk: number;
         }>
     >;
     changeCell: React.Dispatch<React.SetStateAction<{width:number,height:number}>>;

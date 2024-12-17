@@ -12,42 +12,11 @@ export const create = internalMutation({
         challenger: v.string(),
         challengee: v.string(),
         timeClock: v.number(),
-        startTime: v.number(),
-        currentRound: v.object({
-            no: v.number(),
-            startTime: v.number(),
-            currentTurn: v.object({
-                uid: v.string(),
-                character: v.string(),
-                startTime: v.number(),
-                completeTime: v.number()
-            }),
-            turns: v.array(v.object({
-                uid: v.string(),
-                character: v.string(),
-                status: v.number(),
-                startTime: v.number(),
-                completeTime: v.optional(v.number())
-            }))
-        }),
-        map: v.object({
-            map_id: v.optional(v.string()),
-            rows: v.number(),
-            cols: v.number(),
-            obstacles: v.optional(v.array(v.object({
-                x: v.number(),
-                y: v.number(),
-                type: v.number(),
-                asset: v.string()
-            }))),
-            disables: v.optional(v.array(v.object({
-                x: v.number(),
-                y: v.number()
-            })))
-        })
+        map: v.string(),
+        currentRound: v.string()    
     },
     handler: async (ctx, args) => {
-        const docId = await ctx.db.insert("tm_game", args);
+        const docId = await ctx.db.insert("tm_game", { ...args, lastUpdate: Date.now() });
         return docId
     },
 });
