@@ -37,8 +37,7 @@ const useEventHandler = () => {
                         const nodes = getMovableNodes(gridCells,
                             { x: character.q, y: character.r },
                             character.move_range || 2
-                        );
-                        console.log(nodes);
+                        );                   
                         playWalkable(character,nodes,gridCells);
                         eventQueue.shift();
                     }

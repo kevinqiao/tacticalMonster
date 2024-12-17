@@ -5,8 +5,16 @@ import { MovableNode } from "../utils/PathFind";
 export const playWalkable = (character:CharacterUnit,nodes: MovableNode[],gridCells:GridCell[][]) => {
 
     const tl = gsap.timeline();
-    nodes.forEach((node)=>{
-        const {x,y} = node;
+    if(character?.standEle){    
+        tl.to(character.standEle, {
+            autoAlpha: 1,
+            duration: 0.5,
+            ease: "power2.inOut"
+        });
+    }
+    tl.to({},{},">")
+    nodes.forEach((node) => {
+        const { x, y } = node;
         const gridCell = gridCells[y][x];
         if(!gridCell?.gridWalk||node.distance===0)return;
         tl.to(gridCell.gridWalk, {

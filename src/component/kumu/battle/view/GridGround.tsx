@@ -83,7 +83,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
         ref={loadWalk}
         data-q={col}
         data-r={row}
-        points={innerPolygonPoints}
+        points={outerPolygonPoints}
         fill="black"
         stroke="white"
         strokeWidth={4}

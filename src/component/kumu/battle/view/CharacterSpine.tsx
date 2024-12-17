@@ -48,7 +48,7 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
       width: width,
       height: height,
       backgroundAlpha: 0,
-      backgroundColor: 0x000000,
+      backgroundColor: "transparent",
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true
@@ -59,7 +59,7 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
     view.style.width = '100%';
     view.style.height = '100%';
     view.style.position = 'absolute';
-    // view.style.backgroundColor = 'red';
+    view.style.backgroundColor = 'transparent';
     view.style.top = '0';
     view.style.left = '0';
 
@@ -114,7 +114,7 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
     };
   }, [spineResources]);
 
-  return <div ref={canvasRef} style={{ width: width, height: height }} />;
+  return <div ref={canvasRef} style={{ width: width, height: height, backgroundColor: "transparent" }} />;
 };
 
 export default CharacterSpine;

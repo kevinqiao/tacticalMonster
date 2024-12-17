@@ -91,8 +91,8 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
         }}
       >
         {/* <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} /> */}
-        <div className="character-stand" />
-        <div className="character-attack" />
+        <div ref={loadStand} className="character-stand" />
+        <div ref={loadAttack} className="character-attack" />
         <CharacterSpine character={character} width={width} height={height} isFacingRight={true} />
       </div>
     </>
