@@ -34,10 +34,10 @@ export interface Player {
 export interface CombatEvent {
     type: number;//0-phase 1-action 2-effect;
     name: string;
-    gameId: string;
-    time: number;
-    status: number;//
-    data?: CombatAction|CombatRound;
+    gameId?: string;
+    time?: number;
+    status?: number;//
+    data?: CombatAction|CombatRound|any;
 }
 export interface CombatAction {
     uid: string;

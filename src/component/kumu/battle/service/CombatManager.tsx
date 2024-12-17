@@ -2,6 +2,8 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 import { allObstacles, players } from "../data/CombatData";
 import {
   ACT_CODE,
@@ -72,8 +74,9 @@ const round: CombatRound = {
   status: 1
 };
 
-const CombatProvider = ({ children }: { children: ReactNode }) => {
+const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
   // console.log("combat provider....");
+  console.log("gameId", gameId);
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
   const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [map, setMap] = useState<MapModel>(mapData);
@@ -83,36 +86,34 @@ const CombatProvider = ({ children }: { children: ReactNode }) => {
   const [characters, setCharacters] = useState<CharacterUnit[] | null>(characterList);
   const [timeClock, setTimeClock] = useState<number>(0);
   const [currentRound, setCurrentRound] = useState<CombatRound | null>(round);
-
+  const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const [resourceLoad, setResourceLoad] = useState<{
     character: number;
     gridContainer: number;
     gridGround: number;
     gridWalk: number;
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 });
+  const events = useQuery(api.dao.tmEventDao.find, { uid: "1", lastTime });
 
-  // const [paths, setPaths] = useState<Record<string, Hex[]>>({});
-  // 添加状态来存储可移动格子
-  // useEffect(() => {
-  //   if (gridGround) {
+  useEffect(() => {
+    if (Array.isArray(events) && events.length > 0) {
 
-  //     setTimeout(() => {
-  //       eventQueueRef.current.push({
-  //         type: EVENT_TYPE.PHASE,
-  //         name: "round",
-  //         status: 0,
-  //         gameId: "current",
-  //         time: Date.now(),
-  //         data: {
-  //           no: 1,
-  //           gameId: "current",
-  //           currentTurn: { uid: "1", character: "1", startTime: Date.now() },
-  //           turns: [],
-  //         },
-  //       });
-  //     }, 1000);
-  //   }
-  // }, [gridGround]);
+      eventQueueRef.current.push({
+        type: EVENT_TYPE.PHASE,
+        name: "round",
+        status: 0,
+        gameId: "current",
+        time: Date.now(),
+        data: {
+          no: 1,
+          gameId: "current",
+          currentTurn: { uid: "1", character: "1", startTime: Date.now() },
+          turns: [],
+        },
+      });
+
+    }
+  }, [events]);
 
 
   useEffect(() => {

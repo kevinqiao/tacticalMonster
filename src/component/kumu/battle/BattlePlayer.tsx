@@ -1,3 +1,4 @@
+import { PageProp } from "component/RenderApp";
 import { useAction } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
@@ -131,10 +132,10 @@ const BattleVenue: React.FC = () => {
     </div>
   );
 };
-const BattlePlayer: React.FC = (props) => {
+const BattlePlayer: React.FC<PageProp> = (props) => {
   console.log(props);
   return (
-    <BattleProvider>
+    <BattleProvider gameId={props.data?.gameId}>
       <BattleVenue></BattleVenue>
     </BattleProvider>
   );

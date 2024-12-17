@@ -234,21 +234,17 @@ export default defineSchema({
     tm_game: defineTable({
         challenger: v.string(),
         challengee: v.string(),
+        round: v.number(),
         lastUpdate: v.number(),
-        currentRound:v.string(),
-        currentTurn:v.optional(v.object({uid:v.string(),character:v.string(),startTime:v.number(),completeTime:v.number()})),
-        timeClock: v.number(),
         map:v.string(),
         status:v.optional(v.number())
     }).index("by_challenger", ["challenger"]).index("by_challengee", ["challengee"]),
     tm_round: defineTable({
         gameId: v.id("tm_game"),
         no: v.number(),
-        startTime: v.number(),
-        endTime: v.optional(v.number()),
         status: v.number(),
-        currentTurn: v.object({ uid: v.string(), character: v.string(), startTime: v.number(), completeTime: v.number() }),
-        turns: v.array(v.object({ uid: v.string(), character: v.string(), status: v.number(), startTime: v.number(), completeTime: v.optional(v.number()) }))
+        currentTurn: v.optional(v.object({ uid: v.string(), character_id: v.string(), startTime: v.optional(v.number()), completeTime: v.optional(v.number()) })),
+        turns: v.array(v.object({ uid: v.string(), character_id: v.string(), status: v.number(), startTime: v.optional(v.number()), completeTime: v.optional(v.number()) }))
     }).index("by_game_no", ["gameId", "no"]),
     tm_action: defineTable({
         gameId: v.id("tm_game"),

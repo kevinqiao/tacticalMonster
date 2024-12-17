@@ -16,25 +16,16 @@ export const create = internalMutation({
         gameId: v.id("tm_game"),
         no: v.number(),
         status: v.number(),
-        currentTurn: v.object({
-            uid: v.string(),
-            character: v.string(),
-            startTime: v.number(),
-            completeTime: v.number()
-        }),
         turns: v.array(v.object({
             uid: v.string(),
-            character: v.string(),
+            character_id: v.string(),
             status: v.number(),
-            startTime: v.number(),
+            startTime: v.optional(v.number()),
             completeTime: v.optional(v.number())
         }))
     },
     handler: async (ctx, args) => {
-        const docId = await ctx.db.insert("tm_round", { 
-            ...args,
-            startTime: Date.now()
-        });
+        const docId = await ctx.db.insert("tm_round",args);
         return docId;
     },
 });
