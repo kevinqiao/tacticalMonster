@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { playWalk } from "../animation/playAction";
-import { playWalkable } from "../animation/playPhase";
+import { playTurnStart } from "../animation/playPhase";
 import { CombatAction, CombatEvent, EVENT_TYPE } from "../model/CombatModels";
 import { getWalkableNodes } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
@@ -39,7 +39,7 @@ const useEventHandler = () => {
                             character.move_range || 2
                         );                   
                         character.walkables = nodes;
-                        playWalkable(character,nodes,gridCells);
+                        playTurnStart(character,gridCells);
                         eventQueue.shift();
                     }
                 }

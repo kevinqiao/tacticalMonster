@@ -3,7 +3,7 @@ import { CharacterUnit, GridCell } from "../model/CombatModels";
 import { hexToPixel } from "../utils/hexUtil";
 
 export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], hexCell:{width:number,height:number},gridCells:GridCell[][]) => {
-     console.log(gridCells);
+    console.log("playWalk",character.walkables)
     const container = character.container;    
     const spine = character.skeleton;
     if (!spine||!container) return;
@@ -24,7 +24,17 @@ export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], 
             });
         }
     });
-
+    if(character.standEle){
+        gsap.set(character.standEle, {autoAlpha:0});
+    }
+    character.walkables?.forEach((node)=>{
+        const {x,y} = node;
+        const gridCell = gridCells[y][x];
+        if(gridCell?.gridWalk){
+            gsap.set(gridCell.gridWalk, {autoAlpha:0});
+        }
+      
+    })
 
     const positions = path.map(node => hexToPixel(node.x, node.y, hexCell.width, hexCell.height));
     gsap.set(container, {x:positions[0].x,y:positions[0].y});

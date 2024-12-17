@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 
-import { playInitCharacters, playInitPlaza } from "../animation/playCombatInit";
-import { playWalkable } from "../animation/playPhase";
+import { playGameInit, playTurnStart } from "../animation/playPhase";
 import { getWalkableNodes } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
@@ -11,20 +10,15 @@ const useGameInit = () => {
    
     useEffect(() => {
 
-        if (gridCells &&gridGround) {
+        if (characterReady&&gridCells &&gridGround&&characters) {
             console.log("game init")
-            playInitPlaza(gridCells)
+            playGameInit(characters,gridCells)  
         }
-    }, [gridGround, gridCells]);
-    useEffect(() => {
-        if (characters && characterReady) {
-            console.log("character init")
-           playInitCharacters(characters)
-        }
-    }, [characterReady, characters]);
+    }, [gridGround,characterReady, gridCells,characters]);
+
 
     useEffect(() => {
-  
+        // 当加载战斗数据后初始化当前角色的移动范围和可攻击目标
         if (gridCells && characters && currentRound?.status === 1&&currentRound.currentTurn) {
            const {uid,character:character_id}=currentRound.currentTurn
            if(uid&&character_id){
@@ -34,10 +28,10 @@ const useGameInit = () => {
                     { x: character.q, y: character.r },
                     character.move_range || 2
                 );
-                setTimeout(()=>playWalkable(character,nodes,gridCells),2000);
+                character.walkables = nodes;
+                setTimeout(()=>playTurnStart(character,gridCells),2000);
             }
-           }          
-         
+           } 
         }
     }, [currentRound, characters,gridCells]);
 }
