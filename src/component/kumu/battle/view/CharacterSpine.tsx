@@ -15,6 +15,7 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const spineRef = useRef<Spine | null>(null);
+  const isInitializedRef = useRef(false);
   const [spineResources, setSpineResources] = useState<{
     atlas: any;
     spineData: any;
@@ -41,34 +42,55 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
   }, []);
 
   useEffect(() => {
-    if (appRef.current || width === 0 || height === 0) return;
-    // console.log(width, height);
-    // console.log(canvasRef.current?.offsetWidth, canvasRef.current?.offsetHeight);
-    const app = new PIXI.Application({
-      width: width,
-      height: height,
-      backgroundAlpha: 0,
-      backgroundColor: "transparent",
-      antialias: true,
-      resolution: window.devicePixelRatio || 1,
-      autoDensity: true
-    });
-    appRef.current = app;
+    if (!isInitializedRef.current && canvasRef.current && width > 0 && height > 0) {
+      const app = new PIXI.Application({
+        width,
+        height,
+        backgroundAlpha: 0,
+        backgroundColor: "transparent",
+        antialias: true,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true
+      });
+      appRef.current = app;
 
-    const view = app.view as HTMLCanvasElement;
-    view.style.width = '100%';
-    view.style.height = '100%';
-    view.style.position = 'absolute';
-    view.style.backgroundColor = 'transparent';
-    view.style.top = '0';
-    view.style.left = '0';
-
-    if (canvasRef.current) {
+      const view = app.view as HTMLCanvasElement;
+      view.style.width = '100%';
+      view.style.height = '100%';
+      view.style.position = 'absolute';
+      view.style.backgroundColor = 'transparent';
+      view.style.top = '0';
+      view.style.left = '0';
       canvasRef.current.appendChild(view);
+
+      isInitializedRef.current = true;
     }
 
-
+    if (appRef.current && isInitializedRef.current) {
+      appRef.current.renderer.resize(width, height);
+    }
   }, [width, height]);
+
+  useEffect(() => {
+    return () => {
+      if (spineRef.current) {
+        console.log('destroy spine');
+        spineRef.current.destroy();
+        spineRef.current = null;
+      }
+
+      if (appRef.current) {
+        const view = appRef.current.view as HTMLCanvasElement;
+        if (view.parentNode) {
+          view.parentNode.removeChild(view);
+        }
+        appRef.current.destroy(true);
+        appRef.current = null;
+      }
+
+      isInitializedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const app = appRef.current;

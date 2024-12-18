@@ -9,7 +9,7 @@
  * @returns 六边形中心点的像素坐标 {x, y}
  */
 export const hexToPixel = (q: number, r: number, hexWidth: number, hexHeight: number): {q:number;r:number;x: number; y: number } => {
-    console.log("hexToPixel",q,r,hexWidth,hexHeight);
+
     // 奇数行的列号需要偏移
     const isOddRow = r % 2 !== 0;
     

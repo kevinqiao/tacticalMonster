@@ -71,7 +71,7 @@ const BattleVenue: React.FC = () => {
     const mapRatio = ((cols + 0.5) * Math.sqrt(3)) / 2 / (1 + ((rows - 1) * 3) / 4);
 
     const updateMap = () => {
-      console.log("updateMap")
+      // console.log("updateMap")
       if (containerRef.current) {
         const windowRatio = window.innerWidth / window.innerHeight;
         const plazaSize: { width: number, height: number } = { width: 0, height: 0 }

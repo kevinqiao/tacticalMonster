@@ -22,6 +22,17 @@ import { findPath } from "../utils/PathFind";
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 
+interface GameModel {
+  gameId: string;
+  map: MapModel;
+  challenger: string;
+  challengee: string;
+  players: Player[];
+  characters: CharacterUnit[];
+  currentRound?: CombatRound;
+  timeClock: number;
+}
+
 const characterList = players.reduce<CharacterUnit[]>(
   (acc, cur) => [
     ...acc,
@@ -51,10 +62,6 @@ export const CombatContext = createContext<ICombatContext>({
   resourceLoad: { character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 },
   map: { rows: 7, cols: 8 },
   gridCells: null,
-  challenger: null,
-  challengee: null,
-  characters: null,
-  currentRound: null,
   timeClock: 0,
   eventQueue: [],
   setResourceLoad: () => null,
@@ -76,16 +83,16 @@ const round: CombatRound = {
 
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
   // console.log("combat provider....");
-  console.log("gameId", gameId);
+  // console.log("gameId", gameId);
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
   const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
-  const [map, setMap] = useState<MapModel>(mapData);
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
-  const [challenger, setChallenger] = useState<Player | null>({ uid: "1" });
-  const [challengee, setChallengee] = useState<Player | null>({ uid: "2" });
-  const [characters, setCharacters] = useState<CharacterUnit[] | null>(characterList);
-  const [timeClock, setTimeClock] = useState<number>(0);
-  const [currentRound, setCurrentRound] = useState<CombatRound | null>(round);
+  // const [map, setMap] = useState<MapModel>(mapData);
+  // const [challenger, setChallenger] = useState<Player | null>({ uid: "1" });
+  // const [challengee, setChallengee] = useState<Player | null>({ uid: "2" });
+  // const [characters, setCharacters] = useState<CharacterUnit[] | null>(characterList);
+  // const [timeClock, setTimeClock] = useState<number>(0);
+  // const [currentRound, setCurrentRound] = useState<CombatRound | null>(round);
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const [resourceLoad, setResourceLoad] = useState<{
     character: number;
@@ -93,8 +100,10 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     gridGround: number;
     gridWalk: number;
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 });
+  const [game, setGame] = useState<GameModel | null>(null);
   const events = useQuery(api.dao.tmEventDao.find, { uid: "1", lastTime });
   const convex = useConvex();
+  const { map, challenger, challengee, characters, currentRound, timeClock } = game || {};
   // useEffect(() => {
   //   if (Array.isArray(events) && events.length > 0) {
 
@@ -115,14 +124,27 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   //   }
   // }, [events]);
   useEffect(() => {
+
     const fetchGame = async () => {
       if (gameId) {
         console.log("gameId", gameId);
-        const game = await convex.query(api.dao.tmGameDao.findBySession, {
+        const gameObj = await convex.query(api.dao.tmGameDao.findBySession, {
           gameId, uid: "1",
           token: "test-token"
         });
-        console.log(game);
+        if (gameObj) {
+          console.log(gameObj);
+          setGame({
+            gameId,
+            map: gameObj.map as MapModel ?? mapData,
+            challenger: gameObj.challenger,
+            challengee: gameObj.challengee,
+            players: gameObj.players,
+            characters: gameObj.characters ?? characterList,
+            currentRound: round,
+            timeClock: 0
+          });
+        }
       }
     };
 

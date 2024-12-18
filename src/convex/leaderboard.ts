@@ -63,7 +63,7 @@ export const findByTournament = sessionQuery({
     const result: any = { leadboards: [], rank: -1 };
     const uid = ctx.user.uid;
     const boardItem = await ctx.db
-      .query("leaderboard").withIndex("by_tournament_term_uid", (q) => q.eq("tournamentId", tournament.id).eq("term", term ?? tournament.currentTerm).eq("uid", uid)).unique();
+      .query("leaderboard").withIndex("by_tournament_term_uid", (q) => q.eq("tournamentId", tournament.id).eq("term", term ?? tournament.currentTerm).eq("uid", uid??"111")).unique();
     if (boardItem) {
       const ranks = await ctx.db
         .query("leaderboard").withIndex("by_tournament_term_score", (q) => q.eq("tournamentId", tournament.id).eq("term", term ?? tournament.currentTerm).gte("score", boardItem.score)).order("desc").collect();

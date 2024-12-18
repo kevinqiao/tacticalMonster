@@ -3,13 +3,17 @@ import { Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { sessionQuery } from "../custom/session";
 export const findBySession = sessionQuery({
-    args: { gameId: v.string(),uid:v.string(),token:v.string() },
-    handler: async (ctx, { gameId,uid,token }) => {
-        console.log("gameId", gameId);
+    args: { gameId: v.string()},
+    handler: async (ctx, { gameId }) => {
         const id = gameId as Id<"tm_game">;
-        const game = await ctx.db.get(id);
-        console.log("game", game);
-        return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime }
+        const game = await ctx.db.get(id);      
+        if(game){
+           const characters = await ctx.db
+            .query("tm_game_character").withIndex("by_game", (q) => q.eq("gameId", gameId)).collect();
+            const map = await ctx.db.query("tm_map_data").withIndex("by_map_id", (q) => q.eq("map_id", game.map)).unique();
+            return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,characters:characters.map((character)=>Object.assign({},character,{id:character?._id, _id: undefined, _creationTime: undefined })) ,map:{...map, _id: undefined, _creationTime: undefined }  }
+        }
+        return null
     },
 });
 export const find = internalQuery({
@@ -21,13 +25,14 @@ export const find = internalQuery({
 });
 export const create = internalMutation({
     args: {
-        challenger: v.string(),
-        challengee: v.string(),  
+        challenger:v.string(),
+        challengee: v.string(),
+        players: v.array(v.object({ uid: v.string(), name: v.optional(v.string()), avatar: v.optional(v.string()) })),
         map: v.string(),
         round: v.number()    
     },
-    handler: async (ctx, args) => {
-        const docId = await ctx.db.insert("tm_game", { ...args, lastUpdate: Date.now() });
+    handler: async (ctx, { challenger, challengee, map, round,players }) => {
+        const docId = await ctx.db.insert("tm_game", {map,round,challengee, challenger, players, lastUpdate: Date.now() });
         return docId
     },
 });

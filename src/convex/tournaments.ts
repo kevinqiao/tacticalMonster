@@ -75,13 +75,13 @@ export const claim = sessionMutation({
   handler: async (ctx, { battleId, leaderboardId }): Promise<any> => {
     if (ctx.user) {
       const { uid } = ctx.user;
-      const hasAssets: any = await ctx.db.query("asset").withIndex("by_user", (q) => q.eq("uid", uid)).collect();
+      const hasAssets: any = await ctx.db.query("asset").withIndex("by_user", (q) => q.eq("uid", uid??'1111')).collect();
       let rewardAssets;
       console.log("battleId:" + battleId + " leaderboardId:" + leaderboardId)
 
       if (leaderboardId) {
         const leaderboard = await ctx.db.get(leaderboardId as Id<"leaderboard">);
-        if (leaderboard?.uid === uid && !leaderboard.collected && leaderboard.reward) {
+        if (leaderboard&&leaderboard?.uid === uid && !leaderboard.collected && leaderboard.reward) {
           rewardAssets = leaderboard.reward;
           leaderboard.collected = 1;
           await ctx.db.patch(leaderboardId as Id<"leaderboard">, { collected: 1 })

@@ -13,6 +13,7 @@ interface HexagonCellProps {
 const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { map, hexCell } = useCombatManager();
+  if (!map) return null;
   const cell = map.obstacles?.find((c) => c.row === row && c.col === col);
   const size = hexCell.width;
   const hexPath = useMemo(() => {
@@ -34,9 +35,12 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
 };
 
 const ObstacleGrid: React.FC = () => {
-  const { map, hexCell } = useCombatManager();
-  const {width,height} = hexCell;
-  const { rows, cols } = map;
+  const { hexCell, map } = useCombatManager();
+  const { width, height } = hexCell;
+  const { rows = 0, cols = 0 } = map ?? {};
+
+  if (!map) return null;
+
   return (
     <>
       {Array.from({ length: rows }).map((_, row) => (

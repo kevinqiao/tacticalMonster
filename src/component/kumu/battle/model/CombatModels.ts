@@ -130,14 +130,15 @@ export interface MapModel {
 export interface ICombatContext {
     hexCell: {width:number,height:number};
     // mapSize: { rows: number; cols: number };
-    map: MapModel;
+    map?: MapModel;
     // gridMap: HexNode[][] | null;
     gridCells: GridCell[][] | null;
-    challenger: Player | null;
-    challengee: Player | null;
-    timeClock: number;
-    characters: CharacterUnit[] | null;
-    currentRound: CombatRound | null;
+    challenger?:string;
+    challengee?:string;
+    players?:Player[];
+    timeClock?: number;
+    characters?: CharacterUnit[] ;
+    currentRound?: CombatRound;
     eventQueue: CombatEvent[];
     resourceLoad: {
         character: number;
