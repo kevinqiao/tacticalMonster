@@ -1,14 +1,15 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 
 import '../../map.css';
 import { SCALE_FACTOR, STYLES } from '../constants/GridConstants';
 import { useGridElementLoader } from '../hooks/useGridElements';
 import { useCombatManager } from '../service/CombatManager';
-import { HexagonProps } from '../types/GridTypes';
+import useCombatAct from '../service/useCombatAct';
+import { GridCellProps } from '../types/GridTypes';
 import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils';
 
-const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
-  const { hexCell, walk } = useCombatManager();
+const GroundCell: React.FC<GridCellProps> = ({ row, col, onWalk, onAttack }) => {
+  const { hexCell } = useCombatManager();
   const { width, height } = hexCell;
 
   // 使用自定义 Hook 加载网格元素
@@ -40,10 +41,10 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
     [innerPoints]
   );
 
-  const handleClick = useCallback(() => {
-    console.log("click", { q: col, r: row });
-    walk({ q: col, r: row });
-  }, [walk, col, row]);
+  // const handleClick = useCallback(() => {
+  //   console.log("click", { q: col, r: row });
+  //   walk({ q: col, r: row });
+  // }, [walk, col, row]);
 
   return (
     <svg
@@ -92,7 +93,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
         pointerEvents="auto"
         role="button"
         aria-label={`Ground grid at row ${row}, column ${col}`}
-        onClick={handleClick}
+        onClick={() => onWalk?.({ q: col, r: row })}
       />
       {/* <polygon
         ref={loadWalk}
@@ -121,7 +122,7 @@ const GroundCell: React.FC<HexagonProps> = ({ row, col }) => {
 
 const GridContainer: React.FC = () => {
   const { hexCell, gridCells } = useCombatManager();
-
+  const { walk, attack } = useCombatAct();
 
   if (!gridCells) {
     return <div>Loading grid...</div>;
@@ -148,7 +149,7 @@ const GridContainer: React.FC = () => {
               style={STYLES.cell(hexCell)}
               data-testid={`grid-cell-container-${row}-${col}`}
             >
-              <GroundCell row={row} col={col} />
+              <GroundCell row={row} col={col} onWalk={walk} onAttack={attack} />
             </div>
           ))}
         </div>

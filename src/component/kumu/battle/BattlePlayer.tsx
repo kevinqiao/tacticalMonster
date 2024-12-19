@@ -4,11 +4,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
-import useEventHandler from "./service/useEventListener";
+import useEventListener from "./service/useEventListener";
 import useGameInit from "./service/useGameInit";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
+
 const CombatActPanel: React.FC = () => {
   const doSomething = useAction(api.rule.test.doSomething);
   const startGame = useAction(api.service.tmGameProxy.start);
@@ -63,7 +64,7 @@ const BattleVenue: React.FC = () => {
     height: number;
   } | null>(null);
   const { map, changeCell } = useCombatManager();
-  useEventHandler();
+  useEventListener();
   useGameInit();
 
   useEffect(() => {

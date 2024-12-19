@@ -1,8 +1,10 @@
 import { GridCellType } from "../model/CombatModels";
 
-export interface HexagonProps {
+export interface GridCellProps {
   row: number;
   col: number;
+  onWalk?: (data:any)=>void;
+  onAttack?: (data:any)=>void;
 }
 
 export interface GridStyles {

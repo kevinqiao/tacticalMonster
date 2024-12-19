@@ -1,22 +1,19 @@
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { allObstacles, players } from "../data/CombatData";
 import {
-  ACT_CODE,
   CharacterUnit,
   CombatEvent,
   CombatRound,
-  EVENT_TYPE,
   GridCell,
   ICombatContext,
   MapModel,
   Player
 } from "../model/CombatModels";
-import { findPath } from "../utils/PathFind";
 
 
 // 注册 MotionPathPlugin
@@ -66,7 +63,6 @@ export const CombatContext = createContext<ICombatContext>({
   eventQueue: [],
   setResourceLoad: () => null,
   changeCell: () => null,
-  walk: () => null,
 
 });
 const round: CombatRound = {
@@ -164,31 +160,31 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 
 
 
-  const walk = useCallback(async (to: { q: number; r: number }) => {
-    // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
-    if (!characters || !gridCells) return;
-    console.log('characters', characters[0]);
-    const path = findPath(gridCells,
-      { x: characters[0].q, y: characters[0].r },
-      { x: to.q, y: to.r }
-    );
+  // const walk = useCallback(async (to: { q: number; r: number }) => {
+  //   // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
+  //   if (!characters || !gridCells) return;
+  //   console.log('characters', characters[0]);
+  //   const path = findPath(gridCells,
+  //     { x: characters[0].q, y: characters[0].r },
+  //     { x: to.q, y: to.r }
+  //   );
 
-    if (!path) return;
+  //   if (!path) return;
 
-    eventQueueRef.current.push({
-      type: EVENT_TYPE.ACTION,
-      name: "walk",
-      status: 0,
-      gameId: "current",
-      time: Date.now(),
-      data: {
-        uid: "1",
-        character: characters[0].character_id,
-        act: ACT_CODE.WALK,
-        data: { path },
-      },
-    });
-  }, [characters, currentRound, gridCells]);
+  //   eventQueueRef.current.push({
+  //     type: EVENT_TYPE.ACTION,
+  //     name: "walk",
+  //     status: 0,
+  //     gameId: "current",
+  //     time: Date.now(),
+  //     data: {
+  //       uid: "1",
+  //       character: characters[0].character_id,
+  //       act: ACT_CODE.WALK,
+  //       data: { path },
+  //     },
+  //   });
+  // }, [characters, currentRound, gridCells]);
 
   const value = {
     hexCell,
@@ -203,7 +199,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     resourceLoad,
     setResourceLoad,
     changeCell: setHexCell,
-    walk,
+
 
   };
   return <CombatContext.Provider value={value}> {children} </CombatContext.Provider>;

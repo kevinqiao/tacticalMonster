@@ -155,7 +155,7 @@ export interface ICombatContext {
         }>
     >;
     changeCell: React.Dispatch<React.SetStateAction<{width:number,height:number}>>;
-    walk: (to: { q: number; r: number }) => void;
+    // walk: (to: { q: number; r: number }) => void;
     // findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;
     // getPixelPosition: (x: number, y: number) => { x: number, y: number };
     // paths: Record<string, Hex[]>;

@@ -1,24 +1,24 @@
 import { useCallback } from "react";
-import { playTurnStart } from "../../animation/playPhase";
-import { getWalkableNodes } from "../../utils/PathFind";
+import { playWalk } from "../../animation/playAction";
+import { CombatAction } from "../../model/CombatModels";
 import { useCombatManager } from "../CombatManager";
 
 const useActionProcessor = () => {
-    const {characters,gridCells,hexCell} = useCombatManager()
+    const {eventQueue,characters,gridCells,hexCell} = useCombatManager()
 
     const processWalk = useCallback((data:any) => {
         if(!characters)return;
-        const activeCharacter = characters[0]
-        if(activeCharacter&&gridCells){
-            const nodes = getWalkableNodes(gridCells,
-                { x: activeCharacter.q, y: activeCharacter.r },
-                activeCharacter.move_range || 2
-            );                   
-            activeCharacter.walkables = nodes;
-            playTurnStart(activeCharacter,gridCells);
-          
-        }               
-    }, [ characters, gridCells, hexCell])    
+        const action = data as CombatAction;
+        const character = characters.find((c) => c.character_id === action.character);
+        console.log("character",character)  
+        console.log("action",action)
+        console.log("gridCells",gridCells)
+        console.log("hexCell",hexCell)  
+        if(character&&action.data.path&&gridCells){          
+            playWalk(character,action.data.path,hexCell,gridCells);                    
+        }
+        eventQueue.shift();
+    }, [eventQueue, characters, gridCells, hexCell])    
     const processAttack = useCallback((data:any) => {
         
     }, [characters,gridCells,hexCell])  
