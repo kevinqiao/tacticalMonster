@@ -14,7 +14,7 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { map, hexCell } = useCombatManager();
   if (!map) return null;
-  const cell = map.obstacles?.find((c) => c.row === row && c.col === col);
+  const cell = map.obstacles?.find((c) => c.r === row && c.q === col);
   const size = hexCell.width;
   const hexPath = useMemo(() => {
     const points = calculateHexPoints(size);

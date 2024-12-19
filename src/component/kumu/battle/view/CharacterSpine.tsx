@@ -62,13 +62,9 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
       view.style.top = '0';
       view.style.left = '0';
       canvasRef.current.appendChild(view);
-
       isInitializedRef.current = true;
     }
 
-    if (appRef.current && isInitializedRef.current) {
-      appRef.current.renderer.resize(width, height);
-    }
   }, [width, height]);
 
   useEffect(() => {
@@ -100,7 +96,7 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
       const parent = canvasRef.current;
       if (!parent) return;
       const { offsetWidth, offsetHeight } = parent;
-      const spine = new Spine(spineResources.spineData.spineData);
+      const spine = new Spine(spineResources.spineData.spineData) as any;
       spineRef.current = spine;
       character.skeleton = spine;
       const bounds = spine.getBounds();

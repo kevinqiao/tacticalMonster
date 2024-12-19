@@ -78,8 +78,8 @@ export interface GridCell extends HexNode {
 }
 
 export interface ObstacleCell {
-    row: number;
-    col: number;
+    r: number;
+    q: number;
     asset: string;
     type?: number;
     walkable?: boolean;
@@ -113,7 +113,7 @@ export interface MapModel {
     rows: number;
     cols: number;
     obstacles?: ObstacleCell[];
-    disables?: { x: number; y: number }[];
+    disables?: { q: number; r: number }[];
 }
 // export interface TMGame {
 //     id: string;

@@ -1,23 +1,27 @@
+import { MapModel } from "../../component/kumu/battle/model/CombatModels";
 import { internal } from "../_generated/api";
 import { Attributes, Stats } from "../model/CharacterModels";
 import { calculateStats } from "../utils/Utlis";
-
 interface Player {
     uid: string;
     name?: string;
     avatar?: string;
 }
 
-const getPosition = (game: { challenger: string,challengee:string }, player: Player) => {
-    const position = { q: 0, r: 0 };
-    if (player.uid === game.challenger) {
-        position.q = Math.floor(Math.random() * 2);
-        position.r = Math.floor(Math.random() * 6);
-    } else {
-        position.q = Math.floor(Math.random() * (7 - 6 + 1)) + 6;
-        position.r = Math.floor(Math.random() * 6);
-    }
-    return position;
+const getPosition = (game: { challenger: string,challengee:string },map:MapModel, player: Player) => {
+    const {cols,rows,obstacles,disables}=map;  
+    const positions = Array.from({ length: rows }, (_, r) =>
+        Array.from({ length: 2 }, (_, q) => ({
+            q:player.uid===game.challenger?q:q+(cols-2),
+            r
+            }))
+        ).flat();
+    const availablePositions = obstacles&&disables?positions.filter(position => {
+        return !obstacles.some(obstacle => obstacle.q === position.q && obstacle.r === position.r) &&
+               !disables.some(disable => disable.q === position.q && disable.r === position.r);
+    }):positions; 
+    const randomPosition = availablePositions[Math.floor(Math.random() * availablePositions.length)];
+    return randomPosition;
 };
 
 class GameManager {
@@ -44,8 +48,8 @@ class GameManager {
                     const characters = await this.dbCtx.runQuery(internal.dao.tmPlayerCharacterDao.findAll, { uid: player.uid });
                    
                     for (const character of characters) {
-                        const position=getPosition(game,player);
-
+                        const position=getPosition(game,map,player);
+                        console.log(position);
                         let gameCharacter: any={...character,...position,gameId};
                         const { character_id, level } = character;
                         const characterData = await this.dbCtx.runQuery(internal.dao.tmCharacterDataDao.find, { character_id });

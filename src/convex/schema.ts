@@ -260,8 +260,8 @@ export default defineSchema({
         map_id: v.string(),
         rows: v.number(),
         cols: v.number(),
-        obstacles: v.array(v.object({ x: v.number(), y: v.number(), type: v.number(), asset: v.string() })),
-        disables: v.array(v.object({ x: v.number(), y: v.number() })),
+        obstacles: v.array(v.object({ q: v.number(), r: v.number(), type: v.number(), asset: v.string() })),
+        disables: v.array(v.object({ q: v.number(), r: v.number() })),
     }).index("by_map_id", ["map_id"]),
     tm_event: defineTable({
         uid: v.optional(v.string()),

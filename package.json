@@ -40,6 +40,7 @@
     "moment-timezone": "^0.5.45",
     "pixi-spine": "^4.0.4",
     "pixi.js": "^7.4.2",
+    "@pixi-spine/runtime-4.1": "^4.0.4",
     "postcss": "^8.4.4",
     "postcss-flexbugs-fixes": "^5.0.2",
     "postcss-loader": "^6.2.1",

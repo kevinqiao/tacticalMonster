@@ -67,11 +67,7 @@ export const CombatContext = createContext<ICombatContext>({
   setResourceLoad: () => null,
   changeCell: () => null,
   walk: () => null,
-  // findPath: () => null,
-  // getPixelPosition: () => ({ x: 0, y: 0 }),
-  // paths: {},
-  // setPaths: () => null,
-  // updateCharacterPosition: () => null,
+
 });
 const round: CombatRound = {
   no: 1,
@@ -82,17 +78,11 @@ const round: CombatRound = {
 };
 
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
-  // console.log("combat provider....");
-  // console.log("gameId", gameId);
+
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
   const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
-  // const [map, setMap] = useState<MapModel>(mapData);
-  // const [challenger, setChallenger] = useState<Player | null>({ uid: "1" });
-  // const [challengee, setChallengee] = useState<Player | null>({ uid: "2" });
-  // const [characters, setCharacters] = useState<CharacterUnit[] | null>(characterList);
-  // const [timeClock, setTimeClock] = useState<number>(0);
-  // const [currentRound, setCurrentRound] = useState<CombatRound | null>(round);
+
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const [resourceLoad, setResourceLoad] = useState<{
     character: number;
@@ -135,7 +125,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         if (gameObj) {
           console.log(gameObj);
           setGame({
-            gameId,
+            gameId: gameObj.id,
             map: gameObj.map as MapModel ?? mapData,
             challenger: gameObj.challenger,
             challengee: gameObj.challengee,
@@ -166,12 +156,12 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
           walkable: true,
           type: 0,
         };
-        const obstacle = obstacles?.find((o) => o.col === x && o.row === y);
+        const obstacle = obstacles?.find((o) => o.q === x && o.r === y);
         if (obstacle) {
           cell.walkable = false;
           cell.type = 1;
         }
-        const disable = disables?.find((d) => d.x === x && d.y === y);
+        const disable = disables?.find((d) => d.q === x && d.r === y);
         if (disable) {
           cell.walkable = false;
           cell.type = 2;
