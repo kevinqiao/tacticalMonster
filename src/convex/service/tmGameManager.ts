@@ -80,14 +80,16 @@ class GameManager {
                     turns
                 };
                 const roundId=await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.create,round);
-                const gameUpdated={id:gameId,data:{round:round.no}};
+                const gameUpdated={id:gameId,data:{round:round.no,lastUpdate:Date.now()}};
                 await this.dbCtx.runMutation(internal.dao.tmGameDao.update,gameUpdated);   
                 for(const player of players){                    
                     const event = { uid: player.uid, name: "GameCreated", data: { gameId } };
                     await this.dbCtx.runMutation(internal.dao.tmEventDao.create, event);
                 }
-                // const gameEvent={gameId,name:"roundStart",data:null};
-                // await this.dbCtx.runMutation(internal.dao.tmEventDao.create, gameEvent);
+                const roundEvent={gameId,name:"roundStart",data:{round:round.no}};
+                await this.dbCtx.runMutation(internal.dao.tmEventDao.create, roundEvent);
+                const turnEvent={gameId,name:"turnStart",data:{turn:0}};
+                await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);
             }
         }
     }

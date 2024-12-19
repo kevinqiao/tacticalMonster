@@ -1,49 +1,53 @@
 import { useCallback, useEffect } from "react";
 import { playWalk } from "../animation/playAction";
 import { playTurnStart } from "../animation/playPhase";
-import { CombatAction, CombatEvent, EVENT_TYPE } from "../model/CombatModels";
+import { CombatAction, CombatEvent } from "../model/CombatModels";
 import { getWalkableNodes } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
-const useEventHandler = () => {
+const useEventListener = () => {
 
     const combat = useCombatManager();
     const {characters, eventQueue,gridCells,hexCell } = combat;
 
     const processEvent = useCallback(() => {
-        // console.log(eventQueue
-
+       
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
-        if (!event) return;
+        if (!event || !characters) return;
         const { type, name,status, gameId, time, data } = event;
-        if (status === 0) {
-            console.log(hexCell)
+        if (!status) {
+            console.log("processEvent",event)
             event.status = 1;
-            if (type === EVENT_TYPE.ACTION) {
-                if (name === "walk") {
-                   console.log("walk",data);
+            switch(name){
+                case "walk":        
                    const action = event.data as CombatAction;
-                   const character = characters?.find((c) => c.character_id === action.character);
+                   const character = characters.find((c) => c.character_id === action.character);
                    if(character&&action.data.path&&gridCells){          
                         playWalk(character,action.data.path,hexCell,gridCells);                    
                    }
                    eventQueue.shift();
-                }
-            }else if(type === EVENT_TYPE.PHASE){
-                if(name === "round"&&characters){
-                    const character = characters[0]
-                    console.log(character)
-                    if(character&&gridCells){
+                   break;
+                case "roundStart":
+                    const activeCharacter = characters[0]
+                    if(activeCharacter&&gridCells){
                         const nodes = getWalkableNodes(gridCells,
-                            { x: character.q, y: character.r },
-                            character.move_range || 2
+                            { x: activeCharacter.q, y: activeCharacter.r },
+                            activeCharacter.move_range || 2
                         );                   
-                        character.walkables = nodes;
-                        playTurnStart(character,gridCells);
+                        activeCharacter.walkables = nodes;
+                        playTurnStart(activeCharacter,gridCells);
                         eventQueue.shift();
                     }
-                }
+                    break;
+                case "turnStart":
+                    eventQueue.shift();
+                    break;
+                default:
+                    console.log("unknown event",event)
+                    eventQueue.shift();
+                    break;
             }
+
         }
 
     }, [characters, eventQueue,hexCell,gridCells])
@@ -59,4 +63,4 @@ const useEventHandler = () => {
 
 
 }
-export default useEventHandler
+export default useEventListener

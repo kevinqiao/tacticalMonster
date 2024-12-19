@@ -91,28 +91,16 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     gridWalk: number;
   }>({ character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 });
   const [game, setGame] = useState<GameModel | null>(null);
-  const events = useQuery(api.dao.tmEventDao.find, { uid: "1", lastTime });
+  const events: any = useQuery(api.dao.tmEventDao.find, { gameId, lastTime });
   const convex = useConvex();
   const { map, challenger, challengee, characters, currentRound, timeClock } = game || {};
-  // useEffect(() => {
-  //   if (Array.isArray(events) && events.length > 0) {
-
-  //     eventQueueRef.current.push({
-  //       type: EVENT_TYPE.PHASE,
-  //       name: "round",
-  //       status: 0,
-  //       gameId: "current",
-  //       time: Date.now(),
-  //       data: {
-  //         no: 1,
-  //         gameId: "current",
-  //         currentTurn: { uid: "1", character: "1", startTime: Date.now() },
-  //         turns: [],
-  //       },
-  //     });
-
-  //   }
-  // }, [events]);
+  useEffect(() => {
+    if (Array.isArray(events) && events.length > 0) {
+      console.log(events)
+      eventQueueRef.current.push(...events);
+      setLastTime(events[events.length - 1].time);
+    }
+  }, [events]);
   useEffect(() => {
 
     const fetchGame = async () => {
@@ -134,6 +122,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
             currentRound: round,
             timeClock: 0
           });
+          setLastTime(gameObj.lastUpdate);
         }
       }
     };

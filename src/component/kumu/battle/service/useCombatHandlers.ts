@@ -1,6 +1,6 @@
 
 import { useCombatManager } from "./CombatManager";
-import useEventHandler from "./useEventHandler";
+import useEventHandler from "./useEventListener";
 
 const useCombatHandlers = () => {
     const combat = useCombatManager();

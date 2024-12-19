@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
-import useEventHandler from "./service/useEventHandler";
+import useEventHandler from "./service/useEventListener";
 import useGameInit from "./service/useGameInit";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
@@ -45,6 +45,12 @@ const CombatPlaza: React.FC = () => {
 const BattleVenue: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [placePosition, setPlacePosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [plazaPosition, setPlazaPosition] = useState<{
     top: number;
     left: number;
     width: number;
@@ -91,12 +97,12 @@ const BattleVenue: React.FC = () => {
         // 计算总宽度
         const mapWidth = hexWidth * (cols + 0.5);
 
-        const left = (plazaSize.width - mapWidth) / 2 + 0.25 * hexWidth;
-        const top = (plazaSize.height - mapHeight) / 2;
+        const mapLeft = (plazaSize.width - mapWidth) / 2 + 0.25 * hexWidth;
+        const mapTop = (plazaSize.height - mapHeight) / 2;
         changeCell({ width: hexWidth, height: hexHeight });
         setMapPosition({
-          top,  // 1 - 0.92
-          left,
+          top: mapTop,
+          left: mapLeft,
           width: mapWidth,
           height: mapHeight
         });
@@ -121,10 +127,15 @@ const BattleVenue: React.FC = () => {
           backgroundColor: "white",
         }}
       >
+
+
         <div style={{ position: "absolute", ...mapPosition }}>
           <CombatPlaza />
         </div>
-        <CombatActPanel />
+        {placePosition ? <div style={{ position: "absolute", bottom: placePosition.height * 0.05, left: placePosition.width * 0.1 }}>
+          <CombatActPanel />
+        </div> : null}
+
       </div>
     </div>
   );
