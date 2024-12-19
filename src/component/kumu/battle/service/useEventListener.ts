@@ -6,7 +6,7 @@ import usePhaseProcessor from "./processor/usePhaseProcessor";
 
 const useEventListener = () => {
 
-    const {eventQueue,characters,gridCells} = useCombatManager();
+    const {eventQueue,characters,gridCells,hexCell} = useCombatManager();
     const {processWalk,processAttack,processSkill,processDefend,processStandby} = useActionProcessor();     
     const {processRoundStart,processTurnStart} = usePhaseProcessor();
    
@@ -42,13 +42,13 @@ const useEventListener = () => {
 
 
     useEffect(() => {
-        if(!characters||!gridCells)return;
+        if(!characters||!gridCells||!hexCell)return;
         const intervalId = setInterval(() => {
             processEvent();
         }, 100); // 每秒检查一次消息队列
 
         return () => clearInterval(intervalId);
-    }, [characters,gridCells]);
+    }, [characters,gridCells,hexCell]);
 
 
 }

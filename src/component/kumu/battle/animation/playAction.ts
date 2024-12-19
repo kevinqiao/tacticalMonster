@@ -17,11 +17,6 @@ export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], 
         },
         onComplete: () => {
             spine.state.setAnimation(0, "stand", true);
-            gsap.to(container, {
-                scaleX: initialScale,
-                duration: 0.8,
-                ease: "power2.inOut"
-            });
         }
     });
     if(character.standEle){
@@ -50,32 +45,35 @@ export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], 
     movementPath.forEach((pos, i) => {
         const prevPos = positions[i];
         const targetScale = pos.x > prevPos.x ? 1 : -1;
+        const isLastStep = i === movementPath.length - 1;
         
         const stepTl = gsap.timeline({
-           onComplete:()=>{
-            const cell = gridCells[pos.r][pos.q];
-            if(cell?.gridGround){
-                gsap.set(cell.gridGround, {fill:"black",autoAlpha:0.1});
+            onComplete: () => {
+                const cell = gridCells[pos.r][pos.q];
+                if(cell?.gridGround){
+                    gsap.set(cell.gridGround, {fill:"black", autoAlpha:0.1});
+                }
             }
-           }
         });
         
-        if (currentScale !== targetScale) {
+        // 处理朝向
+        if (currentScale !== targetScale || isLastStep) {
             stepTl.to(container, {
-                scaleX: targetScale,
+                scaleX: isLastStep ? initialScale : targetScale,
                 duration: 0.15,
-                ease: "power1.inOut",  // 使用平滑的缓动
-                overwrite: "auto"  // 防止动画冲突
+                ease: "power1.inOut",
+                overwrite: "auto"
             }, 0);
-            currentScale = targetScale;
+            currentScale = isLastStep ? initialScale : targetScale;
         }
         
+        // 移动
         stepTl.to(container, {
             x: pos.x,
             y: pos.y,
-                duration: 0.3,
-            ease: "power1.inOut",  // 使用平滑的缓动
-            overwrite: "auto"  // 防止动画冲突
+            duration: 0.3,
+            ease: "power1.inOut",
+            overwrite: "auto"
         }, 0);
 
         tl.add(stepTl, i > 0 ? ">-0.1" : "+=0");

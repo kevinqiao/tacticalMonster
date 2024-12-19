@@ -89,7 +89,12 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const openPage = useCallback((page: PageItem) => {
     const currentIndex = currentPageRef.current.index; // 确保获取最新的历史索引
     const newIndex = currentIndex + 1; // 新索引递增
-    history.pushState({ index: newIndex }, "", page.uri);
+    if (page.data) {
+      const uri = page.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&");
+      history.pushState({ index: newIndex }, "", uri);
+    } else {
+      history.pushState({ index: newIndex }, "", page.uri);
+    }
     const prepage = currentPageRef.current.page;
     setChangeEvent({ type: 0, index: newIndex, prepage });
     currentPageRef.current = { index: newIndex, page };

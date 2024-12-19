@@ -5,7 +5,7 @@ import { useCombatManager } from "../CombatManager";
 
 const useActionProcessor = () => {
     const {eventQueue,characters,gridCells,hexCell} = useCombatManager()
-
+    console.log("hexCell",hexCell)
     const processWalk = useCallback((data:any) => {
         if(!characters)return;
         const action = data as CombatAction;
