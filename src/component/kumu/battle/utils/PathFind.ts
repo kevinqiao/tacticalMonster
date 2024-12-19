@@ -1,4 +1,4 @@
-import { GridCell, HexNode, WalkableNode } from "../model/CombatModels";
+import { GridCell, HexNode, WalkableNode } from "../types/CombatTypes";
 
 export const findPath = (
     grid: GridCell[][],

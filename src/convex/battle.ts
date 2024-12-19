@@ -112,7 +112,7 @@ export const findReport = sessionAction({
         for (const reward of battle.rewards) {
           const gameReport: any = { ...reward }
           if (reward.uid) {
-            const player = await ctx.runQuery(internal.user.find, { id: reward.uid as Id<"user"> });
+            const player = await ctx.runQuery(internal.user.find, { uid: reward.uid as Id<"user"> });
             if (player) {
               gameReport['player'] = { name: player.name, avatar: player.avatar };
             }
@@ -123,7 +123,7 @@ export const findReport = sessionAction({
         for (const game of battle.games) {
           const gameReport: any = { gameId: game._id, score: game.score }
           if (game.uid) {
-            const player = await ctx.runQuery(internal.user.find, { id: game.uid as Id<"user"> });
+            const player = await ctx.runQuery(internal.user.find, { uid: game.uid as Id<"user"> });
             if (player) {
               gameReport['player'] = { name: player.name, avatar: player.avatar };
               gameReport['uid'] = player.uid;
@@ -155,7 +155,7 @@ export const findBattle = sessionAction({
       if (!tournament) throw new Error("tournament not found");
       const players: { uid: string; name?: string; avatar?: number; gameId: string }[] = [];
       for (const game of battle.games) {
-        const player = await ctx.runQuery(internal.user.find, { id: game.uid as Id<"user"> });
+        const player = await ctx.runQuery(internal.user.find, { uid: game.uid });
         if (player && player.uid) {
           const { uid, name, avatar } = player
           players.push({ uid, name, avatar, gameId: game.gameId })

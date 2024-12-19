@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { CharacterUnit, GridCell, WalkableNode } from "../model/CombatModels";
+import { CharacterUnit, GridCell, WalkableNode } from "../types/CombatTypes";
 
 
 export const playWalkable = (character:CharacterUnit,nodes: WalkableNode[],gridCells:GridCell[][]) => {

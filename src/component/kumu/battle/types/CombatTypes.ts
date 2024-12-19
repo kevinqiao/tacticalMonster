@@ -1,5 +1,5 @@
 import { Spine } from "pixi-spine";
-import { Character } from "./CharacterModels";
+import { Character } from "./CharacterTypes";
 
 export enum ACT_CODE {
     WALK = 1,
@@ -129,9 +129,8 @@ export interface MapModel {
 
 export interface ICombatContext {
     hexCell: {width:number,height:number};
-    // mapSize: { rows: number; cols: number };
+    gameId:string|null;
     map?: MapModel;
-    // gridMap: HexNode[][] | null;
     gridCells: GridCell[][] | null;
     challenger?:string;
     challengee?:string;

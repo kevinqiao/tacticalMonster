@@ -8,7 +8,7 @@ import useCombatAct from '../service/useCombatAct';
 import { GridCellProps } from '../types/GridTypes';
 import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils';
 
-const GroundCell: React.FC<GridCellProps> = ({ row, col, onWalk, onAttack }) => {
+const GroundCell: React.FC<GridCellProps> = ({ row, col, walk, attack }) => {
   const { hexCell } = useCombatManager();
   const { width, height } = hexCell;
 
@@ -16,7 +16,7 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, onWalk, onAttack }) => 
   const loadContainer = useGridElementLoader('container', row, col);
   const loadGround = useGridElementLoader('ground', row, col);
   const loadWalk = useGridElementLoader('walk', row, col);
-  ;
+
 
   // 使用 useMemo 缓存计算结果
   const points = useMemo(() => calculateHexPoints(width), [width]);
@@ -93,7 +93,7 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, onWalk, onAttack }) => 
         pointerEvents="auto"
         role="button"
         aria-label={`Ground grid at row ${row}, column ${col}`}
-        onClick={() => onWalk?.({ q: col, r: row })}
+        onClick={() => walk?.({ q: col, r: row })}
       />
       {/* <polygon
         ref={loadWalk}
@@ -144,13 +144,13 @@ const GridContainer: React.FC = () => {
           data-testid={`grid-row-${row}`}
         >
           {Array.from({ length: cols }).map((_, col) => (
-            <div
+            <GroundCell
               key={`${row}-${col}`}
-              style={STYLES.cell(hexCell)}
-              data-testid={`grid-cell-container-${row}-${col}`}
-            >
-              <GroundCell row={row} col={col} onWalk={walk} onAttack={attack} />
-            </div>
+              row={row}
+              col={col}
+              walk={walk}
+              attack={attack}
+            />
           ))}
         </div>
       ))}

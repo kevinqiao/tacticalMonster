@@ -1,11 +1,13 @@
+import { useConvex } from "convex/react";
 import { useCallback } from "react";
-import { ACT_CODE, CharacterUnit, EVENT_TYPE } from "../model/CombatModels";
+import { api } from "../../../../convex/_generated/api";
+import { ACT_CODE, CharacterUnit, EVENT_TYPE } from "../types/CombatTypes";
 import { findPath } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
 const useCombatAct = () => {
-  const { characters, gridCells, hexCell, eventQueue, currentRound } = useCombatManager()
-
+  const { gameId, characters, gridCells, hexCell, eventQueue, currentRound } = useCombatManager()
+  const convex = useConvex();
 
   const attack = useCallback(async (to: { q: number; r: number }) => {
     console.log("walking");
@@ -20,7 +22,7 @@ const useCombatAct = () => {
       { x: to.q, y: to.r }
     );
 
-    if (!path) return;
+    if (!path || !gameId) return;
 
     eventQueue.push({
       type: EVENT_TYPE.ACTION,
@@ -35,7 +37,18 @@ const useCombatAct = () => {
         data: { path },
       },
     });
-  }, [characters, currentRound, gridCells]);
+    const res = await convex.action(api.service.tmGameProxy.walk, {
+      gameId,
+      character_id: characters[0].character_id,
+      uid: "1",
+      token: "test-token",
+      to: { q: to.q, r: to.r }
+    });
+    if (!res) {
+      console.log("walk failed");
+    }
+
+  }, [characters, currentRound, gridCells, convex]);
 
   const standBy = useCallback((character: CharacterUnit) => {
     console.log("stand...");

@@ -1,7 +1,7 @@
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef, useState } from "react";
-import { CharacterUnit } from "../model/CombatModels";
+import { CharacterUnit } from "../types/CombatTypes";
 
 interface IProps {
   character: CharacterUnit;

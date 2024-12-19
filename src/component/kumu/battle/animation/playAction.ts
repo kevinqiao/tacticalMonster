@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { CharacterUnit, GridCell } from "../model/CombatModels";
+import { CharacterUnit, GridCell } from "../types/CombatTypes";
 import { hexToPixel } from "../utils/hexUtil";
 
 export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], hexCell:{width:number,height:number},gridCells:GridCell[][]) => {

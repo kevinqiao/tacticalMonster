@@ -13,7 +13,7 @@ import {
   ICombatContext,
   MapModel,
   Player
-} from "../model/CombatModels";
+} from "../types/CombatTypes";
 
 
 // 注册 MotionPathPlugin
@@ -55,6 +55,7 @@ const mapData = {
   ],
 };
 export const CombatContext = createContext<ICombatContext>({
+  gameId: null,
   hexCell: { width: 0, height: 0 },
   resourceLoad: { character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 },
   map: { rows: 7, cols: 8 },
@@ -187,6 +188,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   // }, [characters, currentRound, gridCells]);
 
   const value = {
+    gameId,
     hexCell,
     map,
     gridCells,

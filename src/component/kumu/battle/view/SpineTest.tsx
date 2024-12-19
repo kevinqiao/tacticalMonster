@@ -1,8 +1,8 @@
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef, useState } from "react";
-import { GridCell } from "../model/CombatModels";
 import { useCombatManager } from "../service/CombatManager";
+import { GridCell } from "../types/CombatTypes";
 import { GridPosition } from "../types/GridTypes";
 import { hexToPixel } from "../utils/hexUtil";
 import { findPath } from "../utils/PathFind";

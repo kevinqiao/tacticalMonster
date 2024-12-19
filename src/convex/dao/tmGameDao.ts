@@ -17,12 +17,26 @@ export const findBySession = sessionQuery({
     },
 });
 export const find = internalQuery({
-    args: { gameId: v.id("tm_game") },
+    args: { gameId: v.string()},
     handler: async (ctx, { gameId }) => {
-        const game = await ctx.db.get(gameId);
-        return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime }
+        const id = gameId as Id<"tm_game">;
+        const game = await ctx.db.get(id);      
+        if(game){
+           const characters = await ctx.db
+            .query("tm_game_character").withIndex("by_game", (q) => q.eq("gameId", gameId)).collect();
+            const map = await ctx.db.query("tm_map_data").withIndex("by_map_id", (q) => q.eq("map_id", game.map)).unique();
+            return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,characters:characters.map((character)=>Object.assign({},character,{id:character?._id, _id: undefined, _creationTime: undefined })) ,map:{...map, _id: undefined, _creationTime: undefined }  }
+        }
+        return null
     },
 });
+// export const find = internalQuery({
+//     args: { gameId: v.id("tm_game") },
+//     handler: async (ctx, { gameId }) => {
+//         const game = await ctx.db.get(gameId);
+//         return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime }
+//     },
+// });
 export const create = internalMutation({
     args: {
         challenger:v.string(),

@@ -114,7 +114,6 @@ export default defineSchema({
     }).index("by_user", ['uid']).index("by_user_asset", ['uid', 'asset']),
     cuser: defineTable({
         cid: v.string(),
-        cuid: v.string(),
         channel: v.number(),
         name: v.optional(v.string()),
         email: v.optional(v.string()),
@@ -123,9 +122,9 @@ export default defineSchema({
     }).index("by_channel_cid", ["channel", "cid"]),
     user: defineTable({
         name: v.string(),
-        uid: v.optional(v.string()),
+        uid: v.string(),
         avatar: v.optional(v.number()),
-        cuid: v.string(),
+        cid: v.string(),
         token: v.optional(v.string()),
         partner: v.optional(v.number()),
         lastUpdate: v.optional(v.number()),
@@ -134,7 +133,7 @@ export default defineSchema({
         phone: v.optional(v.string()),
         role: v.optional(v.number()),//0-consumer 1-employee 2-owner
         status: v.optional(v.number())//0-inactive 1-active
-    }).index("by_channel_partner", ['cuid', 'partner']).index("by_uid", ['uid']),
+    }).index("by_channel_partner", ['cid', 'partner']).index("by_uid", ['uid']),
     partner: defineTable({
         name: v.string(),
         pid: v.number(),

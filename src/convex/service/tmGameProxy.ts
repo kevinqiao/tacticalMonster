@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { sessionAction, sessionQuery } from "../custom/session";
 import GameManager from "./tmGameManager";
+
 export const start = action({
     args: {},
     handler: async (ctx, args) => {
@@ -16,9 +17,12 @@ export const find = sessionQuery({
     }
 })
 export const walk = sessionAction({
-    args: { act: v.number(), gameId: v.string(), actionId: v.optional(v.number()), data: v.any() },
-    handler: async (ctx, { act, gameId, actionId, data }) => {
-        console.log("TM game service")
+    args: { gameId: v.string(), character_id: v.string(), to: v.object({ q: v.number(), r: v.number() }) },
+    handler: async (ctx, { gameId, character_id, to }) => {
+        const gameService = new GameManager(ctx);
+        if(!ctx.user) return false;
+        return await gameService.walk(gameId,ctx.user.uid,character_id,to);    
+
     }
 })
 export const defend = sessionAction({

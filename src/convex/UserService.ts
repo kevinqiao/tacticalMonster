@@ -8,7 +8,7 @@ export const authByToken = action({
     handler: async (ctx, { uid, token }) => {
         // console.log("uid:" + uid)
         try {
-            const user: any = await ctx.runQuery(internal.user.find, { id: uid as Id<"user"> });
+            const user: any = await ctx.runQuery(internal.user.find, { uid });
             console.log(user.token + ":" + token)
             if (user && user.token === token) {
                 const game = await ctx.runQuery(internal.games.findUserGame, { uid });
@@ -56,7 +56,7 @@ export const heartbeat = action({
 export const signin = action({
     args: { uid: v.id("user"), token: v.string() },
     handler: async (ctx, { uid, token }) => {
-        const user: any = await ctx.runQuery(internal.user.find, { id: uid });
+        const user: any = await ctx.runQuery(internal.user.find, { uid });
         // if (user) {
         //     const game = await ctx.runQuery(internal.games.findUserGame, { uid });
         //     if (game) {

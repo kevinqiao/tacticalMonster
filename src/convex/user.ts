@@ -1,6 +1,5 @@
 "platform: 'node'"
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 export const findAll = internalQuery({
   handler: async (ctx) => {
@@ -10,50 +9,58 @@ export const findAll = internalQuery({
 });
 
 export const find = internalQuery({
-  args: { id: v.id("user") },
-  handler: async (ctx, { id }) => {
-    const user = await ctx.db.get(id);
-    return { ...user, uid: user?._id, _id: undefined, _creationTime: undefined };
+  args: { uid: v.string() },
+  handler: async (ctx, { uid }) => {
+    const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+    return { ...user, _id: undefined, _creationTime: undefined };
   },
 });
 
 export const findByUid = query({
-  args: { id: v.id("user") },
-  handler: async (ctx, { id }) => {
-    const user = await ctx.db.get(id);
+  args: { uid: v.string() },
+  handler: async (ctx, { uid }) => {
+    const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
     return user;
   },
 });
 
 export const findByPartner = query({
-  args: { cuid: v.string(), partner: v.number() },
-  handler: async (ctx, { cuid, partner }) => {
-    const user = await ctx.db.query("user").withIndex("by_channel_partner", (q) => q.eq("cuid", cuid).eq("partner", partner)).unique();
+  args: { cid: v.string(), partner: v.number() },
+  handler: async (ctx, { cid, partner }) => {
+    const user = await ctx.db.query("user").withIndex("by_channel_partner", (q) => q.eq("cid", cid).eq("partner", partner)).unique();
     return user;
   },
 });
-export const findPlayers = query({
-  args: { uids: v.any() },
-  handler: async (ctx, { uids }) => {
-    const players = [];
-    for (const userId of uids) {
-      const player = await ctx.db.get(userId as Id<"user">);
-      if (player) {
-        const { _id: uid, avatar, name } = player;
-        players.push({ uid, avatar, name })
-      }
-    }
-    return players
-  },
-});
+// export const findPlayers = query({
+//   args: { uids: v.any() },
+//   handler: async (ctx, { uids }) => {
+//     const players = [];
+//     for (const userId of uids) {
+//       const player = await ctx.db.get(userId as Id<"user">);
+//       if (player) {
+//         const { _id: uid, avatar, name } = player;
+//         players.push({ uid, avatar, name })
+//       }
+//     }
+//     return players
+//   },
+// });
 
 export const create = mutation({
-  args: { cuid: v.string(), name: v.string(), partner: v.optional(v.number()), token: v.optional(v.string()), email: v.optional(v.string()) },
-  handler: async (ctx, { cuid, name, partner, token, email }) => {
-    const docId = await ctx.db.insert("user", { cuid, name, email, token, partner });
-    if (docId)
-      await ctx.db.patch(docId, { uid: docId })
-    return docId
+  args: { cid: v.string(), name: v.string(), partner: v.optional(v.number()), token: v.optional(v.string()), email: v.optional(v.string()) },
+  handler: async (ctx, { cid, name, partner, token, email }) => {
+    const uid = await ctx.db.insert("user", { 
+      cid, 
+      name, 
+      email, 
+      token, 
+      partner,
+      uid: ""
+    });
+    if (uid) {
+      await ctx.db.patch(uid, { uid });
+    }
+    return uid;
   },
 });
 
@@ -80,7 +87,7 @@ export const authorize = internalMutation({
       const _id = await ctx.db.insert("cuser", cuser);
       cuser['id'] = _id;
     }
-    let user: any = await ctx.db.query("user").withIndex("by_channel_partner", (q) => q.eq("cuid", cuid).eq("partner", partner)).unique();
+    let user: any = await ctx.db.query("user").withIndex("by_channel_partner", (q) => q.eq("cid", cid).eq("partner", partner)).unique();
     if (!user) {
       user = {
         cuid,

@@ -1,4 +1,4 @@
-import { Attributes, Stats } from "../battle/model/CharacterModels";
+import { Attributes, Stats } from "../battle/types/CharacterTypes";
 
 export interface Character {
     x: number;  // 当前列号

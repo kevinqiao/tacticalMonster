@@ -1,4 +1,5 @@
-import { MapModel } from "../../component/kumu/battle/model/CombatModels";
+import { GridCell, HexNode, MapModel, ObstacleCell } from "../../component/kumu/battle/types/CombatTypes";
+import { findPath } from "../../component/kumu/battle/utils/PathFind";
 import { internal } from "../_generated/api";
 import { Attributes, Stats } from "../model/CharacterModels";
 import { calculateStats } from "../utils/Utlis";
@@ -92,6 +93,52 @@ class GameManager {
                 await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);
             }
         }
+    }
+    async walk(gameId: string, uid: string, character_id: string, to: {q: number, r: number}): Promise<boolean> {
+      
+        const game = await this.dbCtx.runQuery(internal.dao.tmGameDao.find, { gameId });                
+        if (!game || !uid || !game.map) return false;
+
+        // 构建 gridCells
+        const { rows = 0, cols = 0, obstacles = [], disables = [] } = game.map;
+        const gridCells = Array.from({ length: Math.max(0, rows) }, (_, y) =>
+            Array.from({ length: Math.max(0, cols) }, (_, x) => ({
+                x,
+                y,
+                walkable: true,
+                type: 0,
+                gridContainer: null,
+                gridGround: null,
+                gridWalk: null
+            } as GridCell))
+        );
+
+        // 设置障碍物和禁用格子
+        obstacles?.forEach((o: ObstacleCell) => {
+            if (o.q >= 0 && o.q < cols && o.r >= 0 && o.r < rows) {
+                gridCells[o.r][o.q].walkable = false;
+                gridCells[o.r][o.q].type = 1;
+            }
+        });
+
+        const character = game.characters.find((c:any) => 
+            c.character_id === character_id && c.uid === uid
+        );
+
+        if (!character) return false;
+        const {q,r} = character;
+        if(!q||!r) return false;
+        const path:HexNode[]  = findPath(gridCells, 
+            { x: q, y: r },
+            { x: to.q, y: to.r }
+        );
+        if(path.length>0){
+            await this.dbCtx.runMutation(internal.dao.tmGameCharacterDao.update, {id:character.id ,data:{q:to.q,r:to.r}});
+            const event={gameId,name:"walk",data:{path}};
+            await this.dbCtx.runMutation(internal.dao.tmEventDao.create, event);
+            return true;
+        }
+        return false;
     }
 }
 export default GameManager

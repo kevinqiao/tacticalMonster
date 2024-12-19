@@ -1,8 +1,8 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import "../../map.css";
-import { CharacterUnit } from "../model/CombatModels";
 import { useCombatManager } from "../service/CombatManager";
+import { CharacterUnit } from "../types/CombatTypes";
 import { hexToPixel } from "../utils/hexUtil";
 import CharacterSpine from "./CharacterSpine";
 

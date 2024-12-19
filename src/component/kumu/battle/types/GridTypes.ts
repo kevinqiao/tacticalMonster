@@ -1,10 +1,10 @@
-import { GridCellType } from "../model/CombatModels";
+import { GridCellType } from "./CombatTypes";
 
 export interface GridCellProps {
   row: number;
   col: number;
-  onWalk?: (data:any)=>void;
-  onAttack?: (data:any)=>void;
+  walk?: (data:any)=>void;
+  attack?: (data:any)=>void;
 }
 
 export interface GridStyles {

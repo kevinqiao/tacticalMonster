@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { CombatEvent } from "../model/CombatModels";
+import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 import useActionProcessor from "./processor/useActionProcessor";
 import usePhaseProcessor from "./processor/usePhaseProcessor";
@@ -15,20 +15,26 @@ const useEventListener = () => {
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event) return;
         const { type, name,status, gameId, time, data } = event;
-        if (!status) {
-            console.log("processEvent",event)
+        if (!status) {      
             event.status = 1;
             switch(name){
                 case "walk":        
-                    processWalk(data);
+                    processWalk({data,onComplete:()=>{
+                        console.log("processWalk onComplete",event)
+                        eventQueue.shift();
+                    }});
                    break;
                 case "roundStart":
-                    processRoundStart(data);
-                    eventQueue.shift();
+                    processRoundStart({data,onComplete:()=>{
+                        console.log("processRoundStart onComplete",event)
+                        eventQueue.shift();
+                    }});
                     break;
                 case "turnStart":
-                    processTurnStart(data); 
-                    // eventQueue.shift();
+                    processTurnStart({data,onComplete:()=>{
+                        console.log("processTurnStart onComplete",event)
+                        eventQueue.shift();
+                    }}); 
                     break;
                 default:
                     console.log("unknown event",event)

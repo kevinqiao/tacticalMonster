@@ -1,23 +1,20 @@
 import { useCallback } from "react";
 import { playWalk } from "../../animation/playAction";
-import { CombatAction } from "../../model/CombatModels";
+import { CombatAction } from "../../types/CombatTypes";
 import { useCombatManager } from "../CombatManager";
 
 const useActionProcessor = () => {
     const {eventQueue,characters,gridCells,hexCell} = useCombatManager()
-    console.log("hexCell",hexCell)
-    const processWalk = useCallback((data:any) => {
-        if(!characters)return;
+    
+    const processWalk = useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {
+        if(!characters||!gridCells||!hexCell)return;
         const action = data as CombatAction;
         const character = characters.find((c) => c.character_id === action.character);
-        console.log("character",character)  
-        console.log("action",action)
-        console.log("gridCells",gridCells)
-        console.log("hexCell",hexCell)  
-        if(character&&action.data.path&&gridCells){          
+        if(character&&action.data.path){          
             playWalk(character,action.data.path,hexCell,gridCells);                    
         }
         eventQueue.shift();
+        onComplete();
     }, [eventQueue, characters, gridCells, hexCell])    
     const processAttack = useCallback((data:any) => {
         
