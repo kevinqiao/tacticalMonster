@@ -230,7 +230,7 @@ export default defineSchema({
         cooldowns: v.optional(v.any()),
         move_range: v.optional(v.number()),
         attack_range: v.object({ min: v.number(), max: v.number() })
-    }).index("by_game", ['gameId']),
+    }).index("by_game", ['gameId']).index("by_game_character", ['gameId','uid', 'character_id']),
     tm_game: defineTable({
         challenger: v.string(),
         challengee: v.string(),
@@ -240,13 +240,21 @@ export default defineSchema({
         map:v.string(),
         status:v.optional(v.number())
     }).index("by_challenger", ["challenger"]).index("by_challengee", ["challengee"]),
-    tm_round: defineTable({
+    tm_game_round: defineTable({
         gameId: v.id("tm_game"),
         no: v.number(),
         status: v.number(),
-        currentTurn: v.optional(v.object({ uid: v.string(), character_id: v.string(), startTime: v.optional(v.number()), completeTime: v.optional(v.number()) })),
-        turns: v.array(v.object({ uid: v.string(), character_id: v.string(), status: v.number(), startTime: v.optional(v.number()), completeTime: v.optional(v.number()) }))
-    }).index("by_game_no", ["gameId", "no"]),
+        endTime: v.optional(v.number()),    
+        turns: v.array(v.object({ uid: v.string(), character_id: v.string(), status: v.number(), startTime: v.optional(v.number()), endTime: v.optional(v.number()) }))
+    }).index("by_game_round", ["gameId", "no"]),
+    tm_game_turn: defineTable({
+        gameId: v.id("tm_game"),
+        round: v.number(),
+        uid: v.string(),
+        character_id: v.string(),
+        status: v.number(),
+    }).index("by_game_round", ["gameId", "round"]),
+
     tm_action: defineTable({
         gameId: v.id("tm_game"),
         round: v.number(),

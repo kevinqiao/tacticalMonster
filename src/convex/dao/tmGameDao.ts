@@ -8,10 +8,11 @@ export const findBySession = sessionQuery({
         const id = gameId as Id<"tm_game">;
         const game = await ctx.db.get(id);      
         if(game){
-           const characters = await ctx.db
+            const currentRound = await ctx.db.query("tm_game_round").withIndex("by_game_round", (q) => q.eq("gameId", game._id).eq("no", game.round)).unique();
+            const characters = await ctx.db
             .query("tm_game_character").withIndex("by_game", (q) => q.eq("gameId", gameId)).collect();
             const map = await ctx.db.query("tm_map_data").withIndex("by_map_id", (q) => q.eq("map_id", game.map)).unique();
-            return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,characters:characters.map((character)=>Object.assign({},character,{id:character?._id, _id: undefined, _creationTime: undefined })) ,map:{...map, _id: undefined, _creationTime: undefined }  }
+            return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,currentRound:currentRound?currentRound:{no:0,turns:[]},characters:characters.map((character)=>Object.assign({},character,{id:character?._id, _id: undefined, _creationTime: undefined })) ,map:{...map, _id: undefined, _creationTime: undefined }  }
         }
         return null
     },
@@ -19,13 +20,15 @@ export const findBySession = sessionQuery({
 export const find = internalQuery({
     args: { gameId: v.string()},
     handler: async (ctx, { gameId }) => {
+    
         const id = gameId as Id<"tm_game">;
         const game = await ctx.db.get(id);      
         if(game){
-           const characters = await ctx.db
+            const currentRound = await ctx.db.query("tm_game_round").withIndex("by_game_round", (q) => q.eq("gameId", game._id).eq("no", game.round)).unique();
+            const characters = await ctx.db
             .query("tm_game_character").withIndex("by_game", (q) => q.eq("gameId", gameId)).collect();
             const map = await ctx.db.query("tm_map_data").withIndex("by_map_id", (q) => q.eq("map_id", game.map)).unique();
-            return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,characters:characters.map((character)=>Object.assign({},character,{id:character?._id, _id: undefined, _creationTime: undefined })) ,map:{...map, _id: undefined, _creationTime: undefined }  }
+            return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,currentRound:{...currentRound,id:currentRound?._id, _id: undefined, _creationTime: undefined },characters:characters.map((character)=>Object.assign({},character,{id:character?._id, _id: undefined, _creationTime: undefined })) ,map:{...map, _id: undefined, _creationTime: undefined }  }
         }
         return null
     },

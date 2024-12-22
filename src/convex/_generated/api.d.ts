@@ -57,6 +57,7 @@ import type * as tournaments from "../tournaments.js";
 import type * as tournamentService from "../tournamentService.js";
 import type * as user from "../user.js";
 import type * as UserService from "../UserService.js";
+import type * as utils_gameUtils from "../utils/gameUtils.js";
 import type * as utils_Utlis from "../utils/Utlis.js";
 
 /**
@@ -111,6 +112,7 @@ declare const fullApi: ApiFromModules<{
   tournamentService: typeof tournamentService;
   user: typeof user;
   UserService: typeof UserService;
+  "utils/gameUtils": typeof utils_gameUtils;
   "utils/Utlis": typeof utils_Utlis;
 }>;
 export declare const api: FilterApi<

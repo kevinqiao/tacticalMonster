@@ -1,7 +1,7 @@
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { api } from "../../../../convex/_generated/api";
-import { ACT_CODE, CharacterUnit, EVENT_TYPE } from "../types/CombatTypes";
+import { CharacterUnit, EVENT_TYPE } from "../types/CombatTypes";
 import { findPath } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
@@ -15,14 +15,20 @@ const useCombatAct = () => {
 
   const walk = useCallback(async (to: { q: number; r: number }) => {
     // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
-    if (!characters || !gridCells) return;
-    console.log('characters', characters[0]);
+    console.log("walk", currentRound);
+    if (!gameId || !characters || !gridCells || !currentRound) return;
+    const currentTurn = currentRound.turns.find((t) => t.status === 1);
+    if (!currentTurn) return;
+    console.log("currentTurn", currentTurn);
+    const { uid, character_id } = currentTurn;
+    const character = characters.find(c => c.character_id === character_id && c.uid === uid);
+    if (!character) return;
     const path = findPath(gridCells,
-      { x: characters[0].q, y: characters[0].r },
+      { x: character.q, y: character.r },
       { x: to.q, y: to.r }
     );
-
-    if (!path || !gameId) return;
+    console.log(path);
+    if (!path) return;
 
     eventQueue.push({
       type: EVENT_TYPE.ACTION,
@@ -31,24 +37,26 @@ const useCombatAct = () => {
       gameId: "current",
       time: Date.now(),
       data: {
-        uid: "1",
-        character: characters[0].character_id,
-        act: ACT_CODE.WALK,
-        data: { path },
+        uid,
+        character_id,
+        path
       },
     });
+
     const res = await convex.action(api.service.tmGameProxy.walk, {
       gameId,
-      character_id: characters[0].character_id,
-      uid: "1",
+      character_id,
+      uid,
       token: "test-token",
       to: { q: to.q, r: to.r }
     });
     if (!res) {
       console.log("walk failed");
+    } else {
+      console.log("walk success");
     }
 
-  }, [characters, currentRound, gridCells, convex]);
+  }, [gameId, characters, currentRound, gridCells, convex]);
 
   const standBy = useCallback((character: CharacterUnit) => {
     console.log("stand...");

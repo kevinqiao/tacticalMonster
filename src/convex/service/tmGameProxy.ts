@@ -19,9 +19,10 @@ export const find = sessionQuery({
 export const walk = sessionAction({
     args: { gameId: v.string(), character_id: v.string(), to: v.object({ q: v.number(), r: v.number() }) },
     handler: async (ctx, { gameId, character_id, to }) => {
+        if (!ctx.user) return false;
         const gameService = new GameManager(ctx);
-        if(!ctx.user) return false;
-        return await gameService.walk(gameId,ctx.user.uid,character_id,to);    
+        console.log("walk action:", character_id, ctx.user.uid);
+        return await gameService.walk(gameId, ctx.user.uid, character_id, to);
 
     }
 })

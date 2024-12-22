@@ -5,7 +5,6 @@ import { api } from "../../../convex/_generated/api";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
 import useEventListener from "./service/useEventListener";
-import useGameInit from "./service/useGameInit";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
@@ -65,7 +64,7 @@ const BattleVenue: React.FC = () => {
   } | null>(null);
   const { map, changeCell } = useCombatManager();
   useEventListener();
-  useGameInit();
+  // useGameInit();
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;

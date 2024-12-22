@@ -32,12 +32,22 @@ export interface Player {
 }
 
 export interface CombatEvent {
-    type: number;//0-phase 1-action 2-effect;
+    type?: number;//0-phase 1-action 2-effect;
     name: string;
     gameId?: string;
     time?: number;
     status?: number;//
     data?: CombatAction|CombatRound|any;
+}
+export interface GameModel {
+  gameId: string;
+  map: MapModel;
+  challenger: string;
+  challengee: string;
+  players: Player[];
+  characters: CharacterUnit[];
+  currentRound?: CombatRound;
+  timeClock: number;
 }
 export interface CombatAction {
     uid: string;
@@ -46,15 +56,21 @@ export interface CombatAction {
     act: number;
     data?: any;
 }
-
+export interface CombatTurn {
+    gameId?: string;
+    round?: number;
+    uid: string;
+    character_id: string;
+    status?: number;
+    startTime?: number;
+    endTime?: number;   
+}
 export interface CombatRound {
+    gameId?: string;
     no: number;
-    gameId: string;
-    startTime?:number;
-    completeTime?:number;
-    status?:number;//0-pending 1-inited 2-completed
-    currentTurn?:{uid:string,character:string,startTime:number};
-    turns: { uid: string; character: string; status: number;startTime?:number;completeTime?:number }[];
+    currentTurn?: CombatTurn;   
+    turns: CombatTurn[];
+    status?: number;
 }
 
 export enum GridCellType {

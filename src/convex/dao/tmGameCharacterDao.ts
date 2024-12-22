@@ -1,12 +1,12 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
-export const findByGame = internalQuery({
-    args: { gameId: v.string(), category: v.string() },
-    handler: async (ctx, { gameId, category }) => {
-        const characters = await ctx.db
-            .query("tm_game_character").withIndex("by_game", (q) => q.eq("gameId", gameId)).collect();
-
-        return characters.map((character) => Object.assign({}, character, { id: character?._id, _creationTime: undefined, _id: undefined }))
+export const find= internalQuery({
+    args: { gameId: v.string(), uid: v.string(), character_id   : v.string() },
+    handler: async (ctx, { gameId, uid, character_id }) => {
+        const character = await ctx.db
+            .query("tm_game_character").withIndex("by_game_character", (q) => q.eq("gameId", gameId).eq("uid", uid).eq("character_id", character_id)).unique();
+        if (!character) return null;
+        return character;   
     },
 });
 export const create = internalMutation({
@@ -30,11 +30,15 @@ export const create = internalMutation({
 });
 export const update = internalMutation({
     args: {
-        id: v.id("tm_game_character"),
+        gameId: v.string(),
+        uid: v.string(),
+        character_id: v.string(),
         data: v.any()
     },
-    handler: async (ctx, { id, data }) => {
-        await ctx.db.patch(id, data);
+    handler: async (ctx, { gameId, uid, character_id, data }) => {
+        const character = await ctx.db.query("tm_game_character").withIndex("by_game_character", (q) => q.eq("gameId", gameId).eq("uid", uid).eq("character_id", character_id)).unique();
+        if (!character) return false;
+        await ctx.db.patch(character._id, data);
         return true
     },
 })

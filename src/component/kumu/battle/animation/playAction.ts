@@ -3,7 +3,7 @@ import { CharacterUnit, GridCell } from "../types/CombatTypes";
 import { hexToPixel } from "../utils/hexUtil";
 
 export const playWalk = (character: CharacterUnit, path: {x:number,y:number}[], hexCell:{width:number,height:number},gridCells:GridCell[][]) => {
-    // console.log("playWalk",character.walkables)
+    console.log("playWalk",character.walkables)
     const container = character.container;    
     const spine = character.skeleton;
     if (!spine||!container) return;

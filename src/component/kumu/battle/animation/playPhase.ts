@@ -1,8 +1,8 @@
 import gsap from "gsap";
 import { CharacterUnit, GridCell } from "../types/CombatTypes";
 
-export const playGameInit= (characters: CharacterUnit[],  gridCells: GridCell[][]) => {
- const tl = gsap.timeline();
+export const playGameInit= (characters: CharacterUnit[],  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
+    const tl =gsap.timeline();
     tl.to({}, {}, ">1")
     for (let row = 0; row < gridCells.length; row++) {
         for (let col = 0; col < gridCells[row].length; col++) {
@@ -19,11 +19,12 @@ export const playGameInit= (characters: CharacterUnit[],  gridCells: GridCell[][
             },">");
         }
     });
-    tl.play();
-
+    if(timeline)timeline.add(tl);
+    else tl.play();
+    
 }
-export const playTurnStart= (character: CharacterUnit,  gridCells: GridCell[][]) => {
-
+export const playTurnStart= (character: CharacterUnit,  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
+    console.log("playTurnStart",character)
     const tl = gsap.timeline();
     if(character?.standEle){    
         tl.to(character.standEle, {
@@ -45,7 +46,8 @@ export const playTurnStart= (character: CharacterUnit,  gridCells: GridCell[][])
             },"<");
         });
     }
+    if(timeline)timeline.add(tl,"<");
+    else tl.play(); 
 
-    return tl.play();
 };
 

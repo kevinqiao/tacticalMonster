@@ -9,26 +9,17 @@ import {
   CharacterUnit,
   CombatEvent,
   CombatRound,
+  GameModel,
   GridCell,
   ICombatContext,
-  MapModel,
-  Player
+  MapModel
 } from "../types/CombatTypes";
 
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 
-interface GameModel {
-  gameId: string;
-  map: MapModel;
-  challenger: string;
-  challengee: string;
-  players: Player[];
-  characters: CharacterUnit[];
-  currentRound?: CombatRound;
-  timeClock: number;
-}
+
 
 const characterList = players.reduce<CharacterUnit[]>(
   (acc, cur) => [
@@ -55,6 +46,7 @@ const mapData = {
   ],
 };
 export const CombatContext = createContext<ICombatContext>({
+  currentRound: { no: 0, turns: [], status: 0 },
   gameId: null,
   hexCell: { width: 0, height: 0 },
   resourceLoad: { character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 },
@@ -68,10 +60,8 @@ export const CombatContext = createContext<ICombatContext>({
 });
 const round: CombatRound = {
   no: 1,
-  gameId: "current",
-  currentTurn: { uid: "1", character: "1", startTime: Date.now() },
   turns: [],
-  status: 1
+  status: 0
 };
 
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
@@ -90,7 +80,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const [game, setGame] = useState<GameModel | null>(null);
   const events: any = useQuery(api.dao.tmEventDao.find, { gameId, lastTime });
   const convex = useConvex();
-  const { map, challenger, challengee, characters, currentRound, timeClock } = game || {};
+  const { map, challenger, challengee, characters, timeClock, currentRound } = game || {};
   useEffect(() => {
     if (Array.isArray(events) && events.length > 0) {
       console.log(events)
@@ -99,32 +89,35 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     }
   }, [events]);
   useEffect(() => {
+    console.log("gameId", gameId);
 
-    const fetchGame = async () => {
-      if (gameId) {
-        console.log("gameId", gameId);
-        const gameObj = await convex.query(api.dao.tmGameDao.findBySession, {
-          gameId, uid: "1",
-          token: "test-token"
+    if (!gameId) return;
+
+    const fetchGame = async (gameId: string) => {
+
+      console.log("gameId", gameId);
+      const gameObj = await convex.query(api.dao.tmGameDao.findBySession, {
+        gameId, uid: "1",
+        token: "test-token"
+      });
+      if (gameObj) {
+        console.log("gameObj", gameObj);
+        setGame({
+          gameId: gameObj.id,
+          map: gameObj.map as MapModel ?? mapData,
+          challenger: gameObj.challenger,
+          challengee: gameObj.challengee,
+          players: gameObj.players,
+          characters: gameObj.characters ?? characterList,
+          currentRound: gameObj.currentRound ?? round,
+          timeClock: 0
         });
-        if (gameObj) {
-          console.log(gameObj);
-          setGame({
-            gameId: gameObj.id,
-            map: gameObj.map as MapModel ?? mapData,
-            challenger: gameObj.challenger,
-            challengee: gameObj.challengee,
-            players: gameObj.players,
-            characters: gameObj.characters ?? characterList,
-            currentRound: round,
-            timeClock: 0
-          });
-          setLastTime(gameObj.lastUpdate);
-        }
+        setLastTime(gameObj.lastUpdate);
+        eventQueueRef.current.push({ name: "gameInit", data: gameObj, status: 0 });
       }
-    };
 
-    fetchGame();
+    };
+    fetchGame(gameId);
   }, [gameId]);
 
   useEffect(() => {
@@ -161,31 +154,6 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 
 
 
-  // const walk = useCallback(async (to: { q: number; r: number }) => {
-  //   // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
-  //   if (!characters || !gridCells) return;
-  //   console.log('characters', characters[0]);
-  //   const path = findPath(gridCells,
-  //     { x: characters[0].q, y: characters[0].r },
-  //     { x: to.q, y: to.r }
-  //   );
-
-  //   if (!path) return;
-
-  //   eventQueueRef.current.push({
-  //     type: EVENT_TYPE.ACTION,
-  //     name: "walk",
-  //     status: 0,
-  //     gameId: "current",
-  //     time: Date.now(),
-  //     data: {
-  //       uid: "1",
-  //       character: characters[0].character_id,
-  //       act: ACT_CODE.WALK,
-  //       data: { path },
-  //     },
-  //   });
-  // }, [characters, currentRound, gridCells]);
 
   const value = {
     gameId,
