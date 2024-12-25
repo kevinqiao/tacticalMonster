@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import '../../map.css';
-import { SCALE_FACTOR, STYLES } from '../constants/GridConstants';
+import { HEX_RATIO, SCALE_FACTOR, STYLES } from '../constants/GridConstants';
 import { useGridElementLoader } from '../hooks/useGridElements';
 import { useCombatManager } from '../service/CombatManager';
 import useCombatAct from '../service/useCombatAct';
@@ -11,6 +11,7 @@ import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils
 const GroundCell: React.FC<GridCellProps> = ({ row, col, walk, attack }) => {
   const { hexCell } = useCombatManager();
   const { width, height } = hexCell;
+
 
   // 使用自定义 Hook 加载网格元素
   const loadContainer = useGridElementLoader('container', row, col);
@@ -74,8 +75,8 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk, attack }) => {
         fill="black"
         stroke="white"
         strokeWidth={4}
-        opacity={0}
-        visibility="hidden"
+        opacity={0.1}
+        // visibility="hidden"
         pointerEvents="none"
         role="button"
         aria-label={`Ground grid at row ${row}, column ${col}`}
@@ -121,26 +122,29 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk, attack }) => {
 };
 
 const GridContainer: React.FC = () => {
-  const { hexCell, gridCells } = useCombatManager();
+  const { map, hexCell, gridCells } = useCombatManager();
   const { walk, attack } = useCombatAct();
 
-  if (!gridCells) {
+  // 移动 useCallback 到顶部
+  const rowStyle = useCallback((row: number) => {
+    const isOdd = row % 2 !== 0;
+    const left = isOdd ? (map?.direction === 1 ? -hexCell.width / 2 : hexCell.width / 2) : 0;
+    const bottom = -hexCell.width * HEX_RATIO.HEIGHT_TO_WIDTH * 1 / 4;
+    return STYLES.row(bottom, left);
+  }, [hexCell, map]);
+
+  if (!gridCells || !map) {
     return <div>Loading grid...</div>;
   }
 
-  if (gridCells.length === 0 || gridCells[0].length === 0) {
-    return <div>No grid data available</div>;
-  }
-
-  const rows = gridCells.length;
-  const cols = gridCells[0].length;
+  const { rows, cols } = map;
 
   return (
     <>
       {Array.from({ length: rows }).map((_, row) => (
         <div
           key={row}
-          style={STYLES.row(hexCell.width, row % 2 !== 0)}
+          style={rowStyle(row)}  // 使用缓存的样式函数
           data-testid={`grid-row-${row}`}
         >
           {Array.from({ length: cols }).map((_, col) => (

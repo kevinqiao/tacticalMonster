@@ -1,23 +1,23 @@
 import { useCallback } from "react";
-import { playWalk } from "../../animation/playAction";
+import useActionPlay from "../../animation/playAction";
 import { useCombatManager } from "../CombatManager";
 
 const useActionProcessor = () => {
-    const {eventQueue,characters,gridCells,hexCell} = useCombatManager()
     
+    const {eventQueue,characters,gridCells,hexCell} = useCombatManager()
+    const {playWalk} = useActionPlay();
     const processWalk = useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {
         if(!characters||!gridCells||!hexCell)return;
         console.log(data);
         const {uid,character_id,path} = data;
         const character = characters.find((c) => c.character_id === character_id&&c.uid===uid);
-        console.log("path",path);
+    
         const {x,y} = path[path.length-1];
-        console.log("character",character);
-        console.log("x-y:",x,y);    
+ 
         if(character&&(character.q!==x||character.r!==y)){   
             character.q=x;
             character.r=y;         
-            playWalk(character,path,hexCell,gridCells);                    
+            playWalk(character,path);                    
         }
         eventQueue.shift();
         onComplete();

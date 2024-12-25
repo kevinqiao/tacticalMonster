@@ -13,7 +13,6 @@ export const useGridElementLoader = (
   col: number
 ) => {
   const { gridCells, setResourceLoad } = useCombatManager();
-
   return useCallback((ele: any) => {
     if (!gridCells || !ele) return;
     

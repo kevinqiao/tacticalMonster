@@ -127,6 +127,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     if (newIndex === 0) history.replaceState({ index: 0 }, "", window.location.href);
     const page = parseLocation();
     if (page) {
+      console.log("page", page)
       currentPageRef.current = { index: newIndex, page };
       setChangeEvent({ type: 3, index: newIndex, prepage: null });
     }

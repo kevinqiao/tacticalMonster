@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { playGameInit } from "../animation/playPhase";
 import { useCombatManager } from "./CombatManager";
 
 const useGameInit = () => {
@@ -17,7 +16,7 @@ const useGameInit = () => {
                     setInitComplete(true);
                 }
             });
-            playGameInit(characters,gridCells,tl)  
+            // playGameInit(characters,gridCells,tl)  
             tl.play();
         }
     }, [gridGround,characterReady, gridCells,characters]);

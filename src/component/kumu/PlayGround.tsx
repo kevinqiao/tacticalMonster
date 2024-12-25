@@ -2,11 +2,13 @@ import { PageProp } from "component/RenderApp";
 import { useAction, useQuery } from "convex/react";
 import React, { useEffect, useState } from "react";
 import { usePageManager } from "service/PageManager";
+import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/_generated/api";
 import "./map.css";
 const PlayGround: React.FC<PageProp> = (props) => {
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const { openPage } = usePageManager();
+  const { authComplete } = useUserManager();
   const events = useQuery(api.dao.tmEventDao.find, { uid: "1", lastTime });
   const startGame = useAction(api.service.tmGameProxy.start);
   useEffect(() => {
@@ -21,6 +23,12 @@ const PlayGround: React.FC<PageProp> = (props) => {
       setLastTime(events[events.length - 1]["time"]);
     }
   }, [events]);
+  useEffect(() => {
+    const { uid } = props.data;
+    if (uid) {
+      authComplete({ uid, token: "" }, 0);
+    }
+  }, [props])
 
   return (
     <>

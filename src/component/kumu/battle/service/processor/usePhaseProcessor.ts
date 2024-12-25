@@ -1,20 +1,24 @@
 import gsap from "gsap";
 import { useCallback } from "react";
-import { playGameInit, playTurnStart } from "../../animation/playPhase";
+import useMapPlay from "../../animation/playMapChange";
+import usePhasePlay from "../../animation/playPhase";
 import { CharacterUnit } from "../../types/CombatTypes";
 import { getWalkableNodes } from "../../utils/PathFind";
 import { useCombatManager } from "../CombatManager";
 
 const usePhaseProcessor = () => {
-    const {characters,gridCells,hexCell,currentRound,resourceLoad} = useCombatManager()
+    const {characters,gridCells,hexCell,currentRound,resourceLoad} = useCombatManager();
+    const {playTurnStart,playGameInit} = usePhasePlay();    
+    const { playChangeCoordDirection } = useMapPlay();
+    
     const processTurnStart = useCallback(({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
-        console.log("processTurnStart",data)
+        // console.log("processTurnStart",data)
         const {character_id,uid} = data
         if(!characters||!currentRound)return;
         const currentTurn = currentRound.turns.find((t)=>t.uid===uid&&t.character_id===character_id);
         if(!currentTurn)return;
         currentTurn.status = 1;
-        console.log("currentRound",currentRound);
+        // console.log("currentRound",currentRound);
         const activeCharacter = characters.find((c)=>c.character_id===character_id&&c.uid===uid);
 
         if(activeCharacter&&gridCells){
@@ -53,7 +57,7 @@ const usePhaseProcessor = () => {
     }, [currentRound]);   
 
     const processGameInit = useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {
-        console.log("processGameInit",resourceLoad)
+     
         if(!gridCells||Object.values(resourceLoad).some(v=>v===0)) return; 
         const {characters,currentRound} = data;
         const tl = gsap.timeline({
@@ -65,6 +69,7 @@ const usePhaseProcessor = () => {
         if(!currentRound) return;   
         const currentTurn = currentRound.turns.find((t:any)=>t.status===0||t.status===1);
         if(currentTurn){
+            tl.to({},{},">-=0.4")    
             const activeCharacter = characters.find((c:CharacterUnit)=>c.character_id===currentTurn.character_id&&c.uid===currentTurn.uid);
             if(activeCharacter){       
                 const nodes = getWalkableNodes(gridCells, { x: activeCharacter.q, y: activeCharacter.r }, activeCharacter.move_range || 2);                   
@@ -75,6 +80,17 @@ const usePhaseProcessor = () => {
         tl.play();
 
     }, [gridCells,resourceLoad]);   
-    return {processGameInit,processRoundStart,processRoundEnd,processTurnStart,processTurnEnd}
+    const processChangeCoordDirection = useCallback(({data, onComplete}: {data: any, onComplete: () => void}) => {
+        if(!gridCells) return;
+        console.log("processChangeCoordDirection",data) 
+        const tl = gsap.timeline({
+            onComplete: () => onComplete()
+        });
+        const {direction} = data;
+        console.log("direction",direction)  
+        playChangeCoordDirection(direction,tl);
+        tl.play();
+    }, [gridCells, resourceLoad]);   
+    return {processGameInit,processRoundStart,processRoundEnd,processTurnStart,processTurnEnd,processChangeCoordDirection}
 }
 export default usePhaseProcessor

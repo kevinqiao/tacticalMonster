@@ -6,7 +6,7 @@ import { findPath } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
 const useCombatAct = () => {
-  const { gameId, characters, gridCells, hexCell, eventQueue, currentRound } = useCombatManager()
+  const { map, gameId, characters, gridCells, hexCell, eventQueue, currentRound } = useCombatManager()
   const convex = useConvex();
 
   const attack = useCallback(async (to: { q: number; r: number }) => {
@@ -15,17 +15,18 @@ const useCombatAct = () => {
 
   const walk = useCallback(async (to: { q: number; r: number }) => {
     // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
-    console.log("walk", currentRound);
-    if (!gameId || !characters || !gridCells || !currentRound) return;
+    console.log("walk", to);
+    if (!gameId || !characters || !gridCells || !currentRound || !map) return;
     const currentTurn = currentRound.turns.find((t) => t.status === 1);
     if (!currentTurn) return;
     console.log("currentTurn", currentTurn);
     const { uid, character_id } = currentTurn;
     const character = characters.find(c => c.character_id === character_id && c.uid === uid);
     if (!character) return;
+    const col = map.direction === 1 ? map.cols - to.q - 1 : to.q;
     const path = findPath(gridCells,
       { x: character.q, y: character.r },
-      { x: to.q, y: to.r }
+      { x: col, y: to.r }
     );
     console.log(path);
     if (!path) return;
@@ -56,7 +57,7 @@ const useCombatAct = () => {
       console.log("walk success");
     }
 
-  }, [gameId, characters, currentRound, gridCells, convex]);
+  }, [map, gameId, characters, currentRound, gridCells, convex]);
 
   const standBy = useCallback((character: CharacterUnit) => {
     console.log("stand...");

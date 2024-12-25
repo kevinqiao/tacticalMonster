@@ -1,7 +1,6 @@
 import { PageProp } from "component/RenderApp";
-import { useAction } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
-import { api } from "../../../convex/_generated/api";
+import { useUserManager } from "service/UserManager";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
 import useEventListener from "./service/useEventListener";
@@ -10,24 +9,30 @@ import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 
 const CombatActPanel: React.FC = () => {
-  const doSomething = useAction(api.rule.test.doSomething);
-  const startGame = useAction(api.service.tmGameProxy.start);
+  const { eventQueue, changeCoordDirection } = useCombatManager();
+  // const doSomething = useAction(api.rule.test.doSomething);
+  // const startGame = useAction(api.service.tmGameProxy.start);
 
   return (
     <div className="action-control" style={{ left: 0 }}>
-      <div className="action-panel-item" onClick={() => startGame()}>
-        START
+      <div className="action-panel-item" onClick={() => changeCoordDirection(0)}>
+        REPOSE(0)
+      </div>
+      <div className="action-panel-item" onClick={() => changeCoordDirection(1)}>
+        REPOSE(1)
       </div>
       <div className="action-panel-item">STANDBY</div>
-      <div className="action-panel-item" onClick={() => doSomething()}>
+      <div className="action-panel-item">
         DEFEND
       </div>
     </div>
   );
 };
 const CombatPlaza: React.FC = () => {
+  const { map, hexCell } = useCombatManager();
+  console.log("map", map);
   return (
-    <div className="plaza-container">
+    <div className="plaza-container" style={{ marginLeft: map?.direction === 1 ? hexCell.width / 2 : 0 }}>
       <div className="plaza-layer" style={{ top: 0, left: 0 }}>
         <ObstacleGrid />
       </div>
@@ -44,6 +49,7 @@ const CombatPlaza: React.FC = () => {
 
 const BattleVenue: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const { user } = useUserManager();
   const [placePosition, setPlacePosition] = useState<{
     top: number;
     left: number;
@@ -140,10 +146,18 @@ const BattleVenue: React.FC = () => {
     </div>
   );
 };
-const BattlePlayer: React.FC<PageProp> = (props) => {
-  if (!props.data?.gameId) return null;
+const BattlePlayer: React.FC<PageProp> = ({ data }) => {
+
+  const { gameId, uid } = data;
+  if (!gameId) return;
+  const { authComplete } = useUserManager();
+  useEffect(() => {
+    if (uid) {
+      authComplete({ uid, token: "" }, 0);
+    }
+  }, [uid, authComplete])
   return (
-    <BattleProvider gameId={props.data.gameId}>
+    <BattleProvider gameId={gameId}>
       <BattleVenue></BattleVenue>
     </BattleProvider>
   );

@@ -42,6 +42,7 @@ export interface CombatEvent {
 export interface GameModel {
   gameId: string;
   map: MapModel;
+  direction?: number;
   challenger: string;
   challengee: string;
   players: Player[];
@@ -114,6 +115,7 @@ export interface AttackableNode extends HexNode {
 export interface CharacterUnit extends Character {
     uid: string;
     character_id: string;
+    isFacingRight?: boolean; 
     asset: string;
     q: number;
     r: number;
@@ -128,6 +130,7 @@ export interface CharacterUnit extends Character {
 export interface MapModel {
     rows: number;
     cols: number;
+    direction?: number; //0-从左到右     1-从右到左
     obstacles?: ObstacleCell[];
     disables?: { q: number; r: number }[];
 }
@@ -144,6 +147,7 @@ export interface MapModel {
 // }
 
 export interface ICombatContext {
+    coordDirection:number;  
     hexCell: {width:number,height:number};
     gameId:string|null;
     map?: MapModel;
@@ -155,11 +159,13 @@ export interface ICombatContext {
     characters?: CharacterUnit[] ;
     currentRound?: CombatRound;
     eventQueue: CombatEvent[];
+    // rowContainers: { [k: number]: HTMLDivElement };
     resourceLoad: {
         character: number;
         gridContainer: number;
         gridGround: number;
         gridWalk: number;
+        // rowContainers: number;
     } ;
     setResourceLoad: React.Dispatch<
         React.SetStateAction<{
@@ -170,6 +176,7 @@ export interface ICombatContext {
         }>
     >;
     changeCell: React.Dispatch<React.SetStateAction<{width:number,height:number}>>;
+    changeCoordDirection:(direction:number)=>void;
     // walk: (to: { q: number; r: number }) => void;
     // findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;
     // getPixelPosition: (x: number, y: number) => { x: number, y: number };

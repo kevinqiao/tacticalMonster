@@ -1,11 +1,11 @@
 import { SVGProps } from 'react';
 
 export const STYLES = {
-  row: (size: number, isOdd: boolean): React.CSSProperties => ({
+  row: (bottom: number,left:number): React.CSSProperties => ({
     display: "flex",
     justifyContent: "flex-start",
-    marginLeft: isOdd ? `${size / 2}px` : "0",
-    marginBottom: `${-size * HEX_RATIO.HEIGHT_TO_WIDTH * 1/4}px`,
+    marginLeft: `${left}px`,  
+    marginBottom: `${bottom}px`,
   }),
   cell: ({ width, height }: { width: number; height: number }): React.CSSProperties => ({
     position: "relative",

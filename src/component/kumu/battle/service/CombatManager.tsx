@@ -1,8 +1,9 @@
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
+import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/_generated/api";
 import { allObstacles, players } from "../data/CombatData";
 import {
@@ -46,6 +47,8 @@ const mapData = {
   ],
 };
 export const CombatContext = createContext<ICombatContext>({
+  // rowContainers: {},
+  coordDirection: 0,
   currentRound: { no: 0, turns: [], status: 0 },
   gameId: null,
   hexCell: { width: 0, height: 0 },
@@ -56,7 +59,7 @@ export const CombatContext = createContext<ICombatContext>({
   eventQueue: [],
   setResourceLoad: () => null,
   changeCell: () => null,
-
+  changeCoordDirection: () => null
 });
 const round: CombatRound = {
   no: 1,
@@ -65,11 +68,10 @@ const round: CombatRound = {
 };
 
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
-
+  const [coordDirection, setCoordDirection] = useState<number>(0);
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
   const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
-
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const [resourceLoad, setResourceLoad] = useState<{
     character: number;
@@ -81,17 +83,17 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const events: any = useQuery(api.dao.tmEventDao.find, { gameId, lastTime });
   const convex = useConvex();
   const { map, challenger, challengee, characters, timeClock, currentRound } = game || {};
+  const { user } = useUserManager();
   useEffect(() => {
     if (Array.isArray(events) && events.length > 0) {
-      console.log(events)
       eventQueueRef.current.push(...events);
       setLastTime(events[events.length - 1].time);
     }
   }, [events]);
   useEffect(() => {
-    console.log("gameId", gameId);
 
-    if (!gameId) return;
+
+    if (!gameId || !user.uid) return;
 
     const fetchGame = async (gameId: string) => {
 
@@ -102,9 +104,13 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
       });
       if (gameObj) {
         console.log("gameObj", gameObj);
+        if (gameObj.challenger !== user.uid) {
+          const map = gameObj.map as MapModel;
+          map.direction = 1;
+        }
         setGame({
           gameId: gameObj.id,
-          map: gameObj.map as MapModel ?? mapData,
+          map: gameObj.map as MapModel,
           challenger: gameObj.challenger,
           challengee: gameObj.challengee,
           players: gameObj.players,
@@ -118,7 +124,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 
     };
     fetchGame(gameId);
-  }, [gameId]);
+  }, [gameId, user]);
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;
@@ -140,11 +146,11 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
           cell.walkable = false;
           cell.type = 1;
         }
-        const disable = disables?.find((d) => d.q === x && d.r === y);
-        if (disable) {
-          cell.walkable = false;
-          cell.type = 2;
-        }
+        // const disable = disables?.find((d) => d.q === x && d.r === y);
+        // if (disable) {
+        //   cell.walkable = false;
+        //   cell.type = 2;
+        // }
         return cell;
       })
     );
@@ -152,10 +158,18 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     setGridCells(cells);
   }, [map]);
 
+  const changeCoordDirection = useCallback((direction: number) => {
+    console.log("changeCoordDirection", direction);
+    if (map) {
+      map.direction = direction;
+      eventQueueRef.current.push({ name: "changeCoordDirection", data: map, status: 0 });
+    }
 
+  }, [map, eventQueueRef.current]);
 
 
   const value = {
+    coordDirection,
     gameId,
     hexCell,
     map,
@@ -169,6 +183,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     resourceLoad,
     setResourceLoad,
     changeCell: setHexCell,
+    changeCoordDirection
 
 
   };
