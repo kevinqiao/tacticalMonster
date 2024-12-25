@@ -35,60 +35,60 @@ const useActionPlay = () => {
                 }
             
             })
-
-            const positions = path.map(node => {
-                const col = direction === 1 ? cols - node.x - 1 : node.x;   
-                return  coordToPixel(col, node.y, hexCell.width, hexCell.height,direction??0)
+            character.walkables = [];
+            const positions = path.map(node => {    
+                console.log("node",node)
+                return  coordToPixel(node.x, node.y, hexCell,map)
             });
             console.log(positions)
-            // gsap.set(container, {x:positions[0].x,y:positions[0].y});
-            // // 从第二个点开始移动（跳过起始点）
-            // const movementPath = positions.slice(1);
-            // let currentScale = container.style.transform.includes('scaleX(-1)') ? -1 : 1;
-            // movementPath.forEach(node => {
-            //     const col = direction === 1 ? cols - node.q - 1 : node.q;
-            //     const cell = gridCells[node.r][col];
-            //     if(cell?.gridGround){
-            //         gsap.set(cell.gridGround, {autoAlpha:0.7});
-            //     }
-            // });
-            // movementPath.forEach((pos, i) => {
-            //     const prevPos = positions[i];
-            //     const targetScale = pos.x > prevPos.x ? 1 : -1;
-            //     const isLastStep = i === movementPath.length - 1;
+            gsap.set(container, {x:positions[0].x,y:positions[0].y});
+            // 从第二个点开始移动（跳过起始点）
+            const movementPath = positions.slice(1);
+            let currentScale = container.style.transform.includes('scaleX(-1)') ? -1 : 1;
+            movementPath.forEach(node => {
+                const col = direction === 1 ? cols - node.q - 1 : node.q;
+                const cell = gridCells[node.r][col];
+                if(cell?.gridGround){
+                    gsap.set(cell.gridGround, {autoAlpha:0.7});
+                }
+            });
+            movementPath.forEach((pos, i) => {
+                const prevPos = positions[i];
+                const targetScale = pos.x > prevPos.x ? 1 : -1;
+                const isLastStep = i === movementPath.length - 1;
                 
-            //     const stepTl = gsap.timeline({
-            //         onComplete: () => {
-            //             console.log(pos)                        
-            //             const cell = gridCells[pos.r][pos.q];
-            //             if(cell?.gridGround){
-            //                 gsap.set(cell.gridGround, {fill:"black", autoAlpha:0.1});
-            //             }
-            //         }
-            //     });
+                const stepTl = gsap.timeline({
+                    onComplete: () => {
+                        const col =  direction === 1 ? cols - pos.q - 1 : pos.q;
+                        const cell = gridCells[pos.r][col];
+                        if(cell?.gridGround){
+                            gsap.set(cell.gridGround, {fill:"black", autoAlpha:0.1});
+                        }
+                    }
+                });
                 
-            //     // 处理朝向
-            //     if (currentScale !== targetScale || isLastStep) {
-            //         stepTl.to(container, {
-            //             scaleX: isLastStep ? initialScale : targetScale,
-            //             duration: 0.15,
-            //             ease: "power1.inOut",
-            //             overwrite: "auto"
-            //         }, 0);
-            //         currentScale = isLastStep ? initialScale : targetScale;
-            //     }
+                // 处理朝向
+                if (currentScale !== targetScale || isLastStep) {
+                    stepTl.to(container, {
+                        scaleX: isLastStep ? initialScale : targetScale,
+                        duration: 0.15,
+                        ease: "power1.inOut",
+                        overwrite: "auto"
+                    }, 0);
+                    currentScale = isLastStep ? initialScale : targetScale;
+                }
                 
-            //     // 移动
-            //     stepTl.to(container, {
-            //         x:  pos.x,
-            //         y: pos.y,
-            //         duration: 0.3,
-            //         ease: "power1.inOut",
-            //         overwrite: "auto"
-            //     }, 0);
+                // 移动
+                stepTl.to(container, {
+                    x:  pos.x,
+                    y: pos.y,
+                    duration: 0.3,
+                    ease: "power1.inOut",
+                    overwrite: "auto"
+                }, 0);
 
-            //     tl.add(stepTl, i > 0 ? ">-0.1" : "+=0");
-            // });
+                tl.add(stepTl, i > 0 ? ">-0.1" : "+=0");
+            });
 
             return tl.play();
         },[characters,gridCells,hexCell,map]);

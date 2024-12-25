@@ -24,6 +24,7 @@ const useCombatAct = () => {
     const character = characters.find(c => c.character_id === character_id && c.uid === uid);
     if (!character) return;
     const col = map.direction === 1 ? map.cols - to.q - 1 : to.q;
+    console.log("col", col)
     const path = findPath(gridCells,
       { x: character.q, y: character.r },
       { x: col, y: to.r }
@@ -49,7 +50,7 @@ const useCombatAct = () => {
       character_id,
       uid,
       token: "test-token",
-      to: { q: to.q, r: to.r }
+      to: { q: col, r: to.r }
     });
     if (!res) {
       console.log("walk failed");

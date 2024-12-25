@@ -1,6 +1,5 @@
 import gsap from "gsap";
 import { useCallback } from "react";
-import useMapPlay from "../../animation/playMapChange";
 import usePhasePlay from "../../animation/playPhase";
 import { CharacterUnit } from "../../types/CombatTypes";
 import { getWalkableNodes } from "../../utils/PathFind";
@@ -9,7 +8,7 @@ import { useCombatManager } from "../CombatManager";
 const usePhaseProcessor = () => {
     const {characters,gridCells,hexCell,currentRound,resourceLoad} = useCombatManager();
     const {playTurnStart,playGameInit} = usePhasePlay();    
-    const { playChangeCoordDirection } = useMapPlay();
+
     
     const processTurnStart = useCallback(({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
         // console.log("processTurnStart",data)
@@ -80,17 +79,7 @@ const usePhaseProcessor = () => {
         tl.play();
 
     }, [gridCells,resourceLoad]);   
-    const processChangeCoordDirection = useCallback(({data, onComplete}: {data: any, onComplete: () => void}) => {
-        if(!gridCells) return;
-        console.log("processChangeCoordDirection",data) 
-        const tl = gsap.timeline({
-            onComplete: () => onComplete()
-        });
-        const {direction} = data;
-        console.log("direction",direction)  
-        playChangeCoordDirection(direction,tl);
-        tl.play();
-    }, [gridCells, resourceLoad]);   
-    return {processGameInit,processRoundStart,processRoundEnd,processTurnStart,processTurnEnd,processChangeCoordDirection}
+   
+    return {processGameInit,processRoundStart,processRoundEnd,processTurnStart,processTurnEnd}
 }
 export default usePhaseProcessor

@@ -13,7 +13,7 @@ const useActionProcessor = () => {
         const character = characters.find((c) => c.character_id === character_id&&c.uid===uid);
     
         const {x,y} = path[path.length-1];
- 
+        console.log(x,y)
         if(character&&(character.q!==x||character.r!==y)){   
             character.q=x;
             character.r=y;         

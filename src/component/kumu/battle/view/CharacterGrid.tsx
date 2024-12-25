@@ -23,7 +23,9 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
     if (!containerRef.current || hexCell.width === 0 || !map) return;
     // const { cols, direction } = map;
     const { q, r } = character;
+    console.log("q", q, "r", r)
     const { x, y } = coordToPixel(q, r, hexCell, map);
+    console.log("x", x, "y", y)
     gsap.set(containerRef.current, { x, y });
   }, [character, hexCell, map]);
 
@@ -115,6 +117,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
 
 const CharacterGrid: React.FC = () => {
   const { characters } = useCombatManager();
+  console.log("characters", characters)
   const render = useMemo(() => {
     return (
       <>

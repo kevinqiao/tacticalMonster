@@ -9,7 +9,7 @@ const useEventListener = () => {
     const { user } = useUserManager();  
     const {eventQueue,characters,gridCells,hexCell,resourceLoad} = useCombatManager();
     const {processWalk,processAttack,processSkill,processDefend,processStandby} = useActionProcessor();     
-    const {processGameInit, processRoundStart,processTurnStart,processTurnEnd,processRoundEnd,processChangeCoordDirection} = usePhaseProcessor();
+    const {processGameInit, processRoundStart,processTurnStart,processTurnEnd,processRoundEnd} = usePhaseProcessor();
    
    
     const processEvent = useCallback(() => {

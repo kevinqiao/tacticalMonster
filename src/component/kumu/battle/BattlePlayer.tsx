@@ -32,7 +32,7 @@ const CombatPlaza: React.FC = () => {
   const { map, hexCell } = useCombatManager();
   console.log("map", map);
   return (
-    <div className="plaza-container" style={{ marginLeft: map?.direction === 1 ? hexCell.width / 2 : 0 }}>
+    <div className="plaza-container">
       <div className="plaza-layer" style={{ top: 0, left: 0 }}>
         <ObstacleGrid />
       </div>

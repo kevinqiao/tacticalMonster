@@ -31,7 +31,8 @@ export const coordToPixel = (q: number, r: number, hexCell: {width:number,height
     const isOddRow = r % 2 !== 0;
     
     // 奇数行向右偏移半个六边形宽度
-        const offset = isOddRow ? (direction===0?width / 2 :-width / 2) :0;
+        const offset = isOddRow ? (direction===1?-width / 2 :width / 2) :0;
+        console.log("offset",offset,q,r)
 
     // 计算六边形中心点的像素坐标
     const col = direction === 1 ? cols - q - 1 : q;
