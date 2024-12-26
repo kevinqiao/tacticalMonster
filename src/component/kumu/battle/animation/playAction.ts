@@ -35,8 +35,7 @@ const useActionPlay = () => {
             
             })
             character.walkables = [];
-            const positions = path.map(node => {    
-                console.log("node",node)
+            const positions = path.map(node => { 
                 return  coordToPixel(node.x, node.y, hexCell,map)
             });
             // console.log(positions)

@@ -5,7 +5,7 @@ export const findPath = (
     start: HexNode,
     goal: HexNode
 ): HexNode[] => {
-    console.log("findPath",start,goal)
+  
     const isWalkable = (x: number, y: number): boolean => {
         if (y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) return false;
         return grid[y][x].walkable ?? false;

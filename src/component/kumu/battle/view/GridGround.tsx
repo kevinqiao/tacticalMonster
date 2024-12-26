@@ -52,7 +52,7 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk, attack }) => {
       ref={loadContainer}
       width={width}
       height={hexHeight}
-      style={{ width: width, height: hexHeight }}
+      style={{ width: width, height: hexHeight, pointerEvents: "none" }}
       viewBox={`0 0 ${width} ${hexHeight}`}
       xmlns="http://www.w3.org/2000/svg"
       data-testid={`grid-cell-${row}-${col}`}
@@ -63,7 +63,7 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk, attack }) => {
         stroke="white"
         strokeWidth={3}
         opacity={0}
-        pointerEvents="auto"
+        pointerEvents="none"
         role="button"
         aria-label={`Base grid at row ${row}, column ${col}`}
       />

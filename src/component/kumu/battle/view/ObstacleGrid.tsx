@@ -18,8 +18,6 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
   if (!cell) return null;
   useEffect(() => {
     if (!hexCell || !map) return;
-    // const { width, height } = hexCell;
-    // const { cols, direction } = map;
     const { x, y } = coordToPixel(col, row, hexCell, map);
     gsap.set(containerRef.current, { x, y });
   }, [hexCell, col, row, map]);
@@ -41,40 +39,6 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
   );
 };
 
-// const ObstacleGrid: React.FC = () => {
-//   const { hexCell, map } = useCombatManager();
-//   const { width, height } = hexCell;
-//   if (!map) return null;
-//   const { rows, cols } = map;
-//   return (
-//     <>
-//       {Array.from({ length: rows }).map((_, row) => (
-//         <div
-//           key={row}
-//           style={{
-//             display: "flex",
-//             justifyContent: "flex-start",
-//             marginLeft: row % 2 !== 0 ? `${width / 2}px` : "0", // 奇数行右移半个六边形的宽度
-//             marginBottom: `${-height * 0.25}px`, // 行间距
-//           }}
-//         >
-//           {Array.from({ length: cols }).map((_, col) => (
-//             <div
-//               key={`${row}-${col}`}
-//               style={{
-//                 width: `${width}px`,
-//                 height: `${height}px`,
-//                 margin: 0,
-//               }}
-//             >
-//               <ObstacleCell row={row} col={col} />
-//             </div>
-//           ))}
-//         </div>
-//       ))}
-//     </>
-//   );
-// };
 
 const ObstacleGrid: React.FC = () => {
   const { map } = useCombatManager();

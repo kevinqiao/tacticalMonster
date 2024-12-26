@@ -15,7 +15,7 @@ export interface HexNode {
 
 
 export const getHexNeighbors = (grid: HexNode[][], node: { x: number; y: number }): HexNode[] => {
-    console.log(node)
+
     const { x, y } = node;
     const neighbors: HexNode[] = [];
 

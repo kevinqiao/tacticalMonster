@@ -224,7 +224,7 @@
   transform-style: preserve-3d;
   transform: rotateX(45deg);
   transform-origin: center;
-  /* clip-path: polygon(0 0, 100% 0, 100% 105%, 0 105%); */
+  clip-path: polygon(0 0, 100% 0, 100% 105%, 0 105%);
   /* pointer-events: auto; */
   /* background-color: rgb(67, 226, 43); */
 }

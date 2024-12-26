@@ -14,7 +14,6 @@ interface Props {
 
 const CharacterCell: React.FC<Props> = ({ character }) => {
   const { map, characters, challenger, challengee, hexCell, currentRound, gridCells, setResourceLoad } = useCombatManager();
-  // const { width, height } = hexCell;
   const { playTurnStart } = usePhasePlay();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -23,14 +22,15 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
     if (!containerRef.current || hexCell.width === 0 || !map) return;
     const { q, r } = character;
     const { x, y } = coordToPixel(q, r, hexCell, map);
-    gsap.set(containerRef.current, { x, y, scaleX: character.scaleX ?? 1 });
+    gsap.set(containerRef.current, { autoAlpha: 1, x, y, scaleX: character.scaleX ?? 1 });
   }, [character, hexCell, map]);
 
   useEffect(() => {
     if (!currentRound || !gridCells) return;
-    const currentTurn = currentRound.turns.find((t: any) => t.status === 0 || t.status === 1);
+    const currentTurn = currentRound.turns.find((t: any) => t.status >= 0 && t.status <= 2);
     if (currentTurn && currentTurn.character_id === character.character_id && currentTurn.uid === character.uid) {
-      const nodes = getWalkableNodes(gridCells, { x: character.q, y: character.r }, character.move_range || 2);
+      const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
+      const nodes = getWalkableNodes(gridCells, { x: character.q, y: character.r }, moveRange);
       character.walkables = nodes;
       playTurnStart(character, gridCells, null);
     }
@@ -86,16 +86,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
     },
     [character, characters, setResourceLoad]
   );
-  const isFacingRight = useMemo(() => {
-    if (!map || !challengee) return false;
-    const { direction } = map;
-    if (direction === 1) {
-      return character.uid === challengee ? true : false
-    } else {
-      return character.uid === challengee ? false : true
-    }
-  }, [character, challengee, map]);
-  console.log("isFacingRight", isFacingRight, character.character_id)
+
   return (
     <>
       <div
@@ -107,8 +98,8 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
           width: `${hexCell.width}px`,
           height: `${hexCell.height}px`,
           margin: 0,
-          // opacity: 0,
-          // visibility: "hidden",
+          opacity: 0,
+          visibility: "hidden",
           pointerEvents: "auto",
           // transform: isFacingRight ? 'none' : 'scaleX(-1)'
         }}

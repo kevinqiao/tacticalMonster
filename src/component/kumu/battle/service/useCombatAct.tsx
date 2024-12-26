@@ -17,7 +17,7 @@ const useCombatAct = () => {
     // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
     console.log("walk", to);
     if (!gameId || !characters || !gridCells || !currentRound || !map) return;
-    const currentTurn = currentRound.turns.find((t) => t.status === 1);
+    const currentTurn = currentRound.turns.find((t) => t.status === 1 || t.status === 2);
     if (!currentTurn) return;
     console.log("currentTurn", currentTurn);
     const { uid, character_id } = currentTurn;
