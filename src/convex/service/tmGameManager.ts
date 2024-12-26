@@ -89,7 +89,7 @@ class GameManager {
         }
     }
     async walk(gameId: string, uid: string, character_id: string, to: {q: number, r: number}): Promise<boolean> {
-        console.log("to",to);
+        // console.log("to",to);
 
         this.game = await this.dbCtx.runQuery(internal.dao.tmGameDao.find, { gameId });                
         if (!this.game || !uid || !this.game.map) return false;
@@ -139,7 +139,7 @@ class GameManager {
     async turnStart(){
        
         if(!this.game||!this.game.currentRound) return;
-        console.log("turnStart",this.game.currentRound);
+        // console.log("turnStart",this.game.currentRound);
         const round = this.game.currentRound;
         const nextTurn = round.turns?.find((turn:CombatTurn)=>turn.status===0);
         if(nextTurn){
@@ -156,10 +156,10 @@ class GameManager {
          const round = this.game.currentRound;
          const currentTurn = round.turns?.find((turn:CombatTurn)=>turn.status===1);
          if(currentTurn){
-            console.log("currentTurn",currentTurn);
+            // console.log("currentTurn",currentTurn);
             currentTurn.status=2;
-            console.log("gameId",this.game.gameId);
-            console.log("roundNo",round.no);
+            // console.log("gameId",this.game.gameId);
+            // console.log("roundNo",round.no);
             await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.update, {gameId:this.game.gameId,no:round.no,data:{turns:round.turns}});
             console.log("currentTurn2",currentTurn);
             await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:this.game.gameId,data:{lastUpdate:Date.now()}});
@@ -175,12 +175,12 @@ class GameManager {
     }
     async roundEnd(){
         if(!this.game||!this.game.currentRound) return;  
-        console.log("roundEnd",this.game.currentRound);
+        // console.log("roundEnd",this.game.currentRound);
         const roundEvent={gameId:this.game?.gameId,name:"roundEnd",data:{round:this.game?.currentRound?.no}};
         await this.dbCtx.runMutation(internal.dao.tmEventDao.create, roundEvent);
-        console.log("roundEnd2",this.game.currentRound);
+        // console.log("roundEnd2",this.game.currentRound);
         await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.update, {gameId:this.game.gameId,no:this.game.currentRound.no,data:{status:2,endTime:Date.now()}});
-        console.log("roundEnd3",this.game.currentRound);
+        // console.log("roundEnd3",this.game.currentRound);
         if(this.game.currentRound.no>=0&&this.game.currentRound.no<10){
           await  this.roundStart();
         }else{
@@ -208,7 +208,7 @@ class GameManager {
         await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:this.game.gameId,data:{round:round.no,lastUpdate:Date.now()}});
         await this.dbCtx.runMutation(internal.dao.tmEventDao.create, roundEvent);
         await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:this.game?.gameId,data:{lastUpdate:Date.now()}});
-        console.log("roundStart2",this.game.currentRound);
+        // console.log("roundStart2",this.game.currentRound);
         await this.turnStart();
     }   
 }

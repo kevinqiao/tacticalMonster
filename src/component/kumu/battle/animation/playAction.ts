@@ -6,14 +6,13 @@ import { coordToPixel } from "../utils/hexUtil";
 const useActionPlay = () => {
         const {characters,gridCells,hexCell,map} = useCombatManager();
         const playWalk =useCallback((character: CharacterUnit, path: {x:number,y:number}[]) => {
-            console.log("playWalk",character.walkables)
+
             const container = character.container;    
             const spine = character.skeleton;
             if (!spine||!container||!gridCells||!hexCell||!map) return;
 
             // 记录初始朝向
-            const initialScale = container.style.transform.includes(`scaleX(-1)`) ? -1 : 1;
-        
+            const initialScale = character.scaleX??1;
             const tl = gsap.timeline({
                 onStart: () => {
                     spine.state.setAnimation(0, "walk", true);
@@ -40,11 +39,13 @@ const useActionPlay = () => {
                 console.log("node",node)
                 return  coordToPixel(node.x, node.y, hexCell,map)
             });
-            console.log(positions)
+            // console.log(positions)
             gsap.set(container, {x:positions[0].x,y:positions[0].y});
             // 从第二个点开始移动（跳过起始点）
             const movementPath = positions.slice(1);
-            let currentScale = container.style.transform.includes('scaleX(-1)') ? -1 : 1;
+            let currentScale = initialScale;    
+            // let currentScale = container.style.transform.includes('scaleX(-1)') ? -1 : 1;
+            // console.log("currentScale",currentScale)    
             movementPath.forEach(node => {
                 const col = direction === 1 ? cols - node.q - 1 : node.q;
                 const cell = gridCells[node.r][col];
@@ -54,7 +55,7 @@ const useActionPlay = () => {
             });
             movementPath.forEach((pos, i) => {
                 const prevPos = positions[i];
-                const targetScale = pos.x > prevPos.x ? 1 : -1;
+                const targetScale =pos.x > prevPos.x ?1 :-1
                 const isLastStep = i === movementPath.length - 1;
                 
                 const stepTl = gsap.timeline({
@@ -69,6 +70,7 @@ const useActionPlay = () => {
                 
                 // 处理朝向
                 if (currentScale !== targetScale || isLastStep) {
+                    console.log("targetScale",targetScale)
                     stepTl.to(container, {
                         scaleX: isLastStep ? initialScale : targetScale,
                         duration: 0.15,

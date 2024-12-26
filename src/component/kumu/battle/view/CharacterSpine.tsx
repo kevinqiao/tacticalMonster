@@ -114,7 +114,7 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
       const x = offsetWidth / 2;
       const y = offsetHeight / 2;
       spine.scale.set(scale * 0.9, scale * 0.9);
-      spine.scale.x = isFacingRight ? Math.abs(spine.scale.x) : -Math.abs(spine.scale.x);
+      // spine.scale.x = isFacingRight ? Math.abs(spine.scale.x) : -Math.abs(spine.scale.x);
       spine.rotation = 0;
       spine.position.set(x, y);
       spine.state.setAnimation(0, "stand", true);
@@ -132,7 +132,12 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
     };
   }, [spineResources]);
 
-  return <div ref={canvasRef} style={{ width: width, height: height, backgroundColor: "transparent" }} />;
+  return <div ref={canvasRef} style={{
+    width: width,
+    height: height,
+    backgroundColor: "transparent",
+
+  }} />;
 };
 
 export default CharacterSpine;

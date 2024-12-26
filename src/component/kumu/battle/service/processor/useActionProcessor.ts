@@ -8,7 +8,6 @@ const useActionProcessor = () => {
     const {playWalk} = useActionPlay();
     const processWalk = useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {
         if(!characters||!gridCells||!hexCell)return;
-        console.log(data);
         const {uid,character_id,path} = data;
         const character = characters.find((c) => c.character_id === character_id&&c.uid===uid);
     

@@ -21,7 +21,7 @@ export const walk = sessionAction({
     handler: async (ctx, { gameId, character_id, to }) => {
         if (!ctx.user) return false;
         const gameService = new GameManager(ctx);
-        console.log("walk action:", character_id, ctx.user.uid);
+        // console.log("walk action:", character_id, ctx.user.uid);
         return await gameService.walk(gameId, ctx.user.uid, character_id, to);
 
     }

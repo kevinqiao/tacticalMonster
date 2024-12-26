@@ -147,15 +147,15 @@ const BattleVenue: React.FC = () => {
   );
 };
 const BattlePlayer: React.FC<PageProp> = ({ data }) => {
-
   const { gameId, uid } = data;
-  if (!gameId) return;
   const { authComplete } = useUserManager();
   useEffect(() => {
     if (uid) {
       authComplete({ uid, token: "" }, 0);
     }
   }, [uid, authComplete])
+
+  if (!gameId) return;
   return (
     <BattleProvider gameId={gameId}>
       <BattleVenue></BattleVenue>

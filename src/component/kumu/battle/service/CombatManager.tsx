@@ -108,13 +108,21 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
           const map = gameObj.map as MapModel;
           map.direction = 1;
         }
+        gameObj.characters.forEach((character) => {
+          const c = character as CharacterUnit;
+          if (c.uid === user.uid) {
+            c.scaleX = 1;
+          } else {
+            c.scaleX = -1;
+          }
+        });
         setGame({
           gameId: gameObj.id,
           map: gameObj.map as MapModel,
           challenger: gameObj.challenger,
           challengee: gameObj.challengee,
           players: gameObj.players,
-          characters: gameObj.characters ?? characterList,
+          characters: gameObj.characters,
           currentRound: gameObj.currentRound ?? round,
           timeClock: 0
         });

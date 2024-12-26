@@ -13,7 +13,7 @@ interface Props {
 }
 
 const CharacterCell: React.FC<Props> = ({ character }) => {
-  const { map, characters, challenger, hexCell, currentRound, gridCells, setResourceLoad } = useCombatManager();
+  const { map, characters, challenger, challengee, hexCell, currentRound, gridCells, setResourceLoad } = useCombatManager();
   // const { width, height } = hexCell;
   const { playTurnStart } = usePhasePlay();
 
@@ -21,12 +21,9 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
 
   useEffect(() => {
     if (!containerRef.current || hexCell.width === 0 || !map) return;
-    // const { cols, direction } = map;
     const { q, r } = character;
-    console.log("q", q, "r", r)
     const { x, y } = coordToPixel(q, r, hexCell, map);
-    console.log("x", x, "y", y)
-    gsap.set(containerRef.current, { x, y });
+    gsap.set(containerRef.current, { x, y, scaleX: character.scaleX ?? 1 });
   }, [character, hexCell, map]);
 
   useEffect(() => {
@@ -89,7 +86,16 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
     },
     [character, characters, setResourceLoad]
   );
-
+  const isFacingRight = useMemo(() => {
+    if (!map || !challengee) return false;
+    const { direction } = map;
+    if (direction === 1) {
+      return character.uid === challengee ? true : false
+    } else {
+      return character.uid === challengee ? false : true
+    }
+  }, [character, challengee, map]);
+  console.log("isFacingRight", isFacingRight, character.character_id)
   return (
     <>
       <div
@@ -104,12 +110,13 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
           // opacity: 0,
           // visibility: "hidden",
           pointerEvents: "auto",
+          // transform: isFacingRight ? 'none' : 'scaleX(-1)'
         }}
       >
         {/* <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} /> */}
         <div ref={loadStand} className="character-stand" />
         <div ref={loadAttack} className="character-attack" />
-        <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} isFacingRight={character.uid === challenger ? true : false} />
+        <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} />
       </div>
     </>
   );
@@ -117,7 +124,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
 
 const CharacterGrid: React.FC = () => {
   const { characters } = useCombatManager();
-  console.log("characters", characters)
+
   const render = useMemo(() => {
     return (
       <>

@@ -115,7 +115,7 @@ export interface AttackableNode extends HexNode {
 export interface CharacterUnit extends Character {
     uid: string;
     character_id: string;
-    isFacingRight?: boolean; 
+    scaleX?: number; 
     asset: string;
     q: number;
     r: number;
