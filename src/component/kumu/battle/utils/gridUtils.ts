@@ -1,5 +1,5 @@
-import { HexMetrics, HexPoint } from '../types/GridTypes';
 import { HEX_RATIO } from '../constants/GridConstants';
+import { HexMetrics, HexPoint } from '../types/GridTypes';
 
 /**
  * 计算六边形的关键尺寸
