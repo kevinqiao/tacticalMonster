@@ -25,6 +25,11 @@ const useEventListener = () => {
             eventQueue.shift();
         }
         console.log("processEvent",event)
+        event.initTime = event.initTime||Date.now();
+        if(Date.now()-event.initTime>15000){
+            eventQueue.shift();
+            return;
+        }   
         const {  name,status, gameId, time, data } = event;
         if (!status) {      
             

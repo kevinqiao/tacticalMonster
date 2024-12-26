@@ -175,11 +175,11 @@ class GameManager {
             currentTurn.status=3;
             // console.log("gameId",this.game.gameId);
             // console.log("roundNo",round.no);
+            const turnEvent={gameId:this.game.gameId,name:"turnEnd",data:{...currentTurn}};
+            await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);    
             await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.update, {gameId:this.game.gameId,no:round.no,data:{turns:round.turns}});
             await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:this.game.gameId,data:{lastUpdate:Date.now()}});
          }  
-        const turnEvent={gameId:this.game.gameId,name:"turnEnd",data:{...currentTurn}};
-        await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);  
         const nextTurn = round.turns?.find((turn)=>turn.status===0);
         if(!nextTurn){
            await this.roundEnd();

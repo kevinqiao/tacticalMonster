@@ -36,6 +36,7 @@ export interface CombatEvent {
     name: string;
     gameId?: string;
     time?: number;
+    initTime?: number;  
     status?: number;//
     data?: CombatAction|CombatRound|any;
 }
