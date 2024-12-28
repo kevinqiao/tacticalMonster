@@ -1,4 +1,4 @@
-import { GridCell, HexNode, WalkableNode } from "../types/CombatTypes";
+import { AttackableNode, GridCell, HexNode, WalkableNode } from "../types/CombatTypes";
 
 export const findPath = (
     grid: GridCell[][],
@@ -165,4 +165,36 @@ export const getWalkableNodes = (
     }
 
     return movableNodes;
+};
+
+export const getAttackableNodes = (
+   attacker:{q:number,r:number,uid:string,character_id:string},
+   enemies: { q: number, r: number, uid: string, character_id: string }[],
+   attackRange: {min:number,max:number}
+): AttackableNode[] => {
+    const attackableNodes: AttackableNode[] = [];
+ 
+    for(const enemy of enemies){
+        const enemyPosition = { q: enemy.q, r: enemy.r };
+        const distance = calculateDistance([attacker.q, attacker.r], [enemy.q, enemy.r]);
+        if(distance >= attackRange.min && distance <= attackRange.max){
+            attackableNodes.push({uid:enemy.uid, character_id:enemy.character_id, x:enemy.q, y:enemy.r, distance });
+        }
+    }
+    return attackableNodes;
+};
+const offsetToAxial = (row:number, col:number) => [col - Math.floor(row / 2), row];
+
+// 计算两点之间的六边形曼哈顿距离
+const calculateDistance = (
+  point1: [number, number], 
+  point2: [number, number]
+): number => {
+    const [q1, r1] = offsetToAxial(...point1);
+    const [q2, r2] = offsetToAxial(...point2);
+    return Math.max(
+        Math.abs(q2 - q1),
+        Math.abs(r2 - r1),
+        Math.abs(-(q1 + r1) + (q2 + r2))
+    );
 };

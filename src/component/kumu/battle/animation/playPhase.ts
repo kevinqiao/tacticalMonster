@@ -1,9 +1,10 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit, GridCell } from "../types/CombatTypes";
+import { CharacterUnit, CombatTurn, GridCell } from "../types/CombatTypes";
+import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 const usePhasePlay = () => {
- const {hexCell,map} = useCombatManager(); 
+ const {gridCells,characters,hexCell,map} = useCombatManager(); 
  const playGameInit= useCallback((characters: CharacterUnit[],  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
     const {width,height} = hexCell;
     const tl =gsap.timeline();
@@ -30,7 +31,47 @@ const usePhasePlay = () => {
     else tl.play();
     
 },[hexCell]);
- const playTurnStart= useCallback((character: CharacterUnit,  gridCells: GridCell[][],timeline:gsap.core.Timeline|null) => {
+const playTurnOn= useCallback((currentTurn:CombatTurn,onComplete:()=>void) => {
+    if(!characters||!gridCells||!map)return;  
+    const character = characters.find((c)=>c.uid===currentTurn.uid&&c.character_id===currentTurn.character_id);
+    if(!character)return;
+    console.log("playTurnOn",currentTurn)
+    const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
+    const nodes = getWalkableNodes(gridCells, { x: character.q, y: character.r }, moveRange);
+    character.walkables = nodes;
+    const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id);
+    const attackableNodes = getAttackableNodes(character, enemies, character.attack_range || { min: 1, max: 2 });
+    character.attackables = attackableNodes;
+    const tl = gsap.timeline({
+           onComplete:()=>{
+                onComplete();
+            }
+    });
+    if(character.standEle){
+        tl.to(character.standEle, {
+            autoAlpha: 1,
+            duration: 0.5,
+            ease: "power2.inOut"
+        });
+    }
+    if(character.walkables){
+        const {cols,direction} = map;
+        character.walkables.forEach((node) => {
+            const { x, y } = node;
+            const col = direction === 1 ? cols - x - 1 : x; 
+            const gridCell = gridCells[y][col];
+            if(!gridCell?.gridWalk||node.distance===0)return;
+            tl.to(gridCell.gridWalk, {
+                autoAlpha:node.distance===character.move_range?0.4:0.8,
+                duration:0.5,
+                ease:"power2.inOut"
+            },"<");
+        });
+    }
+    tl.play();
+
+},[characters,gridCells,hexCell,map]);
+ const playTurnStart= useCallback((character: CharacterUnit,timeline:gsap.core.Timeline|null) => {
     // console.log("playTurnStart",character)
     if(!map||!gridCells)return;
     const {cols,direction} = map;
@@ -59,7 +100,7 @@ const usePhasePlay = () => {
     if(timeline)timeline.add(tl,"<");
     else tl.play(); 
 
-},[hexCell,map]);
+},[gridCells,hexCell,map]);
 
 const playTurnLast= useCallback((character: CharacterUnit,  gridCells: GridCell[][],timeline:gsap.core.Timeline|null) => {
     // console.log("playTurnStart",character)
@@ -91,10 +132,11 @@ const playTurnLast= useCallback((character: CharacterUnit,  gridCells: GridCell[
     else tl.play(); 
 
 },[hexCell,map]);
-return {
+return {    
     playGameInit,
     playTurnStart,
-    playTurnLast    
+    playTurnLast,
+    playTurnOn    
 }
 }
 export default usePhasePlay;    

@@ -106,10 +106,13 @@ export interface ObstacleCell {
 
 export interface WalkableNode extends HexNode {
     // path: { x: number; y: number }[];
+ 
     distance?: number; // 距离角色的步数
 }
 
 export interface AttackableNode extends HexNode {
+    uid:string;
+    character_id:string;  
     distance: number; // 距离角色的步数
 }
 

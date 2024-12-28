@@ -11,7 +11,7 @@ const useEventListener = () => {
     const {processWalk,processAttack,processSkill,processDefend,processStandby} = useActionProcessor();     
     const { 
         processRoundStart, 
-        processTurnStart, 
+        processTurnOn, 
         processTurnEnd, 
         processRoundEnd,
         processTurnLast
@@ -44,11 +44,11 @@ const useEventListener = () => {
                     break;
                 case "turnStart":
                     event.status = 1;
-                    processTurnStart({data,onComplete}); 
+                    processTurnOn({data,onComplete}); 
                     break;
                 case "turnLast":
                     event.status = 1;
-                    processTurnLast({data,onComplete}); 
+                    processTurnOn({data,onComplete}); 
                     break;
                 case "turnEnd":
                     event.status = 1;
@@ -67,7 +67,7 @@ const useEventListener = () => {
 
         }
 
-    }, [ eventQueue,processRoundStart,processTurnStart,processWalk,resourceLoad])
+    }, [ eventQueue,processRoundStart,processTurnOn,processWalk,resourceLoad])
 
 
     useEffect(() => {

@@ -5,7 +5,6 @@ import usePhasePlay from "../animation/playPhase";
 import { useCombatManager } from "../service/CombatManager";
 import { CharacterUnit } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
-import { getWalkableNodes } from "../utils/PathFind";
 import CharacterSpine from "./CharacterSpine";
 
 interface Props {
@@ -14,7 +13,7 @@ interface Props {
 
 const CharacterCell: React.FC<Props> = ({ character }) => {
   const { map, characters, challenger, challengee, hexCell, currentRound, gridCells, setResourceLoad } = useCombatManager();
-  const { playTurnStart } = usePhasePlay();
+  const { playTurnStart, playTurnOn } = usePhasePlay();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -26,15 +25,20 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
   }, [character, hexCell, map]);
 
   useEffect(() => {
-    if (!currentRound || !gridCells) return;
+    if (!currentRound || !gridCells || !characters || !character) return;
     const currentTurn = currentRound.turns.find((t: any) => t.status >= 0 && t.status <= 2);
     if (currentTurn && currentTurn.character_id === character.character_id && currentTurn.uid === character.uid) {
-      const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
-      const nodes = getWalkableNodes(gridCells, { x: character.q, y: character.r }, moveRange);
-      character.walkables = nodes;
-      playTurnStart(character, gridCells, null);
+      playTurnOn(currentTurn, () => { console.log("playTurnOn", currentTurn) });
+      // const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
+      // const nodes = getWalkableNodes(gridCells, { x: character.q, y: character.r }, moveRange);
+      // character.walkables = nodes;
+      // const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id);
+      // const attackableNodes = getAttackableNodes(character, enemies, character.attack_range || { min: 1, max: 2 });
+      // character.attackables = attackableNodes;
+      // console.log("character", character);
+      // playTurnStart(character, null);
     }
-  }, [currentRound, gridCells, playTurnStart]);
+  }, [character, characters, currentRound, gridCells, playTurnStart]);
 
   const loadContainer = useCallback(
     (ele: HTMLDivElement | null) => {
