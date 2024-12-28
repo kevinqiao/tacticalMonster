@@ -11,6 +11,7 @@ export const find= internalQuery({
 });
 export const create = internalMutation({
     args: {
+        name: v.optional(v.string()),   
         character_id: v.string(),
         uid: v.string(),
         gameId: v.string(),
@@ -18,8 +19,11 @@ export const create = internalMutation({
         stats: v.any(),
         q: v.number(),
         r: v.number(),
+        asset: v.optional(v.string()),  
+        class: v.optional(v.string()),
+        race: v.optional(v.string()),   
         statusEffects: v.optional(v.array(v.any())),
-        unlockSkills: v.optional(v.array(v.string())),
+        skills: v.any(),
         cooldowns: v.optional(v.any()),
         move_range: v.number(),
         attack_range: v.object({ min: v.number(), max: v.number() })

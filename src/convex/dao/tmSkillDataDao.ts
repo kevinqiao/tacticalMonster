@@ -10,7 +10,7 @@ export const create = internalMutation({
         description: v.optional(v.string()),
         range: v.optional(v.object({ area_type: v.union(v.string()), distance: v.number() })),
         unlockConditions: v.optional(v.object({ level: v.number(), questsCompleted: v.array(v.string()) })),
-        resourceCost: v.optional(v.object({ mana: v.number() })),
+        resourceCost: v.optional(v.object({ stamina: v.number() })),
         cooldown: v.optional(v.number()),
         effects: v.optional(v.array(v.any())),
         triggerConditions: v.optional(v.array(v.any()))

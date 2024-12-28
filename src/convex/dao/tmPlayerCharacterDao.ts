@@ -11,9 +11,25 @@ export const find = internalQuery({
 export const findAll = internalQuery({
     args: { uid: v.string() },
     handler: async (ctx, { uid }) => {
+        const playerCharacters = [];
         const characters = await ctx.db
             .query("tm_player_character").withIndex("by_player", (q) => q.eq("uid", uid)).collect();
-        return characters.map((character) => ({ ...character, _creationTime: undefined, _id: undefined }))
+        
+        for(const character of characters){
+            const characterLevels  = await ctx.db.query("tm_character_level").withIndex("by_character_id",(q)=>q.eq("character_id",character.character_id)).unique();
+            const characterLevel = characterLevels?.levels.find((c)=>c.level===character.level); 
+            console.log("characterLevel",characterLevel);       
+            const characterData = await ctx.db.query("tm_character_data").withIndex("by_character_id", (q) => q.eq("character_id", character.character_id)).unique();
+            if(character.unlockSkills){
+                const skills= [];
+                for(const skill of character.unlockSkills){
+                    const skillData = await ctx.db.query("tm_skill_data").withIndex("by_skill_id", (q) => q.eq("skill_id", skill)).unique();
+                    skills.push(skillData);
+                }
+                playerCharacters.push({...characterData,uid,level:character.level, attributes:characterLevel?.attributes, skills});
+            }
+        }
+        return playerCharacters;
     },
 });
 export const create = internalMutation({

@@ -1,0 +1,13 @@
+{
+  "character_id": "char002",
+  "name": "Warrior",
+  "level": 5,
+  "attributes": {
+    "strength": 12,
+    "dexterity": 8,
+    "constitution": 14,
+    "intelligence": 4,
+    "wisdom": 6,
+    "charisma": 5
+  }
+}

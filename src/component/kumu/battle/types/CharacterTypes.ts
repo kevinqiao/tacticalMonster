@@ -78,7 +78,13 @@ export interface Stats {
     crit_rate: number;  // 暴击率
     evasion: number;    // 回避率
 }
-
+export interface Equipment {
+    equipment_id: string;
+    type: "weapon" | "armor" | "accessory";
+    name: string;
+    bonusAttributes: Partial<Stats>; // 直接影响 stats 的加成属性
+    customAttributes?: { [key: string]: number }; // 其他自定义属性加成
+}
 
 // 角色接口
 export interface Character {
@@ -88,7 +94,7 @@ export interface Character {
     race?: string;
     level: number;
     experience?: number;
-    attributes: Attributes;
+    attributes?: Attributes;
     move_range?: number;
     attack_range?: { min: number; max: number };
     stats?: Stats;
@@ -99,8 +105,8 @@ export interface Character {
 }
 
 export enum CharacterAnimState {
-  IDLE = "stand",
-  WALK = "walk",
-  ATTACK = "melee"
+    IDLE = "stand",
+    WALK = "walk",
+    ATTACK = "melee"
 }
 

@@ -44,4 +44,9 @@ export interface HexPoint {
 export interface GridPosition {
     col: number;
     row: number;
+}
+
+export interface HexNode {
+  x: number;
+  y: number;
 } 

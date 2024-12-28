@@ -1,0 +1,30 @@
+{
+  "weapon": {
+    "equipment_id": "sword01",
+    "type": "weapon",
+    "name": "Flame Sword",
+    "bonusAttributes": {
+      "attack": 5,
+      "speed": 1
+    }
+  },
+  "armor": {
+    "equipment_id": "shield01",
+    "type": "armor",
+    "name": "Steel Shield",
+    "bonusAttributes": {
+      "defense": 4,
+      "hp": { "current": 0, "max": 10 }
+    }
+  },
+  "accessories": [
+    {
+      "equipment_id": "ring01",
+      "type": "accessory",
+      "name": "Ring of Agility",
+      "bonusAttributes": {
+        "dexterity": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "character_id": "char001",
+  "name": "Mage",
+  "level": 5,
+  "attributes": {
+    "strength": 5,
+    "dexterity": 7,
+    "constitution": 6,
+    "intelligence": 15,
+    "wisdom": 12,
+    "charisma": 8
+  }
+}

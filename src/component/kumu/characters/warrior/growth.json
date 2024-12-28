@@ -1,0 +1,8 @@
+{
+  "hp_per_level": 15,
+  "mp_per_level": 2,
+  "stamina_per_level": 5,
+  "attack_per_level": 3,
+  "defense_per_level": 2,
+  "speed_per_level": 0.5
+}

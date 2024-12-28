@@ -1,0 +1,37 @@
+{
+  "levels": {
+    "1": {
+      "experience_required": 0,
+      "attribute_growth": {
+        "strength": 1,
+        "dexterity": 1,
+        "constitution": 2,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 0
+      }
+    },
+    "2": {
+      "experience_required": 100,
+      "attribute_growth": {
+        "strength": 1,
+        "dexterity": 1,
+        "constitution": 2,
+        "intelligence": 0,
+        "wisdom": 1,
+        "charisma": 0
+      }
+    },
+    "3": {
+      "experience_required": 250,
+      "attribute_growth": {
+        "strength": 2,
+        "dexterity": 1,
+        "constitution": 3,
+        "intelligence": 1,
+        "wisdom": 1,
+        "charisma": 1
+      }
+    }
+  }
+}

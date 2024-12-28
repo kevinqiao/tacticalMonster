@@ -1,0 +1,31 @@
+{
+  "weapon": {
+    "equipment_id": "axe01",
+    "type": "weapon",
+    "name": "Battle Axe",
+    "bonusAttributes": {
+      "attack": 7,
+      "strength": 2
+    }
+  },
+  "armor": {
+    "equipment_id": "plate01",
+    "type": "armor",
+    "name": "Steel Plate Armor",
+    "bonusAttributes": {
+      "defense": 6,
+      "hp": { "current": 0, "max": 20 }
+    }
+  },
+  "accessories": [
+    {
+      "equipment_id": "amulet01",
+      "type": "accessory",
+      "name": "Amulet of Fortitude",
+      "bonusAttributes": {
+        "constitution": 3,
+        "stamina": { "current": 0, "max": 10 }
+      }
+    }
+  ]
+}

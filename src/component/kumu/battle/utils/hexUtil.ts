@@ -40,3 +40,18 @@ export const coordToPixel = (q: number, r: number, hexCell: {width:number,height
 
     return {q,r,x, y };
 };
+export const offsetToAxial = (row:number, col:number) => [col - Math.floor(row / 2), row];
+
+// 计算两点之间的六边形曼哈顿距离
+export const calculateDistance = (
+  point1: [number, number], 
+  point2: [number, number]
+): number => {
+    const [q1, r1] = offsetToAxial(...point1);
+    const [q2, r2] = offsetToAxial(...point2);
+    return Math.max(
+        Math.abs(q2 - q1),
+        Math.abs(r2 - r1),
+        Math.abs(-(q1 + r1) + (q2 + r2))
+    );
+};

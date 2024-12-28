@@ -14,7 +14,7 @@ const CombatActPanel: React.FC = () => {
   // const startGame = useAction(api.service.tmGameProxy.start);
 
   return (
-    <div className="action-control" style={{ left: 0 }}>
+    <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
       <div className="action-panel-item" onClick={() => changeCoordDirection(0)}>
         REPOSE(0)
       </div>
@@ -138,9 +138,9 @@ const BattleVenue: React.FC = () => {
         <div style={{ position: "absolute", ...mapPosition }}>
           <CombatPlaza />
         </div>
-        {placePosition ? <div style={{ position: "absolute", bottom: placePosition.height * 0.05, left: placePosition.width * 0.1 }}>
+        <div style={{ position: "absolute", ...mapPosition, pointerEvents: "none" }}>
           <CombatActPanel />
-        </div> : null}
+        </div>
 
       </div>
     </div>
@@ -150,10 +150,10 @@ const BattlePlayer: React.FC<PageProp> = ({ data }) => {
   const { gameId, uid } = data;
   const { authComplete } = useUserManager();
   useEffect(() => {
-    if (uid) {
-      authComplete({ uid, token: "" }, 0);
+    if (data) {
+      authComplete({ uid: data.uid ?? "1", token: "" }, 0);
     }
-  }, [uid, authComplete])
+  }, [data, authComplete])
 
   if (!gameId) return;
   return (

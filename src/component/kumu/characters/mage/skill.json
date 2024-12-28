@@ -1,0 +1,19 @@
+[
+  {
+    "character_id": "mage",
+    "skills": [
+      {
+        "skill_id": "fireball",
+        "name": "Fireball",
+        "type": "attack",
+        "description": "A powerful fireball that deals damage",
+        "range": { "area_type": "single", "distance": 3 },
+        "effects": [{ "effect_type": "damage", "value": 25, "duration": 1 }],
+        "resource_cost": { "mp": 10 },
+        "cooldown": 2,
+        "is_passive": false,
+        "trigger_conditions": []
+      }
+    ]
+  }
+]

@@ -193,12 +193,12 @@ export default defineSchema({
         description: v.optional(v.string()),
         range: v.optional(v.object({ area_type: v.union(v.string()), distance: v.number() })),
         unlockConditions: v.optional(v.object({ level: v.number(), questsCompleted: v.array(v.string()) })),
-        resourceCost: v.optional(v.object({ mana: v.number() })),
+        resourceCost: v.optional(v.object({ stamina: v.optional(v.number()), mana: v.optional(v.number()) })),
         cooldown: v.optional(v.number()),
         effects: v.optional(v.array(v.any())),
         triggerConditions: v.optional(v.array(v.any()))
     }).index("by_skill_id", ["skill_id"]),
-    tm_level_data: defineTable({
+    tm_character_level: defineTable({
         character_id: v.string(),
         levels: v.array(v.object({ level: v.number(), required_exp: v.number(), attributes: v.any() }))
     }).index("by_character_id", ["character_id"]),
@@ -209,24 +209,30 @@ export default defineSchema({
         race: v.optional(v.string()),
         asset: v.optional(v.string()),
         move_range: v.number(),
-        attack_range: v.object({ min: v.number(), max: v.number() })
+        attack_range: v.object({ min: v.number(), max: v.number() }),
+        skills: v.optional(v.array(v.string())) 
     }).index("by_character_id", ["character_id"]),
     tm_player_character: defineTable({
         character_id: v.string(),
         uid: v.string(),
         level: v.number(),
+        unlockSkills: v.optional(v.array(v.string())),
         status: v.optional(v.number()),
     }).index("by_player", ["uid", "character_id"]),
     tm_game_character: defineTable({
+        name: v.optional(v.string()),   
         character_id: v.string(),
         uid: v.string(),
         gameId: v.string(),
         level: v.number(),
+        class: v.optional(v.string()),
+        race: v.optional(v.string()),   
+        asset: v.optional(v.string()),
         stats: v.optional(v.any()),
         q:v.number(),
         r:v.number(),
         statusEffects: v.optional(v.array(v.any())),
-        unlockSkills: v.optional(v.array(v.string())),
+        skills:v.any(),
         cooldowns: v.optional(v.any()),
         move_range: v.optional(v.number()),
         attack_range: v.object({ min: v.number(), max: v.number() })

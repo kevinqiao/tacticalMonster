@@ -1,0 +1,95 @@
+{
+  "skills": [
+    {
+      "skill_id": "warrior_slash",
+      "name": "Slash",
+      "category": "attack",
+      "type": "melee",
+      "description": "A basic melee attack that deals damage to a single target",
+      "range": {
+        "area_type": "single",
+        "distance": 1
+      },
+      "cooldown": 0,
+      "effects": [
+        {
+          "type": "damage",
+          "value": 100,
+          "scaling": {
+            "attack": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "skill_id": "warrior_charge",
+      "name": "Charge",
+      "category": "movement",
+      "type": "dash",
+      "description": "Charge towards an enemy, dealing damage and stunning them briefly",
+      "range": {
+        "area_type": "line",
+        "distance": 3
+      },
+      "cooldown": 3,
+      "effects": [
+        {
+          "type": "movement",
+          "distance": 3
+        },
+        {
+          "type": "damage",
+          "value": 80,
+          "scaling": {
+            "attack": 0.8
+          }
+        },
+        {
+          "type": "stun",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "skill_id": "warrior_whirlwind",
+      "name": "Whirlwind",
+      "category": "attack",
+      "type": "aoe",
+      "description": "Spin in a circle, dealing damage to all surrounding enemies",
+      "range": {
+        "area_type": "circle",
+        "distance": 1
+      },
+      "cooldown": 4,
+      "effects": [
+        {
+          "type": "damage",
+          "value": 70,
+          "scaling": {
+            "attack": 0.7
+          }
+        }
+      ]
+    },
+    {
+      "skill_id": "warrior_defense_stance",
+      "name": "Defense Stance",
+      "category": "buff",
+      "type": "self",
+      "description": "Enter a defensive stance, reducing damage taken but also movement range",
+      "cooldown": 5,
+      "effects": [
+        {
+          "type": "defense_buff",
+          "value": 50,
+          "duration": 2
+        },
+        {
+          "type": "move_range_debuff",
+          "value": -1,
+          "duration": 2
+        }
+      ]
+    }
+  ]
+} 

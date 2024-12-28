@@ -1,0 +1,38 @@
+[
+  {
+    "skill_id": "power_strike",
+    "name": "Power Strike",
+    "type": "attack",
+    "description": "A powerful melee attack that deals extra damage.",
+    "range": { "area_type": "single", "distance": 1 },
+    "effects": [{ "effect_type": "damage", "value": 20, "duration": 1 }],
+    "resource_cost": { "stamina": 5 },
+    "cooldown": 2,
+    "is_passive": false,
+    "trigger_conditions": []
+  },
+  {
+    "skill_id": "shield_wall",
+    "name": "Shield Wall",
+    "type": "defense",
+    "description": "Increases defense for a short duration.",
+    "range": { "area_type": "self", "distance": 0 },
+    "effects": [{ "effect_type": "buff", "target_attribute": "defense", "value": 5, "duration": 3 }],
+    "resource_cost": { "stamina": 3 },
+    "cooldown": 3,
+    "is_passive": false,
+    "trigger_conditions": []
+  },
+  {
+    "skill_id": "battle_cry",
+    "name": "Battle Cry",
+    "type": "support",
+    "description": "Increases attack power for allies in range.",
+    "range": { "area_type": "area", "distance": 2 },
+    "effects": [{ "effect_type": "buff", "target_attribute": "attack", "value": 3, "duration": 2 }],
+    "resource_cost": { "stamina": 5 },
+    "cooldown": 4,
+    "is_passive": false,
+    "trigger_conditions": []
+  }
+]

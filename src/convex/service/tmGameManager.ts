@@ -1,25 +1,10 @@
 import { CharacterUnit, CombatTurn, GameModel } from "../../component/kumu/battle/types/CombatTypes";
 import { internal } from "../_generated/api";
-import { Attributes, Stats } from "../model/CharacterModels";
 import { getPosition, getWalkPath } from "../utils/gameUtils";
 import { calculateStats } from "../utils/Utlis";
 
 
-// const getPosition = (game: { challenger: string,challengee:string },map:MapModel, player: Player) => {
-//     const {cols,rows,obstacles,disables}=map;  
-//     const positions = Array.from({ length: rows }, (_, r) =>
-//         Array.from({ length: 2 }, (_, q) => ({
-//             q:player.uid===game.challenger?q:q+(cols-2),
-//             r
-//             }))
-//         ).flat();
-//     const availablePositions = obstacles&&disables?positions.filter(position => {
-//         return !obstacles.some(obstacle => obstacle.q === position.q && obstacle.r === position.r) &&
-//                !disables.some(disable => disable.q === position.q && disable.r === position.r);
-//     }):positions; 
-//     const randomPosition = availablePositions[Math.floor(Math.random() * availablePositions.length)];
-//     return randomPosition;
-// };
+
 
 class GameManager {
     private dbCtx: any;
@@ -47,23 +32,26 @@ class GameManager {
                 for (const player of players) {
                  
                     const characters = await this.dbCtx.runQuery(internal.dao.tmPlayerCharacterDao.findAll, { uid: player.uid });
-                   
+                    console.log("characters",characters);   
                     for (const character of characters) {
                         const position=getPosition(gameObj,map,player);
-                        console.log(position);
-                        let gameCharacter: any={...character,...position,gameId};
-                        const { character_id, level } = character;
-                        const characterData = await this.dbCtx.runQuery(internal.dao.tmCharacterDataDao.find, { character_id });
-                        if (characterData) {
-                            const levelData = await this.dbCtx.runQuery(internal.dao.tmLevelDataDao.findByLevel, { character_id, level });
-                            if (levelData?.attributes) {
-                                const attributes = levelData.attributes as Attributes
-                                const stats: Stats = calculateStats(attributes);
-                                const { move_range, attack_range } = characterData;
-                                gameCharacter = { ...character,...position, move_range, attack_range, stats, gameId, _id: undefined, _creationTime: undefined, asset: undefined }
-                            }
-                            await this.dbCtx.runMutation(internal.dao.tmGameCharacterDao.create, gameCharacter);
-                        }
+                      
+                        // let gameCharacter: any={...character,...position,gameId};
+                        // const { character_id, level } = character;
+                        // const characterData = await this.dbCtx.runQuery(internal.dao.tmCharacterDataDao.find, { character_id });
+                        // if (characterData) {
+                        //     const levelData = await this.dbCtx.runQuery(internal.dao.tmLevelDataDao.findByLevel, { character_id, level });
+                        //     if (levelData?.attributes) {
+                        //         const attributes = levelData.attributes as Attributes
+                        //         const stats: Stats = calculateStats(attributes);
+                        //         const { move_range, attack_range } = characterData;
+                        //         gameCharacter = { ...character,...position, move_range, attack_range, stats, gameId, _id: undefined, _creationTime: undefined, asset: undefined }
+                        //     }
+                        //     await this.dbCtx.runMutation(internal.dao.tmGameCharacterDao.create, gameCharacter);
+                        // }
+                        const stats = calculateStats(character.attributes);
+                        const gameCharacter = {...character,...position,gameId,_id:undefined,_creationTime:undefined,stats,attributes:undefined,asset:character.asset};
+                        await this.dbCtx.runMutation(internal.dao.tmGameCharacterDao.create, gameCharacter);
                         gameCharacters.push(gameCharacter);
                     }
 
