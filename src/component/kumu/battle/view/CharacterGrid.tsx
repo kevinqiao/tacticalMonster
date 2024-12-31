@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import "../../map.css";
 import usePhasePlay from "../animation/playPhase";
 import { useCombatManager } from "../service/CombatManager";
+import useCombatAct from "../service/useCombatAct";
 import { CharacterUnit } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 import CharacterSpine from "./CharacterSpine";
@@ -12,9 +13,9 @@ interface Props {
 }
 
 const CharacterCell: React.FC<Props> = ({ character }) => {
-  const { map, characters, challenger, challengee, hexCell, currentRound, gridCells, setResourceLoad } = useCombatManager();
+  const { map, characters, hexCell, currentRound, gridCells, setResourceLoad } = useCombatManager();
   const { playTurnStart, playTurnOn } = usePhasePlay();
-
+  const { attack } = useCombatAct();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -29,14 +30,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
     const currentTurn = currentRound.turns.find((t: any) => t.status >= 0 && t.status <= 2);
     if (currentTurn && currentTurn.character_id === character.character_id && currentTurn.uid === character.uid) {
       playTurnOn(currentTurn, () => { console.log("playTurnOn", currentTurn) });
-      // const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
-      // const nodes = getWalkableNodes(gridCells, { x: character.q, y: character.r }, moveRange);
-      // character.walkables = nodes;
-      // const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id);
-      // const attackableNodes = getAttackableNodes(character, enemies, character.attack_range || { min: 1, max: 2 });
-      // character.attackables = attackableNodes;
-      // console.log("character", character);
-      // playTurnStart(character, null);
+
     }
   }, [character, characters, currentRound, gridCells, playTurnStart]);
 
@@ -91,6 +85,11 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
     [character, characters, setResourceLoad]
   );
 
+  const handleAttack = useCallback(() => {
+    console.log("handleAttack", character);
+    attack(character);
+  }, [character]);
+
   return (
     <>
       <div
@@ -104,13 +103,13 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
           margin: 0,
           opacity: 0,
           visibility: "hidden",
-          pointerEvents: "auto",
+          pointerEvents: "none",
           // transform: isFacingRight ? 'none' : 'scaleX(-1)'
         }}
       >
         {/* <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} /> */}
         <div ref={loadStand} className="character-stand" />
-        <div ref={loadAttack} className="character-attack" />
+        <div ref={loadAttack} className="character-attack" onClick={handleAttack} />
         <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} />
       </div>
     </>

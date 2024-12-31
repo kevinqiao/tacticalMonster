@@ -5,7 +5,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/_generated/api";
-import { allObstacles, players } from "../data/CombatData";
+import { allObstacles } from "../data/CombatData";
 import {
   CharacterUnit,
   CombatEvent,
@@ -22,17 +22,17 @@ gsap.registerPlugin(MotionPathPlugin);
 
 
 
-const characterList = players.reduce<CharacterUnit[]>(
-  (acc, cur) => [
-    ...acc,
-    ...cur.characters.map((char) => ({
-      ...char,
-      id: char.character_id,
-      asset: char.asset ?? "",
-    })),
-  ],
-  []
-);
+// const characterList = players.reduce<CharacterUnit[]>(
+//   (acc, cur) => [
+//     ...acc,
+//     ...cur.characters.map((char) => ({
+//       ...char,
+//       id: char.character_id,
+//       asset: char.asset ?? "",
+//     })),
+//   ],
+//   []
+// );
 const mapData = {
   rows: 7,
   cols: 8,

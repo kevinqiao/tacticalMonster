@@ -8,7 +8,7 @@ import useCombatAct from '../service/useCombatAct';
 import { GridCellProps } from '../types/GridTypes';
 import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils';
 
-const GroundCell: React.FC<GridCellProps> = ({ row, col, walk, attack }) => {
+const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
   const { hexCell } = useCombatManager();
   const { width, height } = hexCell;
 

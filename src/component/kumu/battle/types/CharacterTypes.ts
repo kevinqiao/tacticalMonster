@@ -27,7 +27,7 @@ export interface SkillEffect {
     };
     remaining_duration?: number; // 持续时间（以回合计，可选）
     name?: string; // 效果名称，例如 "Burn" 或 "Poison"
-    target_attribute?: keyof Stats; // ���标属性，例如 "hp", "attack"（可选）
+    target_attribute?: keyof Stats; // 目标属性，例如 "hp", "attack"（可选）
     trigger_phase?: "immediate" | "turn_start" | "turn_end"; // 触发时机
     trigger_event?: string; // 指定的触发事件（用于 `event` 类型触发效果）
 }
@@ -69,14 +69,14 @@ export interface Attributes {
 }
 
 export interface Stats {
-    hp: { current: number; max: number }; // 基于constitution的最大值，但会随时改变
-    mp: { current: number; max: number }; // 基于intelligence的最大值
-    stamina: { current: number; max: number };
-    attack: number;     // 基于strength的攻击力，随装备和状态增减
-    defense: number;    // 基于constitution等派生的防御力
-    speed: number;      // 基于dexterity等派生的速度
-    crit_rate: number;  // 暴击率
-    evasion: number;    // 回避率
+    hp?: { current: number; max: number };
+    mp?: number;
+    stamina?: number;
+    attack?: number;
+    defense?: number;
+    speed?: number;
+    crit_rate?: number;
+    evasion?: number;
 }
 export interface Equipment {
     equipment_id: string;
@@ -100,7 +100,7 @@ export interface Character {
     stats?: Stats;
     unlockSkills?: string[];
     skills?: string[];
-    statusEffects?: SkillEffect[];
+    activeEffects?: SkillEffect[];
     cooldowns?: { [skillId: string]: number };
 }
 

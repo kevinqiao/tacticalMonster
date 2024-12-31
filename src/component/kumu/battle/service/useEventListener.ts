@@ -48,7 +48,7 @@ const useEventListener = () => {
                     break;
                 case "turnLast":
                     event.status = 1;
-                    processTurnOn({data,onComplete}); 
+                    processTurnLast({data,onComplete}); 
                     break;
                 case "turnEnd":
                     event.status = 1;

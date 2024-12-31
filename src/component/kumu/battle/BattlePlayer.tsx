@@ -29,7 +29,6 @@ const CombatActPanel: React.FC = () => {
   );
 };
 const CombatPlaza: React.FC = () => {
-  const { map, hexCell } = useCombatManager();
 
   return (
     <div className="plaza-container">
@@ -147,7 +146,7 @@ const BattleVenue: React.FC = () => {
   );
 };
 const BattlePlayer: React.FC<PageProp> = ({ data }) => {
-  const { gameId, uid } = data;
+
   const { authComplete } = useUserManager();
   useEffect(() => {
     if (data) {
@@ -155,9 +154,9 @@ const BattlePlayer: React.FC<PageProp> = ({ data }) => {
     }
   }, [data, authComplete])
 
-  if (!gameId) return;
+  if (!data || !data.gameId) return;
   return (
-    <BattleProvider gameId={gameId}>
+    <BattleProvider gameId={data.gameId}>
       <BattleVenue></BattleVenue>
     </BattleProvider>
   );

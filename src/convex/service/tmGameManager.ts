@@ -72,6 +72,10 @@ class GameManager {
             }
         }
     }
+    async attack(gameId: string, uid: string, character_id: string, target: {uid: string, character_id: string}): Promise<boolean> {
+        console.log("attack", gameId, uid, character_id, target);
+        return true;
+    }   
     async walk(gameId: string, uid: string, character_id: string, to: {q: number, r: number}): Promise<boolean> {
         // console.log("to",to);
 

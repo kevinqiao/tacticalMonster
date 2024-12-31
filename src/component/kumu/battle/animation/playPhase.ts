@@ -47,6 +47,7 @@ const playTurnOn= useCallback((currentTurn:CombatTurn,onComplete:()=>void) => {
                 onComplete();
             }
     });
+    console.log("attackables",character.attackables)
     if(character.standEle){
         tl.to(character.standEle, {
             autoAlpha: 1,
@@ -54,8 +55,8 @@ const playTurnOn= useCallback((currentTurn:CombatTurn,onComplete:()=>void) => {
             ease: "power2.inOut"
         });
     }
+    const {cols,direction} = map;
     if(character.walkables){
-        const {cols,direction} = map;
         character.walkables.forEach((node) => {
             const { x, y } = node;
             const col = direction === 1 ? cols - x - 1 : x; 
@@ -68,7 +69,37 @@ const playTurnOn= useCallback((currentTurn:CombatTurn,onComplete:()=>void) => {
             },"<");
         });
     }
-    tl.play();
+    if(character.attackables){
+        character.attackables.forEach((node) => {
+            const {x,y,uid,character_id,distance} = node;
+            const enemy = characters.find((c)=>c.uid===uid&&c.character_id===character_id);
+            if(!enemy)return;
+           
+            if(!enemy?.attackEle)return;
+            tl.to(enemy.attackEle, {
+                autoAlpha:1,
+                duration:0.5,
+                ease:"power2.inOut"
+            },"<");
+        });
+    }
+    characters.filter((c)=>c.uid===character.uid&&c.character_id===character.character_id).forEach((c)=>{
+        if(c.standEle)
+            tl.to(c.standEle, {
+                        autoAlpha:10,
+                        duration:0.5,
+                ease:"power2.inOut"
+            },"<");
+            if(c.attackEle){    
+                tl.to(c.attackEle, {
+                    autoAlpha:0,
+                    duration:0.5,
+                    ease:"power2.inOut"
+                },"<");
+            }         
+        
+    })  
+    tl.play();  
 
 },[characters,gridCells,hexCell,map]);
  const playTurnStart= useCallback((character: CharacterUnit,timeline:gsap.core.Timeline|null) => {

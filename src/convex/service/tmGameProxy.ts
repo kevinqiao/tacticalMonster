@@ -33,9 +33,15 @@ export const defend = sessionAction({
     }
 })
 export const attack = sessionAction({
-    args: { act: v.number(), gameId: v.string(), actionId: v.optional(v.number()), data: v.any() },
-    handler: async (ctx, { act, gameId, actionId, data }) => {
-        console.log("TM game service")
+    args: {  gameId: v.string(), data: v.any() },
+    handler: async (ctx, { gameId, data }) => {
+        console.log("attack", gameId, data);
+        console.log("user", ctx.user)
+         if (!ctx.user) return false;
+        const gameService = new GameManager(ctx);
+        return await gameService.attack(gameId, ctx.user.uid, data.character_id, data.target);
+      
+
     }
 })
 export const standBy = sessionAction({

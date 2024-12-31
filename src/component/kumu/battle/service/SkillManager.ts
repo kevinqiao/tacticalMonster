@@ -1,110 +1,99 @@
 import { Engine } from 'json-rules-engine';
-import { Character } from '../../characters/Character';
-import { Effect, Skill } from '../../characters/CharacterAttributes';
+import { SkillEffect as Effect } from '../types/CharacterTypes';
+import { CharacterUnit } from '../types/CombatTypes';
 
-export abstract class SkillManager {
-    protected character!: Character;
-    protected skills: Skill[];
+// 数据模型定义
 
-    constructor(character: Character) {
-        this.character = character;
-        this.skills = [];
-    }
-
-    // 执行技能触发检查，处理触发事件
-    abstract checkPassiveSkills(eventType: string, target?: Character): void;
-
-    // 执行技能效果
-    abstract executeSkill(skillId: string, target?: Character): void;
-    abstract useSkill(skillId: string, target?: Character): void;
-
-    // 更新技能冷却时间
-    abstract updateCooldowns(): void;
-
-    // 检查技能是否满足资源消耗条件
-    protected hasSufficientResources(skill: Skill): boolean {
-        const { mp = 0, hp = 0, stamina = 0 } = skill.resource_cost;
-        const { stats } = this.character;
-        return (
-            stats.mp.current >= mp &&
-            stats.hp.current >= hp &&
-            stats.stamina.current >= stamina
-        );
-    }
-
-    // 检查技能是否在冷却中
-    protected isSkillOnCooldown(skillId: string): boolean {
-        const cooldown = this.character.skillCooldowns[skillId];
-        return cooldown !== undefined && cooldown > 0;
-    }
-
-    // 扣除技能的资源消耗
-    protected applyResourceCost(skill: Skill) {
-        const { mp = 0, hp = 0, stamina = 0 } = skill.resource_cost;
-        this.character.stats.mp.current -= mp;
-        this.character.stats.hp.current -= hp;
-        this.character.stats.stamina.current -= stamina;
-    }
+interface Skill {
+    skill_id: string;
+    name: string;
+    type: 'active' | 'passive';
+    trigger_conditions?: Array<{
+        trigger_type: string;
+        conditions: any;
+    }>;
+    effects: Effect[];
+    resource_cost: { mp?: number; hp?: number; stamina?: number };
+    cooldown: number;
 }
 
-export class DefaultSkillManager extends SkillManager {
-    private engine: Engine;
+interface SkillEvent {
+    type: string;
+    params: {
+        skillId: string;
+    };
+}
 
-    constructor(character: Character, skillFilePath: string) {
-        super(character);
+export abstract class SkillManager {
+    protected character!: CharacterUnit;
+    protected skills: Skill[];
+    protected engine: Engine;
+
+    constructor(character: CharacterUnit) {
+        this.character = character;
+        this.character.stats = this.character.stats || {};
+        this.character.skillCooldowns = this.character.skillCooldowns || {};
+        this.character.activeEffects = this.character.activeEffects || [];
+        this.skills = [];
         this.engine = new Engine();
-        this.initializeSkills(skillFilePath);
     }
 
-    // 初始化技能，从指定 JSON 文件路径加载技能数据
-    private async initializeSkills(skillFilePath: string) {
-        await this.loadSkillsFromJSON(skillFilePath);
-        this.loadSkillRules();
-    }
-
-    // 从 JSON 文件中加载技能数据
-    private async loadSkillsFromJSON(filePath: string) {
+    // 加载技能数据
+    async loadSkills(skillFilePath: string): Promise<void> {
         try {
-            const response = await fetch(filePath);
+            const response = await fetch(skillFilePath);
             const skillsData: Skill[] = await response.json();
             this.skills = skillsData;
+            this.initializeRules();
         } catch (error) {
-            console.error(`Failed to load skills from ${filePath}:`, error);
+            console.error(`Failed to load skills from ${skillFilePath}:`, error);
         }
     }
 
-    // 加载技能触发规则
-    private loadSkillRules() {
+    // 初始化规则引擎
+    private initializeRules(): void {
         this.skills.forEach(skill => {
-            skill.trigger_conditions?.forEach(trigger => {
-                this.engine.addRule({
-                    conditions: {
-                        all: [
-                            { fact: 'eventType', operator: 'equal', value: trigger.trigger_type },
-                            { fact: 'probability', operator: 'greaterThanInclusive', value: Math.random() }
-                        ]
-                    },
-                    event: {
-                        type: 'triggerSkill',
-                        params: { skillId: skill.skill_id }
-                    }
+            if (skill.trigger_conditions) {
+                skill.trigger_conditions.forEach(condition => {
+                    this.engine.addRule({
+                        conditions: condition.conditions,
+                        event: {
+                            type: 'triggerSkill',
+                            params: { skillId: skill.skill_id }
+                        }
+                    });
                 });
-            });
+            }
         });
     }
 
-    // 检查并执行被动技能的触发条件
-    async checkPassiveSkills(eventType: string, target?: Character) {
+    // 检查并触发被动技能
+    async checkPassiveSkills(eventType: string, target?: CharacterUnit): Promise<void> {
+        const passiveSkills = this.skills.filter(skill => skill.type === 'passive');
+        if(this.character.stats?.hp?.current === undefined||this.character.stats?.hp?.max === undefined) return;
+
         const facts = {
+            characterHP: this.character.stats?.hp?.current / this.character.stats?.hp?.max,
+            targetHP: target?.stats?.hp?.current  ? target.stats?.hp?.current / target.stats?.hp?.max : null,
             eventType,
-            probability: Math.random()
+            probability: Math.random(),
+            ...this.character.stats,
         };
+
         const { events } = await this.engine.run(facts);
-        events.forEach(event => this.executeSkill(event.params?.skillId, target));
+
+        for (const event of events as SkillEvent[]) {
+            if (event.type === 'triggerSkill') {
+                const skill = passiveSkills.find(s => s.skill_id === event.params.skillId);
+                if (skill) {
+                    this.executeSkill(skill.skill_id, target);
+                }
+            }
+        }
     }
 
-    // 主动使用技能的方法
-    useSkill(skillId: string, target?: Character) {
+    // 主动使用技能
+    useSkill(skillId: string, target?: CharacterUnit): void {
         const skill = this.skills.find(s => s.skill_id === skillId);
 
         if (!skill) {
@@ -122,27 +111,23 @@ export class DefaultSkillManager extends SkillManager {
             return;
         }
 
-        // 扣除资源消耗
         this.applyResourceCost(skill);
 
-        // 执行技能效果
-        skill.effects.forEach((effect: Effect) => {
+        skill.effects.forEach(effect => {
             this.applyEffect(effect, target);
         });
 
-        // 设置技能冷却
         this.character.skillCooldowns[skill.skill_id] = skill.cooldown;
 
         console.log(`${this.character.name} used skill: ${skill.name}`);
     }
 
     // 执行技能效果
-    executeSkill(skillId: string, target?: Character) {
+    executeSkill(skillId: string, target?: CharacterUnit): void {
         const skill = this.skills.find(s => s.skill_id === skillId);
 
         if (skill) {
-            // 执行技能效果，无需检查资源和冷却（用于被动技能触发）
-            skill.effects.forEach((effect: Effect) => {
+            skill.effects.forEach(effect => {
                 this.applyEffect(effect, target);
             });
 
@@ -150,32 +135,31 @@ export class DefaultSkillManager extends SkillManager {
         }
     }
 
-    // 应用效果到目标角色
-    private applyEffect(effect: Effect, target?: Character) {
+    // 应用技能效果
+    private applyEffect(effect: Effect, target?: CharacterUnit): void {
         const recipient = target || this.character;
+        recipient.activeEffects = recipient.activeEffects || [];
+        const effectValue = Number(effect.value);
+        
         switch (effect.effect_type) {
             case 'damage':
-                // 考虑攻击力和防御力
-                {
-                    const damage = Math.max(0, effect.value + this.calculateAttackPower() - this.calculateDefense(recipient));
+                const damage = Math.max(0, effectValue + this.calculateAttackPower() - this.calculateDefense(recipient));
+                if (recipient.stats?.hp) {
                     recipient.stats.hp.current -= damage;
-                    console.log(`${recipient.name} took ${damage} damage.`);
                 }
                 break;
             case 'heal':
-                {
-                    const healAmount = effect.value + this.character.attributes.wisdom;
+                if (recipient.stats?.hp) {
                     recipient.stats.hp.current = Math.min(
-                        recipient.stats.hp.current + healAmount,
+                        recipient.stats.hp.current + effectValue, 
                         recipient.stats.hp.max
                     );
-                    console.log(`${recipient.name} healed for ${healAmount} HP.`);
                 }
                 break;
             case 'buff':
             case 'debuff':
-                recipient.activeEffects.push({ ...effect, remaining_duration: effect.remaining_duration });
-                console.log(`${recipient.name} is affected by ${effect.name} for ${effect.remaining_duration} turns.`);
+                recipient.activeEffects.push({ ...effect });
+                console.log(`${recipient.name} is affected by ${effect.effect_type} for ${effect.remaining_duration || 0} turns.`);
                 break;
             default:
                 console.warn(`Unknown effect type: ${effect.effect_type}`);
@@ -183,27 +167,58 @@ export class DefaultSkillManager extends SkillManager {
         }
     }
 
-    // 计算攻击力
-    private calculateAttackPower(): number {
-        return this.character.attributes.strength + this.character.stats.attack;
+    // 检查资源是否足够
+    private hasSufficientResources(skill: Skill): boolean {
+        const { mp = 0, hp = 0, stamina = 0 } = skill.resource_cost;
+        const stats = this.character.stats || {};
+        return (
+            (stats.mp ?? 0) >= mp &&
+            (stats.hp?.current ?? 0) >= hp &&
+            (stats.stamina ?? 0) >= stamina
+        );
     }
 
-    // 计算防御力
-    private calculateDefense(target: Character): number {
-        return target.attributes.constitution + target.stats.defense;
+    // 扣除资源消耗
+    private applyResourceCost(skill: Skill): void {
+        const { mp = 0, hp = 0, stamina = 0 } = skill.resource_cost;
+        const stats = this.character.stats || {};
+        if (stats.mp !== undefined) stats.mp -= mp;
+        if (stats.hp?.current !== undefined) stats.hp.current -= hp;
+        if (stats.stamina !== undefined) stats.stamina -= stamina;
     }
 
-    // 更新技能冷却时间
-    updateCooldowns() {
+    // 检查技能是否在冷却中
+    private isSkillOnCooldown(skillId: string): boolean {
+        const cooldown = this.character.skillCooldowns[skillId];
+        return cooldown !== undefined && cooldown > 0;
+    }
+
+    // 更新冷却时间
+    updateCooldowns(): void {
         Object.keys(this.character.skillCooldowns).forEach(skillId => {
             if (this.character.skillCooldowns[skillId] > 0) {
                 this.character.skillCooldowns[skillId] -= 1;
             }
         });
 
-        this.character.activeEffects = this.character.activeEffects.filter(effect => {
-            effect.remaining_duration -= 1;
-            return effect.remaining_duration > 0;
-        });
+        if (this.character.activeEffects) {
+            this.character.activeEffects = this.character.activeEffects.filter(effect => {
+                if (effect.remaining_duration !== undefined) {
+                    effect.remaining_duration -= 1;
+                    return effect.remaining_duration > 0;
+                }
+                return true;
+            });
+        }
+    }
+
+    // 计算攻击力
+    private calculateAttackPower(): number {
+        return this.character.stats?.attack ?? 0;
+    }
+
+    // 计算防御力
+    private calculateDefense(target: CharacterUnit | undefined): number {
+        return target?.stats?.defense ?? 0;
     }
 }

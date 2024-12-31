@@ -9,7 +9,7 @@ const useActionPlay = () => {
 
             const container = character.container;    
             const spine = character.skeleton;
-            if (!spine||!container||!gridCells||!hexCell||!map) return;
+            if (!spine||!container||!gridCells||!hexCell||!map||!characters) return;
 
             // 记录初始朝向
             const initialScale = character.scaleX??1;
@@ -21,9 +21,15 @@ const useActionPlay = () => {
                     spine.state.setAnimation(0, "stand", true);
                 }
             });
-            if(character.standEle){
-                gsap.set(character.standEle, {autoAlpha:0});
-            }
+   
+            characters.forEach((c)=>{
+                if(c.standEle){
+                    gsap.set(c.standEle, {autoAlpha:0});
+                }
+                if(c.attackEle){
+                    gsap.set(c.attackEle, {autoAlpha:0});
+                }
+            })
             const {cols,direction} = map;   
             character.walkables?.forEach((node)=>{
                 const {x,y} = node;
@@ -93,7 +99,13 @@ const useActionPlay = () => {
 
             return tl.play();
         },[characters,gridCells,hexCell,map]);
-        return { playWalk}       
+
+        const playAttack = useCallback((character: CharacterUnit, target: CharacterUnit) => {   
+            const spine = character.skeleton;
+            if (!spine) return;
+            spine.state.setAnimation(0, "attack", false);
+        }, [characters]);
+        return { playWalk,playAttack}       
 }
 export default useActionPlay;   
 

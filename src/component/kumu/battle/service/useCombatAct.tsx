@@ -9,9 +9,30 @@ const useCombatAct = () => {
   const { map, gameId, characters, gridCells, hexCell, eventQueue, currentRound } = useCombatManager()
   const convex = useConvex();
 
-  const attack = useCallback(async (to: { q: number; r: number }) => {
-    console.log("walking");
-  }, []);
+  const attack = useCallback(async (character: CharacterUnit) => {
+    if (!gameId) return;
+    console.log("attack", character);
+    eventQueue.push({
+      type: EVENT_TYPE.ACTION,
+      name: "attack",
+      status: 0,
+      gameId: gameId,
+      time: Date.now(),
+      data: {
+        uid: character.uid,
+        character_id: character.character_id,
+      },
+    });
+    const res = await convex.action(api.service.tmGameProxy.attack, {
+      gameId,
+      uid: character.uid,
+      token: "test-token",
+      data: {
+        uid: character.uid,
+        character_id: character.character_id,
+      }
+    });
+  }, [convex, eventQueue, characters, currentRound, gameId]);
 
   const walk = useCallback(async (to: { q: number; r: number }) => {
     // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
@@ -58,7 +79,7 @@ const useCombatAct = () => {
       console.log("walk success");
     }
 
-  }, [map, gameId, characters, currentRound, gridCells, convex]);
+  }, [eventQueue, map, gameId, characters, currentRound, gridCells, convex]);
 
   const standBy = useCallback((character: CharacterUnit) => {
     console.log("stand...");

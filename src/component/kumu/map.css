@@ -119,6 +119,7 @@
   height: 100%;
   opacity: 0;
   visibility: hidden;
+  pointer-events: auto;
   background-color: #f20da6;
   background-size: contain;
   /* 使背景图覆盖整个六边形 */

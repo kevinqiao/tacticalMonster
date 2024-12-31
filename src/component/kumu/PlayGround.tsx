@@ -24,9 +24,9 @@ const PlayGround: React.FC<PageProp> = (props) => {
     }
   }, [events]);
   useEffect(() => {
-    const { uid } = props.data;
-    if (uid) {
-      authComplete({ uid, token: "" }, 0);
+
+    if (props.data && props.data.uid) {
+      authComplete({ uid: props.data.uid, token: "" }, 0);
     }
   }, [props])
 

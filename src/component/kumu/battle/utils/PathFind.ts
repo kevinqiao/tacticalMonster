@@ -174,9 +174,8 @@ export const getAttackableNodes = (
 ): AttackableNode[] => {
     const attackableNodes: AttackableNode[] = [];
  
-    for(const enemy of enemies){
-        const enemyPosition = { q: enemy.q, r: enemy.r };
-        const distance = calculateDistance([attacker.q, attacker.r], [enemy.q, enemy.r]);
+    for(const enemy of enemies){  
+        const distance = calculateDistance([ attacker.r,attacker.q], [enemy.r, enemy.q]);
         if(distance >= attackRange.min && distance <= attackRange.max){
             attackableNodes.push({uid:enemy.uid, character_id:enemy.character_id, x:enemy.q, y:enemy.r, distance });
         }

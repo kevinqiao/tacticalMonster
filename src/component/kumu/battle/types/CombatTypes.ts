@@ -1,5 +1,5 @@
 import { Spine } from "pixi-spine";
-import { Character } from "./CharacterTypes";
+import { Character, SkillEffect as Effect } from "./CharacterTypes";
 
 export enum ACT_CODE {
     WALK = 1,
@@ -129,7 +129,8 @@ export interface CharacterUnit extends Character {
     standEle?: HTMLDivElement;
     attackEle?: HTMLDivElement;    
     skeleton?: Spine;
-
+    skillCooldowns: Record<string, number>;
+    activeEffects?: Effect[];
 }
 export interface MapModel {
     rows: number;
