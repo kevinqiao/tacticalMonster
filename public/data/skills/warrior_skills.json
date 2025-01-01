@@ -1,0 +1,187 @@
+[{
+  "character_id": "warrior",
+  "character_name": "战士",
+  "skills": [
+    {
+      "id": "heavy_strike",
+      "name": "重击",
+      "type": "active",
+      "description": "对目标造成高额物理伤害，并降低其防御",
+      "canTriggerCounter": true,
+      "range": {
+        "area_type": "single",
+        "distance": 1
+      },
+      "effects": [
+        {
+          "effect_type": "damage",
+          "value": 35,
+          "name": "重击"
+        },
+        {
+          "effect_type": "debuff",
+          "value": -15,
+          "name": "破甲",
+          "target_attribute": "defense",
+          "remaining_duration": 2
+        }
+      ],
+      "resource_cost": {
+        "stamina": 20
+      },
+      "cooldown": 2
+    },
+    {
+      "id": "charge",
+      "name": "冲锋",
+      "type": "active",
+      "description": "向目标冲锋并造成伤害，距离越远伤害越高",
+      "canTriggerCounter": true,
+      "availabilityConditions": {
+        "all": [
+          {
+            "fact": "targetDistance",
+            "operator": "greaterThan",
+            "value": 1
+          }
+        ]
+      },
+      "range": {
+        "area_type": "line",
+        "distance": 3
+      },
+      "effects": [
+        {
+          "effect_type": "move",
+          "value": 1,
+          "name": "冲锋"
+        },
+        {
+          "effect_type": "damage",
+          "value": 40,
+          "name": "冲击"
+        }
+      ],
+      "resource_cost": {
+        "stamina": 25
+      },
+      "cooldown": 3
+    },
+    {
+      "id": "defensive_stance",
+      "name": "防御姿态",
+      "type": "active",
+      "description": "提升防御力并获得反击机会",
+      "canTriggerCounter": false,
+      "effects": [
+        {
+          "effect_type": "buff",
+          "value": 25,
+          "name": "防御提升",
+          "target_attribute": "defense",
+          "remaining_duration": 2
+        }
+      ],
+      "resource_cost": {
+        "stamina": 15
+      },
+      "cooldown": 3
+    },
+    {
+      "id": "counter_mastery",
+      "name": "反击精通",
+      "type": "passive",
+      "description": "受到攻击时有30%几率进行反击，防御姿态时几率提升到50%",
+      "triggerConditions": [
+        {
+          "trigger_type": "onAttacked",
+          "conditions": {
+            "all": [
+              {
+                "fact": "eventType",
+                "operator": "equal",
+                "value": "onAttacked"
+              },
+              {
+                "fact": "hasDefensiveStance",
+                "operator": "equal",
+                "value": true,
+                "path": "$.activeEffects[?(@.name=='防御提升')]"
+              },
+              {
+                "fact": "probability",
+                "operator": "lessThan",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "trigger_type": "onAttacked",
+          "conditions": {
+            "all": [
+              {
+                "fact": "eventType",
+                "operator": "equal",
+                "value": "onAttacked"
+              },
+              {
+                "fact": "hasDefensiveStance",
+                "operator": "equal",
+                "value": false
+              },
+              {
+                "fact": "probability",
+                "operator": "lessThan",
+                "value": 0.3
+              }
+            ]
+          }
+        }
+      ],
+      "effects": [
+        {
+          "effect_type": "damage",
+          "value": 25,
+          "name": "反击"
+        }
+      ]
+    },
+    {
+      "id": "warriors_will",
+      "name": "战士意志",
+      "type": "passive",
+      "description": "生命值低于30%时，提升攻击力和防御力",
+      "triggerConditions": [
+        {
+          "trigger_type": "onHpChange",
+          "conditions": {
+            "all": [
+              {
+                "fact": "characterHP",
+                "operator": "lessThan",
+                "value": 0.3
+              }
+            ]
+          }
+        }
+      ],
+      "effects": [
+        {
+          "effect_type": "buff",
+          "value": 30,
+          "name": "战士之怒",
+          "target_attribute": "attack",
+          "remaining_duration": 3
+        },
+        {
+          "effect_type": "buff",
+          "value": 20,
+          "name": "战士之盾",
+          "target_attribute": "defense",
+          "remaining_duration": 3
+        }
+      ]
+    }
+  ]
+}]

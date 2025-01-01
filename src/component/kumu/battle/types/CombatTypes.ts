@@ -49,7 +49,7 @@ export interface GameModel {
   players: Player[];
   characters: CharacterUnit[];
   currentRound?: CombatRound;
-  timeClock: number;
+  timeClock?: number;
 }
 export interface CombatAction {
     uid: string;
@@ -123,6 +123,7 @@ export interface CharacterUnit extends Character {
     asset: string;
     q: number;
     r: number;
+    facing: number;  // 朝向角度，0度朝右，每60度一个方向
     walkables?: WalkableNode[];
     attackables?: AttackableNode[];
     container?: HTMLDivElement;

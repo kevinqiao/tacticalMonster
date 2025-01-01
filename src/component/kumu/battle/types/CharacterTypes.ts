@@ -14,7 +14,8 @@ export type SkillEffectType =
     // Special status effects
     | "poison"
     | "burn"
-    | "stun";
+    | "stun"
+    | "move";
 
 // SkillEffect: 技能效果的统一结构
 export interface SkillEffect {
@@ -30,13 +31,21 @@ export interface SkillEffect {
     target_attribute?: keyof Stats; // 目标属性，例如 "hp", "attack"（可选）
     trigger_phase?: "immediate" | "turn_start" | "turn_end"; // 触发时机
     trigger_event?: string; // 指定的触发事件（用于 `event` 类型触发效果）
+    damage_falloff?: DamageFalloff;  // 添加伤害衰减配置
 }
 
 // TriggerCondition: 触发条件与关联效果
-export type TriggerCondition = {
-    conditions: TopLevelCondition; // JSON Rule Engine 支持的触发条件结构
-    effects: SkillEffect[]; // 条件满足时触发的效果
-};
+export interface TriggerCondition {
+    trigger_type: string;
+    conditions: TopLevelCondition;
+}
+
+// SkillRange: 技能范围的定义
+export interface SkillRange {
+    area_type: "single" | "circle" | "line";
+    min_distance?: number;  // 最小射程
+    max_distance: number;   // 最大射程（原distance改名）
+}
 
 // Skill: 技能的定义
 export interface Skill {
@@ -44,17 +53,16 @@ export interface Skill {
     name: string; // 技能名称
     type: "master" | "active" | "passive"; // 技能类型（主动、被动、终极技能）
     description?: string; // 技能描述，提供玩家可读的信息
-    range?: {
-        area_type: "single" | "aoe"; // 范围类型：单体或范围攻击
-        distance: number; // 技能有效距离
-    };
+    canTriggerCounter?: boolean;  // 添加此属性
+    availabilityConditions?: TopLevelCondition;  // 使用 json-rules-engine 的类型
+    range?: SkillRange;
     unlockConditions?: {
         level?: number; // 解锁所需等级
         questsCompleted?: string[]; // 解锁所需完成的任务
     };
-    resourceCost?: { mana: number }; // 技能资源消耗（如法力值）
-    cooldown?: number; // 技能冷却时间（以回合计）
-    effects?: SkillEffect[]; // 技能的直接效果（主动技能生效时触发）
+    resource_cost: { mp?: number; hp?: number; stamina?: number }; // 技能资源消耗（如法力值）
+    cooldown: number; // 技能冷却时间（以回合计）
+    effects: SkillEffect[]; // 技能的直接效果（主动技能生效时触发）
     triggerConditions?: TriggerCondition[]; // 技能的触发条件及其关联效果（被动技能）
 }
 
@@ -99,7 +107,7 @@ export interface Character {
     attack_range?: { min: number; max: number };
     stats?: Stats;
     unlockSkills?: string[];
-    skills?: string[];
+    skills?: Skill[];
     activeEffects?: SkillEffect[];
     cooldowns?: { [skillId: string]: number };
 }
@@ -108,5 +116,10 @@ export enum CharacterAnimState {
     IDLE = "stand",
     WALK = "walk",
     ATTACK = "melee"
+}
+
+export interface DamageFalloff {
+    full_damage_range: number;     // 全伤害范围
+    min_damage_percent: number;    // 最小伤害百分比
 }
 

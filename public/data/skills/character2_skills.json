@@ -53,5 +53,46 @@
     "is_passive": false,
     "trigger_conditions": [{ "trigger_type": "onTurnStart", "probability": 0.2 }],
     "tags": ["buff", "defense"]
+  },
+  {
+    "skill_id": "counter_attack",
+    "name": "反击",
+    "type": "passive",
+    "triggerConditions": [
+      {
+        "trigger_type": "onAttacked",
+        "conditions": {
+          "all": [
+            {
+              "fact": "eventType",
+              "operator": "equal",
+              "value": "onAttacked"
+            },
+            {
+              "fact": "probability",
+              "operator": "lessThan",
+              "value": 0.3
+            }
+          ]
+        }
+      },
+      {
+        "trigger_type": "onSkillAttacked",
+        "conditions": {
+          "all": [
+            {
+              "fact": "eventType",
+              "operator": "equal",
+              "value": "onSkillAttacked"
+            },
+            {
+              "fact": "probability",
+              "operator": "lessThan",
+              "value": 0.15
+            }
+          ]
+        }
+      }
+    ]
   }
 ]

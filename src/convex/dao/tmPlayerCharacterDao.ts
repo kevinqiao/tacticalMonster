@@ -21,11 +21,9 @@ export const findAll = internalQuery({
             console.log("characterLevel",characterLevel);       
             const characterData = await ctx.db.query("tm_character_data").withIndex("by_character_id", (q) => q.eq("character_id", character.character_id)).unique();
             if(character.unlockSkills){
-                const skills= [];
-                for(const skill of character.unlockSkills){
-                    const skillData = await ctx.db.query("tm_skill_data").withIndex("by_skill_id", (q) => q.eq("skill_id", skill)).unique();
-                    skills.push(skillData);
-                }
+                const unlockSkills = character.unlockSkills;
+                const skillDoc= await ctx.db.query("tm_skill_data").withIndex("by_character", (q) => q.eq("character_id", character.character_id)).unique();
+                const skills = skillDoc?.skills.filter((skill)=>unlockSkills.includes(skill.skill_id));
                 playerCharacters.push({...characterData,uid,level:character.level, attributes:characterLevel?.attributes, skills});
             }
         }

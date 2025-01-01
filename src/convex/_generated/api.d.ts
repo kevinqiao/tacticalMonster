@@ -25,7 +25,6 @@ import type * as cuser from "../cuser.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_tmCharacterDataDao from "../dao/tmCharacterDataDao.js";
 import type * as dao_tmEventDao from "../dao/tmEventDao.js";
-import type * as dao_tmGameActionDao from "../dao/tmGameActionDao.js";
 import type * as dao_tmGameCharacterDao from "../dao/tmGameCharacterDao.js";
 import type * as dao_tmGameDao from "../dao/tmGameDao.js";
 import type * as dao_tmGameRoundDao from "../dao/tmGameRoundDao.js";
@@ -80,7 +79,6 @@ declare const fullApi: ApiFromModules<{
   "custom/session": typeof custom_session;
   "dao/tmCharacterDataDao": typeof dao_tmCharacterDataDao;
   "dao/tmEventDao": typeof dao_tmEventDao;
-  "dao/tmGameActionDao": typeof dao_tmGameActionDao;
   "dao/tmGameCharacterDao": typeof dao_tmGameCharacterDao;
   "dao/tmGameDao": typeof dao_tmGameDao;
   "dao/tmGameRoundDao": typeof dao_tmGameRoundDao;

@@ -1,36 +1,18 @@
 import { Engine } from 'json-rules-engine';
-import { SkillEffect as Effect } from '../types/CharacterTypes';
-import { CharacterUnit } from '../types/CombatTypes';
+// import { getTargetsInRange } from '../../utils/SkillRangeUtils';
+import { SkillEffect as Effect, Skill, SkillRange } from '../types/CharacterTypes';
+import { CharacterUnit, GameModel } from '../types/CombatTypes';
 
-// 数据模型定义
+export class SkillManager {
+    private character: CharacterUnit;
+    private skills: Skill[];
+    private engine: Engine;
+    private game: GameModel;
+ 
 
-interface Skill {
-    skill_id: string;
-    name: string;
-    type: 'active' | 'passive';
-    trigger_conditions?: Array<{
-        trigger_type: string;
-        conditions: any;
-    }>;
-    effects: Effect[];
-    resource_cost: { mp?: number; hp?: number; stamina?: number };
-    cooldown: number;
-}
-
-interface SkillEvent {
-    type: string;
-    params: {
-        skillId: string;
-    };
-}
-
-export abstract class SkillManager {
-    protected character!: CharacterUnit;
-    protected skills: Skill[];
-    protected engine: Engine;
-
-    constructor(character: CharacterUnit) {
+    constructor(character: CharacterUnit,game:GameModel) {
         this.character = character;
+        this.game = game;       
         this.character.stats = this.character.stats || {};
         this.character.skillCooldowns = this.character.skillCooldowns || {};
         this.character.activeEffects = this.character.activeEffects || [];
@@ -38,28 +20,35 @@ export abstract class SkillManager {
         this.engine = new Engine();
     }
 
-    // 加载技能数据
     async loadSkills(skillFilePath: string): Promise<void> {
         try {
             const response = await fetch(skillFilePath);
-            const skillsData: Skill[] = await response.json();
-            this.skills = skillsData;
-            this.initializeRules();
+            const data = await response.json();
+            
+            // 验证技能是否属于当前角色
+            if (data.character_id === this.character.character_id) {
+                this.skills = data.skills;
+                this.initializeRules();
+            } else {
+                console.warn(`Skill file ${skillFilePath} does not match character ID ${this.character.character_id}`);
+            }
         } catch (error) {
             console.error(`Failed to load skills from ${skillFilePath}:`, error);
         }
     }
 
-    // 初始化规则引擎
     private initializeRules(): void {
         this.skills.forEach(skill => {
-            if (skill.trigger_conditions) {
-                skill.trigger_conditions.forEach(condition => {
+            if (skill.triggerConditions) {
+                skill.triggerConditions.forEach(condition => {
                     this.engine.addRule({
                         conditions: condition.conditions,
                         event: {
                             type: 'triggerSkill',
-                            params: { skillId: skill.skill_id }
+                            params: {
+                                skillId: skill.id,
+                                triggerType: condition.trigger_type
+                            }
                         }
                     });
                 });
@@ -67,34 +56,36 @@ export abstract class SkillManager {
         });
     }
 
-    // 检查并触发被动技能
-    async checkPassiveSkills(eventType: string, target?: CharacterUnit): Promise<void> {
-        const passiveSkills = this.skills.filter(skill => skill.type === 'passive');
-        if(this.character.stats?.hp?.current === undefined||this.character.stats?.hp?.max === undefined) return;
+    async checkTriggerConditions(eventType: string, target?: CharacterUnit): Promise<void> {
+        if (!this.character.stats?.hp) return;
 
         const facts = {
-            characterHP: this.character.stats?.hp?.current / this.character.stats?.hp?.max,
-            targetHP: target?.stats?.hp?.current  ? target.stats?.hp?.current / target.stats?.hp?.max : null,
             eventType,
+            characterHP: this.character.stats.hp.current / this.character.stats.hp.max,
+            targetHP: target?.stats?.hp ? target.stats.hp.current / target.stats.hp.max : null,
             probability: Math.random(),
-            ...this.character.stats,
+            ...this.character.stats
         };
 
         const { events } = await this.engine.run(facts);
-
-        for (const event of events as SkillEvent[]) {
-            if (event.type === 'triggerSkill') {
-                const skill = passiveSkills.find(s => s.skill_id === event.params.skillId);
+        
+        for (const event of events) {
+            if (event.type === 'triggerSkill' && 
+                event.params?.triggerType === eventType) {
+                const skill = this.skills.find(s => s.id === event.params?.skillId);
                 if (skill) {
-                    this.executeSkill(skill.skill_id, target);
+                    await this.executeSkill(skill, target);
                 }
             }
         }
     }
 
+   
+
+
     // 主动使用技能
-    useSkill(skillId: string, target?: CharacterUnit): void {
-        const skill = this.skills.find(s => s.skill_id === skillId);
+    async useSkill(skillId: string, target?: CharacterUnit): Promise<void> {
+        const skill = this.skills.find(s => s.id === skillId);
 
         if (!skill) {
             console.error(`Skill with ID ${skillId} not found.`);
@@ -117,21 +108,22 @@ export abstract class SkillManager {
             this.applyEffect(effect, target);
         });
 
-        this.character.skillCooldowns[skill.skill_id] = skill.cooldown;
+        this.character.skillCooldowns[skill.id] = skill.cooldown;
 
         console.log(`${this.character.name} used skill: ${skill.name}`);
+
+        // 根据技能配置决定是否可以触发反击
+        if (skill.canTriggerCounter && target) {
+            await this.checkCounterAttack(target, this.character, 'onSkillAttacked');
+        }
     }
 
     // 执行技能效果
-    executeSkill(skillId: string, target?: CharacterUnit): void {
-        const skill = this.skills.find(s => s.skill_id === skillId);
-
-        if (skill) {
-            skill.effects.forEach(effect => {
-                this.applyEffect(effect, target);
-            });
-
-            console.log(`${this.character.name} executed skill: ${skill.name}`);
+    private async executeSkill(skill: Skill, target?: CharacterUnit): Promise<void> {
+        console.log(`${this.character.name} 执行技能: ${skill.name}`);
+        
+        for (const effect of skill.effects) {
+            await this.applyEffect(effect, target);
         }
     }
 
@@ -139,13 +131,23 @@ export abstract class SkillManager {
     private applyEffect(effect: Effect, target?: CharacterUnit): void {
         const recipient = target || this.character;
         recipient.activeEffects = recipient.activeEffects || [];
-        const effectValue = Number(effect.value);
+        const effectValue = typeof effect.value === 'string' ? parseFloat(effect.value) : effect.value;
         
         switch (effect.effect_type) {
             case 'damage':
-                const damage = Math.max(0, effectValue + this.calculateAttackPower() - this.calculateDefense(recipient));
+                // 计算伤害衰减
+                let finalValue = effectValue;
+                if (effect.damage_falloff && target) {
+                    const distance = this.calculateDistance(this.character, target);
+                    if (distance > effect.damage_falloff.full_damage_range) {
+                        finalValue *= effect.damage_falloff.min_damage_percent;
+                    }
+                }
+
+                const damage = Math.max(0, finalValue + this.calculateAttackPower() - this.calculateDefense(recipient));
                 if (recipient.stats?.hp) {
                     recipient.stats.hp.current -= damage;
+                    console.log(`${recipient.name} 受到 ${damage} 点伤害 (距离: ${this.calculateDistance(this.character, recipient)})`);
                 }
                 break;
             case 'heal':
@@ -161,10 +163,49 @@ export abstract class SkillManager {
                 recipient.activeEffects.push({ ...effect });
                 console.log(`${recipient.name} is affected by ${effect.effect_type} for ${effect.remaining_duration || 0} turns.`);
                 break;
+            case 'move':
+                const direction = Math.sign(effectValue); // 1 前进，-1 后退
+                const newPosition = this.calculateNewPosition(recipient, direction);
+                if (this.isValidPosition(newPosition)) {
+                    recipient.q = newPosition.q;
+                    recipient.r = newPosition.r;
+                    console.log(`${recipient.name} ${direction > 0 ? '前进' : '后退'}了一步`);
+                }
+                break;
             default:
                 console.warn(`Unknown effect type: ${effect.effect_type}`);
                 break;
         }
+    }
+
+    private calculateNewPosition(character: CharacterUnit, direction: number) {
+        // 根据角色朝向计算新位置
+        const facing = character.facing || 0; // 假设0度朝右，每60度一个方向
+        const angle = facing * Math.PI / 3;
+        return {
+            q: character.q + Math.round(Math.cos(angle)) * direction,
+            r: character.r + Math.round(Math.sin(angle)) * direction
+        };
+    }
+
+    private isValidPosition(position: {q: number, r: number}): boolean {
+        // 检查是否在地图边界内
+        if (position.r < 0 || position.r >= this.game.map.rows || 
+            position.q < 0 || position.q >= this.game.map.cols) {
+            return false;
+        }
+        
+        // 检查是否是障碍物
+        const isObstacle = this.game.map.obstacles?.some(
+            obs => obs.q === position.q && obs.r === position.r
+        );
+        
+        // 检查是否是禁用格子
+        const isDisabled = this.game.map.disables?.some(
+            cell => cell.q === position.q && cell.r === position.r
+        );
+        
+        return !isObstacle && !isDisabled;
     }
 
     // 检查资源是否足够
@@ -221,4 +262,113 @@ export abstract class SkillManager {
     private calculateDefense(target: CharacterUnit | undefined): number {
         return target?.stats?.defense ?? 0;
     }
+
+    private async checkCounterAttack(target: CharacterUnit, attacker: CharacterUnit, triggerType: string): Promise<void> {
+        if (!target?.stats?.hp?.current) return;
+        
+        console.log(`${target.name} 检查反击触发条件...`);
+        const targetSkillManager = new SkillManager(target, this.game);
+        await targetSkillManager.checkTriggerConditions(triggerType, attacker);
+    }
+
+    async attack(attacker: CharacterUnit, target: CharacterUnit | undefined): Promise<void> {
+        if (!target?.stats?.hp?.current) return;
+        
+        console.log(`${attacker.name} 攻击了 ${target.name}`);
+        await this.checkTriggerConditions('onAttack', target);
+
+        const attackerAttack = attacker.stats?.attack ?? 0;
+        const targetDefense = target.stats?.defense ?? 0;
+        const damage = Math.max(0, attackerAttack - targetDefense);
+
+        target.stats.hp.current -= damage;
+        console.log(`${target.name} 受到了 ${damage} 点伤害，剩余生命值：${target.stats.hp.current}`);
+
+        if (target.stats.hp.current <= 0) {
+            console.log(`${target.name} 被击败了！`);
+            return;
+        }
+
+        // 检查普通攻击的反击
+        await this.checkCounterAttack(target, attacker, 'onAttacked');
+    }
+
+    async getAvailableSkills(target: CharacterUnit, game: GameModel): Promise<{skills: Skill[]} | null> {
+        // 获取所有主动技能
+        const activeSkills = this.skills.filter(skill => skill.type === 'active');
+        const availableSkills: Skill[] = [];
+
+        for (const skill of activeSkills) {
+            // 基础检查：冷却和资源
+            if (this.isSkillOnCooldown(skill.id) || !this.hasSufficientResources(skill)) {
+                continue;
+            }
+
+            // 准备规则引擎需要的事实数据
+            const facts = {
+                // 目标相关
+                targetDistance: this.calculateDistance(this.character, target),
+                targetHP: target.stats?.hp ? target.stats.hp.current / target.stats.hp.max : 1,
+                
+                // 施法者相关
+                casterHP: this.character.stats?.hp ? 
+                    this.character.stats.hp.current / this.character.stats.hp.max : 1,
+                resourceMP: this.character.stats?.mp ?? 0,
+                
+                // 战场环境相关
+                nearbyEnemies: this.countNearbyEnemies(game.characters),
+                isTargetAdjacent: this.calculateDistance(this.character, target) === 1,
+                
+                // 技能范围检查
+                inRange: skill.range ? this.isTargetInRange(target, skill.range) : true
+            };
+
+            try {
+                // 创建临时规则引擎实例
+                const availabilityEngine = new Engine();
+                
+                // 添加技能可用性规则
+                if (skill.availabilityConditions) {
+                    availabilityEngine.addRule({
+                        conditions: skill.availabilityConditions,
+                        event: { type: 'skillAvailable' }
+                    });
+
+                    // 运行规则检查
+                    const { events } = await availabilityEngine.run(facts);
+                    if (events.some(e => e.type === 'skillAvailable')) {
+                        availableSkills.push(skill);
+                    }
+                } else {
+                    // 如果没有特殊条件，只要通过了基础检查就是可用的
+                    availableSkills.push(skill);
+                }
+            } catch (error) {
+                console.error(`Error checking availability for skill ${skill.id}:`, error);
+            }
+        }
+
+        return { skills: availableSkills };
+    }
+
+    private countNearbyEnemies(characters: CharacterUnit[]): number {
+        return characters.filter(char => 
+            char.uid !== this.character.uid && 
+            this.calculateDistance(this.character, char) === 1
+        ).length;
+    }
+
+    private isTargetInRange(target: CharacterUnit, range: SkillRange): boolean {
+        const distance = this.calculateDistance(this.character, target);
+        return (
+            distance <= range.max_distance && 
+            (range.min_distance === undefined || distance >= range.min_distance)
+        );
+    }
+
+    private calculateDistance(char1: CharacterUnit, char2: CharacterUnit): number {
+        return Math.abs(char1.q - char2.q) + Math.abs(char1.r - char2.r);
+    }
+
+  
 }

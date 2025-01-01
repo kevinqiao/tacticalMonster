@@ -1,0 +1,192 @@
+{
+  "character_id": "archer",
+  "character_name": "弓箭手",
+  "skills": [
+    {
+      "id": "quick_shot",
+      "name": "快速射击",
+      "type": "active",
+      "description": "对目标造成远程伤害，射程1-3格",
+      "canTriggerCounter": false,
+      "availabilityConditions": {
+        "all": [
+          {
+            "fact": "nearbyEnemies",
+            "operator": "equal",
+            "value": 0
+          },
+          {
+            "fact": "targetDistance",
+            "operator": "greaterThanOrEqual",
+            "value": 1
+          }
+        ]
+      },
+      "range": {
+        "area_type": "single",
+        "min_distance": 1,
+        "max_distance": 3
+      },
+      "effects": [
+        {
+          "effect_type": "damage",
+          "value": 25,
+          "name": "快速射击",
+          "damage_falloff": {
+            "full_damage_range": 1,
+            "min_damage_percent": 0.5
+          }
+        }
+      ],
+      "resource_cost": {
+        "stamina": 10
+      },
+      "cooldown": 0
+    },
+    {
+      "id": "precise_shot",
+      "name": "精准射击",
+      "type": "active",
+      "description": "对远处目标造成高额伤害，射程2-4格",
+      "canTriggerCounter": false,
+      "availabilityConditions": {
+        "all": [
+          {
+            "fact": "nearbyEnemies",
+            "operator": "equal",
+            "value": 0
+          },
+          {
+            "fact": "targetDistance",
+            "operator": "greaterThanOrEqual",
+            "value": 2
+          }
+        ]
+      },
+      "range": {
+        "area_type": "single",
+        "min_distance": 2,
+        "max_distance": 4
+      },
+      "effects": [
+        {
+          "effect_type": "damage",
+          "value": 45,
+          "name": "精准射击",
+          "damage_falloff": {
+            "full_damage_range": 2,
+            "min_damage_percent": 0.6
+          }
+        }
+      ],
+      "resource_cost": {
+        "stamina": 25
+      },
+      "cooldown": 2
+    },
+    {
+      "id": "volley",
+      "name": "箭雨",
+      "type": "active",
+      "description": "对范围内的敌人造成伤害",
+      "canTriggerCounter": false,
+      "availabilityConditions": {
+        "all": [
+          {
+            "fact": "nearbyEnemies",
+            "operator": "equal",
+            "value": 0
+          }
+        ]
+      },
+      "range": {
+        "area_type": "circle",
+        "distance": 2
+      },
+      "effects": [
+        {
+          "effect_type": "damage",
+          "value": 20,
+          "name": "箭雨"
+        }
+      ],
+      "resource_cost": {
+        "stamina": 35
+      },
+      "cooldown": 3
+    },
+    {
+      "id": "evasive_shot",
+      "name": "闪避射击",
+      "type": "passive",
+      "description": "攻击后有30%几率后退一步并提升闪避",
+      "triggerConditions": [
+        {
+          "trigger_type": "onAttack",
+          "conditions": {
+            "all": [
+              {
+                "fact": "eventType",
+                "operator": "equal",
+                "value": "onAttack"
+              },
+              {
+                "fact": "probability",
+                "operator": "lessThan",
+                "value": 0.3
+              },
+              {
+                "fact": "canMoveBackward",
+                "operator": "equal",
+                "value": true
+              }
+            ]
+          }
+        }
+      ],
+      "effects": [
+        {
+          "effect_type": "move",
+          "value": -1,
+          "name": "后退"
+        },
+        {
+          "effect_type": "buff",
+          "value": 30,
+          "name": "闪避提升",
+          "target_attribute": "evasion",
+          "remaining_duration": 1
+        }
+      ]
+    },
+    {
+      "id": "focus",
+      "name": "专注",
+      "type": "passive",
+      "description": "静止不动时提升暴击率",
+      "triggerConditions": [
+        {
+          "trigger_type": "onTurnStart",
+          "conditions": {
+            "all": [
+              {
+                "fact": "hasNotMoved",
+                "operator": "equal",
+                "value": true
+              }
+            ]
+          }
+        }
+      ],
+      "effects": [
+        {
+          "effect_type": "buff",
+          "value": 20,
+          "name": "专注",
+          "target_attribute": "crit_rate",
+          "remaining_duration": 1
+        }
+      ]
+    }
+  ]
+} 

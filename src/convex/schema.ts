@@ -186,18 +186,10 @@ export default defineSchema({
         avatar: v.optional(v.string())
     }).index("by_uid", ["uid"]),
     tm_skill_data: defineTable({
-        skill_id: v.string(),
-        name: v.string(),
-        category: v.string(),
-        type: v.union(v.string()),
-        description: v.optional(v.string()),
-        range: v.optional(v.object({ area_type: v.union(v.string()), distance: v.number() })),
-        unlockConditions: v.optional(v.object({ level: v.number(), questsCompleted: v.array(v.string()) })),
-        resourceCost: v.optional(v.object({ stamina: v.optional(v.number()), mana: v.optional(v.number()) })),
-        cooldown: v.optional(v.number()),
-        effects: v.optional(v.array(v.any())),
-        triggerConditions: v.optional(v.array(v.any()))
-    }).index("by_skill_id", ["skill_id"]),
+        character_id: v.string(),
+        character_name: v.string(),
+        skills: v.array(v.any())
+    }).index("by_character", ["character_id"]),
     tm_character_level: defineTable({
         character_id: v.string(),
         levels: v.array(v.object({ level: v.number(), required_exp: v.number(), attributes: v.any() }))
@@ -261,14 +253,14 @@ export default defineSchema({
         status: v.number(),
     }).index("by_game_round", ["gameId", "round"]),
 
-    tm_action: defineTable({
-        gameId: v.id("tm_game"),
-        round: v.number(),
-        uid: v.string(),
-        character: v.string(),
-        act: v.number(),
-        data: v.any()
-    }).index("by_game_round_uid_character", ["gameId", "round", "uid", "character"]),
+    // tm_action: defineTable({
+    //     gameId: v.id("tm_game"),
+    //     round: v.number(),
+    //     uid: v.string(),
+    //     character: v.string(),
+    //     act: v.number(),
+    //     data: v.any()
+    // }).index("by_game_round_uid_character", ["gameId", "round", "uid", "character"]),
     tm_map_data: defineTable({
         map_id: v.string(),
         rows: v.number(),
