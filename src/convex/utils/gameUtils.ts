@@ -24,9 +24,12 @@ const getWalkPath = (characters:CharacterUnit[],map:MapModel,from:{q:number,r:nu
             } as GridCell))
         );
        characters.forEach((c:CharacterUnit)=>{
-        const {q,r}=c;
-        gridCells[r][q].walkable=false;
-        gridCells[r][q].type=1;
+        const q = c.q ?? 0;
+        const r = c.r ?? 0;
+        if (r >= 0 && r < gridCells.length && q >= 0 && q < gridCells[0].length) {
+            gridCells[r][q].walkable = false;
+            gridCells[r][q].type = 1;
+        }
        })   
         // 设置障碍物和禁用格子
         obstacles?.forEach((o: ObstacleCell) => {

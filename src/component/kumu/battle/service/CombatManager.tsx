@@ -98,7 +98,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     const fetchGame = async (gameId: string) => {
 
       console.log("gameId", gameId);
-      const gameObj = await convex.query(api.dao.tmGameDao.findBySession, {
+      const gameObj = await convex.query(api.dao.tmGameDao.find, {
         gameId, uid: "1",
         token: "test-token"
       });

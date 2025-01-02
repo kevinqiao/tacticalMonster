@@ -20,17 +20,17 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
 
   useEffect(() => {
     if (!containerRef.current || hexCell.width === 0 || !map) return;
-    const { q, r } = character;
+    const q = character.q ?? 0;
+    const r = character.r ?? 0;
     const { x, y } = coordToPixel(q, r, hexCell, map);
     gsap.set(containerRef.current, { autoAlpha: 1, x, y, scaleX: character.scaleX ?? 1 });
   }, [character, hexCell, map]);
 
   useEffect(() => {
     if (!currentRound || !gridCells || !characters || !character) return;
-    const currentTurn = currentRound.turns.find((t: any) => t.status >= 0 && t.status <= 2);
+    const currentTurn = currentRound.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
     if (currentTurn && currentTurn.character_id === character.character_id && currentTurn.uid === character.uid) {
       playTurnOn(currentTurn, () => { console.log("playTurnOn", currentTurn) });
-
     }
   }, [character, characters, currentRound, gridCells, playTurnStart]);
 

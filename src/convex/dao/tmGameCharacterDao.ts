@@ -23,7 +23,7 @@ export const create = internalMutation({
         class: v.optional(v.string()),
         race: v.optional(v.string()),   
         statusEffects: v.optional(v.array(v.any())),
-        skills: v.any(),
+        skills: v.optional(v.array(v.string())),
         cooldowns: v.optional(v.any()),
         move_range: v.number(),
         attack_range: v.object({ min: v.number(), max: v.number() })

@@ -8,23 +8,25 @@ export const find = internalQuery({
         return character
     },
 });
-export const findAll = internalQuery({
+export const findByUid = internalQuery({
     args: { uid: v.string() },
     handler: async (ctx, { uid }) => {
+        console.log("uid",uid);
         const playerCharacters = [];
         const characters = await ctx.db
             .query("tm_player_character").withIndex("by_player", (q) => q.eq("uid", uid)).collect();
-        
+        console.log("characters",characters);
         for(const character of characters){
             const characterLevels  = await ctx.db.query("tm_character_level").withIndex("by_character_id",(q)=>q.eq("character_id",character.character_id)).unique();
             const characterLevel = characterLevels?.levels.find((c)=>c.level===character.level); 
             console.log("characterLevel",characterLevel);       
             const characterData = await ctx.db.query("tm_character_data").withIndex("by_character_id", (q) => q.eq("character_id", character.character_id)).unique();
+           console.log("playerCharacter",character);
             if(character.unlockSkills){
                 const unlockSkills = character.unlockSkills;
                 const skillDoc= await ctx.db.query("tm_skill_data").withIndex("by_character", (q) => q.eq("character_id", character.character_id)).unique();
                 const skills = skillDoc?.skills.filter((skill)=>unlockSkills.includes(skill.skill_id));
-                playerCharacters.push({...characterData,uid,level:character.level, attributes:characterLevel?.attributes, skills});
+                playerCharacters.push({...character,...characterData,uid,level:character.level, attributes:characterLevel?.attributes,skills});
             }
         }
         return playerCharacters;

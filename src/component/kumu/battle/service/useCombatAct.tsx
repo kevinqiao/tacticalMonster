@@ -47,7 +47,7 @@ const useCombatAct = () => {
     const col = map.direction === 1 ? map.cols - to.q - 1 : to.q;
     console.log("col", col)
     const path = findPath(gridCells,
-      { x: character.q, y: character.r },
+      { x: character.q ?? 0, y: character.r ?? 0 },
       { x: col, y: to.r }
     );
     console.log(path);

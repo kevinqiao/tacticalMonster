@@ -4,7 +4,7 @@ import { useCombatManager } from "../CombatManager";
 
 const usePhaseProcessor = () => {
     const {characters,gridCells,hexCell,currentRound,resourceLoad} = useCombatManager();
-    const {playTurnStart,playTurnLast,playTurnOn   } = usePhasePlay();    
+    const {playTurnOn   } = usePhasePlay();    
 
     
     const processTurnOn = useCallback(({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {

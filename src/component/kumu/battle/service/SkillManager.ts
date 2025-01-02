@@ -5,7 +5,7 @@ import { CharacterUnit, GameModel } from '../types/CombatTypes';
 
 export class SkillManager {
     private character: CharacterUnit;
-    private skills: Skill[];
+    // private skills: Skill[];
     private engine: Engine;
     private game: GameModel;
  
@@ -16,29 +16,30 @@ export class SkillManager {
         this.character.stats = this.character.stats || {};
         this.character.skillCooldowns = this.character.skillCooldowns || {};
         this.character.activeEffects = this.character.activeEffects || [];
-        this.skills = [];
+        // this.skills = [];
         this.engine = new Engine();
+         this.initializeRules();
     }
 
-    async loadSkills(skillFilePath: string): Promise<void> {
-        try {
-            const response = await fetch(skillFilePath);
-            const data = await response.json();
+    // async loadSkills(skillFilePath: string): Promise<void> {
+    //     try {
+    //         const response = await fetch(skillFilePath);
+    //         const data = await response.json();
             
-            // 验证技能是否属于当前角色
-            if (data.character_id === this.character.character_id) {
-                this.skills = data.skills;
-                this.initializeRules();
-            } else {
-                console.warn(`Skill file ${skillFilePath} does not match character ID ${this.character.character_id}`);
-            }
-        } catch (error) {
-            console.error(`Failed to load skills from ${skillFilePath}:`, error);
-        }
-    }
+    //         // 验证技能是否属于当前角色
+    //         if (data.character_id === this.character.character_id) {
+    //             this.skills = data.skills;
+    //             this.initializeRules();
+    //         } else {
+    //             console.warn(`Skill file ${skillFilePath} does not match character ID ${this.character.character_id}`);
+    //         }
+    //     } catch (error) {
+    //         console.error(`Failed to load skills from ${skillFilePath}:`, error);
+    //     }
+    // }
 
     private initializeRules(): void {
-        this.skills.forEach(skill => {
+        this.character.skills?.forEach(skill => {
             if (skill.triggerConditions) {
                 skill.triggerConditions.forEach(condition => {
                     this.engine.addRule({
@@ -72,7 +73,7 @@ export class SkillManager {
         for (const event of events) {
             if (event.type === 'triggerSkill' && 
                 event.params?.triggerType === eventType) {
-                const skill = this.skills.find(s => s.id === event.params?.skillId);
+                const skill = this.character.skills?.find(s => s.id === event.params?.skillId);
                 if (skill) {
                     await this.executeSkill(skill, target);
                 }
@@ -85,7 +86,7 @@ export class SkillManager {
 
     // 主动使用技能
     async useSkill(skillId: string, target?: CharacterUnit): Promise<void> {
-        const skill = this.skills.find(s => s.id === skillId);
+        const skill = this.character.skills?.find(s => s.id === skillId);
 
         if (!skill) {
             console.error(`Skill with ID ${skillId} not found.`);
@@ -104,10 +105,11 @@ export class SkillManager {
 
         this.applyResourceCost(skill);
 
-        skill.effects.forEach(effect => {
+            skill.effects.forEach(effect => {
             this.applyEffect(effect, target);
         });
 
+        this.character.skillCooldowns = this.character.skillCooldowns || {};
         this.character.skillCooldowns[skill.id] = skill.cooldown;
 
         console.log(`${this.character.name} used skill: ${skill.name}`);
@@ -179,12 +181,13 @@ export class SkillManager {
     }
 
     private calculateNewPosition(character: CharacterUnit, direction: number) {
-        // 根据角色朝向计算新位置
-        const facing = character.facing || 0; // 假设0度朝右，每60度一个方向
+        const facing = character.facing || 0;
         const angle = facing * Math.PI / 3;
+        const currentQ = character.q ?? 0;
+        const currentR = character.r ?? 0;
         return {
-            q: character.q + Math.round(Math.cos(angle)) * direction,
-            r: character.r + Math.round(Math.sin(angle)) * direction
+            q: currentQ + Math.round(Math.cos(angle)) * direction,
+            r: currentR + Math.round(Math.sin(angle)) * direction
         };
     }
 
@@ -230,17 +233,18 @@ export class SkillManager {
 
     // 检查技能是否在冷却中
     private isSkillOnCooldown(skillId: string): boolean {
-        const cooldown = this.character.skillCooldowns[skillId];
-        return cooldown !== undefined && cooldown > 0;
+        return (this.character.skillCooldowns?.[skillId] ?? 0) > 0;
     }
 
     // 更新冷却时间
     updateCooldowns(): void {
-        Object.keys(this.character.skillCooldowns).forEach(skillId => {
-            if (this.character.skillCooldowns[skillId] > 0) {
-                this.character.skillCooldowns[skillId] -= 1;
-            }
-        });
+        if (this.character.skillCooldowns) {
+            Object.keys(this.character.skillCooldowns).forEach(skillId => {
+                if (this.character.skillCooldowns![skillId] > 0) {
+                    this.character.skillCooldowns![skillId] -= 1;
+                }
+            });
+        }
 
         if (this.character.activeEffects) {
             this.character.activeEffects = this.character.activeEffects.filter(effect => {
@@ -295,9 +299,9 @@ export class SkillManager {
 
     async getAvailableSkills(target: CharacterUnit, game: GameModel): Promise<{skills: Skill[]} | null> {
         // 获取所有主动技能
-        const activeSkills = this.skills.filter(skill => skill.type === 'active');
+        const activeSkills = this.character.skills?.filter(skill => skill.type === 'active');
         const availableSkills: Skill[] = [];
-
+        if(!activeSkills)return null;
         for (const skill of activeSkills) {
             // 基础检查：冷却和资源
             if (this.isSkillOnCooldown(skill.id) || !this.hasSufficientResources(skill)) {
@@ -367,7 +371,11 @@ export class SkillManager {
     }
 
     private calculateDistance(char1: CharacterUnit, char2: CharacterUnit): number {
-        return Math.abs(char1.q - char2.q) + Math.abs(char1.r - char2.r);
+        const q1 = char1.q ?? 0;
+        const r1 = char1.r ?? 0;
+        const q2 = char2.q ?? 0;
+        const r2 = char2.r ?? 0;
+        return Math.abs(q1 - q2) + Math.abs(r1 - r2);
     }
 
   

@@ -221,13 +221,13 @@ export default defineSchema({
         race: v.optional(v.string()),   
         asset: v.optional(v.string()),
         stats: v.optional(v.any()),
-        q:v.number(),
-        r:v.number(),
+        q: v.number(),
+        r: v.number(),
         statusEffects: v.optional(v.array(v.any())),
-        skills:v.any(),
         cooldowns: v.optional(v.any()),
         move_range: v.optional(v.number()),
-        attack_range: v.object({ min: v.number(), max: v.number() })
+        attack_range: v.object({ min: v.number(), max: v.number() }),
+        skills: v.optional(v.array(v.string())),
     }).index("by_game", ['gameId']).index("by_game_character", ['gameId','uid', 'character_id']),
     tm_game: defineTable({
         challenger: v.string(),

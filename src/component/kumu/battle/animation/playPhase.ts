@@ -37,10 +37,25 @@ const playTurnOn= useCallback((currentTurn:CombatTurn,onComplete:()=>void) => {
     if(!character)return;
     console.log("playTurnOn",currentTurn)
     const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
-    const nodes = getWalkableNodes(gridCells, { x: character.q, y: character.r }, moveRange);
+    const nodes = getWalkableNodes(gridCells, { x: character.q ?? 0, y: character.r ?? 0     }, moveRange);
     character.walkables = nodes;
-    const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id);
-    const attackableNodes = getAttackableNodes(character, enemies, character.attack_range || { min: 1, max: 2 });
+    const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
+        .map(c => ({
+            q: c.q ?? 0,
+            r: c.r ?? 0,
+            uid: c.uid,
+            character_id: c.character_id
+        }));
+    const attackableNodes = getAttackableNodes(
+        {
+            q: character.q ?? 0,
+            r: character.r ?? 0,
+            uid: character.uid,
+            character_id: character.character_id
+        },
+        enemies, 
+        character.attack_range || { min: 1, max: 2 }
+    );
     character.attackables = attackableNodes;
     const tl = gsap.timeline({
            onComplete:()=>{

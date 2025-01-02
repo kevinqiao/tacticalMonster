@@ -120,17 +120,17 @@ export interface CharacterUnit extends Character {
     uid: string;
     character_id: string;
     scaleX?: number; 
-    asset: string;
-    q: number;
-    r: number;
-    facing: number;  // 朝向角度，0度朝右，每60度一个方向
+    asset?: string;
+    q?: number;
+    r?: number;
+    facing?: number;  // 朝向角度，0度朝右，每60度一个方向
     walkables?: WalkableNode[];
     attackables?: AttackableNode[];
     container?: HTMLDivElement;
     standEle?: HTMLDivElement;
     attackEle?: HTMLDivElement;    
     skeleton?: Spine;
-    skillCooldowns: Record<string, number>;
+    skillCooldowns?: Record<string, number>;
     activeEffects?: Effect[];
 }
 export interface MapModel {

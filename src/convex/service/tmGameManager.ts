@@ -29,28 +29,12 @@ class GameManager {
             gameObj.map = map; 
             if (gameId) {
                 const gameCharacters: any[] = [];
-                for (const player of players) {
-                 
-                    const characters = await this.dbCtx.runQuery(internal.dao.tmPlayerCharacterDao.findAll, { uid: player.uid });
-                    console.log("characters",characters);   
+                for (const player of players) {                 
+                    const characters = await this.dbCtx.runQuery(internal.dao.tmPlayerCharacterDao.findByUid, { uid: player.uid });
                     for (const character of characters) {
                         const position=getPosition(gameObj,map,player);
-                      
-                        // let gameCharacter: any={...character,...position,gameId};
-                        // const { character_id, level } = character;
-                        // const characterData = await this.dbCtx.runQuery(internal.dao.tmCharacterDataDao.find, { character_id });
-                        // if (characterData) {
-                        //     const levelData = await this.dbCtx.runQuery(internal.dao.tmLevelDataDao.findByLevel, { character_id, level });
-                        //     if (levelData?.attributes) {
-                        //         const attributes = levelData.attributes as Attributes
-                        //         const stats: Stats = calculateStats(attributes);
-                        //         const { move_range, attack_range } = characterData;
-                        //         gameCharacter = { ...character,...position, move_range, attack_range, stats, gameId, _id: undefined, _creationTime: undefined, asset: undefined }
-                        //     }
-                        //     await this.dbCtx.runMutation(internal.dao.tmGameCharacterDao.create, gameCharacter);
-                        // }
                         const stats = calculateStats(character.attributes);
-                        const gameCharacter = {...character,...position,gameId,_id:undefined,_creationTime:undefined,stats,attributes:undefined,asset:character.asset};
+                        const gameCharacter = {...character,...position,gameId,_id:undefined,_creationTime:undefined,stats,attributes:undefined,asset:character.asset,skills:character.unlockSkills,unlockSkills:undefined};
                         await this.dbCtx.runMutation(internal.dao.tmGameCharacterDao.create, gameCharacter);
                         gameCharacters.push(gameCharacter);
                     }
@@ -65,10 +49,6 @@ class GameManager {
                 gameObj.players=players;    
                 this.game=gameObj;  
                await this.gameStart();
-                // const roundEvent={gameId,name:"roundStart",data:{round:round.no}};
-                // await this.dbCtx.runMutation(internal.dao.tmEventDao.create, roundEvent);
-                // const turnEvent={gameId,name:"turnStart",data:{turn:0}};
-                // await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);
             }
         }
     }
@@ -79,14 +59,17 @@ class GameManager {
     async walk(gameId: string, uid: string, character_id: string, to: {q: number, r: number}): Promise<boolean> {
         // console.log("to",to);
 
-        this.game = await this.dbCtx.runQuery(internal.dao.tmGameDao.find, { gameId });                
+        this.game = await this.dbCtx.runQuery(internal.dao.tmGameDao.get, { gameId });                
         if (!this.game || !uid || !this.game.map) return false;
         this.game.gameId=gameId;    
         const character = this.game.characters.find((c:any) => 
             c.character_id === character_id && c.uid === uid
         );
         if (!character) return false;   
-        const from={q:character.q,r:character.r};
+        const from = {
+            q: character.q ?? 0,
+            r: character.r ?? 0
+        };
         const path = getWalkPath(this.game.characters,this.game.map,from,to);
         const round = this.game.currentRound;
         const currentTurn = round?.turns?.find((turn:CombatTurn)=>turn.status===1||turn.status===2); 
