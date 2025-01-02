@@ -6,7 +6,9 @@ import { CharacterUnit, GameModel } from '../types/CombatTypes';
 export class SkillManager {
     private character: CharacterUnit;
     // private skills: Skill[];
-    private engine: Engine;
+    // private engine: Engine;
+    private triggerEngine: Engine;
+    private availabilityEngine: Engine;
     private game: GameModel;
  
 
@@ -17,7 +19,9 @@ export class SkillManager {
         this.character.skillCooldowns = this.character.skillCooldowns || {};
         this.character.activeEffects = this.character.activeEffects || [];
         // this.skills = [];
-        this.engine = new Engine();
+        // this.engine = new Engine();
+        this.triggerEngine = new Engine();
+        this.availabilityEngine = new Engine();
          this.initializeRules();
     }
 
@@ -27,7 +31,7 @@ export class SkillManager {
         this.character.skills?.forEach(skill => {
             if (skill.triggerConditions) {
                 skill.triggerConditions.forEach(condition => {
-                    this.engine.addRule({
+                    this.triggerEngine.addRule({
                         conditions: condition.conditions,
                         event: {
                             type: 'triggerSkill',
@@ -37,6 +41,20 @@ export class SkillManager {
                             }
                         }
                     });
+                });
+            }
+        });
+         this.character.skills?.forEach(skill => {
+            if (skill.availabilityConditions) {
+                this.availabilityEngine.addRule({
+                    conditions: skill.availabilityConditions,
+                    event: {
+                        type: 'skillAvailable',
+                        params: {
+                            skillId: skill.id,
+                        }
+                    },
+                    priority: skill.priority??0
                 });
             }
         });
@@ -53,14 +71,14 @@ export class SkillManager {
             ...this.character.stats
         };
 
-        const { events } = await this.engine.run(facts);
+        const { events } = await this.triggerEngine.run(facts);
         
         for (const event of events) {
             if (event.type === 'triggerSkill' && 
                 event.params?.triggerType === eventType) {
                 const skill = this.character.skills?.find(s => s.id === event.params?.skillId);
                 if (skill) {
-                    await this.executeSkill(skill, target);
+                     this.executeSkill(skill, target);
                 }
             }
         }
@@ -106,11 +124,11 @@ export class SkillManager {
     }
 
     // 执行技能效果
-    private async executeSkill(skill: Skill, target?: CharacterUnit): Promise<void> {
+    private  executeSkill(skill: Skill, target?: CharacterUnit) {
         console.log(`${this.character.name} 执行技能: ${skill.name}`);
         
         for (const effect of skill.effects) {
-            await this.applyEffect(effect, target);
+            this.applyEffect(effect, target);
         }
     }
 
@@ -282,67 +300,36 @@ export class SkillManager {
         await this.checkCounterAttack(target, attacker, 'onAttacked');
     }
 
-    async getAvailableSkills(target: CharacterUnit, game: GameModel): Promise<{skills: Skill[]} | null> {
+    async getAvailableSkills(): Promise<Skill[]| undefined> {
         // 获取所有主动技能
-        const activeSkills = this.character.skills?.filter(skill => skill.type === 'active');
-        const availableSkills: Skill[] = [];
-        if(!activeSkills)return null;
-        console.log("activeSkills",activeSkills)
-        for (const skill of activeSkills) {
-            // 基础检查：冷却和资源
-            if (this.isSkillOnCooldown(skill.id) || !this.hasSufficientResources(skill)) {
-                continue;
-            }
-
-            // 准备规则引擎需要的事实数据
+       
             const facts = {
                 // 目标相关
-                targetDistance: this.calculateDistance(this.character, target),
-                targetHP: target.stats?.hp ? target.stats.hp.current / target.stats.hp.max : 1,
+                // targetDistance: this.calculateDistance(this.character, target),
+                // targetHP: target.stats?.hp ? target.stats.hp.current / target.stats.hp.max : 1,
                 
-                // 施法者相关
-                casterHP: this.character.stats?.hp ? 
-                    this.character.stats.hp.current / this.character.stats.hp.max : 1,
-                resourceMP: this.character.stats?.mp ?? 0,
+                // // 施法者相关
+                // casterHP: this.character.stats?.hp ? 
+                //     this.character.stats.hp.current / this.character.stats.hp.max : 1,
+                // resourceMP: this.character.stats?.mp ?? 0,
                 
                 // 战场环境相关
-                nearbyEnemies: this.countNearbyEnemies(game.characters),
-                isTargetAdjacent: this.calculateDistance(this.character, target) === 1,
+                targetDistance: 2,
+                nearbyEnemies: this.countNearbyEnemies(),
+                // isTargetAdjacent: this.calculateDistance(this.character, target) === 1,
                 
-                // 技能范围检查
-                inRange: skill.range ? this.isTargetInRange(target, skill.range) : true
+  
             };
 
-            try {
-                // 创建临时规则引擎实例
-                const availabilityEngine = new Engine();
-                
-                // 添加技能可用性规则
-                if (skill.availabilityConditions) {
-                    availabilityEngine.addRule({
-                        conditions: skill.availabilityConditions,
-                        event: { type: 'skillAvailable' }
-                    });
+            const { events } = await this.availabilityEngine.run(facts);
+            const skills:Skill[] = events.filter(event => event.type === 'skillAvailable').map(event => this.character.skills?.find(s => s.id === event.params?.skillId) as Skill);
+           
+            return skills;  
 
-                    // 运行规则检查
-                    const { events } = await availabilityEngine.run(facts);
-                    if (events.some(e => e.type === 'skillAvailable')) {
-                        availableSkills.push(skill);
-                    }
-                } else {
-                    // 如果没有特殊条件，只要通过了基础检查就是可用的
-                    availableSkills.push(skill);
-                }
-            } catch (error) {
-                console.error(`Error checking availability for skill ${skill.id}:`, error);
-            }
-        }
-
-        return { skills: availableSkills };
     }
 
-    private countNearbyEnemies(characters: CharacterUnit[]): number {
-        return characters.filter(char => 
+    private countNearbyEnemies(): number {
+        return this.game.characters.filter(char => 
             char.uid !== this.character.uid && 
             this.calculateDistance(this.character, char) === 1
         ).length;

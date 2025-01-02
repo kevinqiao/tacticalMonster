@@ -33,10 +33,10 @@ const usePhaseProcessor = () => {
             const character = characters.find(c=>c.character_id===character_id);
             if(character){
                 const skillService = new SkillManager(character,game);     
-                const skills = await skillService.getAvailableSkills(character,game);
+                const skills = await skillService.getAvailableSkills();
                 console.log("skills",skills)    
                 if(skills){
-                    setSelectedActiveSkill(skills.skills[0]);
+                    setSelectedActiveSkill(skills[0]);
                 }
             } 
         }

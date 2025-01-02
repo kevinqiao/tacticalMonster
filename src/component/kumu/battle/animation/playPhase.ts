@@ -122,10 +122,10 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
                 console.log("character",character)
                 const skillService = new SkillManager(character,game);  
                
-                const skills = await skillService.getAvailableSkills(character,game);
+                const skills = await skillService.getAvailableSkills();
                 console.log("skills",skills)    
                 if(skills){
-                    setSelectedActiveSkill(skills.skills[0]);
+                    setSelectedActiveSkill(skills[0]);
                 }
             } 
         }

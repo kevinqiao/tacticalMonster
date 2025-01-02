@@ -54,6 +54,7 @@ export interface Skill {
     type: "master" | "active" | "passive"; // 技能类型（主动、被动、终极技能）
     description?: string; // 技能描述，提供玩家可读的信息
     canTriggerCounter?: boolean;  // 添加此属性
+    priority?: number;  // 技能优先级   
     availabilityConditions?: TopLevelCondition;  // 使用 json-rules-engine 的类型
     range?: SkillRange;
     unlockConditions?: {
