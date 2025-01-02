@@ -1,5 +1,5 @@
 import { Spine } from "pixi-spine";
-import { Character, SkillEffect as Effect } from "./CharacterTypes";
+import { Character, SkillEffect as Effect, Skill } from "./CharacterTypes";
 
 export enum ACT_CODE {
     WALK = 1,
@@ -153,6 +153,8 @@ export interface MapModel {
 // }
 
 export interface ICombatContext {
+    game:GameModel|null;
+    selectedActiveSkill:Skill|null; 
     coordDirection:number;  
     hexCell: {width:number,height:number};
     gameId:string|null;
@@ -182,6 +184,7 @@ export interface ICombatContext {
         }>
     >;
     changeCell: React.Dispatch<React.SetStateAction<{width:number,height:number}>>;
+    setSelectedActiveSkill:(skill:Skill)=>void;
     changeCoordDirection:(direction:number)=>void;
     // walk: (to: { q: number; r: number }) => void;
     // findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;

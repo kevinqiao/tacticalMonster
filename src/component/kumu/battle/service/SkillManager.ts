@@ -21,22 +21,7 @@ export class SkillManager {
          this.initializeRules();
     }
 
-    // async loadSkills(skillFilePath: string): Promise<void> {
-    //     try {
-    //         const response = await fetch(skillFilePath);
-    //         const data = await response.json();
-            
-    //         // 验证技能是否属于当前角色
-    //         if (data.character_id === this.character.character_id) {
-    //             this.skills = data.skills;
-    //             this.initializeRules();
-    //         } else {
-    //             console.warn(`Skill file ${skillFilePath} does not match character ID ${this.character.character_id}`);
-    //         }
-    //     } catch (error) {
-    //         console.error(`Failed to load skills from ${skillFilePath}:`, error);
-    //     }
-    // }
+
 
     private initializeRules(): void {
         this.character.skills?.forEach(skill => {
@@ -302,6 +287,7 @@ export class SkillManager {
         const activeSkills = this.character.skills?.filter(skill => skill.type === 'active');
         const availableSkills: Skill[] = [];
         if(!activeSkills)return null;
+        console.log("activeSkills",activeSkills)
         for (const skill of activeSkills) {
             // 基础检查：冷却和资源
             if (this.isSkillOnCooldown(skill.id) || !this.hasSufficientResources(skill)) {

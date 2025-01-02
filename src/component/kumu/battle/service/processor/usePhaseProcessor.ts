@@ -1,13 +1,14 @@
 import { useCallback } from "react";
 import usePhasePlay from "../../animation/playPhase";
 import { useCombatManager } from "../CombatManager";
+import { SkillManager } from "../SkillManager";
 
 const usePhaseProcessor = () => {
-    const {characters,gridCells,hexCell,currentRound,resourceLoad} = useCombatManager();
+    const {characters,gridCells,hexCell,currentRound,resourceLoad,game,setSelectedActiveSkill} = useCombatManager();
     const {playTurnOn   } = usePhasePlay();    
 
     
-    const processTurnOn = useCallback(({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
+    const processTurnOn = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
         // console.log("processTurnStart",data)
         const {character_id,uid} = data
         if(!characters||!currentRound)return;
@@ -16,9 +17,10 @@ const usePhaseProcessor = () => {
         currentTurn.status = 1;
         // console.log("currentRound",currentRound);
         playTurnOn(currentTurn,onComplete);     
+       
            
     }, [resourceLoad,characters, gridCells, hexCell,currentRound])    
-    const processTurnLast = useCallback(({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
+    const processTurnLast = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
         // console.log("processTurnStart",data)
              const {character_id,uid} = data
         if(!characters||!currentRound)return;
@@ -27,6 +29,17 @@ const usePhaseProcessor = () => {
         currentTurn.status = 2;
         // console.log("currentRound",currentRound);
         playTurnOn(currentTurn,onComplete);   
+         if(game){
+            const character = characters.find(c=>c.character_id===character_id);
+            if(character){
+                const skillService = new SkillManager(character,game);     
+                const skills = await skillService.getAvailableSkills(character,game);
+                console.log("skills",skills)    
+                if(skills){
+                    setSelectedActiveSkill(skills.skills[0]);
+                }
+            } 
+        }
     }, [resourceLoad,characters, gridCells, hexCell,currentRound])  
     const processRoundStart = useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {
         if(!currentRound) return;

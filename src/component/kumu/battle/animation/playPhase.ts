@@ -1,10 +1,11 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
+import { SkillManager } from "../service/SkillManager";
 import { CharacterUnit, CombatTurn, GridCell } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 const usePhasePlay = () => {
- const {gridCells,characters,hexCell,map} = useCombatManager(); 
+ const {gridCells,characters,hexCell,map,game,setSelectedActiveSkill} = useCombatManager(); 
  const playGameInit= useCallback((characters: CharacterUnit[],  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
     const {width,height} = hexCell;
     const tl =gsap.timeline();
@@ -31,7 +32,7 @@ const usePhasePlay = () => {
     else tl.play();
     
 },[hexCell]);
-const playTurnOn= useCallback((currentTurn:CombatTurn,onComplete:()=>void) => {
+const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void) => {
     if(!characters||!gridCells||!map)return;  
     const character = characters.find((c)=>c.uid===currentTurn.uid&&c.character_id===currentTurn.character_id);
     if(!character)return;
@@ -115,6 +116,19 @@ const playTurnOn= useCallback((currentTurn:CombatTurn,onComplete:()=>void) => {
         
     })  
     tl.play();  
+     if(game){
+            const character = characters.find(c=>c.character_id===currentTurn.character_id);
+            if(character){
+                console.log("character",character)
+                const skillService = new SkillManager(character,game);  
+               
+                const skills = await skillService.getAvailableSkills(character,game);
+                console.log("skills",skills)    
+                if(skills){
+                    setSelectedActiveSkill(skills.skills[0]);
+                }
+            } 
+        }
 
 },[characters,gridCells,hexCell,map]);
  const playTurnStart= useCallback((character: CharacterUnit,timeline:gsap.core.Timeline|null) => {

@@ -6,6 +6,7 @@ import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/_generated/api";
 import { allObstacles } from "../data/CombatData";
+import { Skill } from "../types/CharacterTypes";
 import {
   CharacterUnit,
   CombatEvent,
@@ -48,6 +49,8 @@ const mapData = {
 };
 export const CombatContext = createContext<ICombatContext>({
   // rowContainers: {},
+  game: null,
+  selectedActiveSkill: null,
   coordDirection: 0,
   currentRound: { no: 0, turns: [], status: 0 },
   gameId: null,
@@ -59,7 +62,8 @@ export const CombatContext = createContext<ICombatContext>({
   eventQueue: [],
   setResourceLoad: () => null,
   changeCell: () => null,
-  changeCoordDirection: () => null
+  changeCoordDirection: () => null,
+  setSelectedActiveSkill: () => null
 });
 const round: CombatRound = {
   no: 1,
@@ -68,6 +72,7 @@ const round: CombatRound = {
 };
 
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
+  const [selectedActiveSkill, setSelectedActiveSkill] = useState<Skill | null>(null);
   const [coordDirection, setCoordDirection] = useState<number>(0);
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
   const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -177,6 +182,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 
 
   const value = {
+    game,
+    selectedActiveSkill,
+    setSelectedActiveSkill,
     coordDirection,
     gameId,
     hexCell,
@@ -203,3 +211,4 @@ export const useCombatManager = () => {
   return ctx;
 };
 export default CombatProvider;
+
