@@ -9,10 +9,10 @@ import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 
 const CombatActPanel: React.FC = () => {
-  const { eventQueue, changeCoordDirection } = useCombatManager();
+  const { eventQueue, changeCoordDirection, selectedActiveSkill } = useCombatManager();
   // const doSomething = useAction(api.rule.test.doSomething);
   // const startGame = useAction(api.service.tmGameProxy.start);
-
+  console.log("selectedActiveSkill", selectedActiveSkill)
   return (
     <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
       <div className="action-panel-item" onClick={() => changeCoordDirection(0)}>

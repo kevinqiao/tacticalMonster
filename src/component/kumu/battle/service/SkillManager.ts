@@ -5,8 +5,6 @@ import { CharacterUnit, GameModel } from '../types/CombatTypes';
 
 export class SkillManager {
     private character: CharacterUnit;
-    // private skills: Skill[];
-    // private engine: Engine;
     private triggerEngine: Engine;
     private availabilityEngine: Engine;
     private game: GameModel;
@@ -18,8 +16,6 @@ export class SkillManager {
         this.character.stats = this.character.stats || {};
         this.character.skillCooldowns = this.character.skillCooldowns || {};
         this.character.activeEffects = this.character.activeEffects || [];
-        // this.skills = [];
-        // this.engine = new Engine();
         this.triggerEngine = new Engine();
         this.availabilityEngine = new Engine();
          this.initializeRules();

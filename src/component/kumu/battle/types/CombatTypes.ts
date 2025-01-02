@@ -115,7 +115,10 @@ export interface AttackableNode extends HexNode {
     character_id:string;  
     distance: number; // 距离角色的步数
 }
-
+export interface PlayerCharacter extends Character {
+    uid: string;
+    asset?: string;
+}
 export interface CharacterUnit extends Character {
     uid: string;
     character_id: string;
@@ -123,6 +126,7 @@ export interface CharacterUnit extends Character {
     asset?: string;
     q?: number;
     r?: number;
+    skills?: Skill[];
     facing?: number;  // 朝向角度，0度朝右，每60度一个方向
     walkables?: WalkableNode[];
     attackables?: AttackableNode[];
@@ -140,17 +144,6 @@ export interface MapModel {
     obstacles?: ObstacleCell[];
     disables?: { q: number; r: number }[];
 }
-// export interface TMGame {
-//     id: string;
-//     challenger: Player;
-//     challengee: Player;
-//     currentRound: CombatRound;
-//     timeClock: number;
-//     characters: CharacterUnit[];
-//     obstacles: ObstacleCell[];
-//     disables: { x: number; y: number }[];
-//     status: number;
-// }
 
 export interface ICombatContext {
     game:GameModel|null;

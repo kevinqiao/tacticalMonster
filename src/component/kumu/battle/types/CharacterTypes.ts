@@ -108,9 +108,9 @@ export interface Character {
     attack_range?: { min: number; max: number };
     stats?: Stats;
     unlockSkills?: string[];
-    skills?: Skill[];
-    activeEffects?: SkillEffect[];
-    cooldowns?: { [skillId: string]: number };
+    // skills?: Skill[];
+    // activeEffects?: SkillEffect[];
+    // cooldowns?: { [skillId: string]: number };
 }
 
 export enum CharacterAnimState {
