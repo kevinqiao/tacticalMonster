@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { sessionAction, sessionQuery } from "../custom/session";
 import GameManager from "./tmGameManager";
-
+// "use node";
 export const start = action({
     args: {},
     handler: async (ctx, args) => {

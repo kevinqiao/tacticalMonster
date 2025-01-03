@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useEffect, useRef, useState, useContext } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
@@ -8,9 +8,9 @@ import { api } from "../../../../convex/_generated/api";
 import { allObstacles } from "../data/CombatData";
 import { Skill } from "../types/CharacterTypes";
 import {
-  CharacterUnit,
   CombatEvent,
   CombatRound,
+  GameCharacter,
   GameModel,
   GridCell,
   ICombatContext,
@@ -50,7 +50,7 @@ const mapData = {
 export const CombatContext = createContext<ICombatContext>({
   // rowContainers: {},
   game: null,
-  selectedActiveSkill: null,
+  activeSkills: null,
   coordDirection: 0,
   currentRound: { no: 0, turns: [], status: 0 },
   gameId: null,
@@ -63,7 +63,7 @@ export const CombatContext = createContext<ICombatContext>({
   setResourceLoad: () => null,
   changeCell: () => null,
   changeCoordDirection: () => null,
-  setSelectedActiveSkill: () => null
+  setActiveSkills: () => null
 });
 const round: CombatRound = {
   no: 1,
@@ -72,7 +72,7 @@ const round: CombatRound = {
 };
 
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
-  const [selectedActiveSkill, setSelectedActiveSkill] = useState<Skill | null>(null);
+  const [activeSkills, setActiveSkills] = useState<Skill[] | null>(null);
   const [coordDirection, setCoordDirection] = useState<number>(0);
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
   const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -113,8 +113,8 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
           const map = gameObj.map as MapModel;
           map.direction = 1;
         }
-        gameObj.characters.forEach((character) => {
-          const c = character as CharacterUnit;
+        gameObj.characters.forEach((character:any ) => {
+          const c = character as GameCharacter;
           if (c.uid === user.uid) {
             c.scaleX = 1;
           } else {
@@ -183,8 +183,8 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 
   const value = {
     game,
-    selectedActiveSkill,
-    setSelectedActiveSkill,
+    activeSkills,
+    setActiveSkills,
     coordDirection,
     gameId,
     hexCell,
@@ -207,8 +207,12 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 };
 
 export const useCombatManager = () => {
-  const ctx = useContext(CombatContext);
-  return ctx;
+  const context = useContext(CombatContext);
+  if (!context) {
+    throw new Error("useCombatManager must be used within a CombatProvider");
+  }
+  return context;
 };
+
 export default CombatProvider;
 

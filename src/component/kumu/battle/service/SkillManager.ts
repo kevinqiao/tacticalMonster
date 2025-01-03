@@ -1,16 +1,16 @@
 import { Engine } from 'json-rules-engine';
 // import { getTargetsInRange } from '../../utils/SkillRangeUtils';
 import { SkillEffect as Effect, Skill, SkillRange } from '../types/CharacterTypes';
-import { CharacterUnit, GameModel } from '../types/CombatTypes';
+import { GameCharacter, GameModel } from '../types/CombatTypes';
 
 export class SkillManager {
-    private character: CharacterUnit;
+    private character: GameCharacter;
     private triggerEngine: Engine;
     private availabilityEngine: Engine;
     private game: GameModel;
  
 
-    constructor(character: CharacterUnit,game:GameModel) {
+    constructor(character: GameCharacter,game:GameModel) {
         this.character = character;
         this.game = game;       
         this.character.stats = this.character.stats || {};
@@ -24,6 +24,7 @@ export class SkillManager {
 
 
     private initializeRules(): void {
+        console.log("initializeRules",this.character.skills)    
         this.character.skills?.forEach(skill => {
             if (skill.triggerConditions) {
                 skill.triggerConditions.forEach(condition => {
@@ -56,7 +57,7 @@ export class SkillManager {
         });
     }
 
-    async checkTriggerConditions(eventType: string, target?: CharacterUnit): Promise<void> {
+    async checkTriggerConditions(eventType: string, target?: GameCharacter): Promise<void> {
         if (!this.character.stats?.hp) return;
 
         const facts = {
@@ -84,7 +85,7 @@ export class SkillManager {
 
 
     // 主动使用技能
-    async useSkill(skillId: string, target?: CharacterUnit): Promise<void> {
+    async useSkill(skillId: string, target?: GameCharacter): Promise<void> {
         const skill = this.character.skills?.find(s => s.id === skillId);
 
         if (!skill) {
@@ -120,7 +121,7 @@ export class SkillManager {
     }
 
     // 执行技能效果
-    private  executeSkill(skill: Skill, target?: CharacterUnit) {
+    private  executeSkill(skill: Skill, target?: GameCharacter) {
         console.log(`${this.character.name} 执行技能: ${skill.name}`);
         
         for (const effect of skill.effects) {
@@ -129,7 +130,7 @@ export class SkillManager {
     }
 
     // 应用技能效果
-    private applyEffect(effect: Effect, target?: CharacterUnit): void {
+    private applyEffect(effect: Effect, target?: GameCharacter): void {
         const recipient = target || this.character;
         recipient.activeEffects = recipient.activeEffects || [];
         const effectValue = typeof effect.value === 'string' ? parseFloat(effect.value) : effect.value;
@@ -179,7 +180,7 @@ export class SkillManager {
         }
     }
 
-    private calculateNewPosition(character: CharacterUnit, direction: number) {
+    private calculateNewPosition(character: GameCharacter, direction: number) {
         const facing = character.facing || 0;
         const angle = facing * Math.PI / 3;
         const currentQ = character.q ?? 0;
@@ -262,11 +263,11 @@ export class SkillManager {
     }
 
     // 计算防御力
-    private calculateDefense(target: CharacterUnit | undefined): number {
+    private calculateDefense(target: GameCharacter | undefined): number {
         return target?.stats?.defense ?? 0;
     }
 
-    private async checkCounterAttack(target: CharacterUnit, attacker: CharacterUnit, triggerType: string): Promise<void> {
+    private async checkCounterAttack(target: GameCharacter, attacker: GameCharacter, triggerType: string): Promise<void> {
         if (!target?.stats?.hp?.current) return;
         
         console.log(`${target.name} 检查反击触发条件...`);
@@ -274,7 +275,7 @@ export class SkillManager {
         await targetSkillManager.checkTriggerConditions(triggerType, attacker);
     }
 
-    async attack(attacker: CharacterUnit, target: CharacterUnit | undefined): Promise<void> {
+    async attack(attacker: GameCharacter, target: GameCharacter | undefined): Promise<void> {
         if (!target?.stats?.hp?.current) return;
         
         console.log(`${attacker.name} 攻击了 ${target.name}`);
@@ -298,29 +299,21 @@ export class SkillManager {
 
     async getAvailableSkills(): Promise<Skill[]| undefined> {
         // 获取所有主动技能
-       
+            const availableSkills:Skill[]= this.character.skills?.filter(skill => skill.type === 'active'&&!skill.availabilityConditions)??[];
+            console.log("availableSkills",availableSkills)  
+            const nearbyEnemies = this.countNearbyEnemies();
             const facts = {
-                // 目标相关
-                // targetDistance: this.calculateDistance(this.character, target),
-                // targetHP: target.stats?.hp ? target.stats.hp.current / target.stats.hp.max : 1,
-                
-                // // 施法者相关
-                // casterHP: this.character.stats?.hp ? 
-                //     this.character.stats.hp.current / this.character.stats.hp.max : 1,
-                // resourceMP: this.character.stats?.mp ?? 0,
-                
-                // 战场环境相关
                 targetDistance: 2,
-                nearbyEnemies: this.countNearbyEnemies(),
-                // isTargetAdjacent: this.calculateDistance(this.character, target) === 1,
-                
-  
+                nearbyEnemies,            
             };
 
             const { events } = await this.availabilityEngine.run(facts);
+            console.log("events",events)    
             const skills:Skill[] = events.filter(event => event.type === 'skillAvailable').map(event => this.character.skills?.find(s => s.id === event.params?.skillId) as Skill);
-           
-            return skills;  
+            if(skills){
+                availableSkills.push(...skills);
+            }
+            return availableSkills;
 
     }
 
@@ -331,7 +324,7 @@ export class SkillManager {
         ).length;
     }
 
-    private isTargetInRange(target: CharacterUnit, range: SkillRange): boolean {
+    private isTargetInRange(target: GameCharacter, range: SkillRange): boolean {
         const distance = this.calculateDistance(this.character, target);
         return (
             distance <= range.max_distance && 
@@ -339,7 +332,7 @@ export class SkillManager {
         );
     }
 
-    private calculateDistance(char1: CharacterUnit, char2: CharacterUnit): number {
+    private calculateDistance(char1: GameCharacter, char2: GameCharacter): number {
         const q1 = char1.q ?? 0;
         const r1 = char1.r ?? 0;
         const q2 = char2.q ?? 0;

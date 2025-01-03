@@ -4,12 +4,12 @@ import "../../map.css";
 import usePhasePlay from "../animation/playPhase";
 import { useCombatManager } from "../service/CombatManager";
 import useCombatAct from "../service/useCombatAct";
-import { CharacterUnit } from "../types/CombatTypes";
+import { GameCharacter } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 import CharacterSpine from "./CharacterSpine";
 
 interface Props {
-  character: CharacterUnit;
+  character: GameCharacter;
 }
 
 const CharacterCell: React.FC<Props> = ({ character }) => {

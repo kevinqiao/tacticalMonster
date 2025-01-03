@@ -4,27 +4,59 @@ import { useUserManager } from "service/UserManager";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
 import useEventListener from "./service/useEventListener";
+import { Skill } from "./types/CharacterTypes";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 
 const CombatActPanel: React.FC = () => {
-  const { eventQueue, changeCoordDirection, selectedActiveSkill } = useCombatManager();
+  const { eventQueue, changeCoordDirection, activeSkills, currentRound, characters } = useCombatManager();
+  const [activeListOpen, setActiveListOpen] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   // const doSomething = useAction(api.rule.test.doSomething);
   // const startGame = useAction(api.service.tmGameProxy.start);
-  console.log("selectedActiveSkill", selectedActiveSkill)
+
+  // const activeList = useMemo(() => {
+  //   if (!characters || !selectedActiveSkill || !currentRound) return;
+
+  //   const currentTurn = currentRound.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
+  //   if (currentTurn) {
+  //     const character = characters.find((c) => c.uid === currentTurn.uid && c.character_id === currentTurn.character_id);
+  //     if (character) {
+  //       return selectedActiveSkill.activeList.filter((item) => item.characterId === character.character_id);
+  //     }
+  //   }
+  //   return
+  // }, [selectedActiveSkill, currentRound, characters]);
+  const handleSelectSkill = (skill: Skill) => {
+    setSelectedSkill(skill);
+    setActiveListOpen(false);
+  }
+  useEffect(() => {
+    if (activeSkills) {
+      console.log("activeSkills", activeSkills);
+      setSelectedSkill(activeSkills[0]);
+    }
+  }, [activeSkills]);
+  useEffect(() => {
+    if (selectedSkill) {
+      console.log("selectedSkill", selectedSkill);
+    }
+  }, [selectedSkill]);
+
   return (
     <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
-      <div className="action-panel-item" onClick={() => changeCoordDirection(0)}>
-        REPOSE(0)
-      </div>
-      <div className="action-panel-item" onClick={() => changeCoordDirection(1)}>
-        REPOSE(1)
-      </div>
+      {selectedSkill && <div className="action-panel-item" onClick={() => setActiveListOpen((pre) => !pre)}>
+        {selectedSkill.name}
+      </div>}
+
       <div className="action-panel-item">STANDBY</div>
       <div className="action-panel-item">
         DEFEND
       </div>
+      {activeListOpen && activeSkills && <div style={{ position: "absolute", top: 45, left: 0, width: "100%", height: 40 }}>
+        {activeSkills.filter((skill) => skill.id !== selectedSkill?.id).map((skill, index) => <div className="action-panel-item" key={skill.id} onClick={() => handleSelectSkill(skill)}>{skill.name}</div>)}
+      </div>}
     </div>
   );
 };

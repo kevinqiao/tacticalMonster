@@ -47,7 +47,7 @@ export interface GameModel {
   challenger: string;
   challengee: string;
   players: Player[];
-  characters: CharacterUnit[];
+  characters: GameCharacter[];
   currentRound?: CombatRound;
   timeClock?: number;
 }
@@ -119,7 +119,7 @@ export interface PlayerCharacter extends Character {
     uid: string;
     asset?: string;
 }
-export interface CharacterUnit extends Character {
+export interface GameCharacter extends Character {
     uid: string;
     character_id: string;
     scaleX?: number; 
@@ -147,7 +147,7 @@ export interface MapModel {
 
 export interface ICombatContext {
     game:GameModel|null;
-    selectedActiveSkill:Skill|null; 
+    activeSkills:Skill[]|null; 
     coordDirection:number;  
     hexCell: {width:number,height:number};
     gameId:string|null;
@@ -157,7 +157,7 @@ export interface ICombatContext {
     challengee?:string;
     players?:Player[];
     timeClock?: number;
-    characters?: CharacterUnit[] ;
+    characters?: GameCharacter[] ;
     currentRound?: CombatRound;
     eventQueue: CombatEvent[];
     // rowContainers: { [k: number]: HTMLDivElement };
@@ -177,7 +177,7 @@ export interface ICombatContext {
         }>
     >;
     changeCell: React.Dispatch<React.SetStateAction<{width:number,height:number}>>;
-    setSelectedActiveSkill:(skill:Skill)=>void;
+    setActiveSkills:(skills:Skill[])=>void;
     changeCoordDirection:(direction:number)=>void;
     // walk: (to: { q: number; r: number }) => void;
     // findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;

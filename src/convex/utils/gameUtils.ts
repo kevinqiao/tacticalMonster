@@ -1,4 +1,4 @@
-import { CharacterUnit, GridCell, HexNode, MapModel, ObstacleCell, Player } from "../../component/kumu/battle/types/CombatTypes";
+import { GameCharacter, GridCell, HexNode, MapModel, ObstacleCell, Player } from "../../component/kumu/battle/types/CombatTypes";
 import { findPath } from "../../component/kumu/battle/utils/PathFind";
 
 const getNextTurn = (currentTurn:{uid:string,character:string},turns:{uid:string,character:string,status:number}[]) => {
@@ -10,7 +10,7 @@ const getNextRound = (round:number,rounds:any[])=>{
     const index = rounds.findIndex((r:any)=>r.round===round);
     return rounds[(index+1)%rounds.length];
 }
-const getWalkPath = (characters:CharacterUnit[],map:MapModel,from:{q:number,r:number},to:{q:number,r:number})=>{
+const getWalkPath = (characters:GameCharacter[],map:MapModel,from:{q:number,r:number},to:{q:number,r:number})=>{
      const { rows = 0, cols = 0, obstacles = [], disables = [] } = map;
         const gridCells = Array.from({ length: Math.max(0, rows) }, (_, y) =>
             Array.from({ length: Math.max(0, cols) }, (_, x) => ({
@@ -23,7 +23,7 @@ const getWalkPath = (characters:CharacterUnit[],map:MapModel,from:{q:number,r:nu
                 gridWalk: null
             } as GridCell))
         );
-       characters.forEach((c:CharacterUnit)=>{
+       characters.forEach((c:GameCharacter)=>{
         const q = c.q ?? 0;
         const r = c.r ?? 0;
         if (r >= 0 && r < gridCells.length && q >= 0 && q < gridCells[0].length) {

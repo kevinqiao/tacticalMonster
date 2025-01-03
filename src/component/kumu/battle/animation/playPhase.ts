@@ -1,12 +1,11 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
-import { SkillManager } from "../service/SkillManager";
-import { CharacterUnit, CombatTurn, GridCell } from "../types/CombatTypes";
+import { CombatTurn, GameCharacter, GridCell } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 const usePhasePlay = () => {
- const {gridCells,characters,hexCell,map,game,setSelectedActiveSkill} = useCombatManager(); 
- const playGameInit= useCallback((characters: CharacterUnit[],  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
+ const {gridCells,characters,hexCell,map,game,setActiveSkills} = useCombatManager(); 
+ const playGameInit= useCallback((characters: GameCharacter[],  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
     const {width,height} = hexCell;
     const tl =gsap.timeline();
     // [1,3,5,7].forEach((row)=>{
@@ -116,22 +115,20 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
         
     })  
     tl.play();  
-     if(game){
-            const character = characters.find(c=>c.character_id===currentTurn.character_id);
-            if(character){
-                console.log("character",character)
-                const skillService = new SkillManager(character,game);  
-               
-                const skills = await skillService.getAvailableSkills();
-                console.log("skills",skills)    
-                if(skills){
-                    setSelectedActiveSkill(skills[0]);
-                }
-            } 
-        }
+    //  if(game){
+    //         const character = characters.find(c=>c.character_id===currentTurn.character_id);
+    //         if(character){              
+    //             const skillService = new SkillManager(character,game);                 
+    //             const skills = await skillService.getAvailableSkills();  
+    //             console.log("skills",skills)    
+    //             if(skills){
+    //                 setActiveSkills(skills);
+    //             }
+    //         } 
+    //     }
 
 },[characters,gridCells,hexCell,map]);
- const playTurnStart= useCallback((character: CharacterUnit,timeline:gsap.core.Timeline|null) => {
+ const playTurnStart= useCallback((character: GameCharacter,timeline:gsap.core.Timeline|null) => {
     // console.log("playTurnStart",character)
     if(!map||!gridCells)return;
     const {cols,direction} = map;
@@ -162,7 +159,7 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
 
 },[gridCells,hexCell,map]);
 
-const playTurnLast= useCallback((character: CharacterUnit,  gridCells: GridCell[][],timeline:gsap.core.Timeline|null) => {
+const playTurnLast= useCallback((character: GameCharacter,  gridCells: GridCell[][],timeline:gsap.core.Timeline|null) => {
     // console.log("playTurnStart",character)
     if(!map||!gridCells)return;
     const {cols,direction} = map;

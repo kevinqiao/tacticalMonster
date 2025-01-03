@@ -1,7 +1,7 @@
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { api } from "../../../../convex/_generated/api";
-import { CharacterUnit, EVENT_TYPE } from "../types/CombatTypes";
+import { EVENT_TYPE, GameCharacter } from "../types/CombatTypes";
 import { findPath } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
@@ -9,7 +9,7 @@ const useCombatAct = () => {
   const { map, gameId, characters, gridCells, hexCell, eventQueue, currentRound } = useCombatManager()
   const convex = useConvex();
 
-  const attack = useCallback(async (character: CharacterUnit) => {
+  const attack = useCallback(async (character: GameCharacter) => {
     if (!gameId) return;
     console.log("attack", character);
     eventQueue.push({
@@ -81,7 +81,7 @@ const useCombatAct = () => {
 
   }, [eventQueue, map, gameId, characters, currentRound, gridCells, convex]);
 
-  const standBy = useCallback((character: CharacterUnit) => {
+  const standBy = useCallback((character: GameCharacter) => {
     console.log("stand...");
   }, []);
   const defend = useCallback(() => {

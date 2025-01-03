@@ -1,11 +1,8 @@
-import { CharacterUnit, CombatTurn, GameModel } from "../../component/kumu/battle/types/CombatTypes";
+import { SkillManager } from "../../component/kumu/battle/service/SkillManager";
+import { CombatTurn, GameCharacter, GameModel } from "../../component/kumu/battle/types/CombatTypes";
 import { internal } from "../_generated/api";
 import { getPosition, getWalkPath } from "../utils/gameUtils";
 import { calculateStats } from "../utils/Utlis";
-
-
-
-
 class GameManager {
     private dbCtx: any;
     private game:GameModel|null; 
@@ -123,6 +120,13 @@ class GameManager {
             await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);  
             nextTurn.status=1;  
             await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.update, {gameId:this.game.gameId,no:round.no,data:{turns:round.turns}});
+            const character = this.game.characters.find(c=>c.character_id===nextTurn.character_id);
+            if(character){              
+                const skillService = new SkillManager(character,this.game);                 
+                const skills = await skillService.getAvailableSkills();
+                const skillEvent={gameId:this.game.gameId,name:"activeSkills",data:{uid:character.uid,character_id:character.character_id,skills}};
+                await this.dbCtx.runMutation(internal.dao.tmEventDao.create, skillEvent);  
+            } 
             await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:this.game.gameId,data:{lastUpdate:Date.now()}});
         }       
     }  
@@ -179,7 +183,7 @@ class GameManager {
     async roundStart() {
         if(!this.game) return;  
         const roundNo = this.game.currentRound?this.game.currentRound.no+1: 1;
-        const turns = this.game?.characters?.map((character: CharacterUnit) => ({
+        const turns = this.game?.characters?.map((character: GameCharacter) => ({
             uid: character.uid as string,
             character_id: character.character_id as string,
             status: 0

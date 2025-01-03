@@ -9,7 +9,8 @@ const useEventListener = () => {
     const { user } = useUserManager();  
     const {eventQueue,characters,gridCells,hexCell,resourceLoad} = useCombatManager();
     const {processWalk,processAttack,processSkill,processDefend,processStandby} = useActionProcessor();     
-    const { 
+    const {     
+        processActiveSkills,
         processRoundStart, 
         processTurnOn, 
         processTurnEnd, 
@@ -57,6 +58,10 @@ const useEventListener = () => {
                 case "roundEnd":
                     event.status = 1;
                     processRoundEnd({data,onComplete}); 
+                    break;
+                case "activeSkills":
+                    event.status = 1;
+                    processActiveSkills({data,onComplete}); 
                     break;
 
                 default:

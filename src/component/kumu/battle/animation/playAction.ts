@@ -1,11 +1,11 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
-import { CharacterUnit } from "../types/CombatTypes";
+import { GameCharacter } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 const useActionPlay = () => {
         const {characters,gridCells,hexCell,map} = useCombatManager();
-        const playWalk =useCallback((character: CharacterUnit, path: {x:number,y:number}[]) => {
+        const playWalk =useCallback((character: GameCharacter, path: {x:number,y:number}[]) => {
 
             const container = character.container;    
             const spine = character.skeleton;
@@ -100,7 +100,7 @@ const useActionPlay = () => {
             return tl.play();
         },[characters,gridCells,hexCell,map]);
 
-        const playAttack = useCallback((character: CharacterUnit, target: CharacterUnit) => {   
+        const playAttack = useCallback((character: GameCharacter, target: GameCharacter) => {   
             const spine = character.skeleton;
             if (!spine) return;
             spine.state.setAnimation(0, "attack", false);
