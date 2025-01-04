@@ -14,7 +14,7 @@ interface Props {
 
 const CharacterCell: React.FC<Props> = ({ character }) => {
   const { map, characters, hexCell, currentRound, gridCells, setResourceLoad } = useCombatManager();
-  const { playTurnStart, playTurnOn } = usePhasePlay();
+  const { playTurnOn } = usePhasePlay();
   const { attack } = useCombatAct();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -27,12 +27,12 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
   }, [character, hexCell, map]);
 
   useEffect(() => {
-    if (!currentRound || !gridCells || !characters || !character) return;
+    if (!currentRound || !characters || !character || !gridCells) return;
     const currentTurn = currentRound.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
     if (currentTurn && currentTurn.character_id === character.character_id && currentTurn.uid === character.uid) {
       playTurnOn(currentTurn, () => { console.log("playTurnOn", currentTurn) });
     }
-  }, [character, characters, currentRound, gridCells, playTurnStart]);
+  }, [character, characters, currentRound, gridCells]);
 
   const loadContainer = useCallback(
     (ele: HTMLDivElement | null) => {

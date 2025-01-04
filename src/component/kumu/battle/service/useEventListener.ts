@@ -12,10 +12,10 @@ const useEventListener = () => {
     const {     
         processActiveSkills,
         processRoundStart, 
-        processTurnOn, 
+        processTurnStart, 
         processTurnEnd, 
         processRoundEnd,
-        processTurnLast
+        processTurnSecond
     } = usePhaseProcessor();
    
    
@@ -45,11 +45,11 @@ const useEventListener = () => {
                     break;
                 case "turnStart":
                     event.status = 1;
-                    processTurnOn({data,onComplete}); 
+                    processTurnStart({data,onComplete}); 
                     break;
-                case "turnLast":
+                case "turnSecond":
                     event.status = 1;
-                    processTurnLast({data,onComplete}); 
+                    processTurnSecond({data,onComplete}); 
                     break;
                 case "turnEnd":
                     event.status = 1;
@@ -72,7 +72,7 @@ const useEventListener = () => {
 
         }
 
-    }, [ eventQueue,processRoundStart,processTurnOn,processWalk,resourceLoad])
+    }, [ eventQueue,processRoundStart,processTurnStart,processTurnSecond,processWalk,resourceLoad])
 
 
     useEffect(() => {

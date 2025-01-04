@@ -1,3 +1,4 @@
+import { Skill } from "../types/CharacterTypes";
 import { AttackableNode, GridCell, HexNode, WalkableNode } from "../types/CombatTypes";
 
 export const findPath = (
@@ -168,15 +169,16 @@ export const getWalkableNodes = (
 };
 
 export const getAttackableNodes = (
-   attacker:{q:number,r:number,uid:string,character_id:string},
+   attacker:{q:number,r:number,uid:string,character_id:string, moveRange: number,attackRange: { min: number, max: number }},
    enemies: { q: number, r: number, uid: string, character_id: string }[],
-   attackRange: {min:number,max:number}
+   skill:Skill|null
 ): AttackableNode[] => {
     const attackableNodes: AttackableNode[] = [];
- 
+    console.log("skill in attackableNodes",skill)   
     for(const enemy of enemies){  
         const distance = calculateDistance([ attacker.r,attacker.q], [enemy.r, enemy.q]);
-        if(distance >= attackRange.min && distance <= attackRange.max){
+        const maxReach = attacker.moveRange + (skill?.range?.max_distance??attacker.attackRange.max);
+        if(distance <= maxReach){
             attackableNodes.push({uid:enemy.uid, character_id:enemy.character_id, x:enemy.q, y:enemy.r, distance });
         }
     }
@@ -197,3 +199,25 @@ const calculateDistance = (
         Math.abs(-(q1 + r1) + (q2 + r2))
     );
 };
+export const isInAttackRange = (
+    attacker: { 
+        q: number, 
+        r: number, 
+        moveRange: number,
+        attackRange: { min: number, max: number } 
+    },
+    target: { q: number, r: number },skill:Skill|null
+): {ok:boolean,distance:number} => {
+    // 计算当前位置到目标的距离
+    console.log("skill",skill)  
+    const dx = attacker.q - target.q;
+    const dy = attacker.r - target.r;
+    const distance =  Math.max(Math.abs(dx), Math.abs(dy));
+       
+    // 考虑移动范围后的实际攻击范围
+    // 角色可以移动后再攻击，所以实际攻击范围是：移动范围 + 攻击范围
+    const maxReach = attacker.moveRange + (skill?.range?.max_distance??attacker.attackRange.max);
+    
+    // 检查是否在可达范围内
+    return {ok:distance <= maxReach?true:false,distance};
+}

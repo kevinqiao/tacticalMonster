@@ -12,18 +12,19 @@ const usePhaseProcessor = () => {
          }
          onComplete();
     }, [resourceLoad,characters, gridCells, hexCell,currentRound])   
-    const processTurnOn = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
+    const processTurnStart = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
         // console.log("processTurnStart",data)
         const {character_id,uid} = data
         if(!characters||!currentRound)return;
         const currentTurn = currentRound.turns.find((t)=>t.uid===uid&&t.character_id===character_id);
         if(!currentTurn)return;
-        currentTurn.status = 1;
+        Object.assign(currentTurn,data);
+         currentTurn.status = 1;
         // console.log("currentRound",currentRound);
         playTurnOn(currentTurn,onComplete);
            
     }, [resourceLoad,characters, gridCells, hexCell,currentRound])    
-    const processTurnLast = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
+    const processTurnSecond = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
         // console.log("processTurnStart",data)
              const {character_id,uid} = data
         if(!characters||!currentRound)return;
@@ -56,6 +57,6 @@ const usePhaseProcessor = () => {
 
   
    
-    return {processActiveSkills, processRoundStart,processRoundEnd,processTurnOn,processTurnEnd,processTurnLast   }
+    return {processActiveSkills, processRoundStart,processRoundEnd,processTurnStart,processTurnEnd,processTurnSecond   }
 }
 export default usePhaseProcessor

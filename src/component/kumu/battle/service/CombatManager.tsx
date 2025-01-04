@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useCallback, useEffect, useRef, useState, useContext } from "react";
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
@@ -113,7 +113,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
           const map = gameObj.map as MapModel;
           map.direction = 1;
         }
-        gameObj.characters.forEach((character:any ) => {
+        gameObj.characters.forEach((character: any) => {
           const c = character as GameCharacter;
           if (c.uid === user.uid) {
             c.scaleX = 1;
@@ -167,7 +167,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         return cell;
       })
     );
-    // console.log(cells);
+    console.log("cells", cells)
     setGridCells(cells);
   }, [map]);
 

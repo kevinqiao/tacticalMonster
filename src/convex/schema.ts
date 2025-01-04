@@ -243,7 +243,7 @@ export default defineSchema({
         no: v.number(),
         status: v.number(),
         endTime: v.optional(v.number()),    
-        turns: v.array(v.object({ uid: v.string(), character_id: v.string(), status: v.number(), startTime: v.optional(v.number()), endTime: v.optional(v.number()) }))
+        turns: v.array(v.object({ uid: v.string(), character_id: v.string(), status: v.number(), startTime: v.optional(v.number()), endTime: v.optional(v.number()),skills:v.optional(v.array(v.string())) }))
     }).index("by_game_round", ["gameId", "no"]),
     tm_game_turn: defineTable({
         gameId: v.id("tm_game"),

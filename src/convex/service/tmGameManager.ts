@@ -1,4 +1,5 @@
 import { SkillManager } from "../../component/kumu/battle/service/SkillManager";
+import { Skill } from "../../component/kumu/battle/types/CharacterTypes";
 import { CombatTurn, GameCharacter, GameModel } from "../../component/kumu/battle/types/CombatTypes";
 import { internal } from "../_generated/api";
 import { getPosition, getWalkPath } from "../utils/gameUtils";
@@ -85,7 +86,7 @@ class GameManager {
         if(character.move_range===(path.length-1)||currentTurn?.status===2){
              await this.turnEnd();
         }else{
-             await this.turnLast();
+             await this.turnSecond();
         }        
         return true;
      
@@ -116,28 +117,38 @@ class GameManager {
         const round = this.game.currentRound;
         const nextTurn = round.turns?.find((turn:CombatTurn)=>turn.status===0);
         if(nextTurn){
-            const turnEvent={gameId:this.game.gameId,name:"turnStart",data:{...nextTurn}};
-            await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);  
-            nextTurn.status=1;  
-            await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.update, {gameId:this.game.gameId,no:round.no,data:{turns:round.turns}});
+            const data:CombatTurn= {...nextTurn};
             const character = this.game.characters.find(c=>c.character_id===nextTurn.character_id);
             if(character){              
                 const skillService = new SkillManager(character,this.game);                 
                 const skills = await skillService.getAvailableSkills();
-                const skillEvent={gameId:this.game.gameId,name:"activeSkills",data:{uid:character.uid,character_id:character.character_id,skills}};
-                await this.dbCtx.runMutation(internal.dao.tmEventDao.create, skillEvent);  
-            } 
+                if(skills){
+                    data.skills=skills.map((skill:Skill)=>skill.id);
+                    nextTurn.skills=data.skills ?? [];
+                }
+            }
+            const turnEvent={gameId:this.game.gameId,name:"turnStart",data};
+            await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);  
+            nextTurn.status=1;  
+            await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.update, {gameId:this.game.gameId,no:round.no,data:{turns:round.turns}});
+            // const character = this.game.characters.find(c=>c.character_id===nextTurn.character_id);
+            // if(character){              
+            //     const skillService = new SkillManager(character,this.game);                 
+            //     const skills = await skillService.getAvailableSkills();
+            //     const skillEvent={gameId:this.game.gameId,name:"activeSkills",data:{uid:character.uid,character_id:character.character_id,skills}};
+            //     await this.dbCtx.runMutation(internal.dao.tmEventDao.create, skillEvent);  
+            // } 
             await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:this.game.gameId,data:{lastUpdate:Date.now()}});
         }       
     }  
-    async turnLast(){
+    async turnSecond(){
        
         if(!this.game||!this.game.currentRound) return;
         // console.log("turnStart",this.game.currentRound);
         const round = this.game.currentRound;
         const currentTurn = round.turns?.find((turn:CombatTurn)=>turn.status===1);
         if(currentTurn){
-            const turnEvent={gameId:this.game.gameId,name:"turnLast",data:{...currentTurn}};
+            const turnEvent={gameId:this.game.gameId,name:"turnSecond",data:{...currentTurn}};
             await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);  
             currentTurn.status=2;  
             await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.update, {gameId:this.game.gameId,no:round.no,data:{turns:round.turns}});

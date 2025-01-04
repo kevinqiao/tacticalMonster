@@ -66,6 +66,7 @@ export interface CombatTurn {
     status?: number;
     startTime?: number;
     endTime?: number;   
+    skills?: string[];  
 }
 export interface CombatRound {
     gameId?: string;
