@@ -29,6 +29,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
   useEffect(() => {
     if (!currentRound || !characters || !character || !gridCells) return;
     const currentTurn = currentRound.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
+    console.log("currentTurn", currentRound)
     if (currentTurn && currentTurn.character_id === character.character_id && currentTurn.uid === character.uid) {
       playTurnOn(currentTurn, () => { console.log("playTurnOn", currentTurn) });
     }

@@ -26,10 +26,11 @@ const usePhaseProcessor = () => {
     }, [resourceLoad,characters, gridCells, hexCell,currentRound])    
     const processTurnSecond = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
         // console.log("processTurnStart",data)
-             const {character_id,uid} = data
+        const {character_id,uid} = data
         if(!characters||!currentRound)return;
         const currentTurn = currentRound.turns.find((t)=>t.uid===uid&&t.character_id===character_id);
         if(!currentTurn)return;
+        Object.assign(currentTurn,data);
         currentTurn.status = 2;
         // console.log("currentRound",currentRound);
         playTurnOn(currentTurn,onComplete);   

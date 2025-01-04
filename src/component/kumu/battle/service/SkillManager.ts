@@ -1,6 +1,6 @@
 import { Engine } from 'json-rules-engine';
 // import { getTargetsInRange } from '../../utils/SkillRangeUtils';
-import { SkillEffect as Effect, Skill, SkillRange } from '../types/CharacterTypes';
+import { SkillEffect as Effect, Skill } from '../types/CharacterTypes';
 import { GameCharacter, GameModel } from '../types/CombatTypes';
 
 export class SkillManager {
@@ -24,7 +24,7 @@ export class SkillManager {
 
 
     private initializeRules(): void {
-        console.log("initializeRules",this.character.skills)    
+        // console.log("initializeRules",this.character.skills)    
         this.character.skills?.forEach(skill => {
             if (skill.triggerConditions) {
                 skill.triggerConditions.forEach(condition => {
@@ -299,16 +299,17 @@ export class SkillManager {
 
     async getAvailableSkills(): Promise<Skill[]| undefined> {
         // 获取所有主动技能
+             // console.log("getAvailableSkills",this.character.skills) 
             const availableSkills:Skill[]= this.character.skills?.filter(skill => skill.type === 'active'&&!skill.availabilityConditions)??[];
-            console.log("availableSkills",availableSkills)  
+            // console.log("available skills",availableSkills)  
             const nearbyEnemies = this.countNearbyEnemies();
             const facts = {
                 targetDistance: 2,
                 nearbyEnemies,            
             };
-
+             console.log("nearbyEnemies",nearbyEnemies)
             const { events } = await this.availabilityEngine.run(facts);
-            console.log("events",events)    
+            // console.log("events",events)    
             const skills:Skill[] = events.filter(event => event.type === 'skillAvailable').map(event => this.character.skills?.find(s => s.id === event.params?.skillId) as Skill);
             if(skills){
                 availableSkills.push(...skills);
@@ -324,20 +325,16 @@ export class SkillManager {
         ).length;
     }
 
-    private isTargetInRange(target: GameCharacter, range: SkillRange): boolean {
-        const distance = this.calculateDistance(this.character, target);
-        return (
-            distance <= range.max_distance && 
-            (range.min_distance === undefined || distance >= range.min_distance)
-        );
-    }
+
 
     private calculateDistance(char1: GameCharacter, char2: GameCharacter): number {
         const q1 = char1.q ?? 0;
         const r1 = char1.r ?? 0;
         const q2 = char2.q ?? 0;
         const r2 = char2.r ?? 0;
-        return Math.abs(q1 - q2) + Math.abs(r1 - r2);
+        const distance = Math.abs(q1 - q2) + Math.abs(r1 - r2);
+        console.log("calculateDistance",char1.name,char2.name,distance)
+        return distance;
     }
 
   

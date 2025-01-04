@@ -7,7 +7,7 @@ import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 const usePhasePlay = () => {
  const {gridCells,characters,hexCell,map,game,setActiveSkills} = useCombatManager(); 
  const playGameInit= useCallback((characters: GameCharacter[],  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
-    const {width,height} = hexCell;
+  
     const tl =gsap.timeline();
     // [1,3,5,7].forEach((row)=>{
     //     gsap.set(rowContainers[row], {marginLeft:`${width/2}px`});
@@ -36,7 +36,7 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
     if(!characters||!gridCells||!map)return;  
     const character = characters.find((c)=>c.uid===currentTurn.uid&&c.character_id===currentTurn.character_id);
     if(!character)return;
-    console.log("playTurnOn",currentTurn)
+    // console.log("playTurnOn",currentTurn)
     const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
     const walkableNodes = getWalkableNodes(gridCells, { x: character.q ?? 0, y: character.r ?? 0     }, moveRange);
     character.walkables = walkableNodes;
@@ -61,7 +61,7 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
         enemies, 
         skill??null 
     );
-    console.log("attackableNodes",attackableNodes)
+    // console.log("attackableNodes",attackableNodes)
     character.attackables = attackableNodes;
     const tl = gsap.timeline({
            onComplete:()=>{

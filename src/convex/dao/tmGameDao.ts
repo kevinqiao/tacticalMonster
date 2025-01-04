@@ -3,7 +3,7 @@ import { Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { sessionQuery } from "../custom/session";
 const query = async (ctx:any,gameId:string)=>{
-     const id = gameId as Id<"tm_game">;
+        const id = gameId as Id<"tm_game">;
         const game = await ctx.db.get(id);      
         if(game){
             const gameCharacters = [];
@@ -18,7 +18,7 @@ const query = async (ctx:any,gameId:string)=>{
                 gameCharacters.push({...character, skills})
             } 
             const map = await ctx.db.query("tm_map_data").withIndex("by_map_id", (q:any) => q.eq("map_id", game.map)).unique();
-            return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,currentRound: currentRound ? {
+            return { ...game, gameId, _id: undefined, createTime: game?._creationTime,currentRound: currentRound ? {
                 ...currentRound,
                 id: currentRound._id,
                 _id: undefined,

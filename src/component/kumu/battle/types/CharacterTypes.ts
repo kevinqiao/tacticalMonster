@@ -43,8 +43,9 @@ export interface TriggerCondition {
 // SkillRange: 技能范围的定义
 export interface SkillRange {
     area_type: "single" | "circle" | "line";
+    distance?: number;  // 射程
     min_distance?: number;  // 最小射程
-    max_distance: number;   // 最大射程（原distance改名）
+    max_distance?: number;   // 最大射程（原distance改名）
 }
 
 // Skill: 技能的定义
