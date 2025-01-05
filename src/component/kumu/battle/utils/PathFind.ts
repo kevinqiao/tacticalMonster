@@ -1,8 +1,8 @@
 import { Skill } from "../types/CharacterTypes";
-import { AttackableNode, GridCell, HexNode, WalkableNode } from "../types/CombatTypes";
+import { AttackableNode, HexNode, WalkableNode } from "../types/CombatTypes";
 
 export const findPath = (
-    grid: GridCell[][],
+    grid: HexNode[][],
     start: HexNode,
     goal: HexNode
 ): HexNode[] => {
@@ -102,7 +102,7 @@ export const findPath = (
 
 
 export const getWalkableNodes = (
-    gridCells: GridCell[][],
+    gridCells: HexNode[][],
     start: { x: number, y: number },
     moveRange: number
 ): WalkableNode[] => {
@@ -169,17 +169,29 @@ export const getWalkableNodes = (
 };
 
 export const getAttackableNodes = (
+   gridCells: HexNode[][],
    attacker:{q:number,r:number,uid:string,character_id:string, moveRange: number,attackRange: { min: number, max: number }},
    enemies: { q: number, r: number, uid: string, character_id: string }[],
    skill:Skill|null
 ): AttackableNode[] => {
+    const grid=gridCells.map(row=>row.map(cell=>({...cell,walkable:true})));
     const attackableNodes: AttackableNode[] = [];
     console.log("skill in attackableNodes",skill)   
-    for(const enemy of enemies){  
-        const distance = calculateDistance([ attacker.r,attacker.q], [enemy.r, enemy.q]);
-        const maxReach = attacker.moveRange + (skill?.range?.max_distance??attacker.attackRange.max);
-        if(distance <= maxReach){
-            attackableNodes.push({uid:enemy.uid, character_id:enemy.character_id, x:enemy.q, y:enemy.r, distance });
+    for(const enemy of enemies){ 
+       
+        if(attacker.attackRange.max===1){
+            gridCells[enemy.r][enemy.q].walkable=true;  
+            const path = findPath(gridCells, { x: attacker.q, y: attacker.r }, { x: enemy.q, y: enemy.r });           
+            if(path.length-2<=attacker.moveRange)
+                attackableNodes.push({uid:enemy.uid, character_id:enemy.character_id, x:enemy.q, y:enemy.r, distance:1 });
+        }else{
+            const path =findPath(grid, { x: attacker.q, y: attacker.r }, { x: enemy.q, y: enemy.r });
+            const distance = path.length-1;
+            const range = (skill?.range?.distance??skill?.range?.max_distance)??attacker.attackRange.max;
+            console.log("distance",distance,range)
+            if(distance<=range){
+                attackableNodes.push({uid:enemy.uid, character_id:enemy.character_id, x:enemy.q, y:enemy.r, distance:distance });
+            }
         }
     }
     return attackableNodes;

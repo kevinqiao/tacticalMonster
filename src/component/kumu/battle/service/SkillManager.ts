@@ -2,6 +2,7 @@ import { Engine } from 'json-rules-engine';
 // import { getTargetsInRange } from '../../utils/SkillRangeUtils';
 import { SkillEffect as Effect, Skill } from '../types/CharacterTypes';
 import { GameCharacter, GameModel } from '../types/CombatTypes';
+import { calculateHexDistance } from '../utils/hexUtil';
 
 export class SkillManager {
     private character: GameCharacter;
@@ -140,7 +141,7 @@ export class SkillManager {
                 // 计算伤害衰减
                 let finalValue = effectValue;
                 if (effect.damage_falloff && target) {
-                    const distance = this.calculateDistance(this.character, target);
+                    const distance = calculateHexDistance({q:this.character.q??0,r:this.character.r??0},{q:target.q??0,r:target.r??0});
                     if (distance > effect.damage_falloff.full_damage_range) {
                         finalValue *= effect.damage_falloff.min_damage_percent;
                     }
@@ -149,7 +150,7 @@ export class SkillManager {
                 const damage = Math.max(0, finalValue + this.calculateAttackPower() - this.calculateDefense(recipient));
                 if (recipient.stats?.hp) {
                     recipient.stats.hp.current -= damage;
-                    console.log(`${recipient.name} 受到 ${damage} 点伤害 (距离: ${this.calculateDistance(this.character, recipient)})`);
+                    console.log(`${recipient.name} 受到 ${damage} 点伤害)`);
                 }
                 break;
             case 'heal':
@@ -319,23 +320,22 @@ export class SkillManager {
     }
 
     private countNearbyEnemies(): number {
-        return this.game.characters.filter(char => 
-            char.uid !== this.character.uid && 
-            this.calculateDistance(this.character, char) === 1
-        ).length;
+        let count = 0;
+        
+        for(const char of this.game.characters){
+            if(char.uid === this.character.uid)continue;
+            const from = {q:this.character.q??0,r:this.character.r??0}
+            const to = {q:char.q??0,r:char.r??0}
+            const distance = calculateHexDistance(from, to);
+            console.log("countNearbyEnemies",this.character.name,char.name,distance)
+            if(distance === 1){
+                count++;
+            }
+        }
+        return count;
     }
 
 
-
-    private calculateDistance(char1: GameCharacter, char2: GameCharacter): number {
-        const q1 = char1.q ?? 0;
-        const r1 = char1.r ?? 0;
-        const q2 = char2.q ?? 0;
-        const r2 = char2.r ?? 0;
-        const distance = Math.abs(q1 - q2) + Math.abs(r1 - r2);
-        console.log("calculateDistance",char1.name,char2.name,distance)
-        return distance;
-    }
 
   
 }

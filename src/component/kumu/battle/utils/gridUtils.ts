@@ -84,16 +84,3 @@ export const scalePoint = (
   y: centerY + (point.y - centerY) * scaleFactor,
 });
 
-/**
- * 创建防抖点击处理函数
- * @param callback 回调函数
- * @param delay 延迟时间（毫秒）
- */
-// eslint-disable-next-line @typescript-eslint/ban-types
-export const createDebounceClick = (callback: Function, delay = 300) => {
-  let timeoutId: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => callback(...args), delay);
-  };
-}; 

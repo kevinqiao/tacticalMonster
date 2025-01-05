@@ -10,7 +10,6 @@ const useEventListener = () => {
     const {eventQueue,characters,gridCells,hexCell,resourceLoad} = useCombatManager();
     const {processWalk,processAttack,processSkill,processDefend,processStandby} = useActionProcessor();     
     const {     
-        processActiveSkills,
         processRoundStart, 
         processTurnStart, 
         processTurnEnd, 
@@ -36,7 +35,7 @@ const useEventListener = () => {
             
             switch(name){
                 case "walk":     
-                     event.status = 1;   
+                    event.status = 1;   
                     processWalk({data,onComplete});
                    break;
                 case "roundStart":
@@ -59,10 +58,7 @@ const useEventListener = () => {
                     event.status = 1;
                     processRoundEnd({data,onComplete}); 
                     break;
-                case "activeSkills":
-                    event.status = 1;
-                    processActiveSkills({data,onComplete}); 
-                    break;
+             
 
                 default:
                     console.log("unknown event",event)

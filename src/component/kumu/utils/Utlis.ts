@@ -1,4 +1,3 @@
-import { Attributes, Stats } from "../battle/types/CharacterTypes";
 
 export interface Character {
     x: number;  // 当前列号
@@ -196,28 +195,6 @@ const getPosition = (size: number, x: number, y: number): { col: number; row: nu
     const col = row % 2 === 0 ? Math.floor(x / size) : Math.floor((x - size / 2) / size);
     return { col, row }
 }
-const calculateStats = (attributes: Attributes): Stats => {
-    const { strength, dexterity, constitution, intelligence } = attributes;
 
-    return {
-        hp: {
-            current: constitution * 10,
-            max: constitution * 10, // 每点constitution提供10点最大HP
-        },
-        mp: {
-            current: intelligence * 8,
-            max: intelligence * 8, // 每点intelligence提供8点最大MP
-        },
-        stamina: {
-            current: constitution * 5 + strength * 2,
-            max: constitution * 5 + strength * 2, // constitution和strength联合决定耐力
-        },
-        attack: strength * 2, // 每点strength增加2点攻击力
-        defense: constitution * 1.5, // 每点constitution增加1.5点防御力
-        speed: dexterity * 2, // 每点dexterity增加2点速度
-        crit_rate: dexterity * 0.1, // 每点dexterity增加0.1%暴击率
-        evasion: dexterity * 0.5, // 每点dexterity增加0.5%回避率
-    };
-};
-export { calculateStats, distance, findWalkables, getPosition };
+export { distance, findWalkables, getPosition };
 

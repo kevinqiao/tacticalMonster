@@ -40,3 +40,32 @@ export const coordToPixel = (q: number, r: number, hexCell: {width:number,height
 
     return {q,r,x, y };
 };
+
+// 将偏移坐标(offset coordinates)转换为立方坐标(cube coordinates)
+export const offsetToCube = (col: number, row: number) => {
+    const x = col - (row - (row & 1)) / 2;
+    const z = row;
+    const y = -x - z;
+    return { x, y, z };
+};
+
+// 计算六边形网格距离 (以网格数为单位)
+export const calculateHexDistance = (from: { q: number, r: number }, to: { q: number, r: number }): number => {
+    console.log("from", from, "to", to);
+    
+    // 转换为立方坐标
+    const fromX = from.q - Math.floor(from.r / 2);
+    const fromZ = from.r;
+    const fromY = -fromX - fromZ;
+    
+    const toX = to.q - Math.floor(to.r / 2);
+    const toZ = to.r;
+    const toY = -toX - toZ;
+    
+    // 计算立方坐标系中的距离
+    return Math.max(
+        Math.abs(fromX - toX),
+        Math.abs(fromY - toY),
+        Math.abs(fromZ - toZ)
+    );
+};

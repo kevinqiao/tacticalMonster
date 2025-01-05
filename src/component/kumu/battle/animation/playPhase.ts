@@ -4,6 +4,7 @@ import { useCombatManager } from "../service/CombatManager";
 import { Skill } from "../types/CharacterTypes";
 import { CombatTurn, GameCharacter, GridCell } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
+
 const usePhasePlay = () => {
  const {gridCells,characters,hexCell,map,game,setActiveSkills} = useCombatManager(); 
  const playGameInit= useCallback((characters: GameCharacter[],  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
@@ -38,7 +39,19 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
     if(!character)return;
     // console.log("playTurnOn",currentTurn)
     const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
-    const walkableNodes = getWalkableNodes(gridCells, { x: character.q ?? 0, y: character.r ?? 0     }, moveRange);
+    const grid = gridCells.map((row)=>row.map((cell)=>{
+        const char = character.q===cell.x&&character.r===cell.y?null:characters.find((c)=>c.q===cell.x&&c.r===cell.y)
+        return {
+            x: cell.x,
+            y: cell.y,
+            walkable: char?false:cell.walkable
+        }
+    }))
+    const walkableNodes = getWalkableNodes(
+        grid, 
+        { x: character.q ?? 0, y: character.r ?? 0 }, 
+        moveRange
+    );
     character.walkables = walkableNodes;
     const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
         .map(c => ({
@@ -47,9 +60,10 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
             q: c.q ?? 0,
             r: c.r ?? 0,
         }));
-   
+  
     const skill:Skill|null|undefined = currentTurn.skills&&character.skills?character.skills.find((s)=>s.id===currentTurn.skills?.[0]):null;
     const attackableNodes = getAttackableNodes(
+        grid,
         {
             q: character.q ?? 0,
             r: character.r ?? 0,
@@ -61,14 +75,20 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
         enemies, 
         skill??null 
     );
-    // console.log("attackableNodes",attackableNodes)
+
+    console.log("attackableNodes",attackableNodes)
     character.attackables = attackableNodes;
     const tl = gsap.timeline({
            onComplete:()=>{
                     console.log("onComplete",currentTurn.skills)
-                    const skills = currentTurn.skills;                
-                    const activeSkills = character.skills?.filter((s)=>skills?.includes(s.id));    
-                    if(activeSkills){
+                    const activeSkills:Skill[]=[];
+                    for(const skill of currentTurn.skills??[]){
+                        const activeSkill = character.skills?.find((s)=>s.id===skill);
+                        if(activeSkill){
+                            activeSkills.push(activeSkill);
+                        }
+                    }
+                    if(activeSkills.length>0){
                         setActiveSkills(activeSkills);
                     }
                     onComplete();
@@ -128,17 +148,7 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
         
     })  
     tl.play();  
-    //  if(game){
-    //         const character = characters.find(c=>c.character_id===currentTurn.character_id);
-    //         if(character){              
-    //             const skillService = new SkillManager(character,game);                 
-    //             const skills = await skillService.getAvailableSkills();  
-    //             console.log("skills",skills)    
-    //             if(skills){
-    //                 setActiveSkills(skills);
-    //             }
-    //         } 
-    //     }
+
 
 },[characters,gridCells,hexCell,map]);
  const playTurnStart= useCallback((character: GameCharacter,timeline:gsap.core.Timeline|null) => {

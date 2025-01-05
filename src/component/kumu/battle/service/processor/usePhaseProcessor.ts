@@ -6,12 +6,7 @@ const usePhaseProcessor = () => {
     const {characters,gridCells,hexCell,currentRound,resourceLoad,game,setActiveSkills} = useCombatManager();
     const {playTurnOn   } = usePhasePlay();    
 
-     const processActiveSkills = useCallback(async ({data,onComplete}:{data:any,onComplete:()=>void}) => {
-         if(data.skills){
-            setActiveSkills(data.skills);
-         }
-         onComplete();
-    }, [resourceLoad,characters, gridCells, hexCell,currentRound])   
+  
     const processTurnStart = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {
         // console.log("processTurnStart",data)
         const {character_id,uid} = data
@@ -46,7 +41,7 @@ const usePhaseProcessor = () => {
         if(!currentRound) return;
         const currentTurn = currentRound.turns.find((t)=>t.status===1||t.status===2);
         if(!currentTurn)return;
-            Object.assign(currentTurn, {status:3});
+        currentTurn.status = 3; 
         onComplete();
     }, [currentRound]);   
     const processRoundEnd = useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {
@@ -58,6 +53,6 @@ const usePhaseProcessor = () => {
 
   
    
-    return {processActiveSkills, processRoundStart,processRoundEnd,processTurnStart,processTurnEnd,processTurnSecond   }
+    return { processRoundStart,processRoundEnd,processTurnStart,processTurnEnd,processTurnSecond   }
 }
 export default usePhaseProcessor
