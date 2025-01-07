@@ -5,48 +5,25 @@ import { Skill } from "../types/CharacterTypes";
 import { CombatTurn, GameCharacter, GridCell } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 
-const usePhasePlay = () => {
- const {gridCells,characters,hexCell,map,game,setActiveSkills} = useCombatManager(); 
- const playGameInit= useCallback((characters: GameCharacter[],  gridCells: GridCell[][],timeline:gsap.core.Timeline) => {
-  
-    const tl =gsap.timeline();
-    // [1,3,5,7].forEach((row)=>{
-    //     gsap.set(rowContainers[row], {marginLeft:`${width/2}px`});
-    // })
-    tl.to({}, {}, ">1")
-    for (let row = 0; row < gridCells.length; row++) {
-        for (let col = 0; col < gridCells[row].length; col++) {
-            const cell = gridCells[row][col];
-            if (cell.walkable || (cell.type && cell.type < 2))
-                tl.to(cell.gridGround, { autoAlpha: 0.1, duration: 0.1 }, "<")
-        }
-    }
-    characters.forEach(character => {
-        if (character.container) {
-            tl.to(character.container, {
-                autoAlpha: 1,
-                duration: 0.7,
-            },">");
-        }
-    });
-    if(timeline)timeline.add(tl);
-    else tl.play();
-    
-},[hexCell]);
-const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void) => {
+const usePlayPhase   = () => {
+ const {gridCells,characters,hexCell,map,setActiveSkills} = useCombatManager(); 
+
+ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void) => {
     if(!characters||!gridCells||!map)return;  
     const character = characters.find((c)=>c.uid===currentTurn.uid&&c.character_id===currentTurn.character_id);
     if(!character)return;
     // console.log("playTurnOn",currentTurn)
     const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
     const grid = gridCells.map((row)=>row.map((cell)=>{
-        const char = character.q===cell.x&&character.r===cell.y?null:characters.find((c)=>c.q===cell.x&&c.r===cell.y)
+        // if(cell.x===character.q&&cell.y===character.r) return {x:cell.x,y:cell.y,walkable:false};
+        const char = characters.find((c)=>c.q===cell.x&&c.r===cell.y)
         return {
             x: cell.x,
             y: cell.y,
             walkable: char?false:cell.walkable
         }
     }))
+    console.log("moveRange",moveRange,currentTurn.status)
     const walkableNodes = getWalkableNodes(
         grid, 
         { x: character.q ?? 0, y: character.r ?? 0 }, 
@@ -121,8 +98,7 @@ const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void)
         character.attackables.forEach((node) => {
             const {x,y,uid,character_id,distance} = node;
             const enemy = characters.find((c)=>c.uid===uid&&c.character_id===character_id);
-            if(!enemy)return;
-           
+            if(!enemy)return;           
             if(!enemy?.attackEle)return;
             tl.to(enemy.attackEle, {
                 autoAlpha:1,
@@ -213,10 +189,10 @@ const playTurnLast= useCallback((character: GameCharacter,  gridCells: GridCell[
 
 },[hexCell,map]);
 return {    
-    playGameInit,
+    
     playTurnStart,
     playTurnLast,
     playTurnOn    
 }
 }
-export default usePhasePlay;    
+export default usePlayPhase;    

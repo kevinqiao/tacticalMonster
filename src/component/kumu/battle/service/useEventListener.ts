@@ -8,7 +8,7 @@ import usePhaseProcessor from "./processor/usePhaseProcessor";
 const useEventListener = () => {
     const { user } = useUserManager();  
     const {eventQueue,characters,gridCells,hexCell,resourceLoad} = useCombatManager();
-    const {processWalk,processAttack,processSkill,processDefend,processStandby} = useActionProcessor();     
+    const {processWalk,processAttack,processSkill,processDefend,processStandby,processSkillSelect} = useActionProcessor();     
     const {     
         processRoundStart, 
         processTurnStart, 
@@ -19,24 +19,30 @@ const useEventListener = () => {
    
    
     const processEvent = useCallback(() => {
+        // console.log("event size:"+eventQueue.length)
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event) return;
+
         const onComplete = ()=>{
-            eventQueue.shift();
+           eventQueue.shift();
         }
-        console.log("processEvent",event)
+
         event.initTime = event.initTime||Date.now();
-        if(Date.now()-event.initTime>15000){
-            eventQueue.shift();
-            return;
+        if(Date.now()-event.initTime>5000){
+           const e =  eventQueue.shift();
+           return;
         }   
-        const {  name,status, gameId, time, data } = event;
+        const {  name,status, data } = event;
         if (!status) {      
             
             switch(name){
                 case "walk":     
                     event.status = 1;   
-                    processWalk({data,onComplete});
+                    if(event.uid!==user.uid){
+                        processWalk({data,onComplete});
+                    }else{
+                        onComplete();
+                    }
                    break;
                 case "roundStart":
                     event.status = 1;
@@ -58,7 +64,14 @@ const useEventListener = () => {
                     event.status = 1;
                     processRoundEnd({data,onComplete}); 
                     break;
-             
+                case "skillSelect":
+                    event.status = 1;
+                    if(event.uid!==user.uid){   
+                        processSkillSelect({data,onComplete}); 
+                    }else{
+                        onComplete();
+                    }
+                    break;             
 
                 default:
                     console.log("unknown event",event)
@@ -68,7 +81,7 @@ const useEventListener = () => {
 
         }
 
-    }, [ eventQueue,processRoundStart,processTurnStart,processTurnSecond,processWalk,resourceLoad])
+    }, [user,eventQueue,processRoundStart,processTurnStart,processTurnSecond,processWalk,resourceLoad])
 
 
     useEffect(() => {

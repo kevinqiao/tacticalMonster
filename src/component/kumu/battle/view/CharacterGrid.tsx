@@ -1,7 +1,7 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import "../../map.css";
-import usePhasePlay from "../animation/playPhase";
+import usePhasePlay from "../animation/usePlayPhase";
 import { useCombatManager } from "../service/CombatManager";
 import useCombatAct from "../service/useCombatAct";
 import { GameCharacter } from "../types/CombatTypes";

@@ -1,10 +1,11 @@
 import { useCallback } from "react";
-import usePhasePlay from "../../animation/playPhase";
+
+import usePlayPhase from "../../animation/usePlayPhase";
 import { useCombatManager } from "../CombatManager";
 
 const usePhaseProcessor = () => {
-    const {characters,gridCells,hexCell,currentRound,resourceLoad,game,setActiveSkills} = useCombatManager();
-    const {playTurnOn   } = usePhasePlay();    
+    const {characters,gridCells,hexCell,currentRound,resourceLoad} = useCombatManager();
+    const {playTurnOn} = usePlayPhase();    
 
   
     const processTurnStart = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {

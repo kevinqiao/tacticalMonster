@@ -3,9 +3,10 @@ import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
 import { GameCharacter } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
-const useActionPlay = () => {
-        const {characters,gridCells,hexCell,map} = useCombatManager();
-        const playWalk =useCallback((character: GameCharacter, path: {x:number,y:number}[]) => {
+
+const usePlayWalk = () => {
+        const {characters,gridCells,hexCell,currentRound,map} = useCombatManager();
+        const playWalk =useCallback((character: GameCharacter, path: {x:number,y:number}[],onComplete:()=>void) => {
 
             const container = character.container;    
             const spine = character.skeleton;
@@ -19,6 +20,8 @@ const useActionPlay = () => {
                 },
                 onComplete: () => {
                     spine.state.setAnimation(0, "stand", true);
+                    console.log("onComplete")
+                    onComplete();
                 }
             });
    
@@ -100,13 +103,15 @@ const useActionPlay = () => {
             return tl.play();
         },[characters,gridCells,hexCell,map]);
 
-        const playAttack = useCallback((character: GameCharacter, target: GameCharacter) => {   
-            const spine = character.skeleton;
-            if (!spine) return;
-            spine.state.setAnimation(0, "attack", false);
-        }, [characters]);
-        return { playWalk,playAttack}       
+        // const playAttack = useCallback((character: GameCharacter, target: GameCharacter) => {   
+        //     const spine = character.skeleton;
+        //     if (!spine) return;
+        //     spine.state.setAnimation(0, "attack", false);
+        // }, [characters]);
+
+        
+        return { playWalk}       
 }
-export default useActionPlay;   
+export default usePlayWalk;   
 
 

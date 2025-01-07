@@ -32,11 +32,11 @@ export interface Player {
 }
 
 export interface CombatEvent {
-    type?: number;//0-phase 1-action 2-effect;
     name: string;
+    uid?:string;
     gameId?: string;
     time?: number;
-    initTime?: number;  
+    initTime?: number;
     status?: number;//
     data?: CombatAction|CombatRound|any;
 }
@@ -67,6 +67,7 @@ export interface CombatTurn {
     startTime?: number;
     endTime?: number;   
     skills?: string[];  
+    skillSelect?: string;
 }
 export interface CombatRound {
     gameId?: string;

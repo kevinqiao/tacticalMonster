@@ -38,10 +38,9 @@ export const attack = sessionAction({
         console.log("attack", gameId, data);
         console.log("user", ctx.user)
          if (!ctx.user) return false;
-        const gameService = new GameManager(ctx);
-        return await gameService.attack(gameId, ctx.user.uid, data.character_id, data.target);
-      
 
+        const gameService = new GameManager(ctx);
+        return await gameService.attack(gameId, data);
     }
 })
 export const standBy = sessionAction({

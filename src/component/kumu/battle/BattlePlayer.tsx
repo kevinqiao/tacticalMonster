@@ -10,9 +10,10 @@ import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 
 const CombatActPanel: React.FC = () => {
-  const { eventQueue, changeCoordDirection, activeSkills, currentRound, characters } = useCombatManager();
+  const { eventQueue, activeSkills, currentRound, characters } = useCombatManager();
   const [activeListOpen, setActiveListOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+
   // const doSomething = useAction(api.rule.test.doSomething);
   // const startGame = useAction(api.service.tmGameProxy.start);
 
@@ -31,18 +32,24 @@ const CombatActPanel: React.FC = () => {
   const handleSelectSkill = (skill: Skill) => {
     setSelectedSkill(skill);
     setActiveListOpen(false);
+
   }
   useEffect(() => {
     if (activeSkills) {
-      console.log("activeSkills", activeSkills);
+      // console.log("activeSkills", activeSkills);
       setSelectedSkill(activeSkills[0]);
     }
   }, [activeSkills]);
   useEffect(() => {
-    if (selectedSkill) {
-      console.log("selectedSkill", selectedSkill);
+    if (selectedSkill && currentRound && eventQueue) {
+      // console.log("selectedSkill", selectedSkill);
+      const currentTurn = currentRound?.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
+      if (currentTurn) {
+        eventQueue.push({ name: "skillSelect", status: 0, data: { uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: selectedSkill.id } });
+        // playSkillSelect({ uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: selectedSkill.id }, () => { });
+      }
     }
-  }, [selectedSkill]);
+  }, [eventQueue, selectedSkill, currentRound]);
 
   return (
     <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
