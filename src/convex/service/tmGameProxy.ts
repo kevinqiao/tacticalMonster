@@ -49,5 +49,12 @@ export const standBy = sessionAction({
         console.log("TM game service")
     }
 })
-
+export const selectSkill = sessionAction({
+    args: {gameId: v.string(), data: v.any() },
+    handler: async (ctx, { gameId, data }) => {
+        if (!ctx.user) return false;
+        const gameService = new GameManager(ctx);
+        return await gameService.selectSkill(gameId, data);
+    }
+})
 

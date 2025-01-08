@@ -34,7 +34,7 @@ const useCombatAct = () => {
       uid: character.uid,
       token: "test-token",
       data: {
-        attacker: { uid: currentTurn.uid, character_id: currentTurn.character_id, killSelect: currentTurn.skillSelect },
+        attacker: { uid: currentTurn.uid, character_id: currentTurn.character_id, skillSelect: currentTurn.skillSelect },
         target: { uid: character.uid, character_id: character.character_id }
       }
     });
@@ -85,17 +85,24 @@ const useCombatAct = () => {
     }
 
   }, [user, eventQueue, map, gameId, characters, currentRound, gridCells, convex]);
-  const selectSkill = useCallback((skill: Skill) => {
+  const selectSkill = useCallback(async (skill: Skill) => {
 
-    if (!currentRound) return;
+    if (!currentRound || !gameId) return;
 
     const currentTurn = currentRound.turns.find((t) => t.status === 1 || t.status === 2);
     if (!currentTurn) return;
-
     currentTurn.skillSelect = skill.id;
     setActiveSkill(skill);
     playSkillSelect({ uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: skill.id }, () => { });
-  }, [currentRound, characters, playSkillSelect, setActiveSkill]);
+    const res = await convex.action(api.service.tmGameProxy.selectSkill, {
+      gameId,
+      uid: currentTurn.uid,
+      token: "test-token",
+      data: {
+        skillId: skill.id
+      }
+    });
+  }, [currentRound, characters, gameId, playSkillSelect, setActiveSkill]);
   const standBy = useCallback((character: GameCharacter) => {
     console.log("stand...");
   }, []);

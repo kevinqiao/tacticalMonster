@@ -38,7 +38,7 @@ const usePlayPhase   = () => {
             r: c.r ?? 0,
         }));
   
-    const skill:Skill|null|undefined = currentTurn.skills&&character.skills?character.skills.find((s)=>s.id===currentTurn.skills?.[0]):null;
+    const skill:Skill|null|undefined = currentTurn.skills&&character.skills?character.skills.find((s)=>s.id===currentTurn.skillSelect??currentTurn.skills?.[0]) :null;
     const attackableNodes = getAttackableNodes(
         grid,
         {
