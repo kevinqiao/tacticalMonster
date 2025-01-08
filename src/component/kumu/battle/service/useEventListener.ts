@@ -10,6 +10,7 @@ const useEventListener = () => {
     const {eventQueue,characters,gridCells,hexCell,resourceLoad} = useCombatManager();
     const {processWalk,processAttack,processSkill,processDefend,processStandby,processSkillSelect} = useActionProcessor();     
     const {     
+        processGameInit,
         processRoundStart, 
         processTurnStart, 
         processTurnEnd, 
@@ -52,6 +53,10 @@ const useEventListener = () => {
                         onComplete();
                     }
                    break;
+                case "gameInit":
+                    event.status = 1;
+                    processGameInit({data,onComplete});
+                    break;
                 case "roundStart":
                     event.status = 1;
                     processRoundStart({data,onComplete});

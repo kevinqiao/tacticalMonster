@@ -102,13 +102,6 @@ const usePlayWalk = () => {
 
             return tl.play();
         },[characters,gridCells,hexCell,map]);
-
-        // const playAttack = useCallback((character: GameCharacter, target: GameCharacter) => {   
-        //     const spine = character.skeleton;
-        //     if (!spine) return;
-        //     spine.state.setAnimation(0, "attack", false);
-        // }, [characters]);
-
         
         return { playWalk}       
 }

@@ -15,14 +15,6 @@ const usePlayAttack = () => {
                 onComplete
             });
    
-            // characters.forEach((c)=>{
-            //     if(c.standEle){
-            //         tl.to(c.standEle, {autoAlpha:0, duration:0.5}, 0);
-            //     }
-            //     if(c.attackEle){
-            //         tl.to(c.attackEle, {autoAlpha:1, duration:0.5}, 0);
-            //     }
-            // });
             const {cols,direction} = map;   
             attackerCharacter.walkables?.forEach((node)=>{
                 const {x,y} = node;

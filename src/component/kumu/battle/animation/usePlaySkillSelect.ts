@@ -27,14 +27,7 @@ const usePlaySkillSelect = () => {
                                     walkable: char?false:cell.walkable
                                 }
                 }))
-                
-                // character.walkables?.forEach((node)=>{
-                //     const {x,y} = node;
-                //     const gridCell = gridCells[y][x];
-                //     if(gridCell?.gridWalk){
-                //         gsap.set(gridCell.gridWalk, {autoAlpha:0});
-                //     }
-                // }) 
+
             
                 character.attackables?.forEach((node) => {
                     const {uid,character_id,distance} = node;
@@ -43,14 +36,7 @@ const usePlaySkillSelect = () => {
                     if(!enemy?.attackEle)return;
                     gsap.set(enemy.attackEle, {autoAlpha:0});
                 });
-        
-        
-                // const walkableNodes = getWalkableNodes(
-                //     grid, 
-                //     { x: character.q ?? 0, y: character.r ?? 0 }, 
-                //     character.move_range ?? 1
-                // );
-                // character.walkables = walkableNodes;
+
                 const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
                     .map(c => ({
                         uid: c.uid,
@@ -86,20 +72,7 @@ const usePlaySkillSelect = () => {
                         ease: "power2.inOut"
                     });
                 }
-                const {cols,direction} = map;
-                // if(walkableNodes){
-                //     walkableNodes.forEach((node) => {
-                //         const { x, y } = node;
-                //         const col = direction === 1 ? cols - x - 1 : x; 
-                //         const gridCell = gridCells[y][col];
-                //         if(!gridCell?.gridWalk||node.distance===0)return;
-                //         tl.to(gridCell.gridWalk, {
-                //             autoAlpha:node.distance===character.move_range?0.4:0.8,
-                //             duration:0.5,
-                //             ease:"power2.inOut"
-                //         },"<");
-                //     });
-                // }
+
                 if(character.attackables){
                     character.attackables.forEach((node) => {
                         const {x,y,uid,character_id,distance} = node;

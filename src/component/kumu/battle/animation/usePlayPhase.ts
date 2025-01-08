@@ -23,7 +23,7 @@ const usePlayPhase   = () => {
             walkable: char?false:cell.walkable
         }
     }))
-    console.log("moveRange",moveRange,currentTurn.status)
+
     const walkableNodes = getWalkableNodes(
         grid, 
         { x: character.q ?? 0, y: character.r ?? 0 }, 
@@ -37,8 +37,10 @@ const usePlayPhase   = () => {
             q: c.q ?? 0,
             r: c.r ?? 0,
         }));
-  
-    const skill:Skill|null|undefined = currentTurn.skills&&character.skills?character.skills.find((s)=>s.id===currentTurn.skillSelect??currentTurn.skills?.[0]) :null;
+
+    const skillId = currentTurn.skillSelect||currentTurn.skills?.[0];
+    const skill:Skill|undefined = character.skills?.find((s)=>skillId===s.id);
+
     const attackableNodes = getAttackableNodes(
         grid,
         {
@@ -53,21 +55,11 @@ const usePlayPhase   = () => {
         skill??null 
     );
 
-    console.log("attackableNodes",attackableNodes)
+//    console.log("attackableNodes",attackableNodes)
     character.attackables = attackableNodes;
     const tl = gsap.timeline({
            onComplete:()=>{
-                    console.log("onComplete",currentTurn.skills)
-                    // const activeSkills:Skill[]=[];
-                    // for(const skill of currentTurn.skills??[]){
-                    //     const activeSkill = character.skills?.find((s)=>s.id===skill);
-                    //     if(activeSkill){
-                    //         activeSkills.push(activeSkill);
-                    //     }
-                    // }
-                    // if(activeSkills.length>0){
-                     setActiveSkill(skill??null);
-                    // 
+                    setActiveSkill(skill??null);                     
                     onComplete();
             }
             
@@ -96,7 +88,7 @@ const usePlayPhase   = () => {
     }
     if(character.attackables){
         character.attackables.forEach((node) => {
-            const {x,y,uid,character_id,distance} = node;
+            const {uid,character_id,distance} = node;
             const enemy = characters.find((c)=>c.uid===uid&&c.character_id===character_id);
             if(!enemy)return;           
             if(!enemy?.attackEle)return;
@@ -107,22 +99,7 @@ const usePlayPhase   = () => {
             },"<");
         });
     }
-    // characters.filter((c)=>c.uid===character.uid&&c.character_id===character.character_id).forEach((c)=>{
-    //     if(c.standEle)
-    //         tl.to(c.standEle, {
-    //                     autoAlpha:1,
-    //                     duration:0.5,
-    //             ease:"power2.inOut"
-    //         },"<");
-    //         if(c.attackEle){    
-    //             tl.to(c.attackEle, {
-    //                 autoAlpha:0,
-    //                 duration:0.5,
-    //                 ease:"power2.inOut"
-    //             },"<");
-    //         }         
-        
-    // })  
+ 
     tl.play();  
 
 

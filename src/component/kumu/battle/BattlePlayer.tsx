@@ -36,8 +36,10 @@ const CombatActPanel: React.FC = () => {
   }, [selectSkill]);
 
   useEffect(() => {
+    console.log("activeSkill", activeSkill)
     if (currentRound && characters && activeSkill) {
       // console.log("selectedSkill", selectedSkill);
+
       const currentTurn = currentRound?.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
       if (currentTurn?.skills) {
         const character = characters.find((c) => c.uid === currentTurn.uid && c.character_id === currentTurn.character_id);
