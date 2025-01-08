@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
+import usePlayAttack from "../../animation/usePlayAttack";
 import usePlaySkillSelect from "../../animation/usePlaySkillSelect";
 import usePlayWalk from "../../animation/usePlayWalk";
 import { useCombatManager } from "../CombatManager";
@@ -9,6 +10,7 @@ const useActionProcessor = () => {
     const {characters,gridCells,hexCell,currentRound,game,resourceLoad} = useCombatManager()
     const {playWalk} = usePlayWalk();
     const { playSkillSelect } = usePlaySkillSelect();
+    const { playAttack } = usePlayAttack();
     const processSkillSelect = useCallback(({data,onComplete}:{data:any,onComplete:()=>void})  => {
         const {uid,character_id,skillId} = data;
         const currentTurn = currentRound?.turns?.find((t:any)=>t.uid===uid&&t.character_id===character_id);
@@ -33,9 +35,10 @@ const useActionProcessor = () => {
         }   
     }, [user,resourceLoad,characters, gridCells, hexCell])  
 
-    const processAttack = useCallback((data:any) => {
-        
-    }, [characters,gridCells,hexCell])  
+    const processAttack = useCallback(({data, onComplete}: {data: any, onComplete: () => void}) => {
+        const {attacker, target} = data;
+        playAttack(attacker, target, onComplete);
+    }, [characters, gridCells, hexCell]);
     const processSkill = useCallback((data:any) => {
         
     }, [characters,gridCells,hexCell])     

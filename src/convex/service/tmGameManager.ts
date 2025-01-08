@@ -1,6 +1,6 @@
 import { SkillManager } from "../../component/kumu/battle/service/SkillManager";
 import { Skill } from "../../component/kumu/battle/types/CharacterTypes";
-import { CombatTurn, GameCharacter, GameModel } from "../../component/kumu/battle/types/CombatTypes";
+import { CombatEvent, CombatTurn, GameCharacter, GameModel } from "../../component/kumu/battle/types/CombatTypes";
 import { internal } from "../_generated/api";
 import { getPosition, getWalkPath } from "../utils/gameUtils";
 import { calculateStats } from "../utils/Utlis";
@@ -56,25 +56,26 @@ class GameManager {
             }
         }
     }
-    async attack(gameId: string, data: { attacker: { uid: string, character_id: string, killSelect: string }, target: { uid: string, character_id: string } }): Promise<boolean> {
+    async attack(gameId: string, data: { attacker: { uid: string, character_id: string, killSelect: string }, target: { uid: string, character_id: string } }): Promise<CombatEvent|null> {
         console.log("attack", gameId, data);
         this.game = await this.dbCtx.runQuery(internal.dao.tmGameDao.get, { gameId });  
         const {attacker,target}=data;
         const attackerCharacter = this.game?.characters.find((c:any)=>c.uid===attacker.uid&&c.character_id===attacker.character_id);
         const targetCharacter = this.game?.characters.find((c:any)=>c.uid===target.uid&&c.character_id===target.character_id);
-        if(!attackerCharacter||!targetCharacter) return false;
+        if(!attackerCharacter||!targetCharacter) return null;
         const skillId = attacker.killSelect;
         const skill = attackerCharacter.skills?.find((s:any)=>s.id===skillId);
-        if(!skill) return false;
+        if(!skill) return null;
+        console.log("skill",skill)  
         // const skillService = new SkillManager(attackerCharacter,this.game as GameModel);
         // const result = await skillService.useSkill(skillId,targetCharacter);
         // if(!result) return false;   
         // await this.dbCtx.runMutation(internal.dao.tmGameCharacterDao.update, {gameId,uid,character_id,data:{q:to.q,r:to.r}});
-        const event={gameId,name:"attack",data};
+        const event={gameId,uid:attacker.uid,name:"attack",data};
         await this.dbCtx.runMutation(internal.dao.tmEventDao.create, event);
         await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:gameId,data:{lastUpdate:Date.now()}});
-
-        return true;
+        await this.turnEnd();
+        return event;
     }   
     async walk(gameId: string, uid: string, character_id: string, to: {q: number, r: number}): Promise<boolean> {
         // console.log("to",to);
@@ -105,7 +106,6 @@ class GameManager {
         const event={gameId,name:"walk",data:{uid,character_id,path}};
         await this.dbCtx.runMutation(internal.dao.tmEventDao.create, event);
         await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:gameId,data:{lastUpdate:Date.now()}});
-
     
         if(character.move_range===(path.length-1)||currentTurn?.status===2){
              await this.turnEnd();

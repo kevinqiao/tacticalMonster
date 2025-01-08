@@ -1,5 +1,5 @@
 import { Spine } from "pixi-spine";
-import { Character, SkillEffect as Effect, Skill } from "./CharacterTypes";
+import { Character, Effect, Skill } from "./CharacterTypes";
 
 export enum ACT_CODE {
     WALK = 1,
@@ -129,6 +129,7 @@ export interface GameCharacter extends Character {
     q?: number;
     r?: number;
     skills?: Skill[];
+    status?: 'normal' | 'stunned';
     facing?: number;  // 朝向角度，0度朝右，每60度一个方向
     walkables?: WalkableNode[];
     attackables?: AttackableNode[];

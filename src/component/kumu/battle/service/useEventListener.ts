@@ -34,8 +34,16 @@ const useEventListener = () => {
         }   
         const {  name,status, data } = event;
         if (!status) {      
-            
+            console.log("event",event);
             switch(name){
+                case "attack":     
+                    event.status = 1;   
+                    console.log("attack",data);
+                    if(event.uid!==user.uid){
+                        processAttack({data,onComplete});
+                    }else{
+                        onComplete();                    }
+                   break;
                 case "walk":     
                     event.status = 1;   
                     if(event.uid!==user.uid){

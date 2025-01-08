@@ -18,21 +18,21 @@ export type SkillEffectType =
     | "move";
 
 // SkillEffect: 技能效果的统一结构
-export interface SkillEffect {
-    effect_id?: string; // 效果的唯一标识符（可选，用于跟踪）
-    effect_type: SkillEffectType; // 效果类型，例如 "damage" 或 "heal"
-    value: string | number; // 效果值，可直接指定数值或通过函数动态计算
-    range?: {
-        area_type: "single" | "aoe"; // 范围类型：单体或范围攻击
-        distance: number; // 技能效果有效距离
-    };
-    remaining_duration?: number; // 持续时间（以回合计，可选）
-    name?: string; // 效果名称，例如 "Burn" 或 "Poison"
-    target_attribute?: keyof Stats; // 目标属性，例如 "hp", "attack"（可选）
-    trigger_phase?: "immediate" | "turn_start" | "turn_end"; // 触发时机
-    trigger_event?: string; // 指定的触发事件（用于 `event` 类型触发效果）
-    damage_falloff?: DamageFalloff;  // 添加伤害衰减配置
-}
+// export interface SkillEffect {
+//     effect_id?: string; // 效果的唯一标识符（可选，用于跟踪）
+//     effect_type: SkillEffectType; // 效果类型，例如 "damage" 或 "heal"
+//     value: string | number; // 效果值，可直接指定数值或通过函数动态计算
+//     range?: {
+//         area_type: "single" | "aoe"; // 范围类型：单体或范围攻击
+//         distance: number; // 技能效果有效距离
+//     };
+//     remaining_duration?: number; // 持续时间（以回合计，可选）
+//     name?: string; // 效果名称，例如 "Burn" 或 "Poison"
+//     target_attribute?: keyof Stats; // 目标属性，例如 "hp", "attack"（可选）
+//     trigger_phase?: "immediate" | "turn_start" | "turn_end"; // 触发时机
+//     trigger_event?: string; // 指定的触发事件（用于 `event` 类型触发效果）
+//     damage_falloff?: DamageFalloff;  // 添加伤害衰减配置
+// }
 
 // TriggerCondition: 触发条件与关联效果
 export interface TriggerCondition {
@@ -64,7 +64,7 @@ export interface Skill {
     };
     resource_cost: { mp?: number; hp?: number; stamina?: number }; // 技能资源消耗（如法力值）
     cooldown: number; // 技能冷却时间（以回合计）
-    effects: SkillEffect[]; // 技能的直接效果（主动技能生效时触发）
+    effects: Effect[]; // 技能的直接效果（主动技能生效时触发）
     triggerConditions?: TriggerCondition[]; // 技能的触发条件及其关联效果（被动技能）
 }
 
@@ -80,13 +80,16 @@ export interface Attributes {
 
 export interface Stats {
     hp?: { current: number; max: number };
-    mp?: number;
+    mp?: { current: number; max: number };
     stamina?: number;
     attack?: number;
     defense?: number;
     speed?: number;
     crit_rate?: number;
     evasion?: number;
+    shield?: { current: number; max: number };
+    intelligence?: number;
+    status_resistance?: number;  // 添加状态抗性属性
 }
 export interface Equipment {
     equipment_id: string;
@@ -124,4 +127,50 @@ export interface DamageFalloff {
     full_damage_range: number;     // 全伤害范围
     min_damage_percent: number;    // 最小伤害百分比
 }
+
+export enum EffectType {
+    BUFF = 'buff',
+    DEBUFF = 'debuff',
+    DOT = 'dot',
+    HOT = 'hot',
+    STUN = 'stun',
+    SHIELD = 'shield',
+    MP_DRAIN = 'mp_drain',
+    MP_RESTORE = 'mp_restore'
+}
+
+export interface Effect {
+    id: string;
+    name: string;
+    type: EffectType;
+    duration: number;
+    remaining_duration?: number;
+    modifiers?: {
+        [key: string]: number;
+    };
+    modifier_type?: 'add' | 'multiply';
+    value?: number;
+    icon?: string;
+    damage_falloff?: DamageFalloff;
+    area_type?: 'single' | 'circle' | 'line';  // 添加范围类型
+    area_size?: number;  // 范围大小（半径或长度）
+    damage_type?: 'physical' | 'magical';  // 添加这一行
+}
+
+export const BASE_ATTACK: Skill = {
+    id: "base_attack",
+    name: "普通攻击",
+    type: "active",
+    cooldown: 0,
+    resource_cost: {},
+    canTriggerCounter: true,
+    effects: [{
+        id: "base_damage",
+        name: "物理伤害",
+        type: EffectType.DEBUFF,
+        duration: 1,
+        damage_type: 'physical',
+        value: 0,  // 将在使用时根据角色攻击力计算
+    }]
+};
 

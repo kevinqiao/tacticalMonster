@@ -15,15 +15,17 @@ const useCombatAct = () => {
     if (!gameId) return;
     const currentTurn = currentRound?.turns?.find((t: any) => t.status === 1 || t.status === 2);
     if (!currentTurn) return;
-    eventQueue.push({
-      name: "attack",
-      status: 0,
-      gameId: gameId,
-      data: {
-        uid: character.uid,
-        character_id: character.character_id,
-      },
-    });
+    if (currentTurn.uid === user.uid) {
+      eventQueue.push({
+        name: "attack",
+        status: 0,
+        gameId: gameId,
+        data: {
+          attacker: { uid: currentTurn.uid, character_id: currentTurn.character_id, killSelect: currentTurn.skillSelect },
+          target: { uid: character.uid, character_id: character.character_id }
+        },
+      })
+    };
     const res = await convex.action(api.service.tmGameProxy.attack, {
       gameId,
       uid: character.uid,
@@ -33,6 +35,7 @@ const useCombatAct = () => {
         target: { uid: character.uid, character_id: character.character_id }
       }
     });
+    console.log("attack res", res);
   }, [convex, eventQueue, characters, currentRound, gameId]);
 
   const walk = useCallback(async (to: { q: number; r: number }) => {
