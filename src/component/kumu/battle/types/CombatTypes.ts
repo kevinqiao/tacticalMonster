@@ -150,7 +150,7 @@ export interface MapModel {
 
 export interface ICombatContext {
     game:GameModel|null;
-    activeSkills:Skill[]|null; 
+    activeSkill:Skill|null;
     coordDirection:number;  
     hexCell: {width:number,height:number};
     gameId:string|null;
@@ -180,7 +180,8 @@ export interface ICombatContext {
         }>
     >;
     changeCell: React.Dispatch<React.SetStateAction<{width:number,height:number}>>;
-    setActiveSkills:(skills:Skill[])=>void;
+
+    setActiveSkill:(skill:Skill|null)=>void; 
     changeCoordDirection:(direction:number)=>void;
     // walk: (to: { q: number; r: number }) => void;
     // findPath: (from: { q: number, r: number }, to: { q: number, r: number }) => Hex[] | null;

@@ -1,8 +1,9 @@
 import { PageProp } from "component/RenderApp";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useUserManager } from "service/UserManager";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
+import useCombatAct from "./service/useCombatAct";
 import useEventListener from "./service/useEventListener";
 import { Skill } from "./types/CharacterTypes";
 import CharacterGrid from "./view/CharacterGrid";
@@ -10,10 +11,10 @@ import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 
 const CombatActPanel: React.FC = () => {
-  const { eventQueue, activeSkills, currentRound, characters } = useCombatManager();
+  const { activeSkill, currentRound, characters } = useCombatManager();
   const [activeListOpen, setActiveListOpen] = useState(false);
-  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
-
+  const [activeSkills, setActiveSkills] = useState<Skill[] | null>(null);
+  const { selectSkill } = useCombatAct();
   // const doSomething = useAction(api.rule.test.doSomething);
   // const startGame = useAction(api.service.tmGameProxy.start);
 
@@ -29,32 +30,33 @@ const CombatActPanel: React.FC = () => {
   //   }
   //   return
   // }, [selectedActiveSkill, currentRound, characters]);
-  const handleSelectSkill = (skill: Skill) => {
-    setSelectedSkill(skill);
+  const handleSelectSkill = useCallback((skill: Skill) => {
     setActiveListOpen(false);
+    selectSkill(skill);
+  }, [selectSkill]);
 
-  }
   useEffect(() => {
-    if (activeSkills) {
-      // console.log("activeSkills", activeSkills);
-      setSelectedSkill(activeSkills[0]);
-    }
-  }, [activeSkills]);
-  useEffect(() => {
-    if (selectedSkill && currentRound && eventQueue) {
+    if (currentRound && characters && activeSkill) {
       // console.log("selectedSkill", selectedSkill);
       const currentTurn = currentRound?.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
-      if (currentTurn) {
-        eventQueue.push({ name: "skillSelect", status: 0, data: { uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: selectedSkill.id } });
+      if (currentTurn?.skills) {
+        const character = characters.find((c) => c.uid === currentTurn.uid && c.character_id === currentTurn.character_id);
+        if (character) {
+          const skills = character.skills?.filter((s) => currentTurn.skills?.includes(s.id));
+          if (skills && skills.length > 0) {
+            setActiveSkills(skills);
+          }
+        }
+        // eventQueue.push({ name: "skillSelect", status: 0, data: { uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: selectedSkill.id } });
         // playSkillSelect({ uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: selectedSkill.id }, () => { });
       }
     }
-  }, [eventQueue, selectedSkill, currentRound]);
+  }, [activeSkill, characters, currentRound]);
 
   return (
     <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
-      {selectedSkill && <div className="action-panel-item" onClick={() => setActiveListOpen((pre) => !pre)}>
-        {selectedSkill.name}
+      {activeSkill && <div className="action-panel-item" onClick={() => setActiveListOpen((pre) => !pre)}>
+        {activeSkill.name}
       </div>}
 
       <div className="action-panel-item">STANDBY</div>
@@ -62,7 +64,7 @@ const CombatActPanel: React.FC = () => {
         DEFEND
       </div>
       {activeListOpen && activeSkills && <div style={{ position: "absolute", top: 45, left: 0, width: "100%", height: 40 }}>
-        {activeSkills.filter((skill) => skill.id !== selectedSkill?.id).map((skill, index) => <div className="action-panel-item" key={skill.id} onClick={() => handleSelectSkill(skill)}>{skill.name}</div>)}
+        {activeSkills.filter((skill) => skill.id !== activeSkill?.id).map((skill, index) => <div className="action-panel-item" key={skill.id} onClick={() => handleSelectSkill(skill)}>{skill.name}</div>)}
       </div>}
     </div>
   );

@@ -50,7 +50,7 @@ const mapData = {
 export const CombatContext = createContext<ICombatContext>({
   // rowContainers: {},
   game: null,
-  activeSkills: null,
+  activeSkill: null,
   coordDirection: 0,
   currentRound: { no: 0, turns: [], status: 0 },
   gameId: null,
@@ -63,7 +63,8 @@ export const CombatContext = createContext<ICombatContext>({
   setResourceLoad: () => null,
   changeCell: () => null,
   changeCoordDirection: () => null,
-  setActiveSkills: () => null
+
+  setActiveSkill: () => null
 });
 const round: CombatRound = {
   no: 1,
@@ -72,7 +73,8 @@ const round: CombatRound = {
 };
 
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
-  const [activeSkills, setActiveSkills] = useState<Skill[] | null>(null);
+
+  const [activeSkill, setActiveSkill] = useState<Skill | null>(null);
   const [coordDirection, setCoordDirection] = useState<number>(0);
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
   const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -183,8 +185,8 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 
   const value = {
     game,
-    activeSkills,
-    setActiveSkills,
+    activeSkill,
+    setActiveSkill,
     coordDirection,
     gameId,
     hexCell,

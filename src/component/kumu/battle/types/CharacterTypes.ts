@@ -1,40 +1,6 @@
 import { TopLevelCondition } from "json-rules-engine";
 
-// SkillEffectType: 使用分组方式改进效果类型
-export type SkillEffectType =
-    // Direct effects (立即生效)
-    | "damage"
-    | "heal"
-    // Buff/Debuff effects (状态增益/减益)
-    | "buff"
-    | "debuff"
-    // Persistent effects (持续性)
-    | "dot" // Damage over Time
-    | "hot" // Heal over Time
-    // Special status effects
-    | "poison"
-    | "burn"
-    | "stun"
-    | "move";
 
-// SkillEffect: 技能效果的统一结构
-// export interface SkillEffect {
-//     effect_id?: string; // 效果的唯一标识符（可选，用于跟踪）
-//     effect_type: SkillEffectType; // 效果类型，例如 "damage" 或 "heal"
-//     value: string | number; // 效果值，可直接指定数值或通过函数动态计算
-//     range?: {
-//         area_type: "single" | "aoe"; // 范围类型：单体或范围攻击
-//         distance: number; // 技能效果有效距离
-//     };
-//     remaining_duration?: number; // 持续时间（以回合计，可选）
-//     name?: string; // 效果名称，例如 "Burn" 或 "Poison"
-//     target_attribute?: keyof Stats; // 目标属性，例如 "hp", "attack"（可选）
-//     trigger_phase?: "immediate" | "turn_start" | "turn_end"; // 触发时机
-//     trigger_event?: string; // 指定的触发事件（用于 `event` 类型触发效果）
-//     damage_falloff?: DamageFalloff;  // 添加伤害衰减配置
-// }
-
-// TriggerCondition: 触发条件与关联效果
 export interface TriggerCondition {
     trigger_type: string;
     conditions: TopLevelCondition;
@@ -156,21 +122,4 @@ export interface Effect {
     area_size?: number;  // 范围大小（半径或长度）
     damage_type?: 'physical' | 'magical';  // 添加这一行
 }
-
-export const BASE_ATTACK: Skill = {
-    id: "base_attack",
-    name: "普通攻击",
-    type: "active",
-    cooldown: 0,
-    resource_cost: {},
-    canTriggerCounter: true,
-    effects: [{
-        id: "base_damage",
-        name: "物理伤害",
-        type: EffectType.DEBUFF,
-        duration: 1,
-        damage_type: 'physical',
-        value: 0,  // 将在使用时根据角色攻击力计算
-    }]
-};
 

@@ -47,6 +47,10 @@ const handleStatusEffect = (target: GameCharacter, effect: Effect) => {
                 target.stats.shield = { current: 0, max: 0 };
             }
             target.stats.shield.current += effect.value || 0;
+            target.stats.shield.max = Math.max(
+                target.stats.shield.max,
+                target.stats.shield.current
+            );
             break;
     }
 };
@@ -54,20 +58,22 @@ const handleStatusEffect = (target: GameCharacter, effect: Effect) => {
 // 处理属性修改
 const handleStatModifiers = (target: GameCharacter, effect: Effect) => {
     if (!effect.modifiers || !target.stats) return;
+    const stats = target.stats;
 
     Object.entries(effect.modifiers).forEach(([stat, value]) => {
         const statKey = stat as keyof Stats;
-        const statValue = target.stats![statKey];
-        if (typeof statValue === 'object' && 'current' in statValue) {
-            const isDebuff = effect.type === EffectType.DEBUFF;
-            const multiplier = effect.modifier_type === 'multiply' 
-                ? (isDebuff ? (1 - value) : (1 + value))
-                : (isDebuff ? -value : value);
+        const statValue = stats[statKey];
 
-            if (effect.modifier_type === 'multiply') {
-                statValue.current *= multiplier;
-            } else {
-                statValue.current += multiplier;
+        const isDebuff = effect.type === EffectType.DEBUFF;
+        const multiplier = effect.modifier_type === 'multiply' 
+            ? (isDebuff ? (1 - value) : (1 + value))
+            : (isDebuff ? -value : value);
+
+        if (statValue) {
+            if (typeof statValue === 'number') {
+                (stats[statKey] as number) = statValue * multiplier;
+            } else if ('current' in statValue) {
+                statValue.current = Math.round(statValue.current * multiplier);
             }
         }
     });
@@ -112,13 +118,15 @@ export const updateEffects = (character: GameCharacter): void => {
     character.activeEffects = character.activeEffects.filter(effect => {
         if (!effect.remaining_duration) return false;
 
-        // 处理持续性效果
-        handleDirectEffect(character, effect);
-        
-        // 更新持续时间
+        // 护盾效果特殊处理
+        if (effect.type === EffectType.SHIELD && character.stats?.shield?.current === 0) {
+            removeEffect(character, effect);
+            return false;
+        }
+
         effect.remaining_duration--;
         if (effect.remaining_duration <= 0) {
-            removeEffect(character, effect);  // 当效果持续时间结束时
+            removeEffect(character, effect);
             return false;
         }
         return true;
@@ -145,6 +153,7 @@ export const removeEffect = (target: GameCharacter, effect: Effect): void => {
         case EffectType.SHIELD:
             if (target.stats?.shield) {
                 target.stats.shield.current = 0;
+                target.stats.shield.max = 0;
             }
             break;
         case EffectType.STUN:
@@ -200,6 +209,7 @@ export const calculateDamage = (attacker: GameCharacter, target: GameCharacter, 
     if (target.stats?.shield?.current) {
         const shieldDamage = Math.min(target.stats.shield.current, damage);
         target.stats.shield.current -= shieldDamage;
+        console.log(`护盾抵消了 ${shieldDamage} 点伤害，剩余护盾值：${target.stats.shield.current}`);
         damage -= shieldDamage;
     }
 

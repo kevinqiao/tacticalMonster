@@ -9,7 +9,7 @@ const usePlaySkillSelect = () => {
     
          const playSkillSelect= useCallback(async (skillSelect:{skillId:string;uid:string;character_id:string},onComplete:()=>void) => {
                 if(!characters||!gridCells||!map||!currentRound)return;  
-                // console.log("playSkillSelect",skillSelect)
+                console.log("playSkillSelect",skillSelect)
                 const {uid,character_id} = skillSelect;
                 const character = characters.find((c)=>c.uid===uid&&c.character_id===character_id);
                 if(!character)return;    

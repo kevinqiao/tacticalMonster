@@ -2,13 +2,16 @@ import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/_generated/api";
+import usePlaySkillSelect from "../animation/usePlaySkillSelect";
+import { Skill } from "../types/CharacterTypes";
 import { GameCharacter } from "../types/CombatTypes";
 import { findPath } from "../utils/PathFind";
 import { useCombatManager } from "./CombatManager";
 
 const useCombatAct = () => {
+  const { playSkillSelect } = usePlaySkillSelect();
   const { user } = useUserManager();
-  const { map, gameId, characters, gridCells, hexCell, eventQueue, currentRound } = useCombatManager()
+  const { map, gameId, characters, gridCells, hexCell, eventQueue, currentRound, setActiveSkill } = useCombatManager()
   const convex = useConvex();
 
   const attack = useCallback(async (character: GameCharacter) => {
@@ -82,13 +85,23 @@ const useCombatAct = () => {
     }
 
   }, [user, eventQueue, map, gameId, characters, currentRound, gridCells, convex]);
+  const selectSkill = useCallback((skill: Skill) => {
 
+    if (!currentRound) return;
+
+    const currentTurn = currentRound.turns.find((t) => t.status === 1 || t.status === 2);
+    if (!currentTurn) return;
+
+    currentTurn.skillSelect = skill.id;
+    setActiveSkill(skill);
+    playSkillSelect({ uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: skill.id }, () => { });
+  }, [currentRound, characters, playSkillSelect, setActiveSkill]);
   const standBy = useCallback((character: GameCharacter) => {
     console.log("stand...");
   }, []);
   const defend = useCallback(() => {
     console.log("defend....");
   }, []);
-  return { walk, attack, defend, standBy };
+  return { walk, attack, defend, standBy, selectSkill };
 };
 export default useCombatAct;

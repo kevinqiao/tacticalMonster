@@ -6,7 +6,7 @@ import { CombatTurn, GameCharacter } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 
 const usePlayPhase   = () => {
- const {gridCells,characters,hexCell,map,setActiveSkills} = useCombatManager(); 
+ const {gridCells,characters,hexCell,map,setActiveSkill} = useCombatManager(); 
 
  const playTurnOn= useCallback(async (currentTurn:CombatTurn,onComplete:()=>void) => {
     if(!characters||!gridCells||!map)return;  
@@ -58,16 +58,16 @@ const usePlayPhase   = () => {
     const tl = gsap.timeline({
            onComplete:()=>{
                     console.log("onComplete",currentTurn.skills)
-                    const activeSkills:Skill[]=[];
-                    for(const skill of currentTurn.skills??[]){
-                        const activeSkill = character.skills?.find((s)=>s.id===skill);
-                        if(activeSkill){
-                            activeSkills.push(activeSkill);
-                        }
-                    }
-                    if(activeSkills.length>0){
-                        setActiveSkills(activeSkills);
-                    }
+                    // const activeSkills:Skill[]=[];
+                    // for(const skill of currentTurn.skills??[]){
+                    //     const activeSkill = character.skills?.find((s)=>s.id===skill);
+                    //     if(activeSkill){
+                    //         activeSkills.push(activeSkill);
+                    //     }
+                    // }
+                    // if(activeSkills.length>0){
+                     setActiveSkill(skill??null);
+                    // 
                     onComplete();
             }
             
@@ -165,8 +165,6 @@ const playTurnInit= useCallback(() => {
 
 },[hexCell,map]);
 return {    
-    
-    playTurnStart,
     playTurnInit,
     playTurnOn    
 }
