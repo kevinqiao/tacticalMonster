@@ -18,13 +18,14 @@ const useCombatAct = () => {
     if (!gameId) return;
     const currentTurn = currentRound?.turns?.find((t: any) => t.status === 1 || t.status === 2);
     if (!currentTurn) return;
+    const skillId = currentTurn.skillSelect ?? currentTurn.skills?.[0];
     if (currentTurn.uid === user.uid) {
       eventQueue.push({
         name: "attack",
         status: 0,
         gameId: gameId,
         data: {
-          attacker: { uid: currentTurn.uid, character_id: currentTurn.character_id, killSelect: currentTurn.skillSelect },
+          attacker: { uid: currentTurn.uid, character_id: currentTurn.character_id, skillSelect: skillId },
           target: { uid: character.uid, character_id: character.character_id }
         },
       })
@@ -34,7 +35,7 @@ const useCombatAct = () => {
       uid: character.uid,
       token: "test-token",
       data: {
-        attacker: { uid: currentTurn.uid, character_id: currentTurn.character_id, skillSelect: currentTurn.skillSelect },
+        attacker: { uid: currentTurn.uid, character_id: currentTurn.character_id, skillSelect: skillId },
         target: { uid: character.uid, character_id: character.character_id }
       }
     });

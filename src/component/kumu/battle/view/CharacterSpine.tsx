@@ -1,10 +1,11 @@
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef, useState } from "react";
-import { CharacterUnit } from "../types/CombatTypes";
+import { GameCharacter, SpineModelAnimator } from "../types/CombatTypes";
+
 
 interface IProps {
-  character: CharacterUnit;
+  character: GameCharacter;
   width: number;
   height: number;
   isFacingRight?: boolean;
@@ -99,6 +100,7 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
       const spine = new Spine(spineResources.spineData.spineData) as any;
       spineRef.current = spine;
       character.skeleton = spine;
+      character.animator = new SpineModelAnimator(spine);
       const bounds = spine.getBounds();
       spine.visible = true;
       spine.alpha = 1;

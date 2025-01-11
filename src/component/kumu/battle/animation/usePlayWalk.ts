@@ -9,17 +9,19 @@ const usePlayWalk = () => {
         const playWalk =useCallback((character: GameCharacter, path: {x:number,y:number}[],onComplete:()=>void) => {
 
             const container = character.container;    
-            const spine = character.skeleton;
-            if (!spine||!container||!gridCells||!hexCell||!map||!characters) return;
+            // const spine = character.skeleton;
+            if (!container||!gridCells||!hexCell||!map||!characters) return;
 
             // 记录初始朝向
             const initialScale = character.scaleX??1;
             const tl = gsap.timeline({
                 onStart: () => {
-                    spine.state.setAnimation(0, "walk", true);
+                    character.animator?.move();
+                    // spine.state.setAnimation(0, "walk", true);
                 },
                 onComplete: () => {
-                    spine.state.setAnimation(0, "stand", true);
+                    character.animator?.stand();
+                    // spine.state.setAnimation(0, "stand", true);
                     console.log("onComplete")
                     onComplete();
                 }

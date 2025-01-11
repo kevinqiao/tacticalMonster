@@ -137,9 +137,31 @@ export interface GameCharacter extends Character {
     standEle?: HTMLDivElement;
     attackEle?: HTMLDivElement;    
     skeleton?: Spine;
+    animator?: ModelAnimator;
     skillCooldowns?: Record<string, number>;
     activeEffects?: Effect[];
 }
+export interface ModelAnimator {
+    move:()=>void;
+    attack:()=>void;
+    stand:()=>void; 
+}
+export class SpineModelAnimator implements ModelAnimator {
+    private skeleton:Spine;
+    constructor(skeleton:Spine){
+        this.skeleton = skeleton;
+    }
+    move() {
+        this.skeleton.state.setAnimation(0, "walk", true);
+    }
+    attack() {
+        this.skeleton.state.setAnimation(0, "attack", true);
+    }
+    stand() {
+        this.skeleton.state.setAnimation(0, "stand", true);
+    }
+}
+
 export interface MapModel {
     rows: number;
     cols: number;

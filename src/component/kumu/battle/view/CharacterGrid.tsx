@@ -6,7 +6,7 @@ import { useCombatManager } from "../service/CombatManager";
 import useCombatAct from "../service/useCombatAct";
 import { GameCharacter } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
-import CharacterSpine from "./CharacterSpine";
+import Character3D from "./Character3D";
 
 interface Props {
   character: GameCharacter;
@@ -111,7 +111,8 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
         {/* <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} /> */}
         <div ref={loadStand} className="character-stand" />
         <div ref={loadAttack} className="character-attack" onClick={handleAttack} />
-        <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} />
+        {/* <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} /> */}
+        <Character3D character={character} width={hexCell.width} height={hexCell.height} />
       </div>
     </>
   );
