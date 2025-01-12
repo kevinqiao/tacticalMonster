@@ -99,8 +99,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   }, [events]);
   useEffect(() => {
 
-
-    if (!gameId || !user.uid) return;
+    if (!gameId) return;
 
     const fetchGame = async (gameId: string) => {
 
@@ -109,15 +108,11 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         gameId, uid: "1",
         token: "test-token"
       });
+
       if (gameObj) {
-        console.log("gameObj", gameObj);
-        if (gameObj.challenger !== user.uid) {
-          const map = gameObj.map as MapModel;
-          map.direction = 1;
-        }
         gameObj.characters.forEach((character: any) => {
           const c = character as GameCharacter;
-          if (c.uid === user.uid) {
+          if (c.uid === gameObj.challenger) {
             c.scaleX = 1;
           } else {
             c.scaleX = -1;
@@ -139,7 +134,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 
     };
     fetchGame(gameId);
-  }, [gameId, user]);
+  }, [gameId]);
 
   useEffect(() => {
     if (!map || map.cols === 0 || map.rows === 0) return;

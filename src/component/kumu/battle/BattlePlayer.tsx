@@ -56,9 +56,10 @@ const CombatActPanel: React.FC = () => {
   );
 };
 const CombatPlaza: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
-
+  const { user } = useUserManager();
+  const { challengee } = useCombatManager();
   return (
-    <div className="plaza-container">
+    <div className="plaza-container" style={{ transform: `scaleX(${user.uid === challengee ? -1 : 1})` }}>
       {position && <>
         <div className="plaza-layer" style={{ top: 0, left: 0 }}>
           {position && <ObstacleGrid position={position} />}
@@ -127,7 +128,6 @@ const BattleVenue: React.FC = () => {
         const mapHeight = plazaSize.height * 0.8;
         const hexHeight = mapHeight / (2 + ((rows - 1) * 3) / 4);
         const hexWidth = (hexHeight * Math.sqrt(3)) / 2;
-        console.log("hexWidth", hexWidth, hexHeight)
 
         // 计算总宽度
         const mapWidth = hexWidth * (cols + 0.5);
@@ -180,7 +180,7 @@ const BattleVenue: React.FC = () => {
 };
 const BattlePlayer: React.FC<PageProp> = ({ data }) => {
 
-  const { authComplete } = useUserManager();
+  const { user, authComplete } = useUserManager();
   useEffect(() => {
     if (data) {
       authComplete({ uid: data.uid ?? "1", token: "" }, 0);
@@ -188,6 +188,7 @@ const BattlePlayer: React.FC<PageProp> = ({ data }) => {
   }, [data, authComplete])
 
   if (!data || !data.gameId) return;
+  console.log("user", user)
   return (
     <BattleProvider gameId={data.gameId}>
       <BattleVenue></BattleVenue>

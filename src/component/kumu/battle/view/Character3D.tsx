@@ -276,7 +276,7 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
         top: position.top + 'px',
         left: position.left + 'px',
         // border: '1px solid red',
-        pointerEvents: 'auto',
+        pointerEvents: 'none',
         cursor: isDraggingRef.current ? 'grabbing' : 'grab'  // 根据状态改变鼠标样式
       }}
     />

@@ -34,8 +34,9 @@ const useEventListener = () => {
            return;
         }   
         const {  name,status, data } = event;
+
         if (!status) {      
-            console.log("event",event);
+
             switch(name){
                 case "attack":     
                     event.status = 1;   

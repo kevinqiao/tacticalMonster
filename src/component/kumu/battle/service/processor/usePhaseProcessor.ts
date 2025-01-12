@@ -8,11 +8,8 @@ const usePhaseProcessor = () => {
     const {playTurnOn} = usePlayPhase();    
    
     const processGameInit = useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {
-        if(!characters||!currentRound)return;
-        const currentTurn = currentRound.turns.find((t)=>t.status===1||t.status===2);
-        if(!currentTurn)return;  
-        console.log("currentTurn",currentTurn);      
-        playTurnOn(currentTurn,onComplete);        
+        if(!characters)return;          
+        onComplete();
     }, [resourceLoad,characters, gridCells, hexCell,currentRound])
   
     const processTurnStart = useCallback(async ({data,onComplete}:{data:{character_id:string,uid:string,status?:number},onComplete:()=>void}) => {

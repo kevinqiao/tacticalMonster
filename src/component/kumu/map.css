@@ -213,10 +213,10 @@
   height: 100%;
   perspective: 1200px;
 
-  /* transform: scaleX(-1) */
-  /* transform: rotateZ(90deg); */
-  /* transform-style: preserve-3d; */
-  /* background-color: blueviolet; */
+  transform: scaleX(-1)
+    /* transform: rotateZ(90deg); */
+    /* transform-style: preserve-3d; */
+    /* background-color: blueviolet; */
 }
 
 .plaza-layer {
