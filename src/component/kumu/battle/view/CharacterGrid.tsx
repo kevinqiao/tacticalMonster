@@ -118,17 +118,17 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
   );
 };
 
-const CharacterGrid: React.FC = () => {
+const CharacterGrid: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
   const { characters } = useCombatManager();
 
   const render = useMemo(() => {
     return (
-      <>
+      <div style={{ position: "absolute", top: position.top, left: position.left, width: position.width, height: position.height }}>
         {/* {characters && characters.length > 0 ? <CharacterCell character={characters[0]} /> : null} */}
         {characters?.map((c, index) => (
           <CharacterCell key={"character-" + c.character_id + "-" + index} character={c} />
         ))}
-      </>
+      </div>
     );
   }, [characters]);
   return <>{render}</>;

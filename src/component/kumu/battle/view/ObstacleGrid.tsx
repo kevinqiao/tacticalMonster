@@ -40,17 +40,17 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
 };
 
 
-const ObstacleGrid: React.FC = () => {
+const ObstacleGrid: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
   const { map } = useCombatManager();
   if (!map) return null;
   const { obstacles } = map;
 
   return (
-    <>
+    <div style={{ position: "absolute", top: position.top, left: position.left, width: position.width, height: position.height }}>
       {obstacles?.map((c, index) => (
         <ObstacleCell key={"obstacle-" + c.r + "-" + c.q + "-" + index} row={c.r} col={c.q} />
       ))}
-    </>
+    </div>
   );
 
 };

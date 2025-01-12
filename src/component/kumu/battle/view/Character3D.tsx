@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 import { ThreeDModelAnimator } from "../animation/model/ThreeDModelAnimator";
@@ -22,8 +22,8 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
   const animationFrameRef = useRef<number>();
   const mixerRef = useRef<THREE.AnimationMixer>();
   const clockRef = useRef(new THREE.Clock());
-  // const actionsRef = useRef<THREE.AnimationAction[]>([]);  // 存储所有动作
   const actionsRef = useRef<{ [key: string]: THREE.AnimationAction }>({});  // 存储所有动作
+  const [position, setPosition] = useState<{ top: number; left: number; width: number; height: number }>({ top: 0, left: 0, width: 0, height: 0 });
   const isDraggingRef = useRef(false);
   const previousMouseXRef = useRef(0);
 
@@ -38,8 +38,11 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
 
     // 创建相机 - 调整视角和距离
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 0, 6); // 调整相机位置
-    camera.lookAt(-0.5, 0.5, 0);  // 看向稍高的位置
+    // camera.position.set(0, 0, 6); // 调整相机位置
+    // camera.lookAt(-0.5, 0.5, 0);  // 看向稍高的位置
+    camera.position.set(0, 0, 4); // 调整相机位置
+    camera.lookAt(0.8, -0.2, 0);  // 看向稍高的位置
+
     cameraRef.current = camera;
 
     // 创建渲染器
@@ -50,7 +53,7 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
       powerPreference: 'high-performance'  // 优先使用高性能GPU
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制最大像素比
-    renderer.setSize(width, height, false);
+    renderer.setSize(width * 2, height * 2, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;  // 使用sRGB颜色空间
     renderer.toneMapping = THREE.ACESFilmicToneMapping;  // 使用电影级色调映射
     renderer.toneMappingExposure = 1.0;  // 调整曝光
@@ -82,6 +85,7 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
     const rightLight = new THREE.DirectionalLight(0xffffff, 0.6);
     rightLight.position.set(5, 2, 0);
     scene.add(rightLight);
+    // scene.background = new THREE.Color("red");
 
     // 动画循环
     const animate = () => {
@@ -91,16 +95,6 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
       if (mixerRef.current) {
         const delta = clockRef.current.getDelta();
         mixerRef.current.update(delta);
-
-        // 检查所有活动的动作
-        // actionsRef.current.forEach(action => {
-        //   if (action.isRunning()) {
-        //     console.log('Animation time:', action.time);
-        //     if (action.time >= 9) { // endTime
-        //       action.paused = true;
-        //     }
-        //   }
-        // });
       }
 
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
@@ -123,11 +117,20 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
 
   // 处理尺寸变化
   useEffect(() => {
-    if (!rendererRef.current || !cameraRef.current) return;
-    rendererRef.current.setSize(width, height, false);
-    cameraRef.current.aspect = width / height;
-    cameraRef.current.updateProjectionMatrix();
+    // if (!rendererRef.current || !cameraRef.current) return;
+    // rendererRef.current.setSize(width, height, false);
+    // cameraRef.current.aspect = width / height;
+    // cameraRef.current.updateProjectionMatrix();
+    const top = -width / 2
+    const left = -height / 2
+    setPosition({ top, left, width: width * 2, height: height * 2 });
   }, [width, height]);
+  useEffect(() => {
+    if (!rendererRef.current || !cameraRef.current) return;
+    rendererRef.current.setSize(position.width, position.height, false);
+    cameraRef.current.aspect = position.width / position.height;
+    cameraRef.current.updateProjectionMatrix();
+  }, [position]);
 
   // 加载模型 - 当 modelPath 改变时执行
   useEffect(() => {
@@ -158,22 +161,42 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
         console.warn('No animations found in model!');
       }
 
-      const box = new THREE.Box3().setFromObject(fbx);
-      const size = box.getSize(new THREE.Vector3());
-      console.log(size)
-      const center = box.getCenter(new THREE.Vector3());
-      console.log(center)
+      // const box = new THREE.Box3().setFromObject(fbx);
+      // const size = box.getSize(new THREE.Vector3());
+      // console.log(size)
+      // const center = box.getCenter(new THREE.Vector3());
+      // console.log(center)
+      // // 计算缩放
+      // const maxDim = Math.max(size.x, size.y, size.z);
+      // const scale = 8 / maxDim;  // 调整缩放系数
+      // fbx.scale.multiplyScalar(scale);
+
+      // // 居中处理
+      // fbx.position.set(
+      //   -center.x * scale - 3.5,
+      //   -center.y * scale + 0.8,
+      //   -center.z * scale
+      // );
+
+      let box = new THREE.Box3().setFromObject(fbx);
+      let size = box.getSize(new THREE.Vector3());
+      let center = box.getCenter(new THREE.Vector3());
+
       // 计算缩放
       const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = 8 / maxDim;  // 调整缩放系数
+      const scale = 3 / maxDim;  // 调整缩放系数
       fbx.scale.multiplyScalar(scale);
 
-      // 居中处理
-      fbx.position.set(
-        -center.x * scale - 3.5,
-        -center.y * scale + 0.8,
-        -center.z * scale
-      );
+      box = new THREE.Box3().setFromObject(fbx);
+      size = box.getSize(new THREE.Vector3());
+      center = box.getCenter(new THREE.Vector3());
+
+      fbx.position.sub(center)
+      // fbx.position.set(
+      //   -center.x,
+      //   -center.y,
+      //   -center.z
+      // );
 
       fbx.rotation.set(0, Math.PI, 0);
 
@@ -247,10 +270,12 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}  // 鼠标离开时也停止拖动
       style={{
-        width: `${width}px`,
-        height: `${height}px`,
-        position: 'relative',
-        border: '1px solid red',
+        width: `${position.width}px`,
+        height: `${position.height}px`,
+        position: 'absolute',
+        top: position.top + 'px',
+        left: position.left + 'px',
+        // border: '1px solid red',
         pointerEvents: 'auto',
         cursor: isDraggingRef.current ? 'grabbing' : 'grab'  // 根据状态改变鼠标样式
       }}

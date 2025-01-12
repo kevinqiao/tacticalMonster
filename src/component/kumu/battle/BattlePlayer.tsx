@@ -18,28 +18,14 @@ const CombatActPanel: React.FC = () => {
   // const doSomething = useAction(api.rule.test.doSomething);
   // const startGame = useAction(api.service.tmGameProxy.start);
 
-  // const activeList = useMemo(() => {
-  //   if (!characters || !selectedActiveSkill || !currentRound) return;
-
-  //   const currentTurn = currentRound.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
-  //   if (currentTurn) {
-  //     const character = characters.find((c) => c.uid === currentTurn.uid && c.character_id === currentTurn.character_id);
-  //     if (character) {
-  //       return selectedActiveSkill.activeList.filter((item) => item.characterId === character.character_id);
-  //     }
-  //   }
-  //   return
-  // }, [selectedActiveSkill, currentRound, characters]);
   const handleSelectSkill = useCallback((skill: Skill) => {
     setActiveListOpen(false);
     selectSkill(skill);
   }, [selectSkill]);
 
   useEffect(() => {
-    console.log("activeSkill", activeSkill)
-    if (currentRound && characters && activeSkill) {
-      // console.log("selectedSkill", selectedSkill);
 
+    if (currentRound && characters && activeSkill) {
       const currentTurn = currentRound?.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
       if (currentTurn?.skills) {
         const character = characters.find((c) => c.uid === currentTurn.uid && c.character_id === currentTurn.character_id);
@@ -49,8 +35,6 @@ const CombatActPanel: React.FC = () => {
             setActiveSkills(skills);
           }
         }
-        // eventQueue.push({ name: "skillSelect", status: 0, data: { uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: selectedSkill.id } });
-        // playSkillSelect({ uid: currentTurn.uid, character_id: currentTurn.character_id, skillId: selectedSkill.id }, () => { });
       }
     }
   }, [activeSkill, characters, currentRound]);
@@ -71,40 +55,42 @@ const CombatActPanel: React.FC = () => {
     </div>
   );
 };
-const CombatPlaza: React.FC = () => {
+const CombatPlaza: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
 
   return (
     <div className="plaza-container">
-      <div className="plaza-layer" style={{ top: 0, left: 0 }}>
-        <ObstacleGrid />
-      </div>
-      <div className="plaza-layer" style={{ top: 0, left: 0 }}>
-        <GridGround />
-      </div>
-      <div className="plaza-layer" style={{ top: 0, left: 0, pointerEvents: "none" }}>
-        {/* <SpineTest /> */}
-        <CharacterGrid />
-      </div>
+      {position && <>
+        <div className="plaza-layer" style={{ top: 0, left: 0 }}>
+          {position && <ObstacleGrid position={position} />}
+        </div>
+        <div className="plaza-layer" style={{ top: 0, left: 0 }}>
+          {position && <GridGround position={position} />}
+        </div>
+        <div className="plaza-layer" style={{ top: 0, left: 0, pointerEvents: "none" }}>
+          {position && <CharacterGrid position={position} />}
+        </div>
+      </>}
     </div>
   );
 };
 
 const BattleVenue: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { user } = useUserManager();
+
   const [placePosition, setPlacePosition] = useState<{
     top: number;
     left: number;
     width: number;
     height: number;
   } | null>(null);
-  const [plazaPosition, setPlazaPosition] = useState<{
+
+  const [mapPosition, setMapPosition] = useState<{
     top: number;
     left: number;
     width: number;
     height: number;
   } | null>(null);
-  const [mapPosition, setMapPosition] = useState<{
+  const [gridPosition, setGridPosition] = useState<{
     top: number;
     left: number;
     width: number;
@@ -122,7 +108,7 @@ const BattleVenue: React.FC = () => {
     // 对于尖角朝上的正六边形：
     // 高度 = hexHeight * (1 + (rows - 1) * 3/4)
     // 宽度 = hexWidth * (cols + 0.5) = (hexHeight * √3/2) * (cols + 0.5)
-    const mapRatio = ((cols + 0.5) * Math.sqrt(3)) / 2 / (1 + ((rows - 1) * 3) / 4);
+    const mapRatio = ((cols + 0.5) * Math.sqrt(3)) / 2 / (2 + ((rows - 1) * 3) / 4);
 
     const updateMap = () => {
       // console.log("updateMap")
@@ -138,9 +124,10 @@ const BattleVenue: React.FC = () => {
           plazaSize.height = window.innerWidth / mapRatio;
         }
         // 计算六边形尺寸
-        const mapHeight = plazaSize.height * 0.75;
-        const hexHeight = mapHeight / (1 + ((rows - 1) * 3) / 4);
+        const mapHeight = plazaSize.height * 0.8;
+        const hexHeight = mapHeight / (2 + ((rows - 1) * 3) / 4);
         const hexWidth = (hexHeight * Math.sqrt(3)) / 2;
+        console.log("hexWidth", hexWidth, hexHeight)
 
         // 计算总宽度
         const mapWidth = hexWidth * (cols + 0.5);
@@ -153,6 +140,12 @@ const BattleVenue: React.FC = () => {
           left: mapLeft,
           width: mapWidth,
           height: mapHeight
+        });
+        setGridPosition({
+          top: hexHeight / 2,
+          left: 0,
+          width: mapWidth,
+          height: mapHeight - hexHeight / 2
         });
         const plazaLeft = (window.innerWidth - plazaSize.width) / 2;
         const plazaTop = (window.innerHeight - plazaSize.height) / 2;
@@ -172,13 +165,10 @@ const BattleVenue: React.FC = () => {
         style={{
           position: "absolute",
           ...placePosition,
-          backgroundColor: "white",
         }}
       >
-
-
         <div style={{ position: "absolute", ...mapPosition }}>
-          <CombatPlaza />
+          {gridPosition && <CombatPlaza position={gridPosition} />}
         </div>
         <div style={{ position: "absolute", ...mapPosition, pointerEvents: "none" }}>
           <CombatActPanel />

@@ -121,7 +121,7 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
   );
 };
 
-const GridContainer: React.FC = () => {
+const GridContainer: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
   const { map, hexCell, gridCells } = useCombatManager();
   const { walk, attack } = useCombatAct();
 
@@ -140,7 +140,7 @@ const GridContainer: React.FC = () => {
   const { rows, cols } = map;
 
   return (
-    <>
+    <div style={{ position: "absolute", top: position.top, left: position.left, width: position.width, height: position.height }}>
       {Array.from({ length: rows }).map((_, row) => (
         <div
           key={row}
@@ -158,10 +158,10 @@ const GridContainer: React.FC = () => {
           ))}
         </div>
       ))}
-    </>
+    </div>
   );
 };
 
-const GridGround: React.FC = () => <GridContainer />;
+const GridGround: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => <GridContainer position={position} />;
 
 export default GridGround;
