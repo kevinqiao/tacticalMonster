@@ -29,7 +29,6 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
 
   useEffect(() => {
     if (!containerRef.current || hexCell.width === 0 || !map) return;
-    console.log(hexCell)
     const q = character.q ?? 0;
     const r = character.r ?? 0;
     const { x, y } = coordToPixel(q, r, hexCell, map);
