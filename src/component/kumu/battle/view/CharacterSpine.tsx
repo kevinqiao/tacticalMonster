@@ -4,15 +4,14 @@ import React, { useEffect, useRef, useState } from "react";
 import { GameCharacter, SpineModelAnimator } from "../types/CombatTypes";
 
 
-interface IProps {
+interface ICharacterProps {
   character: GameCharacter;
   width: number;
   height: number;
-  isFacingRight?: boolean;
 }
 
 
-const CharacterSpine = ({ character, width, height, isFacingRight = true }: IProps) => {
+const CharacterSpine = ({ character, width, height }: ICharacterProps) => {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const spineRef = useRef<Spine | null>(null);
@@ -24,11 +23,12 @@ const CharacterSpine = ({ character, width, height, isFacingRight = true }: IPro
 
   useEffect(() => {
     (async () => {
-      if (spineResources) return;
+      if (spineResources || !character.asset?.resource?.atlas) return;
       try {
+
         const [atlas, spineData] = await Promise.all([
-          PIXI.Assets.load('/assets/monster_cat/monster_cat.atlas'),
-          PIXI.Assets.load('/assets/monster_cat/monster_cat.json')
+          PIXI.Assets.load(character.asset?.resource?.atlas),
+          PIXI.Assets.load(character.asset?.resource?.spineData)
         ]);
 
         if (!atlas || !spineData) {

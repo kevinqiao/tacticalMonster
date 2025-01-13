@@ -119,13 +119,11 @@ export interface AttackableNode extends HexNode {
 }
 export interface PlayerCharacter extends Character {
     uid: string;
-    asset?: string;
 }
 export interface GameCharacter extends Character {
     uid: string;
     character_id: string;
     scaleX?: number; 
-    asset?: string;
     q?: number;
     r?: number;
     skills?: Skill[];

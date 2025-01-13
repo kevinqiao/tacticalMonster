@@ -4,9 +4,18 @@ import "../../map.css";
 import usePhasePlay from "../animation/usePlayPhase";
 import { useCombatManager } from "../service/CombatManager";
 import useCombatAct from "../service/useCombatAct";
+import { ASSET_TYPE } from "../types/CharacterTypes";
 import { GameCharacter } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 import Character3D from "./Character3D";
+import CharacterSpine from "./CharacterSpine";
+
+
+export interface ICharacterProps {
+  character: GameCharacter;
+  width: number;
+  height: number;
+}
 
 interface Props {
   character: GameCharacter;
@@ -20,6 +29,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
 
   useEffect(() => {
     if (!containerRef.current || hexCell.width === 0 || !map) return;
+    console.log(hexCell)
     const q = character.q ?? 0;
     const r = character.r ?? 0;
     const { x, y } = coordToPixel(q, r, hexCell, map);
@@ -29,7 +39,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
   useEffect(() => {
     if (!currentRound || !characters || !character || !gridCells) return;
     const currentTurn = currentRound.turns?.find((t: any) => t.status >= 0 && t.status <= 2);
-    console.log("currentTurn", currentRound)
+    // console.log("currentTurn", currentRound)
     if (currentTurn && currentTurn.character_id === character.character_id && currentTurn.uid === character.uid) {
       playTurnOn(currentTurn, () => { console.log("playTurnOn", currentTurn) });
     }
@@ -102,6 +112,7 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
           width: `${hexCell.width}px`,
           height: `${hexCell.height}px`,
           margin: 0,
+          padding: 0,
           opacity: 0,
           visibility: "hidden",
           pointerEvents: "none",
@@ -111,8 +122,8 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
         {/* <div className="hexagon-character" style={{ backgroundImage: `url(${character.asset})` }} /> */}
         <div ref={loadStand} className="character-stand" />
         <div ref={loadAttack} className="character-attack" onClick={handleAttack} />
-        {/* <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} /> */}
-        <Character3D character={character} width={hexCell.width} height={hexCell.height} />
+        {character.asset?.type === ASSET_TYPE.SPINE && <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} />}
+        {character.asset?.type === ASSET_TYPE.FBX && <Character3D character={character} width={hexCell.width} height={hexCell.height} />}
       </div>
     </>
   );
@@ -124,13 +135,12 @@ const CharacterGrid: React.FC<{ position: { top: number, left: number, width: nu
   const render = useMemo(() => {
     return (
       <div style={{ position: "absolute", top: position.top, left: position.left, width: position.width, height: position.height }}>
-        {/* {characters && characters.length > 0 ? <CharacterCell character={characters[0]} /> : null} */}
         {characters?.map((c, index) => (
           <CharacterCell key={"character-" + c.character_id + "-" + index} character={c} />
         ))}
       </div>
     );
-  }, [characters]);
+  }, [characters, position]);
   return <>{render}</>;
 };
 

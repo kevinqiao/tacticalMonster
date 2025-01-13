@@ -1,6 +1,10 @@
 import { TopLevelCondition } from "json-rules-engine";
 
+export enum ASSET_TYPE {
+   SPINE = 0,
+   FBX = 1,
 
+}
 export interface TriggerCondition {
     trigger_type: string;
     conditions: TopLevelCondition;
@@ -78,9 +82,7 @@ export interface Character {
     attack_range?: { min: number; max: number };
     stats?: Stats;
     unlockSkills?: string[];
-    // skills?: Skill[];
-    // activeEffects?: SkillEffect[];
-    // cooldowns?: { [skillId: string]: number };
+    asset?:{type:ASSET_TYPE,resource:{[key:string]:string}}
 }
 
 export enum CharacterAnimState {

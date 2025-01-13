@@ -2,18 +2,17 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 import { ThreeDModelAnimator } from "../animation/model/ThreeDModelAnimator";
-import { GameCharacter } from "../types/CombatTypes";
+import { ICharacterProps } from "./CharacterGrid";
 
 
-interface IProps {
-  character: GameCharacter;
-  width: number;
-  height: number;
-  isFacingRight?: boolean;
-}
+// interface IProps {
+//   character: GameCharacter;
+//   width: number;
+//   height: number;
+// }
 
 
-const Character3D = ({ character, width, height, isFacingRight = true }: IProps) => {
+const Character3D = ({ character, width, height }: ICharacterProps) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
@@ -134,8 +133,11 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
 
   // 加载模型 - 当 modelPath 改变时执行
   useEffect(() => {
-    if (!sceneRef.current) return;
-    const modelPath = '/assets/3d/characters/wukong.fbx';
+
+    // const modelPath = '/assets/3d/characters/wukong.fbx';
+    const modelPath = character.asset?.resource?.fbx;
+    console.log("modelPath", modelPath)
+    if (!modelPath || !sceneRef.current) return;
     const loader = new FBXLoader();
     loader.load(modelPath, (fbx) => {
       if (modelRef.current) {
@@ -147,9 +149,9 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
 
       // 存储所有动画
       if (fbx.animations && fbx.animations.length) {
-        console.log('Loading animations:', fbx.animations); // 详细的动画信息
+        // console.log('Loading animations:', fbx.animations); // 详细的动画信息
         fbx.animations.forEach((clip, index) => {
-          console.log(`Animation ${index}:`, clip.name, clip.duration);
+          // console.log(`Animation ${index}:`, clip.name, clip.duration);
           // const action = mixer.clipAction(clip);
           const action = mixer.clipAction(
             THREE.AnimationUtils.subclip(clip, 'idle', 300, 330, 30)
@@ -161,22 +163,6 @@ const Character3D = ({ character, width, height, isFacingRight = true }: IProps)
         console.warn('No animations found in model!');
       }
 
-      // const box = new THREE.Box3().setFromObject(fbx);
-      // const size = box.getSize(new THREE.Vector3());
-      // console.log(size)
-      // const center = box.getCenter(new THREE.Vector3());
-      // console.log(center)
-      // // 计算缩放
-      // const maxDim = Math.max(size.x, size.y, size.z);
-      // const scale = 8 / maxDim;  // 调整缩放系数
-      // fbx.scale.multiplyScalar(scale);
-
-      // // 居中处理
-      // fbx.position.set(
-      //   -center.x * scale - 3.5,
-      //   -center.y * scale + 0.8,
-      //   -center.z * scale
-      // );
 
       let box = new THREE.Box3().setFromObject(fbx);
       let size = box.getSize(new THREE.Vector3());

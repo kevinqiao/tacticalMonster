@@ -19,7 +19,7 @@ export const create = internalMutation({
         stats: v.any(),
         q: v.number(),
         r: v.number(),
-        asset: v.optional(v.string()),  
+        asset: v.object({ type: v.number(), resource: v.object({ atlas: v.optional(v.string()), spineData: v.optional(v.string()), fbx: v.optional(v.string()) }) }),  
         class: v.optional(v.string()),
         race: v.optional(v.string()),   
         statusEffects: v.optional(v.array(v.any())),

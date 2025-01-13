@@ -7,7 +7,7 @@ export const create = internalMutation({
         name: v.string(),
         class: v.optional(v.string()),
         race: v.optional(v.string()),
-        asset: v.optional(v.string()),
+        asset: v.object({ type: v.number(), resource: v.object({ atlas: v.optional(v.string()), spineData: v.optional(v.string()), fbx: v.optional(v.string()) }) }),
         move_range: v.number(),
         attack_range: v.object({ min: v.number(), max: v.number() })
     },
