@@ -1,12 +1,11 @@
-import GlobalStyle from "./component/common/GlobalStyle";
 import Head from "component/common/Head";
 import RenderApp from "component/RenderApp";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React from "react";
 import { LocalizationProvider } from "service/LocalizationManager";
-import PartnerProvider from "service/PartnerManager";
 import { TerminalProvider } from "service/TerminalManager";
 import { ThemeProvider } from "styled-components";
+import GlobalStyle from "./component/common/GlobalStyle";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
 
@@ -43,14 +42,11 @@ const StyleApp = () => {
   };
 
   const Providers = FlattenedProviderTree([
-    // [SceneProvider],
-    // [PageProvider],
-    // [EventProvider],
     [TerminalProvider],
     [LocalizationProvider],
     [ThemeProvider, { theme }],
     [UserProvider],
-    [PartnerProvider],
+    // [PartnerProvider],
   ]);
   console.log("style app...");
   return (
@@ -67,7 +63,6 @@ const StyleApp = () => {
 const App: React.FC = () => {
   const Providers = FlattenedProviderTree([
     [ConvexProvider, { client: convex }],
-    [LocalizationProvider],
     [PageProvider],
   ]);
   console.log("app....");

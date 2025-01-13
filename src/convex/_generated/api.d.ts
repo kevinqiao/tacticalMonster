@@ -13,9 +13,6 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
-import type * as asset from "../asset.js";
-import type * as auth_twilio from "../auth/twilio.js";
-import type * as authchannel from "../authchannel.js";
 import type * as botHook from "../botHook.js";
 import type * as cuser from "../cuser.js";
 import type * as custom_session from "../custom/session.js";
@@ -51,9 +48,6 @@ import type * as utils_Utlis from "../utils/Utlis.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  asset: typeof asset;
-  "auth/twilio": typeof auth_twilio;
-  authchannel: typeof authchannel;
   botHook: typeof botHook;
   cuser: typeof cuser;
   "custom/session": typeof custom_session;
