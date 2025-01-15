@@ -1,11 +1,10 @@
-import Head from "component/common/Head";
+
 import RenderApp from "component/RenderApp";
+import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React from "react";
-import { LocalizationProvider } from "service/LocalizationManager";
 import { TerminalProvider } from "service/TerminalManager";
 import { ThemeProvider } from "styled-components";
-import GlobalStyle from "./component/common/GlobalStyle";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
 
@@ -43,16 +42,14 @@ const StyleApp = () => {
 
   const Providers = FlattenedProviderTree([
     [TerminalProvider],
-    [LocalizationProvider],
+    // [LocalizationProvider],
+    [ConvexProvider, { client: convex }],
     [ThemeProvider, { theme }],
-    [UserProvider],
     // [PartnerProvider],
   ]);
   console.log("style app...");
   return (
     <Providers>
-      <Head />
-      <GlobalStyle />
       <div style={{ position: "relative", top: 0, left: 0, width: "100vh", height: "100vw" }}>
         <RenderApp />
       </div>
@@ -62,14 +59,15 @@ const StyleApp = () => {
 
 const App: React.FC = () => {
   const Providers = FlattenedProviderTree([
-    [ConvexProvider, { client: convex }],
     [PageProvider],
+    [UserProvider],
   ]);
-  console.log("app....");
+
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <Providers>
         <StyleApp />
+        <SSOController />
       </Providers>
     </div>
   );

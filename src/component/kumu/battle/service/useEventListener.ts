@@ -100,7 +100,7 @@ const useEventListener = () => {
 
     useEffect(() => {
         
-        if(!user.uid||!characters||!gridCells||!hexCell||Object.values(resourceLoad).some(v=>v===0))return;
+        if(!characters||!gridCells||!hexCell||Object.values(resourceLoad).some(v=>v===0))return;
 
         const intervalId = setInterval(() => {
             processEvent();

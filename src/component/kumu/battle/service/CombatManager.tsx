@@ -4,7 +4,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "../../../../convex/tm/convex/_generated/api";
 import { allObstacles } from "../data/CombatData";
 import { Skill } from "../types/CharacterTypes";
 import {

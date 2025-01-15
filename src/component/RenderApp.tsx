@@ -6,7 +6,6 @@ import React, { FunctionComponent, lazy, Suspense, useCallback, useMemo } from "
 import { PageContainer, usePageManager } from "service/PageManager";
 import usePageAnimate from "../animate/usePageAnimate";
 import "./render.css";
-import SSOController from "./signin/SSOController";
 import { PageInitFunctions } from "./util/PageInitFunctions";
 gsap.registerPlugin(CSSPlugin);
 
@@ -81,10 +80,7 @@ const RenderApp: React.FC = () => {
   return (
     <>
       {pageContainers?.map((container, index: number) => (
-        <PageComponent key={container.app + "-" + container.name} container={container} />
-      ))}
-      {/* <NavController /> */}
-      <SSOController />
+        <PageComponent key={container.app + "-" + container.name} container={container} />))}
     </>
   );
 };

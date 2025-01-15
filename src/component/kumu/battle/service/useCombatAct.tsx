@@ -1,7 +1,7 @@
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "../../../../convex/tm/convex/_generated/api";
 import usePlaySkillSelect from "../animation/usePlaySkillSelect";
 import { Skill } from "../types/CharacterTypes";
 import { GameCharacter } from "../types/CombatTypes";
