@@ -38,9 +38,10 @@ export const update = internalMutation({
         data: v.any()
     },
     handler: async (ctx, { cuid,channel,data }) => {
+        console.log(data);
         const doc = await ctx.db.query("cuser").withIndex("by_cuid", (q) => q.eq("channel",channel).eq("cuid",cuid)).unique();
         if(doc){
-            await ctx.db.patch(doc._id, data);
+            await ctx.db.patch(doc._id, {data});
         }else{
             const cid = cuid+"-"+channel;
             await ctx.db.insert("cuser",{cid,cuid,channel,data});   

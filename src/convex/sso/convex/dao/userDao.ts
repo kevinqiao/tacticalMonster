@@ -3,18 +3,17 @@ import { internalMutation, internalQuery } from "../_generated/server";
 
 export const create = internalMutation({
     args: {
+        uid: v.string(),
         cid: v.string(),
         token:v.string(),
         partner:v.number(),
-        name:v.optional(v.string()),
-        email:v.optional(v.string()),
-        phone:v.optional(v.string()),
+        data:v.any()
      },
-    handler: async (ctx, args) => {
-       const uid = await ctx.db.insert("user", args);
-       if(uid){ 
-        await ctx.db.patch(uid,{uid});
-        return {cid:args.cid,uid,token:args.token,partner:args.partner,name:args.name,email:args.email,phone:args.phone};
+    handler: async (ctx, {uid,cid,partner,token,data}) => {    
+       const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+       if(!user){ 
+            await ctx.db.insert("user",{uid,cid,partner,token,data});
+            return {uid,cid,partner,token,data};    
        }
        return null;
     },
@@ -25,8 +24,8 @@ export const find = internalQuery({
         uid: v.string(),
     },
     handler: async (ctx, { uid}) => {
-        const levels = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
-        return levels
+        const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        return user
     },
 })
 export const findByPartner = internalQuery({

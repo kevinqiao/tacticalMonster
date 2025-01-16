@@ -4,25 +4,26 @@ import { getURIParam } from "util/PageUtils";
 
 interface IUserContext {
   user: any;
+  sessions: { [k: string]: string };
   authComplete: (user: any, persist: number) => void;
   logout: () => void;
 }
 
 const UserContext = createContext<IUserContext>({
   user: null,
+  sessions: {},
   logout: () => null,
   authComplete: (user: any, persist: number) => null,
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<any>(null);
-
-  console.log("user provider");
+  const [sessions, setSessions] = useState<{ [k: string]: string }>({});
 
   const authComplete = useCallback((u: any, persist: number) => {
     setUser(u);
-    if (u?.uid && persist > 0) localStorage.setItem("user", JSON.stringify(u));
-    else localStorage.removeItem("user");
+    // if (u?.uid && persist > 0) localStorage.setItem("user", JSON.stringify(u));
+    // else localStorage.removeItem("user");
   }, []);
 
 
@@ -52,7 +53,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
   return (
     <>
-      <UserContext.Provider value={{ user, authComplete, logout }}>{children}</UserContext.Provider>
+      <UserContext.Provider value={{ user, authComplete, logout, sessions }}>{children}</UserContext.Provider>
     </>
   );
 };

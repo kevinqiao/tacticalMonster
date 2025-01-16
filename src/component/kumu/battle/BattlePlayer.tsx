@@ -1,5 +1,7 @@
 import { PageProp } from "component/RenderApp";
+import { ConvexReactClient } from "convex/react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { SSAProvider } from "service/SSAManager";
 import { useUserManager } from "service/UserManager";
 import "../map.css";
 import BattleProvider, { useCombatManager } from "./service/CombatManager";
@@ -10,6 +12,7 @@ import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 
+const client = new ConvexReactClient("https://shocking-leopard-487.convex.cloud");
 const CombatActPanel: React.FC = () => {
   const { activeSkill, currentRound, characters } = useCombatManager();
   const [activeListOpen, setActiveListOpen] = useState(false);
@@ -59,7 +62,7 @@ const CombatPlaza: React.FC<{ position: { top: number, left: number, width: numb
   const { user } = useUserManager();
   const { challengee } = useCombatManager();
   return (
-    <div className="plaza-container" style={{ transform: `scaleX(${user.uid === challengee ? -1 : 1})` }}>
+    <div className="plaza-container" style={{ transform: `scaleX(${user && user.uid === challengee ? -1 : 1})` }}>
       {position && <>
         <div className="plaza-layer" style={{ top: 0, left: 0 }}>
           {position && <ObstacleGrid position={position} />}
@@ -181,18 +184,22 @@ const BattleVenue: React.FC = () => {
 const BattlePlayer: React.FC<PageProp> = ({ data }) => {
 
   const { user, authComplete } = useUserManager();
-  useEffect(() => {
-    if (data) {
-      authComplete({ uid: data.uid ?? "1", token: "" }, 0);
-    }
-  }, [data, authComplete])
+  // useEffect(() => {
+  //   if (data) {
+  //     authComplete({ uid: data.uid ?? "1", token: "" }, 0);
+  //   }
+  // }, [data, authComplete])
 
   if (!data || !data.gameId) return;
   console.log("user", user)
   return (
-    <BattleProvider gameId={data.gameId}>
-      <BattleVenue></BattleVenue>
-    </BattleProvider>
+    <SSAProvider app="tacticalMonster">
+
+      <BattleProvider gameId={data.gameId}>
+        <BattleVenue></BattleVenue>
+      </BattleProvider>
+
+    </SSAProvider>
   );
 };
 export default BattlePlayer;

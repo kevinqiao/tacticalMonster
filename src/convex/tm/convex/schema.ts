@@ -3,44 +3,16 @@ import { v } from "convex/values";
 
 export default defineSchema({
 
- 
-    authprovider: defineTable({
-        name: v.string(),
-        path: v.string(),
-    }).index("by_name", ['name']),
-
-   
+  
     resource: defineTable({
         app: v.string(),
         locale: v.string(),
         resource: v.any(),
     }).index("by_app_locale", ['app', 'locale']),
 
-
-    cuser: defineTable({
-        cid: v.string(),
-        channel: v.number(),
-        name: v.optional(v.string()),
-        email: v.optional(v.string()),
-        phone: v.optional(v.string()),
-        data: v.optional(v.any())
-    }).index("by_channel_cid", ["channel", "cid"]),
-    user: defineTable({
-        name: v.string(),
-        uid: v.string(),
-        avatar: v.optional(v.number()),
-        cid: v.string(),
-        token: v.optional(v.string()),
-        partner: v.optional(v.number()),
-        lastUpdate: v.optional(v.number()),
-        lastEventTime: v.optional(v.number()),
-        email: v.optional(v.string()),
-        phone: v.optional(v.string()),
-        role: v.optional(v.number()),//0-consumer 1-employee 2-owner
-        status: v.optional(v.number())//0-inactive 1-active
-    }).index("by_channel_partner", ['cid', 'partner']).index("by_uid", ['uid']),
     tm_player: defineTable({
         uid: v.string(),
+        token: v.optional(v.string()),
         level: v.number(),
         exp: v.number(),
         name: v.optional(v.string()),

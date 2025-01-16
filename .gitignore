@@ -2,7 +2,6 @@
 
 # dependencies
 /node_modules
-/src/convex/node_modules
 /dist
 /.pnp
 .pnp.js

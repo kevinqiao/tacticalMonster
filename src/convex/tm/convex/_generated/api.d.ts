@@ -24,10 +24,13 @@ import type * as dao_tmMapDataDao from "../dao/tmMapDataDao.js";
 import type * as dao_tmPlayerCharacterDao from "../dao/tmPlayerCharacterDao.js";
 import type * as dao_tmPlayerDao from "../dao/tmPlayerDao.js";
 import type * as dao_tmSkillDataDao from "../dao/tmSkillDataDao.js";
+import type * as http from "../http.js";
 import type * as rule_test from "../rule/test.js";
+import type * as service_auth from "../service/auth.js";
 import type * as service_tmEventService from "../service/tmEventService.js";
 import type * as service_tmGameManager from "../service/tmGameManager.js";
 import type * as service_tmGameProxy from "../service/tmGameProxy.js";
+import type * as SSO from "../SSO.js";
 import type * as utils_gameUtils from "../utils/gameUtils.js";
 import type * as utils_Utlis from "../utils/Utlis.js";
 
@@ -51,10 +54,13 @@ declare const fullApi: ApiFromModules<{
   "dao/tmPlayerCharacterDao": typeof dao_tmPlayerCharacterDao;
   "dao/tmPlayerDao": typeof dao_tmPlayerDao;
   "dao/tmSkillDataDao": typeof dao_tmSkillDataDao;
+  http: typeof http;
   "rule/test": typeof rule_test;
+  "service/auth": typeof service_auth;
   "service/tmEventService": typeof service_tmEventService;
   "service/tmGameManager": typeof service_tmGameManager;
   "service/tmGameProxy": typeof service_tmGameProxy;
+  SSO: typeof SSO;
   "utils/gameUtils": typeof utils_gameUtils;
   "utils/Utlis": typeof utils_Utlis;
 }>;

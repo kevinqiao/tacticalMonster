@@ -49,8 +49,8 @@ const SSOController: React.FC = () => {
 
   return (
     <ConvexProvider client={client}>
-      <div style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "black" }}>
-        <SelectedComponent authInit={authInit} />
+      <div style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "transparent", pointerEvents: "none" }}>
+        {(!user || !user.uid) ? <SelectedComponent authInit={authInit} /> : null}
       </div>
     </ConvexProvider>
   );

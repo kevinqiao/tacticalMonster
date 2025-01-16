@@ -2,10 +2,11 @@ import { PageProp } from "component/RenderApp";
 import { useAction, useQuery } from "convex/react";
 import React, { useEffect, useState } from "react";
 import { usePageManager } from "service/PageManager";
+import { SSAProvider } from "service/SSAManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/tm/convex/_generated/api";
 import "./map.css";
-const PlayGround: React.FC<PageProp> = (props) => {
+const PlayGroundMain: React.FC<PageProp> = (props) => {
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const { openPage } = usePageManager();
   const { authComplete } = useUserManager();
@@ -49,6 +50,13 @@ const PlayGround: React.FC<PageProp> = (props) => {
         </div>
       </div>
     </>
+  );
+};
+const PlayGround: React.FC<PageProp> = (props) => {
+  return (
+    <SSAProvider app="tacticalMonster">
+      <PlayGroundMain {...props} />
+    </SSAProvider>
   );
 };
 
