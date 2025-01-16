@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo } from "react";
-import useCoord from "service/TerminalManager";
 import PageProps from "../../model/PageProps";
 import "./www.css";
 const W3Home: React.FC<PageProps | null> = (prop) => {
-  const { width, height } = useCoord();
 
   useEffect(() => {
     const messageHandler = (event: any) => {
@@ -21,10 +19,9 @@ const W3Home: React.FC<PageProps | null> = (prop) => {
 
   const render = useMemo(() => {
     return (
-      <div style={{ position: "relative", width, height, margin: 0, backgroundColor: "blue" }}>
+      <div style={{ position: "relative", width: "100%", height: "100%", margin: 0, backgroundColor: "blue" }}>
         <iframe
-          // src={"https://pixels.xyz"}
-          src={"/www/index.html"}
+          src={"https://pixels.xyz"}
           width={"100%"}
           height={"100%"}
           title={"pixels"}
@@ -36,7 +33,7 @@ const W3Home: React.FC<PageProps | null> = (prop) => {
         </div>
       </div>
     );
-  }, [prop, width, height]);
+  }, [prop]);
   return <>{render}</>;
 };
 

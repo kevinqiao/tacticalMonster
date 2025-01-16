@@ -75,7 +75,6 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
 const RenderApp: React.FC = () => {
   const { pageContainers } = usePageManager();
-
   usePageAnimate();
   return (
     <>
