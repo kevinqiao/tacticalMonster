@@ -68,7 +68,7 @@ const PageContext = createContext<IPageContext>({
   onLoad: () => null,
 });
 
-export const PageProvider = ({ children }: { children: React.ReactNode }) => {
+export const PageManager = ({ children }: { children: React.ReactNode }) => {
   const currentPageRef = useRef<{ index: number; page: PageItem | undefined | null }>({ index: 0, page: null });
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
@@ -166,6 +166,20 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     <>
       <PageContext.Provider value={value}>{children}</PageContext.Provider>
     </>
+  );
+};
+const PageAnimate = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <>
+      <PageManager>{children}</PageManager>
+    </>
+  );
+};
+export const PageProvider = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <PageManager>
+      <PageAnimate>{children}</PageAnimate>
+    </PageManager>
   );
 };
 

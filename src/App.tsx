@@ -4,7 +4,6 @@ import SSOController from "component/sso/SSOController";
 import { ConvexReactClient } from "convex/react";
 import React from "react";
 import { TerminalProvider } from "service/TerminalManager";
-import { ThemeProvider } from "styled-components";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
 
@@ -44,7 +43,7 @@ const StyleApp = () => {
     [TerminalProvider],
     // [LocalizationProvider],
     // [ConvexProvider, { client: convex }],
-    [ThemeProvider, { theme }],
+    // [ThemeProvider, { theme }],
     // [PartnerProvider],
   ]);
   console.log("style app...");
@@ -58,9 +57,11 @@ const StyleApp = () => {
 };
 
 const App: React.FC = () => {
+
   const Providers = FlattenedProviderTree([
     [PageProvider],
     [UserProvider],
+
   ]);
 
   return (
