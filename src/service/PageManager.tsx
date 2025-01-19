@@ -42,6 +42,7 @@ export interface PageContainer {
   animate?: {
     open?: string;  // 改为可选的字符串
     close?: string;
+    child?: string;
   };
   control?: string;
 }
@@ -93,7 +94,6 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
 
   const openPage = useCallback((page: PageItem) => {
     if (page.uri === currentPageRef.current?.page?.uri) return;
-    console.log("open page", page)
     const currentIndex = currentPageRef.current.index; // 确保获取最新的历史索引
     const newIndex = currentIndex + 1; // 新索引递增
     const uri = page.data ? page.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : page.uri;
@@ -123,9 +123,16 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const newIndex = history.state?.index ?? 0;
     if (newIndex === 0) history.replaceState({ index: 0 }, "", window.location.href);
-    const page = parseLocation();
+    let page = parseLocation();
     if (page) {
-      console.log("page", page)
+      const uri = page.uri;
+      const container = pageContainers.find((c) => c.uri === uri);
+      if (container?.children && container.animate?.child) {
+        const child = container.children.find((c) => c.name === container.animate?.child);
+        if (child) {
+          page = { ...page, uri: child.uri };
+        }
+      }
       currentPageRef.current = { index: newIndex, page };
       setChangeEvent({ type: 3, index: newIndex, prepage: null });
     }
@@ -138,7 +145,15 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       } else if (newIndex > prevIndex) {
         setChangeEvent({ type: 2, index: newIndex, prepage: currentPageRef.current.page });
       }
-      const page = parseLocation();
+      let page = parseLocation();
+      const uri = page?.uri;
+      const container = pageContainers.find((c) => c.uri === uri);
+      if (container?.children && container.animate?.child) {
+        const child = container.children.find((c) => c.name === container.animate?.child);
+        if (child) {
+          page = { ...page, uri: child.uri };
+        }
+      }
       currentPageRef.current = { index: newIndex, page };
     };
     window.addEventListener("popstate", handlePopState);
@@ -146,7 +161,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [pageContainers]);
 
   const value = {
     changeEvent,

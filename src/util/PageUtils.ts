@@ -4,36 +4,7 @@ import { PageContainer } from "service/PageManager";
 export const parseLocation = (): PageItem | undefined => {
     const page: { [k: string]: any } = {}
     page.uri = window.location.pathname;
-    // const ps: string[] = window.location.pathname.split("/");
-    // if (ps.length < 2) return
-    // let app = AppsConfiguration.find((a) => a.context === ps[1]);
-    // if (!app) {
-    //     app = AppsConfiguration.find((a) => a.context === "/");
-    //     if (app && ps.length > 1) {
-    //         page.app = app.name;
-    //         const nav = app.navs.find((nav) => nav.uri === ps[1]);
-    //         if (nav) {
-    //             page.name = nav.name;
-    //             if (ps.length > 2) {
-    //                 const child = nav.children?.find((c) => c.uri === ps[2])
-    //                 if (child)
-    //                     page.child = child.name;
-    //             }
-    //         }
-    //     }
-    // } else if (ps.length > 2) {
-    //     page.app = app.name;
-    //     const nav = app.navs.find((nav) => nav.uri === ps[2]);
-    //     if (nav) {
-    //         page.name = nav.name;
-    //         if (ps.length > 3) {
-    //             const child = nav.children?.find((c) => c.uri === ps[3])
-    //             if (child)
-    //                 page.child = child.name;
-    //         }
-    //     }
-    // }
-
+   
     if (location.search) {
         const params: { [key: string]: string } = {};
         const searchParams = new URLSearchParams(window.location.search);

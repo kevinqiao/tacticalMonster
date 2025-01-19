@@ -19,6 +19,9 @@ const LobbyControl: React.FC = () => {
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c3" })}>
           Child3
         </div>
+        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main" })}>
+          Play
+        </div>
       </div>
     </>
   );

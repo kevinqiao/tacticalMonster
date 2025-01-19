@@ -5,7 +5,6 @@ import React, { FunctionComponent, lazy, Suspense, useCallback, useMemo } from "
 import { PageContainer, usePageManager } from "service/PageManager";
 import { ExitEffects } from "../animate/effect/ExitEffects";
 import { InitStyles } from "../animate/effect/InitStyle";
-import LobbyControl from "./kumu/lobby/LobbyControl";
 import "./render.css";
 gsap.registerPlugin(CSSPlugin);
 
@@ -48,6 +47,12 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     return lazy(() => import(`${container.path}`));
   }, [container]);
 
+  const ControlComponent: FunctionComponent | null = useMemo(() => {
+    if (container.control)
+      return lazy(() => import(`${container.control}`));
+    else return null;
+  }, [container]);
+
   const load = useCallback(
     (ele: HTMLDivElement | null) => {
       container.ele = ele;
@@ -70,7 +75,9 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
         ) : null}
         {childContainers?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
-        {container.control && <LobbyControl />}
+        <Suspense fallback={<div />}>
+          {ControlComponent && <ControlComponent />}
+        </Suspense>
       </div>
     </>
 

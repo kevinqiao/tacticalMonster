@@ -12,28 +12,29 @@ export const PlayPlace =
             path: "./kumu/PlayGround",
             uri: "main",
             class: "page_container",
-            animate: { open: "fadeIn", close: "fadeOut" },
+            animate: { open: "fadeIn", close: "fadeOut"},
+            control: "./kumu/battle/PlayControl",
             children: [
-                { name: "child1", class: "pop-big", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 0, exit: 1, animate: { open: "center" } },
-                { name: "child2", class: "pop-medium", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 0, exit: 0, animate: { open: "center" } },
-                { name: "child3", class: "pop-small", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, exit: 1, animate: { open: "center"} },
+                { name: "child1", class: "pop-big", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 0, exit: 1, animate: { open: "center" ,close:"center"} },
+                { name: "child2", class: "pop-medium", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 0, exit: 0, animate: { open: "center" ,close:"center" } },
+                { name: "child3", class: "pop-small", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, exit: 1, animate: { open: "center" ,close:"center"} },
             ]
         },
-        // {
-        //     name: "map",
-        //     auth: 0,
-        //     path: "./kumu/battle/BattlePlayer",
-        //     uri: "map",
-        //     class: "page_container",
-        //   },
+        {
+            name: "map",
+            auth: 0,
+            path: "./kumu/battle/BattlePlayer",
+            uri: "map",
+            class: "page_container",
+          },
         {
             name: "lobby",
             auth: 0,
             path: "./kumu/lobby/LobbyHome",
             uri: "lobby",
             class: "page_container",
-            animate: { open: "fadeIn", close: "fadeOut" },
-            control: "lobby",
+            animate: { open: "fadeIn", close: "fadeOut",child:"child2" },
+            control: "./kumu/lobby/LobbyControl",
             children: [
                 { name: "child1", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 0,animate: { open: "slideIn"} },
                 { name: "child2", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 0,animate: { open: "slideIn"} },
@@ -88,7 +89,7 @@ export interface PageConfig {
     class?: string;
     init?: string;
     exit?: number;
-    animate?: { open?: string; close?: string;};
+    animate?: { open?: string; close?: string;child?:string};
     control?:string;
 
 }
