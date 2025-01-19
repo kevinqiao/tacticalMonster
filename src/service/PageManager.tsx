@@ -90,8 +90,10 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       );
     }, []);
   }, []);
-  console.log("pageContainers", pageContainers)
+
   const openPage = useCallback((page: PageItem) => {
+    if (page.uri === currentPageRef.current?.page?.uri) return;
+    console.log("open page", page)
     const currentIndex = currentPageRef.current.index; // 确保获取最新的历史索引
     const newIndex = currentIndex + 1; // 新索引递增
     const uri = page.data ? page.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : page.uri;
