@@ -1,12 +1,12 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
 // Register the plugin
-import { animates } from "model/PageConfiguration";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useMemo } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
-import usePageAnimate from "../animate/usePageAnimate";
+import { ExitEffects } from "../animate/effect/ExitEffects";
+import { InitStyles } from "../animate/effect/InitStyle";
+import LobbyControl from "./kumu/lobby/LobbyControl";
 import "./render.css";
-import { PageInitFunctions } from "./util/PageInitFunctions";
 gsap.registerPlugin(CSSPlugin);
 
 export interface PageProp {
@@ -36,8 +36,10 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   const close = useCallback(() => {
     if (container.ele) gsap.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.7 });
     if (container.ele && container.animate) {
-      const closeEffect = animates[container.animate.close];
-      gsap.to(container.ele, closeEffect);
+      if (container.animate.close) {
+        const effectTl = ExitEffects[container.animate.close]({ container, params: { scale: 0.5, autoAlpha: 0, duration: 0.7 } });
+        if (effectTl) effectTl.play();
+      }
       if (container.parentURI) openPage({ uri: container.parentURI });
     }
   }, [container]);
@@ -50,16 +52,16 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     (ele: HTMLDivElement | null) => {
       container.ele = ele;
       if (ele && container.init) {
-        const initFunction = PageInitFunctions[container.init as keyof typeof PageInitFunctions];
-        initFunction({ parent, container });
+        InitStyles[container.init]({ parent: parent, container: container });
       }
-      onLoad(ele);
+      onLoad();
     },
     [onLoad, container]
   );
 
   return (
     <>
+      {/* <div style={{ position: "relative", width: "100vw", height: "100vh" }}> */}
       <div key={container.app + "-" + container.name} ref={load} className={container.class}>
         <Suspense fallback={<div />}>
           <SelectedComponent data={currentPage?.data} visible={visible}></SelectedComponent>
@@ -67,15 +69,17 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         {container.exit ? (
           <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
         ) : null}
+        {childContainers?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
+        {container.control && <LobbyControl />}
       </div>
-      {childContainers?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
     </>
+
   );
 };
 
 const RenderApp: React.FC = () => {
   const { pageContainers } = usePageManager();
-  usePageAnimate();
+  // usePageAnimate();
   return (
     <>
       {pageContainers?.map((container, index: number) => (

@@ -7,9 +7,9 @@ const LobbyHome: React.FC<PageProp> = (props) => {
 
   return (
     <>
-      <div className="head-control">
+      {/* <div className="head-control">
         <span style={{ cursor: "pointer", color: "transparent" }}>Play Head</span>
-      </div>
+      </div> */}
       {/* <div
         style={{
           display: "flex",
@@ -24,7 +24,7 @@ const LobbyHome: React.FC<PageProp> = (props) => {
           Play
         </div>
       </div> */}
-      <div className="action-control">
+      {/* <div className="action-control">
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c1" })}>
           Child11
         </div>
@@ -34,7 +34,7 @@ const LobbyHome: React.FC<PageProp> = (props) => {
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c3" })}>
           Child13
         </div>
-      </div>
+      </div> */}
     </>
   );
 };

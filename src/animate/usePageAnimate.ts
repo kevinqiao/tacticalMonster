@@ -1,27 +1,9 @@
-import { ChildrenAnimateFunctions } from "component/util/ChildrenAnimateFunctions";
 import gsap from "gsap";
-import { animates } from "model/PageConfiguration";
 import { useEffect, useMemo } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
-const findContainerByURI = (container: PageContainer, uri: string): PageContainer | null => {
-    // 如果当前节点的 id 匹配，返回当前节点
-    if (container.uri === uri) {
-        return container;
-    }
+import { EnterEffects } from "./effect/EnterEffects";
+import { ExitEffects } from "./effect/ExitEffects";
 
-    // 如果当前节点有子节点，递归搜索子节点
-    if (container.children && Array.isArray(container.children)) {
-        for (const child of container.children) {
-            const result = findContainerByURI(child, uri);
-            if (result) {
-                return result;
-            }
-        }
-    }
-
-    // 如果未找到，返回 null
-    return null;
-}
 const flattenContainers = (container: PageContainer) => {
     const result: PageContainer[] = [];
 
@@ -36,7 +18,59 @@ const flattenContainers = (container: PageContainer) => {
     traverse(container); // 开始遍历
     return result;
 }
+const closePrePage = (precontainer:PageContainer,currentcontainer:PageContainer,pageContainers:PageContainer[])=>{
+    let container:PageContainer|null|undefined = precontainer;
+    if(container?.children){
+        const child = container.children.find((c)=>c.uri===currentcontainer.uri);
+        if(child)
+            container = null;
+    }else if(precontainer?.parentURI){
+        const preparent =  pageContainers.find((c) => c.uri === precontainer.parentURI);
+        if(currentcontainer.uri.indexOf(precontainer.parentURI)<0)
+             container = preparent;
+    }
+    if(container){
+        const closeEffect = container?.animate?.close;
+        if(typeof closeEffect === 'string' && closeEffect in ExitEffects) {
+            const effectTl = ExitEffects[closeEffect]({
+                    container: container,
+                    params: {scale:0.5, autoAlpha:0, duration:0.7}
+            });
+            return effectTl;
+        }      
+    }
+    return null;
+}
+const openCurrentPage = ({currentcontainer,precontainer,pageContainers}:{currentcontainer:PageContainer,precontainer?:PageContainer,pageContainers:PageContainer[]})=>{
+    const effects:gsap.core.Timeline[]=[];
+    if(currentcontainer.animate?.open){
+        const parent = pageContainers.find((c) => c.uri === currentcontainer.parentURI);    
+        const openEffect = EnterEffects[currentcontainer.animate.open]({
+            container: currentcontainer,
+            parent: parent,
+            params: {scale:1, autoAlpha:1, duration:0.7}
+        })
+        if(openEffect) effects.push(openEffect);
+    }
 
+    if(currentcontainer.parentURI){
+        console.log("parentURI",currentcontainer.parentURI)
+        const parentContainer = pageContainers.find((c) => c.uri === currentcontainer.parentURI);
+        console.log(parentContainer)
+        console.log(precontainer)
+        if(parentContainer&&(!precontainer||precontainer.uri.indexOf(parentContainer.uri)<0)){
+            console.log("parentContainer",parentContainer)
+            if(parentContainer.animate?.open){
+                const openEffect = EnterEffects[parentContainer.animate.open]({
+                    container: parentContainer,
+                    params: {scale:1, autoAlpha:1, duration:0.7}
+                })
+                if(openEffect) effects.push(openEffect);
+            }
+        }
+    } 
+    return effects;
+}
 const usePageAnimate = () => {
     const { currentPage, pageContainers, changeEvent, containersLoaded } = usePageManager();
     const containers = useMemo(() => {
@@ -47,68 +81,26 @@ const usePageAnimate = () => {
     useEffect(() => {
 
         if (changeEvent && containers && containersLoaded && currentPage) {
+        
             const { type, prepage } = changeEvent;
-
-            const tcontainers = containers.filter((c) => currentPage.uri.indexOf(c.uri) === 0 && currentPage.uri !== c.uri);
-            const container = containers.find((c) => c.uri === currentPage.uri)
+            const precontainer:PageContainer|undefined = containers.find((c) =>prepage?.uri===c.uri);
+            const currentcontainer = containers.find((c) => c.uri === currentPage.uri);
+           
+            if(!currentcontainer||!currentcontainer.ele) return;  
             const tl = gsap.timeline({
                 onComplete: () => {
                     tl.kill();
                 },
             });
-
-            tcontainers.forEach((c) => {
-                if (c.ele) {
-                    tl.to(c.ele, { autoAlpha: 1, duration: 1.2 }, "<");
-                }
-            })
-            /**handle open animate*/
-            if (container?.ele) {
-                if (container?.animate) {
-                    const open = animates[container.animate.open];
-                    if (Array.isArray(open) && open.length > 1)
-                        tl.fromTo(container.ele, open[0], open[1], 0)
-                    else
-                        tl.to(container.ele, open, 0)
-                    if (container.animate?.children) {
-                        const effectFunction = ChildrenAnimateFunctions[container.animate.children.effect as keyof typeof ChildrenAnimateFunctions]
-                        tl.call(effectFunction, [{
-                            type,
-                            container,
-                            child: container?.animate?.children?.entry
-                        }], 0)
-                    }
-
-                } else if (container.parentURI) {
-                    let parentContainer: PageContainer | null = null;
-                    for (const pcontainer of pageContainers) {
-                        parentContainer = findContainerByURI(pcontainer, container.parentURI);
-                        if (parentContainer)
-                            break;
-                    }
-
-                    if (parentContainer?.animate?.children) {
-                        const effectFunction = ChildrenAnimateFunctions[parentContainer.animate.children.effect as keyof typeof ChildrenAnimateFunctions]
-                        tl.call(effectFunction, [{
-                            type,
-                            container: parentContainer,
-                            child: container.name
-                        }], 0)
-                    }
-                }
+            if(precontainer){
+                const closeEffect = closePrePage(precontainer,currentcontainer,pageContainers);
+                if(closeEffect) tl.add(closeEffect,"<");
             }
-            /**handle close animate*/
-            if (prepage) {
-                const pcontainers = containers.filter((c) => prepage.uri.indexOf(c.uri) === 0);
-                const ancestors = pcontainers.filter((c) => ![...tcontainers, container].includes(c));
-                ancestors.forEach((c) => {
-                    if (c.ele && c.animate) {
-                        const close = animates[c.animate.close];
-                        tl.to(c.ele, close, 0)
-                    }
-                })
-
-            }
+            const openEffects = openCurrentPage({currentcontainer,precontainer,pageContainers});
+          
+            if(openEffects) 
+                openEffects.forEach((effect)=>tl.add(effect,"<"));
+                      
 
             tl.play();
 

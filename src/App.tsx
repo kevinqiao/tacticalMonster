@@ -1,13 +1,12 @@
 
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
-import { ConvexReactClient } from "convex/react";
 import React from "react";
 import { TerminalProvider } from "service/TerminalManager";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
 
-const convex = new ConvexReactClient("https://shocking-leopard-487.convex.cloud");
+// const convex = new ConvexReactClient("https://shocking-leopard-487.convex.cloud");
 // const convex = new ConvexReactClient("https://1252780878078152844.discordsays.com/convex-api", {
 //   skipConvexDeploymentUrlCheck: true,
 // });
@@ -49,7 +48,7 @@ const StyleApp = () => {
   console.log("style app...");
   return (
     <Providers>
-      <div style={{ position: "relative", top: 0, left: 0, width: "100vh", height: "100vw" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh" }}>
         <RenderApp />
       </div>
     </Providers>
@@ -65,12 +64,12 @@ const App: React.FC = () => {
   ]);
 
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      <Providers>
-        <StyleApp />
-        <SSOController />
-      </Providers>
-    </div>
+
+    <Providers>
+      <StyleApp />
+      <SSOController />
+    </Providers>
+
   );
 };
 export default App;

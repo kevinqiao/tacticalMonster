@@ -24,12 +24,12 @@ const PlayGroundMain: React.FC<PageProp> = (props) => {
       setLastTime(events[events.length - 1]["time"]);
     }
   }, [events]);
-  useEffect(() => {
+  // useEffect(() => {
 
-    if (props.data && props.data.uid) {
-      authComplete({ uid: props.data.uid, token: "" }, 0);
-    }
-  }, [props])
+  //   if (props.data && props.data.uid) {
+  //     authComplete({ uid: props.data.uid, token: "" }, 0);
+  //   }
+  // }, [props])
 
   return (
     <>

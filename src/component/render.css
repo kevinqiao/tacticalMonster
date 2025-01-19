@@ -1,77 +1,82 @@
 .page_container {
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    visibility: hidden;
-    opacity: 0;
-    width: 100vw;
-    height: 100vh
-  }
-.children-group {
-  position:absolute;
-  top: 0px;
-  left:0px;
-  height:100%;
-  width:100%;
-  pointer-events: none;
-}
-.child_container {
-  position:fixed;
+  position: absolute;
   top: 0px;
   left: 0px;
-  opacity: 0;
   visibility: hidden;
+  opacity: 0;
   width: 100vw;
   height: 100vh
+}
+
+.children-group {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  height: 100%;
+  width: 100%;
+  pointer-events: none;
+}
+
+.child_container {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  /* opacity: 0;
+  visibility: hidden; */
+  width: 100%;
+  height: 100%;
   /* pointer-events: auto; */
   /* background-color: red; */
 }
-.exit-menu{
-  position:absolute;
-  cursor:pointer;
-  right:0px;
-  top:0px;
-  width:30px;
-  height:30px;
+
+.exit-menu {
+  position: absolute;
+  cursor: pointer;
+  right: 0px;
+  top: 0px;
+  width: 30px;
+  height: 30px;
   /* opacity:0;
   visibility:hidden; */
   background-color: grey;
-  pointer-events:auto
+  pointer-events: auto
 }
+
 .pop-big {
-  position:fixed;
-  top:50%;
-  left:50%;
-  height:80%;
-  width:80%;
-  transform:translate(-50%, -50%);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 80%;
+  width: 80%;
+  transform: translate(-50%, -50%);
   opacity: 0;
   visibility: hidden;
   pointer-events: auto;
   /* background-color: red; */
 }
+
 .pop-medium {
-  position:fixed;
-  top:50%;
-  left:50%;
-  height:50%;
-  width:50%;
-  transform:translate(-50%, -50%);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 50%;
+  width: 50%;
+  transform: translate(-50%, -50%);
   opacity: 0;
   visibility: hidden;
   pointer-events: auto;
   /* background-color: red; */
 }
+
 .pop-small {
-  position:fixed;
-  top:50%;
-  left:50%;
-  height:35%;
-  width:35%;
-  transform:translate(-50%, -50%);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 35%;
+  width: 35%;
+  transform: translate(-50%, -50%);
   opacity: 0;
   visibility: hidden;
   pointer-events: auto;
   /* background-color: red; */
 }
-  

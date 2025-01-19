@@ -2,19 +2,20 @@ import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { parseLocation } from "util/PageUtils";
+import usePageAnimate from "../animate/usePageAnimate";
 
-const isAllLoaded = (container: PageContainer): boolean => {
-  if (!container.ele) return false;
+// const isAllLoaded = (container: PageContainer): boolean => {
+//   if (!container.ele) return false;
 
-  // 遍历子节点
-  if (container.children)
-    for (const ccontainer of container.children) {
-      const result: boolean = isAllLoaded(ccontainer); // 递归查找
-      if (!result) return false;
-    }
+//   // 遍历子节点
+//   if (container.children)
+//     for (const ccontainer of container.children) {
+//       const result: boolean = isAllLoaded(ccontainer); // 递归查找
+//       if (!result) return false;
+//     }
 
-  return true;
-};
+//   return true;
+// };
 export type App = {
   name: string;
   params?: { [k: string]: string };
@@ -38,7 +39,11 @@ export interface PageContainer {
   class?: string;
   ele?: HTMLDivElement | null;
   closeEle?: HTMLDivElement | null;
-  animate?: { open: number; close: number; children?: { effect: string; entry: string } };
+  animate?: {
+    open?: string;  // 改为可选的字符串
+    close?: string;
+  };
+  control?: string;
 }
 interface IPageContext {
   // pageQueue: PageItem[];
@@ -52,7 +57,7 @@ interface IPageContext {
   openPage: (page: PageItem) => void;
   openNav: () => void;
   closeNav: () => void;
-  onLoad: (ele: HTMLDivElement | null) => void;
+  onLoad: () => void;
 }
 
 const PageContext = createContext<IPageContext>({
@@ -74,7 +79,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
   const [navOpen, setNavOpen] = useState(false);
-  const pageContainers = useMemo(() => {
+  const pageContainers: PageContainer[] = useMemo(() => {
     return AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
       return acc.concat(
         config.navs.map((nav) => ({
@@ -85,16 +90,12 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       );
     }, []);
   }, []);
-
+  console.log("pageContainers", pageContainers)
   const openPage = useCallback((page: PageItem) => {
     const currentIndex = currentPageRef.current.index; // 确保获取最新的历史索引
     const newIndex = currentIndex + 1; // 新索引递增
-    if (page.data) {
-      const uri = page.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&");
-      history.pushState({ index: newIndex }, "", uri);
-    } else {
-      history.pushState({ index: newIndex }, "", page.uri);
-    }
+    const uri = page.data ? page.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : page.uri;
+    history.pushState({ index: newIndex }, "", uri);
     const prepage = currentPageRef.current.page;
     setChangeEvent({ type: 0, index: newIndex, prepage });
     currentPageRef.current = { index: newIndex, page };
@@ -108,16 +109,11 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const onLoad = useCallback(
-    (ele: HTMLDivElement | null) => {
-      if (!pageContainers) return;
-
-      if (ele) {
-        let loadCompleted = true;
-        for (const container of pageContainers) {
-          loadCompleted = isAllLoaded(container);
-        }
-        if (loadCompleted) setContainersLoaded((pre) => (pre === 0 ? 1 : pre));
-      } else setContainersLoaded(0);
+    () => {
+      const loadCompleted = pageContainers.every((container) => {
+        return container.ele ? true : false
+      });
+      if (loadCompleted) setContainersLoaded((pre) => (pre === 0 ? 1 : pre));
     },
     [pageContainers]
   );
@@ -169,9 +165,10 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   );
 };
 const PageAnimate = ({ children }: { children: React.ReactNode }) => {
+  usePageAnimate();
   return (
     <>
-      <PageManager>{children}</PageManager>
+      {children}
     </>
   );
 };
