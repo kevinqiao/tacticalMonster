@@ -1,6 +1,5 @@
 
 import RenderApp from "component/RenderApp";
-import SSOController from "component/sso/SSOController";
 import React from "react";
 import { TerminalProvider } from "service/TerminalManager";
 import { PageProvider } from "./service/PageManager";
@@ -67,7 +66,7 @@ const App: React.FC = () => {
 
     <Providers>
       <StyleApp />
-      <SSOController />
+      {/* <SSOController /> */}
     </Providers>
 
   );

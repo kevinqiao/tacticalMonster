@@ -21,7 +21,7 @@ export type App = {
   params?: { [k: string]: string };
 };
 export interface PageEvent {
-  type: number; //0-new  1-back 2-forward 3-start from browser
+  // type: number; //0-new  1-back 2-forward 3-start from browser
   index: number;
   prepage?: PageItem | undefined | null;
 }
@@ -94,14 +94,22 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
 
   const openPage = useCallback((page: PageItem) => {
     if (page.uri === currentPageRef.current?.page?.uri) return;
-    const currentIndex = currentPageRef.current.index; // 确保获取最新的历史索引
-    const newIndex = currentIndex + 1; // 新索引递增
-    const uri = page.data ? page.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : page.uri;
-    history.pushState({ index: newIndex }, "", uri);
+
+    let newPage = page;
+    const container = pageContainers.find((c) => c.uri === page.uri);
+    if (container?.children && container.animate?.child) {
+      const child = container.children.find((c) => c.name === container.animate?.child);
+      if (child) {
+        newPage = { ...page, uri: child.uri };
+      }
+    }
+    // const index = currentPageRef.current.index++; // 确保获取最新的历史索引
+    const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
+    history.pushState({ index: 0 }, "", uri);
     const prepage = currentPageRef.current.page;
-    setChangeEvent({ type: 0, index: newIndex, prepage });
-    currentPageRef.current = { index: newIndex, page };
-  }, []);
+    setChangeEvent({ index: 0, prepage });
+    currentPageRef.current = { index: 0, page: newPage };
+  }, [pageContainers]);
 
   const openNav = useCallback(() => {
     setNavOpen(true);
@@ -121,43 +129,33 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   );
 
   useEffect(() => {
-    const newIndex = history.state?.index ?? 0;
-    if (newIndex === 0) history.replaceState({ index: 0 }, "", window.location.href);
-    let page = parseLocation();
-    if (page) {
-      const uri = page.uri;
-      const container = pageContainers.find((c) => c.uri === uri);
-      if (container?.children && container.animate?.child) {
-        const child = container.children.find((c) => c.name === container.animate?.child);
-        if (child) {
-          page = { ...page, uri: child.uri };
-        }
-      }
-      currentPageRef.current = { index: newIndex, page };
-      setChangeEvent({ type: 3, index: newIndex, prepage: null });
-    }
-    const handlePopState = (event: any) => {
-      const newIndex = event.state?.index ?? 0; // 获取新索引
-      const prevIndex = currentPageRef.current.index; // 获取之前的索引
-
-      if (newIndex < prevIndex) {
-        setChangeEvent({ type: 1, index: newIndex, prepage: currentPageRef.current.page });
-      } else if (newIndex > prevIndex) {
-        setChangeEvent({ type: 2, index: newIndex, prepage: currentPageRef.current.page });
-      }
+    const renderPage = (index: number, prepage: PageItem | null | undefined) => {
+      console.log(index, prepage);
       let page = parseLocation();
-      const uri = page?.uri;
-      const container = pageContainers.find((c) => c.uri === uri);
-      if (container?.children && container.animate?.child) {
-        const child = container.children.find((c) => c.name === container.animate?.child);
-        if (child) {
-          page = { ...page, uri: child.uri };
+      if (page) {
+        const uri = page.uri;
+        const container = pageContainers.find((c) => c.uri === uri);
+        if (container?.children && container.animate?.child) {
+          const child = container.children.find((c) => c.name === container.animate?.child);
+          if (child) {
+            page = { ...page, uri: child.uri };
+          }
         }
+        currentPageRef.current = { index, page };
+        setChangeEvent({ index, prepage });
       }
-      currentPageRef.current = { index: newIndex, page };
+    }
+
+    const handlePopState = (event: any) => {
+      console.log(event.state)
+      const newIndex = event.state?.index ?? 0; // 获取新索引
+      renderPage(newIndex, currentPageRef.current.page);
+
     };
     window.addEventListener("popstate", handlePopState);
 
+    const newIndex = history.state?.index ?? 0;
+    renderPage(newIndex, null);
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };

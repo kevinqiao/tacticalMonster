@@ -67,31 +67,31 @@ const openCurrentPage = ({currentcontainer,precontainer,pageContainers}:{current
             }
         }
     } 
-    // if(currentcontainer.children&&currentcontainer.animate){
-    //     if(currentcontainer.animate.child){  
-    //         const childName = currentcontainer.animate.child;
-    //         const child = currentcontainer.children.find((c)=>c.name===childName);
-    //         if(child&&child.animate?.open){
-    //             const openEffect = EnterEffects[child.animate.open]({
-    //                 container: child,
-    //                 parent: currentcontainer,
-    //                 params: {scale:1, autoAlpha:1, duration:0.7}
-    //             })
-    //             if(openEffect) effects.push(openEffect);
-    //         }
-    //     }else{
-    //         currentcontainer.children.forEach((c)=>{
-    //             if(c.animate?.close){
-    //                 const closeEffect = ExitEffects[c.animate.close]({
-    //                     container: c,
-    //                     params: {scale:1, autoAlpha:1, duration:0.7}
-    //                 })
-    //                 if(closeEffect) effects.push(closeEffect);
-    //             }
-    //         })
-    //     }
+    if(currentcontainer.children&&currentcontainer.animate){
+        // if(currentcontainer.animate.child){  
+        //     const childName = currentcontainer.animate.child;
+        //     const child = currentcontainer.children.find((c)=>c.name===childName);
+        //     if(child&&child.animate?.open){
+        //         const openEffect = EnterEffects[child.animate.open]({
+        //             container: child,
+        //             parent: currentcontainer,
+        //             params: {scale:1, autoAlpha:1, duration:0.7}
+        //         })
+        //         if(openEffect) effects.push(openEffect);
+        //     }
+        // }else{
+            currentcontainer.children.forEach((c)=>{
+                if(c.animate?.close){
+                    const closeEffect = ExitEffects[c.animate.close]({
+                        container: c,
+                        params: {scale:1, autoAlpha:1, duration:0.7}
+                    })
+                    if(closeEffect) effects.push(closeEffect);
+                }
+            })
+        // }
             
-    // }   
+    }   
     return effects;
 }
 const usePageAnimate = () => {
@@ -105,7 +105,7 @@ const usePageAnimate = () => {
 
         if (changeEvent && containers && containersLoaded && currentPage) {
         
-            const { type, prepage } = changeEvent;
+            const {prepage } = changeEvent;
             const precontainer:PageContainer|undefined = containers.find((c) =>prepage?.uri===c.uri);
             const currentcontainer = containers.find((c) => c.uri === currentPage.uri);
            
