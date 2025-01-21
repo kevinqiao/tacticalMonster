@@ -128,3 +128,17 @@ export const findContainerByURI = (container: PageContainer, uri: string): PageC
     // 如果未找到，返回 null
     return null;
 }
+
+export const findContainer = (containers: PageContainer[], uri: string): PageContainer | null => {
+    for (const container of containers) {
+         if(container.uri===uri)
+            return container;
+        else if (container.children && Array.isArray(container.children)) { 
+            const result = findContainer(container.children, uri);
+            if (result) {
+                return result;
+            }
+        }
+    }
+    return null;
+}

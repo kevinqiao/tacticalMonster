@@ -5,6 +5,7 @@ export const create = internalMutation({
     args: {
         uid: v.string(),
         token: v.string(),
+        expire: v.optional(v.number()),
         name: v.optional(v.string()),
         avatar: v.optional(v.string()),
     },

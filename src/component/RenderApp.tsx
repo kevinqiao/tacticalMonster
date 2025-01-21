@@ -11,15 +11,16 @@ gsap.registerPlugin(CSSPlugin);
 export interface PageProp {
   data: any;
   visible?: number;
+  children?: React.ReactNode;
 }
 
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
-  const { openPage, currentPage, onLoad } = usePageManager();
+  const { openPage, currentPage, changeEvent, onLoad } = usePageManager();
 
   const visible = useMemo(() => {
-    if (currentPage?.uri.indexOf(container.uri) === 0) return 1;
+    if (currentPage?.uri.indexOf(container.uri) === 0 || (parent && currentPage?.uri.indexOf(parent?.uri) === 0)) return 1;
     else return 0;
-  }, [currentPage]);
+  }, [currentPage, changeEvent]);
 
   const childContainers = useMemo(() => {
     if (container?.children) {
@@ -68,16 +69,20 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     <>
       {/* <div style={{ position: "relative", width: "100vw", height: "100vh" }}> */}
       <div key={container.app + "-" + container.name} ref={load} className={container.class}>
-        <Suspense fallback={<div />}>
-          <SelectedComponent data={currentPage?.data} visible={visible}></SelectedComponent>
-        </Suspense>
-        {container.exit ? (
-          <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
-        ) : null}
-        {childContainers?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
-        <Suspense fallback={<div />}>
-          {ControlComponent && <ControlComponent />}
-        </Suspense>
+        {visible && <>
+          <Suspense fallback={<div />}>
+            <SelectedComponent data={currentPage?.data} visible={visible}>
+
+            </SelectedComponent>
+          </Suspense>
+          {container.exit ? (
+            <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
+          ) : null}
+          {childContainers?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
+          <Suspense fallback={<div />}>
+            {ControlComponent && <ControlComponent />}
+          </Suspense>
+        </>}
       </div>
     </>
 

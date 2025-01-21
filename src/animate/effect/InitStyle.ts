@@ -16,7 +16,7 @@ export const InitStyles: InitStyles = {
             const index = parent.children?.findIndex((c) => c.name === container.name)
 
             if (container.ele && (typeof index !== "undefined")) {
-            console.log(container)
+            // console.log(container)
             gsap.set(container.ele, { left: `${index * 100}%` })
         }
     },

@@ -1,10 +1,12 @@
 
 import RenderApp from "component/RenderApp";
+import SSOController from "component/sso/SSOController";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React from "react";
 import { TerminalProvider } from "service/TerminalManager";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
-
+const master_client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
 // const convex = new ConvexReactClient("https://shocking-leopard-487.convex.cloud");
 // const convex = new ConvexReactClient("https://1252780878078152844.discordsays.com/convex-api", {
 //   skipConvexDeploymentUrlCheck: true,
@@ -40,7 +42,6 @@ const StyleApp = () => {
   const Providers = FlattenedProviderTree([
     [TerminalProvider],
     // [LocalizationProvider],
-    // [ConvexProvider, { client: convex }],
     // [ThemeProvider, { theme }],
     // [PartnerProvider],
   ]);
@@ -57,8 +58,9 @@ const StyleApp = () => {
 const App: React.FC = () => {
 
   const Providers = FlattenedProviderTree([
-    [PageProvider],
+    [ConvexProvider, { client: master_client }],
     [UserProvider],
+    [PageProvider],
 
   ]);
 
@@ -66,7 +68,7 @@ const App: React.FC = () => {
 
     <Providers>
       <StyleApp />
-      {/* <SSOController /> */}
+      <SSOController />
     </Providers>
 
   );

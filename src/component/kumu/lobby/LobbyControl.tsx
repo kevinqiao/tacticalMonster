@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { usePageManager } from "service/PageManager";
 
 import "../map.css";
 const LobbyControl: React.FC = () => {
 
-  const { openPage } = usePageManager();
-
+  const { openPage, askAuth } = usePageManager();
+  const signIn = useCallback(() => {
+    askAuth({ params: { action: "signin" } });
+  }, [askAuth]);
   return (
     <>
 
@@ -21,6 +23,9 @@ const LobbyControl: React.FC = () => {
         </div>
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main" })}>
           Play
+        </div>
+        <div className="action-panel-item" onClick={signIn}>
+          SignIn
         </div>
       </div>
     </>

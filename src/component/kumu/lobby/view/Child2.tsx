@@ -1,5 +1,9 @@
+import { PageProp } from "component/RenderApp";
 import React from "react";
-const Child2: React.FC = (props) => {
+import { SSAProvider, useSSAManager } from "service/SSAManager";
+const Child2Main: React.FC = (props) => {
+  const { credentials } = useSSAManager();
+  // console.log(credentials);
   return (
     <div
       style={{
@@ -13,6 +17,10 @@ const Child2: React.FC = (props) => {
     >
       <div className="action-panel-item">Child2</div>
     </div>
+  );
+};
+const Child2: React.FC<PageProp> = ({ visible }) => {
+  return (<SSAProvider app="tacticalMonster" ><Child2Main /></SSAProvider>
   );
 };
 

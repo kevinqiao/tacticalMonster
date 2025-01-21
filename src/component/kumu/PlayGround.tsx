@@ -38,17 +38,7 @@ const PlayGroundMain: React.FC<PageProp> = (props) => {
           START
         </div>
       </div>
-      {/* <div className="action-control" style={{ left: 0 }}>
-        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main/c1" })}>
-          Child1
-        </div>
-        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main/c2" })}>
-          Child2
-        </div>
-        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main/c3" })}>
-          Child3
-        </div>
-      </div> */}
+     
     </>
   );
 };

@@ -30,7 +30,6 @@ import type * as service_auth from "../service/auth.js";
 import type * as service_tmEventService from "../service/tmEventService.js";
 import type * as service_tmGameManager from "../service/tmGameManager.js";
 import type * as service_tmGameProxy from "../service/tmGameProxy.js";
-import type * as SSO from "../SSO.js";
 import type * as utils_gameUtils from "../utils/gameUtils.js";
 import type * as utils_Utlis from "../utils/Utlis.js";
 
@@ -60,7 +59,6 @@ declare const fullApi: ApiFromModules<{
   "service/tmEventService": typeof service_tmEventService;
   "service/tmGameManager": typeof service_tmGameManager;
   "service/tmGameProxy": typeof service_tmGameProxy;
-  SSO: typeof SSO;
   "utils/gameUtils": typeof utils_gameUtils;
   "utils/Utlis": typeof utils_Utlis;
 }>;

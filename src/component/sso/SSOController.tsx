@@ -1,9 +1,7 @@
 import { PageItem } from "model/PageProps";
 import React, { FunctionComponent, useEffect, useState } from "react";
-import { useUserManager } from "service/UserManager";
 
-import { ConvexProvider, ConvexReactClient } from "convex/react";
-import { parseLocation } from "util/PageUtils";
+import { usePageManager } from "service/PageManager";
 import "./signin.css";
 export interface AuthenticatorHandle extends HTMLDivElement {
   someMethod(): void;
@@ -26,16 +24,13 @@ export interface AuthProps {
   authInit?: AuthInit;
 }
 // gsap.registerPlugin(MotionPathPlugin);
-const sso_client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
+// const sso_client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
 const SSOController: React.FC = () => {
-  const { user, authComplete } = useUserManager();
-
+  const { authReq, cancelAuth } = usePageManager();
   const [authInit, setAuthInit] = useState<AuthInit | undefined>(undefined);
-
   const [SelectedComponent, setSelectedComponent] = useState<FunctionComponent<AuthProps> | null>(null);
-  console.log("user", user);
-  useEffect(() => {
 
+  useEffect(() => {
     const loadComponent = async () => {
       const module = await import("./provider/CustomAuthenticator");
       // const module = await import(`${provider.path}`);
@@ -44,21 +39,15 @@ const SSOController: React.FC = () => {
     loadComponent();
 
   }, []);
-  useEffect(() => {
-    const params = parseLocation();
-    if (params && params.data && params.data.uid) {
-      authComplete({ uid: params.data.uid, token: "" }, 0);
-    }
-  }, [])
 
-  if (!SelectedComponent) return null;
 
   return (
-    <ConvexProvider client={sso_client}>
-      <div style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "transparent", pointerEvents: "none" }}>
-        {(!user || !user.uid) ? <SelectedComponent authInit={authInit} /> : null}
-      </div>
-    </ConvexProvider>
+    // <ConvexProvider client={sso_client}>
+    <div style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "transparent", pointerEvents: "none" }}>
+      {authReq && SelectedComponent ? <><SelectedComponent authInit={authInit} /><div className="exit-menu" onClick={cancelAuth}></div> </> : null}
+    </div>
+
+    // </ConvexProvider>
   );
 };
 

@@ -1,21 +1,11 @@
 import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { parseLocation } from "util/PageUtils";
+import { findContainer, parseLocation } from "util/PageUtils";
 import usePageAnimate from "../animate/usePageAnimate";
+import { useUserManager } from "./UserManager";
 
-// const isAllLoaded = (container: PageContainer): boolean => {
-//   if (!container.ele) return false;
 
-//   // 遍历子节点
-//   if (container.children)
-//     for (const ccontainer of container.children) {
-//       const result: boolean = isAllLoaded(ccontainer); // 递归查找
-//       if (!result) return false;
-//     }
-
-//   return true;
-// };
 export type App = {
   name: string;
   params?: { [k: string]: string };
@@ -51,13 +41,13 @@ interface IPageContext {
   currentPage: PageItem | undefined | null;
   changeEvent: PageEvent | null;
   app: App | null;
-  navOpen: boolean;
   pageContainers: PageContainer[];
   containersLoaded: number;
   // openChild: (child: string, data?: { [k: string]: any }) => void;
+  askAuth: ({ params, pageURI }: { params?: { [k: string]: string }; pageURI?: string }) => void;
+  cancelAuth: () => void;
+  authReq: { params?: { [k: string]: string }; pageURI?: string } | null;
   openPage: (page: PageItem) => void;
-  openNav: () => void;
-  closeNav: () => void;
   onLoad: () => void;
 }
 
@@ -65,21 +55,22 @@ const PageContext = createContext<IPageContext>({
   changeEvent: null,
   currentPage: null,
   app: null,
-  navOpen: false,
+  authReq: null,
   pageContainers: [],
   containersLoaded: 0,
+  askAuth: () => null,
+  cancelAuth: () => null,
   openPage: (p: PageItem) => null,
-  openNav: () => null,
-  closeNav: () => null,
   onLoad: () => null,
 });
 
 export const PageManager = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useUserManager();
   const currentPageRef = useRef<{ index: number; page: PageItem | undefined | null }>({ index: 0, page: null });
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
-  const [navOpen, setNavOpen] = useState(false);
+  const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; pageURI?: string } | null>(null);
   const pageContainers: PageContainer[] = useMemo(() => {
     return AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
       return acc.concat(
@@ -92,16 +83,30 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     }, []);
   }, []);
 
+  const askAuth = useCallback(({ params }: { params?: { [k: string]: string } }) => {
+    if (!user?.uid)
+      setAuthReq((pre) => !pre ? { params } : pre);
+  }, [user]);
+  const cancelAuth = useCallback(() => {
+    setAuthReq(null);
+  }, []);
+
+
   const openPage = useCallback((page: PageItem) => {
     if (page.uri === currentPageRef.current?.page?.uri) return;
-
     let newPage = page;
-    const container = pageContainers.find((c) => c.uri === page.uri);
+    const container = findContainer(pageContainers, page.uri);
+    let authRequired = container?.auth === 1 && (!user || !user.uid);
     if (container?.children && container.animate?.child) {
       const child = container.children.find((c) => c.name === container.animate?.child);
       if (child) {
         newPage = { ...page, uri: child.uri };
+        authRequired = authRequired ?? child.auth === 1;
       }
+    }
+    if (authRequired) {
+      setAuthReq({ pageURI: newPage.uri });
+      return;
     }
     // const index = currentPageRef.current.index++; // 确保获取最新的历史索引
     const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
@@ -109,14 +114,8 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     const prepage = currentPageRef.current.page;
     setChangeEvent({ index: 0, prepage });
     currentPageRef.current = { index: 0, page: newPage };
-  }, [pageContainers]);
+  }, [pageContainers, user]);
 
-  const openNav = useCallback(() => {
-    setNavOpen(true);
-  }, []);
-  const closeNav = useCallback(() => {
-    setNavOpen(false);
-  }, []);
 
   const onLoad = useCallback(
     () => {
@@ -127,35 +126,26 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     },
     [pageContainers]
   );
-
   useEffect(() => {
-    const renderPage = (index: number, prepage: PageItem | null | undefined) => {
-      console.log(index, prepage);
-      let page = parseLocation();
-      if (page) {
-        const uri = page.uri;
-        const container = pageContainers.find((c) => c.uri === uri);
-        if (container?.children && container.animate?.child) {
-          const child = container.children.find((c) => c.name === container.animate?.child);
-          if (child) {
-            page = { ...page, uri: child.uri };
-          }
-        }
-        currentPageRef.current = { index, page };
-        setChangeEvent({ index, prepage });
+    if (user) {
+      if (authReq?.pageURI) {
+        openPage({ uri: authReq.pageURI });
       }
+      setAuthReq(null)
     }
-
+  }, [user, authReq]);
+  useEffect(() => {
     const handlePopState = (event: any) => {
-      console.log(event.state)
-      const newIndex = event.state?.index ?? 0; // 获取新索引
-      renderPage(newIndex, currentPageRef.current.page);
-
+      const page = parseLocation();
+      if (page)
+        openPage(page);
     };
-    window.addEventListener("popstate", handlePopState);
 
-    const newIndex = history.state?.index ?? 0;
-    renderPage(newIndex, null);
+    window.addEventListener("popstate", handlePopState);
+    const page = parseLocation();
+    if (page)
+      openPage(page);
+
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
@@ -167,10 +157,10 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     containersLoaded,
     currentPage: currentPageRef.current.page,
     app,
-    navOpen,
+    authReq,
+    askAuth,
+    cancelAuth,
     openPage,
-    openNav,
-    closeNav,
     onLoad,
   };
   return (

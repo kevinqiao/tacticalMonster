@@ -11,7 +11,7 @@ interface EnterEffects {
 
 export const EnterEffects: EnterEffects = {
     center: ({ container, params }) => {
-        console.log("container", container)
+        // console.log("container", container)
         if(!container.ele) return null;
         const timeline = gsap.timeline();
         
@@ -22,7 +22,7 @@ export const EnterEffects: EnterEffects = {
         return timeline;
     },
     fadeIn: ({ container, params }) => {
-        console.log("container", container)
+        // console.log("container", container)
         if(!container.ele) return null;
         const timeline = gsap.timeline();
         
@@ -34,10 +34,10 @@ export const EnterEffects: EnterEffects = {
     slideIn: ({ container, parent }) => {
     
         if(!container.ele) return null;
-        console.log("container",container)  
-        console.log("parent",parent)
+        // console.log("container",container)  
+        // console.log("parent",parent)
         const current = (parent?.children?.findIndex((c) => c.uri === container.uri)??0)
-        console.log("current",current)  
+        // console.log("current",current)  
         const timeline = gsap.timeline();   
         parent?.children?.forEach((c,index)=>{
             if(c.ele){

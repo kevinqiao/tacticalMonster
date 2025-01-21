@@ -13,8 +13,8 @@ function generateRandomString(length: number): string {
 }
 
 export const signin = action({
-  args: { access_token: v.string() },
-  handler: async (ctx, { access_token }) => {
+  args: { access_token: v.string(),expire:v.number() },
+  handler: async (ctx, { access_token,expire }) => {
     // 验证 token 逻辑
     const payload = jwt.verify(access_token, "12222222");
     if(payload && typeof payload === 'object' && 'uid' in payload){
@@ -25,7 +25,7 @@ export const signin = action({
         await ctx.runMutation(internal.dao.tmPlayerDao.create, { 
           uid,
           token,
-         
+          expire,
         });
       }else{
         await ctx.runMutation(internal.dao.tmPlayerDao.update, { 
@@ -36,6 +36,39 @@ export const signin = action({
         });
       }
       return { uid, token };
+    }
+    return null;
+  }
+});
+export const refresh = action({
+  args: { uid: v.string(), token: v.string() },
+  handler: async (ctx, { uid, token }) => {
+    const player:any = await ctx.runQuery(internal.dao.tmPlayerDao.find, { uid });
+    if(player && player.token===token){
+      const newToken = generateRandomString(36);
+      await ctx.runMutation(internal.dao.tmPlayerDao.update, { 
+        uid,
+        data: {
+          token: newToken,
+        } 
+      });
+      return { uid, token: newToken };
+    }
+    return null;
+  }
+});
+export const signout = action({
+  args: { uid: v.string(), token: v.string() },
+  handler: async (ctx, { uid, token }) => {
+    const player:any = await ctx.runQuery(internal.dao.tmPlayerDao.find, { uid });
+    if(player && player.token===token){
+      await ctx.runMutation(internal.dao.tmPlayerDao.update, { 
+        uid,
+        data: {
+        token: null,
+        } 
+      });
+      return {ok:true };
     }
     return null;
   }

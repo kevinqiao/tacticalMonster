@@ -13,6 +13,7 @@ export default defineSchema({
     tm_player: defineTable({
         uid: v.string(),
         token: v.optional(v.string()),
+        expire: v.optional(v.number()),
         level: v.number(),
         exp: v.number(),
         name: v.optional(v.string()),
