@@ -22,10 +22,13 @@ export default defineSchema({
         phone: v.optional(v.string()),
         data: v.optional(v.any())
     }).index("by_channelId", ['cid']).index("by_uid", ['uid']).index("by_partner", ['partner','cid']),
-    event: defineTable({
+
+    events: defineTable({
+        appid: v.string(),
+        id: v.string(),
+        name: v.string(),
         uid: v.optional(v.string()),
-        event: v.string(),
-        data: v.optional(v.any())
-    }).index("by_uid", ['uid'])
+        data: v.any()
+    }).index("by_appid", ["appid"]).index("by_uid", ["uid"])
     
 });

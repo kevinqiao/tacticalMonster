@@ -36,11 +36,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const convex = useConvex();
   const authComplete = useCallback((u: any, persist: number) => {
     console.log("expire:", u.expire - Date.now())
-    setUser(u);
     if (persist > 0) {
       console.log("persist", u)
       localStorage.setItem("user", JSON.stringify(u));
     }
+    setUser(u);
   }, []);
 
   const logout = useCallback(() => {

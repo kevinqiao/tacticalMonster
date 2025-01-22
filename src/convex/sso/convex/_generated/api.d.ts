@@ -13,9 +13,14 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as custom_session from "../custom/session.js";
 import type * as dao_cuserDao from "../dao/cuserDao.js";
+import type * as dao_eventDao from "../dao/eventDao.js";
 import type * as dao_userDao from "../dao/userDao.js";
+import type * as http from "../http.js";
 import type * as service_AuthManager from "../service/AuthManager.js";
+import type * as service_EventQuery from "../service/EventQuery.js";
+import type * as service_EventReceiver from "../service/EventReceiver.js";
 import type * as service_handler_CustomAuthHandler from "../service/handler/CustomAuthHandler.js";
 
 /**
@@ -27,9 +32,14 @@ import type * as service_handler_CustomAuthHandler from "../service/handler/Cust
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "custom/session": typeof custom_session;
   "dao/cuserDao": typeof dao_cuserDao;
+  "dao/eventDao": typeof dao_eventDao;
   "dao/userDao": typeof dao_userDao;
+  http: typeof http;
   "service/AuthManager": typeof service_AuthManager;
+  "service/EventQuery": typeof service_EventQuery;
+  "service/EventReceiver": typeof service_EventReceiver;
   "service/handler/CustomAuthHandler": typeof service_handler_CustomAuthHandler;
 }>;
 export declare const api: FilterApi<

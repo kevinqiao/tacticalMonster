@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as custom_session from "../custom/session.js";
+import type * as dao_GlobalEventDao from "../dao/GlobalEventDao.js";
 import type * as dao_tmCharacterDataDao from "../dao/tmCharacterDataDao.js";
 import type * as dao_tmEventDao from "../dao/tmEventDao.js";
 import type * as dao_tmGameCharacterDao from "../dao/tmGameCharacterDao.js";
@@ -27,6 +28,7 @@ import type * as dao_tmSkillDataDao from "../dao/tmSkillDataDao.js";
 import type * as http from "../http.js";
 import type * as rule_test from "../rule/test.js";
 import type * as service_auth from "../service/auth.js";
+import type * as service_GlobalEventSync from "../service/GlobalEventSync.js";
 import type * as service_tmEventService from "../service/tmEventService.js";
 import type * as service_tmGameManager from "../service/tmGameManager.js";
 import type * as service_tmGameProxy from "../service/tmGameProxy.js";
@@ -43,6 +45,7 @@ import type * as utils_Utlis from "../utils/Utlis.js";
  */
 declare const fullApi: ApiFromModules<{
   "custom/session": typeof custom_session;
+  "dao/GlobalEventDao": typeof dao_GlobalEventDao;
   "dao/tmCharacterDataDao": typeof dao_tmCharacterDataDao;
   "dao/tmEventDao": typeof dao_tmEventDao;
   "dao/tmGameCharacterDao": typeof dao_tmGameCharacterDao;
@@ -56,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "rule/test": typeof rule_test;
   "service/auth": typeof service_auth;
+  "service/GlobalEventSync": typeof service_GlobalEventSync;
   "service/tmEventService": typeof service_tmEventService;
   "service/tmGameManager": typeof service_tmGameManager;
   "service/tmGameProxy": typeof service_tmGameProxy;

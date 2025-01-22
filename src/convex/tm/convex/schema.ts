@@ -9,7 +9,13 @@ export default defineSchema({
         locale: v.string(),
         resource: v.any(),
     }).index("by_app_locale", ['app', 'locale']),
-
+    event: defineTable({
+        uid: v.optional(v.string()),
+        name: v.string(),
+        data: v.optional(v.any()),
+        isSynced: v.boolean(),
+        syncTime: v.optional(v.number())
+    }).index("by_sync", ['isSynced']),
     tm_player: defineTable({
         uid: v.string(),
         token: v.optional(v.string()),
