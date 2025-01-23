@@ -44,7 +44,7 @@ const useCombatAct = () => {
 
   const walk = useCallback(async (to: { q: number; r: number }) => {
     // const character = characters?.find((c) => c.id === currentRound?.turns[0].character);
-    console.log("walk", to);
+
     if (!gameId || !characters || !gridCells || !currentRound || !map) return;
     const currentTurn = currentRound.turns.find((t) => t.status === 1 || t.status === 2);
     if (!currentTurn) return;
@@ -64,7 +64,7 @@ const useCombatAct = () => {
     eventQueue.push({
       name: "walk",
       status: 0,
-      uid: user.uid,
+      uid,
       data: {
         uid,
         character_id,

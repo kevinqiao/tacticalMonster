@@ -3,11 +3,29 @@ import { action } from "../_generated/server";
 import { sessionAction, sessionQuery } from "../custom/session";
 import GameManager from "./tmGameManager";
 // "use node";
+const apiEndpoint = "https://cool-salamander-393.convex.site/event/sync"; // 替换为目标 API 的 URL
+const apiToken = "1234567890";
 export const start = action({
     args: {},
     handler: async (ctx, args) => {
-        const gameService = new GameManager(ctx);
-        await gameService.createGame();
+             const gameService = new GameManager(ctx);
+             await gameService.createGame();
+             const game = gameService.getGame();
+             if(game){
+                const event = {
+                    name:"GameCreated",
+                    data:{id:game.gameId,challenger:game.challenger,challengee:game.challengee}
+                }       
+                const response = await fetch(apiEndpoint, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${apiToken}`, // 添加认证头
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify([event]), // 将数据序列化为 JSON 格式
+                });
+                console.log("response",response);
+            }
     }
 })
 export const find = sessionQuery({

@@ -101,7 +101,9 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       const child = container.children.find((c) => c.name === container.animate?.child);
       if (child) {
         newPage = { ...page, uri: child.uri };
-        authRequired = authRequired ?? child.auth === 1;
+        if (!authRequired && child.auth === 1) {
+          authRequired = true;
+        }
       }
     }
     if (authRequired) {

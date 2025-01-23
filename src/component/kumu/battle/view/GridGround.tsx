@@ -124,7 +124,7 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
 const GridContainer: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
   const { map, hexCell, gridCells } = useCombatManager();
   const { walk, attack } = useCombatAct();
-
+  console.log(gridCells);
   // 移动 useCallback 到顶部
   const rowStyle = useCallback((row: number) => {
     const isOdd = row % 2 !== 0;

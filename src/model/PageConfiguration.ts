@@ -26,6 +26,7 @@ export const PlayPlace =
             path: "./kumu/battle/BattlePlayer",
             uri: "map",
             class: "page_container",
+            animate: { open: "fadeIn", close: "fadeOut"},
           },
         {
             name: "lobby",

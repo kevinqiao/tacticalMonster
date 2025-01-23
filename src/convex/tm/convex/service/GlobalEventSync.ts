@@ -1,3 +1,4 @@
+import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
 export interface Event{
   id:string;
@@ -10,8 +11,10 @@ const apiEndpoint = "https://example.com/api/receive-data"; // 替换为目标 A
 const apiToken = "your-api-key";
 
 export const sync = internalMutation({
-  handler: async (ctx) => {
-    const events = await ctx.db.query("event").withIndex("by_sync", (q) => q.eq("isSynced", false)).collect();
+  args: { appid: v.string() },
+  handler: async (ctx, { appid }) => {
+    const events = await ctx.db.query("tm_event").withIndex("by_name", (q) => q.eq("name", "gameCreated").eq("isSynced", false)).collect(); 
+    console.log("events",events);
     if(events.length === 0) return null;
      const response = await fetch(apiEndpoint, {
       method: "POST",
@@ -23,7 +26,7 @@ export const sync = internalMutation({
     });
     if (response.ok) {
       for (const event of events) {
-        await ctx.db.patch(event._id, { isSynced: true, syncTime: Date.now() });
+        await ctx.db.patch(event._id, { isSynced: true});
       }
     }  
 

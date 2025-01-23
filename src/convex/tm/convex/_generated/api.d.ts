@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as crons from "../crons.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_GlobalEventDao from "../dao/GlobalEventDao.js";
 import type * as dao_tmCharacterDataDao from "../dao/tmCharacterDataDao.js";
@@ -44,6 +45,7 @@ import type * as utils_Utlis from "../utils/Utlis.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
   "custom/session": typeof custom_session;
   "dao/GlobalEventDao": typeof dao_GlobalEventDao;
   "dao/tmCharacterDataDao": typeof dao_tmCharacterDataDao;

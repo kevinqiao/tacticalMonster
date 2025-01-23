@@ -11,6 +11,9 @@ class GameManager {
         this.dbCtx = ctx;
         this.game=null;
     }
+    getGame(){
+        return this.game;
+    }
     async createGame() {
         const players = await this.dbCtx.runQuery(internal.dao.tmPlayerDao.findAll);
         if (players.length > 1) {

@@ -111,8 +111,9 @@ export default defineSchema({
     tm_event: defineTable({
         uid: v.optional(v.string()),
         gameId: v.optional(v.string()),
+        isSynced: v.optional(v.boolean()),
         type: v.optional(v.number()),//0-phase 1-action 2-skill 
         name:v.string(),
         data: v.optional(v.any())
-    }).index("by_game", ["gameId"]).index("by_player", ["uid"])
+    }).index("by_game", ["gameId"]).index("by_player", ["uid"]).index("by_name", ["name","isSynced"])
 });

@@ -24,21 +24,16 @@ const PlayGroundMain: React.FC<PageProp> = (props) => {
       setLastTime(events[events.length - 1]["time"]);
     }
   }, [events]);
-  // useEffect(() => {
 
-  //   if (props.data && props.data.uid) {
-  //     authComplete({ uid: props.data.uid, token: "" }, 0);
-  //   }
-  // }, [props])
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%", backgroundColor: "red" }}>
         <div className="action-panel-item" onClick={() => startGame()}>
           START
         </div>
       </div>
-     
+
     </>
   );
 };

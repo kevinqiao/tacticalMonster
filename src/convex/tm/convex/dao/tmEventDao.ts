@@ -24,6 +24,13 @@ export const find = query({
     }
 
 });
+export const findToSync = internalQuery({
+    args: { name: v.string()},
+    handler: async (ctx, { name }) => {    
+        const events = await ctx.db.query("tm_event").withIndex("by_name", (q) => q.eq("name", name).eq("isSynced", false)).collect();  
+        return events?.map((event) => Object.assign({}, event, { id: event?._id,  _creationTime: undefined, _id: undefined }))
+    }
+});
 export const findByGame = internalQuery({
     args: { gameId: v.string(), lastTime: v.optional(v.number()) },
     handler: async (ctx, { gameId, lastTime }) => {
@@ -43,7 +50,8 @@ export const findByPlayer = internalQuery({
 export const create = internalMutation({
     args: { uid: v.optional(v.string()), gameId: v.optional(v.string()), name: v.string(), category: v.optional(v.string()), data: v.optional(v.any()) },
     handler: async (ctx, args) => {
-        await ctx.db.insert("tm_event", args);
+        await ctx.db.insert("tm_event",args);
+        
         return
     },
 });
