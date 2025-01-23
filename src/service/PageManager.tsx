@@ -72,6 +72,8 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   const [app, setApp] = useState<App | null>(null);
   const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; pageURI?: string } | null>(null);
   const pageContainers: PageContainer[] = useMemo(() => {
+    console.log("user", user);
+    if (!user) return [];
     return AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
       return acc.concat(
         config.navs.map((nav) => ({
@@ -81,7 +83,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
         }))
       );
     }, []);
-  }, []);
+  }, [user]);
 
   const askAuth = useCallback(({ params }: { params?: { [k: string]: string } }) => {
     if (!user?.uid)
@@ -133,7 +135,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       if (authReq?.pageURI) {
         openPage({ uri: authReq.pageURI });
       }
-      setAuthReq(null)
+      setAuthReq((pre) => pre ? null : pre);
     }
   }, [user, authReq]);
   useEffect(() => {

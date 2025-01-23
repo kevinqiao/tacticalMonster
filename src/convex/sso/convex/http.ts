@@ -10,13 +10,14 @@ http.route({
   path: "/event/sync",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-     const token = request.headers.get("Authorization");
+     const authorizaton = request.headers.get("Authorization");
+     const token = authorizaton?.split(" ")[1];
      if(!token) return new Response("Unauthorized", { status: 401 });
      
  
      const events = await request.json();
      const result = await ctx.runAction(api.service.EventReceiver.save, { token,events });
-    
+
       // console.log("result",result);
       return new Response(JSON.stringify(result), {
         status: 200,

@@ -27,7 +27,7 @@ export const SSAManager = ({ app, children }: { app: string, children: React.Rea
   }, [sessions, user, app]);
   useEffect(() => {
     const session = sessions[app];
-
+    console.log("user", user);
     console.log("session", session);
     if (!session && user?.token) {
       sessions[app] = { token: "", status: 0 };

@@ -1,22 +1,18 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "../_generated/server";
-interface GameModel{
-    gameId:string;
-    challenger:string;
-    challengee:string;
-}
-export const find = query({
-    args: { uid: v.optional(v.string()), lastTime: v.optional(v.number()) },
-    handler: async (ctx, { uid,  lastTime }) => {
-        const time = lastTime ?? Date.now();
-        console.log("event time:" + time + ":" + lastTime);      
+import { internalMutation } from "../_generated/server";
+import { sessionQuery } from "../custom/session";
+
+export const find = sessionQuery({
+    args: { lastTime: v.optional(v.number()) },
+    handler: async (ctx, { lastTime }) => {
+        const time = lastTime ?? Date.now();  
         const  events = await ctx.db
-                .query("events").withIndex("by_uid", (q) => q.eq("uid", uid).gt("_creationTime", time)).collect();            
+                .query("events").withIndex("by_uid", (q) => q.eq("uid", "1").gt("_creationTime", time)).collect();            
         
         if (events.length > 0)
-            return events.map((event) => Object.assign({}, event, { id: event?._id, time: event._creationTime, _creationTime: undefined, _id: undefined }))
+            return events.map((event) => Object.assign({}, event, {time: event._creationTime, _creationTime: undefined, _id: undefined }))
         else if (!lastTime)
-            return time    
+            return [{name:"####",time:Date.now()}]  
     }
 
 });

@@ -23,11 +23,14 @@ export const sessionQuery = customQuery(
 
     {
         // Argument validation for sessionMutation: two named args here.
-        args: { uid: v.string(), token: v.string() },
+        args: { uid: v.string(), token: v.optional(v.string()) },
         // The function handler, taking the validated arguments and context.
         input: async (ctx, { uid, token }) => {
             try {
-                const u = await ctx.db.get(uid as Id<"user">);
+                console.log(uid,token)  // const u = await ctx.db.get(uid as Id<"user">);
+
+                const u = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+                console.log("u",u);
                 return { ctx: { ...ctx, user: u }, args: {} };
             } catch (error) {
                 return { ctx: { ...ctx, user: null }, args: {} };
