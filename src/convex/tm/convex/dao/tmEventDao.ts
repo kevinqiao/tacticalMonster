@@ -6,7 +6,7 @@ export const find = query({
     args: { uid: v.optional(v.string()), gameId: v.optional(v.string()), lastTime: v.optional(v.number()) },
     handler: async (ctx, { uid, gameId, lastTime }) => {
         const time = lastTime ?? Date.now();
-        console.log("event time:" + time + ":" + lastTime)
+        // console.log("event time:" + time + ":" + lastTime)
 
         if (uid) {
             const events = await ctx.db

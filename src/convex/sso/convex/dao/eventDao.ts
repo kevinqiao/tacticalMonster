@@ -5,10 +5,12 @@ import { sessionQuery } from "../custom/session";
 export const find = sessionQuery({
     args: { lastTime: v.optional(v.number()) },
     handler: async (ctx, { lastTime }) => {
-        const time = lastTime ?? Date.now();  
+        const time = lastTime&&lastTime>0 ?lastTime: Date.now();  
+        console.log("user uid ", ctx.user?.uid);
+        console.log("time", time);  
         const  events = await ctx.db
-                .query("events").withIndex("by_uid", (q) => q.eq("uid", "1").gt("_creationTime", time)).collect();            
-        
+                .query("events").withIndex("by_uid", (q) => q.eq("uid", ctx.user?.uid).gt("_creationTime", time)).collect();            
+        console.log("events", events);
         if (events.length > 0)
             return events.map((event) => Object.assign({}, event, {time: event._creationTime, _creationTime: undefined, _id: undefined }))
         else if (!lastTime)

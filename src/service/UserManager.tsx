@@ -44,13 +44,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [events, setEvents] = useState<Event[] | null>(null);
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const convex = useConvex();
+
   const userEvents = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastTime });
   useEffect(() => {
     console.log("userEvents", userEvents);
     if (Array.isArray(userEvents) && userEvents.length > 0) {
       const event = userEvents[userEvents.length - 1] as Event;
-      setLastTime(event.time);
+
       if (event.name !== "####") {
+        setLastTime(event.time);
         const events: Event[] = userEvents;
         for (const e of events) {
           if (e.name === "GameCreated" && e.data?.gameId) {
@@ -68,14 +70,16 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             }
           }
         }
-        setEvents(userEvents);
+        // setEvents(userEvents);
+      } else {
+        const time = event.time;
+        console.log("time", event.time, time);
+        setLastTime(time);
       }
     }
   }, [userEvents]);
   const authComplete = useCallback((u: any, persist: number) => {
-    console.log("expire:", u.expire - Date.now())
     if (persist > 0) {
-      console.log("persist", u)
       localStorage.setItem("user", JSON.stringify(u));
     }
     setUser(u);
@@ -83,11 +87,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const logout = useCallback(() => {
+    console.log("logout", user)
     if (user?.uid && user?.token) {
       convex.action(api.service.AuthManager.logout, { uid: user?.uid, token: user?.token }).then(result => {
         if (result) {
           localStorage.removeItem("user");
-          setUser(null);
+          setUser({});
           setSessions({});
         }
       });

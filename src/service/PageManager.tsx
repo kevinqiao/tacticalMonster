@@ -25,6 +25,7 @@ export interface PageContainer {
   data?: any;
   init?: string;
   parentURI?: string;
+  logout?: string;
   children?: PageContainer[];
   class?: string;
   ele?: HTMLDivElement | null;
@@ -70,10 +71,8 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
-  const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; pageURI?: string } | null>(null);
+  const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; page?: PageItem } | null>(null);
   const pageContainers: PageContainer[] = useMemo(() => {
-    console.log("user", user);
-    if (!user) return [];
     return AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
       return acc.concat(
         config.navs.map((nav) => ({
@@ -83,9 +82,9 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
         }))
       );
     }, []);
-  }, [user]);
+  }, []);
 
-  const askAuth = useCallback(({ params }: { params?: { [k: string]: string } }) => {
+  const askAuth = useCallback(({ params, page }: { params?: { [k: string]: string }; page?: PageItem }) => {
     if (!user?.uid)
       setAuthReq((pre) => !pre ? { params } : pre);
   }, [user]);
@@ -98,8 +97,8 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     if (page.uri === currentPageRef.current?.page?.uri) return;
     let newPage = page;
     const container = findContainer(pageContainers, page.uri);
-    let authRequired = container?.auth === 1 && (!user || !user.uid);
-    if (container?.children && container.animate?.child) {
+    let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
+    if (!page.isHistory && container?.children && container.animate?.child) {
       const child = container.children.find((c) => c.name === container.animate?.child);
       if (child) {
         newPage = { ...page, uri: child.uri };
@@ -109,12 +108,18 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       }
     }
     if (authRequired) {
-      setAuthReq({ pageURI: newPage.uri });
+      setAuthReq({ page: newPage });
+      if (page.isHistory) {
+        console.log(currentPageRef.current.page?.uri);
+        history.replaceState({}, "", currentPageRef.current.page?.uri ?? "");
+      }
       return;
     }
     // const index = currentPageRef.current.index++; // 确保获取最新的历史索引
-    const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-    history.pushState({ index: 0 }, "", uri);
+    if (!page.isHistory) {
+      const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
+      history.pushState({ index: 0 }, "", uri);
+    }
     const prepage = currentPageRef.current.page;
     setChangeEvent({ index: 0, prepage });
     currentPageRef.current = { index: 0, page: newPage };
@@ -131,29 +136,47 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     [pageContainers]
   );
   useEffect(() => {
-    if (user) {
-      if (authReq?.pageURI) {
-        openPage({ uri: authReq.pageURI });
+    if (user?.data?.gameId && containersLoaded) {
+      openPage({ uri: "/play/map", data: { gameId: user.data.gameId } });
+    }
+  }, [user, containersLoaded]);
+  useEffect(() => {
+    if (user?.uid) {
+      if (authReq?.page?.uri) {
+        openPage({ uri: authReq.page.uri });
       }
       setAuthReq((pre) => pre ? null : pre);
     }
   }, [user, authReq]);
   useEffect(() => {
+    if (user && !user.uid) {
+      const curPage = currentPageRef.current.page;
+      if (curPage) {
+        const container = findContainer(pageContainers, curPage.uri);
+        if (container?.auth === 1) {
+          openPage({ uri: container.logout ?? "/play/main" });
+        }
+      }
+    }
+  }, [user]);
+  useEffect(() => {
     const handlePopState = (event: any) => {
       const page = parseLocation();
       if (page)
-        openPage(page);
+        openPage({ ...page, isHistory: true });
     };
-
     window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [user]);
+  useEffect(() => {
+    if (!containersLoaded) return;
     const page = parseLocation();
     if (page)
       openPage(page);
 
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [pageContainers]);
+  }, [containersLoaded]);
 
   const value = {
     changeEvent,
@@ -167,19 +190,11 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     openPage,
     onLoad,
   };
-  return (
-    <>
-      <PageContext.Provider value={value}>{children}</PageContext.Provider>
-    </>
-  );
+  return (<PageContext.Provider value={value}>{children}</PageContext.Provider>);
 };
 const PageAnimate = ({ children }: { children: React.ReactNode }) => {
   usePageAnimate();
-  return (
-    <>
-      {children}
-    </>
-  );
+  return (<>{children}</>);
 };
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   return (

@@ -6,25 +6,25 @@ import { User } from "../../../service/UserManager";
 import { AuthProps } from "../SSOController";
 // const client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
 const CustomAuthenticator: React.FC<AuthProps> = (props) => {
-    const { authComplete } = useUserManager();
+    const { user, authComplete } = useUserManager();
     const convex = useConvex();
-    const login = useCallback(async () => {
+    const login = useCallback(async (cuid: string) => {
         console.log("login");
-        const res: User | null = await convex.action(api.service.AuthManager.authenticate, { partner: 1, data: {}, channel: 1 });
+        const res: User | null = await convex.action(api.service.AuthManager.authenticate, { partner: 1, data: { cuid }, channel: 1 });
         console.log(res);
         if (res) {
             const expire = res.expire ? res.expire + Date.now() : 0;
             authComplete({ ...res, expire }, 1);
         }
     }, [convex])
-    // console.log(user);
+    console.log(user);
     return <>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%", backgroundColor: "black", pointerEvents: "auto" }}>
             <div style={{ width: 400, display: "flex" }}>
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={login}>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("11111")}>
                     Player1
                 </div>
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={login}>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("22222")}>
                     Player2
                 </div>
             </div>

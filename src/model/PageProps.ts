@@ -34,4 +34,5 @@ export default interface PageProps {
 export interface PageItem {
     data?: { [key: string]: any };
     uri: string;
+    isHistory?:boolean;
 }

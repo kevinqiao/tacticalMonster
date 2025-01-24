@@ -1,13 +1,19 @@
 import React, { useCallback } from "react";
 import { usePageManager } from "service/PageManager";
 
+import { useUserManager } from "service/UserManager";
 import "../map.css";
 const LobbyControl: React.FC = () => {
 
   const { openPage, askAuth } = usePageManager();
+  const { user, logout } = useUserManager();
   const signIn = useCallback(() => {
     askAuth({ params: { action: "signin" } });
   }, [askAuth]);
+  const signOut = useCallback(() => {
+    console.log("signOut");
+    logout();
+  }, [logout]);
   return (
     <>
 
@@ -24,9 +30,11 @@ const LobbyControl: React.FC = () => {
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main" })}>
           Play
         </div>
-        <div className="action-panel-item" onClick={signIn}>
+        {user?.uid ? <div className="action-panel-item" onClick={signOut}>
+          Logout
+        </div> : <div className="action-panel-item" onClick={signIn}>
           SignIn
-        </div>
+        </div>}
       </div>
     </>
   );

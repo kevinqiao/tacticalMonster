@@ -10,18 +10,19 @@ const ACCESS_TOKEN_SECRET = "12222222";
 export interface CUser {   
     cid?: string;
     cuid: string;
+    name?:string;
     channel: number;
-    data: {[k:string]:any};
+    data?: {[k:string]:any};
 }
 export const authenticate = action({
     args: {channel:v.number(),data:v.any(),partner:v.optional(v.number())},
     handler: async (ctx, {channel,data,partner}): Promise<User | null> => {
         const pid = partner??1;
-        const cuser = handle(data);
+        const cuser = handle(channel,data);
 
         if(cuser?.cuid && cuser?.channel){
             const cid = cuser.cuid+"-"+cuser.channel;
-            await ctx.runMutation(internal.dao.cuserDao.update,{cuid:cuser.cuid,channel:cuser.channel,data:{name:"kevin1"}}); 
+            await ctx.runMutation(internal.dao.cuserDao.update,{cuid:cuser.cuid,channel:cuser.channel,data:cuser.data}); 
             const uid = cid+"-"+pid;
             let user:User|null = await ctx.runQuery(internal.dao.userDao.find,{uid});
             if(!user){              
