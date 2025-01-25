@@ -38,7 +38,7 @@ export const PlayPlace =
             animate: { open: "fadeIn", close: "fadeOut",child:"child2" },
             control: "./kumu/lobby/LobbyControl",
             children: [
-                { name: "child1", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child1", uri: "c1",logout:"/play/lobby/c3", auth: 1,animate: { open: "slideIn"} },
+                { name: "child1", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 1,animate: { open: "slideIn"} },
                 { name: "child2", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 1,animate: { open: "slideIn"} },
                 { name: "child3", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0,animate: { open: "slideIn"} },
             ]

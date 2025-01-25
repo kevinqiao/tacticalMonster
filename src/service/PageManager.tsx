@@ -147,17 +147,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       setAuthReq((pre) => pre ? null : pre);
     }
   }, [user, authReq]);
-  useEffect(() => {
-    if (user && !user.uid) {
-      const curPage = currentPageRef.current;
-      if (curPage) {
-        const container = findContainer(pageContainers, curPage.uri);
-        if (container?.auth === 1) {
-          openPage({ uri: container.logout ?? "/play/main" });
-        }
-      }
-    }
-  }, [user]);
+
   useEffect(() => {
     const handlePopState = (event: any) => {
       const page = parseLocation();
