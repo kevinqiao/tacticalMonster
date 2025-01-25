@@ -96,6 +96,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     if (page.uri === currentPageRef.current?.uri) return;
     let newPage = page;
     console.log(page);
+    console.log(currentPageRef.current)
     const container = findContainer(pageContainers, page.uri);
     if (!page.isHistory) {
       let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
@@ -118,6 +119,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       }
     }
     const prepage = currentPageRef.current;
+    console.log(prepage)
     setChangeEvent({ prepage, page: newPage });
     currentPageRef.current = newPage;
   }, [pageContainers, user]);

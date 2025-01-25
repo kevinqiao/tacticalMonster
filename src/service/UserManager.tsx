@@ -44,40 +44,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [events, setEvents] = useState<Event[] | null>(null);
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const convex = useConvex();
-
   const userEvents = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastTime });
-  useEffect(() => {
-    console.log("userEvents", userEvents);
-    if (Array.isArray(userEvents) && userEvents.length > 0) {
-      const event = userEvents[userEvents.length - 1] as Event;
 
-      if (event.name !== "####") {
-        setLastTime(event.time);
-        const events: Event[] = userEvents;
-        for (const e of events) {
-          if (e.name === "GameCreated" && e.data?.gameId) {
-            if (user?.uid) {
-              const gameId = e.data?.gameId;
-              if (gameId) {
-                setUser((pre) => {
-                  if (pre) {
-                    pre.data = pre.data ? { ...pre.data, gameId } : { gameId }
-                    return { ...pre }
-                  }
-                  return null
-                })
-              }
-            }
-          }
-        }
-        // setEvents(userEvents);
-      } else {
-        const time = event.time;
-        console.log("time", event.time, time);
-        setLastTime(time);
-      }
-    }
-  }, [userEvents]);
+
+
   const authComplete = useCallback((u: any, persist: number) => {
     if (persist > 0) {
       localStorage.setItem("user", JSON.stringify(u));
@@ -110,7 +80,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     })
   }, []);
   useEffect(() => {
-
     const userJSON = localStorage.getItem("user");
     if (userJSON !== null) {
       const userObj = JSON.parse(userJSON);
@@ -132,15 +101,36 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       setUser({});
     }
-
-
   }, []);
+  useEffect(() => {
+    console.log("userEvents", userEvents);
+    if (Array.isArray(userEvents) && userEvents.length > 0) {
+      const event = userEvents[userEvents.length - 1] as Event;
+
+      if (event.name !== "####") {
+        setLastTime(event.time);
+        const events: Event[] = userEvents;
+        for (const e of events) {
+          if (e.name === "GameCreated" && e.data?.gameId && user?.uid) {
+            const gameId = e.data?.gameId;
+            if (gameId) {
+              setUser((pre) => {
+                if (pre) {
+                  pre.data = pre.data ? { ...pre.data, gameId } : { gameId }
+                  return { ...pre }
+                }
+                return null
+              })
+            }
+          }
+        }
+      } else {
+        setLastTime(event.time);
+      }
+    }
+  }, [userEvents]);
   const value = { user, authComplete, logout, sessions, updateSession, events };
-  return (
-    <>
-      <UserContext.Provider value={value}>{children}</UserContext.Provider>
-    </>
-  );
+  return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {
   return useContext(UserContext);

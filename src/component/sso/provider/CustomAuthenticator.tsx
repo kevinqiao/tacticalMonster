@@ -19,7 +19,7 @@ const CustomAuthenticator: React.FC<AuthProps> = (props) => {
     }, [convex])
     console.log(user);
     return <>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%", backgroundColor: "black", pointerEvents: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%", backgroundColor: "white", pointerEvents: "auto" }}>
             <div style={{ width: 400, display: "flex" }}>
                 <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("11111")}>
                     Player1

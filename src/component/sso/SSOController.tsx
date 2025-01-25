@@ -1,5 +1,5 @@
-import { PageItem } from "model/PageProps";
-import React, { FunctionComponent, lazy, Suspense, useMemo, useState } from "react";
+import gsap from "gsap";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
@@ -20,7 +20,6 @@ export interface AuthInit {
   open: number;
   // cancelPage: PageItem | null;
   cancel: () => void;
-  afterSignedPage: PageItem;
 }
 export interface AuthProps {
   authInit?: AuthInit;
@@ -29,33 +28,96 @@ export interface AuthProps {
 // const sso_client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
 const SSOController: React.FC = () => {
   const { user } = useUserManager();
-  const { pageContainers, changeEvent, authReq, cancelAuth } = usePageManager();
+  const { pageContainers, currentPage, changeEvent, authReq, cancelAuth } = usePageManager();
   const [authInit, setAuthInit] = useState<AuthInit | undefined>(undefined);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const maskRef = useRef<HTMLDivElement>(null);
 
-  const SelectedComponent: FunctionComponent<AuthProps> = useMemo(() => {
+  const SelectedComponent = useMemo(() => {
     return lazy(() => import(`./provider/CustomAuthenticator`));
   }, []);
 
   const isOpen = useMemo(() => {
     if (authReq) return true;
-    const page = changeEvent?.page;
-    if (page) {
-      const container = findContainer(pageContainers, page.uri);
+    // const page = currentPage;
+    if (currentPage) {
+      const container = findContainer(pageContainers, currentPage.uri);
       return container?.auth === 1 && (!user || !user.uid) ? true : false;
     }
     return false;
-  }, [authReq, changeEvent, user, pageContainers]);
+  }, [authReq, currentPage, changeEvent, user, pageContainers]);
+  const canClose = useMemo(() => {
+    return currentPage && authReq;
+  }, [currentPage, authReq]);
+  const close = useCallback(() => {
+    if (canClose) {
+      cancelAuth();
+    }
+  }, [cancelAuth, canClose]);
 
+  useEffect(() => {
+    if (containerRef.current && maskRef.current) {
+      const tl = gsap.timeline();
+      if (isOpen) {
+        tl.fromTo(maskRef.current,
+          { opacity: 0 },
+          { opacity: 0.5, duration: 0.3 }, 0);
+        tl.fromTo(containerRef.current,
+          { x: "100%" },
+          { x: 0, duration: 0.3, ease: "power2.out" }, 0);
+      } else {
+        tl.to(maskRef.current, {
+          opacity: 0,
+          duration: 0.3
+        }, 0);
+        tl.to(containerRef.current, {
+          x: "100%",
+          duration: 0.3,
+          ease: "power2.in"
+        }, 0);
+      }
+      tl.play();
+    }
+  }, [isOpen]);
 
   return (
     // <ConvexProvider client={sso_client}>
     <div style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "transparent", pointerEvents: "none" }}>
-      {isOpen ? <>
-        <Suspense fallback={<div />}>
-          <SelectedComponent authInit={authInit} />
-        </Suspense>
-        {changeEvent?.prepage && authReq && <div className="exit-menu" onClick={cancelAuth}></div>}
-      </> : null}
+      {/* 遮罩层 */}
+      <div ref={maskRef} style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "black",
+        opacity: 0,
+        pointerEvents: isOpen ? "auto" : "none"
+      }} onClick={close} />
+
+      {/* 滑动面板 */}
+      <div ref={containerRef} style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        width: "40%",
+        height: "100%",
+        minWidth: 400,
+        maxWidth: 500,
+        pointerEvents: "auto",
+        zIndex: 1
+      }}>
+
+        <>
+          <Suspense fallback={<div />}>
+            <SelectedComponent authInit={authInit} />
+          </Suspense>
+          {canClose && (
+            <div className="exit-menu" onClick={close}></div>
+          )}
+        </>
+
+      </div>
     </div>
 
     // </ConvexProvider>
