@@ -52,9 +52,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     if (persist > 0) {
       localStorage.setItem("user", JSON.stringify(u));
     }
+    Object.keys(sessions).forEach(key => delete sessions[key]);
+    console.log("u", u)
+    if (u.expire)
+      setTimeout(() => refreshToken({ uid: u.uid, token: u.token }), u.expire - 1000)
     setUser(u);
-    setSessions({})
-  }, []);
+  }, [sessions]);
 
   const logout = useCallback(() => {
     console.log("logout", user)
@@ -69,31 +72,51 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user]);
   const updateSession = useCallback((app: string, session: { token: string; status: number }) => {
-    setSessions((pre) => {
-      const s = pre[app]
-      if (s) {
-        s.token = session.token
-        s.status = session.status
-        return { ...pre }
-      }
-      return pre
-    })
+    setSessions(pre => ({ ...pre, [app]: session }))
+    // setSessions((pre) => {
+    //   const s = pre[app]
+    //   if (s) {
+    //     s.token = session.token
+    //     s.status = session.status
+    //     return { ...pre }
+    //   }
+    //   return pre
+    // })
   }, []);
+  const refreshToken = useCallback(({ uid, token }: { uid: string, token: string }) => {
+
+    convex.action(api.service.AuthManager.refreshToken, { uid, token }).then(u => {
+      console.log("refresh", u);
+      // Object.keys(sessions).forEach(key => delete sessions[key]);
+      if (u?.uid && u?.token) {
+        const userId = u.uid;
+        const userToken = u.token;
+        setTimeout(() => refreshToken({ uid: userId, token: userToken }), u.expire ? u.expire - 1000 : 50000);
+        const expire = u.expire ? u.expire + Date.now() : 0;
+        localStorage.setItem("user", JSON.stringify({ ...u, expire }));
+        setUser((pre) => pre && pre.uid === u.uid ? Object.assign(pre, { token: u.token }) : u)
+      } else
+        setUser({})
+      setSessions({});
+    });
+  }, [sessions]);
   useEffect(() => {
     const userJSON = localStorage.getItem("user");
+    console.log("userJSON", userJSON)
     if (userJSON !== null) {
       const userObj = JSON.parse(userJSON);
       const { uid, token, expire } = userObj;
       if (uid && token && (!expire || expire > Date.now())) {
-        convex.action(api.service.AuthManager.refreshToken, { uid, token }).then(u => {
-          console.log("refresh", u);
-          if (u) {
-            const expire = u.expire ? u.expire + Date.now() : 0;
-            localStorage.setItem("user", JSON.stringify({ ...u, expire }));
-            setUser(u)
-          } else
-            setUser(null)
-        });
+        refreshToken({ uid, token });
+        // convex.action(api.service.AuthManager.refreshToken, { uid, token }).then(u => {
+        //   console.log("refresh", u);
+        //   if (u) {
+        //     const expire = u.expire ? u.expire + Date.now() : 0;
+        //     localStorage.setItem("user", JSON.stringify({ ...u, expire }));
+        //     setUser(u)
+        //   } else
+        //     setUser(null)
+        // });
       } else {
         localStorage.removeItem("user");
         setUser({});

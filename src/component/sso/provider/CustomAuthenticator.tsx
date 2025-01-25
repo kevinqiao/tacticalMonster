@@ -13,8 +13,7 @@ const CustomAuthenticator: React.FC<AuthProps> = (props) => {
         const res: User | null = await convex.action(api.service.AuthManager.authenticate, { partner: 1, data: { cuid }, channel: 1 });
         console.log(res);
         if (res) {
-            const expire = res.expire ? res.expire + Date.now() : 0;
-            authComplete({ ...res, expire }, 1);
+            authComplete(res, 1);
         }
     }, [convex])
     console.log(user);
