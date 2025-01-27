@@ -19,17 +19,16 @@ export const save = action({
     //   throw new Error('Invalid token');
     // }
     // const appid = payload.appid;  
-    console.log("token",token);
+
     for(const event of events){
-      console.log("event",event);
-      if(event.name === "GameCreated"){
-        const challengerEvent = {uid:event.data.challenger,name:"GameCreated",data:{gameId:event.data.id}};
-        const challengeeEvent = {uid:event.data.challengee,name:"GameCreated",data:{gameId:event.data.id}};
-        await ctx.runMutation(internal.dao.eventDao.create, challengerEvent);
-        await ctx.runMutation(internal.dao.eventDao.create, challengeeEvent);
-      }else{
-        await ctx.runMutation(internal.dao.eventDao.create, event);
-      } 
+      console.log("event",event)
+       if(event.name === "GameCreated"&&event.uid){
+        const user = await ctx.runMutation(internal.dao.userDao.update, {uid:event.uid,data:{data:event.data}});
+       }else if(event.name === "GameOver"&&event.uid){
+        console.log("GameOver",event)
+        // const user = await ctx.runMutation(internal.dao.userDao.update, {uid:event.uid,data:{data:{gameId:null}}});
+       }
+      await ctx.runMutation(internal.dao.eventDao.create, event);
     }
     return true;   
   }

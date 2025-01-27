@@ -1,4 +1,5 @@
 
+import GameLauncher from "component/kumu/GameLanucher";
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
@@ -69,6 +70,7 @@ const App: React.FC = () => {
     <Providers>
       <StyleApp />
       <SSOController />
+      <GameLauncher />
     </Providers>
 
   );

@@ -30,86 +30,24 @@ const query = async (ctx:any,gameId:string)=>{
 }
 export const find = sessionQuery({
     args: { gameId: v.string()},
-    handler: async (ctx, { gameId }) => {
-        return await query(ctx,gameId);
-        // const id = gameId as Id<"tm_game">;
-        // const game = await ctx.db.get(id);      
-        // if(game){
-        //     const gameCharacters = [];
-        //     const currentRound = await ctx.db.query("tm_game_round").withIndex("by_game_round", (q) => q.eq("gameId", game._id).eq("no", game.round)).unique();
-        //     const characters = await ctx.db
-        //     .query("tm_game_character").withIndex("by_game", (q) => q.eq("gameId", gameId)).collect();
-        //     for(const character of characters){
-        //         const skillDoc = await ctx.db.query("tm_skill_data").withIndex("by_character", (q) => q.eq("character_id", character.character_id)).unique();
-        //         // console.log("skillDoc", skillDoc);
-        //         const skills = skillDoc?.skills.filter((skill)=>
-        //             character.skills?.includes(skill.id))
-        //         gameCharacters.push({...character, skills})
-        //     } 
-        //     const map = await ctx.db.query("tm_map_data").withIndex("by_map_id", (q) => q.eq("map_id", game.map)).unique();
-        //     return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,currentRound: currentRound ? {
-        //         ...currentRound,
-        //         id: currentRound._id,
-        //         _id: undefined,
-        //         _creationTime: undefined,
-        //         no: currentRound.no || game.round
-        //     } : undefined,characters:gameCharacters ,map:{...map, _id: undefined, _creationTime: undefined }  }
-        // }
-        // return null
+    handler: async (ctx, { gameId }) => {      
+         return await query(ctx,gameId); 
     },
 });
 export const get = internalQuery({
     args: { gameId: v.string()},
     handler: async (ctx, { gameId }) => {
         return await query(ctx,gameId); 
-        // const id = gameId as Id<"tm_game">;
-        // const game = await ctx.db.get(id);      
-        // if(game){
-        //     const gameCharacters = [];
-        //     const currentRound = await ctx.db.query("tm_game_round").withIndex("by_game_round", (q) => q.eq("gameId", game._id).eq("no", game.round)).unique();
-        //     const characters = await ctx.db
-        //     .query("tm_game_character").withIndex("by_game", (q) => q.eq("gameId", gameId)).collect();
-        //     for(const character of characters){
-        //         const skillDoc = await ctx.db.query("tm_skill_data").withIndex("by_character", (q) => q.eq("character_id", character.character_id)).unique();
-        //         // console.log("skillDoc", skillDoc);
-        //         const skills = skillDoc?.skills.filter((skill)=>
-        //             character.skills?.includes(skill.id))
-        //         gameCharacters.push({...character, skills})
-        //     } 
-        //     const map = await ctx.db.query("tm_map_data").withIndex("by_map_id", (q) => q.eq("map_id", game.map)).unique();
-        //     return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,currentRound: currentRound ? {
-        //         ...currentRound,
-        //         id: currentRound._id,
-        //         _id: undefined,
-        //         _creationTime: undefined,
-        //         no: currentRound.no || game.round
-        //     } : undefined,characters:gameCharacters ,map:{...map, _id: undefined, _creationTime: undefined }  }
-        // }
-        // return null
     },
 });
-// export const get = internalQuery({
-//     args: { gameId: v.string()},
-//     handler: async (ctx, { gameId }) => {
-    
-//         const id = gameId as Id<"tm_game">;
-//         const game = await ctx.db.get(id);      
-//         if(game){
-//             const currentRound = await ctx.db.query("tm_game_round").withIndex("by_game_round", (q) => q.eq("gameId", game._id).eq("no", game.round)).unique();
-//             const characters = await ctx.db
-//             .query("tm_game_character").withIndex("by_game", (q) => q.eq("gameId", gameId)).collect();
-//             const map = await ctx.db.query("tm_map_data").withIndex("by_map_id", (q) => q.eq("map_id", game.map)).unique();
-//             return { ...game, id: game?._id, _id: undefined, createTime: game?._creationTime,currentRound: currentRound ? {
-//                 ...currentRound,
-//                 id: currentRound._id,
-//                 _id: undefined,
-//                 _creationTime: undefined,
-//                 no: currentRound.no || game.round
-//             } : undefined,characters ,map:{...map, _id: undefined, _creationTime: undefined }  }
-//         }
-//         return null
-//     },
-// });
+export const select = internalQuery({
+    args: { gameId: v.string()},
+    handler: async (ctx, { gameId }) => {    
+        const id = gameId as Id<"tm_game">;
+        const game = await ctx.db.get(id); 
+        return game;     
+     },
+ });
 
 export const create = internalMutation({
     args: {

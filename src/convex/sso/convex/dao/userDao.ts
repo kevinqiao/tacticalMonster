@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { sessionMutation } from "../custom/session";
 
 export const create = internalMutation({
     args: {
@@ -44,13 +45,28 @@ export const update = internalMutation({
         data: v.any()
     },
     handler: async (ctx, { uid, data }) => {
-        console.log("update user");
        const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();    
-       console.log(user);
-       if(user){
-        await ctx.db.patch(user._id, data);     
-        return true;
+        if(user){
+            console.log("data",data)    
+            if(user.data)
+                data.data = user.data ? Object.assign({},user.data, data.data) : data.data;        
+            await ctx.db.patch(user._id, data);     
+            return true;
        }
        return false;
     },
 })
+export const completeGame = sessionMutation({
+    args: {},
+    handler: async (ctx,args) => {
+        const u = ctx.user;
+        if(u?.uid){
+            const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", u.uid)).unique();
+            if(user?.data){
+                await ctx.db.patch(user._id,{data:{...user.data,gameId:undefined}});
+                return true;
+            }
+        }
+        return false;
+    },
+})    

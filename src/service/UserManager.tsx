@@ -12,7 +12,7 @@ export interface User {
   name?: string;
   email?: string;
   phone?: string;
-  data?: { [k: string]: string };
+  data?: { [k: string]: any };
 }
 interface Event {
   uid?: string;
@@ -24,6 +24,7 @@ interface IUserContext {
   user: any;
   sessions: { [k: string]: { token: string; status: number } };
   events: Event[] | null;
+  completeGame: () => void;
   updateSession: (app: string, session: { token: string; status: number }) => void;
   authComplete: (user: any, persist: number) => void;
   logout: () => void;
@@ -34,6 +35,7 @@ const UserContext = createContext<IUserContext>({
   sessions: {},
   events: null,
   updateSession: () => null,
+  completeGame: () => null,
   logout: () => null,
   authComplete: (user: any, persist: number) => null,
 });
@@ -53,14 +55,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.setItem("user", JSON.stringify(u));
     }
     Object.keys(sessions).forEach(key => delete sessions[key]);
-    console.log("u", u)
-    if (u.expire)
-      setTimeout(() => refreshToken({ uid: u.uid, token: u.token }), u.expire - 1000)
-    setUser(u);
+    if (u.expire > 0) {
+      setTimeout(() => refreshToken({ uid: u.uid, token: u.token }), u.expire - 10000)
+      u.expire = u.expire + Date.now();
+      localStorage.setItem("user", JSON.stringify(u));
+      setUser(u);
+    }
+
   }, [sessions]);
 
   const logout = useCallback(() => {
-    console.log("logout", user)
+
     if (user?.uid && user?.token) {
       convex.action(api.service.AuthManager.logout, { uid: user?.uid, token: user?.token }).then(result => {
         if (result) {
@@ -71,30 +76,34 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       });
     }
   }, [user]);
+  const completeGame = useCallback(() => {
+    if (user?.uid && user?.token) {
+      convex.mutation(api.dao.userDao.completeGame, { uid: user.uid, token: user.token }).then((res) => {
+        console.log("completeGame", res)
+        if (res) {
+          setUser((pre) => {
+            if (pre?.data)
+              pre.data.gameId = undefined;
+            return pre
+          })
+        }
+      })
+    }
+  }, [user]);
   const updateSession = useCallback((app: string, session: { token: string; status: number }) => {
     setSessions(pre => ({ ...pre, [app]: session }))
-    // setSessions((pre) => {
-    //   const s = pre[app]
-    //   if (s) {
-    //     s.token = session.token
-    //     s.status = session.status
-    //     return { ...pre }
-    //   }
-    //   return pre
-    // })
   }, []);
   const refreshToken = useCallback(({ uid, token }: { uid: string, token: string }) => {
-
     convex.action(api.service.AuthManager.refreshToken, { uid, token }).then(u => {
-      console.log("refresh", u);
-      // Object.keys(sessions).forEach(key => delete sessions[key]);
       if (u?.uid && u?.token) {
         const userId = u.uid;
         const userToken = u.token;
-        setTimeout(() => refreshToken({ uid: userId, token: userToken }), u.expire ? u.expire - 1000 : 50000);
-        const expire = u.expire ? u.expire + Date.now() : 0;
-        localStorage.setItem("user", JSON.stringify({ ...u, expire }));
-        setUser((pre) => pre && pre.uid === u.uid ? Object.assign(pre, { token: u.token }) : u)
+        const timeout = u.expire ? u.expire - 10000 : 50000;
+        console.log("timeout", timeout);
+        setTimeout(() => refreshToken({ uid: userId, token: userToken }), timeout);
+        u.expire = timeout + Date.now();
+        localStorage.setItem("user", JSON.stringify(u));
+        setUser((pre) => pre && pre.uid === u.uid ? Object.assign(pre, u) : u)
       } else
         setUser({})
       setSessions({});
@@ -102,21 +111,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, [sessions]);
   useEffect(() => {
     const userJSON = localStorage.getItem("user");
-    console.log("userJSON", userJSON)
+
     if (userJSON !== null) {
       const userObj = JSON.parse(userJSON);
       const { uid, token, expire } = userObj;
+
       if (uid && token && (!expire || expire > Date.now())) {
         refreshToken({ uid, token });
-        // convex.action(api.service.AuthManager.refreshToken, { uid, token }).then(u => {
-        //   console.log("refresh", u);
-        //   if (u) {
-        //     const expire = u.expire ? u.expire + Date.now() : 0;
-        //     localStorage.setItem("user", JSON.stringify({ ...u, expire }));
-        //     setUser(u)
-        //   } else
-        //     setUser(null)
-        // });
       } else {
         localStorage.removeItem("user");
         setUser({});
@@ -126,7 +127,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
   useEffect(() => {
-    console.log("userEvents", userEvents);
+
     if (Array.isArray(userEvents) && userEvents.length > 0) {
       const event = userEvents[userEvents.length - 1] as Event;
 
@@ -152,7 +153,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [userEvents]);
-  const value = { user, authComplete, logout, sessions, updateSession, events };
+  const value = { user, authComplete, logout, sessions, updateSession, events, completeGame };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

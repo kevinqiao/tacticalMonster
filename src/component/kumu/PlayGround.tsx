@@ -5,23 +5,7 @@ import { SSAProvider } from "service/SSAManager";
 import { api } from "../../convex/tm/convex/_generated/api";
 import "./map.css";
 const PlayGroundMain: React.FC<PageProp> = (props) => {
-  // const [lastTime, setLastTime] = useState<number | undefined>(undefined);
-  // const { openPage } = usePageManager();
-  // const events = useQuery(api.dao.tmEventDao.find, { uid: "1", lastTime });
-  const startGame = useAction(api.service.tmGameProxy.start);
-  // useEffect(() => {
-  //   console.log("events", events);
-  //   if (typeof events === "number") setLastTime((pre) => (!pre || pre !== events ? events : pre));
-  //   else if (events && events.length > 0) {
-  //     for (const event of events) {
-  //       const gameEvent = event as { name: string; uid: string; time: number; data: any; id: string };
-  //       if (gameEvent.name === "GameCreated") {
-  //         openPage({ uri: "/play/map", data: gameEvent.data });
-  //       }
-  //     }
-  //     setLastTime(events[events.length - 1]["time"]);
-  //   }
-  // }, [events]);
+const startGame = useAction(api.service.tmGameProxy.start);
 
 
   return (

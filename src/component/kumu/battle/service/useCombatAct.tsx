@@ -110,6 +110,21 @@ const useCombatAct = () => {
   const defend = useCallback(() => {
     console.log("defend....");
   }, []);
-  return { walk, attack, defend, standBy, selectSkill };
+  const gameOver = useCallback(async () => {
+    if (!gameId || !user.uid || !user.token) return;
+    const res = await convex.action(api.service.tmGameProxy.gameOver, {
+      gameId,
+      uid: user.uid,
+      token: "test-token",
+    });
+    if (!res) {
+      console.log("gameOver failed");
+    } else {
+      console.log("gameOver success");
+    }
+
+  }, [user, gameId, convex]);
+  return { walk, attack, defend, standBy, selectSkill, gameOver };
 };
 export default useCombatAct;
+

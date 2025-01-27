@@ -1,5 +1,4 @@
 import { PageProp } from "component/RenderApp";
-import { ConvexReactClient } from "convex/react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { SSAProvider } from "service/SSAManager";
 import { useUserManager } from "service/UserManager";
@@ -12,12 +11,12 @@ import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 
-const client = new ConvexReactClient("https://shocking-leopard-487.convex.cloud");
+// const client = new ConvexReactClient("https://shocking-leopard-487.convex.cloud");
 const CombatActPanel: React.FC = () => {
   const { activeSkill, currentRound, characters } = useCombatManager();
   const [activeListOpen, setActiveListOpen] = useState(false);
   const [activeSkills, setActiveSkills] = useState<Skill[] | null>(null);
-  const { selectSkill } = useCombatAct();
+  const { selectSkill, gameOver } = useCombatAct();
   // const doSomething = useAction(api.rule.test.doSomething);
   // const startGame = useAction(api.service.tmGameProxy.start);
 
@@ -47,7 +46,6 @@ const CombatActPanel: React.FC = () => {
       {activeSkill && <div className="action-panel-item" onClick={() => setActiveListOpen((pre) => !pre)}>
         {activeSkill.name}
       </div>}
-
       <div className="action-panel-item">STANDBY</div>
       <div className="action-panel-item">
         DEFEND
@@ -55,6 +53,7 @@ const CombatActPanel: React.FC = () => {
       {activeListOpen && activeSkills && <div style={{ position: "absolute", top: 45, left: 0, width: "100%", height: 40 }}>
         {activeSkills.filter((skill) => skill.id !== activeSkill?.id).map((skill, index) => <div className="action-panel-item" key={skill.id} onClick={() => handleSelectSkill(skill)}>{skill.name}</div>)}
       </div>}
+      <div className="action-panel-item" onClick={() => gameOver()} >GAME OVER</div>
     </div>
   );
 };
@@ -183,22 +182,13 @@ const BattleVenue: React.FC = () => {
 };
 const BattlePlayer: React.FC<PageProp> = ({ data }) => {
 
-  const { user, authComplete } = useUserManager();
-  // useEffect(() => {
-  //   if (data) {
-  //     authComplete({ uid: data.uid ?? "1", token: "" }, 0);
-  //   }
-  // }, [data, authComplete])
-
   if (!data || !data.gameId) return;
-  console.log("user", user)
+
   return (
     <SSAProvider app="tacticalMonster">
-
       <BattleProvider gameId={data.gameId}>
         <BattleVenue></BattleVenue>
       </BattleProvider>
-
     </SSAProvider>
   );
 };

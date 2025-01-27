@@ -61,7 +61,7 @@ class GameManager {
     }
     async selectSkill(gameId: string, data: { skillId: string } ): Promise<boolean> {
         console.log("attack", gameId, data);
-        this.game = await this.dbCtx.runQuery(internal.dao.tmGameDao.get, { gameId }); 
+        this.game = await this.dbCtx.runQuery(internal.dao.tmGameDao.select, { gameId }); 
         if(!this.game?.currentRound) return false;  
         const {skillId}=data;
         const currentTurn = this.game?.currentRound?.turns?.find((turn:CombatTurn)=>turn.status===1||turn.status===2);

@@ -1,4 +1,6 @@
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
+import { Id } from "../_generated/dataModel";
 import { action } from "../_generated/server";
 import { sessionAction, sessionQuery } from "../custom/session";
 import GameManager from "./tmGameManager";
@@ -12,17 +14,16 @@ export const start = action({
              await gameService.createGame();
              const game = gameService.getGame();
              if(game){
-                const event = {
-                    name:"GameCreated",
-                    data:{id:game.gameId,challenger:game.challenger,challengee:game.challengee}
-                }       
+                const events=[{name:"GameCreated", uid:game.challenger,data:{gameId:game.gameId}},
+                    {name:"GameCreated",uid:game.challengee,data:{gameId:game.gameId}}]
+        
                 const response = await fetch(apiEndpoint, {
                     method: "POST",
                     headers: {
                         "Authorization": `Bearer ${apiToken}`, // 添加认证头
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify([event]), // 将数据序列化为 JSON 格式
+                    body: JSON.stringify(events), // 将数据序列化为 JSON 格式
                 });
                 console.log("response",response);
             }
@@ -53,8 +54,7 @@ export const defend = sessionAction({
 export const attack = sessionAction({
     args: {  gameId: v.string(), data: v.any() },
     handler: async (ctx, { gameId, data }) => {
-        console.log("attack", gameId, data);
-        console.log("user", ctx.user)
+
          if (!ctx.user) return false;
 
         const gameService = new GameManager(ctx);
@@ -75,4 +75,10 @@ export const selectSkill = sessionAction({
         return await gameService.selectSkill(gameId, data);
     }
 })
-
+export const gameOver = sessionAction({
+    args: { gameId: v.string()},
+    handler: async (ctx, {gameId}) => {
+        await ctx.runMutation(internal.dao.tmGameDao.update, {id:gameId as Id<"tm_game">, data:{status:1}})  
+        return true;
+    }
+})
