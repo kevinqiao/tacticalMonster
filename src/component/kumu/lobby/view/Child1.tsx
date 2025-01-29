@@ -1,6 +1,8 @@
+import BattlePlayer from "component/ludo/battle/BattlePlayer";
 import { PageProp } from "component/RenderApp";
 import React from "react";
 import { SSAProvider, useSSAManager } from "service/SSAManager";
+import "./style.css";
 const ChildMain: React.FC = () => {
   const { credentials } = useSSAManager();
   // console.log(credentials);
@@ -12,11 +14,17 @@ const ChildMain: React.FC = () => {
         alignItems: "center",
         width: "100%",
         height: "100%",
-        backgroundColor: "red",
+        backgroundColor: "white",
       }}
     >
-      <div className="action-panel-item">Child1</div>
-      <div className="action-panel-item">Close</div>
+
+      <BattlePlayer data={{ gameId: "1" }} />
+      {/* <div className="square">
+        <div className="triangle red"></div>
+        <div className="triangle blue"></div>
+        <div className="triangle green"></div>
+        <div className="triangle yellow"></div>
+      </div> */}
     </div>
   )
 }

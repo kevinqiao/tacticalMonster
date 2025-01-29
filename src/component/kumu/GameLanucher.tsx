@@ -7,7 +7,7 @@ import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/tm/convex/_generated/api";
 import "./map.css";
 const GameLauncherMain: React.FC = () => {
-  const { user, sessions, completeGame } = useUserManager();
+  const { user, completeGame } = useUserManager();
   const { openPage } = usePageManager();
   const containerRef = useRef<HTMLDivElement>(null);
   const maskRef = useRef<HTMLDivElement>(null);
@@ -32,10 +32,11 @@ const GameLauncherMain: React.FC = () => {
   const handlePlay = useCallback(() => {
     close();
     openPage({ uri: "/play/map", data: { gameId: user?.data.gameId } });
-  }, [user]);
+  }, [close, user, openPage]);
   useEffect(() => {
 
     const fetchGame = async (gameId: string) => {
+      console.log("fetchGame", user?.data.gameId)
       if (user?.data.gameId) {
         const gameObj = await convex.query(api.dao.tmGameDao.find, {
           gameId: user.data.gameId, uid: "1",
@@ -50,6 +51,7 @@ const GameLauncherMain: React.FC = () => {
       }
     }
     console.log(location.pathname)
+    console.log(user)
     if (user?.data?.gameId && !location.pathname.includes("/play/map")) fetchGame(user.data.gameId);
   }, [user, completeGame]);
 
@@ -63,9 +65,10 @@ const GameLauncherMain: React.FC = () => {
       height: "100%",
       backgroundColor: "black",
       opacity: 0,
+      visibility: "hidden"
     }} />
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "transparent", pointerEvents: "none" }}>
-      <div ref={containerRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 200, height: 150, backgroundColor: "red", opacity: 0, pointerEvents: "auto" }}>
+      <div ref={containerRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 200, height: 150, backgroundColor: "red", opacity: 0, visibility: "hidden", pointerEvents: "auto" }}>
         <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: 80, height: 40, backgroundColor: "white" }} onClick={handlePlay}>Play</div>
         <div style={{ width: 80, height: 10 }}></div>
         <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: 80, height: 40, backgroundColor: "white" }} onClick={close}>Exit</div>

@@ -1,0 +1,41 @@
+.square {
+    position: relative;
+    width: 200px;
+    /* 正方形的边长 */
+    height: 200px;
+    background-color: #ffffff;
+    overflow: hidden;
+    /* 隐藏超出区域 */
+}
+
+/* 通用三角形样式 */
+.triangle {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(50% 50%, 0% 0%, 100% 0%);
+}
+
+/* 红色三角形 */
+.red {
+    background-color: red;
+    clip-path: polygon(50% 50%, 0% 0%, 100% 0%);
+}
+
+/* 蓝色三角形 */
+.blue {
+    background-color: blue;
+    clip-path: polygon(50% 50%, 100% 0%, 100% 100%);
+}
+
+/* 绿色三角形 */
+.green {
+    background-color: green;
+    clip-path: polygon(50% 50%, 100% 100%, 0% 100%);
+}
+
+/* 黄色三角形 */
+.yellow {
+    background-color: yellow;
+    clip-path: polygon(50% 50%, 0% 100%, 0% 0%);
+}
