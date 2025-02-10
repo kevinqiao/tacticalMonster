@@ -1,5 +1,5 @@
 import { Spine } from "pixi-spine";
-import { Character, Effect, Skill } from "./CharacterTypes";
+import { Character } from "./CharacterTypes";
 import { Seat } from "./GridTypes";
 
 
@@ -31,12 +31,7 @@ export interface CombatEvent {
 }
 export interface GameModel {
   gameId: string;
-  map: MapModel;
-  direction?: number;
-  challenger: string;
-  challengee: string;
   players: Player[];
-  characters: GameCharacter[];
   currentRound?: CombatRound;
   timeClock?: number;
 }
@@ -87,39 +82,10 @@ export interface GridCell {
 
 
 
-export interface WalkableNode extends HexNode {
-    // path: { x: number; y: number }[];
- 
-    distance?: number; // 距离角色的步数
-}
-
-export interface AttackableNode extends HexNode {
-    uid:string;
-    character_id:string;  
-    distance: number; // 距离角色的步数
-}
 export interface PlayerCharacter extends Character {
     uid: string;
 }
-export interface GameCharacter extends Character {
-    uid: string;
-    character_id: string;
-    scaleX?: number; 
-    q?: number;
-    r?: number;
-    skills?: Skill[];
-    status?: 'normal' | 'stunned';
-    facing?: number;  // 朝向角度，0度朝右，每60度一个方向
-    walkables?: WalkableNode[];
-    attackables?: AttackableNode[];
-    container?: HTMLDivElement;
-    standEle?: HTMLDivElement;
-    attackEle?: HTMLDivElement;    
-    skeleton?: Spine;
-    animator?: ModelAnimator;
-    skillCooldowns?: Record<string, number>;
-    activeEffects?: Effect[];
-}
+
 export interface ModelAnimator {
     move:()=>void;
     attack:()=>void;
@@ -153,16 +119,12 @@ export interface BoardCell {
   ele?: HTMLDivElement
 }
 export interface ICombatContext {
-    boardSize: number;
     seats: Seat[];  
     game:GameModel|null;
-    coordDirection:number;  
-    hexCell: {width:number,height:number};
     gameId:string|null;
     boardCells:BoardCell[][] | null;
     players?:Player[];
     timeClock?: number;
-    characters?: GameCharacter[] ;
     currentRound?: CombatRound;
     eventQueue: CombatEvent[];
     // rowContainers: { [k: number]: HTMLDivElement };

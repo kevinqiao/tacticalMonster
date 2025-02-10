@@ -2,13 +2,13 @@ import { PageProp } from "component/RenderApp";
 import React, { useEffect, useRef, useState } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
-import CombatProvider, { useCombatManager } from "./service/CombatManager";
+import CombatProvider from "./service/CombatManager";
 import BoardGrid from "./view/BoardGrid";
 import GoalPlace from "./view/GoalPlace";
 import SeatGrid from "./view/SeatGrid";
-
+const boardSize = 15;
 const CombatBoard: React.FC<{ width: number, height: number }> = ({ width, height }) => {
-  const { boardSize } = useCombatManager();
+
   const tileSize = Math.floor(width / boardSize);
   return (
     <div style={{ position: "relative", width, height, backgroundColor: "black" }}>
