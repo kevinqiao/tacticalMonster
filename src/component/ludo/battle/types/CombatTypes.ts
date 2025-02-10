@@ -147,7 +147,11 @@ export interface MapModel {
     direction?: number; //0-从左到右     1-从右到左
 
 }
-
+export interface BoardCell {
+  x: number;
+  y: number;
+  ele?: HTMLDivElement
+}
 export interface ICombatContext {
     boardSize: number;
     seats: Seat[];  
@@ -155,7 +159,7 @@ export interface ICombatContext {
     coordDirection:number;  
     hexCell: {width:number,height:number};
     gameId:string|null;
-    gridCells: GridCell[][] | null;
+    boardCells:BoardCell[][] | null;
     players?:Player[];
     timeClock?: number;
     characters?: GameCharacter[] ;

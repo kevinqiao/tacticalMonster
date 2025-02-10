@@ -3,15 +3,18 @@ import React, { useEffect, useRef, useState } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
+import BoardGrid from "./view/BoardGrid";
+import GoalPlace from "./view/GoalPlace";
 import SeatGrid from "./view/SeatGrid";
-
 
 const CombatBoard: React.FC<{ width: number, height: number }> = ({ width, height }) => {
   const { boardSize } = useCombatManager();
   const tileSize = Math.floor(width / boardSize);
   return (
-    <div className="plaza-container" style={{ width, height, backgroundColor: "blue" }}>
+    <div style={{ position: "relative", width, height, backgroundColor: "black" }}>
+      <BoardGrid tileSize={tileSize} />
       <SeatGrid tileSize={tileSize} />
+      <GoalPlace tileSize={tileSize} />
     </div>
   );
 };
@@ -60,7 +63,6 @@ export const BattlePlaza: React.FC = () => {
           justifyContent: "center",
           alignItems: "center",
           ...placePosition,
-          backgroundColor: "red",
         }}
       >
         <div style={{ ...boardDimension }}>

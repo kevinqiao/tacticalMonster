@@ -1,4 +1,4 @@
-.container {
+.seat-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     /* 两列 */
@@ -7,5 +7,32 @@
     width: 50%;
     height: 50%;
     place-items: center;
-    border: 2px solid black;
+    border: 0px solid black;
+}
+
+.triangle {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(50% 50%, 0 0, 100% 0);
+}
+
+.triangle.top {
+    transform: rotate(0deg);
+    background: red;
+}
+
+.triangle.right {
+    transform: rotate(90deg);
+    background: blue;
+}
+
+.triangle.bottom {
+    transform: rotate(180deg);
+    background: green;
+}
+
+.triangle.left {
+    transform: rotate(270deg);
+    background: yellow;
 }
