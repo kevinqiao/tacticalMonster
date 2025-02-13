@@ -2,19 +2,20 @@ import { PageProp } from "component/RenderApp";
 import React, { useEffect, useRef, useState } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
-import CombatProvider from "./service/CombatManager";
+import CombatProvider, { useCombatManager } from "./service/CombatManager";
+import useCombatAct from "./service/useCombatAct";
 import BoardGrid from "./view/BoardGrid";
 import GoalPlace from "./view/GoalPlace";
 import SeatGrid from "./view/SeatGrid";
-const boardSize = 15;
-const CombatBoard: React.FC<{ width: number, height: number }> = ({ width, height }) => {
+import TokenGrid from "./view/TokenGrid";
+const CombatBoard: React.FC = () => {
 
-  const tileSize = Math.floor(width / boardSize);
   return (
-    <div style={{ position: "relative", width, height, backgroundColor: "black" }}>
-      <BoardGrid tileSize={tileSize} />
-      <SeatGrid tileSize={tileSize} />
-      <GoalPlace tileSize={tileSize} />
+    <div style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "black" }}>
+      <BoardGrid />
+      <GoalPlace />
+      <SeatGrid />
+      <TokenGrid />
     </div>
   );
 };
@@ -29,10 +30,9 @@ export const BattlePlaza: React.FC = () => {
     height: number;
   } | null>(null);
 
-  const [boardDimension, setBoardDimension] = useState<{
-    width: number;
-    height: number;
-  }>({ width: 0, height: 0 });
+
+  const { boardDimension, updateBoardDimension } = useCombatManager();
+  const { roll } = useCombatAct();
 
   useEffect(() => {
     const updatePosition = () => {
@@ -44,7 +44,7 @@ export const BattlePlaza: React.FC = () => {
         const size = width > height ? { width: height, height } : { width, height: width }
         const plazaLeft = (width - size.width) / 2;
         const plazaTop = (height - size.height) / 2;
-        setBoardDimension(size);
+        updateBoardDimension(size.width, size.height);
         setPlacePosition({ top: plazaTop, left: plazaLeft, width: size.width, height: size.height });
       }
     };
@@ -66,7 +66,11 @@ export const BattlePlaza: React.FC = () => {
         }}
       >
         <div style={{ ...boardDimension }}>
-          <CombatBoard width={boardDimension.width} height={boardDimension.height} />
+          <CombatBoard />
+          <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", position: "absolute", bottom: 0, right: 0, width: "40%", height: 100, backgroundColor: "red" }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: 100, height: 40, backgroundColor: "white" }} onClick={() => roll(1)}>1</div>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: 100, height: 40, backgroundColor: "white" }} onClick={() => roll(3)}>3</div>
+          </div>
         </div>
       </div>
     </div>

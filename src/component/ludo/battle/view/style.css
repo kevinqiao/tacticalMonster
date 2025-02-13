@@ -8,6 +8,7 @@
     height: 50%;
     place-items: center;
     border: 0px solid black;
+    box-sizing: border-box;
 }
 
 .triangle {

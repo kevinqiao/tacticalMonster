@@ -54,7 +54,7 @@ const goalTiles = Object.entries(GoalTracks).flatMap(([seat, arr]) => {
 }
 );
 // console.log(goalTiles)
-const BoardCell: React.FC<{ x: number, y: number, tileSize: number }> = ({ x, y, tileSize }) => {
+const BoardTile: React.FC<{ x: number, y: number }> = ({ x, y }) => {
 
   const bgColor = useMemo(() => {
     const goalCell = goalTiles.find(item => item.x === x && item.y === y);
@@ -66,7 +66,7 @@ const BoardCell: React.FC<{ x: number, y: number, tileSize: number }> = ({ x, y,
   return <div style={{ width: "100%", height: "100%", backgroundColor: bgColor, border: "1px solid black" }} />
 }
 
-const BoardGrid: React.FC<{ tileSize: number }> = ({ tileSize }) => {
+const BoardGrid: React.FC = () => {
 
   const top = `${100 * 6 / 15}%`
   const left = `${100 * 6 / 15}%`
@@ -84,7 +84,7 @@ const BoardGrid: React.FC<{ tileSize: number }> = ({ tileSize }) => {
           >
             {Array.from({ length: 3 }).map((_, col) => (
               <div key={`${row}-${col}`} style={{ width: "33.3%", height: "100%" }} >
-                <BoardCell x={col + 6} y={row} tileSize={tileSize} />
+                <BoardTile x={col + 6} y={row} />
               </div>
             ))}
           </div>
@@ -99,7 +99,7 @@ const BoardGrid: React.FC<{ tileSize: number }> = ({ tileSize }) => {
           >
             {Array.from({ length: 15 }).map((_, col) => (
               <div key={`${row}-${col}`} style={{ width: `${100 / 15}%`, height: "100%" }} >
-                <BoardCell x={col} y={row + 6} tileSize={tileSize} />
+                <BoardTile x={col} y={row + 6} />
               </div>
             ))}
           </div>

@@ -39,15 +39,14 @@ export const getRouteLine = (x0: number, y0: number, x1: number, y1: number): { 
 }
 export const getRoutePath = (points: { x: number, y: number }[][]): { x: number, y: number }[] => {
   const path: { x: number, y: number }[] = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    console.log(points[i])
+  for (let i = 0; i < points.length; i++) {
     if(points[i].length>1){ 
       for(let j=0;j<points[i].length-1;j++){  
-          const line = getRouteLine(points[i][j].x, points[i][j].y, points[i + 1][j].x, points[i + 1][j].y);
+          const line = getRouteLine(points[i][j].x, points[i][j].y, points[i][j+1].x, points[i][j+1].y);
           path.push(...line);
       }
       path.push(points[i][points[i].length-1])  
-    }else{
+    }else if(points[i].length===1){
       path.push(points[i][0])
     }
   }

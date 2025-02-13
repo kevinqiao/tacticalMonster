@@ -1,6 +1,6 @@
 import React from 'react';
 import "./style.css";
-const GoalPlace: React.FC<{ tileSize: number }> = ({ tileSize }) => {
+const GoalPlace: React.FC = () => {
   const top = `${100 * 6 / 15}%`
   const left = `${100 * 6 / 15}%`
   const height = `${100 * 3 / 15}%`

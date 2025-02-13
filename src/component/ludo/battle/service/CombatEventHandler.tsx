@@ -6,7 +6,7 @@ import { useCombatManager } from "./CombatManager";
 
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
-    const { eventQueue, resourceLoad } = useCombatManager();
+    const { eventQueue } = useCombatManager();
 
 
 
@@ -69,19 +69,17 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
 
         }
 
-    }, [user, eventQueue, resourceLoad])
+    }, [user, eventQueue])
 
 
     useEffect(() => {
-
-        if (Object.values(resourceLoad).some(v => v === 0)) return;
 
         const intervalId = setInterval(() => {
             processEvent();
         }, 100); // 每秒检查一次消息队列
 
         return () => clearInterval(intervalId);
-    }, [user, resourceLoad]);
+    }, [user]);
 
     return <>{children}</>
 }

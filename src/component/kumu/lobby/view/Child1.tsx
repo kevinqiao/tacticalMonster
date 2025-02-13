@@ -19,12 +19,6 @@ const ChildMain: React.FC = () => {
     >
 
       <BattlePlayer data={{ gameId: "1" }} />
-      {/* <div className="square">
-        <div className="triangle red"></div>
-        <div className="triangle blue"></div>
-        <div className="triangle green"></div>
-        <div className="triangle yellow"></div>
-      </div> */}
     </div>
   )
 }
