@@ -1,5 +1,5 @@
 import { PageProp } from "component/RenderApp";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
@@ -23,17 +23,9 @@ const CombatBoard: React.FC = () => {
 export const BattlePlaza: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const [placePosition, setPlacePosition] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  } | null>(null);
-
-
   const { boardDimension, updateBoardDimension } = useCombatManager();
   const { roll } = useCombatAct();
-  const tileSize = 1 / 15 * boardDimension.width;
+
   useEffect(() => {
     const updatePosition = () => {
 
@@ -47,10 +39,8 @@ export const BattlePlaza: React.FC = () => {
           size.width = width;
           size.height = width
         }
-        const plazaLeft = (width - size.width) / 2;
-        const plazaTop = (height - size.height) / 2;
+
         updateBoardDimension(size.width, size.height);
-        // setPlacePosition({ top: plazaTop, left: plazaLeft, width: size.width, height: size.height });
       }
     };
 
@@ -62,16 +52,24 @@ export const BattlePlaza: React.FC = () => {
   return (
     <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%" }}>
       <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(0)}>0</div>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(1)}>1</div>
+        <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
+          <div style={{ width: "50%" }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(0)}>0</div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(1)}>1</div>
+          </div>
         </div>
         <div style={{ ...boardDimension }}>
           <CombatBoard />
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(3)}>3</div>
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(2)}>2</div>
+        <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
+          <div style={{ width: "50%" }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(3)}>3</div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(2)}>2</div>
+          </div>
         </div>
       </div>
       <div style={{ ...boardDimension }}></div>
