@@ -127,9 +127,18 @@ export const tokenRoutes: { [k: number]: { x: number, y: number }[][] } = {
       {x:8,y:7}
     ]
   ],
-  3: [
+  3: [    
     [
-      { x: 1, y: 6 },
+      { x: 6, y: 14 },
+      { x: 6, y: 9 }
+    ],
+    [
+      { x: 5, y: 8 },
+      { x: 0, y: 8 }
+    ],
+    [{x:0,y:7}],
+    [
+      { x: 0, y: 6 },
       { x: 5, y: 6 }],
     [
       { x: 6, y: 5 },
@@ -155,19 +164,8 @@ export const tokenRoutes: { [k: number]: { x: number, y: number }[][] } = {
       { x: 8, y: 14 }
     ],
     [
-      { x: 7, y: 14 }
-    ],
-    [
-      { x: 6, y: 14 },
-      { x: 6, y: 9 }
-    ],
-    [
-      { x: 5, y: 8 },
-      { x: 0, y: 8 }
-    ],
-    [
-      { x: 0, y: 7 },
-      { x: 6, y: 7 }
+      { x: 7, y: 14 },    
+      { x: 7, y: 8 }
     ]   
   ]
 }

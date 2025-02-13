@@ -9,27 +9,21 @@ import { useCombatManager } from "./CombatManager";
 const useCombatAct = () => {
 
   const { user } = useUserManager();
-  const { game, eventQueue, currentRound, seatRoutes, boardDimension } = useCombatManager()
+  const { game, tokens, eventQueue, currentRound, seatRoutes, boardDimension } = useCombatManager()
   const convex = useConvex();
 
   const roll = useCallback(async (seatNo: number) => {
 
-    const seat = game?.seats.find((s) => s.no === seatNo);
-    if (!seat) return;
-    const { tokens } = seat;
-    const token = tokens.find((t) => t.x >= 0);
-    if (!token) return;
-    console.log(token)
+    if (!tokens || !boardDimension) return;
+    const token = tokens.find((t) => t.seatNo == seatNo && t.x >= 0);
     const route = seatRoutes[seatNo];
-    if (!route) return;
-    console.log(route)
+    if (!route || !token) return;
     const cpos = route.findIndex((c) => c.x === token.x && c.y === token.y);
-    const path = route.slice(cpos, cpos + 4 > route.length ? route.length - 1 : cpos + 4);
-    console.log(path)
+    const path = route.slice(cpos, cpos + 4 > route.length ? route.length : cpos + 4);
+
     if (token.ele && path.length > 0) {
       const tl = gsap.timeline({
         onComplete: () => {
-          console.log("onComplete")
           token.x = path[path.length - 1].x;
           token.y = path[path.length - 1].y;
         }
@@ -47,7 +41,7 @@ const useCombatAct = () => {
 
     }
 
-  }, [convex, eventQueue, seatRoutes, game]);
+  }, [convex, eventQueue, seatRoutes, boardDimension, tokens]);
 
   const useSkill = useCallback(async (skill: Skill) => {
 

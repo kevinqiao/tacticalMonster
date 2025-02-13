@@ -5,14 +5,9 @@ import "./style.css";
 const TokenGrid: React.FC = () => {
   const { game, tokens, boardDimension } = useCombatManager();
   const containerRef = useRef<HTMLDivElement>(null);
-  console.log(tokens)
+
   useEffect(() => {
-    if (game && tokens) {
-      console.log(game.seats)
-    }
-  }, [game, boardDimension, tokens])
-  useEffect(() => {
-    console.log(boardDimension)
+
     if (!boardDimension || !tokens) return;
     const containerRect = containerRef.current?.getBoundingClientRect();
     if (!containerRect) return;
@@ -40,24 +35,30 @@ const TokenGrid: React.FC = () => {
 
   return (
     <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-      {tokens?.map(token => (
-        <div
-          key={token.seatNo + "-" + token.id}
-          ref={el => token.ele = el}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            opacity: 0,
-            width: 1 / 15 * boardDimension.width,
-            height: 1 / 15 * boardDimension.height,
-            borderRadius: "50%",
-            backgroundColor: "red",
-            border: "1px solid black"
-          }}
-        />
-      ))}
-    </div>);
+      {tokens?.map(token => {
+        const color = token.seatNo === 1 ? "red" : (token.seatNo === 2 ? "blue" : (token.seatNo === 3 ? "green" : "yellow"))
+        return (
+          <div
+            key={token.seatNo + "-" + token.id}
+            ref={el => token.ele = el}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              opacity: 0,
+              width: 1 / 15 * boardDimension.width,
+              height: 1 / 15 * boardDimension.height,
+            }}
+          >
+            <div className="token-frame" />
+            <div className="token" style={{ backgroundColor: color }}>
+              <div className="token-center"></div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  );
 };
 
 

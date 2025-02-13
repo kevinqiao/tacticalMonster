@@ -33,19 +33,24 @@ export const BattlePlaza: React.FC = () => {
 
   const { boardDimension, updateBoardDimension } = useCombatManager();
   const { roll } = useCombatAct();
-
+  const tileSize = 1 / 15 * boardDimension.width;
   useEffect(() => {
     const updatePosition = () => {
-      console.log("updateMap")
 
       if (containerRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-        console.log(width, height)
-        const size = width > height ? { width: height, height } : { width, height: width }
+        const size = { width: 0, height: 0 }
+        if (width / height > 15 / 17) {
+          size.width = height * 15 / 17
+          size.height = size.width
+        } else {
+          size.width = width;
+          size.height = width
+        }
         const plazaLeft = (width - size.width) / 2;
         const plazaTop = (height - size.height) / 2;
         updateBoardDimension(size.width, size.height);
-        setPlacePosition({ top: plazaTop, left: plazaLeft, width: size.width, height: size.height });
+        // setPlacePosition({ top: plazaTop, left: plazaLeft, width: size.width, height: size.height });
       }
     };
 
@@ -56,23 +61,21 @@ export const BattlePlaza: React.FC = () => {
 
   return (
     <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%" }}>
-      <div
-        style={{
-          position: "absolute",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          ...placePosition,
-        }}
-      >
+      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(0)}>0</div>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(1)}>1</div>
+        </div>
         <div style={{ ...boardDimension }}>
           <CombatBoard />
-          <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", position: "absolute", bottom: 0, right: 0, width: "40%", height: 100, backgroundColor: "red" }}>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: 100, height: 40, backgroundColor: "white" }} onClick={() => roll(1)}>1</div>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: 100, height: 40, backgroundColor: "white" }} onClick={() => roll(3)}>3</div>
-          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(3)}>3</div>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(2)}>2</div>
         </div>
       </div>
+      <div style={{ ...boardDimension }}></div>
+
     </div>
   );
 };
