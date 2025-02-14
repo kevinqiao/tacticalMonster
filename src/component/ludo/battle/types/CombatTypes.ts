@@ -24,7 +24,7 @@ export interface Player {
 
 export interface CombatEvent {
     name: string;
-    uid?:string;
+    actor?:string;
     gameId?: string;
     time?: number;
     initTime?: number;

@@ -3,7 +3,7 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { getRoutePath } from "component/ludo/util/mapUtils";
-import { CombatEvent, CombatRound, GameModel, ICombatContext } from "../types/CombatTypes";
+import { CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
 import CombatEventHandler from "./CombatEventHandler";
 import { tokenRoutes } from "./tokenRoutes";
 
@@ -54,7 +54,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     });
     return routes;
   }, [game])
-  console.log(seatRoutes)
+
   const updateBoardDimension = (width: number, height: number) => {
     setBoardDimension({ width, height });
   }

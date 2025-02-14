@@ -1,5 +1,5 @@
 import { PageProp } from "component/RenderApp";
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
@@ -22,10 +22,14 @@ const CombatBoard: React.FC = () => {
 
 export const BattlePlaza: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const { boardDimension, updateBoardDimension } = useCombatManager();
+  const { game, boardDimension, updateBoardDimension } = useCombatManager();
   const { roll } = useCombatAct();
 
+  const isAvailable = useCallback((seatNo: number) => {
+    const seat = game?.seats.find((seat) => seat.no === seatNo);
+    if (seat?.tokens.length && seat.tokens.length > 0) return true;
+    return false;
+  }, [game]);
   useEffect(() => {
     const updatePosition = () => {
 
@@ -54,10 +58,10 @@ export const BattlePlaza: React.FC = () => {
       <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
           <div style={{ width: "50%" }}>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(0)}>0</div>
+            {isAvailable(0) && <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(0)}>0</div>}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(1)}>1</div>
+            {isAvailable(1) && <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(1)}>1</div>}
           </div>
         </div>
         <div style={{ ...boardDimension }}>
@@ -65,10 +69,10 @@ export const BattlePlaza: React.FC = () => {
         </div>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
           <div style={{ width: "50%" }}>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(3)}>3</div>
+            {isAvailable(3) && <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(3)}>3</div>}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(2)}>2</div>
+            {isAvailable(2) && <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(2)}>2</div>}
           </div>
         </div>
       </div>
@@ -82,7 +86,7 @@ const BattlePlayer: React.FC<PageProp> = ({ data }) => {
   if (!data || !data.gameId) return;
 
   return (
-    <SSAProvider app="tacticalMonster">
+    <SSAProvider app="ludo">
       <CombatProvider gameId={data.gameId}>
         <BattlePlaza></BattlePlaza>
       </CombatProvider>

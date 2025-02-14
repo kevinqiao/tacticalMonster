@@ -2,21 +2,25 @@ import React, { ReactNode, useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
-
+import useActionProcessor from "./processor/useActionProcessor";
 
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
     const { eventQueue } = useCombatManager();
-
+    const { processRoll } = useActionProcessor();
 
 
     const processEvent = useCallback(() => {
-        // console.log("event size:"+eventQueue.length)
+
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event) return;
-
-        const onComplete = () => {
-            eventQueue.shift();
+        console.log("event:", event)
+        const onComplete = (initTime: number | undefined) => {
+            console.log("onComplete", initTime)
+            const pos = eventQueue.findIndex((e) => e.initTime === initTime);
+            eventQueue.splice(pos, 1);
+            // eventQueue.shift();
+            console.log("onComplete over", eventQueue)
         }
 
         event.initTime = event.initTime || Date.now();
@@ -29,18 +33,16 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
         if (!status) {
 
             switch (name) {
-                case "attack":
+                case "roll":
+                    console.log("roll:", data)
                     event.status = 1;
+                    processRoll(data.seatNo, () => onComplete(event.initTime));
                     break;
-                case "walk":
-                    event.status = 1;
-
-                    break;
-                case "gameInit":
+                case "select":
                     event.status = 1;
 
                     break;
-                case "roundStart":
+                case "skillSelect":
                     event.status = 1;
 
                     break;
@@ -48,15 +50,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     event.status = 1;
 
                     break;
-
-                case "turnEnd":
-                    event.status = 1;
-
-                    break;
-                case "roundEnd":
-                    event.status = 1;
-                    break;
-                case "skillSelect":
+                case "roundStart":
                     event.status = 1;
 
                     break;
@@ -69,7 +63,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
 
         }
 
-    }, [user, eventQueue])
+    }, [user, eventQueue, processRoll])
 
 
     useEffect(() => {
@@ -79,7 +73,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
         }, 100); // 每秒检查一次消息队列
 
         return () => clearInterval(intervalId);
-    }, [user]);
+    }, [user, processEvent]);
 
     return <>{children}</>
 }
