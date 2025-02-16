@@ -11,7 +11,7 @@ class GameManager {
     async createGame() {
         const players = await this.dbCtx.runQuery(internal.dao.gamePlayerDao.findAll);
         if(players.length<2) return;
-        console.log("players",players);
+        // console.log("players",players);
 
         const gameObj:any = { 
             seats: [

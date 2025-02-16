@@ -29,7 +29,7 @@ export const start = action({
                         },
                         body: JSON.stringify(events)
                 });
-                console.log("response",response);
+                // console.log("response",response);
             }
         
     }

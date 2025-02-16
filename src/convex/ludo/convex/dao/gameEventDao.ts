@@ -8,7 +8,7 @@ export const find = query({
         if(!lastTime)
             return [{id:"0000",time:Date.now(),name:"####",actor:"0000",data:{}}]
      
-        console.log("event time:" +  lastTime+":"+gameId)
+        // console.log("event time:" +  lastTime+":"+gameId)
         if (gameId) {
             const events = await ctx.db
                 .query("game_event").withIndex("by_game", (q) => q.eq("gameId", "123").gt("_creationTime", lastTime)).collect();

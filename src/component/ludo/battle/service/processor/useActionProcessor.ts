@@ -6,7 +6,7 @@ import { useCombatManager } from "../CombatManager";
 const useActionProcessor = () => {
     const {user} = useUserManager();    
     const {tokens,seatRoutes,boardDimension} = useCombatManager()
-    console.log("tokens",tokens)
+    // console.log("tokens",tokens)
     const processRoll = useCallback((seatNo:number,onFinish:()=>void) => {
      
             if (!tokens || !boardDimension) return;

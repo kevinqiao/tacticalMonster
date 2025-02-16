@@ -18,7 +18,7 @@ const LudoLauncherMain: React.FC<{ open: () => void, game: { name: string; id: s
           gameId: gameId, uid: "1",
           token: "test-token"
         });
-        if (!gameObj.status) {
+        if (!gameObj.status && !location.pathname.includes("/play/lobby/c1")) {
           if (game.status > 0)
             open();
           else {
