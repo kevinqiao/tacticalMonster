@@ -16,6 +16,24 @@ export default defineSchema({
         actor: v.optional(v.string()),
         name:v.string(),
         data: v.optional(v.any())
-    }).index("by_game", ["gameId"]).index("by_actor", ["actor"])
-    
+    }).index("by_game", ["gameId"]).index("by_actor", ["actor"]),
+    game: defineTable({
+        seats: v.array(v.object({
+            no: v.number(),
+            uid: v.optional(v.string()),
+            tokens: v.array(v.object({
+                id: v.number(),
+                x: v.number(),
+                y: v.number(),
+            })),
+        })),
+        currentTurn: v.optional(v.object({
+            seat: v.number(),
+            dice:v.number(),
+            skillSelect:v.optional(v.string()),
+        })),
+        turnDue:v.optional(v.number()),
+        status:v.optional(v.number()),
+
+    }).index("by_due", ["turnDue"])
 });

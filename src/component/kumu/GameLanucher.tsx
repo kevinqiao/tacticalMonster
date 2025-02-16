@@ -6,6 +6,9 @@ import { SSAProvider } from "service/SSAManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/tm/convex/_generated/api";
 import "./map.css";
+const LanuchTacticalMonster: React.FC = () => {
+  return <div>LanuchTacticalMonster</div>;
+};
 const GameLauncherMain: React.FC = () => {
   const { user, completeGame } = useUserManager();
   const { openPage } = usePageManager();
@@ -50,8 +53,6 @@ const GameLauncherMain: React.FC = () => {
         }
       }
     }
-    console.log(location.pathname)
-    console.log(user)
     if (user?.data?.gameId && !location.pathname.includes("/play/map")) fetchGame(user.data.gameId);
   }, [user, completeGame]);
 

@@ -45,8 +45,9 @@ export interface Token {
 export interface GameModel {
   gameId: string;
   seats:Seat[];
-  currentRound?: CombatRound;
-  timeClock?: number;
+  currentTurn?: CombatTurn;
+  turnDue?: number;
+  status?: number;  
 }
 export interface CombatAction {
     uid: string;
@@ -107,7 +108,6 @@ export interface ICombatContext {
     tokens?:Token[]; 
     seatRoutes:{[k:number]:{ x: number, y: number }[]};
     players?:Player[];
-    timeClock?: number;
     currentRound?: CombatRound;
     eventQueue: CombatEvent[];
     updateBoardDimension:(width:number,height:number)=>void;

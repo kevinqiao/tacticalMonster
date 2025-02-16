@@ -21,14 +21,13 @@ export const save = action({
     // const appid = payload.appid;  
 
     for(const event of events){
-      console.log("event",event)
-       if(event.name === "GameCreated"&&event.uid){
-        const user = await ctx.runMutation(internal.dao.userDao.update, {uid:event.uid,data:{data:event.data}});
-       }else if(event.name === "GameOver"&&event.uid){
-        console.log("GameOver",event)
-        // const user = await ctx.runMutation(internal.dao.userDao.update, {uid:event.uid,data:{data:{gameId:null}}});
-       }
-      await ctx.runMutation(internal.dao.eventDao.create, event);
+
+              if(event.name === "GameCreated"&&event.uid){
+                await ctx.runMutation(internal.dao.userDao.update, {uid:event.uid,data:{game:{...event.data,status:0}}});
+              }else if(event.name === "GameOver"&&event.uid){
+                console.log("GameOver",event)
+              }
+              await ctx.runMutation(internal.dao.eventDao.create, event);
     }
     return true;   
   }

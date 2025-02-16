@@ -1,6 +1,6 @@
 import { PageProp } from "component/RenderApp";
 import React from "react";
-import { SSAProvider, useSSAManager } from "service/SSAManager";
+import { useSSAManager } from "service/SSAManager";
 
 const Child3Main: React.FC = (props) => {
   const { credentials } = useSSAManager();
@@ -22,8 +22,7 @@ const Child3Main: React.FC = (props) => {
 };
 const Child3: React.FC<PageProp> = ({ visible }) => {
   console.log("child3", visible);
-  return (<SSAProvider app="tacticalMonster" ><Child3Main /></SSAProvider>
-  );
+  return (<Child3Main />);
 };
 
 export default Child3;

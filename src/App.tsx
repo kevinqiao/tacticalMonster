@@ -1,5 +1,6 @@
 
-import GameLauncher from "component/kumu/GameLanucher";
+
+import GameLauncher from "component/launcher/GameLanucher";
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";

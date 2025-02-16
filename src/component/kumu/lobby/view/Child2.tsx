@@ -1,9 +1,15 @@
 import { PageProp } from "component/RenderApp";
+import { useConvex } from "convex/react";
 import React from "react";
 import { SSAProvider, useSSAManager } from "service/SSAManager";
+import { api } from "../../../../convex/ludo/convex/_generated/api";
 const Child2Main: React.FC = (props) => {
   const { credentials } = useSSAManager();
+  const convex = useConvex();
   // console.log(credentials);
+  const startGame = async () => {
+    await convex.action(api.service.gameProxy.start);
+  }
   return (
     <div
       style={{
@@ -15,12 +21,12 @@ const Child2Main: React.FC = (props) => {
         backgroundColor: "blue",
       }}
     >
-      <div className="action-panel-item">Child2</div>
+      <div className="action-panel-item" onClick={startGame}>Child2</div>
     </div>
   );
 };
 const Child2: React.FC<PageProp> = ({ visible }) => {
-  return (<SSAProvider app="tacticalMonster" ><Child2Main /></SSAProvider>
+  return (<SSAProvider app="ludo" ><Child2Main /></SSAProvider>
   );
 };
 

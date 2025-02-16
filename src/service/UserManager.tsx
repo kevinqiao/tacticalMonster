@@ -13,6 +13,7 @@ export interface User {
   email?: string;
   phone?: string;
   data?: { [k: string]: any };
+  game?: { name: string, id: string, status: number };
 }
 interface Event {
   uid?: string;
@@ -24,7 +25,7 @@ interface IUserContext {
   user: any;
   sessions: { [k: string]: { token: string; status: number } };
   events: Event[] | null;
-  completeGame: () => void;
+  updateLoaded: () => void;
   updateSession: (app: string, session: { token: string; status: number }) => void;
   authComplete: (user: any, persist: number) => void;
   logout: () => void;
@@ -35,7 +36,7 @@ const UserContext = createContext<IUserContext>({
   sessions: {},
   events: null,
   updateSession: () => null,
-  completeGame: () => null,
+  updateLoaded: () => null,
   logout: () => null,
   authComplete: (user: any, persist: number) => null,
 });
@@ -47,7 +48,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const convex = useConvex();
   const userEvents = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastTime });
-
 
 
   const authComplete = useCallback((u: any, persist: number) => {
@@ -76,14 +76,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       });
     }
   }, [user]);
-  const completeGame = useCallback(() => {
+  const updateLoaded = useCallback(() => {
     if (user?.uid && user?.token) {
-      convex.mutation(api.dao.userDao.completeGame, { uid: user.uid, token: user.token }).then((res) => {
-        console.log("completeGame", res)
+      convex.mutation(api.dao.userDao.updateLoaded, { uid: user.uid, token: user.token }).then((res) => {
+        console.log("updateLoaded", res)
         if (res) {
           setUser((pre) => {
-            if (pre?.data)
-              pre.data.gameId = undefined;
+            if (pre?.game)
+              pre.game.status = 1;
             return pre
           })
         }
@@ -135,17 +135,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         setLastTime(event.time);
         const events: Event[] = userEvents;
         for (const e of events) {
-          if (e.name === "GameCreated" && e.data?.gameId && user?.uid) {
-            const gameId = e.data?.gameId;
-            if (gameId) {
-              setUser((pre) => {
-                if (pre) {
-                  pre.data = pre.data ? { ...pre.data, gameId } : { gameId }
-                  return { ...pre }
-                }
-                return null
-              })
-            }
+          if (e.name === "GameCreated" && user?.uid) {
+            setUser((pre) => {
+              if (pre) {
+                pre.game = e.data;
+                return { ...pre }
+              }
+              return null
+            })
+
           }
         }
       } else {
@@ -153,7 +151,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [userEvents]);
-  const value = { user, authComplete, logout, sessions, updateSession, events, completeGame };
+  const value = { user, authComplete, logout, sessions, updateSession, events, updateLoaded };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

@@ -16,10 +16,11 @@ http.route({
      
  
      const events = await request.json();
+     console.log("events",events);
      const result = await ctx.runAction(api.service.EventReceiver.save, { token,events });
 
       // console.log("result",result);
-      return new Response(JSON.stringify(result), {
+      return new Response(JSON.stringify(result)  , {
         status: 200,
         headers: new Headers({
           "Access-Control-Allow-Origin": "*",

@@ -47,7 +47,6 @@ export const update = internalMutation({
     handler: async (ctx, { uid, data }) => {
        const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();    
         if(user){
-            console.log("data",data)    
             if(user.data)
                 data.data = user.data ? Object.assign({},user.data, data.data) : data.data;        
             await ctx.db.patch(user._id, data);     
@@ -56,14 +55,14 @@ export const update = internalMutation({
        return false;
     },
 })
-export const completeGame = sessionMutation({
+export const updateLoaded = sessionMutation({
     args: {},
     handler: async (ctx,args) => {
         const u = ctx.user;
         if(u?.uid){
             const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", u.uid)).unique();
-            if(user?.data){
-                await ctx.db.patch(user._id,{data:{...user.data,gameId:undefined}});
+            if(user?.game){
+                await ctx.db.patch(user._id,{game:{...user.game,status:1}});
                 return true;
             }
         }

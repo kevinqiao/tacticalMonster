@@ -14,7 +14,6 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
 
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event) return;
-        console.log("event:", event)
         const onComplete = (initTime: number | undefined) => {
             console.log("onComplete", initTime)
             const pos = eventQueue.findIndex((e) => e.initTime === initTime);

@@ -1,8 +1,8 @@
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
+import { api } from "../../../../convex/ludo/convex/_generated/api";
 import { Skill } from "../types/CharacterTypes";
-import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 
 const useCombatAct = () => {
@@ -14,13 +14,16 @@ const useCombatAct = () => {
 
   const roll = useCallback(async (seatNo: number) => {
     console.log("roll", seatNo);
-    // processRoll(seatNo);
-    const event: CombatEvent = {
-      name: "roll",
-      actor: user?.uid,
-      data: { code: 4, seatNo }
+    const res = await convex.action(api.service.gameProxy.roll, {
+      gameId: game?.gameId ?? "123",
+      uid: user?.uid,
+      token: "test-token",
+      seatNo
+    });
+    console.log("roll res", res);
+    if (res) {
+      eventQueue.push(res);
     }
-    eventQueue.push(event);
 
   }, [eventQueue]);
 
