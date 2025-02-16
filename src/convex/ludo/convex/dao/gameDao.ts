@@ -3,10 +3,11 @@ import { Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { sessionQuery } from "../custom/session";
 const query = async (ctx:any,gameId:string)=>{
+    console.log("query",gameId);    
         const id = gameId as Id<"game">;
         const game = await ctx.db.get(id);      
         if(game){
-            return { ...game, gameId, _id: undefined, createTime: game?._creationTime } 
+            return { ...game, gameId, _id: undefined, _creationTime: undefined} 
         } 
         return null
 }
@@ -19,6 +20,7 @@ export const find = sessionQuery({
 export const get = internalQuery({
     args: { gameId: v.string()},
     handler: async (ctx, { gameId }) => {
+        console.log("get",gameId);
         return await query(ctx,gameId); 
     },
 });

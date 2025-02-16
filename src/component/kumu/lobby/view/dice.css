@@ -1,0 +1,136 @@
+/* 默认尺寸（可通过外部内联样式动态修改） */
+:root {
+    --dice-size: 150px;
+    --dot-size: 20px;
+}
+
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background: #f0f0f0;
+}
+
+/* 外层容器 */
+.dice-container {
+    text-align: center;
+}
+
+/* 3D 场景容器 */
+.scene {
+    width: calc(var(--dice-size) * 1);
+    height: calc(var(--dice-size) * 1);
+    perspective: 600px;
+    margin: 0 auto 2px;
+}
+
+/* 骰子立方体 */
+.cube {
+    width: var(--dice-size);
+    height: var(--dice-size);
+    position: relative;
+    transform-style: preserve-3d;
+    transform: translateZ(calc(var(--dice-size) / -2));
+}
+
+/* 每个面的基本样式 */
+.face {
+    position: absolute;
+    width: var(--dice-size);
+    height: var(--dice-size);
+    background: #fff;
+    border: 2px solid #333;
+    box-sizing: border-box;
+}
+
+/* 各面的定位 */
+.face1 {
+    transform: rotateY(0deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.face2 {
+    transform: rotateY(90deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.face3 {
+    transform: rotateY(180deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.face4 {
+    transform: rotateY(-90deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.face5 {
+    transform: rotateX(90deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+.face6 {
+    transform: rotateX(-90deg) translateZ(calc(var(--dice-size) / 2));
+}
+
+/* 点阵布局（3x3 网格） */
+.dot-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    align-items: center;
+    justify-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+/* 骰子点（pip）的样式 */
+.dot {
+    width: var(--dot-size);
+    height: var(--dot-size);
+    background-color: #333;
+    border-radius: 50%;
+}
+
+/* 各点在网格中的定位 */
+.top-left {
+    grid-area: 1 / 1;
+}
+
+.top-center {
+    grid-area: 1 / 2;
+}
+
+.top-right {
+    grid-area: 1 / 3;
+}
+
+.middle-left {
+    grid-area: 2 / 1;
+}
+
+.middle-center {
+    grid-area: 2 / 2;
+}
+
+.middle-right {
+    grid-area: 2 / 3;
+}
+
+.bottom-left {
+    grid-area: 3 / 1;
+}
+
+.bottom-center {
+    grid-area: 3 / 2;
+}
+
+.bottom-right {
+    grid-area: 3 / 3;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.result {
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: bold;
+}

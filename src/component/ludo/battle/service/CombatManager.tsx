@@ -3,7 +3,7 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { getRoutePath } from "component/ludo/util/mapUtils";
-import { useQuery } from "convex/react";
+import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/ludo/convex/_generated/api";
 import { CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
@@ -34,7 +34,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const [game, setGame] = useState<GameModel | null>(null);
   const events: any = useQuery(api.dao.gameEventDao.find, { gameId, lastTime });
   const [boardDimension, setBoardDimension] = useState<{ width: number, height: number }>({ width: 0, height: 0 });
-
+  const convex = useConvex();
   const { currentTurn } = game || {};
 
   const tokens = useMemo(() => {
@@ -50,9 +50,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     const { seats } = game;
     const routes: { [k: number]: { x: number, y: number }[] } = {};
     seats.forEach((seat) => {
-      const tokens = tokenRoutes[seat.no];
-      if (tokens) {
-        const route = getRoutePath(tokens);
+      const path = tokenRoutes[seat.no];
+      if (path) {
+        const route = getRoutePath(path);
         routes[seat.no] = route;
       }
     });
@@ -65,9 +65,6 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   useEffect(() => {
     console.log("events", events);
     if (Array.isArray(events) && events.length > 0) {
-      // if (events[0].name != "####") {
-      //   eventQueueRef.current.push(...events);
-      // }
       for (const event of events) {
         if (event.name != "####" && event.actor !== user?.uid) {
           eventQueueRef.current.push(event);
@@ -77,33 +74,24 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     }
   }, [events]);
   useEffect(() => {
-    setGame({
-      gameId: "123",
-      seats: [
-        { no: 0, tokens: [], stationEles: {} },
-        { no: 2, tokens: [], stationEles: {} },
-        {
-          no: 1,
-          uid: "123", tokens: [
-            { id: 0, x: 8, y: 4 },
-            { id: 1, x: -1, y: -1 },
-            { id: 2, x: -1, y: -1 },
-            { id: 3, x: -1, y: -1 },
-          ],
-          stationEles: {}
-        },
-        {
-          no: 3,
-          uid: "543", tokens: [
-            { id: 0, x: -1, y: -1 },
-            { id: 1, x: 6, y: 10 },
-            { id: 2, x: -1, y: -1 },
-            { id: 3, x: -1, y: -1 },
-          ],
-          stationEles: {}
-        }],
-    })
-  }, [])
+    const fetchGame = async (gameId: string) => {
+      const gameObj = await convex.query(api.dao.gameDao.find, {
+        gameId, uid: "1",
+        token: "test-token"
+      });
+      console.log("gameObj", gameObj)
+      if (gameObj) {
+        gameObj.seats.forEach((seat: any) => {
+          seat.stationEles = {};
+        })
+        setGame(gameObj);
+      }
+    }
+    fetchGame(gameId);
+  }, [gameId])
+  useEffect(() => {
+    console.log("game", game)
+  }, [gameId])
 
   const value = {
     game,

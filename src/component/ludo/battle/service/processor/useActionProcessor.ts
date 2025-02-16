@@ -7,6 +7,34 @@ const useActionProcessor = () => {
     const {user} = useUserManager();    
     const {tokens,seatRoutes,boardDimension} = useCombatManager()
     // console.log("tokens",tokens)
+    const processRollStart = useCallback((data:any,onFinish:()=>void) => {
+        console.log("processRollStart",data)    
+        onFinish();
+    }, [])
+    const processRollDone = useCallback((data:any,onFinish:()=>void) => {
+        console.log("processRollDone",data)  
+        if(!tokens || !seatRoutes || !boardDimension) return;
+        const {seat,tokenId,route} = data;
+        const token = tokens.find((t) => t.seatNo == seat && t.id == tokenId);
+        if(!token) return;  
+        const tl = gsap.timeline({
+            onComplete: () => {
+                    token.x = route[route.length - 1].x;
+                    token.y = route[route.length - 1].y;
+                    onFinish();
+                }
+            });
+            route.forEach((p:any) => {
+                if (token.ele) {
+                tl.to(token.ele, {
+                    x: p.x / 15 * boardDimension.width,
+                    y: p.y / 15 * boardDimension.height,
+                    duration: 0.3, ease: "power2.inOut"
+                }, ">")
+                }
+            })
+            tl.play();
+    }, [tokens,seatRoutes,boardDimension])
     const processRoll = useCallback((seatNo:number,onFinish:()=>void) => {
      
             if (!tokens || !boardDimension) return;
@@ -44,6 +72,6 @@ const useActionProcessor = () => {
     const processSkillSelect = useCallback((data:any) => {
         
     }, [])   
-    return {processRoll,processTokenSelect,processSkillSelect}
+    return {processRollStart,processRollDone,processRoll,processTokenSelect,processSkillSelect}
 }
 export default useActionProcessor

@@ -25,7 +25,8 @@ const Child2Main: React.FC = (props) => {
     </div>
   );
 };
-const Child2: React.FC<PageProp> = ({ visible }) => {
+const Child2: React.FC<PageProp> = ({ visible, data }) => {
+  console.log("data", data)
   return (<SSAProvider app="ludo" ><Child2Main /></SSAProvider>
   );
 };

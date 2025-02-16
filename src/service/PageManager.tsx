@@ -96,29 +96,27 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     console.log("openPage", page);
     if (page.uri === currentPageRef.current?.uri) return;
     let newPage = page;
+
     const container = findContainer(pageContainers, page.uri);
-    if (!page.isHistory) {
-      let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
-      console.log("authRequired", authRequired);
-      if (container?.children && container.animate?.child) {
-        const child = container.children.find((c) => c.name === container.animate?.child);
-        if (child) {
-          newPage = { ...page, uri: child.uri };
-          if (!authRequired && child.auth === 1) {
-            authRequired = true;
-          }
+    let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
+    if (container?.children && container.animate?.child) {
+      const child = container.children.find((c) => c.name === container.animate?.child);
+      if (child) {
+        newPage = { ...page, uri: child.uri };
+        if (!authRequired && child.auth === 1) {
+          authRequired = true;
         }
       }
-      if (authRequired) {
-        setAuthReq({ page: newPage });
-        return;
-      } else {
-        setAuthReq(null);
-        const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-        console.log("uri", uri);
-        history.pushState({ index: 0 }, "", uri);
-      }
     }
+    if (authRequired) {
+      setAuthReq({ page: newPage });
+      return;
+    } else {
+      setAuthReq(null);
+      const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
+      history.pushState({ index: 0 }, "", uri);
+    }
+
     const prepage = currentPageRef.current;
     setChangeEvent({ prepage, page: newPage });
     currentPageRef.current = newPage;
@@ -134,17 +132,11 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     },
     [pageContainers]
   );
-  // useEffect(() => {
-  //   console.log("in useEffect", user, containersLoaded);
-  //   if (user?.data?.gameId && containersLoaded) {
-  //     console.log("open game page:", user.data.gameId);
-  //     setTimeout(() => openPage({ uri: "/play/map", data: { gameId: user.data.gameId } }), 1000);
-  //   }
-  // }, [user, containersLoaded, openPage]);
+
   useEffect(() => {
     if (user?.uid) {
-      if (authReq?.page?.uri) {
-        openPage({ uri: authReq.page.uri });
+      if (authReq?.page) {
+        openPage(authReq.page);
       }
       setAuthReq((pre) => pre ? null : pre);
     }
@@ -153,8 +145,11 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const handlePopState = (event: any) => {
       const page = parseLocation();
-      if (page)
-        openPage({ ...page, isHistory: true });
+      if (page) {
+        const prepage = currentPageRef.current;
+        setChangeEvent({ prepage, page });
+        currentPageRef.current = page;
+      }
     };
     window.addEventListener("popstate", handlePopState);
     return () => {
@@ -164,6 +159,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!containersLoaded) return;
     const page = parseLocation();
+    // console.log("page", page)
     if (page)
       openPage(page);
 

@@ -21,6 +21,7 @@ import type * as http from "../http.js";
 import type * as service_auth from "../service/auth.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as service_gameProxy from "../service/gameProxy.js";
+import type * as service_tokenRoutes from "../service/tokenRoutes.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   "service/auth": typeof service_auth;
   "service/gameManager": typeof service_gameManager;
   "service/gameProxy": typeof service_gameProxy;
+  "service/tokenRoutes": typeof service_tokenRoutes;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

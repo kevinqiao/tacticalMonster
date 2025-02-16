@@ -12,15 +12,13 @@ const TacticalMonsterLauncherMain: React.FC<{ open: () => void, game: { name: st
   useEffect(() => {
 
     const fetchGame = async (gameId: string) => {
-      console.log("fetchGame", gameId)
       if (gameId) {
         const gameObj = await convex.query(api.dao.gameDao.find, {
-          gameId: user.data.gameId, uid: "1",
+          gameId: user.game.id, uid: user.uid,
           token: "test-token"
         });
         if (gameObj && !gameObj.status) {
           open();
-          // setTimeout(() => openPage({ uri: "/play/map", data: { gameId: user.data.gameId } }), 3000);
         } else {
           updateLoaded();
         }

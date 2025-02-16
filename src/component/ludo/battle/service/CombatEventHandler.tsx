@@ -7,7 +7,7 @@ import useActionProcessor from "./processor/useActionProcessor";
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
     const { eventQueue } = useCombatManager();
-    const { processRoll } = useActionProcessor();
+    const { processRollStart, processRollDone, processRoll } = useActionProcessor();
 
 
     const processEvent = useCallback(() => {
@@ -32,10 +32,15 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
         if (!status) {
 
             switch (name) {
-                case "roll":
+                case "rollStart":
                     console.log("roll:", data)
                     event.status = 1;
-                    processRoll(data.seatNo, () => onComplete(event.initTime));
+                    processRollStart(data, () => onComplete(event.initTime));
+                    break;
+                case "rollDone":
+                    console.log("rollDone:", data)
+                    event.status = 1;
+                    processRollDone(data, () => onComplete(event.initTime));
                     break;
                 case "select":
                     event.status = 1;

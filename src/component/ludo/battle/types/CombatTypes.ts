@@ -13,6 +13,7 @@ export interface Seat {
     uid?:string;
     no: number;
     tokens:Token[];
+    diceEle?:HTMLDivElement|null;
     stationEles:{[k:number]:HTMLDivElement|null};
 }
 export interface Player {

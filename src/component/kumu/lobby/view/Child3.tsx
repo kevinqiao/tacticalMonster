@@ -1,22 +1,15 @@
+import { useCombatManager } from "component/ludo/battle/service/CombatManager";
 import { PageProp } from "component/RenderApp";
 import React from "react";
-import { useSSAManager } from "service/SSAManager";
-
+import Dice from "./Dice";
+import "./dice.css";
 const Child3Main: React.FC = (props) => {
-  const { credentials } = useSSAManager();
-  // console.log(credentials);
+  const { boardDimension } = useCombatManager();
+  const size = boardDimension.width / 15;
+  console.log("size", size);
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100%",
-        height: "100%",
-        backgroundColor: "green",
-      }}
-    >
-      <div className="action-panel-item">Child3</div>
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} >
+      <Dice size={100} seatNo={1} />
     </div>
   );
 };

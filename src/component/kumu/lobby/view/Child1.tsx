@@ -2,7 +2,7 @@ import BattlePlayer from "component/ludo/battle/BattlePlayer";
 import { PageProp } from "component/RenderApp";
 import React from "react";
 import "./style.css";
-const ChildMain: React.FC = () => {
+const ChildMain: React.FC<{ gameId: string }> = ({ gameId }) => {
 
   return (
     <div
@@ -16,12 +16,14 @@ const ChildMain: React.FC = () => {
       }}
     >
 
-      <BattlePlayer data={{ gameId: "1" }} />
+      <BattlePlayer gameId={gameId} />
     </div>
   )
 }
-const Child1: React.FC<PageProp> = ({ visible }) => {
-  return (<ChildMain></ChildMain>);
+const Child1: React.FC<PageProp> = ({ visible, data }) => {
+  console.log("data", data)
+  if (!data?.gameId) return;
+  return (<ChildMain gameId={data.gameId}></ChildMain>);
 };
 
 export default Child1;

@@ -18,14 +18,13 @@ const useCombatAct = () => {
       gameId: game?.gameId ?? "123",
       uid: user?.uid,
       token: "test-token",
-      seatNo
     });
     console.log("roll res", res);
     if (res) {
-      eventQueue.push(res);
+      eventQueue.push({ name: "rollStart", data: { seatNo } });
     }
 
-  }, [eventQueue]);
+  }, [eventQueue, game]);
 
   const useSkill = useCallback(async (skill: Skill) => {
 

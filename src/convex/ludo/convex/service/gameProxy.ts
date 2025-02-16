@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import { sessionAction } from "../custom/session";
 import GameManager from "./gameManager";
@@ -36,12 +35,18 @@ export const start = action({
 })
 
 export const roll = sessionAction({
-    args: { gameId: v.string(),  seatNo: v.number() },
-    handler: async (ctx, { gameId,seatNo }) => {
-        if (!ctx.user) return false;   
-        const event={gameId,name:"roll",actor:ctx.user.uid,data:{code:4,seatNo}};
-        await ctx.runMutation(internal.dao.gameEventDao.create, event);    
-        return event;
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId}) => {
+        if (!ctx.user) return false; 
+        try {
+        const gameService=new GameManager(ctx);
+        await gameService.initGame(gameId);
+        await gameService.roll(ctx.user.uid);
+        } catch (error) {
+            console.log("roll error",error);
+        }
+
+        return true;
 
     }
 })

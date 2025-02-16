@@ -1,12 +1,27 @@
 import { GameModel } from "../../../../component/ludo/battle/types/CombatTypes";
+import { getRoutePath } from "../../../../component/ludo/util/mapUtils";
 import { internal } from "../_generated/api";
-
+import { tokenRoutes } from "./tokenRoutes";
+const routes: { [k: number]: { x: number, y: number }[] } = {};
+[0,1,2,3].forEach((seatNo) => {
+      const path = tokenRoutes[seatNo];
+      if (path) {
+        const route = getRoutePath(path);
+        routes[seatNo] = route;
+      }
+});
 class GameManager {
     private dbCtx: any;
     private game:GameModel|null; 
     constructor(ctx: any) {
         this.dbCtx = ctx;
         this.game=null;
+      
+    }
+    async initGame(gameId:string){
+        console.log("initGame",gameId);
+        const game=await this.dbCtx.runQuery(internal.dao.gameDao.get, {gameId});
+        this.game=game;
     }
     async createGame() {
         const players = await this.dbCtx.runQuery(internal.dao.gamePlayerDao.findAll);
@@ -20,8 +35,8 @@ class GameManager {
             {
                 no: 1,
                 uid: players[0].uid, tokens: [
-                    { id: 0, x: 8, y: 4 },
-                    { id: 1, x: -1, y: -1 },
+                    { id: 1, x: 8, y: 4 },
+                    { id: 0, x: -1, y: -1 },
                     { id: 2, x: -1, y: -1 },
                     { id: 3, x: -1, y: -1 },
                 ],
@@ -65,8 +80,25 @@ class GameManager {
 
         return true;    
     } 
-    async roll(gameId: string, data: { attacker: { uid: string, character_id: string, skillSelect: string }, target: { uid: string, character_id: string } }): Promise<boolean> {
-        console.log("attack", gameId, data);
+    async roll(uid:string): Promise<boolean> {
+        if(!this.game) return false;
+        const seat = this.game.seats.find(seat=>seat.uid===uid);
+        if(!seat) return false;
+        const event={gameId:this.game.gameId,name:"rollStart",actor:uid,data:{seatNo:seat.no}};
+        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event); 
+        const route=routes[seat.no];
+        // console.log("route",route); 
+        const token = seat.tokens.find((t)=>t.id===1);  
+        if(!token) return false;
+        const startIndex = route.findIndex((t)=>t.x===token?.x && t.y===token?.y);
+        const path = route.slice(startIndex, startIndex + 4 > route.length ? route.length : startIndex + 4);
+        console.log("path",path);
+        const end = path[path.length-1];
+        token.x=end.x;
+        token.y=end.y;
+        await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{seats:this.game.seats}});
+        const eventDone={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seat:seat.no,tokenId:token.id,route:path}};
+        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, eventDone);  
         return true;
      
     }   
