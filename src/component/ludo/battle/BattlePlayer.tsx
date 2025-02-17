@@ -56,7 +56,7 @@ export const BattlePlaza: React.FC = () => {
   return (
     <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%" }}>
       <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
-        <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
+        <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, marginBottom: "2px" }}>
           <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
             <div style={{ width: 10 }}></div><Dice size={Math.floor(boardDimension.height / 15)} seatNo={0} />
           </div>
@@ -67,7 +67,7 @@ export const BattlePlaza: React.FC = () => {
         <div style={{ ...boardDimension }}>
           <CombatBoard />
         </div>
-        <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
+        <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, marginTop: "4px" }}>
           <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
             <div style={{ width: 10 }}></div><Dice size={Math.floor(boardDimension.height / 15)} seatNo={3} />
           </div>

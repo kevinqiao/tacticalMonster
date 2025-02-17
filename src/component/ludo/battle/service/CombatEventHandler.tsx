@@ -1,15 +1,18 @@
+import gsap from "gsap";
 import React, { ReactNode, useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 import useDiceAnimate from "../animation/useDiceAnimate";
+import useTokenAnimate from "../animation/useTokenAnimate";
 import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 import useActionProcessor from "./processor/useActionProcessor";
-
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
     const { eventQueue } = useCombatManager();
     const { processRollStart, processRollDone, processRoll } = useActionProcessor();
     const { playRollStart, playRollDone } = useDiceAnimate();
+    const { playTokenMove, playTokenSelectable } = useTokenAnimate();
+
 
     const processEvent = useCallback(() => {
 
@@ -43,9 +46,16 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                 case "rollDone":
                     console.log("rollDone:", data)
                     event.status = 1;
-                    // processRollDone(data, () => onComplete(event.initTime));
-                    playRollDone(data);
-                    onComplete(event.initTime);
+                    const tl = gsap.timeline({
+                        onComplete: () => onComplete(event.initTime)
+                    });
+                    playRollDone({ data, timeline: tl });
+                    if (data.move) {
+                        playTokenMove({ data, timeline: tl });
+                    } else if (data.select) {
+                        playTokenSelectable({ data, timeline: tl });
+                    }
+                    tl.play();
                     break;
                 case "select":
                     event.status = 1;

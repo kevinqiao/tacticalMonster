@@ -20,7 +20,7 @@ body {
     width: calc(var(--dice-size) * 1);
     height: calc(var(--dice-size) * 1);
     perspective: 800px;
-    margin: 0 auto 20px;
+    /* margin: 0 auto 20px; */
 }
 
 /* 骰子立方体 */
