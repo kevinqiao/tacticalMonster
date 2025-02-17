@@ -12,8 +12,8 @@ const useCombatAct = () => {
   // const { processRoll, processTokenSelect, processSkillSelect } = useActionProcessor();
   const convex = useConvex();
 
-  const roll = useCallback(async (seatNo: number) => {
-    console.log("roll", seatNo);
+  const roll = useCallback(async () => {
+
     const res = await convex.action(api.service.gameProxy.roll, {
       gameId: game?.gameId ?? "123",
       uid: user?.uid,
@@ -21,10 +21,12 @@ const useCombatAct = () => {
     });
     console.log("roll res", res);
     if (res) {
-      eventQueue.push({ name: "rollStart", data: { seatNo } });
+      const seat = game?.seats.find((s) => s.uid === user.uid)
+      if (!seat) return;
+      eventQueue.push({ name: "rollStart", data: { seatNo: seat.no } });
     }
 
-  }, [eventQueue, game]);
+  }, [eventQueue, game, user]);
 
   const useSkill = useCallback(async (skill: Skill) => {
 

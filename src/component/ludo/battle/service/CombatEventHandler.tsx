@@ -1,5 +1,6 @@
 import React, { ReactNode, useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
+import useDiceAnimate from "../animation/useDiceAnimate";
 import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 import useActionProcessor from "./processor/useActionProcessor";
@@ -8,7 +9,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
     const { user } = useUserManager();
     const { eventQueue } = useCombatManager();
     const { processRollStart, processRollDone, processRoll } = useActionProcessor();
-
+    const { playRollStart, playRollDone } = useDiceAnimate();
 
     const processEvent = useCallback(() => {
 
@@ -35,12 +36,16 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                 case "rollStart":
                     console.log("roll:", data)
                     event.status = 1;
-                    processRollStart(data, () => onComplete(event.initTime));
+                    // processRollStart(data, () => onComplete(event.initTime));
+                    playRollStart(data);
+                    onComplete(event.initTime);
                     break;
                 case "rollDone":
                     console.log("rollDone:", data)
                     event.status = 1;
-                    processRollDone(data, () => onComplete(event.initTime));
+                    // processRollDone(data, () => onComplete(event.initTime));
+                    playRollDone(data);
+                    onComplete(event.initTime);
                     break;
                 case "select":
                     event.status = 1;

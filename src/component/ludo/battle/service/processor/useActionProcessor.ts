@@ -1,14 +1,14 @@
 import gsap from "gsap";
 import { useCallback } from "react";
-import { useUserManager } from "service/UserManager";
+import useDiceAnimate from "../../animation/useDiceAnimate";
 import { useCombatManager } from "../CombatManager";
-
 const useActionProcessor = () => {
-    const {user} = useUserManager();    
+
     const {tokens,seatRoutes,boardDimension} = useCombatManager()
-    // console.log("tokens",tokens)
+    const {playRollStart,playRollDone} = useDiceAnimate();
     const processRollStart = useCallback((data:any,onFinish:()=>void) => {
         console.log("processRollStart",data)    
+        // playRollStart();
         onFinish();
     }, [])
     const processRollDone = useCallback((data:any,onFinish:()=>void) => {

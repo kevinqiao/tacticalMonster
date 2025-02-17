@@ -61,18 +61,18 @@ export const BattlePlaza: React.FC = () => {
             <div style={{ width: 10 }}></div><Dice size={Math.floor(boardDimension.height / 15)} seatNo={0} />
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            {isAvailable(1) && <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(1)}>1</div>}
+            <Dice size={Math.floor(boardDimension.height / 15)} seatNo={1} />
           </div>
         </div>
         <div style={{ ...boardDimension }}>
           <CombatBoard />
         </div>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, border: "1px solid white", marginTop: "2px" }}>
-          <div style={{ width: "50%" }}>
-            {isAvailable(3) && <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(3)}>3</div>}
+          <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
+            <div style={{ width: 10 }}></div><Dice size={Math.floor(boardDimension.height / 15)} seatNo={3} />
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            {isAvailable(2) && <div style={{ display: "flex", justifyContent: "center", alignItems: "center", cursor: "pointer", width: boardDimension.height / 15, height: "100%", backgroundColor: "grey" }} onClick={() => roll(2)}>2</div>}
+            <Dice size={Math.floor(boardDimension.height / 15)} seatNo={2} />
           </div>
         </div>
       </div>

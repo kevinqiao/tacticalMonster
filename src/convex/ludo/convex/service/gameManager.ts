@@ -91,13 +91,14 @@ class GameManager {
         const token = seat.tokens.find((t)=>t.id===1);  
         if(!token) return false;
         const startIndex = route.findIndex((t)=>t.x===token?.x && t.y===token?.y);
-        const path = route.slice(startIndex, startIndex + 4 > route.length ? route.length : startIndex + 4);
+        const value =  Math.floor(Math.random() * 6) + 1
+        const path = route.slice(startIndex, startIndex + value > route.length ? route.length : startIndex + value);
         console.log("path",path);
         const end = path[path.length-1];
         token.x=end.x;
         token.y=end.y;
         await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{seats:this.game.seats}});
-        const eventDone={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seat:seat.no,tokenId:token.id,route:path}};
+        const eventDone={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seat:seat.no,tokenId:token.id,route:path,value}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, eventDone);  
         return true;
      

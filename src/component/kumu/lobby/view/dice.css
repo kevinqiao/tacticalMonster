@@ -19,8 +19,8 @@ body {
 .scene {
     width: calc(var(--dice-size) * 1);
     height: calc(var(--dice-size) * 1);
-    perspective: 600px;
-    margin: 0 auto 2px;
+    perspective: 800px;
+    margin: 0 auto 20px;
 }
 
 /* 骰子立方体 */
