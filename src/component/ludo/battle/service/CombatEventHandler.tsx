@@ -1,29 +1,23 @@
 import gsap from "gsap";
 import React, { ReactNode, useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
+import useCountDownAnimate from "../animation/useCountDownAnimate";
 import useDiceAnimate from "../animation/useDiceAnimate";
-import useTokenAnimate from "../animation/useTokenAnimate";
 import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
-import useActionProcessor from "./processor/useActionProcessor";
+
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
-    const { eventQueue } = useCombatManager();
-    const { processRollStart, processRollDone, processRoll } = useActionProcessor();
+    const { game, eventQueue } = useCombatManager();
     const { playRollStart, playRollDone } = useDiceAnimate();
-    const { playTokenMove, playTokenSelectable } = useTokenAnimate();
-
+    const { playCountStart, playCountStop } = useCountDownAnimate();
 
     const processEvent = useCallback(() => {
-
+        if (!game) return;
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
-        if (!event) return;
-        const onComplete = (initTime: number | undefined) => {
-            console.log("onComplete", initTime)
-            const pos = eventQueue.findIndex((e) => e.initTime === initTime);
-            eventQueue.splice(pos, 1);
-            // eventQueue.shift();
-            console.log("onComplete over", eventQueue)
+        if (!event || event.status === 1) return;
+        const onComplete = () => {
+            eventQueue.shift();
         }
 
         event.initTime = event.initTime || Date.now();
@@ -40,40 +34,39 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     console.log("roll:", data)
                     event.status = 1;
                     // processRollStart(data, () => onComplete(event.initTime));
+                    playCountStop();
                     playRollStart(data);
-                    onComplete(event.initTime);
+                    onComplete();
                     break;
                 case "rollDone":
                     console.log("rollDone:", data)
                     event.status = 1;
                     const tl = gsap.timeline({
-                        onComplete: () => onComplete(event.initTime)
+                        onComplete: () => onComplete()
                     });
-                    playRollDone({ data, timeline: tl });
-                    if (data.move) {
-                        playTokenMove({ data, timeline: tl });
-                    } else if (data.select) {
-                        playTokenSelectable({ data, timeline: tl });
-                    }
+                    playRollDone({ data });
                     tl.play();
                     break;
-                case "select":
+                case "askAct":
                     event.status = 1;
-
+                    game.currentAction = data;
+                    console.log("askAct:", data)
+                    game.actDue = data.duration + Date.now();
+                    playCountStart();
+                    onComplete();
                     break;
-                case "skillSelect":
+                case "move":
                     event.status = 1;
-
+                    console.log("move:", data)
+                    onComplete();
                     break;
-                case "turnStart":
+                case "turnNext":
                     event.status = 1;
-
+                    game.currentAction = data;
+                    game.actDue = data.duration + Date.now();
+                    playCountStart();
+                    onComplete();
                     break;
-                case "roundStart":
-                    event.status = 1;
-
-                    break;
-
                 default:
                     console.log("unknown event", event)
                     eventQueue.shift();
@@ -82,7 +75,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
 
         }
 
-    }, [user, eventQueue, processRoll])
+    }, [user, game, eventQueue])
 
 
     useEffect(() => {

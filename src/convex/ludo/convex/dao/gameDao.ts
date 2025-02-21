@@ -3,10 +3,13 @@ import { Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { sessionQuery } from "../custom/session";
 const query = async (ctx:any,gameId:string)=>{
-    console.log("query",gameId);    
+      
         const id = gameId as Id<"game">;
         const game = await ctx.db.get(id);      
         if(game){
+            if(game.actDue){
+                game.actDue=game.actDue-Date.now();
+            }
             return { ...game, gameId, _id: undefined, _creationTime: undefined} 
         } 
         return null
@@ -42,18 +45,14 @@ export const create = internalMutation({
                 id:v.number(),
                 x:v.number(),
                 y:v.number(),
-            }))
+            })),
+            dice:v.optional(v.number()),
         })),
-        currentTurn:v.optional(v.object({
-            seat:v.number(),
-            dice:v.number(),
-            skill:v.optional(v.string()),
-            skillSelect:v.optional(v.string()),
-        })),
-        turnDue:v.optional(v.number()),
+        currentAction:v.optional(v.object({type:v.number(),seat:v.optional(v.number()),tokens:v.optional(v.array(v.number()))})),
+        actDue:v.optional(v.number()),
     },
-    handler: async (ctx, { seats,currentTurn,turnDue }) => {
-        const docId = await ctx.db.insert("game", {seats,currentTurn,turnDue,status:0 });
+        handler: async (ctx, { seats,currentAction,actDue }) => {
+        const docId = await ctx.db.insert("game", {seats,currentAction,actDue,status:0 });
         return docId
     },
 });

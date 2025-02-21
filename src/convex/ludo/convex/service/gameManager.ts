@@ -1,4 +1,4 @@
-import { GameModel } from "../../../../component/ludo/battle/types/CombatTypes";
+import { ACTION_TYPE, GameModel } from "../../../../component/ludo/battle/types/CombatTypes";
 import { getRoutePath } from "../../../../component/ludo/util/mapUtils";
 import { internal } from "../_generated/api";
 import { tokenRoutes } from "./tokenRoutes";
@@ -29,6 +29,8 @@ class GameManager {
         // console.log("players",players);
 
         const gameObj:any = { 
+            currentAction:{type:ACTION_TYPE.ROLL,seat:1},
+            actDue:Date.now()+15000,    
             seats: [
             { no: 0, tokens: [] },
             { no: 2, tokens: []},
@@ -65,6 +67,7 @@ class GameManager {
     getGame(){
         return this.game;
     }
+    
      async gameStart() {
         if(!this.game) return;
         //游戏开始前的处理 , 比如添加buff ，被动技能的执行
@@ -80,49 +83,130 @@ class GameManager {
 
         return true;    
     } 
+    getAvailableTokens(dice:number,seat:any){
+        const route=routes[seat.no];
+        if(dice===6){
+            return seat.tokens.filter((t:any)=>{
+                if(t.x<0||t.y<0) return true;
+                const startIndex = route.findIndex((r:any)=>r.x===t.x && r.y===t.y);
+                const endIndex = startIndex + dice+1;
+                return endIndex < route.length;
+            })
+        }else{
+            return seat.tokens.filter((t:any)=>{
+                if(t.x<0||t.y<0) return false;
+                const startIndex = route.findIndex((r:any)=>r.x===t.x && r.y===t.y);
+                const endIndex = startIndex + dice+1;
+                return endIndex < route.length;
+            });
+        }
+    }
     async roll(uid:string): Promise<boolean> {
         if(!this.game) return false;
         const seat = this.game.seats.find(seat=>seat.uid===uid);
         if(!seat) return false;
         const event={gameId:this.game.gameId,name:"rollStart",actor:uid,data:{seatNo:seat.no}};
-        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event); 
-        const route=routes[seat.no];
-        // console.log("route",route); 
-        const token = seat.tokens.find((t)=>t.id===1);  
-        if(!token) return false;
-        const startIndex = route.findIndex((t)=>t.x===token?.x && t.y===token?.y);
-        const value =  Math.floor(Math.random() * 6) + 1
-        const path =  startIndex + value < route.length ?route.slice(startIndex+1, startIndex + value+1):[];
-        console.log("path",path);
-        if(path.length>0){
-            const end = path[path.length-1];
-            token.x=end.x;
-            token.y=end.y;
-            await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{seats:this.game.seats}});
-        }
-        const eventDone={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seatNo:seat.no,value,move:{tokenId:token.id,route:path}}};
-        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, eventDone);  
+        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);        
+        const value =  Math.floor(Math.random() * 6) + 1;
+        const availableTokens = this.getAvailableTokens(value,seat);
+        const eventDone:any={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seatNo:seat.no,value}};
+        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, eventDone);
+        seat.dice=value;
+        await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{seats:this.game.seats}});  
+        if(availableTokens.length===0){              
+         await this.turnNext()
+        }else if(availableTokens.length===1){           
+         await   this.move(seat,availableTokens[0],value);  
+        }else{
+         await   this.askSelect(availableTokens);    
+        }      
         return true;
      
     }   
-    async selectToken(gameId: string, uid: string, token:number): Promise<boolean> {
-      
-        return true;
-     
+    async askSelect(tokens:any[]){
+        const seatNo = this.game?.currentAction?.seat;
+        if(!seatNo||!this.game) return;
+        const seat = this.game.seats.find(seat=>seat.no===seatNo);
+        if(!seat) return;
+        this.game.currentAction={seat:seatNo,type:ACTION_TYPE.SELECT,tokens};
+        this.game.actDue=Date.now()+15000;
+        await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{currentAction:this.game.currentAction,actDue:this.game.actDue}});
+        const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,duration:15000}};
+        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);
     }
-    
-    async turnStart(){
-       
-        if(!this.game) return;
-        // console.log("turnStart",this.game.currentRound);
-      
-            // const turnEvent={gameId:this.game.gameId,name:"turnStart",data};
-            // await this.dbCtx.runMutation(internal.dao.tmEventDao.create, turnEvent);  
-            // nextTurn.status=1;  
-            // await this.dbCtx.runMutation(internal.dao.tmGameRoundDao.update, {gameId:this.game.gameId,no:round.no,data:{turns:round.turns}});
+    async askAct(){
+        
+        const seatNo = this.game?.currentAction?.seat;
+        if(!seatNo||!this.game) return;
+        const seat=this.game.seats.find(seat=>seat.no===seatNo);
+        if(!seat) return;
+        const route=routes[seat.no];
+        const finalPoint = route[route.length-1];
+        const gameOver = seat.tokens.every((t:any)=>t.x===finalPoint.x && t.y===finalPoint.y);
+        if(gameOver){
+            this.gameOver();
+        }else{  
+            this.game.currentAction={seat:seatNo,type:ACTION_TYPE.ROLL};        
+            this.game.actDue=Date.now()+15000;
+            await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{actDue:this.game.actDue,currentAction:this.game.currentAction}});
+            const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,duration:15000}};
+            await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);
+        }
 
-            // await this.dbCtx.runMutation(internal.dao.tmGameDao.update, {id:this.game.gameId,data:{lastUpdate:Date.now()}});
-              
+    }
+    async selectToken(seatNo:number,tokenId:number){
+        if(!this.game) return;
+        const seat=this.game.seats.find(seat=>seat.no===seatNo);
+        if(!seat) return;
+        const dice=seat.dice;
+        if(!dice) return;
+        const token=seat.tokens.find(t=>t.id===tokenId);
+        if(!token) return;
+        const event:any={gameId:this.game.gameId,name:"selectToken",actor:seat.uid,data:{seatNo:seat.no,tokenId:token.id}};
+        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);
+        await this.move(seat,token,dice); 
+        
+    }
+    async move(seat:any, token:any,step:number): Promise<void> {
+            console.log("move",seat,token,step);    
+            if(!this.game) return ;
+            const route=routes[seat.no];
+            const startIndex = route.findIndex((t)=>t.x===token?.x && t.y===token?.y);
+            const path =  startIndex + step < route.length ?route.slice(startIndex+1, startIndex + step+1):[];
+
+            if(path.length>0){
+                const end = path[path.length-1];
+                token.x=end.x;
+                token.y=end.y;
+                await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{seats:this.game.seats}});
+                const event:any={gameId:this.game.gameId,name:"move",actor:"####",data:{seat:seat.no,token:token.id,route:path}};
+                await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);  
+                if(end.x===route[route.length-1].x && end.y===route[route.length-1].y){
+                  await  this.askAct();
+                }else{
+                  await this.turnNext();
+                }   
+            }
+    }
+    async gameOver(){
+        console.log("gameOver");
+    }
+    async turnNext(){    
+        console.log("turnNext",this.game?.currentAction);
+        if(!this.game) return;
+        const seatNo = this.game.currentAction?.seat;
+        if(!seatNo) return;
+        let nextSeat;
+        while(!nextSeat||nextSeat.tokens.length===0){  
+            const no:number = nextSeat ? (nextSeat.no===3?0:nextSeat.no+1):(seatNo===3?0:seatNo+1);
+            nextSeat =this.game.seats.find((s)=>s.no===no);
+        }
+
+        this.game.currentAction={seat:nextSeat.no,type:ACTION_TYPE.ROLL};
+        this.game.actDue=Date.now()+15000;
+        await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{currentAction:this.game.currentAction,actDue:this.game.actDue}});
+        const event:any={gameId:this.game.gameId,name:"turnNext",actor:"####",data:{...this.game.currentAction,duration:15000}};
+        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);       
     }  
     
    

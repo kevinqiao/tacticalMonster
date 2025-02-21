@@ -10,9 +10,26 @@ const faceTransforms: { [key: number]: { rotationX: number; rotationY: number } 
     6: { rotationX: 90, rotationY: 0 },
 };
 const useDiceAnimate = () => {
+         const countDownAniRef = useRef<{[k:number]:gsap.core.Timeline | null}>({});
          const animationRef = useRef<{[k:number]:gsap.core.Timeline | null}>({});
          const currentRotationRef = useRef<{[k:number]:{ x: number, y: number }}>({}); // 跟踪当前旋转值
          const {game} = useCombatManager();
+
+         const playCountDown = useCallback((seatNo:number)=>{
+            if(!game) return;
+            const seat  = game.seats.find((s:any)=>s.no === seatNo);
+            if(!seat||!seat.countDownEle) return;
+            const perimeter = seat.countDownEle.getTotalLength();
+            const tl = gsap.timeline()
+            tl.to(seat.countDownEle, {
+                strokeDashoffset: perimeter,
+                duration: 10,
+                repeat: -1,
+                ease: "linear",
+            }) 
+            countDownAniRef.current[seatNo] = tl;
+        },[game])   
+
 
         const playRollStart =useCallback((data:any) => {
             console.log("playRollStart",data)
@@ -51,19 +68,13 @@ const useDiceAnimate = () => {
             animationRef.current[seat.no] = tl;
         },[game]);
 
-        const playRollDone =useCallback(({data,timeline}:{data:any,timeline?:gsap.core.Timeline}) => {   
+        const playRollDone =useCallback(({data}:{data:any}) => {   
             console.log("playRollDone",data)
             if(!game||!data.seatNo) return;
             const seat  = game.seats.find((s:any)=>s.no === data.seatNo);
             console.log("seat",seat)
             if(!seat||!seat.diceEle) return; 
             const diceEle = seat.diceEle;
-            const rotationX = gsap.getProperty(diceEle, "rotationX") as number;
-            const rotationY = gsap.getProperty(diceEle, "rotationY") as number;
-            currentRotationRef.current[seat.no] = {
-                x: rotationX,
-                y: rotationY
-            };
             animationRef.current[seat.no]?.kill();
             animationRef.current[seat.no] = null;
             const finalRotation = faceTransforms[data.value];
@@ -73,7 +84,7 @@ const useDiceAnimate = () => {
         // 计算最近的完整旋转圈数
             const fullRotationsX = Math.floor(x / 360) * 360;
             const fullRotationsY = Math.floor(y / 360) * 360;
-            const tl = timeline??gsap.timeline();   
+            const tl = gsap.timeline();   
             // 确保最终旋转至少多转一圈
             tl.to(diceEle, {
                 duration: 1.5,
@@ -83,7 +94,7 @@ const useDiceAnimate = () => {
             });
         },[game]);
         
-        return { playRollStart,playRollDone}       
+        return { playRollStart,playRollDone,playCountDown}       
 }
 export default useDiceAnimate;   
 

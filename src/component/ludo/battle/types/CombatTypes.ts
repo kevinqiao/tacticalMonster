@@ -1,6 +1,9 @@
 import { Spine } from "pixi-spine";
 
-
+export enum ACTION_TYPE {
+    ROLL = 1,
+    SELECT = 2,
+}
 export enum EVENT_NAME {
    ROLL = "roll",
    SKILL = "skill",
@@ -13,6 +16,8 @@ export interface Seat {
     uid?:string;
     no: number;
     tokens:Token[];
+    dice?:number;
+    countDownEle?:SVGPathElement|null;
     diceEle?:HTMLDivElement|null;
     stationEles:{[k:number]:HTMLDivElement|null};
 }
@@ -46,16 +51,14 @@ export interface Token {
 export interface GameModel {
   gameId: string;
   seats:Seat[];
-  currentTurn?: CombatTurn;
-  turnDue?: number;
+  currentAction?:CombatAction;    
+  actDue?: number;
   status?: number;  
 }
 export interface CombatAction {
-    uid: string;
-    round?: number;
-    character: string;
-    act: number;
-    data?: any;
+   type:number;
+   seat?:number;
+   tokens?:number[];
 }
 export interface CombatTurn {
     gameId?: string;
@@ -109,7 +112,6 @@ export interface ICombatContext {
     tokens?:Token[]; 
     seatRoutes:{[k:number]:{ x: number, y: number }[]};
     players?:Player[];
-    currentRound?: CombatRound;
     eventQueue: CombatEvent[];
     updateBoardDimension:(width:number,height:number)=>void;
 }

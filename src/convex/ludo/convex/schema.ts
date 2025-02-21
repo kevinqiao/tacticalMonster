@@ -26,14 +26,10 @@ export default defineSchema({
                 x: v.number(),
                 y: v.number(),
             })),
+            dice:v.optional(v.number()),    
         })),
-        currentTurn: v.optional(v.object({
-            seat: v.number(),
-            dice:v.number(),
-            skillSelect:v.optional(v.string()),
-        })),
-        turnDue:v.optional(v.number()),
+        currentAction:v.optional(v.object({type:v.number(),seat:v.optional(v.number()),tokens:v.optional(v.array(v.number()))})),
         status:v.optional(v.number()),
-
-    }).index("by_due", ["turnDue"])
+        actDue:v.optional(v.number()),
+    }).index("by_due", ["actDue"])
 });

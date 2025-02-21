@@ -20,7 +20,6 @@ export const CombatContext = createContext<ICombatContext>({
   boardDimension: { width: 0, height: 0 },
   game: null,
   tokens: [],
-  currentRound: { no: 0, turns: [], status: 0 },
   eventQueue: [],
   seatRoutes: {},
   updateBoardDimension: () => { }
@@ -35,7 +34,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const events: any = useQuery(api.dao.gameEventDao.find, { gameId, lastTime });
   const [boardDimension, setBoardDimension] = useState<{ width: number, height: number }>({ width: 0, height: 0 });
   const convex = useConvex();
-  const { currentTurn } = game || {};
+
 
   const tokens = useMemo(() => {
     return game?.seats.map(seat =>
@@ -79,8 +78,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         gameId, uid: "1",
         token: "test-token"
       });
-      console.log("gameObj", gameObj)
       if (gameObj) {
+        console.log("gameObj", JSON.stringify(gameObj))
+        gameObj.actDue = gameObj.actDue + Date.now();
         gameObj.seats.forEach((seat: any) => {
           seat.stationEles = {};
         })
@@ -90,13 +90,16 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     fetchGame(gameId);
   }, [gameId])
   useEffect(() => {
-    console.log("game", game)
-  }, [gameId])
+    if (game?.currentAction && game?.actDue) {
+      const event = { name: "askAct", gameId: game.gameId, data: { ...game.currentAction, duration: game.actDue - Date.now() } }
+      eventQueueRef.current.push(event);
+    }
+  }, [game])
+
 
   const value = {
     game,
     tokens,
-    currentTurn,
     eventQueue: eventQueueRef.current,
     seatRoutes,
     boardDimension,

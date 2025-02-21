@@ -1,13 +1,40 @@
 // Dice.tsx
 import { useCombatManager } from 'component/ludo/battle/service/CombatManager';
 import useCombatAct from 'component/ludo/battle/service/useCombatAct';
-import React, { useMemo } from 'react';
+import React from 'react';
+import { Seat } from '../types/CombatTypes';
 import './dice.css';
+const strokeWidth = 4;
+const CountDownDice: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) => {
+    const side = size - strokeWidth;
+    const perimeter = 4 * side;
+    const x = strokeWidth / 2;
+    const y = strokeWidth / 2;
 
-const Dice: React.FC<{ seatNo: number, size: number }> = ({ seatNo, size }) => {
+    return (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: size, height: size, pointerEvents: 'none' }}>
+            {seat?.tokens && seat.tokens.length > 0 && <svg width={size} height={size}>
+                <path
+                    ref={el => seat.countDownEle = el}
+                    d={`M ${x} ${y} 
+                       h ${side} 
+                       v ${side} 
+                       h ${-side} 
+                       v ${-side}`}
+                    fill="none"
+                    stroke="red"
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={perimeter}
+                    strokeDashoffset={perimeter}
+                />
+            </svg>}
+        </div>
+    );
+};
+const DiceCore: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) => {
     const { game } = useCombatManager();
     const { roll } = useCombatAct();
-    const seat = useMemo(() => game?.seats.find((s: any) => s.no === seatNo), [game, seatNo]);
+
 
     return (
         <div
@@ -76,6 +103,17 @@ const Dice: React.FC<{ seatNo: number, size: number }> = ({ seatNo, size }) => {
                 </div>}
             </div>
 
+        </div>
+    );
+};
+
+const Dice: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) => {
+
+
+    return (
+        <div style={{ position: 'relative', width: size, height: size }}>
+            <DiceCore seat={seat} size={size} />
+            <CountDownDice seat={seat} size={size} />
         </div>
     );
 };

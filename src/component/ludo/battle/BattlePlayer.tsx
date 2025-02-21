@@ -1,9 +1,10 @@
-import Dice from "component/kumu/lobby/view/Dice";
-import React, { useCallback, useEffect, useRef } from "react";
+import Dice from "component/ludo/battle/view/Dice";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
 import useCombatAct from "./service/useCombatAct";
+import { Seat } from "./types/CombatTypes";
 import BoardGrid from "./view/BoardGrid";
 import GoalPlace from "./view/GoalPlace";
 import SeatGrid from "./view/SeatGrid";
@@ -29,6 +30,13 @@ export const BattlePlaza: React.FC = () => {
     const seat = game?.seats.find((seat) => seat.no === seatNo);
     if (seat?.tokens.length && seat.tokens.length > 0) return true;
     return false;
+  }, [game]);
+  const seats: { [k: number]: Seat } = useMemo(() => {
+    const seats: { [k: number]: Seat } = {};
+    game?.seats.forEach((seat) => {
+      seats[seat.no] = seat;
+    })
+    return seats;
   }, [game]);
   useEffect(() => {
     const updatePosition = () => {
@@ -58,10 +66,10 @@ export const BattlePlaza: React.FC = () => {
       <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, marginBottom: "2px" }}>
           <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
-            <div style={{ width: 10 }}></div><Dice size={Math.floor(boardDimension.height / 15)} seatNo={0} />
+            <div style={{ width: 10 }}></div>{seats[0]?.tokens.length > 0 && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[0]} />}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            <Dice size={Math.floor(boardDimension.height / 15)} seatNo={1} />
+            <div style={{ width: 10 }}></div>{seats[1]?.tokens.length > 0 && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[1]} />}
           </div>
         </div>
         <div style={{ ...boardDimension }}>
@@ -69,10 +77,10 @@ export const BattlePlaza: React.FC = () => {
         </div>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, marginTop: "4px" }}>
           <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
-            <div style={{ width: 10 }}></div><Dice size={Math.floor(boardDimension.height / 15)} seatNo={3} />
+            <div style={{ width: 10 }}></div>{seats[3]?.tokens.length > 0 && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[3]} />}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            <Dice size={Math.floor(boardDimension.height / 15)} seatNo={2} />
+            <div style={{ width: 10 }}></div>{seats[2]?.tokens.length > 0 && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[2]} />}
           </div>
         </div>
       </div>
