@@ -79,7 +79,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         token: "test-token"
       });
       if (gameObj) {
-        console.log("gameObj", JSON.stringify(gameObj))
+        console.log("gameObj", gameObj)
         gameObj.actDue = gameObj.actDue + Date.now();
         gameObj.seats.forEach((seat: any) => {
           seat.stationEles = {};

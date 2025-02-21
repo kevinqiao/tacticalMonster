@@ -56,19 +56,25 @@ export const selectToken = sessionAction({
         console.log("TM game service")
     }
 })
-export const selectSkill = sessionAction({
-    args: {  gameId: v.string(), data: v.any() },
-    handler: async (ctx, { gameId, data }) => {
-
+export const timeout = sessionAction({
+    args: {  gameId: v.string()},
+    handler: async (ctx, { gameId}) => {
+        console.log("TM timeout",gameId);
          if (!ctx.user) return false;
-
+         const gameService=new GameManager(ctx);
+         await gameService.initGame(gameId);
+         await gameService.timeout();
+         return true;
     }
 })
 
 export const gameOver = sessionAction({
     args: { gameId: v.string()},
     handler: async (ctx, {gameId}) => {
-        
+        if (!ctx.user) return false;
+        // const gameService=new GameManager(ctx);
+        // await gameService.initGame(gameId);
+        // await gameService.gameOver();
         return true;
     }
 })

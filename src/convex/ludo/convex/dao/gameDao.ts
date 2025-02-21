@@ -66,3 +66,29 @@ export const update = internalMutation({
         return true
     },
 })
+export const lock = internalMutation({
+    args: {
+        id: v.id("game")
+    },
+    handler: async (ctx, { id}) => {
+        const game = await ctx.db.get(id); 
+        if(game&&!game.status){
+            await ctx.db.patch(id, {status:1});
+            return true;
+        }
+        return false
+    },
+})
+export const unlock= internalMutation({
+    args: {
+        id: v.id("game")
+    },
+    handler: async (ctx, { id}) => {
+        const game = await ctx.db.get(id); 
+        if(game&&game.status){
+            await ctx.db.patch(id, {status:0});
+            return true;
+        }
+        return false
+    },
+})

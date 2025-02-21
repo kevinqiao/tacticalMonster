@@ -208,7 +208,14 @@ class GameManager {
         const event:any={gameId:this.game.gameId,name:"turnNext",actor:"####",data:{...this.game.currentAction,duration:15000}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);       
     }  
-    
+    async timeout(){
+        console.log("timeout");
+        const isLocked=await this.dbCtx.runMutation(internal.dao.gameDao.lock, {id:this.game?.gameId});
+        if(isLocked){
+            await this.turnNext();  
+            await this.dbCtx.runMutation(internal.dao.gameDao.unlock, {id:this.game?.gameId});
+        }
+    }
    
    
 }

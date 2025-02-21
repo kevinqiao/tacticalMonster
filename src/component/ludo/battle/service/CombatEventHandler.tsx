@@ -61,6 +61,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     onComplete();
                     break;
                 case "turnNext":
+                    console.log("turnNext:", data)
                     event.status = 1;
                     game.currentAction = data;
                     game.actDue = data.duration + Date.now();

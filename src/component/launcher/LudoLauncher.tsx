@@ -5,7 +5,7 @@ import { SSAProvider } from "service/SSAManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/ludo/convex/_generated/api";
 const LudoLauncherMain: React.FC<{ open: () => void, game: { name: string; id: string; status: number } }> = ({ open, game }) => {
-  const { updateLoaded } = useUserManager();
+  const { updateLoaded, user } = useUserManager();
   const convex = useConvex();
   const { openPage } = usePageManager();
 
@@ -19,8 +19,8 @@ const LudoLauncherMain: React.FC<{ open: () => void, game: { name: string; id: s
           token: "test-token"
         });
 
-        if (gameObj && !gameObj.status && !location.pathname.includes("/play/lobby/c1")) {
-          if (gameObj.status > 0)
+        if (user && gameObj && gameObj.status <= 1 && !location.pathname.includes("/play/lobby/c1")) {
+          if (user?.game?.status > 0)//1-loaded ever before
             open();
           else {
             console.log("open game", game);
@@ -31,7 +31,7 @@ const LudoLauncherMain: React.FC<{ open: () => void, game: { name: string; id: s
       }
     }
     if (game?.id) fetchGame(game.id);
-  }, [game]);
+  }, [game, user]);
   return <></>
 
 };
