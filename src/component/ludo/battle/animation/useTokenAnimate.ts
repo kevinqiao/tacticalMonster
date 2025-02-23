@@ -1,9 +1,32 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
+import { Token } from "../types/CombatTypes";
 
 const useTokenAnimate = () => {
         const {game,tokens,seatRoutes,boardDimension} = useCombatManager();
+        const groupingTokens=useCallback((groupTokens:Token[])=>{
+                if(!tokens || !boardDimension) return;
+                const tlength = groupTokens.length;
+                if(tlength===0) return;
+                const tl = gsap.timeline({
+                        onComplete: () => {}
+                });
+                const tx = groupTokens[0].x / 15 * boardDimension.width;
+                const ty = groupTokens[0].y / 15 * boardDimension.height;
+                const scale = tlength>1?0.6:1;
+                const tileSize = boardDimension.width/15/tlength/2;
+                groupTokens.forEach((t:any,index:number)=>{
+                    const offset = index-(tlength-1)/2;
+                    tl.to(t.ele, {
+                        x: tx+tileSize*offset,
+                        y: ty+tileSize*offset,
+                        scale: scale,
+                        duration: 0.3, ease: "power2.inOut"  
+                    })
+                })
+               
+        },[tokens,boardDimension]);
         const playTokenReleased =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {
                 console.log("playTokenReleased",data)
                 if(!tokens  || !boardDimension) return;
@@ -15,6 +38,8 @@ const useTokenAnimate = () => {
                         onComplete: () => {
                             seatToken.x =token.x;
                             seatToken.y =token.y;
+                            const group = tokens.filter((t:any)=>t.x===token.x&&t.y===token.y);
+                            groupingTokens(group);
                             onComplete();   
                             tl.kill();
                         }
@@ -41,9 +66,16 @@ const useTokenAnimate = () => {
                 console.log("token",token)
                 if(!token) return;  
                 const tl = gsap.timeline({
+                        onStart: () => {
+                            const group = tokens.filter((t:any)=>t.x===token.x&&t.y===token.y&&t.id!==token.id);
+                            groupingTokens(group);
+                           
+                        },
                         onComplete: () => {
                             token.x = route[route.length - 1].x;
                             token.y = route[route.length - 1].y;
+                            const group = tokens.filter((t:any)=>t.x===token.x&&t.y===token.y);
+                            groupingTokens(group);
                             onComplete();   
                             tl.kill();
                         }
@@ -52,6 +84,7 @@ const useTokenAnimate = () => {
                 route.forEach((p:any) => {
                     if (token.ele) {
                     tl.to(token.ele, {
+                        scale: 1,
                         x: p.x / 15 * boardDimension.width,
                         y: p.y / 15 * boardDimension.height,
                         duration: 0.3, ease: "power2.inOut"  
