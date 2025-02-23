@@ -1,7 +1,7 @@
 import { gsap } from "gsap";
 import { useCallback, useRef } from "react";
 import { useCombatManager } from "../service/CombatManager";
-const faceTransforms: { [key: number]: { rotationX: number; rotationY: number } } = {
+export const faceTransforms: { [key: number]: { rotationX: number; rotationY: number } } = {
     1: { rotationX: 0, rotationY: 0 },
     2: { rotationX: 0, rotationY: -90 },
     3: { rotationX: 0, rotationY: -180 },
@@ -95,8 +95,20 @@ const useDiceAnimate = () => {
             tl.call(onComplete,[],"-=0.5");
             tl.play();
         },[game]);
+        const playDiceInit=useCallback(()=>{
+            if(!game) return;
+            game.seats.forEach((seat:any)=>{
+                if(!seat||!seat.diceEle) return; 
+                const diceValue = seat.dice??1;
+                const finalRotation = faceTransforms[diceValue];    
+                gsap.set(seat.diceEle, {
+                    rotationX: finalRotation.rotationX,
+                    rotationY: finalRotation.rotationY
+                });
+            });
+        },[game])
         
-        return { playRollStart,playRollDone,playCountDown}       
+        return { playRollStart,playRollDone,playCountDown,playDiceInit}       
 }
 export default useDiceAnimate;   
 

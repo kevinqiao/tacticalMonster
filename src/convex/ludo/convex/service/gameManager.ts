@@ -107,8 +107,8 @@ class GameManager {
         if(!seat) return false;
         const event={gameId:this.game.gameId,name:"rollStart",actor:uid,data:{seatNo:seat.no}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);        
-        // const value =  Math.floor(Math.random() * 6) + 1;
-        const value=6;
+         const value =  Math.floor(Math.random() * 6) + 1;
+        // const value=6;
         const availableTokens = this.getAvailableTokens(value,seat);
         const eventDone:any={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seatNo:seat.no,value}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, eventDone);

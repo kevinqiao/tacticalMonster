@@ -1,7 +1,8 @@
 // Dice.tsx
-import { useCombatManager } from 'component/ludo/battle/service/CombatManager';
 import useCombatAct from 'component/ludo/battle/service/useCombatAct';
-import React from 'react';
+import gsap from 'gsap';
+import React, { useEffect } from 'react';
+import { faceTransforms } from '../animation/useDiceAnimate';
 import { Seat } from '../types/CombatTypes';
 import './dice.css';
 const strokeWidth = 4;
@@ -32,10 +33,17 @@ const CountDownDice: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) =
     );
 };
 const DiceCore: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) => {
-    const { game } = useCombatManager();
     const { roll } = useCombatAct();
-
-
+    useEffect(() => {
+        if (seat.diceEle) {
+            const finalRotation = faceTransforms[seat.dice ?? 1];
+            gsap.set(seat.diceEle, {
+                rotationX: finalRotation.rotationX,
+                rotationY: finalRotation.rotationY
+            });
+            console.log("seat.diceEle loaded", seat.no)
+        }
+    }, [seat]);
     return (
         <div
             style={

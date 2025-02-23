@@ -41,7 +41,17 @@ const useCountDownAnimate = () => {
 
     const playCountStart = useCallback(() => {
         const seatNo = game?.currentAction?.seat;
-        if (!game || !seatNo || !game.actDue || game.actDue < Date.now() || !game.currentAction) return;
+        if (!game || !seatNo || !game.actDue || game.actDue < Date.now() || !game.currentAction) {
+            console.log("playCountStart",game?.gameId,user?.uid);
+            if(game?.actDue && game.actDue < Date.now()){
+                convex.action(api.service.gameProxy.timeout, {
+                    uid: user.uid,
+                    token: user.token,
+                    gameId: game.gameId
+               });
+            }
+            return;
+        }
         
         const seat = game.seats.find((s: any) => s.no === seatNo);
         const element = seat?.countDownEle;
@@ -62,7 +72,7 @@ const useCountDownAnimate = () => {
             element.style.strokeDashoffset = `-${startOffset}px`;
             animate(element, startOffset, perimeter, duration);
         }
-    }, [game, animate]);
+    }, [game,user,convex, animate]);
 
     const playCountStop = useCallback(() => {
         if (animationRef.current) {

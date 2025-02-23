@@ -11,7 +11,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
     const { game, eventQueue } = useCombatManager();
     const { playRollStart, playRollDone } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
-    const { playTokenMove, playTokenSelectable, playTokenSelected, playTokenReleased } = useTokenAnimate();
+    const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased } = useTokenAnimate();
 
 
     const processEvent = useCallback(() => {
@@ -52,7 +52,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     game.actDue = data.duration + Date.now();
                     playCountStart();
                     if (data.type == ACTION_TYPE.SELECT) {
-                        playTokenSelectable({ data, onComplete: () => { onComplete() } });
+                        playTokenToSelect({ data, onComplete: () => { onComplete() } });
                     } else
                         onComplete();
                     break;

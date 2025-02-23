@@ -1,5 +1,5 @@
 import Dice from "component/ludo/battle/view/Dice";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
@@ -90,12 +90,30 @@ export const BattlePlaza: React.FC = () => {
   );
 };
 const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
-  console.log("gameId", gameId)
+  const [isVisible, setIsVisible] = useState(true);
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // 页面隐藏时的逻辑处理
+        setIsVisible(false);
+      } else {
+        // 页面恢复可见时的逻辑处理
+        setIsVisible(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 清理函数：组件卸载时移除事件监听
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
   return (
     <SSAProvider app="ludo">
-      <CombatProvider gameId={gameId}>
+      {isVisible && <CombatProvider gameId={gameId}>
         <BattlePlaza></BattlePlaza>
-      </CombatProvider>
+      </CombatProvider>}
     </SSAProvider>
   );
 };

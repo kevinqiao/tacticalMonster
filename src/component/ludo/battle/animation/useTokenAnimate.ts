@@ -68,8 +68,7 @@ const useTokenAnimate = () => {
                 const tl = gsap.timeline({
                         onStart: () => {
                             const group = tokens.filter((t:any)=>t.x===token.x&&t.y===token.y&&t.id!==token.id);
-                            groupingTokens(group);
-                           
+                            groupingTokens(group);                           
                         },
                         onComplete: () => {
                             token.x = route[route.length - 1].x;
@@ -93,7 +92,7 @@ const useTokenAnimate = () => {
                 })
         },[tokens,seatRoutes,boardDimension]);
 
-        const playTokenSelectable =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {    
+        const playTokenToSelect =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {    
             console.log("playTokenSelectable",data)
             if(!tokens) return;
             const {seat:seatNo,tokens:tokenIds} = data;
@@ -119,7 +118,7 @@ const useTokenAnimate = () => {
             onComplete();
         },[tokens]);
         
-        return { playTokenMove,playTokenSelectable,playTokenSelected,playTokenReleased}       
+        return { playTokenMove,playTokenToSelect,playTokenSelected,playTokenReleased}       
 }
 export default useTokenAnimate;   
 
