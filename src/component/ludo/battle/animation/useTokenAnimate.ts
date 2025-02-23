@@ -76,18 +76,22 @@ const useTokenAnimate = () => {
                             const group = tokens.filter((t:any)=>t.x===token.x&&t.y===token.y);
                             groupingTokens(group);
                             onComplete();   
+                            if(token.ele){
+                                token.ele.style.zIndex="100";
+                            }
                             tl.kill();
                         }
                 });
-                     
+                console.log("board dimension:",boardDimension)  
                 route.forEach((p:any) => {
                     if (token.ele) {
-                    tl.to(token.ele, {
-                        scale: 1,
-                        x: p.x / 15 * boardDimension.width,
-                        y: p.y / 15 * boardDimension.height,
-                        duration: 0.3, ease: "power2.inOut"  
-                    }, ">")
+                        token.ele.style.zIndex="1000";
+                        tl.to(token.ele, {
+                            scale: 1,
+                            x: p.x / 15 * boardDimension.width,
+                            y: p.y / 15 * boardDimension.height,
+                            duration: 0.3, ease: "power2.inOut"  
+                        }, ">")
                     }
                 })
         },[tokens,seatRoutes,boardDimension]);

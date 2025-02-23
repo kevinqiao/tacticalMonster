@@ -11,10 +11,17 @@ const CountDownDice: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) =
     const perimeter = 4 * side;
     const x = strokeWidth / 2;
     const y = strokeWidth / 2;
+    useEffect(() => {
+        if (seat.countDownEle) {
+            console.log("seat.countDownEle loaded", seat.no)
+            seat.countDownEle.style.strokeDashoffset = `-${perimeter}px`;
+        }
+    }, [seat]);
+
 
     return (
         <div style={{ position: 'absolute', top: 0, left: 0, width: size, height: size, pointerEvents: 'none' }}>
-            {seat?.tokens && seat.tokens.length > 0 && <svg width={size} height={size}>
+            <svg width={size} height={size}>
                 <path
                     ref={el => seat.countDownEle = el}
                     d={`M ${x} ${y} 
@@ -28,13 +35,14 @@ const CountDownDice: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) =
                     strokeDasharray={perimeter}
                     strokeDashoffset={perimeter}
                 />
-            </svg>}
+            </svg>
         </div>
     );
 };
 const DiceCore: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) => {
     const { roll } = useCombatAct();
     useEffect(() => {
+
         if (seat.diceEle) {
             const finalRotation = faceTransforms[seat.dice ?? 1];
             gsap.set(seat.diceEle, {

@@ -8,7 +8,7 @@ import { useCombatManager } from "./CombatManager";
 
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
-    const { game, eventQueue } = useCombatManager();
+    const { game, eventQueue, boardDimension } = useCombatManager();
     const { playRollStart, playRollDone } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
     const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased } = useTokenAnimate();
@@ -88,7 +88,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
 
         }
 
-    }, [user, game, eventQueue])
+    }, [user, game, eventQueue, boardDimension])
 
 
     useEffect(() => {

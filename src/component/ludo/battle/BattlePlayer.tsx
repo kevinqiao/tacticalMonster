@@ -1,5 +1,5 @@
 import Dice from "component/ludo/battle/view/Dice";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
@@ -25,12 +25,7 @@ export const BattlePlaza: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
   const { roll } = useCombatAct();
-
-  const isAvailable = useCallback((seatNo: number) => {
-    const seat = game?.seats.find((seat) => seat.no === seatNo);
-    if (seat?.tokens.length && seat.tokens.length > 0) return true;
-    return false;
-  }, [game]);
+  console.log("boardDimension", boardDimension)
   const seats: { [k: number]: Seat } = useMemo(() => {
     const seats: { [k: number]: Seat } = {};
     game?.seats.forEach((seat) => {
