@@ -107,7 +107,8 @@ class GameManager {
         if(!seat) return false;
         const event={gameId:this.game.gameId,name:"rollStart",actor:uid,data:{seatNo:seat.no}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);        
-        const value =  Math.floor(Math.random() * 6) + 1;
+        // const value =  Math.floor(Math.random() * 6) + 1;
+        const value=6;
         const availableTokens = this.getAvailableTokens(value,seat);
         const eventDone:any={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seatNo:seat.no,value}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, eventDone);
@@ -124,11 +125,13 @@ class GameManager {
      
     }   
     async askSelect(tokens:any[]){
+        console.log("askSelect",tokens);
         const seatNo = this.game?.currentAction?.seat;
         if(!seatNo||!this.game) return;
         const seat = this.game.seats.find(seat=>seat.no===seatNo);
         if(!seat) return;
-        this.game.currentAction={seat:seatNo,type:ACTION_TYPE.SELECT,tokens};
+        const tokenIds = tokens.map(t=>t.id);
+        this.game.currentAction={seat:seatNo,type:ACTION_TYPE.SELECT,tokens:tokenIds};
         this.game.actDue=Date.now()+15000;
         await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{currentAction:this.game.currentAction,actDue:this.game.actDue}});
         const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,duration:15000}};
@@ -154,18 +157,34 @@ class GameManager {
         }
 
     }
-    async selectToken(seatNo:number,tokenId:number){
+    async selectToken(uid:string,tokenId:number){
         if(!this.game) return;
-        const seat=this.game.seats.find(seat=>seat.no===seatNo);
-        if(!seat) return;
-        const dice=seat.dice;
-        if(!dice) return;
+        const seat = this.game.seats.find(seat=>seat.uid===uid);
+        if(!seat||!seat.dice) return;
         const token=seat.tokens.find(t=>t.id===tokenId);
         if(!token) return;
-        const event:any={gameId:this.game.gameId,name:"selectToken",actor:seat.uid,data:{seatNo:seat.no,tokenId:token.id}};
+        const event:any={gameId:this.game.gameId,name:"tokenSelected",actor:seat.uid,data:{seatNo:seat.no,tokenId}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);
-        await this.move(seat,token,dice); 
+        console.log("selectToken",token)
+       if(token.x<0||token.y<0){
+            await this.releaseToken(seat,token);
+       }else{
+            await this.move(seat,token,seat.dice);
+       }
         
+    }
+    async releaseToken(seat:any,token:any){
+        if(!this.game) return;  
+        const route=routes[seat.no];
+        const startPoint = route[0];
+        console.log("releaseToken startPoint",startPoint)
+        token.x=startPoint.x;
+        token.y=startPoint.y;
+        await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{seats:this.game.seats}});
+        const event:any={gameId:this.game.gameId,name:"tokenReleased",actor:"####",data:{seat:seat.no,token}};
+        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event); 
+        await this.askAct();
+
     }
     async move(seat:any, token:any,step:number): Promise<void> {
             console.log("move",seat,token,step);    

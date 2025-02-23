@@ -1,9 +1,11 @@
 import gsap from "gsap";
 import React, { useEffect, useRef } from 'react';
 import { useCombatManager } from '../service/CombatManager';
+import useCombatAct from "../service/useCombatAct";
 import "./style.css";
 const TokenGrid: React.FC = () => {
   const { game, tokens, boardDimension } = useCombatManager();
+  const { selectToken } = useCombatAct();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ const TokenGrid: React.FC = () => {
   }, [boardDimension, game])
 
   return (
-    <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+    <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
       {tokens?.map(token => {
         const color = token.seatNo === 1 ? "red" : (token.seatNo === 2 ? "blue" : (token.seatNo === 3 ? "green" : "yellow"))
         return (
@@ -50,8 +52,8 @@ const TokenGrid: React.FC = () => {
               height: 1 / 15 * boardDimension.height,
             }}
           >
-            <div className="token-frame" />
-            <div className="token" style={{ backgroundColor: color }}>
+            <div className="token-frame" ref={el => token.selectEle = el} />
+            <div className="token" style={{ backgroundColor: color, pointerEvents: "none" }}>
               <div className="token-center"></div>
             </div>
           </div>

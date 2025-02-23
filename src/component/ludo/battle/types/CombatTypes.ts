@@ -44,6 +44,7 @@ export interface Token {
     y: number;
     seatNo?:number;
     ele?:HTMLDivElement|null;
+    selectEle?:HTMLDivElement|null;
 }
 
 

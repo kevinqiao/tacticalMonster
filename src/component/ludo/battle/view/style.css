@@ -47,8 +47,10 @@
     width: 110%;
     height: 110%;
     border-radius: 50%;
-    border: 4px dashed red;
+    border: 4px dashed rgb(29, 28, 28);
     animation: rotate 5s linear infinite;
+    visibility: hidden;
+    /* pointer-events: none; */
 }
 
 .token {
@@ -60,6 +62,7 @@
     height: 75%;
     border-radius: 50%;
     border: 1px solid white;
+    pointer-events: none;
 }
 
 .token-center {

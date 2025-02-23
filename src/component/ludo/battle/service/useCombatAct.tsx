@@ -27,8 +27,24 @@ const useCombatAct = () => {
 
   }, [eventQueue, game, user]);
 
+  const selectToken = useCallback(async (tokenId: number) => {
+    console.log("selectToken", tokenId)
+    const seatNo = game?.currentAction?.seat;
+    if (!seatNo)
+      return;
+    const seat = game?.seats.find((s) => s.no === seatNo)
+    if (!seat || seat.uid !== user.uid) return;
+    eventQueue.push({ name: "tokenSelected", data: { seatNo: seat.no, tokenId: tokenId } });
+    const res = await convex.action(api.service.gameProxy.selectToken, {
+      gameId: game?.gameId ?? "123",
+      tokenId: tokenId,
+      uid: user?.uid,
+      token: "test-token",
+    });
+    console.log("roll res", res);
 
-  return { roll };
+  }, [eventQueue, game, user]);
+  return { roll, selectToken };
 };
 export default useCombatAct;
 

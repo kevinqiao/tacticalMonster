@@ -51,9 +51,18 @@ export const roll = sessionAction({
     }
 })
 export const selectToken = sessionAction({
-    args: { act: v.number(), gameId: v.string(), actionId: v.optional(v.number()), data: v.any() },
-    handler: async (ctx, { act, gameId, actionId, data }) => {
-        console.log("TM game service")
+    args: { gameId: v.string(), tokenId: v.number()},
+    handler: async (ctx, { gameId, tokenId}) => {
+        if (!ctx.user) return false; 
+        try {
+            const gameService=new GameManager(ctx);
+            await gameService.initGame(gameId);
+            await gameService.selectToken(ctx.user.uid,tokenId);
+        } catch (error) {
+            console.log("select token error",error);
+        }
+
+        return true;
     }
 })
 export const timeout = sessionAction({

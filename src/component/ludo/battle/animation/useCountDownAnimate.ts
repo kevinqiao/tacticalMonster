@@ -1,68 +1,82 @@
 import { useConvex } from "convex/react";
-import gsap from "gsap";
 import { useCallback, useEffect, useRef } from "react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/ludo/convex/_generated/api";
 import { useCombatManager } from "../service/CombatManager";
+
 const useCountDownAnimate = () => {
-    const countDownAniRef = useRef<gsap.core.Timeline | null>(null);
+    const animationRef = useRef<number>();
+    const startTimeRef = useRef<number>(0);
     const { game, boardDimension } = useCombatManager();
-    const {user}=useUserManager()
+    const {user} = useUserManager();
     const convex = useConvex();
+
+    const animate = useCallback((element: SVGPathElement, startOffset: number, perimeter: number, duration: number) => {
+        const startTime = performance.now();
+        startTimeRef.current = startTime;
+
+        const animation = (currentTime: number) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            const currentOffset = startOffset + (perimeter - startOffset) * progress;
+            element.style.strokeDashoffset = `-${currentOffset}px`;
+
+            if (progress < 1) {
+                animationRef.current = requestAnimationFrame(animation);
+            } else {
+                // 动画完成
+                if (game?.gameId && user?.uid) {
+                    convex.action(api.service.gameProxy.timeout, {
+                        uid: user.uid,
+                        token: user.token,
+                        gameId: game.gameId
+                    });
+                }
+            }
+        };
+
+        animationRef.current = requestAnimationFrame(animation);
+    }, [game, user, convex]);
 
     const playCountStart = useCallback(() => {
         const seatNo = game?.currentAction?.seat;
-        if(game?.actDue){
-            console.log("playCountStart:", game?.currentAction,game.actDue-Date.now())
-        }
         if (!game || !seatNo || !game.actDue || game.actDue < Date.now() || !game.currentAction) return;
-        console.log("playCountStart:", seatNo,game.actDue-Date.now())
+        
         const seat = game.seats.find((s: any) => s.no === seatNo);
-        // if (!seat || !seat.countDownEle) return;
-        const perimeter = seat?.countDownEle?.getTotalLength();
+        const element = seat?.countDownEle;
+        if (!element) return;
+
+        const perimeter = element.getTotalLength();
         if (!perimeter) return;
 
-        // 先停止之前的动画
-        if (countDownAniRef.current) {
-            countDownAniRef.current.kill();
-            countDownAniRef.current = null;
+        // 停止当前动画
+        if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
         }
 
-        const tl = gsap.timeline({
-            onComplete: () => {
-                console.log("playCountStart onComplete:", seatNo)
-                convex.action(api.service.gameProxy.timeout, {uid:user?.uid,token:user?.token,gameId:game?.gameId});
-            }
-        });
         const duration = game.actDue - Date.now();
         const startOffset = (15000 - duration) * perimeter / 15000;
-        console.log("playCountStart offset:", game.actDue,duration,startOffset)
-        if(seat?.countDownEle&&startOffset >= 0){
-            tl.fromTo(seat.countDownEle,{strokeDashoffset:-startOffset}, {
-                strokeDashoffset: -perimeter,  // 动画到：完全隐藏
-                duration: duration/1000,
-                ease: "linear"
-            });
+        
+        if (startOffset >= 0) {
+            element.style.strokeDashoffset = `-${startOffset}px`;
+            animate(element, startOffset, perimeter, duration);
         }
-
-        countDownAniRef.current = tl;
-    }, [game,user]);
+    }, [game, animate]);
 
     const playCountStop = useCallback(() => {
-        if (countDownAniRef.current) {
-            countDownAniRef.current.kill();
-            countDownAniRef.current = null;
+        if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
         }
 
         const seatNo = game?.currentAction?.seat;
         if (!game || !seatNo) return;
         const seat = game.seats.find((s: any) => s.no === seatNo);
-        if (!seat || !seat.countDownEle) return;
-        const perimeter = seat.countDownEle?.getTotalLength();
+        if (!seat?.countDownEle) return;
+        const perimeter = seat.countDownEle.getTotalLength();
         if (!perimeter) return;
-        gsap.set(seat.countDownEle, {
-            strokeDashoffset: -perimeter
-        });
+        
+        seat.countDownEle.style.strokeDashoffset = `-${perimeter}px`;
     }, [game]);
 
     // 重置所有非活动座位的倒计时
@@ -72,16 +86,23 @@ const useCountDownAnimate = () => {
             if (s.countDownEle && 
                 (s.no !== game.currentAction?.seat || 
                 (game.actDue && game.actDue < Date.now()))) {
-                gsap.set(s.countDownEle, {
-                    strokeDashoffset: -s.countDownEle.getTotalLength()
-                });
+                s.countDownEle.style.strokeDashoffset = `-${s.countDownEle.getTotalLength()}px`;
             }
         });
     }, [game, boardDimension]);
 
+    // 清理动画
+    useEffect(() => {
+        return () => {
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+            }
+        };
+    }, []);
+
     // 窗口大小改变时重启动画
     useEffect(() => {
-        if (countDownAniRef.current) {
+        if (animationRef.current) {
             playCountStart();
         }
     }, [boardDimension, playCountStart]);

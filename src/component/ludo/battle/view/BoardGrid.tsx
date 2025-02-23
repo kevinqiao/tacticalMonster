@@ -1,4 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import { useCombatManager } from '../service/CombatManager';
+import useCombatAct from '../service/useCombatAct';
+import { ACTION_TYPE } from '../types/CombatTypes';
 import "./style.css";
 const GoalTracks: { [k: number]: { x: number, y: number }[] } = {
   0: [
@@ -55,15 +58,33 @@ const goalTiles = Object.entries(GoalTracks).flatMap(([seat, arr]) => {
 );
 // console.log(goalTiles)
 const BoardTile: React.FC<{ x: number, y: number }> = ({ x, y }) => {
-
+  const { game, tokens } = useCombatManager();
+  const { selectToken } = useCombatAct();
   const bgColor = useMemo(() => {
     const goalCell = goalTiles.find(item => item.x === x && item.y === y);
     if (goalCell)
       return goalCell.color;
     return "white";
   }, [x, y])
+  const handleClick = useCallback(() => {
+    if (!game || !game.currentAction || !tokens)
+      return;
+    const { seat: seatNo, type } = game.currentAction;
+    console.log("currentAction", game.currentAction);
+    if (type === ACTION_TYPE.SELECT) {
+      const seat = game.seats.find(item => item.no === seatNo);
+      console.log("seat", seat);
+      if (seat) {
+        const selectedTokens = tokens.filter(item => item.x === x && item.y === y);
+        console.log("tokens", selectedTokens);
+        if (selectedTokens.length > 0) {
+          selectToken(selectedTokens[0].id);
+        }
+      }
+    }
+  }, [x, y, game, tokens, selectToken])
 
-  return <div style={{ width: "100%", height: "100%", backgroundColor: bgColor, border: "1px solid black" }} />
+  return <div style={{ width: "100%", height: "100%", backgroundColor: bgColor, border: "1px solid black" }} onClick={handleClick} />
 }
 
 const BoardGrid: React.FC = () => {

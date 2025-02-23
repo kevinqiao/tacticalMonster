@@ -68,7 +68,7 @@ const useDiceAnimate = () => {
             animationRef.current[seat.no] = tl;
         },[game]);
 
-        const playRollDone =useCallback(({data}:{data:any}) => {   
+        const playRollDone =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {   
             console.log("playRollDone",data)
             if(!game||!data.seatNo) return;
             const seat  = game.seats.find((s:any)=>s.no === data.seatNo);
@@ -92,6 +92,8 @@ const useDiceAnimate = () => {
                 rotationY: fullRotationsY + finalRotation.rotationY + 360,
                 ease: "power3.out"
             });
+            tl.call(onComplete,[],"-=0.5");
+            tl.play();
         },[game]);
         
         return { playRollStart,playRollDone,playCountDown}       

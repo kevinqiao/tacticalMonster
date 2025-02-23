@@ -1,11 +1,12 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { useCombatManager } from '../service/CombatManager';
-import { Seat } from '../types/CombatTypes';
+import useCombatAct from '../service/useCombatAct';
+import { ACTION_TYPE, Seat } from '../types/CombatTypes';
 import "./style.css";
 const SeatContainer: React.FC<{ seat: Seat }> = ({ seat }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { boardDimension } = useCombatManager();
-  // const seat = useMemo(() => game?.seats.find(seat => seat.no === seatNo), [game, seatNo]);
+  const { game, boardDimension } = useCombatManager();
+  const { selectToken } = useCombatAct();
 
   const position = useMemo(() => {
     const p: { top: any; left?: any; width: any; height: any } = { top: 0, width: `${100 * 6 / 15}%`, height: `${100 * 6 / 15}%` };
@@ -40,7 +41,15 @@ const SeatContainer: React.FC<{ seat: Seat }> = ({ seat }) => {
         return "yellow";
     }
   }, [seat]);
-
+  const releaseToken = useCallback((tokenId: number) => {
+    console.log("releaseToken", tokenId);
+    const token = seat.tokens.find(t => t.id === tokenId);
+    const currentAction = game?.currentAction;
+    if (token && token.x < 0 && token.y < 0 && currentAction?.seat === seat.no && currentAction.type === ACTION_TYPE.SELECT)
+      selectToken(tokenId);
+    else
+      console.log("invalid token for release", tokenId);
+  }, [seat, selectToken, game]);
   return (
     <>
       <div ref={containerRef} style={{
@@ -54,7 +63,8 @@ const SeatContainer: React.FC<{ seat: Seat }> = ({ seat }) => {
         height: position.height,
         backgroundColor: color,
         border: "1px solid black"
-      }}>
+      }}
+      >
         <div
           className="seat-container"
           style={{
@@ -76,8 +86,10 @@ const SeatContainer: React.FC<{ seat: Seat }> = ({ seat }) => {
                 height: 1 / 15 * boardDimension.height,
                 borderRadius: "50%",
                 backgroundColor: "white",
-                border: `2px solid ${color}`
+                border: `2px solid ${color}`,
+                pointerEvents: "auto"
               }}
+              onClick={() => releaseToken(num)}
             />
           ))}
         </div>
@@ -92,7 +104,7 @@ const SeatGrid: React.FC = () => {
   const { game } = useCombatManager();
 
   return (
-    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
       {game?.seats.map((seat) => (
         <SeatContainer key={seat.no} seat={seat} />
       ))}

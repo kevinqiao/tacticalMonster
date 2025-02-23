@@ -62,6 +62,7 @@ export const update = internalMutation({
         data: v.any()
     },
     handler: async (ctx, { id, data }) => {
+        console.log("update",id,data);
         await ctx.db.patch(id, data );
         return true
     },

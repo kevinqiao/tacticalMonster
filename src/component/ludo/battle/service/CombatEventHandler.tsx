@@ -1,9 +1,9 @@
-import gsap from "gsap";
 import React, { ReactNode, useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 import useCountDownAnimate from "../animation/useCountDownAnimate";
 import useDiceAnimate from "../animation/useDiceAnimate";
-import { CombatEvent } from "../types/CombatTypes";
+import useTokenAnimate from "../animation/useTokenAnimate";
+import { ACTION_TYPE, CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
@@ -11,6 +11,8 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
     const { game, eventQueue } = useCombatManager();
     const { playRollStart, playRollDone } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
+    const { playTokenMove, playTokenSelectable, playTokenSelected, playTokenReleased } = useTokenAnimate();
+
 
     const processEvent = useCallback(() => {
         if (!game) return;
@@ -41,11 +43,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                 case "rollDone":
                     console.log("rollDone:", data)
                     event.status = 1;
-                    const tl = gsap.timeline({
-                        onComplete: () => onComplete()
-                    });
-                    playRollDone({ data });
-                    tl.play();
+                    playRollDone({ data, onComplete: () => { onComplete() } });
                     break;
                 case "askAct":
                     event.status = 1;
@@ -53,12 +51,26 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     console.log("askAct:", data)
                     game.actDue = data.duration + Date.now();
                     playCountStart();
-                    onComplete();
+                    if (data.type == ACTION_TYPE.SELECT) {
+                        playTokenSelectable({ data, onComplete: () => { onComplete() } });
+                    } else
+                        onComplete();
                     break;
                 case "move":
                     event.status = 1;
                     console.log("move:", data)
-                    onComplete();
+                    playCountStop();
+                    playTokenMove({ data, onComplete: () => { onComplete() } });
+                    break;
+                case "tokenSelected":
+                    event.status = 1;
+                    console.log("tokenSelected:", data)
+                    playTokenSelected({ data, onComplete: () => { onComplete() } });
+                    break;
+                case "tokenReleased":
+                    event.status = 1;
+                    console.log("tokenReleased:", data)
+                    playTokenReleased({ data, onComplete: () => { onComplete() } });
                     break;
                 case "turnNext":
                     console.log("turnNext:", data)

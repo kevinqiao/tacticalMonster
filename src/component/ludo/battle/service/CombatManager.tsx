@@ -37,12 +37,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
 
 
   const tokens = useMemo(() => {
-    return game?.seats.map(seat =>
-      seat.tokens.map(token => ({
-        ...token,
-        seatNo: seat.no
-      }))
-    ).flat();
+    return game?.seats.map(seat => seat.tokens).flat();
   }, [game]);
   const seatRoutes = useMemo(() => {
     if (!game) return {};
@@ -83,6 +78,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         gameObj.actDue = gameObj.actDue + Date.now();
         gameObj.seats.forEach((seat: any) => {
           seat.stationEles = {};
+          seat.tokens.forEach((token: any) => {
+            token.seatNo = seat.no;
+          })
         })
         setGame(gameObj);
       }

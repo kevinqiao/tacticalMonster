@@ -6,7 +6,7 @@ const GoalPlace: React.FC = () => {
   const height = `${100 * 3 / 15}%`
   const width = `${100 * 3 / 15}%`
   return (
-    <div style={{ position: "absolute", top, left, width, height, backgroundColor: "white", border: "1px solid black" }}>
+    <div style={{ position: "absolute", top, left, width, height, backgroundColor: "white", border: "1px solid black", pointerEvents: "none" }}>
       <div className="triangle top"></div>
       <div className="triangle right"></div>
       <div className="triangle bottom"></div>
