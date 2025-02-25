@@ -72,12 +72,20 @@ export const lock = internalMutation({
         id: v.id("game")
     },
     handler: async (ctx, { id}) => {
-        const game = await ctx.db.get(id); 
-        if(game&&!game.status){
-            await ctx.db.patch(id, {status:1});
-            return true;
+        try{
+                // const game = await ctx.db.get(id); 
+            console.log("lock id",id);
+            const game = await query(ctx,id); 
+            console.log("lock",game);
+            if(game&&!game.status){
+                await ctx.db.patch(id, {status:1});
+                return game;
+            }
+            return null 
+        }catch(error){
+            console.log("lock error",error);
+            return null
         }
-        return false
     },
 })
 export const unlock= internalMutation({
@@ -85,11 +93,17 @@ export const unlock= internalMutation({
         id: v.id("game")
     },
     handler: async (ctx, { id}) => {
-        const game = await ctx.db.get(id); 
-        if(game&&game.status){
-            await ctx.db.patch(id, {status:0});
-            return true;
+        try{
+            // const game = await ctx.db.get(id); 
+            const game = await query(ctx,id); 
+            if(game&&game.status){
+                await ctx.db.patch(id, {status:0});
+                return game;
+            }
+            return null
+        }catch(error){
+            console.log("unlock error",error);
+            return null
         }
-        return false
     },
 })

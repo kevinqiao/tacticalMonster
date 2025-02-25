@@ -2,17 +2,17 @@ import React, { ReactNode, useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 import useCountDownAnimate from "../animation/useCountDownAnimate";
 import useDiceAnimate from "../animation/useDiceAnimate";
+import useSeatAnimate from "../animation/useSeatAnimate";
 import useTokenAnimate from "../animation/useTokenAnimate";
 import { ACTION_TYPE, CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
-
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
     const { game, eventQueue, boardDimension } = useCombatManager();
     const { playRollStart, playRollDone } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
     const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased } = useTokenAnimate();
-
+    const { playTimeout } = useSeatAnimate();
 
     const processEvent = useCallback(() => {
         if (!game) return;
@@ -78,6 +78,12 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     game.currentAction = data;
                     game.actDue = data.duration + Date.now();
                     playCountStart();
+                    onComplete();
+                    break;
+                case "timeout":
+                    console.log("timeout:", data)
+                    event.status = 1;
+                    playTimeout(data.seat);
                     onComplete();
                     break;
                 default:

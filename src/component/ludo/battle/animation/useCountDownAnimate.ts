@@ -35,12 +35,13 @@ const useCountDownAnimate = () => {
                 }
             }
         };
-
-        animationRef.current = requestAnimationFrame(animation);
+        animation(startTime);
+        // animationRef.current = requestAnimationFrame(animation);
     }, [game, user, convex]);
 
     const playCountStart = useCallback(() => {
         const seatNo = game?.currentAction?.seat;
+
         if (!game || !seatNo || !game.actDue || game.actDue < Date.now() || !game.currentAction) {
             console.log("playCountStart",game?.gameId,user?.uid);
             if(game?.actDue && game.actDue < Date.now()){
@@ -63,6 +64,10 @@ const useCountDownAnimate = () => {
         // 停止当前动画
         if (animationRef.current) {
             cancelAnimationFrame(animationRef.current);
+            game.seats.filter((s: any) => s.no !== seatNo).forEach((s: any) => {
+                if(s.countDownEle)
+                s.countDownEle.style.strokeDashoffset = `-${s.countDownEle.getTotalLength()}px`;
+            });
         }
 
         const duration = game.actDue - Date.now();

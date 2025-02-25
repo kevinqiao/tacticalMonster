@@ -61,10 +61,10 @@ export const BattlePlaza: React.FC = () => {
       <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, marginBottom: "2px" }}>
           <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
-            <div style={{ width: 10 }}></div>{seats[0]?.tokens.length > 0 && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[0]} />}
+            <div style={{ width: 10 }}></div>{seats[0]?.uid && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[0]} />}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            <div style={{ width: 10 }}></div>{seats[1]?.tokens.length > 0 && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[1]} />}
+            <div style={{ width: 10 }}></div>{seats[1]?.uid && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[1]} />}
           </div>
         </div>
         <div style={{ ...boardDimension }}>
@@ -72,10 +72,10 @@ export const BattlePlaza: React.FC = () => {
         </div>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, marginTop: "4px" }}>
           <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
-            <div style={{ width: 10 }}></div>{seats[3]?.tokens.length > 0 && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[3]} />}
+            <div style={{ width: 10 }}></div>{seats[3]?.uid && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[3]} />}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            <div style={{ width: 10 }}></div>{seats[2]?.tokens.length > 0 && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[2]} />}
+            <div style={{ width: 10 }}></div>{seats[2]?.uid && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[2]} />}
           </div>
         </div>
       </div>

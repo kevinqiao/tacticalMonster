@@ -21,6 +21,7 @@ export default defineSchema({
         seats: v.array(v.object({
             no: v.number(),
             uid: v.optional(v.string()),
+            botOn:v.optional(v.boolean()),
             tokens: v.array(v.object({
                 id: v.number(),
                 x: v.number(),
@@ -31,5 +32,13 @@ export default defineSchema({
         currentAction:v.optional(v.object({type:v.number(),seat:v.optional(v.number()),tokens:v.optional(v.array(v.number()))})),
         status:v.optional(v.number()),//0-open,1-locking 2-close 3-cancelled
         actDue:v.optional(v.number()),
-    }).index("by_due", ["actDue"])
+    }).index("by_due", ["actDue","status"]),
+    bot:defineTable({
+        uid:v.string(),
+        profile:v.any(),
+        act:v.optional(v.number()), 
+        actDue:v.optional(v.number()),
+        gameId:v.optional(v.string()),
+        status:v.optional(v.number()),
+    }).index("by_uid", ["uid"]).index("by_actDue", ["status","actDue"]).index("by_game", ["gameId"]),
 });

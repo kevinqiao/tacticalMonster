@@ -228,12 +228,24 @@ class GameManager {
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);       
     }  
     async timeout(){
-        console.log("timeout");
-        const isLocked=await this.dbCtx.runMutation(internal.dao.gameDao.lock, {id:this.game?.gameId});
-        if(isLocked){
-            await this.turnNext();  
-            await this.dbCtx.runMutation(internal.dao.gameDao.unlock, {id:this.game?.gameId});
+       
+        const game=await this.dbCtx.runMutation(internal.dao.gameDao.lock, {id:this.game?.gameId});
+        if(game?.actDue&&game.actDue<Date.now()){
+            const seat = game.seats.find((seat:any)=>seat.no===game.currentAction.seat);
+            if(seat){
+                seat.botOn=true;    
+                // await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game?.gameId,data:{seats:game.seats}});
+                const event:any={gameId:this.game?.gameId,name:"timeout",actor:"####",data:{seat:seat.no}};
+                await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);
+                await this.turnNext();  
+            }
         }
+        await this.dbCtx.runMutation(internal.dao.gameDao.unlock, {id:this.game?.gameId});
+    }
+    async botAct(){
+        console.log("botAct");  
+        const bots = await this.dbCtx.runQuery(internal.dao.botDao.findDue);
+        console.log("bots",bots);
     }
    
    

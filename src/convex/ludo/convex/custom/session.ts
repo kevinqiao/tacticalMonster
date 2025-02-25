@@ -5,7 +5,7 @@ import { action, mutation, query } from "../_generated/server";
 
 export const sessionAction = customAction(action, {
     // Argument validation for sessionMutation: two named args here.
-    args: { uid: v.string(), token: v.string() },
+    args: { uid: v.optional(v.string()), token: v.optional(v.string()) },
     // The function handler, taking the validated arguments and context.
     input: async (ctx, { uid, token }) => {
  

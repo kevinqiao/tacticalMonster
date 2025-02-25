@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as custom_session from "../custom/session.js";
+import type * as dao_botDao from "../dao/botDao.js";
 import type * as dao_gameDao from "../dao/gameDao.js";
 import type * as dao_gameEventDao from "../dao/gameEventDao.js";
 import type * as dao_gamePlayerDao from "../dao/gamePlayerDao.js";
@@ -33,6 +34,7 @@ import type * as service_tokenRoutes from "../service/tokenRoutes.js";
  */
 declare const fullApi: ApiFromModules<{
   "custom/session": typeof custom_session;
+  "dao/botDao": typeof dao_botDao;
   "dao/gameDao": typeof dao_gameDao;
   "dao/gameEventDao": typeof dao_gameEventDao;
   "dao/gamePlayerDao": typeof dao_gamePlayerDao;

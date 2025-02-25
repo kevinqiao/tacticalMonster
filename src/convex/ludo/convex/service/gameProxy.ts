@@ -37,11 +37,11 @@ export const start = action({
 export const roll = sessionAction({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId}) => {
-        if (!ctx.user) return false; 
+        if (!ctx.user||!ctx.user.uid) return false; 
         try {
-        const gameService=new GameManager(ctx);
-        await gameService.initGame(gameId);
-        await gameService.roll(ctx.user.uid);
+            const gameService=new GameManager(ctx);
+            await gameService.initGame(gameId);
+            await gameService.roll(ctx.user.uid);
         } catch (error) {
             console.log("roll error",error);
         }
@@ -53,7 +53,7 @@ export const roll = sessionAction({
 export const selectToken = sessionAction({
     args: { gameId: v.string(), tokenId: v.number()},
     handler: async (ctx, { gameId, tokenId}) => {
-        if (!ctx.user) return false; 
+        if (!ctx.user||!ctx.user.uid) return false; 
         try {
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);
