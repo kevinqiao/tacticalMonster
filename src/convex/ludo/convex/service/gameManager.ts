@@ -1,4 +1,4 @@
-import { ACTION_TYPE, GameModel } from "../../../../component/ludo/battle/types/CombatTypes";
+import { ACTION_TYPE, GameModel, Seat } from "../../../../component/ludo/battle/types/CombatTypes";
 import { getRoutePath } from "../../../../component/ludo/util/mapUtils";
 import { internal } from "../_generated/api";
 import { tokenRoutes } from "./tokenRoutes";
@@ -29,6 +29,7 @@ class GameManager {
         // console.log("players",players);
 
         const gameObj:any = { 
+            currentSeat:1,  
             currentAction:{type:ACTION_TYPE.ROLL,seat:1},
             actDue:Date.now()+15000,    
             seats: [
@@ -78,11 +79,7 @@ class GameManager {
         // await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{lastUpdate:Date.now()}});
        
     }
-    async selectSkill(gameId: string, data: { skillId: string } ): Promise<boolean> {
-        console.log("attack", gameId, data);
 
-        return true;    
-    } 
     getAvailableTokens(dice:number,seat:any){
         const route=routes[seat.no];
         if(dice===6){
@@ -103,10 +100,13 @@ class GameManager {
     }
     async roll(uid:string): Promise<boolean> {
         if(!this.game) return false;
-        const seat = this.game.seats.find(seat=>seat.uid===uid);
+        const seat:Seat|undefined = this.game.seats.find(seat=>seat.uid===uid);
         if(!seat) return false;
-        const event={gameId:this.game.gameId,name:"rollStart",actor:uid,data:{seatNo:seat.no}};
-        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);        
+        if(!seat.botOn)
+        {    
+            const event={gameId:this.game.gameId,name:"rollStart",actor:uid,data:{seatNo:seat.no}};
+            await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event); 
+        }       
          const value =  Math.floor(Math.random() * 6) + 1;
         // const value=6;
         const availableTokens = this.getAvailableTokens(value,seat);
@@ -137,24 +137,26 @@ class GameManager {
         const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,duration:15000}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);
     }
-    async askAct(){
+    async askAct(seatNo:number){
         
-        const seatNo = this.game?.currentAction?.seat;
-        if(!seatNo||!this.game) return;
+        // const seatNo = this.game?.currentAction?.seat;
+        // if(!seatNo||!this.game) return;
+        if(!this.game) return 
         const seat=this.game.seats.find(seat=>seat.no===seatNo);
         if(!seat) return;
-        const route=routes[seat.no];
-        const finalPoint = route[route.length-1];
-        const gameOver = seat.tokens.every((t:any)=>t.x===finalPoint.x && t.y===finalPoint.y);
-        if(gameOver){
-            this.gameOver();
-        }else{  
+        // const route=routes[seat.no];
+        // const finalPoint = route[route.length-1];
+        // const gameOver = seat.tokens.every((t:any)=>t.x===finalPoint.x && t.y===finalPoint.y);
+        // if(gameOver){
+        //     this.gameOver();
+        // }else{  
+
             this.game.currentAction={seat:seatNo,type:ACTION_TYPE.ROLL};        
             this.game.actDue=Date.now()+15000;
             await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{actDue:this.game.actDue,currentAction:this.game.currentAction}});
             const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,duration:15000}};
             await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);
-        }
+        // }
 
     }
     async selectToken(uid:string,tokenId:number){
@@ -170,8 +172,7 @@ class GameManager {
             await this.releaseToken(seat,token);
        }else{
             await this.move(seat,token,seat.dice);
-       }
-        
+       }        
     }
     async releaseToken(seat:any,token:any){
         if(!this.game) return;  
@@ -183,7 +184,7 @@ class GameManager {
         await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{seats:this.game.seats}});
         const event:any={gameId:this.game.gameId,name:"tokenReleased",actor:"####",data:{seat:seat.no,token}};
         await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event); 
-        await this.askAct();
+        await this.askAct(seat.no);
 
     }
     async move(seat:any, token:any,step:number): Promise<void> {
@@ -199,33 +200,50 @@ class GameManager {
                 token.y=end.y;
                 await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{seats:this.game.seats}});
                 const event:any={gameId:this.game.gameId,name:"move",actor:"####",data:{seat:seat.no,token:token.id,route:path}};
-                await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);  
+                await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event); 
+                if(this.gameOver()){
+                    console.log("gameOver");
+                    return;
+                }
                 if(end.x===route[route.length-1].x && end.y===route[route.length-1].y){
-                  await  this.askAct();
+                  await  this.askAct(seat.no);
                 }else{
                   await this.turnNext();
                 }   
             }
     }
-    async gameOver(){
-        console.log("gameOver");
+    gameOver(){
+        if(!this.game) return;
+        const attendSeats = this.game?.seats.filter((seat)=>seat.uid);
+        const completedSeats = this.game?.seats.filter((seat)=>{
+            if(!seat.uid) return false;
+            const route=routes[seat.no];
+            const finalPoint = route[route.length-1];
+            return seat.tokens.every((token)=>{
+                if(token.x===finalPoint.x&&token.y===finalPoint.y)
+                    return true;
+                else return false
+            })            
+        })
+        if(attendSeats.length-completedSeats.length===1)
+             return true;
+        else return false;  
     }
     async turnNext(){    
         console.log("turnNext",this.game?.currentAction);
         if(!this.game) return;
         const seatNo = this.game.currentAction?.seat;
         if(!seatNo) return;
-        let nextSeat;
-        while(!nextSeat||nextSeat.tokens.length===0){  
-            const no:number = nextSeat ? (nextSeat.no===3?0:nextSeat.no+1):(seatNo===3?0:seatNo+1);
-            nextSeat =this.game.seats.find((s)=>s.no===no);
-        }
+        const actives = this.game.seats.filter((s)=>s.uid);
+        const cur = actives.findIndex((s)=>s.no===seatNo);
+        const nextSeat = cur===(actives.length-1)?actives[0]:actives[cur+1]               
+        this.game.currentSeat=nextSeat.no;
 
-        this.game.currentAction={seat:nextSeat.no,type:ACTION_TYPE.ROLL};
-        this.game.actDue=Date.now()+15000;
-        await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{currentAction:this.game.currentAction,actDue:this.game.actDue}});
-        const event:any={gameId:this.game.gameId,name:"turnNext",actor:"####",data:{...this.game.currentAction,duration:15000}};
-        await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);       
+        // this.game.currentAction={seat:nextSeat.no,type:ACTION_TYPE.ROLL};
+        // this.game.actDue=Date.now()+15000;
+        // await this.dbCtx.runMutation(internal.dao.gameDao.update, {id:this.game.gameId,data:{currentAction:this.game.currentAction,actDue:this.game.actDue}});
+        // const event:any={gameId:this.game.gameId,name:"turnNext",actor:"####",data:{...this.game.currentAction,duration:15000}};
+        // await this.dbCtx.runMutation(internal.dao.gameEventDao.create, event);       
     }  
     async timeout(){
        

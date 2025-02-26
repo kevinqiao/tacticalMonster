@@ -17,6 +17,7 @@ export interface Seat {
     no: number;
     tokens:Token[];
     dice?:number;
+    botOn?:boolean; 
     countDownEle?:SVGPathElement|null;
     diceEle?:HTMLDivElement|null;
     stationEles:{[k:number]:HTMLDivElement|null};
@@ -52,6 +53,7 @@ export interface Token {
 export interface GameModel {
   gameId: string;
   seats:Seat[];
+  currentSeat?:number;
   currentAction?:CombatAction;    
   actDue?: number;
   status?: number;  
