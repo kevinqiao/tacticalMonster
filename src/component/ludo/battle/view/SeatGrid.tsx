@@ -44,8 +44,9 @@ const SeatContainer: React.FC<{ seat: Seat }> = ({ seat }) => {
   const releaseToken = useCallback((tokenId: number) => {
     console.log("releaseToken", tokenId);
     const token = seat.tokens.find(t => t.id === tokenId);
-    const currentAction = game?.currentAction;
-    if (token && token.x < 0 && token.y < 0 && currentAction?.seat === seat.no && currentAction.type === ACTION_TYPE.SELECT)
+    const currentSeat = game?.currentSeat;
+
+    if (token && token.x < 0 && token.y < 0 && currentSeat === seat.no && game?.currentAction?.type === ACTION_TYPE.SELECT)
       selectToken(tokenId);
     else
       console.log("invalid token for release", tokenId);

@@ -69,10 +69,10 @@ const BoardTile: React.FC<{ x: number, y: number }> = ({ x, y }) => {
   const handleClick = useCallback(() => {
     if (!game || !game.currentAction || !tokens)
       return;
-    const { seat: seatNo, type } = game.currentAction;
+
     console.log("currentAction", game.currentAction);
-    if (type === ACTION_TYPE.SELECT) {
-      const seat = game.seats.find(item => item.no === seatNo);
+    if (game.currentAction.type === ACTION_TYPE.SELECT) {
+      const seat = game.seats.find(item => item.no === game.currentSeat);
       console.log("seat", seat);
       if (seat) {
         const selectedTokens = tokens.filter(item => item.x === x && item.y === y);

@@ -40,7 +40,7 @@ const useCountDownAnimate = () => {
     }, [game, user, convex]);
 
     const playCountStart = useCallback(() => {
-        const seatNo = game?.currentAction?.seat;
+        const seatNo = game?.currentSeat;
 
         if (!game || !seatNo || !game.actDue || game.actDue < Date.now() || !game.currentAction) {
             console.log("playCountStart",game?.gameId,user?.uid);
@@ -84,7 +84,7 @@ const useCountDownAnimate = () => {
             cancelAnimationFrame(animationRef.current);
         }
 
-        const seatNo = game?.currentAction?.seat;
+        const seatNo = game?.currentSeat;
         if (!game || !seatNo) return;
         const seat = game.seats.find((s: any) => s.no === seatNo);
         if (!seat?.countDownEle) return;
@@ -99,7 +99,7 @@ const useCountDownAnimate = () => {
         if (!game) return;
         game.seats.forEach((s: any) => {
             if (s.countDownEle && 
-                (s.no !== game.currentAction?.seat || 
+                (s.no !== game.currentSeat || 
                 (game.actDue && game.actDue < Date.now()))) {
                 s.countDownEle.style.strokeDashoffset = `-${s.countDownEle.getTotalLength()}px`;
             }

@@ -53,14 +53,13 @@ export interface Token {
 export interface GameModel {
   gameId: string;
   seats:Seat[];
-  currentSeat?:number;
+  currentSeat:number;//-1:not started,0-3:selected
   currentAction?:CombatAction;    
   actDue?: number;
   status?: number;  
 }
 export interface CombatAction {
-   type:number;
-   seat?:number;
+   type:number;//0-roll,1-select
    tokens?:number[];
 }
 export interface CombatTurn {

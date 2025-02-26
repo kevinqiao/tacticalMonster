@@ -12,9 +12,9 @@ const useCombatAct = () => {
   const convex = useConvex();
 
   const roll = useCallback(async () => {
-    const seatNo = game?.currentAction?.seat;
-    if (!seatNo)
+    if (!game || game.currentSeat < 0)
       return;
+    const seatNo = game.currentSeat;
     const seat = game?.seats.find((s) => s.no === seatNo)
     if (!seat || seat.uid !== user.uid) return;
     eventQueue.push({ name: "rollStart", data: { seatNo: seat.no } });
@@ -29,9 +29,9 @@ const useCombatAct = () => {
 
   const selectToken = useCallback(async (tokenId: number) => {
     console.log("selectToken", tokenId)
-    const seatNo = game?.currentAction?.seat;
-    if (!seatNo)
+    if (!game || game.currentSeat < 0)
       return;
+    const seatNo = game.currentSeat;
     const seat = game?.seats.find((s) => s.no === seatNo)
     if (!seat || seat.uid !== user.uid) return;
     eventQueue.push({ name: "tokenSelected", data: { seatNo: seat.no, tokenId: tokenId } });

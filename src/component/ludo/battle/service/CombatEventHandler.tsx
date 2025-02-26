@@ -12,7 +12,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
     const { playRollStart, playRollDone } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
     const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased } = useTokenAnimate();
-    const { playTimeout } = useSeatAnimate();
+    const { playBotOn } = useSeatAnimate();
 
     const processEvent = useCallback(() => {
         if (!game) return;
@@ -80,10 +80,10 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     playCountStart();
                     onComplete();
                     break;
-                case "timeout":
-                    console.log("timeout:", data)
+                case "botOn":
+                    console.log("botOn:", data)
                     event.status = 1;
-                    playTimeout(data.seat);
+                    playBotOn(data.seat);
                     onComplete();
                     break;
                 default:

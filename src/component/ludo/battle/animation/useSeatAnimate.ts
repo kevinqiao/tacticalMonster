@@ -5,7 +5,7 @@ const useSeatAnimate = () => {
         
          const {tokens} = useCombatManager();
 
-         const playTimeout = useCallback((seatNo:number)=>{
+         const playBotOn = useCallback((seatNo:number)=>{
             if(!tokens) return;
             const seatTokens = tokens.filter((token:any)=>token.seat===seatNo);
           
@@ -15,7 +15,7 @@ const useSeatAnimate = () => {
             })
         },[tokens])
         
-        return { playTimeout}       
+        return { playBotOn}       
 }
 export default useSeatAnimate;   
 
