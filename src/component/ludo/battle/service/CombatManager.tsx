@@ -87,12 +87,12 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     }
     fetchGame(gameId);
   }, [gameId])
-  useEffect(() => {
-    if (game?.currentAction && game?.actDue) {
-      const event = { name: "askAct", gameId: game.gameId, data: { ...game.currentAction, duration: game.actDue - Date.now() } }
-      eventQueueRef.current.push(event);
-    }
-  }, [game])
+  // useEffect(() => {
+  //   if (game?.currentAction && game?.actDue) {
+  //     const event = { name: "askAct", gameId: game.gameId, data: { ...game.currentAction, duration: game.actDue - Date.now() } }
+  //     eventQueueRef.current.push(event);
+  //   }
+  // }, [game])
 
 
   const value = {

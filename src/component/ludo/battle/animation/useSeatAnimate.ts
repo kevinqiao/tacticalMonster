@@ -3,17 +3,15 @@ import { useCombatManager } from "../service/CombatManager";
 
 const useSeatAnimate = () => {
         
-         const {tokens} = useCombatManager();
+         const {tokens,game} = useCombatManager();
 
          const playBotOn = useCallback((seatNo:number)=>{
-            if(!tokens) return;
-            const seatTokens = tokens.filter((token:any)=>token.seat===seatNo);
-          
-            seatTokens.forEach((t:any)=>{
-                t.selectEle.style.opacity=0;    
-                t.selectEle.style.visibility="hidden";
-            })
-        },[tokens])
+            const seat = game?.seats[seatNo];
+            if(!seat) return;
+            if(!seat.botOnEle) return;
+            seat.botOnEle.style.opacity="1";    
+            seat.botOnEle.style.visibility="visible";
+        },[game])
         
         return { playBotOn}       
 }

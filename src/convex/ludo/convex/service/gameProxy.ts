@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
-import { sessionAction } from "../custom/session";
+import { sessionMutation } from "../custom/session";
 import GameManager from "./gameManager";
 
 // "use node";
@@ -34,7 +34,7 @@ export const start = action({
     }
 })
 
-export const roll = sessionAction({
+export const roll = sessionMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId}) => {
         if (!ctx.user||!ctx.user.uid) return false; 
@@ -50,7 +50,7 @@ export const roll = sessionAction({
 
     }
 })
-export const selectToken = sessionAction({
+export const selectToken = sessionMutation({
     args: { gameId: v.string(), tokenId: v.number()},
     handler: async (ctx, { gameId, tokenId}) => {
         if (!ctx.user||!ctx.user.uid) return false; 
@@ -65,19 +65,18 @@ export const selectToken = sessionAction({
         return true;
     }
 })
-export const timeout = sessionAction({
-    args: {  gameId: v.string()},
+export const timeout = sessionMutation({
+    args: { gameId: v.string()},
     handler: async (ctx, { gameId}) => {
         console.log("TM timeout",gameId);
          if (!ctx.user) return false;
          const gameService=new GameManager(ctx);
-         await gameService.initGame(gameId);
-         await gameService.timeout();
+         await gameService.timeout(gameId);
          return true;
     }
 })
 
-export const gameOver = sessionAction({
+export const gameOver = sessionMutation({
     args: { gameId: v.string()},
     handler: async (ctx, {gameId}) => {
         if (!ctx.user) return false;

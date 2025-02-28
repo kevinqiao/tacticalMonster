@@ -48,11 +48,12 @@ export const create = internalMutation({
             })),
             dice:v.optional(v.number()),
         })),
-        currentAction:v.optional(v.object({type:v.number(),seat:v.optional(v.number()),tokens:v.optional(v.array(v.number()))})),
+        currentSeat:v.optional(v.number()),
+        currentAction:v.optional(v.object({type:v.number(),tokens:v.optional(v.array(v.number()))})),
         actDue:v.optional(v.number()),
     },
-        handler: async (ctx, { seats,currentAction,actDue }) => {
-        const docId = await ctx.db.insert("game", {seats,currentAction,actDue,status:0 });
+        handler: async (ctx, { seats,currentSeat,currentAction,actDue }) => {
+        const docId = await ctx.db.insert("game", {seats,currentSeat,currentAction,actDue,status:0 });
         return docId
     },
 });

@@ -9,7 +9,7 @@ import { useCombatManager } from "./CombatManager";
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
     const { game, eventQueue, boardDimension } = useCombatManager();
-    const { playRollStart, playRollDone } = useDiceAnimate();
+    const { playRollStart, playRollDone, playAskRoll } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
     const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased } = useTokenAnimate();
     const { playBotOn } = useSeatAnimate();
@@ -28,7 +28,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
             return;
         }
         const { name, status, data } = event;
-
+        console.log("event:", event)
         if (!status) {
 
             switch (name) {
@@ -53,8 +53,11 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     playCountStart();
                     if (data.type == ACTION_TYPE.SELECT) {
                         playTokenToSelect({ data, onComplete: () => { onComplete() } });
-                    } else
+                    } else if (data.type == ACTION_TYPE.ROLL) {
+                        playAskRoll(data.seat, onComplete);
+                    } else {
                         onComplete();
+                    }
                     break;
                 case "move":
                     event.status = 1;
@@ -75,9 +78,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                 case "turnNext":
                     console.log("turnNext:", data)
                     event.status = 1;
-                    game.currentAction = data;
-                    game.actDue = data.duration + Date.now();
-                    playCountStart();
+                    game.currentSeat = data.seatNo;
                     onComplete();
                     break;
                 case "botOn":

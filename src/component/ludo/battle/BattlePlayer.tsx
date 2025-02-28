@@ -6,6 +6,7 @@ import CombatProvider, { useCombatManager } from "./service/CombatManager";
 import useCombatAct from "./service/useCombatAct";
 import { Seat } from "./types/CombatTypes";
 import BoardGrid from "./view/BoardGrid";
+import BotOn from "./view/BotOn";
 import GoalPlace from "./view/GoalPlace";
 import SeatGrid from "./view/SeatGrid";
 import TokenGrid from "./view/TokenGrid";
@@ -61,10 +62,10 @@ export const BattlePlaza: React.FC = () => {
       <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, marginBottom: "2px" }}>
           <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
-            <div style={{ width: 10 }}></div>{seats[0]?.uid && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[0]} />}
+            <div style={{ width: 10 }}></div>{seats[0]?.uid && <><Dice size={Math.floor(boardDimension.height / 15)} seat={seats[0]} /><BotOn seat={seats[0]} size={Math.floor(boardDimension.height / 15)} /></>}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            <div style={{ width: 10 }}></div>{seats[1]?.uid && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[1]} />}
+            {seats[1]?.uid && <><BotOn seat={seats[1]} size={Math.floor(boardDimension.height / 15)} /><Dice size={Math.floor(boardDimension.height / 15)} seat={seats[1]} /></>}
           </div>
         </div>
         <div style={{ ...boardDimension }}>
@@ -72,10 +73,10 @@ export const BattlePlaza: React.FC = () => {
         </div>
         <div style={{ display: "flex", width: boardDimension.width, height: boardDimension.height / 15, marginTop: "4px" }}>
           <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "50%", height: "100%" }}>
-            <div style={{ width: 10 }}></div>{seats[3]?.uid && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[3]} />}
+            <div style={{ width: 10 }}></div>{seats[3]?.uid && <><Dice size={Math.floor(boardDimension.height / 15)} seat={seats[3]} /><BotOn seat={seats[3]} size={Math.floor(boardDimension.height / 15)} /></>}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", width: "50%" }}>
-            <div style={{ width: 10 }}></div>{seats[2]?.uid && <Dice size={Math.floor(boardDimension.height / 15)} seat={seats[2]} />}
+            <div style={{ width: 10 }}></div>{seats[2]?.uid && <><Dice size={Math.floor(boardDimension.height / 15)} seat={seats[2]} /><BotOn seat={seats[2]} size={Math.floor(boardDimension.height / 15)} /></>}
           </div>
         </div>
       </div>

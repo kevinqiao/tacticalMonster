@@ -1,19 +1,26 @@
 import { v } from "convex/values";
+import { Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery, query } from "../_generated/server";
 
-
 export const find = query({
-    args: { uid: v.optional(v.string()), gameId: v.optional(v.string()), lastTime: v.optional(v.number()) },
-    handler: async (ctx, { uid, gameId, lastTime }) => {
-        if(!lastTime)
-            return [{id:"0000",time:Date.now(),name:"####",actor:"0000",data:{}}]
-     
-        // console.log("event time:" +  lastTime+":"+gameId)
-        if (gameId) {
+    args: {  gameId: v.string(), lastTime: v.optional(v.number()) },
+    handler: async (ctx, { gameId, lastTime }) => {
+        // if(!lastTime)
+        //     return [{id:"0000",time:Date.now(),name:"####",actor:"0000",data:{}}]
+        let time = lastTime;
+        if(!lastTime){
+            const game = await ctx.db.get(gameId as Id<"game">);
+            if(game){
+                time = game._creationTime;
+            }
+        }
+        if(time){
             const events = await ctx.db
-                .query("game_event").withIndex("by_game", (q) => q.eq("gameId", gameId).gt("_creationTime", lastTime)).collect();
+                .query("game_event").withIndex("by_game", (q) => q.eq("gameId", gameId).gt("_creationTime", time)).collect();
+            console.log("events:", events)
             return events?.map((event) => Object.assign({}, event, { id: event?._id, time: event._creationTime, _creationTime: undefined, _id: undefined }))
         }
+        return []
     }
 
 });

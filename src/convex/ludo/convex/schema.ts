@@ -29,7 +29,8 @@ export default defineSchema({
             })),
             dice:v.optional(v.number()),    
         })),
-        currentAction:v.optional(v.object({type:v.number(),seat:v.optional(v.number()),tokens:v.optional(v.array(v.number()))})),
+        currentSeat:v.optional(v.number()),
+        currentAction:v.optional(v.object({type:v.number(),tokens:v.optional(v.array(v.number()))})),
         status:v.optional(v.number()),//0-open,1-locking 2-close 3-cancelled
         actDue:v.optional(v.number()),
     }).index("by_due", ["actDue","status"]),

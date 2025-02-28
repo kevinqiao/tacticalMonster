@@ -78,10 +78,13 @@ const useDiceAnimate = () => {
             animationRef.current[seat.no]?.kill();
             animationRef.current[seat.no] = null;
             const finalRotation = faceTransforms[data.value];
-            const { x, y } = currentRotationRef.current[seat.no];
+        //     const { x, y } = currentRotationRef.current[seat.no];
           
-            console.log(finalRotation,x,y)
-        // 计算最近的完整旋转圈数
+        //     console.log(finalRotation,x,y)
+        // // 计算最近的完整旋转圈数
+
+            const x = gsap.getProperty(diceEle, "rotationX") as number;
+            const y = gsap.getProperty(diceEle, "rotationY") as number;
             const fullRotationsX = Math.floor(x / 360) * 360;
             const fullRotationsY = Math.floor(y / 360) * 360;
             const tl = gsap.timeline();   
@@ -95,6 +98,11 @@ const useDiceAnimate = () => {
             tl.call(onComplete,[],"-=0.5");
             tl.play();
         },[game]);
+        const playAskRoll=useCallback((seatNo:number,onComplete:()=>void)=>{
+            console.log("playAskRoll",seatNo);
+            onComplete();
+  
+        },[game])
         const playDiceInit=useCallback(()=>{
             if(!game) return;
             game.seats.forEach((seat:any)=>{
@@ -108,7 +116,7 @@ const useDiceAnimate = () => {
             });
         },[game])
         
-        return { playRollStart,playRollDone,playCountDown,playDiceInit}       
+        return { playRollStart,playRollDone,playCountDown,playDiceInit,playAskRoll}       
 }
 export default useDiceAnimate;   
 

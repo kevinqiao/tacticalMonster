@@ -18,6 +18,7 @@ export interface Seat {
     tokens:Token[];
     dice?:number;
     botOn?:boolean; 
+    botOnEle?:HTMLDivElement|null;  
     countDownEle?:SVGPathElement|null;
     diceEle?:HTMLDivElement|null;
     stationEles:{[k:number]:HTMLDivElement|null};
