@@ -9,19 +9,13 @@ export const get = internalQuery({
         return bot;
     },
 });
-export const findDue=internalQuery({
-    args:{},    
-    handler:async(ctx)=>{
-        const bots = await ctx.db.query("bot").withIndex("by_actDue",(q)=>q.eq("status",1).lt("actDue",Date.now())).collect();
-        return bots;
-    }
-})
+
 
 
 export const create = internalMutation({
-    args: {uid:v.string(),profile:v.any()},
-    handler: async (ctx, { uid,profile }) => {
-        const docId = await ctx.db.insert("bot", {uid,profile});
+    args: {uid:v.string(),name:v.string(),avatar:v.string()},
+    handler: async (ctx, { uid,name,avatar }) => {
+        const docId = await ctx.db.insert("bot", {uid,name,avatar,level:0,exp:0});
         return docId
     },
 });

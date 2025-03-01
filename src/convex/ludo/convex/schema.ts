@@ -35,11 +35,12 @@ export default defineSchema({
         actDue:v.optional(v.number()),
     }).index("by_due", ["actDue","status"]),
     bot:defineTable({
-        uid:v.string(),
-        profile:v.any(),
-        act:v.optional(v.number()), 
-        actDue:v.optional(v.number()),
-        gameId:v.optional(v.string()),
-        status:v.optional(v.number()),
-    }).index("by_uid", ["uid"]).index("by_actDue", ["status","actDue"]).index("by_game", ["gameId"]),
+        uid: v.string(),
+        token: v.optional(v.string()),
+        expire: v.optional(v.number()),
+        level: v.number(),
+        exp: v.number(),
+        name: v.optional(v.string()),
+        avatar: v.optional(v.string())
+    }).index("by_uid", ["uid"]),
 });

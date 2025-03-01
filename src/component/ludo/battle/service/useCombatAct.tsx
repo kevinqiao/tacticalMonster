@@ -18,7 +18,7 @@ const useCombatAct = () => {
     const seat = game?.seats.find((s) => s.no === seatNo)
     if (!seat || seat.uid !== user.uid) return;
     eventQueue.push({ name: "rollStart", data: { seatNo: seat.no } });
-    const res = await convex.action(api.service.gameProxy.roll, {
+    const res = await convex.mutation(api.service.gameProxy.roll, {
       gameId: game?.gameId ?? "123",
       uid: user?.uid,
       token: "test-token",
@@ -35,7 +35,7 @@ const useCombatAct = () => {
     const seat = game?.seats.find((s) => s.no === seatNo)
     if (!seat || seat.uid !== user.uid) return;
     eventQueue.push({ name: "tokenSelected", data: { seatNo: seat.no, tokenId: tokenId } });
-    const res = await convex.action(api.service.gameProxy.selectToken, {
+    const res = await convex.mutation(api.service.gameProxy.selectToken, {
       gameId: game?.gameId ?? "123",
       tokenId: tokenId,
       uid: user?.uid,

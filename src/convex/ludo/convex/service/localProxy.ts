@@ -1,12 +1,11 @@
 import { v } from "convex/values";
-import { action } from "../_generated/server";
-import { sessionMutation } from "../custom/session";
+import { internalAction, internalMutation } from "../_generated/server";
 import GameManager from "./gameManager";
 
 // "use node";
 const apiEndpoint = "https://cool-salamander-393.convex.site/event/sync"; // 替换为目标 API 的 URL
 const apiToken = "1234567890";
-export const start = action({
+export const start = internalAction({
     args: {},
     handler: async (ctx, args) => {
             const gameService = new GameManager(ctx);
@@ -34,16 +33,12 @@ export const start = action({
     }
 })
 
-export const roll = sessionMutation({
+export const roll = internalMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId}) => {
-        const user = ctx.user;
-        if (!user||!user.uid) return false; 
         try {
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);
-            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===user.uid);        
-            if(!seat) return false;
             await gameService.roll();
         } catch (error) {
             console.log("roll error",error);
@@ -53,16 +48,12 @@ export const roll = sessionMutation({
 
     }
 })
-export const selectToken = sessionMutation({
+export const selectToken = internalMutation({
     args: { gameId: v.string(), tokenId: v.number()},
     handler: async (ctx, { gameId, tokenId}) => {
-        const user = ctx.user;
-        if (!user||!user.uid) return false; 
         try {
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);
-            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===user.uid);        
-            if(!seat) return false;
             await gameService.selectToken(tokenId);
         } catch (error) {
             console.log("select token error",error);
@@ -71,11 +62,10 @@ export const selectToken = sessionMutation({
         return true;
     }
 })
-export const timeout = sessionMutation({
+export const timeout = internalMutation({
     args: { gameId: v.string()},
     handler: async (ctx, { gameId}) => {
-        console.log("TM timeout",gameId);
-         if (!ctx.user) return false;
+         console.log("TM timeout",gameId);        
          const gameService=new GameManager(ctx);
          await gameService.initGame(gameId);
          await gameService.timeout();
@@ -83,16 +73,6 @@ export const timeout = sessionMutation({
     }
 })
 
-export const gameOver = sessionMutation({
-    args: { gameId: v.string()},
-    handler: async (ctx, {gameId}) => {
-        if (!ctx.user) return false;
-        // const gameService=new GameManager(ctx);
-        // await gameService.initGame(gameId);
-        // await gameService.gameOver();
-        return true;
-    }
-})
 
 
 
