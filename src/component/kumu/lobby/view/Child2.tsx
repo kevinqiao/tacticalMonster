@@ -8,7 +8,7 @@ const Child2Main: React.FC = (props) => {
   const convex = useConvex();
   // console.log(credentials);
   const startGame = async () => {
-    await convex.action(api.service.gameProxy.start);
+    await convex.action(api.service.gameProxy.create);
   }
   return (
     <div

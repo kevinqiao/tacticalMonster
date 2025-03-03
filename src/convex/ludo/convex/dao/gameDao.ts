@@ -68,27 +68,19 @@ export const update = internalMutation({
         return true
     },
 })
-export const lock = internalMutation({
-    args: {
-        id: v.id("game")
-    },
-    handler: async (ctx, { id}) => {
-        try{
-                // const game = await ctx.db.get(id); 
-            console.log("lock id",id);
-            const game = await query(ctx,id); 
-            console.log("lock",game);
-            if(game&&!game.status){
-                await ctx.db.patch(id, {status:1});
-                return game;
+export const findDuePast = internalQuery({
+    args: {},
+    handler: async (ctx) => {
+        const games =  await ctx.db.query("game").withIndex("by_due",(q) => q.eq("status",0).lt("actDue", Date.now())).collect();
+        return games.map((game)=>{
+            if(game.actDue){
+                game.actDue=game.actDue-Date.now();
             }
-            return null 
-        }catch(error){
-            console.log("lock error",error);
-            return null
-        }
+            return{...game,gameId:game._id,_id:undefined,_creationTime:undefined}
+        });
     },
-})
+});
+
 export const unlock= internalMutation({
     args: {
         id: v.id("game")

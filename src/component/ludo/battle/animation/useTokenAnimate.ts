@@ -63,7 +63,7 @@ const useTokenAnimate = () => {
                 const {seat:seatNo,token:tokenId,route} = data;
                 if(!route || route.length==0||seatNo===undefined||tokenId===undefined) return;
                 const token = tokens.find((t) => t.seatNo == seatNo && t.id == tokenId);
-                console.log("token",token)
+                // console.log("token",token)
                 if(!token) return;  
                 const tl = gsap.timeline({
                         onStart: () => {
@@ -82,7 +82,7 @@ const useTokenAnimate = () => {
                             tl.kill();
                         }
                 });
-                console.log("board dimension:",boardDimension)  
+                // console.log("board dimension:",boardDimension)  
                 route.forEach((p:any) => {
                     if (token.ele) {
                         token.ele.style.zIndex="1000";
@@ -97,12 +97,12 @@ const useTokenAnimate = () => {
         },[tokens,seatRoutes,boardDimension]);
 
         const playTokenToSelect =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {    
-            console.log("playTokenSelectable",data)
+            // console.log("playTokenSelectable",data)
             if(!tokens) return;
             const {seat:seatNo,tokens:tokenIds} = data;
             if(!seatNo||!tokenIds) return;
-            const tokensToSelect=tokens.filter((t:any)=>t.seatNo==seatNo&&tokenIds.includes(t.id));
-            console.log("tokensToSelect",tokensToSelect)    
+            const tokensToSelect=tokens.filter((t:any)=>t.seatNo===seatNo&&tokenIds.includes(t.id));
+            // console.log("tokensToSelect",tokensToSelect)    
             tokensToSelect.forEach((t:any)=>{
                 t.selectEle.style.opacity=1;    
                 t.selectEle.style.visibility="visible";
@@ -113,8 +113,11 @@ const useTokenAnimate = () => {
          const playTokenSelected =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {   
           
             const {seatNo,tokenId}=data
+            //    console.log("playTokenSelected",seatNo,tokenId)
             if(seatNo===undefined||tokenId===undefined||!tokens) return;
-            tokens.filter((t:any)=>t.seatNo==seatNo).forEach((t:any)=>{              
+         
+            // console.log("tokens",tokens)
+            tokens.filter((t:any)=>t.seatNo===seatNo).forEach((t:any)=>{              
                 t.selectEle.style.opacity=0;    
                 t.selectEle.style.visibility="hidden";  
                 // t.selectEle.style.pointerEvents="none";

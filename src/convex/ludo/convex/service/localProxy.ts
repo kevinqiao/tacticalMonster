@@ -1,4 +1,6 @@
 import { v } from "convex/values";
+import { GameModel } from "../../../../component/ludo/battle/types/CombatTypes";
+import { internal } from "../_generated/api";
 import { internalAction, internalMutation } from "../_generated/server";
 import GameManager from "./gameManager";
 
@@ -54,7 +56,7 @@ export const selectToken = internalMutation({
         try {
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);
-            await gameService.selectToken(tokenId);
+            await gameService.selectToken("####",tokenId);
         } catch (error) {
             console.log("select token error",error);
         }
@@ -65,13 +67,24 @@ export const selectToken = internalMutation({
 export const timeout = internalMutation({
     args: { gameId: v.string()},
     handler: async (ctx, { gameId}) => {
-         console.log("TM timeout",gameId);        
+         console.log("TM localProxy timeout",gameId);        
          const gameService=new GameManager(ctx);
          await gameService.initGame(gameId);
          await gameService.timeout();
          return true;
     }
 })
+export const botCheck = internalAction({
+    args: {},
+    handler: async (ctx) => {
+        const games:any = await ctx.runQuery(internal.dao.gameDao.findDuePast);
+        console.log("games",games);
+        for(const game of games){
+            const gameService=new GameManager(ctx,game as GameModel);
+            gameService.timeout();
+        }
+    }
+})  
 
 
 

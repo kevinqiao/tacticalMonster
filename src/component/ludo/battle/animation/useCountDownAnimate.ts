@@ -27,7 +27,8 @@ const useCountDownAnimate = () => {
             } else {
                 // 动画完成
                 if (game?.gameId && user?.uid) {
-                    convex.action(api.service.gameProxy.timeout, {
+                    console.log("timeout",game.gameId,user.uid);
+                    convex.mutation(api.service.gameProxy.timeout, {
                         uid: user.uid,
                         token: user.token,
                         gameId: game.gameId
@@ -45,7 +46,7 @@ const useCountDownAnimate = () => {
         if (!game || !seatNo || !game.actDue || game.actDue < Date.now() || !game.currentAction) {
             console.log("playCountStart",game?.gameId,user?.uid);
             if(game?.actDue && game.actDue < Date.now()){
-                convex.action(api.service.gameProxy.timeout, {
+                convex.mutation(api.service.gameProxy.timeout, {
                     uid: user.uid,
                     token: user.token,
                     gameId: game.gameId

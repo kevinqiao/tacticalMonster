@@ -26,7 +26,7 @@ export const BattlePlaza: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
   const { roll } = useCombatAct();
-  console.log("boardDimension", boardDimension)
+  // console.log("boardDimension", boardDimension)
   const seats: { [k: number]: Seat } = useMemo(() => {
     const seats: { [k: number]: Seat } = {};
     game?.seats.forEach((seat) => {

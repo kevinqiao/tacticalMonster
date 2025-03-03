@@ -18,6 +18,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
         if (!game) return;
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event || event.status === 1) return;
+        console.log("event:", event)
         const onComplete = () => {
             eventQueue.shift();
         }
@@ -28,7 +29,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
             return;
         }
         const { name, status, data } = event;
-        console.log("event:", event)
+
         if (!status) {
 
             switch (name) {
@@ -56,6 +57,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     } else if (data.type == ACTION_TYPE.ROLL) {
                         playAskRoll(data.seat, onComplete);
                     } else {
+                        playCountStop();
                         onComplete();
                     }
                     break;
@@ -89,7 +91,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     break;
                 default:
                     console.log("unknown event", event)
-                    eventQueue.shift();
+                    onComplete();
                     break;
             }
 
