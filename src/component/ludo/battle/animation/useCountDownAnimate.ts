@@ -16,21 +16,23 @@ const useCountDownAnimate = () => {
         startTimeRef.current = startTime;
 
         const animation = (currentTime: number) => {
-            const elapsed = currentTime - startTime;
+             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
             
-            const currentOffset = startOffset + (perimeter - startOffset) * progress;
+            const currentOffset = Math.floor((startOffset + (perimeter - startOffset) * progress));
+            // console.log("animation currentOffset",currentOffset,progress);
             element.style.strokeDashoffset = `-${currentOffset}px`;
 
             if (progress < 1) {
+                // console.log("animation requestAnimationFrame",progress);
+                // element.style.strokeDashoffset = `0px`;
                 animationRef.current = requestAnimationFrame(animation);
             } else {
+                console.log("animation complete")
                 // 动画完成
                 if (game?.gameId && user?.uid) {
                     console.log("timeout",game.gameId,user.uid);
-                    convex.mutation(api.service.gameProxy.timeout, {
-                        uid: user.uid,
-                        token: user.token,
+                    convex.mutation(api.service.gameProxy.timeout, {                       
                         gameId: game.gameId
                     });
                 }
@@ -41,14 +43,13 @@ const useCountDownAnimate = () => {
     }, [game, user, convex]);
 
     const playCountStart = useCallback(() => {
+        console.log("playCountStart",game,user?.uid);
         const seatNo = game?.currentSeat;
 
         if (!game || !seatNo || !game.actDue || game.actDue < Date.now() || !game.currentAction) {
             console.log("playCountStart",game?.gameId,user?.uid);
             if(game?.actDue && game.actDue < Date.now()){
-                convex.mutation(api.service.gameProxy.timeout, {
-                    uid: user.uid,
-                    token: user.token,
+                convex.mutation(api.service.gameProxy.timeout, {                    
                     gameId: game.gameId
                });
             }
@@ -61,7 +62,6 @@ const useCountDownAnimate = () => {
 
         const perimeter = element.getTotalLength();
         if (!perimeter) return;
-
         // 停止当前动画
         if (animationRef.current) {
             cancelAnimationFrame(animationRef.current);
@@ -73,7 +73,7 @@ const useCountDownAnimate = () => {
 
         const duration = game.actDue - Date.now();
         const startOffset = (15000 - duration) * perimeter / 15000;
-        
+        console.log("playCountStart startOffset",startOffset);
         if (startOffset >= 0) {
             element.style.strokeDashoffset = `-${startOffset}px`;
             animate(element, startOffset, perimeter, duration);

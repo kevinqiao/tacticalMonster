@@ -12,22 +12,25 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
     const { playRollStart, playRollDone, playAskRoll } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
     const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased } = useTokenAnimate();
-    const { playBotOn } = useSeatAnimate();
+    const { playBotOn, playBotOff } = useSeatAnimate();
 
     const processEvent = useCallback(() => {
+
         if (!game) return;
+        // console.log("processEvent", game);
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event || event.status === 1) return;
         console.log("event:", event)
         const onComplete = () => {
-            eventQueue.shift();
+            // playCountStop();
+            const e = eventQueue.shift();
         }
 
         event.initTime = event.initTime || Date.now();
-        if (Date.now() - event.initTime > 5000) {
-            const e = eventQueue.shift();
-            return;
-        }
+        // if (Date.now() - event.initTime > 5000) {
+        //     const e = eventQueue.shift();
+        //     return;
+        // }
         const { name, status, data } = event;
 
         if (!status) {
@@ -36,14 +39,13 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                 case "rollStart":
                     console.log("roll:", data)
                     event.status = 1;
-                    // processRollStart(data, () => onComplete(event.initTime));
-                    playCountStop();
                     playRollStart(data);
                     onComplete();
                     break;
                 case "rollDone":
                     console.log("rollDone:", data)
                     event.status = 1;
+                    playCountStop();
                     playRollDone({ data, onComplete: () => { onComplete() } });
                     break;
                 case "askAct":
@@ -56,40 +58,41 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                         playTokenToSelect({ data, onComplete: () => { onComplete() } });
                     } else if (data.type == ACTION_TYPE.ROLL) {
                         playAskRoll(data.seat, onComplete);
-                    } else {
-                        playCountStop();
-                        onComplete();
                     }
                     break;
                 case "move":
-                    event.status = 1;
-                    console.log("move:", data)
                     playCountStop();
+                    event.status = 1;
                     playTokenMove({ data, onComplete: () => { onComplete() } });
                     break;
                 case "tokenSelected":
                     event.status = 1;
-                    console.log("tokenSelected:", data)
                     playTokenSelected({ data, onComplete: () => { onComplete() } });
                     break;
                 case "tokenReleased":
+                    playCountStop();
                     event.status = 1;
-                    console.log("tokenReleased:", data)
                     playTokenReleased({ data, onComplete: () => { onComplete() } });
                     break;
                 case "turnNext":
-                    console.log("turnNext:", data)
                     event.status = 1;
                     game.currentSeat = data.seatNo;
                     onComplete();
                     break;
                 case "botOn":
-                    console.log("botOn:", data)
+                    // console.log("botOn:", data)
                     event.status = 1;
                     playBotOn(data.seat);
                     onComplete();
                     break;
+                case "botOff":
+                    console.log("botOff:", data)
+                    event.status = 1;
+                    playBotOff(data.seat);
+                    onComplete();
+                    break;
                 default:
+                    event.status = 1;
                     console.log("unknown event", event)
                     onComplete();
                     break;
@@ -97,7 +100,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
 
         }
 
-    }, [user, game, eventQueue, boardDimension])
+    }, [user, game, eventQueue, boardDimension, playCountStop, playCountStart])
 
 
     useEffect(() => {

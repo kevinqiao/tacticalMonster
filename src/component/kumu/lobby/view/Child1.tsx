@@ -21,7 +21,7 @@ const ChildMain: React.FC<{ gameId: string }> = ({ gameId }) => {
   )
 }
 const Child1: React.FC<PageProp> = ({ visible, data }) => {
-  console.log("data", data)
+  // console.log("data", data)
   if (!data?.gameId) return;
   return (<ChildMain gameId={data.gameId}></ChildMain>);
 };

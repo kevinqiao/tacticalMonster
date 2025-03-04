@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { action, internalMutation } from "../_generated/server";
+import { action, internalMutation, mutation } from "../_generated/server";
 import { sessionMutation } from "../custom/session";
 import GameManager from "./gameManager";
 
@@ -99,11 +99,27 @@ export const selectToken = sessionMutation({
         return true;
     }
 })
-export const timeout = sessionMutation({
+export const turnOffBot = sessionMutation({
     args: { gameId: v.string()},
     handler: async (ctx, { gameId}) => {
-        console.log("TM timeout",gameId,ctx.user);
-         if (!ctx.user) return false;
+        const user = ctx.user;
+        if (!user||!user.uid) return false; 
+        try {
+            const gameService=new GameManager(ctx);
+            await gameService.initGame(gameId);
+            const seat=gameService.getGame()?.seats.find(seat=>seat.uid===user.uid);   
+            if(seat){
+                await gameService.turnOffBot(seat);
+            }
+        } catch (error) {
+            console.log("turn off bot error",error);
+        }
+    }
+})
+export const timeout = mutation({
+    args: { gameId: v.string()},
+    handler: async (ctx, { gameId}) => {
+  
          try{
             const gameService=new GameManager(ctx);
             await gameService.initGame(gameId);

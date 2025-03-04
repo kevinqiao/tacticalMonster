@@ -1,12 +1,17 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import useCountDownAnimate from '../animation/useCountDownAnimate';
 import { useCombatManager } from '../service/CombatManager';
 import useCombatAct from '../service/useCombatAct';
 import { ACTION_TYPE, Seat } from '../types/CombatTypes';
 import "./style.css";
 const SeatContainer: React.FC<{ seat: Seat }> = ({ seat }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { game, boardDimension } = useCombatManager();
-  const { selectToken } = useCombatAct();
+  const { game, boardDimension, tokens } = useCombatManager();
+  const { selectToken, timeout } = useCombatAct();
+
+  const { playCountStart } = useCountDownAnimate();
+
+
 
   const position = useMemo(() => {
     const p: { top: any; left?: any; width: any; height: any } = { top: 0, width: `${100 * 6 / 15}%`, height: `${100 * 6 / 15}%` };
@@ -48,9 +53,26 @@ const SeatContainer: React.FC<{ seat: Seat }> = ({ seat }) => {
 
     if (token && token.x < 0 && token.y < 0 && currentSeat === seat.no && game?.currentAction?.type === ACTION_TYPE.SELECT)
       selectToken(tokenId);
-    else
-      console.log("invalid token for release", tokenId);
   }, [seat, selectToken, game]);
+
+  useEffect(() => {
+    if (game?.currentSeat === seat.no && game.currentAction && game?.actDue) {
+      if (game.actDue <= Date.now()) {
+        timeout();
+      } else {
+        playCountStart();
+        const tokenIds = game.currentAction?.tokens;
+        if (game.currentAction?.type === ACTION_TYPE.SELECT) {
+          seat.tokens.forEach((token) => {
+            if (token.selectEle && tokenIds?.includes(token.id)) {
+              token.selectEle.style.opacity = "1";
+              token.selectEle.style.visibility = "visible";
+            }
+          });
+        }
+      }
+    }
+  }, [game]);
   return (
     <>
       <div ref={containerRef} style={{

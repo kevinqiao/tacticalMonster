@@ -29,9 +29,10 @@ export const CombatContext = createContext<ICombatContext>({
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
   const { user } = useUserManager();
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
-  const [lastTime, setLastTime] = useState<number | undefined>(undefined);
+  // const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const [game, setGame] = useState<GameModel | null>(null);
-  const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastTime: lastTime ?? game?.lastUpdate });
+  const [lastUpdate, setLastUpdate] = useState<string | undefined>(undefined);
+  const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
   const [boardDimension, setBoardDimension] = useState<{ width: number, height: number }>({ width: 0, height: 0 });
   const convex = useConvex();
 
@@ -57,13 +58,15 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     setBoardDimension({ width, height });
   }
   useEffect(() => {
-    const startGame = async (gameInit: GameModel | null) => {
-      if (gameInit?.status === -1) {
-        await convex.mutation(api.service.gameProxy.start, { gameId: gameInit.gameId, uid: user?.uid, token: user?.token });
-      }
+    const startGame = async (gameInit: GameModel) => {
+      await convex.mutation(api.service.gameProxy.start, { gameId: gameInit.gameId, uid: user?.uid, token: user?.token });
     }
-    startGame(game);
-  }, [game])
+    if (!user?.uid || !game) return;
+    if (game.status === -1) {
+      startGame(game);
+    }
+
+  }, [game, user])
   useEffect(() => {
     console.log("events", events);
     if (Array.isArray(events) && events.length > 0) {
@@ -72,7 +75,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
           eventQueueRef.current.push(event);
         }
       }
-      setLastTime(events[events.length - 1].time);
+      setLastUpdate(events[events.length - 1].id);
     }
   }, [events]);
   useEffect(() => {
@@ -82,6 +85,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         token: "test-token"
       });
       if (gameObj) {
+        console.log("gameObj", gameObj);
         gameObj.actDue = gameObj.actDue + Date.now();
         gameObj.seats.forEach((seat: any) => {
           seat.stationEles = {};
@@ -89,7 +93,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
             token.seatNo = seat.no;
           })
         })
+
         setGame(gameObj);
+        setLastUpdate(gameObj.lastUpdate ?? "####");
       }
     }
     fetchGame(gameId);

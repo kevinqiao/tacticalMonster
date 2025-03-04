@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
-import useCombatAct from "./service/useCombatAct";
 import { Seat } from "./types/CombatTypes";
 import BoardGrid from "./view/BoardGrid";
 import BotOn from "./view/BotOn";
@@ -25,7 +24,7 @@ const CombatBoard: React.FC = () => {
 export const BattlePlaza: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
-  const { roll } = useCombatAct();
+  // const { roll } = useCombatAct();
   // console.log("boardDimension", boardDimension)
   const seats: { [k: number]: Seat } = useMemo(() => {
     const seats: { [k: number]: Seat } = {};
@@ -34,6 +33,7 @@ export const BattlePlaza: React.FC = () => {
     })
     return seats;
   }, [game]);
+  console.log("seats", seats);
   useEffect(() => {
     const updatePosition = () => {
 

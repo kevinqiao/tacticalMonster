@@ -5,6 +5,7 @@ import { internalAction } from "../_generated/server";
 export const takeSelect = internalAction({
     args:{gameId:v.string()},
     handler:async(ctx,args)=>{
+      console.log("takeSelect,gameId:",args.gameId);
       const game:GameModel|null = await ctx.runQuery(internal.dao.gameDao.get,{gameId:args.gameId});
       if(game?.currentAction?.type===ACTION_TYPE.SELECT&&game.currentAction.tokens){
         console.log("takeSelect",game.currentAction);

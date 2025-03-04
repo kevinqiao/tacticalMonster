@@ -13,7 +13,7 @@ const CountDownDice: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) =
     const y = strokeWidth / 2;
     useEffect(() => {
         if (seat.countDownEle) {
-            console.log("seat.countDownEle loaded", seat.no)
+            // console.log("seat.countDownEle loaded", seat.no)
             seat.countDownEle.style.strokeDashoffset = `-${perimeter}px`;
         }
     }, [seat]);
@@ -49,7 +49,7 @@ const DiceCore: React.FC<{ seat: Seat, size: number }> = ({ seat, size }) => {
                 rotationX: finalRotation.rotationX,
                 rotationY: finalRotation.rotationY
             });
-            console.log("seat.diceEle loaded", seat.no)
+            // console.log("seat.diceEle loaded", seat.no)
         }
     }, [seat]);
     return (

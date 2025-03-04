@@ -57,7 +57,7 @@ export interface GameModel {
   currentSeat:number;//-1:not started,0-3:selected
   currentAction?:CombatAction;    
   actDue?: number;
-  lastUpdate?:number;
+  lastUpdate?:string;//event id
   status: number;  
 }
 export interface CombatAction {

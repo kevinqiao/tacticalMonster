@@ -124,8 +124,9 @@ const useTokenAnimate = () => {
             })
             onComplete();
         },[tokens]);
+
         
-        return { playTokenMove,playTokenToSelect,playTokenSelected,playTokenReleased}       
+        return { playTokenMove,playTokenToSelect,playTokenSelected,playTokenReleased,groupingTokens}       
 }
 export default useTokenAnimate;   
 

@@ -2,8 +2,8 @@ import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/ludo/convex/_generated/api";
+import { ACTION_TYPE } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
-
 const useCombatAct = () => {
 
   const { user } = useUserManager();
@@ -16,7 +16,7 @@ const useCombatAct = () => {
       return;
     const seatNo = game.currentSeat;
     const seat = game?.seats.find((s) => s.no === seatNo)
-    if (!seat || seat.uid !== user.uid) return;
+    if (!seat || seat.uid !== user.uid || game.currentAction?.type !== ACTION_TYPE.ROLL) return;
     eventQueue.push({ name: "rollStart", data: { seatNo: seat.no } });
     const res = await convex.mutation(api.service.gameProxy.roll, {
       gameId: game?.gameId ?? "123",
@@ -44,7 +44,15 @@ const useCombatAct = () => {
     console.log("roll res", res);
 
   }, [eventQueue, game, user]);
-  return { roll, selectToken };
+  const timeout = useCallback(async () => {
+    if (!game) return;
+    await convex.mutation(api.service.gameProxy.timeout, { gameId: game.gameId });
+  }, [game, user]);
+  const turnOffBot = useCallback(async () => {
+    if (!game) return;
+    await convex.mutation(api.service.gameProxy.turnOffBot, { gameId: game.gameId, uid: user?.uid, token: "test-token" });
+  }, [game, user]);
+  return { roll, selectToken, timeout, turnOffBot };
 };
 export default useCombatAct;
 

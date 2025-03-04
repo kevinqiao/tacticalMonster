@@ -74,7 +74,6 @@ class GameManager {
             }],
             status:-1
         };
-        gameObj.lastUpdate=1;
         const gameId =  await this.dbCtx.db.insert("game",gameObj);
         // // const gameId = await this.dbCtx.runMutation(internal.dao.gameDao.create, gameObj);
         console.log("gameId",gameId);
@@ -92,10 +91,9 @@ class GameManager {
         if(!this.game||this.game.status!==-1) return;
         console.log("start game",this.game.gameId); 
         this.game.status=0;
-        const time=Date.now();
-        const event:any={gameId:this.game.gameId,name:"gameStarted",actor:"####",data:{status:0},time};
-        await this.dbCtx.db.insert("game_event",event); 
-        await this.dbCtx.db.patch(this.game.gameId, {lastUpdate:time,status:0});
+        const event:any={gameId:this.game.gameId,name:"gameStarted",actor:"####",data:{status:0}};
+        const eventId = await this.dbCtx.db.insert("game_event",event); 
+        await this.dbCtx.db.patch(this.game.gameId, {lastUpdate:eventId,status:0});
         await this.turnNext();
       
     }
@@ -123,20 +121,20 @@ class GameManager {
 
         const seat:Seat|undefined = this.game.seats.find(seat=>seat.no===this.game?.currentSeat);
         if(!seat) return false;
-        const time=Date.now();
+
         if(!seat.botOn)
         {    
-            const event={gameId:this.game.gameId,name:"rollStart",actor:seat.uid,data:{seatNo:seat.no},time};
+            const event={gameId:this.game.gameId,name:"rollStart",actor:seat.uid,data:{seatNo:seat.no}};
             await this.dbCtx.db.insert("game_event",event);  
         }       
         // const value =  Math.floor(Math.random() * 6) + 1;
         const value=6;
         const availableTokens = this.getAvailableTokens(value,seat);
-        const eventDone:any={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seatNo:seat.no,value},time};
-        await this.dbCtx.db.insert("game_event",eventDone);            
+        const eventDone:any={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seatNo:seat.no,value}};
+        const eventId = await this.dbCtx.db.insert("game_event",eventDone);            
         // await this.dbCtx.runMutation(internal.dao.gameEventDao.create, eventDone);
         seat.dice=value;
-        await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:time});  
+        await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:eventId});  
         // console.log("roll",seat,value,availableTokens.length);
         if(availableTokens.length===0){              
          await this.turnNext()
@@ -154,13 +152,13 @@ class GameManager {
         const seat = this.game.seats.find(seat=>seat.no===this.game?.currentSeat);
         if(!seat) return;
         const tokenIds = tokens.map(t=>t.id);
-        const duration = seat.botOn?1000:15000;
+        const duration = seat.botOn?10000:15000;
         this.game.currentAction={type:ACTION_TYPE.SELECT,tokens:tokenIds};
         this.game.actDue=Date.now()+duration;
-        const time=Date.now();
-        await this.dbCtx.db.patch(this.game.gameId,{currentAction:this.game.currentAction,actDue:this.game.actDue,lastUpdate:time});
-        const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,seat:seat.no,duration},time};
-        await this.dbCtx.db.insert("game_event",event);
+        const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,seat:seat.no,duration}};
+        const eventId = await this.dbCtx.db.insert("game_event",event);
+         await this.dbCtx.db.patch(this.game.gameId,{currentAction:this.game.currentAction,actDue:this.game.actDue,lastUpdate:eventId});
+       
     
     }
     async askRoll(seatNo:number){
@@ -168,15 +166,12 @@ class GameManager {
         if(!this.game) return 
         const seat=this.game.seats.find(seat=>seat.no===seatNo);
         if(!seat) return;
-        const duration = seat.botOn?1000:15000;
+        const duration = seat.botOn?10000:15000;
         this.game.currentAction={type:ACTION_TYPE.ROLL};        
         this.game.actDue=Date.now()+duration;
-        const time=Date.now();
-        console.log("askRoll",this.game.lastUpdate,time);
-        await this.dbCtx.db.patch(this.game.gameId,{actDue:this.game.actDue,currentAction:this.game.currentAction,lastUpdate:time});
-        const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,duration},time};
-        await this.dbCtx.db.insert("game_event",event);
-        
+        const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,duration}};
+        const eventId = await this.dbCtx.db.insert("game_event",event);
+        await this.dbCtx.db.patch(this.game.gameId,{actDue:this.game.actDue,currentAction:this.game.currentAction,lastUpdate:eventId});
         
         
     }
@@ -186,9 +181,9 @@ class GameManager {
         if(!seat||!seat.dice) return;
         const token=seat.tokens.find(t=>t.id===tokenId);
         if(!token) return;
-        const time=Date.now();
-        const event:any={gameId:this.game.gameId,name:"tokenSelected",actor,data:{seatNo:seat.no,tokenId},time};
-        await this.dbCtx.db.insert("game_event",event);
+        const event:any={gameId:this.game.gameId,name:"tokenSelected",actor,data:{seatNo:seat.no,tokenId}};
+        const eventId = await this.dbCtx.db.insert("game_event",event);
+        await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:eventId});
         // console.log("selectToken",token)
         if(token.x<0||token.y<0){
             await this.releaseToken(seat,token);
@@ -203,10 +198,9 @@ class GameManager {
         console.log("releaseToken startPoint",startPoint)
         token.x=startPoint.x;
         token.y=startPoint.y;
-        const time=Date.now();
-        const event:any={gameId:this.game.gameId,name:"tokenReleased",actor:"####",data:{seat:seat.no,token},time};
-        await this.dbCtx.db.insert("game_event",event); 
-        await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:time});
+        const event:any={gameId:this.game.gameId,name:"tokenReleased",actor:"####",data:{seat:seat.no,token}};
+        const eventId = await this.dbCtx.db.insert("game_event",event); 
+        await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:eventId});
         await this.askRoll(seat.no);
 
     }
@@ -221,10 +215,10 @@ class GameManager {
                 const end = path[path.length-1];
                 token.x=end.x;
                 token.y=end.y;
-                const time=Date.now();  
-                const event:any={gameId:this.game.gameId,name:"move",actor:"####",data:{seat:seat.no,token:token.id,route:path},time};
-                await this.dbCtx.db.insert("game_event",event); 
-                await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:time});
+               
+                const event:any={gameId:this.game.gameId,name:"move",actor:"####",data:{seat:seat.no,token:token.id,route:path}};
+                const eventId = await this.dbCtx.db.insert("game_event",event); 
+                await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:eventId});
                 if(this.gameOver()){
                     console.log("gameOver");
                     return;
@@ -264,11 +258,10 @@ class GameManager {
             const nextSeat = cur===(actives.length-1)?actives[0]:actives[cur+1]               
             this.game.currentSeat=nextSeat.no;
         }
-        const time=Date.now();
         console.log("turnNext gameId:",this.game?.gameId);
-        const event:any={gameId:this.game.gameId,name:"turnNext",actor:"####",data:{seatNo:this.game.currentSeat},time};
-        await this.dbCtx.db.insert("game_event",event); 
-        await this.dbCtx.db.patch(this.game.gameId, {currentSeat:this.game.currentSeat,lastUpdate:time,status:this.game.status});
+        const event:any={gameId:this.game.gameId,name:"turnNext",actor:"####",data:{seatNo:this.game.currentSeat}};
+        const eventId = await this.dbCtx.db.insert("game_event",event); 
+        await this.dbCtx.db.patch(this.game.gameId, {currentSeat:this.game.currentSeat,lastUpdate:eventId,status:this.game.status});
         await this.askRoll(this.game.currentSeat);
      
     }  
@@ -282,16 +275,15 @@ class GameManager {
                 if(seat){
                     if(!seat.botOn){        
                         seat.botOn=true;    
-                        const time=Date.now();
-                        const event:any={gameId:this.game?.gameId,name:"botOn",actor:"####",data:{seat:seat.no},time};
-                        await this.dbCtx.db.insert("game_event",event); 
-                        await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:time});
+                        const event:any={gameId:this.game?.gameId,name:"botOn",actor:"####",data:{seat:seat.no}};
+                        const eventId =  await this.dbCtx.db.insert("game_event",event); 
+                        await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:eventId});
                     }
                     if(this.game?.currentAction?.type===ACTION_TYPE.ROLL){    
-                        console.log("timeout roll");
+                        console.log("timeout roll,gameId:",this.game?.gameId);
                         await this.roll();
                     }else if(this.game?.currentAction?.type===ACTION_TYPE.SELECT){
-                        console.log("timeout select");
+                        console.log("timeout select,gameId:",this.game?.gameId);
                         await this.dbCtx.scheduler.runAfter(0,internal.service.aiAgent.takeSelect,{gameId:this.game?.gameId});            
                     }
                 }
@@ -299,7 +291,15 @@ class GameManager {
         }
        
     }
-
+    async turnOffBot(seat:Seat){    
+        if(!this.game) return;
+        seat.botOn=false;   
+        const event:any={gameId:this.game.gameId,name:"botOff",actor:"####",data:{seat:seat.no}};
+        const eventId = await this.dbCtx.db.insert("game_event",event); 
+        await this.dbCtx.db.patch(this.game.gameId, {lastUpdate:eventId,seats:this.game.seats});
+        // await this.askRoll(this.game.currentSeat);
+     
+    }  
    
    
 }

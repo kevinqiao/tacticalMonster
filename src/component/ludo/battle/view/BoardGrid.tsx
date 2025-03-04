@@ -70,7 +70,6 @@ const BoardTile: React.FC<{ x: number, y: number }> = ({ x, y }) => {
     if (!game || !game.currentAction || !tokens)
       return;
 
-    console.log("currentAction", game.currentAction);
     if (game.currentAction.type === ACTION_TYPE.SELECT) {
       const seat = game.seats.find(item => item.no === game.currentSeat);
       console.log("seat", seat);
