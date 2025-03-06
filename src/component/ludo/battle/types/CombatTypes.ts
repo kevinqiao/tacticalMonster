@@ -49,7 +49,12 @@ export interface Token {
     selectEle?:HTMLDivElement|null;
 }
 
-
+export interface Tile {
+    x:number;
+    y:number;
+    type:number;
+    ele?:HTMLDivElement|null;   
+}
 
 export interface GameModel {
   gameId: string;
@@ -59,6 +64,7 @@ export interface GameModel {
   actDue?: number;
   lastUpdate?:string;//event id
   status: number;  
+  tiles?:Tile[];
 }
 export interface CombatAction {
    type:number;//0-roll,1-select

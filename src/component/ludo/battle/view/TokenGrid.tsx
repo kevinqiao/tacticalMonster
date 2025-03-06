@@ -34,12 +34,6 @@ const TokenGrid: React.FC = () => {
       })
     })
 
-
-
-  }, [boardDimension, game])
-  useEffect(() => {
-    if (!tokens) return;
-
     const grouped = tokens.filter((t) => t.x >= 0 && t.y >= 0).reduce((acc: { [key: string]: Token[] }, token) => {
       const key = `${token.x},${token.y}`;
       if (!acc[key]) {
@@ -53,7 +47,9 @@ const TokenGrid: React.FC = () => {
       groupingTokens(gtokens);
     })
 
-  }, [tokens]);
+
+  }, [boardDimension, game])
+
 
   return (
     <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>

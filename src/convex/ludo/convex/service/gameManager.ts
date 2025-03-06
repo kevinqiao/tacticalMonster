@@ -2,6 +2,8 @@ import { ACTION_TYPE, GameModel, Seat } from "../../../../component/ludo/battle/
 import { getRoutePath } from "../../../../component/ludo/util/mapUtils";
 import { internal } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
+import { gameObj } from "./gameData";
+import TileEventHandler from "./TileEventHandler";
 import { tokenRoutes } from "./tokenRoutes";
 const routes: { [k: number]: { x: number, y: number }[] } = {};
 [0,1,2,3].forEach((seatNo) => {
@@ -12,14 +14,16 @@ const routes: { [k: number]: { x: number, y: number }[] } = {};
       }
 });
 class GameManager {
-    private dbCtx: any;
+    public dbCtx: any;
     private game:GameModel|null; 
     private aiBots:{[k:number]:any};
+    private tileEventHandler:TileEventHandler;
 
     constructor(ctx: any,game?:GameModel) {
         this.dbCtx = ctx;
         this.game=game??null;
         this.aiBots={};
+        this.tileEventHandler=new TileEventHandler(this);
     }
     async initGame(gameId:string){
         try{
@@ -27,6 +31,11 @@ class GameManager {
             const game = await this.dbCtx.db.get(id);      
 
             if(game){
+                game.seats.forEach((seat: any) => {
+                    seat.tokens.forEach((token: any) => {
+                        token.seatNo = seat.no;
+                    })
+               })
                 if(game.actDue){
                     game.actDue=game.actDue-Date.now();
                 }
@@ -37,6 +46,7 @@ class GameManager {
                         this.aiBots[seat.no]=bot;
                     }   
                 })
+                
             } 
         }catch(error){
             console.log("initGame error",error);
@@ -46,41 +56,21 @@ class GameManager {
         // const players = await this.dbCtx.runQuery(internal.dao.gamePlayerDao.findAll);
         const players = await this.dbCtx.db.query("game_player").collect()
         if(players.length<2) return;
-
-        const gameObj:any = { 
-            // currentSeat:-1,  
-            // currentAction:{type:ACTION_TYPE.ROLL},
-            // actDue:Date.now()+15000,    
-            seats: [
-            { no: 0, tokens: [] },
-            { no: 2, tokens: []},
-            {
-                no: 1,
-                uid: players[0].uid, tokens: [
-                    { id: 1, x: 8, y: 4 },
-                    { id: 0, x: -1, y: -1 },
-                    { id: 2, x: -1, y: -1 },
-                    { id: 3, x: -1, y: -1 },
-                ],
-            },
-            {
-                no: 3,
-                uid: players[1].uid, tokens: [
-                    { id: 0, x: -1, y: -1 },
-                    { id: 1, x: 6, y: 10 },
-                    { id: 2, x: -1, y: -1 },
-                    { id: 3, x: -1, y: -1 },
-                ],
-            }],
-            status:-1
-        };
+        const seat1 = gameObj.seats.find((s:any)=>s.no===1);
+        seat1.uid=players[0].uid;
+        const seat3 = gameObj.seats.find((s:any)=>s.no===3);
+        seat3.uid=players[1].uid;
         const gameId =  await this.dbCtx.db.insert("game",gameObj);
         // // const gameId = await this.dbCtx.runMutation(internal.dao.gameDao.create, gameObj);
         console.log("gameId",gameId);
         if(gameId){
-            gameObj.gameId=gameId;            
+            gameObj.gameId=gameId;
+            gameObj.seats.forEach((seat: any) => {
+                seat.tokens.forEach((token: any) => {
+                    token.seatNo = seat.no;
+                })
+            })
             this.game=gameObj;
-            // await this.gameStart();
         }
     }
     getGame(){
@@ -152,7 +142,7 @@ class GameManager {
         const seat = this.game.seats.find(seat=>seat.no===this.game?.currentSeat);
         if(!seat) return;
         const tokenIds = tokens.map(t=>t.id);
-        const duration = seat.botOn?10000:15000;
+        const duration = seat.botOn?3000:15000;
         this.game.currentAction={type:ACTION_TYPE.SELECT,tokens:tokenIds};
         this.game.actDue=Date.now()+duration;
         const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,seat:seat.no,duration}};
@@ -166,7 +156,7 @@ class GameManager {
         if(!this.game) return 
         const seat=this.game.seats.find(seat=>seat.no===seatNo);
         if(!seat) return;
-        const duration = seat.botOn?10000:15000;
+        const duration = seat.botOn?3000:15000;
         this.game.currentAction={type:ACTION_TYPE.ROLL};        
         this.game.actDue=Date.now()+duration;
         const event:any={gameId:this.game.gameId,name:"askAct",actor:"####",data:{...this.game.currentAction,duration}};
@@ -219,6 +209,7 @@ class GameManager {
                 const event:any={gameId:this.game.gameId,name:"move",actor:"####",data:{seat:seat.no,token:token.id,route:path}};
                 const eventId = await this.dbCtx.db.insert("game_event",event); 
                 await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:eventId});
+                await this.tileEventHandler.onMove({seatNo:seat.no,token:token.id,path});
                 if(this.gameOver()){
                     console.log("gameOver");
                     return;
@@ -297,7 +288,6 @@ class GameManager {
         const event:any={gameId:this.game.gameId,name:"botOff",actor:"####",data:{seat:seat.no}};
         const eventId = await this.dbCtx.db.insert("game_event",event); 
         await this.dbCtx.db.patch(this.game.gameId, {lastUpdate:eventId,seats:this.game.seats});
-        // await this.askRoll(this.game.currentSeat);
      
     }  
    

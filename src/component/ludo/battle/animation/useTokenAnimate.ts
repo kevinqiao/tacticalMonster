@@ -22,7 +22,7 @@ const useTokenAnimate = () => {
                         x: tx+tileSize*offset,
                         y: ty+tileSize*offset,
                         scale: scale,
-                        duration: 0.3, ease: "power2.inOut"  
+                        duration: 0, ease: "power2.inOut"  
                     })
                 })
                

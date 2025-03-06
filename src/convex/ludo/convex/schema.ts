@@ -34,6 +34,11 @@ export default defineSchema({
         status:v.number(),//0-open,1-close 2-settled 3-cancelled
         actDue:v.optional(v.number()),
         lastUpdate:v.optional(v.id("game_event")),
+        tiles:v.optional(v.array(v.object({
+            x:v.number(),
+            y:v.number(),
+            type:v.number()
+        })))    
     }).index("by_due", ["status","actDue"]),
     bot:defineTable({
         uid: v.string(),

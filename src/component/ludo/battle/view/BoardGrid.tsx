@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { useCombatManager } from '../service/CombatManager';
 import useCombatAct from '../service/useCombatAct';
 import { ACTION_TYPE } from '../types/CombatTypes';
+import DynamicTile from './DynamicTile';
 import "./style.css";
 const GoalTracks: { [k: number]: { x: number, y: number }[] } = {
   0: [
@@ -83,7 +84,9 @@ const BoardTile: React.FC<{ x: number, y: number }> = ({ x, y }) => {
     }
   }, [x, y, game, tokens, selectToken])
 
-  return <div style={{ width: "100%", height: "100%", backgroundColor: bgColor, border: "1px solid black" }} onClick={handleClick} />
+  return <div style={{ position: "relative", width: "100%", height: "100%", backgroundColor: bgColor, border: "1px solid black" }} onClick={handleClick} >
+    <DynamicTile x={x} y={y} />
+  </div>
 }
 
 const BoardGrid: React.FC = () => {

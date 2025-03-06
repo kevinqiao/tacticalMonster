@@ -21,9 +21,11 @@ import type * as dao_gamePlayerDao from "../dao/gamePlayerDao.js";
 import type * as http from "../http.js";
 import type * as service_aiAgent from "../service/aiAgent.js";
 import type * as service_auth from "../service/auth.js";
+import type * as service_gameData from "../service/gameData.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as service_gameProxy from "../service/gameProxy.js";
 import type * as service_localProxy from "../service/localProxy.js";
+import type * as service_TileEventHandler from "../service/TileEventHandler.js";
 import type * as service_tokenRoutes from "../service/tokenRoutes.js";
 
 /**
@@ -43,9 +45,11 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "service/aiAgent": typeof service_aiAgent;
   "service/auth": typeof service_auth;
+  "service/gameData": typeof service_gameData;
   "service/gameManager": typeof service_gameManager;
   "service/gameProxy": typeof service_gameProxy;
   "service/localProxy": typeof service_localProxy;
+  "service/TileEventHandler": typeof service_TileEventHandler;
   "service/tokenRoutes": typeof service_tokenRoutes;
 }>;
 export declare const api: FilterApi<

@@ -6,7 +6,7 @@ import { getRoutePath } from "component/ludo/util/mapUtils";
 import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/ludo/convex/_generated/api";
-import { CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
+import { CombatEvent, GameModel, ICombatContext, Tile } from "../types/CombatTypes";
 import CombatEventHandler from "./CombatEventHandler";
 import { tokenRoutes } from "./tokenRoutes";
 
@@ -14,7 +14,7 @@ import { tokenRoutes } from "./tokenRoutes";
 gsap.registerPlugin(MotionPathPlugin);
 
 
-const boardSize = 15
+const safeTiles:Tile[]=[];
 
 export const CombatContext = createContext<ICombatContext>({
   boardDimension: { width: 0, height: 0 },
