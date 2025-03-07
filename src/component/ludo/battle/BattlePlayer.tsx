@@ -10,9 +10,9 @@ import GoalPlace from "./view/GoalPlace";
 import SeatGrid from "./view/SeatGrid";
 import TokenGrid from "./view/TokenGrid";
 const CombatBoard: React.FC = () => {
-
+  const { boardContainerEleRef } = useCombatManager();
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "black" }}>
+    <div ref={boardContainerEleRef} style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "black" }}>
       <BoardGrid />
       <GoalPlace />
       <SeatGrid />
@@ -33,7 +33,7 @@ export const BattlePlaza: React.FC = () => {
     })
     return seats;
   }, [game]);
-  console.log("seats", seats);
+
   useEffect(() => {
     const updatePosition = () => {
 

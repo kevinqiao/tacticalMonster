@@ -57,7 +57,9 @@ const SeatContainer: React.FC<{ seat: Seat }> = ({ seat }) => {
 
   useEffect(() => {
     if (game?.currentSeat === seat.no && game.currentAction && game?.actDue) {
+      console.log("game.actDue", game.actDue);
       if (game.actDue <= Date.now()) {
+        console.log("timeout");
         timeout();
       } else {
         playCountStart();

@@ -1,10 +1,10 @@
 import gsap from "gsap";
 import { useCallback } from "react";
+import { getLinePath } from "../../util/mapUtils";
 import { useCombatManager } from "../service/CombatManager";
 import { Token } from "../types/CombatTypes";
-
 const useTokenAnimate = () => {
-        const {game,tokens,seatRoutes,boardDimension} = useCombatManager();
+        const {game,tokens,seatRoutes,boardDimension,boardContainerEleRef} = useCombatManager();
         const groupingTokens=useCallback((groupTokens:Token[])=>{
                 if(!tokens || !boardDimension) return;
                 const tlength = groupTokens.length;
@@ -110,6 +110,62 @@ const useTokenAnimate = () => {
             onComplete();
         },[tokens]);
 
+         const playTokenAttacked =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {   
+          
+            const {seatNo,tokenId}=data
+            //    console.log("playTokenSelected",seatNo,tokenId)
+            if(seatNo===undefined||tokenId===undefined||!tokens||!game||!boardContainerEleRef) return;
+            const seatRoute = seatRoutes[seatNo];
+            if(!seatRoute) return;
+            const token = tokens.find((t:any)=>t.seatNo===seatNo&&t.id===tokenId);
+            if(!token) return;
+            const index = seatRoute.findIndex((r:any)=>r.x===token.x&&r.y===token.y);
+            if(index===-1) return;
+            const route = seatRoute.slice(0,index+1).reverse();
+            // console.log("seatRoute",seatRoute)
+            // console.log("playTokenAttacked",seatNo,tokenId,route)
+            console.log("route",route)
+            const linePath = getLinePath(route);
+            console.log("linePath",linePath)
+            const tl = gsap.timeline({  
+                onComplete: () => {
+                    token.x=-1;
+                    token.y=-1;
+                    onComplete();
+                }
+            });
+
+            for(let i=1;i<linePath.length;i++){
+                const p = linePath[i];
+                if (token.ele) {
+                        const duration = Math.max(Math.abs(linePath[i].x-linePath[i-1].x),Math.abs(linePath[i].y-linePath[i-1].y))*0.1;
+                        token.ele.style.zIndex="1000";
+                        tl.to(token.ele, {
+                            scale: 1,
+                            x: p.x / 15 * boardDimension.width,
+                            y: p.y / 15 * boardDimension.height,
+                            duration,ease: "linear" 
+                        }, ">")
+                }
+            }
+            const seat = game.seats.find(seat => seat.no === token.seatNo);
+            if (!seat) return;
+            const station = seat.stationEles[token.id];
+            const stationRect = station?.getBoundingClientRect();
+            if (!stationRect || !token.ele) return;
+            const containerRect = boardContainerEleRef.current?.getBoundingClientRect();
+            if (!containerRect) return;
+            const x = stationRect.left - containerRect.left
+            const y = stationRect.top - containerRect.top
+            tl.to(token.ele, {
+                x: x,
+                y: y,
+                duration: 0.1 
+            }, ">") 
+
+            tl.play();
+        },[game,tokens,seatRoutes,boardDimension,boardContainerEleRef]);
+        
          const playTokenSelected =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {   
           
             const {seatNo,tokenId}=data
@@ -126,7 +182,7 @@ const useTokenAnimate = () => {
         },[tokens]);
 
         
-        return { playTokenMove,playTokenToSelect,playTokenSelected,playTokenReleased,groupingTokens}       
+        return { playTokenMove,playTokenToSelect,playTokenSelected,playTokenReleased,playTokenAttacked,groupingTokens}       
 }
 export default useTokenAnimate;   
 

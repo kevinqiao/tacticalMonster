@@ -15,7 +15,7 @@ const routes: { [k: number]: { x: number, y: number }[] } = {};
 });
 class GameManager {
     public dbCtx: any;
-    private game:GameModel|null; 
+    public game:GameModel|null; 
     private aiBots:{[k:number]:any};
     private tileEventHandler:TileEventHandler;
 
@@ -31,11 +31,6 @@ class GameManager {
             const game = await this.dbCtx.db.get(id);      
 
             if(game){
-                game.seats.forEach((seat: any) => {
-                    seat.tokens.forEach((token: any) => {
-                        token.seatNo = seat.no;
-                    })
-               })
                 if(game.actDue){
                     game.actDue=game.actDue-Date.now();
                 }
@@ -65,11 +60,11 @@ class GameManager {
         console.log("gameId",gameId);
         if(gameId){
             gameObj.gameId=gameId;
-            gameObj.seats.forEach((seat: any) => {
-                seat.tokens.forEach((token: any) => {
-                    token.seatNo = seat.no;
-                })
-            })
+            // gameObj.seats.forEach((seat: any) => {
+            //     seat.tokens.forEach((token: any) => {
+            //         token.seatNo = seat.no;
+            //     })
+            // })
             this.game=gameObj;
         }
     }
@@ -118,7 +113,7 @@ class GameManager {
             await this.dbCtx.db.insert("game_event",event);  
         }       
         // const value =  Math.floor(Math.random() * 6) + 1;
-        const value=6;
+        const value=1;
         const availableTokens = this.getAvailableTokens(value,seat);
         const eventDone:any={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seatNo:seat.no,value}};
         const eventId = await this.dbCtx.db.insert("game_event",eventDone);            
@@ -259,10 +254,11 @@ class GameManager {
     async timeout(){
    
        if(this.game){
+            console.log("timeout gameId:",this.game?.actDue);
             if(this.game?.actDue&&this.game.actDue<=0){
                 const currentSeat = this.game.currentSeat;
                 const seat = this.game.seats.find((seat:any)=>seat.no===currentSeat);
-                // console.log("seat act due:",seat,this.game.currentAction);
+                console.log("seat act ",seat,this.game.currentAction);
                 if(seat){
                     if(!seat.botOn){        
                         seat.botOn=true;    

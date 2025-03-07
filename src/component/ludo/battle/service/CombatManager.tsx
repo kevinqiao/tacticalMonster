@@ -6,15 +6,13 @@ import { getRoutePath } from "component/ludo/util/mapUtils";
 import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/ludo/convex/_generated/api";
-import { CombatEvent, GameModel, ICombatContext, Tile } from "../types/CombatTypes";
+import { CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
 import CombatEventHandler from "./CombatEventHandler";
 import { tokenRoutes } from "./tokenRoutes";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 
-
-const safeTiles:Tile[]=[];
 
 export const CombatContext = createContext<ICombatContext>({
   boardDimension: { width: 0, height: 0 },
@@ -28,8 +26,8 @@ export const CombatContext = createContext<ICombatContext>({
 
 const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
   const { user } = useUserManager();
+  const boardContainerEleRef: React.MutableRefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
-  // const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const [game, setGame] = useState<GameModel | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | undefined>(undefined);
   const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
@@ -114,7 +112,8 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     eventQueue: eventQueueRef.current,
     seatRoutes,
     boardDimension,
-    updateBoardDimension
+    updateBoardDimension,
+    boardContainerEleRef
   };
   return <CombatContext.Provider value={value}> <CombatEventHandler>{children}</CombatEventHandler></CombatContext.Provider>;
 };

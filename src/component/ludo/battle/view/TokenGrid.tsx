@@ -15,7 +15,7 @@ const TokenGrid: React.FC = () => {
     if (!boardDimension || !tokens) return;
     const containerRect = containerRef.current?.getBoundingClientRect();
     if (!containerRect) return;
-    console.log("token Grid", tokens);
+
     tokens.forEach(token => {
       const seat = game?.seats.find(seat => seat.no === token.seatNo);
       if (!seat) return;
@@ -25,7 +25,7 @@ const TokenGrid: React.FC = () => {
       const x = token.x >= 0 ? token.x / 15 * boardDimension.width : stationRect.left - containerRect.left
       const y = token.y >= 0 ? token.y / 15 * boardDimension.height : stationRect.top - containerRect.top
 
-      console.log("token", token.seatNo, token.id, x, y);
+      // console.log("token", token.seatNo, token.id, x, y);
       gsap.set(token.ele, {
         opacity: 1,
         x: x,

@@ -11,7 +11,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
     const { game, eventQueue, boardDimension } = useCombatManager();
     const { playRollStart, playRollDone, playAskRoll } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
-    const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased } = useTokenAnimate();
+    const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased, playTokenAttacked } = useTokenAnimate();
     const { playBotOn, playBotOff } = useSeatAnimate();
 
     const processEvent = useCallback(() => {
@@ -90,6 +90,10 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     event.status = 1;
                     playBotOff(data.seat);
                     onComplete();
+                    break;
+                case "attacked":
+                    event.status = 1;
+                    playTokenAttacked({ data, onComplete: () => { onComplete() } });
                     break;
                 default:
                     event.status = 1;

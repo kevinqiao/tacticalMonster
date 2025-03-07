@@ -117,6 +117,7 @@ export class SpineModelAnimator implements ModelAnimator {
 //   ele?: HTMLDivElement
 // }
 export interface ICombatContext {
+    boardContainerEleRef?:React.MutableRefObject<HTMLDivElement|null>;
     boardDimension:{width:number,height:number};
     game:GameModel|null;
     tokens?:Token[]; 

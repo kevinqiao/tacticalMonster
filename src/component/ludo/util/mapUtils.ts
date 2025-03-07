@@ -52,7 +52,18 @@ export const getRoutePath = (points: { x: number, y: number }[][]): { x: number,
   }
   return path;
 }
-
+export const getLinePath = (points: { x: number, y: number }[]): { x: number, y: number }[] => {
+  const path: { x: number, y: number }[] = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    if(path[path.length-1].x!==points[i].x&&path[path.length-1].y!==points[i].y){
+      path.push(points[i-1])
+    }
+  }
+  
+  path.push(points[points.length-1])
+  
+  return path;
+}
 // 示例：在15x15的 tilemap 中计算从 (2,3) 到 (10,12) 的直线路径
 // const startX = 2, startY = 3;
 // const endX = 10, endY = 12;

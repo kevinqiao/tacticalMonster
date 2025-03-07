@@ -18,14 +18,14 @@ export type Tile={
 }
 class TileEventHandler {    
     private gameManager:GameManager;
+
     constructor(gameManager:GameManager) {
-        this.gameManager=gameManager;
+        this.gameManager=gameManager;        
     }
 
     async onMove({seatNo,token,path}:{seatNo:number,token:number,path:{x:number,y:number}[]}){
         const game=this.gameManager.getGame();
         if(!game) return;
-        // const tokens=game.seats.map(seat => seat.tokens).flat();
         const stopTile = path[path.length-1];   
         const tile:Tile|undefined   = game.tiles?.find(t=>t.x===stopTile.x && t.y===stopTile.y);
         if(!tile) return;
@@ -52,14 +52,20 @@ class TileEventHandler {
     async processAttack({seatNo,token,tile}:{seatNo:number,token:number,tile:Tile}){
         const game=this.gameManager.getGame();
         if(!game) return;  
-        const tokens=game.seats.map((s)=>s.tokens).flat();
-        const defenders = tokens.filter((t)=>t.seatNo!==seatNo&&t.x===tile.x&&t.y===tile.y);
-        if(defenders.length>0){
-            defenders.forEach(async (d)=>{
-               const event={gameId:game.gameId,name:"attacked",actor:"####",data:{seatNo:seatNo,token:token}};
-               await this.gameManager.dbCtx.db.patch(game.gameId,{seats:game.seats});
+         let eventId =null;
+        game.seats.filter((s)=>s.no!==seatNo).forEach((seat)=>{
+            seat.tokens.forEach(async(t)=>{
+              if(t.x===tile.x&&t.y===tile.y){
+                t.x=-1;
+                t.y=-1;               
+                const event={gameId:game.gameId,name:"attacked",actor:"####",data:{seatNo:seat.no,tokenId:t.id}};
+                eventId = await this.gameManager.dbCtx.db.insert("game_event",event);
+                console.log("processAttack",game.gameId,eventId)   
+                await this.gameManager.dbCtx.db.patch(game.gameId,{seats:game.seats,lastUpdate:eventId});
+              }
             })
-        }
+        })  
+    
     }   
  
     async processTeleport({seatNo,token,route,tile}:{seatNo:number,token:number,route:{x:number,y:number}[],tile:Tile}){
