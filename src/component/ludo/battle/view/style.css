@@ -8,7 +8,6 @@
     height: 50%;
     place-items: center;
     border: 0px solid black;
-    box-sizing: border-box;
 }
 
 .triangle {
@@ -49,7 +48,6 @@
     border-radius: 50%;
     border: 4px dashed rgb(29, 28, 28);
     animation: rotate 5s linear infinite;
-    visibility: hidden;
     /* pointer-events: none; */
 }
 

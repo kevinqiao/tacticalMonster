@@ -122,15 +122,29 @@ const useTokenAnimate = () => {
             const index = seatRoute.findIndex((r:any)=>r.x===token.x&&r.y===token.y);
             if(index===-1) return;
             const route = seatRoute.slice(0,index+1).reverse();
-            // console.log("seatRoute",seatRoute)
-            // console.log("playTokenAttacked",seatNo,tokenId,route)
-            console.log("route",route)
+
             const linePath = getLinePath(route);
-            console.log("linePath",linePath)
             const tl = gsap.timeline({  
+                onStart: () => {
+                    const group = tokens.filter((t:any)=>t.x===token.x&&t.y===token.y&&t.id!==tokenId);
+                    console.log("group",group)
+                    if(group.length===1){
+                        const groupEle = group[0].ele;
+                        if(groupEle){
+                            gsap.set(groupEle,{
+                                scale:1,
+                                x:token.x / 15 * boardDimension.width,
+                                y:token.y / 15 * boardDimension.height
+                            })
+                        }
+                    }   
+                },
                 onComplete: () => {
                     token.x=-1;
                     token.y=-1;
+                    if (token.ele) {
+                        token.ele.style.zIndex = "auto";
+                    }
                     onComplete();
                 }
             });
@@ -138,7 +152,7 @@ const useTokenAnimate = () => {
             for(let i=1;i<linePath.length;i++){
                 const p = linePath[i];
                 if (token.ele) {
-                        const duration = Math.max(Math.abs(linePath[i].x-linePath[i-1].x),Math.abs(linePath[i].y-linePath[i-1].y))*0.1;
+                        const duration = Math.max(Math.abs(linePath[i].x-linePath[i-1].x),Math.abs(linePath[i].y-linePath[i-1].y))*0.04;
                         token.ele.style.zIndex="1000";
                         tl.to(token.ele, {
                             scale: 1,
@@ -169,14 +183,10 @@ const useTokenAnimate = () => {
          const playTokenSelected =useCallback(({data,onComplete}:{data:any,onComplete:()=>void}) => {   
           
             const {seatNo,tokenId}=data
-            //    console.log("playTokenSelected",seatNo,tokenId)
             if(seatNo===undefined||tokenId===undefined||!tokens) return;
-         
-            // console.log("tokens",tokens)
             tokens.filter((t:any)=>t.seatNo===seatNo).forEach((t:any)=>{              
                 t.selectEle.style.opacity=0;    
                 t.selectEle.style.visibility="hidden";  
-                // t.selectEle.style.pointerEvents="none";
             })
             onComplete();
         },[tokens]);
