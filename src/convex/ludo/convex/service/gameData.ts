@@ -16,8 +16,29 @@ export const tiles:Tile[]=[{
 },{
     x:5,
     y:8,
-    type:0
-}];
+    type:1  
+},{
+    x:8,
+    y:10,
+    type:1
+},{
+    x:9,
+    y:6,    
+    type:1
+},{
+    x:11,
+    y:8,
+    type:1
+},{
+    x:2,
+    y:6,
+    type:1
+},{
+    x:6,
+    y:2,
+    type:1
+}   
+];
 export const gameObj:any = { 
  
             tiles:tiles,

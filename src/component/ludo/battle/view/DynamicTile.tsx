@@ -19,7 +19,7 @@ const DynamicTile: React.FC<{ x: number, y: number }> = ({ x, y }) => {
 
   return <>
     {tile && tile.type === 0 && <div ref={(ele) => tile.ele = ele} className="star" style={{ position: "absolute", top: 0, left: 0 }} onClick={handleClick} />}
-    {tile && tile.type === 1 && <div ref={(ele) => tile.ele = ele} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "grey" }} onClick={handleClick} />}
+    {tile && tile.type === 1 && <div ref={(ele) => tile.ele = ele} className="triangle-up" onClick={handleClick} />}
     {tile && tile.type === 2 && <div ref={(ele) => tile.ele = ele} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "blue" }} onClick={handleClick} />}
     {tile && tile.type === 3 && <div ref={(ele) => tile.ele = ele} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "green" }} onClick={handleClick} />}
   </>

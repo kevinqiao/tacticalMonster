@@ -37,7 +37,8 @@ export default defineSchema({
         tiles:v.optional(v.array(v.object({
             x:v.number(),
             y:v.number(),
-            type:v.number()
+            type:v.number(),
+            status:v.optional(v.number())
         })))    
     }).index("by_due", ["status","actDue"]),
     bot:defineTable({

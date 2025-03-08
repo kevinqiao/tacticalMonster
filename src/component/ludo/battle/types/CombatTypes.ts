@@ -53,6 +53,7 @@ export interface Tile {
     x:number;
     y:number;
     type:number;
+    status?:number;//0-open 1-activated 2-triggered 3-closed
     ele?:HTMLDivElement|null;   
 }
 

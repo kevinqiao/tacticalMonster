@@ -101,6 +101,20 @@
         );
 }
 
+.triangle-up {
+    width: 50%;
+    /* 缩小到父容器宽度的一半 */
+    height: 50%;
+    /* 缩小到父容器高度的一半 */
+    background-color: purple;
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* 水平垂直居中 */
+}
+
 @keyframes rotate {
     from {
         transform: translate(-50%, -50%) rotate(0deg);

@@ -2,6 +2,7 @@ import React, { ReactNode, useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 import useCountDownAnimate from "../animation/useCountDownAnimate";
 import useDiceAnimate from "../animation/useDiceAnimate";
+import useDynamicAnimate from "../animation/useDynamicAnimate";
 import useSeatAnimate from "../animation/useSeatAnimate";
 import useTokenAnimate from "../animation/useTokenAnimate";
 import { ACTION_TYPE, CombatEvent } from "../types/CombatTypes";
@@ -12,6 +13,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
     const { playRollStart, playRollDone, playAskRoll } = useDiceAnimate();
     const { playCountStart, playCountStop } = useCountDownAnimate();
     const { playTokenMove, playTokenToSelect, playTokenSelected, playTokenReleased, playTokenAttacked } = useTokenAnimate();
+    const { playTeleport } = useDynamicAnimate();
     const { playBotOn, playBotOff } = useSeatAnimate();
 
     const processEvent = useCallback(() => {
@@ -94,6 +96,10 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                 case "attacked":
                     event.status = 1;
                     playTokenAttacked({ data, onComplete: () => { onComplete() } });
+                    break;
+                case "teleported":
+                    event.status = 1;
+                    playTeleport({ data, onComplete: () => { onComplete() } });
                     break;
                 default:
                     event.status = 1;

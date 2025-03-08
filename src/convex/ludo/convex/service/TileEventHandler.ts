@@ -13,8 +13,7 @@ export type Tile={
     x:number;
     y:number;
     type:number;
-    active?:number;
-    use?:number;
+    status?:number;//0-open 1-activated 2-triggered 3-closed
 }
 class TileEventHandler {    
     private gameManager:GameManager;
@@ -23,36 +22,37 @@ class TileEventHandler {
         this.gameManager=gameManager;        
     }
 
-    async onMove({seatNo,token,path}:{seatNo:number,token:number,path:{x:number,y:number}[]}){
+    async onMove({seatNo,tokenId,path}:{seatNo:number,tokenId:number,path:{x:number,y:number}[]}){
+        console.log("onMove",seatNo,tokenId,path);
         const game=this.gameManager.getGame();
         if(!game) return;
-        const stopTile = path[path.length-1];   
-        const tile:Tile|undefined   = game.tiles?.find(t=>t.x===stopTile.x && t.y===stopTile.y);
+        const stopPoint = path[path.length-1];   
+        const tile:Tile|undefined   = game.tiles?.find(t=>t.x===stopPoint.x && t.y===stopPoint.y);
         if(!tile) return;
         switch(tile.type){
             case 0:
-                this.processAttack({seatNo:seatNo,token:token,tile});
+                this.processAttack({seatNo:seatNo,tokenId:tokenId,tile});
                 break;
             case 1:
-                this.processTeleport({seatNo:seatNo,token:token,route:path,tile});
+                this.processTeleport({seatNo:seatNo,tokenId:tokenId,tile});
                 break;
             case 2:
-                this.processSwap({seatNo:seatNo,token:token,route:path});
+                this.processSwap({seatNo:seatNo,tokenId:tokenId,route:path});
                 break;
             case 3:
-                this.processEnergyPoint({seatNo:seatNo,token:token,route:path});
+                this.processEnergyPoint({seatNo:seatNo,tokenId:tokenId,route:path});
                 break;
             case 4:
-                this.processBlockZone({seatNo:seatNo,token:token,route:path});
+                this.processBlockZone({seatNo:seatNo,tokenId:tokenId,route:path});
                 break;
         }
 
         
     }
-    async processAttack({seatNo,token,tile}:{seatNo:number,token:number,tile:Tile}){
+    async processAttack({seatNo,tokenId,tile}:{seatNo:number,tokenId:number,tile:Tile}){
         const game=this.gameManager.getGame();
         if(!game) return;  
-         let eventId =null;
+        let eventId =null;
         game.seats.filter((s)=>s.no!==seatNo).forEach((seat)=>{
             seat.tokens.forEach(async(t)=>{
               if(t.x===tile.x&&t.y===tile.y){
@@ -60,7 +60,6 @@ class TileEventHandler {
                 t.y=-1;               
                 const event={gameId:game.gameId,name:"attacked",actor:"####",data:{seatNo:seat.no,tokenId:t.id}};
                 eventId = await this.gameManager.dbCtx.db.insert("game_event",event);
-                console.log("processAttack",game.gameId,eventId)   
                 await this.gameManager.dbCtx.db.patch(game.gameId,{seats:game.seats,lastUpdate:eventId});
               }
             })
@@ -68,26 +67,40 @@ class TileEventHandler {
     
     }   
  
-    async processTeleport({seatNo,token,route,tile}:{seatNo:number,token:number,route:{x:number,y:number}[],tile:Tile}){
+    async processTeleport({seatNo,tokenId,tile}:{seatNo:number,tokenId:number,tile:Tile}){
+        console.log("processTeleport",seatNo,tokenId,tile);
         const game=this.gameManager.getGame();
-        if(!game) return;
-      
-    
+        const seat=game?.seats.find((s)=>s.no===seatNo);
+        console.log("game",seat);
+        const token = seat?.tokens.find((t)=>t.id===tokenId);
+        console.log("token",token);
+         if(!game||!game.tiles||!token) return;
+        const targetTiles = game.tiles.filter((t)=>t.type>0&&(t.x!==tile.x||t.y!==tile.y));
+        console.log("targetTiles",targetTiles);
+        if(targetTiles.length===0) return;
+        const targetTile = targetTiles[Math.floor(Math.random()*targetTiles.length)];
+        const event={gameId:game.gameId,name:"teleported",actor:"####",data:{seatNo:seatNo,tokenId:token.id,tile:tile,targetTile:targetTile}};
+        const eventId = await this.gameManager.dbCtx.db.insert("game_event",event);
+        tile.status=2;
+        token.x=targetTile.x;
+        token.y=targetTile.y;
+        await this.gameManager.dbCtx.db.patch(game.gameId,{seats:game.seats,tiles:game.tiles,lastUpdate:eventId});
+
     }   
  
-     async processSwap({seatNo,token,route}:{seatNo:number,token:number,route:{x:number,y:number}[]}){
+     async processSwap({seatNo,tokenId,route}:{seatNo:number,tokenId:number,route:{x:number,y:number}[]}){
         const game=this.gameManager.getGame();
         if(!game) return;
       
     
     } 
-    async processEnergyPoint({seatNo,token,route}:{seatNo:number,token:number,route:{x:number,y:number}[]}){
+    async processEnergyPoint({seatNo,tokenId,route}:{seatNo:number,tokenId:number,route:{x:number,y:number}[]}){
         const game=this.gameManager.getGame();
         if(!game) return;
       
     
     } 
-    async processBlockZone({seatNo,token,route}:{seatNo:number,token:number,route:{x:number,y:number}[]}){
+    async processBlockZone({seatNo,tokenId,route}:{seatNo:number,tokenId:number,route:{x:number,y:number}[]}){
         const game=this.gameManager.getGame();
         if(!game) return;
       

@@ -112,8 +112,8 @@ class GameManager {
             const event={gameId:this.game.gameId,name:"rollStart",actor:seat.uid,data:{seatNo:seat.no}};
             await this.dbCtx.db.insert("game_event",event);  
         }       
-        // const value =  Math.floor(Math.random() * 6) + 1;
-        const value=1;
+        const value =  Math.floor(Math.random() * 6) + 1;
+        // const value=2;
         const availableTokens = this.getAvailableTokens(value,seat);
         const eventDone:any={gameId:this.game.gameId,name:"rollDone",actor:"####",data:{seatNo:seat.no,value}};
         const eventId = await this.dbCtx.db.insert("game_event",eventDone);            
@@ -204,7 +204,8 @@ class GameManager {
                 const event:any={gameId:this.game.gameId,name:"move",actor:"####",data:{seat:seat.no,token:token.id,route:path}};
                 const eventId = await this.dbCtx.db.insert("game_event",event); 
                 await this.dbCtx.db.patch(this.game.gameId,{seats:this.game.seats,lastUpdate:eventId});
-                await this.tileEventHandler.onMove({seatNo:seat.no,token:token.id,path});
+                console.log("move",seat.no,token.id,path);
+                await this.tileEventHandler.onMove({seatNo:seat.no,tokenId:token.id,path});
                 if(this.gameOver()){
                     console.log("gameOver");
                     return;
