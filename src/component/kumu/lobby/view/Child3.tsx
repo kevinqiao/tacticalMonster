@@ -1,5 +1,6 @@
 import { useCombatManager } from "component/ludo/battle/service/CombatManager";
 import { PageProp } from "component/RenderApp";
+import BattlePlayer from "component/solitaire/battle/BattlePlayer";
 import React from "react";
 
 const Child3Main: React.FC = (props) => {
@@ -8,7 +9,7 @@ const Child3Main: React.FC = (props) => {
   // console.log("size", size);
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} >
-      <div className="action-panel-item" >Child3</div>
+      <BattlePlayer gameId={"123"} />
     </div>
   );
 };
