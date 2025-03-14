@@ -23,6 +23,7 @@ export interface Card {
     rank?: string;
     suit?: string;
     ele?: HTMLDivElement | null;
+    status?: number;//0-normal,1-flipped
 }
 export interface Seat {
     uid?: string;

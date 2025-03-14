@@ -1,32 +1,76 @@
-import React, { useEffect, useRef, useState } from "react";
+import gsap from "gsap";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
 import "./style.css";
 import { getDualBoardZones } from "./utils";
 import CardGrid from "./view/CardGrid";
+const DeckPanel: React.FC = () => {
+  const { game, boardDimension } = useCombatManager();
+  const zone = boardDimension?.zones[1];
+  const left = useMemo(() => {
+    if (zone) {
+      return zone?.['left'] + zone?.['cwidth'] * 2
+    }
+    return 0
+  }, [zone])
+  const top = useMemo(() => {
+    if (zone) {
+      return zone['top'] + (zone['height'] - zone['cheight']) / 2
+    }
+    return 0
+  }, [zone])
+  const openCard = useCallback(() => {
+    console.log("openCard")
+    if (!zone) return;
+    const cards = game?.cards?.filter((card) => card.field === 1 && !card.status)
+    if (cards && cards.length > 0) {
+      const card = cards[0]
+      card.status = 1
+      if (card.ele) {
+        gsap.to(card.ele, {
+          x: zone['left'],
+          rotationY: 180,
+          duration: 0.5,
+          ease: "power2.out",
+        })
+      }
+    }
+  }, [game, zone])
+  return (
+    <>
+      {zone && <div style={{ zIndex: 30, position: "absolute", top: top, left: left, width: zone?.['cwidth'], height: zone?.['cheight'] }} onClick={openCard}>
+
+      </div>}
+    </>
+  )
+}
 const CombatBoard: React.FC = () => {
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "blue" }}>
-      <div style={{ width: "100%", height: "37.5%", backgroundColor: "red" }}>
+    <>
+      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
+        <div style={{ width: "100%", height: "37.5%", backgroundColor: "red" }}>
 
-      </div>
-      <div style={{ width: "100%", height: "25%", backgroundColor: "green" }}>
+        </div>
+        <div style={{ width: "100%", height: "25%", backgroundColor: "green" }}>
 
-      </div>
-      <div style={{ width: "100%", height: "37.5%", backgroundColor: "yellow" }}>
+        </div>
+        <div style={{ width: "100%", height: "37.5%", backgroundColor: "yellow" }}>
 
+        </div>
+        <CardGrid />
       </div>
-      <CardGrid />
-    </div>
+      <DeckPanel />
+    </>
   );
 };
 
 export const BattlePlaza: React.FC = () => {
-  console.log("BattlePlaza")
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
-  console.log("boardDimension", boardDimension)
+
   useEffect(() => {
     const updatePosition = () => {
 

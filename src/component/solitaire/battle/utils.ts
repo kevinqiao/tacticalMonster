@@ -57,7 +57,7 @@ export const getDualBoardZones = (boardWidth: number, boardHeight: number) => {
 export const getCardCoord = (card: Card, game: GameModel, boardDimension: BoardDimension, direction: number = 0) => {
 
     const { field, col, row } = card;
-    const zoneNo: number = game.status === 0 ? 1 : (!field || field < 2) ? field || 0 : (direction === 0 ? field : (field === 2 ? 3 : 2));
+    const zoneNo: number = (!field || field < 2) ? field || 0 : (direction === 0 ? field : (field === 2 ? 3 : 2));
     const zone = boardDimension.zones[zoneNo];
     const { cwidth, cheight } = zone;
     const x = zone.left + (zoneNo === 1 ? zone['cwidth'] * 2 : zone['margin']['l'] + zone['margin']['l'] * (col || 0) + cwidth * (col || 0))
@@ -65,30 +65,29 @@ export const getCardCoord = (card: Card, game: GameModel, boardDimension: BoardD
     const cord = { x, y, cwidth, cheight, zIndex: row || 0 }
 
     if (zoneNo && zoneNo === 1) {
-        const zIndex = game.cards?.findIndex((c: Card) => c.id === card.id);
-        if (zIndex != undefined) {
-            cord['zIndex'] = 500 - zIndex;
+        if (card.status === 1) {
+            const openCards = game.cards?.filter((c: Card) => c.field && c.field === 1 && c.status === 1);
+            const index = openCards?.findIndex((c) => c.id === card.id);
+            cord['zIndex'] = index || 0;
+            cord['x'] = zone['left'] + (index || 0) * zone['cwidth'] / 2;
+        } else {
+            const zIndex = game.cards?.findIndex((c: Card) => c.id === card.id);
+            if (zIndex != undefined) {
+                cord['zIndex'] = 500 - zIndex;
+            }
         }
     } else {
         cord['zIndex'] = card.row || 0;
     }
     return cord;
 }
-export const getDeckCoord = (boardWidth: number, boardHeight: number) => {
-    const padding = 20;
-    const zwidth = boardWidth * 3 / 7;
-    const zheight = boardHeight / 3;
-    const top = boardHeight / 3;
-    const left = boardWidth * 5.8 / 7;
-    const h = boardHeight / 3;
-    const w = (zwidth - padding * 4) / 3;
-    const cwidth = h / w > 1.5 ? w : h / 1.5
-    const cheight = cwidth * 1.5
-    const hmargin = (zwidth - cwidth * 2 - padding * 2) / 2;
-    const vmargin = (zheight - cheight) / 2;
-    const x = left + padding
-    const y = top + vmargin;
-    return { x: left, y: top, cwidth, cheight, zIndex: 0 }
+export const getDeckCoord = (boardDimension: BoardDimension) => {
+    const { zones } = boardDimension;
+    const zone = zones[1];
+    const { left, top, cwidth, cheight } = zone;
+    const x = left + cwidth * 2;
+    const y = top + (zone['height'] - zone['cheight']) / 2;
+    return { x, y, cwidth, cheight, zIndex: 0 }
 
 }
 

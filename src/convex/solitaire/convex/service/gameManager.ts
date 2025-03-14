@@ -53,15 +53,14 @@ class GameManager {
                 newDeck.push({ field: 1, id: `${id}`, suit, rank } as Card)
             });
         });
+
         newDeck.forEach((card, index) => {
             const dealCard = dealData[index];
             if (dealCard) {
                 card.field = dealCard.field || 2;
                 card.col = dealCard.col;
                 card.row = dealCard.row;
-                if (card.row === 2) {
-                    card.status = 1;
-                }
+                card.status = dealCard.status || 0;
             }
         })
         const gameId = await this.dbCtx.db.insert("game", { seats, cards: newDeck, status: 0 });

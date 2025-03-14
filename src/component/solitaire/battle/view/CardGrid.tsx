@@ -1,4 +1,3 @@
-import gsap from 'gsap';
 import React, { useEffect, useState } from 'react';
 import useCardAnimate from '../animation/useCardAnimate';
 import { useCombatManager } from '../service/CombatManager';
@@ -21,28 +20,50 @@ const useCardCoord = (card: Card, game: GameModel | null, boardDimension: BoardD
   }, [card, boardDimension, game])
   return coord
 }
-const CardContainer: React.FC<{ card: Card, boardWidth: number, boardHeight: number }> = ({ card, boardWidth, boardHeight }) => {
+const CardContainer: React.FC<{ card: Card }> = ({ card }) => {
   const { playFlip } = useCardAnimate();
   const { game, boardDimension, direction } = useCombatManager();
-  const coord = useCardCoord(card, game, boardDimension, direction)
+  // const coord = useCardCoord(card, game, boardDimension, direction)
 
-  useEffect(() => {
+  // const coord = useMemo(() => {
+  //   if (card && card.ele && game && boardDimension) {
+  //     return getCardCoord(card, game, boardDimension, direction)
+  //   }
+  //   return null
+  // }, [card, game, boardDimension, direction])
 
-    if (card && card.ele && coord) {
-      const { x, y, cwidth, cheight, zIndex } = coord
-      gsap.set(card.ele, {
-        x,
-        y,
-        zIndex
-      });
-    }
-  }, [card, coord])
+  //   if (card && card.ele && game && boardDimension) {
+  //     const { x, y, cwidth, cheight, zIndex } = getCardCoord(card, game, boardDimension, direction);
+  //     gsap.set(card.ele, {
+  //       x,
+  //       y,
+  //       zIndex
+  //     });
+  //     // if (card.status === 1) {
+  //     //   gsap.set(card.ele, { rotationY: 180 });
+  //     // }
+  //   }
+  // }, [card, game, boardDimension, direction])
+  // useEffect(() => {
+  //   if (card && card.ele && coord) {
+  //     gsap.set(card.ele, {
+  //       x: coord.x,
+  //       y: coord.y,
+  //       zIndex: coord.zIndex
+  //     });
+  //     // if (card.status === 1) {
+  //     //   console.log("card.status", card)
+  //     //   gsap.set(card.ele, { rotationY: 180 });
+  //     // }
+  //   }
+  // }, [card, coord])
+
   return (
 
     <div ref={(ele) => card.ele = ele} className="card" style={{
-      width: coord?.cwidth,
-      height: coord?.cheight,
-    }} onClick={() => playFlip(card)}
+      width: 0,
+      height: 0,
+    }}
     >
       <CardSVG card={card} />
     </div>
@@ -133,23 +154,26 @@ const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
 
 const CardGrid: React.FC = () => {
   const { game, boardDimension, eventQueue } = useCombatManager();
+  const { playInit } = useCardAnimate();
 
   useEffect(() => {
-    if (game && !game.status) {
+    if (!game || !boardDimension) return;
+    playInit();
+    if (!game.status) {
+      game.status = 1;
       const event: CombatEvent = {
         name: "deal",
         data: {}
       }
-      console.log("event in cardgrid", event)
       eventQueue.push(event);
     }
 
-  }, [game])
+  }, [game, boardDimension])
 
   return (
     <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
       {boardDimension && boardDimension.width > 0 && game?.cards?.map((card) => (
-        <CardContainer key={card.id} card={card} boardWidth={boardDimension.width} boardHeight={boardDimension.height} />
+        <CardContainer key={card.id} card={card} />
       ))}
 
       {/* <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", position: "absolute", bottom: 0, right: 0, width: "100%", height: 60, backgroundColor: "red" }}>

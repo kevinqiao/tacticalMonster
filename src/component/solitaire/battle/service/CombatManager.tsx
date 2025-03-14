@@ -41,7 +41,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
       });
       if (gameObj) {
         console.log("gameObj", gameObj);
-        setGame(gameObj);
+        setGame({ ...gameObj, status: 0 });
         // setLastUpdate(gameObj.lastUpdate ?? "####");
       }
     }

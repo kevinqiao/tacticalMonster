@@ -13,7 +13,6 @@ const PlayControl: React.FC = () => {
   }, [logout]);
   return (
     <>
-
       <div className="action-control" style={{ left: 0 }}>
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main/c1" })}>
           Child1

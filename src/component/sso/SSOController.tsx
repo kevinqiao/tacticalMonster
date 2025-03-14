@@ -82,7 +82,7 @@ const SSOController: React.FC = () => {
 
   return (
     // <ConvexProvider client={sso_client}>
-    <div style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "transparent", pointerEvents: "none" }}>
+    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "transparent", pointerEvents: "none", overflow: "hidden" }}>
       {/* 遮罩层 */}
       <div ref={maskRef} style={{
         position: "absolute",
@@ -92,6 +92,7 @@ const SSOController: React.FC = () => {
         height: "100%",
         backgroundColor: "black",
         opacity: 0,
+        overflow: "hidden",
         pointerEvents: isOpen ? "auto" : "none"
       }} onClick={close} />
 
@@ -102,9 +103,10 @@ const SSOController: React.FC = () => {
         right: 0,
         width: "40%",
         height: "100%",
-        minWidth: 400,
+        minWidth: 350,
         maxWidth: 500,
         pointerEvents: "auto",
+        overflow: "hidden",
         zIndex: 1
       }}>
 
