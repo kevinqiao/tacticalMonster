@@ -1,4 +1,3 @@
-import BattlePlayer from "component/ludo/battle/BattlePlayer";
 import { PageProp } from "component/RenderApp";
 import React from "react";
 import "./style.css";
@@ -16,7 +15,7 @@ const ChildMain: React.FC<{ gameId: string }> = ({ gameId }) => {
       }}
     >
 
-      <BattlePlayer gameId={gameId} />
+      {/* <BattlePlayer gameId={gameId} /> */}
     </div>
   )
 }

@@ -15,7 +15,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
         // console.log("processEvent", game);
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event || event.status === 1) return;
-        console.log("event:", event)
+        console.log("events:", eventQueue.length)
         const onComplete = () => {
             // playCountStop();
             const e = eventQueue.shift();
@@ -34,8 +34,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                 case "deal":
                     event.status = 1;
                     console.log("deal", event)
-                    playDeal({ data: event.data, onComplete: () => { onComplete() } });
-                    onComplete();
+                    playDeal({ onComplete: () => { onComplete() } });
                     break;
                 default:
                     event.status = 1;

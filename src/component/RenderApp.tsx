@@ -91,13 +91,15 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
 const RenderApp: React.FC = () => {
   const { pageContainers } = usePageManager();
-  // usePageAnimate();
-  return (
-    <>
-      {pageContainers?.map((container, index: number) => (
-        <PageComponent key={container.app + "-" + container.name} container={container} />))}
-    </>
-  );
+
+  const renderPage = useMemo(() => {
+    console.log("renderPage", pageContainers)
+    return pageContainers?.map((container, index: number) => (
+      <PageComponent key={container.app + "-" + container.name} container={container} />
+    ))
+  }, [pageContainers])
+  return <>{renderPage}</>
+
 };
 
 export default RenderApp;

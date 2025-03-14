@@ -2,8 +2,7 @@ import gsap from 'gsap';
 import React, { useEffect, useState } from 'react';
 import useCardAnimate from '../animation/useCardAnimate';
 import { useCombatManager } from '../service/CombatManager';
-import useCombatAct from '../service/useCombatAct';
-import { Card, GameModel } from '../types/CombatTypes';
+import { BoardDimension, Card, CombatEvent, GameModel } from '../types/CombatTypes';
 import { getCardCoord } from '../utils';
 import "./card.css";
 interface CardSVGProps {
@@ -12,54 +11,29 @@ interface CardSVGProps {
   height?: string;
 }
 
-const useCardCoord = (card: Card, game: GameModel | null, boardWidth: number, boardHeight: number) => {
+const useCardCoord = (card: Card, game: GameModel | null, boardDimension: BoardDimension | null, direction: number = 0) => {
   const [coord, setCoord] = useState<{ x: number, y: number, cwidth: number, cheight: number, zIndex: number } | null>(null)
 
   useEffect(() => {
-    if (!game || !game.cards) return;
-    // const padding = 20;
-    // const zwidth = !card.zone ? boardWidth * 2 / 3 : (card.zone === 1 ? boardWidth * 3 / 7 : boardWidth);
-    // const zheight = boardHeight / 3;
-    // const top = !card.zone || card.zone === 1 ? 0 : boardHeight / 3;
-    // const left = !card.zone || card.zone === 2 ? 0 : boardWidth * 5.8 / 7;
-    // const h = boardHeight / 3;
-    // const w = !card.zone ? (zwidth - padding * 2) / 3 : (card.zone === 1 ? (zwidth - padding * 4) / 3 : (zwidth - padding * 8) / 7);
-    // const cwidth = h / w > 1.5 ? w : h / 1.5
-    // const cheight = cwidth * 1.5
-    // const hmargin = !card.zone ? (zwidth - cwidth * 4 - padding * 2) / 3 : (card.zone === 1 ? (zwidth - cwidth * 2 - padding * 2) / 2 : (zwidth - 7 * cwidth - padding * 2) / 6);
-    // const vmargin = !card.zone || card.zone === 1 ? (zheight - cheight) / 2 : 0;
-    // const x = left + padding + cwidth * (card.col || 0) + hmargin * (card.col || 0)
-    // const y = top + vmargin + 10 * (card.row || 0);
-    const ccoord: { x: number, y: number, cwidth: number, cheight: number, zIndex: number } = getCardCoord(card, boardWidth, boardHeight);
-
-    // const cord: { x: number, y: number, cwidth: number, cheight: number, zIndex: number } = { x, y, cwidth, cheight, zIndex: card.row || 0 }
-    if (card.zone === 1) {
-      const zIndex = game.cards.filter((c: Card) => c.zone === card.zone).findIndex((c: Card) => c.id === card.id);
-      if (zIndex != undefined) {
-        ccoord['zIndex'] = zIndex;
-      }
-    }
+    if (!game || !game.cards || !boardDimension) return;
+    const ccoord: { x: number, y: number, cwidth: number, cheight: number, zIndex: number } = getCardCoord(card, game, boardDimension, direction);
     setCoord(ccoord)
-
-  }, [card, boardWidth, boardHeight, game])
+  }, [card, boardDimension, game])
   return coord
 }
 const CardContainer: React.FC<{ card: Card, boardWidth: number, boardHeight: number }> = ({ card, boardWidth, boardHeight }) => {
   const { playFlip } = useCardAnimate();
-  const { game } = useCombatManager();
-  const coord = useCardCoord(card, game, boardWidth, boardHeight)
-  // const pwidth = Math.floor((boardWidth - cardMargin * 8) / 7);
-
+  const { game, boardDimension, direction } = useCombatManager();
+  const coord = useCardCoord(card, game, boardDimension, direction)
 
   useEffect(() => {
 
     if (card && card.ele && coord) {
-
       const { x, y, cwidth, cheight, zIndex } = coord
       gsap.set(card.ele, {
         x,
         y,
-        zIndex: zIndex + 100
+        zIndex
       });
     }
   }, [card, coord])
@@ -158,34 +132,34 @@ const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
 
 
 const CardGrid: React.FC = () => {
-  const { game, boardDimension } = useCombatManager();
-  const { deal } = useCombatAct();
-  const { playDeal } = useCardAnimate();
+  const { game, boardDimension, eventQueue } = useCombatManager();
 
   useEffect(() => {
-    game?.cards?.forEach((card, index) => {
-      if (card.ele) {
-        gsap.set(card.ele, { rotationY: 180 });
+    if (game && !game.status) {
+      const event: CombatEvent = {
+        name: "deal",
+        data: {}
       }
-    })
-    console.log("cards", game?.cards);
+      console.log("event in cardgrid", event)
+      eventQueue.push(event);
+    }
+
   }, [game])
 
   return (
-    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "white" }}>
-
-      {game?.cards?.map((card) => (
+    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+      {boardDimension && boardDimension.width > 0 && game?.cards?.map((card) => (
         <CardContainer key={card.id} card={card} boardWidth={boardDimension.width} boardHeight={boardDimension.height} />
       ))}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", position: "absolute", bottom: 0, right: 0, width: "100%", height: 60, backgroundColor: "red" }}>
+      {/* <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", position: "absolute", bottom: 0, right: 0, width: "100%", height: 60, backgroundColor: "red" }}>
         <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: 70, height: 40, backgroundColor: "blue", color: "white", marginRight: 20 }} onClick={deal}>
           Deal
         </div>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 70, height: 40, backgroundColor: "blue", color: "white" }}>
           Shuffle
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

@@ -5,10 +5,12 @@ import { useUserManager } from "./UserManager";
 const SSA_URLS: { [k: string]: string } = {
   "tacticalMonster": "https://shocking-leopard-487.convex.cloud",
   "ludo": "https://famous-mule-757.convex.cloud",
+  "solitaire": "https://limitless-platypus-124.convex.cloud",
 };
 const SSA_AUTH_URLS: { [k: string]: string } = {
   "tacticalMonster": "https://shocking-leopard-487.convex.site",
   "ludo": "https://famous-mule-757.convex.site",
+  "solitaire": "https://limitless-platypus-124.convex.site",
 };
 interface ISSAContext {
   credentials: { uid: string; token: string } | null
@@ -18,6 +20,7 @@ const SSAContext = createContext<ISSAContext>({
   credentials: null,
 });
 export const SSAManager = ({ app, children }: { app: string, children: React.ReactNode }) => {
+
   const { user, sessions, updateSession } = useUserManager();
   // const [credentials, setCredentials] = useState<{ uid: string; token: string } | null>(null);
   const credentials = useMemo(() => {
@@ -56,6 +59,7 @@ export const useSSAManager = () => {
   return useContext(SSAContext);
 };
 export const SSAProvider = ({ app, children }: { app: string, children: React.ReactNode }) => {
+  console.log("SSAProvider", app)
   const client = new ConvexReactClient(SSA_URLS[app]);
   return (
     <>

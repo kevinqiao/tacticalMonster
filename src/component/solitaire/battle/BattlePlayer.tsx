@@ -1,46 +1,59 @@
 import React, { useEffect, useRef, useState } from "react";
+import { SSAProvider } from "../../../service/SSAManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
 import "./style.css";
+import { getDualBoardZones } from "./utils";
 import CardGrid from "./view/CardGrid";
 const CombatBoard: React.FC = () => {
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "blue" }}>
+      <div style={{ width: "100%", height: "37.5%", backgroundColor: "red" }}>
+
+      </div>
+      <div style={{ width: "100%", height: "25%", backgroundColor: "green" }}>
+
+      </div>
+      <div style={{ width: "100%", height: "37.5%", backgroundColor: "yellow" }}>
+
+      </div>
       <CardGrid />
     </div>
   );
 };
-const bgColors = ["red", "yellow", "green", "white", "black", "grey", "white"]
+
 export const BattlePlaza: React.FC = () => {
+  console.log("BattlePlaza")
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
-
+  console.log("boardDimension", boardDimension)
   useEffect(() => {
     const updatePosition = () => {
 
       if (containerRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-        const size = { width: 0, height: 0 }
+        const boardDimension = { width: 0, height: 0 }
         if (width / height > 1.2) {
-          size.width = height * 1.2
-          size.height = height
+          boardDimension.width = height * 1.2
+          boardDimension.height = height
         } else {
-          size.width = width;
-          size.height = width / 1.2
+          boardDimension.width = width;
+          boardDimension.height = width / 1.2
         }
-
-        updateBoardDimension(size.width, size.height);
+        const zones = getDualBoardZones(boardDimension.width, boardDimension.height);
+        updateBoardDimension({ ...boardDimension, zones });
       }
     };
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
+    if (game) {
+      updatePosition();
+      window.addEventListener("resize", updatePosition);
+    }
     return () => window.removeEventListener("resize", updatePosition);
-  }, []);
+  }, [game]);
 
   return (
     <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%", backgroundColor: "black" }}>
-      {boardDimension.width > 0 && <div style={{
+      {boardDimension && boardDimension.width > 0 && <div style={{
         position: "absolute", top: "50%", left: "50%", width: boardDimension.width, height: boardDimension.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
       }}>
         <CombatBoard />
@@ -50,7 +63,7 @@ export const BattlePlaza: React.FC = () => {
     </div >
   );
 };
-const BattlePlayer: React.FC<{ gameId: string }> = () => {
+const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   const [isVisible, setIsVisible] = useState(true);
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -71,9 +84,11 @@ const BattlePlayer: React.FC<{ gameId: string }> = () => {
     };
   }, []);
   return (
-    <CombatProvider gameId="123">
-      <BattlePlaza></BattlePlaza>
-    </CombatProvider>
+    <SSAProvider app="solitaire">
+      {isVisible && <CombatProvider gameId={gameId}>
+        <BattlePlaza></BattlePlaza>
+      </CombatProvider>}
+    </SSAProvider>
 
   );
 };

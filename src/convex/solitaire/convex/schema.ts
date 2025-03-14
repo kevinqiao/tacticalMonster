@@ -18,27 +18,28 @@ export default defineSchema({
         data: v.optional(v.any())
     }).index("by_game", ["gameId"]).index("by_actor", ["actor"]),
     game: defineTable({
-        seats: v.array(v.object({
-            no: v.number(),
+        seats: v.optional(v.array(v.object({
+            field: v.number(),
             uid: v.optional(v.string()),
             botOn: v.optional(v.boolean()),
-            tokens: v.array(v.object({
-                id: v.number(),
-                x: v.number(),
-                y: v.number(),
-            })),
-            dice: v.optional(v.number()),
+        }))),
+        currentRound: v.optional(v.number()),
+        currentTurn: v.optional(v.object({
+            seatNo: v.optional(v.number()),
+            actions: v.optional(v.array(v.number())),
+            status: v.optional(v.number()),
         })),
-        currentSeat: v.optional(v.number()),
-        currentAction: v.optional(v.object({ type: v.number(), tokens: v.optional(v.array(v.number())) })),
-        status: v.number(),//0-open,1-close 2-settled 3-cancelled
+        status: v.number(),//0-init,1-playing  2-over 3-settled 4-cancelled
         actDue: v.optional(v.number()),
         lastUpdate: v.optional(v.id("game_event")),
-        tiles: v.optional(v.array(v.object({
-            x: v.number(),
-            y: v.number(),
-            type: v.number(),
+        cards: v.array(v.object({
+            id: v.string(),
+            suit: v.string(),
+            rank: v.string(),
+            field: v.number(),
+            col: v.optional(v.number()),
+            row: v.optional(v.number()),
             status: v.optional(v.number())
-        })))
+        }))
     }).index("by_due", ["status", "actDue"]),
 });

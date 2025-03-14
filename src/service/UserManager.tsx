@@ -129,6 +129,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
 
     if (Array.isArray(userEvents) && userEvents.length > 0) {
+      console.log("userEvents", userEvents);
       const event = userEvents[userEvents.length - 1] as Event;
 
       if (event.name !== "####") {

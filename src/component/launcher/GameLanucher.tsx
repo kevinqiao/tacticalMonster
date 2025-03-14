@@ -3,8 +3,8 @@ import React, { useCallback, useRef } from "react";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import LudoLauncher from "./LudoLauncher";
+import SolitaireLauncher from "./SolitaireLauncher";
 import TacticalMonsterLauncher from "./TacticalMonsterLauncher";
-
 
 const GameLauncher: React.FC = () => {
   const { user } = useUserManager();
@@ -36,6 +36,8 @@ const GameLauncher: React.FC = () => {
   return (<>
     {user?.game?.name === "tacticalMonster" && <TacticalMonsterLauncher game={user.game} open={open} />}
     {user?.game?.name === "ludo" && <LudoLauncher game={user.game} open={open} />}
+    {user?.game?.name === "solitaire" && <SolitaireLauncher game={user.game} open={open} />}
+
 
     <div style={{ position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "transparent", pointerEvents: "none" }}>
       {/* 遮罩层 */}

@@ -1,4 +1,3 @@
-
 export interface Player {
     uid: string;
     name?: string;
@@ -17,8 +16,8 @@ export interface CombatEvent {
 
 export interface Card {
     id: string;
-    seatNo?: number;
-    zone?: number;//1-deck,0-foundation,2-tableau
+    seat?: number;
+    field?: number;//1-deck,0-foundation,2-tableau
     col?: number;
     row?: number;
     rank?: string;
@@ -28,7 +27,6 @@ export interface Card {
 export interface Seat {
     uid?: string;
     no: number;
-    cards: Card[];
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
     foundationEles?: { [k: number]: HTMLDivElement | null };
@@ -40,6 +38,7 @@ export interface Seat {
 
 export interface GameModel {
     gameId: string;
+    seats?: Seat[];
     currentRound?: number;
     currentTurn?: CombatTurn;//-1:not started,0-3:selected
     cards?: Card[];
@@ -55,16 +54,30 @@ export interface CombatTurn {
 }
 export interface CombatRound {
     no: number;
-    status?: number;
+    status?: number;//0-inited 1-ongoing 2-completed
 }
-
+export interface Zone {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+    cwidth: number;
+    cheight: number;
+    margin: { t: number, l: number, r: number, b: number };
+}
+export interface BoardDimension {
+    width: number;
+    height: number;
+    zones: { [k: number]: Zone };
+}
 export interface ICombatContext {
     decks: Card[];
+    direction: number;
     boardContainer: { [k: string]: { [k: number]: HTMLDivElement | null } };
-    boardDimension: { width: number, height: number };
+    boardDimension: BoardDimension | null;
     game: GameModel | null;
     players?: Player[];
     eventQueue: CombatEvent[];
-    updateBoardDimension: (width: number, height: number) => void;
+    updateBoardDimension: (boardDimension: BoardDimension) => void;
 }
 
