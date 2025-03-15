@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import useCardAnimate from '../animation/useCardAnimate';
 import { useCombatManager } from '../service/CombatManager';
-import { BoardDimension, Card, CombatEvent, GameModel } from '../types/CombatTypes';
+import { BoardDimension, Card, GameModel } from '../types/CombatTypes';
 import { getCardCoord } from '../utils';
 import "./card.css";
 interface CardSVGProps {
@@ -21,42 +21,6 @@ const useCardCoord = (card: Card, game: GameModel | null, boardDimension: BoardD
   return coord
 }
 const CardContainer: React.FC<{ card: Card }> = ({ card }) => {
-  const { playFlip } = useCardAnimate();
-  const { game, boardDimension, direction } = useCombatManager();
-  // const coord = useCardCoord(card, game, boardDimension, direction)
-
-  // const coord = useMemo(() => {
-  //   if (card && card.ele && game && boardDimension) {
-  //     return getCardCoord(card, game, boardDimension, direction)
-  //   }
-  //   return null
-  // }, [card, game, boardDimension, direction])
-
-  //   if (card && card.ele && game && boardDimension) {
-  //     const { x, y, cwidth, cheight, zIndex } = getCardCoord(card, game, boardDimension, direction);
-  //     gsap.set(card.ele, {
-  //       x,
-  //       y,
-  //       zIndex
-  //     });
-  //     // if (card.status === 1) {
-  //     //   gsap.set(card.ele, { rotationY: 180 });
-  //     // }
-  //   }
-  // }, [card, game, boardDimension, direction])
-  // useEffect(() => {
-  //   if (card && card.ele && coord) {
-  //     gsap.set(card.ele, {
-  //       x: coord.x,
-  //       y: coord.y,
-  //       zIndex: coord.zIndex
-  //     });
-  //     // if (card.status === 1) {
-  //     //   console.log("card.status", card)
-  //     //   gsap.set(card.ele, { rotationY: 180 });
-  //     // }
-  //   }
-  // }, [card, coord])
 
   return (
 
@@ -154,25 +118,27 @@ const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
 
 const CardGrid: React.FC = () => {
   const { game, boardDimension, eventQueue } = useCombatManager();
-  const { playInit } = useCardAnimate();
+  const { playInit, playShuffle, playDeal } = useCardAnimate();
 
   useEffect(() => {
     if (!game || !boardDimension) return;
-    playInit();
-    if (!game.status) {
-      game.status = 1;
-      const event: CombatEvent = {
-        name: "deal",
-        data: {}
+    playShuffle({
+      onComplete: () => {
+        playInit();
+        game.status = 1;
+        playDeal({
+          onComplete: () => {
+            console.log("playDeal complete");
+          }
+        })
       }
-      eventQueue.push(event);
-    }
+    });
 
   }, [game, boardDimension])
 
   return (
     <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-      {boardDimension && boardDimension.width > 0 && game?.cards?.map((card) => (
+      {game?.cards?.map((card) => (
         <CardContainer key={card.id} card={card} />
       ))}
 

@@ -7,17 +7,59 @@ const useCardAnimate = () => {
    const timelineRef = useRef<GSAPTimeline | null>(null);
    const { game, boardDimension } = useCombatManager();
 
-   const playShuffle = useCallback(() => {
+   const playShuffle = useCallback(({ onComplete }: { onComplete?: () => void }) => {
+      if (!boardDimension || !game) return;
+      if (game.status === 1 && onComplete) {
+         onComplete();
+         return;
+      }
+      const zone = boardDimension.zones[1];
+      const centerX = (boardDimension.width - zone.cwidth) / 2;
+      const centerY = (boardDimension.height - zone.cheight) / 2;
+      game.cards?.forEach((card) => {
+         if (card.ele) {
+            gsap.set(card.ele, { x: centerX, y: centerY, width: zone.cwidth, height: zone.cheight });
+         }
+      })
+      const eles = game.cards?.map((card) => card.ele);
+      if (eles) {
+         const coord = getDeckCoord(boardDimension);
+         const tl = gsap.timeline({
+            onComplete: () => {
+               timelineRef.current = null;
+               if (onComplete) {
+                  onComplete();
+               }
+            }
+         });
+         timelineRef.current = tl;
+         tl.to(eles, {
+            x: () => centerX + Math.random() * 600 - 300, // 随机 x 位移 (-300 到 300)
+            y: () => centerY + Math.random() * 400 - 200, // 随机 y 位移 (-200 到 200)
+            rotation: () => Math.random() * 360, // 随机旋转
+            duration: 0.5,
+            stagger: 0.01, // 每张牌依次动画
+            ease: "power2.out",
+         });
 
-   }, [game])
-   const playFlip = useCallback((card: Card) => {
-      // const { width, height } = boardDimension;
-      // const x = Math.floor((width - 20 * 8) / 7)
-      // console.log("card:", card)
-      // if (card.ele) {
-      //    gsap.to(card.ele, { x, rotationY: 0, duration: 0.5, ease: 'power2.out' });
-      // }
+         tl.to(eles, {
+            x: centerX, // 收集到的 x 坐标
+            y: centerY, // 收集到的 y 坐标
+            rotation: 0,
+            duration: 0.5,
+            stagger: 0.01,
+            ease: "power2.in",
+         });
+         tl.to(eles, {
+            x: coord.x,
+            y: coord.y,
+            duration: 0.5,
+            ease: "power2.out",
+         }, ">=0.5");
+
+      }
    }, [game, boardDimension])
+
    const popCard = useCallback((card: Card) => {
       if (card.ele) {
          const frontSvg = card.ele.querySelector('.front'); // 选择 .front SVG
@@ -88,6 +130,7 @@ const useCardAnimate = () => {
       })
 
    }, [game, boardDimension])
+
    const playInit = useCallback(() => {
       if (!boardDimension || !game) return;
       if (!game.status) {
@@ -113,7 +156,7 @@ const useCardAnimate = () => {
             }
          })
       }
-      console.log("playInit")
+
    }, [game, boardDimension, popCard])
    useEffect(() => {
       if (!game || !boardDimension) return;
@@ -122,10 +165,10 @@ const useCardAnimate = () => {
          timelineRef.current.kill();
          timelineRef.current = null;
       }
-
+      playInit();
 
    }, [game, boardDimension])
-   return { playShuffle, playDeal, playFlip, playInit }
+   return { playShuffle, playDeal, playInit }
 }
 export default useCardAnimate;
 

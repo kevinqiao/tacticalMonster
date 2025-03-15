@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
-import { useConvex } from "convex/react";
+import { useConvex, useQuery } from "convex/react";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
 import { BoardDimension, Card, CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
 import CombatEventHandler from "./CombatEventHandler";
@@ -28,7 +28,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const decksRef: React.MutableRefObject<Card[]> = useRef<Card[]>([]);
   const [lastUpdate, setLastUpdate] = useState<string | undefined>(undefined);
   const [direction, setDirection] = useState<number>(0);
-  // const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
+  const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
   const [boardDimension, setBoardDimension] = useState<BoardDimension | null>(null);
   const convex = useConvex();
 
@@ -42,7 +42,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
       if (gameObj) {
         console.log("gameObj", gameObj);
         setGame({ ...gameObj, status: 0 });
-        // setLastUpdate(gameObj.lastUpdate ?? "####");
+        setLastUpdate(gameObj.lastUpdate ?? "####");
       }
     }
     fetchGame(gameId);

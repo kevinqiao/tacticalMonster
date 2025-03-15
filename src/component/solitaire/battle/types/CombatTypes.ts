@@ -30,10 +30,6 @@ export interface Seat {
     no: number;
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
-    foundationEles?: { [k: number]: HTMLDivElement | null };
-    tableauEles?: { [k: number]: HTMLDivElement | null };
-    opponentEles?: { [k: number]: HTMLDivElement | null };
-    deckEles?: HTMLDivElement | null;
 }
 
 

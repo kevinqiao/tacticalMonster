@@ -73,15 +73,26 @@ class GameManager {
     }
 
     async start() {
-        if (!this.game || this.game.status !== -1) return;
-        console.log("start game", this.game.gameId);
-        this.game.status = 0;
-        const event: any = { gameId: this.game.gameId, name: "gameStarted", actor: "####", data: { status: 0 } };
-        const eventId = await this.dbCtx.db.insert("game_event", event);
-        await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: eventId, status: 0 });
+        if (!this.game) return;
+
+        this.game.status = 1;
+        const shuffleEvent: any = { gameId: this.game.gameId, name: "shuffleCompleted", actor: "####", data: { status: 1 } };
+        await this.dbCtx.db.insert("game_event", shuffleEvent);
+        const dealEvent: any = { gameId: this.game.gameId, name: "dealCompleted", actor: "####", data: { status: 1 } };
+        const dealEventId = await this.dbCtx.db.insert("game_event", dealEvent);
+        await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: dealEventId, status: 1 });
+        await this.startRound();
 
     }
-
+    async startRound() {
+        if (!this.game) return;
+        this.game.status = 2;
+        const roundEvent: any = { gameId: this.game.gameId, name: "roundStarted", actor: "####", data: { status: 2 } };
+        await this.dbCtx.db.insert("game_event", roundEvent);
+        await this.startTurn();
+    }
+    async startTurn() {
+    }
 
     async timeout() {
 
