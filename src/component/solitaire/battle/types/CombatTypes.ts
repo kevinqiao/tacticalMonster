@@ -90,6 +90,8 @@ export interface IDnDContext {
     draggingCard: { card: Card, clientX: number, clientY: number } | null;
     activeDrops: { [k: string]: { card: Card } };
     isTouchDevice: boolean;
+    canDrag: (id: string) => boolean;
+    canDrop: (id: string) => boolean;
     onDrag: (card: Card, data: DragEventData) => void;
     onDragStart: (card: Card, data: DragEventData) => void;
     onDragEnd: (card: Card, data: DragEventData) => void;

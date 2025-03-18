@@ -11,6 +11,8 @@ gsap.registerPlugin(MotionPathPlugin);
 export const DnDContext = createContext<IDnDContext>({
   draggingCard: null,
   activeDrops: {},
+  canDrag: (id: string | number) => false,
+  canDrop: (id: string | number) => false,
   isTouchDevice: false,
   onDrag: (card: Card, data: DragEventData) => null,
   onDragStart: (card: Card, data: DragEventData) => null,
@@ -19,15 +21,15 @@ export const DnDContext = createContext<IDnDContext>({
   onDragOver: (card: Card, data: DragEventData) => null
 });
 
-
+console.log("isTouchDevice", isTouchDevice());
 const DnDProvider = ({ children }: { children: ReactNode }) => {
   const { game } = useCombatManager();
   const [draggingCard, setDraggingCard] = useState<{ card: Card, clientX: number, clientY: number } | null>(null);
   const [activeDrops, setActiveDrops] = useState<{ [k: string]: { card: Card } }>({});
   const { boardDimension } = useCombatManager()
-  console.log("boardDimension", boardDimension);
+
   const onDrag = useCallback((card: Card, data: DragEventData) => {
-    // console.log("onDrag", card, data);
+    console.log("onDrag", card, data);
     if (!card.ele || !boardDimension) return;
     const { top, left } = boardDimension;
     gsap.set(card.ele, { x: data.x - left - (card.width || 0) / 2, y: data.y - top - (card.height || 0) / 2 });
@@ -66,11 +68,22 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
   const onDragOver = useCallback((card: Card, data: DragEventData) => {
 
   }, [boardDimension, game])
-
+  const canDrag = useCallback((id: string) => {
+    const card = game?.cards?.find((c: Card) => c.id === id);
+    if (!card || card.field === 0 || !card.status) return false;
+    return true;
+  }, [game])
+  const canDrop = useCallback((id: string) => {
+    const card = game?.cards?.find((c: Card) => c.id === id);
+    if (!card || card.field === 1 || !card.status) return false;
+    return true;
+  }, [game])
   const value: IDnDContext = {
     draggingCard,
     activeDrops,
     isTouchDevice: isTouchDevice(),
+    canDrag,
+    canDrop,
     onDrag,
     onDragStart,
     onDragEnd,

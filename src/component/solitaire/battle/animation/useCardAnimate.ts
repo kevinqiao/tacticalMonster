@@ -120,8 +120,10 @@ const useCardAnimate = () => {
       game?.cards?.filter((card) => card.field && card.field >= 2 && card.ele).forEach((card, index) => {
          const { x, y } = getCardCoord(card, game, boardDimension);
          if (card.ele) {
+            card.x = Math.round(x);
+            card.y = Math.round(y);
             tl.to(card.ele, {
-               x: Math.round(x), y: Math.round(y), delay: index * 0.02 / 4, onComplete: () => {
+               x: card.x, y: card.y, delay: index * 0.02 / 4, onComplete: () => {
                   if (card.ele) {
                      gsap.set(card.ele, {
                         zIndex: card.row,
