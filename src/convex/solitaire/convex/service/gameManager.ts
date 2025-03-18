@@ -66,6 +66,7 @@ class GameManager {
         const gameId = await this.dbCtx.db.insert("game", { seats, cards: newDeck, status: 0 });
         if (gameId) {
             this.game = { gameId, seats, cards: newDeck, status: 0 };
+            await this.dbCtx.scheduler.runAfter(1000, internal.service.gameProxy.start, { gameId });
         }
     }
     getGame() {

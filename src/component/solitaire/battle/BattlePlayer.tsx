@@ -46,10 +46,16 @@ const DeckPanel: React.FC = () => {
   )
 }
 const CombatBoard: React.FC = () => {
-
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (boardRef.current) {
+      const { x, y, width, height } = boardRef.current.getBoundingClientRect();
+      console.log("x", x, "y", y, "width", width, "height", height);
+    }
+  }, [boardRef.current]);
   return (
     <>
-      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
+      <div ref={boardRef} style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
         <div style={{ width: "100%", height: "37.5%", backgroundColor: "red" }}>
 
         </div>
@@ -61,7 +67,7 @@ const CombatBoard: React.FC = () => {
         </div>
         <CardGrid />
       </div>
-      <DeckPanel />
+      {/* <DeckPanel /> */}
     </>
   );
 };
@@ -75,14 +81,19 @@ export const BattlePlaza: React.FC = () => {
     const updatePosition = () => {
 
       if (containerRef.current) {
-        const { width, height } = containerRef.current.getBoundingClientRect();
-        const boardDimension = { width: 0, height: 0 }
+        const { x, y, top, left, width, height } = containerRef.current.getBoundingClientRect();
+        console.log("x", x, "y", y, "top", top, "left", left, "width", width, "height", height);
+        const boardDimension = { width: 0, height: 0, top: 0, left: 0 }
         if (width / height > 1.2) {
           boardDimension.width = height * 1.2
           boardDimension.height = height
+          boardDimension.top = 0;
+          boardDimension.left = (width - height * 1.2) / 2
         } else {
           boardDimension.width = width;
           boardDimension.height = width / 1.2
+          boardDimension.top = (height - width / 1.2) / 2
+          boardDimension.left = 0
         }
         const zones = getDualBoardZones(boardDimension.width, boardDimension.height);
         updateBoardDimension({ ...boardDimension, zones });
@@ -97,11 +108,11 @@ export const BattlePlaza: React.FC = () => {
 
   return (
     <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%", backgroundColor: "black" }}>
-      {boardDimension && boardDimension.width > 0 && <div style={{
-        position: "absolute", top: "50%", left: "50%", width: boardDimension.width, height: boardDimension.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
+      <div style={{
+        position: "absolute", top: "50%", left: "50%", width: boardDimension?.width, height: boardDimension?.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
       }}>
         <CombatBoard />
-      </div >}
+      </div >
 
 
     </div >

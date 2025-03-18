@@ -7,7 +7,7 @@ import { useCombatManager } from "./CombatManager";
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
     const { game, eventQueue, boardDimension } = useCombatManager();
-    const { playDeal } = useCardAnimate();
+    const { playDeal, playShuffle } = useCardAnimate();
 
     const processEvent = useCallback(() => {
 
@@ -15,7 +15,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
         // console.log("processEvent", game);
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event || event.status === 1) return;
-        console.log("events:", eventQueue.length)
+        console.log("events:", eventQueue.length, event)
         const onComplete = () => {
             // playCountStop();
             const e = eventQueue.shift();
@@ -31,10 +31,15 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
         if (!status) {
 
             switch (name) {
-                case "deal":
+                case "dealCompleted":
                     event.status = 1;
                     console.log("deal", event)
-                    playDeal({ onComplete: () => { onComplete() } });
+                    playDeal({ data: event.data, onComplete: () => { onComplete() } });
+                    break;
+                case "shuffleCompleted":
+                    event.status = 1;
+                    console.log("shuffle", event)
+                    playShuffle({ data: event.data, onComplete: () => { onComplete() } });
                     break;
                 default:
                     event.status = 1;

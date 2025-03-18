@@ -19,9 +19,9 @@ export const createGame = internalMutation({
 export const create = action({
     args: {},
     handler: async (ctx, args) => {
-        console.log("create game");
+        // console.log("create game");
         const game = await ctx.runMutation(internal.service.gameProxy.createGame);
-        console.log("game", game);
+        // console.log("game", game);
         if (game) {
             const events = [];
             for (const seat of game.seats ?? []) {
@@ -43,11 +43,11 @@ export const create = action({
 
     }
 })
-export const start = sessionMutation({
+
+export const start = internalMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        const user = ctx.user;
-        if (!user || !user.uid) return false;
+
         try {
             const gameService = new GameManager(ctx);
             await gameService.initGame(gameId);

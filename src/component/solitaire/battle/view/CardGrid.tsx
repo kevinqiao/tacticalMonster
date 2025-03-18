@@ -1,41 +1,33 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import useCardAnimate from '../animation/useCardAnimate';
 import { useCombatManager } from '../service/CombatManager';
-import { BoardDimension, Card, GameModel } from '../types/CombatTypes';
-import { getCardCoord } from '../utils';
+import DnDProvider from '../service/DndManager';
+import { Card } from '../types/CombatTypes';
 import "./card.css";
+import DnDCard from './DnDCard';
+
 interface CardSVGProps {
   card: Card;
   width?: string;
   height?: string;
 }
 
-const useCardCoord = (card: Card, game: GameModel | null, boardDimension: BoardDimension | null, direction: number = 0) => {
-  const [coord, setCoord] = useState<{ x: number, y: number, cwidth: number, cheight: number, zIndex: number } | null>(null)
-
-  useEffect(() => {
-    if (!game || !game.cards || !boardDimension) return;
-    const ccoord: { x: number, y: number, cwidth: number, cheight: number, zIndex: number } = getCardCoord(card, game, boardDimension, direction);
-    setCoord(ccoord)
-  }, [card, boardDimension, game])
-  return coord
-}
 const CardContainer: React.FC<{ card: Card }> = ({ card }) => {
 
   return (
 
-    <div ref={(ele) => card.ele = ele} className="card" style={{
-      width: 0,
-      height: 0,
-    }}
-    >
+    // <div ref={(ele) => card.ele = ele} className="card" style={{
+    //   width: 0,
+    //   height: 0,
+    // }}
+    // >
+    <DnDCard card={card}>
       <CardSVG card={card} />
-    </div>
+    </DnDCard>
 
 
   );
 };
-
 
 const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
   const isRed = card.suit === '♥' || card.suit === '♦';
@@ -117,32 +109,22 @@ const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
 
 
 const CardGrid: React.FC = () => {
-  const { game, boardDimension, eventQueue } = useCombatManager();
+  const { game, boardDimension } = useCombatManager();
   const { playInit, playShuffle, playDeal } = useCardAnimate();
 
   useEffect(() => {
     if (!game || !boardDimension) return;
-    playShuffle({
-      onComplete: () => {
-        playInit();
-        game.status = 1;
-        playDeal({
-          onComplete: () => {
-            console.log("playDeal complete");
-          }
-        })
-      }
-    });
-
+    playInit();
   }, [game, boardDimension])
 
   return (
-    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-      {game?.cards?.map((card) => (
-        <CardContainer key={card.id} card={card} />
-      ))}
+    <DnDProvider>
+      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+        {game?.cards?.map((card) => (
+          <CardContainer key={card.id} card={card} />
+        ))}
 
-      {/* <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", position: "absolute", bottom: 0, right: 0, width: "100%", height: 60, backgroundColor: "red" }}>
+        {/* <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", position: "absolute", bottom: 0, right: 0, width: "100%", height: 60, backgroundColor: "red" }}>
         <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: 70, height: 40, backgroundColor: "blue", color: "white", marginRight: 20 }} onClick={deal}>
           Deal
         </div>
@@ -150,7 +132,8 @@ const CardGrid: React.FC = () => {
           Shuffle
         </div>
       </div> */}
-    </div>
+      </div>
+    </DnDProvider>
   );
 };
 

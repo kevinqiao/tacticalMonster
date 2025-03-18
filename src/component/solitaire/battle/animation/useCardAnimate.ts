@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useCombatManager } from "../service/CombatManager";
 import { Card } from "../types/CombatTypes";
 import { getCardCoord, getDeckCoord } from "../utils";
@@ -7,12 +7,14 @@ const useCardAnimate = () => {
    const timelineRef = useRef<GSAPTimeline | null>(null);
    const { game, boardDimension } = useCombatManager();
 
-   const playShuffle = useCallback(({ onComplete }: { onComplete?: () => void }) => {
+   const playShuffle = useCallback(({ data, onComplete }: { data: any; onComplete?: () => void }) => {
       if (!boardDimension || !game) return;
       if (game.status === 1 && onComplete) {
          onComplete();
          return;
       }
+      if (data.status)
+         game.status = data.status;
       const zone = boardDimension.zones[1];
       const centerX = (boardDimension.width - zone.cwidth) / 2;
       const centerY = (boardDimension.height - zone.cheight) / 2;
@@ -84,9 +86,10 @@ const useCardAnimate = () => {
          }
       }
    }, [game, boardDimension])
-   const playDeal = useCallback(({ onComplete }: { onComplete?: () => void }) => {
+   const playDeal = useCallback(({ data, onComplete }: { data: any; onComplete?: () => void }) => {
       if (!boardDimension || !game) return;
-
+      if (data.status)
+         game.status = data.status;
       const tl = gsap.timeline({
          onComplete: () => {
             timelineRef.current = null;
@@ -133,18 +136,27 @@ const useCardAnimate = () => {
 
    const playInit = useCallback(() => {
       if (!boardDimension || !game) return;
+
       if (!game.status) {
          game.cards?.forEach((card, index) => {
             if (card.ele) {
                const { x, y, cwidth, cheight } = getDeckCoord(boardDimension);
+               card.width = cwidth;
+               card.height = cheight;
                gsap.set(card.ele, { x, y, width: cwidth, height: cheight, zIndex: 500 - index });
             }
          })
       } else {
+
          game.cards?.forEach((card) => {
+            console.log("card", card);
             if (card.ele) {
                popCard(card);
                const coord = getCardCoord(card, game, boardDimension);
+               card.width = coord.cwidth;
+               card.height = coord.cheight;
+               card.x = coord.x;
+               card.y = coord.y;
                gsap.set(card.ele, {
                   x: coord.x,
                   y: coord.y,
@@ -158,16 +170,16 @@ const useCardAnimate = () => {
       }
 
    }, [game, boardDimension, popCard])
-   useEffect(() => {
-      if (!game || !boardDimension) return;
+   // useEffect(() => {
+   //    if (!game || !boardDimension) return;
 
-      if (timelineRef.current) {
-         timelineRef.current.kill();
-         timelineRef.current = null;
-      }
-      playInit();
+   //    if (timelineRef.current) {
+   //       timelineRef.current.kill();
+   //       timelineRef.current = null;
+   //    }
+   //    playInit();
 
-   }, [game, boardDimension])
+   // }, [game, boardDimension])
    return { playShuffle, playDeal, playInit }
 }
 export default useCardAnimate;

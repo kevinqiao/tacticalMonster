@@ -3,10 +3,10 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
+import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
 import { BoardDimension, Card, CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
 import CombatEventHandler from "./CombatEventHandler";
-
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
@@ -30,9 +30,20 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const [direction, setDirection] = useState<number>(0);
   const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
   const [boardDimension, setBoardDimension] = useState<BoardDimension | null>(null);
+  const { user } = useUserManager();
   const convex = useConvex();
 
-
+  useEffect(() => {
+    console.log("events", events);
+    if (Array.isArray(events) && events.length > 0) {
+      for (const event of events) {
+        if (event.actor !== user?.uid) {
+          eventQueueRef.current.push(event);
+        }
+      }
+      setLastUpdate(events[events.length - 1].id);
+    }
+  }, [events]);
   useEffect(() => {
     const fetchGame = async (gameId: string) => {
       const gameObj = await convex.query(api.dao.gameDao.find, {
@@ -41,7 +52,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
       });
       if (gameObj) {
         console.log("gameObj", gameObj);
-        setGame({ ...gameObj, status: 0 });
+        setGame(gameObj);
         setLastUpdate(gameObj.lastUpdate ?? "####");
       }
     }

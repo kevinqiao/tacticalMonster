@@ -1,3 +1,6 @@
+import { DragEventData } from "../view/DnDCard";
+
+
 export interface Player {
     uid: string;
     name?: string;
@@ -22,6 +25,10 @@ export interface Card {
     row?: number;
     rank?: string;
     suit?: string;
+    width?: number;
+    height?: number;
+    x?: number;
+    y?: number;
     ele?: HTMLDivElement | null;
     status?: number;//0-normal,1-flipped
 }
@@ -66,6 +73,8 @@ export interface BoardDimension {
     width: number;
     height: number;
     zones: { [k: number]: Zone };
+    top: number;
+    left: number;
 }
 export interface ICombatContext {
     decks: Card[];
@@ -76,5 +85,15 @@ export interface ICombatContext {
     players?: Player[];
     eventQueue: CombatEvent[];
     updateBoardDimension: (boardDimension: BoardDimension) => void;
+}
+export interface IDnDContext {
+    draggingCard: { card: Card, clientX: number, clientY: number } | null;
+    activeDrops: { [k: string]: { card: Card } };
+    isTouchDevice: boolean;
+    onDrag: (card: Card, data: DragEventData) => void;
+    onDragStart: (card: Card, data: DragEventData) => void;
+    onDragEnd: (card: Card, data: DragEventData) => void;
+    onDrop: (card: Card, data: DragEventData) => void;
+    onDragOver: (card: Card, data: DragEventData) => void;
 }
 
