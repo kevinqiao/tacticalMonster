@@ -1,6 +1,6 @@
 import React, { ReactNode, useCallback, useEffect, useState } from 'react';
 import { useCombatManager } from '../service/CombatManager';
-import { useDnDManager } from '../service/DnDManager';
+import { useDnDManager } from '../service/DnDProvider';
 import { Card } from '../types/CombatTypes';
 // 抽象事件类型
 type DragEventType = 'start' | 'move' | 'end' | 'over' | 'drop';
@@ -31,17 +31,6 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
 
                 if (data && isDragging && card.ele) {
                     onDrag(card, data);
-                    // const elements = document.elementsFromPoint(data.x, data.y);
-                    // const dropTarget = elements.find(
-                    //     (el) => el !== card.ele && el.classList.contains('card')
-                    // );
-                    // const targetId: string | null | undefined = dropTarget?.getAttribute('data-id');
-                    // // console.log("move", targetId, canDrop(targetId || ""));
-                    // if (targetId && canDrop(targetId) && dropTarget && targetId !== card.id) {
-                    //     dropTarget.dispatchEvent(
-                    //         new CustomEvent('customover', { detail: { draggedId: card.id } })
-                    //     );
-                    // }
                 }
                 break;
             case 'end':

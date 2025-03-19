@@ -105,9 +105,9 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
       .filter((id) => id != null && !draggingGroupRef.current.some((c) => c.id === id));
 
     dropTargets.forEach((tid) => {
-      const card = game?.cards?.find((c: Card) => c.id === tid);
-      if (card && card.field !== 1 && card.status) {
-        dropTargetsRef.current.push(card);
+      const t = game?.cards?.find((c: Card) => c.id === tid);
+      if (t && t.field !== 1 && t.field !== 3 && t.status) {
+        dropTargetsRef.current.push(t);
       }
     })
 
