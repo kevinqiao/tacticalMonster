@@ -29,12 +29,13 @@ export interface Card {
     height?: number;
     x?: number;
     y?: number;
+    zIndex?: number;
     ele?: HTMLDivElement | null;
     status?: number;//0-normal,1-flipped
 }
 export interface Seat {
     uid?: string;
-    no: number;
+    field?: number;
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
 }
@@ -87,11 +88,8 @@ export interface ICombatContext {
     updateBoardDimension: (boardDimension: BoardDimension) => void;
 }
 export interface IDnDContext {
-    draggingCard: { card: Card, clientX: number, clientY: number } | null;
-    activeDrops: { [k: string]: { card: Card } };
     isTouchDevice: boolean;
     canDrag: (id: string) => boolean;
-    canDrop: (id: string) => boolean;
     onDrag: (card: Card, data: DragEventData) => void;
     onDragStart: (card: Card, data: DragEventData) => void;
     onDragEnd: (card: Card, data: DragEventData) => void;

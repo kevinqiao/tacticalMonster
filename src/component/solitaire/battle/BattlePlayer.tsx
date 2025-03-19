@@ -1,6 +1,7 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
+import { useUserManager } from "../../../service/UserManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
 import "./style.css";
 import { getDualBoardZones } from "./utils";
@@ -120,6 +121,8 @@ export const BattlePlaza: React.FC = () => {
 };
 const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const { user } = useUserManager();
+  console.log("user", user);
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -140,7 +143,7 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   }, []);
   return (
     <SSAProvider app="solitaire">
-      {isVisible && <CombatProvider gameId={gameId}>
+      {isVisible && user && <CombatProvider gameId={gameId}>
         <BattlePlaza></BattlePlaza>
       </CombatProvider>}
     </SSAProvider>

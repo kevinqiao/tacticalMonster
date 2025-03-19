@@ -42,6 +42,7 @@ class GameManager {
     }
     async createGame() {
         const players = await this.dbCtx.runQuery(internal.dao.gamePlayerDao.findAll);
+        console.log("players", players);
         const seats: Seat[] = players.map((player: any, index: number) => ({ field: index + 2, uid: player.uid }));
         const suits = ['♠', '♥', '♦', '♣'];
         const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -102,7 +103,7 @@ class GameManager {
     async turnOffBot(seat: Seat) {
         if (!this.game) return;
         seat.botOn = false;
-        const event: any = { gameId: this.game.gameId, name: "botOff", actor: "####", data: { seat: seat.no } };
+        const event: any = { gameId: this.game.gameId, name: "botOff", actor: "####", data: { field: seat.field } };
         const eventId = await this.dbCtx.db.insert("game_event", event);
         await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: eventId, seats: this.game.seats });
 

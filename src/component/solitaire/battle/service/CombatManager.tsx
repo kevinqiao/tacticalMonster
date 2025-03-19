@@ -34,6 +34,17 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const convex = useConvex();
 
   useEffect(() => {
+    if (!game) return;
+    if (!user || !user.uid) {
+      setDirection(0);
+      return;
+    }
+    const seat = game?.seats?.find((s) => s.uid === user.uid);
+    if (seat?.field) {
+      setDirection(seat.field === 2 ? 0 : 1);
+    }
+  }, [user, game]);
+  useEffect(() => {
     console.log("events", events);
     if (Array.isArray(events) && events.length > 0) {
       for (const event of events) {

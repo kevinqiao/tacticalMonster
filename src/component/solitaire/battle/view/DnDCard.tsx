@@ -1,4 +1,5 @@
 import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import { useCombatManager } from '../service/CombatManager';
 import { useDnDManager } from '../service/DndManager';
 import { Card } from '../types/CombatTypes';
 // 抽象事件类型
@@ -11,9 +12,10 @@ export type DragEventData = {
 
 // Card 组件
 const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
+    const { game } = useCombatManager()
     // const ref = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const { onDragStart, onDrag, onDragEnd, onDragOver, onDrop, isTouchDevice, canDrag, canDrop } = useDnDManager()
+    const { onDragStart, onDrag, onDragEnd, onDragOver, onDrop, isTouchDevice, canDrag } = useDnDManager()
 
 
     // 抽象事件处理函数
@@ -29,36 +31,43 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
 
                 if (data && isDragging && card.ele) {
                     onDrag(card, data);
-                    const elements = document.elementsFromPoint(data.x, data.y);
-                    const dropTarget = elements.find(
-                        (el) => el !== card.ele && el.classList.contains('card')
-                    );
-                    const targetId: string | null | undefined = dropTarget?.getAttribute('data-id');
-                    console.log("move", targetId, canDrop(targetId || ""));
-                    if (targetId && canDrop(targetId) && dropTarget && targetId !== card.id) {
-                        dropTarget.dispatchEvent(
-                            new CustomEvent('customover', { detail: { draggedId: card.id } })
-                        );
-                    }
+                    // const elements = document.elementsFromPoint(data.x, data.y);
+                    // const dropTarget = elements.find(
+                    //     (el) => el !== card.ele && el.classList.contains('card')
+                    // );
+                    // const targetId: string | null | undefined = dropTarget?.getAttribute('data-id');
+                    // // console.log("move", targetId, canDrop(targetId || ""));
+                    // if (targetId && canDrop(targetId) && dropTarget && targetId !== card.id) {
+                    //     dropTarget.dispatchEvent(
+                    //         new CustomEvent('customover', { detail: { draggedId: card.id } })
+                    //     );
+                    // }
                 }
                 break;
             case 'end':
                 setIsDragging(false);
                 if (data) {
-
-                    const elements = document.elementsFromPoint(data.x, data.y);
-                    const dropTarget = elements.find(
-                        (el) => el !== card.ele && el.classList.contains('card')
-                    );
-                    const targetId: string | null | undefined = dropTarget?.getAttribute('data-id');
-                    if (targetId && canDrop(targetId) && dropTarget && targetId !== card.id) {
-                        dropTarget.dispatchEvent(
-                            new CustomEvent('customdrop', { detail: { draggedId: card.id } })
-                        );
-                    } else {
-                        onDragEnd(card, data);
-                        console.log(`${card.id} drag ended at (${data.x}, ${data.y})`);
-                    }
+                    onDragEnd(card, data);
+                    // const elements = document.elementsFromPoint(data.x, data.y);
+                    // const targetIds = elements.map((ele) => ele.getAttribute('data-id')).filter((id) => id != null && !draggingGroup?.some((c) => c.id === id));
+                    // console.log("targetIds:", targetIds);
+                    // const dropTarget = elements.find(
+                    //     (el) => el !== card.ele && el.classList.contains('card')
+                    // );
+                    // const targetId: string | null | undefined = dropTarget?.getAttribute('data-id');
+                    // console.log("end", targetId, canDrop(targetId || ""));
+                    // if (targetId) {
+                    //     const c = game?.cards?.find((c) => c.id === targetId);
+                    //     console.log("target:", c)
+                    // }
+                    // if (targetId && canDrop(targetId) && dropTarget && targetId !== card.id) {
+                    //     dropTarget.dispatchEvent(
+                    //         new CustomEvent('customdrop', { detail: { draggedId: card.id } })
+                    //     );
+                    // } else {
+                    //     onDragEnd(card, data);
+                    //     console.log(`${card.id} drag ended at (${data.x}, ${data.y})`);
+                    // }
                 }
                 break;
             case 'over':
@@ -73,7 +82,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
                 }
                 break;
         }
-    }, [card, isDragging]);
+    }, [game, card, isDragging]);
 
     // PC 鼠标事件绑定
     useEffect(() => {
@@ -81,7 +90,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
         if (!ele) return;
 
         const handleMouseDown = (e: MouseEvent) => {
-            console.log(`${card.id} PC mousedown`);
+            // console.log(`${card.id} PC mousedown`);
             e.preventDefault();
             handleDragEvent('start', { x: e.clientX, y: e.clientY, id: card.id });
         };
@@ -113,10 +122,10 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
                 document.addEventListener('mousemove', handleMouseMove);
                 document.addEventListener('mouseup', handleMouseUp);
             }
-            if (canDrop(card.id)) {
-                ele.addEventListener('customover' as any, handleCustomOver);
-                ele.addEventListener('customdrop' as any, handleCustomDrop);
-            }
+            // if (canDrop(card.id)) {
+            //     ele.addEventListener('customover' as any, handleCustomOver);
+            //     ele.addEventListener('customdrop' as any, handleCustomDrop);
+            // }
         }
 
         return () => {
@@ -126,7 +135,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
             ele.removeEventListener('customover' as any, handleCustomOver);
             ele.removeEventListener('customdrop' as any, handleCustomDrop);
         };
-    }, [card, isDragging]);
+    }, [game, card, isDragging]);
 
     // 触摸事件绑定
     useEffect(() => {
@@ -148,7 +157,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
             if (isDragging && e.touches.length > 0) {
                 e.preventDefault();
                 const touch = e.touches[0];
-                console.log(`${card.id} Touch move at (${touch.clientX}, ${touch.clientY})`);
+                // console.log(`${card.id} Touch move at (${touch.clientX}, ${touch.clientY})`);
                 handleDragEvent('move', { x: touch.clientX, y: touch.clientY, id: card.id });
             }
         };
@@ -177,10 +186,10 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
                 document.addEventListener('touchmove', handleTouchMove, { passive: false });
                 document.addEventListener('touchend', handleTouchEnd, { passive: false });
             }
-            if (canDrop(card.id)) {
-                ele.addEventListener('customover' as any, handleCustomOver);
-                ele.addEventListener('customdrop' as any, handleCustomDrop);
-            }
+            // if (canDrop(card.id)) {
+            //     ele.addEventListener('customover' as any, handleCustomOver);
+            //     ele.addEventListener('customdrop' as any, handleCustomDrop);
+            // }
         }
 
         return () => {

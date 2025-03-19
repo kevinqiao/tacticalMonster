@@ -55,7 +55,7 @@ export const getDualBoardZones = (boardWidth: number, boardHeight: number) => {
 
 }
 export const getCardCoord = (card: Card, game: GameModel, boardDimension: BoardDimension, direction: number = 0) => {
-
+    // console.log("card", card, direction);
     const { field, col, row } = card;
     const zoneNo: number = (!field || field < 2) ? field || 0 : (direction === 0 ? field : (field === 2 ? 3 : 2));
     const zone = boardDimension.zones[zoneNo];

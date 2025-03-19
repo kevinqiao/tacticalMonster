@@ -5,7 +5,7 @@ import { Card } from "../types/CombatTypes";
 import { getCardCoord, getDeckCoord } from "../utils";
 const useCardAnimate = () => {
    const timelineRef = useRef<GSAPTimeline | null>(null);
-   const { game, boardDimension } = useCombatManager();
+   const { game, boardDimension, direction } = useCombatManager();
 
    const playShuffle = useCallback(({ data, onComplete }: { data: any; onComplete?: () => void }) => {
       if (!boardDimension || !game) return;
@@ -118,13 +118,14 @@ const useCardAnimate = () => {
 
       timelineRef.current = tl;
       game?.cards?.filter((card) => card.field && card.field >= 2 && card.ele).forEach((card, index) => {
-         const { x, y } = getCardCoord(card, game, boardDimension);
+         const { x, y } = getCardCoord(card, game, boardDimension, direction);
          if (card.ele) {
             card.x = Math.round(x);
             card.y = Math.round(y);
             tl.to(card.ele, {
                x: card.x, y: card.y, delay: index * 0.02 / 4, onComplete: () => {
                   if (card.ele) {
+                     card.zIndex = card.row;
                      gsap.set(card.ele, {
                         zIndex: card.row,
                      })
@@ -134,7 +135,7 @@ const useCardAnimate = () => {
          }
       })
 
-   }, [game, boardDimension])
+   }, [game, boardDimension, direction])
 
    const playInit = useCallback(() => {
       if (!boardDimension || !game) return;
@@ -151,14 +152,15 @@ const useCardAnimate = () => {
       } else {
 
          game.cards?.forEach((card) => {
-            console.log("card", card);
+            // console.log("card", card);
             if (card.ele) {
                popCard(card);
-               const coord = getCardCoord(card, game, boardDimension);
+               const coord = getCardCoord(card, game, boardDimension, direction);
                card.width = coord.cwidth;
                card.height = coord.cheight;
                card.x = coord.x;
                card.y = coord.y;
+               card.zIndex = coord.zIndex;
                gsap.set(card.ele, {
                   x: coord.x,
                   y: coord.y,
@@ -171,7 +173,7 @@ const useCardAnimate = () => {
          })
       }
 
-   }, [game, boardDimension, popCard])
+   }, [game, boardDimension, popCard, direction])
    // useEffect(() => {
    //    if (!game || !boardDimension) return;
 
