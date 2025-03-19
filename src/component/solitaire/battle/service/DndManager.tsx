@@ -18,12 +18,12 @@ export const DnDContext = createContext<IDnDContext>({
   onDragOver: (card: Card, data: DragEventData) => null
 });
 
-console.log("isTouchDevice", isTouchDevice());
+
 const DnDProvider = ({ children }: { children: ReactNode }) => {
   const { game } = useCombatManager();
 
   const { boardDimension, direction } = useCombatManager();
-  const draggingGroupRef = useRef<Card[] | null>(null);
+  const draggingGroupRef = useRef<Card[]>([]);
   const dropTargetsRef = useRef<Card[]>([]);
 
   const onDrag = useCallback((card: Card, data: DragEventData) => {
@@ -46,11 +46,14 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     if (card.ele) {
       const cards = game?.cards?.filter((c: Card) => ((c.field || 0) < 2 && c.id === card.id) || (c.field === card.field && c.col === card.col && c.row && c.row >= (card.row || 0)))
       console.log("onDragStart", cards);
-      draggingGroupRef.current = cards || null;
+      cards?.sort((a, b) => (a.row || 0) - (b.row || 0));
+      if (cards) {
+        draggingGroupRef.current.push(...cards);
+      }
     }
   }, [game, boardDimension])
   const onDragEnd = useCallback((card: Card, data: DragEventData) => {
-    console.log("onDragEnd", card, dropTargetsRef.current);
+    console.log("onDragEnd", card, data, dropTargetsRef.current);
     if (dropTargetsRef.current.length > 0) {
       const dropTarget = dropTargetsRef.current[0];
       if (dropTarget) {
@@ -63,42 +66,48 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
         }
       })
     }
-    draggingGroupRef.current = null;
+    draggingGroupRef.current.length = 0;
+    dropTargetsRef.current.length = 0;
 
   }, [game, boardDimension])
   const onDrop = useCallback((card: Card, data: DragEventData) => {
     console.log("onDrop", card, draggingGroupRef.current);
-    if (game && draggingGroupRef.current) {
-      draggingGroupRef.current.forEach((c: Card, index: number) => {
-        const zoneNo = (direction === 0 ? (card.field || 0) : ((card.field || 0) === 2 ? 3 : 2))
-        c.x = card.x;
-        console.log("onDrop zone:", zoneNo);
-        const y = (card.y || 0) + (index + 1) * (zoneNo === 2 ? 1 : -1) * (card.height || 0) * 0.15;
-        c.y = y;
-        c.field = card.field;
-        c.width = card.width;
-        c.height = card.height;
-        c.col = card.col;
-        c.row = (card.row || 0) + index + 1;
-        c.zIndex = c.row;
-        console.log("onDrop", c, index);
-        if (c.ele) {
-          gsap.set(c.ele, { x: c.x, y: c.y, width: c.width, height: c.height, zIndex: c.zIndex });
-        }
-      })
+    const cards = game?.cards?.filter((c) => c.field === card.field && c.col === card.col && !draggingGroupRef.current.some((c) => c.col === card.col)).sort((a, b) => (a.row || 0) - (b.row || 0));
+    const target = cards?.[cards.length - 1] || card;
 
-    }
+
+    draggingGroupRef.current.forEach((c: Card, index: number) => {
+      const zoneNo = (direction === 0 ? (target.field || 0) : ((target.field || 0) === 2 ? 3 : 2))
+      c.x = target.x;
+      // console.log("onDrop zone:", zoneNo);
+      const y = (target.y || 0) + (index + 1) * (zoneNo === 2 ? 1 : -1) * (target.height || 0) * 0.15;
+      c.y = y;
+      c.field = target.field;
+      c.width = target.width;
+      c.height = target.height;
+      c.col = target.col;
+      c.row = (target.row || 0) + index + 1;
+      c.zIndex = c.row;
+      // console.log("onDrop", c, index);
+      if (c.ele) {
+        gsap.set(c.ele, { x: c.x, y: c.y, width: c.width, height: c.height, zIndex: c.zIndex });
+      }
+    })
+
+
   }, [boardDimension, game, direction])
+
   const onDragOver = useCallback((card: Card, data: DragEventData) => {
-    dropTargetsRef.current = [];
+    dropTargetsRef.current.length = 0;
     const elements = document.elementsFromPoint(data.x, data.y);
     const dropTargets = elements.filter((el) => el !== card.ele && el.classList.contains('card'))
       .map((el) => el.getAttribute('data-id'))
-      .filter((id) => id != null && !draggingGroupRef.current?.some((c) => c.id === id));
+      .filter((id) => id != null && !draggingGroupRef.current.some((c) => c.id === id));
+
     dropTargets.forEach((tid) => {
       const card = game?.cards?.find((c: Card) => c.id === tid);
       if (card && card.field !== 1 && card.status) {
-        dropTargetsRef.current?.push(card);
+        dropTargetsRef.current.push(card);
       }
     })
 

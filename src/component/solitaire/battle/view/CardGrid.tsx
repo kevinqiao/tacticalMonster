@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import useCardAnimate from '../animation/useCardAnimate';
 import { useCombatManager } from '../service/CombatManager';
-import DnDProvider from '../service/DndManager';
+import DnDProvider from '../service/DnDManager';  
 import { Card } from '../types/CombatTypes';
 import "./card.css";
 import DnDCard from './DnDCard';

@@ -1,6 +1,6 @@
 import React, { ReactNode, useCallback, useEffect, useState } from 'react';
 import { useCombatManager } from '../service/CombatManager';
-import { useDnDManager } from '../service/DndManager';
+import { useDnDManager } from '../service/DnDManager';
 import { Card } from '../types/CombatTypes';
 // 抽象事件类型
 type DragEventType = 'start' | 'move' | 'end' | 'over' | 'drop';
@@ -48,37 +48,17 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
                 setIsDragging(false);
                 if (data) {
                     onDragEnd(card, data);
-                    // const elements = document.elementsFromPoint(data.x, data.y);
-                    // const targetIds = elements.map((ele) => ele.getAttribute('data-id')).filter((id) => id != null && !draggingGroup?.some((c) => c.id === id));
-                    // console.log("targetIds:", targetIds);
-                    // const dropTarget = elements.find(
-                    //     (el) => el !== card.ele && el.classList.contains('card')
-                    // );
-                    // const targetId: string | null | undefined = dropTarget?.getAttribute('data-id');
-                    // console.log("end", targetId, canDrop(targetId || ""));
-                    // if (targetId) {
-                    //     const c = game?.cards?.find((c) => c.id === targetId);
-                    //     console.log("target:", c)
-                    // }
-                    // if (targetId && canDrop(targetId) && dropTarget && targetId !== card.id) {
-                    //     dropTarget.dispatchEvent(
-                    //         new CustomEvent('customdrop', { detail: { draggedId: card.id } })
-                    //     );
-                    // } else {
-                    //     onDragEnd(card, data);
-                    //     console.log(`${card.id} drag ended at (${data.x}, ${data.y})`);
-                    // }
                 }
                 break;
             case 'over':
                 if (data && data.id !== card.id) {
                     // console.log(`${data.id} is over ${card.id}`);
-                    onDragOver(card, data);
+                    // onDragOver(card, data);
                 }
                 break;
             case 'drop':
                 if (data && data.id !== card.id) {
-                    onDrop(card, data);
+                    // onDrop(card, data);
                 }
                 break;
         }

@@ -17,7 +17,7 @@ export const getDualBoardZones = (boardWidth: number, boardHeight: number) => {
     const z3: { top: number, left: number, width: number, height: number, cwidth: number, cheight: number, margin: { t: number, l: number, r: number, b: number } } = { top: 0, left: 0, width: 0, height: 0, cwidth: 0, cheight: 0, margin: { t: 0, l: 0, r: 0, b: 0 } }
     z0['top'] = boardHeight * 3 / 8;
     z0['left'] = 0;
-    z0['width'] = boardWidth * 4.5 / 7;
+    z0['width'] = boardWidth * 4 / 7;
     z0['height'] = boardHeight / 4;
 
     z1['width'] = boardWidth - z0['width'];
@@ -37,7 +37,7 @@ export const getDualBoardZones = (boardWidth: number, boardHeight: number) => {
     z3['width'] = boardWidth;
     z3['height'] = boardHeight * 3 / 8;
     const r3 = z3['height'] / (z3['width'] - padding * 8) / 7;
-    z3['cwidth'] = r3 > 2.1 ? (z3['width'] - padding * 8) / 7 : z3['height'] / 1.6 / 1.5
+    z3['cwidth'] = r3 > 2.1 ? (z3['width'] - padding * 8) / 7 : z3['height'] / 1.9 / 1.5
     z3['cheight'] = z3['cwidth'] * 1.5
     z2['cwidth'] = z3['cwidth']
     z2['cheight'] = z3['cheight']

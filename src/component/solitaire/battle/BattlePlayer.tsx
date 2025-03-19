@@ -85,15 +85,15 @@ export const BattlePlaza: React.FC = () => {
         const { x, y, top, left, width, height } = containerRef.current.getBoundingClientRect();
         console.log("x", x, "y", y, "top", top, "left", left, "width", width, "height", height);
         const boardDimension = { width: 0, height: 0, top: 0, left: 0 }
-        if (width / height > 1.2) {
-          boardDimension.width = height * 1.2
+        if (width / height > 1.1) {
+          boardDimension.width = height * 1.1
           boardDimension.height = height
           boardDimension.top = 0;
-          boardDimension.left = (width - height * 1.2) / 2
+          boardDimension.left = (width - height * 1.1) / 2
         } else {
           boardDimension.width = width;
-          boardDimension.height = width / 1.2
-          boardDimension.top = (height - width / 1.2) / 2
+          boardDimension.height = width / 1.1
+          boardDimension.top = (height - width / 1.1) / 2
           boardDimension.left = 0
         }
         const zones = getDualBoardZones(boardDimension.width, boardDimension.height);
@@ -122,7 +122,7 @@ export const BattlePlaza: React.FC = () => {
 const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   const [isVisible, setIsVisible] = useState(true);
   const { user } = useUserManager();
-  console.log("user", user);
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
