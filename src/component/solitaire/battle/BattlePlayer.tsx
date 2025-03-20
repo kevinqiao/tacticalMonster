@@ -1,13 +1,15 @@
-import gsap from "gsap";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
 import { useUserManager } from "../../../service/UserManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
+import useCombatAct from "./service/useCombatAct";
 import "./style.css";
 import { getDualBoardZones } from "./utils";
 import CardGrid from "./view/CardGrid";
+import SeatGrid from "./view/SeatGrid";
 const DeckPanel: React.FC = () => {
   const { game, boardDimension } = useCombatManager();
+  const { flipCard } = useCombatAct();
   const zone = boardDimension?.zones[1];
   const left = useMemo(() => {
     if (zone) {
@@ -21,33 +23,18 @@ const DeckPanel: React.FC = () => {
     }
     return 0
   }, [zone])
-  const openCard = useCallback(() => {
-    console.log("openCard")
-    if (!zone) return;
-    const cards = game?.cards?.filter((card) => card.field === 1 && !card.status)
-    if (cards && cards.length > 0) {
-      const card = cards[0]
-      card.status = 1
-      if (card.ele) {
-        gsap.to(card.ele, {
-          x: zone['left'],
-          rotationY: 180,
-          duration: 0.5,
-          ease: "power2.out",
-        })
-      }
-    }
-  }, [game, zone])
+
   return (
     <>
-      {zone && <div style={{ zIndex: 30, position: "absolute", top: top, left: left, width: zone?.['cwidth'], height: zone?.['cheight'] }} onClick={openCard}>
-
+      {zone && <div style={{ zIndex: 3000, position: "absolute", top: top, left: left, width: zone?.['cwidth'], height: zone?.['cheight'] }} onClick={flipCard}>
       </div>}
     </>
   )
 }
 const CombatBoard: React.FC = () => {
+  const { boardDimension } = useCombatManager();
   const boardRef = useRef<HTMLDivElement | null>(null);
+  const { zones } = boardDimension || {};
   useEffect(() => {
     if (boardRef.current) {
       const { x, y, width, height } = boardRef.current.getBoundingClientRect();
@@ -57,18 +44,20 @@ const CombatBoard: React.FC = () => {
   return (
     <>
       <div ref={boardRef} style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
-        <div style={{ width: "100%", height: "37.5%", backgroundColor: "red" }}>
+        <div style={{ width: "100%", height: zones?.[3]?.['height'], backgroundColor: "red" }}>
 
         </div>
-        <div style={{ width: "100%", height: "25%", backgroundColor: "green" }}>
+        <div style={{ width: "100%", height: zones?.[0]?.['height'], backgroundColor: "green" }}>
 
         </div>
-        <div style={{ width: "100%", height: "37.5%", backgroundColor: "yellow" }}>
+        <div style={{ width: "100%", height: zones?.[2]['height'], backgroundColor: "yellow" }}>
 
         </div>
         <CardGrid />
+        <SeatGrid />
+        <DeckPanel />
       </div>
-      {/* <DeckPanel /> */}
+
     </>
   );
 };
@@ -85,15 +74,15 @@ export const BattlePlaza: React.FC = () => {
         const { x, y, top, left, width, height } = containerRef.current.getBoundingClientRect();
         console.log("x", x, "y", y, "top", top, "left", left, "width", width, "height", height);
         const boardDimension = { width: 0, height: 0, top: 0, left: 0 }
-        if (width / height > 1.1) {
-          boardDimension.width = height * 1.1
+        if (width / height > 0.9) {
+          boardDimension.width = height * 0.9
           boardDimension.height = height
           boardDimension.top = 0;
-          boardDimension.left = (width - height * 1.1) / 2
+          boardDimension.left = (width - height * 0.9) / 2
         } else {
           boardDimension.width = width;
-          boardDimension.height = width / 1.1
-          boardDimension.top = (height - width / 1.1) / 2
+          boardDimension.height = width / 0.9
+          boardDimension.top = (height - width / 0.9) / 2
           boardDimension.left = 0
         }
         const zones = getDualBoardZones(boardDimension.width, boardDimension.height);

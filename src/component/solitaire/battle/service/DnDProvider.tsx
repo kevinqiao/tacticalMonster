@@ -5,6 +5,8 @@ import React, { createContext, ReactNode, useCallback, useContext, useRef } from
 import { Card, IDnDContext } from "../types/CombatTypes";
 import { DragEventData } from "../view/DnDCard";
 import { useCombatManager } from "./CombatManager";
+import useCombatAct from "./useCombatAct";
+
 const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
@@ -25,6 +27,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
   const { boardDimension, direction } = useCombatManager();
   const draggingGroupRef = useRef<Card[]>([]);
   const dropTargetsRef = useRef<Card[]>([]);
+  const { move } = useCombatAct();
 
   const onDrag = useCallback((card: Card, data: DragEventData) => {
     // console.log("onDrag", card, data);
@@ -32,11 +35,11 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     const { top, left } = boardDimension;
     const x = data.x - left - (card.width || 0) / 2;
     const y = data.y - top - (card.height || 0) / 2;
+    if (y < boardDimension.zones[0].top) return;
     if (draggingGroupRef.current) {
       draggingGroupRef.current.forEach((c: Card, index: number) => {
-        if (c.ele) {
+        if (c.ele)
           gsap.set(c.ele, { x, y: y + index * (card.height || 0) * 0.15, zIndex: 1000 + index });
-        }
       })
     }
     onDragOver(card, data);
@@ -57,9 +60,10 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     if (dropTargetsRef.current.length > 0) {
       const dropTarget = dropTargetsRef.current[0];
       if (dropTarget) {
-        onDrop(dropTarget, data);
+        onDrop(card, dropTarget);
       }
     } else {
+      console.log("onDragEnd", draggingGroupRef.current);
       draggingGroupRef.current?.forEach((c: Card) => {
         if (c.ele) {
           gsap.to(c.ele, { x: c.x, y: c.y, zIndex: c.zIndex, duration: 0.3 });
@@ -70,10 +74,10 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     dropTargetsRef.current.length = 0;
 
   }, [game, boardDimension])
-  const onDrop = useCallback((card: Card, data: DragEventData) => {
-    console.log("onDrop", card, draggingGroupRef.current);
-    const cards = game?.cards?.filter((c) => c.field === card.field && c.col === card.col && !draggingGroupRef.current.some((c) => c.col === card.col)).sort((a, b) => (a.row || 0) - (b.row || 0));
-    const target = cards?.[cards.length - 1] || card;
+  const onDrop = useCallback((card: Card, target: Card) => {
+    console.log("onDrop", card, target);
+    // const cards = game?.cards?.filter((c) => c.field === card.field && c.col === card.col && !draggingGroupRef.current.some((c) => c.col === card.col)).sort((a, b) => (a.row || 0) - (b.row || 0));
+    // const target = cards?.[cards.length - 1] || card;
 
 
     draggingGroupRef.current.forEach((c: Card, index: number) => {
@@ -93,7 +97,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
         gsap.set(c.ele, { x: c.x, y: c.y, width: c.width, height: c.height, zIndex: c.zIndex });
       }
     })
-
+    move(card.id, { field: target.field || 0, col: target.col || 0, row: target.row || 0 });
 
   }, [boardDimension, game, direction])
 
@@ -114,7 +118,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
   }, [boardDimension, game])
   const canDrag = useCallback((id: string) => {
     const card = game?.cards?.find((c: Card) => c.id === id);
-    if (!card || card.field === 0 || !card.status) return false;
+    if (!card || card.field === 0 || card.field === 3 || !card.status) return false;
     return true;
   }, [game])
 

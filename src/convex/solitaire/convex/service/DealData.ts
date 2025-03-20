@@ -191,14 +191,14 @@ export const dealData = [
         row: 2,
         status: 1
     },
-    {
-        field: 1,
-        status: 1
-    },
-    {
-        field: 1,
-        status: 1
-    },
+    // {
+    //     field: 1,
+    //     status: 1
+    // },
+    // {
+    //     field: 1,
+    //     status: 1
+    // },
 
 
 ];

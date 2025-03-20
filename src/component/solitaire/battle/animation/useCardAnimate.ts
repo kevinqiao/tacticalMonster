@@ -103,6 +103,9 @@ const useCardAnimate = () => {
             game?.cards?.filter((card, index) => card.status === 1 && card.field && card.field === 1).forEach((card, index) => {
                if (card.ele) {
                   const coord = getCardCoord(card, game, boardDimension);
+                  card.x = coord.x;
+                  card.y = coord.y;
+                  card.zIndex = coord.zIndex;
                   stl.to(card.ele, { x: coord.x, y: coord.y, zIndex: coord.zIndex, rotationY: 180, duration: 0.3, ease: 'power2.out', delay: index * 0.1 });
                }
             })
@@ -119,6 +122,7 @@ const useCardAnimate = () => {
       timelineRef.current = tl;
       game?.cards?.filter((card) => card.field && card.field >= 2 && card.ele).forEach((card, index) => {
          const { x, y } = getCardCoord(card, game, boardDimension, direction);
+         console.log("playDeal", card, x, y);
          if (card.ele) {
             card.x = Math.round(x);
             card.y = Math.round(y);

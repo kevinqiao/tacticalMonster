@@ -38,6 +38,7 @@ export interface Seat {
     field?: number;
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
+    ele?: HTMLDivElement | null;
 }
 
 

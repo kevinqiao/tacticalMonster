@@ -95,7 +95,49 @@ class GameManager {
     }
     async startTurn() {
     }
+    async flip(uid: string) {
+        if (!this.game) return;
+        const cards = this.game.cards?.filter((c) => c.field === 1 && !c.status);
+        if (!cards || cards.length === 0) return;
+        cards[0].status = 1;
+        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards });
+        const flipEvent: any = { gameId: this.game.gameId, name: "flipCompleted", actor: "####", data: { open: cards[0] } };
+        await this.dbCtx.db.insert("game_event", flipEvent);
+        return { ok: true, result: { open: [cards[0]] } }
+    }
 
+    async move(uid: string, cardId: string, to: { field: number, col: number, row: number }) {
+        if (!this.game?.cards) return;
+        const card = this.game.cards.find(card => card.id === cardId);
+        if (!card) return;
+        const data: any = { cardId, to }
+        if (card.field && card.field > 1) {
+            const precard = this.game.cards.find(c => c.field === card.field && c.col === card.col && c.row === ((card.row || 0) - 1));
+            console.log("precard", precard);
+            if (precard && !precard.status) {
+                data.open = [precard];
+                precard.status = 1;
+            }
+        }
+        if (card.field && card.field > 1) {
+            const group = this.game.cards.filter(c => card.field === c.field && (card.col || 0) === (c.col || 0) && (card.row || 0) <= (c.row || 0));
+            group.sort((a, b) => (a.row || 0) - (b.row || 0)).forEach((c, index) => {
+                c.field = to.field;
+                c.col = to.col;
+                c.row = to.row + index + 1;
+            });
+        } else {
+            card.field = to.field;
+            card.col = to.col;
+            card.row = to.row + 1;
+        }
+        console.log("card", card);
+        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards });
+
+        const event: any = { gameId: this.game.gameId, name: "move", actor: uid, data };
+        await this.dbCtx.db.insert("game_event", event);
+        return { ok: true, result: { open: data.open } }
+    }
     async timeout() {
 
 

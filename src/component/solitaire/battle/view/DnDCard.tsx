@@ -172,7 +172,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
 
     const style: React.CSSProperties = {
         border: '1px solid black',
-        cursor: 'grab',
+        cursor: canDrag(card.id) ? 'grab' : 'default',
         // opacity: isDragging ? 0.7 : 1,
         userSelect: 'none',
         touchAction: 'none',

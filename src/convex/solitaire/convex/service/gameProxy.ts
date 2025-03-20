@@ -61,8 +61,39 @@ export const start = internalMutation({
 
     }
 })
+export const flip = sessionMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const user = ctx.user;
+        if (!user || !user.uid) return false;
+        try {
+            const gameService = new GameManager(ctx);
+            await gameService.initGame(gameId);
+            return await gameService.flip(user.uid);
 
+        } catch (error) {
+            console.log("move error", error);
+            return { ok: false }
+        }
 
+    }
+})
+export const move = sessionMutation({
+    args: { gameId: v.string(), cardId: v.string(), to: v.object({ field: v.number(), col: v.number(), row: v.number() }) },
+    handler: async (ctx, { gameId, cardId, to }) => {
+        const user = ctx.user;
+        if (!user || !user.uid) return false;
+        try {
+            const gameService = new GameManager(ctx);
+            await gameService.initGame(gameId);
+            return await gameService.move(user.uid, cardId, to);
+        } catch (error) {
+            console.log("move error", error);
+            return { ok: false }
+        }
+
+    }
+})
 export const turnOffBot = sessionMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
