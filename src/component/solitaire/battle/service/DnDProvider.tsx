@@ -107,10 +107,11 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     const dropTargets = elements.filter((el) => el !== card.ele && el.classList.contains('card'))
       .map((el) => el.getAttribute('data-id'))
       .filter((id) => id != null && !draggingGroupRef.current.some((c) => c.id === id));
-
+    console.log("onDragOver", dropTargets);
+    const opponentField = direction === 0 ? 3 : 2;
     dropTargets.forEach((tid) => {
       const t = game?.cards?.find((c: Card) => c.id === tid);
-      if (t && t.field !== 1 && t.field !== 3 && t.status) {
+      if (t && t.field !== 1 && t.field !== opponentField && t.status) {
         dropTargetsRef.current.push(t);
       }
     })

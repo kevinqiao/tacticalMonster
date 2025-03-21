@@ -48,14 +48,14 @@ export interface GameModel {
     currentRound?: number;
     currentTurn?: CombatTurn;//-1:not started,0-3:selected
     cards?: Card[];
-    actDue?: number;
+    actDue?: number | null;
     lastUpdate?: string;//event id
     status: number;
 }
 
 export interface CombatTurn {
-    seatNo: number;
-    actions: number[];
+    field: number;
+    actions: { acted: number; max: number };
     status: number;//0-not started,1-started,2-ended 
 }
 export interface CombatRound {
@@ -79,13 +79,16 @@ export interface BoardDimension {
     left: number;
 }
 export interface ICombatContext {
-    decks: Card[];
+    // decks: Card[];
     direction: number;
     boardContainer: { [k: string]: { [k: number]: HTMLDivElement | null } };
     boardDimension: BoardDimension | null;
     game: GameModel | null;
+    currentAct: { due: number; field: number } | null;
     players?: Player[];
     eventQueue: CombatEvent[];
+    askAct: (due: number) => void;
+    completeAct: () => void;
     updateBoardDimension: (boardDimension: BoardDimension) => void;
 }
 export interface IDnDContext {

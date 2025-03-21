@@ -1,23 +1,26 @@
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
-import { BoardDimension, Card, CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
+import { BoardDimension, CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
 import CombatEventHandler from "./CombatEventHandler";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 export const CombatContext = createContext<ICombatContext>({
   direction: 0,
-  decks: [],
+  // decks: [],
   boardDimension: null,
   game: null,
+  currentAct: null,
   eventQueue: [],
   boardContainer: {},
-  updateBoardDimension: () => { }
+  updateBoardDimension: () => { },
+  askAct: () => { },
+  completeAct: () => { }
 });
 
 
@@ -25,9 +28,10 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const boardContainerEleRef: React.MutableRefObject<{ [k: string]: { [k: number]: HTMLDivElement | null } }> = useRef<{ [k: string]: { [k: number]: HTMLDivElement | null } }>({});
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
   const [game, setGame] = useState<GameModel | null>(null);
-  const decksRef: React.MutableRefObject<Card[]> = useRef<Card[]>([]);
+  // const decksRef: React.MutableRefObject<Card[]> = useRef<Card[]>([]);
   const [lastUpdate, setLastUpdate] = useState<string | undefined>(undefined);
   const [direction, setDirection] = useState<number>(0);
+  const [currentAct, setCurrentAct] = useState<{ due: number; field: number } | null>(null);
   const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
   const [boardDimension, setBoardDimension] = useState<BoardDimension | null>(null);
   const { user } = useUserManager();
@@ -72,15 +76,27 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const updateBoardDimension = (boardDimension: BoardDimension) => {
     setBoardDimension(boardDimension);
   }
+  const askAct = useCallback((due: number) => {
+    console.log("askAct", due);
+    if (!game || !game.currentTurn) return;
+    setCurrentAct({ due, field: game.currentTurn.field ?? 0 });
+  }, [game])
+  const completeAct = useCallback(() => {
+    console.log("completeAct");
+    setCurrentAct(null);
+  }, [game])
 
   const value = {
     direction,
-    decks: decksRef.current,
+    // decks: decksRef.current,
     game,
+    currentAct,
     eventQueue: eventQueueRef.current,
     boardContainer: boardContainerEleRef.current,
     boardDimension,
     updateBoardDimension,
+    askAct,
+    completeAct
   };
   return <CombatContext.Provider value={value}><CombatEventHandler>{children}</CombatEventHandler></CombatContext.Provider>;
 };

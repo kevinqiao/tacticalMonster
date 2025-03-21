@@ -100,9 +100,9 @@ class GameManager {
         const cards = this.game.cards?.filter((c) => c.field === 1 && !c.status);
         if (!cards || cards.length === 0) return;
         cards[0].status = 1;
-        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards });
-        const flipEvent: any = { gameId: this.game.gameId, name: "flipCompleted", actor: "####", data: { open: cards[0] } };
-        await this.dbCtx.db.insert("game_event", flipEvent);
+        const flipEvent: any = { gameId: this.game.gameId, name: "flipCompleted", actor: "####", data: { open: [cards[0]] } };
+        const eventId = await this.dbCtx.db.insert("game_event", flipEvent);
+        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, lastUpdate: eventId });
         return { ok: true, result: { open: [cards[0]] } }
     }
 
@@ -131,11 +131,10 @@ class GameManager {
             card.col = to.col;
             card.row = to.row + 1;
         }
-        console.log("card", card);
-        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards });
-
-        const event: any = { gameId: this.game.gameId, name: "move", actor: uid, data };
-        await this.dbCtx.db.insert("game_event", event);
+        console.log("card", card, data);
+        const event: any = { gameId: this.game.gameId, name: "moveCompleted", actor: uid, data };
+        const eventId = await this.dbCtx.db.insert("game_event", event);
+        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, lastUpdate: eventId });
         return { ok: true, result: { open: data.open } }
     }
     async timeout() {

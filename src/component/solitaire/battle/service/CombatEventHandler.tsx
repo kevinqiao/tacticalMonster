@@ -1,6 +1,7 @@
 import React, { ReactNode, useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 
+import useActionAnimate from "../animation/useActionAnimate";
 import useCardAnimate from "../animation/useCardAnimate";
 import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
@@ -8,6 +9,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
     const { user } = useUserManager();
     const { game, eventQueue, boardDimension } = useCombatManager();
     const { playDeal, playShuffle } = useCardAnimate();
+    const { playOpenCard, playMoveCard } = useActionAnimate();
 
     const processEvent = useCallback(() => {
 
@@ -15,7 +17,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
         // console.log("processEvent", game);
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event || event.status === 1) return;
-        console.log("events:", eventQueue.length, event)
+        // console.log("events:", eventQueue.length, event)
         const onComplete = () => {
             // playCountStop();
             const e = eventQueue.shift();
@@ -40,6 +42,16 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     event.status = 1;
                     console.log("shuffle", event)
                     playShuffle({ data: event.data, onComplete: () => { onComplete() } });
+                    break;
+                case "flipCompleted":
+                    event.status = 1;
+                    console.log("flip", event)
+                    playOpenCard({ cards: event.data.open, onComplete: () => { onComplete() } });
+                    break;
+                case "moveCompleted":
+                    event.status = 1;
+                    console.log("move", event)
+                    playMoveCard({ data: event.data, onComplete });
                     break;
                 default:
                     event.status = 1;

@@ -26,7 +26,7 @@ export default defineSchema({
         currentRound: v.optional(v.object({ no: v.number(), status: v.number(), fields: v.optional(v.array(v.number())) })),
         currentTurn: v.optional(v.object({
             field: v.number(),
-            actions: v.optional(v.array(v.number())),
+            actions: v.optional(v.object({ acted: v.number(), max: v.number() })),
             status: v.optional(v.number()),
         })),
         status: v.number(),//0-init,1-playing  2-over 3-settled 4-cancelled

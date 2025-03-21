@@ -31,8 +31,11 @@ const useActionAnimate = () => {
 
 
    }, [game, boardDimension])
-   const playOpenCard = useCallback(({ cards }: { cards: Card[] }) => {
-      if (!boardDimension || !game) return;
+   const playOpenCard = useCallback(({ cards, onComplete }: { cards: Card[], onComplete?: () => void }) => {
+      if (!boardDimension || !game || !cards || cards.length === 0) {
+         onComplete?.();
+         return;
+      }
       console.log("playOpenCard", cards);
       const openCards = cards.map((c) => {
          const card = game.cards?.find((card) => card.id === c.id);
@@ -42,16 +45,18 @@ const useActionAnimate = () => {
          }
          return card;
       })
+      const tl = gsap.timeline({
+         onComplete: () => {
+            tl.kill();
+            onComplete?.();
+         }
+      });
       openCards.forEach((card) => {
          if (card && card.ele) {
             popCard(card);
             card.status = 1;
             if (card.field === 1) {
-               const tl = gsap.timeline({
-                  onComplete: () => {
-                     tl.kill();
-                  }
-               });
+
                const coord = getCardCoord(card, game, boardDimension);
                card.x = coord.x;
                card.y = coord.y;
@@ -106,8 +111,56 @@ const useActionAnimate = () => {
          }
       }
    }, [game, boardDimension])
+   const playMoveCard = useCallback(({ data, onComplete }: { data: { open: Card[], cardId: string, to: { field: number; col: number; row: number } }, onComplete?: () => void }) => {
+      if (!game || !boardDimension) return;
+      const { open, cardId, to } = data;
+      const card = game?.cards?.find((c) => c.id === cardId);
+      if (!card) {
+         return;
+      }
 
-   return { playOpenCard }
+      const group = game?.cards?.filter((c) => {
+         if (c.field === 1 && c.id === cardId)
+            return c;
+         if (c.field !== 1 && c.field === card.field && c.col === card.col && (c.row || 0) >= (card.row || 0))
+            return c;
+         return null;
+      }).filter((c) => c !== null);
+
+      const tl = gsap.timeline({
+         onComplete: () => {
+            if (open && open.length > 0) {
+               playOpenCard({ cards: open, onComplete: onComplete });
+            } else {
+               onComplete?.();
+            }
+            tl.kill();
+         }
+      });
+      group?.forEach((c, index) => {
+         c.field = to.field;
+         c.row = index + to.row + 1;
+         c.col = to.col;
+         const coord = getCardCoord(c, game, boardDimension);
+         c.x = coord.x;
+         c.y = coord.y;
+         c.zIndex = coord.zIndex;
+         if (c.ele) {
+            tl.to(c.ele, {
+               duration: 0.5,
+               x: coord.x,
+               y: coord.y,
+               zIndex: coord.zIndex,
+            }, "<")
+         }
+
+      })
+      tl.play();
+
+
+   }, [game, boardDimension])
+
+   return { playOpenCard, playMoveCard }
 }
 export default useActionAnimate;
 

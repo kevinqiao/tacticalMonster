@@ -1,4 +1,5 @@
-import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { useUserManager } from 'service/UserManager';
 import { useCombatManager } from '../service/CombatManager';
 import { useDnDManager } from '../service/DnDProvider';
 import { Card } from '../types/CombatTypes';
@@ -12,11 +13,22 @@ export type DragEventData = {
 
 // Card 组件
 const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
-    const { game } = useCombatManager()
+    const { game, currentAct } = useCombatManager();
+    const { user } = useUserManager();
     // const ref = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const { onDragStart, onDrag, onDragEnd, onDragOver, onDrop, isTouchDevice, canDrag } = useDnDManager()
+    const { onDragStart, onDrag, onDragEnd, isTouchDevice } = useDnDManager()
 
+    const canDrag = useMemo(() => {
+        if (!game || !currentAct || !user || !user.uid || !card.status) return false;
+        const seat = game.seats?.find(s => s.uid === user.uid);
+        if (!seat) return false;
+        if (seat.field === card.field) {
+            return true;
+        }
+
+        return false;
+    }, [game, currentAct, card, user]);
 
     // 抽象事件处理函数
     const handleDragEvent = useCallback((type: DragEventType, data: DragEventData | null) => {
@@ -85,12 +97,12 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
         const handleCustomDrop = (e: CustomEvent) => {
             handleDragEvent('drop', { x: 0, y: 0, id: e.detail.draggedId });
         };
-        if (!isTouchDevice) {
-            if (canDrag(card.id)) {
-                ele.addEventListener('mousedown', handleMouseDown);
-                document.addEventListener('mousemove', handleMouseMove);
-                document.addEventListener('mouseup', handleMouseUp);
-            }
+        if (!isTouchDevice && canDrag) {
+
+            ele.addEventListener('mousedown', handleMouseDown);
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+
             // if (canDrop(card.id)) {
             //     ele.addEventListener('customover' as any, handleCustomOver);
             //     ele.addEventListener('customdrop' as any, handleCustomDrop);
@@ -104,7 +116,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
             ele.removeEventListener('customover' as any, handleCustomOver);
             ele.removeEventListener('customdrop' as any, handleCustomDrop);
         };
-    }, [game, card, isDragging]);
+    }, [game, card, isDragging, canDrag]);
 
     // 触摸事件绑定
     useEffect(() => {
@@ -149,12 +161,12 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
             console.log("drop custom", e.detail.draggedId);
             handleDragEvent('drop', { x: 0, y: 0, id: e.detail.draggedId });
         };
-        if (isTouchDevice) {
-            if (canDrag(card.id)) {
-                ele.addEventListener('touchstart', handleTouchStart, { passive: false });
-                document.addEventListener('touchmove', handleTouchMove, { passive: false });
-                document.addEventListener('touchend', handleTouchEnd, { passive: false });
-            }
+        if (isTouchDevice && canDrag) {
+
+            ele.addEventListener('touchstart', handleTouchStart, { passive: false });
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd, { passive: false });
+
             // if (canDrop(card.id)) {
             //     ele.addEventListener('customover' as any, handleCustomOver);
             //     ele.addEventListener('customdrop' as any, handleCustomDrop);
@@ -168,11 +180,11 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
             ele.removeEventListener('customover' as any, handleCustomOver);
             ele.removeEventListener('customdrop' as any, handleCustomDrop);
         };
-    }, [card, isDragging]);
+    }, [card, isDragging, canDrag]);
 
     const style: React.CSSProperties = {
         border: '1px solid black',
-        cursor: canDrag(card.id) ? 'grab' : 'default',
+        cursor: canDrag ? 'grab' : 'default',
         // opacity: isDragging ? 0.7 : 1,
         userSelect: 'none',
         touchAction: 'none',
