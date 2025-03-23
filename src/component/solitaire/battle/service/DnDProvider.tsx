@@ -2,6 +2,7 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useRef } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
+import { useUserManager } from "service/UserManager";
 import { Card, IDnDContext } from "../types/CombatTypes";
 import { cardCoord } from "../utils";
 import { DragEventData } from "../view/DnDCard";
@@ -22,7 +23,7 @@ export const DnDContext = createContext<IDnDContext>({
 
 const DnDProvider = ({ children }: { children: ReactNode }) => {
   const { game } = useCombatManager();
-
+  const { user } = useUserManager();
   const { boardDimension, direction } = useCombatManager();
   const draggingGroupRef = useRef<Card[]>([]);
   const dropTargetsRef = useRef<Card[]>([]);
@@ -43,7 +44,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     }
     onDragOver(card, data);
 
-  }, [game, boardDimension])
+  }, [user, game, boardDimension])
   const onDragStart = useCallback((card: Card, data: DragEventData) => {
     if (card.ele) {
       console.log("onDragStart", card);
@@ -54,7 +55,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
         draggingGroupRef.current.push(...cards);
       }
     }
-  }, [game, boardDimension])
+  }, [user, game, boardDimension])
   const onDragEnd = useCallback(async (card: Card, data: DragEventData) => {
     console.log("onDragEnd", card, data, dropTargetsRef.current);
     // const dropTarget = dropTargetsRef.current[0];
@@ -74,9 +75,9 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     draggingGroupRef.current.length = 0;
     dropTargetsRef.current.length = 0;
 
-  }, [game, boardDimension])
+  }, [user, game, boardDimension])
   const onDrop = useCallback(async (card: Card, target: Card) => {
-    if (!game || !boardDimension) return;
+    if (!game || !boardDimension || !user || !user.uid) return;
     console.log("onDrop", card, target);
     const tl = gsap.timeline();
     const prePos: Card[] = [];
@@ -102,7 +103,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     }
 
 
-  }, [boardDimension, game, direction, move])
+  }, [boardDimension, game, direction, user, move])
 
   const onDragOver = useCallback((card: Card, data: DragEventData) => {
     dropTargetsRef.current.length = 0;

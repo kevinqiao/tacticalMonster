@@ -9,8 +9,9 @@ const useCombatAct = () => {
   const { game, eventQueue, currentAct, completeAct } = useCombatManager();
   const { playOpenCard } = useActionAnimate();
   const convex = useConvex();
+  console.log("user", user);
   const move = useCallback(async (cardId: string, to: { field: number, col: number, row: number }) => {
-
+    console.log("move", cardId, to, user);
     if (!game || !user || !user.uid) return;
     completeAct();
     const res: any = await convex.mutation(api.service.gameProxy.move, {
