@@ -1,3 +1,4 @@
+import { Zone } from "../utils";
 import { DragEventData } from "../view/DnDCard";
 
 
@@ -62,15 +63,7 @@ export interface CombatRound {
     no: number;
     status?: number;//0-inited 1-ongoing 2-completed
 }
-export interface Zone {
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-    cwidth: number;
-    cheight: number;
-    margin: { t: number, l: number, r: number, b: number };
-}
+
 export interface BoardDimension {
     width: number;
     height: number;
@@ -93,7 +86,6 @@ export interface ICombatContext {
 }
 export interface IDnDContext {
     isTouchDevice: boolean;
-    canDrag: (id: string) => boolean;
     onDrag: (card: Card, data: DragEventData) => void;
     onDragStart: (card: Card, data: DragEventData) => void;
     onDragEnd: (card: Card, data: DragEventData) => void;

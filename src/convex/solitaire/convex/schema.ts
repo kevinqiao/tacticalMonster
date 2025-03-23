@@ -23,7 +23,7 @@ export default defineSchema({
             uid: v.optional(v.string()),
             botOn: v.optional(v.boolean()),
         }))),
-        currentRound: v.optional(v.object({ no: v.number(), status: v.number(), fields: v.optional(v.array(v.number())) })),
+        currentRound: v.optional(v.number()),
         currentTurn: v.optional(v.object({
             field: v.number(),
             actions: v.optional(v.object({ acted: v.number(), max: v.number() })),

@@ -83,17 +83,36 @@ class GameManager {
         const dealEvent: any = { gameId: this.game.gameId, name: "dealCompleted", actor: "####", data: { status: 1 } };
         const dealEventId = await this.dbCtx.db.insert("game_event", dealEvent);
         await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: dealEventId, status: 1 });
-        await this.startRound();
+
+        await this.startRound(0);
 
     }
-    async startRound() {
+    async startRound(round: number) {
         if (!this.game) return;
         this.game.status = 2;
-        const roundEvent: any = { gameId: this.game.gameId, name: "roundStarted", actor: "####", data: { status: 2 } };
+        this.game.currentRound = round;
+        await this.dbCtx.db.patch(this.game.gameId, { currentRound: this.game.currentRound });
+        const roundEvent: any = { gameId: this.game.gameId, name: "roundStarted", actor: "####", data: { round } };
         await this.dbCtx.db.insert("game_event", roundEvent);
-        await this.startTurn();
+        const field = this.game.seats?.[0]?.field;
+        if (field) {
+            await this.startTurn(field);
+        }
     }
-    async startTurn() {
+    async startTurn(field: number) {
+        if (!this.game) return;
+        this.game.currentTurn = { field, actions: { acted: 0, max: 3 }, status: 0 };
+        await this.dbCtx.db.patch(this.game.gameId, { currentTurn: this.game.currentTurn });
+        const turnEvent: any = { gameId: this.game.gameId, name: "turnStarted", actor: "####", data: this.game.currentTurn };
+        await this.dbCtx.db.insert("game_event", turnEvent);
+        await this.askAct(-1);
+    }
+    async askAct(dueTime: number) {
+        if (!this.game) return;
+        this.game.actDue = dueTime;
+        const askActEvent: any = { gameId: this.game.gameId, name: "askAct", actor: "####", data: { dueTime } };
+        await this.dbCtx.db.insert("game_event", askActEvent);
+        await this.dbCtx.db.patch(this.game.gameId, { actDue: dueTime });
     }
     async flip(uid: string) {
         if (!this.game) return;
@@ -135,6 +154,7 @@ class GameManager {
         const event: any = { gameId: this.game.gameId, name: "moveCompleted", actor: uid, data };
         const eventId = await this.dbCtx.db.insert("game_event", event);
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, lastUpdate: eventId });
+        // await this.askAct(-1);
         return { ok: true, result: { open: data.open } }
     }
     async timeout() {

@@ -6,11 +6,13 @@ import useActionAnimate from "../animation/useActionAnimate";
 import { useCombatManager } from "./CombatManager";
 const useCombatAct = () => {
   const { user } = useUserManager();
-  const { game, eventQueue, currentAct } = useCombatManager();
+  const { game, eventQueue, currentAct, completeAct } = useCombatManager();
   const { playOpenCard } = useActionAnimate();
   const convex = useConvex();
   const move = useCallback(async (cardId: string, to: { field: number, col: number, row: number }) => {
+
     if (!game || !user || !user.uid) return;
+    completeAct();
     const res: any = await convex.mutation(api.service.gameProxy.move, {
       uid: user.uid,
       token: user.token,
@@ -23,9 +25,10 @@ const useCombatAct = () => {
       if (res.result.open && res.result.open.length > 0) {
         playOpenCard({ cards: res.result.open });
       }
+      return res.result;
     }
-    console.log("move res", res);
-  }, [game, eventQueue, playOpenCard]);
+
+  }, [user, game, convex, playOpenCard, completeAct]);
   const flipCard = useCallback(async () => {
     if (!game || !user || !user.uid) return;
     const seat = game.seats?.find(s => s.uid === user.uid);
@@ -42,7 +45,7 @@ const useCombatAct = () => {
     }
     console.log("move res", res);
   }, [game, user, eventQueue, playOpenCard]);
-  return { move, flipCard };
+  return { move, flipCard, currentAct };
 };
 export default useCombatAct;
 

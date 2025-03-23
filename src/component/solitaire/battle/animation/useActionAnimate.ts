@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
 import { Card } from "../types/CombatTypes";
-import { getCardCoord } from "../utils";
+import { cardCoord } from "../utils";
 const useActionAnimate = () => {
 
    const { game, boardDimension, direction } = useCombatManager();
@@ -56,8 +56,10 @@ const useActionAnimate = () => {
             popCard(card);
             card.status = 1;
             if (card.field === 1) {
-
-               const coord = getCardCoord(card, game, boardDimension);
+               const decks = game.cards?.filter((c) => c.field === 1);
+               if (!decks) return;
+               const col = decks.findIndex((c) => c.id === card.id);
+               const coord = cardCoord(card.field, col, 0, boardDimension, direction);
                card.x = coord.x;
                card.y = coord.y;
                card.zIndex = coord.zIndex;
@@ -141,7 +143,7 @@ const useActionAnimate = () => {
          c.field = to.field;
          c.row = index + to.row + 1;
          c.col = to.col;
-         const coord = getCardCoord(c, game, boardDimension);
+         const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
          c.x = coord.x;
          c.y = coord.y;
          c.zIndex = coord.zIndex;
@@ -150,7 +152,13 @@ const useActionAnimate = () => {
                duration: 0.5,
                x: coord.x,
                y: coord.y,
-               zIndex: coord.zIndex,
+               zIndex: c.zIndex + 1000,
+               ease: "power2.inOut",
+               onComplete: () => {
+                  if (c.ele && c.zIndex) {
+                     c.ele.style.zIndex = c.zIndex.toString();
+                  }
+               }
             }, "<")
          }
 
@@ -158,7 +166,7 @@ const useActionAnimate = () => {
       tl.play();
 
 
-   }, [game, boardDimension])
+   }, [game, boardDimension, direction])
 
    return { playOpenCard, playMoveCard }
 }

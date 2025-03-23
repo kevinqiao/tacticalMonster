@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { useCallback, useRef } from "react";
 import { useCombatManager } from "../service/CombatManager";
 import { Card } from "../types/CombatTypes";
-import { getCardCoord, getDeckCoord } from "../utils";
+import { cardCoord, getDeckCoord } from "../utils";
 const useCardAnimate = () => {
    const timelineRef = useRef<GSAPTimeline | null>(null);
    const { game, boardDimension, direction } = useCombatManager();
@@ -102,7 +102,7 @@ const useCardAnimate = () => {
             const stl = gsap.timeline();
             game?.cards?.filter((card, index) => card.status === 1 && card.field && card.field === 1).forEach((card, index) => {
                if (card.ele) {
-                  const coord = getCardCoord(card, game, boardDimension);
+                  const coord = cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
                   card.x = coord.x;
                   card.y = coord.y;
                   card.zIndex = coord.zIndex;
@@ -121,8 +121,8 @@ const useCardAnimate = () => {
 
       timelineRef.current = tl;
       game?.cards?.filter((card) => card.field && card.field >= 2 && card.ele).forEach((card, index) => {
-         const { x, y } = getCardCoord(card, game, boardDimension, direction);
-         console.log("playDeal", card, x, y);
+         const { x, y } = cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
+         // console.log("playDeal", card, x, y);
          if (card.ele) {
             card.x = Math.round(x);
             card.y = Math.round(y);
@@ -143,40 +143,39 @@ const useCardAnimate = () => {
 
    const playInit = useCallback(() => {
       if (!boardDimension || !game) return;
+      game.cards?.forEach((card, index) => {
 
-      if (!game.status) {
-         game.cards?.forEach((card, index) => {
-            if (card.ele) {
-               const { x, y, cwidth, cheight } = getDeckCoord(boardDimension);
-               card.width = cwidth;
-               card.height = cheight;
-               gsap.set(card.ele, { x, y, width: cwidth, height: cheight, zIndex: 500 - index });
+         if (card.ele) {
+            popCard(card);
+            const pos = { field: card.field ?? 0, col: card.col ?? 0, row: card.row ?? 0 };
+            if (card.field === 1) {
+               pos.col = -1;
+               if (card.status) {
+                  const opens = game.cards?.filter((c) => c.field === 1 && c.status);
+                  if (opens && opens.length > 0) {
+                     const index = opens.findIndex((c) => c.id === card.id);
+                     pos.col = index;
+                  }
+               }
+
             }
-         })
-      } else {
+            const coord = cardCoord(pos.field, pos.col, pos.row, boardDimension, direction);
+            card.width = coord.cwidth;
+            card.height = coord.cheight;
+            card.x = coord.x;
+            card.y = coord.y;
+            card.zIndex = coord.zIndex;
+            gsap.set(card.ele, {
+               x: coord.x,
+               y: coord.y,
+               rotationY: game.status === 1 ? card.status === 1 ? 180 : 0 : 0,
+               width: coord.cwidth,
+               height: coord.cheight,
+               zIndex: coord.zIndex,
+            })
+         }
 
-         game.cards?.forEach((card) => {
-            // console.log("card", card);
-            if (card.ele) {
-               popCard(card);
-               const coord = getCardCoord(card, game, boardDimension, direction);
-               card.width = coord.cwidth;
-               card.height = coord.cheight;
-               card.x = coord.x;
-               card.y = coord.y;
-               card.zIndex = coord.zIndex;
-               gsap.set(card.ele, {
-                  x: coord.x,
-                  y: coord.y,
-                  rotationY: game.status === 1 ? card.status === 1 ? 180 : 0 : 0,
-                  width: coord.cwidth,
-                  height: coord.cheight,
-                  zIndex: coord.zIndex,
-               })
-            }
-         })
-      }
-
+      })
    }, [game, boardDimension, popCard, direction])
    // useEffect(() => {
    //    if (!game || !boardDimension) return;

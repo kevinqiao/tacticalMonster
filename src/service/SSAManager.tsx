@@ -59,7 +59,7 @@ export const useSSAManager = () => {
   return useContext(SSAContext);
 };
 export const SSAProvider = ({ app, children }: { app: string, children: React.ReactNode }) => {
-  console.log("SSAProvider", app)
+
   const client = new ConvexReactClient(SSA_URLS[app]);
   return (
     <>

@@ -7,7 +7,7 @@ import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
-    const { game, eventQueue, boardDimension } = useCombatManager();
+    const { game, eventQueue, boardDimension, askAct, completeAct } = useCombatManager();
     const { playDeal, playShuffle } = useCardAnimate();
     const { playOpenCard, playMoveCard } = useActionAnimate();
 
@@ -44,14 +44,34 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                     playShuffle({ data: event.data, onComplete: () => { onComplete() } });
                     break;
                 case "flipCompleted":
+                    completeAct();
                     event.status = 1;
                     console.log("flip", event)
                     playOpenCard({ cards: event.data.open, onComplete: () => { onComplete() } });
                     break;
                 case "moveCompleted":
+                    completeAct();
                     event.status = 1;
                     console.log("move", event)
                     playMoveCard({ data: event.data, onComplete });
+                    break;
+                case "roundStarted":
+                    event.status = 1
+                    game.currentRound = event.data.round;
+                    console.log("roundStarted", game.currentRound)
+                    onComplete();
+                    break;
+                case "turnStarted":
+                    event.status = 1
+                    game.currentTurn = event.data;
+                    console.log("turnStarted", game.currentTurn)
+                    onComplete();
+                    break;
+                case "askAct":
+                    event.status = 1;
+                    console.log("askAct", event)
+                    askAct(event.data.dueTime);
+                    onComplete();
                     break;
                 default:
                     event.status = 1;

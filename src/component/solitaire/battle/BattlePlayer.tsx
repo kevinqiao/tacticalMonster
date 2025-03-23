@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
-import { useUserManager } from "../../../service/UserManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
 import useCombatAct from "./service/useCombatAct";
 import "./style.css";
-import { getDualBoardZones } from "./utils";
+import { createDualZones } from "./utils";
 import CardGrid from "./view/CardGrid";
 import SeatGrid from "./view/SeatGrid";
 const DeckPanel: React.FC = () => {
@@ -32,19 +31,11 @@ const DeckPanel: React.FC = () => {
   )
 }
 const CombatBoard: React.FC = () => {
-  const { boardDimension } = useCombatManager();
-  const boardRef = useRef<HTMLDivElement | null>(null);
-  const { zones } = boardDimension || {};
-  useEffect(() => {
-    if (boardRef.current) {
-      const { x, y, width, height } = boardRef.current.getBoundingClientRect();
-      console.log("x", x, "y", y, "width", width, "height", height);
-    }
-  }, [boardRef.current]);
+  console.log("CombatBoard");
   return (
     <>
-      <div ref={boardRef} style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
-        <div style={{ width: "100%", height: zones?.[3]?.['height'], backgroundColor: "red" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
+        {/* <div style={{ width: "100%", height: zones?.[3]?.['height'], backgroundColor: "red" }}>
 
         </div>
         <div style={{ width: "100%", height: zones?.[0]?.['height'], backgroundColor: "green" }}>
@@ -52,7 +43,7 @@ const CombatBoard: React.FC = () => {
         </div>
         <div style={{ width: "100%", height: zones?.[2]['height'], backgroundColor: "yellow" }}>
 
-        </div>
+        </div> */}
         <CardGrid />
         <SeatGrid />
         <DeckPanel />
@@ -72,8 +63,8 @@ export const BattlePlaza: React.FC = () => {
 
       if (containerRef.current) {
         const { x, y, top, left, width, height } = containerRef.current.getBoundingClientRect();
-        console.log("x", x, "y", y, "top", top, "left", left, "width", width, "height", height);
-        const boardDimension = { width: 0, height: 0, top: 0, left: 0 }
+        // console.log("x", x, "y", y, "top", top, "left", left, "width", width, "height", height);
+        const boardDimension = { width: 0, height: 0, top: 0, left: 0, zones: {} }
         if (width / height > 0.9) {
           boardDimension.width = height * 0.9
           boardDimension.height = height
@@ -85,8 +76,10 @@ export const BattlePlaza: React.FC = () => {
           boardDimension.top = (height - width / 0.9) / 2
           boardDimension.left = 0
         }
-        const zones = getDualBoardZones(boardDimension.width, boardDimension.height);
-        updateBoardDimension({ ...boardDimension, zones });
+        // const zones = getDualBoardZones(boardDimension.width, boardDimension.height);
+        createDualZones(boardDimension);
+        console.log(boardDimension.zones);
+        updateBoardDimension(boardDimension);
       }
     };
     if (game) {
@@ -96,21 +89,19 @@ export const BattlePlaza: React.FC = () => {
     return () => window.removeEventListener("resize", updatePosition);
   }, [game]);
 
-  return (
+  const render = useMemo(() =>
     <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%", backgroundColor: "black" }}>
       <div style={{
         position: "absolute", top: "50%", left: "50%", width: boardDimension?.width, height: boardDimension?.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
       }}>
         <CombatBoard />
       </div >
-
-
     </div >
-  );
+    , [boardDimension]);
+  return render;
 };
 const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   const [isVisible, setIsVisible] = useState(true);
-  const { user } = useUserManager();
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -130,13 +121,13 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
-  return (
+  const render = useMemo(() =>
     <SSAProvider app="solitaire">
-      {isVisible && user && <CombatProvider gameId={gameId}>
+      {isVisible && <CombatProvider gameId={gameId}>
         <BattlePlaza></BattlePlaza>
       </CombatProvider>}
     </SSAProvider>
-
-  );
+    , [isVisible]);
+  return render;
 };
 export default BattlePlayer;

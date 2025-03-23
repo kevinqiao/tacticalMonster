@@ -109,9 +109,9 @@ const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
 
 
 const CardGrid: React.FC = () => {
-  const { game, boardDimension } = useCombatManager();
-  const { playInit, playShuffle, playDeal } = useCardAnimate();
-
+  const { game, boardDimension, currentAct } = useCombatManager();
+  const { playInit } = useCardAnimate();
+  console.log("currentAct", currentAct);
   useEffect(() => {
     if (!game || !boardDimension) return;
     playInit();
@@ -123,15 +123,6 @@ const CardGrid: React.FC = () => {
         {game?.cards?.map((card) => (
           <CardContainer key={card.id} card={card} />
         ))}
-
-        {/* <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", position: "absolute", bottom: 0, right: 0, width: "100%", height: 60, backgroundColor: "red" }}>
-        <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: 70, height: 40, backgroundColor: "blue", color: "white", marginRight: 20 }} onClick={deal}>
-          Deal
-        </div>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 70, height: 40, backgroundColor: "blue", color: "white" }}>
-          Shuffle
-        </div>
-      </div> */}
       </div>
     </DnDProvider>
   );

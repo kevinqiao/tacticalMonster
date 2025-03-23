@@ -24,6 +24,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
         const seat = game.seats?.find(s => s.uid === user.uid);
         if (!seat) return false;
         if (seat.field === card.field) {
+            // console.log("canDrag", card);
             return true;
         }
 

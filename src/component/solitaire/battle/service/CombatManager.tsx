@@ -68,6 +68,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
       if (gameObj) {
         console.log("gameObj", gameObj);
         setGame(gameObj);
+        if (gameObj.actDue) {
+          setCurrentAct({ due: gameObj.actDue ?? -1, field: gameObj.currentTurn?.field ?? 0 });
+        }
         setLastUpdate(gameObj.lastUpdate ?? "####");
       }
     }
@@ -77,7 +80,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     setBoardDimension(boardDimension);
   }
   const askAct = useCallback((due: number) => {
-    console.log("askAct", due);
+    console.log("askAct", due, game);
     if (!game || !game.currentTurn) return;
     setCurrentAct({ due, field: game.currentTurn.field ?? 0 });
   }, [game])

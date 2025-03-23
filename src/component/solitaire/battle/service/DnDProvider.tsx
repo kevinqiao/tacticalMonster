@@ -3,15 +3,14 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useRef } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { Card, IDnDContext } from "../types/CombatTypes";
+import { cardCoord } from "../utils";
 import { DragEventData } from "../view/DnDCard";
 import { useCombatManager } from "./CombatManager";
 import useCombatAct from "./useCombatAct";
-
 const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 export const DnDContext = createContext<IDnDContext>({
-  canDrag: (id: string | number) => false,
   isTouchDevice: false,
   onDrag: (card: Card, data: DragEventData) => null,
   onDragStart: (card: Card, data: DragEventData) => null,
@@ -47,7 +46,8 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
   }, [game, boardDimension])
   const onDragStart = useCallback((card: Card, data: DragEventData) => {
     if (card.ele) {
-      const cards = game?.cards?.filter((c: Card) => ((c.field || 0) < 2 && c.id === card.id) || (c.field === card.field && c.col === card.col && c.row && c.row >= (card.row || 0)))
+      console.log("onDragStart", card);
+      const cards = game?.cards?.filter((c: Card) => ((c.field || 0) < 2 && c.id === card.id) || (c.field === card.field && c.col === card.col && c.row !== undefined && c.row >= (card.row || 0)))
       console.log("onDragStart", cards);
       cards?.sort((a, b) => (a.row || 0) - (b.row || 0));
       if (cards) {
@@ -55,12 +55,13 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   }, [game, boardDimension])
-  const onDragEnd = useCallback((card: Card, data: DragEventData) => {
+  const onDragEnd = useCallback(async (card: Card, data: DragEventData) => {
     console.log("onDragEnd", card, data, dropTargetsRef.current);
+    // const dropTarget = dropTargetsRef.current[0];
     if (dropTargetsRef.current.length > 0) {
       const dropTarget = dropTargetsRef.current[0];
       if (dropTarget) {
-        onDrop(card, dropTarget);
+        await onDrop(card, dropTarget);
       }
     } else {
       console.log("onDragEnd", draggingGroupRef.current);
@@ -74,32 +75,34 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     dropTargetsRef.current.length = 0;
 
   }, [game, boardDimension])
-  const onDrop = useCallback((card: Card, target: Card) => {
+  const onDrop = useCallback(async (card: Card, target: Card) => {
+    if (!game || !boardDimension) return;
     console.log("onDrop", card, target);
-    // const cards = game?.cards?.filter((c) => c.field === card.field && c.col === card.col && !draggingGroupRef.current.some((c) => c.col === card.col)).sort((a, b) => (a.row || 0) - (b.row || 0));
-    // const target = cards?.[cards.length - 1] || card;
-
-
+    const tl = gsap.timeline();
+    const prePos: Card[] = [];
     draggingGroupRef.current.forEach((c: Card, index: number) => {
-      const zoneNo = (direction === 0 ? (target.field || 0) : ((target.field || 0) === 2 ? 3 : 2))
-      c.x = target.x;
-      // console.log("onDrop zone:", zoneNo);
-      const y = (target.y || 0) + (index + 1) * (zoneNo === 2 ? 1 : -1) * (target.height || 0) * 0.15;
-      c.y = y;
-      c.field = target.field;
-      c.width = target.width;
-      c.height = target.height;
-      c.col = target.col;
-      c.row = (target.row || 0) + index + 1;
-      c.zIndex = c.row;
-      // console.log("onDrop", c, index);
+      // const { id, field, col, row, ele } = c;
+      prePos.push({ ...c });
+      c.row = (target.row || 0) + index + 1
+      c.field = target.field || 0;
+      c.col = target.col || 0;
+      const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
       if (c.ele) {
-        gsap.set(c.ele, { x: c.x, y: c.y, width: c.width, height: c.height, zIndex: c.zIndex });
+        gsap.to(c.ele, { x: coord.x, y: coord.y, zIndex: c.row + index + 1, duration: 0.3 })
       }
-    })
-    move(card.id, { field: target.field || 0, col: target.col || 0, row: target.row || 0 });
+    });
 
-  }, [boardDimension, game, direction])
+    const res = await move(card.id, { field: target.field || 0, col: target.col || 0, row: target.row || 0 });
+    if (!res) {
+      prePos.forEach((c) => {
+        const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
+        if (c.ele)
+          gsap.to(c.ele, { x: coord.x, y: coord.y, zIndex: c.row, duration: 0.3 })
+      })
+    }
+
+
+  }, [boardDimension, game, direction, move])
 
   const onDragOver = useCallback((card: Card, data: DragEventData) => {
     dropTargetsRef.current.length = 0;
@@ -107,7 +110,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     const dropTargets = elements.filter((el) => el !== card.ele && el.classList.contains('card'))
       .map((el) => el.getAttribute('data-id'))
       .filter((id) => id != null && !draggingGroupRef.current.some((c) => c.id === id));
-    console.log("onDragOver", dropTargets);
+    // console.log("onDragOver", dropTargets);
     const opponentField = direction === 0 ? 3 : 2;
     dropTargets.forEach((tid) => {
       const t = game?.cards?.find((c: Card) => c.id === tid);
@@ -117,15 +120,10 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     })
 
   }, [boardDimension, game])
-  const canDrag = useCallback((id: string) => {
-    const card = game?.cards?.find((c: Card) => c.id === id);
-    if (!card || card.field === 0 || card.field === 3 || !card.status) return false;
-    return true;
-  }, [game])
+
 
   const value: IDnDContext = {
     isTouchDevice: isTouchDevice(),
-    canDrag,
     onDrag,
     onDragStart,
     onDragEnd,
@@ -135,11 +133,10 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
 
   return <DnDContext.Provider value={value}>{children}</DnDContext.Provider>;
 };
-
 export const useDnDManager = () => {
   const context = useContext(DnDContext);
   if (!context) {
-    throw new Error("useCombatManager must be used within a CombatProvider");
+    throw new Error("useDnDManager must be used within a DnDProvider");
   }
   return context;
 };

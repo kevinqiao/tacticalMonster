@@ -6,7 +6,7 @@ import { internalMutation, internalQuery, query } from "../_generated/server";
 export const find = query({
     args: { gameId: v.optional(v.string()), lastUpdate: v.optional(v.string()) },
     handler: async (ctx, { gameId, lastUpdate }) => {
-        console.log("gameId", gameId, "lastUpdate", lastUpdate);
+        // console.log("gameId", gameId, "lastUpdate", lastUpdate);
         if (!gameId || !lastUpdate) {
             return []
         }
@@ -18,7 +18,7 @@ export const find = query({
         // console.log("lastTime",lastTime);
         const events = await ctx.db
             .query("game_event").withIndex("by_game", (q) => q.eq("gameId", gameId).gt("_creationTime", lastTime)).collect();
-        console.log("events", events);
+        // console.log("events", events);
         return events?.map((event) => Object.assign({}, event, { id: event?._id, time: event._creationTime, _creationTime: undefined, _id: undefined }))
 
     }

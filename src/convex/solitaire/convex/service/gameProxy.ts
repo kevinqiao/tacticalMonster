@@ -86,7 +86,9 @@ export const move = sessionMutation({
         try {
             const gameService = new GameManager(ctx);
             await gameService.initGame(gameId);
-            return await gameService.move(user.uid, cardId, to);
+            const res = await gameService.move(user.uid, cardId, to);
+            // console.log("move res", res);
+            return res;
         } catch (error) {
             console.log("move error", error);
             return { ok: false }
