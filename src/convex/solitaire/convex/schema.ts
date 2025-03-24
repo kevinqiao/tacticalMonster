@@ -25,7 +25,7 @@ export default defineSchema({
         }))),
         currentRound: v.optional(v.number()),
         currentTurn: v.optional(v.object({
-            field: v.number(),
+            uid: v.optional(v.string()),
             actions: v.optional(v.object({ acted: v.number(), max: v.number() })),
             status: v.optional(v.number()),
         })),

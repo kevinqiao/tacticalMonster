@@ -4,8 +4,8 @@ import CombatProvider, { useCombatManager } from "./service/CombatManager";
 import useCombatAct from "./service/useCombatAct";
 import "./style.css";
 import { createDualZones } from "./utils";
+import BoardGround from "./view/BoardGround";
 import CardGrid from "./view/CardGrid";
-import SeatGrid from "./view/SeatGrid";
 const DeckPanel: React.FC = () => {
   const { game, boardDimension } = useCombatManager();
   const { flipCard } = useCombatAct();
@@ -44,9 +44,10 @@ const CombatBoard: React.FC = () => {
         <div style={{ width: "100%", height: zones?.[2]['height'], backgroundColor: "yellow" }}>
 
         </div> */}
+        <BoardGround />
         <CardGrid />
-        <SeatGrid />
-        <DeckPanel />
+        {/* <SeatGrid /> */}
+        {/* <DeckPanel /> */}
       </div>
 
     </>
@@ -78,7 +79,6 @@ export const BattlePlaza: React.FC = () => {
         }
         // const zones = getDualBoardZones(boardDimension.width, boardDimension.height);
         createDualZones(boardDimension);
-        console.log(boardDimension.zones);
         updateBoardDimension(boardDimension);
       }
     };

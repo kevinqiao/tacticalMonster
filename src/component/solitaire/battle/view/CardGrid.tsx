@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
+import { useUserManager } from 'service/UserManager';
 import useCardAnimate from '../animation/useCardAnimate';
 import { useCombatManager } from '../service/CombatManager';
 import DnDProvider from '../service/DnDProvider';
 import { Card } from '../types/CombatTypes';
-import "./card.css";
 import DnDCard from './DnDCard';
+import "./style.css";
 
 interface CardSVGProps {
   card: Card;
@@ -109,13 +110,15 @@ const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
 
 
 const CardGrid: React.FC = () => {
-  const { game, boardDimension, currentAct } = useCombatManager();
+  const { user } = useUserManager();
+  const { game, boardDimension, currentAct, direction } = useCombatManager();
   const { playInit } = useCardAnimate();
-  console.log("currentAct", currentAct);
+
   useEffect(() => {
     if (!game || !boardDimension) return;
+    console.log("play init:", direction);
     playInit();
-  }, [game, boardDimension])
+  }, [game, boardDimension, direction])
 
   return (
     <DnDProvider>

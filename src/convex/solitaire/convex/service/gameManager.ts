@@ -94,14 +94,14 @@ class GameManager {
         await this.dbCtx.db.patch(this.game.gameId, { currentRound: this.game.currentRound });
         const roundEvent: any = { gameId: this.game.gameId, name: "roundStarted", actor: "####", data: { round } };
         await this.dbCtx.db.insert("game_event", roundEvent);
-        const field = this.game.seats?.[0]?.field;
-        if (field) {
-            await this.startTurn(field);
+        const uid = this.game.seats?.[0]?.uid;
+        if (uid) {
+            await this.startTurn(uid);
         }
     }
-    async startTurn(field: number) {
+    async startTurn(uid: string) {
         if (!this.game) return;
-        this.game.currentTurn = { field, actions: { acted: 0, max: 3 }, status: 0 };
+        this.game.currentTurn = { uid, actions: { acted: 0, max: 3 }, status: 0 };
         await this.dbCtx.db.patch(this.game.gameId, { currentTurn: this.game.currentTurn });
         const turnEvent: any = { gameId: this.game.gameId, name: "turnStarted", actor: "####", data: this.game.currentTurn };
         await this.dbCtx.db.insert("game_event", turnEvent);
@@ -122,39 +122,48 @@ class GameManager {
         const flipEvent: any = { gameId: this.game.gameId, name: "flipCompleted", actor: "####", data: { open: [cards[0]] } };
         const eventId = await this.dbCtx.db.insert("game_event", flipEvent);
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, lastUpdate: eventId });
+        await this.askAct(-1);
         return { ok: true, result: { open: [cards[0]] } }
     }
 
-    async move(uid: string, cardId: string, to: { field: number, col: number, row: number }) {
+    async move(uid: string, cardId: string, to: { field: number, slot: number }) {
         if (!this.game?.cards) return;
         const card = this.game.cards.find(card => card.id === cardId);
-        if (!card) return;
+        if (!card || !card.field) return;
         const data: any = { cardId, to }
-        if (card.field && card.field > 1) {
-            const precard = this.game.cards.find(c => c.field === card.field && c.col === card.col && c.row === ((card.row || 0) - 1));
-            console.log("precard", precard);
-            if (precard && !precard.status) {
-                data.open = [precard];
-                precard.status = 1;
+        if (card.field > 1) {
+            const fromSlot = this.game.cards.filter(c => c.field === card.field && c.col === card.col && (c.row || 0) < (card.row || 0)).sort((a, b) => (b.row || 0) - (a.row || 0));
+            console.log("fromSlot", fromSlot);
+            if (fromSlot.length > 0) {
+                console.log("open card", fromSlot[0]);
+                //open the first card
+                if (!fromSlot[0].status) {
+                    fromSlot[0].status = 1;
+                    data.open = [fromSlot[0]];
+                }
             }
         }
+        const targetSlot = this.game.cards.filter(c => c.field === to.field && c.col === to.slot);
+        const row = targetSlot.length > 0 ? (targetSlot.sort((a, b) => (b.row || 0) - (a.row || 0))[0]['row'] || 0) : -1;
         if (card.field && card.field > 1) {
             const group = this.game.cards.filter(c => card.field === c.field && (card.col || 0) === (c.col || 0) && (card.row || 0) <= (c.row || 0));
             group.sort((a, b) => (a.row || 0) - (b.row || 0)).forEach((c, index) => {
                 c.field = to.field;
-                c.col = to.col;
-                c.row = to.row + index + 1;
+                c.col = to.slot;
+                c.row = row + index + 1;
             });
+            data.move = group;
         } else {
             card.field = to.field;
-            card.col = to.col;
-            card.row = to.row + 1;
+            card.col = to.slot;
+            card.row = row + 1;
+            data.move = [card];
         }
-        console.log("card", card, data);
+
         const event: any = { gameId: this.game.gameId, name: "moveCompleted", actor: uid, data };
         const eventId = await this.dbCtx.db.insert("game_event", event);
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, lastUpdate: eventId });
-        // await this.askAct(-1);
+        await this.askAct(-1);
         return { ok: true, result: { open: data.open } }
     }
     async timeout() {

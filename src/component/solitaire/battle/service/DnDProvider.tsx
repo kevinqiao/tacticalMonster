@@ -16,7 +16,7 @@ export const DnDContext = createContext<IDnDContext>({
   onDrag: (card: Card, data: DragEventData) => null,
   onDragStart: (card: Card, data: DragEventData) => null,
   onDragEnd: (card: Card, data: DragEventData) => null,
-  onDrop: (card: Card, data: DragEventData) => null,
+  onDrop: (card: Card, target: string) => null,
   onDragOver: (card: Card, data: DragEventData) => null
 });
 
@@ -26,7 +26,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useUserManager();
   const { boardDimension, direction } = useCombatManager();
   const draggingGroupRef = useRef<Card[]>([]);
-  const dropTargetsRef = useRef<Card[]>([]);
+  const dropTargetsRef = useRef<string[]>([]);
   const { move } = useCombatAct();
 
   const onDrag = useCallback((card: Card, data: DragEventData) => {
@@ -76,29 +76,32 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     dropTargetsRef.current.length = 0;
 
   }, [user, game, boardDimension])
-  const onDrop = useCallback(async (card: Card, target: Card) => {
+  const onDrop = useCallback(async (card: Card, target: string) => {
     if (!game || !boardDimension || !user || !user.uid) return;
-    console.log("onDrop", card, target);
-    const tl = gsap.timeline();
+    const [zone, slot] = target.split("_");
+    const field = Number(zone) < 2 ? +zone : (direction === 1 ? (zone === "2" ? 3 : 2) : +zone);
+    const cards = game.cards?.filter((c: Card) => c.field === field && c.col === Number(slot));
+    const row = cards?.length || 0;
+    const col = Number(slot);
     const prePos: Card[] = [];
     draggingGroupRef.current.forEach((c: Card, index: number) => {
       // const { id, field, col, row, ele } = c;
       prePos.push({ ...c });
-      c.row = (target.row || 0) + index + 1
-      c.field = target.field || 0;
-      c.col = target.col || 0;
+      c.row = row + index;
+      c.field = field;
+      c.col = col;
       const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
       if (c.ele) {
-        gsap.to(c.ele, { x: coord.x, y: coord.y, zIndex: c.row + index + 1, duration: 0.3 })
+        gsap.set(c.ele, { x: coord.x, y: coord.y, width: coord.cwidth, height: coord.cheight, zIndex: c.row })
       }
     });
 
-    const res = await move(card.id, { field: target.field || 0, col: target.col || 0, row: target.row || 0 });
+    const res = await move(card.id, { field, slot: +slot });
     if (!res) {
       prePos.forEach((c) => {
         const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
         if (c.ele)
-          gsap.to(c.ele, { x: coord.x, y: coord.y, zIndex: c.row, duration: 0.3 })
+          gsap.to(c.ele, { x: coord.x, y: coord.y, width: coord.cwidth, height: coord.cheight, zIndex: c.row, duration: 0.3 })
       })
     }
 
@@ -108,17 +111,13 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
   const onDragOver = useCallback((card: Card, data: DragEventData) => {
     dropTargetsRef.current.length = 0;
     const elements = document.elementsFromPoint(data.x, data.y);
-    const dropTargets = elements.filter((el) => el !== card.ele && el.classList.contains('card'))
+    // const slotTargets = elements.filter((el) => el.classList.contains('slot')).map((el) => el.getAttribute('data-id'))
+    // console.log("slotTargets", slotTargets);
+    const dropTargets = elements.filter((el) => el.classList.contains('slot'))
       .map((el) => el.getAttribute('data-id'))
-      .filter((id) => id != null && !draggingGroupRef.current.some((c) => c.id === id));
-    // console.log("onDragOver", dropTargets);
-    const opponentField = direction === 0 ? 3 : 2;
-    dropTargets.forEach((tid) => {
-      const t = game?.cards?.find((c: Card) => c.id === tid);
-      if (t && t.field !== 1 && t.field !== opponentField && t.status) {
-        dropTargetsRef.current.push(t);
-      }
-    })
+      .filter((id) => id != null);
+    if (dropTargets.length > 0)
+      dropTargetsRef.current.push(...dropTargets);
 
   }, [boardDimension, game])
 

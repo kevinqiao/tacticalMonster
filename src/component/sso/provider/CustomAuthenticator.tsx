@@ -9,14 +9,13 @@ const CustomAuthenticator: React.FC<AuthProps> = (props) => {
     const { user, authComplete } = useUserManager();
     const convex = useConvex();
     const login = useCallback(async (cuid: string) => {
-        console.log("login");
+
         const res: User | null = await convex.action(api.service.AuthManager.authenticate, { partner: 1, data: { cuid }, channel: 1 });
-        console.log(res);
         if (res) {
             authComplete(res, 1);
         }
     }, [convex])
-    console.log(user);
+
     return <>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%", backgroundColor: "white", pointerEvents: "auto" }}>
             <div style={{ width: 400, display: "flex" }}>

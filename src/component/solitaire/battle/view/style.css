@@ -43,3 +43,22 @@
     transform: rotateY(0deg);
     -webkit-transform: rotateY(0deg);
 }
+
+.slot {
+    position: absolute;
+    user-select: none;
+    touch-action: none;
+}
+
+.zone {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    color: #fff;
+    opacity: 0.2;
+    z-index: 10000;
+    border: 1px solid #f50e0e;
+    pointer-events: none;
+}

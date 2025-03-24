@@ -7,7 +7,7 @@ import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
-    const { game, eventQueue, boardDimension, askAct, completeAct } = useCombatManager();
+    const { game, eventQueue, boardDimension, askAct, completeAct, direction } = useCombatManager();
     const { playDeal, playShuffle } = useCardAnimate();
     const { playOpenCard, playMoveCard } = useActionAnimate();
 
@@ -82,7 +82,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
 
         }
 
-    }, [user, game, eventQueue, boardDimension])
+    }, [user, game, eventQueue, boardDimension, direction])
 
 
     useEffect(() => {

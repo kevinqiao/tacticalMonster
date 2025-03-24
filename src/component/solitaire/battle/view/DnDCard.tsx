@@ -20,11 +20,13 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
     const { onDragStart, onDrag, onDragEnd, isTouchDevice } = useDnDManager()
 
     const canDrag = useMemo(() => {
-        if (!game || !currentAct || !user || !user.uid || !card.status) return false;
+
+        if (!game || !game.currentTurn || !currentAct || !user || !user.uid || !card.status) {
+            return false;
+        }
+
         const seat = game.seats?.find(s => s.uid === user.uid);
-        if (!seat) return false;
-        if (seat.field === card.field) {
-            // console.log("canDrag", card);
+        if (seat && seat.uid === currentAct.uid && ((card.field !== undefined && card.field < 2) || card.field === seat.field)) {
             return true;
         }
 

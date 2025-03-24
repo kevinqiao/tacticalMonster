@@ -1,11 +1,14 @@
 import gsap from "gsap";
 import { useCallback, useRef } from "react";
+import { useUserManager } from "service/UserManager";
 import { useCombatManager } from "../service/CombatManager";
-import { Card } from "../types/CombatTypes";
+import { Card, Slot } from "../types/CombatTypes";
 import { cardCoord, getDeckCoord } from "../utils";
 const useCardAnimate = () => {
    const timelineRef = useRef<GSAPTimeline | null>(null);
    const { game, boardDimension, direction } = useCombatManager();
+   const { user } = useUserManager();
+
 
    const playShuffle = useCallback(({ data, onComplete }: { data: any; onComplete?: () => void }) => {
       if (!boardDimension || !game) return;
@@ -25,7 +28,7 @@ const useCardAnimate = () => {
       })
       const eles = game.cards?.map((card) => card.ele);
       if (eles) {
-         const coord = getDeckCoord(boardDimension);
+         const coord: Slot = getDeckCoord(boardDimension);
          const tl = gsap.timeline({
             onComplete: () => {
                timelineRef.current = null;
@@ -53,8 +56,8 @@ const useCardAnimate = () => {
             ease: "power2.in",
          });
          tl.to(eles, {
-            x: coord.x,
-            y: coord.y,
+            x: coord.left,
+            y: coord.top,
             duration: 0.5,
             ease: "power2.out",
          }, ">=0.5");

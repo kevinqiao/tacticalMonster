@@ -6,31 +6,6 @@ import { cardCoord } from "../utils";
 const useActionAnimate = () => {
 
    const { game, boardDimension, direction } = useCombatManager();
-   const playFlipCard = useCallback(({ cards }: { cards: Card[] }) => {
-      if (!boardDimension || !game) return;
-
-      const openCards = cards.map((c) => {
-         const card = game.cards?.find((card) => card.id === c.id);
-         if (card) {
-            Object.assign(card, c);
-            card.status = 1;
-         }
-         return card;
-      })
-      openCards.forEach((card) => {
-         if (card && card.ele) {
-            popCard(card);
-            card.status = 1;
-            gsap.to(card.ele, {
-               duration: 0.5,
-               rotateY: 180,
-               ease: "power2.inOut",
-            })
-         }
-      })
-
-
-   }, [game, boardDimension])
    const playOpenCard = useCallback(({ cards, onComplete }: { cards: Card[], onComplete?: () => void }) => {
       if (!boardDimension || !game || !cards || cards.length === 0) {
          onComplete?.();
@@ -113,22 +88,9 @@ const useActionAnimate = () => {
          }
       }
    }, [game, boardDimension])
-   const playMoveCard = useCallback(({ data, onComplete }: { data: { open: Card[], cardId: string, to: { field: number; col: number; row: number } }, onComplete?: () => void }) => {
+   const playMoveCard = useCallback(({ data, onComplete }: { data: { open: Card[], cardId: string, to: { field: number; slot: number }, move: Card[] }, onComplete?: () => void }) => {
       if (!game || !boardDimension) return;
-      const { open, cardId, to } = data;
-      const card = game?.cards?.find((c) => c.id === cardId);
-      if (!card) {
-         return;
-      }
-
-      const group = game?.cards?.filter((c) => {
-         if (c.field === 1 && c.id === cardId)
-            return c;
-         if (c.field !== 1 && c.field === card.field && c.col === card.col && (c.row || 0) >= (card.row || 0))
-            return c;
-         return null;
-      }).filter((c) => c !== null);
-
+      const { open, move } = data;
       const tl = gsap.timeline({
          onComplete: () => {
             if (open && open.length > 0) {
@@ -139,24 +101,26 @@ const useActionAnimate = () => {
             tl.kill();
          }
       });
-      group?.forEach((c, index) => {
-         c.field = to.field;
-         c.row = index + to.row + 1;
-         c.col = to.col;
-         const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
-         c.x = coord.x;
-         c.y = coord.y;
-         c.zIndex = coord.zIndex;
-         if (c.ele) {
-            tl.to(c.ele, {
+      move.forEach((c, index) => {
+         const card = game.cards?.find((card) => card.id === c.id);
+         if (!card) return;
+         card.field = c.field;
+         card.col = c.col;
+         card.row = c.row;
+         const coord = cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
+         card.x = coord.x;
+         card.y = coord.y;
+         if (card.ele) {
+            tl.fromTo(card.ele, { zIndex: (card.row || 0) + 10000 }, {
                duration: 0.5,
                x: coord.x,
                y: coord.y,
-               zIndex: c.zIndex + 1000,
+               width: coord.cwidth,
+               height: coord.cheight,
                ease: "power2.inOut",
                onComplete: () => {
-                  if (c.ele && c.zIndex) {
-                     c.ele.style.zIndex = c.zIndex.toString();
+                  if (card.ele) {
+                     card.ele.style.zIndex = (card.row || 0).toString();
                   }
                }
             }, "<")

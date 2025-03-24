@@ -1,4 +1,4 @@
-import { Zone } from "../utils";
+
 import { DragEventData } from "../view/DnDCard";
 
 
@@ -41,7 +41,25 @@ export interface Seat {
     botOnEle?: HTMLDivElement | null;
     ele?: HTMLDivElement | null;
 }
-
+export type Slot = {
+    index: number,
+    top: number,
+    left: number,
+    width: number,
+    height: number,
+    ele?: HTMLDivElement | null,
+}
+export type Zone = {
+    index: number,
+    top: number,
+    left: number,
+    width: number,
+    height: number,
+    cwidth: number,
+    cheight: number,
+    slots: Slot[],
+    ele?: HTMLDivElement | null,
+}
 
 export interface GameModel {
     gameId: string;
@@ -55,7 +73,7 @@ export interface GameModel {
 }
 
 export interface CombatTurn {
-    field: number;
+    uid: string;
     actions: { acted: number; max: number };
     status: number;//0-not started,1-started,2-ended 
 }
@@ -77,7 +95,7 @@ export interface ICombatContext {
     boardContainer: { [k: string]: { [k: number]: HTMLDivElement | null } };
     boardDimension: BoardDimension | null;
     game: GameModel | null;
-    currentAct: { due: number; field: number } | null;
+    currentAct: { due: number; uid: string } | null;
     players?: Player[];
     eventQueue: CombatEvent[];
     askAct: (due: number) => void;
@@ -89,7 +107,7 @@ export interface IDnDContext {
     onDrag: (card: Card, data: DragEventData) => void;
     onDragStart: (card: Card, data: DragEventData) => void;
     onDragEnd: (card: Card, data: DragEventData) => void;
-    onDrop: (card: Card, data: DragEventData) => void;
+    onDrop: (card: Card, target: string) => void;
     onDragOver: (card: Card, data: DragEventData) => void;
 }
 

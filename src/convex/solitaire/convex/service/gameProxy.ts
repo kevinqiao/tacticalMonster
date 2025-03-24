@@ -79,7 +79,7 @@ export const flip = sessionMutation({
     }
 })
 export const move = sessionMutation({
-    args: { gameId: v.string(), cardId: v.string(), to: v.object({ field: v.number(), col: v.number(), row: v.number() }) },
+    args: { gameId: v.string(), cardId: v.string(), to: v.object({ field: v.number(), slot: v.number() }) },
     handler: async (ctx, { gameId, cardId, to }) => {
         const user = ctx.user;
         if (!user || !user.uid) return false;

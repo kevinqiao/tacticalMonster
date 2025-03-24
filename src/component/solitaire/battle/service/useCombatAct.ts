@@ -9,8 +9,8 @@ const useCombatAct = () => {
   const { game, eventQueue, currentAct, completeAct } = useCombatManager();
   const { playOpenCard } = useActionAnimate();
   const convex = useConvex();
-  console.log("user", user);
-  const move = useCallback(async (cardId: string, to: { field: number, col: number, row: number }) => {
+
+  const move = useCallback(async (cardId: string, to: { field: number, slot: number }) => {
     console.log("move", cardId, to, user);
     if (!game || !user || !user.uid) return;
     completeAct();
@@ -33,7 +33,7 @@ const useCombatAct = () => {
   const flipCard = useCallback(async () => {
     if (!game || !user || !user.uid) return;
     const seat = game.seats?.find(s => s.uid === user.uid);
-    if (!seat || seat.field !== currentAct?.field) return;
+    if (!seat || seat.uid !== currentAct?.uid) return;
 
     const res: any = await convex.mutation(api.service.gameProxy.flip, {
       uid: user.uid,
