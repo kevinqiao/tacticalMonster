@@ -87,6 +87,7 @@ export const getBoardZone = (index: number, boardWidth: number, boardHeight: num
         cwidth: 0,
         cheight: 0,
         slots: [],
+        actionBarEles: {},
     }
     if (index === 0) {
         zone.top = boardHeight * 5 / 12;

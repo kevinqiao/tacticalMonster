@@ -59,6 +59,12 @@
     color: #fff;
     opacity: 0.2;
     z-index: 10000;
-    border: 1px solid #f50e0e;
+    border: 0px solid #f50e0e;
     pointer-events: none;
+}
+
+.action-bar-item {
+    height: 6px;
+    border: 1px solid #fbf6f6;
+    background-color: #373535;
 }

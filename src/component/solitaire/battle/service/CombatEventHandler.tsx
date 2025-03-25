@@ -35,25 +35,38 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
             switch (name) {
                 case "dealCompleted":
                     event.status = 1;
-                    console.log("deal", event)
+            
                     playDeal({ data: event.data, onComplete: () => { onComplete() } });
                     break;
                 case "shuffleCompleted":
                     event.status = 1;
-                    console.log("shuffle", event)
                     playShuffle({ data: event.data, onComplete: () => { onComplete() } });
                     break;
-                case "flipCompleted":
-                    completeAct();
+                case "flip":
                     event.status = 1;
                     console.log("flip", event)
-                    playOpenCard({ cards: event.data.open, onComplete: () => { onComplete() } });
+                    playOpenCard({
+                        cards: event.data.open, onComplete: () => {
+                            if (game.currentTurn?.actions) {
+                                game.currentTurn.actions.acted++;
+                            }
+                            completeAct();
+                            onComplete()
+                        }
+                    });
                     break;
-                case "moveCompleted":
-                    completeAct();
+                case "move":
                     event.status = 1;
                     console.log("move", event)
-                    playMoveCard({ data: event.data, onComplete });
+                    playMoveCard({
+                        data: event.data, onComplete: () => {
+                            if (game.currentTurn?.actions) {
+                                game.currentTurn.actions.acted++;
+                            }
+                            completeAct();
+                            onComplete()
+                        }
+                    });
                     break;
                 case "roundStarted":
                     event.status = 1
@@ -64,7 +77,6 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
                 case "turnStarted":
                     event.status = 1
                     game.currentTurn = event.data;
-                    console.log("turnStarted", game.currentTurn)
                     onComplete();
                     break;
                 case "askAct":

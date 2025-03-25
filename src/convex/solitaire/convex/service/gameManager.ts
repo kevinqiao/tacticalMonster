@@ -145,8 +145,8 @@ class GameManager {
             this.turnOver();
         } else {
             this.game.actDue = dueTime;
-            this.game.currentTurn.actions.acting = this.game.currentTurn.actions.acted + 1;
-            const askActEvent: any = { gameId: this.game.gameId, name: "askAct", actor: "####", data: { dueTime } };
+            const act = this.game.currentTurn.actions.acted + 1;
+            const askActEvent: any = { gameId: this.game.gameId, name: "askAct", actor: "####", data: { dueTime, act } };
             const eventId = await this.dbCtx.db.insert("game_event", askActEvent);
             await this.dbCtx.db.patch(this.game.gameId, { actDue: dueTime, lastUpdate: eventId });
         }
@@ -156,7 +156,7 @@ class GameManager {
         const cards = this.game.cards?.filter((c) => c.field === 1 && !c.status);
         if (!cards || cards.length === 0) return;
         cards[0].status = 1;
-        const flipEvent: any = { gameId: this.game.gameId, name: "flipCompleted", actor: "####", data: { open: [cards[0]] } };
+        const flipEvent: any = { gameId: this.game.gameId, name: "flip", actor: uid, data: { open: [cards[0]] } };
         const eventId = await this.dbCtx.db.insert("game_event", flipEvent);
         this.game.currentTurn.actions.acted++;
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
@@ -198,7 +198,7 @@ class GameManager {
             data.move = [card];
         }
 
-        const event: any = { gameId: this.game.gameId, name: "moveCompleted", actor: uid, data };
+        const event: any = { gameId: this.game.gameId, name: "move", actor: uid, data };
         const eventId = await this.dbCtx.db.insert("game_event", event);
         this.game.currentTurn.actions.acted++;
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });

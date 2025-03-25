@@ -59,7 +59,7 @@ export type Zone = {
     cheight: number,
     slots: Slot[],
     ele?: HTMLDivElement | null,
-    actedBarEles?: HTMLDivElement[] | null,
+    actionBarEles: { [k: number]: HTMLDivElement | null },
 }
 
 export interface GameModel {
@@ -97,7 +97,7 @@ export interface ICombatContext {
     boardContainer: { [k: string]: { [k: number]: HTMLDivElement | null } };
     boardDimension: BoardDimension | null;
     game: GameModel | null;
-    currentAct: { due: number; uid: string } | null;
+    currentAct: { act: number, due: number; uid: string } | null;
     players?: Player[];
     eventQueue: CombatEvent[];
     askAct: (due: number) => void;
