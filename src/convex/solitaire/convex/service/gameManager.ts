@@ -33,8 +33,6 @@ class GameManager {
                     game.actDue = game.actDue - Date.now();
                 }
                 this.game = { ...game, _id: undefined, _creationTime: undefined, gameId: id };
-
-
             }
         } catch (error) {
             console.log("initGame error", error);
@@ -84,58 +82,98 @@ class GameManager {
         const dealEventId = await this.dbCtx.db.insert("game_event", dealEvent);
         await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: dealEventId, status: 1 });
 
-        await this.startRound(0);
+        await this.startRound();
 
     }
-    async startRound(round: number) {
+    async gameOver() {
         if (!this.game) return;
-        this.game.status = 2;
-        this.game.currentRound = round;
-        await this.dbCtx.db.patch(this.game.gameId, { currentRound: this.game.currentRound });
+        const event: any = { gameId: this.game.gameId, name: "gameOver", actor: "####", data: { status: 3 } };
+        const eventId = await this.dbCtx.db.insert("game_event", event);
+        this.game.status = 3;
+        await this.dbCtx.db.patch(this.game.gameId, { status: 3, lastUpdate: eventId });
+    }
+    async startRound() {
+        if (!this.game) return;
+        const round = this.game.currentRound?.no || 0;
         const roundEvent: any = { gameId: this.game.gameId, name: "roundStarted", actor: "####", data: { round } };
-        await this.dbCtx.db.insert("game_event", roundEvent);
+        const eventId = await this.dbCtx.db.insert("game_event", roundEvent);
+        this.game.status = 2;
+        this.game.currentRound = { no: round, turnOvers: [], status: 0 };
+        await this.dbCtx.db.patch(this.game.gameId, { currentRound: this.game.currentRound, lastUpdate: eventId });
         const uid = this.game.seats?.[0]?.uid;
         if (uid) {
             await this.startTurn(uid);
         }
     }
+    async roundOver() {
+        if (!this.game || !this.game.currentRound) return;
+        this.game.currentRound.status = 1;
+        await this.dbCtx.db.patch(this.game.gameId, { currentRound: this.game.currentRound });
+        if (this.game.currentRound.no < 2) {
+            await this.startRound();
+        } else {
+            await this.gameOver();
+        }
+    }
     async startTurn(uid: string) {
         if (!this.game) return;
         this.game.currentTurn = { uid, actions: { acted: 0, max: 3 }, status: 0 };
-        await this.dbCtx.db.patch(this.game.gameId, { currentTurn: this.game.currentTurn });
         const turnEvent: any = { gameId: this.game.gameId, name: "turnStarted", actor: "####", data: this.game.currentTurn };
-        await this.dbCtx.db.insert("game_event", turnEvent);
+        const eventId = await this.dbCtx.db.insert("game_event", turnEvent);
+        await this.dbCtx.db.patch(this.game.gameId, { currentTurn: this.game.currentTurn, lastUpdate: eventId });
         await this.askAct(-1);
     }
+    async turnOver() {
+        if (!this.game || !this.game.currentRound || !this.game.currentTurn) return;
+        this.game.currentRound.turnOvers.push(this.game.currentTurn.uid);
+        this.game.currentTurn.status = 1;
+        await this.dbCtx.db.patch(this.game.gameId, { currentTurn: this.game.currentTurn, currentRound: this.game.currentRound });
+        const turnOverEvent: any = { gameId: this.game.gameId, name: "turnOver", actor: "####", data: this.game.currentTurn };
+        await this.dbCtx.db.insert("game_event", turnOverEvent);
+        if (this.game.currentRound.turnOvers.length === this.game.seats?.length) {
+            this.startRound();
+        } else {
+            const nextSeats = this.game.seats?.filter((s) => !this.game?.currentRound?.turnOvers.includes(s.uid))
+            if (nextSeats && nextSeats.length > 0) {
+                this.startTurn(nextSeats[0].uid);
+            }
+        }
+    }
     async askAct(dueTime: number) {
-        if (!this.game) return;
-        this.game.actDue = dueTime;
-        const askActEvent: any = { gameId: this.game.gameId, name: "askAct", actor: "####", data: { dueTime } };
-        await this.dbCtx.db.insert("game_event", askActEvent);
-        await this.dbCtx.db.patch(this.game.gameId, { actDue: dueTime });
+        if (!this.game || !this.game.currentTurn) return;
+        if (this.game.currentTurn.actions.max === this.game.currentTurn.actions.acted) {
+            this.turnOver();
+        } else {
+            this.game.actDue = dueTime;
+            this.game.currentTurn.actions.acting = this.game.currentTurn.actions.acted + 1;
+            const askActEvent: any = { gameId: this.game.gameId, name: "askAct", actor: "####", data: { dueTime } };
+            const eventId = await this.dbCtx.db.insert("game_event", askActEvent);
+            await this.dbCtx.db.patch(this.game.gameId, { actDue: dueTime, lastUpdate: eventId });
+        }
     }
     async flip(uid: string) {
-        if (!this.game) return;
+        if (!this.game || !this.game.currentTurn) return;
         const cards = this.game.cards?.filter((c) => c.field === 1 && !c.status);
         if (!cards || cards.length === 0) return;
         cards[0].status = 1;
         const flipEvent: any = { gameId: this.game.gameId, name: "flipCompleted", actor: "####", data: { open: [cards[0]] } };
         const eventId = await this.dbCtx.db.insert("game_event", flipEvent);
-        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, lastUpdate: eventId });
+        this.game.currentTurn.actions.acted++;
+        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
         await this.askAct(-1);
         return { ok: true, result: { open: [cards[0]] } }
     }
 
     async move(uid: string, cardId: string, to: { field: number, slot: number }) {
-        if (!this.game?.cards) return;
+        if (!this.game?.cards || !this.game.currentTurn) return;
         const card = this.game.cards.find(card => card.id === cardId);
         if (!card || !card.field) return;
         const data: any = { cardId, to }
         if (card.field > 1) {
             const fromSlot = this.game.cards.filter(c => c.field === card.field && c.col === card.col && (c.row || 0) < (card.row || 0)).sort((a, b) => (b.row || 0) - (a.row || 0));
-            console.log("fromSlot", fromSlot);
+            // console.log("fromSlot", fromSlot);
             if (fromSlot.length > 0) {
-                console.log("open card", fromSlot[0]);
+                // console.log("open card", fromSlot[0]);
                 //open the first card
                 if (!fromSlot[0].status) {
                     fromSlot[0].status = 1;
@@ -162,7 +200,8 @@ class GameManager {
 
         const event: any = { gameId: this.game.gameId, name: "moveCompleted", actor: uid, data };
         const eventId = await this.dbCtx.db.insert("game_event", event);
-        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, lastUpdate: eventId });
+        this.game.currentTurn.actions.acted++;
+        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
         await this.askAct(-1);
         return { ok: true, result: { open: data.open } }
     }

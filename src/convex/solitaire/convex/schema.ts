@@ -23,10 +23,10 @@ export default defineSchema({
             uid: v.optional(v.string()),
             botOn: v.optional(v.boolean()),
         }))),
-        currentRound: v.optional(v.number()),
+        currentRound: v.optional(v.object({ no: v.number(), turnOvers: v.array(v.string()), status: v.optional(v.number()) })),
         currentTurn: v.optional(v.object({
-            uid: v.optional(v.string()),
-            actions: v.optional(v.object({ acted: v.number(), max: v.number() })),
+            uid: v.string(),
+            actions: v.object({ acted: v.number(), acting: v.optional(v.number()), max: v.number() }),
             status: v.optional(v.number()),
         })),
         status: v.number(),//0-init,1-playing  2-over 3-settled 4-cancelled

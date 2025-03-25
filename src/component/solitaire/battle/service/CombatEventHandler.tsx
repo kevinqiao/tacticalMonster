@@ -82,7 +82,7 @@ const CombatEventHandler = ({ children }: { children: ReactNode }): React.ReactE
 
         }
 
-    }, [user, game, eventQueue, boardDimension, direction])
+    }, [user, game, eventQueue, boardDimension, direction, askAct, completeAct])
 
 
     useEffect(() => {

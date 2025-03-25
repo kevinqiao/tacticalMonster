@@ -29,11 +29,10 @@ const useCombatAct = () => {
       return res.result;
     }
 
-  }, [user, game, convex, playOpenCard, completeAct]);
+  }, [user, currentAct, game, playOpenCard, completeAct]);
   const flipCard = useCallback(async () => {
-    if (!game || !user || !user.uid) return;
-    const seat = game.seats?.find(s => s.uid === user.uid);
-    if (!seat || seat.uid !== currentAct?.uid) return;
+    console.log("flipCard", game, currentAct, user, user.uid);
+    if (!game || !currentAct || !user || !user.uid || currentAct.uid !== user.uid) return;
 
     const res: any = await convex.mutation(api.service.gameProxy.flip, {
       uid: user.uid,
@@ -45,7 +44,8 @@ const useCombatAct = () => {
       playOpenCard({ cards: res.result.open });
     }
     console.log("move res", res);
-  }, [game, user, eventQueue, playOpenCard]);
+  }, [game, currentAct, user, eventQueue, playOpenCard]);
+
   return { move, flipCard, currentAct };
 };
 export default useCombatAct;

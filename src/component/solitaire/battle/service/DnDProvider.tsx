@@ -44,7 +44,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     }
     onDragOver(card, data);
 
-  }, [user, game, boardDimension])
+  }, [user, game, boardDimension, direction])
   const onDragStart = useCallback((card: Card, data: DragEventData) => {
     if (card.ele) {
       console.log("onDragStart", card);
@@ -55,7 +55,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
         draggingGroupRef.current.push(...cards);
       }
     }
-  }, [user, game, boardDimension])
+  }, [user, game, boardDimension, direction])
   const onDragEnd = useCallback(async (card: Card, data: DragEventData) => {
     console.log("onDragEnd", card, data, dropTargetsRef.current);
     // const dropTarget = dropTargetsRef.current[0];
@@ -75,7 +75,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     draggingGroupRef.current.length = 0;
     dropTargetsRef.current.length = 0;
 
-  }, [user, game, boardDimension])
+  }, [user, game, boardDimension, direction])
   const onDrop = useCallback(async (card: Card, target: string) => {
     if (!game || !boardDimension || !user || !user.uid) return;
     const [zone, slot] = target.split("_");
@@ -119,7 +119,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     if (dropTargets.length > 0)
       dropTargetsRef.current.push(...dropTargets);
 
-  }, [boardDimension, game])
+  }, [boardDimension, game, direction])
 
 
   const value: IDnDContext = {

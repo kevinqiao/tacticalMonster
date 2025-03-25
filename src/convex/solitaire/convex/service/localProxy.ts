@@ -1,6 +1,4 @@
 import { v } from "convex/values";
-import { GameModel } from "../../../../component/ludo/battle/types/CombatTypes";
-import { internal } from "../_generated/api";
 import { internalAction, internalMutation } from "../_generated/server";
 import GameManager from "./gameManager";
 
@@ -61,17 +59,7 @@ export const timeout = internalMutation({
         return true;
     }
 })
-export const botCheck = internalAction({
-    args: {},
-    handler: async (ctx) => {
-        const games: any = await ctx.runQuery(internal.dao.gameDao.findDuePast);
-        console.log("games", games);
-        for (const game of games) {
-            const gameService = new GameManager(ctx, game as GameModel);
-            gameService.timeout();
-        }
-    }
-})
+
 
 
 

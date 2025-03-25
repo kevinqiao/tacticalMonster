@@ -35,7 +35,13 @@ const SlotContainer: React.FC<{ slot: Slot, zone: Zone }> = ({ slot, zone }) => 
     </>
   );
 };
+const ActedBarGrid: React.FC<{ zone: Zone }> = ({ zone }) => {
+  return (
+    <>
 
+    </>
+  );
+};
 const ZoneContainer: React.FC<{ zone: Zone }> = ({ zone }) => {
   return (
     <>

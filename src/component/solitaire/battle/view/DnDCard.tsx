@@ -21,12 +21,11 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
 
     const canDrag = useMemo(() => {
 
-        if (!game || !game.currentTurn || !currentAct || !user || !user.uid || !card.status) {
+        if (!game || !game.currentTurn || !currentAct || !user || !user.uid || !card.status || currentAct.uid !== user.uid) {
             return false;
         }
-
-        const seat = game.seats?.find(s => s.uid === user.uid);
-        if (seat && seat.uid === currentAct.uid && ((card.field !== undefined && card.field < 2) || card.field === seat.field)) {
+        const currentSeat = game.seats?.find(s => s.uid === currentAct.uid);
+        if (card.field === 1 || card.field === currentSeat?.field) {
             return true;
         }
 

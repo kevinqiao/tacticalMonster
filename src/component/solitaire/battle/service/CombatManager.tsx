@@ -80,6 +80,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     setBoardDimension(boardDimension);
   }
   const askAct = useCallback((due: number) => {
+    console.log("askAct", game?.currentTurn);
     if (!game || !game.currentTurn) return;
     setCurrentAct({ due, uid: game.currentTurn.uid ?? "" });
   }, [game])

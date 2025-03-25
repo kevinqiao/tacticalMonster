@@ -35,8 +35,8 @@ export interface Card {
     status?: number;//0-normal,1-flipped
 }
 export interface Seat {
-    uid?: string;
-    field?: number;
+    uid: string;
+    field: number;
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
     ele?: HTMLDivElement | null;
@@ -59,12 +59,13 @@ export type Zone = {
     cheight: number,
     slots: Slot[],
     ele?: HTMLDivElement | null,
+    actedBarEles?: HTMLDivElement[] | null,
 }
 
 export interface GameModel {
     gameId: string;
     seats?: Seat[];
-    currentRound?: number;
+    currentRound?: CombatRound;
     currentTurn?: CombatTurn;//-1:not started,0-3:selected
     cards?: Card[];
     actDue?: number | null;
@@ -74,11 +75,12 @@ export interface GameModel {
 
 export interface CombatTurn {
     uid: string;
-    actions: { acted: number; max: number };
+    actions: { acted: number; acting?: number; max: number };
     status: number;//0-not started,1-started,2-ended 
 }
 export interface CombatRound {
     no: number;
+    turnOvers: string[];//uid array who have acted
     status?: number;//0-inited 1-ongoing 2-completed
 }
 
