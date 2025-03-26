@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
+import { SceneProvider } from "./service/CombatSceneProvider";
 import useCombatAct from "./service/useCombatAct";
 import "./style.css";
 import { createDualZones } from "./utils";
-import BoardGround from "./view/BoardGround";
+import BackGround from "./view/BackGround";
 import CardGrid from "./view/CardGrid";
+import SceneGrid from "./view/SceneGrid";
 const DeckPanel: React.FC = () => {
   const { game, boardDimension } = useCombatManager();
   const { flipCard } = useCombatAct();
@@ -31,7 +33,6 @@ const DeckPanel: React.FC = () => {
   )
 }
 const CombatBoard: React.FC = () => {
-  console.log("CombatBoard");
   return (
     <>
       <div style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
@@ -44,8 +45,9 @@ const CombatBoard: React.FC = () => {
         <div style={{ width: "100%", height: zones?.[2]['height'], backgroundColor: "yellow" }}>
 
         </div> */}
-        <BoardGround />
+        <BackGround />
         <CardGrid />
+        <SceneGrid />
         {/* <SeatGrid /> */}
         {/* <DeckPanel /> */}
       </div>
@@ -124,7 +126,9 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   const render = useMemo(() =>
     <SSAProvider app="solitaire">
       {isVisible && <CombatProvider gameId={gameId}>
-        <BattlePlaza></BattlePlaza>
+        <SceneProvider>
+          <BattlePlaza></BattlePlaza>
+        </SceneProvider>
       </CombatProvider>}
     </SSAProvider>
     , [isVisible]);

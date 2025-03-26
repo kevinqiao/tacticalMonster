@@ -112,4 +112,6 @@ export interface IDnDContext {
     onDrop: (card: Card, target: string) => void;
     onDragOver: (card: Card, data: DragEventData) => void;
 }
-
+export interface ICombatSceneContext {
+    scenes: { [k: string]: { [k: number]: HTMLDivElement | null } };
+}

@@ -7,7 +7,7 @@ const SlotContainer: React.FC<{ slot: Slot, zone: Zone }> = ({ slot, zone }) => 
   const { flipCard } = useCombatAct();
   return (
     <>
-      <div ref={(ele) => slot.ele = ele} className="slot" data-id={zone.index + "_" + slot.index} style={{
+      <div ref={(ele) => slot.ele = ele} className="slot" data-id={`${zone.index}_${slot.index}`} style={{
         position: "absolute",
         top: slot.top,
         left: slot.left,
@@ -15,22 +15,23 @@ const SlotContainer: React.FC<{ slot: Slot, zone: Zone }> = ({ slot, zone }) => 
         height: slot.height,
         border: `${"0px solid " + (zone.index === 1 ? "red" : "white")}`,
         pointerEvents: "auto",
-        zIndex: -100
-      }}
-      >
-      </div>
-      {zone.index === 1 && slot.index === -1 && <div style={{
-        position: "absolute",
-        top: slot.top,
-        left: slot.left,
-        width: slot.width,
-        height: slot.height,
-        pointerEvents: "auto",
-        zIndex: 2000
-      }}
-        onClick={flipCard}
-      >
-      </div>}
+        zIndex: -100,
+      }}>
+      </div >
+      {
+        zone.index === 1 && slot.index === -1 && <div style={{
+          position: "absolute",
+          top: slot.top,
+          left: slot.left,
+          width: slot.width,
+          height: slot.height,
+          pointerEvents: "auto",
+          zIndex: 2000
+        }}
+          onClick={flipCard}
+        >
+        </div>
+      }
 
     </>
   );
@@ -103,15 +104,8 @@ const ZoneContainer: React.FC<{ zone: Zone }> = ({ zone }) => {
     </>
   );
 };
-const ZoneCover: React.FC<{ zone: Zone }> = ({ zone }) => {
-  return (
-    <div ref={(ele) => zone.ele = ele} className="zone"
-      style={{ position: "absolute", top: zone.top, left: zone.left, width: zone.width, height: zone.height }}>
-      {/* {"zone:" + zone.index} */}
-    </div>
-  );
-};
-const BoardGrid: React.FC = () => {
+
+const BackGround: React.FC = () => {
   const { boardDimension } = useCombatManager();
   return (
     <>
@@ -120,12 +114,9 @@ const BoardGrid: React.FC = () => {
           <ZoneContainer key={zone.index} zone={zone} />
         ))}
       </div>
-      {Object.values(boardDimension?.zones || {}).map((zone) => (
-        <ZoneCover key={zone.index} zone={zone} />
-      ))}
     </>
   );
 };
 
 
-export default BoardGrid;
+export default BackGround;
