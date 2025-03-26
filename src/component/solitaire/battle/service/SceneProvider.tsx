@@ -1,10 +1,10 @@
-import React, { createContext, ReactNode, useContext, useRef, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useRef, useState } from 'react';
 
 interface SceneContextType {
     registerRef: (id: string, isCustomId: boolean) => { id: string; ref: React.RefObject<HTMLDivElement> };
     markSceneLoaded: (id: string) => void;
     allDivsLoaded: boolean;
-    divRefs: Map<string, React.RefObject<HTMLDivElement>>;
+    sceneRefs: Map<string, React.RefObject<HTMLDivElement>>;
 }
 
 const SceneContext = createContext<SceneContextType | undefined>(undefined);
@@ -18,7 +18,7 @@ export const SceneProvider: React.FC<SceneProviderProps> = ({ children }) => {
     const divRefs = useRef<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
     const customIdDivs = useRef<Set<string>>(new Set()); // 只存储自定义 id 的 div
 
-    const registerRef = (id: string, isCustomId: boolean) => {
+    const registerRef = useCallback((id: string, isCustomId: boolean) => {
         if (!divRefs.current.has(id)) {
             divRefs.current.set(id, React.createRef<HTMLDivElement>());
             if (isCustomId) {
@@ -26,13 +26,13 @@ export const SceneProvider: React.FC<SceneProviderProps> = ({ children }) => {
             }
         }
         return { id, ref: divRefs.current.get(id)! };
-    };
+    }, []);
 
-    const markSceneLoaded = (id: string) => {
+    const markSceneLoaded = useCallback((id: string) => {
         if (customIdDivs.current.has(id)) {
             setSceneLoaded((prev) => new Set(prev).add(id));
         }
-    };
+    }, []);
 
 
 
@@ -44,7 +44,7 @@ export const SceneProvider: React.FC<SceneProviderProps> = ({ children }) => {
         registerRef,
         markSceneLoaded,
         allDivsLoaded,
-        divRefs: divRefs.current,
+        sceneRefs: divRefs.current,
     };
 
     return <SceneContext.Provider value={value}>{children}</SceneContext.Provider>;

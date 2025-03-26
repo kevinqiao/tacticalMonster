@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
-import { SceneProvider } from "./service/CombatSceneProvider";
+import { SceneProvider } from "./service/SceneProvider";
 import useCombatAct from "./service/useCombatAct";
 import "./style.css";
 import { createDualZones } from "./utils";
@@ -36,20 +36,9 @@ const CombatBoard: React.FC = () => {
   return (
     <>
       <div style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
-        {/* <div style={{ width: "100%", height: zones?.[3]?.['height'], backgroundColor: "red" }}>
-
-        </div>
-        <div style={{ width: "100%", height: zones?.[0]?.['height'], backgroundColor: "green" }}>
-
-        </div>
-        <div style={{ width: "100%", height: zones?.[2]['height'], backgroundColor: "yellow" }}>
-
-        </div> */}
         <BackGround />
         <CardGrid />
         <SceneGrid />
-        {/* <SeatGrid /> */}
-        {/* <DeckPanel /> */}
       </div>
 
     </>

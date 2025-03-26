@@ -4,17 +4,17 @@ import SceneWrap from "./SceneWrap";
 
 
 const Seat: React.FC<{ no: number }> = ({ no }) => {
-    const { boardDimension, direction } = useCombatManager();
+    const { boardDimension } = useCombatManager();
     const position = useMemo(() => {
         if (!boardDimension) return;
         return {
-            top: no === 0 ? (direction === 0 ? boardDimension.height * 7 / 12 : 0) : (direction === 0 ? 0 : boardDimension.height * 7 / 12),
+            top: no === 0 ? boardDimension.height * 7 / 12 : 0,
             left: 0,
             width: boardDimension.width,
             height: boardDimension.height * 5 / 12,
             zIndex: 100,
         };
-    }, [boardDimension, direction]);
+    }, [boardDimension]);
 
     return (
         <SceneWrap id={"seat" + no} position={position}>

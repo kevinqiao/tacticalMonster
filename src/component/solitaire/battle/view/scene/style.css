@@ -27,3 +27,9 @@
     z-index: 10000;
     background-color: red;
 }
+
+.turn-bar-item {
+    height: 6px;
+    border: 1px solid #fbf6f6;
+    background-color: #373535;
+}

@@ -62,9 +62,3 @@
     border: 0px solid #f50e0e;
     pointer-events: none;
 }
-
-.action-bar-item {
-    height: 6px;
-    border: 1px solid #fbf6f6;
-    background-color: #373535;
-}

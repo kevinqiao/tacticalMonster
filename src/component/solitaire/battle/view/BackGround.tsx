@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo } from 'react';
+import React from 'react';
 import { useCombatManager } from '../service/CombatManager';
 import useCombatAct from '../service/useCombatAct';
-import { Seat, Slot, Zone } from '../types/CombatTypes';
+import { Slot, Zone } from '../types/CombatTypes';
 import "./style.css";
 const SlotContainer: React.FC<{ slot: Slot, zone: Zone }> = ({ slot, zone }) => {
   const { flipCard } = useCombatAct();
@@ -36,71 +36,71 @@ const SlotContainer: React.FC<{ slot: Slot, zone: Zone }> = ({ slot, zone }) => 
     </>
   );
 };
-const ActionBarGrid: React.FC<{ zone: Zone }> = ({ zone }) => {
-  const { currentAct, game, direction } = useCombatManager();
-  const top = useMemo(() => {
-    if (!zone || zone.index < 2) return 0;
-    return zone.index === 2 ? zone.top - 8 : zone.top + zone.height - 8;
-  }, [zone]);
-  const size = useMemo(() => {
-    if (!game || !game.currentTurn) return 3;
-    return game.currentTurn.actions.max;
-  }, [currentAct, game]);
+// const ActionBarGrid: React.FC<{ zone: Zone }> = ({ zone }) => {
+//   const { currentAct, game, direction } = useCombatManager();
+//   const top = useMemo(() => {
+//     if (!zone || zone.index < 2) return 0;
+//     return zone.index === 2 ? zone.top - 8 : zone.top + zone.height - 8;
+//   }, [zone]);
+//   const size = useMemo(() => {
+//     if (!game || !game.currentTurn) return 3;
+//     return game.currentTurn.actions.max;
+//   }, [currentAct, game]);
 
-  useEffect(() => {
-    if (!zone || !game || !game.currentTurn) return;
-    const seat: Seat | undefined = game.seats?.find(seat => seat.uid === game.currentTurn?.uid);
-    if (!seat) return;
-    const zoneIndex = direction === 0 ? seat.field : (seat.field === 2 ? 3 : 2);
-    if (zoneIndex === zone.index) {
-      for (let i = 1; i <= Object.keys(zone.actionBarEles).length; i++) {
-        const ele = zone.actionBarEles[i];
-        if (ele) {
-          ele.style.border = "1px solid white";
-          if (i <= game.currentTurn.actions.acted) {
-            ele.style.background = "red";
-          } else {
-            ele.style.background = "grey";
-          }
-        }
-      }
+//   useEffect(() => {
+//     if (!zone || !game || !game.currentTurn) return;
+//     const seat: Seat | undefined = game.seats?.find(seat => seat.uid === game.currentTurn?.uid);
+//     if (!seat) return;
+//     const zoneIndex = direction === 0 ? seat.field : (seat.field === 2 ? 3 : 2);
+//     if (zoneIndex === zone.index) {
+//       for (let i = 1; i <= Object.keys(zone.actionBarEles).length; i++) {
+//         const ele = zone.actionBarEles[i];
+//         if (ele) {
+//           ele.style.border = "1px solid white";
+//           if (i <= game.currentTurn.actions.acted) {
+//             ele.style.background = "red";
+//           } else {
+//             ele.style.background = "grey";
+//           }
+//         }
+//       }
 
-      if (currentAct && currentAct.act) {
-        const actingEle = zone.actionBarEles[currentAct.act];
-        if (actingEle) {
-          actingEle.style.background = "green";
-        }
-      }
-    } else {
-      for (let i = 1; i <= game.currentTurn.actions.max; i++) {
-        const ele = zone.actionBarEles[i];
-        if (ele) {
-          ele.style.background = "transparent";
-          ele.style.border = "none";
-        }
-      }
-    }
+//       if (currentAct && currentAct.act) {
+//         const actingEle = zone.actionBarEles[currentAct.act];
+//         if (actingEle) {
+//           actingEle.style.background = "green";
+//         }
+//       }
+//     } else {
+//       for (let i = 1; i <= game.currentTurn.actions.max; i++) {
+//         const ele = zone.actionBarEles[i];
+//         if (ele) {
+//           ele.style.background = "transparent";
+//           ele.style.border = "none";
+//         }
+//       }
+//     }
 
-  }, [zone, currentAct, game, direction]);
+//   }, [zone, currentAct, game, direction]);
 
 
-  return (
-    <>
-      <div style={{ position: "absolute", display: "flex", top: top, left: 0, width: zone.width }}>
-        {Array.from({ length: size }, (_, i) => i).map((i) => (
-          <div key={i + 1} ref={(ele) => zone.actionBarEles[i + 1] = ele} className="action-bar-item" style={{ width: zone.width / size }}></div>
-        ))}
-      </div>
-    </>
-  );
-};
+// return (
+//   <>
+//     <div style={{ position: "absolute", display: "flex", top: top, left: 0, width: zone.width }}>
+//       {Array.from({ length: size }, (_, i) => i).map((i) => (
+//         <div key={i + 1} ref={(ele) => zone.actionBarEles[i + 1] = ele} className="action-bar-item" style={{ width: zone.width / size }}></div>
+//       ))}
+//     </div>
+//   </>
+// );
+// };
 const ZoneContainer: React.FC<{ zone: Zone }> = ({ zone }) => {
   return (
     <>
       {zone?.slots?.map((slot: Slot) => (
         <SlotContainer key={slot.index} slot={slot} zone={zone} />
       ))}
-      {zone.index > 1 && <ActionBarGrid zone={zone} />}
+      {/* {zone.index > 1 && <ActionBarGrid zone={zone} />} */}
     </>
   );
 };

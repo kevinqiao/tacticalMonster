@@ -1,5 +1,5 @@
 import React, { ReactNode, useEffect } from 'react';
-import { useScene } from '../../service/CombatSceneProvider';
+import { useScene } from '../../service/SceneProvider';
 import "./style.css";
 interface SceneWrapProps {
     id: string;

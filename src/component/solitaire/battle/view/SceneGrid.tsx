@@ -1,13 +1,15 @@
 import React from 'react';
-import Seat from './scene/Seat';
-import YourTurn from './scene/YourTurn';
+import TurnBar from './scene/TurnBar';
 import "./style.css";
 const SceneGrid: React.FC = () => {
   return (
-    <div style={{ position: "absolute", top: 0, left: 0, zIndex: 100, width: "100%", height: "100%" }}>
-      <YourTurn />
-      <Seat no={0} />
-      <Seat no={1} />
+    <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2000 }}>
+      {/* <YourTurn /> */}
+      <TurnBar size={3} no={0} />
+      <TurnBar size={3} no={1} />
+
+      {/* <Seat no={0} />
+      <Seat no={1} /> */}
     </div>
   );
 };
