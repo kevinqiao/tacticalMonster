@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useCombatManager } from "../../service/CombatManager";
-import SceneWrap from "./SceneWrap";
+import SceneWrap from "./SpriteWrap";
 
 
 const YourTurn: React.FC = () => {

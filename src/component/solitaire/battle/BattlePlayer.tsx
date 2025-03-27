@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
-import { SceneProvider } from "./service/SceneProvider";
+import { SpriteProvider, useSprite } from "./service/SpriteProvider";
 import useCombatAct from "./service/useCombatAct";
 import "./style.css";
 import { createDualZones } from "./utils";
 import BackGround from "./view/BackGround";
 import CardGrid from "./view/CardGrid";
-import SceneGrid from "./view/SceneGrid";
+import SpriteGrid from "./view/SpriteGrid";
 const DeckPanel: React.FC = () => {
   const { game, boardDimension } = useCombatManager();
   const { flipCard } = useCombatAct();
@@ -33,23 +33,26 @@ const DeckPanel: React.FC = () => {
   )
 }
 const CombatBoard: React.FC = () => {
-  return (
+  const render = useMemo(() => (
     <>
       <div style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
         <BackGround />
         <CardGrid />
-        <SceneGrid />
+        <SpriteGrid />
       </div>
 
     </>
-  );
+  ), []);
+  return render;
 };
 
 export const BattlePlaza: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
-
+  const { allSpritesLoaded, spriteRefs } = useSprite();
+  console.log("allSpritesLoaded:", allSpritesLoaded)
+  console.log("spriteRefs:", spriteRefs)
   useEffect(() => {
     const updatePosition = () => {
 
@@ -115,9 +118,9 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   const render = useMemo(() =>
     <SSAProvider app="solitaire">
       {isVisible && <CombatProvider gameId={gameId}>
-        <SceneProvider>
+        <SpriteProvider>
           <BattlePlaza></BattlePlaza>
-        </SceneProvider>
+        </SpriteProvider>
       </CombatProvider>}
     </SSAProvider>
     , [isVisible]);
