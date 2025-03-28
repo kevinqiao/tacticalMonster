@@ -61,6 +61,23 @@ export const start = internalMutation({
 
     }
 })
+export const startRound = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+
+        try {
+            const gameService = new GameManager(ctx);
+            await gameService.initGame(gameId);
+            await gameService.startRound();
+
+        } catch (error) {
+            console.log("roll error", error);
+        }
+
+        return true;
+
+    }
+})
 export const flip = sessionMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {

@@ -146,6 +146,7 @@ const useCardAnimate = () => {
 
    const playInit = useCallback(() => {
       if (!boardDimension || !game) return;
+      console.log("playInit", game);
       game.cards?.forEach((card, index) => {
 
          if (card.ele) {
@@ -171,7 +172,7 @@ const useCardAnimate = () => {
             gsap.set(card.ele, {
                x: coord.x,
                y: coord.y,
-               rotationY: game.status === 1 ? card.status === 1 ? 180 : 0 : 0,
+               rotationY: card.status === 1 ? 180 : 0,
                width: coord.cwidth,
                height: coord.cheight,
                zIndex: coord.zIndex,

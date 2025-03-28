@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import TurnBar from './scene/TurnBar';
+import TurnBar from './sprite/TurnBar';
 import "./style.css";
 const SpriteGrid: React.FC = () => {
   const render = useMemo(() => {

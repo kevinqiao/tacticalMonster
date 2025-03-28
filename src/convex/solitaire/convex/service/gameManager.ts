@@ -81,8 +81,7 @@ class GameManager {
         const dealEvent: any = { gameId: this.game.gameId, name: "dealCompleted", actor: "####", data: { status: 1 } };
         const dealEventId = await this.dbCtx.db.insert("game_event", dealEvent);
         await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: dealEventId, status: 1 });
-
-        await this.startRound();
+        await this.dbCtx.scheduler.runAfter(2000, internal.service.gameProxy.startRound, { gameId: this.game.gameId });
 
     }
     async gameOver() {
@@ -97,9 +96,9 @@ class GameManager {
         const round = this.game.currentRound?.no || 0;
         const roundEvent: any = { gameId: this.game.gameId, name: "roundStarted", actor: "####", data: { round } };
         const eventId = await this.dbCtx.db.insert("game_event", roundEvent);
-        this.game.status = 2;
+        this.game.status = this.game.status === 1 ? 2 : this.game.status;
         this.game.currentRound = { no: round, turnOvers: [], status: 0 };
-        await this.dbCtx.db.patch(this.game.gameId, { currentRound: this.game.currentRound, lastUpdate: eventId });
+        await this.dbCtx.db.patch(this.game.gameId, { status: this.game.status, currentRound: this.game.currentRound, lastUpdate: eventId });
         const uid = this.game.seats?.[0]?.uid;
         if (uid) {
             await this.startTurn(uid);

@@ -51,8 +51,7 @@ export const BattlePlaza: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
   const { allSpritesLoaded, spriteRefs } = useSprite();
-  console.log("allSpritesLoaded:", allSpritesLoaded)
-  console.log("spriteRefs:", spriteRefs)
+
   useEffect(() => {
     const updatePosition = () => {
 

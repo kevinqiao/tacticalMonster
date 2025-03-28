@@ -115,7 +115,7 @@ const CardGrid: React.FC = () => {
 
   useEffect(() => {
     if (!game || !boardDimension) return;
-    playInit();
+    if (game.status > 1) playInit();
   }, [game, boardDimension, direction])
 
   return (

@@ -6,7 +6,7 @@ import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
 import { BoardDimension, CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
-import CombatEventHandler from "./CombatEventHandler";
+import CombatEventProvider from "./CombatEventProvider";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
@@ -66,7 +66,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         token: "test-token"
       });
       if (gameObj) {
-        console.log("gameObj", gameObj);
+        // console.log("gameObj", gameObj);
         setGame(gameObj);
         if (gameObj.actDue) {
           const act = gameObj.currentTurn?.actions?.acted ?? 0;
@@ -81,7 +81,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     setBoardDimension(boardDimension);
   }
   const askAct = useCallback((due: number) => {
-    console.log("askAct", game?.currentTurn);
+    // console.log("askAct", game?.currentTurn);
     if (!game || !game.currentTurn) return;
     setCurrentAct({ due, uid: game.currentTurn.uid ?? "", act: game.currentTurn.actions.acted + 1 });
   }, [game])
@@ -101,7 +101,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     askAct,
     completeAct
   };
-  return <CombatContext.Provider value={value}><CombatEventHandler>{children}</CombatEventHandler></CombatContext.Provider>;
+  return <CombatContext.Provider value={value}><CombatEventProvider>{children}</CombatEventProvider></CombatContext.Provider>;
 };
 
 export const useCombatManager = () => {
