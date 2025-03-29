@@ -146,7 +146,7 @@ const useCardAnimate = () => {
 
    const playInit = useCallback(() => {
       if (!boardDimension || !game) return;
-      console.log("playInit", game);
+      // console.log("playInit", game);
       game.cards?.forEach((card, index) => {
 
          if (card.ele) {

@@ -56,7 +56,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
     Object.keys(sessions).forEach(key => delete sessions[key]);
     if (u.expire > 0) {
-      setTimeout(() => refreshToken({ uid: u.uid, token: u.token }), u.expire - 10000)
+      // setTimeout(() => refreshToken({ uid: u.uid, token: u.token }), u.expire - 10000)
       u.expire = u.expire + Date.now();
       localStorage.setItem("user", JSON.stringify(u));
       setUser(u);
@@ -64,16 +64,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   }, [sessions]);
 
-  const logout = useCallback(() => {
-
+  const logout = useCallback(async () => {
+    console.log("logout", user);
     if (user?.uid && user?.token) {
-      convex.action(api.service.AuthManager.logout, { uid: user?.uid, token: user?.token }).then(result => {
-        if (result) {
-          localStorage.removeItem("user");
-          setUser({});
-          setSessions({});
-        }
-      });
+      const result = await convex.action(api.service.AuthManager.logout, { uid: user?.uid, token: user?.token })
+      console.log("logout result", result);
+      if (result) {
+        localStorage.removeItem("user");
+        setUser({});
+        setSessions({});
+      }
+
     }
   }, [user]);
   const updateLoaded = useCallback(() => {
@@ -100,15 +101,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         const userToken = u.token;
         const timeout = u.expire ? u.expire - 10000 : 50000;
         console.log("timeout", timeout);
-        setTimeout(() => refreshToken({ uid: userId, token: userToken }), timeout);
+        // setTimeout(() => refreshToken({ uid: userId, token: userToken }), timeout);
         u.expire = timeout + Date.now();
         localStorage.setItem("user", JSON.stringify(u));
         setUser((pre) => pre && pre.uid === u.uid ? Object.assign(pre, u) : u)
       } else
         setUser({})
-      setSessions({});
+      // setSessions({});
     });
-  }, [sessions]);
+  }, []);
   useEffect(() => {
     const userJSON = localStorage.getItem("user");
 

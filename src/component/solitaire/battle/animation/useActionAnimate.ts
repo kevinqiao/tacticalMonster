@@ -1,11 +1,15 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
+import { useSprite } from "../service/SpriteProvider";
 import { Card } from "../types/CombatTypes";
 import { cardCoord } from "../utils";
 const useActionAnimate = () => {
-
+   const { spriteRefs } = useSprite();
    const { game, boardDimension, direction } = useCombatManager();
+
+
+
    const playOpenCard = useCallback(({ cards, onComplete }: { cards: Card[], onComplete?: () => void }) => {
       if (!boardDimension || !game || !cards || cards.length === 0) {
          onComplete?.();

@@ -110,10 +110,11 @@ const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
 
 const CardGrid: React.FC = () => {
 
-  const { game, boardDimension, direction } = useCombatManager();
+  const { game, boardDimension, direction, currentAct } = useCombatManager();
   const { playInit } = useCardAnimate();
 
   useEffect(() => {
+    // console.log("game", game, currentAct);
     if (!game || !boardDimension) return;
     if (game.status > 1) playInit();
   }, [game, boardDimension, direction])

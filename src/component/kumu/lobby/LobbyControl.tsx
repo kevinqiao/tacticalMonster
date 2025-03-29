@@ -7,6 +7,7 @@ const LobbyControl: React.FC = () => {
 
   const { openPage, askAuth } = usePageManager();
   const { user, logout } = useUserManager();
+  console.log("user", user);
   const signIn = useCallback(() => {
     askAuth({ params: { action: "signin" } });
   }, [askAuth]);

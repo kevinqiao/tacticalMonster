@@ -3,22 +3,44 @@ import { useCallback, useRef } from "react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
 import useActionAnimate from "../animation/useActionAnimate";
+import useTurnAnimate from "../animation/useTurnAnimate";
 import { useCombatManager } from "./CombatManager";
 const useCombatAct = () => {
   const actRef = useRef<number>(0);
   const { user } = useUserManager();
-  const { game, eventQueue, currentAct, completeAct } = useCombatManager();
+  const { game, eventQueue, currentAct, completeAct, boardDimension, direction } = useCombatManager();
   const { playOpenCard } = useActionAnimate();
   const convex = useConvex();
+  const { playTurnActed } = useTurnAnimate();
+
+  const onActComplete = useCallback(() => {
+    if (game?.currentTurn?.actions) {
+      game.currentTurn.actions.acted++;
+    }
+    playTurnActed({
+      data: {
+        uid: game?.currentTurn?.uid,
+        acted: game?.currentTurn?.actions.acted
+      }, onComplete: () => {
+        // completeAct();
+        const index = eventQueue.findIndex(e => e.name === "localAct");
+        if (index !== -1) {
+          eventQueue.splice(index, 1);
+        }
+      }
+    })
+  }, [eventQueue, game, boardDimension, playTurnActed, completeAct, direction]);
 
   const move = useCallback(async (cardId: string, to: { field: number, slot: number }) => {
-    console.log("move", cardId, to, user);
+
     if (actRef.current > 0) {
       return;
     }
-
+    const localEvent = { name: "localAct", data: { cardId, to } };
+    eventQueue.push(localEvent);
     if (!game || !user || !user.uid) return;
     actRef.current = Date.now();
+    completeAct();
     const res: any = await convex.mutation(api.service.gameProxy.move, {
       uid: user.uid,
       token: user.token,
@@ -28,27 +50,25 @@ const useCombatAct = () => {
     });
     actRef.current = 0;
     if (res && res.ok && res.result) {
-      if (game.currentTurn?.actions) {
-        game.currentTurn.actions.acted++;
-      }
-      console.log("play open card result: ", res);
       if (res.result.open && res.result.open.length > 0) {
-        playOpenCard({ cards: res.result.open, onComplete: completeAct });
+        playOpenCard({ cards: res.result.open, onComplete: onActComplete });
       } else {
-        completeAct();
+        onActComplete();
       }
 
 
       return res.result;
     }
 
-  }, [user, currentAct, game, playOpenCard, completeAct]);
+  }, [user, currentAct, game, playOpenCard, completeAct, direction, eventQueue]);
   const flipCard = useCallback(async () => {
     console.log("flipCard", game, currentAct, user, user.uid);
     if (actRef.current > 0) {
       return;
     }
     if (!game || !currentAct || !user || !user.uid || currentAct.uid !== user.uid) return;
+    const localEvent = { name: "localAct", data: {} };
+    eventQueue.push(localEvent);
     actRef.current = Date.now();
     const res: any = await convex.mutation(api.service.gameProxy.flip, {
       uid: user.uid,
@@ -58,15 +78,11 @@ const useCombatAct = () => {
     actRef.current = 0;
     if (res && res.ok && res.result) {
       console.log("play open card result: ", res);
-      playOpenCard({ cards: res.result.open });
-      if (game.currentTurn?.actions) {
-        game.currentTurn.actions.acted++;
-      }
-      completeAct();
+      playOpenCard({ cards: res.result.open, onComplete: onActComplete });
     }
 
     console.log("move res", res);
-  }, [game, currentAct, user, eventQueue, playOpenCard]);
+  }, [eventQueue, game, currentAct, user, playOpenCard, direction]);
 
   return { move, flipCard, currentAct };
 };

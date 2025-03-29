@@ -1,42 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
-import { SpriteProvider, useSprite } from "./service/SpriteProvider";
-import useCombatAct from "./service/useCombatAct";
+import { SpriteProvider } from "./service/SpriteProvider";
 import "./style.css";
 import { createDualZones } from "./utils";
-import BackGround from "./view/BackGround";
 import CardGrid from "./view/CardGrid";
+import SlotGrid from "./view/SlotGrid";
 import SpriteGrid from "./view/SpriteGrid";
-const DeckPanel: React.FC = () => {
-  const { game, boardDimension } = useCombatManager();
-  const { flipCard } = useCombatAct();
-  const zone = boardDimension?.zones[1];
-  const left = useMemo(() => {
-    if (zone) {
-      return zone?.['left'] + zone?.['cwidth'] * 2
-    }
-    return 0
-  }, [zone])
-  const top = useMemo(() => {
-    if (zone) {
-      return zone['top'] + (zone['height'] - zone['cheight']) / 2
-    }
-    return 0
-  }, [zone])
 
-  return (
-    <>
-      {zone && <div style={{ zIndex: 3000, position: "absolute", top: top, left: left, width: zone?.['cwidth'], height: zone?.['cheight'] }} onClick={flipCard}>
-      </div>}
-    </>
-  )
-}
 const CombatBoard: React.FC = () => {
   const render = useMemo(() => (
     <>
       <div style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
-        <BackGround />
+        <SlotGrid />
         <CardGrid />
         <SpriteGrid />
       </div>
@@ -50,7 +26,7 @@ export const BattlePlaza: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
-  const { allSpritesLoaded, spriteRefs } = useSprite();
+
 
   useEffect(() => {
     const updatePosition = () => {
@@ -116,11 +92,11 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   }, []);
   const render = useMemo(() =>
     <SSAProvider app="solitaire">
-      {isVisible && <CombatProvider gameId={gameId}>
-        <SpriteProvider>
+      <SpriteProvider>
+        {isVisible && <CombatProvider gameId={gameId}>
           <BattlePlaza></BattlePlaza>
-        </SpriteProvider>
-      </CombatProvider>}
+        </CombatProvider>}
+      </SpriteProvider>
     </SSAProvider>
     , [isVisible]);
   return render;

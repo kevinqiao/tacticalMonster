@@ -8,9 +8,9 @@ import useGameHandler from "./handler/useGameHandler";
 import useTurnHandler from "./handler/useTurnHandler";
 const enum EventCategory {
     GAME = "game",
-    ROUND = "round",
     TURN = "turn",
     ACT = "act",
+    LOCAL = "local",
 }
 const eventCategoryMap: { [k: string]: EventCategory } = {
     "dealCompleted": EventCategory.GAME,
@@ -20,6 +20,9 @@ const eventCategoryMap: { [k: string]: EventCategory } = {
     "askAct": EventCategory.ACT,
     "roundStarted": EventCategory.TURN,
     "turnStarted": EventCategory.TURN,
+    "turnOver": EventCategory.TURN,
+    "roundOver": EventCategory.TURN,
+    "localAct": EventCategory.LOCAL,
 }
 const CombatEventProvider = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { user } = useUserManager();
@@ -27,9 +30,7 @@ const CombatEventProvider = ({ children }: { children: ReactNode }): React.React
     const gameHandler = useGameHandler();
     const actHandler = useActHandler();
     const turnHandler = useTurnHandler();
-
-
-    const processEvent = useCallback(() => {
+    const dispatchEvent = useCallback(() => {
 
         if (!game) return;
         // console.log("processEvent", game);
@@ -46,6 +47,7 @@ const CombatEventProvider = ({ children }: { children: ReactNode }): React.React
         //     const e = eventQueue.shift();
         //     return;
         // }
+        console.log("processEvent", event)
         const { name, status, data } = event;
 
         if (!status) {
@@ -61,68 +63,13 @@ const CombatEventProvider = ({ children }: { children: ReactNode }): React.React
                 case EventCategory.TURN:
                     turnHandler.handleEvent(event, onComplete);
                     break;
+                case EventCategory.LOCAL:
+
+                    break;
                 default:
                     onComplete();
                     break;
             }
-            switch (name) {
-                // case "dealCompleted":
-                //     event.status = 1;
-                //     playDeal({ data: event.data, onComplete: () => { onComplete() } });
-                //     break;
-                // case "shuffleCompleted":
-                //     event.status = 1;
-                //     playShuffle({ data: event.data, onComplete: () => { onComplete() } });
-                //     break;
-                // case "flip":
-                //     event.status = 1;
-                //     playOpenCard({
-                //         cards: event.data.open, onComplete: () => {
-                //             if (game.currentTurn?.actions) {
-                //                 game.currentTurn.actions.acted++;
-                //             }
-                //             completeAct();
-                //             onComplete()
-                //         }
-                //     });
-                //     break;
-                // case "move":
-                //     event.status = 1;
-                //     console.log("move", event)
-                //     playMoveCard({
-                //         data: event.data, onComplete: () => {
-                //             if (game.currentTurn?.actions) {
-                //                 game.currentTurn.actions.acted++;
-                //             }
-                //             completeAct();
-                //             onComplete()
-                //         }
-                //     });
-                //     break;
-                // case "roundStarted":
-                //     event.status = 1
-                //     game.currentRound = event.data.round;
-                //     console.log("roundStarted", game.currentRound)
-                //     onComplete();
-                //     break;
-                // case "turnStarted":
-                //     event.status = 1
-                //     game.currentTurn = event.data;
-                //     onComplete();
-                //     break;
-                // case "askAct":
-                //     event.status = 1;
-                //     console.log("askAct", event)
-                //     askAct(event.data.dueTime);
-                //     onComplete();
-                //     break;
-                // default:
-                //     event.status = 1;
-                //     console.log("unknown event", event)
-                //     onComplete();
-                //     break;
-            }
-
         }
 
     }, [user, game, eventQueue, boardDimension, direction, askAct, completeAct])
@@ -131,11 +78,11 @@ const CombatEventProvider = ({ children }: { children: ReactNode }): React.React
     useEffect(() => {
 
         const intervalId = setInterval(() => {
-            processEvent();
+            dispatchEvent();
         }, 100); // 每秒检查一次消息队列
 
         return () => clearInterval(intervalId);
-    }, [user, processEvent]);
+    }, [user, dispatchEvent]);
 
     return <>{children}</>
 }

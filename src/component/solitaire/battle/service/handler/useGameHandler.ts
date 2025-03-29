@@ -8,6 +8,7 @@ const useGameHandler = () => {
     const { game, eventQueue, boardDimension, direction } = useCombatManager();
     const handleEvent = useCallback((event: CombatEvent, onComplete: () => void) => {
         const { name, status, data } = event;
+        event.status = 1;
         switch (name) {
             case "dealCompleted":
                 playDeal({ data: event.data, onComplete: () => { onComplete() } });
@@ -15,6 +16,13 @@ const useGameHandler = () => {
             case "shuffleCompleted":
                 console.log("shuffleCompleted", event)
                 playShuffle({ data: event.data, onComplete: () => { onComplete() } });
+                break;
+            case "gameOver":
+                console.log("gameOver", event)
+                onComplete();
+                break;
+            default:
+                onComplete();
                 break;
         }
 

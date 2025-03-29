@@ -130,11 +130,11 @@ class GameManager {
         const turnOverEvent: any = { gameId: this.game.gameId, name: "turnOver", actor: "####", data: this.game.currentTurn };
         await this.dbCtx.db.insert("game_event", turnOverEvent);
         if (this.game.currentRound.turnOvers.length === this.game.seats?.length) {
-            this.startRound();
+            await this.startRound();
         } else {
             const nextSeats = this.game.seats?.filter((s) => !this.game?.currentRound?.turnOvers.includes(s.uid))
             if (nextSeats && nextSeats.length > 0) {
-                this.startTurn(nextSeats[0].uid);
+                await this.startTurn(nextSeats[0].uid);
             }
         }
     }
@@ -159,7 +159,11 @@ class GameManager {
         const eventId = await this.dbCtx.db.insert("game_event", flipEvent);
         this.game.currentTurn.actions.acted++;
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
-        await this.askAct(-1);
+        if (this.game.currentTurn.actions.acted === this.game.currentTurn.actions.max) {
+            await this.turnOver();
+        } else {
+            await this.askAct(-1);
+        }
         return { ok: true, result: { open: [cards[0]] } }
     }
 
@@ -201,7 +205,11 @@ class GameManager {
         const eventId = await this.dbCtx.db.insert("game_event", event);
         this.game.currentTurn.actions.acted++;
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
-        await this.askAct(-1);
+        if (this.game.currentTurn.actions.acted === this.game.currentTurn.actions.max) {
+            await this.turnOver();
+        } else {
+            await this.askAct(-1);
+        }
         return { ok: true, result: { open: data.open } }
     }
     async timeout() {

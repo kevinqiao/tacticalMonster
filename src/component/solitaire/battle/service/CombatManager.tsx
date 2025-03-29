@@ -47,6 +47,10 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     if (seat?.field) {
       setDirection(seat.field === 2 ? 0 : 1);
     }
+    // if (game.actDue) {
+    //   const act = game.currentTurn?.actions?.acted ?? 0;
+    //   setCurrentAct({ due: game.actDue ?? -1, uid: game.currentTurn?.uid ?? "", act: act + 1 });
+    // }
   }, [user, game]);
   useEffect(() => {
 
