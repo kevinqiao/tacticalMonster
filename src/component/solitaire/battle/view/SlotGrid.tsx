@@ -26,7 +26,7 @@ const SlotContainer: React.FC<{ slot: Slot, zone: Zone }> = ({ slot, zone }) => 
           width: slot.width,
           height: slot.height,
           pointerEvents: "auto",
-          zIndex: 2000
+          zIndex: 3000
         }}
           onClick={flipCard}
         >
@@ -52,11 +52,11 @@ const SlotGrid: React.FC = () => {
   const { boardDimension } = useCombatManager();
   return (
     <>
-      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-        {Object.values(boardDimension?.zones || {}).map((zone) => (
-          <ZoneContainer key={zone.index} zone={zone} />
-        ))}
-      </div>
+      {/* <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}> */}
+      {Object.values(boardDimension?.zones || {}).map((zone) => (
+        <ZoneContainer key={zone.index} zone={zone} />
+      ))}
+      {/* </div> */}
     </>
   );
 };

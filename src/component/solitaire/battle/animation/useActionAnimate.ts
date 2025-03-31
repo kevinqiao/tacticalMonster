@@ -16,21 +16,21 @@ const useActionAnimate = () => {
          return;
       }
       console.log("playOpenCard", cards);
-      const openCards = cards.map((c) => {
-         const card = game.cards?.find((card) => card.id === c.id);
-         if (card) {
-            Object.assign(card, c);
-            card.status = 1;
-         }
-         return card;
-      })
+      // const openCards = cards.map((c) => {
+      //    const card = game.cards?.find((card) => card.id === c.id);
+      //    if (card) {
+      //       Object.assign(card, c);
+      //       card.status = 1;
+      //    }
+      //    return card;
+      // })
       const tl = gsap.timeline({
          onComplete: () => {
             tl.kill();
             onComplete?.();
          }
       });
-      openCards.forEach((card) => {
+      cards.forEach((card) => {
          if (card && card.ele) {
             popCard(card);
             card.status = 1;
@@ -92,7 +92,7 @@ const useActionAnimate = () => {
          }
       }
    }, [game, boardDimension])
-   const playMoveCard = useCallback(({ data, onComplete }: { data: { open: Card[], cardId: string, to: { field: number; slot: number }, move: Card[] }, onComplete?: () => void }) => {
+   const playMove = useCallback(({ data, onComplete }: { data: { open?: Card[], move: Card[] }, onComplete?: () => void }) => {
       if (!game || !boardDimension) return;
       const { open, move } = data;
       const tl = gsap.timeline({
@@ -105,15 +105,10 @@ const useActionAnimate = () => {
             tl.kill();
          }
       });
-      move.forEach((c, index) => {
-         const card = game.cards?.find((card) => card.id === c.id);
-         if (!card) return;
-         card.field = c.field;
-         card.col = c.col;
-         card.row = c.row;
+      move.forEach((card, index) => {
          const coord = cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
-         card.x = coord.x;
-         card.y = coord.y;
+         // card.x = coord.x;
+         // card.y = coord.y;
          if (card.ele) {
             tl.fromTo(card.ele, { zIndex: (card.row || 0) + 10000 }, {
                duration: 0.5,
@@ -136,7 +131,7 @@ const useActionAnimate = () => {
 
    }, [game, boardDimension, direction])
 
-   return { playOpenCard, playMoveCard }
+   return { playOpenCard, playMove }
 }
 export default useActionAnimate;
 

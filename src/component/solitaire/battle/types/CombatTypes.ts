@@ -114,7 +114,7 @@ export interface IDnDContext {
     onDrag: (card: Card, data: DragEventData) => void;
     onDragStart: (card: Card, data: DragEventData) => void;
     onDragEnd: (card: Card, data: DragEventData) => void;
-    onDrop: (card: Card, target: string) => void;
+    onDrop: (card: Card, targets: string[]) => void;
     onDragOver: (card: Card, data: DragEventData) => void;
 }
 export interface ICombatSceneContext {

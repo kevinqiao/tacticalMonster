@@ -4,6 +4,7 @@ import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
 import useActionAnimate from "../animation/useActionAnimate";
 import useTurnAnimate from "../animation/useTurnAnimate";
+import { Card } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 const useCombatAct = () => {
   const actRef = useRef<number>(0);
@@ -78,7 +79,17 @@ const useCombatAct = () => {
     actRef.current = 0;
     if (res && res.ok && res.result) {
       console.log("play open card result: ", res);
-      playOpenCard({ cards: res.result.open, onComplete: onActComplete });
+      const openCards: Card[] = [];
+      res.result.open.forEach((card: Card) => {
+        const mcard = game.cards?.find((c) => c.id === card.id);
+        if (mcard) {
+          mcard.suit = card.suit;
+          mcard.rank = card.rank;
+          mcard.status = 1;
+          openCards.push(mcard);
+        }
+      });
+      playOpenCard({ cards: openCards, onComplete: onActComplete });
     }
 
     console.log("move res", res);

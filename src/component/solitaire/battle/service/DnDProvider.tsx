@@ -3,8 +3,8 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useRef } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useUserManager } from "service/UserManager";
+import useActionAnimate from "../animation/useActionAnimate";
 import { Card, IDnDContext } from "../types/CombatTypes";
-import { cardCoord } from "../utils";
 import { DragEventData } from "../view/DnDCard";
 import { useCombatManager } from "./CombatManager";
 import useCombatAct from "./useCombatAct";
@@ -16,7 +16,7 @@ export const DnDContext = createContext<IDnDContext>({
   onDrag: (card: Card, data: DragEventData) => null,
   onDragStart: (card: Card, data: DragEventData) => null,
   onDragEnd: (card: Card, data: DragEventData) => null,
-  onDrop: (card: Card, target: string) => null,
+  onDrop: (card: Card, targets: string[]) => null,
   onDragOver: (card: Card, data: DragEventData) => null
 });
 
@@ -28,7 +28,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
   const draggingGroupRef = useRef<Card[]>([]);
   const dropTargetsRef = useRef<string[]>([]);
   const { move } = useCombatAct();
-
+  const { playMove } = useActionAnimate();
   const onDrag = useCallback((card: Card, data: DragEventData) => {
     // console.log("onDrag", card, data);
     if (!card.ele || !boardDimension) return;
@@ -57,64 +57,40 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, game, boardDimension, direction])
   const onDragEnd = useCallback(async (card: Card, data: DragEventData) => {
-    // console.log("onDragEnd", card, data, dropTargetsRef.current);
-    // const dropTarget = dropTargetsRef.current[0];
-    if (dropTargetsRef.current.length > 0) {
-      const dropTarget = dropTargetsRef.current[0];
-      if (dropTarget) {
-        await onDrop(card, dropTarget);
-      }
-    } else {
-      // console.log("onDragEnd", draggingGroupRef.current);
-      draggingGroupRef.current?.forEach((c: Card) => {
-        if (c.ele) {
-          gsap.to(c.ele, { x: c.x, y: c.y, zIndex: c.zIndex, duration: 0.3 });
-        }
-      })
-    }
+    await onDrop(card, dropTargetsRef.current);
     draggingGroupRef.current.length = 0;
     dropTargetsRef.current.length = 0;
 
   }, [user, game, boardDimension, direction])
-  const onDrop = useCallback(async (card: Card, target: string) => {
+  const onDrop = useCallback(async (card: Card, targets: string[]) => {
     if (!game || !boardDimension || !user || !user.uid) return;
-    const [zone, slot] = target.split("_");
-    console.log("onDrop", card, target);
+    if (targets.length === 0) {
+      playMove({ data: { move: draggingGroupRef.current } });
+      return;
+    }
+    const [zone, slot] = targets[0].split("_");
+
     const field = Number(zone) < 2 ? +zone : (direction === 1 ? (zone === "2" ? 3 : 2) : +zone);
+    if (card.field === field && card.col === Number(slot)) {
+      playMove({ data: { move: draggingGroupRef.current } });
+      return;
+    }
     const cards = game.cards?.filter((c: Card) => c.field === field && c.col === Number(slot));
     const row = cards?.length || 0;
     const col = Number(slot);
     const prePos: Card[] = [];
-    console.log("card", card, slot);
-    if (card.field !== field || card.col !== Number(slot)) {
-      draggingGroupRef.current.forEach((c: Card, index: number) => {
-        prePos.push({ ...c });
-        c.row = row + index;
-        c.field = field;
-        c.col = col;
 
-        const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
-        if (c.ele) {
-          gsap.to(c.ele, { x: coord.x, y: coord.y, width: coord.cwidth, height: coord.cheight, zIndex: c.row, duration: 0.3 })
-        }
-      });
-
-      const res = await move(card.id, { field, slot: +slot });
-      console.log("res", res);
-      if (!res) {
-        prePos.forEach((c) => {
-          const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
-          if (c.ele)
-            gsap.to(c.ele, { x: coord.x, y: coord.y, width: coord.cwidth, height: coord.cheight, zIndex: c.row, duration: 0.3 })
-        })
-      }
-
-    } else {
-      draggingGroupRef.current.forEach((c: Card, index: number) => {
-        const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
-        if (c.ele)
-          gsap.to(c.ele, { x: coord.x, y: coord.y, width: coord.cwidth, height: coord.cheight, zIndex: c.row, duration: 0.3 })
-      })
+    draggingGroupRef.current.forEach((c: Card, index: number) => {
+      prePos.push({ ...c });
+      c.row = row + index;
+      c.field = field;
+      c.col = col;
+    });
+    playMove({ data: { move: draggingGroupRef.current } });
+    const res = await move(card.id, { field, slot: +slot });
+    console.log("res", res);
+    if (!res) {
+      playMove({ data: { move: prePos } });
     }
 
   }, [boardDimension, game, direction, user, move])

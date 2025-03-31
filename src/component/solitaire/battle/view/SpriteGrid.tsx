@@ -22,7 +22,7 @@ const SpriteGrid: React.FC = () => {
   }, [game, direction, boardDimension])
 
   return (
-    <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, zIndex: 2000, display: "none" }}>
+    <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, zIndex: 1000, display: "none" }}>
       <YourTurn />
       <TurnBar size={3} no={0} />
       <TurnBar size={3} no={1} />

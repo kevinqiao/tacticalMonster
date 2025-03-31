@@ -121,7 +121,7 @@ const CardGrid: React.FC = () => {
 
   return (
     <DnDProvider>
-      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 1000, width: "100%", height: "100%" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2000, width: "100%", height: "100%" }}>
         {game?.cards?.map((card) => (
           <CardContainer key={card.id} card={card} />
         ))}
