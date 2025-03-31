@@ -21,6 +21,7 @@ export default defineSchema({
         seats: v.optional(v.array(v.object({
             field: v.number(),
             uid: v.optional(v.string()),
+            score: v.optional(v.number()),
             botOn: v.optional(v.boolean()),
         }))),
         currentRound: v.optional(v.object({ no: v.number(), turnOvers: v.array(v.string()), status: v.optional(v.number()) })),

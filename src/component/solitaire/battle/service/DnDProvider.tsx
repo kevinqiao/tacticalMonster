@@ -79,14 +79,14 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
   const onDrop = useCallback(async (card: Card, target: string) => {
     if (!game || !boardDimension || !user || !user.uid) return;
     const [zone, slot] = target.split("_");
+    console.log("onDrop", card, target);
     const field = Number(zone) < 2 ? +zone : (direction === 1 ? (zone === "2" ? 3 : 2) : +zone);
     const cards = game.cards?.filter((c: Card) => c.field === field && c.col === Number(slot));
     const row = cards?.length || 0;
     const col = Number(slot);
     const prePos: Card[] = [];
-    console.log("card", card.col, col);
-    console.log("draggingGroupRef.current", draggingGroupRef.current.map(c => ({ col: c.col, row: c.row, id: c.id })));
-    if (card.col !== Number(slot)) {
+    console.log("card", card, slot);
+    if (card.field !== field || card.col !== Number(slot)) {
       draggingGroupRef.current.forEach((c: Card, index: number) => {
         prePos.push({ ...c });
         c.row = row + index;
@@ -100,6 +100,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
       });
 
       const res = await move(card.id, { field, slot: +slot });
+      console.log("res", res);
       if (!res) {
         prePos.forEach((c) => {
           const coord = cardCoord(c.field || 0, c.col || 0, c.row || 0, boardDimension, direction);
@@ -126,6 +127,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     const dropTargets = elements.filter((el) => el.classList.contains('slot'))
       .map((el) => el.getAttribute('data-id'))
       .filter((id) => id != null);
+
     if (dropTargets.length > 0)
       dropTargetsRef.current.push(...dropTargets);
 

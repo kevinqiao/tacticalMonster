@@ -1,7 +1,7 @@
 import React, { CSSProperties, useMemo } from "react";
 import { useCombatManager } from "../../service/CombatManager";
 import SceneWrap from "./SpriteWrap";
-import "./style.css";
+import "./sprite.css";
 
 
 const YourTurn: React.FC = () => {

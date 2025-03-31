@@ -1,0 +1,74 @@
+.seat {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: blue;
+}
+
+.your-turn {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: red;
+}
+
+.your-turn-text {
+    font-size: 20px;
+    font-weight: bold;
+    color: #f3e8e8;
+}
+
+.sprite-wrap {
+    width: 100%;
+    height: 100%;
+    /* opacity: 0;
+    visibility: hidden; */
+}
+
+.turn-bar-item {
+    height: 6px;
+    border: 1px solid #fbf6f6;
+    background-color: #373535;
+}
+
+.skill-icon {
+    width: 40%;
+    /* 任意宽度 */
+    width: 40%;
+    aspect-ratio: 1 / 1;
+    /* 宽度:高度 = 1:1 */
+    border-radius: 50%;
+    background-color: blue;
+    /* 可选：填充颜色 */
+}
+
+.avatar-panel {
+    width: 100%;
+    display: flex;
+    /* justify-content: center;
+    align-items: center; */
+    background-color: white;
+    color: black;
+}
+
+.avatar0 {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background-image: url("../svg/1.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+.avatar1 {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background-image: url("../svg/2.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}

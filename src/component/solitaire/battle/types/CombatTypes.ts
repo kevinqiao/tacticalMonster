@@ -1,5 +1,6 @@
 
 import { DragEventData } from "../view/DnDCard";
+import { Effect } from "./PlayerTypes";
 
 
 export interface Player {
@@ -37,6 +38,10 @@ export interface Card {
 export interface Seat {
     uid: string;
     field: number;
+    ep?: number;
+    skillCooldowns?: Record<string, number>;
+    activeEffects?: Effect[];
+    score?: number;
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
     ele?: HTMLDivElement | null;

@@ -124,6 +124,14 @@ const useTurnAnimate = () => {
             turnBarItemRef.current.style.backgroundColor = "grey";
          }
       }
+      for (let i = 0; i < 4; i++) {
+         const foundationCards = spriteRefs.get("foundation-ground-card" + i)?.current;
+         if (foundationCards) {
+            gsap.set(foundationCards, {
+               autoAlpha: 1,
+            })
+         }
+      }
 
    }, [spriteRefs, game, direction, allSpritesLoaded, boardDimension])
 

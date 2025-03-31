@@ -3,7 +3,7 @@ import { useCombatManager } from "../../service/CombatManager";
 
 import { CSSProperties } from "react";
 import SpriteWrap from "./SpriteWrap";
-import "./style.css";
+import "./sprite.css";
 
 
 const TurnBar: React.FC<{ size: number, no: number }> = ({ size, no }) => {

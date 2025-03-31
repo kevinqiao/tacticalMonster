@@ -29,7 +29,7 @@ const CardContainer: React.FC<{ card: Card }> = ({ card }) => {
   );
 };
 
-const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
+export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
   const isRed = card.suit === '♥' || card.suit === '♦';
   const color = isRed ? 'red' : 'black';
 
@@ -96,10 +96,10 @@ const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
       <svg className="front" width={width} height={height} viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet">
         <rect width="100%" height="100%" fill="white" stroke="#333" strokeWidth="1" rx="5" ry="5" />
         <text x="10" y="25" fontSize="20" fill={color} fontFamily="Arial, sans-serif">{card.rank}</text>
-        <text x="10" y="45" fontSize="20" fill={color} fontFamily="Arial, sans-serif">{card.suit}</text>
+        <text x="10" y="45" fontSize="20" fill={color} fontFamily="Arial, sans-serif">{card?.rank?.length === 0 ? "" : card.suit}</text>
         <g transform="translate(90, 145) rotate(180)">
           <text x="0" y="20" fontSize="20" fill={color} fontFamily="Arial, sans-serif">{card.rank}</text>
-          <text x="0" y="40" fontSize="20" fill={color} fontFamily="Arial, sans-serif">{card.suit}</text>
+          <text x="0" y="40" fontSize="20" fill={color} fontFamily="Arial, sans-serif">{card?.rank?.length === 0 ? "" : card.suit}</text>
         </g>
         <text x="50" y="90" fontSize="40" fill={color} textAnchor="middle" fontFamily="Arial, sans-serif">{card.suit}</text>
       </svg>

@@ -39,10 +39,10 @@
     -webkit-transform: rotateY(180deg);
 }
 
-.card .back {
+/* .card .back {
     transform: rotateY(0deg);
     -webkit-transform: rotateY(0deg);
-}
+} */
 
 .slot {
     position: absolute;

@@ -1,13 +1,14 @@
 import React, { CSSProperties, ReactNode, useCallback, useEffect, useMemo } from 'react';
 import { useSprite } from '../../service/SpriteProvider';
-import "./style.css";
+import "../style.css";
 interface SpriteWrapProps {
     id: string;
     children?: ReactNode;
     position?: CSSProperties;
+    className?: string;
 }
 
-const SpriteWrap: React.FC<SpriteWrapProps> = ({ id, children, position }) => {
+const SpriteWrap: React.FC<SpriteWrapProps> = ({ id, children, position, className }) => {
     const { registerRef, markSpriteLoaded } = useSprite();
     const { ref } = registerRef(id, true);
     const dynamicStyle = useMemo((): CSSProperties => {
@@ -15,6 +16,9 @@ const SpriteWrap: React.FC<SpriteWrapProps> = ({ id, children, position }) => {
             ...(position || {}), // 完全依赖传入的 position
         };
     }, [position]);
+    const dynamicClassName = useMemo(() => {
+        return className || "";
+    }, [className]);
     useEffect(() => {
 
         const divElement = ref.current;
@@ -48,13 +52,14 @@ const SpriteWrap: React.FC<SpriteWrapProps> = ({ id, children, position }) => {
         // console.log(parentId, child)
         if (React.isValidElement(child) && child.type === 'div') {
 
-            const childProps = child.props as { id?: string; children?: ReactNode, style?: CSSProperties };
+            const childProps = child.props as { id?: string; children?: ReactNode, style?: CSSProperties, className?: string };
             const childId = childProps.id;
             if (childId) {
                 const childStyle = childProps.style || {};
+                const childClassName = childProps.className || "";
                 // 只有定义了自定义 id 的子 div 才包装为 DivWithRef
                 return (
-                    <SpriteWrap id={childId} key={childId} position={{ ...childStyle }}>
+                    <SpriteWrap id={childId} key={childId} position={{ ...childStyle }} className={childClassName}>
                         {React.Children.map(childProps.children, (grandChild, grandIndex) =>
                             renderChildren(grandChild, grandIndex, childId)
                         )}
@@ -67,12 +72,11 @@ const SpriteWrap: React.FC<SpriteWrapProps> = ({ id, children, position }) => {
         return child;
     }, []);
 
-    const render = useMemo(() => (
-        <div ref={ref} className="sprite-wrap" style={dynamicStyle} >
+    return (
+        <div ref={ref} className={dynamicClassName} style={dynamicStyle} >
             {React.Children.map(children, (child, index) => renderChildren(child, index, id))}
         </div >
-    ), [children, id, dynamicStyle, ref, renderChildren]);
-    return render;
+    );
 };
 
 export default React.memo(SpriteWrap);
