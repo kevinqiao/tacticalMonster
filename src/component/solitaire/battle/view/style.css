@@ -8,6 +8,11 @@
     /* 浏览器兼容性 */
     -webkit-perspective: 1000px;
     transform: rotateY(0deg);
+
+}
+
+.glow {
+    box-shadow: 0 0 20px 8px rgba(255, 215, 0, 0.8);
 }
 
 .card svg {
@@ -37,6 +42,14 @@
 .card .front {
     transform: rotateY(180deg);
     -webkit-transform: rotateY(180deg);
+}
+
+.glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
 }
 
 /* .card .back {

@@ -11,7 +11,7 @@ import SpriteGrid from "./view/SpriteGrid";
 const CombatBoard: React.FC = () => {
   const render = useMemo(() => (
     <>
-      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 10, width: "100%", height: "100%", backgroundColor: "blue" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "blue" }}>
         <SlotGrid />
         <CardGrid />
         <SpriteGrid />
@@ -60,6 +60,8 @@ export const BattlePlaza: React.FC = () => {
 
   const render = useMemo(() =>
     <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%", backgroundColor: "black" }}>
+      <div id="left-panel" style={{ position: "absolute", top: 0, left: 0, width: boardDimension?.left, height: "100%", backgroundColor: "black" }}></div>
+      <div id="right-panel" style={{ position: "absolute", top: 0, zIndex: 5000, right: 0, width: boardDimension?.left, height: "100%", backgroundColor: "black" }}></div>
       <div style={{
         position: "absolute", top: "50%", left: "50%", width: boardDimension?.width, height: boardDimension?.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
       }}>

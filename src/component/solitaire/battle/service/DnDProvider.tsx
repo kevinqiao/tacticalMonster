@@ -33,6 +33,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     // console.log("onDrag", card, data);
     if (!card.ele || !boardDimension) return;
     const { top, left } = boardDimension;
+    console.log("onDrag", card, data, top, left);
     const x = data.x - left - (card.width || 0) / 2;
     const y = data.y - top - (card.height || 0) / 2;
     if (y < boardDimension.zones[0].top) return;

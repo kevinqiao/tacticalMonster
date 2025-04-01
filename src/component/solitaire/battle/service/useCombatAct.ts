@@ -52,12 +52,20 @@ const useCombatAct = () => {
     actRef.current = 0;
     if (res && res.ok && res.result) {
       if (res.result.open && res.result.open.length > 0) {
-        playOpenCard({ cards: res.result.open, onComplete: onActComplete });
+        const openCards: Card[] = [];
+        res.result.open.forEach((card: Card) => {
+          const mcard = game.cards?.find((c) => c.id === card.id);
+          if (mcard) {
+            mcard.suit = card.suit;
+            mcard.rank = card.rank;
+            mcard.status = 1;
+            openCards.push(mcard);
+          }
+        });
+        playOpenCard({ cards: openCards, onComplete: onActComplete });
       } else {
         onActComplete();
       }
-
-
       return res.result;
     }
 

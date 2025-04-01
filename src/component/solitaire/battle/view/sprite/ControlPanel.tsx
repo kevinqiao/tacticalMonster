@@ -72,7 +72,7 @@ const ControlPanel: React.FC<{ no: number }> = ({ no }) => {
         return {
             position: "absolute",
             top: no === 1 ? 0 : top + 5,
-            left,
+            left: boardDimension.width,
             width,
             height: height - 10,
             // backgroundColor: "white",

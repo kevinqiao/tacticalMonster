@@ -1,14 +1,46 @@
 import gsap from "gsap";
 import { useCallback, useRef } from "react";
-import { useUserManager } from "service/UserManager";
 import { useCombatManager } from "../service/CombatManager";
+import { useSprite } from "../service/SpriteProvider";
 import { Card, Slot } from "../types/CombatTypes";
 import { cardCoord, getDeckCoord } from "../utils";
 const useCardAnimate = () => {
    const timelineRef = useRef<GSAPTimeline | null>(null);
    const { game, boardDimension, direction } = useCombatManager();
-   const { user } = useUserManager();
-
+   const { spriteRefs } = useSprite();
+   const initAvatar = useCallback(() => {
+      const ctrl0 = spriteRefs.get("control-panel-0");
+      const ctrl1 = spriteRefs.get("control-panel-1");
+      const { width, height } = ctrl0?.current?.getBoundingClientRect() || { width: 0, height: 0 };
+      if (ctrl0 && ctrl1) {
+         gsap.set(ctrl0.current, {
+            autoAlpha: 1,
+            x: -width,
+         })
+         gsap.set(ctrl1.current, {
+            autoAlpha: 1,
+            x: -width,
+         })
+      }
+   }, [spriteRefs])
+   const openAvatar = useCallback(() => {
+      const ctrl0 = spriteRefs.get("control-panel-0");
+      const ctrl1 = spriteRefs.get("control-panel-1");
+      const { width, height } = ctrl0?.current?.getBoundingClientRect() || { width: 0, height: 0 };
+      if (ctrl0 && ctrl1) {
+         gsap.to(ctrl0.current, {
+            autoAlpha: 1,
+            x: -width,
+            duration: 0.5,
+            ease: 'power2.out'
+         })
+         gsap.to(ctrl1.current, {
+            x: -width,
+            duration: 0.5,
+            ease: 'power2.out'
+         })
+      }
+   }, [spriteRefs])
 
    const playShuffle = useCallback(({ data, onComplete }: { data: any; onComplete?: () => void }) => {
       if (!boardDimension || !game) return;
@@ -55,6 +87,7 @@ const useCardAnimate = () => {
             stagger: 0.01,
             ease: "power2.in",
          });
+         tl.add(openAvatar, ">");
          tl.to(eles, {
             x: coord.left,
             y: coord.top,
@@ -102,6 +135,7 @@ const useCardAnimate = () => {
                   gsap.to(card.ele, { rotationY: 180, duration: 0.5, ease: 'power2.out' });
                }
             })
+
             const stl = gsap.timeline();
             game?.cards?.filter((card, index) => card.status === 1 && card.field && card.field === 1).forEach((card, index) => {
                if (card.ele) {
@@ -112,8 +146,19 @@ const useCardAnimate = () => {
                   stl.to(card.ele, { x: coord.x, y: coord.y, zIndex: coord.zIndex, rotationY: 180, duration: 0.3, ease: 'power2.out', delay: index * 0.1 });
                }
             })
+            const foundationGround = spriteRefs.get("foundation-ground");
+            if (foundationGround) {
+               stl.to(foundationGround.current, {
+                  duration: 0.5,
+                  opacity: 1,
+                  visibility: "visible",
+                  ease: 'power2.out'
+               }, ">")
+            }
             if (onComplete) {
-               onComplete();
+               setTimeout(() => {
+                  onComplete();
+               }, 1000)
             }
          },
          defaults: {
@@ -124,13 +169,15 @@ const useCardAnimate = () => {
 
       timelineRef.current = tl;
       game?.cards?.filter((card) => card.field && card.field >= 2 && card.ele).forEach((card, index) => {
-         const { x, y } = cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
+         const { x, y, cwidth, cheight } = cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
          // console.log("playDeal", card, x, y);
          if (card.ele) {
             card.x = Math.round(x);
             card.y = Math.round(y);
+            card.width = Math.round(cwidth);
+            card.height = Math.round(cheight);
             tl.to(card.ele, {
-               x: card.x, y: card.y, delay: index * 0.02 / 4, onComplete: () => {
+               x: card.x, y: card.y, width: card.width, height: card.height, delay: index * 0.02 / 4, onComplete: () => {
                   if (card.ele) {
                      card.zIndex = card.row;
                      gsap.set(card.ele, {
@@ -141,6 +188,7 @@ const useCardAnimate = () => {
             }, "<");
          }
       })
+
 
    }, [game, boardDimension, direction])
 
@@ -180,6 +228,14 @@ const useCardAnimate = () => {
          }
 
       })
+      const foundationGround = spriteRefs.get("foundation-ground");
+      if (foundationGround) {
+         gsap.set(foundationGround.current, {
+            opacity: 1,
+            visibility: "visible"
+         })
+      }
+      initAvatar();
    }, [game, boardDimension, popCard, direction])
    // useEffect(() => {
    //    if (!game || !boardDimension) return;

@@ -27,11 +27,6 @@ const FoundationGround: React.FC = () => {
             card.y = cord.y;
             card.width = cord.cwidth;
             card.height = cord.cheight;
-            card.zIndex = 10000;
-            const cc = game.cards?.find((c: Card) => c.field === field && c.col === col && c.row === row);
-            console.log("cc", cc);
-            if (cc)
-                card.status = 0;
         });
         return cards;
     }, [zone, game]);
@@ -41,6 +36,8 @@ const FoundationGround: React.FC = () => {
             position: "absolute",
             top: 0,
             left: 0,
+            opacity: 0,
+            visibility: "hidden"
         };
     }, [boardDimension]);
     useEffect(() => {
@@ -54,23 +51,12 @@ const FoundationGround: React.FC = () => {
                 cardRef.current!.style.visibility = "hidden";
             }
         })
-        // const card0 = spriteRefs.get("foundation-ground-card0")?.current;
-        // const card1 = spriteRefs.get("foundation-ground-card1")?.current;
-        // const card2 = spriteRefs.get("foundation-ground-card2")?.current;
-        // const card3 = spriteRefs.get("foundation-ground-card3")?.current;
-        // console.log("card0", card0);
-        // if (card0) card0.style.transform = "rotateY(0deg)";
-        // if (card1) card1.style.transform = "rotateY(0deg)";
-        // if (card2) card2.style.transform = "rotateY(0deg)";
-        // if (card3) card3.style.transform = "rotateY(0deg)";
-        // if (card0)
-        //     gsap.to(card0, { rotateY: 0, duration: 1.5, ease: "power2.inOut" })
     }, [spriteRefs, baseCards]);
 
 
     return <SpriteWrap id={"foundation-ground"} position={position}>
-        {baseCards.filter((card) => card.status === 1).map((card, index) => (
-            <div key={index} id={"foundation-ground-card" + index} className="card" style={{ position: "absolute", top: `${card.y}px`, left: `${card.x}px`, width: `${card.width}px`, height: `${card.height}px`, zIndex: `${card.zIndex}`, transform: "rotateY(180deg)", opacity: 0, visibility: "hidden" }}>
+        {baseCards.map((card, index) => (
+            <div key={index} id={"foundation-ground-card" + index} className="card" style={{ position: "absolute", top: `${card.y}px`, left: `${card.x}px`, width: `${card.width}px`, height: `${card.height}px`, zIndex: `${card.zIndex}`, transform: "rotateY(180deg)" }}>
                 <CardSVG key={index} card={card} />
             </div>
         ))}

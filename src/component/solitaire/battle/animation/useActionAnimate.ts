@@ -15,15 +15,6 @@ const useActionAnimate = () => {
          onComplete?.();
          return;
       }
-      console.log("playOpenCard", cards);
-      // const openCards = cards.map((c) => {
-      //    const card = game.cards?.find((card) => card.id === c.id);
-      //    if (card) {
-      //       Object.assign(card, c);
-      //       card.status = 1;
-      //    }
-      //    return card;
-      // })
       const tl = gsap.timeline({
          onComplete: () => {
             tl.kill();
@@ -124,8 +115,26 @@ const useActionAnimate = () => {
                }
             }, "<")
          }
-
       })
+      const field = move[0].field;
+      if (field === 0) {
+         const col = move[0].col;
+         console.log("foundation-ground-card" + col)
+         const cardRef = spriteRefs.get("foundation-ground-card" + col)
+         if (cardRef) {
+            tl.to(cardRef.current, {
+               duration: 0.5,
+               boxShadow: "0 0 20px 8px rgba(255, 215, 0, 0.8)", // 金黄色发光
+               // repeat: -1,      // 无限次循环
+               // yoyo: true,      // 往返动画
+               ease: "power2.inOut",
+            }).to(cardRef.current, {
+               duration: 0.3,
+               boxShadow: "none",
+               ease: "power2.in",
+            });
+         }
+      }
       tl.play();
 
 

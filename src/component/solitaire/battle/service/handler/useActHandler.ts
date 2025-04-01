@@ -20,7 +20,7 @@ const useActHandler = () => {
                         mcard.suit = card.suit;
                         mcard.rank = card.rank;
                         mcard.status = 1;
-                        openCards.push(card);
+                        openCards.push(mcard);
                     }
                 });
                 playOpenCard({
