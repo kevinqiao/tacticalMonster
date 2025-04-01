@@ -79,8 +79,10 @@ class GameManager {
         const shuffleEvent: any = { gameId: this.game.gameId, name: "shuffleCompleted", actor: "####", data: { status: 1 } };
         await this.dbCtx.db.insert("game_event", shuffleEvent);
         const dealEvent: any = { gameId: this.game.gameId, name: "dealCompleted", actor: "####", data: { status: 1 } };
-        const dealEventId = await this.dbCtx.db.insert("game_event", dealEvent);
-        await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: dealEventId, status: 1 });
+        await this.dbCtx.db.insert("game_event", dealEvent);
+        const startEvent: any = { gameId: this.game.gameId, name: "gameStarted", actor: "####", data: { status: 1 } };
+        const startEventId = await this.dbCtx.db.insert("game_event", startEvent);
+        await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: startEventId, status: 1 });
         await this.dbCtx.scheduler.runAfter(2000, internal.service.gameProxy.startRound, { gameId: this.game.gameId });
 
     }

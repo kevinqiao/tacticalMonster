@@ -34,14 +34,11 @@ const useCombatAct = () => {
 
   const move = useCallback(async (cardId: string, to: { field: number, slot: number }) => {
 
-    if (actRef.current > 0) {
+    if (!game || actRef.current > 0) {
       return;
     }
-    const localEvent = { name: "localAct", data: { cardId, to } };
-    eventQueue.push(localEvent);
-    if (!game || !user || !user.uid) return;
+
     actRef.current = Date.now();
-    completeAct();
     const res: any = await convex.mutation(api.service.gameProxy.move, {
       uid: user.uid,
       token: user.token,
@@ -50,26 +47,9 @@ const useCombatAct = () => {
       to: to
     });
     actRef.current = 0;
-    if (res && res.ok && res.result) {
-      if (res.result.open && res.result.open.length > 0) {
-        const openCards: Card[] = [];
-        res.result.open.forEach((card: Card) => {
-          const mcard = game.cards?.find((c) => c.id === card.id);
-          if (mcard) {
-            mcard.suit = card.suit;
-            mcard.rank = card.rank;
-            mcard.status = 1;
-            openCards.push(mcard);
-          }
-        });
-        playOpenCard({ cards: openCards, onComplete: onActComplete });
-      } else {
-        onActComplete();
-      }
-      return res.result;
-    }
+    return res;
 
-  }, [user, currentAct, game, playOpenCard, completeAct, direction, eventQueue]);
+  }, [user, currentAct, game, direction, eventQueue]);
   const flipCard = useCallback(async () => {
     console.log("flipCard", game, currentAct, user, user.uid);
     if (actRef.current > 0) {
@@ -99,8 +79,6 @@ const useCombatAct = () => {
       });
       playOpenCard({ cards: openCards, onComplete: onActComplete });
     }
-
-    console.log("move res", res);
   }, [eventQueue, game, currentAct, user, playOpenCard, direction]);
 
   return { move, flipCard, currentAct };

@@ -42,7 +42,6 @@ const FoundationGround: React.FC = () => {
     }, [boardDimension]);
     useEffect(() => {
         if (!spriteRefs || !baseCards) return;
-        console.log("founddation cards", baseCards);
         baseCards.forEach((card) => {
             const cardRef = spriteRefs.get("foundation-ground-card" + card.col)
             if (card.status === 0 && cardRef) {

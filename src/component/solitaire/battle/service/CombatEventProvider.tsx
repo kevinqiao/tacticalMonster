@@ -13,6 +13,7 @@ const enum EventCategory {
     LOCAL = "local",
 }
 const eventCategoryMap: { [k: string]: EventCategory } = {
+    "gameStarted": EventCategory.GAME,
     "dealCompleted": EventCategory.GAME,
     "shuffleCompleted": EventCategory.GAME,
     "flip": EventCategory.ACT,

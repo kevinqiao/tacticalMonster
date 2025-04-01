@@ -62,8 +62,13 @@ const useTurnAnimate = () => {
       if (!turnBarRef?.current) return;
 
       const yourTurn = spriteRefs.get("your-turn");
-      // console.log("yourTurn", yourTurn)
-      if (!yourTurn?.current) return;
+      const turnText = spriteRefs.get("your-turn-text");
+      if (!yourTurn?.current || !turnText?.current) return;
+      const { uid } = data;
+      const turnTextContent = user?.uid ? (uid === user?.uid ? "Your Turn" : "Opponent Turn") : uid + " Turn";
+      gsap.set(turnText.current, {
+         innerHTML: turnTextContent,
+      })
       const tl = gsap.timeline(
          {
             onComplete: () => {
@@ -71,27 +76,25 @@ const useTurnAnimate = () => {
                playTurnActing({
                   data, onComplete
                })
-
             }
          }
       );
+
       tl.to(yourTurn.current, {
-         opacity: 1,
-         visibility: "visible",
+         autoAlpha: 1,
          duration: 0.3,
       })
       tl.to(yourTurn.current, {
-         opacity: 0,
-         visibility: "hidden",
-         duration: 0.3,
-      }, ">=+2")
+         autoAlpha: 0,
+         duration: 0.1,
+      }, ">+=1")
       tl.to(turnBarRef.current, {
          autoAlpha: 1,
          duration: 0.3,
-      }, ">")
+      }, ">+=0.3")
       tl.play();
 
-   }, [spriteRefs, game, boardDimension, direction])
+   }, [user, spriteRefs, game, boardDimension, direction])
    const playInitTurn = useCallback(() => {
       if (!game || !game.currentTurn || !allSpritesLoaded) return;
 

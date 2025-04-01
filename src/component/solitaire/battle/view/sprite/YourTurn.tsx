@@ -23,8 +23,8 @@ const YourTurn: React.FC = () => {
 
     return (
         <SceneWrap id="your-turn" position={position} >
-            <div className="your-turn">
-                <div className="your-turn-text">Your Turn</div>
+            <div id="your-turn-container" className="your-turn">
+                <div id="your-turn-text" className="your-turn-text">Your Turn</div>
             </div>
         </SceneWrap>
     );

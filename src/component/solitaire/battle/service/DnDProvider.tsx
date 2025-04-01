@@ -4,6 +4,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useRef } from
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useUserManager } from "service/UserManager";
 import useActionAnimate from "../animation/useActionAnimate";
+import useTurnAnimate from "../animation/useTurnAnimate";
 import { Card, IDnDContext } from "../types/CombatTypes";
 import { DragEventData } from "../view/DnDCard";
 import { useCombatManager } from "./CombatManager";
@@ -24,16 +25,17 @@ export const DnDContext = createContext<IDnDContext>({
 const DnDProvider = ({ children }: { children: ReactNode }) => {
   const { game } = useCombatManager();
   const { user } = useUserManager();
-  const { boardDimension, direction } = useCombatManager();
+  const { eventQueue, boardDimension, direction, completeAct } = useCombatManager();
   const draggingGroupRef = useRef<Card[]>([]);
   const dropTargetsRef = useRef<string[]>([]);
   const { move } = useCombatAct();
-  const { playMove } = useActionAnimate();
+  const { playMove, playOpenCard } = useActionAnimate();
+  const { playTurnActed } = useTurnAnimate();
   const onDrag = useCallback((card: Card, data: DragEventData) => {
     // console.log("onDrag", card, data);
     if (!card.ele || !boardDimension) return;
     const { top, left } = boardDimension;
-    console.log("onDrag", card, data, top, left);
+
     const x = data.x - left - (card.width || 0) / 2;
     const y = data.y - top - (card.height || 0) / 2;
     if (y < boardDimension.zones[0].top) return;
@@ -45,7 +47,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     }
     onDragOver(card, data);
 
-  }, [user, game, boardDimension, direction])
+  }, [user, eventQueue, game, boardDimension, direction])
   const onDragStart = useCallback((card: Card, data: DragEventData) => {
     if (card.ele) {
       // console.log("onDragStart", card);
@@ -56,7 +58,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
         draggingGroupRef.current.push(...cards);
       }
     }
-  }, [user, game, boardDimension, direction])
+  }, [user, eventQueue, game, boardDimension, direction])
   const onDragEnd = useCallback(async (card: Card, data: DragEventData) => {
     await onDrop(card, dropTargetsRef.current);
     draggingGroupRef.current.length = 0;
@@ -64,7 +66,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
 
   }, [user, game, boardDimension, direction])
   const onDrop = useCallback(async (card: Card, targets: string[]) => {
-    if (!game || !boardDimension || !user || !user.uid) return;
+    if (!game || !boardDimension) return;
     if (targets.length === 0) {
       playMove({ data: { move: draggingGroupRef.current } });
       return;
@@ -75,6 +77,30 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     if (card.field === field && card.col === Number(slot)) {
       playMove({ data: { move: draggingGroupRef.current } });
       return;
+    }
+    completeAct();
+    await executeDrop(card, { field, slot: Number(slot) });
+
+
+  }, [user, boardDimension, game, direction, move])
+  const executeDrop = useCallback(async (card: Card, { field, slot }: { field: number, slot: number }) => {
+    if (!game || !boardDimension) return;
+    const onComplete = () => {
+      if (game?.currentTurn?.actions) {
+        game.currentTurn.actions.acted++;
+      }
+      setTimeout(() => playTurnActed({
+        data: {
+          uid: game?.currentTurn?.uid,
+          acted: game?.currentTurn?.actions.acted
+        }, onComplete: () => {
+          // completeAct();
+          const index = eventQueue.findIndex(e => e.name === "localAct");
+          if (index !== -1) {
+            eventQueue.splice(index, 1);
+          }
+        }
+      }), 500);
     }
     const cards = game.cards?.filter((c: Card) => c.field === field && c.col === Number(slot));
     const row = cards?.length || 0;
@@ -87,20 +113,33 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
       c.field = field;
       c.col = col;
     });
+    const localEvent = { name: "localAct", data: { cardId: card.id, to: { field, slot: +slot } } };
+    eventQueue.push(localEvent);
     playMove({ data: { move: draggingGroupRef.current } });
     const res = await move(card.id, { field, slot: +slot });
-    console.log("res", res);
-    if (!res) {
-      playMove({ data: { move: prePos } });
+
+    if (res.ok && res.result.open && res.result.open.length > 0) {
+      const openCards: Card[] = [];
+      res.result.open.forEach((card: Card) => {
+        const mcard = game.cards?.find((c) => c.id === card.id);
+        if (mcard) {
+          mcard.suit = card.suit;
+          mcard.rank = card.rank;
+          mcard.status = 1;
+          openCards.push(mcard);
+        }
+      });
+      playOpenCard({ cards: openCards, onComplete: onComplete });
+    } else {
+      onComplete();
     }
 
-  }, [boardDimension, game, direction, user, move])
+
+  }, [user, eventQueue, boardDimension, game, direction, move])
 
   const onDragOver = useCallback((card: Card, data: DragEventData) => {
     dropTargetsRef.current.length = 0;
     const elements = document.elementsFromPoint(data.x, data.y);
-    // const slotTargets = elements.filter((el) => el.classList.contains('slot')).map((el) => el.getAttribute('data-id'))
-    // console.log("slotTargets", slotTargets);
     const dropTargets = elements.filter((el) => el.classList.contains('slot'))
       .map((el) => el.getAttribute('data-id'))
       .filter((id) => id != null);
@@ -108,7 +147,7 @@ const DnDProvider = ({ children }: { children: ReactNode }) => {
     if (dropTargets.length > 0)
       dropTargetsRef.current.push(...dropTargets);
 
-  }, [boardDimension, game, direction])
+  }, [user, boardDimension, game, direction])
 
 
   const value: IDnDContext = {

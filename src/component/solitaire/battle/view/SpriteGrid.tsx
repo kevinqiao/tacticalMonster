@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import useTurnAnimate from '../animation/useTurnAnimate';
 import { useCombatManager } from '../service/CombatManager';
 import ControlPanel from './sprite/ControlPanel';
+import CountdownGo from './sprite/CountDownGo';
 import FoundationGround from './sprite/FoundationGround';
 import TurnBar from './sprite/TurnBar';
 import YourTurn from './sprite/YourTurn';
@@ -36,6 +37,7 @@ const SpriteGrid: React.FC = () => {
       </div>
       <div ref={controlPanelRef} style={{ position: "absolute", top: 0, left: 0, zIndex: 3000, display: "none" }}>
         <YourTurn />
+        <CountdownGo />
         {/* <Seat no={0} />
       <Seat no={1} /> */}
       </div>
