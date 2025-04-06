@@ -92,7 +92,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user]);
   const updateSession = useCallback((app: string, session: { token: string; status: number }) => {
-    setSessions(pre => ({ ...pre, [app]: session }))
+    sessions[app] = session;
+    // setSessions(pre => ({ ...pre, [app]: session }))
   }, []);
   const refreshToken = useCallback(({ uid, token }: { uid: string, token: string }) => {
     convex.action(api.service.AuthManager.refreshToken, { uid, token }).then(u => {

@@ -1,39 +1,31 @@
-import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { createContext, useContext, useEffect, useMemo } from "react";
+import { ConvexReactClient } from "convex/react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useUserManager } from "./UserManager";
 
-const SSA_URLS: { [k: string]: string } = {
+export const SSA_URLS: { [k: string]: string } = {
   "tacticalMonster": "https://shocking-leopard-487.convex.cloud",
   "ludo": "https://famous-mule-757.convex.cloud",
   "solitaire": "https://limitless-platypus-124.convex.cloud",
 };
-const SSA_AUTH_URLS: { [k: string]: string } = {
+export const SSA_AUTH_URLS: { [k: string]: string } = {
   "tacticalMonster": "https://shocking-leopard-487.convex.site",
   "ludo": "https://famous-mule-757.convex.site",
   "solitaire": "https://limitless-platypus-124.convex.site",
 };
 interface ISSAContext {
-  credentials: { uid: string; token: string } | null
+  player: any;
+  updatePlayer: (player: any) => void;
 }
 
 const SSAContext = createContext<ISSAContext>({
-  credentials: null,
+  player: null,
+  updatePlayer: () => { },
 });
-export const SSAManager = ({ app, children }: { app: string, children: React.ReactNode }) => {
-
-  const { user, sessions, updateSession } = useUserManager();
-  // const [credentials, setCredentials] = useState<{ uid: string; token: string } | null>(null);
-  const credentials = useMemo(() => {
-    const session = sessions[app];
-    if (!session || session.status === 0) {
-      return null;
-    }
-    return { uid: user.uid, token: session.token };
-  }, [sessions, user, app]);
-  // console.log("credentials", app, credentials)
+export const SSASignIn = ({ app, children }: { app: string, children: React.ReactNode }) => {
+  const { user, sessions } = useUserManager();
+  const { player, updatePlayer } = useSSAManager();
   useEffect(() => {
     const session = sessions[app];
-    // console.log("session", app, session)
     if (!session && user?.token) {
       sessions[app] = { token: "", status: 0 };
       fetch(SSA_AUTH_URLS[app] + "/signin", {
@@ -41,32 +33,45 @@ export const SSAManager = ({ app, children }: { app: string, children: React.Rea
         body: JSON.stringify({
           access_token: user.token,
         }),
-      }).then(res => res.json()).then(data => {
+      }).then(async res => {
+        const data = await res.json();
         console.log("data", app, data)
-        updateSession(app, { token: data.token, status: 1 });
+        updatePlayer(data);
+        // updateSession(app, { token: data.token, status: 1 });
+      }).catch(err => {
+        console.log("error", app, err)
+      }).finally(() => {
+        console.log("finally", app)
       });
     }
 
-  }, [user, sessions, updateSession]);
+  }, [user, sessions]);
   return (
     <>
-      <SSAContext.Provider value={{ credentials }}>{children}</SSAContext.Provider>
+      {children}
     </>
-  );
-};
+  )
 
-export const useSSAManager = () => {
-  return useContext(SSAContext);
-};
+}
+
+
 export const SSAProvider = ({ app, children }: { app: string, children: React.ReactNode }) => {
+  const [player, setPlayer] = useState<any>(null);
+  const updatePlayer = useCallback((player: any) => {
+    console.log("updatePlayer", player)
+    setPlayer(player);
+  }, [setPlayer]);
 
-  const client = new ConvexReactClient(SSA_URLS[app]);
   return (
-    <>
-      <ConvexProvider client={client}>
-        <SSAManager app={app}>{children}</SSAManager>
-      </ConvexProvider>
-    </>
+    <SSAContext.Provider value={{ player, updatePlayer }}>{children}
+    </SSAContext.Provider>
   );
 };
-export default SSAManager;
+export const useSSAManager = () => {
+  const value = useContext(SSAContext);
+  if (!value) {
+    throw new Error("useSSAManager must be used within a SSAProvider");
+  }
+  return value;
+};
+export default SSAProvider;

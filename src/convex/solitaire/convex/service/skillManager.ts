@@ -35,7 +35,7 @@ class SkillManager {
         }
     }
 
-    async useSkill(uid: string, skillId: string) {
+    async triggerSkill(uid: string, skillId: string) {
         if (!this.game) return;
 
     }

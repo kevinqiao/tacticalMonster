@@ -1,31 +1,37 @@
 export interface GamePlayer {
     uid: string;
+    token: string;
     name?: string;
     avatar?: string;
     exp?: number;
     level?: number;
-    unlockSkills?: string[];
+    activeSkills?: { id: string; talentLevel: number }[];
+    effects?: { id: string; remainingDuration: number }[];
 }
 
+export type CardRank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
+interface SkillEffect { description: string; instant: boolean; }
+interface TalentLevel { level: number; description: string; cost: { coins: number; diamonds?: number }; }
+interface LegendaryEffect { name: string; visual: string; bonus?: string; cost: number; owned: boolean; }
 export interface Effect {
     id: string;
-    name: string;
-    duration: number;
-    remaining_duration?: number;
-    modifiers?: {
-        [key: string]: number;
-    };
+    name?: string;
+    description?: string;
+    duration?: number;
+    remainingDuration?: number;
+    modifier?: { [key: string]: any };
 }
 export interface Skill {
-    id: string; // 技能的唯一标识符
-    name: string; // 技能名称
-    type: "master" | "active" | "passive"; // 技能类型（主动、被动、终极技能）
-    description?: string; // 技能描述，提供玩家可读的信息
-    unlockConditions?: {
-        level?: number; // 解锁所需等级
-        questsCompleted?: string[]; // 解锁所需完成的任务
-    };
-    resource_cost: { ep?: number; stamina?: number }; // 技能资源消耗（如能量点）
-    cooldown: number; // 技能冷却时间（以回合计）
-    effects: Effect[]; // 技能的直接效果（主动技能生效时触发）
+    id: string;
+    name: string;
+    triggerCard: CardRank;
+    instant?: boolean;
+    baseEffect?: SkillEffect;
+    talents: TalentLevel[];
+    maxUsesPerGame: number;
+    currentUses?: number;
+    unlockLevel: number;
+    unlockCost: { experience: number; diamonds?: number };
+    legendaryEffect?: LegendaryEffect;
+    currentTalentLevel?: number; // 当前天赋等级（新增）
 }

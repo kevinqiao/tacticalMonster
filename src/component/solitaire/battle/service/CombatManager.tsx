@@ -3,11 +3,10 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
+import { useSSAManager } from "service/SSAManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
 import { BoardDimension, CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
-import CombatEventProvider from "./CombatEventProvider";
-
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 export const CombatContext = createContext<ICombatContext>({
@@ -35,8 +34,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
   const [boardDimension, setBoardDimension] = useState<BoardDimension | null>(null);
   const { user } = useUserManager();
+  const { player } = useSSAManager();
   const convex = useConvex();
-
+  console.log("player", player);
   useEffect(() => {
     if (!game) return;
     if (!user || !user.uid) {
@@ -87,7 +87,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const askAct = useCallback((due: number) => {
     // console.log("askAct", game?.currentTurn);
     if (!game || !game.currentTurn) return;
-    setCurrentAct({ due, uid: game.currentTurn.uid ?? "", act: game.currentTurn.actions.acted + 1 });
+    setCurrentAct({ due, uid: game.currentTurn.uid ?? "", act: game.currentTurn.actions.acted.length + 1 });
   }, [game])
   const completeAct = useCallback(() => {
     setCurrentAct(null);
@@ -105,7 +105,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     askAct,
     completeAct
   };
-  return <CombatContext.Provider value={value}><CombatEventProvider>{children}</CombatEventProvider></CombatContext.Provider>;
+  return <CombatContext.Provider value={value}>{children}</CombatContext.Provider>;
 };
 
 export const useCombatManager = () => {

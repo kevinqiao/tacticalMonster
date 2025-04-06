@@ -1,6 +1,6 @@
 
 import { DragEventData } from "../view/DnDCard";
-import { Effect } from "./PlayerTypes";
+import { CardRank } from "./PlayerTypes";
 
 
 export interface Player {
@@ -39,12 +39,11 @@ export interface Seat {
     uid: string;
     field: number;
     ep?: number;
-    skillCooldowns?: Record<string, number>;
-    activeEffects?: Effect[];
     score?: number;
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
     ele?: HTMLDivElement | null;
+    skillUses?: { id: string; currentUses: number }[];
 }
 export type Slot = {
     index: number,
@@ -72,6 +71,7 @@ export interface GameModel {
     seats?: Seat[];
     currentRound?: CombatRound;
     currentTurn?: CombatTurn;//-1:not started,0-3:selected
+    skillUse?: { id: string, status: number, data: any };
     cards?: Card[];
     actDue?: number | null;
     lastUpdate?: string;//event id
@@ -80,7 +80,8 @@ export interface GameModel {
 
 export interface CombatTurn {
     uid: string;
-    actions: { acted: number; acting?: number; max: number };
+    actions: { acted: { type: string; result: { move: Card[], open: Card[] } }[]; max: number };
+    skillUse?: string;
     status: number;//0-not started,1-started,2-ended 
 }
 export interface CombatRound {
@@ -109,12 +110,18 @@ export interface ICombatContext {
     completeAct: () => void;
     updateBoardDimension: (boardDimension: BoardDimension) => void;
 }
+export interface ISkillContext {
+    activeSkill: { id: string, status: number, data: any } | null;
+    canTriggerSkill: (triggerCard: CardRank) => { id: string, talentLevel: number } | undefined;
+    triggerSkill: (triggerCard: CardRank) => void;
+    updateActiveSkill: (data: any) => void;
+    completeActiveSkill: () => void;
+}
 export interface IDnDContext {
     isTouchDevice: boolean;
     onDrag: (card: Card, data: DragEventData) => void;
     onDragStart: (card: Card, data: DragEventData) => void;
     onDragEnd: (card: Card, data: DragEventData) => void;
-    onDrop: (card: Card, targets: string[]) => void;
     onDragOver: (card: Card, data: DragEventData) => void;
 }
 export interface ICombatSceneContext {

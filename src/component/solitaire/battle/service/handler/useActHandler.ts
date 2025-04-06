@@ -25,13 +25,10 @@ const useActHandler = () => {
                 });
                 playOpenCard({
                     cards: openCards, onComplete: () => {
-                        if (game.currentTurn?.actions) {
-                            game.currentTurn.actions.acted++;
-                        }
                         playTurnActed({
                             data: {
                                 uid: game.currentTurn?.uid,
-                                acted: game.currentTurn?.actions.acted
+                                acted: game.currentTurn?.actions.acted.length
                             }, onComplete: () => {
                                 completeAct();
                                 onComplete()
@@ -64,13 +61,11 @@ const useActHandler = () => {
 
                 playMove({
                     data: { move: moveCards, open: openCards }, onComplete: () => {
-                        if (game.currentTurn?.actions) {
-                            game.currentTurn.actions.acted++;
-                        }
+
                         playTurnActed({
                             data: {
                                 uid: game.currentTurn?.uid,
-                                acted: game.currentTurn?.actions.acted
+                                acted: game.currentTurn?.actions.acted.length
                             }, onComplete: () => {
                                 console.log("move complete", game.currentTurn?.actions.acted);
                                 completeAct();

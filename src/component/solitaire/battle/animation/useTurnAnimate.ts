@@ -112,7 +112,7 @@ const useTurnAnimate = () => {
          autoAlpha: 0,
       })
       const max = game.currentTurn?.actions.max;
-      const acted = game.currentTurn?.actions.acted;
+      const acted = game.currentTurn?.actions.acted.length;
       // console.log("turn act max:", max, acted)
 
       for (let i = 1; i <= max; i++) {

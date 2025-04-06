@@ -1,9 +1,7 @@
 import React, { useEffect } from 'react';
 import useCardAnimate from '../animation/useCardAnimate';
 import { useCombatManager } from '../service/CombatManager';
-import DnDProvider from '../service/DnDProvider';
 import { Card } from '../types/CombatTypes';
-import DnDCard from './DnDCard';
 import "./style.css";
 
 interface CardSVGProps {
@@ -21,9 +19,11 @@ const CardContainer: React.FC<{ card: Card }> = ({ card }) => {
     //   height: 0,
     // }}
     // >
-    <DnDCard card={card}>
+    // <DnDCard card={card}>
+    <div ref={(ele) => card.ele = ele} className="card">
       <CardSVG card={card} />
-    </DnDCard>
+    </div>
+    // </DnDCard>
 
 
   );
@@ -110,7 +110,7 @@ export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps)
 
 const CardGrid: React.FC = () => {
 
-  const { game, boardDimension, direction, currentAct } = useCombatManager();
+  const { game, boardDimension, direction } = useCombatManager();
   const { playInit } = useCardAnimate();
 
   useEffect(() => {
@@ -120,13 +120,13 @@ const CardGrid: React.FC = () => {
   }, [game, boardDimension, direction])
 
   return (
-    <DnDProvider>
-      <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2000, width: "100%", height: "100%" }}>
-        {game?.cards?.map((card) => (
-          <CardContainer key={card.id} card={card} />
-        ))}
-      </div>
-    </DnDProvider>
+    // <DnDProvider>
+    <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2000, width: "100%", height: "100%" }}>
+      {game?.cards?.map((card) => (
+        <CardContainer key={card.id} card={card} />
+      ))}
+    </div>
+    // </DnDProvider>
   );
 };
 

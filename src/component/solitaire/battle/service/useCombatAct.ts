@@ -15,13 +15,11 @@ const useCombatAct = () => {
   const { playTurnActed } = useTurnAnimate();
 
   const onActComplete = useCallback(() => {
-    if (game?.currentTurn?.actions) {
-      game.currentTurn.actions.acted++;
-    }
+
     playTurnActed({
       data: {
         uid: game?.currentTurn?.uid,
-        acted: game?.currentTurn?.actions.acted
+        acted: game?.currentTurn?.actions.acted.length
       }, onComplete: () => {
         // completeAct();
         const index = eventQueue.findIndex(e => e.name === "localAct");

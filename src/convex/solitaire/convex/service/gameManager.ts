@@ -118,7 +118,7 @@ class GameManager {
     }
     async startTurn(uid: string) {
         if (!this.game) return;
-        this.game.currentTurn = { uid, actions: { acted: 0, max: 3 }, status: 0 };
+        this.game.currentTurn = { uid, actions: { acted: [], max: 3 }, status: 0 };
         const turnEvent: any = { gameId: this.game.gameId, name: "turnStarted", actor: "####", data: this.game.currentTurn };
         const eventId = await this.dbCtx.db.insert("game_event", turnEvent);
         await this.dbCtx.db.patch(this.game.gameId, { currentTurn: this.game.currentTurn, lastUpdate: eventId });
@@ -142,11 +142,11 @@ class GameManager {
     }
     async askAct(dueTime: number) {
         if (!this.game || !this.game.currentTurn) return;
-        if (this.game.currentTurn.actions.max === this.game.currentTurn.actions.acted) {
+        if (this.game.currentTurn.actions.max === this.game.currentTurn.actions.acted.length) {
             this.turnOver();
         } else {
             this.game.actDue = dueTime;
-            const act = this.game.currentTurn.actions.acted + 1;
+            const act = this.game.currentTurn.actions.acted.length + 1;
             const askActEvent: any = { gameId: this.game.gameId, name: "askAct", actor: "####", data: { dueTime, act } };
             const eventId = await this.dbCtx.db.insert("game_event", askActEvent);
             await this.dbCtx.db.patch(this.game.gameId, { actDue: dueTime, lastUpdate: eventId });
@@ -159,9 +159,9 @@ class GameManager {
         cards[0].status = 1;
         const flipEvent: any = { gameId: this.game.gameId, name: "flip", actor: uid, data: { open: [cards[0]] } };
         const eventId = await this.dbCtx.db.insert("game_event", flipEvent);
-        this.game.currentTurn.actions.acted++;
+        this.game.currentTurn.actions.acted.push({ type: "flip", result: { move: [], open: [cards[0]] } })
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
-        if (this.game.currentTurn.actions.acted === this.game.currentTurn.actions.max) {
+        if (this.game.currentTurn.actions.acted.length === this.game.currentTurn.actions.max) {
             await this.turnOver();
         } else {
             await this.askAct(-1);
@@ -205,9 +205,9 @@ class GameManager {
 
         const event: any = { gameId: this.game.gameId, name: "move", actor: uid, data };
         const eventId = await this.dbCtx.db.insert("game_event", event);
-        this.game.currentTurn.actions.acted++;
+        this.game.currentTurn.actions.acted.push({ type: "move", result: data })
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
-        if (this.game.currentTurn.actions.acted === this.game.currentTurn.actions.max) {
+        if (this.game.currentTurn.actions.acted.length === this.game.currentTurn.actions.max) {
             await this.turnOver();
         } else {
             await this.askAct(-1);

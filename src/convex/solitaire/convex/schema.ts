@@ -27,8 +27,14 @@ export default defineSchema({
         currentRound: v.optional(v.object({ no: v.number(), turnOvers: v.array(v.string()), status: v.optional(v.number()) })),
         currentTurn: v.optional(v.object({
             uid: v.string(),
-            actions: v.object({ acted: v.number(), acting: v.optional(v.number()), max: v.number() }),
+            actions: v.object({ acted: v.array(v.object({ type: v.string(), result: v.optional(v.any()) })), max: v.number() }),
+            skillUse: v.optional(v.string()),
             status: v.optional(v.number()),
+        })),
+        skillUse: v.optional(v.object({
+            id: v.string(),
+            status: v.number(),
+            data: v.optional(v.any())
         })),
         status: v.number(),//0-init,1-playing  2-over 3-settled 4-cancelled
         actDue: v.optional(v.number()),

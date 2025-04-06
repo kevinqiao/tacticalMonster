@@ -1,8 +1,8 @@
-import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
-import { useUserManager } from 'service/UserManager';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCombatManager } from '../service/CombatManager';
 import { useDnDManager } from '../service/DnDProvider';
 import { Card } from '../types/CombatTypes';
+import { cardCoord } from '../utils';
 // 抽象事件类型
 type DragEventType = 'start' | 'move' | 'end' | 'over' | 'drop';
 export type DragEventData = {
@@ -12,34 +12,18 @@ export type DragEventData = {
 };
 
 // Card 组件
-const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
-    const { game, currentAct } = useCombatManager();
-    const { user } = useUserManager();
-    // const ref = useRef<HTMLDivElement>(null);
+const DnDCard = ({ card }: { card: Card }) => {
+    const { game, boardDimension, direction } = useCombatManager();
+    const ref = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const { onDragStart, onDrag, onDragEnd, isTouchDevice } = useDnDManager()
 
-    const canDrag = useMemo(() => {
-
-        if (!game || !game.currentTurn || !user || !user.uid || !card.status) {
-            return false;
-        }
-        if (!currentAct || currentAct.uid !== user.uid) {
-            // console.log("currentAct.uid !== user.uid", currentAct, user);
-            return false;
-        }
-        const currentSeat = game.seats?.find(s => s.uid === currentAct.uid);
-        if (card.field === 1 || card.field === currentSeat?.field) {
-            return true;
-        }
-
-        return false;
-    }, [game, currentAct, card, user]);
 
     // 抽象事件处理函数
     const handleDragEvent = useCallback((type: DragEventType, data: DragEventData | null) => {
         switch (type) {
             case 'start':
+                console.log("start", card.id, data)
                 if (data && card.ele) {
                     setIsDragging(true);
                     onDragStart(card, data);
@@ -73,7 +57,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
 
     // PC 鼠标事件绑定
     useEffect(() => {
-        const ele = card.ele;
+        const ele = ref.current;
         if (!ele) return;
 
         const handleMouseDown = (e: MouseEvent) => {
@@ -103,7 +87,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
         const handleCustomDrop = (e: CustomEvent) => {
             handleDragEvent('drop', { x: 0, y: 0, id: e.detail.draggedId });
         };
-        if (!isTouchDevice && canDrag) {
+        if (!isTouchDevice) {
 
             ele.addEventListener('mousedown', handleMouseDown);
             document.addEventListener('mousemove', handleMouseMove);
@@ -122,7 +106,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
             ele.removeEventListener('customover' as any, handleCustomOver);
             ele.removeEventListener('customdrop' as any, handleCustomDrop);
         };
-    }, [game, card, isDragging, canDrag]);
+    }, [game, card, isDragging]);
 
     // 触摸事件绑定
     useEffect(() => {
@@ -167,7 +151,7 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
             console.log("drop custom", e.detail.draggedId);
             handleDragEvent('drop', { x: 0, y: 0, id: e.detail.draggedId });
         };
-        if (isTouchDevice && canDrag) {
+        if (isTouchDevice) {
 
             ele.addEventListener('touchstart', handleTouchStart, { passive: false });
             document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -186,19 +170,29 @@ const DnDCard = ({ card, children }: { card: Card, children: ReactNode }) => {
             ele.removeEventListener('customover' as any, handleCustomOver);
             ele.removeEventListener('customdrop' as any, handleCustomDrop);
         };
-    }, [card, isDragging, canDrag]);
+    }, [card, isDragging]);
+    const coord = useMemo(() => {
+        if (!card || !game || !boardDimension) return { x: 0, y: 0, cwidth: 0, cheight: 0, zIndex: 0 };
+        return cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
+    }, [card, game, direction]);
 
     const style: React.CSSProperties = {
-        border: '1px solid black',
-        cursor: canDrag ? 'grab' : 'default',
+        top: coord.y,
+        left: coord.x,
+        border: '0px solid black',
+        cursor: 'grab',
+        width: coord.cwidth,
+        height: coord.cheight,
+        // backgroundColor: 'red',
+        zIndex: 10000,
         // opacity: isDragging ? 0.7 : 1,
         userSelect: 'none',
         touchAction: 'none',
     };
 
     return (
-        <div ref={(ele) => card.ele = ele} key={card.id} className="card" data-id={card.id} style={style}>
-            {children}
+        <div key={card.id} className="card" data-id={card.id} style={style} ref={ref}>
+
         </div>
     );
 };

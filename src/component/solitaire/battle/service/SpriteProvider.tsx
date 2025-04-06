@@ -1,4 +1,6 @@
 import React, { createContext, ReactNode, useCallback, useContext, useRef, useState } from 'react';
+import { useSSAManager } from '../../../../service/SSAManager';
+
 
 interface SpriteContextType {
     registerRef: (id: string, isCustomId: boolean) => { id: string; ref: React.RefObject<HTMLDivElement> };
@@ -17,6 +19,8 @@ export const SpriteProvider: React.FC<SpriteProviderProps> = ({ children }) => {
     const [spriteLoaded, setSpriteLoaded] = useState<Set<string>>(new Set());
     const divRefs = useRef<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
     const customIdDivs = useRef<Set<string>>(new Set()); // 只存储自定义 id 的 div
+    const { player } = useSSAManager();
+    console.log("player", player);
 
     const registerRef = useCallback((id: string, isCustomId: boolean) => {
         if (!divRefs.current.has(id)) {
