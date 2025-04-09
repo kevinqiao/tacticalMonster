@@ -24,6 +24,7 @@ export interface Effect {
 export interface Skill {
     id: string;
     name: string;
+    class?: string;
     triggerCard: CardRank;
     instant?: boolean;
     baseEffect?: SkillEffect;

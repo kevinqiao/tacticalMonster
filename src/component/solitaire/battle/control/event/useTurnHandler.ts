@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import useTurnAnimate from "../../animation/useTurnAnimate";
+import { useCombatManager } from "../../service/CombatManager";
 import { CombatEvent } from "../../types/CombatTypes";
-import { useCombatManager } from "../CombatManager";
 const useTurnHandler = () => {
     const { game, eventQueue, boardDimension, direction } = useCombatManager();
     const { playTurnStart, playTurnOver } = useTurnAnimate();

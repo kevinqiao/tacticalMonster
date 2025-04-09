@@ -19,7 +19,7 @@ export const createGame = internalMutation({
 export const create = action({
     args: {},
     handler: async (ctx, args) => {
-        // console.log("create game");
+        console.log("create game");
         const game = await ctx.runMutation(internal.service.gameProxy.createGame);
         // console.log("game", game);
         if (game) {

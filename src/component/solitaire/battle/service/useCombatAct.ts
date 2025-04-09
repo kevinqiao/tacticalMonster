@@ -12,23 +12,15 @@ const useCombatAct = () => {
   const { game, eventQueue, currentAct, completeAct, boardDimension, direction } = useCombatManager();
   const { playOpenCard } = useActionAnimate();
   const convex = useConvex();
-  const { playTurnActed } = useTurnAnimate();
+  const { playTurnBar } = useTurnAnimate();
 
   const onActComplete = useCallback(() => {
+    const index = eventQueue.findIndex(e => e.name === "localAct");
+    if (index !== -1) {
+      eventQueue.splice(index, 1);
+    }
 
-    playTurnActed({
-      data: {
-        uid: game?.currentTurn?.uid,
-        acted: game?.currentTurn?.actions.acted.length
-      }, onComplete: () => {
-        // completeAct();
-        const index = eventQueue.findIndex(e => e.name === "localAct");
-        if (index !== -1) {
-          eventQueue.splice(index, 1);
-        }
-      }
-    })
-  }, [eventQueue, game, boardDimension, playTurnActed, completeAct, direction]);
+  }, [user, eventQueue, game, boardDimension, completeAct, direction]);
 
   const move = useCallback(async (cardId: string, to: { field: number, slot: number }) => {
 

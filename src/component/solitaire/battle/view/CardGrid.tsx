@@ -1,16 +1,21 @@
-import React, { useEffect } from 'react';
-import useCardAnimate from '../animation/useCardAnimate';
+import React, { useCallback } from 'react';
 import { useCombatManager } from '../service/CombatManager';
+import { useSprite } from '../service/SpriteProvider';
 import { Card } from '../types/CombatTypes';
 import "./style.css";
-
 interface CardSVGProps {
   card: Card;
   width?: string;
   height?: string;
 }
 
-const CardContainer: React.FC<{ card: Card }> = ({ card }) => {
+const CardContainer: React.FC<{ card: Card, onLoad: () => void }> = ({ card, onLoad }) => {
+  const load = useCallback((ele: HTMLDivElement | null) => {
+    if (ele) {
+      card.ele = ele;
+      onLoad();
+    }
+  }, [onLoad]);
 
   return (
 
@@ -20,7 +25,7 @@ const CardContainer: React.FC<{ card: Card }> = ({ card }) => {
     // }}
     // >
     // <DnDCard card={card}>
-    <div ref={(ele) => card.ele = ele} className="card">
+    <div ref={load} className="card">
       <CardSVG card={card} />
     </div>
     // </DnDCard>
@@ -110,20 +115,23 @@ export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps)
 
 const CardGrid: React.FC = () => {
 
-  const { game, boardDimension, direction } = useCombatManager();
-  const { playInit } = useCardAnimate();
+  const { game } = useCombatManager();
+  const { completeCardsLoaded } = useSprite();
+  // const [isLoaded, setIsLoaded] = useState(false);
+  const loadCheck = useCallback(() => {
+    if (game) {
+      if (game.cards?.every((c) => c.ele))
+        completeCardsLoaded();
+      // setIsLoaded((pre) => !pre ? true : pre);
+    }
 
-  useEffect(() => {
-    // console.log("game", game, currentAct);
-    if (!game || !boardDimension) return;
-    if (game.status > 1) playInit();
-  }, [game, boardDimension, direction])
+  }, [game]);
 
   return (
     // <DnDProvider>
-    <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2000, width: "100%", height: "100%" }}>
+    <div style={{ position: "absolute", top: 0, left: 0, zIndex: 1500, width: "100%", height: "100%" }}>
       {game?.cards?.map((card) => (
-        <CardContainer key={card.id} card={card} />
+        <CardContainer key={game.gameId + '-' + card.id} card={card} onLoad={loadCheck} />
       ))}
     </div>
     // </DnDProvider>

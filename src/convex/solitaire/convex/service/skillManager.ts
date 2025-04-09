@@ -1,7 +1,6 @@
 import { GameModel } from "../../../../component/solitaire/battle/types/CombatTypes";
-import { Skill } from "../../../../component/solitaire/battle/types/PlayerTypes";
-import { Id } from "../_generated/dataModel";
-
+import { skillDefs } from "../../../../component/solitaire/battle/types/skillData";
+import { SkillHandlerFactory } from "./skill/SkillHandler";
 interface Card {
     id: string;
     suit: string;
@@ -14,30 +13,40 @@ interface Card {
 }
 
 class SkillManager {
-    public dbCtx: any;
-    public skills: Skill[] = [];
-    public game: GameModel | null = null;
+
+    public game: GameModel | undefined;
 
 
-    constructor(ctx: any) {
-        this.dbCtx = ctx;
+
+    constructor(game?: GameModel) {
+        this.game = game;
     }
-    async init(gameId: string) {
-        try {
-            const id = gameId as Id<"game">;
-            const game = await this.dbCtx.db.get(id);
 
-            if (game) {
-                this.game = { ...game, _id: undefined, _creationTime: undefined, gameId: id };
+
+
+    async triggerSkill(): Promise<{ id: string, status: number, data: any } | undefined> {
+
+        if (!this.game || !this.game.currentTurn) return;
+        const len = this.game.currentTurn.actions.acted.length;
+        if (len === 0) return;
+        const lastAction = this.game.currentTurn.actions.acted[len - 1];
+        if (lastAction.type !== "move" || !lastAction.result.move || lastAction.result.move.length > 1) return;
+        const card = lastAction.result.move[0];
+        if (card.field === 0) {
+            const skill = skillDefs.find(s => s.triggerCard === "Q");
+            if (skill && this.game) {
+                const skillInit = SkillHandlerFactory.getSkillHandler(skill.id).init(this.game, lastAction);
+                return skillInit;
             }
-        } catch (error) {
-            console.log("initGame error", error);
         }
+        return
+
     }
 
-    async triggerSkill(uid: string, skillId: string) {
-        if (!this.game) return;
-
+    async completeSkill() {
+        // if (!this.game) return;
+        // this.game.skillUse = { id: "steal", status: 2, data: {} };
+        // await this.dbCtx.db.patch(this.game.gameId, { skillUse: this.game.skillUse });
     }
 
 

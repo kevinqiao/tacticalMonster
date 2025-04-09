@@ -1,10 +1,11 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { SSA_URLS, SSAProvider, SSASignIn, useSSAManager } from "../../../service/SSAManager";
+import { SSA_URLS, SSAProvider, SSASignIn } from "../../../service/SSAManager";
 import ActControl from "./control/ActControl";
-import CombatEventProvider from "./service/CombatEventProvider";
+import CombatEventControl from "./control/CombatEventControl";
+import SkillControl from "./control/SkillControl";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
-import CombatSkillProvider from "./service/CombatSkillProvider";
+import CombatSkillProvider, { useSkillManager } from "./service/CombatSkillProvider";
 import { SpriteProvider } from "./service/SpriteProvider";
 import "./style.css";
 import { createDualZones } from "./utils";
@@ -12,19 +13,13 @@ import CardGrid from "./view/CardGrid";
 import SlotGrid from "./view/SlotGrid";
 import SpriteGrid from "./view/SpriteGrid";
 const CombatBoard: React.FC = () => {
-  const { player, updatePlayer } = useSSAManager();
-  useEffect(() => {
-    updatePlayer({
-      name: "test",
-      avatar: "https://i.pravatar.cc/150?img=1",
-    });
-  }, [updatePlayer]);
-  console.log("player", player);
+  const { activeSkill } = useSkillManager();
   return <>
     <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "blue" }}>
       <SlotGrid />
       <CardGrid />
-      <ActControl />
+      {!activeSkill && <ActControl />}
+      {activeSkill && <SkillControl />}
       <SpriteGrid />
     </div></>
 
@@ -34,8 +29,8 @@ export const BattlePlaza: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { game, boardDimension, updateBoardDimension } = useCombatManager();
-  const { player } = useSSAManager();
-  console.log("player", player)
+
+
   useEffect(() => {
     const updatePosition = () => {
 
@@ -66,17 +61,22 @@ export const BattlePlaza: React.FC = () => {
     return () => window.removeEventListener("resize", updatePosition);
   }, [game]);
 
-  const render = useMemo(() =>
-    <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%", backgroundColor: "black" }}>
-      <div id="left-panel" style={{ position: "absolute", top: 0, left: 0, width: boardDimension?.left, height: "100%", backgroundColor: "black" }}></div>
-      <div id="right-panel" style={{ position: "absolute", top: 0, zIndex: 5000, right: 0, width: boardDimension?.left, height: "100%", backgroundColor: "black" }}></div>
-      <div style={{
-        position: "absolute", top: "50%", left: "50%", width: boardDimension?.width, height: boardDimension?.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
-      }}>
-        <CombatBoard />
+
+  const render = useMemo(() => {
+    return <>
+      {game && <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%", backgroundColor: "black" }}>
+        <div id="left-panel" style={{ position: "absolute", top: 0, left: 0, width: boardDimension?.left, height: "100%", backgroundColor: "black" }}></div>
+        <div id="right-panel" style={{ position: "absolute", top: 0, zIndex: 5000, right: 0, width: boardDimension?.left, height: "100%", backgroundColor: "black" }}></div>
+        <div style={{
+          position: "absolute", top: "50%", left: "50%", width: boardDimension?.width, height: boardDimension?.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
+        }}>
+          <CombatBoard />
+        </div >
       </div >
-    </div >
-    , [boardDimension]);
+      }
+    </>
+  }, [game, boardDimension]);
+
   return render;
 };
 const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
@@ -106,15 +106,14 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
     <SSAProvider app="solitaire">
       <ConvexProvider client={client}>
         <SSASignIn app="solitaire">
-          <SpriteProvider>
+          {isVisible && gameId && <SpriteProvider>
             <CombatProvider gameId={gameId}>
-              <CombatSkillProvider>
-                <CombatEventProvider>
-                  <BattlePlaza></BattlePlaza>
-                </CombatEventProvider>
+              <CombatSkillProvider>          
+                <BattlePlaza></BattlePlaza>
+                <CombatEventControl />
               </CombatSkillProvider>
             </CombatProvider>
-          </SpriteProvider>
+          </SpriteProvider>}
         </SSASignIn>
       </ConvexProvider>
     </SSAProvider>)

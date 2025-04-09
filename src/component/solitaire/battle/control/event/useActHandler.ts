@@ -1,11 +1,11 @@
 import { useCallback } from "react";
 import useActionAnimate from "../../animation/useActionAnimate";
 import useTurnAnimate from "../../animation/useTurnAnimate";
+import { useCombatManager } from "../../service/CombatManager";
 import { Card, CombatEvent } from "../../types/CombatTypes";
-import { useCombatManager } from "../CombatManager";
 const useActHandler = () => {
     const { playOpenCard, playMove } = useActionAnimate();
-    const { playTurnActing, playTurnActed } = useTurnAnimate();
+    const { playTurnBar } = useTurnAnimate();
     const { game, eventQueue, boardDimension, direction, completeAct, askAct } = useCombatManager();
     const handleEvent = useCallback((event: CombatEvent, onComplete: () => void) => {
         const { name, status, data } = event;
@@ -25,15 +25,15 @@ const useActHandler = () => {
                 });
                 playOpenCard({
                     cards: openCards, onComplete: () => {
-                        playTurnActed({
-                            data: {
-                                uid: game.currentTurn?.uid,
-                                acted: game.currentTurn?.actions.acted.length
-                            }, onComplete: () => {
-                                completeAct();
-                                onComplete()
-                            }
-                        })
+                        // playTurnBar({
+                        //     data: {
+                        //         uid: game.currentTurn?.uid,
+                        //         act: game.currentTurn?.actions.acted.length ? game.currentTurn?.actions.acted.length + 1 : 1
+                        //     }, onComplete: () => {
+                        completeAct();
+                        onComplete()
+                        //     }
+                        // })
                     }
                 });
                 break;
@@ -62,22 +62,24 @@ const useActHandler = () => {
                 playMove({
                     data: { move: moveCards, open: openCards }, onComplete: () => {
 
-                        playTurnActed({
-                            data: {
-                                uid: game.currentTurn?.uid,
-                                acted: game.currentTurn?.actions.acted.length
-                            }, onComplete: () => {
-                                console.log("move complete", game.currentTurn?.actions.acted);
-                                completeAct();
-                                onComplete()
-                            }
-                        })
+                        // playTurnBar({
+                        //     data: {
+                        //         uid: game.currentTurn?.uid,
+                        //         act: game.currentTurn?.actions.acted.length ? game.currentTurn?.actions.acted.length + 1 : 1
+                        //     }, onComplete: () => {
+                        //         console.log("move complete", game.currentTurn?.actions.acted);
+                        //         completeAct();
+                        //         onComplete()
+                        //     }
+                        // })
+                        completeAct();
+                        onComplete()
                     }
                 });
                 break;
             }
             case "askAct":
-                playTurnActing({
+                playTurnBar({
                     data, onComplete: () => {
                         console.log("askAct complete", data);
                         askAct(event.data.dueTime);

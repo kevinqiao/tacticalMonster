@@ -1,10 +1,10 @@
 import gsap from "gsap";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 import { useCombatManager } from "../service/CombatManager";
 import { useSprite } from "../service/SpriteProvider";
 const useTurnAnimate = () => {
-   const { game, boardDimension, direction, currentAct } = useCombatManager();
+   const { game, boardDimension, direction } = useCombatManager();
    const { user } = useUserManager();
    const { spriteRefs, allSpritesLoaded } = useSprite();
 
@@ -16,30 +16,22 @@ const useTurnAnimate = () => {
       const turnBarNo = direction === 0 ? seat.field - 2 : 3 - seat.field;
       return turnBarNo;
    }, [game, direction])
-
-   const playTurnActed = useCallback(({ data, onComplete }: { data: any, onComplete?: () => void }) => {
+   const playTurnBar = useCallback(({ data, onComplete }: { data: any, onComplete?: () => void }) => {
       // console.log("playTurnActed", game, boardDimension);
       if (!boardDimension || !game) {
          return;
       }
       const turnBarNo = getTurnBarNo();
-      const itemNo = game.currentTurn?.actions.acted;
-      // console.log("playTurnActed", turnBarNo, itemNo);
-      const turnBarItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + itemNo);
-      if (!turnBarItemRef?.current) return;
-      turnBarItemRef.current.style.backgroundColor = "red";
+      const actedItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + (data.act - 1));
+      if (actedItemRef?.current)
+         actedItemRef.current.style.backgroundColor = "red";
+      const actingItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + data.act);
+      if (actingItemRef?.current)
+         actingItemRef.current.style.backgroundColor = "green";
       onComplete?.();
+
    }, [game, direction, boardDimension])
-   const playTurnActing = useCallback(({ data, onComplete }: { data: any, onComplete?: () => void }) => {
-      if (!boardDimension || !game) {
-         return;
-      }
-      const turnBarNo = getTurnBarNo();
-      const turnBarItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + data.act);
-      if (turnBarItemRef?.current)
-         turnBarItemRef.current.style.backgroundColor = "green";
-      onComplete?.();
-   }, [game, direction, boardDimension])
+
    const playTurnOver = useCallback(({ data, onComplete }: { data: any, onComplete?: () => void }) => {
 
       if (!boardDimension || !game) {
@@ -73,7 +65,7 @@ const useTurnAnimate = () => {
          {
             onComplete: () => {
                // playInitTurn();
-               playTurnActing({
+               playTurnBar({
                   data, onComplete
                })
             }
@@ -97,10 +89,7 @@ const useTurnAnimate = () => {
    }, [user, spriteRefs, game, boardDimension, direction])
    const playInitTurn = useCallback(() => {
       if (!game || !game.currentTurn || !allSpritesLoaded) return;
-
-      const seat = game.seats?.find(seat => seat.uid === game.currentTurn?.uid);
-      if (!seat) return;
-      const turnBarNo = direction === 0 ? seat.field - 2 : 3 - seat.field;
+      const turnBarNo = getTurnBarNo();
       const activeBar = spriteRefs.get("turn-bar-" + turnBarNo);
       const inactiveBar = spriteRefs.get("turn-bar-" + (turnBarNo === 1 ? 0 : 1));
 
@@ -137,8 +126,11 @@ const useTurnAnimate = () => {
       }
 
    }, [spriteRefs, game, direction, allSpritesLoaded, boardDimension])
+   useEffect(() => {
+      if (game && game?.status > 1) playInitTurn();
+   }, [game, playInitTurn, boardDimension, direction])
 
-   return { playTurnStart, playInitTurn, playTurnActing, playTurnActed, playTurnOver }
+   return { playTurnStart, playInitTurn, playTurnBar, playTurnOver }
 }
 export default useTurnAnimate;
 

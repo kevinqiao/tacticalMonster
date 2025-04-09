@@ -2,6 +2,7 @@ import { GameModel, Seat } from "../../../../component/solitaire/battle/types/Co
 import { internal } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import { dealData } from "./DealData";
+import SkillManager from "./skillManager";
 
 interface Card {
     id: string;
@@ -17,11 +18,12 @@ interface Card {
 class GameManager {
     public dbCtx: any;
     public game: GameModel | null;
-
+    public skillManager: SkillManager;
 
     constructor(ctx: any, game?: GameModel) {
         this.dbCtx = ctx;
         this.game = game ?? null;
+        this.skillManager = new SkillManager();
     }
     async initGame(gameId: string) {
         try {
@@ -33,6 +35,7 @@ class GameManager {
                     game.actDue = game.actDue - Date.now();
                 }
                 this.game = { ...game, _id: undefined, _creationTime: undefined, gameId: id };
+                this.skillManager.game = { ...game, _id: undefined, _creationTime: undefined, gameId: id };
             }
         } catch (error) {
             console.log("initGame error", error);
@@ -207,10 +210,19 @@ class GameManager {
         const eventId = await this.dbCtx.db.insert("game_event", event);
         this.game.currentTurn.actions.acted.push({ type: "move", result: data })
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
-        if (this.game.currentTurn.actions.acted.length === this.game.currentTurn.actions.max) {
-            await this.turnOver();
+        const skill = await this.skillManager?.triggerSkill();
+        console.log("skill", skill);
+        if (!skill) {
+            if (this.game.currentTurn.actions.acted.length === this.game.currentTurn.actions.max) {
+                await this.turnOver();
+            } else {
+                await this.askAct(-1);
+            }
         } else {
-            await this.askAct(-1);
+            const skillEvent: any = { gameId: this.game.gameId, name: "skillTriggered", actor: "####", data: skill };
+            const skillEventId = await this.dbCtx.db.insert("game_event", skillEvent);
+            console.log("game id:", this.game.gameId)
+            await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: skillEventId, skillUse: skill });
         }
         return { ok: true, result: { open: data.open } }
     }

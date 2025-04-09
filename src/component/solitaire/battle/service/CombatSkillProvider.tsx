@@ -3,8 +3,8 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 import { useSSAManager } from "service/SSAManager";
 import { ISkillContext } from "../types/CombatTypes";
 import { CardRank } from "../types/PlayerTypes";
+import { skillDefs } from "../types/skillData";
 import { useCombatManager } from "./CombatManager";
-import { skillDefs } from "./skillData";
 export const enum SkillStatus {
     INIT = 0,
     CONFIRMED = 1,
@@ -35,7 +35,7 @@ export const CombatSkillContext = createContext<ISkillContext>({
 const CombatSkillProvider = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { player } = useSSAManager();
     const { game } = useCombatManager();
-    const [activeSkill, setActiveSkill] = useState<{ id: string, status: number, data: any } | null>(null);
+    const [activeSkill, setActiveSkill] = useState<{ skillId: string, status: number, data: any } | null>(null);
 
     const updateActiveSkill = useCallback((data: any) => {
         setActiveSkill(data);
@@ -60,20 +60,16 @@ const CombatSkillProvider = ({ children }: { children: ReactNode }): React.React
 
     }, [game, player]);
 
-    const triggerSkill = useCallback(async (triggerCard: CardRank) => {
-        const seat = game?.seats?.find((s) => s.uid === player.uid);
-        if (!seat) return;
-        const triggerSkill = canTriggerSkill(triggerCard);
-        if (!triggerSkill) return;
-        const skill = skillDefs.find((s) => s.id === triggerSkill.id);
-        if (!skill) return;
-        setActiveSkill({ id: skill.id, status: SkillStatus.INIT, data: null });
+    const triggerSkill = useCallback(async ({ skillId, data }: { skillId: string, data: any }) => {
+        console.log("triggerSkill", skillId, data)
+        setActiveSkill({ skillId, status: 0, data });
 
-
-    }, [game, player]);
+    }, []);
     useEffect(() => {
-
-    }, [activeSkill]);
+        if (game && game.skillUse) {
+            setActiveSkill(game.skillUse)
+        }
+    }, [game])
 
     const value = {
         activeSkill,

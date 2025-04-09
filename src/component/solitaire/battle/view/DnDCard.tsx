@@ -174,7 +174,7 @@ const DnDCard = ({ card }: { card: Card }) => {
     const coord = useMemo(() => {
         if (!card || !game || !boardDimension) return { x: 0, y: 0, cwidth: 0, cheight: 0, zIndex: 0 };
         return cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
-    }, [card, game, direction]);
+    }, [card, game, boardDimension, direction]);
 
     const style: React.CSSProperties = {
         top: coord.y,
@@ -184,12 +184,12 @@ const DnDCard = ({ card }: { card: Card }) => {
         width: coord.cwidth,
         height: coord.cheight,
         // backgroundColor: 'red',
-        zIndex: 10000,
+        zIndex: 10000 + (card.row || 0),
         // opacity: isDragging ? 0.7 : 1,
         userSelect: 'none',
         touchAction: 'none',
     };
-
+    // console.log("card", card);
     return (
         <div key={card.id} className="card" data-id={card.id} style={style} ref={ref}>
 

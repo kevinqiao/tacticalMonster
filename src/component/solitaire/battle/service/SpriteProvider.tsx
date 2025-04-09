@@ -1,11 +1,12 @@
 import React, { createContext, ReactNode, useCallback, useContext, useRef, useState } from 'react';
-import { useSSAManager } from '../../../../service/SSAManager';
 
 
 interface SpriteContextType {
     registerRef: (id: string, isCustomId: boolean) => { id: string; ref: React.RefObject<HTMLDivElement> };
     markSpriteLoaded: (id: string) => void;
     allSpritesLoaded: boolean;
+    playCardsLoaded: boolean;
+    completeCardsLoaded: () => void;
     spriteRefs: Map<string, React.RefObject<HTMLDivElement>>;
 }
 
@@ -16,11 +17,11 @@ interface SpriteProviderProps {
 }
 
 export const SpriteProvider: React.FC<SpriteProviderProps> = ({ children }) => {
+    const [playCardsLoaded, setPlayCardsLoaded] = useState<boolean>(false);
     const [spriteLoaded, setSpriteLoaded] = useState<Set<string>>(new Set());
     const divRefs = useRef<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
     const customIdDivs = useRef<Set<string>>(new Set()); // 只存储自定义 id 的 div
-    const { player } = useSSAManager();
-    console.log("player", player);
+
 
     const registerRef = useCallback((id: string, isCustomId: boolean) => {
         if (!divRefs.current.has(id)) {
@@ -38,7 +39,9 @@ export const SpriteProvider: React.FC<SpriteProviderProps> = ({ children }) => {
         }
     }, []);
 
-
+    const completeCardsLoaded = useCallback(() => {
+        setPlayCardsLoaded(true);
+    }, []);
 
     const allSpritesLoaded =
         spriteLoaded.size === customIdDivs.current.size &&
@@ -48,6 +51,8 @@ export const SpriteProvider: React.FC<SpriteProviderProps> = ({ children }) => {
         registerRef,
         markSpriteLoaded,
         allSpritesLoaded,
+        playCardsLoaded,
+        completeCardsLoaded,
         spriteRefs: divRefs.current,
     };
 

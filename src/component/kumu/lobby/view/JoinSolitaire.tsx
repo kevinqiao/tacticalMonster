@@ -1,9 +1,9 @@
-import { useConvex } from "convex/react";
+import { ConvexProvider, ConvexReactClient, useConvex } from "convex/react";
 import React from "react";
-import { SSAProvider, useSSAManager } from "service/SSAManager";
+import { SSA_URLS, SSAProvider, SSASignIn } from "service/SSAManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
 const JoinSolitaireMain: React.FC = (props) => {
-  const { credentials } = useSSAManager();
+  // const { credentials } = useSSAManager();
   const convex = useConvex();
   // console.log(credentials);
   const startGame = async () => {
@@ -14,7 +14,15 @@ const JoinSolitaireMain: React.FC = (props) => {
   );
 };
 const JoinSolitaire: React.FC = () => {
-  return (<SSAProvider app="solitaire" ><JoinSolitaireMain /></SSAProvider>
+  const client = new ConvexReactClient(SSA_URLS["solitaire"]);
+  return (
+    <SSAProvider app="solitaire">
+      <ConvexProvider client={client}>
+        <SSASignIn app="solitaire">
+          <JoinSolitaireMain />
+        </SSASignIn>
+      </ConvexProvider>
+    </SSAProvider>
   );
 };
 

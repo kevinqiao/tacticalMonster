@@ -3,10 +3,11 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { useConvex, useQuery } from "convex/react";
-import { useSSAManager } from "service/SSAManager";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
+import useCardAnimate from "../animation/useCardAnimate";
 import { BoardDimension, CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
+import { useSprite } from "./SpriteProvider";
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 export const CombatContext = createContext<ICombatContext>({
@@ -34,9 +35,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
   const [boardDimension, setBoardDimension] = useState<BoardDimension | null>(null);
   const { user } = useUserManager();
-  const { player } = useSSAManager();
+
   const convex = useConvex();
-  console.log("player", player);
+
   useEffect(() => {
     if (!game) return;
     if (!user || !user.uid) {
@@ -47,13 +48,8 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     if (seat?.field) {
       setDirection(seat.field === 2 ? 0 : 1);
     }
-    // if (game.actDue) {
-    //   const act = game.currentTurn?.actions?.acted ?? 0;
-    //   setCurrentAct({ due: game.actDue ?? -1, uid: game.currentTurn?.uid ?? "", act: act + 1 });
-    // }
   }, [user, game]);
   useEffect(() => {
-
     if (Array.isArray(events) && events.length > 0) {
       for (const event of events) {
         if (event.actor !== user?.uid) {
@@ -63,6 +59,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
       setLastUpdate(events[events.length - 1].id);
     }
   }, [events]);
+
   useEffect(() => {
     const fetchGame = async (gameId: string) => {
       const gameObj = await convex.query(api.dao.gameDao.find, {

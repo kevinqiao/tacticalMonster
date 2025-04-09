@@ -71,7 +71,7 @@ export interface GameModel {
     seats?: Seat[];
     currentRound?: CombatRound;
     currentTurn?: CombatTurn;//-1:not started,0-3:selected
-    skillUse?: { id: string, status: number, data: any };
+    skillUse?: { skillId: string, status: number, data: any };
     cards?: Card[];
     actDue?: number | null;
     lastUpdate?: string;//event id
@@ -111,9 +111,9 @@ export interface ICombatContext {
     updateBoardDimension: (boardDimension: BoardDimension) => void;
 }
 export interface ISkillContext {
-    activeSkill: { id: string, status: number, data: any } | null;
+    activeSkill: { skillId: string, status: number, data: any } | null;
     canTriggerSkill: (triggerCard: CardRank) => { id: string, talentLevel: number } | undefined;
-    triggerSkill: (triggerCard: CardRank) => void;
+    triggerSkill: ({ skillId, data }: { skillId: string, data: any }) => void;
     updateActiveSkill: (data: any) => void;
     completeActiveSkill: () => void;
 }

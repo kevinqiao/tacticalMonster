@@ -28,11 +28,10 @@ export default defineSchema({
         currentTurn: v.optional(v.object({
             uid: v.string(),
             actions: v.object({ acted: v.array(v.object({ type: v.string(), result: v.optional(v.any()) })), max: v.number() }),
-            skillUse: v.optional(v.string()),
             status: v.optional(v.number()),
         })),
         skillUse: v.optional(v.object({
-            id: v.string(),
+            skillId: v.string(),
             status: v.number(),
             data: v.optional(v.any())
         })),

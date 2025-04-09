@@ -1,11 +1,10 @@
 import { PageProp } from "component/RenderApp";
 import { useConvex } from "convex/react";
 import React from "react";
-import { useSSAManager } from "service/SSAManager";
 import { api } from "../../../../convex/ludo/convex/_generated/api";
 import JoinSolitaire from "./JoinSolitaire";
 const Child2Main: React.FC = (props) => {
-  const { credentials } = useSSAManager();
+  // const { credentials } = useSSAManager();
   const convex = useConvex();
   // console.log(credentials);
   const startGame = async () => {

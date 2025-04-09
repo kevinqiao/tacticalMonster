@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useSSAManager } from 'service/SSAManager';
+import { useUserManager } from 'service/UserManager';
 import useActionAnimate from '../animation/useActionAnimate';
-import useTurnAnimate from '../animation/useTurnAnimate';
 import { useCombatManager } from '../service/CombatManager';
 import DnDProvider from '../service/DnDProvider';
 import useCombatAct from '../service/useCombatAct';
@@ -17,28 +17,27 @@ export type DragEventData = {
 
 
 const ActControl: React.FC = () => {
-    const { player } = useSSAManager();
+    const { user } = useUserManager();
     const { eventQueue, game, boardDimension, direction, currentAct, completeAct } = useCombatManager();
     const { playMove, playOpenCard } = useActionAnimate();
-    const { playTurnActed } = useTurnAnimate();
     const { move } = useCombatAct();
 
     const draggables = useMemo(() => {
 
-        if (!game || !game.currentTurn || !currentAct || !player || !player.uid) {
+        if (!game || !game.currentTurn || !currentAct || !user || !user.uid) {
             return
         }
-        if (!game.currentTurn || game.currentTurn.uid !== player.uid) {
+        if (!game.currentTurn || game.currentTurn.uid !== user.uid) {
             // console.log("currentAct.uid !== user.uid", currentAct, user);
             return;
         }
         const currentSeat = game.seats?.find(s => s.uid === game.currentTurn?.uid);
         if (!currentSeat) return;
-
-        const cards = game.cards?.filter((c: Card) => c.field === currentSeat.field && c.status === 1);
+        const cards = game.cards?.filter((c: Card) => (c.field === 1 || c.field === currentSeat.field) && c.status === 1);
+        // console.log("cards", cards);
         return cards;
 
-    }, [game, currentAct, player])
+    }, [game, currentAct, user])
 
     const onDrop = useCallback(async (draggingCards: Card[], targets: string[]) => {
         if (!game || !boardDimension || !draggingCards.length) return;
@@ -57,23 +56,15 @@ const ActControl: React.FC = () => {
         await executeDrop(draggingCards, { field, slot: Number(slot) });
 
 
-    }, [game, boardDimension, direction, playMove])
+    }, [user, game, boardDimension, direction, playMove])
     const executeDrop = useCallback(async (draggingCards: Card[], target: { field: number, slot: number }) => {
         if (!game || !boardDimension) return;
         const onComplete = () => {
+            const index = eventQueue.findIndex(e => e.name === "localAct");
+            if (index !== -1) {
+                eventQueue.splice(index, 1);
+            }
 
-            setTimeout(() => playTurnActed({
-                data: {
-                    uid: game?.currentTurn?.uid,
-                    acted: game?.currentTurn?.actions.acted.length
-                }, onComplete: () => {
-                    // completeAct();
-                    const index = eventQueue.findIndex(e => e.name === "localAct");
-                    if (index !== -1) {
-                        eventQueue.splice(index, 1);
-                    }
-                }
-            }), 500);
         }
         const cards = game.cards?.filter((c: Card) => c.field === target.field && c.col === target.slot);
         const row = cards?.length || 0;
@@ -111,7 +102,7 @@ const ActControl: React.FC = () => {
         }
 
 
-    }, [game, boardDimension, direction, playMove, playOpenCard])
+    }, [user, game, boardDimension, direction, playMove, playOpenCard])
     return (
         <DnDProvider onDrop={onDrop}>
             {draggables?.map((card: Card) => <DnDCard key={card.id} card={card} />)}

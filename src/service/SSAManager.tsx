@@ -1,4 +1,3 @@
-import { ConvexReactClient } from "convex/react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useUserManager } from "./UserManager";
 
@@ -23,7 +22,7 @@ const SSAContext = createContext<ISSAContext>({
 });
 export const SSASignIn = ({ app, children }: { app: string, children: React.ReactNode }) => {
   const { user, sessions } = useUserManager();
-  const { player, updatePlayer } = useSSAManager();
+  const { updatePlayer } = useSSAManager();
   useEffect(() => {
     const session = sessions[app];
     if (!session && user?.token) {

@@ -1,10 +1,11 @@
-import { Skill } from "../../../../../component/solitaire/battle/types/PlayerTypes";
+import { Skill } from "./PlayerTypes";
 
-const initialSkills: Skill[] = [
+export const skillDefs: Skill[] = [
     {
         id: "steal",
         name: "偷牌",
         triggerCard: "Q",
+        class: "SkillSteal",
         baseEffect: { description: "随机偷对手1张暴露牌", instant: true },
         talents: [
             { level: 1, description: "可选择目标列", cost: { coins: 100 } },

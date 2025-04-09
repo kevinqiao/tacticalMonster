@@ -25,7 +25,7 @@ import type * as service_gameData from "../service/gameData.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as service_gameProxy from "../service/gameProxy.js";
 import type * as service_localProxy from "../service/localProxy.js";
-import type * as service_skill_skillData from "../service/skill/skillData.js";
+import type * as service_skill_SkillHandler from "../service/skill/SkillHandler.js";
 import type * as service_skillManager from "../service/skillManager.js";
 import type * as service_tokenRoutes from "../service/tokenRoutes.js";
 
@@ -50,7 +50,7 @@ declare const fullApi: ApiFromModules<{
   "service/gameManager": typeof service_gameManager;
   "service/gameProxy": typeof service_gameProxy;
   "service/localProxy": typeof service_localProxy;
-  "service/skill/skillData": typeof service_skill_skillData;
+  "service/skill/SkillHandler": typeof service_skill_SkillHandler;
   "service/skillManager": typeof service_skillManager;
   "service/tokenRoutes": typeof service_tokenRoutes;
 }>;

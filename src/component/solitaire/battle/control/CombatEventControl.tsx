@@ -1,18 +1,22 @@
-import React, { ReactNode, useCallback, useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 
+import { useCombatManager } from "../service/CombatManager";
+import { useSkillManager } from "../service/CombatSkillProvider";
 import { CombatEvent } from "../types/CombatTypes";
-import { useCombatManager } from "./CombatManager";
-import useActHandler from "./handler/useActHandler";
-import useGameHandler from "./handler/useGameHandler";
-import useTurnHandler from "./handler/useTurnHandler";
+import useActHandler from "./event/useActHandler";
+import useGameHandler from "./event/useGameHandler";
+import useSkillHandler from "./event/useSkillHandler";
+import useTurnHandler from "./event/useTurnHandler";
 const enum EventCategory {
     GAME = "game",
     TURN = "turn",
     ACT = "act",
+    SKILL = "skill",
     LOCAL = "local",
 }
 const eventCategoryMap: { [k: string]: EventCategory } = {
+    "gameInit": EventCategory.GAME,
     "gameStarted": EventCategory.GAME,
     "dealCompleted": EventCategory.GAME,
     "shuffleCompleted": EventCategory.GAME,
@@ -23,18 +27,22 @@ const eventCategoryMap: { [k: string]: EventCategory } = {
     "turnStarted": EventCategory.TURN,
     "turnOver": EventCategory.TURN,
     "roundOver": EventCategory.TURN,
+    "skillTriggered": EventCategory.SKILL,
     "localAct": EventCategory.LOCAL,
 }
-const CombatEventProvider = ({ children }: { children: ReactNode }): React.ReactElement => {
+const CombatEventControl = (): React.ReactElement => {
     const { user } = useUserManager();
     const { game, eventQueue, boardDimension, askAct, completeAct, direction } = useCombatManager();
     const gameHandler = useGameHandler();
+    const skillHandler = useSkillHandler();
     const actHandler = useActHandler();
     const turnHandler = useTurnHandler();
+    const { activeSkill } = useSkillManager();
+    console.log("activeSkill", activeSkill)
     const dispatchEvent = useCallback(() => {
 
         if (!game) return;
-        // console.log("processEvent", game);
+        // console.log("eventQueue", eventQueue.length)
         const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event || event.status === 1) return;
         // console.log("events:", eventQueue.length, event)
@@ -55,6 +63,9 @@ const CombatEventProvider = ({ children }: { children: ReactNode }): React.React
             event.status = 1;
             const category = eventCategoryMap[name];
             switch (category) {
+                case EventCategory.SKILL:
+                    skillHandler.handleEvent(event, onComplete);
+                    break;
                 case EventCategory.GAME:
                     gameHandler.handleEvent(event, onComplete);
                     break;
@@ -73,7 +84,7 @@ const CombatEventProvider = ({ children }: { children: ReactNode }): React.React
             }
         }
 
-    }, [user, game, eventQueue, boardDimension, direction, askAct, completeAct])
+    }, [user, game, eventQueue, boardDimension])
 
 
     useEffect(() => {
@@ -85,7 +96,7 @@ const CombatEventProvider = ({ children }: { children: ReactNode }): React.React
         return () => clearInterval(intervalId);
     }, [user, dispatchEvent]);
 
-    return <>{children}</>
+    return <></>
 }
-export default CombatEventProvider
+export default CombatEventControl
 

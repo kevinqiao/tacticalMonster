@@ -6,7 +6,7 @@ export const cardCoord = (field: number, col: number, row: number, boardDimensio
 
     const zoneNo: number = (!field || field < 2) ? field || 0 : (direction === 0 ? field : (field === 2 ? 3 : 2));
     const zone = boardDimension.zones[zoneNo];
-    const { cwidth, cheight, slots } = zone;
+    const { cheight, slots } = zone;
     const slot = slots.find(s => s.index === col);
     if (!slot) return { x: 0, y: 0, cwidth: 0, cheight: 0, zIndex: 0 };
     const x = slot.left + slot.width * 0.05;

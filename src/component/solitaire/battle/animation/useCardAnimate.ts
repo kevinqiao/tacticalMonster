@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useCombatManager } from "../service/CombatManager";
 import { useSprite } from "../service/SpriteProvider";
 import { Card, Slot } from "../types/CombatTypes";
@@ -192,7 +192,8 @@ const useCardAnimate = () => {
 
    }, [game, boardDimension, direction])
 
-   const playInit = useCallback(() => {
+   const playInit = useCallback(({ onComplete }: { onComplete?: () => void }) => {
+      // console.log("playInit", game);
       if (!boardDimension || !game) return;
       // console.log("playInit", game);
       game.cards?.forEach((card, index) => {
@@ -236,17 +237,14 @@ const useCardAnimate = () => {
          })
       }
       initAvatar();
+      onComplete?.();
    }, [game, boardDimension, popCard, direction])
-   // useEffect(() => {
-   //    if (!game || !boardDimension) return;
+   useEffect(() => {
+      if (!game || !boardDimension) return;
+      console.log("playInit", game.status);
+      if (game.status > 1) playInit({});
 
-   //    if (timelineRef.current) {
-   //       timelineRef.current.kill();
-   //       timelineRef.current = null;
-   //    }
-   //    playInit();
-
-   // }, [game, boardDimension])
+   }, [game, boardDimension, direction, playInit])
    return { playShuffle, playDeal, playInit }
 }
 export default useCardAnimate;

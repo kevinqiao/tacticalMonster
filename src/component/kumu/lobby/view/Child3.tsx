@@ -3,6 +3,7 @@ import BattlePlayer from "component/solitaire/battle/BattlePlayer";
 import React, { useMemo } from "react";
 
 const Child3Main: React.FC<{ gameId: string }> = ({ gameId }) => {
+  console.log("child3main", gameId);
   const render = useMemo(() => {
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} >
