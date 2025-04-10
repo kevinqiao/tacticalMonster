@@ -1,11 +1,11 @@
-import { Card, GameModel } from "../../../../../component/solitaire/battle/types/CombatTypes";
-interface SkillHandler {
-    init: (game: GameModel, data: any) => any;
-    complete: (game: GameModel) => any;
-}
-export class StealHandler implements SkillHandler {
+import { Card, GameModel } from "../../../../../../component/solitaire/battle/types/CombatTypes";
+import { SkillStatus } from "../../../../../../component/solitaire/battle/types/PlayerTypes";
+import { SkillEffect } from "../SkillEffectFactory";
 
-    init(game: GameModel, data: any): any {
+
+export class StealEffect implements SkillEffect {
+
+    init(game: GameModel): any {
         const opponent = game.seats?.find(s => s.uid !== game.currentTurn?.uid);
         const source: Card[] = [];
         for (let i = 0; i < 7; i++) {
@@ -24,31 +24,18 @@ export class StealHandler implements SkillHandler {
         })
         return {
             skillId: "steal",
-            status: 1,
+            status: SkillStatus.Init,
             data: {
                 source: source.map((s) => s.id),
                 target: target.filter((t) => t != null).map((c) => c.id)
             }
         }
     }
-    complete(game: GameModel): any {
-        return {
-            skillId: "steal",
-            status: 2,
-            data: {}
-        }
+    apply(game: GameModel, data: any): any {
+        return { skillId: "steal", status: SkillStatus.Completed, data: data };
     }
 }
 
-export class SkillHandlerFactory {
-    static getSkillHandler(skillId: string): SkillHandler {
-        switch (skillId) {
-            case "steal":
-                return new StealHandler();
-            default:
-                throw new Error("Skill handler not found");
-        }
-    }
-}
 
-export default SkillHandler;
+
+export default StealEffect;

@@ -36,3 +36,15 @@ export interface Skill {
     legendaryEffect?: LegendaryEffect;
     currentTalentLevel?: number; // 当前天赋等级（新增）
 }
+export interface SkillState {
+    skillId: string;
+    status: SkillStatus;
+    data: any;
+}
+export enum SkillStatus {
+    Init = 0,
+    InProgress = 1,
+    Completed = 2
+}
+
+

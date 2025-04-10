@@ -1,31 +1,15 @@
-import { GameModel } from "../../../../component/solitaire/battle/types/CombatTypes";
+import { Card, GameModel } from "../../../../component/solitaire/battle/types/CombatTypes";
+import { CardRank, Skill, } from "../../../../component/solitaire/battle/types/PlayerTypes";
 import { skillDefs } from "../../../../component/solitaire/battle/types/skillData";
-import { SkillHandlerFactory } from "./skill/SkillHandler";
-interface Card {
-    id: string;
-    suit: string;
-    rank: string;
-    seat?: number;
-    field?: number;
-    col?: number;
-    row?: number;
-    status?: number;
-}
+import { SkillEffect, SkillEffectFactory } from "./skill/SkillEffectFactory";
 
 class SkillManager {
 
     public game: GameModel | undefined;
-
-
-
     constructor(game?: GameModel) {
         this.game = game;
     }
-
-
-
-    async triggerSkill(): Promise<{ id: string, status: number, data: any } | undefined> {
-
+    canTriggerSkill(triggerCard: CardRank): Skill | undefined {
         if (!this.game || !this.game.currentTurn) return;
         const len = this.game.currentTurn.actions.acted.length;
         if (len === 0) return;
@@ -33,18 +17,56 @@ class SkillManager {
         if (lastAction.type !== "move" || !lastAction.result.move || lastAction.result.move.length > 1) return;
         const card = lastAction.result.move[0];
         if (card.field === 0) {
-            const skill = skillDefs.find(s => s.triggerCard === "Q");
+            // const seat = this.game.seats?.find((s) => s.uid === this.game?.currentTurn?.uid);
+            // if (!seat) return;
+
+            const skill = skillDefs.find((skill) => skill.triggerCard === triggerCard);
+            return skill
+
+            // const skillUse = seat.skillUses?.find((su) => su.id === s.id);
+            // if (skill.maxUsesPerGame && (!skillUse || skillUse.currentUses < skill.maxUsesPerGame))
+
+
+
+        }
+        return
+
+    };
+    async triggerSkill(): Promise<{ id: string, status: number, data: any } | undefined> {
+
+        if (!this.game || !this.game.currentTurn) return;
+        const len = this.game.currentTurn.actions.acted.length;
+        if (len === 0) return;
+        const lastAction = this.game.currentTurn.actions.acted[len - 1];
+        if (lastAction.type !== "move" || !lastAction.result.move || lastAction.result.move.length > 1) return;
+        const card = lastAction.result.move[0] as Card;
+        if (card.field === 0) {
+            const skill: Skill | undefined = this.canTriggerSkill(card.rank as CardRank);
             if (skill && this.game) {
-                const skillInit = SkillHandlerFactory.getSkillHandler(skill.id).init(this.game, lastAction);
-                return skillInit;
+                const effect: SkillEffect = SkillEffectFactory.getSkillEffect(skill.id);
+                const skillData = skill.instant ? effect.apply(this.game) : effect.init(this.game);
+                return skillData;
             }
         }
         return
 
     }
+    async useSkill(skillId: string, data?: any) {
+        if (!this.game || !this.game.currentTurn) return;
+        const skill = skillDefs.find((skill) => skill.id === skillId);
+        if (!skill) return;
+        const effect: SkillEffect = SkillEffectFactory.getSkillEffect(skillId);
+        if (skill && this.game) {
+            const skillData = skill.instant ? effect.apply(this.game, data) : effect.init(this.game);
+            return skillData;
+        }
+    }
 
-    async completeSkill() {
-        // if (!this.game) return;
+
+    async completeSkill(data: any) {
+        if (!this.game || !this.game.skillUse) return;
+        const completeData = SkillEffectFactory.getSkillEffect(this.game.skillUse.skillId).apply(this.game, data);
+        return completeData;
         // this.game.skillUse = { id: "steal", status: 2, data: {} };
         // await this.dbCtx.db.patch(this.game.gameId, { skillUse: this.game.skillUse });
     }

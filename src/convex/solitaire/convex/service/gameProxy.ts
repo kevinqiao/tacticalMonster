@@ -113,6 +113,23 @@ export const move = sessionMutation({
 
     }
 })
+export const completeSkill = sessionMutation({
+    args: { gameId: v.string(), skillId: v.string(), data: v.optional(v.any()) },
+    handler: async (ctx, { gameId, skillId, data }) => {
+        const user = ctx.user;
+        if (!user || !user.uid) return false;
+        try {
+            const gameService = new GameManager(ctx);
+            await gameService.initGame(gameId);
+            const res = await gameService.completeSkill(skillId, data);
+            return res;
+        } catch (error) {
+            console.log("complete skill error", error);
+            return { ok: false }
+        }
+
+    }
+})
 export const turnOffBot = sessionMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {

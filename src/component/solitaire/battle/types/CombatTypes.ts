@@ -1,7 +1,7 @@
 
-import { DragEventData } from "../view/DnDCard";
-import { CardRank } from "./PlayerTypes";
 
+import { DragEventData } from "../view/DnDCard";
+import { SkillState } from "./PlayerTypes";
 
 export interface Player {
     uid: string;
@@ -43,7 +43,7 @@ export interface Seat {
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
     ele?: HTMLDivElement | null;
-    skillUses?: { id: string; currentUses: number }[];
+    skillsUsed?: { id: string; used: number; max: number }[];
 }
 export type Slot = {
     index: number,
@@ -71,7 +71,7 @@ export interface GameModel {
     seats?: Seat[];
     currentRound?: CombatRound;
     currentTurn?: CombatTurn;//-1:not started,0-3:selected
-    skillUse?: { skillId: string, status: number, data: any };
+    skillUse?: SkillState;
     cards?: Card[];
     actDue?: number | null;
     lastUpdate?: string;//event id
@@ -81,7 +81,6 @@ export interface GameModel {
 export interface CombatTurn {
     uid: string;
     actions: { acted: { type: string; result: { move: Card[], open: Card[] } }[]; max: number };
-    skillUse?: string;
     status: number;//0-not started,1-started,2-ended 
 }
 export interface CombatRound {
@@ -112,8 +111,6 @@ export interface ICombatContext {
 }
 export interface ISkillContext {
     activeSkill: { skillId: string, status: number, data: any } | null;
-    canTriggerSkill: (triggerCard: CardRank) => { id: string, talentLevel: number } | undefined;
-    triggerSkill: ({ skillId, data }: { skillId: string, data: any }) => void;
     updateActiveSkill: (data: any) => void;
     completeActiveSkill: () => void;
 }

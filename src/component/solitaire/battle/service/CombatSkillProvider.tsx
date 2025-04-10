@@ -1,9 +1,10 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
+import { useConvex } from "convex/react";
+import { api } from "convex/solitaire/convex/_generated/api";
 import { useSSAManager } from "service/SSAManager";
 import { ISkillContext } from "../types/CombatTypes";
-import { CardRank } from "../types/PlayerTypes";
-import { skillDefs } from "../types/skillData";
+import { SkillState } from "../types/PlayerTypes";
 import { useCombatManager } from "./CombatManager";
 export const enum SkillStatus {
     INIT = 0,
@@ -27,44 +28,34 @@ const skillCategoryMap: { [k: string]: SkillCategory } = {
 }
 export const CombatSkillContext = createContext<ISkillContext>({
     activeSkill: null,
-    canTriggerSkill: () => { return undefined },
-    triggerSkill: () => { },
     updateActiveSkill: () => { },
     completeActiveSkill: () => { }
 });
 const CombatSkillProvider = ({ children }: { children: ReactNode }): React.ReactElement => {
     const { player } = useSSAManager();
     const { game } = useCombatManager();
-    const [activeSkill, setActiveSkill] = useState<{ skillId: string, status: number, data: any } | null>(null);
+    const [activeSkill, setActiveSkill] = useState<SkillState | null>(null);
+    const convex = useConvex();
 
     const updateActiveSkill = useCallback((data: any) => {
         setActiveSkill(data);
     }, []);
-    const completeActiveSkill = useCallback(() => {
+
+    const completeActiveSkill = useCallback(async () => {
+        if (!game || !activeSkill || !game.gameId) return;
+        const res: any = await convex.mutation(api.service.gameProxy.completeSkill, {
+            uid: player?.uid ?? "",
+            token: player?.token ?? "",
+            gameId: game.gameId,
+            skillId: activeSkill.skillId,
+            data: activeSkill.data.completed
+        });
         setActiveSkill(null);
-    }, []);
+    }, [activeSkill, convex, game]);
 
-    const canTriggerSkill = useCallback((triggerCard: CardRank): { id: string, talentLevel: number } | undefined => {
-        if (!player || !player.activeSkills) return;
-        const seat = game?.seats?.find((s) => s.uid === player.uid);
-        if (!seat) return;
-        const activeSkill = player.activeSkills.find((s: { id: string, talentLevel: number }) => {
 
-            const skill = skillDefs.find((skill) => s.id === skill.id && skill.triggerCard === triggerCard);
-            if (!skill) return false;
-            const skillUse = seat.skillUses?.find((su) => su.id === s.id);
-            if (skill.maxUsesPerGame && (!skillUse || skillUse.currentUses < skill.maxUsesPerGame))
-                return true;
-        })
-        return activeSkill;
 
-    }, [game, player]);
 
-    const triggerSkill = useCallback(async ({ skillId, data }: { skillId: string, data: any }) => {
-        console.log("triggerSkill", skillId, data)
-        setActiveSkill({ skillId, status: 0, data });
-
-    }, []);
     useEffect(() => {
         if (game && game.skillUse) {
             setActiveSkill(game.skillUse)
@@ -73,19 +64,19 @@ const CombatSkillProvider = ({ children }: { children: ReactNode }): React.React
 
     const value = {
         activeSkill,
-        canTriggerSkill,
-        triggerSkill,
         updateActiveSkill,
         completeActiveSkill
     };
     return <CombatSkillContext.Provider value={value}>{children}</CombatSkillContext.Provider>
 }
 export const useSkillManager = () => {
+
     const context = useContext(CombatSkillContext);
     if (!context) {
         throw new Error("useSkillManager must be used within a CombatSkillProvider");
     }
-    return context;
+
+    return context
 };
 
 export default CombatSkillProvider

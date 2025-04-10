@@ -1,8 +1,10 @@
 import { GameModel, Seat } from "../../../../component/solitaire/battle/types/CombatTypes";
+import { SkillStatus } from "../../../../component/solitaire/battle/types/PlayerTypes";
 import { internal } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import { dealData } from "./DealData";
 import SkillManager from "./skillManager";
+
 
 interface Card {
     id: string;
@@ -237,6 +239,26 @@ class GameManager {
         const eventId = await this.dbCtx.db.insert("game_event", event);
         await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: eventId, seats: this.game.seats });
 
+    }
+    async useSkill(skillId: string, data: any) {
+        if (!this.game) return;
+        const skillResult = await this.skillManager.useSkill(skillId, data);
+        if (!skillResult) return;
+        const name = skillResult.status === SkillStatus.Completed ? "skillCompleted" : "skillTriggered";
+        const event: any = { gameId: this.game.gameId, name, actor: this.game.currentTurn?.uid, data: skillResult };
+        const eventId = await this.dbCtx.db.insert("game_event", event);
+        await this.dbCtx.db.patch(this.game.gameId, { ...this.game, gameId: undefined, _creationTime: undefined, _id: undefined, lastUpdate: eventId, skillUse: skillResult });
+    }
+    async completeSkill(skillId: string, data: any) {
+        if (!this.game) return;
+        const skill = this.game.skillUse;
+        if (!skill) return;
+        if (skill.skillId !== skillId) return;
+        const result = await this.skillManager.completeSkill(data);
+        const event: any = { gameId: this.game.gameId, name: "skillCompleted", actor: this.game.currentTurn?.uid, data: result };
+        const eventId = await this.dbCtx.db.insert("game_event", event);
+        await this.dbCtx.db.patch(this.game.gameId, { ...this.game, gameId: undefined, _creationTime: undefined, _id: undefined, lastUpdate: eventId });
+        return { ok: true, result: result };
     }
 
 

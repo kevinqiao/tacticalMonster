@@ -3,7 +3,6 @@ import { useCallback, useRef } from "react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
 import useActionAnimate from "../animation/useActionAnimate";
-import useTurnAnimate from "../animation/useTurnAnimate";
 import { Card } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
 const useCombatAct = () => {
@@ -12,7 +11,7 @@ const useCombatAct = () => {
   const { game, eventQueue, currentAct, completeAct, boardDimension, direction } = useCombatManager();
   const { playOpenCard } = useActionAnimate();
   const convex = useConvex();
-  const { playTurnBar } = useTurnAnimate();
+
 
   const onActComplete = useCallback(() => {
     const index = eventQueue.findIndex(e => e.name === "localAct");
