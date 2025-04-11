@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useUserManager } from 'service/UserManager';
+import useActionAnimate from '../../animation/useActionAnimate';
 import { useCombatManager } from '../../service/CombatManager';
 import { useSkillManager } from '../../service/CombatSkillProvider';
 import { SkillStatus } from '../../types/PlayerTypes';
@@ -8,7 +9,7 @@ const SkillSteal: React.FC = () => {
     const { user } = useUserManager();
     const { game, direction, boardDimension } = useCombatManager();
     const { activeSkill, updateActiveSkill, completeActiveSkill } = useSkillManager();
-
+    const { playMove } = useActionAnimate();
     const source = useMemo(() => {
         if (!boardDimension || activeSkill?.status !== SkillStatus.Init || activeSkill?.data?.selectedSource) return [];
         return activeSkill?.initialData?.source.map((sid: string) => {
@@ -31,9 +32,39 @@ const SkillSteal: React.FC = () => {
     useEffect(() => {
         if (activeSkill?.status === SkillStatus.Completed) {
             console.log("completedactiveSkill", activeSkill)
-            updateActiveSkill(null);
+            const { open, move } = activeSkill.data;
+            if (move) {
+
+                const moveCards = move.map((m: any) => {
+                    const card = game?.cards?.find((c) => c.id === m.id);
+                    if (card) {
+                        card.field = m.field;
+                        card.col = m.col;
+                        card.row = m.row;
+
+                    }
+                    return card;
+                })
+                const openCards = open.map((o: any) => {
+                    const card = game?.cards?.find((c) => c.id === o.id);
+                    if (card) {
+                        card.status = 1;
+                        card.suit = o.suit;
+                        card.rank = o.rank;
+
+                    }
+                    return card;
+                })
+
+                playMove({
+                    data: { move: moveCards, open: openCards }, onComplete: () => {
+                        updateActiveSkill(null);
+                    }
+                })
+
+            }
         }
-    }, [activeSkill, updateActiveSkill])
+    }, [game, activeSkill, updateActiveSkill])
     const selectSource = useCallback((c: any) => {
         if (!activeSkill || !user || !user.uid) return;
         activeSkill.data = activeSkill.data || {};

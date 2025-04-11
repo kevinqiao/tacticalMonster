@@ -85,6 +85,7 @@ const useActionAnimate = () => {
    }, [game, boardDimension])
    const playMove = useCallback(({ data, onComplete }: { data: { open?: Card[], move: Card[] }, onComplete?: () => void }) => {
       if (!game || !boardDimension) return;
+      console.log("playMove", data)
       const { open, move } = data;
       const tl = gsap.timeline({
          onComplete: () => {
