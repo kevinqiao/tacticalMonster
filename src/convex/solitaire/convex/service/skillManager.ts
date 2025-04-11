@@ -44,8 +44,8 @@ class SkillManager {
             const skill: Skill | undefined = this.canTriggerSkill(card.rank as CardRank);
             if (skill && this.game) {
                 const effect: SkillEffect = SkillEffectFactory.getSkillEffect(skill.id);
-                const skillData = skill.instant ? effect.apply(this.game) : effect.init(this.game);
-                return skillData;
+                const effectData = skill.instant ? effect.apply(this.game) : effect.init(this.game);
+                return effectData;
             }
         }
         return
@@ -57,16 +57,16 @@ class SkillManager {
         if (!skill) return;
         const effect: SkillEffect = SkillEffectFactory.getSkillEffect(skillId);
         if (skill && this.game) {
-            const skillData = skill.instant ? effect.apply(this.game, data) : effect.init(this.game);
-            return skillData;
+            const effectData = skill.instant ? effect.apply(this.game, data) : effect.init(this.game);
+            return effectData;
         }
     }
 
 
     async completeSkill(data: any) {
         if (!this.game || !this.game.skillUse) return;
-        const completeData = SkillEffectFactory.getSkillEffect(this.game.skillUse.skillId).apply(this.game, data);
-        return completeData;
+        const effectData = SkillEffectFactory.getSkillEffect(this.game.skillUse.skillId).apply(this.game, data);
+        return effectData;
         // this.game.skillUse = { id: "steal", status: 2, data: {} };
         // await this.dbCtx.db.patch(this.game.gameId, { skillUse: this.game.skillUse });
     }

@@ -213,7 +213,7 @@ class GameManager {
         this.game.currentTurn.actions.acted.push({ type: "move", result: data })
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
         const skill = await this.skillManager?.triggerSkill();
-        console.log("skill", skill);
+
         if (!skill) {
             if (this.game.currentTurn.actions.acted.length === this.game.currentTurn.actions.max) {
                 await this.turnOver();
@@ -223,7 +223,7 @@ class GameManager {
         } else {
             const skillEvent: any = { gameId: this.game.gameId, name: "skillTriggered", actor: "####", data: skill };
             const skillEventId = await this.dbCtx.db.insert("game_event", skillEvent);
-            console.log("game id:", this.game.gameId)
+            console.log("game id:", this.game.gameId, skill)
             await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: skillEventId, skillUse: skill });
         }
         return { ok: true, result: { open: data.open } }
@@ -251,13 +251,15 @@ class GameManager {
     }
     async completeSkill(skillId: string, data: any) {
         if (!this.game) return;
+
         const skill = this.game.skillUse;
+        console.log("completeSkill", skill, skillId, data)
         if (!skill) return;
         if (skill.skillId !== skillId) return;
         const result = await this.skillManager.completeSkill(data);
         const event: any = { gameId: this.game.gameId, name: "skillCompleted", actor: this.game.currentTurn?.uid, data: result };
         const eventId = await this.dbCtx.db.insert("game_event", event);
-        await this.dbCtx.db.patch(this.game.gameId, { ...this.game, gameId: undefined, _creationTime: undefined, _id: undefined, lastUpdate: eventId });
+        await this.dbCtx.db.patch(this.game.gameId, { ...this.game, skillUse: undefined, gameId: undefined, _creationTime: undefined, _id: undefined, lastUpdate: eventId });
         return { ok: true, result: result };
     }
 

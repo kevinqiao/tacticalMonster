@@ -33,7 +33,7 @@ export default defineSchema({
         skillUse: v.optional(v.object({
             skillId: v.string(),
             status: v.number(),
-            initData: v.optional(v.any()),
+            initialData: v.optional(v.any()),
             completeData: v.optional(v.any()),
         })),
         status: v.number(),//0-init,1-playing  2-over 3-settled 4-cancelled

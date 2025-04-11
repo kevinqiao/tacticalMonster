@@ -5,19 +5,18 @@ import { CombatEvent } from "../../types/CombatTypes";
 const useSkillHandler = () => {
 
     const { game, eventQueue, boardDimension, direction } = useCombatManager();
-    const { triggerSkill } = useSkillManager();
+    const { updateActiveSkill } = useSkillManager();
     const handleEvent = useCallback((event: CombatEvent, onComplete: () => void) => {
-        const { name, status, data } = event;
+        const { name, data } = event;
         console.log("skillTriggered", event)
         switch (name) {
-
             case "skillTriggered":
-                triggerSkill(data);
+                updateActiveSkill(data);
                 onComplete();
                 break;
 
-            case "gameOver":
-                console.log("gameOver", event)
+            case "skillCompleted":
+                updateActiveSkill(data);
                 onComplete();
                 break;
             default:

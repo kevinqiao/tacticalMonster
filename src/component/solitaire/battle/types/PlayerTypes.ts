@@ -39,7 +39,9 @@ export interface Skill {
 export interface SkillState {
     skillId: string;
     status: SkillStatus;
-    data: any;
+    initialData?: any;
+    data?: any;
+    effect?: any
 }
 export enum SkillStatus {
     Init = 0,

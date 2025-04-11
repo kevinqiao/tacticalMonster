@@ -110,7 +110,7 @@ export interface ICombatContext {
     updateBoardDimension: (boardDimension: BoardDimension) => void;
 }
 export interface ISkillContext {
-    activeSkill: { skillId: string, status: number, data: any } | null;
+    activeSkill: SkillState | null;
     updateActiveSkill: (data: any) => void;
     completeActiveSkill: () => void;
 }

@@ -116,6 +116,7 @@ export const move = sessionMutation({
 export const completeSkill = sessionMutation({
     args: { gameId: v.string(), skillId: v.string(), data: v.optional(v.any()) },
     handler: async (ctx, { gameId, skillId, data }) => {
+        console.log("complete skill", gameId, skillId, data);
         const user = ctx.user;
         if (!user || !user.uid) return false;
         try {

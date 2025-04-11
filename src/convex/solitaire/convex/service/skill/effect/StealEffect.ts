@@ -25,14 +25,43 @@ export class StealEffect implements SkillEffect {
         return {
             skillId: "steal",
             status: SkillStatus.Init,
-            data: {
+            initialData: {
                 source: source.map((s) => s.id),
                 target: target.filter((t) => t != null).map((c) => c.id)
             }
         }
     }
     apply(game: GameModel, data: any): any {
-        return { skillId: "steal", status: SkillStatus.Completed, data: data };
+        if (data.selectedTarget) {
+            const target = game.cards?.find(c => c.id === data.selectedTarget);
+            if (target) {
+
+                if (data.selectedSource) {
+                    const source = game.cards?.find(c => c.id === data.selectedSource);
+                    console.log("source", source, target)
+                    if (source) {
+                        const data: any = {};
+                        const prevRow = source.row ? source.row - 1 : -1;
+                        const prevCol = source.col;
+                        if (prevRow >= 0) {
+                            const prevCard = game.cards?.find((c) => c.row === prevRow && c.col === prevCol && c.field === source.field);
+                            if (prevCard) {
+                                prevCard.status = 1;
+                                data.open = [prevCard]
+                            }
+                        }
+                        source.field = target.field;
+                        source.col = target.col;
+                        source.row = (target.row || 0) + 1;
+                        source.status = 1;
+                        data.move = [source];
+                        console.log("source updated", source)
+                        return { skillId: "steal", status: SkillStatus.Completed, data };
+                    }
+                }
+            }
+        }
+
     }
 }
 

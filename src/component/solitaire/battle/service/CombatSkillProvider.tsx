@@ -1,8 +1,8 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
 import { useConvex } from "convex/react";
-import { api } from "convex/solitaire/convex/_generated/api";
-import { useSSAManager } from "service/SSAManager";
+import { useUserManager } from "service/UserManager";
+import { api } from "../../../../convex/solitaire/convex/_generated/api";
 import { ISkillContext } from "../types/CombatTypes";
 import { SkillState } from "../types/PlayerTypes";
 import { useCombatManager } from "./CombatManager";
@@ -32,7 +32,8 @@ export const CombatSkillContext = createContext<ISkillContext>({
     completeActiveSkill: () => { }
 });
 const CombatSkillProvider = ({ children }: { children: ReactNode }): React.ReactElement => {
-    const { player } = useSSAManager();
+    // const { player } = useSSAManager();
+    const { user } = useUserManager();
     const { game } = useCombatManager();
     const [activeSkill, setActiveSkill] = useState<SkillState | null>(null);
     const convex = useConvex();
@@ -42,16 +43,20 @@ const CombatSkillProvider = ({ children }: { children: ReactNode }): React.React
     }, []);
 
     const completeActiveSkill = useCallback(async () => {
-        if (!game || !activeSkill || !game.gameId) return;
+        console.log("completeActiveSkill", activeSkill, user)
+        if (!game || !activeSkill || !game.gameId || !user?.uid || !user?.token) return;
         const res: any = await convex.mutation(api.service.gameProxy.completeSkill, {
-            uid: player?.uid ?? "",
-            token: player?.token ?? "",
+            uid: user?.uid ?? "",
+            token: user?.token ?? "",
             gameId: game.gameId,
             skillId: activeSkill.skillId,
-            data: activeSkill.data.completed
+            data: activeSkill.data
         });
-        setActiveSkill(null);
-    }, [activeSkill, convex, game]);
+        console.log("completeActiveSkill res", res)
+        if (res.ok) {
+            setActiveSkill(res.result);
+        }
+    }, [activeSkill, convex, game, user]);
 
 
 
