@@ -35,6 +35,7 @@ const useCombatAct = () => {
       cardId: cardId,
       to: to
     });
+    console.log("move result", res)
     actRef.current = 0;
     return res;
 

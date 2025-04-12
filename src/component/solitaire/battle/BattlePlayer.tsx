@@ -5,7 +5,7 @@ import ActControl from "./control/ActControl";
 import CombatEventControl from "./control/CombatEventControl";
 import SkillControl from "./control/SkillControl";
 import CombatProvider, { useCombatManager } from "./service/CombatManager";
-import CombatSkillProvider, { useSkillManager } from "./service/CombatSkillProvider";
+import CombatSkillProvider from "./service/CombatSkillProvider";
 import { SpriteProvider } from "./service/SpriteProvider";
 import "./style.css";
 import { createDualZones } from "./utils";
@@ -13,13 +13,12 @@ import CardGrid from "./view/CardGrid";
 import SlotGrid from "./view/SlotGrid";
 import SpriteGrid from "./view/SpriteGrid";
 const CombatBoard: React.FC = () => {
-  const { activeSkill } = useSkillManager();
   return <>
     <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "blue" }}>
       <SlotGrid />
       <CardGrid />
-      {!activeSkill && <ActControl />}
-      {activeSkill && <SkillControl />}
+      <ActControl />
+      <SkillControl />
       <SpriteGrid />
     </div></>
 
@@ -108,7 +107,7 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
         <SSASignIn app="solitaire">
           {isVisible && gameId && <SpriteProvider>
             <CombatProvider gameId={gameId}>
-              <CombatSkillProvider>          
+              <CombatSkillProvider>
                 <BattlePlaza></BattlePlaza>
                 <CombatEventControl />
               </CombatSkillProvider>

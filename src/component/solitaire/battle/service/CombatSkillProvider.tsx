@@ -43,7 +43,7 @@ const CombatSkillProvider = ({ children }: { children: ReactNode }): React.React
     }, []);
 
     const completeActiveSkill = useCallback(async () => {
-        console.log("completeActiveSkill", activeSkill, user)
+        console.log("completeActiveSkill", activeSkill)
         if (!game || !activeSkill || !game.gameId || !user?.uid || !user?.token) return;
         const res: any = await convex.mutation(api.service.gameProxy.completeSkill, {
             uid: user?.uid ?? "",
@@ -52,7 +52,6 @@ const CombatSkillProvider = ({ children }: { children: ReactNode }): React.React
             skillId: activeSkill.skillId,
             data: activeSkill.data
         });
-        console.log("completeActiveSkill res", res)
         if (res.ok) {
             setActiveSkill(res.result);
         }

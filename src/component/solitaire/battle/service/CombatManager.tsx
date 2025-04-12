@@ -5,9 +5,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 import { useConvex, useQuery } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../convex/solitaire/convex/_generated/api";
-import useCardAnimate from "../animation/useCardAnimate";
 import { BoardDimension, CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
-import { useSprite } from "./SpriteProvider";
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 export const CombatContext = createContext<ICombatContext>({
@@ -37,7 +35,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const { user } = useUserManager();
 
   const convex = useConvex();
-
+  console.log("currentAct", currentAct)
   useEffect(() => {
     if (!game) return;
     if (!user || !user.uid) {
@@ -70,7 +68,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         // console.log("gameObj", gameObj);
         setGame(gameObj);
         if (gameObj.actDue) {
-          const act = gameObj.currentTurn?.actions?.acted ?? 0;
+          const act = gameObj.currentTurn?.actions?.acted.length ?? 0;
           setCurrentAct({ due: gameObj.actDue ?? -1, uid: gameObj.currentTurn?.uid ?? "", act: act + 1 });
         }
         setLastUpdate(gameObj.lastUpdate ?? "####");

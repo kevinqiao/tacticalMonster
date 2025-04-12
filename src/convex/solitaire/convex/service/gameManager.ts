@@ -163,14 +163,11 @@ class GameManager {
         if (!cards || cards.length === 0) return;
         cards[0].status = 1;
         const flipEvent: any = { gameId: this.game.gameId, name: "flip", actor: uid, data: { open: [cards[0]] } };
-        const eventId = await this.dbCtx.db.insert("game_event", flipEvent);
+        await this.dbCtx.db.insert("game_event", flipEvent);
         this.game.currentTurn.actions.acted.push({ type: "flip", result: { move: [], open: [cards[0]] } })
+        const eventId = await this.dbCtx.db.insert("game_event", { gameId: this.game.gameId, name: "actCompleted", actor: "####" });
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
-        if (this.game.currentTurn.actions.acted.length === this.game.currentTurn.actions.max) {
-            await this.turnOver();
-        } else {
-            await this.askAct(-1);
-        }
+        await this.askAct(-1);
         return { ok: true, result: { open: [cards[0]] } }
     }
 
@@ -183,8 +180,6 @@ class GameManager {
             const fromSlot = this.game.cards.filter(c => c.field === card.field && c.col === card.col && (c.row || 0) < (card.row || 0)).sort((a, b) => (b.row || 0) - (a.row || 0));
             // console.log("fromSlot", fromSlot);
             if (fromSlot.length > 0) {
-                // console.log("open card", fromSlot[0]);
-                //open the first card
                 if (!fromSlot[0].status) {
                     fromSlot[0].status = 1;
                     data.open = [fromSlot[0]];
@@ -209,25 +204,21 @@ class GameManager {
         }
 
         const event: any = { gameId: this.game.gameId, name: "move", actor: uid, data };
-        const eventId = await this.dbCtx.db.insert("game_event", event);
-        this.game.currentTurn.actions.acted.push({ type: "move", result: data })
+        await this.dbCtx.db.insert("game_event", event);
+        this.game.currentTurn.actions.acted.push({ type: "move", result: data });
+        const eventId = await this.dbCtx.db.insert("game_event", { gameId: this.game.gameId, name: "actCompleted", actor: "####" });
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
         const skill = await this.skillManager?.triggerSkill();
-
         if (!skill) {
-            if (this.game.currentTurn.actions.acted.length === this.game.currentTurn.actions.max) {
-                await this.turnOver();
-            } else {
-                await this.askAct(-1);
-            }
+            await this.askAct(-1);
         } else {
-            const skillEvent: any = { gameId: this.game.gameId, name: "skillTriggered", actor: "####", data: skill };
-            const skillEventId = await this.dbCtx.db.insert("game_event", skillEvent);
-            console.log("game id:", this.game.gameId, skill)
-            await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: skillEventId, skillUse: skill });
+            const skillEvent: any = { gameId: this.game.gameId, name: skill.status === SkillStatus.Completed ? "skillCompleted" : "skillTriggered", actor: "####", data: skill };
+            const eventId = await this.dbCtx.db.insert("game_event", skillEvent);
+            await this.dbCtx.db.patch(this.game.gameId, { lastUpdate: eventId, skillUse: skill.status === SkillStatus.Completed ? undefined : skill });
         }
         return { ok: true, result: { open: data.open } }
     }
+
     async timeout() {
 
 
@@ -260,6 +251,7 @@ class GameManager {
         const event: any = { gameId: this.game.gameId, name: "skillCompleted", actor: this.game.currentTurn?.uid, data: result };
         const eventId = await this.dbCtx.db.insert("game_event", event);
         await this.dbCtx.db.patch(this.game.gameId, { ...this.game, skillUse: undefined, gameId: undefined, _creationTime: undefined, _id: undefined, lastUpdate: eventId });
+        await this.askAct(-1);
         return { ok: true, result: result };
     }
 

@@ -38,14 +38,18 @@ class SkillManager {
         const len = this.game.currentTurn.actions.acted.length;
         if (len === 0) return;
         const lastAction = this.game.currentTurn.actions.acted[len - 1];
+        console.log("lastAction", lastAction)
         if (lastAction.type !== "move" || !lastAction.result.move || lastAction.result.move.length > 1) return;
         const card = lastAction.result.move[0] as Card;
         if (card.field === 0) {
             const skill: Skill | undefined = this.canTriggerSkill(card.rank as CardRank);
+            console.log("trigger skill", skill)
             if (skill && this.game) {
-                const effect: SkillEffect = SkillEffectFactory.getSkillEffect(skill.id);
-                const effectData = skill.instant ? effect.apply(this.game) : effect.init(this.game);
-                return effectData;
+                const effect: SkillEffect | undefined = SkillEffectFactory.getSkillEffect(skill.id);
+                if (effect) {
+                    const effectData = skill.instant ? effect.apply(this.game) : effect.init(this.game);
+                    return effectData;
+                }
             }
         }
         return
@@ -55,8 +59,8 @@ class SkillManager {
         if (!this.game || !this.game.currentTurn) return;
         const skill = skillDefs.find((skill) => skill.id === skillId);
         if (!skill) return;
-        const effect: SkillEffect = SkillEffectFactory.getSkillEffect(skillId);
-        if (skill && this.game) {
+        const effect: SkillEffect | undefined = SkillEffectFactory.getSkillEffect(skillId);
+        if (skill && this.game && effect) {
             const effectData = skill.instant ? effect.apply(this.game, data) : effect.init(this.game);
             return effectData;
         }
@@ -65,8 +69,11 @@ class SkillManager {
 
     async completeSkill(data: any) {
         if (!this.game || !this.game.skillUse) return;
-        const effectData = SkillEffectFactory.getSkillEffect(this.game.skillUse.skillId).apply(this.game, data);
-        return effectData;
+        const effect: SkillEffect | undefined = SkillEffectFactory.getSkillEffect(this.game.skillUse.skillId);
+        if (effect) {
+            const effectData = effect.apply(this.game, data);
+            return effectData;
+        }
         // this.game.skillUse = { id: "steal", status: 2, data: {} };
         // await this.dbCtx.db.patch(this.game.gameId, { skillUse: this.game.skillUse });
     }

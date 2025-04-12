@@ -29,19 +29,17 @@ const SkillSteal: React.FC = () => {
         })
 
     }, [user, activeSkill, boardDimension, direction])
+    console.log("source", source, target)
     useEffect(() => {
         if (activeSkill?.status === SkillStatus.Completed) {
-            console.log("completedactiveSkill", activeSkill)
             const { open, move } = activeSkill.data;
             if (move) {
-
                 const moveCards = move.map((m: any) => {
                     const card = game?.cards?.find((c) => c.id === m.id);
                     if (card) {
                         card.field = m.field;
                         card.col = m.col;
                         card.row = m.row;
-
                     }
                     return card;
                 })
@@ -51,7 +49,6 @@ const SkillSteal: React.FC = () => {
                         card.status = 1;
                         card.suit = o.suit;
                         card.rank = o.rank;
-
                     }
                     return card;
                 })
@@ -59,6 +56,7 @@ const SkillSteal: React.FC = () => {
                 playMove({
                     data: { move: moveCards, open: openCards }, onComplete: () => {
                         updateActiveSkill(null);
+
                     }
                 })
 
@@ -81,7 +79,7 @@ const SkillSteal: React.FC = () => {
 
     return (
         // <div ref={containerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "black", opacity: 0, visibility: "hidden" }}></div>
-        <div style={{ position: "absolute", top: 0, left: 0 }}>
+        <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
             {source?.map((c: any) => {
                 return <div key={c.id} style={{ position: "absolute", top: c.y, left: c.x, width: c.cwidth, height: c.cheight, backgroundColor: "red" }} onClick={() => selectSource(c)}>{c.id}</div>
             })}

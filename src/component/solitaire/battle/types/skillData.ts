@@ -15,7 +15,7 @@ export const skillDefs: Skill[] = [
         maxUsesPerGame: 2,
         unlockLevel: 1,
         unlockCost: { experience: 0 },
-        legendaryEffect: { name: "火焰风暴", visual: "火焰旋风", bonus: "显示下张废牌", cost: 150, owned: false },
+      
     },
     {
         id: "lock",
@@ -29,8 +29,7 @@ export const skillDefs: Skill[] = [
         ],
         maxUsesPerGame: 2,
         unlockLevel: 3,
-        unlockCost: { experience: 150, diamonds: 20 },
-        legendaryEffect: { name: "冰霜屏障", visual: "冰墙封锁", bonus: "显示倒计时", cost: 150, owned: false },
+        unlockCost: { experience: 150, diamonds: 20 },     
 
     },
     // 其他技能省略

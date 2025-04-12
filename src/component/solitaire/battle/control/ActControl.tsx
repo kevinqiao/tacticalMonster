@@ -1,5 +1,4 @@
 import React, { useCallback, useMemo } from 'react';
-import { useSSAManager } from 'service/SSAManager';
 import { useUserManager } from 'service/UserManager';
 import useActionAnimate from '../animation/useActionAnimate';
 import { useCombatManager } from '../service/CombatManager';
@@ -38,7 +37,7 @@ const ActControl: React.FC = () => {
         return cards;
 
     }, [game, currentAct, user])
-
+    console.log("draggables", draggables, currentAct, user)
     const onDrop = useCallback(async (draggingCards: Card[], targets: string[]) => {
         if (!game || !boardDimension || !draggingCards.length) return;
         if (targets.length === 0) {
@@ -81,7 +80,7 @@ const ActControl: React.FC = () => {
         eventQueue.push(localEvent);
         playMove({ data: { move: draggingCards } });
         const res = await move(draggingCards[0].id, target);
-
+        console.log("res", res)
         if (res.ok && res.result.open && res.result.open.length > 0) {
             const openCards: Card[] = [];
             res.result.open.forEach((card: Card) => {
@@ -102,11 +101,13 @@ const ActControl: React.FC = () => {
         }
 
 
-    }, [user, game, boardDimension, direction, playMove, playOpenCard])
+    }, [user, move, game, boardDimension, direction, playMove, playOpenCard])
     return (
-        <DnDProvider onDrop={onDrop}>
-            {draggables?.map((card: Card) => <DnDCard key={card.id} card={card} />)}
-        </DnDProvider>
+        <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 3000 }}>
+            <DnDProvider onDrop={onDrop}>
+                {draggables?.map((card: Card) => <DnDCard key={card.id} card={card} />)}
+            </DnDProvider>
+        </div>
     );
 };
 

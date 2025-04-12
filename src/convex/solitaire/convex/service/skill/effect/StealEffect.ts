@@ -37,6 +37,7 @@ export class StealEffect implements SkillEffect {
             if (target) {
 
                 if (data.selectedSource) {
+                    const effect: { move: Card[], open: Card[] } = { move: [], open: [] };
                     const source = game.cards?.find(c => c.id === data.selectedSource);
                     console.log("source", source, target)
                     if (source) {
@@ -47,16 +48,16 @@ export class StealEffect implements SkillEffect {
                             const prevCard = game.cards?.find((c) => c.row === prevRow && c.col === prevCol && c.field === source.field);
                             if (prevCard) {
                                 prevCard.status = 1;
-                                data.open = [prevCard]
+                                effect.open.push(prevCard);
                             }
                         }
                         source.field = target.field;
                         source.col = target.col;
                         source.row = (target.row || 0) + 1;
                         source.status = 1;
-                        data.move = [source];
                         console.log("source updated", source)
-                        return { skillId: "steal", status: SkillStatus.Completed, data };
+                        effect.move.push(source);
+                        return { skillId: "steal", status: SkillStatus.Completed, data: { ...effect } };
                     }
                 }
             }

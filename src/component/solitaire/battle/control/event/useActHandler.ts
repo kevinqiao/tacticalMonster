@@ -25,15 +25,8 @@ const useActHandler = () => {
                 });
                 playOpenCard({
                     cards: openCards, onComplete: () => {
-                        // playTurnBar({
-                        //     data: {
-                        //         uid: game.currentTurn?.uid,
-                        //         act: game.currentTurn?.actions.acted.length ? game.currentTurn?.actions.acted.length + 1 : 1
-                        //     }, onComplete: () => {
                         completeAct();
                         onComplete()
-                        //     }
-                        // })
                     }
                 });
                 break;
@@ -58,34 +51,33 @@ const useActHandler = () => {
                         openCards.push(card);
                     }
                 });
-
                 playMove({
                     data: { move: moveCards, open: openCards }, onComplete: () => {
-
-                        // playTurnBar({
-                        //     data: {
-                        //         uid: game.currentTurn?.uid,
-                        //         act: game.currentTurn?.actions.acted.length ? game.currentTurn?.actions.acted.length + 1 : 1
-                        //     }, onComplete: () => {
-                        //         console.log("move complete", game.currentTurn?.actions.acted);
-                        //         completeAct();
-                        //         onComplete()
-                        //     }
-                        // })
                         completeAct();
                         onComplete()
                     }
                 });
                 break;
             }
-            case "askAct":
+            case "actCompleted": {
                 playTurnBar({
                     data, onComplete: () => {
-                        console.log("askAct complete", data);
-                        askAct(event.data.dueTime);
+                        completeAct();
                         onComplete();
                     }
                 })
+                break;
+            }
+            case "askAct":
+                console.log("askAct", data);
+                onComplete();
+                // playTurnBar({
+                //     data, onComplete: () => {
+                //         console.log("askAct complete", data);
+                //         askAct(event.data.dueTime);
+                //         onComplete();
+                //     }
+                // })
                 break;
             default:
                 onComplete();

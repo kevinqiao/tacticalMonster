@@ -7,12 +7,12 @@ export interface SkillEffect {
 }
 
 export class SkillEffectFactory {
-    static getSkillEffect(skillId: string): SkillEffect {
+    static getSkillEffect(skillId: string): SkillEffect | undefined {
         switch (skillId) {
             case "steal":
                 return new StealEffect();
             default:
-                throw new Error("Skill Effect not found");
+                return
         }
     }
 }
