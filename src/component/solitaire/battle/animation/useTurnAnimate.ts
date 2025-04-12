@@ -13,21 +13,33 @@ const useTurnAnimate = () => {
       if (!game || !game.currentTurn) return -1;
       const seat = game.seats?.find(seat => seat.uid === game.currentTurn?.uid);
       if (!seat) return -1;
+      console.log("getTurnBarNo", direction, seat)
       const turnBarNo = direction === 0 ? seat.field - 2 : 3 - seat.field;
       return turnBarNo;
    }, [game, direction])
-   const playTurnBar = useCallback(({ data, onComplete }: { data: any, onComplete?: () => void }) => {
-      // console.log("playTurnActed", game, boardDimension);
+   const playTurnActed = useCallback(({ data, onComplete }: { data: any, onComplete?: () => void }) => {
+
       if (!boardDimension || !game) {
          return;
       }
       const turnBarNo = getTurnBarNo();
-      const actedItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + (data.act - 1));
+      const actedItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + data.act);
+      console.log("actedItemRef", actedItemRef)
       if (actedItemRef?.current)
          actedItemRef.current.style.backgroundColor = "red";
-      const actingItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + data.act);
-      if (actingItemRef?.current)
-         actingItemRef.current.style.backgroundColor = "green";
+      onComplete?.();
+
+   }, [game, direction, boardDimension])
+   const playTurnActing = useCallback(({ data, onComplete }: { data: any, onComplete?: () => void }) => {
+
+      if (!boardDimension || !game) {
+         return;
+      }
+      const turnBarNo = getTurnBarNo();
+      const toItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + data.act);
+      console.log("toItemRef", toItemRef)
+      if (toItemRef?.current)
+         toItemRef.current.style.backgroundColor = "green";
       onComplete?.();
 
    }, [game, direction, boardDimension])
@@ -64,10 +76,8 @@ const useTurnAnimate = () => {
       const tl = gsap.timeline(
          {
             onComplete: () => {
-               // playInitTurn();
-               playTurnBar({
-                  data, onComplete
-               })
+               tl.kill();
+               onComplete();
             }
          }
       );
@@ -102,7 +112,7 @@ const useTurnAnimate = () => {
       })
       const max = game.currentTurn?.actions.max;
       const acted = game.currentTurn?.actions.acted.length;
-      // console.log("turn act max:", max, acted)
+      console.log("turn act max:", max, acted)
 
       for (let i = 1; i <= max; i++) {
          const turnBarItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + i);
@@ -110,7 +120,7 @@ const useTurnAnimate = () => {
          turnBarItemRef.current.style.display = "block";
          if (i <= acted) {
             turnBarItemRef.current.style.backgroundColor = "red";
-         } else if (i < max && i === acted + 1) {
+         } else if (i === acted + 1) {
             turnBarItemRef.current.style.backgroundColor = "green";
          } else {
             turnBarItemRef.current.style.backgroundColor = "grey";
@@ -130,7 +140,7 @@ const useTurnAnimate = () => {
       if (game && game?.status > 1) playInitTurn();
    }, [game, playInitTurn, boardDimension, direction])
 
-   return { playTurnStart, playInitTurn, playTurnBar, playTurnOver }
+   return { playTurnStart, playInitTurn, playTurnActed, playTurnActing, playTurnOver }
 }
 export default useTurnAnimate;
 

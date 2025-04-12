@@ -22,6 +22,7 @@ const eventCategoryMap: { [k: string]: EventCategory } = {
     "shuffleCompleted": EventCategory.GAME,
     "flip": EventCategory.ACT,
     "move": EventCategory.ACT,
+    "actCompleted": EventCategory.ACT,
     "askAct": EventCategory.ACT,
     "roundStarted": EventCategory.TURN,
     "turnStarted": EventCategory.TURN,
@@ -84,7 +85,7 @@ const CombatEventControl = (): React.ReactElement => {
             }
         }
 
-    }, [user, game, eventQueue, boardDimension])
+    }, [user, game, eventQueue, boardDimension, direction])
 
 
     useEffect(() => {

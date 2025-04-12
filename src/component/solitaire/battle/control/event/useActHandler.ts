@@ -5,7 +5,7 @@ import { useCombatManager } from "../../service/CombatManager";
 import { Card, CombatEvent } from "../../types/CombatTypes";
 const useActHandler = () => {
     const { playOpenCard, playMove } = useActionAnimate();
-    const { playTurnBar } = useTurnAnimate();
+    const { playTurnActed, playTurnActing, playTurnOver } = useTurnAnimate();
     const { game, eventQueue, boardDimension, direction, completeAct, askAct } = useCombatManager();
     const handleEvent = useCallback((event: CombatEvent, onComplete: () => void) => {
         const { name, status, data } = event;
@@ -60,24 +60,24 @@ const useActHandler = () => {
                 break;
             }
             case "actCompleted": {
-                playTurnBar({
+                playTurnActed({
                     data, onComplete: () => {
                         completeAct();
-                        onComplete();
+                        setTimeout(() => {
+                            onComplete();
+                        }, 500);
                     }
                 })
                 break;
             }
             case "askAct":
-                console.log("askAct", data);
-                onComplete();
-                // playTurnBar({
-                //     data, onComplete: () => {
-                //         console.log("askAct complete", data);
-                //         askAct(event.data.dueTime);
-                //         onComplete();
-                //     }
-                // })
+                playTurnActing({
+                    data, onComplete: () => {
+                        console.log("askAct complete", data);
+                        askAct(event.data.dueTime);
+                        onComplete();
+                    }
+                })
                 break;
             default:
                 onComplete();
