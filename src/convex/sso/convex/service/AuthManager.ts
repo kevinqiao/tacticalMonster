@@ -52,6 +52,17 @@ export const refreshToken = action({
         return null;
     }
 })
+export const authByToken = action({
+    args: { uid: v.string(), token: v.string() },
+    handler: async (ctx, { uid, token }): Promise<User | null> => {
+        const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
+
+        if (user?.token === token && user?.expire && user.expire > Date.now()) {
+            return Object.assign({}, user, { _id: undefined, _creationTime: undefined });
+        }
+        return null;
+    }
+})
 export const logout = action({
     args: { uid: v.string(), token: v.string() },
     handler: async (ctx, { uid, token }): Promise<boolean> => {

@@ -43,7 +43,7 @@ export interface Seat {
     botOn?: boolean;
     botOnEle?: HTMLDivElement | null;
     ele?: HTMLDivElement | null;
-    skillsUsed?: { id: string; used: number; max: number }[];
+    effects?: { id: string; remainDuration: number; data?: any }[];
 }
 export type Slot = {
     index: number,

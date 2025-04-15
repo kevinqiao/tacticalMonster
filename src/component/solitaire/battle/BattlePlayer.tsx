@@ -1,6 +1,5 @@
-import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { SSA_URLS, SSAProvider, SSASignIn } from "../../../service/SSAManager";
+import { SSAProvider } from "../../../service/SSAManager";
 import ActControl from "./control/ActControl";
 import CombatEventControl from "./control/CombatEventControl";
 import SkillControl from "./control/SkillControl";
@@ -79,7 +78,7 @@ export const BattlePlaza: React.FC = () => {
   return render;
 };
 const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
-  const client = new ConvexReactClient(SSA_URLS["solitaire"]);
+  // const client = new ConvexReactClient(SSA_URLS["solitaire"]);
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -102,19 +101,21 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   }, []);
 
   return (
+
+    // <ConvexProvider client={client}>
     <SSAProvider app="solitaire">
-      <ConvexProvider client={client}>
-        <SSASignIn app="solitaire">
-          {isVisible && gameId && <SpriteProvider>
-            <CombatProvider gameId={gameId}>
-              <CombatSkillProvider>
-                <BattlePlaza></BattlePlaza>
-                <CombatEventControl />
-              </CombatSkillProvider>
-            </CombatProvider>
-          </SpriteProvider>}
-        </SSASignIn>
-      </ConvexProvider>
-    </SSAProvider>)
+      {/* <SSASignIn app="solitaire"> */}
+      {isVisible && gameId && <SpriteProvider>
+        <CombatProvider gameId={gameId}>
+          <CombatSkillProvider>
+            <BattlePlaza></BattlePlaza>
+            <CombatEventControl />
+          </CombatSkillProvider>
+        </CombatProvider>
+      </SpriteProvider>}
+      {/* </SSASignIn> */}
+    </SSAProvider>
+    // </ConvexProvider>
+  )
 };
 export default BattlePlayer;

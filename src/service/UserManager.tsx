@@ -2,6 +2,7 @@ import { useConvex, useQuery } from "convex/react";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "../convex/sso/convex/_generated/api";
+import { SSA_AUTH_URLS } from "./SSAManager";
 
 export interface User {
   uid?: string;
@@ -15,6 +16,20 @@ export interface User {
   data?: { [k: string]: any };
   game?: { name: string, id: string, status: number };
 }
+export enum AppSessionStatus {
+  TO_BE_SIGNED_IN = 0,
+  SIGNING_IN = 1,
+  SIGNED_IN = 2,
+  TO_BE_SIGNED_OUT = 3,
+  SIGNING_OUT = 4,
+  SIGNED_OUT = 5,
+}
+export interface AppSession {
+  app: string;
+  player?: any;
+  time?: number;
+  status: AppSessionStatus;
+}
 interface Event {
   uid?: string;
   name: string;
@@ -23,27 +38,31 @@ interface Event {
 }
 interface IUserContext {
   user: any;
-  sessions: { [k: string]: { token: string; status: number } };
+  sessions: AppSession[];
   events: Event[] | null;
-  updateLoaded: () => void;
-  updateSession: (app: string, session: { token: string; status: number }) => void;
+  // updateLoaded: () => void;
+  ssaAuthComplete: (ssa: string, player: any) => void;
+  ssaSignOut: (ssa: string) => void;
+  // updateSession: (app: string, session: { token: string; status: number }) => void;
   authComplete: (user: any, persist: number) => void;
   logout: () => void;
 }
 
 const UserContext = createContext<IUserContext>({
   user: null,
-  sessions: {},
+  sessions: [],
   events: null,
-  updateSession: () => null,
-  updateLoaded: () => null,
+  // updateSession: () => null,
+  // updateLoaded: () => null,
+  ssaAuthComplete: () => null,
+  ssaSignOut: () => null,
   logout: () => null,
   authComplete: (user: any, persist: number) => null,
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [sessions, setSessions] = useState<{ [k: string]: { token: string; status: number } }>({});
+  const [sessions, setSessions] = useState<AppSession[]>([]);
   const [events, setEvents] = useState<Event[] | null>(null);
   const [lastTime, setLastTime] = useState<number | undefined>(undefined);
   const convex = useConvex();
@@ -51,82 +70,106 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const authComplete = useCallback((u: any, persist: number) => {
-    if (persist > 0) {
-      localStorage.setItem("user", JSON.stringify(u));
-    }
-    Object.keys(sessions).forEach(key => delete sessions[key]);
-    if (u.expire > 0) {
-      // setTimeout(() => refreshToken({ uid: u.uid, token: u.token }), u.expire - 10000)
-      u.expire = u.expire + Date.now();
-      localStorage.setItem("user", JSON.stringify(u));
-      setUser(u);
-    }
+    // if (persist > 0) {
+    //   localStorage.setItem("user", JSON.stringify(u));
+    // }
+    console.log("authComplete", u);
+
+    u.expire = u.expire + Date.now();
+    localStorage.setItem("user", JSON.stringify(u));
+
+    sessions.length = 0;
+    Object.keys(SSA_AUTH_URLS).forEach(key => {
+      sessions.push({ app: key, status: AppSessionStatus.TO_BE_SIGNED_IN })
+    })
+    setUser(u);
+    setSessions([...sessions])
+
 
   }, [sessions]);
 
   const logout = useCallback(async () => {
-    console.log("logout", user);
+
     if (user?.uid && user?.token) {
       const result = await convex.action(api.service.AuthManager.logout, { uid: user?.uid, token: user?.token })
       console.log("logout result", result);
       if (result) {
         localStorage.removeItem("user");
+        sessions.forEach(s => {
+          s.status = AppSessionStatus.TO_BE_SIGNED_OUT;
+        })
         setUser({});
-        setSessions({});
+        setSessions([...sessions])
       }
+    }
+  }, [user, sessions]);
+  const ssaSignOut = useCallback((ssa: string) => {
+    const session = sessions.find((s) => s.app === ssa);
+    if (session && session.status === AppSessionStatus.SIGNING_OUT) {
+      console.log("ssaSignOut", session);
+      session.status = AppSessionStatus.SIGNED_OUT;
+      session.player = null;
+      setSessions([...sessions])
+    }
+  }, [sessions]);
+  // const updateLoaded = useCallback(() => {
+  //   if (user?.uid && user?.token) {
+  //     convex.mutation(api.dao.userDao.updateLoaded, { uid: user.uid, token: user.token }).then((res) => {
+  //       console.log("updateLoaded", res)
+  //       if (res) {
+  //         setUser((pre) => {
+  //           if (pre?.game)
+  //             pre.game.status = 1;
+  //           return pre
+  //         })
+  //       }
+  //     })
+  //   }
+  // }, [user]);
+  const ssaAuthComplete = useCallback((ssa: string, player: any) => {
+    const session = sessions.find((s) => s.app === ssa);
+    console.log("ssaAuthComplete", ssa, player);
+    if (session) {
+      session.status = AppSessionStatus.SIGNED_IN;
+      session.player = player;
+      setSessions([...sessions])
+    }
+  }, [sessions]);
+  const refreshToken = useCallback(async ({ uid, token }: { uid: string, token: string }) => {
+    const u = await convex.action(api.service.AuthManager.refreshToken, { uid, token });
+    if (u?.uid && u?.token) {
+      const userId = u.uid;
+      const userToken = u.token;
+      const timeout = u.expire ? u.expire - 10000 : 50000;
+      console.log("timeout", timeout);
+      setTimeout(() => refreshToken({ uid: userId, token: userToken }), timeout);
+      u.expire = timeout + Date.now();
+      localStorage.setItem("user", JSON.stringify(u));
+      setUser((pre) => pre && pre.uid === u.uid ? Object.assign(pre, u) : u)
+    } else
+      setUser({})
+    // setSessions({});
 
-    }
-  }, [user]);
-  const updateLoaded = useCallback(() => {
-    if (user?.uid && user?.token) {
-      convex.mutation(api.dao.userDao.updateLoaded, { uid: user.uid, token: user.token }).then((res) => {
-        console.log("updateLoaded", res)
-        if (res) {
-          setUser((pre) => {
-            if (pre?.game)
-              pre.game.status = 1;
-            return pre
-          })
-        }
-      })
-    }
-  }, [user]);
-  const updateSession = useCallback((app: string, session: { token: string; status: number }) => {
-    sessions[app] = session;
-    // setSessions(pre => ({ ...pre, [app]: session }))
-  }, []);
-  const refreshToken = useCallback(({ uid, token }: { uid: string, token: string }) => {
-    convex.action(api.service.AuthManager.refreshToken, { uid, token }).then(u => {
-      if (u?.uid && u?.token) {
-        const userId = u.uid;
-        const userToken = u.token;
-        const timeout = u.expire ? u.expire - 10000 : 50000;
-        console.log("timeout", timeout);
-        // setTimeout(() => refreshToken({ uid: userId, token: userToken }), timeout);
-        u.expire = timeout + Date.now();
-        localStorage.setItem("user", JSON.stringify(u));
-        setUser((pre) => pre && pre.uid === u.uid ? Object.assign(pre, u) : u)
-      } else
-        setUser({})
-      // setSessions({});
-    });
   }, []);
   useEffect(() => {
-    const userJSON = localStorage.getItem("user");
 
+    const authByToken = async (uid: string, token: string) => {
+      const u = await convex.action(api.service.AuthManager.authByToken, { uid, token });
+      if (u?.uid && u?.token) {
+        authComplete(u, 1);
+      }
+    }
+    const userJSON = localStorage.getItem("user");
     if (userJSON !== null) {
       const userObj = JSON.parse(userJSON);
       const { uid, token, expire } = userObj;
-
       if (uid && token && (!expire || expire > Date.now())) {
-        refreshToken({ uid, token });
-      } else {
-        localStorage.removeItem("user");
-        setUser({});
+        authByToken(uid, token);
+        return;
       }
-    } else {
-      setUser({});
     }
+    setUser({});
+
   }, []);
   useEffect(() => {
 
@@ -154,7 +197,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [userEvents]);
-  const value = { user, authComplete, logout, sessions, updateSession, events, updateLoaded };
+  const value = { user, authComplete, logout, sessions, ssaAuthComplete, ssaSignOut, events };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

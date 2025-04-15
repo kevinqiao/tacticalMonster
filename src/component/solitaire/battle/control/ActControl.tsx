@@ -6,13 +6,6 @@ import DnDProvider from '../service/DnDProvider';
 import useCombatAct from '../service/useCombatAct';
 import { Card } from '../types/CombatTypes';
 import DnDCard from '../view/DnDCard';
-// 抽象事件类型
-type DragEventType = 'start' | 'move' | 'end' | 'over' | 'drop';
-export type DragEventData = {
-    x: number;
-    y: number;
-    id: string;
-};
 
 
 const ActControl: React.FC = () => {
@@ -37,7 +30,7 @@ const ActControl: React.FC = () => {
         return cards;
 
     }, [game, currentAct, user])
-    console.log("draggables", draggables, currentAct, user)
+
     const onDrop = useCallback(async (draggingCards: Card[], targets: string[]) => {
         if (!game || !boardDimension || !draggingCards.length) return;
         if (targets.length === 0) {
@@ -80,7 +73,6 @@ const ActControl: React.FC = () => {
         eventQueue.push(localEvent);
         playMove({ data: { move: draggingCards } });
         const res = await move(draggingCards[0].id, target);
-        console.log("res", res)
         if (res.ok && res.result.open && res.result.open.length > 0) {
             const openCards: Card[] = [];
             res.result.open.forEach((card: Card) => {
@@ -93,9 +85,6 @@ const ActControl: React.FC = () => {
                 }
             });
             playOpenCard({ cards: openCards, onComplete: onComplete });
-            //trigger skill
-            // const triggerCard = openCards[0].rank;
-            // triggerSkill(triggerCard);
         } else {
             onComplete();
         }
