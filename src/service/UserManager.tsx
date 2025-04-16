@@ -108,7 +108,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     if (session && session.status === AppSessionStatus.SIGNING_OUT) {
       console.log("ssaSignOut", session);
       session.status = AppSessionStatus.SIGNED_OUT;
-      session.player = null;
+      session.player = undefined;
       setSessions([...sessions])
     }
   }, [sessions]);

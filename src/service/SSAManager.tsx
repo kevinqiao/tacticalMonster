@@ -53,7 +53,6 @@ export const SSASignIn = ({ app, children }: { app: string, children: React.Reac
       return;
     if (!user?.uid || !user?.token) {
       if (session.player && session?.status === AppSessionStatus.TO_BE_SIGNED_OUT) {
-        console.log("signout", session);
         session.status = AppSessionStatus.SIGNING_OUT;
         const { uid, token } = session.player;
         signout(uid, token);
@@ -72,14 +71,12 @@ export const SSASignIn = ({ app, children }: { app: string, children: React.Reac
 export const SSAProvider = ({ app, children }: { app: string, children: React.ReactNode }) => {
 
   const client = React.useMemo(() => new ConvexReactClient(SSA_URLS[app]), [app]);
-  const { user, sessions } = useUserManager();
+  const { sessions } = useUserManager();
   const player = useMemo(() => {
     const session = sessions.find((s) => s.app === app);
-    console.log("session", session);
     return session?.player;
-  }, [user, sessions, app]);
+  }, [sessions, app]);
 
-  console.log("player", player, sessions);
 
   return (
     <SSAContext.Provider value={{ player }}>

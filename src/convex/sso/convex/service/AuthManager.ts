@@ -11,22 +11,20 @@ export interface CUser {
     cid?: string;
     cuid: string;
     name?: string;
-    channel: number;
     data?: { [k: string]: any };
 }
 export const authenticate = action({
-    args: { channel: v.number(), data: v.any(), partner: v.optional(v.number()) },
-    handler: async (ctx, { channel, data, partner }): Promise<User | null> => {
+    args: { cid: v.string(), data: v.any(), partner: v.optional(v.number()) },
+    handler: async (ctx, { cid, data, partner }): Promise<User | null> => {
         const pid = partner ?? 1;
-        const cuser = handle(channel, data);
+        const cuser = handle(cid, data);
 
-        if (cuser?.cuid && cuser?.channel) {
-            const cid = cuser.cuid + "-" + cuser.channel;
-            await ctx.runMutation(internal.dao.cuserDao.update, { cuid: cuser.cuid, channel: cuser.channel, data: cuser.data });
-            const uid = cid + "-" + pid;
+        if (cuser?.cuid && cuser?.cid) {
+            await ctx.runMutation(internal.dao.cuserDao.update, { cuid: cuser.cuid, cid: cuser.cid, data: cuser.data });
+            const uid = pid + "-" + cuser.cuid;
             let user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
             if (!user) {
-                user = await ctx.runMutation(internal.dao.userDao.create, { cid, uid, partner: pid, token: "", data: cuser.data });
+                user = await ctx.runMutation(internal.dao.userDao.create, { cuid: cuser.cuid, partner: pid, token: "", data: cuser.data });
             }
             if (user?.uid) {
                 const token = jwt.sign({ uid: user.uid, cid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
@@ -57,7 +55,7 @@ export const authByToken = action({
     handler: async (ctx, { uid, token }): Promise<User | null> => {
         const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
 
-        if (user?.token === token && user?.expire && user.expire > Date.now()) {
+        if (user?.token === token) {
             return Object.assign({}, user, { _id: undefined, _creationTime: undefined });
         }
         return null;

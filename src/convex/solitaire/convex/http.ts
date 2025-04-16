@@ -90,15 +90,15 @@ http.route({
     const body = await request.json();
     console.log("signout", body);
     try {
-      
+
       const player: any = await ctx.runQuery(internal.dao.gamePlayerDao.find, { uid: body.uid });
       console.log("player", player);
-      // if (player) {
-      //   await ctx.runMutation(internal.dao.gamePlayerDao.update, {
-      //     uid: body.uid,
-      //     data: { token: null }
-      //   });
-      // }
+      if (player) {
+        await ctx.runMutation(internal.dao.gamePlayerDao.update, {
+          uid: body.uid,
+          data: { token: "" }
+        });
+      }
     } catch (error) {
       console.error("signout error", error);
     }

@@ -10,7 +10,7 @@ const CustomAuthenticator: React.FC<AuthProps> = (props) => {
     const convex = useConvex();
     const login = useCallback(async (cuid: string) => {
 
-        const res: User | null = await convex.action(api.service.AuthManager.authenticate, { partner: 1, data: { cuid }, channel: 1 });
+        const res: User | null = await convex.action(api.service.AuthManager.authenticate, { partner: 1, data: { cuid }, cid: "1" });
         if (res) {
             authComplete(res, 1);
         }
