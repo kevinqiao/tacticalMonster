@@ -98,6 +98,7 @@ const useTurnAnimate = () => {
 
    }, [user, spriteRefs, game, boardDimension, direction])
    const playInitTurn = useCallback(() => {
+      console.log("playInitTurn", game, allSpritesLoaded)
       if (!game || !game.currentTurn || !allSpritesLoaded) return;
       const turnBarNo = getTurnBarNo();
       const activeBar = spriteRefs.get("turn-bar-" + turnBarNo);
