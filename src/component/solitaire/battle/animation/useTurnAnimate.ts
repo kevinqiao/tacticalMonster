@@ -57,6 +57,11 @@ const useTurnAnimate = () => {
       gsap.set(turnBarRef.current, {
          autoAlpha: 0,
       })
+      for (let i = 1; i <= (game.currentTurn?.actions?.max ?? 0); i++) {
+         const turnBarItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + i);
+         if (!turnBarItemRef?.current) continue;
+         turnBarItemRef.current.style.backgroundColor = "grey";
+      }
       onComplete?.();
    }, [game, direction, boardDimension])
    const playTurnStart = useCallback((data: any, onComplete: () => void) => {
