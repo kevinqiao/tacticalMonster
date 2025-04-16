@@ -29,7 +29,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   // const decksRef: React.MutableRefObject<Card[]> = useRef<Card[]>([]);
   const [lastUpdate, setLastUpdate] = useState<string | undefined>(undefined);
   const [direction, setDirection] = useState<number>(0);
-  const [currentAct, setCurrentAct] = useState<{ act: number, due: number; uid: string } | null>(null);
+  const [currentAct, setCurrentAct] = useState<{ due: number; uid: string } | null>(null);
   const events: any = useQuery(api.dao.gameEventDao.find, { gameId: game?.gameId, lastUpdate });
   const [boardDimension, setBoardDimension] = useState<BoardDimension | null>(null);
   const { user } = useUserManager();
@@ -68,8 +68,8 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         // console.log("gameObj", gameObj);
         setGame(gameObj);
         if (gameObj.actDue) {
-          const act = gameObj.currentTurn?.actions?.acted.length ?? 0;
-          setCurrentAct({ due: gameObj.actDue ?? -1, uid: gameObj.currentTurn?.uid ?? "", act: act + 1 });
+
+          setCurrentAct({ due: gameObj.actDue ?? -1, uid: gameObj.currentTurn?.uid ?? "" });
         }
         setLastUpdate(gameObj.lastUpdate ?? "####");
       }
@@ -82,7 +82,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const askAct = useCallback((due: number) => {
     // console.log("askAct", game?.currentTurn);
     if (!game || !game.currentTurn) return;
-    setCurrentAct({ due, uid: game.currentTurn.uid ?? "", act: game.currentTurn.actions.acted.length + 1 });
+    setCurrentAct({ due, uid: game.currentTurn.uid ?? "" });
   }, [game])
   const completeAct = useCallback(() => {
     setCurrentAct(null);

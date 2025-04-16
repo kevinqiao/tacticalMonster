@@ -40,15 +40,15 @@ const useActHandler = () => {
                         mcard.field = card.field;
                         mcard.col = card.col;
                         mcard.row = card.row;
-                        moveCards.push(card);
+                        moveCards.push(mcard);
                     }
                 });
-                event.data.open.forEach((card: Card) => {
+                event.data.open?.forEach((card: Card) => {
                     const mcard = game.cards?.find((c) => c.id === card.id);
                     if (mcard) {
                         mcard.suit = card.suit;
                         mcard.rank = card.rank;
-                        openCards.push(card);
+                        openCards.push(mcard);
                     }
                 });
                 playMove({

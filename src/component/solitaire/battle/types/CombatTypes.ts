@@ -80,7 +80,7 @@ export interface GameModel {
 
 export interface CombatTurn {
     uid: string;
-    actions: { acted: { type: string; result: { move: Card[], open: Card[] } }[]; max: number };
+    actions: { acted?: { type: string; result: { move: Card[], open: Card[] } }[]; max: number };
     status: number;//0-not started,1-started,2-ended 
 }
 export interface CombatRound {
@@ -102,7 +102,7 @@ export interface ICombatContext {
     boardContainer: { [k: string]: { [k: number]: HTMLDivElement | null } };
     boardDimension: BoardDimension | null;
     game: GameModel | null;
-    currentAct: { act: number, due: number; uid: string } | null;
+    currentAct: { due: number; uid: string } | null;
     players?: Player[];
     eventQueue: CombatEvent[];
     askAct: (due: number) => void;

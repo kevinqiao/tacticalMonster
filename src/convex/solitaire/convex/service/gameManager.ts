@@ -134,7 +134,7 @@ class GameManager {
         this.game.currentRound.turnOvers.push(this.game.currentTurn.uid);
         this.game.currentTurn.status = 1;
         await this.dbCtx.db.patch(this.game.gameId, { currentTurn: this.game.currentTurn, currentRound: this.game.currentRound });
-        const turnOverEvent: any = { gameId: this.game.gameId, name: "turnOver", actor: "####", data: this.game.currentTurn };
+        const turnOverEvent: any = { gameId: this.game.gameId, name: "turnOver", actor: "####", data: { uid: this.game.currentTurn.uid } };
         await this.dbCtx.db.insert("game_event", turnOverEvent);
         if (this.game.currentRound.turnOvers.length === this.game.seats?.length) {
             await this.startRound();
@@ -147,11 +147,11 @@ class GameManager {
     }
     async askAct(dueTime: number) {
         if (!this.game || !this.game.currentTurn) return;
-        if (this.game.currentTurn.actions.max === this.game.currentTurn.actions.acted.length) {
+        if (this.game.currentTurn.actions.max === this.game.currentTurn.actions.acted?.length) {
             this.turnOver();
         } else {
             this.game.actDue = dueTime;
-            const act = this.game.currentTurn.actions.acted.length + 1;
+            const act = (this.game.currentTurn.actions.acted?.length ?? 0) + 1;
             const askActEvent: any = { gameId: this.game.gameId, name: "askAct", actor: "####", data: { dueTime, act } };
             const eventId = await this.dbCtx.db.insert("game_event", askActEvent);
             await this.dbCtx.db.patch(this.game.gameId, { actDue: dueTime, lastUpdate: eventId });
@@ -224,8 +224,8 @@ class GameManager {
     }
     async actComplete(action: { type: string, result: any }) {
         if (!this.game || !this.game.currentTurn) return;
-        this.game.currentTurn.actions.acted.push(action);
-        const act = this.game.currentTurn?.actions.acted.length;
+        this.game.currentTurn.actions.acted?.push(action);
+        const act = this.game.currentTurn?.actions.acted?.length ?? 0;
         const event: any = { gameId: this.game.gameId, name: "actCompleted", actor: "####", data: { act } };
         const eventId = await this.dbCtx.db.insert("game_event", event);
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });

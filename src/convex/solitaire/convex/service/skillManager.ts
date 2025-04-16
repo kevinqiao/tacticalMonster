@@ -11,10 +11,10 @@ class SkillManager {
     }
     canTriggerSkill(triggerCard: CardRank): Skill | undefined {
         if (!this.game || !this.game.currentTurn) return;
-        const len = this.game.currentTurn.actions.acted.length;
+        const len = this.game.currentTurn.actions.acted?.length ?? 0;
         if (len === 0) return;
-        const lastAction = this.game.currentTurn.actions.acted[len - 1];
-        if (lastAction.type !== "move" || !lastAction.result.move || lastAction.result.move.length > 1) return;
+        const lastAction = this.game.currentTurn.actions.acted ? this.game.currentTurn.actions.acted[len - 1] : null;
+        if (!lastAction || lastAction.type !== "move" || !lastAction.result.move || lastAction.result.move.length > 1) return;
         const card = lastAction.result.move[0];
         if (card.field === 0) {
             // const seat = this.game.seats?.find((s) => s.uid === this.game?.currentTurn?.uid);
@@ -35,11 +35,11 @@ class SkillManager {
     async triggerSkill(): Promise<{ id: string, status: number, data: any } | undefined> {
 
         if (!this.game || !this.game.currentTurn) return;
-        const len = this.game.currentTurn.actions.acted.length;
+        const len = this.game.currentTurn.actions.acted?.length ?? 0;
         if (len === 0) return;
-        const lastAction = this.game.currentTurn.actions.acted[len - 1];
+        const lastAction = this.game.currentTurn.actions.acted ? this.game.currentTurn.actions.acted[len - 1] : null;
         console.log("lastAction", lastAction)
-        if (lastAction.type !== "move" || !lastAction.result.move || lastAction.result.move.length > 1) return;
+        if (!lastAction || lastAction.type !== "move" || !lastAction.result.move || lastAction.result.move.length > 1) return;
         const card = lastAction.result.move[0] as Card;
         if (card.field === 0) {
             const skill: Skill | undefined = this.canTriggerSkill(card.rank as CardRank);

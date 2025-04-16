@@ -135,22 +135,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       setSessions([...sessions])
     }
   }, [sessions]);
-  const refreshToken = useCallback(async ({ uid, token }: { uid: string, token: string }) => {
-    const u = await convex.action(api.service.AuthManager.refreshToken, { uid, token });
-    if (u?.uid && u?.token) {
-      const userId = u.uid;
-      const userToken = u.token;
-      const timeout = u.expire ? u.expire - 10000 : 50000;
-      console.log("timeout", timeout);
-      setTimeout(() => refreshToken({ uid: userId, token: userToken }), timeout);
-      u.expire = timeout + Date.now();
-      localStorage.setItem("user", JSON.stringify(u));
-      setUser((pre) => pre && pre.uid === u.uid ? Object.assign(pre, u) : u)
-    } else
-      setUser({})
-    // setSessions({});
 
-  }, []);
   useEffect(() => {
 
     const authByToken = async (uid: string, token: string) => {
@@ -162,8 +147,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const userJSON = localStorage.getItem("user");
     if (userJSON !== null) {
       const userObj = JSON.parse(userJSON);
-      const { uid, token, expire } = userObj;
-      if (uid && token && (!expire || expire > Date.now())) {
+      const { uid, token } = userObj;
+      if (uid && token) {
         authByToken(uid, token);
         return;
       }
