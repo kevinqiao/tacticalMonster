@@ -45,6 +45,7 @@ const useCombatAct = () => {
     if (actRef.current > 0) {
       return;
     }
+    console.log("flipCard", currentAct);
     if (!game || !currentAct || !user || !user.uid || currentAct.uid !== user.uid) return;
     const localEvent = { name: "localAct", data: {} };
     eventQueue.push(localEvent);
@@ -63,11 +64,13 @@ const useCombatAct = () => {
         if (mcard) {
           mcard.suit = card.suit;
           mcard.rank = card.rank;
+          mcard.col = card.col;
           mcard.status = 1;
           openCards.push(mcard);
         }
       });
-      playOpenCard({ cards: openCards, onComplete: onActComplete });
+      console.log("openCards", openCards);
+      playOpenCard({ data: { open: openCards }, onComplete: onActComplete });
     }
   }, [eventQueue, game, currentAct, user, playOpenCard, direction]);
 

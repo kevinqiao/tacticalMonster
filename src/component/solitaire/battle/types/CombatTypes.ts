@@ -3,6 +3,11 @@
 import { DragEventData } from "../view/DnDCard";
 import { SkillState } from "./PlayerTypes";
 
+export enum GameStatus {
+    Init = 0,
+    Ongoing = 1,
+    Completed = 2,
+}
 export interface Player {
     uid: string;
     name?: string;

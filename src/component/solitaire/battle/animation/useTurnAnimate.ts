@@ -13,7 +13,7 @@ const useTurnAnimate = () => {
       if (!game || !uid) return -1;
       const seat = game.seats?.find(seat => seat.uid === uid);
       if (!seat) return -1;
-      console.log("getTurnBarNo", direction, seat)
+
       const turnBarNo = direction === 0 ? seat.field - 2 : 3 - seat.field;
       return turnBarNo;
    }, [game, direction])
@@ -22,7 +22,6 @@ const useTurnAnimate = () => {
       if (!boardDimension || !game) {
          return;
       }
-      console.log("playTurnActed", data)
       const turnBarNo = getTurnBarNo(game.currentTurn?.uid);
       const actedItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + data.act);
 
@@ -36,7 +35,7 @@ const useTurnAnimate = () => {
       if (!boardDimension || !game) {
          return;
       }
-      console.log("playTurnActing", data)
+
       const turnBarNo = getTurnBarNo(game.currentTurn?.uid);
       const toItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + data.act);
 
@@ -105,7 +104,7 @@ const useTurnAnimate = () => {
 
    }, [user, spriteRefs, game, boardDimension, direction])
    const playInitTurn = useCallback(() => {
-      console.log("playInitTurn", game, allSpritesLoaded)
+
       if (!game || !game.currentTurn || !allSpritesLoaded) return;
       const turnBarNo = getTurnBarNo(game.currentTurn?.uid);
       const activeBar = spriteRefs.get("turn-bar-" + turnBarNo);
@@ -120,7 +119,6 @@ const useTurnAnimate = () => {
       })
       const max = game.currentTurn?.actions.max;
       const acted = game.currentTurn?.actions.acted?.length ?? 0;
-      console.log("turn act max:", max, acted)
 
       for (let i = 1; i <= max; i++) {
          const turnBarItemRef = spriteRefs.get("turn-bar-item-" + turnBarNo + "-" + i);
@@ -145,7 +143,8 @@ const useTurnAnimate = () => {
 
    }, [spriteRefs, game, direction, allSpritesLoaded, boardDimension])
    useEffect(() => {
-      if (game && game?.status > 1) playInitTurn();
+      console.log("playInitTurn", game, direction)
+      if (game && game?.status > 0) playInitTurn();
    }, [game, playInitTurn, boardDimension, direction])
 
    return { playTurnStart, playInitTurn, playTurnActed, playTurnActing, playTurnOver }

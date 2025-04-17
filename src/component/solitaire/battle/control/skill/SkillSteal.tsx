@@ -9,7 +9,7 @@ const SkillSteal: React.FC = () => {
     const { user } = useUserManager();
     const { game, direction, boardDimension } = useCombatManager();
     const { activeSkill, updateActiveSkill, completeActiveSkill } = useSkillManager();
-    const { playMove } = useActionAnimate();
+    const { playMove, playOpenCard } = useActionAnimate();
     const source = useMemo(() => {
         if (!boardDimension || activeSkill?.status !== SkillStatus.Init || activeSkill?.data?.selectedSource) return [];
         return activeSkill?.initialData?.source.map((sid: string) => {
@@ -54,9 +54,14 @@ const SkillSteal: React.FC = () => {
                 })
 
                 playMove({
-                    data: { move: moveCards, open: openCards }, onComplete: () => {
+                    data: { move: moveCards }, onComplete: () => {
                         updateActiveSkill(null);
 
+                    }
+                })
+                playOpenCard({
+                    data: { open: openCards }, onComplete: () => {
+                        updateActiveSkill(null);
                     }
                 })
 
@@ -92,5 +97,7 @@ const SkillSteal: React.FC = () => {
 
 
 export default SkillSteal;
+
+
 
 

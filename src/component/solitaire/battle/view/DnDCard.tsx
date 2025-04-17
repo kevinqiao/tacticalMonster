@@ -18,7 +18,6 @@ const DnDCard = ({ card }: { card: Card }) => {
     const [isDragging, setIsDragging] = useState(false);
     const { onDragStart, onDrag, onDragEnd, isTouchDevice } = useDnDManager()
 
-
     // 抽象事件处理函数
     const handleDragEvent = useCallback((type: DragEventType, data: DragEventData | null) => {
         switch (type) {
@@ -175,15 +174,18 @@ const DnDCard = ({ card }: { card: Card }) => {
         if (!card || !game || !boardDimension) return { x: 0, y: 0, cwidth: 0, cheight: 0, zIndex: 0 };
         return cardCoord(card.field || 0, card.col || 0, card.row || 0, boardDimension, direction);
     }, [card, game, boardDimension, direction]);
-
+    // if (card.field === 1) {
+    //     console.log("card", card, coord);
+    // }
     const style: React.CSSProperties = {
         top: coord.y,
         left: coord.x,
-        border: '0px solid black',
+        border: '0px solid red',
         cursor: 'grab',
         width: coord.cwidth,
         height: coord.cheight,
         // backgroundColor: 'red',
+
         zIndex: 10000 + (card.row || 0),
         // opacity: isDragging ? 0.7 : 1,
         userSelect: 'none',

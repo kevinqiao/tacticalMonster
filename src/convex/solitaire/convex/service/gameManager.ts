@@ -54,7 +54,7 @@ class GameManager {
         suits.forEach(suit => {
             values.forEach(rank => {
                 id++
-                newDeck.push({ field: 1, id: `${id}`, suit, rank } as Card)
+                newDeck.push({ field: 1, id: `${id}`, suit, rank, col: -1 } as Card)
             });
         });
 
@@ -159,18 +159,21 @@ class GameManager {
     }
     async flip(uid: string) {
         if (!this.game || !this.game.currentTurn) return;
-        const cards = this.game.cards?.filter((c) => c.field === 1 && !c.status);
-        if (!cards || cards.length === 0) return;
-        cards[0].status = 1;
-        const flipEvent: any = { gameId: this.game.gameId, name: "flip", actor: uid, data: { open: [cards[0]] } };
+        const openCards: Card[] = this.game.cards?.filter((c) => c.field === 1 && c.status === 1) as Card[];
+        openCards.sort((a, b) => (b.col || 0) - (a.col || 0));
+        const card: Card = this.game.cards?.find((c) => c.field === 1 && !c.status) as Card;
+        if (!card) return;
+        card.status = 1;
+        card.col = openCards.length > 0 ? (openCards[0].col ?? 0) + 1 : 0;
+        const flipEvent: any = { gameId: this.game.gameId, name: "flip", actor: uid, data: { open: [card] } };
         await this.dbCtx.db.insert("game_event", flipEvent);
-        const action = { type: "flip", result: { move: [], open: [cards[0]] } }
+        const action = { type: "flip", result: { move: [], open: [card] } }
         await this.actComplete(action);
         // this.game.currentTurn.actions.acted.push({ type: "flip", result: { move: [], open: [cards[0]] } })
         // const eventId = await this.dbCtx.db.insert("game_event", { gameId: this.game.gameId, name: "actCompleted", actor: "####" });
         // await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
         await this.askAct(-1);
-        return { ok: true, result: { open: [cards[0]] } }
+        return { ok: true, result: { open: [card] } }
     }
 
     async move(uid: string, cardId: string, to: { field: number, slot: number }) {

@@ -10,8 +10,8 @@ const useActionAnimate = () => {
 
 
 
-   const playOpenCard = useCallback(({ cards, onComplete }: { cards: Card[], onComplete?: () => void }) => {
-      if (!boardDimension || !game || !cards || cards.length === 0) {
+   const playOpenCard = useCallback(({ data, onComplete }: { data: { open: Card[] }, onComplete?: () => void }) => {
+      if (!boardDimension || !game || !data.open || data.open.length === 0) {
          onComplete?.();
          return;
       }
@@ -21,15 +21,11 @@ const useActionAnimate = () => {
             onComplete?.();
          }
       });
-      cards.forEach((card) => {
+      data.open.forEach((card) => {
          if (card && card.ele) {
             popCard(card);
-            card.status = 1;
             if (card.field === 1) {
-               const decks = game.cards?.filter((c) => c.field === 1);
-               if (!decks) return;
-               const col = decks.findIndex((c) => c.id === card.id);
-               const coord = cardCoord(card.field, col, 0, boardDimension, direction);
+               const coord = cardCoord(card.field, card.col || 0, card.row || 0, boardDimension, direction);
                card.x = coord.x;
                card.y = coord.y;
                card.zIndex = coord.zIndex;
@@ -83,17 +79,18 @@ const useActionAnimate = () => {
          }
       }
    }, [game, boardDimension])
-   const playMove = useCallback(({ data, onComplete }: { data: { open?: Card[], move: Card[] }, onComplete?: () => void }) => {
+   const playMove = useCallback(({ data, onComplete }: { data: { move: Card[] }, onComplete?: () => void }) => {
       if (!game || !boardDimension) return;
       console.log("playMove", data)
-      const { open, move } = data;
+      const { move } = data;
       const tl = gsap.timeline({
          onComplete: () => {
-            if (open && open.length > 0) {
-               playOpenCard({ cards: open, onComplete: onComplete });
-            } else {
-               onComplete?.();
-            }
+            // if (open && open.length > 0) {
+            //    playOpenCard({ cards: open, onComplete: onComplete });
+            // } else {
+            //    onComplete?.();
+            // }
+            onComplete?.();
             tl.kill();
          }
       });

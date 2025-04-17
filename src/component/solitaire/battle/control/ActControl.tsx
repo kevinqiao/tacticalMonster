@@ -26,7 +26,7 @@ const ActControl: React.FC = () => {
         const currentSeat = game.seats?.find(s => s.uid === game.currentTurn?.uid);
         if (!currentSeat) return;
         const cards = game.cards?.filter((c: Card) => (c.field === 1 || c.field === currentSeat.field) && c.status === 1);
-        // console.log("cards", cards);
+        console.log("cards", cards);
         return cards;
 
     }, [game, currentAct, user])
@@ -40,7 +40,7 @@ const ActControl: React.FC = () => {
         const [zone, slot] = targets[0].split("_");
 
         const field = Number(zone) < 2 ? +zone : (direction === 1 ? (zone === "2" ? 3 : 2) : +zone);
-        if (draggingCards[0].field === field && draggingCards[0].col === Number(slot)) {
+        if ((zone === "1") || (draggingCards[0].field === field && draggingCards[0].col === Number(slot))) {
             playMove({ data: { move: draggingCards } });
             return;
         }
@@ -84,7 +84,7 @@ const ActControl: React.FC = () => {
                     openCards.push(mcard);
                 }
             });
-            playOpenCard({ cards: openCards, onComplete: onComplete });
+            playOpenCard({ data: { open: openCards }, onComplete: onComplete });
         } else {
             onComplete();
         }

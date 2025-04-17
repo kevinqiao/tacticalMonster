@@ -12,9 +12,9 @@ const SlotContainer: React.FC<{ slot: Slot, zone: Zone }> = ({ slot, zone }) => 
         left: slot.left,
         width: slot.width,
         height: slot.height,
-        border: `${"1px solid " + (zone.index === 0 ? "red" : "white")}`,
+        border: `${(zone.index === 1 ? "0px solid white" : "0px solid red")}`,
         pointerEvents: "auto",
-        zIndex: -100,
+        zIndex: -10000,
       }}>
       </div >
 

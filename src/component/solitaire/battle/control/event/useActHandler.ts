@@ -6,9 +6,9 @@ import { Card, CombatEvent } from "../../types/CombatTypes";
 const useActHandler = () => {
     const { playOpenCard, playMove } = useActionAnimate();
     const { playTurnActed, playTurnActing, playTurnOver } = useTurnAnimate();
-    const { game, eventQueue, boardDimension, direction, completeAct, askAct } = useCombatManager();
+    const { game, boardDimension, direction, completeAct, askAct } = useCombatManager();
     const handleEvent = useCallback((event: CombatEvent, onComplete: () => void) => {
-        const { name, status, data } = event;
+        const { name, data } = event;
         if (!game) return;
         event.status = 1;
         switch (name) {
@@ -19,12 +19,13 @@ const useActHandler = () => {
                     if (mcard) {
                         mcard.suit = card.suit;
                         mcard.rank = card.rank;
+                        mcard.col = card.col;
                         mcard.status = 1;
                         openCards.push(mcard);
                     }
                 });
                 playOpenCard({
-                    cards: openCards, onComplete: () => {
+                    data: { open: openCards }, onComplete: () => {
                         completeAct();
                         onComplete()
                     }
@@ -43,6 +44,7 @@ const useActHandler = () => {
                         moveCards.push(mcard);
                     }
                 });
+
                 event.data.open?.forEach((card: Card) => {
                     const mcard = game.cards?.find((c) => c.id === card.id);
                     if (mcard) {
@@ -52,11 +54,16 @@ const useActHandler = () => {
                     }
                 });
                 playMove({
-                    data: { move: moveCards, open: openCards }, onComplete: () => {
+                    data: { move: moveCards }, onComplete: () => {
                         completeAct();
                         onComplete()
                     }
                 });
+                if (openCards.length > 0) {
+                    playOpenCard({
+                        data: { open: openCards }
+                    });
+                }
                 break;
             }
             case "actCompleted": {
