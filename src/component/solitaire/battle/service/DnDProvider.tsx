@@ -25,7 +25,7 @@ const DnDProvider = ({ onDrop, children }: { onDrop?: (cards: Card[], targets: s
   const draggingGroupRef = useRef<Card[]>([]);
   const dropTargetsRef = useRef<string[]>([]);
   const onDrag = useCallback((card: Card, data: DragEventData) => {
-    console.log("onDrag", card, data);
+
     if (!card.ele || !boardDimension) return;
     const { top, left } = boardDimension;
 
@@ -42,7 +42,7 @@ const DnDProvider = ({ onDrop, children }: { onDrop?: (cards: Card[], targets: s
 
   }, [user, eventQueue, game, boardDimension, direction])
   const onDragStart = useCallback((card: Card, data: DragEventData) => {
-    console.log("onDragStart", card);
+
     if (card.ele) {
       // console.log("onDragStart", card);
       const cards = game?.cards?.filter((c: Card) => ((c.field || 0) < 2 && c.id === card.id) || (c.field === card.field && c.col === card.col && c.row !== undefined && c.row >= (card.row || 0)))

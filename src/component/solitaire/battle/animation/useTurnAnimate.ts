@@ -143,7 +143,6 @@ const useTurnAnimate = () => {
 
    }, [spriteRefs, game, direction, allSpritesLoaded, boardDimension])
    useEffect(() => {
-      console.log("playInitTurn", game, direction)
       if (game && game?.status > 0) playInitTurn();
    }, [game, playInitTurn, boardDimension, direction])
 

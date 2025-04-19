@@ -1,19 +1,19 @@
 import React, { useCallback, useMemo } from 'react';
 import { useUserManager } from 'service/UserManager';
 import useActionAnimate from '../animation/useActionAnimate';
+import RuleManager from '../service/ActRuleManager';
 import { useCombatManager } from '../service/CombatManager';
 import DnDProvider from '../service/DnDProvider';
 import useCombatAct from '../service/useCombatAct';
 import { Card } from '../types/CombatTypes';
 import DnDCard from '../view/DnDCard';
 
-
 const ActControl: React.FC = () => {
     const { user } = useUserManager();
     const { eventQueue, game, boardDimension, direction, currentAct, completeAct } = useCombatManager();
     const { playMove, playOpenCard } = useActionAnimate();
     const { move } = useCombatAct();
-
+    // const ruleManager = new RuleManager(game);
     const draggables = useMemo(() => {
 
         if (!game || !game.currentTurn || !currentAct || !user || !user.uid) {
@@ -23,9 +23,10 @@ const ActControl: React.FC = () => {
             // console.log("currentAct.uid !== user.uid", currentAct, user);
             return;
         }
+
         const currentSeat = game.seats?.find(s => s.uid === game.currentTurn?.uid);
         if (!currentSeat) return;
-        const cards = game.cards?.filter((c: Card) => (c.field === 1 || c.field === currentSeat.field) && c.status === 1);
+        const cards = game.cards?.filter((c: Card) => RuleManager.canMove(c, game));
         console.log("cards", cards);
         return cards;
 
@@ -44,8 +45,12 @@ const ActControl: React.FC = () => {
             playMove({ data: { move: draggingCards } });
             return;
         }
-        completeAct();
-        await executeDrop(draggingCards, { field, slot: Number(slot) });
+        if (RuleManager.canAdd(game, draggingCards[0].id, { field, slot: Number(slot) })) {
+            completeAct();
+            await executeDrop(draggingCards, { field, slot: Number(slot) });
+        } else {
+            playMove({ data: { move: draggingCards } });
+        }
 
 
     }, [user, game, boardDimension, direction, playMove])

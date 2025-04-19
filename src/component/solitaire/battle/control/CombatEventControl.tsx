@@ -39,7 +39,7 @@ const CombatEventControl = (): React.ReactElement => {
     const actHandler = useActHandler();
     const turnHandler = useTurnHandler();
     const { activeSkill } = useSkillManager();
-    console.log("activeSkill", activeSkill)
+
     const dispatchEvent = useCallback(() => {
 
         if (!game) return;

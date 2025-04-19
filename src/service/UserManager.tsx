@@ -73,7 +73,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     // if (persist > 0) {
     //   localStorage.setItem("user", JSON.stringify(u));
     // }
-    console.log("authComplete", u);
+
 
     u.expire = u.expire + Date.now();
     localStorage.setItem("user", JSON.stringify(u));
@@ -128,7 +128,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   // }, [user]);
   const ssaAuthComplete = useCallback((ssa: string, player: any) => {
     const session = sessions.find((s) => s.app === ssa);
-    console.log("ssaAuthComplete", ssa, player);
+
     if (session) {
       session.status = AppSessionStatus.SIGNED_IN;
       session.player = player;
@@ -159,7 +159,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
 
     if (Array.isArray(userEvents) && userEvents.length > 0) {
-      console.log("userEvents", userEvents);
+
       const event = userEvents[userEvents.length - 1] as Event;
 
       if (event.name !== "####") {

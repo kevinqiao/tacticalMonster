@@ -30,14 +30,15 @@ class GameManager {
     async initGame(gameId: string) {
         try {
             const id = gameId as Id<"game">;
-            const game = await this.dbCtx.db.get(id);
+            const gameDoc = await this.dbCtx.db.get(id);
 
-            if (game) {
-                if (game.actDue) {
-                    game.actDue = game.actDue - Date.now();
+            if (gameDoc) {
+                if (gameDoc.actDue) {
+                    gameDoc.actDue = gameDoc.actDue - Date.now();
                 }
-                this.game = { ...game, _id: undefined, _creationTime: undefined, gameId: id };
-                this.skillManager.game = { ...game, _id: undefined, _creationTime: undefined, gameId: id };
+                const game = { ...gameDoc, _id: undefined, _creationTime: undefined, gameId: id };
+                this.game = game;
+                this.skillManager.game = game;
             }
         } catch (error) {
             console.log("initGame error", error);

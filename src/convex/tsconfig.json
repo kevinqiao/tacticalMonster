@@ -22,7 +22,8 @@
     "noEmit": true
   },
   "include": [
-    "./**/*"
+    "./**/*",
+    "../component/solitaire/battle/service/ActRuleManager.ts"
   ],
   "exclude": [
     "./_generated"

@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 // import jwt from "jsonwebtoken";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 
 
@@ -39,8 +39,6 @@ http.route({
       headers: new Headers({
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Max-Age": "86400",
       }),
     });
   }),
@@ -61,13 +59,42 @@ http.route({
   }),
 });
 http.route({
+  path: "/test",
+  method: "GET",
+  handler: httpAction(async (_, request) => {
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+
+      }),
+    });
+  }),
+});
+http.route({
+  path: "/test",
+  method: "POST",
+  handler: httpAction(async (_, request) => {
+    const body = await request.json();
+    console.log("test", body);
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+      }),
+    });
+  }),
+});
+http.route({
   path: "/signin",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const body = await request.json();
     console.log("signin", body);
     const accessToken = body.access_token;
-    const player = await ctx.runAction(api.service.auth.signin, {
+    const player = await ctx.runAction(internal.service.auth.signin, {
       access_token: accessToken,
       expire: body.expire + Date.now()
     });
@@ -77,8 +104,6 @@ http.route({
       headers: new Headers({
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
       })
     });
   }),
@@ -93,12 +118,12 @@ http.route({
 
       const player: any = await ctx.runQuery(internal.dao.gamePlayerDao.find, { uid: body.uid });
       console.log("player", player);
-      if (player) {
-        await ctx.runMutation(internal.dao.gamePlayerDao.update, {
-          uid: body.uid,
-          data: { token: "" }
-        });
-      }
+      // if (player) {
+      //   await ctx.runMutation(internal.dao.gamePlayerDao.update, {
+      //     uid: body.uid,
+      //     data: { token: null }
+      //   });
+      // }
     } catch (error) {
       console.error("signout error", error);
     }

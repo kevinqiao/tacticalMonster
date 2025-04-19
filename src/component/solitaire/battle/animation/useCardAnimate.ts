@@ -201,20 +201,7 @@ const useCardAnimate = () => {
          if (card.ele) {
             popCard(card);
             const pos = { field: card.field ?? 0, col: card.col ?? 0, row: card.row ?? 0 };
-            // if (card.field === 1) {
-            //    pos.col = -1;
-            //    if (card.status) {
-            //       const opens = game.cards?.filter((c) => c.field === 1 && c.status);
-            //       if (opens && opens.length > 0) {
-            //          const index = opens.findIndex((c) => c.id === card.id);
-            //          pos.col = index;
-            //       }
-            //    }
 
-            // }
-            if (card.field === 1 && card.status === 1) {
-               console.log(card, pos)
-            }
             const coord = cardCoord(pos.field, pos.col, pos.row, boardDimension, direction);
             card.width = coord.cwidth;
             card.height = coord.cheight;
@@ -244,7 +231,6 @@ const useCardAnimate = () => {
    }, [game, boardDimension, popCard, direction])
    useEffect(() => {
       if (!game || !boardDimension) return;
-      console.log("playInit", game.status);
       if (game.status > 0) playInit({});
 
    }, [game, boardDimension, direction, playInit])

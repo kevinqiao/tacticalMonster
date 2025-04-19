@@ -35,7 +35,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
   const { user } = useUserManager();
 
   const convex = useConvex();
-  console.log("direction", direction, user, game)
+
   useEffect(() => {
     if (!game) return;
     if (!user || !user.uid) {

@@ -23,13 +23,15 @@ export const SSASignIn = ({ app, children }: { app: string, children: React.Reac
   const { user, sessions, ssaAuthComplete, ssaSignOut } = useUserManager();
 
   const signin = useCallback(async () => {
+    console.log("signin", user, sessions);
     const res = await fetch(SSA_AUTH_URLS[app] + "/signin", {
       method: "POST",
       body: JSON.stringify({
-        access_token: user.token,
+        access_token: user?.token,
       }),
     })
     const data = await res.json();
+    console.log("signin", data);
     if (data.ok) {
       ssaAuthComplete(app, data.player);
     }

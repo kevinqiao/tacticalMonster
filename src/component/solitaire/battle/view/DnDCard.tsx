@@ -22,7 +22,7 @@ const DnDCard = ({ card }: { card: Card }) => {
     const handleDragEvent = useCallback((type: DragEventType, data: DragEventData | null) => {
         switch (type) {
             case 'start':
-                console.log("start", card.id, data)
+
                 if (data && card.ele) {
                     setIsDragging(true);
                     onDragStart(card, data);
