@@ -41,7 +41,7 @@ export class StealEffect implements SkillEffect {
                     const source = game.cards?.find(c => c.id === data.selectedSource);
                     console.log("source", source, target)
                     if (source) {
-                        const data: any = {};
+
                         const prevRow = source.row ? source.row - 1 : -1;
                         const prevCol = source.col;
                         if (prevRow >= 0) {

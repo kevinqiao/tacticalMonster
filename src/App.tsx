@@ -5,6 +5,7 @@ import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React from "react";
+import { PlatformProvider } from "service/PlatformManager";
 import { TerminalProvider } from "service/TerminalManager";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
@@ -43,6 +44,7 @@ const StyleApp = () => {
 
   const Providers = FlattenedProviderTree([
     [TerminalProvider],
+    [PlatformProvider],
     // [LocalizationProvider],
     // [ThemeProvider, { theme }],
     // [PartnerProvider],

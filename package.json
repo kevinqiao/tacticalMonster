@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "@clerk/clerk-react": "^4.30.3",
-    "@discord/embedded-app-sdk": "^1.2.0",
+    "@discord/embedded-app-sdk": "^1.9.0",
     "@pixi/mesh-extras": "^7.4.2",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.3",
     "@svgr/webpack": "^5.5.0",

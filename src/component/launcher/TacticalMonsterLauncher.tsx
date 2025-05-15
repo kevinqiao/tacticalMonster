@@ -5,7 +5,7 @@ import { useUserManager } from "service/UserManager";
 import { api } from "../../convex/ludo/convex/_generated/api";
 
 const TacticalMonsterLauncherMain: React.FC<{ open: () => void, game: { name: string; id: string; status: number } }> = ({ open, game }) => {
-  const { user, updateLoaded } = useUserManager();
+  const { user } = useUserManager();
   const convex = useConvex();
 
 
@@ -19,13 +19,11 @@ const TacticalMonsterLauncherMain: React.FC<{ open: () => void, game: { name: st
         });
         if (gameObj && !gameObj.status) {
           open();
-        } else {
-          updateLoaded();
         }
       }
     }
     if (game && !location.pathname.includes("/play/map")) fetchGame(game.id);
-  }, [user, updateLoaded]);
+  }, [user]);
   return <></>
 
 };
