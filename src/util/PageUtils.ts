@@ -1,10 +1,11 @@
 import { AppsConfiguration } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
+import { useMemo } from "react";
 import { PageContainer } from "service/PageManager";
 export const parseLocation = (): PageItem | undefined => {
     const page: { [k: string]: any } = {}
     page.uri = window.location.pathname;
-   
+
     if (location.search) {
         const params: { [key: string]: string } = {};
         const searchParams = new URLSearchParams(window.location.search);
@@ -131,9 +132,9 @@ export const findContainerByURI = (container: PageContainer, uri: string): PageC
 
 export const findContainer = (containers: PageContainer[], uri: string): PageContainer | null => {
     for (const container of containers) {
-         if(container.uri===uri)
+        if (container.uri === uri)
             return container;
-        else if (container.children && Array.isArray(container.children)) { 
+        else if (container.children && Array.isArray(container.children)) {
             const result = findContainer(container.children, uri);
             if (result) {
                 return result;
@@ -141,4 +142,19 @@ export const findContainer = (containers: PageContainer[], uri: string): PageCon
         }
     }
     return null;
+}
+export const useUrlParams = () => {
+    const params = useMemo(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        return {
+            // 获取单个参数
+            get: (key: string) => searchParams.get(key),
+            // 获取所有参数对象
+            getAll: () => Object.fromEntries(searchParams.entries()),
+            // 检查参数是否存在
+            has: (key: string) => searchParams.has(key),
+        };
+    }, [window.location.search]);
+
+    return params;
 }

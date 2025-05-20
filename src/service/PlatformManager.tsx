@@ -1,4 +1,7 @@
+import { useConvex } from "convex/react";
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useUrlParams } from "util/PageUtils";
+import { api } from "../convex/sso/convex/_generated/api";
 
 // 平台类型
 const PLATFORM_TYPE = {
@@ -9,7 +12,7 @@ const PLATFORM_TYPE = {
 } as const;
 
 // Telegram SDK 类型
-interface TelegramWebApp {
+export interface TelegramWebApp {
   initDataUnsafe: {
     user?: { id: number; first_name: string; last_name?: string; username?: string };
     query_id?: string;
@@ -27,7 +30,7 @@ interface TelegramWebApp {
 }
 
 // Meta SDK 类型
-interface MetaWebApp {
+export interface MetaWebApp {
   init: (config: { appId: string; version: string; status: boolean; cookie: boolean; xfbml: boolean }) => void;
   api: (path: string, params: { fields: string }, callback: (response: any) => void) => void;
   getLoginStatus: (callback: (response: { status: string; authResponse?: { accessToken: string } }) => void) => void;
@@ -36,7 +39,7 @@ interface MetaWebApp {
 }
 
 // Discord SDK 类型
-interface DiscordSDK {
+export interface DiscordSDK {
   ready: () => Promise<void>;
   commands: {
     authorize: (config: {
@@ -52,7 +55,7 @@ interface DiscordSDK {
 }
 
 // 用户信息类型
-interface UserInfo {
+export interface UserInfo {
   id: string;
   username: string;
   avatar?: string;
@@ -73,7 +76,7 @@ const PLATFORMS: Record<
     type: number;
     url: string;
     scripts: { name: string; src: string }[];
-    initialize: () => Promise<{ sdk?: any; user?: UserInfo | undefined }>;
+    initialize: (configuration: any) => Promise<{ sdk?: any; user?: UserInfo | undefined }>;
   }
 > = {
   TELEGRAM: {
@@ -81,13 +84,15 @@ const PLATFORMS: Record<
     type: PLATFORM_TYPE.TELEGRAM,
     url: "https://t.me/solitaire_game_bot",
     scripts: [{ name: "sdk", src: "https://telegram.org/js/telegram-web-app.js" }],
-    initialize: async () => {
+    initialize: async (configuration: any) => {
+
       if (window.Telegram?.WebApp) {
+
         window.Telegram.WebApp.ready();
-        console.log("Telegram initialized");
+        console.log("Telegram initialized", window.Telegram.WebApp);
         const user = window.Telegram.WebApp.initDataUnsafe.user;
         return {
-          user: user ? { id: String(user.id), username: user.username || user.first_name } : undefined,
+          sdk: window.Telegram.WebApp, user: user ? { id: String(user.id), username: user.username || user.first_name } : undefined,
         };
       } else {
         console.warn("Telegram WebApp not available");
@@ -100,7 +105,7 @@ const PLATFORMS: Record<
     type: PLATFORM_TYPE.DISCORD,
     url: "https://discord.com/solitaire_game_bot",
     scripts: [],
-    initialize: async () => {
+    initialize: async (configuration: any) => {
       try {
         const { DiscordSDK } = await import("@discord/embedded-app-sdk");
         const discordSdk = new DiscordSDK(process.env.VITE_DISCORD_CLIENT_ID || "YOUR_DISCORD_CLIENT_ID");
@@ -145,7 +150,7 @@ const PLATFORMS: Record<
     type: PLATFORM_TYPE.META,
     url: "https://www.facebook.com/solitaire_game_bot",
     scripts: [{ name: "sdk", src: "https://connect.facebook.net/en_US/sdk.js" }],
-    initialize: async () => {
+    initialize: async (configuration: any) => {
       if (window.FB) {
         window.FB.init({
           appId: process.env.VITE_FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID",
@@ -208,13 +213,21 @@ interface ScriptStatus {
   status: "idle" | "loading" | "loaded" | "error";
   src: string;
 }
+export interface Platform {
+  name?: string;
+  support: number;
+  paramters?: { url: string };
+}
 
 // 上下文接口
 interface IPlatformContext {
   isLoaded: boolean;
   isLoading: boolean;
   hasError: boolean;
-  platform: string;
+  platform: Platform | undefined;
+  sdk: any;
+  // authenticatorLoaded: boolean;
+  // onAuthenticatorLoaded: () => void;
   errorMessage?: string;
   user?: UserInfo;
 }
@@ -222,16 +235,21 @@ interface IPlatformContext {
 const PlatformContext = createContext<IPlatformContext | undefined>(undefined);
 
 export const PlatformProvider = ({ children }: { children: ReactNode }) => {
-  const [platform, setPlatform] = useState<string>("TELEGRAM");
+  // const [configuration, setConfiguration] = useState<Configuration | undefined>(undefined);
+  // const [authenticatorLoaded, setAuthenticatorLoaded] = useState(false);
+  const [platform, setPlatform] = useState<Platform | undefined>(undefined);
   const [scripts, setScripts] = useState<Record<string, ScriptStatus>>({});
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [sdk, setSdk] = useState<any | undefined>();
   const [user, setUser] = useState<UserInfo | undefined>();
-
+  const convex = useConvex();
+  const params = useUrlParams();
   // 动态加载脚本
+
   const loadScript = useCallback((key: string, src: string) => {
+    console.log("loadScript", scripts, key, src);
     if (scripts[key]?.status === "loaded" && scripts[key]?.src === src) {
-      return Promise.resolve();
+      return
     }
 
     setScripts((prev) => ({
@@ -239,31 +257,30 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
       [key]: { status: "loading", src },
     }));
 
-    return new Promise<void>((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = src;
-      script.async = true;
-      script.id = `script-${key}`;
 
-      script.onload = () => {
-        setScripts((prev) => ({
-          ...prev,
-          [key]: { status: "loaded", src },
-        }));
-        resolve();
-      };
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.id = `script-${key}`;
+    script.onload = () => {
+      console.log("script loaded", key, src);
+      setScripts((prev) => ({
+        ...prev,
+        [key]: { status: "loaded", src },
+      }));
 
-      script.onerror = () => {
-        setScripts((prev) => ({
-          ...prev,
-          [key]: { status: "error", src },
-        }));
-        setErrorMessage(`Failed to load script: ${src}`);
-        reject(new Error(`脚本加载失败: ${src}`));
-      };
+    };
 
-      document.body.appendChild(script);
-    });
+    script.onerror = () => {
+      setScripts((prev) => ({
+        ...prev,
+        [key]: { status: "error", src },
+      }));
+      setErrorMessage(`Failed to load script: ${src}`);
+    };
+
+    document.body.appendChild(script);
+
   }, []);
 
   // 删除脚本
@@ -281,15 +298,12 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
 
   // 初始化平台
   const initializePlatform = useCallback(async () => {
-    const platformInfo = PLATFORMS[platform];
+    const platformInfo = PLATFORMS[platform?.name || ""];
     if (platformInfo) {
       try {
-        const { sdk, user } = await platformInfo.initialize();
-        if (platform === "DISCORD" && sdk) {
-          setSdk(sdk as DiscordSDK);
-        }
-        if (platform === "META" && sdk) {
-          setSdk(sdk as MetaWebApp);
+        const { sdk, user } = await platformInfo.initialize(platform?.paramters);
+        if (sdk) {
+          setSdk(sdk);
         }
         if (user) {
           setUser(user);
@@ -300,63 +314,99 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [platform]);
 
+
   // 状态检查
   const isLoaded = useMemo(
-    () =>
-      PLATFORMS[platform].scripts.length === 0 ||
-      Object.values(scripts).every((script) => script.status === "loaded"),
+    () => {
+      if (!platform) {
+        return false;
+      }
+      const platformInfo = PLATFORMS[platform?.name || ""];
+      if (platformInfo.scripts.length === 0) {
+        return true;
+      }
+      if (Object.values(scripts).length === 0) {
+        return false;
+      }
+      return Object.values(scripts).every((script) => script.status === "loaded");
+    },
     [scripts, platform]
   );
   const isLoading = useMemo(() => Object.values(scripts).some((script) => script.status === "loading"), [scripts]);
   const hasError = useMemo(() => Object.values(scripts).some((script) => script.status === "error"), [scripts]);
-
+  useEffect(() => {
+    if (isLoaded) {
+      initializePlatform();
+    }
+  }, [isLoaded]);
+  useEffect(() => {
+    const loadPlatform = async () => {
+      if (params.get("pid") && params.get("p")) {
+        const pt: Platform = await convex.query(api.service.PlatformManager.findPlatform, { partner: params.get("pid") || undefined, platform: params.get("p") || undefined });
+        console.log("loadPlatform", pt);
+        if (pt) {
+          setPlatform(pt)
+        }
+      }
+    }
+    if (!platform) {
+      loadPlatform();
+    }
+  }, []);
   // 加载平台脚本
   useEffect(() => {
     const loadScripts = async () => {
+
       try {
         setErrorMessage(undefined);
         setUser(undefined);
         setSdk(undefined);
 
-        const platformInfo = PLATFORMS[platform];
+        const platformInfo = PLATFORMS[platform?.name || ""];
         if (!platformInfo) {
           setErrorMessage(`Unknown platform: ${platform}`);
           return;
         }
-
-        // 清理现有脚本
-        Object.keys(scripts).forEach((key) => removeScript(key));
-
-        // 加载新脚本（仅对 CDN 平台）
-        if (platformInfo.scripts.length > 0) {
-          await Promise.all(platformInfo.scripts.map((script) => loadScript(script.name, script.src)));
-        }
-
-        // 所有脚本加载完成或无需脚本时初始化
-        if (isLoaded) {
-          await initializePlatform();
+        // // 清理现有脚本
+        // Object.keys(scripts).forEach((key) => removeScript(key));
+        for (const script of platformInfo.scripts) {
+          console.log("start loadScript", script.name, script.src);
+          loadScript(script.name, script.src);
         }
       } catch (error) {
         console.error("加载脚本出错:", error);
         setErrorMessage(error instanceof Error ? error.message : "Unknown error");
       }
     };
+    if (platform?.name && platform?.support) {
+      loadScripts();
+    }
+  }, [loadScript, removeScript, platform]);
 
-    loadScripts();
-  }, [platform, loadScript, removeScript, initializePlatform, isLoaded]);
-
-  // 清理平台状态
   useEffect(() => {
+    // 清理平台状态
+
     return () => {
-      if (platform === "TELEGRAM" && window.Telegram?.WebApp) {
-        window.Telegram.WebApp.MainButton.hide();
+      if (platform?.name === "TELEGRAM" && window.Telegram?.WebApp) {
+        // window.Telegram.WebApp.MainButton.hide();
       }
-      if (platform === "DISCORD" && sdk) {
+      if (platform?.name === "DISCORD" && sdk) {
         sdk.subscribe("ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE", () => { });
       }
+
       // Meta 无需特殊清理
     };
   }, [platform, sdk]);
+  useEffect(() => {
+    console.log("cleanup scripts", scripts);
+    return () => {
+      console.log("cleanuped scripts", scripts);
+      const platformInfo = PLATFORMS[platform?.name || ""];
+      if (platformInfo) {
+        Object.keys(platformInfo.scripts).forEach((key) => removeScript(key));
+      }
+    };
+  }, [platform]);
 
   return (
     <PlatformContext.Provider
@@ -365,6 +415,7 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         hasError,
         platform,
+        sdk,
         errorMessage,
         user,
       }}

@@ -1,12 +1,19 @@
 import { useConvex } from "convex/react";
-import React, { useCallback } from "react";
+import gsap from "gsap";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
+import { findContainer } from "util/PageUtils";
 import { api } from "../../../convex/sso/convex/_generated/api";
 import { User } from "../../../service/UserManager";
 import { AuthProps } from "../SSOController";
 // const client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
-const CustomAuthenticator: React.FC<AuthProps> = (props) => {
+const CustomAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
+    const loadedRef = useRef(false);
     const { user, authComplete } = useUserManager();
+    const { pageContainers, currentPage, changeEvent, authReq, cancelAuth } = usePageManager();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const maskRef = useRef<HTMLDivElement>(null);
     const convex = useConvex();
     const login = useCallback(async (cuid: string) => {
 
@@ -16,14 +23,93 @@ const CustomAuthenticator: React.FC<AuthProps> = (props) => {
         }
     }, [convex])
 
+    const isOpen = useMemo(() => {
+        if (authReq) return true;
+
+        // const page = currentPage;
+
+        if (currentPage) {
+            const container = findContainer(pageContainers, currentPage.uri);
+            return container?.auth === 1 && (!user || !user.uid) ? true : false;
+        }
+        return false;
+    }, [authReq, currentPage, changeEvent, user, pageContainers]);
+
+    useEffect(() => {
+
+        if (containerRef.current && maskRef.current) {
+
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    if (!loadedRef.current) {
+                        onLoad();
+                        loadedRef.current = true;
+                    }
+                }
+            });
+            if (isOpen) {
+
+                tl.fromTo(maskRef.current,
+                    { opacity: 0 },
+                    { opacity: 0.5, duration: 0.3 }, 0);
+                tl.fromTo(containerRef.current,
+                    { opacity: 1, x: "100%" },
+                    { x: 0, duration: 0.3, ease: "power2.out" }, 0);
+            } else {
+                tl.to(maskRef.current, {
+                    opacity: 0,
+                    duration: 0.3
+                }, 0);
+                tl.to(containerRef.current, {
+                    x: "100%",
+                    duration: 0.3,
+                    ease: "power2.in"
+                }, 0);
+            }
+            tl.play();
+        }
+    }, [isOpen]);
+
     return <>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%", backgroundColor: "white", pointerEvents: "auto" }}>
-            <div style={{ width: 400, display: "flex" }}>
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("11111")}>
-                    Player1
-                </div>
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("22222")}>
-                    Player2
+        <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "transparent", pointerEvents: "none", overflow: "hidden" }}>
+            {/* 遮罩层 */}
+            <div ref={maskRef} style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                backgroundColor: "black",
+                opacity: 0,
+                overflow: "hidden",
+                pointerEvents: isOpen ? "auto" : "none"
+            }} onClick={cancelAuth
+
+            } />
+
+            {/* 滑动面板 */}
+            <div ref={containerRef} style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                width: "40%",
+                height: "100%",
+                minWidth: 350,
+                maxWidth: 500,
+                pointerEvents: "auto",
+                overflow: "hidden",
+                opacity: 0,
+                zIndex: 1
+            }}>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%", backgroundColor: "white", pointerEvents: "auto" }}>
+                    <div style={{ width: 400, display: "flex" }}>
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("11111")}>
+                            Player1
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: 150, height: 40, backgroundColor: "red", color: "white" }} onClick={() => login("22222")}>
+                            Player2
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

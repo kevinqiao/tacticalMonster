@@ -22,6 +22,7 @@ import type * as service_AuthManager from "../service/AuthManager.js";
 import type * as service_EventQuery from "../service/EventQuery.js";
 import type * as service_EventReceiver from "../service/EventReceiver.js";
 import type * as service_handler_CustomAuthHandler from "../service/handler/CustomAuthHandler.js";
+import type * as service_PlatformManager from "../service/PlatformManager.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   "service/EventQuery": typeof service_EventQuery;
   "service/EventReceiver": typeof service_EventReceiver;
   "service/handler/CustomAuthHandler": typeof service_handler_CustomAuthHandler;
+  "service/PlatformManager": typeof service_PlatformManager;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

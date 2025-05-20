@@ -1,4 +1,4 @@
-import { User } from "model/User";
+import { User } from "service/UserManager";
 
 export const isRunningInTelegramApp = (): boolean => {
     const userAgent: string = navigator.userAgent || navigator.vendor || window.opera;
@@ -18,27 +18,27 @@ export const getTerminalType = (): number => {
 }
 
 
-export const embedAuth = async (app: any): Promise<User | null> => {
-    if (app.context === "tg" && window.Telegram?.WebApp) {
-        const telegramData = window.Telegram.WebApp.initData;
-        try {
-            const BOT_URL = "https://telegram-bot-8bgi.onrender.com/tg/auth";
-            const res = await fetch(BOT_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json; charset=utf-8",
-                },
-                body: JSON.stringify({ authData: telegramData }),
-            });
-            const json: { status: string; message: any; } = await res.json();
-            if (json.status === "success")
-                return { ...json.message, authEmbed: 1 };
-        } catch (err) {
-            console.log(err)
-        }
-    }
-    return null
-}
+// export const embedAuth = async (app: any): Promise<User | null> => {
+//     if (app.context === "tg" && window.Telegram?.WebApp) {
+//         const telegramData = window.Telegram.WebApp.initData;
+//         try {
+//             const BOT_URL = "https://telegram-bot-8bgi.onrender.com/tg/auth";
+//             const res = await fetch(BOT_URL, {
+//                 method: "POST",
+//                 headers: {
+//                     "Content-Type": "application/json; charset=utf-8",
+//                 },
+//                 body: JSON.stringify({ authData: telegramData }),
+//             });
+//             const json: { status: string; message: any; } = await res.json();
+//             if (json.status === "success")
+//                 return { ...json.message, authEmbed: 1 };
+//         } catch (err) {
+//             console.log(err)
+//         }
+//     }
+//     return null
+// }
 export const authToken = async (auth: any): Promise<User | null> => {
     if (auth) {
         try {

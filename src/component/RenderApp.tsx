@@ -60,6 +60,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       if (ele && container.init) {
         InitStyles[container.init]({ parent: parent, container: container });
       }
+      console.log("load", container.uri)
       onLoad();
     },
     [onLoad, container]
@@ -72,7 +73,6 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         {visible && <>
           <Suspense fallback={<div />}>
             <SelectedComponent data={currentPage?.data} visible={visible}>
-
             </SelectedComponent>
           </Suspense>
           {container.exit ? (
@@ -91,9 +91,9 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
 const RenderApp: React.FC = () => {
   const { pageContainers } = usePageManager();
-
+  console.log("renderPage", pageContainers)
   const renderPage = useMemo(() => {
-    console.log("renderPage", pageContainers)
+
     return pageContainers?.map((container, index: number) => (
       <PageComponent key={container.app + "-" + container.name} container={container} />
     ))

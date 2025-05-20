@@ -1,12 +1,12 @@
 
 
-import GameLauncher from "component/launcher/GameLanucher";
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React from "react";
-import { PlatformProvider } from "service/PlatformManager";
+import React, { useState } from "react";
+import usePlatform, { PlatformProvider } from "service/PlatformManager";
 import { TerminalProvider } from "service/TerminalManager";
+import "./App.css";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
 const master_client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
@@ -36,6 +36,7 @@ export const FlattenedProviderTree = (providers: any): any => {
 const StyleApp = () => {
   // const { locale } = useLocalization();
   // console.log("style locale:" + locale);
+  const { platform } = usePlatform();
   const theme = {
     primaryColor: "#4CAF50",
     secondaryColor: "#45A049",
@@ -44,36 +45,38 @@ const StyleApp = () => {
 
   const Providers = FlattenedProviderTree([
     [TerminalProvider],
-    [PlatformProvider],
     // [LocalizationProvider],
     // [ThemeProvider, { theme }],
     // [PartnerProvider],
   ]);
-  console.log("style app...");
+
   return (
     <Providers>
       <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-        <RenderApp />
+        {platform?.support && <RenderApp />}
       </div>
     </Providers>
   );
 };
 
 const App: React.FC = () => {
-
+  const [ssoLoaded, setSsoLoaded] = useState(false);
   const Providers = FlattenedProviderTree([
     [ConvexProvider, { client: master_client }],
     [UserProvider],
     [PageProvider],
+    [PlatformProvider],
 
   ]);
 
   return (
 
     <Providers>
-      <StyleApp />
-      <SSOController />
-      <GameLauncher />
+
+      {ssoLoaded && <StyleApp />}
+      <SSOController onLoad={() => setSsoLoaded(true)} />
+      {/* <GameLauncher /> */}
+
     </Providers>
 
   );

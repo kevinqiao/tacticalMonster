@@ -88,16 +88,18 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       setAuthReq((pre) => !pre ? { params } : pre);
   }, [user]);
   const cancelAuth = useCallback(() => {
+    console.log("cancelAuth", authReq)
     setAuthReq(null);
   }, []);
 
 
   const openPage = useCallback((page: PageItem) => {
-    console.log("openPage", page);
+
     if (page.uri === currentPageRef.current?.uri) return;
     let newPage = page;
 
     const container = findContainer(pageContainers, page.uri);
+
     let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
     if (container?.children && container.animate?.child) {
       const child = container.children.find((c) => c.name === container.animate?.child);
@@ -108,6 +110,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
         }
       }
     }
+
     if (authRequired) {
       setAuthReq({ page: newPage });
       return;
@@ -125,6 +128,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
 
   const onLoad = useCallback(
     () => {
+      console.log("pageContainers", pageContainers)
       const loadCompleted = pageContainers.every((container) => {
         return container.ele ? true : false
       });
@@ -133,14 +137,14 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     [pageContainers]
   );
 
-  useEffect(() => {
-    if (user?.uid) {
-      if (authReq?.page) {
-        openPage(authReq.page);
-      }
-      setAuthReq((pre) => pre ? null : pre);
-    }
-  }, [user, authReq]);
+  // useEffect(() => {
+  //   if (user?.uid) {
+  //     if (authReq?.page) {
+  //       openPage(authReq.page);
+  //     }
+  //     setAuthReq((pre) => pre ? null : pre);
+  //   }
+  // }, [user, authReq]);
 
   useEffect(() => {
     const handlePopState = (event: any) => {
@@ -157,9 +161,10 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user]);
   useEffect(() => {
-    if (!containersLoaded) return;
+    console.log("containersLoaded", containersLoaded)
+    // if (!containersLoaded) return;
     const page = parseLocation();
-    // console.log("page", page)
+    console.log("page", page)
     if (page)
       openPage(page);
 
