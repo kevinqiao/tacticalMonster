@@ -1,9 +1,8 @@
 import { useConvex } from "convex/react";
 import gsap from "gsap";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
-import { findContainer } from "util/PageUtils";
 import { api } from "../../../convex/sso/convex/_generated/api";
 import { User } from "../../../service/UserManager";
 import { AuthProps } from "../SSOController";
@@ -11,64 +10,60 @@ import { AuthProps } from "../SSOController";
 const CustomAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
     const loadedRef = useRef(false);
     const { user, authComplete } = useUserManager();
-    const { pageContainers, currentPage, changeEvent, authReq, cancelAuth } = usePageManager();
+    const { authReq, cancelAuth } = usePageManager();
     const containerRef = useRef<HTMLDivElement>(null);
     const maskRef = useRef<HTMLDivElement>(null);
     const convex = useConvex();
     const login = useCallback(async (cuid: string) => {
-
         const res: User | null = await convex.action(api.service.AuthManager.authenticate, { partner: 1, data: { cuid }, cid: "1" });
         if (res) {
             authComplete(res, 1);
         }
     }, [convex])
 
-    const isOpen = useMemo(() => {
-        if (authReq) return true;
 
-        // const page = currentPage;
-
-        if (currentPage) {
-            const container = findContainer(pageContainers, currentPage.uri);
-            return container?.auth === 1 && (!user || !user.uid) ? true : false;
-        }
-        return false;
-    }, [authReq, currentPage, changeEvent, user, pageContainers]);
-
-    useEffect(() => {
-
+    const open = useCallback(() => {
         if (containerRef.current && maskRef.current) {
 
-            const tl = gsap.timeline({
-                onComplete: () => {
-                    if (!loadedRef.current) {
-                        onLoad();
-                        loadedRef.current = true;
-                    }
-                }
-            });
-            if (isOpen) {
+            const tl = gsap.timeline();
+            tl.fromTo(maskRef.current,
+                { autoAlpha: 0 },
+                { autoAlpha: 0.5, duration: 0.3 }, 0);
+            tl.fromTo(containerRef.current,
+                { autoAlpha: 1, x: "100%" },
+                { x: 0, duration: 0.3, ease: "power2.out" }, 0);
 
-                tl.fromTo(maskRef.current,
-                    { opacity: 0 },
-                    { opacity: 0.5, duration: 0.3 }, 0);
-                tl.fromTo(containerRef.current,
-                    { opacity: 1, x: "100%" },
-                    { x: 0, duration: 0.3, ease: "power2.out" }, 0);
-            } else {
-                tl.to(maskRef.current, {
-                    opacity: 0,
-                    duration: 0.3
-                }, 0);
-                tl.to(containerRef.current, {
-                    x: "100%",
-                    duration: 0.3,
-                    ease: "power2.in"
-                }, 0);
-            }
             tl.play();
         }
-    }, [isOpen]);
+    }, [])
+    const close = useCallback(() => {
+        if (containerRef.current && maskRef.current) {
+
+            const tl = gsap.timeline();
+            tl.to(maskRef.current, {
+                autoAlpha: 0,
+                duration: 0.3
+            }, 0);
+            tl.to(containerRef.current, {
+                x: "100%",
+                duration: 0.3,
+                ease: "power2.in"
+            }, 0);
+
+            tl.play();
+        }
+    }, [])
+    useEffect(() => {
+        onLoad();
+    }, [])
+    useEffect(() => {
+        if (authReq) {
+            open();
+        } else {
+            close();
+        }
+    }, [authReq])
+
 
     return <>
         <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "transparent", pointerEvents: "none", overflow: "hidden" }}>
@@ -82,7 +77,7 @@ const CustomAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
                 backgroundColor: "black",
                 opacity: 0,
                 overflow: "hidden",
-                pointerEvents: isOpen ? "auto" : "none"
+                pointerEvents: "auto"
             }} onClick={cancelAuth
 
             } />

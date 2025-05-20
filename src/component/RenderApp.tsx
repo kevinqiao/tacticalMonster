@@ -60,7 +60,6 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       if (ele && container.init) {
         InitStyles[container.init]({ parent: parent, container: container });
       }
-      console.log("load", container.uri)
       onLoad();
     },
     [onLoad, container]
@@ -91,7 +90,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
 const RenderApp: React.FC = () => {
   const { pageContainers } = usePageManager();
-  console.log("renderPage", pageContainers)
+
   const renderPage = useMemo(() => {
 
     return pageContainers?.map((container, index: number) => (

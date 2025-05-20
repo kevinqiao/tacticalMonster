@@ -87,10 +87,15 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     if (!user?.uid)
       setAuthReq((pre) => !pre ? { params } : pre);
   }, [user]);
+
   const cancelAuth = useCallback(() => {
-    console.log("cancelAuth", authReq)
-    setAuthReq(null);
-  }, []);
+    if (currentPageRef.current && authReq) {
+      const curcontainer = findContainer(pageContainers, currentPageRef.current.uri);
+      if (curcontainer && !curcontainer.auth) {
+        setAuthReq(null);
+      }
+    }
+  }, [user, authReq, pageContainers]);
 
 
   const openPage = useCallback((page: PageItem) => {
@@ -110,7 +115,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
         }
       }
     }
-
+    console.log("openPage", newPage, authRequired)
     if (authRequired) {
       setAuthReq({ page: newPage });
       return;
@@ -128,23 +133,17 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
 
   const onLoad = useCallback(
     () => {
-      console.log("pageContainers", pageContainers)
+
       const loadCompleted = pageContainers.every((container) => {
         return container.ele ? true : false
       });
+      console.log("pageContainers", pageContainers, loadCompleted)
       if (loadCompleted) setContainersLoaded((pre) => (pre === 0 ? 1 : pre));
     },
     [pageContainers]
   );
 
-  // useEffect(() => {
-  //   if (user?.uid) {
-  //     if (authReq?.page) {
-  //       openPage(authReq.page);
-  //     }
-  //     setAuthReq((pre) => pre ? null : pre);
-  //   }
-  // }, [user, authReq]);
+
 
   useEffect(() => {
     const handlePopState = (event: any) => {
@@ -161,10 +160,24 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user]);
   useEffect(() => {
-    console.log("containersLoaded", containersLoaded)
-    // if (!containersLoaded) return;
+    if (user?.uid && authReq?.page) {
+      openPage(authReq.page);
+      setAuthReq((pre) => pre ? null : pre);
+    }
+  }, [user, authReq]);
+  useEffect(() => {
+
+    if (user && !user.uid && !authReq && currentPageRef.current) {
+      const container = findContainer(pageContainers, currentPageRef.current.uri);
+      if (container?.auth === 1) {
+        setAuthReq({ page: currentPageRef.current });
+      }
+    }
+  }, [user, authReq]);
+  useEffect(() => {
+
+    if (!containersLoaded) return;
     const page = parseLocation();
-    console.log("page", page)
     if (page)
       openPage(page);
 

@@ -52,7 +52,7 @@ const SSOController: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
     <>
       {platform?.support && (user ? <Suspense fallback={<div />}>
         <SelectedComponent onLoad={onLoad} />
-      </Suspense> : <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Loading...</div></div>)}
+      </Suspense> : <div className="auth_check"><div style={{ color: "black", fontSize: "20px" }}></div></div>)}
       {platform && !platform.support && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>}
     </>
   );
