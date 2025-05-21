@@ -82,6 +82,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       );
     }, []);
   }, []);
+  console.log("pageContainers", pageContainers)
 
   const askAuth = useCallback(({ params, page }: { params?: { [k: string]: string }; page?: PageItem }) => {
     if (!user?.uid)
@@ -104,8 +105,9 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     let newPage = page;
 
     const container = findContainer(pageContainers, page.uri);
-
+    // console.log("openPage", pageContainers, page, container)
     let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
+    console.log("openPage", pageContainers, page, container, authRequired)
     if (container?.children && container.animate?.child) {
       const child = container.children.find((c) => c.name === container.animate?.child);
       if (child) {
@@ -115,7 +117,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
         }
       }
     }
-    console.log("openPage", newPage, authRequired)
+
     if (authRequired) {
       setAuthReq({ page: newPage });
       return;

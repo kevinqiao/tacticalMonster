@@ -131,6 +131,7 @@ export const findContainerByURI = (container: PageContainer, uri: string): PageC
 }
 
 export const findContainer = (containers: PageContainer[], uri: string): PageContainer | null => {
+    console.log("findContainer", containers, uri)
     for (const container of containers) {
         if (container.uri === uri)
             return container;

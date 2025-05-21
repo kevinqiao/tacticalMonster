@@ -10,7 +10,7 @@ import { AuthProps } from "../SSOController";
 const CustomAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
     const loadedRef = useRef(false);
     const { user, authComplete } = useUserManager();
-    const { authReq, cancelAuth } = usePageManager();
+    const { currentPage, authReq, cancelAuth } = usePageManager();
     const containerRef = useRef<HTMLDivElement>(null);
     const maskRef = useRef<HTMLDivElement>(null);
     const convex = useConvex();
@@ -27,7 +27,7 @@ const CustomAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
 
             const tl = gsap.timeline();
             tl.fromTo(maskRef.current,
-                { autoAlpha: 0 },
+                { autoAlpha: 0, backgroundColor: "blue" },
                 { autoAlpha: 0.5, duration: 0.3 }, 0);
             tl.fromTo(containerRef.current,
                 { autoAlpha: 1, x: "100%" },

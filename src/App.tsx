@@ -68,7 +68,7 @@ const App: React.FC = () => {
     [PlatformProvider],
 
   ]);
-  console.log("ssoLoaded", ssoLoaded)
+
   return (
 
     <Providers>
