@@ -68,11 +68,11 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
   const currentPageRef = useRef<PageItem | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
-  const [containersLoaded, setContainersLoaded] = useState<number>(0);
+  const [containersLoaded, setContainersLoaded] = useState<number>(1);
   const [app, setApp] = useState<App | null>(null);
   const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; page?: PageItem } | null>(null);
   const pageContainers: PageContainer[] = useMemo(() => {
-    return AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
+    const containers = AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
       return acc.concat(
         config.navs.map((nav) => ({
           ...nav,
@@ -81,8 +81,18 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
         }))
       );
     }, []);
+    containers.forEach((container) => {
+      if (container.children) {
+        container.children = container.children.map((child) => ({
+          ...child,
+          uri: container.uri + "/" + child.uri,
+          parentURI: container.uri,
+        }));
+      }
+    });
+    return containers;
   }, []);
-  console.log("pageContainers", pageContainers)
+
 
   const askAuth = useCallback(({ params, page }: { params?: { [k: string]: string }; page?: PageItem }) => {
     if (!user?.uid)
@@ -103,11 +113,11 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
 
     if (page.uri === currentPageRef.current?.uri) return;
     let newPage = page;
-
+    // console.log("openPage", JSON.stringify(pageContainers))
     const container = findContainer(pageContainers, page.uri);
     // console.log("openPage", pageContainers, page, container)
     let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
-    console.log("openPage", pageContainers, page, container, authRequired)
+
     if (container?.children && container.animate?.child) {
       const child = container.children.find((c) => c.name === container.animate?.child);
       if (child) {
@@ -139,7 +149,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
       const loadCompleted = pageContainers.every((container) => {
         return container.ele ? true : false
       });
-      console.log("pageContainers", pageContainers, loadCompleted)
+
       if (loadCompleted) setContainersLoaded((pre) => (pre === 0 ? 1 : pre));
     },
     [pageContainers]
@@ -178,12 +188,12 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   }, [user, authReq]);
   useEffect(() => {
 
-    if (!containersLoaded) return;
+    // if (!containersLoaded) return;
     const page = parseLocation();
     if (page)
       openPage(page);
 
-  }, [containersLoaded]);
+  }, []);
 
   const value = {
     changeEvent,

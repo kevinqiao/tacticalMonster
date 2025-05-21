@@ -22,16 +22,16 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     else return 0;
   }, [currentPage, changeEvent]);
 
-  const childContainers = useMemo(() => {
-    if (container?.children) {
-      container.children = container.children.map((c) => ({
-        ...c,
-        uri: container.uri + "/" + c.uri,
-        parentURI: container.uri,
-      }));
-      return container.children;
-    }
-  }, [container]);
+  // const childContainers = useMemo(() => {
+  //   if (container?.children) {
+  //     container.children = container.children.map((c) => ({
+  //       ...c,
+  //       uri: container.uri + "/" + c.uri,
+  //       parentURI: container.uri,
+  //     }));
+  //     return container.children;
+  //   }
+  // }, [container]);
 
   const close = useCallback(() => {
     if (container.ele) gsap.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.7 });
@@ -77,7 +77,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           {container.exit ? (
             <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
           ) : null}
-          {childContainers?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
+          {container.children?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
           <Suspense fallback={<div />}>
             {ControlComponent && <ControlComponent />}
           </Suspense>

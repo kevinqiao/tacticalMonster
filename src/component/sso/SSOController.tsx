@@ -44,7 +44,7 @@ const SSOController: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
 
   const SelectedComponent = useMemo(() => {
     // return lazy(() => import(`./provider/${PROVIDERS[platform?.name ?? "WEB"]}`));
-    return lazy(() => import(`./provider/TelegramAuthenticator`));
+    return lazy(() => import(`./provider/CustomAuthenticator`));
   }, [platform]);
 
 
