@@ -68,7 +68,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
   const currentPageRef = useRef<PageItem | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
-  const [containersLoaded, setContainersLoaded] = useState<number>(1);
+  const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
   const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; page?: PageItem } | null>(null);
   const pageContainers: PageContainer[] = useMemo(() => {
@@ -88,6 +88,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
           uri: container.uri + "/" + child.uri,
           parentURI: container.uri,
         }));
+
       }
     });
     return containers;
@@ -134,6 +135,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     } else {
       setAuthReq(null);
       const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
+      console.log("openPage", uri)
       history.pushState({ index: 0 }, "", uri);
     }
 
@@ -143,19 +145,26 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   }, [pageContainers, user]);
 
 
+
   const onLoad = useCallback(
     () => {
+      const loadCompleted = pageContainers.every(container => {
+        // 检查当前容器的 ele
+        if (!container.ele) {
+          return false;
+        }
 
-      const loadCompleted = pageContainers.every((container) => {
-        return container.ele ? true : false
+        // 如果有子容器，递归检查所有子容器
+        if (container.children?.length) {
+          return container.children.every(child => child.ele !== null && child.ele !== undefined);
+        }
+
+        return true;
       });
-
       if (loadCompleted) setContainersLoaded((pre) => (pre === 0 ? 1 : pre));
     },
     [pageContainers]
   );
-
-
 
   useEffect(() => {
     const handlePopState = (event: any) => {

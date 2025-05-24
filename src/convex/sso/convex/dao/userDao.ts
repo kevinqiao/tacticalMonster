@@ -6,14 +6,15 @@ export const create = internalMutation({
     args: {
         cuid: v.string(),
         token: v.string(),
+        platform: v.number(),
         partner: v.number(),
         data: v.any()
     },
-    handler: async (ctx, { cuid, partner, token, data }) => {
-        const uid = partner + "-" + cuid;
+    handler: async (ctx, { cuid, partner, token, platform, data }) => {
+        const uid = platform + "-" + cuid;
         const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
         if (!user) {
-            await ctx.db.insert("user", { uid, cuid, partner, token, data });
+            await ctx.db.insert("user", { uid, cuid, partner, token, platform: platform, data });
             return { uid, cuid, partner, token, data };
         }
         return null;
@@ -36,6 +37,16 @@ export const findByPartner = internalQuery({
     },
     handler: async (ctx, { cuid, partner }) => {
         const user = await ctx.db.query("user").withIndex("by_partner", (q) => q.eq("partner", partner).eq("cuid", cuid)).unique();
+        return user;
+    },
+})
+export const findByPlatform = internalQuery({
+    args: {
+        cuid: v.string(),
+        platformId: v.number(),
+    },
+    handler: async (ctx, { cuid, platformId }) => {
+        const user = await ctx.db.query("user").withIndex("by_platform", (q) => q.eq("platform", platformId).eq("cuid", cuid)).unique();
         return user;
     },
 })

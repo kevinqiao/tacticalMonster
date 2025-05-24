@@ -1,19 +1,8 @@
 import React, { lazy, Suspense, useMemo } from "react";
 
-import { usePlatform } from "service/PlatformManager";
+import { PLATFORMS, usePlatform } from "service/PlatformManager";
 import { useUserManager } from "service/UserManager";
 import "./signin.css";
-const PROVIDERS: Record<
-  string,
-  string
-> = {
-  "TELEGRAM": "TelegramAuthenticator",
-  "discord": "DiscordAuthenticator",
-  "twitter": "TwitterAuthenticator",
-  "google": "GoogleAuthenticator",
-  "facebook": "FacebookAuthenticator",
-  "WEB": "WebAuthenticator",
-}
 export interface AuthenticatorHandle extends HTMLDivElement {
   someMethod(): void;
 }
@@ -43,17 +32,21 @@ const SSOController: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
   // const [authInit, setAuthInit] = useState<AuthInit | undefined>(undefined);
 
   const SelectedComponent = useMemo(() => {
-    // return lazy(() => import(`./provider/${PROVIDERS[platform?.name ?? "WEB"]}`));
-    return lazy(() => import(`./provider/CustomAuthenticator`));
+    if (platform?.pid) {
+      const platformInfo = PLATFORMS[platform.type || 0];
+      console.log(platformInfo)
+      return lazy(() => import(`./provider/${platformInfo.auth}`));
+    }
+    return null;
   }, [platform]);
-
+  console.log("SSOController flex", platform, user)
 
   return (
     <>
-      {platform?.support && (user ? <Suspense fallback={<div />}>
+      {user && SelectedComponent && <Suspense fallback={<div className="auth_check"><div style={{ color: "black", fontSize: "20px" }}>Loading...</div></div>}>
         <SelectedComponent onLoad={onLoad} />
-      </Suspense> : <div className="auth_check"><div style={{ color: "black", fontSize: "20px" }}></div></div>)}
-      {platform && !platform.support && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>}
+      </Suspense>}
+      {/* {platform && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>} */}
     </>
   );
 };

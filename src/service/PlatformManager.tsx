@@ -5,14 +5,15 @@ import { api } from "../convex/sso/convex/_generated/api";
 
 // 平台类型
 const PLATFORM_TYPE = {
-  DEFAULT: -1,
-  TELEGRAM: 0,
-  DISCORD: 1,
-  META: 2,
+  DEFAULT: 0,
+  TELEGRAM: 1,
+  DISCORD: 2,
+  META: 3,
 } as const;
 
 // Telegram SDK 类型
 export interface TelegramWebApp {
+  initData: string;
   initDataUnsafe: {
     user?: { id: number; first_name: string; last_name?: string; username?: string };
     query_id?: string;
@@ -69,20 +70,29 @@ declare global {
 }
 
 // 平台配置
-const PLATFORMS: Record<
-  string,
+export const PLATFORMS: Record<
+  number,
   {
     name: string;
     type: number;
     url: string;
     scripts: { name: string; src: string }[];
-    initialize: (configuration: any) => Promise<{ sdk?: any; user?: UserInfo | undefined }>;
+    auth?: string;
+    initialize?: (configuration: any) => Promise<{ sdk?: any; user?: UserInfo | undefined }>;
   }
 > = {
-  TELEGRAM: {
+  0: {
+    name: "Web",
+    type: PLATFORM_TYPE.DEFAULT,
+    url: "https://fun.fungift.org",
+    auth: "CustomAuthenticator",
+    scripts: [],
+  },
+  1: {
     name: "Telegram",
     type: PLATFORM_TYPE.TELEGRAM,
     url: "https://t.me/solitaire_game_bot",
+    auth: "TelegramAuthenticator",
     scripts: [{ name: "sdk", src: "https://telegram.org/js/telegram-web-app.js" }],
     initialize: async (configuration: any) => {
 
@@ -100,7 +110,7 @@ const PLATFORMS: Record<
       }
     },
   },
-  DISCORD: {
+  2: {
     name: "Discord",
     type: PLATFORM_TYPE.DISCORD,
     url: "https://discord.com/solitaire_game_bot",
@@ -145,7 +155,7 @@ const PLATFORMS: Record<
       }
     },
   },
-  META: {
+  3: {
     name: "Meta",
     type: PLATFORM_TYPE.META,
     url: "https://www.facebook.com/solitaire_game_bot",
@@ -214,9 +224,10 @@ interface ScriptStatus {
   src: string;
 }
 export interface Platform {
-  name?: string;
-  support: number;
-  paramters?: { url: string };
+  pid?: number;
+  partner?: number;
+  type?: number;
+  data?: any;
 }
 
 // 上下文接口
@@ -237,7 +248,7 @@ const PlatformContext = createContext<IPlatformContext | undefined>(undefined);
 export const PlatformProvider = ({ children }: { children: ReactNode }) => {
   // const [configuration, setConfiguration] = useState<Configuration | undefined>(undefined);
   // const [authenticatorLoaded, setAuthenticatorLoaded] = useState(false);
-  const [platform, setPlatform] = useState<Platform | undefined>(undefined);
+  const [platform, setPlatform] = useState<Platform>({});
   const [scripts, setScripts] = useState<Record<string, ScriptStatus>>({});
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [sdk, setSdk] = useState<any | undefined>();
@@ -298,10 +309,12 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
 
   // 初始化平台
   const initializePlatform = useCallback(async () => {
-    const platformInfo = PLATFORMS[platform?.name || ""];
-    if (platformInfo) {
+    const platformInfo = PLATFORMS[platform?.type || 0];
+    console.log("initializePlatform", platformInfo)
+    if (platformInfo?.initialize) {
       try {
-        const { sdk, user } = await platformInfo.initialize(platform?.paramters);
+        const { sdk, user } = await platformInfo.initialize(platform?.data);
+        console.log("initializePlatform", sdk, user)
         if (sdk) {
           setSdk(sdk);
         }
@@ -318,10 +331,10 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
   // 状态检查
   const isLoaded = useMemo(
     () => {
-      if (!platform) {
+      if (!platform.pid) {
         return false;
       }
-      const platformInfo = PLATFORMS[platform?.name || ""];
+      const platformInfo = PLATFORMS[platform?.type || 0];
       if (platformInfo.scripts.length === 0) {
         return true;
       }
@@ -341,15 +354,18 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
   }, [isLoaded]);
   useEffect(() => {
     const loadPlatform = async () => {
-      if (params.get("pid") && params.get("p")) {
-        const pt: Platform = await convex.query(api.service.PlatformManager.findPlatform, { partner: params.get("pid") || undefined, platform: params.get("p") || undefined });
-        console.log("loadPlatform", pt);
+      if (params) {
+        // const pt: Platform = await convex.query(api.service.PlatformManager.findPlatform, { partner: params.get("pid") || undefined, platform: params.get("p") || undefined });
+        // console.log("loadPlatform", pt);
+        const host = window.location.hostname;
+        const pt: Platform | null = await convex.query(api.dao.platformDao.findByHost, { host });
+
         if (pt) {
           setPlatform(pt)
         }
       }
     }
-    if (!platform) {
+    if (!platform.pid) {
       loadPlatform();
     }
   }, []);
@@ -362,7 +378,7 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
         setUser(undefined);
         setSdk(undefined);
 
-        const platformInfo = PLATFORMS[platform?.name || ""];
+        const platformInfo = PLATFORMS[platform?.type || 0];
         if (!platformInfo) {
           setErrorMessage(`Unknown platform: ${platform}`);
           return;
@@ -378,7 +394,7 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
         setErrorMessage(error instanceof Error ? error.message : "Unknown error");
       }
     };
-    if (platform?.name && platform?.support) {
+    if (platform?.type) {
       loadScripts();
     }
   }, [loadScript, removeScript, platform]);
@@ -387,10 +403,10 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
     // 清理平台状态
 
     return () => {
-      if (platform?.name === "TELEGRAM" && window.Telegram?.WebApp) {
+      if (platform?.type === PLATFORM_TYPE.TELEGRAM && window.Telegram?.WebApp) {
         // window.Telegram.WebApp.MainButton.hide();
       }
-      if (platform?.name === "DISCORD" && sdk) {
+      if (platform?.type === PLATFORM_TYPE.DISCORD && sdk) {
         sdk.subscribe("ACTIVITY_INSTANCE_PARTICIPANTS_UPDATE", () => { });
       }
 
@@ -401,7 +417,7 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
     console.log("cleanup scripts", scripts);
     return () => {
       console.log("cleanuped scripts", scripts);
-      const platformInfo = PLATFORMS[platform?.name || ""];
+      const platformInfo = PLATFORMS[platform?.type || 0];
       if (platformInfo) {
         Object.keys(platformInfo.scripts).forEach((key) => removeScript(key));
       }

@@ -16,13 +16,17 @@ import type {
 import type * as custom_session from "../custom/session.js";
 import type * as dao_cuserDao from "../dao/cuserDao.js";
 import type * as dao_eventDao from "../dao/eventDao.js";
+import type * as dao_platformDao from "../dao/platformDao.js";
 import type * as dao_userDao from "../dao/userDao.js";
 import type * as http from "../http.js";
 import type * as service_AuthManager from "../service/AuthManager.js";
 import type * as service_EventQuery from "../service/EventQuery.js";
 import type * as service_EventReceiver from "../service/EventReceiver.js";
+import type * as service_handler_AuthHandlerFactory from "../service/handler/AuthHandlerFactory.js";
 import type * as service_handler_CustomAuthHandler from "../service/handler/CustomAuthHandler.js";
+import type * as service_handler_TelegramAuthHandler from "../service/handler/TelegramAuthHandler.js";
 import type * as service_PlatformManager from "../service/PlatformManager.js";
+import type * as service_TelegramAuthenticator from "../service/TelegramAuthenticator.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -36,13 +40,17 @@ declare const fullApi: ApiFromModules<{
   "custom/session": typeof custom_session;
   "dao/cuserDao": typeof dao_cuserDao;
   "dao/eventDao": typeof dao_eventDao;
+  "dao/platformDao": typeof dao_platformDao;
   "dao/userDao": typeof dao_userDao;
   http: typeof http;
   "service/AuthManager": typeof service_AuthManager;
   "service/EventQuery": typeof service_EventQuery;
   "service/EventReceiver": typeof service_EventReceiver;
+  "service/handler/AuthHandlerFactory": typeof service_handler_AuthHandlerFactory;
   "service/handler/CustomAuthHandler": typeof service_handler_CustomAuthHandler;
+  "service/handler/TelegramAuthHandler": typeof service_handler_TelegramAuthHandler;
   "service/PlatformManager": typeof service_PlatformManager;
+  "service/TelegramAuthenticator": typeof service_TelegramAuthenticator;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

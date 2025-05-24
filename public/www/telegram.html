@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Telegram Mini App Test</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        pre {
+            background: #f6f8fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0077b3;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Telegram Mini App 测试页面</h1>
+        <p><strong>环境状态:</strong> <span id="env-status">检测中...</span></p>
+        <p><strong>启动参数:</strong> <span id="start-param">未知</span></p>
+        <p><strong>initData:</strong></p>
+        <pre id="init-data">未获取</pre>
+        <p><strong>initDataUnsafe:</strong></p>
+        <pre id="init-data-unsafe">未获取</pre>
+        <p><strong>后端验证结果:</strong> <span id="verify-result">未验证</span></p>
+        <button onclick="verifyInitData()">验证 initData</button>
+    </div>
+
+    <script>
+        // 初始化 Eruda 调试工具
+        eruda.init();
+
+        // 页面加载时执行
+        document.addEventListener('DOMContentLoaded', () => {
+            const webApp = window.Telegram?.WebApp;
+
+            // 检查是否在 Telegram 环境中
+            const isTelegram = webApp && webApp.initData !== '';
+            const envStatus = document.getElementById('env-status');
+            envStatus.textContent = isTelegram ? '在 Telegram Mini App 中' : '不在 Telegram 环境中';
+            envStatus.className = isTelegram ? 'success' : 'error';
+
+            if (!isTelegram) {
+                console.error('未检测到 Telegram WebApp 环境');
+                return;
+            }
+
+            // 通知 Telegram 准备就绪
+            webApp.ready();
+            webApp.expand(); // 展开全屏
+
+            // 显示启动参数
+            const startParam = webApp.initDataUnsafe?.start_param || '无参数';
+            document.getElementById('start-param').textContent = startParam;
+            console.log('启动参数:', startParam);
+
+            // 根据启动参数执行不同逻辑
+            if (startParam === 'newapp') {
+                console.log('运行通用 Mini App 模式');
+                // 在此添加 newapp 逻辑
+            } else if (startParam === 'newgame') {
+                console.log('运行游戏模式');
+                // 在此添加 newgame 逻辑
+            } else {
+                console.log('未知启动参数:', startParam);
+            }
+
+            // 显示 initData
+            const initData = webApp.initData || '空';
+            document.getElementById('init-data').textContent = initData;
+            console.log('initData:', initData);
+
+            // 显示 initDataUnsafe
+            const initDataUnsafe = webApp.initDataUnsafe || {};
+            document.getElementById('init-data-unsafe').textContent = JSON.stringify(initDataUnsafe, null, 2);
+            console.log('initDataUnsafe:', initDataUnsafe);
+
+            // 调试环境信息
+            console.log('WebApp 版本:', webApp.version);
+            console.log('当前 URL:', window.location.href);
+            console.log('User Agent:', navigator.userAgent);
+        });
+
+        // 验证 initData（发送到后端）
+        async function verifyInitData() {
+            const webApp = window.Telegram?.WebApp;
+            const verifyResult = document.getElementById('verify-result');
+            if (!webApp?.initData) {
+                verifyResult.textContent = '无 initData 可验证';
+                verifyResult.className = 'error';
+                return;
+            }
+
+            try {
+                const response = await fetch('/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: webApp.initData })
+                });
+                const result = await response.json();
+                verifyResult.textContent = result.valid ? '验证通过' : '验证失败';
+                verifyResult.className = result.valid ? 'success' : 'error';
+                console.log('后端验证结果:', result);
+            } catch (error) {
+                verifyResult.textContent = '验证错误: ' + error.message;
+                verifyResult.className = 'error';
+                console.error('验证错误:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>

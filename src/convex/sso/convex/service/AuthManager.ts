@@ -1,5 +1,6 @@
 "use node"
 import { v } from "convex/values";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { User } from "../../../../service/UserManager";
 import { internal } from "../_generated/api";
@@ -7,6 +8,7 @@ import { action } from "../_generated/server";
 import { handle } from "./handler/CustomAuthHandler";
 const REFRESH_TOKEN_EXPIRE = 60 * 1000;
 const ACCESS_TOKEN_SECRET = "12222222";
+const TELEGRAM_BOT_TOKEN_SECRET = "5369641667:AAGdoOdBJaZVi2QsAHOunEX0DuEhezjFYLQ";
 export interface CUser {
     cid?: string;
     cuid: string;
@@ -24,7 +26,7 @@ export const authenticate = action({
             const uid = pid + "-" + cuser.cuid;
             let user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
             if (!user) {
-                user = await ctx.runMutation(internal.dao.userDao.create, { cuid: cuser.cuid, partner: pid, token: "", data: cuser.data });
+                user = await ctx.runMutation(internal.dao.userDao.create, { cuid: cuser.cuid, partner: pid, token: "", platform: 1, data: cuser.data });
             }
             if (user?.uid) {
                 const token = jwt.sign({ uid: user.uid, cid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
@@ -57,6 +59,47 @@ export const authByToken = action({
 
         if (user?.token === token) {
             return Object.assign({}, user, { _id: undefined, _creationTime: undefined });
+        }
+        return null;
+    }
+})
+export const authByTelegram = action({
+    args: { initData: v.string() },
+    handler: async (ctx, { initData }): Promise<User | null> => {
+        console.log("authByTelegram", initData);
+        const params = new URLSearchParams(initData);
+        const receivedHash = params.get('hash');
+        console.log("authByTelegram", receivedHash);
+        if (!receivedHash) {
+            return null;
+        }
+        params.delete('hash');
+        const dataCheckString = Array.from(params.entries())
+            .sort(([a], [b]) => a.localeCompare(b)) // 按键字母顺序排序
+            .map(([key, value]) => `${key}=${value}`)
+            .join('\n');
+
+        // 生成密钥：HMAC-SHA-256("WebAppData", botToken)
+        const secretKey = crypto
+            .createHmac('sha256', 'WebAppData')
+            .update(TELEGRAM_BOT_TOKEN_SECRET)
+            .digest();
+
+        // 计算签名：HMAC-SHA-256(data_check_string, secretKey)
+        const calculatedHash = crypto
+            .createHmac('sha256', secretKey)
+            .update(dataCheckString)
+            .digest('hex');
+
+        // 比较签名
+        const isValid = calculatedHash === receivedHash;
+        if (isValid) {
+            const userString = params.get('user');
+            if (userString) {
+                const user = JSON.parse(decodeURIComponent(userString));
+                console.log("authByTelegram", user);
+                return user;
+            }
         }
         return null;
     }

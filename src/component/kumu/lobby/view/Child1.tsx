@@ -20,7 +20,7 @@ const ChildMain: React.FC<{ gameId: string }> = ({ gameId }) => {
   )
 }
 const Child1: React.FC<PageProp> = ({ visible, data }) => {
-  console.log("child1", "child1");
+
   if (!data?.gameId)
     return <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: "red" }} >
 
