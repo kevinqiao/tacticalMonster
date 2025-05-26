@@ -96,7 +96,7 @@ http.route({
     const accessToken = body.access_token;
     const player = await ctx.runAction(internal.service.auth.signin, {
       access_token: accessToken,
-      expire: body.expire + Date.now()
+      expire: body.expire
     });
 
     return new Response(JSON.stringify({ ok: player !== null, player }), {

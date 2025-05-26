@@ -42,6 +42,7 @@ export const SSAProvider = ({ app, children }: { app: string, children: React.Re
         method: "POST",
         body: JSON.stringify({
           access_token: user?.token,
+          expire: user?.expire - Date.now()
         }),
       })
       const data = await res.json();
@@ -57,6 +58,8 @@ export const SSAProvider = ({ app, children }: { app: string, children: React.Re
     if (session?.status === AppSessionStatus.TO_BE_SIGNED_IN) {
       session.status = AppSessionStatus.SIGNING_IN;
       signin();
+    } else if (session?.status === AppSessionStatus.SIGNED_IN) {
+      setPlayer(session.player);
     }
 
   }, [sessions, user, app]);

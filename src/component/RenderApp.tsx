@@ -70,9 +70,9 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
         ) : null}
         {container.children?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}
-        <Suspense fallback={<div />}>
+        {/* <Suspense fallback={<div />}>
           {ControlComponent && <ControlComponent />}
-        </Suspense>
+        </Suspense> */}
 
       </div>
     </>

@@ -6,7 +6,7 @@ import { User } from "../../../../service/UserManager";
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import { handle } from "./handler/CustomAuthHandler";
-const REFRESH_TOKEN_EXPIRE = 60 * 1000;
+const REFRESH_TOKEN_EXPIRE = 600 * 1000;
 const ACCESS_TOKEN_SECRET = "12222222";
 const TELEGRAM_BOT_TOKEN_SECRET = "5369641667:AAGdoOdBJaZVi2QsAHOunEX0DuEhezjFYLQ";
 export interface CUser {
