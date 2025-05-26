@@ -1,6 +1,13 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { createContext, useCallback, useContext, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { AppSessionStatus, useUserManager } from "./UserManager";
+
+export interface Player {
+  uid: string;
+  token: string;
+  expire: number;
+  data?: { [k: string]: any };
+}
 
 export const SSA_URLS: { [k: string]: string } = {
   "tacticalMonster": "https://shocking-leopard-487.convex.cloud",
@@ -19,70 +26,60 @@ interface ISSAContext {
 const SSAContext = createContext<ISSAContext>({
   player: null,
 });
-export const SSASignIn = ({ app, children }: { app: string, children: React.ReactNode }) => {
-  const { user, sessions, ssaAuthComplete, ssaSignOut } = useUserManager();
 
-  const signin = useCallback(async () => {
-    console.log("signin", user, sessions);
-    const res = await fetch(SSA_AUTH_URLS[app] + "/signin", {
-      method: "POST",
-      body: JSON.stringify({
-        access_token: user?.token,
-      }),
-    })
-    const data = await res.json();
-    console.log("signin", data);
-    if (data.ok) {
-      ssaAuthComplete(app, data.player);
-    }
-  }, [app, user, ssaAuthComplete]);
 
-  const signout = useCallback(async (uid: string, token: string) => {
-    await fetch(SSA_AUTH_URLS[app] + "/signout", {
-      method: "POST",
-      body: JSON.stringify({
-        uid,
-        token,
-      }),
-    })
-    ssaSignOut(app);
-  }, [app, ssaSignOut]);
+
+export const SSAProvider = ({ app, children }: { app: string, children: React.ReactNode }) => {
+
+  const client = React.useMemo(() => new ConvexReactClient(SSA_URLS[app]), [app]);
+  const [player, setPlayer] = useState<Player | null>(null);
+  const { user, sessions, ssaAuthComplete } = useUserManager();
 
 
   useEffect(() => {
-    const session = sessions.find((s) => s.app === app);
-    if (!session)
-      return;
-    if (!user?.uid || !user?.token) {
-      if (session.player && session?.status === AppSessionStatus.TO_BE_SIGNED_OUT) {
-        session.status = AppSessionStatus.SIGNING_OUT;
-        const { uid, token } = session.player;
-        signout(uid, token);
+    const signin = async () => {
+      const res = await fetch(SSA_AUTH_URLS[app] + "/signin", {
+        method: "POST",
+        body: JSON.stringify({
+          access_token: user?.token,
+        }),
+      })
+      const data = await res.json();
+      console.log("signin", app, data);
+      if (data.ok) {
+        ssaAuthComplete(app, data.player);
+        setPlayer(data.player);
       }
-    } else if (session?.status === AppSessionStatus.TO_BE_SIGNED_IN) {
+    };
+
+    if (sessions.length === 0 || player) return;
+    const session = sessions.find((s) => s.app === app);
+    if (session?.status === AppSessionStatus.TO_BE_SIGNED_IN) {
       session.status = AppSessionStatus.SIGNING_IN;
       signin();
     }
 
   }, [sessions, user, app]);
 
-  return <>{children}</>;
-}
+  useEffect(() => {
+    const signout = async (uid: string, token: string) => {
+      const res = await fetch(SSA_AUTH_URLS[app] + "/signout", {
+        method: "POST",
+        body: JSON.stringify({
+          uid,
+          token,
+        }),
+      })
+      setPlayer(null);
+    }
+    if (sessions.length === 0 && player && app)
+      signout(player.uid, player.token);
 
-
-export const SSAProvider = ({ app, children }: { app: string, children: React.ReactNode }) => {
-
-  const client = React.useMemo(() => new ConvexReactClient(SSA_URLS[app]), [app]);
-  const { sessions } = useUserManager();
-  const player = useMemo(() => {
-    const session = sessions.find((s) => s.app === app);
-    return session?.player;
   }, [sessions, app]);
-
 
   return (
     <SSAContext.Provider value={{ player }}>
-      <ConvexProvider client={client}><SSASignIn app={app}>{children}</SSASignIn></ConvexProvider>
+      <ConvexProvider client={client}>{children}</ConvexProvider>
     </SSAContext.Provider>
   );
 };

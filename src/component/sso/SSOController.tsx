@@ -32,21 +32,20 @@ const SSOController: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
   // const [authInit, setAuthInit] = useState<AuthInit | undefined>(undefined);
 
   const SelectedComponent = useMemo(() => {
-    if (platform?.pid) {
+    if (platform?.pid && platform.pid > 0) {
       const platformInfo = PLATFORMS[platform.type || 0];
       console.log(platformInfo)
       return lazy(() => import(`./provider/${platformInfo.auth}`));
     }
     return null;
   }, [platform]);
-  console.log("SSOController flex", platform, user)
 
   return (
     <>
       {user && SelectedComponent && <Suspense fallback={<div className="auth_check"><div style={{ color: "black", fontSize: "20px" }}>Loading...</div></div>}>
         <SelectedComponent onLoad={onLoad} />
       </Suspense>}
-      {/* {platform && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>} */}
+      {platform?.pid === 0 && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>}
     </>
   );
 };

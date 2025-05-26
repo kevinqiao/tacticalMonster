@@ -62,10 +62,10 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       {/* <div style={{ position: "relative", width: "100vw", height: "100vh" }}> */}
       <div key={container.app + "-" + container.name} ref={load} className={container.class}>
 
-        <Suspense fallback={<div />}>
+        {visible > 0 && <Suspense fallback={<div />}>
           <SelectedComponent data={currentPage?.data} visible={visible}>
           </SelectedComponent>
-        </Suspense>
+        </Suspense>}
         {container.exit ? (
           <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
         ) : null}

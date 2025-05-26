@@ -8,7 +8,10 @@ const LobbyHome: React.FC<PageProp> = ({ children }) => {
 
   return (
     <>
-      {children}
+      {/* {children} */}
+      <div style={{ width: "100%", height: 50, backgroundColor: "green", position: "absolute", top: 0, left: 0, right: 0, zIndex: 1000 }}>
+
+      </div>
     </>
   );
 };

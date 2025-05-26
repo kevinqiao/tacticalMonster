@@ -14,28 +14,7 @@ export interface CUser {
     name?: string;
     data?: { [k: string]: any };
 }
-// export const authenticate = action({
-//     args: { cid: v.string(), data: v.any(), partner: v.optional(v.number()) },
-//     handler: async (ctx, { cid, data, partner }): Promise<User | null> => {
-//         const pid = partner ?? 1;
-//         const cuser = handle(cid, data);
 
-//         if (cuser?.cuid && cuser?.cid) {
-//             await ctx.runMutation(internal.dao.cuserDao.update, { cuid: cuser.cuid, cid: cuser.cid, data: cuser.data });
-//             const uid = pid + "-" + cuser.cuid;
-//             let user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
-//             if (!user) {
-//                 user = await ctx.runMutation(internal.dao.userDao.create, { cuid: cuser.cuid, partner: pid, token: "", data: cuser.data });
-//             }
-//             if (user?.uid) {
-//                 const token = jwt.sign({ uid: user.uid, cid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
-//                 await ctx.runMutation(internal.dao.userDao.update, { uid: user.uid, data: { token, expire: REFRESH_TOKEN_EXPIRE + Date.now() } });
-//                 return Object.assign({}, user, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
-//             }
-//         }
-//         return null;
-//     }
-// });
 
 export const authenticate = action({
     args: { initData: v.string() },
@@ -70,7 +49,8 @@ export const authenticate = action({
             const userString = params.get('user');
             if (userString) {
                 const user = JSON.parse(decodeURIComponent(userString));
-                const cuid = user.id;
+                console.log("user", user)
+                const cuid = user.id + "";
                 const userDoc = await ctx.runQuery(internal.dao.userDao.findByPlatform, { cuid, platformId: 1 });
                 if (userDoc?.uid) {
                     const token = jwt.sign({ uid: userDoc.uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });

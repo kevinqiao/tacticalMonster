@@ -6,11 +6,10 @@ export const create = internalMutation({
         uid: v.string(),
         token: v.string(),
         expire: v.optional(v.number()),
-        name: v.optional(v.string()),
-        avatar: v.optional(v.string()),
+        data: v.optional(v.any()),
     },
-    handler: async (ctx, { uid,token,name,avatar }) => {
-        const pid = await ctx.db.insert("game_player", { uid,token,name,avatar,level:0,exp:0 });
+    handler: async (ctx, { uid, token, data }) => {
+        const pid = await ctx.db.insert("game_player", { uid, token, data });
         return pid;
     },
 })
@@ -35,9 +34,9 @@ export const update = internalMutation({
         uid: v.string(),
         data: v.any()
     },
-    handler: async (ctx, { uid,data }) => {
+    handler: async (ctx, { uid, data }) => {
         const player = await ctx.db.query("game_player").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
-        if(player){
+        if (player) {
             return await ctx.db.patch(player._id, data);
         }
         return null;

@@ -6,10 +6,11 @@ export default defineSchema({
         uid: v.string(),
         token: v.optional(v.string()),
         expire: v.optional(v.number()),
-        level: v.number(),
-        exp: v.number(),
-        name: v.optional(v.string()),
-        avatar: v.optional(v.string())
+        data: v.optional(v.any()),
+        // level: v.number(),
+        // exp: v.number(),
+        // name: v.optional(v.string()),
+        // avatar: v.optional(v.string())
     }).index("by_uid", ["uid"]),
     game_event: defineTable({
         gameId: v.optional(v.string()),

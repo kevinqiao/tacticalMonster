@@ -30,6 +30,12 @@ export const signin = internalAction({
             uid,
             token: access_token,
             expire,
+            data: {
+              avatar: "test",
+              name: payload.name,
+              level: 0,
+              exp: 0,
+            }
           });
         } else {
           await ctx.runMutation(internal.dao.gamePlayerDao.update, {

@@ -42,7 +42,6 @@ interface IUserContext {
   events: Event[] | null;
   // updateLoaded: () => void;
   ssaAuthComplete: (ssa: string, player: any) => void;
-  ssaSignOut: (ssa: string) => void;
   // updateSession: (app: string, session: { token: string; status: number }) => void;
   authComplete: (user: any, persist: number) => void;
   logout: () => void;
@@ -55,7 +54,6 @@ const UserContext = createContext<IUserContext>({
   // updateSession: () => null,
   // updateLoaded: () => null,
   ssaAuthComplete: () => null,
-  ssaSignOut: () => null,
   logout: () => null,
   authComplete: (user: any, persist: number) => null,
 });
@@ -70,23 +68,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const authComplete = useCallback((u: any, persist: number) => {
-    // if (persist > 0) {
-    //   localStorage.setItem("user", JSON.stringify(u));
-    // }
-
 
     u.expire = u.expire + Date.now();
-    localStorage.setItem("user", JSON.stringify(u));
-
-    sessions.length = 0;
-    Object.keys(SSA_AUTH_URLS).forEach(key => {
-      sessions.push({ app: key, status: AppSessionStatus.TO_BE_SIGNED_IN })
-    })
     setUser(u);
-    setSessions([...sessions])
 
-
-  }, [sessions]);
+  }, []);
 
   const logout = useCallback(async () => {
 
@@ -95,37 +81,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("logout result", result);
       if (result) {
         localStorage.removeItem("user");
-        sessions.forEach(s => {
-          s.status = AppSessionStatus.TO_BE_SIGNED_OUT;
-        })
         setUser({});
-        setSessions([...sessions])
+        // setSessions([...sessions])
       }
     }
   }, [user, sessions]);
-  const ssaSignOut = useCallback((ssa: string) => {
-    const session = sessions.find((s) => s.app === ssa);
-    if (session && session.status === AppSessionStatus.SIGNING_OUT) {
-      console.log("ssaSignOut", session);
-      session.status = AppSessionStatus.SIGNED_OUT;
-      session.player = undefined;
-      setSessions([...sessions])
-    }
-  }, [sessions]);
-  // const updateLoaded = useCallback(() => {
-  //   if (user?.uid && user?.token) {
-  //     convex.mutation(api.dao.userDao.updateLoaded, { uid: user.uid, token: user.token }).then((res) => {
-  //       console.log("updateLoaded", res)
-  //       if (res) {
-  //         setUser((pre) => {
-  //           if (pre?.game)
-  //             pre.game.status = 1;
-  //           return pre
-  //         })
-  //       }
-  //     })
-  //   }
-  // }, [user]);
+
+
   const ssaAuthComplete = useCallback((ssa: string, player: any) => {
     const session = sessions.find((s) => s.app === ssa);
 
@@ -147,11 +109,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.removeItem("user");
         setUser({});
       }
-
     }
     const userJSON = localStorage.getItem("user");
-    console.log("UserProvider", "useEffect", userJSON)
-
     if (userJSON !== null) {
       const userObj = JSON.parse(userJSON);
       console.log("UserProvider", userObj)
@@ -190,7 +149,18 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [userEvents]);
-  const value = { user, authComplete, logout, sessions, ssaAuthComplete, ssaSignOut, events };
+  useEffect(() => {
+    if (user?.uid && user?.token) {
+      setSessions(Object.keys(SSA_AUTH_URLS).map(key => {
+        return { app: key, status: AppSessionStatus.TO_BE_SIGNED_IN }
+      }))
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      setSessions([])
+      localStorage.removeItem("user");
+    }
+  }, [user])
+  const value = { user, authComplete, logout, sessions, ssaAuthComplete, events };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

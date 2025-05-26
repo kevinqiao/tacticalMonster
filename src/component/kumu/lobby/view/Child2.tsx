@@ -42,8 +42,9 @@ const Child2: React.FC<PageProp> = ({ visible, data }) => {
       backgroundColor: "blue",
     }}
   >
-    {/* <JoinLudo /> */}
+
     <JoinSolitaire />
+
   </div>
   );
 };

@@ -359,10 +359,13 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
         // console.log("loadPlatform", pt);
         const host = window.location.hostname;
         const pt: Platform | null = await convex.query(api.dao.platformDao.findByHost, { host });
-
+        console.log("loadPlatform", pt)
         if (pt) {
           setPlatform(pt)
+        } else {
+          setPlatform({ pid: 0 })
         }
+
       }
     }
     if (!platform.pid) {

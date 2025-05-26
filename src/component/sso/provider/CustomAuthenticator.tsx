@@ -66,7 +66,7 @@ const CustomAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
 
 
     return <>
-        <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "transparent", pointerEvents: "none", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2000, width: "100%", height: "100%", backgroundColor: "transparent", pointerEvents: "none", overflow: "hidden" }}>
             {/* 遮罩层 */}
             <div ref={maskRef} style={{
                 position: "absolute",
