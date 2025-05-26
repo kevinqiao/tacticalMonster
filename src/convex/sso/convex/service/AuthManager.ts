@@ -43,7 +43,7 @@ export const refreshToken = action({
         const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
         console.log("refreshToken", user?.token, token, user?.expire, Date.now());
         if (user?.token === token && user?.expire && user.expire > Date.now()) {
-            const refreshToken = jwt.sign({ uid: user.uid, cid: user.cid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
+            const refreshToken = jwt.sign({ uid: user.uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
             if (refreshToken) {
                 await ctx.runMutation(internal.dao.userDao.update, { uid, data: { token: refreshToken, expire: REFRESH_TOKEN_EXPIRE + Date.now() } });
                 return Object.assign({}, user, { token: refreshToken, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });

@@ -59,7 +59,7 @@ export const authenticate = action({
                 } else {
                     const uid = 1 + "-" + cuid;
                     const token = jwt.sign({ uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
-                    const userDoc = await ctx.runMutation(internal.dao.userDao.create, { partner: 1, token: "", platform: 1, cuid, data: { name: user.username } });
+                    const userDoc = await ctx.runMutation(internal.dao.userDao.create, { partner: 1, token, platform: 1, cuid, data: { name: user.username } });
                     return Object.assign({}, userDoc, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
                 }
             }

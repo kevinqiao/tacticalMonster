@@ -6,7 +6,6 @@ import { SSA_AUTH_URLS } from "./SSAManager";
 
 export interface User {
   uid?: string;
-  cid?: string;
   partner?: number;
   token?: string;
   expire?: number;
@@ -14,7 +13,7 @@ export interface User {
   email?: string;
   phone?: string;
   data?: { [k: string]: any };
-  game?: { name: string, id: string, status: number };
+  assets?: { [k: string]: number };
 }
 export enum AppSessionStatus {
   TO_BE_SIGNED_IN = 0,
@@ -136,7 +135,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
           if (e.name === "GameCreated" && user?.uid) {
             setUser((pre) => {
               if (pre) {
-                pre.game = e.data;
+                pre.data = e.data;
                 return { ...pre }
               }
               return null

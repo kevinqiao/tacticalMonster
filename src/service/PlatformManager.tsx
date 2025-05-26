@@ -4,8 +4,8 @@ import { useUrlParams } from "util/PageUtils";
 import { api } from "../convex/sso/convex/_generated/api";
 
 // 平台类型
-const PLATFORM_TYPE = {
-  DEFAULT: 0,
+export const PLATFORM_TYPE = {
+  WEB: 0,
   TELEGRAM: 1,
   DISCORD: 2,
   META: 3,
@@ -83,7 +83,7 @@ export const PLATFORMS: Record<
 > = {
   0: {
     name: "Web",
-    type: PLATFORM_TYPE.DEFAULT,
+    type: PLATFORM_TYPE.WEB,
     url: "https://fun.fungift.org",
     auth: "CustomAuthenticator",
     scripts: [],

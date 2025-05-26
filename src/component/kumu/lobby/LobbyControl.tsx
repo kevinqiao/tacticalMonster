@@ -1,10 +1,10 @@
 import React, { useCallback } from "react";
 import { usePageManager } from "service/PageManager";
-
+import { PLATFORM_TYPE, usePlatform } from "service/PlatformManager";
 import { useUserManager } from "service/UserManager";
 import "../map.css";
 const LobbyControl: React.FC = () => {
-
+  const { platform } = usePlatform();
   const { openPage, askAuth } = usePageManager();
   const { user, logout } = useUserManager();
 
@@ -31,11 +31,13 @@ const LobbyControl: React.FC = () => {
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main" })}>
           Play
         </div>
-        {user?.uid ? <div className="action-panel-item" onClick={signOut}>
-          Logout
-        </div> : <div className="action-panel-item" onClick={signIn}>
-          SignIn
-        </div>}
+        {platform?.type === PLATFORM_TYPE.WEB ? <>
+          {user?.uid ? <div className="action-panel-item" onClick={signOut}>
+            Logout
+          </div> : <div className="action-panel-item" onClick={signIn}>
+            SignIn
+          </div>}
+        </> : null}
       </div>
     </>
   );

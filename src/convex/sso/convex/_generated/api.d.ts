@@ -27,6 +27,7 @@ import type * as service_handler_CustomAuthHandler from "../service/handler/Cust
 import type * as service_handler_TelegramAuthHandler from "../service/handler/TelegramAuthHandler.js";
 import type * as service_PlatformManager from "../service/PlatformManager.js";
 import type * as service_TelegramAuthenticator from "../service/TelegramAuthenticator.js";
+import type * as service_WebAuthenticator from "../service/WebAuthenticator.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   "service/handler/TelegramAuthHandler": typeof service_handler_TelegramAuthHandler;
   "service/PlatformManager": typeof service_PlatformManager;
   "service/TelegramAuthenticator": typeof service_TelegramAuthenticator;
+  "service/WebAuthenticator": typeof service_WebAuthenticator;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
