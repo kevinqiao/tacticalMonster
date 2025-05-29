@@ -42,10 +42,10 @@ const SSOController: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
 
   return (
     <>
-      {user && SelectedComponent && <Suspense fallback={<div className="auth_check"><div style={{ color: "black", fontSize: "20px" }}>Loading...</div></div>}>
+      {user && SelectedComponent && <Suspense fallback={<div />}>
         <SelectedComponent onLoad={onLoad} />
       </Suspense>}
-      {platform?.pid === 0 && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>}
+      {/* {platform?.pid === 0 && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>} */}
     </>
   );
 };

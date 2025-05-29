@@ -14,17 +14,18 @@ export interface CUser {
     data?: { [k: string]: any };
 }
 export const authenticate = action({
-    args: { cid: v.string(), data: v.any(), partner: v.optional(v.number()) },
-    handler: async (ctx, { cid, data, partner }): Promise<User | null> => {
-        const pid = partner ?? 1;
+    args: { cid: v.string(), data: v.any(), platformId: v.number() },
+    handler: async (ctx, { cid, data, platformId }): Promise<User | null> => {
+        const platformDoc = await ctx.runQuery(internal.dao.platformDao.find, { pid: platformId });
         const cuser = handle(cid, data);
 
         if (cuser?.cuid && cuser?.cid) {
             await ctx.runMutation(internal.dao.cuserDao.update, { cuid: cuser.cuid, cid: cuser.cid, data: cuser.data });
-            const uid = pid + "-" + cuser.cuid;
+            const uid = platformId + "-" + cuser.cuid;
+            const partner = platformDoc?.partner ?? 0;
             let user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
             if (!user) {
-                user = await ctx.runMutation(internal.dao.userDao.create, { cuid: cuser.cuid, partner: pid, token: "", platform: 1, data: cuser.data });
+                user = await ctx.runMutation(internal.dao.userDao.create, { cuid: cuser.cuid, partner, token: "", platform: platformId, data: cuser.data });
             }
             if (user?.uid) {
                 const token = jwt.sign({ uid: user.uid, cid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });

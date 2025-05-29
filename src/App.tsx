@@ -36,6 +36,7 @@ export const FlattenedProviderTree = (providers: any): any => {
 const StyleApp = () => {
   // const { locale } = useLocalization();
   // console.log("style locale:" + locale);
+  const [ssoLoaded, setSsoLoaded] = useState(false);
   const { platform } = usePlatform();
   const theme = {
     primaryColor: "#4CAF50",
@@ -43,40 +44,29 @@ const StyleApp = () => {
     backgroundColor: "#F0F0F0",
   };
 
-  const Providers = FlattenedProviderTree([
-    [TerminalProvider],
-    // [LocalizationProvider],
-    // [ThemeProvider, { theme }],
-    // [PartnerProvider],
-  ]);
-
   return (
-    <Providers>
-      {/* <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}> */}
+    <>
       {platform && <RenderApp />}
-      {/* </div> */}
-    </Providers>
+      <SSOController onLoad={() => setSsoLoaded(true)} />
+    </>
   );
 };
 
 const App: React.FC = () => {
-  const [ssoLoaded, setSsoLoaded] = useState(false);
+
   const Providers = FlattenedProviderTree([
     [ConvexProvider, { client: master_client }],
     [UserProvider],
     [PageProvider],
     [PlatformProvider],
+    [TerminalProvider],
+  ])
 
-  ]);
-  console.log("App", ssoLoaded)
   return (
 
     <Providers>
-
-      {ssoLoaded && <StyleApp />}
-      <SSOController onLoad={() => setSsoLoaded(true)} />
+      <StyleApp />
       {/* <GameLauncher /> */}
-
     </Providers>
 
   );

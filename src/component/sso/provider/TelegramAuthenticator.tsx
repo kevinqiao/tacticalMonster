@@ -10,7 +10,7 @@ import { AuthProps } from "../SSOController";
 const TelegramAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const { authComplete } = useUserManager();
-    const { sdk } = usePlatform();
+    const { sdk, platform } = usePlatform();
     const { authReq } = usePageManager();
     const convex = useConvex();
     const isInTelegram = useMemo(() => {
@@ -44,10 +44,10 @@ const TelegramAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
     }, [authReq])
     useEffect(() => {
         const verifyTelegram = async () => {
-            if (isInTelegram) {
+            if (isInTelegram && platform?.pid) {
                 const telegramSdk = sdk as TelegramWebApp;
                 console.log("TelegramAuthenticator", "telegramSdk", telegramSdk.initData);
-                const u = await convex.action(api.service.TelegramAuthenticator.authenticate, { initData: telegramSdk.initData });
+                const u = await convex.action(api.service.TelegramAuthenticator.authenticate, { platformId: platform.pid, initData: telegramSdk.initData });
                 console.log("TelegramAuthenticator ", u);
                 if (u) {
                     authComplete(u, 1);
@@ -55,7 +55,7 @@ const TelegramAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
             }
         }
         verifyTelegram();
-    }, [isInTelegram])
+    }, [isInTelegram, platform])
 
 
     return (

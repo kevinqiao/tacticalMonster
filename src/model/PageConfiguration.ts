@@ -13,12 +13,13 @@ export const PlayPlace =
             path: "./kumu/PlayGround",
             uri: "main",
             class: "page_container",
-            animate: { open: "fadeIn", close: "fadeOut" },
+            enter: "fadeIn",
+            exit: "fadeOut",
             control: "./kumu/battle/PlayControl",
             children: [
-                { name: "child1", class: "pop-big", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 0, exit: 1, animate: { open: "center", close: "center" } },
-                { name: "child2", class: "pop-medium", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 0, exit: 0, animate: { open: "center", close: "center" } },
-                { name: "child3", class: "pop-small", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, exit: 1, animate: { open: "center", close: "center" } },
+                { name: "child1", class: "pop-big", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 0, close: "popOut", enter: "popIn" },
+                { name: "child2", class: "pop-medium", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 0, close: "popOut", enter: "popIn" },
+                { name: "child3", class: "pop-small", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, close: "popOut", enter: "popIn" },
             ]
         },
         {
@@ -34,13 +35,15 @@ export const PlayPlace =
             auth: 0,
             path: "./kumu/lobby/LobbyHome",
             uri: "lobby",
+            child: "child2",
             class: "page_container",
-            animate: { open: "fadeIn", close: "fadeOut", child: "child2" },
+            enter: "fadeIn",
+            exit: "fadeOut",
             control: "./kumu/lobby/LobbyControl",
             children: [
-                { name: "child1", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 1, animate: { open: "slideIn" } },
-                { name: "child2", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 1, animate: { open: "slideIn" } },
-                { name: "child3", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, animate: { open: "slideIn" } },
+                { name: "child1", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 1, enter: "slideIn" },
+                { name: "child2", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 1, enter: "slideIn" },
+                { name: "child3", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, enter: "slideIn" },
             ]
         }
     ]
@@ -83,11 +86,12 @@ export interface PageConfig {
     uri: string;
     auth?: number;
     logout?: string;
+    child?: string;
     children?: PageConfig[];
     class?: string;
     init?: string;
-    exit?: number;
-    animate?: { open?: string; close?: string; child?: string };
+    enter?: string;
+    exit?: string;
     control?: string;
 
 }

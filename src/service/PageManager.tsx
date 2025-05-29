@@ -2,7 +2,6 @@ import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { findContainer, parseLocation } from "util/PageUtils";
-import usePageAnimate from "../animate/usePageAnimate";
 import { useUserManager } from "./UserManager";
 
 
@@ -14,27 +13,11 @@ export interface PageEvent {
   prepage?: PageItem | undefined | null;
   page: PageItem | undefined | null;
 }
-export interface PageContainer {
-  app?: string;
-  name: string;
-  path: string;
-  uri: string;
-  auth?: number;
-  exit?: number;
-  data?: any;
-  init?: string;
-  parentURI?: string;
-  logout?: string;
-  children?: PageContainer[];
-  class?: string;
+export interface PageContainer extends PageConfig {
   ele?: HTMLDivElement | null;
   closeEle?: HTMLDivElement | null;
-  animate?: {
-    open?: string;  // 改为可选的字符串
-    close?: string;
-    child?: string;
-  };
-  control?: string;
+  children?: PageContainer[];
+  close?: string;
 }
 interface IPageContext {
   // pageQueue: PageItem[];
@@ -64,7 +47,7 @@ const PageContext = createContext<IPageContext>({
   onLoad: () => null,
 });
 
-export const PageManager = ({ children }: { children: React.ReactNode }) => {
+export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
   const currentPageRef = useRef<PageItem | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
@@ -112,15 +95,16 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
 
   const openPage = useCallback((page: PageItem) => {
 
-    if (page.uri === currentPageRef.current?.uri) return;
+    if (!pageContainers || page.uri === currentPageRef.current?.uri) return;
     let newPage = page;
+    console.log("openPage", page, user)
     // console.log("openPage", JSON.stringify(pageContainers))
     const container = findContainer(pageContainers, page.uri);
     // console.log("openPage", pageContainers, page, container)
     let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
 
-    if (container?.children && container.animate?.child) {
-      const child = container.children.find((c) => c.name === container.animate?.child);
+    if (container?.children && container.child) {
+      const child = container.children.find((c) => c.name === container.child);
       if (child) {
         newPage = { ...page, uri: child.uri };
         if (!authRequired && child.auth === 1) {
@@ -135,7 +119,7 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     } else {
       setAuthReq(null);
       const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-      console.log("openPage", uri)
+
       history.pushState({ index: 0 }, "", uri);
     }
 
@@ -196,13 +180,13 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user, authReq]);
   useEffect(() => {
-
-    // if (!containersLoaded) return;
+    if (!pageContainers || !user || currentPageRef.current) return;
     const page = parseLocation();
     if (page)
       openPage(page);
 
-  }, []);
+  }, [pageContainers, user]);
+
 
   const value = {
     changeEvent,
@@ -218,17 +202,17 @@ export const PageManager = ({ children }: { children: React.ReactNode }) => {
   };
   return (<PageContext.Provider value={value}>{children}</PageContext.Provider>);
 };
-const PageAnimate = ({ children }: { children: React.ReactNode }) => {
-  usePageAnimate();
-  return (<>{children}</>);
-};
-export const PageProvider = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <PageManager>
-      <PageAnimate>{children}</PageAnimate>
-    </PageManager>
-  );
-};
+// const PageAnimate = ({ children }: { children: React.ReactNode }) => {
+//   usePageAnimate();
+//   return (<>{children}</>);
+// };
+// export const PageProvider = ({ children }: { children: React.ReactNode }) => {
+//   return (
+//     <PageManager>
+//       <PageAnimate>{children}</PageAnimate>
+//     </PageManager>
+//   );
+// };
 
 export const usePageManager = () => {
   return useContext(PageContext);

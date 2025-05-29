@@ -85,7 +85,7 @@ export const PLATFORMS: Record<
     name: "Web",
     type: PLATFORM_TYPE.WEB,
     url: "https://fun.fungift.org",
-    auth: "CustomAuthenticator",
+    auth: "WebAuthenticator",
     scripts: [],
   },
   1: {

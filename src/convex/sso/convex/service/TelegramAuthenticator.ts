@@ -17,8 +17,8 @@ export interface CUser {
 
 
 export const authenticate = action({
-    args: { initData: v.string() },
-    handler: async (ctx, { initData }): Promise<User | null> => {
+    args: { platformId: v.number(), initData: v.string() },
+    handler: async (ctx, { platformId, initData }): Promise<User | null> => {
 
         const params = new URLSearchParams(initData);
         const receivedHash = params.get('hash');
@@ -46,23 +46,28 @@ export const authenticate = action({
         // 比较签名
         const isValid = calculatedHash === receivedHash;
         if (isValid) {
-            const userString = params.get('user');
-            if (userString) {
-                const user = JSON.parse(decodeURIComponent(userString));
-                console.log("user", user)
-                const cuid = user.id + "";
-                const userDoc = await ctx.runQuery(internal.dao.userDao.findByPlatform, { cuid, platformId: 1 });
-                if (userDoc?.uid) {
-                    const token = jwt.sign({ uid: userDoc.uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
-                    await ctx.runMutation(internal.dao.userDao.update, { uid: userDoc.uid, data: { token, expire: REFRESH_TOKEN_EXPIRE + Date.now(), name: user.username } });
-                    return Object.assign({}, userDoc, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
-                } else {
-                    const uid = 1 + "-" + cuid;
-                    const token = jwt.sign({ uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
-                    const userDoc = await ctx.runMutation(internal.dao.userDao.create, { partner: 1, token, platform: 1, cuid, data: { name: user.username } });
-                    return Object.assign({}, userDoc, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
+            const platformDoc = await ctx.runQuery(internal.dao.platformDao.find, { pid: platformId });
+            console.log("platformDoc", platformDoc)
+            if (platformDoc) {
+                const userString = params.get('user');
+                if (userString) {
+                    const user = JSON.parse(decodeURIComponent(userString));
+                    console.log("user", user)
+                    const cuid = user.id + "";
+                    const userDoc = await ctx.runQuery(internal.dao.userDao.findByPlatform, { cuid, platformId });
+                    if (userDoc?.uid) {
+                        const token = jwt.sign({ uid: userDoc.uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
+                        await ctx.runMutation(internal.dao.userDao.update, { uid: userDoc.uid, data: { token, expire: REFRESH_TOKEN_EXPIRE + Date.now(), name: user.username } });
+                        return Object.assign({}, userDoc, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
+                    } else {
+                        const uid = platformId + "-" + cuid;
+                        const token = jwt.sign({ uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
+                        const userDoc = await ctx.runMutation(internal.dao.userDao.create, { partner: platformDoc.partner, token, platform: platformId, cuid, data: { name: user.username } });
+                        return Object.assign({}, userDoc, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
+                    }
                 }
             }
+
         }
         return null;
     }

@@ -159,6 +159,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem("user");
     }
   }, [user])
+  useEffect(() => {
+    console.log("user provider run times")
+  }, [])
   const value = { user, authComplete, logout, sessions, ssaAuthComplete, events };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };

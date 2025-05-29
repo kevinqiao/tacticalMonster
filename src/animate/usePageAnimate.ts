@@ -1,4 +1,3 @@
-import gsap from "gsap";
 import { useEffect } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 import { EnterEffects } from "./effect/EnterEffects";
@@ -30,11 +29,10 @@ const closePrePage = (precontainer: PageContainer, currentcontainer: PageContain
             container = preparent;
     }
     if (container) {
-        const closeEffect = container?.animate?.close;
+        const closeEffect = container?.close;
         if (typeof closeEffect === 'string' && closeEffect in ExitEffects) {
             const effectTl = ExitEffects[closeEffect]({
                 container: container,
-                params: { scale: 0.5, autoAlpha: 0, duration: 0.7 }
             });
             return effectTl;
         }
@@ -43,12 +41,11 @@ const closePrePage = (precontainer: PageContainer, currentcontainer: PageContain
 }
 const openCurrentPage = ({ currentcontainer, precontainer, pageContainers }: { currentcontainer: PageContainer, precontainer?: PageContainer, pageContainers: PageContainer[] }) => {
     const effects: gsap.core.Timeline[] = [];
-    if (currentcontainer.animate?.open) {
+    if (currentcontainer.enter) {
         const parent = pageContainers.find((c) => c.uri === currentcontainer.parentURI);
-        const openEffect = EnterEffects[currentcontainer.animate.open]({
+        const openEffect = EnterEffects[currentcontainer.enter]({
             container: currentcontainer,
             parent: parent,
-            params: { scale: 1, autoAlpha: 1, duration: 0.7 }
         })
         if (openEffect) effects.push(openEffect);
     }
@@ -58,25 +55,24 @@ const openCurrentPage = ({ currentcontainer, precontainer, pageContainers }: { c
 
         if (parentContainer && (!precontainer || precontainer.uri.indexOf(parentContainer.uri) < 0)) {
 
-            if (parentContainer.animate?.open) {
-                const openEffect = EnterEffects[parentContainer.animate.open]({
+            if (parentContainer.enter) {
+                const openEffect = EnterEffects[parentContainer.enter]({
                     container: parentContainer,
-                    params: { scale: 1, autoAlpha: 1, duration: 0.7 }
                 })
                 if (openEffect) effects.push(openEffect);
             }
         }
     }
-    if (currentcontainer.children && currentcontainer.animate) {
-        currentcontainer.children.forEach((c) => {
-            if (c.animate?.close) {
-                const closeEffect = ExitEffects[c.animate.close]({
-                    container: c,
-                    params: { scale: 1, autoAlpha: 1, duration: 0.7 }
-                })
-                if (closeEffect) effects.push(closeEffect);
-            }
-        })
+    if (currentcontainer.children && currentcontainer.child) {
+        // currentcontainer.children.forEach((c) => {
+        //     if (c.close) {
+        //         const closeEffect = ExitEffects[c.close]({
+        //             container: c,
+        //             params: { scale: 1, autoAlpha: 1, duration: 0.7 }
+        //         })
+        //         if (closeEffect) effects.push(closeEffect);
+        //     }
+        // })
         // }
 
     }
@@ -88,32 +84,32 @@ const usePageAnimate = () => {
 
     useEffect(() => {
 
-        if (changeEvent && pageContainers && containersLoaded && currentPage) {
-            const containers = pageContainers.map((c) => flattenContainers(c)).flat();
-            const { prepage } = changeEvent;
-            const precontainer: PageContainer | undefined = containers.find((c) => prepage?.uri === c.uri);
-            const currentcontainer = containers.find((c) => c.uri === currentPage.uri);
+        // if (changeEvent && pageContainers && containersLoaded && currentPage) {
+        //     const containers = pageContainers.map((c) => flattenContainers(c)).flat();
+        //     const { prepage } = changeEvent;
+        //     const precontainer: PageContainer | undefined = containers.find((c) => prepage?.uri === c.uri);
+        //     const currentcontainer = containers.find((c) => c.uri === currentPage.uri);
 
-            if (!currentcontainer || !currentcontainer.ele) return;
+        //     if (!currentcontainer || !currentcontainer.ele) return;
 
-            const tl = gsap.timeline({
-                onComplete: () => {
-                    tl.kill();
-                },
-            });
-            if (precontainer) {
-                const closeEffect = closePrePage(precontainer, currentcontainer, pageContainers);
-                if (closeEffect) tl.add(closeEffect, "<");
-            }
-            const openEffects = openCurrentPage({ currentcontainer, precontainer, pageContainers });
+        //     const tl = gsap.timeline({
+        //         onComplete: () => {
+        //             tl.kill();
+        //         },
+        //     });
+        //     if (precontainer) {
+        //         const closeEffect = closePrePage(precontainer, currentcontainer, pageContainers);
+        //         if (closeEffect) tl.add(closeEffect, "<");
+        //     }
+        //     const openEffects = openCurrentPage({ currentcontainer, precontainer, pageContainers });
 
-            if (openEffects)
-                openEffects.forEach((effect) => tl.add(effect, "<"));
+        //     if (openEffects)
+        //         openEffects.forEach((effect) => tl.add(effect, "<"));
 
 
-            tl.play();
+        //     tl.play();
 
-        }
+        // }
     }, [pageContainers, containersLoaded, currentPage, changeEvent]);
 
 };
