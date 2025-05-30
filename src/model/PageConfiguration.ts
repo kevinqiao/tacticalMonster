@@ -7,28 +7,29 @@ export const PlayPlace =
     auth: 0,//0-public 1-consumer 2-worker 3-admin
     logout: "/play/lobby/c3",
     navs: [
-        {
-            name: "main",
-            auth: 0,
-            path: "./kumu/PlayGround",
-            uri: "main",
-            class: "page_container",
-            enter: "fadeIn",
-            exit: "fadeOut",
-            control: "./kumu/battle/PlayControl",
-            children: [
-                { name: "child1", class: "pop-big", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 0, close: "popOut", enter: "popIn" },
-                { name: "child2", class: "pop-medium", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 0, close: "popOut", enter: "popIn" },
-                { name: "child3", class: "pop-small", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, close: "popOut", enter: "popIn" },
-            ]
-        },
+        // {
+        //     name: "main",
+        //     auth: 0,
+        //     path: "./kumu/PlayGround",
+        //     uri: "main",
+        //     class: "page_container",
+        //     enter: "fadeIn",
+        //     exit: "fadeOut",
+        //     control: "./kumu/battle/PlayControl",
+        //     children: [
+        //         { name: "child1", class: "pop-big", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 0, close: "popOut", enter: "popIn" },
+        //         { name: "child2", class: "pop-medium", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 0, close: "popOut", enter: "popIn" },
+        //         { name: "child3", class: "pop-small", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, close: "popOut", enter: "popIn" },
+        //     ]
+        // },
         {
             name: "map",
             auth: 0,
-            path: "./kumu/battle/BattlePlayer",
+            path: "./kumu/battle/PlayMap",
             uri: "map",
             class: "page_container",
-            animate: { open: "fadeIn", close: "fadeOut" },
+            enter: "fadeIn",
+            exit: "fadeOut",
         },
         {
             name: "lobby",
@@ -44,6 +45,7 @@ export const PlayPlace =
                 { name: "child1", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 1, enter: "slideIn" },
                 { name: "child2", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 1, enter: "slideIn" },
                 { name: "child3", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, enter: "slideIn" },
+                { name: "child4", class: "pop-in", init: "pop", path: "./kumu/lobby/view/Child4", uri: "c4", auth: 1, enter: "popIn", exit: "popOut", close: "popOut" },
             ]
         }
     ]
@@ -93,6 +95,7 @@ export interface PageConfig {
     enter?: string;
     exit?: string;
     control?: string;
+    close?: string;
 
 }
 export const AppsConfiguration: AppConfig[] = [PlayPlace];

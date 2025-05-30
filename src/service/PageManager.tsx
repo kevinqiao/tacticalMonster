@@ -17,6 +17,7 @@ export interface PageContainer extends PageConfig {
   ele?: HTMLDivElement | null;
   closeEle?: HTMLDivElement | null;
   children?: PageContainer[];
+  mask?: HTMLDivElement | null;
   close?: string;
 }
 interface IPageContext {
@@ -68,6 +69,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       if (container.children) {
         container.children = container.children.map((child) => ({
           ...child,
+          app: container.app,
           uri: container.uri + "/" + child.uri,
           parentURI: container.uri,
         }));
@@ -97,17 +99,15 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (!pageContainers || page.uri === currentPageRef.current?.uri) return;
     let newPage = page;
-    console.log("openPage", page, user)
     // console.log("openPage", JSON.stringify(pageContainers))
     const container = findContainer(pageContainers, page.uri);
     // console.log("openPage", pageContainers, page, container)
     let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
-
     if (container?.children && container.child) {
       const child = container.children.find((c) => c.name === container.child);
       if (child) {
         newPage = { ...page, uri: child.uri };
-        if (!authRequired && child.auth === 1) {
+        if (child.auth === 1 && !user.uid) {
           authRequired = true;
         }
       }
@@ -119,7 +119,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       setAuthReq(null);
       const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-
       history.pushState({ index: 0 }, "", uri);
     }
 
@@ -127,9 +126,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     setChangeEvent({ prepage, page: newPage });
     currentPageRef.current = newPage;
   }, [pageContainers, user]);
-
-
-
   const onLoad = useCallback(
     () => {
       const loadCompleted = pageContainers.every(container => {
@@ -182,8 +178,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!pageContainers || !user || currentPageRef.current) return;
     const page = parseLocation();
-    if (page)
+    if (page) {
       openPage(page);
+    }
 
   }, [pageContainers, user]);
 

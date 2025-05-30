@@ -258,7 +258,7 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
   // 动态加载脚本
 
   const loadScript = useCallback((key: string, src: string) => {
-    console.log("loadScript", scripts, key, src);
+    // console.log("loadScript", scripts, key, src);
     if (scripts[key]?.status === "loaded" && scripts[key]?.src === src) {
       return
     }
@@ -274,7 +274,7 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
     script.async = true;
     script.id = `script-${key}`;
     script.onload = () => {
-      console.log("script loaded", key, src);
+      // console.log("script loaded", key, src);
       setScripts((prev) => ({
         ...prev,
         [key]: { status: "loaded", src },
@@ -310,11 +310,11 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
   // 初始化平台
   const initializePlatform = useCallback(async () => {
     const platformInfo = PLATFORMS[platform?.type || 0];
-    console.log("initializePlatform", platformInfo)
+    // console.log("initializePlatform", platformInfo)
     if (platformInfo?.initialize) {
       try {
         const { sdk, user } = await platformInfo.initialize(platform?.data);
-        console.log("initializePlatform", sdk, user)
+        // console.log("initializePlatform", sdk, user)
         if (sdk) {
           setSdk(sdk);
         }
@@ -359,7 +359,7 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
         // console.log("loadPlatform", pt);
         const host = window.location.hostname;
         const pt: Platform | null = await convex.query(api.dao.platformDao.findByHost, { host });
-        console.log("loadPlatform", pt)
+        // console.log("loadPlatform", pt)
         if (pt) {
           setPlatform(pt)
         } else {
@@ -389,7 +389,7 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
         // // 清理现有脚本
         // Object.keys(scripts).forEach((key) => removeScript(key));
         for (const script of platformInfo.scripts) {
-          console.log("start loadScript", script.name, script.src);
+          // console.log("start loadScript", script.name, script.src);
           loadScript(script.name, script.src);
         }
       } catch (error) {
@@ -417,9 +417,9 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [platform, sdk]);
   useEffect(() => {
-    console.log("cleanup scripts", scripts);
+    // console.log("cleanup scripts", scripts);
     return () => {
-      console.log("cleanuped scripts", scripts);
+      // console.log("cleanuped scripts", scripts);
       const platformInfo = PLATFORMS[platform?.type || 0];
       if (platformInfo) {
         Object.keys(platformInfo.scripts).forEach((key) => removeScript(key));

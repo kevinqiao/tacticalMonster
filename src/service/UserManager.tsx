@@ -101,7 +101,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
     const authByToken = async (uid: string, token: string) => {
       const u = await convex.action(api.service.AuthManager.authByToken, { uid, token });
-      console.log("UserProvider", "authByToken", u)
+      // console.log("UserProvider", "authByToken", u)
       if (u?.uid && u?.token) {
         authComplete(u, 1);
       } else {
@@ -112,7 +112,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const userJSON = localStorage.getItem("user");
     if (userJSON !== null) {
       const userObj = JSON.parse(userJSON);
-      console.log("UserProvider", userObj)
+      // console.log("UserProvider", userObj)
       const { uid, token } = userObj;
       if (uid && token) {
         authByToken(uid, token);
@@ -159,9 +159,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem("user");
     }
   }, [user])
-  useEffect(() => {
-    console.log("user provider run times")
-  }, [])
+
   const value = { user, authComplete, logout, sessions, ssaAuthComplete, events };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };

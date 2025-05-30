@@ -46,7 +46,7 @@ export const SSAProvider = ({ app, children }: { app: string, children: React.Re
         }),
       })
       const data = await res.json();
-      console.log("signin", app, data);
+      // console.log("signin", app, data);
       if (data.ok) {
         ssaAuthComplete(app, data.player);
         setPlayer(data.player);

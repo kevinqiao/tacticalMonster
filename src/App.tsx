@@ -1,11 +1,8 @@
-
-
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React, { useState } from "react";
 import usePlatform, { PlatformProvider } from "service/PlatformManager";
-import { TerminalProvider } from "service/TerminalManager";
 import "./App.css";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
@@ -46,7 +43,7 @@ const StyleApp = () => {
 
   return (
     <>
-      {platform && <RenderApp />}
+      {platform && ssoLoaded && <RenderApp />}
       <SSOController onLoad={() => setSsoLoaded(true)} />
     </>
   );
@@ -59,7 +56,7 @@ const App: React.FC = () => {
     [UserProvider],
     [PageProvider],
     [PlatformProvider],
-    [TerminalProvider],
+    // [TerminalProvider],
   ])
 
   return (

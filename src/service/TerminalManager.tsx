@@ -1,5 +1,5 @@
 import { gsap } from "gsap";
-import React, { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { ReactNode, createContext, useCallback, useContext, useEffect, useState } from "react";
 interface ITerminalContext {
   terminal: number; //0-desktop 1-pad 2-phone
   connect: number;
@@ -28,7 +28,6 @@ const TerminalContext = createContext<ITerminalContext>({
 });
 
 export const TerminalProvider = ({ children }: { children: ReactNode }) => {
-  const terminalRef = useRef(-1);
   const [terminal, setTerminal] = useState<number>(-1);
   const [visible, setVisible] = useState(true);
   const [connect, setConnect] = useState(1);

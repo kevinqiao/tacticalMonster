@@ -46,15 +46,31 @@
   pointer-events: auto
 }
 
+.pop-in {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 50%;
+  width: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  background-color: yellow;
+  /* opacity: 0;  
+  visibility: hidden; */
+  pointer-events: auto;
+  /* background-color: red; */
+}
+
 .pop-big {
   position: fixed;
   top: 50%;
   left: 50%;
-  height: 80%;
-  width: 80%;
+  height: 50%;
+  width: 50%;
   transform: translate(-50%, -50%);
-  opacity: 0;
-  visibility: hidden;
+  z-index: 90000;
+  /* opacity: 0;
+  visibility: hidden; */
   pointer-events: auto;
   /* background-color: red; */
 }

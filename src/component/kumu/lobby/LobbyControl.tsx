@@ -28,8 +28,11 @@ const LobbyControl: React.FC = () => {
         <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c3" })}>
           Child3
         </div>
-        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/main" })}>
-          Play
+        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c4" })}>
+          Child4
+        </div>
+        <div className="action-panel-item" onClick={() => openPage({ uri: "/play/map" })}>
+          Map
         </div>
         {platform?.type === PLATFORM_TYPE.WEB ? <>
           {user?.uid ? <div className="action-panel-item" onClick={signOut}>

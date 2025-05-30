@@ -34,7 +34,6 @@ const SSOController: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
   const SelectedComponent = useMemo(() => {
     if (platform?.pid && platform.pid > 0) {
       const platformInfo = PLATFORMS[platform.type || 0];
-      console.log(platformInfo)
       return lazy(() => import(`./provider/${platformInfo.auth}`));
     }
     return null;
