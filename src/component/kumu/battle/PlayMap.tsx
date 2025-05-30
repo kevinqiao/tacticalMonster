@@ -7,7 +7,7 @@ const PlayMap: React.FC<PageProp> = ({ visible, data }) => {
 
   const { openPage } = usePageManager();
   const openPlay = useCallback(() => {
-    const page: PageItem = { uri: "/play/lobby/c4" };
+    const page: PageItem = { uri: "/play/lobby/c2" };
     openPage(page);
   }, [openPage])
   return (<div

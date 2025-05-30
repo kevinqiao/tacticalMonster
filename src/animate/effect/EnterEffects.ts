@@ -10,17 +10,7 @@ interface EnterEffects {
 }
 
 export const EnterEffects: EnterEffects = {
-    center: ({ container, duration, tl }) => {
-        // console.log("container", container)
-        if (!container.ele) return null;
-        const timeline = tl ?? gsap.timeline();
 
-        timeline.fromTo(container.ele,
-            { scale: 0.5, autoAlpha: 0 },
-            { scale: 1, autoAlpha: 1, duration: 0.7 }
-        );
-        return timeline;
-    },
     fadeIn: ({ container, duration, tl }) => {
         // console.log("container", container)
         if (!container.ele) return null;
@@ -29,37 +19,6 @@ export const EnterEffects: EnterEffects = {
             { autoAlpha: 1, duration }
         );
         return timeline;
-    },
-    popIn: ({ container, duration, tl }) => {
-        // console.log("container", container)
-        if (!container.ele) return null;
-        console.log("popIn", container)
-        const timeline = tl ?? gsap.timeline();
-        timeline.fromTo(container.ele,
-            { autoAlpha: 0, scale: 0.2 },
-            { autoAlpha: 1, scale: 1, duration: 1.2, ease: "power2.inOut" }
-        );
-
-        if (container.mask) {
-            timeline.to(container.mask, { autoAlpha: 0.2, duration: 1.2 }, "<")
-        }
-        return timeline;
-    },
-    slideIn: ({ container, parent, duration, tl }) => {
-
-        if (!container.ele) return null;
-        const current = (parent?.children?.filter((c) => c.init === "slide").findIndex((c) => c.uri === container.uri) ?? 0)
-        const timeline = tl ?? gsap.timeline();
-        parent?.children?.filter((c) => c.init === "slide").forEach((c, index) => {
-            if (c.ele) {
-                gsap.set(c.ele, { autoAlpha: 1 })
-                timeline.to(c.ele,
-                    // { x: `${(0 - current) * 100}%`, duration }, "<"
-                    { x: `${(index - current) * 100}%`, duration }, "<"
-                );
-            }
-        })
-
-        return timeline;
     }
+
 };

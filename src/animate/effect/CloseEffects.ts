@@ -1,21 +1,15 @@
 import gsap from "gsap";
 import { PageContainer } from "service/PageManager";
 
-interface ExitEffect {
-    (args: { container: PageContainer; tl?: gsap.core.Timeline }): gsap.core.Timeline | null;
+interface CloseEffect {
+    (args: { container: PageContainer; parent?: PageContainer; duration?: number; tl?: gsap.core.Timeline }): gsap.core.Timeline | null;
 }
 
-interface ExitEffects {
-    [key: string]: ExitEffect;
+interface CloseEffects {
+    [key: string]: CloseEffect;
 }
 
-export const ExitEffects: ExitEffects = {
-    center: ({ container }) => {
-        if (!container.ele) return null;
-        const tl = gsap.timeline();
-        tl.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.7 });
-        return tl;
-    },
+export const CloseEffects: CloseEffects = {
     popOut: ({ container, tl }) => {
         // console.log("container", container)
         if (!container.ele) return null;
@@ -38,23 +32,4 @@ export const ExitEffects: ExitEffects = {
             timeline.to(container.mask, { autoAlpha: 0, duration: 0.7 }, "<");
         return timeline;
     },
-    fadeOut: ({ container }) => {
-        console.log("container", container)
-        if (!container.ele) return null;
-        const timeline = gsap.timeline();
-
-        timeline.to(container.ele,
-            { autoAlpha: 0, duration: 0.7 }
-        );
-        return timeline;
-    },
-    slideOut: ({ container }) => {
-        if (!container.ele) return null;
-        const timeline = gsap.timeline();
-
-        timeline.to(container.ele,
-            { autoAlpha: 0, duration: 0.7 }
-        );
-        return timeline;
-    }
 };

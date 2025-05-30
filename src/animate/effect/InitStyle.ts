@@ -14,11 +14,12 @@ export const InitStyles: InitStyles = {
         if (!parent) return;
         // console.log("parent",parent)
         const index = parent.children?.filter((c) => c.init === "slide").findIndex((c) => c.name === container.name)
-
-        if (container.ele && (typeof index !== "undefined")) {
+        if (typeof index === "undefined" || index === -1) return;
+        const offset = index - 1
+        if (container.ele) {
             console.log("init slide", container)
             // gsap.set(container.ele, { autoAlpha: 1, left: `${index * 100}%` })
-            gsap.set(container.ele, { autoAlpha: 0, x: `${index * 100}%` })
+            gsap.set(container.ele, { autoAlpha: 0, x: `${offset * 100}%` })
         }
     },
     pop: ({ parent, container }: { parent?: PageContainer, container: PageContainer }) => {

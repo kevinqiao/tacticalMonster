@@ -7,19 +7,21 @@ import { findContainer } from "util/PageUtils";
 import { EnterEffects } from "../animate/effect/EnterEffects";
 import { ExitEffects } from "../animate/effect/ExitEffects";
 import { InitStyles } from "../animate/effect/InitStyle";
+import { OpenEffects } from "../animate/effect/OpenEffects";
 import "./render.css";
 gsap.registerPlugin(CSSPlugin);
 
 export interface PageProp {
   data: any;
   visible?: number;
+  active?: number;
   children?: React.ReactNode;
 }
 
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const { openPage, currentPage, changeEvent, onLoad, pageContainers } = usePageManager();
   const [visible, setVisible] = useState(0);
-
+  const [active, setActive] = useState(0);
 
   const close = useCallback(() => {
     if (container.close && changeEvent?.prepage) {
@@ -37,7 +39,19 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       if (exitEffect) exitEffect.play();
     }
   }, [changeEvent])
+  const open = useCallback(({ container, parent, duration }: { container: PageContainer, parent?: PageContainer, duration?: number }) => {
+    if (!container.open) return;
 
+    const openEffect = OpenEffects[container.open]({
+      container: container,
+      parent: parent,
+      duration: duration
+    })
+    // console.log("openEffect", openEffect)
+    if (openEffect) {
+      openEffect.play();
+    }
+  }, [changeEvent]);
   const exit = useCallback(({ container, parent, tl }: { container: PageContainer, parent?: PageContainer, tl?: gsap.core.Timeline }) => {
     if (!container.exit && !parent?.exit) return;
     const func = container.exit ?? parent?.exit;
@@ -48,13 +62,24 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     })
     if (exitEffect) exitEffect.play();
   }, [changeEvent]);
-  const enter = useCallback(({ container, parent, duration }: { container: PageContainer, parent?: PageContainer, duration?: number }) => {
-    if (!container.enter) return;
-
-    const openEffect = EnterEffects[container.enter]({
+  const enter = useCallback(({ container, parent, duration, isOpen }: { container: PageContainer, parent?: PageContainer, duration?: number, isOpen?: boolean }) => {
+    if (!container.enter && !parent?.enter) return;
+    const tl = gsap.timeline({
+      onComplete: () => {
+        if (isOpen) {
+          setVisible(2)
+          open({ container, parent, duration: 1 });
+        } else
+          setVisible(1)
+      }
+    });
+    const func = container.enter ?? parent?.enter;
+    if (!func) return;
+    const openEffect = EnterEffects[func]({
       container: container,
       parent: parent,
-      duration: duration
+      duration: duration,
+      tl: tl
     })
     // console.log("openEffect", openEffect)
     if (openEffect) {
@@ -87,33 +112,20 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     if (!changeEvent || !pageContainers) return;
     const precontainer = changeEvent?.prepage?.uri ? findContainer(pageContainers, changeEvent?.prepage?.uri) : null;
     const currentContainer = changeEvent.page?.uri ? findContainer(pageContainers, changeEvent.page.uri) : null;
-    const isSame = precontainer && currentContainer && (precontainer.uri === currentContainer.uri || precontainer.uri === currentContainer.parentURI || precontainer.parentURI === currentContainer.uri || precontainer.parentURI === currentContainer.parentURI) ? true : false;
+    const noChange = precontainer && currentContainer && (precontainer.uri === currentContainer.uri || precontainer.uri === currentContainer.parentURI || precontainer.parentURI === currentContainer.uri || precontainer.parentURI === currentContainer.parentURI) ? true : false;
     if (currentContainer) {
-
-      if (container.uri === currentContainer.parentURI) {
-        //parent
-        setVisible(1)
-        if (!isSame) {
-          enter({ container, parent, duration: changeEvent.prepage ? 1 : 0 });
+      if ((container.uri === currentContainer.parentURI) || container.uri === currentContainer.uri || container.parentURI === currentContainer.uri || (container.parentURI && container.parentURI === currentContainer.parentURI)) {
+        setActive(1);
+        const isOpen = container.uri === currentContainer.uri;
+        if (noChange) {
+          if (isOpen) open({ container, parent, duration: 1 });
+        } else {
+          console.log("enter", container)
+          enter({ container, parent, duration: 1, isOpen });
         }
-      } else if (container.uri === currentContainer.uri) {
-        //current
-        const duration = !precontainer || (!isSame && container.parentURI) ? 0 : 1;
-        enter({ container, parent, duration });
-        setVisible(2)
-      } else if (container.parentURI && (container.parentURI === currentContainer.uri || container.parentURI === currentContainer.parentURI)) {
-        //child or sibling
-        setVisible(1)
-        if (container.ele) {
-          if (container.exit) {
-            exit({ container, parent });
-          } else
-            gsap.set(container.ele, { autoAlpha: 1 })
-        }
-      } else
-        setVisible(0)
-      if (precontainer && !isSame) {
-        if (precontainer.parentURI === container.uri || precontainer.uri === container.parentURI || container.uri === precontainer.uri || container.parentURI === precontainer.parentURI) {
+      }
+      if (precontainer && !noChange) {
+        if (precontainer.parentURI === container.uri || precontainer.uri === container.parentURI || container.uri === precontainer.uri || (container.parentURI && container.parentURI === precontainer.parentURI)) {
 
           if (container.exit || parent?.exit) {
             const tl = gsap.timeline({
@@ -134,7 +146,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
       <div key={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} id={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} ref={load} className={container.class}>
         <Suspense fallback={<div />}>
-          <SelectedComponent data={currentPage?.data} visible={visible}>
+          <SelectedComponent data={currentPage?.data} visible={visible} active={active}>
           </SelectedComponent>
         </Suspense>
         {container.close && changeEvent?.prepage ? (
