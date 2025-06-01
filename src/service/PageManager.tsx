@@ -2,6 +2,7 @@ import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageItem } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { findContainer, parseLocation } from "util/PageUtils";
+import PageHandler from "./PageHandler";
 import { useUserManager } from "./UserManager";
 
 
@@ -9,6 +10,11 @@ export type App = {
   name: string;
   params?: { [k: string]: string };
 };
+export interface LifeCycleEvent {
+  name: string;
+  container: PageContainer;
+  precontainer?: PageContainer;
+}
 export interface PageEvent {
   prepage?: PageItem | undefined | null;
   page: PageItem | undefined | null;
@@ -24,6 +30,7 @@ interface IPageContext {
   // pageQueue: PageItem[];
   currentPage: PageItem | undefined | null;
   changeEvent: PageEvent | null;
+  lifeCycleEvent: LifeCycleEvent | null;
   app: App | null;
   pageContainers: PageContainer[];
   containersLoaded: number;
@@ -32,11 +39,14 @@ interface IPageContext {
   cancelAuth: () => void;
   authReq: { params?: { [k: string]: string }; pageURI?: string } | null;
   openPage: (page: PageItem) => void;
+
   onLoad: () => void;
+  createLifeCycleEvent: (event: LifeCycleEvent) => void;
 }
 
 const PageContext = createContext<IPageContext>({
   changeEvent: null,
+  lifeCycleEvent: null,
   currentPage: null,
   app: null,
   authReq: null,
@@ -46,11 +56,13 @@ const PageContext = createContext<IPageContext>({
   cancelAuth: () => null,
   openPage: (p: PageItem) => null,
   onLoad: () => null,
+  createLifeCycleEvent: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
   const currentPageRef = useRef<PageItem | null>(null);
+  const [lifeCycleEvent, setLifeCycleEvent] = useState<LifeCycleEvent | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
@@ -146,6 +158,11 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     [pageContainers]
   );
 
+  const createLifeCycleEvent = useCallback((event: LifeCycleEvent) => {
+    setLifeCycleEvent(event);
+  }, []);
+
+
   useEffect(() => {
     const handlePopState = (event: any) => {
       const page = parseLocation();
@@ -196,20 +213,12 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     cancelAuth,
     openPage,
     onLoad,
+    lifeCycleEvent,
+    createLifeCycleEvent,
   };
-  return (<PageContext.Provider value={value}>{children}</PageContext.Provider>);
+  return (<PageContext.Provider value={value}><PageHandler>{children}</PageHandler></PageContext.Provider>);
 };
-// const PageAnimate = ({ children }: { children: React.ReactNode }) => {
-//   usePageAnimate();
-//   return (<>{children}</>);
-// };
-// export const PageProvider = ({ children }: { children: React.ReactNode }) => {
-//   return (
-//     <PageManager>
-//       <PageAnimate>{children}</PageAnimate>
-//     </PageManager>
-//   );
-// };
+
 
 export const usePageManager = () => {
   return useContext(PageContext);

@@ -12,12 +12,14 @@ interface EnterEffects {
 export const EnterEffects: EnterEffects = {
 
     fadeIn: ({ container, duration, tl }) => {
-        // console.log("container", container)
+
         if (!container.ele) return null;
         const timeline = tl ?? gsap.timeline();
+
         timeline.to(container.ele,
-            { autoAlpha: 1, duration }
+            { autoAlpha: 1, duration: duration ?? 0.7 }, "<"
         );
+
         return timeline;
     }
 

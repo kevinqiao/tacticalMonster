@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { PageContainer } from "service/PageManager";
 
 interface InitStyle {
-    (args: { container: PageContainer; parent?: PageContainer }): void;
+    (args: { container: PageContainer; curcontainer: PageContainer, parent?: PageContainer, containers?: PageContainer[] }): void;
 }
 
 interface InitStyles {
@@ -10,22 +10,26 @@ interface InitStyles {
 }
 
 export const InitStyles: InitStyles = {
-    slide: ({ parent, container }: { parent?: PageContainer, container: PageContainer }) => {
+    slide: ({ curcontainer, container, parent }) => {
+
         if (!parent) return;
-        // console.log("parent",parent)
         const index = parent.children?.filter((c) => c.init === "slide").findIndex((c) => c.name === container.name)
-        if (typeof index === "undefined" || index === -1) return;
-        const offset = index - 1
-        if (container.ele) {
-            console.log("init slide", container)
+        let cindex = parent.children?.filter((c) => c.init === "slide").findIndex((c) => c.name === curcontainer.name)
+        if (cindex === undefined || cindex < 0) {
+            cindex = parent.children?.filter((c) => c.init === "slide").findIndex((c) => c.name === parent.child);
+            cindex = cindex === undefined || cindex < 0 ? 0 : cindex
+        }
+
+        if (container.ele && index !== undefined) {
+            const offset = index - cindex;
+            console.log("init slide", container, index, cindex, offset)
             // gsap.set(container.ele, { autoAlpha: 1, left: `${index * 100}%` })
             gsap.set(container.ele, { autoAlpha: 0, x: `${offset * 100}%` })
+
         }
     },
-    pop: ({ parent, container }: { parent?: PageContainer, container: PageContainer }) => {
-        if (!parent || !container.ele) return;
-
-        // gsap.to(container.ele, { autoAlpha: 0, scale: 0.2 })
+    pop: ({ container }) => {
+        if (!container.ele) return;
         gsap.set(container.ele, { autoAlpha: 0, zIndex: 3000 })
         if (container.mask)
             gsap.set(container.mask, { autoAlpha: 0, zIndex: 2999 })

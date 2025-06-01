@@ -24,7 +24,7 @@ export const PlayPlace =
         // },
         {
             name: "map",
-            auth: 1,
+            auth: 0,
             path: "./kumu/battle/PlayMap",
             uri: "map",
             class: "page_container",
@@ -45,9 +45,10 @@ export const PlayPlace =
                 { name: "child1", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 1, open: "slideIn" },
                 { name: "child2", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 1, open: "slideIn" },
                 { name: "child3", class: "child_container", init: "slide", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
-                { name: "child4", class: "pop-right", init: "pop", path: "./kumu/lobby/view/Child4", uri: "c4", auth: 1, enter: "", open: "popRightIn", exit: "popRightOut", close: "popRightOut" },
+                { name: "child4", class: "pop-right", init: "pop", path: "./kumu/lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", exit: "popRightOut", close: "popRightOut" },
             ]
         }
+
     ]
 
 }

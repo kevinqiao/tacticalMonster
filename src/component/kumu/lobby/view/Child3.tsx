@@ -17,7 +17,7 @@ const Child3Main: React.FC<{ gameId: string }> = ({ gameId }) => {
 const Child3: React.FC<PageProp> = ({ visible, data }) => {
 
   if (!data?.gameId)
-    return <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: "black" }} >
+    return <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: "white" }} >
     </div>
   const render = useMemo(() => {
     return (
