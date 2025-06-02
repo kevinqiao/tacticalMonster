@@ -1,14 +1,13 @@
 import { PageProp } from "component/RenderApp";
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
-import { usePageManager } from "service/PageManager";
 import LobbyControl from "./LobbyControl";
 import "./styles.css";
 
 const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
   const headRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const { changeEvent } = usePageManager();
+
   const open = useCallback(() => {
     const tl = gsap.timeline();
     tl.to(headRef.current, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }).to(bottomRef.current, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }, "<")
@@ -20,16 +19,18 @@ const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
     tl.play();
   }, [])
   useEffect(() => {
-
+    console.log("LobbyHome visible", visible)
     if (visible > 0) {
-      open();
+      setTimeout(() => {
+        open();
+      }, 500)
     } else {
-      close();
+      setTimeout(() => {
+        close();
+      }, 600)
     }
   }, [visible]);
-  useEffect(() => {
-    console.log("LobbyHome ", changeEvent)
-  }, [changeEvent])
+
 
   return (
     <>

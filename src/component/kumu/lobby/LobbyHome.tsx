@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 import "../map.css";
 import LobbyControl from "./LobbyControl";
 
-const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
+const LobbyHome: React.FC<PageProp> = ({ visible }) => {
   const headRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -19,13 +19,13 @@ const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
     tl.play();
   }, [])
   useEffect(() => {
-    console.log("LobbyHome visible", visible, active)
+    console.log("LobbyHome visible", visible)
     if (visible > 0) {
       open();
     } else {
       close();
     }
-  }, [visible, active]);
+  }, [visible]);
 
   return (
     <>

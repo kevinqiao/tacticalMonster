@@ -1,8 +1,9 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
 // Register the plugin
-import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import React, { FunctionComponent, lazy, Suspense, useCallback, useMemo } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
+import { findContainer } from "util/PageUtils";
 import { ExitEffects } from "../animate/effect/ExitEffects";
 import "./render.css";
 gsap.registerPlugin(CSSPlugin);
@@ -10,14 +11,14 @@ gsap.registerPlugin(CSSPlugin);
 export interface PageProp {
   data: any;
   visible: number;
-  active: number;
+  active?: number;
   children?: React.ReactNode;
 }
 
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
-  const { openPage, currentPage, changeEvent, lifeCycleEvent, onLoad } = usePageManager();
-  const [visible, setVisible] = useState(0);
-  const [active, setActive] = useState(0);
+  const { openPage, currentPage, changeEvent, pageContainers, onLoad } = usePageManager();
+  // const [visible, setVisible] = useState(0);
+  // const [active, setActive] = useState(0);
 
   const close = useCallback(() => {
     if (container.close) {
@@ -59,35 +60,15 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     [onLoad, container]
   );
 
-  useEffect(() => {
-    if (lifeCycleEvent?.name === "switchCompleted") {
-      const curcontainer = lifeCycleEvent.container;
-      const precontainer = lifeCycleEvent.precontainer;
-      if (curcontainer) {
-        if (curcontainer.uri === container.uri || curcontainer.uri === parent?.uri || (curcontainer.parentURI && (curcontainer.parentURI === container.uri)) || (curcontainer.parentURI && curcontainer.parentURI === parent?.uri)) {
-          setVisible(1);
-        }
-      }
-      if (precontainer) {
-        if (precontainer.uri === container.uri || precontainer.uri === parent?.uri || (precontainer.parentURI && (precontainer.parentURI === container.uri)) || (precontainer.parentURI && precontainer.parentURI === parent?.uri)) {
-          setVisible(0)
+  const visible = useMemo(() => {
+    if (!changeEvent) return 0;
+    const curcontainer = changeEvent.page?.uri ? findContainer(pageContainers, changeEvent.page?.uri) : null;
+    if (!curcontainer) return 0;
+    if (curcontainer.uri === container.uri || curcontainer.uri === parent?.uri || (curcontainer.parentURI && (curcontainer.parentURI === container.uri)) || (curcontainer.parentURI && curcontainer.parentURI === parent?.uri))
+      return 1;
+    return 0;
+  }, [changeEvent, pageContainers])
 
-        }
-      }
-    }
-  }, [lifeCycleEvent])
-  useEffect(() => {
-    if (lifeCycleEvent?.name === "initCompleted") {
-      const curcontainer = lifeCycleEvent.container;
-      const precontainer = lifeCycleEvent.precontainer;
-      if (curcontainer.uri === container.uri || curcontainer.uri === parent?.uri || (curcontainer.parentURI && (curcontainer.parentURI === container.uri) || (curcontainer.parentURI && curcontainer.parentURI === parent?.uri)))
-        setActive(1)
-      else if (precontainer) {
-        if (precontainer.uri === container.uri || precontainer.uri === parent?.uri || (precontainer.parentURI && (precontainer.parentURI === container.uri) || (precontainer.parentURI && precontainer.parentURI === parent?.uri)))
-          setActive(0)
-      }
-    }
-  }, [lifeCycleEvent])
 
   return (
     <>
@@ -95,7 +76,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
       <div key={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} id={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} ref={load} className={container.class}>
         <Suspense fallback={<div />}>
-          <SelectedComponent data={currentPage?.data} visible={visible} active={active}>
+          <SelectedComponent data={currentPage?.data} visible={visible} >
           </SelectedComponent>
         </Suspense>
         {container.close ? (

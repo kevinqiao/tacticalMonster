@@ -182,20 +182,20 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const handlePopState = (event: any) => {
-      const curPage = currentPageRef.current;
-      if (!curPage) return;
-      if (curPage.status && curPage.status > 1) {
-        const page = parseLocation();
-        if (page) {
-          const prepage = currentPageRef.current;
-          setChangeEvent({ prepage, page });
-          currentPageRef.current = page;
-        }
-      } else {
-        window.history.replaceState(null, "", curPage.uri);
+      // const curPage = currentPageRef.current;
+      // if (!curPage) return;
+      // if (curPage.status && curPage.status > 1) {
+      const page = parseLocation();
+      if (page) {
+        const prepage = currentPageRef.current;
+        setChangeEvent({ prepage, page });
+        currentPageRef.current = page;
       }
+      // } else {
+      //   window.history.replaceState(null, "", curPage.uri);
+      // }
     };
-    window.history.replaceState(null, "", window.location.href);
+    // window.history.replaceState(null, "", window.location.href);
 
     window.addEventListener("popstate", handlePopState);
     return () => {
