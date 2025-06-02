@@ -1,5 +1,5 @@
 import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
-import { PageItem } from "model/PageProps";
+import { PageItem, PageStatus } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { findContainer, parseLocation } from "util/PageUtils";
 import PageHandler from "./PageHandler";
@@ -110,6 +110,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const openPage = useCallback((page: PageItem) => {
 
     if (!pageContainers || page.uri === currentPageRef.current?.uri) return;
+
     let newPage = page;
     // console.log("openPage", JSON.stringify(pageContainers))
     const container = findContainer(pageContainers, page.uri);
@@ -159,24 +160,48 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const createLifeCycleEvent = useCallback((event: LifeCycleEvent) => {
-    setLifeCycleEvent(event);
+    const curPage = currentPageRef.current;
+    if (curPage) {
+      switch (event.name) {
+        case "initCompleted":
+          curPage.status = PageStatus.INIT;
+          break;
+        case "switchCompleted":
+          curPage.status = PageStatus.SWITCH;
+          break;
+        case "openCompleted":
+          curPage.status = PageStatus.OPEN;
+          break;
+        default:
+          break;
+      }
+      setLifeCycleEvent(event);
+    }
   }, []);
 
 
   useEffect(() => {
     const handlePopState = (event: any) => {
-      const page = parseLocation();
-      if (page) {
-        const prepage = currentPageRef.current;
-        setChangeEvent({ prepage, page });
-        currentPageRef.current = page;
+      const curPage = currentPageRef.current;
+      if (!curPage) return;
+      if (curPage.status && curPage.status > 1) {
+        const page = parseLocation();
+        if (page) {
+          const prepage = currentPageRef.current;
+          setChangeEvent({ prepage, page });
+          currentPageRef.current = page;
+        }
+      } else {
+        window.history.replaceState(null, "", curPage.uri);
       }
     };
+    window.history.replaceState(null, "", window.location.href);
+
     window.addEventListener("popstate", handlePopState);
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [user]);
+  }, [currentPageRef.current]);
   useEffect(() => {
     if (user?.uid && authReq?.page) {
       openPage(authReq.page);

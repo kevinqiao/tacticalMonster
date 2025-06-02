@@ -41,7 +41,7 @@ const useCombatAct = () => {
 
   }, [user, currentAct, game, direction, eventQueue]);
   const flipCard = useCallback(async () => {
-    console.log("flipCard", game, currentAct, user, user.uid);
+
     if (actRef.current > 0) {
       return;
     }
@@ -69,7 +69,7 @@ const useCombatAct = () => {
           openCards.push(mcard);
         }
       });
-      console.log("openCards", openCards);
+
       playOpenCard({ data: { open: openCards }, onComplete: onActComplete });
     }
   }, [eventQueue, game, currentAct, user, playOpenCard, direction]);

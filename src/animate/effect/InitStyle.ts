@@ -22,7 +22,7 @@ export const InitStyles: InitStyles = {
 
         if (container.ele && index !== undefined) {
             const offset = index - cindex;
-            console.log("init slide", container, index, cindex, offset)
+            // console.log("init slide", container, index, cindex, offset)
             // gsap.set(container.ele, { autoAlpha: 1, left: `${index * 100}%` })
             gsap.set(container.ele, { autoAlpha: 0, x: `${offset * 100}%` })
 
@@ -30,7 +30,7 @@ export const InitStyles: InitStyles = {
     },
     pop: ({ container }) => {
         if (!container.ele) return;
-        gsap.set(container.ele, { autoAlpha: 0, zIndex: 3000 })
+        gsap.set(container.ele, { autoAlpha: 0, width: "50%", zIndex: 3000 })
         if (container.mask)
             gsap.set(container.mask, { autoAlpha: 0, zIndex: 2999 })
     },

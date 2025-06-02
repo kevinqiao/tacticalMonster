@@ -15,7 +15,7 @@ export interface PageProp {
 }
 
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
-  const { openPage, currentPage, changeEvent, lifeCycleEvent, onLoad, pageContainers } = usePageManager();
+  const { openPage, currentPage, changeEvent, lifeCycleEvent, onLoad } = usePageManager();
   const [visible, setVisible] = useState(0);
   const [active, setActive] = useState(0);
 
@@ -63,11 +63,16 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     if (lifeCycleEvent?.name === "switchCompleted") {
       const curcontainer = lifeCycleEvent.container;
       const precontainer = lifeCycleEvent.precontainer;
-      if (curcontainer.uri === container.uri || curcontainer.uri === parent?.uri || (curcontainer.parentURI && (curcontainer.parentURI === container.uri) || (curcontainer.parentURI && curcontainer.parentURI === parent?.uri)))
-        setVisible(1)
-      else if (precontainer) {
-        if (precontainer.uri === container.uri || precontainer.uri === parent?.uri || (precontainer.parentURI && (precontainer.parentURI === container.uri) || (precontainer.parentURI && precontainer.parentURI === parent?.uri)))
+      if (curcontainer) {
+        if (curcontainer.uri === container.uri || curcontainer.uri === parent?.uri || (curcontainer.parentURI && (curcontainer.parentURI === container.uri)) || (curcontainer.parentURI && curcontainer.parentURI === parent?.uri)) {
+          setVisible(1);
+        }
+      }
+      if (precontainer) {
+        if (precontainer.uri === container.uri || precontainer.uri === parent?.uri || (precontainer.parentURI && (precontainer.parentURI === container.uri)) || (precontainer.parentURI && precontainer.parentURI === parent?.uri)) {
           setVisible(0)
+
+        }
       }
     }
   }, [lifeCycleEvent])

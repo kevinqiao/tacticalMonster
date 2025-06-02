@@ -17,7 +17,7 @@ export const EnterEffects: EnterEffects = {
         const timeline = tl ?? gsap.timeline();
 
         timeline.to(container.ele,
-            { autoAlpha: 1, duration: duration ?? 0.7 }, "<"
+            { autoAlpha: 1, duration: duration ?? 0.5 }, "<"
         );
 
         return timeline;

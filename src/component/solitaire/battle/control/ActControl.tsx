@@ -23,11 +23,9 @@ const ActControl: React.FC = () => {
             // console.log("currentAct.uid !== user.uid", currentAct, user);
             return;
         }
-
         const currentSeat = game.seats?.find(s => s.uid === game.currentTurn?.uid);
         if (!currentSeat) return;
         const cards = game.cards?.filter((c: Card) => RuleManager.canMove(c, game));
-        console.log("cards", cards);
         return cards;
 
     }, [game, currentAct, user])

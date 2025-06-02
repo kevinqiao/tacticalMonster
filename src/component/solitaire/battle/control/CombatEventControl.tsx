@@ -2,7 +2,6 @@ import React, { useCallback, useEffect } from "react";
 import { useUserManager } from "service/UserManager";
 
 import { useCombatManager } from "../service/CombatManager";
-import { useSkillManager } from "../service/CombatSkillProvider";
 import { CombatEvent } from "../types/CombatTypes";
 import useActHandler from "./event/useActHandler";
 import useGameHandler from "./event/useGameHandler";
@@ -33,12 +32,12 @@ const eventCategoryMap: { [k: string]: EventCategory } = {
 }
 const CombatEventControl = (): React.ReactElement => {
     const { user } = useUserManager();
-    const { game, eventQueue, boardDimension, askAct, completeAct, direction } = useCombatManager();
+    const { game, eventQueue, boardDimension, direction } = useCombatManager();
     const gameHandler = useGameHandler();
     const skillHandler = useSkillHandler();
     const actHandler = useActHandler();
     const turnHandler = useTurnHandler();
-    const { activeSkill } = useSkillManager();
+
 
     const dispatchEvent = useCallback(() => {
 

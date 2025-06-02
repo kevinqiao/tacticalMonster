@@ -16,14 +16,11 @@ export interface PagePosition {
     height: number;
     // direction: number
 }
-// export interface PageConfig {
-//     name: string;
-//     path?: string;
-//     uri: string;
-//     auth?: number;
-//     children?: { name: string; path: string; uri: string; exit?: number }[];
-
-// }
+export enum PageStatus {
+    INIT = 1,
+    SWITCH = 2,
+    OPEN = 3,
+}
 export default interface PageProps {
     visible?: number;
     data: { [k: string]: any } | null;
@@ -34,5 +31,5 @@ export default interface PageProps {
 export interface PageItem {
     data?: { [key: string]: any };
     uri: string;
-    isHistory?:boolean;
+    status?: PageStatus;
 }

@@ -101,10 +101,7 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
   }, []);
 
   return (
-
-    // <ConvexProvider client={client}>
     <SSAProvider app="solitaire">
-      {/* <SSASignIn app="solitaire"> */}
       {isVisible && gameId && <SpriteProvider>
         <CombatProvider gameId={gameId}>
           <CombatSkillProvider>
@@ -113,9 +110,7 @@ const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
           </CombatSkillProvider>
         </CombatProvider>
       </SpriteProvider>}
-      {/* </SSASignIn> */}
     </SSAProvider>
-    // </ConvexProvider>
   )
 };
 export default BattlePlayer;

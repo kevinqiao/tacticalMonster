@@ -3,13 +3,16 @@ import { PageItem } from "model/PageProps";
 import React, { useCallback } from "react";
 import { usePageManager } from "service/PageManager";
 
-const PlayMap: React.FC<PageProp> = ({ visible, data }) => {
+const PlayMap: React.FC<PageProp> = ({ visible, active }) => {
 
   const { openPage } = usePageManager();
   const openPlay = useCallback(() => {
+    // if (visible > 0) {
+    console.log("openPlay", visible, active)
     const page: PageItem = { uri: "/play/lobby/c2" };
     openPage(page);
-  }, [openPage])
+    // }
+  }, [openPage, visible])
   return (<div
     style={{
       display: "flex",
@@ -21,7 +24,8 @@ const PlayMap: React.FC<PageProp> = ({ visible, data }) => {
     }}
   >
     <div style={{ cursor: "pointer", color: "white", height: 30, width: 100 }} onClick={openPlay}>
-      PlayMap
+      {/* {visible > 0 ? "PlayMap" : "Loading..."} */}
+      Play
     </div>
 
   </div>

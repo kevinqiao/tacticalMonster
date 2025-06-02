@@ -170,9 +170,6 @@ class GameManager {
         await this.dbCtx.db.insert("game_event", flipEvent);
         const action = { type: "flip", result: { move: [], open: [card] } }
         await this.actComplete(action);
-        // this.game.currentTurn.actions.acted.push({ type: "flip", result: { move: [], open: [cards[0]] } })
-        // const eventId = await this.dbCtx.db.insert("game_event", { gameId: this.game.gameId, name: "actCompleted", actor: "####" });
-        // await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
         await this.askAct(-1);
         return { ok: true, result: { open: [card] } }
     }
@@ -213,9 +210,6 @@ class GameManager {
         await this.dbCtx.db.insert("game_event", event);
         const action = { type: "move", result: data }
         await this.actComplete(action);
-        // this.game.currentTurn.actions.acted.push(action);
-        // const eventId = await this.dbCtx.db.insert("game_event", { gameId: this.game.gameId, name: "actCompleted", actor: "####" });
-        // await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, currentTurn: this.game.currentTurn, lastUpdate: eventId });
         const skill = await this.skillManager?.triggerSkill();
         if (!skill) {
             await this.askAct(-1);

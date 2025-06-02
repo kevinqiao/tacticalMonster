@@ -79,17 +79,20 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
     }, [pageContainers, containersLoaded]);
 
     const processOpen = useCallback(({ container }: { container: PageContainer }) => {
+
         if (container.open) {
             const tl = gsap.timeline({
                 onComplete: () => {
                     createLifeCycleEvent({ name: "openCompleted", container: container })
                 }
             })
-            OpenEffects[container.open]({ container: container, containers: pageContainers, duration: 1, tl })
+            OpenEffects[container.open]({ container: container, containers: pageContainers, duration: 0.5, tl })
             tl.play();
 
+        } else {
+            createLifeCycleEvent({ name: "openCompleted", container: container })
+
         }
-        createLifeCycleEvent({ name: "openCompleted", container: container })
     }, [pageContainers, containersLoaded]);
 
     useEffect(() => {
@@ -101,7 +104,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
             if (lifeCycleEvent.name === "initCompleted") {
                 processSwitch({ curcontainer: curContainer, precontainer });
             } else if (lifeCycleEvent.name === "switchCompleted") {
-                console.log("switchCompleted", curContainer)
+
                 processOpen({ container: curContainer });
             }
         }

@@ -1,7 +1,7 @@
 import { PageProp } from "component/RenderApp";
 import { useConvex } from "convex/react";
 import React from "react";
-import { api } from "../../../../convex/ludo/convex/_generated/api";
+import { api } from "../../../convex/ludo/convex/_generated/api";
 import JoinSolitaire from "./JoinSolitaire";
 const Child2Main: React.FC = (props) => {
   // const { credentials } = useSSAManager();
@@ -35,7 +35,7 @@ const Child2: React.FC<PageProp> = ({ visible, data }) => {
       alignItems: "center",
       width: "100%",
       height: "100%",
-      backgroundColor: "blue",
+      backgroundColor: "red",
     }}
   >
 

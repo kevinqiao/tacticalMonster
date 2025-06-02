@@ -44,7 +44,7 @@ export const ExitEffects: ExitEffects = {
         const timeline = gsap.timeline();
 
         timeline.to(container.ele,
-            { autoAlpha: 0, duration: 0.7 }
+            { autoAlpha: 0, duration: 0.5 }
         );
         return timeline;
     },

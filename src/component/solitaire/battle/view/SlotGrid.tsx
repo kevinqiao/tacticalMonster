@@ -17,8 +17,6 @@ const SlotContainer: React.FC<{ slot: Slot, zone: Zone }> = ({ slot, zone }) => 
         zIndex: -10000,
       }}>
       </div >
-
-
     </>
   );
 };
@@ -29,7 +27,6 @@ const ZoneContainer: React.FC<{ zone: Zone }> = ({ zone }) => {
       {zone?.slots?.map((slot: Slot) => (
         <SlotContainer key={slot.index} slot={slot} zone={zone} />
       ))}
-
     </>
   );
 };
