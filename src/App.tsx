@@ -4,6 +4,7 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React, { useState } from "react";
 import usePlatform, { PlatformProvider } from "service/PlatformManager";
 import "./App.css";
+import GameCenterProvider from "./service/GameCenterManager";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
 const master_client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
@@ -56,6 +57,7 @@ const App: React.FC = () => {
     [UserProvider],
     [PageProvider],
     [PlatformProvider],
+    [GameCenterProvider],
     // [TerminalProvider],
   ])
 

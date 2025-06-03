@@ -1,16 +1,19 @@
 import { PageProp } from "component/RenderApp";
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
-import LobbyControl from "./LobbyControl";
-import "./styles.css";
-
+import { useGameCenterManager } from "service/GameCenterManager";
+import { usePageManager } from "service/PageManager";
+import LobbyNavControl from "./control/LobbyNavControl";
+import "./style.css";
 const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
+  const { openPage } = usePageManager();
+  const { activeGame } = useGameCenterManager();
   const headRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const open = useCallback(() => {
     const tl = gsap.timeline();
-    tl.to(headRef.current, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }).to(bottomRef.current, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }, "<")
+    tl.fromTo(headRef.current, { autoAlpha: 0, y: "-100%" }, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }).fromTo(bottomRef.current, { autoAlpha: 0, y: "100%" }, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }, "<")
     tl.play();
   }, [])
   const close = useCallback(() => {
@@ -23,7 +26,7 @@ const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
     if (visible > 0) {
       setTimeout(() => {
         open();
-      }, 500)
+      }, 600)
     } else {
       setTimeout(() => {
         close();
@@ -35,10 +38,13 @@ const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
   return (
     <>
       {/* {children} */}
-      <div ref={headRef} style={{ width: "100%", height: 50, backgroundColor: "green", position: "fixed", top: 0, left: 0, zIndex: 3000, opacity: 0 }}>
+      <div ref={headRef} className="lobby-head-container">
+        <div className="head-left"></div>
+        <div className="head-center">{activeGame?.ssa}</div>
+        <div className="head-right"><div className="nav-menu" onClick={() => openPage({ uri: "/play/lobby/topNav" })}></div></div>
       </div>
-      <div ref={bottomRef} style={{ position: "fixed", width: "100%", height: 60, bottom: 0, left: 0, zIndex: 3000, opacity: 0 }}>
-        <LobbyControl />
+      <div ref={bottomRef} className="lobby-bottom-container">
+        <LobbyNavControl />
       </div>
     </>
   );

@@ -43,7 +43,7 @@ interface IUserContext {
   ssaAuthComplete: (ssa: string, player: any) => void;
   // updateSession: (app: string, session: { token: string; status: number }) => void;
   authComplete: (user: any, persist: number) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const UserContext = createContext<IUserContext>({
@@ -53,7 +53,7 @@ const UserContext = createContext<IUserContext>({
   // updateSession: () => null,
   // updateLoaded: () => null,
   ssaAuthComplete: () => null,
-  logout: () => null,
+  logout: async () => { },
   authComplete: (user: any, persist: number) => null,
 });
 

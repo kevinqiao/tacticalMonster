@@ -183,7 +183,15 @@
   background-color: rgba(250, 19, 85);
   color: white
 }
-
+.nav-control {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+}
 .action-control {
   position: absolute;
   bottom: 0px;

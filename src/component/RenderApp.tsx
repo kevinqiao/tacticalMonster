@@ -4,7 +4,7 @@ import { CSSPlugin } from "gsap/CSSPlugin";
 import React, { FunctionComponent, lazy, Suspense, useCallback, useMemo } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 import { findContainer } from "util/PageUtils";
-import { ExitEffects } from "../animate/effect/ExitEffects";
+import { CloseEffects } from "../animate/effect/CloseEffects";
 import "./render.css";
 gsap.registerPlugin(CSSPlugin);
 
@@ -12,26 +12,26 @@ export interface PageProp {
   data: any;
   visible: number;
   active?: number;
+  close?: (uri?: string) => void;
   children?: React.ReactNode;
 }
 
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const { openPage, currentPage, changeEvent, pageContainers, onLoad } = usePageManager();
-  // const [visible, setVisible] = useState(0);
-  // const [active, setActive] = useState(0);
-
-  const close = useCallback(() => {
+  const close = useCallback((uri?: string) => {
     if (container.close) {
       const tl = gsap.timeline({
         onComplete: () => {
-          if (changeEvent?.prepage) {
+          if (uri) {
+            openPage({ uri })
+          } else if (changeEvent?.prepage) {
             openPage(changeEvent.prepage)
           } else if (parent) {
             openPage({ uri: parent?.uri })
           }
         }
       });
-      const exitEffect = ExitEffects[container.close]({
+      const exitEffect = CloseEffects[container.close]({
         container: container,
         tl: tl
       })
@@ -40,16 +40,15 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   }, [changeEvent])
 
 
-
   const SelectedComponent: FunctionComponent<PageProp> = useMemo(() => {
     return lazy(() => import(`${container.path}`));
   }, [container]);
 
-  const ControlComponent: FunctionComponent | null = useMemo(() => {
-    if (container.control)
-      return lazy(() => import(`${container.control}`));
-    else return null;
-  }, [container]);
+  // const ControlComponent: FunctionComponent | null = useMemo(() => {
+  //   if (container.control)
+  //     return lazy(() => import(`${container.control}`));
+  //   else return null;
+  // }, [container]);
 
   const load = useCallback(
     (ele: HTMLDivElement | null) => {
@@ -72,15 +71,15 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
   return (
     <>
-      <div ref={(ele) => container.mask = ele} style={{ position: "fixed", zIndex: 2000, top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "black", opacity: 0, visibility: "hidden" }} onClick={close}></div>
+      <div ref={(ele) => container.mask = ele} style={{ position: "fixed", zIndex: 2000, top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "black", opacity: 0, visibility: "hidden" }} onClick={() => close()}></div>
 
       <div key={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} id={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} ref={load} className={container.class}>
         <Suspense fallback={<div />}>
-          <SelectedComponent data={currentPage?.data} visible={visible} >
+          <SelectedComponent data={currentPage?.data} visible={visible} close={close} >
           </SelectedComponent>
         </Suspense>
         {container.close ? (
-          <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={close}></div>
+          <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={() => close()}></div>
         ) : null}
       </div>
       {container.children?.map((c: PageContainer) => <PageComponent key={c.uri} parent={container} container={c} />)}

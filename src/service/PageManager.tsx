@@ -125,7 +125,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     }
-
+    console.log("openPage", newPage, user, authRequired);
     if (authRequired) {
       setAuthReq({ page: newPage });
       return;
@@ -210,13 +210,13 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user, authReq]);
   useEffect(() => {
 
-    if (user && !user.uid && !authReq && currentPageRef.current) {
-      const container = findContainer(pageContainers, currentPageRef.current.uri);
+    if (user && !user.uid && !authReq && changeEvent?.page) {
+      const container = findContainer(pageContainers, changeEvent.page.uri);
       if (container?.auth === 1) {
-        setAuthReq({ page: currentPageRef.current });
+        setAuthReq({ page: changeEvent.page });
       }
     }
-  }, [user, authReq]);
+  }, [user, authReq, changeEvent]);
   useEffect(() => {
     if (!pageContainers || !user || currentPageRef.current) return;
     const page = parseLocation();

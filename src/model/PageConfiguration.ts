@@ -46,6 +46,10 @@ export const PlayPlace =
                 { name: "child2", class: "child_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 1, open: "slideIn" },
                 { name: "child3", class: "child_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
                 { name: "child4", class: "pop-right", init: "pop", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", exit: "popRightOut", close: "popRightOut" },
+                { name: "center", class: "pop-center", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: "popCenterOut" },
+                { name: "match", class: "pop-center", init: "center", path: "./lobby/match/Main", uri: "match", auth: 0, enter: "none", open: "popCenterIn", close: "popCenterOut" },
+                { name: "topNav", class: "pop-right", init: "pop-s1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", exit: "popRightOut", close: "popRightOut" },
+
             ]
         }
 

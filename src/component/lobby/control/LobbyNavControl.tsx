@@ -2,7 +2,7 @@ import React, { useCallback } from "react";
 import { usePageManager } from "service/PageManager";
 import { PLATFORM_TYPE, usePlatform } from "service/PlatformManager";
 import { useUserManager } from "service/UserManager";
-import "./styles.css";
+import "../styles.css";
 const LobbyControl: React.FC = () => {
   const { platform } = usePlatform();
   const { openPage, askAuth } = usePageManager();

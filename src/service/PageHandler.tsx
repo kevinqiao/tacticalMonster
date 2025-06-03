@@ -44,7 +44,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
                 }
                 parentContainer.children?.forEach((c) => {
                     const effect = c.enter ?? parentContainer.enter
-                    if (effect) {
+                    if (effect && EnterEffects[effect]) {
                         EnterEffects[effect]({ container: c, tl })
                     }
                 })
@@ -78,7 +78,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
         // createLifeCycleEvent({ name: "switchCompleted", container: curcontainer, precontainer: precontainer });
     }, [pageContainers, containersLoaded]);
 
-    const processOpen = useCallback(({ container }: { container: PageContainer }) => {
+    const processOpen = useCallback(({ container, precontainer }: { container: PageContainer, precontainer?: PageContainer | null }) => {
 
         if (container.open) {
             const tl = gsap.timeline({
@@ -87,6 +87,9 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
                 }
             })
             OpenEffects[container.open]({ container: container, containers: pageContainers, duration: 0.5, tl })
+            // if (precontainer?.close) {
+            //     CloseEffects[precontainer.close]({ container: precontainer, tl })
+            // }
             tl.play();
 
         } else {
@@ -105,7 +108,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
                 processSwitch({ curcontainer: curContainer, precontainer });
             } else if (lifeCycleEvent.name === "switchCompleted") {
 
-                processOpen({ container: curContainer });
+                processOpen({ container: curContainer, precontainer });
             }
         }
     }, [lifeCycleEvent, changeEvent, pageContainers]);
@@ -117,7 +120,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
             const noSwitch = precontainer && curcontainer && (precontainer.uri === curcontainer.uri || precontainer.uri === curcontainer.parentURI || precontainer.parentURI === curcontainer.uri || precontainer.parentURI === curcontainer.parentURI) ? true : false;
             if (!curcontainer) return;
             if (noSwitch) {
-                processOpen({ container: curcontainer })
+                processOpen({ container: curcontainer, precontainer })
             } else {
 
                 if (curcontainer.parentURI) {

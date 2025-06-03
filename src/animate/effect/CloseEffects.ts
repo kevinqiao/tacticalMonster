@@ -32,4 +32,15 @@ export const CloseEffects: CloseEffects = {
             timeline.to(container.mask, { autoAlpha: 0, duration: 0.7 }, "<");
         return timeline;
     },
+    popCenterOut: ({ container, tl }) => {
+        // console.log("container", container)
+        if (!container.ele) return null;
+        const timeline = tl ?? gsap.timeline();
+        timeline.to(container.ele,
+            { scale: 0.5, autoAlpha: 0, duration: 0.4, ease: "power2.inOut" }
+        )
+        if (container.mask)
+            timeline.to(container.mask, { autoAlpha: 0, duration: 0.4 }, "<");
+        return timeline;
+    },
 };

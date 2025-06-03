@@ -20,6 +20,22 @@ export const OpenEffects: OpenEffects = {
         );
         return timeline;
     },
+    popCenterIn: ({ container, duration, tl }) => {
+        // console.log("container", container)
+        if (!container.ele) return null;
+
+        const timeline = tl ?? gsap.timeline();
+        gsap.set(container.ele, { autoAlpha: 1 })
+        timeline.fromTo(container.ele,
+            { scale: 0.5, autoAlpha: 0 },
+            { scale: 1, autoAlpha: 1, duration: 0.5, ease: "power2.inOut" }
+        );
+
+        if (container.mask) {
+            timeline.to(container.mask, { autoAlpha: 0.2, duration: 0.5 }, "<")
+        }
+        return timeline;
+    },
     popRightIn: ({ container, duration, tl }) => {
         // console.log("container", container)
         if (!container.ele) return null;
@@ -27,11 +43,11 @@ export const OpenEffects: OpenEffects = {
         const timeline = tl ?? gsap.timeline();
         gsap.set(container.ele, { autoAlpha: 1 })
         timeline.to(container.ele,
-            { x: "-100%", duration: 0.7, ease: "power2.inOut" }
+            { x: "-100%", duration: 0.5, ease: "power2.inOut" }
         );
 
         if (container.mask) {
-            timeline.to(container.mask, { autoAlpha: 0.2, duration: 0.7 }, "<")
+            timeline.to(container.mask, { autoAlpha: 0.2, duration: 0.5 }, "<")
         }
         return timeline;
     },
