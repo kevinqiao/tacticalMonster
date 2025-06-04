@@ -5,7 +5,7 @@ import { useGameCenterManager } from "service/GameCenterManager";
 import { usePageManager } from "service/PageManager";
 import LobbyNavControl from "./control/LobbyNavControl";
 import "./style.css";
-const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
+const LobbyHome: React.FC<PageProp> = ({ visible }) => {
   const { openPage } = usePageManager();
   const { activeGame } = useGameCenterManager();
   const headRef = useRef<HTMLDivElement>(null);
@@ -39,9 +39,12 @@ const LobbyHome: React.FC<PageProp> = ({ visible, active }) => {
     <>
       {/* {children} */}
       <div ref={headRef} className="lobby-head-container">
-        <div className="head-left"></div>
-        <div className="head-center">{activeGame?.ssa}</div>
-        <div className="head-right"><div className="nav-menu" onClick={() => openPage({ uri: "/play/lobby/topNav" })}></div></div>
+        <div className="head-mask"></div>
+        <div className="head-content">
+          <div className="head-left"></div>
+          <div className="head-center">{activeGame?.ssa}</div>
+          <div className="head-right"><div className="nav-menu" onClick={() => openPage({ uri: "/play/lobby/topNav" })}></div></div>
+        </div>
       </div>
       <div ref={bottomRef} className="lobby-bottom-container">
         <LobbyNavControl />

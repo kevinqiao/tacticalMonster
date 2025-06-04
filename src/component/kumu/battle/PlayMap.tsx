@@ -1,14 +1,13 @@
 import { PageProp } from "component/RenderApp";
-import { PageItem } from "model/PageProps";
 import React, { useCallback } from "react";
-import { usePageManager } from "service/PageManager";
+import { PageItem, usePageManager } from "service/PageManager";
 
-const PlayMap: React.FC<PageProp> = ({ visible, active }) => {
+const PlayMap: React.FC<PageProp> = ({ visible }) => {
 
   const { openPage } = usePageManager();
   const openPlay = useCallback(() => {
     // if (visible > 0) {
-    console.log("openPlay", visible, active)
+    console.log("openPlay", visible)
     const page: PageItem = { uri: "/play/lobby/c2" };
     openPage(page);
     // }

@@ -32,7 +32,7 @@ export const OpenEffects: OpenEffects = {
         );
 
         if (container.mask) {
-            timeline.to(container.mask, { autoAlpha: 0.2, duration: 0.5 }, "<")
+            timeline.to(container.mask, { autoAlpha: 0.7, duration: 0.5 }, "<")
         }
         return timeline;
     },

@@ -7,6 +7,7 @@ import { action, internalAction } from "../_generated/server";
 const REFRESH_TOKEN_EXPIRE = 600 * 1000;
 const ACCESS_TOKEN_SECRET = "12222222";
 const TELEGRAM_BOT_TOKEN_SECRET = "5369641667:AAGdoOdBJaZVi2QsAHOunEX0DuEhezjFYLQ";
+const paymentApi = "https://cool-salamander-393.convex.site/tournament/pay";
 function generateRandomString(length: number): string {
   return crypto
     .randomBytes(Math.ceil(length / 2))
@@ -26,9 +27,9 @@ export const signin = internalAction({
       if (payload && typeof payload === 'object' && 'uid' in payload) {
         const uid = payload.uid;
         // const token = generateRandomString(36); // 生成36位随机字符串
-        const player: any = await ctx.runQuery(internal.dao.gamePlayerDao.find, { uid });
+        const player: any = await ctx.runQuery(internal.dao.playerDao.find, { uid });
         if (!player) {
-          await ctx.runMutation(internal.dao.gamePlayerDao.create, {
+          await ctx.runMutation(internal.dao.playerDao.create, {
             uid,
             token: access_token,
             expire: expire + Date.now(),
@@ -40,7 +41,7 @@ export const signin = internalAction({
             }
           });
         } else {
-          await ctx.runMutation(internal.dao.gamePlayerDao.update, {
+          await ctx.runMutation(internal.dao.playerDao.update, {
             uid: payload.uid,
             data: {
               token: access_token,
@@ -56,28 +57,33 @@ export const signin = internalAction({
     }
   }
 });
-export const getSignedPlayer = action({
-  args: { uid: v.string(), token: v.string() },
-  handler: async (ctx, { uid }) => {
-    const player = { uid, level: 2, elo: 100, game: "solitaire" }
-    const signedPlayer = jwt.sign(player, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
-    return signedPlayer;
+export const joinMatch = action({
+  args: { signed: v.string(), token: v.string() },
+  handler: async (ctx, { signed, token }) => {
 
-  }
-});
-export const signout = action({
-  args: { uid: v.string(), token: v.string() },
-  handler: async (ctx, { uid, token }) => {
-    const player: any = await ctx.runQuery(internal.dao.gamePlayerDao.find, { uid });
-    if (player && player.token === token) {
-      await ctx.runMutation(internal.dao.gamePlayerDao.update, {
-        uid,
-        data: {
-          token: null,
-        }
+
+    const payload = jwt.verify(signed, ACCESS_TOKEN_SECRET);
+    console.log("payload", payload);
+    if (payload && typeof payload === 'object' && 'uid' in payload) {
+
+      const match = await ctx.runQuery(internal.dao.matchQueueDao.find, { uid: payload.uid });
+      if (match) {
+        console.log("match", "玩家已加入匹配队列");
+        return { ok: false, message: "玩家已加入匹配队列" };
+      }
+      const response = await fetch(paymentApi, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uid: payload.uid, token: token, amount: 100 })
       });
-      return { ok: true };
+      const data = await response.json();
+      if (data.ok) {
+        await ctx.runMutation(internal.dao.matchQueueDao.create, { uid: payload.uid, level: payload.level, game: payload.game, elo: payload.elo });
+        return { ok: true, message: "玩家已加入匹配队列" };
+      }
     }
-    return null;
+    return { ok: false, message: "玩家未登录" };
   }
 });

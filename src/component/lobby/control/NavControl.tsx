@@ -1,23 +1,23 @@
 import { PageProp } from "component/RenderApp";
 import React, { useCallback } from "react";
-import { usePageManager } from "service/PageManager";
+import { PageItem, usePageManager } from "service/PageManager";
 import { PLATFORM_TYPE, usePlatform } from "service/PlatformManager";
 import { useUserManager } from "service/UserManager";
 import "./style.css";
 const NavControl: React.FC<PageProp> = ({ close }) => {
   const { platform } = usePlatform();
-  const { openPage, askAuth } = usePageManager();
+  const { openPage, askAuth, changeEvent } = usePageManager();
   const { user, logout } = useUserManager();
 
   const signIn = useCallback(() => {
     askAuth({ params: { action: "signin" } });
   }, [askAuth]);
   const signOut = useCallback(async () => {
-    await logout();
     close?.()
+    await logout();
   }, [logout, close]);
-  const open = useCallback(({ uri }: { uri: string }) => {
-    close?.(uri);
+  const open = useCallback((page: PageItem) => {
+    close?.(page);
     // openPage({ uri });
   }, [close, openPage]);
   return (
@@ -30,19 +30,19 @@ const NavControl: React.FC<PageProp> = ({ close }) => {
         <div className="nav-panel-item" onClick={() => open({ uri: "/play/lobby/c2" })}>
           Child2
         </div>
-        <div className="nav-panel-item" onClick={() => openPage({ uri: "/play/lobby/c3" })}>
+        <div className="nav-panel-item" onClick={() => open({ uri: "/play/lobby/c3" })}>
           Child3
         </div>
-        <div className="nav-panel-item" onClick={() => openPage({ uri: "/play/lobby/c4" })}>
+        <div className="nav-panel-item" onClick={() => open({ uri: "/play/lobby/c4" })}>
           Child4
         </div>
-        <div className="nav-panel-item" onClick={() => openPage({ uri: "/play/lobby/c3" })}>
+        <div className="nav-panel-item" onClick={() => open({ uri: "/play/lobby/c3" })}>
           Child5
         </div>
-        <div className="nav-panel-item" onClick={() => openPage({ uri: "/play/lobby/c4" })}>
-          Child6
+        <div className="nav-panel-item" onClick={() => open({ uri: "/play/lobby/center", onExit: changeEvent?.page?.onExit ?? changeEvent?.prepage })}>
+          Game Center
         </div>
-        <div className="nav-panel-item" onClick={() => openPage({ uri: "/play/map" })}>
+        <div className="nav-panel-item" onClick={() => open({ uri: "/play/map" })}>
           Map
         </div>
         {platform?.type === PLATFORM_TYPE.WEB ? <>

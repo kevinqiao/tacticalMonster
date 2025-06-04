@@ -13,11 +13,13 @@ export const SSA_URLS: { [k: string]: string } = {
   "tacticalMonster": "https://shocking-leopard-487.convex.cloud",
   "ludo": "https://famous-mule-757.convex.cloud",
   "solitaire": "https://limitless-platypus-124.convex.cloud",
+  "tournament": "https://beloved-mouse-699.convex.cloud",
 };
 export const SSA_AUTH_URLS: { [k: string]: string } = {
   "tacticalMonster": "https://shocking-leopard-487.convex.site",
   "ludo": "https://famous-mule-757.convex.site",
   "solitaire": "https://limitless-platypus-124.convex.site",
+  "tournament": "https://beloved-mouse-699.convex.site",
 };
 interface ISSAContext {
   player: any;
@@ -30,7 +32,7 @@ const SSAContext = createContext<ISSAContext>({
 
 
 export const SSAProvider = ({ app, children }: { app: string, children: React.ReactNode }) => {
-
+  console.log("SSAProvider", app);
   const client = React.useMemo(() => new ConvexReactClient(SSA_URLS[app]), [app]);
   const [player, setPlayer] = useState<Player | null>(null);
   const { user, sessions, ssaAuthComplete } = useUserManager();

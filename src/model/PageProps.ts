@@ -28,8 +28,3 @@ export default interface PageProps {
     children?: React.ReactNode
 }
 
-export interface PageItem {
-    data?: { [key: string]: any };
-    uri: string;
-    status?: PageStatus;
-}

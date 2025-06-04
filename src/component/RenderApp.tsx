@@ -1,31 +1,31 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
 // Register the plugin
-import React, { FunctionComponent, lazy, Suspense, useCallback, useMemo } from "react";
-import { PageContainer, usePageManager } from "service/PageManager";
+import React, { FunctionComponent, lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { PageContainer, PageItem, usePageManager } from "service/PageManager";
 import { findContainer } from "util/PageUtils";
 import { CloseEffects } from "../animate/effect/CloseEffects";
 import "./render.css";
 gsap.registerPlugin(CSSPlugin);
 
 export interface PageProp {
-  data: any;
+  data?: { [key: string]: any };
   visible: number;
-  active?: number;
-  close?: (uri?: string) => void;
+  close?: (page?: PageItem) => void;
   children?: React.ReactNode;
 }
 
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
+  const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
   const { openPage, currentPage, changeEvent, pageContainers, onLoad } = usePageManager();
-  const close = useCallback((uri?: string) => {
+  const close = useCallback((forwardPage?: PageItem) => {
     if (container.close) {
       const tl = gsap.timeline({
         onComplete: () => {
-          if (uri) {
-            openPage({ uri })
-          } else if (changeEvent?.prepage) {
-            openPage(changeEvent.prepage)
+          if (forwardPage) {
+            openPage(forwardPage)
+          } else if (container.onExit) {
+            openPage(container.onExit)
           } else if (parent) {
             openPage({ uri: parent?.uri })
           }
@@ -37,7 +37,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       })
       if (exitEffect) exitEffect.play();
     }
-  }, [changeEvent])
+  }, [])
 
 
   const SelectedComponent: FunctionComponent<PageProp> = useMemo(() => {
@@ -67,6 +67,11 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       return 1;
     return 0;
   }, [changeEvent, pageContainers])
+  useEffect(() => {
+    if (changeEvent?.page?.uri === container.uri) {
+      setData(changeEvent?.page?.data)
+    }
+  }, [changeEvent, container])
 
 
   return (
@@ -75,7 +80,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
       <div key={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} id={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} ref={load} className={container.class}>
         <Suspense fallback={<div />}>
-          <SelectedComponent data={currentPage?.data} visible={visible} close={close} >
+          <SelectedComponent data={data} visible={visible} close={close} >
           </SelectedComponent>
         </Suspense>
         {container.close ? (

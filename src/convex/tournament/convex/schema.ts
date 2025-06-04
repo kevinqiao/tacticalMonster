@@ -6,10 +6,7 @@ export default defineSchema({
         uid: v.string(),
         token: v.optional(v.string()),
         expire: v.optional(v.number()),
-        level: v.number(),
-        exp: v.number(),
-        name: v.optional(v.string()),
-        avatar: v.optional(v.string())
+        data: v.optional(v.any()),
     }).index("by_uid", ["uid"]),
     tournament: defineTable({
         tournamentId: v.string(),
@@ -62,10 +59,17 @@ export default defineSchema({
         })),
 
     }).index("by_gameId", ["gameId"]),
+    event: defineTable({
+        uid: v.string(),
+        name: v.string(),
+        data: v.optional(v.any())
+    }).index("by_uid", ["uid"]),
     match_queue: defineTable({
-        playerId: v.string(),
-        groupId: v.string(),
-        strength_score: v.number(),
-    }).index("by_groupId", ["groupId", "playerId"]),
+        uid: v.string(),
+        level: v.number(),
+        game: v.string(),
+        elo: v.number(),
+        status: v.optional(v.number()),
+    }).index("by_uid", ["uid"]).index("by_status", ["status"]),
 
 });

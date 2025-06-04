@@ -1,7 +1,7 @@
 import { AppsConfiguration } from "model/PageConfiguration";
-import { PageItem } from "model/PageProps";
+
 import { useMemo } from "react";
-import { PageContainer } from "service/PageManager";
+import { PageContainer, PageItem } from "service/PageManager";
 export const parseLocation = (): PageItem | undefined => {
     const page: { [k: string]: any } = {}
     page.uri = window.location.pathname;
@@ -21,7 +21,7 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
     const res: any = {};
     const navItem: any = {};
     const ps = location.pathname.split("/");
-    console.log(ps)
+    // console.log(ps)
     res["ctx"] = ps[1].length === 0 ? "/" : ps[1];
     let app: any = AppsConfiguration.find((a) => a.context === res['ctx']);
     if (!app) {
@@ -30,10 +30,10 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
     }
 
     if (app) {
-        console.log(app)
+        // console.log(app)
 
         const uri = res['ctx'] === "/" ? location.pathname : location.pathname.substring(res['ctx'].length);
-        console.log(uri)
+        // console.log(uri)
         const navCfg: any = app.navs.find((nav: any) => uri.includes(nav.uri));
         // if (!navCfg) {
         //     navCfg = app.navs[0]

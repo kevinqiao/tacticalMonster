@@ -116,9 +116,11 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         if (changeEvent && pageContainers && containersLoaded) {
             const curcontainer = changeEvent.page?.uri ? findContainer(pageContainers, changeEvent.page?.uri) : null;
+
             const precontainer = changeEvent.prepage?.uri ? findContainer(pageContainers, changeEvent.prepage?.uri) : undefined;
             const noSwitch = precontainer && curcontainer && (precontainer.uri === curcontainer.uri || precontainer.uri === curcontainer.parentURI || precontainer.parentURI === curcontainer.uri || precontainer.parentURI === curcontainer.parentURI) ? true : false;
             if (!curcontainer) return;
+            curcontainer.onExit = changeEvent.page?.onExit ?? changeEvent.prepage;
             if (noSwitch) {
                 processOpen({ container: curcontainer, precontainer })
             } else {

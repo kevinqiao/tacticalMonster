@@ -1,44 +1,23 @@
 import { httpRouter } from "convex/server";
 // import jwt from "jsonwebtoken";
-import { api, internal } from "./_generated/api";
-import { httpAction } from "./_generated/server";
+import { httpAction } from "./convex/_generated/server";
 
 
 const http = httpRouter();
 
 http.route({
-  path: "/event/sync",
+  path: "/match/join",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const authorizaton = request.headers.get("Authorization");
     const token = authorizaton?.split(" ")[1];
     if (!token) return new Response("Unauthorized", { status: 401 });
 
+    const player = await request.json();
 
-    const events = await request.json();
-    console.log("events", events);
-    const result = await ctx.runAction(api.service.EventReceiver.save, { token, events });
 
-    // console.log("result",result);
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: new Headers({
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json"
-      })
-    });
-  }),
-});
-http.route({
-  path: "/tournament/pay",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
+    //  const result = await ctx.runAction(api.service.EventReceiver.save, { token,events });
 
-    const payment = await request.json();
-
-    const user = await ctx.runQuery(internal.dao.userDao.find, { uid: payment.uid });
-    // if (!user) return new Response("Unauthorized", { status: 401 });
-    if (!user || user.token !== payment.token) return new Response("Unauthorized", { status: 401 });
     // console.log("result",result);
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
@@ -49,6 +28,31 @@ http.route({
     });
   }),
 });
+http.route({
+  path: "/match/settle",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const authorizaton = request.headers.get("Authorization");
+    const token = authorizaton?.split(" ")[1];
+    if (!token) return new Response("Unauthorized", { status: 401 });
+
+
+    const game = await request.json();
+    console.log("game", game);
+
+    //  const result = await ctx.runAction(api.service.EventReceiver.save, { token,events });
+
+    // console.log("result",result);
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json"
+      })
+    });
+  }),
+});
+
 
 
 
