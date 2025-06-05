@@ -12,7 +12,7 @@ const JoinMatch: React.FC<{ token?: string }> = ({ token }) => {
   const convex = useConvex();
   // console.log(credentials);
   // const events: any = useQuery(api.dao.eventDao.find, { uid: player?.uid, lastUpdate });
-  console.log("match events", userEvents);
+
   useEffect(() => {
     const join = async (signedToken: string) => {
       console.log("join", signedToken, player?.token);
@@ -26,6 +26,13 @@ const JoinMatch: React.FC<{ token?: string }> = ({ token }) => {
     if (token)
       join(token);
   }, [token]);
+  useEffect(() => {
+    if (userEvents) {
+      const matchEvent = userEvents.find((e) => e.name === "GameMatched" && e.data.game === "solitaire");
+      if (matchEvent?.data.gameId) {
+      }
+    }
+  }, [userEvents]);
 
   return (
     <div className="tournament-list-item">

@@ -2,7 +2,7 @@ import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageStatus } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { findContainer, parseLocation } from "util/PageUtils";
-import PageHandler from "./PageHandler";
+import PageHandler from "./handler/PageHandler";
 import { useUserManager } from "./UserManager";
 
 

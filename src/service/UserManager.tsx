@@ -3,6 +3,7 @@ import { useConvex, useQuery } from "convex/react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "../convex/sso/convex/_generated/api";
 import { SSA_AUTH_URLS } from "./SSAManager";
+import UserEventHandler from "./handler/UserEventHandler";
 
 export interface User {
   uid?: string;
@@ -30,7 +31,7 @@ export interface AppSession {
   time?: number;
   status: AppSessionStatus;
 }
-interface Event {
+export interface UserEvent {
   uid?: string;
   name: string;
   time: number;
@@ -39,23 +40,22 @@ interface Event {
 interface IUserContext {
   user: any;
   sessions: AppSession[];
-  userEvents: Event[] | null;
+  userEvents?: UserEvent[];
   // updateLoaded: () => void;
   ssaAuthComplete: (ssa: string, player: any) => void;
   // updateSession: (app: string, session: { token: string; status: number }) => void;
   authComplete: (user: any, persist: number) => void;
+  completeEventHandle: (lastTime: number) => void;
   logout: () => Promise<void>;
 }
 
 const UserContext = createContext<IUserContext>({
   user: null,
   sessions: [],
-  userEvents: null,
-  // updateSession: () => null,
-  // updateLoaded: () => null,
   ssaAuthComplete: () => null,
   logout: async () => { },
   authComplete: (user: any, persist: number) => null,
+  completeEventHandle: (lastTime: number) => null,
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
@@ -64,7 +64,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   // const [events, setEvents] = useState<Event[] | null>(null);
   const [lastUpdate, setLastUpdate] = useState<number | undefined>(user?.lastUpdate);
   const convex = useConvex();
-  const userEvents = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastUpdate });
+  const userEvents: UserEvent[] | undefined = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastUpdate });
 
 
   const authComplete = useCallback((u: any, persist: number) => {
@@ -99,6 +99,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [sessions]);
 
+  const completeEventHandle = useCallback((lastTime: number) => {
+    setLastUpdate(lastTime);
+  }, [userEvents]);
+
   useEffect(() => {
 
     const authByToken = async (uid: string, token: string) => {
@@ -124,27 +128,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
   }, []);
-  useEffect(() => {
-    console.log("userEvents", userEvents);
-    if (Array.isArray(userEvents) && userEvents.length > 0) {
-      const lastEvent = userEvents[userEvents.length - 1] as Event;
-      // for (const e of userEvents as Event[]) {
-      //   if (e.name === "GameCreated" && user?.uid) {
-      //     setUser((pre) => {
-      //       if (pre) {
-      //         pre.data = e.data;
-      //         return { ...pre }
-      //       }
-      //       return null
-      //     })
 
-      //   }
-      // }
-
-      setLastUpdate(lastEvent.time);
-
-    }
-  }, [userEvents]);
   useEffect(() => {
     if (user?.uid && user?.token) {
       setSessions(Object.keys(SSA_AUTH_URLS).map(key => {
@@ -157,8 +141,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user])
 
-  const value = { user, authComplete, logout, sessions, ssaAuthComplete, userEvents: userEvents as Event[] };
-  return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
+  const value = { user, authComplete, logout, sessions, ssaAuthComplete, userEvents: userEvents, completeEventHandle };
+  return (<UserContext.Provider value={value}><UserEventHandler>{children}</UserEventHandler></UserContext.Provider>);
 };
 export const useUserManager = () => {
   return useContext(UserContext);

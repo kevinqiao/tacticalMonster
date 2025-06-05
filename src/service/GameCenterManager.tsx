@@ -5,28 +5,33 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 const GAME_LIST = [
   {
     id: "1",
-    name: "Game 1",
+    name: "Solitaire",
     ssa: "solitaire",
+    api: "https://limitless-platypus-124.convex.cloud",
   },
   {
     id: "2",
     name: "Game 2",
     ssa: "ssa2",
+    api: "https://limitless-platypus-124.convex.cloud",
   },
   {
     id: "3",
     name: "Game 3",
     ssa: "ssa3",
+    api: "https://limitless-platypus-124.convex.cloud",
   },
   {
     id: "4",
     name: "Game 4",
     ssa: "ssa4",
+    api: "https://limitless-platypus-124.convex.cloud",
   },
   {
     id: "5",
     name: "Game 5",
     ssa: "ssa5",
+    api: "https://limitless-platypus-124.convex.cloud",
   },
 
 
@@ -36,6 +41,7 @@ export interface GameItem {
   id: string;
   name?: string;
   ssa: string;
+  api?: string;
 }
 
 interface IGameCenterContext {

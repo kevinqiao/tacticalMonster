@@ -2,10 +2,10 @@ import { gsap } from "gsap";
 import React, { useCallback, useEffect } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 import { findContainer } from "util/PageUtils";
-import { EnterEffects } from "../animate/effect/EnterEffects";
-import { ExitEffects } from "../animate/effect/ExitEffects";
-import { InitStyles } from "../animate/effect/InitStyle";
-import { OpenEffects } from "../animate/effect/OpenEffects";
+import { EnterEffects } from "../../animate/effect/EnterEffects";
+import { ExitEffects } from "../../animate/effect/ExitEffects";
+import { InitStyles } from "../../animate/effect/InitStyle";
+import { OpenEffects } from "../../animate/effect/OpenEffects";
 
 const PageHandler = ({ children }: { children: React.ReactNode }) => {
 
