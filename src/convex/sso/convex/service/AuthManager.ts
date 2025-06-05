@@ -58,6 +58,7 @@ export const authByToken = action({
         const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
 
         if (user?.token === token) {
+            await ctx.runMutation(internal.dao.userDao.update, { uid, data: { lastUpdate: Date.now() } });
             return Object.assign({}, user, { _id: undefined, _creationTime: undefined });
         }
         return null;

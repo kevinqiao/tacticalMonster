@@ -20,7 +20,8 @@ import type * as dao_matchQueueDao from "../dao/matchQueueDao.js";
 import type * as dao_playerDao from "../dao/playerDao.js";
 import type * as http from "../http.js";
 import type * as service_auth from "../service/auth.js";
-import type * as service_matchService from "../service/matchService.js";
+import type * as service_join from "../service/join.js";
+import type * as service_match from "../service/match.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -38,7 +39,8 @@ declare const fullApi: ApiFromModules<{
   "dao/playerDao": typeof dao_playerDao;
   http: typeof http;
   "service/auth": typeof service_auth;
-  "service/matchService": typeof service_matchService;
+  "service/join": typeof service_join;
+  "service/match": typeof service_match;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

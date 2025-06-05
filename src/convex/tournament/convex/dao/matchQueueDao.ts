@@ -20,10 +20,11 @@ export const create = internalMutation({
     },
 })
 
-export const findCharged = internalQuery({
+
+export const findAll = internalQuery({
     handler: async (ctx) => {
-        const players = await ctx.db.query("match_queue").withIndex("by_status", (q) => q.eq("status", Status.CHARGED)).collect();
-        return players
+        const players = await ctx.db.query("match_queue").collect();
+        return players;
     },
 })
 export const find = internalQuery({
@@ -36,17 +37,16 @@ export const find = internalQuery({
     },
 })
 
-export const confirmCharge = internalMutation({
+export const remove = internalMutation({
     args: {
         uid: v.string(),
     },
     handler: async (ctx, { uid }) => {
         const player = await ctx.db.query("match_queue").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
         if (player) {
-            await ctx.db.patch(player._id, { status: Status.CHARGED });
+            await ctx.db.delete(player._id);
             return uid;
         }
         return null;
     },
 })
-

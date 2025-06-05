@@ -42,6 +42,7 @@ export default defineSchema({
         cuid: v.string(),
         token: v.optional(v.string()),
         expire: v.optional(v.number()),
+        lastUpdate: v.optional(v.number()),
         platform: v.optional(v.number()),
         partner: v.number(),
         name: v.optional(v.string()),
@@ -50,11 +51,15 @@ export default defineSchema({
         data: v.optional(v.any()),
         game: v.optional(v.object({ name: v.string(), id: v.string(), status: v.number() })),
     }).index("by_partner", ['partner', "cuid"]).index("by_platform", ['platform', 'cuid']).index("by_uid", ['uid']).index("by_cuid", ['cuid']),
-
     events: defineTable({
         name: v.string(),
         uid: v.optional(v.string()),
         data: v.optional(v.any())
-    }).index("by_uid", ["uid"])
+    }).index("by_uid", ["uid"]),
+    asset: defineTable({
+        uid: v.optional(v.string()),
+        aid: v.number(),
+        balance: v.number(),
+    }).index("by_uid", ["uid", "aid"])
 
 });

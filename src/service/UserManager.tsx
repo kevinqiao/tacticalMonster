@@ -9,6 +9,7 @@ export interface User {
   partner?: number;
   token?: string;
   expire?: number;
+  lastUpdate?: number;
   name?: string;
   email?: string;
   phone?: string;
@@ -38,7 +39,7 @@ interface Event {
 interface IUserContext {
   user: any;
   sessions: AppSession[];
-  events: Event[] | null;
+  userEvents: Event[] | null;
   // updateLoaded: () => void;
   ssaAuthComplete: (ssa: string, player: any) => void;
   // updateSession: (app: string, session: { token: string; status: number }) => void;
@@ -49,7 +50,7 @@ interface IUserContext {
 const UserContext = createContext<IUserContext>({
   user: null,
   sessions: [],
-  events: null,
+  userEvents: null,
   // updateSession: () => null,
   // updateLoaded: () => null,
   ssaAuthComplete: () => null,
@@ -60,15 +61,16 @@ const UserContext = createContext<IUserContext>({
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [sessions, setSessions] = useState<AppSession[]>([]);
-  const [events, setEvents] = useState<Event[] | null>(null);
-  const [lastTime, setLastTime] = useState<number | undefined>(undefined);
+  // const [events, setEvents] = useState<Event[] | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<number | undefined>(user?.lastUpdate);
   const convex = useConvex();
-  const userEvents = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastTime });
+  const userEvents = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastUpdate });
 
 
   const authComplete = useCallback((u: any, persist: number) => {
-
+    console.log("authComplete", u);
     u.expire = u.expire + Date.now();
+    setLastUpdate(u.lastUpdate);
     setUser(u);
 
   }, []);
@@ -123,29 +125,24 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   }, []);
   useEffect(() => {
-
+    console.log("userEvents", userEvents);
     if (Array.isArray(userEvents) && userEvents.length > 0) {
+      const lastEvent = userEvents[userEvents.length - 1] as Event;
+      // for (const e of userEvents as Event[]) {
+      //   if (e.name === "GameCreated" && user?.uid) {
+      //     setUser((pre) => {
+      //       if (pre) {
+      //         pre.data = e.data;
+      //         return { ...pre }
+      //       }
+      //       return null
+      //     })
 
-      const event = userEvents[userEvents.length - 1] as Event;
+      //   }
+      // }
 
-      if (event.name !== "####") {
-        setLastTime(event.time);
-        const events: Event[] = userEvents;
-        for (const e of events) {
-          if (e.name === "GameCreated" && user?.uid) {
-            setUser((pre) => {
-              if (pre) {
-                pre.data = e.data;
-                return { ...pre }
-              }
-              return null
-            })
+      setLastUpdate(lastEvent.time);
 
-          }
-        }
-      } else {
-        setLastTime(event.time);
-      }
     }
   }, [userEvents]);
   useEffect(() => {
@@ -160,7 +157,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user])
 
-  const value = { user, authComplete, logout, sessions, ssaAuthComplete, events };
+  const value = { user, authComplete, logout, sessions, ssaAuthComplete, userEvents: userEvents as Event[] };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

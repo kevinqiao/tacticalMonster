@@ -17,7 +17,7 @@ http.route({
 
     const events = await request.json();
     console.log("events", events);
-    const result = await ctx.runAction(api.service.EventReceiver.save, { token, events });
+    const result = await ctx.runAction(api.service.EventReceiver.save, { events });
 
     // console.log("result",result);
     return new Response(JSON.stringify(result), {
@@ -30,15 +30,14 @@ http.route({
   }),
 });
 http.route({
-  path: "/tournament/pay",
+  path: "/asset/debit",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-
-    const payment = await request.json();
-
-    const user = await ctx.runQuery(internal.dao.userDao.find, { uid: payment.uid });
+    console.log("debit");
+    const debit = await request.json();
+    const user = await ctx.runQuery(internal.dao.userDao.find, { uid: debit.uid });
     // if (!user) return new Response("Unauthorized", { status: 401 });
-    if (!user || user.token !== payment.token) return new Response("Unauthorized", { status: 401 });
+    if (!user || user.token !== debit.token) return new Response("Unauthorized", { status: 401 });
     // console.log("result",result);
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
@@ -49,7 +48,25 @@ http.route({
     });
   }),
 });
+http.route({
+  path: "/asset/credit",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const credit = await request.json();
+    const user = await ctx.runQuery(internal.dao.userDao.find, { uid: credit.uid });
+    // if (!user) return new Response("Unauthorized", { status: 401 });
+    if (!user || user.token !== credit.token) return new Response("Unauthorized", { status: 401 });
 
+    // console.log("result",result);
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json"
+      })
+    });
+  }),
+});
 
 
 // Convex expects the router to be the default export of `convex/http.js`.
