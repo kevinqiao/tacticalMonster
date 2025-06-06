@@ -17,7 +17,7 @@ http.route({
 
     const events = await request.json();
     console.log("events", events);
-    const result = await ctx.runAction(api.service.EventReceiver.save, { events });
+    const result = await ctx.runAction(api.service.EventManager.save, { events });
 
     // console.log("result",result);
     return new Response(JSON.stringify(result), {

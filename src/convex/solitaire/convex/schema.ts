@@ -2,15 +2,13 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-    game_player: defineTable({
+    player: defineTable({
         uid: v.string(),
         token: v.optional(v.string()),
         expire: v.optional(v.number()),
         data: v.optional(v.any()),
-        // level: v.number(),
-        // exp: v.number(),
-        // name: v.optional(v.string()),
-        // avatar: v.optional(v.string())
+        level: v.optional(v.number()),
+        elo_score: v.optional(v.number()),
     }).index("by_uid", ["uid"]),
     game_event: defineTable({
         gameId: v.optional(v.string()),
@@ -19,6 +17,7 @@ export default defineSchema({
         data: v.optional(v.any())
     }).index("by_game", ["gameId"]).index("by_actor", ["actor"]),
     game: defineTable({
+        matchId: v.optional(v.string()),
         seats: v.optional(v.array(v.object({
             field: v.number(),
             uid: v.optional(v.string()),

@@ -15,9 +15,10 @@ import type {
 } from "convex/server";
 import type * as crons from "../crons.js";
 import type * as custom_session from "../custom/session.js";
-import type * as dao_eventDao from "../dao/eventDao.js";
+import type * as dao_matchDao from "../dao/matchDao.js";
 import type * as dao_matchQueueDao from "../dao/matchQueueDao.js";
 import type * as dao_playerDao from "../dao/playerDao.js";
+import type * as dao_rewardDao from "../dao/rewardDao.js";
 import type * as http from "../http.js";
 import type * as service_auth from "../service/auth.js";
 import type * as service_join from "../service/join.js";
@@ -34,9 +35,10 @@ import type * as service_match from "../service/match.js";
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   "custom/session": typeof custom_session;
-  "dao/eventDao": typeof dao_eventDao;
+  "dao/matchDao": typeof dao_matchDao;
   "dao/matchQueueDao": typeof dao_matchQueueDao;
   "dao/playerDao": typeof dao_playerDao;
+  "dao/rewardDao": typeof dao_rewardDao;
   http: typeof http;
   "service/auth": typeof service_auth;
   "service/join": typeof service_join;

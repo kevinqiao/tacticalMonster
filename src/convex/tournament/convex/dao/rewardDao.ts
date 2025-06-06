@@ -12,7 +12,7 @@ export const find = query({
 
         // console.log("lastTime",lastTime);
         const events = await ctx.db
-            .query("event").withIndex("by_uid", (q) => q.eq("uid", uid).gt("_creationTime", lastUpdate)).collect();
+            .query("rewards").withIndex("by_uid", (q) => q.eq("uid", uid).gt("_creationTime", lastUpdate)).collect();
         // console.log("events", events);
         return events?.map((event) => Object.assign({}, event, { id: event?._id, time: event._creationTime, _creationTime: undefined, _id: undefined }))
 
@@ -21,9 +21,9 @@ export const find = query({
 });
 
 export const create = internalMutation({
-    args: { uid: v.string(), name: v.string(), data: v.optional(v.any()) },
-    handler: async (ctx, { uid, name, data }) => {
-        await ctx.db.insert("event", { uid, name, data });
+    args: { uid: v.string(), tournamentId: v.string(), reward_type: v.number(), reward_value: v.any() },
+    handler: async (ctx, { uid, tournamentId, reward_type, reward_value }) => {
+        await ctx.db.insert("rewards", { uid, tournamentId, reward_type, reward_value });
         return
     },
 });

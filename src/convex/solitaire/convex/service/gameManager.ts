@@ -22,29 +22,24 @@ class GameManager {
     public game: GameModel | null;
     public skillManager: SkillManager;
 
-    constructor(ctx: any, game?: GameModel) {
+    constructor(ctx: any, gameId?: string) {
         this.dbCtx = ctx;
-        this.game = game ?? null;
+        this.game = null;
         this.skillManager = new SkillManager();
-    }
-    async initGame(gameId: string) {
-        try {
+        const load = async () => {
+            if (!gameId) return;
             const id = gameId as Id<"game">;
             const gameDoc = await this.dbCtx.db.get(id);
-
             if (gameDoc) {
-                if (gameDoc.actDue) {
-                    gameDoc.actDue = gameDoc.actDue - Date.now();
-                }
                 const game = { ...gameDoc, _id: undefined, _creationTime: undefined, gameId: id };
                 this.game = game;
                 this.skillManager.game = game;
             }
-        } catch (error) {
-            console.log("initGame error", error);
         }
+        load();
     }
-    async createGame() {
+
+    async createGame(uids: string[], matchId: string) {
         const players = await this.dbCtx.runQuery(internal.dao.gamePlayerDao.findAll);
         console.log("players", players);
         const seats: Seat[] = players.map((player: any, index: number) => ({ field: index + 2, uid: player.uid }));
@@ -68,7 +63,7 @@ class GameManager {
                 card.status = dealCard.status || 0;
             }
         })
-        const gameId = await this.dbCtx.db.insert("game", { seats, cards: newDeck, status: 0 });
+        const gameId = await this.dbCtx.db.insert("game", { matchId, seats, cards: newDeck, status: 0 });
         if (gameId) {
             this.game = { gameId, seats, cards: newDeck, status: 0 };
             await this.dbCtx.scheduler.runAfter(1000, internal.service.gameProxy.start, { gameId });

@@ -59,26 +59,33 @@ http.route({
   }),
 });
 http.route({
-  path: "/test",
-  method: "GET",
-  handler: httpAction(async (_, request) => {
-    return new Response(JSON.stringify({ ok: true }), {
+  path: "/game/create",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body: { uids: string[], matchId: string } = await request.json();
+    console.log("create game", body);
+    const gameId = await ctx.runMutation(internal.service.localProxy.createGame, { uids: body.uids, matchId: body.matchId });
+    const result = { ok: true, gameId };
+    console.log("create game result", result);
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: new Headers({
         "Access-Control-Allow-Origin": "*",
         "Content-Type": "application/json",
-
       }),
     });
   }),
 });
 http.route({
-  path: "/test",
+  path: "/game/check",
   method: "POST",
-  handler: httpAction(async (_, request) => {
+  handler: httpAction(async (ctx, request) => {
     const body = await request.json();
-    console.log("test", body);
-    return new Response(JSON.stringify({ ok: true }), {
+    const gameId = body.gameId;
+    const game = await ctx.runQuery(internal.dao.gameDao.get, { gameId });
+    const result = { ok: game?.status < 2 };
+
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: new Headers({
         "Access-Control-Allow-Origin": "*",
