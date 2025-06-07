@@ -81,9 +81,12 @@ http.route({
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const body = await request.json();
-    const gameId = body.gameId;
-    const game = await ctx.runQuery(internal.dao.gameDao.get, { gameId });
-    const result = { ok: game?.status < 2 };
+    console.log("check game", body);
+    const matchId = body.matchId;
+    const game = await ctx.runQuery(internal.dao.gameDao.findByMatchId, { matchId });
+    console.log("game", game);
+    const status = game?.status ?? 0;
+    const result = { ok: status < 2 };
 
     return new Response(JSON.stringify(result), {
       status: 200,

@@ -1,19 +1,43 @@
 import { gsap } from "gsap";
-import React, { useCallback, useEffect } from "react";
+import { PageStatus } from "model/PageProps";
+import React, { useCallback, useEffect, useState } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 import { findContainer } from "util/PageUtils";
 import { EnterEffects } from "../../animate/effect/EnterEffects";
 import { ExitEffects } from "../../animate/effect/ExitEffects";
 import { InitStyles } from "../../animate/effect/InitStyle";
 import { OpenEffects } from "../../animate/effect/OpenEffects";
-
+export interface LifeCycleEvent {
+    name: string;
+    container: PageContainer;
+    precontainer?: PageContainer | null;
+}
 const PageHandler = ({ children }: { children: React.ReactNode }) => {
+    const [lifeCycleEvent, setLifeCycleEvent] = useState<LifeCycleEvent | null>(null);
+    const { pageContainers, changeEvent, containersLoaded } = usePageManager();
 
-    const { pageContainers, lifeCycleEvent, createLifeCycleEvent, changeEvent, containersLoaded } = usePageManager();
-
-
+    const createLifeCycleEvent = useCallback((event: LifeCycleEvent) => {
+        const curPage = changeEvent?.page;
+        // console.log("createLifeCycleEvent", event, curPage);
+        if (curPage) {
+            switch (event.name) {
+                case "initCompleted":
+                    curPage.status = PageStatus.INIT;
+                    break;
+                case "switchCompleted":
+                    curPage.status = PageStatus.SWITCH;
+                    break;
+                case "openCompleted":
+                    curPage.status = PageStatus.OPEN;
+                    break;
+                default:
+                    break;
+            }
+            setLifeCycleEvent(event);
+        }
+    }, [changeEvent]);
     const processInit = useCallback((container: PageContainer, curcontainer: PageContainer) => {
-
+        // console.log("processInit", container, curcontainer);
         if (container.children) {
             container.children.forEach((c) => {
                 if (c.init) {
@@ -75,7 +99,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
             }
         }
         tl.play();
-        // createLifeCycleEvent({ name: "switchCompleted", container: curcontainer, precontainer: precontainer });
+        createLifeCycleEvent({ name: "switchCompleted", container: curcontainer, precontainer: precontainer ? precontainer : null });
     }, [pageContainers, containersLoaded]);
 
     const processOpen = useCallback(({ container, precontainer }: { container: PageContainer, precontainer?: PageContainer | null }) => {
@@ -99,6 +123,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
     }, [pageContainers, containersLoaded]);
 
     useEffect(() => {
+        // console.log("useEffect", changeEvent, lifeCycleEvent);
         if (changeEvent && lifeCycleEvent) {
 
             const curContainer = changeEvent.page?.uri ? findContainer(pageContainers, changeEvent.page?.uri) : null;
@@ -107,7 +132,6 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
             if (lifeCycleEvent.name === "initCompleted") {
                 processSwitch({ curcontainer: curContainer, precontainer });
             } else if (lifeCycleEvent.name === "switchCompleted") {
-
                 processOpen({ container: curContainer, precontainer });
             }
         }
@@ -118,13 +142,15 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
             const curcontainer = changeEvent.page?.uri ? findContainer(pageContainers, changeEvent.page?.uri) : null;
 
             const precontainer = changeEvent.prepage?.uri ? findContainer(pageContainers, changeEvent.prepage?.uri) : undefined;
+            console.log("container", curcontainer, precontainer, changeEvent);
             const noSwitch = precontainer && curcontainer && (precontainer.uri === curcontainer.uri || precontainer.uri === curcontainer.parentURI || precontainer.parentURI === curcontainer.uri || precontainer.parentURI === curcontainer.parentURI) ? true : false;
             if (!curcontainer) return;
+            console.log("curcontainer", curcontainer, changeEvent, noSwitch);
             curcontainer.onExit = changeEvent.page?.onExit ?? changeEvent.prepage;
             if (noSwitch) {
                 processOpen({ container: curcontainer, precontainer })
             } else {
-
+                // console.log("noSwitch", noSwitch);
                 if (curcontainer.parentURI) {
                     const parentContainer = findContainer(pageContainers, curcontainer.parentURI);
                     if (parentContainer) {

@@ -43,7 +43,7 @@ export const InitStyles: InitStyles = {
     },
     center: ({ container }) => {
         if (!container.ele) return;
-        gsap.set(container.ele, { autoAlpha: 0, width: "80%", height: "80%", zIndex: 3000 })
+        gsap.set(container.ele, { autoAlpha: 0, scale: 0.5, width: "50%", height: "50%", zIndex: 3000 })
         if (container.mask)
             gsap.set(container.mask, { autoAlpha: 0, zIndex: 2999 })
     }

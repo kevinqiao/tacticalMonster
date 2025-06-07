@@ -66,14 +66,14 @@ export const update = internalMutation({
         return false;
     },
 })
-export const updateLoaded = sessionMutation({
-    args: {},
-    handler: async (ctx, args) => {
+export const updateLastEvent = sessionMutation({
+    args: { lastUpdate: v.number() },
+    handler: async (ctx, { lastUpdate }) => {
         const u = ctx.user;
         if (u?.uid) {
             const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", u.uid)).unique();
-            if (user?.game) {
-                await ctx.db.patch(user._id, { game: { ...user.game, status: 1 } });
+            if (user) {
+                await ctx.db.patch(user._id, { lastUpdate });
                 return true;
             }
         }

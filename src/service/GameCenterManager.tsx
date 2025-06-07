@@ -7,31 +7,31 @@ const GAME_LIST = [
     id: "1",
     name: "Solitaire",
     ssa: "solitaire",
-    api: "https://limitless-platypus-124.convex.cloud",
+    api: "https://limitless-platypus-124.convex.site",
   },
   {
     id: "2",
     name: "Game 2",
     ssa: "ssa2",
-    api: "https://limitless-platypus-124.convex.cloud",
+    api: "https://limitless-platypus-124.convex.site",
   },
   {
     id: "3",
     name: "Game 3",
     ssa: "ssa3",
-    api: "https://limitless-platypus-124.convex.cloud",
+    api: "https://limitless-platypus-124.convex.site",
   },
   {
     id: "4",
     name: "Game 4",
     ssa: "ssa4",
-    api: "https://limitless-platypus-124.convex.cloud",
+    api: "https://limitless-platypus-124.convex.site",
   },
   {
     id: "5",
     name: "Game 5",
     ssa: "ssa5",
-    api: "https://limitless-platypus-124.convex.cloud",
+    api: "https://limitless-platypus-124.convex.site",
   },
 
 

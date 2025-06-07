@@ -2,6 +2,7 @@ import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React, { useState } from "react";
+import UserEventHandler from "service/handler/UserEventHandler";
 import usePlatform, { PlatformProvider } from "service/PlatformManager";
 import "./App.css";
 import GameCenterProvider from "./service/GameCenterManager";
@@ -66,6 +67,7 @@ const App: React.FC = () => {
     <Providers>
       <StyleApp />
       {/* <GameLauncher /> */}
+      <UserEventHandler />
     </Providers>
 
   );

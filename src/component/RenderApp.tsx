@@ -17,14 +17,16 @@ export interface PageProp {
 
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
-  const { openPage, currentPage, changeEvent, pageContainers, onLoad } = usePageManager();
+  const { openPage, pageUpdated, changeEvent, pageContainers, onLoad } = usePageManager();
   const close = useCallback((forwardPage?: PageItem) => {
+
     if (container.close) {
       const tl = gsap.timeline({
         onComplete: () => {
           if (forwardPage) {
             openPage(forwardPage)
           } else if (container.onExit) {
+            console.log("onExit", container.onExit);
             openPage(container.onExit)
           } else if (parent) {
             openPage({ uri: parent?.uri })
@@ -68,11 +70,16 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     return 0;
   }, [changeEvent, pageContainers])
   useEffect(() => {
+
     if (changeEvent?.page?.uri === container.uri) {
       setData(changeEvent?.page?.data)
     }
   }, [changeEvent, container])
-
+  useEffect(() => {
+    if (pageUpdated?.uri === container.uri) {
+      setData(pageUpdated.data)
+    }
+  }, [pageUpdated, container])
 
   return (
     <>

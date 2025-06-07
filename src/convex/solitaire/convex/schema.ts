@@ -48,5 +48,5 @@ export default defineSchema({
             row: v.optional(v.number()),
             status: v.optional(v.number())
         }))
-    }).index("by_due", ["status", "actDue"]),
+    }).index("by_due", ["status", "actDue"]).index("by_matchId", ["matchId"]),
 });

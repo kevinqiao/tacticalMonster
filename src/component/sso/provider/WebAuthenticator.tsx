@@ -12,7 +12,7 @@ const WebAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
 
     const { user, authComplete } = useUserManager();
     const { platform } = usePlatform();
-    const { currentPage, authReq, cancelAuth } = usePageManager();
+    const { changeEvent, authReq, cancelAuth } = usePageManager();
     const containerRef = useRef<HTMLDivElement>(null);
     const maskRef = useRef<HTMLDivElement>(null);
     const convex = useConvex();

@@ -5,16 +5,11 @@ import { findContainer, parseLocation } from "util/PageUtils";
 import PageHandler from "./handler/PageHandler";
 import { useUserManager } from "./UserManager";
 
-
 export type App = {
   name: string;
   params?: { [k: string]: string };
 };
-export interface LifeCycleEvent {
-  name: string;
-  container: PageContainer;
-  precontainer?: PageContainer;
-}
+
 export interface PageEvent {
   prepage?: PageItem | undefined;
   page: PageItem;
@@ -34,9 +29,9 @@ export interface PageContainer extends PageConfig {
 }
 interface IPageContext {
   // pageQueue: PageItem[];
-  currentPage: PageItem | undefined | null;
+  // currentPage: PageItem | undefined | null;
+  pageUpdated: PageItem | null;
   changeEvent: PageEvent | null;
-  lifeCycleEvent: LifeCycleEvent | null;
   app: App | null;
   pageContainers: PageContainer[];
   containersLoaded: number;
@@ -45,15 +40,15 @@ interface IPageContext {
   cancelAuth: () => void;
   authReq: { params?: { [k: string]: string }; pageURI?: string } | null;
   openPage: (page: PageItem) => void;
-
+  updatePage: (page: PageItem) => void;
   onLoad: () => void;
-  createLifeCycleEvent: (event: LifeCycleEvent) => void;
+
 }
 
 const PageContext = createContext<IPageContext>({
   changeEvent: null,
-  lifeCycleEvent: null,
-  currentPage: null,
+  // currentPage: null,
+  pageUpdated: null,
   app: null,
   authReq: null,
   pageContainers: [],
@@ -61,14 +56,15 @@ const PageContext = createContext<IPageContext>({
   askAuth: () => null,
   cancelAuth: () => null,
   openPage: (p: PageItem) => null,
+  updatePage: (p: PageItem) => null,
   onLoad: () => null,
-  createLifeCycleEvent: () => null,
+
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
   const currentPageRef = useRef<PageItem | undefined>(undefined);
-  const [lifeCycleEvent, setLifeCycleEvent] = useState<LifeCycleEvent | null>(null);
+  const [pageUpdated, setPageUpdated] = useState<PageItem | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
@@ -122,9 +118,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const openPage = useCallback((page: PageItem) => {
-
+    console.log("openPage", page, changeEvent);
     if (!pageContainers || page.uri === currentPageRef.current?.uri) return;
-
+    console.log("openPage", page);
     let newPage = page;
     // console.log("openPage", JSON.stringify(pageContainers))
     const container = findContainer(pageContainers, page.uri);
@@ -152,7 +148,13 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     const prepage = currentPageRef.current;
     setChangeEvent({ prepage, page: newPage });
     currentPageRef.current = newPage;
+    // setCurrentPage((pre) => pre ? Object.assign(pre, newPage) : newPage);
   }, [pageContainers, user]);
+
+  const updatePage = useCallback((page: PageItem) => {
+    setPageUpdated(page);
+  }, []);
+
   const onLoad = useCallback(
     () => {
       const loadCompleted = pageContainers.every(container => {
@@ -173,25 +175,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     [pageContainers]
   );
 
-  const createLifeCycleEvent = useCallback((event: LifeCycleEvent) => {
-    const curPage = currentPageRef.current;
-    if (curPage) {
-      switch (event.name) {
-        case "initCompleted":
-          curPage.status = PageStatus.INIT;
-          break;
-        case "switchCompleted":
-          curPage.status = PageStatus.SWITCH;
-          break;
-        case "openCompleted":
-          curPage.status = PageStatus.OPEN;
-          break;
-        default:
-          break;
-      }
-      setLifeCycleEvent(event);
-    }
-  }, []);
+
 
 
   useEffect(() => {
@@ -201,6 +185,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       // if (curPage.status && curPage.status > 1) {
       const page = parseLocation();
       if (page) {
+
         const prepage = currentPageRef.current;
         setChangeEvent({ prepage, page });
         currentPageRef.current = page;
@@ -215,7 +200,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [currentPageRef.current]);
+  }, []);
   useEffect(() => {
     if (user?.uid) {
       if (authReq)
@@ -233,8 +218,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [user, authReq, changeEvent]);
+
   useEffect(() => {
-    if (!pageContainers || !user || currentPageRef.current) return;
+    if (!pageContainers || !user) return;
     const page = parseLocation();
     if (page) {
       openPage(page);
@@ -244,18 +230,17 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const value = {
+    pageUpdated,
     changeEvent,
     pageContainers,
     containersLoaded,
-    currentPage: currentPageRef.current,
     app,
     authReq,
     askAuth,
     cancelAuth,
     openPage,
+    updatePage,
     onLoad,
-    lifeCycleEvent,
-    createLifeCycleEvent,
   };
   return (<PageContext.Provider value={value}><PageHandler>{children}</PageHandler></PageContext.Provider>);
 };

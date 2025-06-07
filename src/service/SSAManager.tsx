@@ -32,7 +32,7 @@ const SSAContext = createContext<ISSAContext>({
 
 
 export const SSAProvider = ({ app, children }: { app: string, children: React.ReactNode }) => {
-  console.log("SSAProvider", app);
+
   const client = React.useMemo(() => new ConvexReactClient(SSA_URLS[app]), [app]);
   const [player, setPlayer] = useState<Player | null>(null);
   const { user, sessions, ssaAuthComplete } = useUserManager();

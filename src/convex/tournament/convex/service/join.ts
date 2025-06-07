@@ -16,26 +16,29 @@ export const joinMatch = action({
     const payload = jwt.verify(signed, ACCESS_TOKEN_SECRET);
     console.log("payload", payload);
     if (payload && typeof payload === 'object' && 'uid' in payload) {
-
+      console.log("queue", payload.uid);
       const match = await ctx.runQuery(internal.dao.matchQueueDao.find, { uid: payload.uid });
+      console.log("match", match);
       if (match) {
         console.log("match", "玩家已加入匹配队列");
         return { ok: false, message: "玩家已加入匹配队列" };
       }
-      const response = await fetch(debitApi, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ uid: payload.uid, token: token, amount: 100 })
-      });
-      const data = await response.json();
-      if (data.ok) {
-        const lastUpdate = Date.now();
-        const docId: Id<"match_queue"> = await ctx.runMutation(internal.dao.matchQueueDao.create, { uid: payload.uid, level: payload.level, game: payload.game, elo: payload.elo });
-        return { ok: true, message: "玩家成功加入匹配队列", matchId: docId.toString(), lastUpdate };
+      try {
+        const response = await fetch(debitApi, {
+          method: "POST",
+          body: JSON.stringify({ uid: payload.uid, token: token, amount: 100 })
+        });
+        const data = await response.json();
+        console.log("data", data);
+        if (data.ok) {
+          const lastUpdate = Date.now();
+          const docId: Id<"match_queue"> = await ctx.runMutation(internal.dao.matchQueueDao.create, { uid: payload.uid, level: payload.level, game: payload.game, elo: payload.elo });
+          return { ok: true, message: "玩家成功加入匹配队列", matchId: docId.toString(), lastUpdate };
+        }
+      } catch (error) {
+        console.error("error", error);
+        return { ok: false, message: "玩家未登录" };
       }
     }
-    return { ok: false, message: "玩家未登录" };
   }
 });

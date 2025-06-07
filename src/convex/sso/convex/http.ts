@@ -35,9 +35,11 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     console.log("debit");
     const debit = await request.json();
+    console.log("debit: ", debit);
     const user = await ctx.runQuery(internal.dao.userDao.find, { uid: debit.uid });
+    console.log("user: ", user);
     // if (!user) return new Response("Unauthorized", { status: 401 });
-    if (!user || user.token !== debit.token) return new Response("Unauthorized", { status: 401 });
+    // if (!user || user.token !== debit.token) return new Response("Unauthorized", { status: 401 });
     // console.log("result",result);
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

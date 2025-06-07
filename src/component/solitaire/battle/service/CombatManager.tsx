@@ -68,10 +68,9 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
         // console.log("gameObj", gameObj);
         setGame(gameObj);
         if (gameObj.actDue) {
-
           setCurrentAct({ due: gameObj.actDue ?? -1, uid: gameObj.currentTurn?.uid ?? "" });
         }
-        setLastUpdate(gameObj.lastUpdate ?? "####");
+        setLastUpdate(gameObj.lastUpdate);
       }
     }
     fetchGame(gameId);
