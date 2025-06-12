@@ -45,10 +45,11 @@ export const PlayPlace =
                 { name: "child1", class: "child_container", init: "slide", path: "./lobby/view/Child1", uri: "c1", auth: 1, open: "slideIn" },
                 { name: "child2", class: "child_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 1, open: "slideIn" },
                 { name: "child3", class: "child_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
-                { name: "child4", class: "pop-right", init: "pop", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", exit: "popRightOut", close: "popRightOut" },
-                { name: "center", class: "pop-center", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: "popCenterOut" },
-                { name: "match", class: "pop-center", init: "center", path: "./lobby/tournament/Match", uri: "match", auth: 0, enter: "none", open: "popCenterIn", close: "popCenterOut" },
-                { name: "topNav", class: "pop-right", init: "pop-s1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", exit: "popRightOut", close: "popRightOut" },
+                { name: "child4", class: "pop-right", init: "pop", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", exit: "popRightOut", close: { type: 2, effect: "popRightOut" } },
+                { name: "center", class: "pop-center", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
+                { name: "join", class: "pop-center", init: "center", path: "./lobby/tournament/Join", uri: "join", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, noHistory: 1 },
+                { name: "play", class: "pop-center", init: "center", path: "./lobby/tournament/Battle", uri: "battle", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, preventNavigation: true },
+                { name: "topNav", class: "pop-right", init: "pop-s1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", exit: "popRightOut", close: { type: 1, effect: "popRightOut" }, noHistory: 1 },
 
             ]
         }
@@ -101,7 +102,7 @@ export interface PageConfig {
     exit?: string;
     control?: string;
     open?: string;
-    close?: string;
+    close?: { type?: number, effect: string };
 
 }
 export const AppsConfiguration: AppConfig[] = [PlayPlace];

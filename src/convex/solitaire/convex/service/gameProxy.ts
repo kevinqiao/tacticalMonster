@@ -48,7 +48,9 @@ export const start = internalMutation({
     handler: async (ctx, { gameId }) => {
 
         try {
-            const gameService = new GameManager(ctx, gameId);
+            console.log("start game", gameId);
+            const gameService = new GameManager(ctx);
+            await gameService.initialize(gameId);
             await gameService.start();
 
         } catch (error) {
@@ -64,8 +66,8 @@ export const startRound = internalMutation({
     handler: async (ctx, { gameId }) => {
 
         try {
-            const gameService = new GameManager(ctx, gameId);
-            // await gameService.initGame(gameId);
+            const gameService = new GameManager(ctx);
+            await gameService.initialize(gameId);
             await gameService.startRound();
 
         } catch (error) {
@@ -82,8 +84,8 @@ export const flip = sessionMutation({
         const user = ctx.user;
         if (!user || !user.uid) return false;
         try {
-            const gameService = new GameManager(ctx, gameId);
-            // await gameService.initGame(gameId);
+            const gameService = new GameManager(ctx);
+            await gameService.initialize(gameId);
             return await gameService.flip(user.uid);
 
         } catch (error) {
@@ -99,8 +101,8 @@ export const move = sessionMutation({
         const user = ctx.user;
         if (!user || !user.uid) return false;
         try {
-            const gameService = new GameManager(ctx, gameId);
-            // await gameService.initGame(gameId);
+            const gameService = new GameManager(ctx);
+            await gameService.initialize(gameId);
             const res = await gameService.move(user.uid, cardId, to);
             // console.log("move res", res);
             return res;
@@ -118,8 +120,8 @@ export const completeSkill = sessionMutation({
         const user = ctx.user;
         if (!user || !user.uid) return false;
         try {
-            const gameService = new GameManager(ctx, gameId);
-            // await gameService.initGame(gameId);
+            const gameService = new GameManager(ctx);
+            await gameService.initialize(gameId);
             const res = await gameService.completeSkill(skillId, data);
             return res;
         } catch (error) {
@@ -142,8 +144,8 @@ export const timeout = mutation({
     handler: async (ctx, { gameId }) => {
 
         try {
-            const gameService = new GameManager(ctx, gameId);
-            // await gameService.initGame(gameId);
+            const gameService = new GameManager(ctx);
+            await gameService.initialize(gameId);
             await gameService.timeout();
         } catch (error) {
             console.log("timeout error", error);
@@ -156,8 +158,8 @@ export const gameOver = sessionMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
         if (!ctx.user) return false;
-        const gameService = new GameManager(ctx, gameId);
-        // await gameService.initGame(gameId);
+        const gameService = new GameManager(ctx);
+        await gameService.initialize(gameId);
         // await gameService.gameOver();
         return true;
     }

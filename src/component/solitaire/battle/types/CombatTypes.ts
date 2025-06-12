@@ -72,6 +72,7 @@ export type Zone = {
 }
 
 export interface GameModel {
+    matchId?: string;
     gameId: string;
     seats?: Seat[];
     currentRound?: CombatRound;

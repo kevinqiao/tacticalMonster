@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "../_generated/server";
+import { Id } from "../_generated/dataModel";
+import { internalMutation, internalQuery, query } from "../_generated/server";
 const enum Status {
     STARTED = 0,
     COMPLETED = 1,
@@ -16,34 +17,42 @@ export const create = internalMutation({
         return mid;
     },
 })
-
-
-export const findAll = internalQuery({
-    handler: async (ctx) => {
-        const players = await ctx.db.query("match_queue").collect();
-        return players;
+export const findMatch = query({
+    args: {
+        mid: v.string(),
     },
+    handler: async (ctx, { mid }) => {
+        const match = await ctx.db.get(mid as Id<"match">);
+        return { ...match, _id: undefined, _creationTime: undefined };
+    }
 })
 export const find = internalQuery({
     args: {
-        uid: v.string(),
+        mid: v.id("match"),
     },
-    handler: async (ctx, { uid }) => {
-        const player = await ctx.db.query("match_queue").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
-        return player;
+    handler: async (ctx, { mid }) => {
+        const match = await ctx.db.get(mid);
+        return match;
     },
 })
-
-export const remove = internalMutation({
+export const update = internalMutation({
     args: {
-        uid: v.string(),
+        mid: v.id("match"),
+        data: v.any()
     },
-    handler: async (ctx, { uid }) => {
-        const player = await ctx.db.query("match_queue").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
-        if (player) {
-            await ctx.db.delete(player._id);
-            return uid;
+    handler: async (ctx, { mid, data }) => {
+        const match = await ctx.db.get(mid);
+        if (match) {
+            return await ctx.db.patch(match._id, data);
         }
         return null;
+    },
+})
+export const remove = internalMutation({
+    args: {
+        mid: v.id("match"),
+    },
+    handler: async (ctx, { mid }) => {
+        await ctx.db.delete(mid);
     },
 })

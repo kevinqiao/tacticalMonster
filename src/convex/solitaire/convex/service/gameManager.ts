@@ -21,22 +21,30 @@ class GameManager {
     public dbCtx: any;
     public game: GameModel | null;
     public skillManager: SkillManager;
+    private initialized: boolean = false;
 
-    constructor(ctx: any, gameId?: string) {
+    constructor(ctx: any) {
         this.dbCtx = ctx;
         this.game = null;
         this.skillManager = new SkillManager();
-        const load = async () => {
-            if (!gameId) return;
-            const id = gameId as Id<"game">;
-            const gameDoc = await this.dbCtx.db.get(id);
-            if (gameDoc) {
-                const game = { ...gameDoc, _id: undefined, _creationTime: undefined, gameId: id };
-                this.game = game;
-                this.skillManager.game = game;
-            }
+    }
+
+    async initialize(gameId?: string): Promise<void> {
+        if (this.initialized) return;
+
+        if (!gameId) {
+            this.initialized = true;
+            return;
         }
-        load();
+
+        const id = gameId as Id<"game">;
+        const gameDoc = await this.dbCtx.db.get(id);
+        if (gameDoc) {
+            const game = { ...gameDoc, _id: undefined, _creationTime: undefined, gameId: id };
+            this.game = game;
+            this.skillManager.game = game;
+        }
+        this.initialized = true;
     }
 
     async createGame(uids: string[], matchId: string) {

@@ -22,10 +22,10 @@ export const CombatContext = createContext<ICombatContext>({
 });
 
 
-const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactNode }) => {
+const CombatProvider = ({ game, children }: { game: GameModel, children: ReactNode }) => {
   const boardContainerEleRef: React.MutableRefObject<{ [k: string]: { [k: number]: HTMLDivElement | null } }> = useRef<{ [k: string]: { [k: number]: HTMLDivElement | null } }>({});
   const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
-  const [game, setGame] = useState<GameModel | null>(null);
+  // const [game, setGame] = useState<GameModel | null>(null);
   // const decksRef: React.MutableRefObject<Card[]> = useRef<Card[]>([]);
   const [lastUpdate, setLastUpdate] = useState<string | undefined>(undefined);
   const [direction, setDirection] = useState<number>(0);
@@ -46,6 +46,7 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     if (seat?.field) {
       setDirection(seat.field === 2 ? 0 : 1);
     }
+    setLastUpdate(game.lastUpdate ?? "####");
   }, [user, game]);
   useEffect(() => {
     if (Array.isArray(events) && events.length > 0) {
@@ -58,25 +59,24 @@ const CombatProvider = ({ gameId, children }: { gameId: string, children: ReactN
     }
   }, [events]);
 
-  useEffect(() => {
-    const fetchGame = async (gameId: string) => {
-      const gameObj = await convex.query(api.dao.gameDao.find, {
-        gameId, uid: "1",
-        token: "test-token"
-      });
-      if (gameObj) {
-        // console.log("gameObj", gameObj);
-        setGame(gameObj);
-        if (gameObj.actDue) {
-          setCurrentAct({ due: gameObj.actDue ?? -1, uid: gameObj.currentTurn?.uid ?? "" });
-        }
-        setLastUpdate(gameObj.lastUpdate);
-      }
-    }
-    fetchGame(gameId);
-  }, [gameId, convex])
+  // useEffect(() => {
+  //   const fetchGame = async (gameId: string) => {
+  //     const gameObj = await convex.query(api.dao.gameDao.findGame, { gameId });
+  //     if (gameObj) {
+  //       console.log("gameObj", gameObj);
+  //       setGame(gameObj);
+  //       if (gameObj.actDue) {
+  //         setCurrentAct({ due: gameObj.actDue ?? -1, uid: gameObj.currentTurn?.uid ?? "" });
+  //       }
+  //       console.log("gameObj.lastUpdate", gameObj.lastUpdate);
+  //       setLastUpdate(gameObj.lastUpdate ?? "####");
+  //     }
+  //   }
+  //   fetchGame(gameId);
+  // }, [gameId, convex])
   const updateBoardDimension = (boardDimension: BoardDimension) => {
     setBoardDimension(boardDimension);
+
   }
   const askAct = useCallback((due: number) => {
     // console.log("askAct", game?.currentTurn);

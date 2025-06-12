@@ -3,6 +3,7 @@ import { PageStatus } from "model/PageProps";
 import React, { useCallback, useEffect, useState } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 import { findContainer } from "util/PageUtils";
+import { CloseEffects } from "../../animate/effect/CloseEffects";
 import { EnterEffects } from "../../animate/effect/EnterEffects";
 import { ExitEffects } from "../../animate/effect/ExitEffects";
 import { InitStyles } from "../../animate/effect/InitStyle";
@@ -111,9 +112,15 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
                 }
             })
             OpenEffects[container.open]({ container: container, containers: pageContainers, duration: 0.5, tl })
-            // if (precontainer?.close) {
-            //     CloseEffects[precontainer.close]({ container: precontainer, tl })
-            // }
+            if (container.preventNavigation && container.close) {
+                const exitURI = container.preventNavigation ? container.uri : container.parentURI;
+                if (exitURI) {
+                    container.onExit = { uri: exitURI }
+                }
+            }
+            if (precontainer?.close) {
+                CloseEffects[precontainer.close.effect]({ container: precontainer, tl })
+            }
             tl.play();
 
         } else {
@@ -142,11 +149,11 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
             const curcontainer = changeEvent.page?.uri ? findContainer(pageContainers, changeEvent.page?.uri) : null;
 
             const precontainer = changeEvent.prepage?.uri ? findContainer(pageContainers, changeEvent.prepage?.uri) : undefined;
-            console.log("container", curcontainer, precontainer, changeEvent);
+            // console.log("container", curcontainer, precontainer, changeEvent);
             const noSwitch = precontainer && curcontainer && (precontainer.uri === curcontainer.uri || precontainer.uri === curcontainer.parentURI || precontainer.parentURI === curcontainer.uri || precontainer.parentURI === curcontainer.parentURI) ? true : false;
             if (!curcontainer) return;
-            console.log("curcontainer", curcontainer, changeEvent, noSwitch);
-            curcontainer.onExit = changeEvent.page?.onExit ?? changeEvent.prepage;
+
+            // curcontainer.onExit = changeEvent.page?.onExit ?? changeEvent.prepage;
             if (noSwitch) {
                 processOpen({ container: curcontainer, precontainer })
             } else {

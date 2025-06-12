@@ -32,13 +32,13 @@ const eventCategoryMap: { [k: string]: EventCategory } = {
 }
 const CombatEventControl = (): React.ReactElement => {
     const { user } = useUserManager();
-    const { game, eventQueue, boardDimension, direction } = useCombatManager();
+    const { currentAct, game, eventQueue, boardDimension, direction } = useCombatManager();
     const gameHandler = useGameHandler();
     const skillHandler = useSkillHandler();
     const actHandler = useActHandler();
     const turnHandler = useTurnHandler();
 
-
+    console.log("currentAct", currentAct)
     const dispatchEvent = useCallback(() => {
 
         if (!game) return;

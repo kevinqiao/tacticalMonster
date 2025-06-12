@@ -13,6 +13,7 @@ export interface PageProp {
   visible: number;
   close?: (page?: PageItem) => void;
   children?: React.ReactNode;
+  openFull?: () => Promise<void>;
 }
 
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
@@ -26,18 +27,17 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           if (forwardPage) {
             openPage(forwardPage)
           } else if (container.onExit) {
-            console.log("onExit", container.onExit);
             openPage(container.onExit)
-          } else if (parent) {
-            openPage({ uri: parent?.uri })
+          } else {
+            history.back()
           }
         }
       });
-      const exitEffect = CloseEffects[container.close]({
+      const closeEffect = CloseEffects[container.close.effect]({
         container: container,
         tl: tl
       })
-      if (exitEffect) exitEffect.play();
+      if (closeEffect) closeEffect.play();
     }
   }, [])
 
@@ -69,6 +69,26 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       return 1;
     return 0;
   }, [changeEvent, pageContainers])
+  const openFull = useCallback(() => {
+    // console.log("openFull", container.canFull, container.ele)
+    return new Promise<void>((resolve) => {
+      if (container.ele) {
+        gsap.to(container.ele, {
+          width: "100%",
+          height: "100%",
+          scale: 1,
+          duration: 0.5,
+          onComplete: () => {
+            setTimeout(() => {
+              resolve();
+            }, 0)
+          }
+        })
+      } else {
+        resolve(); // 如果没有动画需要执行，立即resolve
+      }
+    });
+  }, [container])
   useEffect(() => {
 
     if (changeEvent?.page?.uri === container.uri) {
@@ -87,10 +107,10 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
       <div key={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} id={container.app + "-" + (parent ? parent.name + "-" : "") + container.name} ref={load} className={container.class}>
         <Suspense fallback={<div />}>
-          <SelectedComponent data={data} visible={visible} close={close} >
+          <SelectedComponent data={data} visible={visible} close={close} openFull={openFull} >
           </SelectedComponent>
         </Suspense>
-        {container.close ? (
+        {container.close && container.close.type === 1 ? (
           <div ref={(ele) => (container.closeEle = ele)} className="exit-menu" onClick={() => close()}></div>
         ) : null}
       </div>

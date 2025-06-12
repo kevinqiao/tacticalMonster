@@ -66,17 +66,57 @@ export const update = internalMutation({
         return false;
     },
 })
-export const updateLastEvent = sessionMutation({
-    args: { lastUpdate: v.number() },
-    handler: async (ctx, { lastUpdate }) => {
-        const u = ctx.user;
-        if (u?.uid) {
-            const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", u.uid)).unique();
-            if (user) {
-                await ctx.db.patch(user._id, { lastUpdate });
-                return true;
-            }
+export const updateMatch = sessionMutation({
+    args: { matchId: v.string() },
+    handler: async (ctx, { matchId }) => {
+        const uid = ctx.user?.uid;
+        if (!uid) return false;
+        const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        if (user) {
+            const data = user.data ? Object.assign({}, user.data, { matchId }) : { matchId };
+            await ctx.db.patch(user._id, { data });
+            return true;
         }
         return false;
     },
-})    
+})
+export const completeMatch = sessionMutation({
+    args: {},
+    handler: async (ctx, { }) => {
+        const uid = ctx.user?.uid;
+        if (!uid) return false;
+        const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        if (user) {
+            const data = user.data ? { ...user.data, matchId: undefined } : {};
+            await ctx.db.patch(user._id, { data });
+            return true;
+        }
+        return false;
+    },
+})
+export const cancelMatch = sessionMutation({
+    args: {},
+    handler: async (ctx, { }) => {
+        const uid = ctx.user?.uid;
+        if (!uid) return false;
+        const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        if (user) {
+            const data = user.data ? { ...user.data, matchId: undefined } : {};
+            await ctx.db.patch(user._id, { data });
+            return true;
+        }
+        return false;
+    },
+})
+// export const updateLastUpdate = internalMutation({
+//     args: { uid: v.string(), lastEvent: v.string() },
+//     handler: async (ctx, { uid, lastEvent }) => {
+//         const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+//         if (user) {
+//             const data = user.data ? Object.assign({}, user.data, { lastMatch }) : { lastMatch };
+//             await ctx.db.patch(user._id, { data });
+//             return true;
+//         }
+//         return false;
+//     },
+// })    

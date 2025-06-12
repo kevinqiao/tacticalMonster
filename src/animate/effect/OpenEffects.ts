@@ -23,16 +23,16 @@ export const OpenEffects: OpenEffects = {
     popCenterIn: ({ container, duration, tl }) => {
         // console.log("container", container)
         if (!container.ele) return null;
-
+        // gsap.set(container.ele, { width: "80%", height: "80%" })
         const timeline = tl ?? gsap.timeline();
         gsap.set(container.ele, { autoAlpha: 1 })
         timeline.fromTo(container.ele,
             { scale: 0.5, autoAlpha: 0 },
-            { scale: 1, autoAlpha: 1, duration: 0.5, ease: "power2.inOut" }
+            { scale: 0.8, autoAlpha: 1, duration: 0.5, ease: "power2.inOut" }
         );
 
         if (container.mask) {
-            timeline.to(container.mask, { autoAlpha: 0.7, duration: 0.5 }, "<")
+            timeline.to(container.mask, { autoAlpha: 0.4, duration: 0.5 }, "<")
         }
         return timeline;
     },

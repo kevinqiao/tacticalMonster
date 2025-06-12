@@ -6,25 +6,27 @@ import { httpAction } from "./_generated/server";
 
 const http = httpRouter();
 
-// http.route({
-//   path: "/signin",
-//   method: "POST",
-//   handler: httpAction(async (ctx, request) => {
-//     console.log("signin");
+http.route({
+  path: "/match/check",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await request.json();
+    console.log("check match", body);
+    const mid = body.matchId;
+    const match = await ctx.runQuery(internal.dao.matchDao.find, { mid });
+    console.log("match", match);
+    const status = match?.status ?? 0;
+    const result = { ok: status < 2 };
 
-//     const body = await request.json();
-//     const accessToken = body.access_token;
-//     const result = await ctx.runAction(api.service.auth.signin, { access_token: accessToken, expire: body.expire + Date.now() });
-//     console.log("result", result);
-//     return new Response(JSON.stringify(result), {
-//       status: 200,
-//       headers: new Headers({
-//         "Content-Type": "application/json",
-//         "Access-Control-Allow-Origin": "*",
-//       })
-//     });
-//   }),
-// });
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+      }),
+    });
+  }),
+});
 
 
 

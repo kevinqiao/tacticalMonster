@@ -26,6 +26,8 @@ export interface PageContainer extends PageConfig {
   children?: PageContainer[];
   mask?: HTMLDivElement | null;
   onExit?: PageItem;
+  preventNavigation?: boolean;
+  noHistory?: number;
 }
 interface IPageContext {
   // pageQueue: PageItem[];
@@ -63,6 +65,7 @@ const PageContext = createContext<IPageContext>({
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
+  const historyRef = useRef<PageItem[]>([]);
   const currentPageRef = useRef<PageItem | undefined>(undefined);
   const [pageUpdated, setPageUpdated] = useState<PageItem | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
@@ -142,7 +145,8 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       setAuthReq(null);
       const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-      history.pushState({ index: 0 }, "", uri);
+      if (!container?.noHistory)
+        history.pushState({ index: 0 }, "", uri);
     }
 
     const prepage = currentPageRef.current;
@@ -175,26 +179,27 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     [pageContainers]
   );
 
-
-
-
   useEffect(() => {
     const handlePopState = (event: any) => {
-      // const curPage = currentPageRef.current;
-      // if (!curPage) return;
-      // if (curPage.status && curPage.status > 1) {
+      const currentPage = currentPageRef.current;
+      console.log("handlePopState", currentPage);
+      if (currentPage) {
+        const container = findContainer(pageContainers, currentPage.uri);
+        if (container?.preventNavigation) {
+          console.log("preventNavigation", currentPage);
+          const uri = currentPage.data ? currentPage.uri + "?" + Object.entries(currentPage.data).map(([key, value]) => `${key}=${value}`).join("&") : currentPage.uri;
+          window.history.replaceState(null, "", uri);
+          return;
+        }
+      }
       const page = parseLocation();
+      console.log("handlePopState", page);
       if (page) {
-
         const prepage = currentPageRef.current;
         setChangeEvent({ prepage, page });
         currentPageRef.current = page;
       }
-      // } else {
-      //   window.history.replaceState(null, "", curPage.uri);
-      // }
     };
-    // window.history.replaceState(null, "", window.location.href);
 
     window.addEventListener("popstate", handlePopState);
     return () => {

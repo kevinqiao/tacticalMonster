@@ -14,9 +14,10 @@ const SpriteContext = createContext<SpriteContextType | undefined>(undefined);
 
 interface SpriteProviderProps {
     children: ReactNode;
+    onSpritesLoaded: () => void;
 }
 
-export const SpriteProvider: React.FC<SpriteProviderProps> = ({ children }) => {
+export const SpriteProvider: React.FC<SpriteProviderProps> = ({ children, onSpritesLoaded }) => {
     const [playCardsLoaded, setPlayCardsLoaded] = useState<boolean>(false);
     const [spriteLoaded, setSpriteLoaded] = useState<Set<string>>(new Set());
     const divRefs = useRef<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
@@ -41,6 +42,8 @@ export const SpriteProvider: React.FC<SpriteProviderProps> = ({ children }) => {
 
     const completeCardsLoaded = useCallback(() => {
         setPlayCardsLoaded(true);
+        if (onSpritesLoaded)
+            onSpritesLoaded();
     }, []);
 
     const allSpritesLoaded =

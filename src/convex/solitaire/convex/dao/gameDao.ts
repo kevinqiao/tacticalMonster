@@ -1,8 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
-import { internalMutation, internalQuery } from "../_generated/server";
-import { sessionQuery } from "../custom/session";
-const query = async (ctx: any, gameId: string) => {
+import { internalMutation, internalQuery, query } from "../_generated/server";
+const find = async (ctx: any, gameId: string) => {
     console.log("query", gameId);
     const id = gameId as Id<"game">;
     const game = await ctx.db.get(id);
@@ -16,14 +15,34 @@ const query = async (ctx: any, gameId: string) => {
                 card.rank = undefined;
             }
         })
-        return { ...game, gameId, _id: undefined, _creationTime: undefined, lastUpdate: game.lastUpdate ?? game._creationTime }
+        return { ...game, gameId, _id: undefined, _creationTime: undefined }
     }
     return null
 }
-export const find = sessionQuery({
+export const findGame = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        return await query(ctx, gameId);
+        return await find(ctx, gameId);
+    },
+});
+export const findMatchGame = query({
+    args: { matchId: v.string() },
+    handler: async (ctx, { matchId }) => {
+        const game = await ctx.db.query("game").withIndex("by_matchId", (q) => q.eq("matchId", matchId)).unique();
+        // console.log("game", game);
+        if (!game) {
+            return null;
+        }
+        if (game.actDue) {
+            game.actDue = game.actDue - Date.now();
+        }
+        game.cards.forEach((card: any) => {
+            if (!card.status) {
+                card.suit = undefined;
+                card.rank = undefined;
+            }
+        })
+        return { ...game, gameId: game._id as string, _id: undefined, _creationTime: undefined }
     },
 });
 export const findByMatchId = internalQuery({
@@ -51,7 +70,7 @@ export const get = internalQuery({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
         console.log("get", gameId);
-        return await query(ctx, gameId);
+        return await find(ctx, gameId);
     },
 });
 export const select = internalQuery({
@@ -95,7 +114,7 @@ export const unlock = internalMutation({
     handler: async (ctx, { id }) => {
         try {
             // const game = await ctx.db.get(id); 
-            const game = await query(ctx, id);
+            const game = await find(ctx, id);
             if (game && game.status) {
                 await ctx.db.patch(id, { status: 0 });
                 return game;

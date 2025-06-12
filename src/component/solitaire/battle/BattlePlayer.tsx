@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { GameModel } from "component/solitaire/battle/types/CombatTypes";
+import React, { useEffect, useMemo, useRef } from "react";
 import { SSAProvider } from "../../../service/SSAManager";
 import ActControl from "./control/ActControl";
 import CombatEventControl from "./control/CombatEventControl";
@@ -13,7 +14,7 @@ import SlotGrid from "./view/SlotGrid";
 import SpriteGrid from "./view/SpriteGrid";
 const CombatBoard: React.FC = () => {
   return <>
-    <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "blue" }}>
+    <div style={{ width: "100%", height: "100%" }}>
       <SlotGrid />
       <CardGrid />
       <ActControl />
@@ -26,7 +27,7 @@ const CombatBoard: React.FC = () => {
 export const BattlePlaza: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { game, boardDimension, updateBoardDimension } = useCombatManager();
+  const { boardDimension, updateBoardDimension } = useCombatManager();
 
 
   useEffect(() => {
@@ -52,19 +53,19 @@ export const BattlePlaza: React.FC = () => {
         updateBoardDimension(boardDimension);
       }
     };
-    if (game) {
-      updatePosition();
-      window.addEventListener("resize", updatePosition);
-    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+
     return () => window.removeEventListener("resize", updatePosition);
-  }, [game]);
+  }, []);
 
 
   const render = useMemo(() => {
     return <>
-      {game && <div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%", backgroundColor: "black" }}>
-        <div id="left-panel" style={{ position: "absolute", top: 0, left: 0, width: boardDimension?.left, height: "100%", backgroundColor: "black" }}></div>
-        <div id="right-panel" style={{ position: "absolute", top: 0, zIndex: 5000, right: 0, width: boardDimension?.left, height: "100%", backgroundColor: "black" }}></div>
+      {<div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%" }}>
+        <div id="left-panel" style={{ position: "absolute", top: 0, left: 0, width: boardDimension?.left, height: "100%" }}></div>
+        <div id="right-panel" style={{ position: "absolute", top: 0, right: 0, width: boardDimension?.left, height: "100%" }}></div>
         <div style={{
           position: "absolute", top: "50%", left: "50%", width: boardDimension?.width, height: boardDimension?.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
         }}>
@@ -73,37 +74,39 @@ export const BattlePlaza: React.FC = () => {
       </div >
       }
     </>
-  }, [game, boardDimension]);
+  }, [boardDimension]);
 
   return render;
 };
-const BattlePlayer: React.FC<{ gameId: string }> = ({ gameId }) => {
+const BattlePlayer: React.FC<{ game: GameModel; onRenderComplete: () => void }> = ({ game, onRenderComplete }) => {
   // const client = new ConvexReactClient(SSA_URLS["solitaire"]);
-  const [isVisible, setIsVisible] = useState(true);
+  // const [isVisible, setIsVisible] = useState(true);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // 页面隐藏时的逻辑处理
-        setIsVisible(false);
-      } else {
-        // 页面恢复可见时的逻辑处理
-        setIsVisible(true);
-      }
-    };
+  // useEffect(() => {
+  //   const handleVisibilityChange = () => {
+  //     if (document.hidden) {
+  //       // 页面隐藏时的逻辑处理
+  //       setIsVisible(false);
+  //     } else {
+  //       // 页面恢复可见时的逻辑处理
+  //       setIsVisible(true);
+  //     }
+  //   };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+  //   document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // 清理函数：组件卸载时移除事件监听
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
+  //   // 清理函数：组件卸载时移除事件监听
+  //   return () => {
+  //     document.removeEventListener('visibilitychange', handleVisibilityChange);
+  //   };
+  // }, []);
 
   return (
     <SSAProvider app="solitaire">
-      {isVisible && gameId && <SpriteProvider>
-        <CombatProvider gameId={gameId}>
+      {game && <SpriteProvider onSpritesLoaded={() => {
+        onRenderComplete?.();
+      }}>
+        <CombatProvider game={game}>
           <CombatSkillProvider>
             <BattlePlaza></BattlePlaza>
             <CombatEventControl />

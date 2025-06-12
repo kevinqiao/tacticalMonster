@@ -13,7 +13,7 @@ const TournamentItem: React.FC<{ item: number }> = (props) => {
         console.log("getSignedPlayer", player?.uid, player?.token);
         const signedPlayer = await convex.action(api.service.auth.getSignedPlayer, { uid: player?.uid ?? "", token: player?.token ?? "" });
         console.log(signedPlayer);
-        openPage({ uri: "/play/lobby/match", data: { token: signedPlayer } });
+        openPage({ uri: "/play/lobby/join", data: { token: signedPlayer } });
     }
     return (
         <div className="tournament-list-item">

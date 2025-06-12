@@ -22,7 +22,7 @@ export const match = internalAction({
                 body: JSON.stringify({ uids: [match.uid], matchId: mid })
             });
             console.log("create game result", res);
-            const event = { name: "GameMatched", data: { uids: [match.uid], game: "solitaire", matchId: mid } }
+            const event = { name: "GameMatched", data: { uids: [match.uid, "2-22222"], game: "solitaire", matchId: mid } }
             events.push(event);
             // await ctx.db.insert("event", event);
         }
