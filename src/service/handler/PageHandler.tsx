@@ -15,7 +15,7 @@ export interface LifeCycleEvent {
 }
 const PageHandler = ({ children }: { children: React.ReactNode }) => {
     const [lifeCycleEvent, setLifeCycleEvent] = useState<LifeCycleEvent | null>(null);
-    const { pageContainers, changeEvent, containersLoaded } = usePageManager();
+    const { pageContainers, changeEvent, containersLoaded, histories } = usePageManager();
 
     const createLifeCycleEvent = useCallback((event: LifeCycleEvent) => {
         const curPage = changeEvent?.page;
@@ -113,9 +113,9 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
             })
             OpenEffects[container.open]({ container: container, containers: pageContainers, duration: 0.5, tl })
             if (container.preventNavigation && container.close) {
-                const exitURI = container.preventNavigation ? container.uri : container.parentURI;
-                if (exitURI) {
-                    container.onExit = { uri: exitURI }
+                const exitPage = container.noHistory ? histories[histories.length - 1] : histories[histories.length - 2];
+                if (exitPage) {
+                    container.onExit = exitPage
                 }
             }
             if (precontainer?.close) {
@@ -127,7 +127,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
             createLifeCycleEvent({ name: "openCompleted", container: container })
 
         }
-    }, [pageContainers, containersLoaded]);
+    }, [pageContainers, containersLoaded, histories]);
 
     useEffect(() => {
         // console.log("useEffect", changeEvent, lifeCycleEvent);

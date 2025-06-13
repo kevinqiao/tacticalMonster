@@ -1,5 +1,8 @@
+import { BattleProp } from "component/lobby/tournament/PlayMatch";
 import { GameModel } from "component/solitaire/battle/types/CombatTypes";
-import React, { useEffect, useMemo, useRef } from "react";
+import { useConvex } from "convex/react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "../../../convex/solitaire/convex/_generated/api";
 import { SSAProvider } from "../../../service/SSAManager";
 import ActControl from "./control/ActControl";
 import CombatEventControl from "./control/CombatEventControl";
@@ -12,6 +15,7 @@ import { createDualZones } from "./utils";
 import CardGrid from "./view/CardGrid";
 import SlotGrid from "./view/SlotGrid";
 import SpriteGrid from "./view/SpriteGrid";
+
 const CombatBoard: React.FC = () => {
   return <>
     <div style={{ width: "100%", height: "100%" }}>
@@ -24,7 +28,7 @@ const CombatBoard: React.FC = () => {
 
 };
 
-export const BattlePlaza: React.FC = () => {
+export const BattlePlaza: React.FC<{ onComplete: () => void; onGiveIn: () => void }> = ({ onComplete, onGiveIn }) => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { boardDimension, updateBoardDimension } = useCombatManager();
@@ -63,56 +67,70 @@ export const BattlePlaza: React.FC = () => {
 
   const render = useMemo(() => {
     return <>
-      {<div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%" }}>
+      {<div ref={containerRef} className="battle-container" style={{ width: "100%", height: "100%" }}  >
         <div id="left-panel" style={{ position: "absolute", top: 0, left: 0, width: boardDimension?.left, height: "100%" }}></div>
         <div id="right-panel" style={{ position: "absolute", top: 0, right: 0, width: boardDimension?.left, height: "100%" }}></div>
         <div style={{
           position: "absolute", top: "50%", left: "50%", width: boardDimension?.width, height: boardDimension?.height, backgroundColor: "white", transform: "translate(-50%, -50%)"
-        }}>
+        }} >
           <CombatBoard />
+          <div className="command-container-bg">
+            <div className="command-container">
+              <div className="command-btn">Confirm</div>
+              <div className="command-btn" onClick={onGiveIn}>Give In</div>
+            </div>
+          </div>
         </div >
-      </div >
+      </div>
       }
     </>
   }, [boardDimension]);
 
   return render;
 };
-const BattlePlayer: React.FC<{ game: GameModel; onRenderComplete: () => void }> = ({ game, onRenderComplete }) => {
-  // const client = new ConvexReactClient(SSA_URLS["solitaire"]);
-  // const [isVisible, setIsVisible] = useState(true);
+const GamePlayer: React.FC<BattleProp> = ({ matchId, stageReady, onLoadComplete, onRenderComplete, onComplete, onGiveIn }) => {
 
-  // useEffect(() => {
-  //   const handleVisibilityChange = () => {
-  //     if (document.hidden) {
-  //       // 页面隐藏时的逻辑处理
-  //       setIsVisible(false);
-  //     } else {
-  //       // 页面恢复可见时的逻辑处理
-  //       setIsVisible(true);
-  //     }
-  //   };
+  const convex = useConvex();
+  const [game, setGame] = useState<GameModel | undefined>(undefined);
 
-  //   document.addEventListener('visibilitychange', handleVisibilityChange);
+  useEffect(() => {
+    const loadGame = async () => {
+      if (matchId) {
+        const gameObj = await convex.query(api.dao.gameDao.findMatchGame, { matchId });
+        console.log("gameObj", gameObj);
+        setGame(gameObj as GameModel);
+        onLoadComplete();
+      }
+    }
 
-  //   // 清理函数：组件卸载时移除事件监听
-  //   return () => {
-  //     document.removeEventListener('visibilitychange', handleVisibilityChange);
-  //   };
-  // }, []);
+    loadGame();
+
+  }, [matchId]);
+  return (
+    <>
+      {
+        game && stageReady &&
+        <>
+          <SpriteProvider onSpritesLoaded={() => {
+            onRenderComplete?.();
+          }}>
+            <CombatProvider game={game}>
+              <CombatSkillProvider>
+                <BattlePlaza onComplete={onComplete} onGiveIn={onGiveIn} />
+                <CombatEventControl />
+              </CombatSkillProvider>
+            </CombatProvider>
+          </SpriteProvider>
+
+        </>
+      }</>
+  )
+};
+const BattlePlayer: React.FC<BattleProp> = ({ matchId, stageReady, onLoadComplete, onRenderComplete, onComplete, onGiveIn }) => {
 
   return (
     <SSAProvider app="solitaire">
-      {game && <SpriteProvider onSpritesLoaded={() => {
-        onRenderComplete?.();
-      }}>
-        <CombatProvider game={game}>
-          <CombatSkillProvider>
-            <BattlePlaza></BattlePlaza>
-            <CombatEventControl />
-          </CombatSkillProvider>
-        </CombatProvider>
-      </SpriteProvider>}
+      <GamePlayer matchId={matchId} stageReady={stageReady} onLoadComplete={onLoadComplete} onRenderComplete={onRenderComplete} onComplete={onComplete} onGiveIn={onGiveIn} />
     </SSAProvider>
   )
 };

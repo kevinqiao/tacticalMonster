@@ -11,7 +11,7 @@ const UserEventHandler = () => {
     const alertRef = useRef<HTMLDivElement>(null);
     const maskRef = useRef<HTMLDivElement>(null);
     const { user } = useUserManager();
-    const { changeEvent, openPage, updatePage } = usePageManager();
+    const { changeEvent, openPage, updatePage, histories } = usePageManager();
     const { activeGame } = useGameCenterManager();
     const [lastUpdate, setLastUpdate] = useState<number | undefined>(user?.lastUpdate);
     const convex = useConvex();
@@ -68,6 +68,7 @@ const UserEventHandler = () => {
                 }
             }
             const lastEvent = userEvents[userEvents.length - 1] as UserEvent;
+            console.log("lastEvent", lastEvent);
             setLastUpdate(lastEvent.time);
             // updateLastEvent(lastEvent.time);
             // completeEventHandle(lastEvent.time);
@@ -93,12 +94,12 @@ const UserEventHandler = () => {
         if (user && user.uid) {
             setLastUpdate(user.lastUpdate);
         }
-        console.log("changeEvent", changeEvent);
-        if (changeEvent && user?.data?.matchId && changeEvent?.page?.uri !== "/play/lobby/battle") {
+        const currentPage = histories[histories.length - 1];
+        if (currentPage && user?.data?.matchId && currentPage.uri !== "/play/lobby/battle") {
             console.log("checkMatch", user.data, changeEvent);
             checkMatch(user.data.matchId);
         }
-    }, [user, changeEvent]);
+    }, [user, histories]);
 
     return <>
         <div ref={maskRef} className="mask"></div>

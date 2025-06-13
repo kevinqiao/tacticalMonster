@@ -27,6 +27,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           if (forwardPage) {
             openPage(forwardPage)
           } else if (container.onExit) {
+            console.log("onExit", container);
             openPage(container.onExit)
           } else {
             history.back()

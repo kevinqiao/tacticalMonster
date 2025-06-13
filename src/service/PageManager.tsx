@@ -30,8 +30,8 @@ export interface PageContainer extends PageConfig {
   noHistory?: number;
 }
 interface IPageContext {
-  // pageQueue: PageItem[];
-  // currentPage: PageItem | undefined | null;
+  histories: PageItem[];
+  currentPage: PageItem | undefined | null;
   pageUpdated: PageItem | null;
   changeEvent: PageEvent | null;
   app: App | null;
@@ -49,7 +49,8 @@ interface IPageContext {
 
 const PageContext = createContext<IPageContext>({
   changeEvent: null,
-  // currentPage: null,
+  histories: [],
+  currentPage: null,
   pageUpdated: null,
   app: null,
   authReq: null,
@@ -65,7 +66,7 @@ const PageContext = createContext<IPageContext>({
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
-  const historyRef = useRef<PageItem[]>([]);
+  const historiesRef = useRef<PageItem[]>([]);
   const currentPageRef = useRef<PageItem | undefined>(undefined);
   const [pageUpdated, setPageUpdated] = useState<PageItem | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
@@ -145,8 +146,13 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       setAuthReq(null);
       const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-      if (!container?.noHistory)
+      if (!container?.noHistory) {
         history.pushState({ index: 0 }, "", uri);
+        historiesRef.current.push(newPage);
+        if (historiesRef.current.length > 10) {
+          historiesRef.current.shift();
+        }
+      }
     }
 
     const prepage = currentPageRef.current;
@@ -235,6 +241,8 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const value = {
+    histories: historiesRef.current,
+    currentPage: currentPageRef.current,
     pageUpdated,
     changeEvent,
     pageContainers,

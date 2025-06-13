@@ -48,7 +48,7 @@ export const PlayPlace =
                 { name: "child4", class: "pop-right", init: "pop", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", exit: "popRightOut", close: { type: 2, effect: "popRightOut" } },
                 { name: "center", class: "pop-center", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
                 { name: "join", class: "pop-center", init: "center", path: "./lobby/tournament/Join", uri: "join", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, noHistory: 1 },
-                { name: "play", class: "pop-center", init: "center", path: "./lobby/tournament/Battle", uri: "battle", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, preventNavigation: true },
+                { name: "play", class: "pop-center", init: "center", path: "./lobby/tournament/PlayMatch", uri: "battle", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, preventNavigation: true },
                 { name: "topNav", class: "pop-right", init: "pop-s1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", exit: "popRightOut", close: { type: 1, effect: "popRightOut" }, noHistory: 1 },
 
             ]
