@@ -56,7 +56,7 @@ const CombatEventControl = (): React.ReactElement => {
         //     const e = eventQueue.shift();
         //     return;
         // }
-        console.log("processEvent", event)
+        // console.log("processEvent", event)
         const { name, status, data } = event;
 
         if (!status) {

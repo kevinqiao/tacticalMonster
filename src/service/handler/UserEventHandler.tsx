@@ -86,7 +86,6 @@ const UserEventHandler = () => {
             const result = await res.json();
             if (result.ok) {
                 playAlert();
-                // openPage({ uri: "/play/lobby/battle", data: { matchId } });
             } else {
                 await convex.mutation(api.dao.userDao.completeMatch, { uid: user?.uid ?? "", token: user?.token ?? "" });
             }
@@ -94,12 +93,11 @@ const UserEventHandler = () => {
         if (user && user.uid) {
             setLastUpdate(user.lastUpdate);
         }
-        const currentPage = histories[histories.length - 1];
-        if (currentPage && user?.data?.matchId && currentPage.uri !== "/play/lobby/battle") {
+        if (changeEvent && user?.data?.matchId && changeEvent.page.uri !== "/play/lobby/battle") {
             console.log("checkMatch", user.data, changeEvent);
             checkMatch(user.data.matchId);
         }
-    }, [user, histories]);
+    }, [user, changeEvent]);
 
     return <>
         <div ref={maskRef} className="mask"></div>
