@@ -23,6 +23,8 @@ import type * as http from "../http.js";
 import type * as service_auth from "../service/auth.js";
 import type * as service_join from "../service/join.js";
 import type * as service_match from "../service/match.js";
+import type * as service_season from "../service/season.js";
+import type * as service_tournament from "../service/tournament.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -43,6 +45,8 @@ declare const fullApi: ApiFromModules<{
   "service/auth": typeof service_auth;
   "service/join": typeof service_join;
   "service/match": typeof service_match;
+  "service/season": typeof service_season;
+  "service/tournament": typeof service_tournament;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

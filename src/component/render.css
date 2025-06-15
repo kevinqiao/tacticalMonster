@@ -61,7 +61,22 @@
   /* background-color: red; */
 }
 
-.pop-center {
+.pop-center-large {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  height: 80%;
+  width: 80%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  /* background-color: yellow; */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: auto;
+  /* background-color: red; */
+}
+
+.pop-center-full {
   position: fixed;
   top: 50%;
   left: 50%;

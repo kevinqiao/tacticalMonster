@@ -33,8 +33,11 @@ const PlayMatch: React.FC<PageProp> = ({ data, openFull, close }) => {
   }, [user]);
   const onLoadComplete = useCallback(async () => {
     console.log("onLoadComplete");
-    await openFull?.();
-    setStageReady(true);
+    // await openFull?.();
+    setTimeout(() => {
+      setStageReady(true);
+    }, 1000)
+
   }, [openFull]);
   const onRenderComplete = useCallback(() => {
     const tl = gsap.timeline();

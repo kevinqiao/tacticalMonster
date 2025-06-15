@@ -9,11 +9,24 @@ const enum Status {
 }
 export const create = internalMutation({
     args: {
-        tournamentId: v.string(),
-        players: v.array(v.object({ uid: v.string(), score: v.number(), rank: v.number() })),
+        tournamentId: v.id("tournaments"), // 关联锦标赛
+        seasonId: v.id("seasons"), // 关联赛季
+        matchType: v.string(), // 对局类型："free", "challenge", "master", "daily"
+        players: v.array(
+            v.object({
+                playerId: v.union(v.id("players"), v.string()), // 真人玩家ID或AI标识
+                score: v.number(), // 分数
+                rank: v.number(), // 排名（0 表示未完成）
+                segmentName: v.string(), // 段位
+                isAI: v.boolean(), // 是否为AI
+            })
+        ),
+        status: v.number(), // 状态："active", "completed"
+        seed: v.number(), // 随机种子（游戏一致性）
+        createdAt: v.string(), // 创建时间（ISODate）
     },
-    handler: async (ctx, { tournamentId, players }) => {
-        const mid = await ctx.db.insert("match", { tournamentId, players, start_time: 0, end_time: 0, status: Status.STARTED });
+    handler: async (ctx, args) => {
+        const mid = await ctx.db.insert("matches", args);
         return mid;
     },
 })
@@ -22,13 +35,13 @@ export const findMatch = query({
         mid: v.string(),
     },
     handler: async (ctx, { mid }) => {
-        const match = await ctx.db.get(mid as Id<"match">);
+        const match = await ctx.db.get(mid as Id<"matches">);
         return { ...match, _id: undefined, _creationTime: undefined };
     }
 })
 export const find = internalQuery({
     args: {
-        mid: v.id("match"),
+        mid: v.id("matches"),
     },
     handler: async (ctx, { mid }) => {
         const match = await ctx.db.get(mid);
@@ -37,7 +50,7 @@ export const find = internalQuery({
 })
 export const update = internalMutation({
     args: {
-        mid: v.id("match"),
+        mid: v.id("matches"),
         data: v.any()
     },
     handler: async (ctx, { mid, data }) => {
@@ -50,7 +63,7 @@ export const update = internalMutation({
 })
 export const remove = internalMutation({
     args: {
-        mid: v.id("match"),
+        mid: v.id("matches"),
     },
     handler: async (ctx, { mid }) => {
         await ctx.db.delete(mid);

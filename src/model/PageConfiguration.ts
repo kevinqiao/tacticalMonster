@@ -46,9 +46,9 @@ export const PlayPlace =
                 { name: "child2", class: "child_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 1, open: "slideIn" },
                 { name: "child3", class: "child_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
                 { name: "child4", class: "pop-right", init: "pop", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", exit: "popRightOut", close: { type: 2, effect: "popRightOut" } },
-                { name: "center", class: "pop-center", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
-                { name: "join", class: "pop-center", init: "center", path: "./lobby/tournament/Join", uri: "join", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, noHistory: 1 },
-                { name: "play", class: "pop-center", init: "center", path: "./lobby/tournament/PlayMatch", uri: "battle", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, preventNavigation: true },
+                { name: "center", class: "pop-center-large", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
+                { name: "join", class: "pop-center-large", init: "center", path: "./lobby/tournament/Join", uri: "join", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, noHistory: 1 },
+                { name: "play", class: "pop-center-full", init: "NONE", path: "./lobby/tournament/PlayMatch", uri: "battle", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, preventNavigation: true },
                 { name: "topNav", class: "pop-right", init: "pop-s1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", exit: "popRightOut", close: { type: 1, effect: "popRightOut" }, noHistory: 1 },
 
             ]

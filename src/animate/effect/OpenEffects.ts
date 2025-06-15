@@ -28,7 +28,7 @@ export const OpenEffects: OpenEffects = {
         gsap.set(container.ele, { autoAlpha: 1 })
         timeline.fromTo(container.ele,
             { scale: 0.5, autoAlpha: 0 },
-            { scale: 0.8, autoAlpha: 1, duration: 0.5, ease: "power2.inOut" }
+            { scale: 1, autoAlpha: 1, duration: 0.5, ease: "power2.inOut" }
         );
 
         if (container.mask) {

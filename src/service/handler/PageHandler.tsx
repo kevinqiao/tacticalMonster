@@ -42,7 +42,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
         if (container.children) {
             container.children.forEach((c) => {
                 if (c.init) {
-                    InitStyles[c.init]({ curcontainer: curcontainer, container: c, parent: container, containers: pageContainers })
+                    InitStyles[c.init]?.({ curcontainer: curcontainer, container: c, parent: container, containers: pageContainers })
                 }
             })
         } else {

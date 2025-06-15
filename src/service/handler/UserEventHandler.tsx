@@ -39,7 +39,7 @@ const UserEventHandler = () => {
         tl.play();
     }, []);
 
-    const cancelMatch = useCallback(async () => {
+    const cancelAlert = useCallback(async () => {
         await convex.mutation(api.dao.userDao.cancelMatch, { uid: user?.uid ?? "", token: user?.token ?? "" });
         user.data.matchId = undefined;
         const tl = gsap.timeline();
@@ -104,7 +104,7 @@ const UserEventHandler = () => {
         <div ref={alertRef} className="alert-box">
             <div className="btn-container">
                 <div className="confirm-btn" onClick={openMatch}>Confirm</div>
-                <div className="cancel-btn" onClick={cancelMatch}>Cancel</div>
+                <div className="cancel-btn" onClick={cancelAlert}>Cancel</div>
             </div>
         </div>
     </>;

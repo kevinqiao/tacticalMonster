@@ -77,12 +77,9 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         gsap.to(container.ele, {
           width: "100%",
           height: "100%",
-          scale: 1,
           duration: 0.5,
           onComplete: () => {
-            setTimeout(() => {
-              resolve();
-            }, 0)
+            resolve();
           }
         })
       } else {
