@@ -27,7 +27,7 @@ const JoinMatch: React.FC<{ data: { token?: string; matchId?: string } | undefin
 
       const result = await convex.action(api.service.join.joinMatch, { signed: signedToken, token: player?.token ?? "" });
 
-      if (result && result.ok) {
+      if (result) {
         console.log("result", result);
         // setLastUpdate(result.lastUpdate);
       }

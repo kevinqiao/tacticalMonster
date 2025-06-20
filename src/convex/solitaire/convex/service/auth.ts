@@ -62,7 +62,6 @@ export const getSignedPlayer = action({
     const player = { uid, level: 2, elo: 100, game: "solitaire" }
     const signedPlayer = jwt.sign(player, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
     return signedPlayer;
-
   }
 });
 export const signout = action({

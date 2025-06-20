@@ -1,0 +1,12 @@
+{
+    "table": "players",
+    "objects": [
+        {
+            "uid": "player1",
+            "segmentName": "Bronze",
+            "isSubscribed": true,
+            "createdAt": "2025-06-18T21:03:00.000Z",
+            "lastActive": "2025-06-18T21:03:00.000Z"
+        }
+    ]
+}
