@@ -1,14 +1,13 @@
 import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
 // 定时处理未完成的任务事件 - 每分钟运行一次
-crons.cron(
-    "process pending task events",
-    "*/1 * * * *",
-    internal.service.task.scheduledTaskProcessor.processPendingTaskEvents
-);
+// crons.cron(
+//     "process pending task events",
+//     "*/1 * * * *",
+//     internal.service.task.scheduledTaskProcessor.processPendingTaskEvents
+// );
 
 // crons.interval(
 //     "clearmatch queue table",

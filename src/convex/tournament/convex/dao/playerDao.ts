@@ -9,14 +9,14 @@ export const create = internalMutation({
         data: v.optional(v.any()),
     },
     handler: async (ctx, { uid, token, data }) => {
-        const pid = await ctx.db.insert("player", { uid, token, data });
+        const pid = await ctx.db.insert("players", { uid, token, ...data });
         return pid;
     },
 })
 
 export const findAll = internalQuery({
     handler: async (ctx, { character_id }) => {
-        const players = await ctx.db.query("player").collect();
+        const players = await ctx.db.query("players").collect();
         return players
     },
 })
@@ -25,7 +25,7 @@ export const find = internalQuery({
         uid: v.string(),
     },
     handler: async (ctx, { uid }) => {
-        const player = await ctx.db.query("player").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
         return player;
     },
 })
@@ -35,7 +35,7 @@ export const update = internalMutation({
         data: v.any()
     },
     handler: async (ctx, { uid, data }) => {
-        const player = await ctx.db.query("player").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
         if (player) {
             return await ctx.db.patch(player._id, data);
         }

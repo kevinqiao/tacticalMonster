@@ -92,7 +92,7 @@ export default defineSchema({
       rummy: v.number(),
     }),
     updatedAt: v.string(),
-  }).index("by_uid_season", ["uid", "seasonId"]),
+  }).index("by_season_points", ["seasonId"]).index("by_uid_season", ["uid", "seasonId"]),
 
   player_shares: defineTable({
     uid: v.string(),
