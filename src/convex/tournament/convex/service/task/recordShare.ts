@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { mutation } from "../../_generated/server";

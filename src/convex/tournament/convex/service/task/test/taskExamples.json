@@ -1,0 +1,628 @@
+{
+    "one_time_tasks": [
+        {
+            "taskId": "one_time_first_win",
+            "name": "首次胜利",
+            "description": "赢得第一场对战",
+            "type": "one_time",
+            "condition": {
+                "action": "win_match",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 100,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 20
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": false
+        },
+        {
+            "taskId": "one_time_complete_tutorial",
+            "name": "完成教程",
+            "description": "完成游戏教程",
+            "type": "one_time",
+            "condition": {
+                "action": "complete_tutorial",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 50,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 10
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": false
+        },
+        {
+            "taskId": "one_time_share_game",
+            "name": "分享游戏",
+            "description": "首次分享游戏到社交媒体",
+            "type": "one_time",
+            "condition": {
+                "action": "share_game",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 75,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 15
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": false
+        }
+    ],
+    "daily_tasks": [
+        {
+            "taskId": "daily_login_2024-01-15",
+            "name": "每日登录",
+            "description": "每日登录游戏",
+            "type": "daily",
+            "condition": {
+                "action": "login",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 25,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 5
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "daily_match_2024-01-15",
+            "name": "每日对战",
+            "description": "完成一场对战",
+            "type": "daily",
+            "condition": {
+                "action": "complete_match",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 50,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 10
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "daily_win_2024-01-15",
+            "name": "每日胜利",
+            "description": "赢得一场对战",
+            "type": "daily",
+            "condition": {
+                "action": "win_match",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 75,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 15
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": true
+        }
+    ],
+    "weekly_tasks": [
+        {
+            "taskId": "weekly_login_2024-01-14",
+            "name": "每周登录",
+            "description": "连续7天登录",
+            "type": "weekly",
+            "condition": {
+                "action": "login",
+                "count": 7,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 200,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 40
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "weekly_matches_2024-01-14",
+            "name": "每周对战",
+            "description": "完成10场对战",
+            "type": "weekly",
+            "condition": {
+                "action": "complete_match",
+                "count": 10,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 300,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 60
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "weekly_wins_2024-01-14",
+            "name": "每周胜利",
+            "description": "赢得5场对战",
+            "type": "weekly",
+            "condition": {
+                "action": "win_match",
+                "count": 5,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 400,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 80
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": true
+        }
+    ],
+    "season_tasks": [
+        {
+            "taskId": "season_points_season123",
+            "name": "赛季积分",
+            "description": "累计获得1000赛季积分",
+            "type": "season",
+            "condition": {
+                "action": "earn_season_points",
+                "count": 1000,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 1000,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 200
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "season_master_season123",
+            "name": "赛季大师",
+            "description": "达到钻石段位",
+            "type": "season",
+            "condition": {
+                "action": "reach_segment",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 2000,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 500
+            },
+            "progress": 0,
+            "isCompleted": false,
+            "isDynamic": true
+        }
+    ],
+    "complex_tasks": [
+        {
+            "taskId": "complex_login_match",
+            "name": "登录对战任务",
+            "description": "登录并完成对战",
+            "type": "complex",
+            "condition": {
+                "action": "login",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 150,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 30
+            },
+            "progress": {
+                "sub_0": 0,
+                "sub_1": 0
+            },
+            "isCompleted": false,
+            "isDynamic": false
+        },
+        {
+            "taskId": "complex_share_win",
+            "name": "分享胜利任务",
+            "description": "分享游戏或赢得比赛",
+            "type": "complex",
+            "condition": {
+                "action": "share_game",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 100,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 20
+            },
+            "progress": {
+                "sub_0": 0,
+                "sub_1": 0
+            },
+            "isCompleted": false,
+            "isDynamic": false
+        },
+        {
+            "taskId": "multi_stage_login",
+            "name": "多阶段登录任务",
+            "description": "完成登录、对战、胜利三个阶段",
+            "type": "complex",
+            "condition": {
+                "action": "login",
+                "count": 1,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 200,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 40
+            },
+            "progress": {
+                "stages": [],
+                "currentStage": 0
+            },
+            "isCompleted": false,
+            "isDynamic": false
+        }
+    ],
+    "time_based_tasks": [
+        {
+            "taskId": "time_based_consecutive_login",
+            "name": "连续登录挑战",
+            "description": "连续7天登录游戏",
+            "type": "time_based",
+            "condition": {
+                "action": "login",
+                "count": 7,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 300,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 50
+            },
+            "progress": {
+                "actions": [
+                    {
+                        "login": 0
+                    }
+                ],
+                "lastActionDate": "",
+                "consecutiveDays": 0,
+                "startDate": "2024-01-15"
+            },
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "time_based_consecutive_match",
+            "name": "连续对战大师",
+            "description": "连续5天完成对战",
+            "type": "time_based",
+            "condition": {
+                "action": "complete_match",
+                "count": 5,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 200,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 30
+            },
+            "progress": {
+                "actions": [
+                    {
+                        "complete_match": 0
+                    }
+                ],
+                "lastActionDate": "",
+                "consecutiveDays": 0,
+                "startDate": "2024-01-15"
+            },
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "time_based_mixed_time_task",
+            "name": "混合挑战",
+            "description": "连续登录3天并在7天内完成5场对战",
+            "type": "time_based",
+            "condition": {
+                "action": "login",
+                "count": 3,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 250,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 40
+            },
+            "progress": {
+                "actions": [
+                    {
+                        "login": 0
+                    },
+                    {
+                        "complete_match": 0
+                    }
+                ],
+                "lastActionDate": "",
+                "consecutiveDays": 0,
+                "startDate": "2024-01-15"
+            },
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "time_based_time_window_task",
+            "name": "时间窗口挑战",
+            "description": "在3天内完成10场对战",
+            "type": "time_based",
+            "condition": {
+                "action": "complete_match",
+                "count": 10,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 400,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 60
+            },
+            "progress": {
+                "actions": [
+                    {
+                        "complete_match": 0
+                    }
+                ],
+                "lastActionDate": "",
+                "consecutiveDays": 0,
+                "startDate": "2024-01-15"
+            },
+            "isCompleted": false,
+            "isDynamic": true
+        },
+        {
+            "taskId": "time_based_complex_time_task",
+            "name": "复杂时间挑战",
+            "description": "连续登录5天，并在10天内完成15场对战，其中至少5场获胜",
+            "type": "time_based",
+            "condition": {
+                "action": "login",
+                "count": 5,
+                "gameType": null,
+                "minScore": null
+            },
+            "rewards": {
+                "coins": 500,
+                "props": [],
+                "tickets": [],
+                "gamePoints": 100
+            },
+            "progress": {
+                "actions": [
+                    {
+                        "login": 0
+                    },
+                    {
+                        "complete_match": 0
+                    },
+                    {
+                        "win_match": 0
+                    }
+                ],
+                "lastActionDate": "",
+                "consecutiveDays": 0,
+                "startDate": "2024-01-15"
+            },
+            "isCompleted": false,
+            "isDynamic": true
+        }
+    ],
+    "events": [
+        {
+            "action": "login",
+            "actionData": {}
+        },
+        {
+            "action": "complete_match",
+            "actionData": {
+                "gameType": "ludo",
+                "score": 1000
+            }
+        },
+        {
+            "action": "win_match",
+            "actionData": {
+                "gameType": "ludo",
+                "score": 1500
+            }
+        },
+        {
+            "action": "share_game",
+            "actionData": {
+                "platform": "facebook"
+            }
+        },
+        {
+            "action": "complete_tutorial",
+            "actionData": {
+                "tutorialType": "basic"
+            }
+        },
+        {
+            "action": "earn_season_points",
+            "actionData": {
+                "points": 100,
+                "source": "match_win"
+            }
+        },
+        {
+            "action": "reach_segment",
+            "actionData": {
+                "segment": "diamond",
+                "previousSegment": "platinum"
+            }
+        }
+    ],
+    "test_scenarios": {
+        "consecutive_login": {
+            "description": "测试连续登录场景",
+            "events": [
+                {
+                    "action": "login",
+                    "actionData": {}
+                },
+                {
+                    "action": "login",
+                    "actionData": {}
+                },
+                {
+                    "action": "login",
+                    "actionData": {}
+                }
+            ],
+            "expected_progress": {
+                "actions": [
+                    {
+                        "login": 3
+                    }
+                ],
+                "consecutiveDays": 3
+            }
+        },
+        "mixed_time_task": {
+            "description": "测试混合时间任务场景",
+            "events": [
+                {
+                    "action": "login",
+                    "actionData": {}
+                },
+                {
+                    "action": "complete_match",
+                    "actionData": {
+                        "gameType": "ludo"
+                    }
+                },
+                {
+                    "action": "login",
+                    "actionData": {}
+                },
+                {
+                    "action": "complete_match",
+                    "actionData": {
+                        "gameType": "ludo"
+                    }
+                },
+                {
+                    "action": "complete_match",
+                    "actionData": {
+                        "gameType": "ludo"
+                    }
+                }
+            ],
+            "expected_progress": {
+                "actions": [
+                    {
+                        "login": 2
+                    },
+                    {
+                        "complete_match": 3
+                    }
+                ],
+                "consecutiveDays": 2
+            }
+        },
+        "time_window": {
+            "description": "测试时间窗口场景",
+            "events": [
+                {
+                    "action": "complete_match",
+                    "actionData": {
+                        "gameType": "ludo"
+                    }
+                },
+                {
+                    "action": "complete_match",
+                    "actionData": {
+                        "gameType": "ludo"
+                    }
+                },
+                {
+                    "action": "complete_match",
+                    "actionData": {
+                        "gameType": "ludo"
+                    }
+                },
+                {
+                    "action": "complete_match",
+                    "actionData": {
+                        "gameType": "ludo"
+                    }
+                }
+            ],
+            "expected_progress": {
+                "actions": [
+                    {
+                        "complete_match": 4
+                    }
+                ],
+                "consecutiveDays": 0
+            }
+        }
+    }
+}

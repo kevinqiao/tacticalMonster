@@ -1,0 +1,109 @@
+[
+  {
+    "templateId": "new_segment_challenge",
+    "isDynamic": false,
+    "name": "新段位挑战",
+    "description": "在纸牌游戏中完成 3 次比赛（分数≥1000）",
+    "type": "one_time",
+    "gameType": "solitaire",
+    "condition": {
+      "action": "complete_match",
+      "count": 3,
+      "gameType": "solitaire",
+      "minScore": 1000
+    },
+    "rewards": {
+      "coins": 300,
+      "props": [
+        {
+          "gameType": "solitaire",
+          "propType": "hint",
+          "quantity": 1
+        }
+      ],
+      "tickets": [],
+      "gamePoints": 200
+    },
+    "resetInterval": "none",
+    "allocationRules": {
+      "and": [
+        {
+          "minSegment": "gold"
+        },
+        {
+          "highActivity": true
+        }
+      ],
+      "priority": 2
+    }
+  },
+  {
+    "templateId": "daily_login_bonus",
+    "isDynamic": false,
+    "name": "每日登录奖励",
+    "description": "登录游戏 1 次",
+    "type": "daily",
+    "condition": {
+      "action": "login",
+      "count": 1
+    },
+    "rewards": {
+      "coins": 50,
+      "props": [],
+      "tickets": [],
+      "gamePoints": 0
+    },
+    "resetInterval": "daily",
+    "allocationRules": {
+      "or": [
+        {
+          "minSegment": "bronze"
+        },
+        {
+          "gamePreferences": "solitaire"
+        }
+      ],
+      "priority": 1
+    }
+  },
+  {
+    "templateId": "weekly_game_play",
+    "isDynamic": false,
+    "name": "每周游戏挑战",
+    "description": "玩 5 次纸牌游戏",
+    "type": "weekly",
+    "gameType": "solitaire",
+    "condition": {
+      "action": "play_game",
+      "count": 5,
+      "gameType": "solitaire"
+    },
+    "rewards": {
+      "coins": 200,
+      "props": [
+        {
+          "gameType": "solitaire",
+          "propType": "hint",
+          "quantity": 1
+        }
+      ],
+      "tickets": [],
+      "gamePoints": 100
+    },
+    "resetInterval": "weekly",
+    "allocationRules": {
+      "and": [
+        {
+          "minSegment": "silver"
+        },
+        {
+          "eventPeriod": {
+            "start": "2025-06-21",
+            "end": "2025-06-30"
+          }
+        }
+      ],
+      "priority": 3
+    }
+  }
+]

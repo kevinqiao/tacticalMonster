@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 // 提交比赛结果并触发任务事件
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";

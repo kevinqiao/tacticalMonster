@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 
-import { distributeSeasonRewards } from "./ruleEngine";
+import { distributeSeasonRewards } from "./tournament/ruleEngine";
 import { getTorontoDate } from "./utils";
 export const hi = query({
   args: { text: v.string() },
@@ -39,11 +39,17 @@ export const createSeason = mutation({
     // 初始化玩家积分
     const players = await ctx.db.query("players").collect();
     for (const player of players) {
+      const userPref = await ctx.db.query("user_preferences").withIndex("by_uid", q => q.eq("uid", player.uid)).first();
       await ctx.db.insert("player_seasons", {
         uid: player.uid,
         seasonId,
         seasonPoints: 0,
         gamePoints: { solitaire: 0, uno: 0, ludo: 0, rummy: 0 },
+        matchesPlayed: 0,
+        matchesWon: 0,
+        winRate: 0,
+        lastMatchAt: now.iso,
+        createdAt: now.iso,
         updatedAt: now.iso,
       });
     }
@@ -169,6 +175,7 @@ export const getSeasonLeaderboard = query({
         .query("players")
         .withIndex("by_uid", (q) => q.eq("uid", ps.uid))
         .first();
+      const userPref = await ctx.db.query("user_preferences").withIndex("by_uid", q => q.eq("uid", ps.uid)).first();
       results.push({
         uid: ps.uid,
         seasonPoints: ps.seasonPoints,

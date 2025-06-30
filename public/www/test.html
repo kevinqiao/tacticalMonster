@@ -1,0 +1,8 @@
+task_events: defineTable({
+uid: v.string(),
+action: v.string(), // 明确 action 字段
+actionData: v.any(),
+processed: v.boolean(),
+createdAt: v.string(),
+updatedAt: v.string(),
+}).index("by_uid_processed", ["uid", "processed"]).index("by_uid_action", ["uid", "action"]),

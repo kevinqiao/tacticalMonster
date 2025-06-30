@@ -44,7 +44,7 @@ export const getLeaderboard = query({
       leaderboard.push({
         rank, // 当前排名
         uid: progress.uid,
-        username: player.uid, // 假设 uid 即用户名，可扩展为 displayName
+        username: player.displayName, // 使用 displayName 而不是 uid
         points, // 总积分或游戏特定积分
         segmentName: player.segmentName, // 段位：Bronze, Silver, Gold, Platinum
         isSubscribed: player.isSubscribed, // 订阅状态

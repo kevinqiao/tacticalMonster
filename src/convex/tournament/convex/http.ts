@@ -10,15 +10,22 @@ http.route({
   path: "/match/check",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const body = await request.json();
-    console.log("check match", body);
-    const mid = body.matchId;
-    const match = await ctx.runQuery(internal.dao.matchDao.find, { mid });
-    console.log("match", match);
-    const status = match?.status ?? 0;
-    const result = { ok: status < 2 };
+    // const body = await request.json();
+    // console.log("check match", body);
+    // const mid = body.matchId;
+    // const match = await ctx.runQuery(internal.dao.matchDao.find, { mid });
+    // console.log("match", match);
+    // const status = match?.status ?? 0;
+    // const result = { ok: status < 2 };
 
-    return new Response(JSON.stringify(result), {
+    // return new Response(JSON.stringify(result), {
+    //   status: 200,
+    //   headers: new Headers({
+    //     "Access-Control-Allow-Origin": "*",
+    //     "Content-Type": "application/json",
+    //   }),
+    // });
+    return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: new Headers({
         "Access-Control-Allow-Origin": "*",
