@@ -24,6 +24,12 @@ interface JoinArgs {
 interface JoinResult {
   tournamentId: string;
   attemptNumber: number;
+  matchId?: string;
+  playerMatchId?: string;
+  gameId?: string;
+  serverUrl?: string;
+  matchStatus?: any;
+  success?: boolean;
 }
 
 interface SubmitScoreArgs {
@@ -160,7 +166,7 @@ async function createIndependentTournament(ctx: any, { uid, gameType, tournament
 }
 
 export const baseHandler: TournamentHandler = {
-  async validateJoin(ctx, { uid, gameType, tournamentType, player }) {
+  async validateJoin(ctx, { uid, gameType, tournamentType, player, season }) {
     const tournamentTypeConfig = await ctx.db
       .query("tournament_types")
       .withIndex("by_typeId", (q: any) => q.eq("typeId", tournamentType))
@@ -173,6 +179,7 @@ export const baseHandler: TournamentHandler = {
       tournamentType,
       isSubscribed: player.isSubscribed,
       limits: tournamentTypeConfig.defaultConfig.limits,
+      seasonId: season._id,
     });
   },
 

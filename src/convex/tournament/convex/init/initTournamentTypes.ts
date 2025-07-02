@@ -1,26 +1,40 @@
 import { mutation } from "../_generated/server";
-import tournamentTypesData from "./json/tournament_types.json";
+import { TOURNAMENT_CONFIGS } from "../data/tournamentConfigs";
 
 export const initTournamentTypes = mutation({
   args: {},
   handler: async (ctx) => {
-    for (const record of tournamentTypesData.objects) {
+    let count = 0;
+
+    for (const config of TOURNAMENT_CONFIGS) {
       const existing = await ctx.db
         .query("tournament_types")
-        .withIndex("by_typeId", (q) => q.eq("typeId", record.typeId))
+        .withIndex("by_typeId", (q) => q.eq("typeId", config.typeId))
         .first();
+
       if (!existing) {
         await ctx.db.insert("tournament_types", {
-          typeId: record.typeId,
-          name: record.name,
-          description: record.description,
-          handlerModule: record.handlerModule,
-          defaultConfig: record.defaultConfig,
-          createdAt: record.createdAt,
-          updatedAt: record.updatedAt,
+          typeId: config.typeId,
+          name: config.name,
+          description: config.description,
+          gameType: config.gameType,
+          isActive: config.isActive,
+          priority: config.priority,
+          defaultConfig: {
+            entryRequirements: config.entryRequirements,
+            matchRules: config.matchRules,
+            rewards: config.rewards,
+            schedule: config.schedule,
+            limits: config.limits,
+            advanced: config.advanced
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
+        count++;
       }
     }
-    return { success: true, count: tournamentTypesData.objects.length };
+
+    return { success: true, count };
   },
 });

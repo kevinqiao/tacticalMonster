@@ -1,3 +1,4 @@
+
 import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import { getTorontoDate } from "../utils";
@@ -515,91 +516,282 @@ export class MatchManager {
     }
 }
 
-// 多人比赛队列管理器
-class MatchQueueManager {
-    private queue: Map<string, any> = new Map();
+/**
+ * 多人比赛匹配管理器 - 直接从数据库匹配
+ * 简化版本，直接从 tournament 中查找和匹配玩家
+ */
+export class TournamentMatchManager {
+    /**
+     * 加入多人锦标赛匹配
+     */
+    static async joinMultiPlayerMatch(ctx: any, params: {
+        uid: string;
+        tournamentId: string;
+        gameType: string;
+        segmentName: string;
+        eloScore?: number;
+    }) {
+        const now = getTorontoDate();
 
-    // 添加玩家到队列
-    async addToQueue(ctx: any, player: any, tournamentId: any) {
-        const queueItem = {
-            uid: player.uid,
-            tournamentId,
-            joinTime: new Date().toISOString(),
-            segment: player.segmentName,
-            eloScore: player.eloScore || 1000,
-            status: "waiting"
-        };
-
-        this.queue.set(player.uid, queueItem);
-        await this.tryMatch(ctx, queueItem);
-    }
-
-    // 尝试匹配
-    async tryMatch(ctx: any, queueItem: any) {
-        const eligiblePlayers = await this.findEligiblePlayers(ctx, queueItem);
-        if (eligiblePlayers.length >= 4) {
-            await this.createMatch(ctx, eligiblePlayers);
-        }
-    }
-
-    // 查找符合条件的玩家
-    private async findEligiblePlayers(ctx: any, queueItem: any) {
-        const eligiblePlayers = [];
-        const segmentRange = this.getSegmentRange(queueItem.segment);
-        const eloRange = this.getEloRange(queueItem.eloScore);
-
-        for (const [uid, item] of this.queue.entries()) {
-            if (uid === queueItem.uid) continue;
-
-            if (item.tournamentId === queueItem.tournamentId &&
-                segmentRange.includes(item.segment) &&
-                Math.abs(item.eloScore - queueItem.eloScore) <= eloRange) {
-                eligiblePlayers.push(item);
+        try {
+            // 1. 检查锦标赛状态
+            const tournament = await ctx.db.get(params.tournamentId);
+            if (!tournament || tournament.status !== "open") {
+                throw new Error("锦标赛不存在或已关闭");
             }
-        }
 
-        return eligiblePlayers.slice(0, 3); // 最多4个玩家
-    }
+            // 2. 查找现有的待匹配比赛
+            let match = await ctx.db
+                .query("matches")
+                .withIndex("by_tournament", (q: any) => q.eq("tournamentId", params.tournamentId))
+                .filter((q: any) => q.eq(q.field("status"), "pending"))
+                .filter((q: any) => q.eq(q.field("gameType"), params.gameType))
+                .first();
 
-    // 获取段位范围
-    private getSegmentRange(segment: string): string[] {
-        const segments = ["bronze", "silver", "gold", "diamond"];
-        const index = segments.indexOf(segment);
-        const start = Math.max(0, index - 1);
-        const end = Math.min(segments.length - 1, index + 1);
-        return segments.slice(start, end + 1);
-    }
+            // 3. 如果没有待匹配的比赛，创建新比赛
+            if (!match) {
+                const matchId = await MatchManager.createMatch(ctx, {
+                    tournamentId: params.tournamentId,
+                    gameType: params.gameType,
+                    matchType: "multiplayer_single_match",
+                    maxPlayers: 4,
+                    minPlayers: 2,
+                    gameData: {
+                        matchType: "skill_based",
+                        createdAt: now.iso
+                    }
+                });
+                match = await ctx.db.get(matchId);
+            }
 
-    // 获取ELO分数范围
-    private getEloRange(eloScore: number): number {
-        if (eloScore < 1000) return 200;
-        if (eloScore < 1500) return 300;
-        if (eloScore < 2000) return 400;
-        return 500;
-    }
+            // 4. 检查玩家是否已在此比赛中
+            const existingPlayer = await ctx.db
+                .query("player_matches")
+                .withIndex("by_match_uid", (q: any) => q.eq("matchId", match._id).eq("uid", params.uid))
+                .first();
 
-    // 创建比赛
-    private async createMatch(ctx: any, players: any[]) {
-        const matchId = await MatchManager.createMatch(ctx, {
-            tournamentId: players[0].tournamentId,
-            gameType: "rummy", // 默认游戏类型
-            matchType: "multiplayer_single_match",
-            maxPlayers: 4,
-            minPlayers: 4,
-            gameData: {}
-        });
+            if (existingPlayer) {
+                return {
+                    success: true,
+                    matchId: match._id,
+                    playerMatchId: existingPlayer._id,
+                    status: "already_joined",
+                    message: "已在此比赛中"
+                };
+            }
 
-        // 让所有玩家加入比赛
-        for (const player of players) {
-            await MatchManager.joinMatch(ctx, {
-                matchId,
-                tournamentId: player.tournamentId,
-                uid: player.uid,
-                gameType: "rummy"
+            // 5. 玩家加入比赛
+            const playerMatchId = await MatchManager.joinMatch(ctx, {
+                matchId: match._id,
+                tournamentId: params.tournamentId,
+                uid: params.uid,
+                gameType: params.gameType
             });
 
-            // 从队列中移除
-            this.queue.delete(player.uid);
+            // 6. 检查是否达到最小人数，如果达到则开始匹配
+            const currentPlayers = await ctx.db
+                .query("player_matches")
+                .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
+                .collect();
+
+            if (currentPlayers.length >= match.minPlayers) {
+                // 尝试匹配或开始游戏
+                await this.tryStartMatch(ctx, match._id, params.tournamentId, params.gameType);
+            }
+
+            return {
+                success: true,
+                matchId: match._id,
+                playerMatchId,
+                status: "joined",
+                currentPlayers: currentPlayers.length + 1,
+                maxPlayers: match.maxPlayers,
+                message: "成功加入匹配"
+            };
+
+        } catch (error) {
+            console.error("加入多人匹配失败:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * 尝试开始比赛
+     */
+    private static async tryStartMatch(ctx: any, matchId: string, tournamentId: string, gameType: string) {
+        const now = getTorontoDate();
+
+        try {
+            // 获取比赛信息
+            const match = await ctx.db.get(matchId);
+            if (!match || match.status !== "pending") return;
+
+            // 获取所有玩家
+            const players = await ctx.db
+                .query("player_matches")
+                .withIndex("by_match", (q: any) => q.eq("matchId", matchId))
+                .collect();
+
+            // 如果达到最大人数或等待时间过长，开始比赛
+            const shouldStart = players.length >= match.maxPlayers ||
+                this.shouldStartByTime(match.createdAt);
+
+            if (shouldStart) {
+                // 创建远程游戏
+                const gameResult = await MatchManager.createRemoteGame(ctx, {
+                    matchId,
+                    tournamentId,
+                    uids: players.map((p: any) => p.uid),
+                    gameType,
+                    matchType: "multiplayer_single_match"
+                });
+
+                // 记录匹配成功事件
+                await ctx.db.insert("match_events", {
+                    matchId,
+                    tournamentId,
+                    eventType: "players_matched",
+                    eventData: {
+                        players: players.map((p: any) => p.uid),
+                        gameId: gameResult.gameId,
+                        serverUrl: gameResult.serverUrl,
+                        playerCount: players.length
+                    },
+                    timestamp: now.iso,
+                    createdAt: now.iso
+                });
+
+                // 通知所有玩家
+                await MatchManager.notifyPlayers(ctx, {
+                    uids: players.map((p: any) => p.uid),
+                    eventType: "MatchCreated",
+                    eventData: {
+                        matchId,
+                        gameId: gameResult.gameId,
+                        serverUrl: gameResult.serverUrl,
+                        players: players.map((p: any) => p.uid)
+                    }
+                });
+            }
+
+        } catch (error) {
+            console.error("尝试开始比赛失败:", error);
+        }
+    }
+
+    /**
+     * 检查是否应该按时间开始比赛
+     */
+    private static shouldStartByTime(createdAt: string): boolean {
+        const now = new Date();
+        const created = new Date(createdAt);
+        const waitTime = (now.getTime() - created.getTime()) / 1000;
+        return waitTime > 60; // 1分钟后开始
+    }
+
+    /**
+     * 获取匹配状态
+     */
+    static async getMatchStatus(ctx: any, params: {
+        uid: string;
+        tournamentId: string;
+        gameType: string;
+    }) {
+        try {
+            // 查找玩家的比赛
+            const playerMatches = await ctx.db
+                .query("player_matches")
+                .withIndex("by_uid", (q: any) => q.eq("uid", params.uid))
+                .filter((q: any) => q.eq(q.field("tournamentId"), params.tournamentId))
+                .filter((q: any) => q.eq(q.field("gameType"), params.gameType))
+                .order("desc")
+                .take(1);
+
+            if (playerMatches.length === 0) {
+                return {
+                    inMatch: false,
+                    message: "未找到匹配"
+                };
+            }
+
+            const playerMatch = playerMatches[0];
+            const match = await ctx.db.get(playerMatch.matchId);
+
+            if (!match) {
+                return {
+                    inMatch: false,
+                    message: "比赛不存在"
+                };
+            }
+
+            // 获取所有玩家
+            const allPlayers = await ctx.db
+                .query("player_matches")
+                .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
+                .collect();
+
+            return {
+                inMatch: true,
+                matchId: match._id,
+                playerMatchId: playerMatch._id,
+                status: match.status,
+                currentPlayers: allPlayers.length,
+                maxPlayers: match.maxPlayers,
+                gameId: match.gameId,
+                serverUrl: match.serverUrl,
+                message: match.status === "in_progress" ? "比赛进行中" : "等待更多玩家"
+            };
+
+        } catch (error) {
+            console.error("获取匹配状态失败:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * 离开匹配
+     */
+    static async leaveMatch(ctx: any, params: {
+        uid: string;
+        tournamentId: string;
+        gameType: string;
+    }) {
+        const now = getTorontoDate();
+
+        try {
+            // 查找玩家的比赛
+            const playerMatches = await ctx.db
+                .query("player_matches")
+                .withIndex("by_uid", (q: any) => q.eq("uid", params.uid))
+                .filter((q: any) => q.eq(q.field("tournamentId"), params.tournamentId))
+                .filter((q: any) => q.eq(q.field("gameType"), params.gameType))
+                .filter((q: any) => q.eq(q.field("completed"), false))
+                .collect();
+
+            for (const playerMatch of playerMatches) {
+                const match = await ctx.db.get(playerMatch.matchId);
+                if (match && match.status === "pending") {
+                    // 删除玩家比赛记录
+                    await ctx.db.delete(playerMatch._id);
+
+                    // 记录离开事件
+                    await ctx.db.insert("match_events", {
+                        matchId: match._id,
+                        tournamentId: params.tournamentId,
+                        uid: params.uid,
+                        eventType: "player_left_match",
+                        eventData: { reason: "manual_leave" },
+                        timestamp: now.iso,
+                        createdAt: now.iso
+                    });
+                }
+            }
+
+            return { success: true, message: "已离开匹配" };
+
+        } catch (error) {
+            console.error("离开匹配失败:", error);
+            throw error;
         }
     }
 }
@@ -710,4 +902,5 @@ export const handleMultiPlayerSingleMatchEvent = mutation({
                 console.log(`未处理的事件类型: ${args.event.name}`);
         }
     }
-}); 
+});
+

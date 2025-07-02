@@ -25,117 +25,173 @@ export interface TournamentRules {
   autoCloseDelay?: number; // 自动关闭延迟（分钟）
 }
 
-// 示例配置
-export const tournamentConfigs: Record<string, any> = {
-  // 普通锦标赛 - 允许复用，每人只能提交一次
-  normal: {
-    rules: {
-      allowReuse: true,
-      maxSubmissionsPerTournament: 1, // 每人每个锦标赛只能提交1次
-      dailyLimit: 5,
-      maxTournamentsPerDay: 3,
-      createInitialMatch: true,
-      minPlayers: 2,
-      maxPlayers: 50,
-      timeLimit: 60,
-      autoClose: true,
-      autoCloseDelay: 30
-    }
-  },
+// 注意：锦标赛配置已移至 data/tournamentConfigs.ts
 
-  // 练习锦标赛 - 允许复用，可以多次提交
-  practice: {
-    rules: {
-      allowReuse: true,
-      maxSubmissionsPerTournament: 3, // 每人每个锦标赛可以提交3次
-      dailyLimit: 10,
-      maxTournamentsPerDay: 5,
-      createInitialMatch: false,
-      minPlayers: 1,
-      maxPlayers: 100,
-      timeLimit: 120,
-      autoClose: false
-    }
-  },
-
-  // 精英锦标赛 - 独立尝试，严格限制
-  elite: {
-    rules: {
-      independentAttempts: true,
-      maxAttempts: 3,
-      dailyLimit: 2,
-      createInitialMatch: true,
-      minPlayers: 1,
-      maxPlayers: 1,
-      timeLimit: 90,
-      autoClose: true,
-      autoCloseDelay: 15
-    }
-  },
-
-  // 每日挑战 - 复用模式，每日限制
-  daily_challenge: {
-    rules: {
-      allowReuse: true,
-      maxSubmissionsPerTournament: 1, // 每人每个锦标赛只能提交1次
-      dailyLimit: 1,
-      maxTournamentsPerDay: 1,
-      createInitialMatch: true,
-      minPlayers: 2,
-      maxPlayers: 30,
-      timeLimit: 45,
-      autoClose: true,
-      autoCloseDelay: 20
-    }
-  },
-
-  // 无限练习 - 允许复用，无限制提交
-  unlimited_practice: {
-    rules: {
-      allowReuse: true,
-      maxSubmissionsPerTournament: -1, // -1 表示无限制
-      dailyLimit: 20,
-      maxTournamentsPerDay: 10,
-      createInitialMatch: false,
-      minPlayers: 1,
-      maxPlayers: 200,
-      timeLimit: 180,
-      autoClose: false
-    }
-  }
-};
-
-export async function validateLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits }: any) {
+export async function validateLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, seasonId }: any) {
   const now = getTorontoDate();
   const today = now.localDate.toISOString().split("T")[0];
-  const maxParticipations = isSubscribed ? limits.maxParticipations.subscribed : limits.maxParticipations.default;
-  const limit = await ctx.db
+  const weekStart = getWeekStart(today);
+
+  // 验证每日限制
+  await validateDailyLimits(ctx, { uid, gameType, tournamentType, isSubscribed, limits, today });
+
+  // 验证每周限制
+  await validateWeeklyLimits(ctx, { uid, gameType, tournamentType, isSubscribed, limits, weekStart });
+
+  // 验证赛季限制
+  if (seasonId) {
+    await validateSeasonalLimits(ctx, { uid, gameType, tournamentType, isSubscribed, limits, seasonId });
+  }
+
+  // 验证总限制
+  await validateTotalLimits(ctx, { uid, gameType, tournamentType, isSubscribed, limits });
+}
+
+// 验证每日限制
+async function validateDailyLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, today }: any) {
+  const now = getTorontoDate();
+  const maxDailyParticipations = isSubscribed ?
+    limits.daily.subscribed.maxParticipations :
+    limits.daily.maxParticipations;
+
+  const dailyLimit = await ctx.db
     .query("player_tournament_limits")
     .withIndex("by_uid_tournament_date", (q: any) =>
       q.eq("uid", uid).eq("tournamentType", tournamentType).eq("date", today)
     )
     .first();
-  if (limit && limit.participationCount >= maxParticipations) {
-    throw new Error(`今日 ${tournamentType} 已达最大参与次数 (${maxParticipations})`);
+
+  if (dailyLimit && dailyLimit.participationCount >= maxDailyParticipations) {
+    throw new Error(`今日 ${tournamentType} 已达最大参与次数 (${maxDailyParticipations})`);
   }
-  if (!limit) {
+
+  // 更新或创建每日限制记录
+  if (dailyLimit) {
+    await ctx.db.patch(dailyLimit._id, {
+      participationCount: dailyLimit.participationCount + 1,
+      updatedAt: now.iso,
+    });
+  } else {
     await ctx.db.insert("player_tournament_limits", {
       uid,
       gameType,
       tournamentType,
       date: today,
-      participationCount: 0,
+      participationCount: 1,
       tournamentCount: 0,
       submissionCount: 0,
       createdAt: now.iso,
       updatedAt: now.iso,
     });
+  }
+}
+
+// 验证每周限制
+async function validateWeeklyLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, weekStart }: any) {
+  const now = getTorontoDate();
+  const maxWeeklyParticipations = isSubscribed ?
+    limits.weekly.subscribed.maxParticipations :
+    limits.weekly.maxParticipations;
+
+  const weeklyLimit = await ctx.db
+    .query("player_tournament_limits")
+    .withIndex("by_uid_tournament_week", (q: any) =>
+      q.eq("uid", uid).eq("tournamentType", tournamentType).eq("weekStart", weekStart)
+    )
+    .first();
+
+  if (weeklyLimit && weeklyLimit.participationCount >= maxWeeklyParticipations) {
+    throw new Error(`本周 ${tournamentType} 已达最大参与次数 (${maxWeeklyParticipations})`);
+  }
+
+  // 更新或创建每周限制记录
+  if (weeklyLimit) {
+    await ctx.db.patch(weeklyLimit._id, {
+      participationCount: weeklyLimit.participationCount + 1,
+      updatedAt: now.iso,
+    });
   } else {
-    await ctx.db.patch(limit._id, {
-      participationCount: limit.participationCount + 1,
+    await ctx.db.insert("player_tournament_limits", {
+      uid,
+      gameType,
+      tournamentType,
+      weekStart,
+      participationCount: 1,
+      tournamentCount: 0,
+      submissionCount: 0,
+      createdAt: now.iso,
       updatedAt: now.iso,
     });
   }
+}
+
+// 验证赛季限制
+async function validateSeasonalLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, seasonId }: any) {
+  const now = getTorontoDate();
+  const maxSeasonalParticipations = isSubscribed ?
+    limits.seasonal.subscribed.maxParticipations :
+    limits.seasonal.maxParticipations;
+
+  const seasonalLimit = await ctx.db
+    .query("player_tournament_limits")
+    .withIndex("by_uid_tournament_season", (q: any) =>
+      q.eq("uid", uid).eq("tournamentType", tournamentType).eq("seasonId", seasonId)
+    )
+    .first();
+
+  if (seasonalLimit && seasonalLimit.participationCount >= maxSeasonalParticipations) {
+    throw new Error(`本赛季 ${tournamentType} 已达最大参与次数 (${maxSeasonalParticipations})`);
+  }
+
+  // 更新或创建赛季限制记录
+  if (seasonalLimit) {
+    await ctx.db.patch(seasonalLimit._id, {
+      participationCount: seasonalLimit.participationCount + 1,
+      updatedAt: now.iso,
+    });
+  } else {
+    await ctx.db.insert("player_tournament_limits", {
+      uid,
+      gameType,
+      tournamentType,
+      seasonId,
+      participationCount: 1,
+      tournamentCount: 0,
+      submissionCount: 0,
+      createdAt: now.iso,
+      updatedAt: now.iso,
+    });
+  }
+}
+
+// 验证总限制
+async function validateTotalLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits }: any) {
+  const now = getTorontoDate();
+  const maxTotalParticipations = isSubscribed ?
+    limits.total.subscribed.maxParticipations :
+    limits.total.maxParticipations;
+
+  // 获取总参与次数
+  const totalParticipations = await ctx.db
+    .query("player_tournament_limits")
+    .withIndex("by_uid_tournament", (q: any) =>
+      q.eq("uid", uid).eq("tournamentType", tournamentType)
+    )
+    .collect();
+
+  const totalCount = totalParticipations.reduce((sum: number, limit: any) => sum + limit.participationCount, 0);
+
+  if (totalCount >= maxTotalParticipations) {
+    throw new Error(`总参与次数已达上限 (${maxTotalParticipations})`);
+  }
+}
+
+// 获取本周开始日期（周一）
+function getWeekStart(dateStr: string): string {
+  const date = new Date(dateStr);
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() - (day - 1));
+  return date.toISOString().split("T")[0];
 }
 
 export async function deductEntryFee(ctx: any, { uid, gameType, tournamentType, entryFee, inventory }: any) {

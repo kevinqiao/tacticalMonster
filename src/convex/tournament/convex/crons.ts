@@ -38,21 +38,21 @@ crons.daily(
 );
 
 // 锦标赛结算 - 每5分钟运行一次
-crons.cron(
-    "settle tournaments",
-    "*/5 * * * *", // 每5分钟
-    internal.service.tournament.tournaments.settleTournaments
-);
+// crons.cron(
+//     "settle tournaments",
+//     "*/5 * * * *", // 每5分钟
+//     internal.service.tournament.tournaments.settleTournaments
+// );
 
 // 每日锦标赛结算 - 每天 UTC 02:00 执行（确保所有锦标赛都被结算）
-crons.daily(
-    "settle all tournaments",
-    {
-        hourUTC: 2, // 02:00 UTC
-        minuteUTC: 0,
-    },
-    internal.service.tournament.tournaments.settleTournaments
-);
+// crons.daily(
+//     "settle all tournaments",
+//     {
+//         hourUTC: 2, // 02:00 UTC
+//         minuteUTC: 0,
+//     },
+//     internal.service.tournament.tournaments.settleTournaments
+// );
 
 // crons.daily(
 //     "create tournament daily",

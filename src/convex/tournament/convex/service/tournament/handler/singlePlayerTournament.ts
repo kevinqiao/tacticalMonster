@@ -268,7 +268,7 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
                 bestScore: stats.bestScore,
                 averageScore: stats.totalScore / stats.matchCount
             }))
-            .sort((a, b) => {
+            .sort((a: any, b: any) => {
                 // 优先按最高分排序，然后按平均分排序
                 if (b.bestScore !== a.bestScore) {
                     return b.bestScore - a.bestScore;

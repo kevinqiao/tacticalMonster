@@ -1,6 +1,7 @@
 import { internal } from "../../../_generated/api";
 import { getTorontoDate } from "../../utils";
 import { MatchManager } from "../matchManager";
+import { TournamentMatchingService } from "../tournamentMatchingService";
 import { baseHandler, getPlayerAttempts, TournamentHandler } from "./base";
 
 // 多人锦标赛处理器
@@ -64,7 +65,7 @@ export const multiPlayerTournamentHandler: TournamentHandler = {
                 config
             });
         } else {
-            // 多人比赛锦标赛 - 加入匹配队列
+            // 多人比赛锦标赛 - 使用锦标赛匹配机制
             return await handleMultiMatchTournament(ctx, {
                 tournament,
                 uid,
@@ -274,7 +275,7 @@ export const multiPlayerTournamentHandler: TournamentHandler = {
                 bestScore: stats.bestScore,
                 averageScore: stats.totalScore / stats.matchCount
             }))
-            .sort((a, b) => {
+            .sort((a: any, b: any) => {
                 // 优先按总分排序，然后按平均分排序
                 if (b.totalScore !== a.totalScore) {
                     return b.totalScore - a.totalScore;
@@ -442,42 +443,24 @@ async function handleMultiMatchTournament(ctx: any, params: {
     config: any;
 }) {
     const { tournament, uid, gameType, player, config } = params;
-    const now = getTorontoDate();
 
-    // 查找现有的待匹配比赛
-    let match = await ctx.db
-        .query("matches")
-        .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournament._id))
-        .filter((q: any) => q.eq(q.field("status"), "pending"))
-        .first();
-
-    if (!match) {
-        // 创建新比赛
-        const matchId = await MatchManager.createMatch(ctx, {
-            tournamentId: tournament._id,
-            gameType,
-            matchType: "multi_match",
-            maxPlayers: config.rules?.maxPlayers || 4,
-            minPlayers: config.rules?.minPlayers || 2,
-            gameData: {}
-        });
-
-        match = await ctx.db.get(matchId);
-    }
-
-    // 玩家加入比赛
-    const playerMatchId = await MatchManager.joinMatch(ctx, {
-        matchId: match._id,
-        tournamentId: tournament._id,
+    // 使用锦标赛匹配服务
+    const matchResult = await TournamentMatchingService.joinTournamentMatch(ctx, {
         uid,
-        gameType
+        tournamentId: tournament._id,
+        gameType,
+        player,
+        config
     });
 
     return {
         tournamentId: tournament._id,
-        matchId: match._id,
-        playerMatchId,
-        attemptNumber: 1
+        matchId: matchResult.matchId,
+        playerMatchId: matchResult.playerMatchId,
+        gameId: matchResult.gameId,
+        serverUrl: matchResult.serverUrl,
+        attemptNumber: 1,
+        matchStatus: matchResult.matchInfo
     };
 }
 

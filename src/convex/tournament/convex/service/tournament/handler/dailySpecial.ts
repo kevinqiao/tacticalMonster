@@ -44,7 +44,7 @@ export const dailySpecialHandler: TournamentHandler = {
 
   async validateScore(ctx, { tournamentId, uid, score }) {
     // 基础验证
-    await baseHandler.validateScore(ctx, { tournamentId, uid, gameType: "solitaire", score, gameData: {}, propsUsed: [] });
+    await this.validateScore(ctx, { tournamentId, uid, gameType: "solitaire", score, gameData: {}, propsUsed: [] });
 
     // 每日特殊赛特定验证
     const tournament = await ctx.db.get(tournamentId);

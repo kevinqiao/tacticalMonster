@@ -1,14 +1,80 @@
 // @ts-nocheck
 import { getTorontoDate } from "../../utils";
+import { validateLimits } from "../ruleEngine";
 import { baseHandler, TournamentHandler } from "./base";
 
 // 独立锦标赛处理器 - 每次参加都是独立的锦标赛，单独派发奖励
 export const independentTournamentHandler: TournamentHandler = {
     ...baseHandler,
 
-    async validateJoin(ctx, { uid, gameType, player, season }) {
-        const now = getTorontoDate();
-        const today = now.localDate.toISOString().split("T")[0];
+    async validateJoin(ctx, { uid, gameType, tournamentType, player, season }) {
+        // 获取锦标赛配置
+        const tournamentTypeConfig = await ctx.db
+            .query("tournament_types")
+            .withIndex("by_typeId", (q: any) => q.eq("typeId", tournamentType))
+            .first();
+
+        if (tournamentTypeConfig?.defaultConfig?.limits) {
+            // 使用配置化的限制验证
+            await validateLimits(ctx, {
+                uid,
+                gameType,
+                tournamentType,
+                isSubscribed: player.isSubscribed,
+                limits: tournamentTypeConfig.defaultConfig.limits,
+                seasonId: season._id,
+            });
+        } else {
+            // 使用默认限制配置
+            const defaultLimits = {
+                daily: {
+                    maxParticipations: 3,
+                    maxTournaments: 3,
+                    maxAttempts: 3
+                },
+                weekly: {
+                    maxParticipations: 21,
+                    maxTournaments: 21,
+                    maxAttempts: 21
+                },
+                seasonal: {
+                    maxParticipations: 90,
+                    maxTournaments: 90,
+                    maxAttempts: 90
+                },
+                total: {
+                    maxParticipations: 1000,
+                    maxTournaments: 1000,
+                    maxAttempts: 1000
+                },
+                subscribed: {
+                    daily: {
+                        maxParticipations: 5,
+                        maxTournaments: 5,
+                        maxAttempts: 5
+                    },
+                    weekly: {
+                        maxParticipations: 35,
+                        maxTournaments: 35,
+                        maxAttempts: 35
+                    },
+                    seasonal: {
+                        maxParticipations: 150,
+                        maxTournaments: 150,
+                        maxAttempts: 150
+                    }
+                }
+            };
+
+            await validateLimits(ctx, {
+                uid,
+                gameType,
+                tournamentType,
+                isSubscribed: player.isSubscribed,
+                limits: defaultLimits,
+                seasonId: season._id,
+            });
+        }
 
         // 检查玩家库存
         const inventory = await ctx.db
@@ -25,29 +91,14 @@ export const independentTournamentHandler: TournamentHandler = {
         if (inventory.coins < entryFee.coins) {
             throw new Error("金币不足");
         }
-
-        // 检查今日参赛次数限制
-        const limits = await ctx.db
-            .query("player_tournament_limits")
-            .withIndex("by_uid_game_date", (q) =>
-                q.eq("uid", uid).eq("gameType", gameType).eq("date", today)
-            )
-            .collect();
-
-        const dailyLimit = limits.find(l => l.tournamentType === "independent_tournament");
-        const maxAttempts = 3; // 每日最多3次独立锦标赛
-
-        if (dailyLimit && dailyLimit.participationCount >= maxAttempts) {
-            throw new Error("今日独立锦标赛次数已达上限（3次）");
-        }
     },
 
-    async join(ctx, { uid, gameType, player, season }) {
+    async join(ctx, { uid, gameType, tournamentType, player, season }) {
         const now = getTorontoDate();
         const today = now.localDate.toISOString().split("T")[0];
 
         // 验证加入条件
-        await this.validateJoin(ctx, { uid, gameType, tournamentType: "independent_tournament", player, season });
+        await this.validateJoin(ctx, { uid, gameType, tournamentType, player, season });
 
         // 扣除参赛费用
         const entryFee = { coins: 50 };
@@ -64,31 +115,13 @@ export const independentTournamentHandler: TournamentHandler = {
         // 获取今日参赛次数
         const limits = await ctx.db
             .query("player_tournament_limits")
-            .withIndex("by_uid_game_date", (q) =>
-                q.eq("uid", uid).eq("gameType", gameType).eq("date", today)
+            .withIndex("by_uid_tournament_date", (q: any) =>
+                q.eq("uid", uid).eq("tournamentType", tournamentType).eq("date", today)
             )
             .collect();
 
-        const dailyLimit = limits.find(l => l.tournamentType === "independent_tournament");
+        const dailyLimit = limits.find(l => l.tournamentType === tournamentType);
         const attemptNumber = (dailyLimit?.participationCount || 0) + 1;
-
-        // 更新或创建参赛限制记录
-        if (dailyLimit) {
-            await ctx.db.patch(dailyLimit._id, {
-                participationCount: attemptNumber,
-                updatedAt: now.iso
-            });
-        } else {
-            await ctx.db.insert("player_tournament_limits", {
-                uid,
-                gameType,
-                date: today,
-                tournamentType: "independent_tournament",
-                participationCount: 1,
-                createdAt: now.iso,
-                updatedAt: now.iso
-            });
-        }
 
         // 创建独立的锦标赛
         const tournamentId = await ctx.db.insert("tournaments", {
