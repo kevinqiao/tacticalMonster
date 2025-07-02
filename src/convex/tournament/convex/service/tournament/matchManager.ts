@@ -49,7 +49,7 @@ export class MatchManager {
             minPlayers: params.minPlayers,
             startTime: undefined,
             endTime: undefined,
-            gameData: params.gameData || {},
+            gameData: params?.gameData || {},
             createdAt: now.iso,
             updatedAt: now.iso,
         });
