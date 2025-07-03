@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import { getTorontoDate } from "../utils";
 import { getHandler } from "./handler";
-import { MatchManager } from "./matchManager";
 
 /**
  * 统一锦标赛服务
@@ -236,90 +235,6 @@ export class TournamentService {
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
     }
-
-    /**
-     * 创建多人匹配队列
-     */
-    static async createMatchQueue(ctx: any, params: {
-        tournamentId: string;
-        gameType: string;
-        maxPlayers: number;
-        minPlayers: number;
-    }) {
-        const now = getTorontoDate();
-
-        // 创建比赛
-        const matchId = await MatchManager.createMatch(ctx, {
-            tournamentId: params.tournamentId,
-            gameType: params.gameType,
-            matchType: "multiplayer_queue",
-            maxPlayers: params.maxPlayers,
-            minPlayers: params.minPlayers,
-            gameData: {
-                queueType: "skill_based",
-                createdAt: now.iso
-            }
-        });
-
-        return {
-            success: true,
-            matchId,
-            message: "匹配队列创建成功"
-        };
-    }
-
-    /**
-     * 加入匹配队列
-     */
-    static async joinMatchQueue(ctx: any, params: {
-        matchId: string;
-        tournamentId: string;
-        uid: string;
-        gameType: string;
-    }) {
-        const result = await MatchManager.joinMatch(ctx, params);
-        return {
-            success: true,
-            playerMatchId: result,
-            message: "成功加入匹配队列"
-        };
-    }
-
-    /**
-     * 获取匹配队列状态
-     */
-    static async getMatchQueueStatus(ctx: any, matchId: string) {
-        const match = await ctx.db.get(matchId);
-        if (!match) {
-            throw new Error("比赛不存在");
-        }
-
-        const playerMatches = await ctx.db
-            .query("player_matches")
-            .withIndex("by_match", (q: any) => q.eq("matchId", matchId))
-            .collect();
-
-        const players = await Promise.all(
-            playerMatches.map((pm: any) =>
-                ctx.db.query("players")
-                    .withIndex("by_uid", (q: any) => q.eq("uid", pm.uid))
-                    .first()
-            )
-        );
-
-        return {
-            match,
-            players: playerMatches.map((pm: any, index: number) => ({
-                ...pm,
-                player: players[index]
-            })),
-            currentPlayers: playerMatches.length,
-            maxPlayers: match.maxPlayers,
-            minPlayers: match.minPlayers,
-            status: match.status,
-            isReady: playerMatches.length >= match.minPlayers
-        };
-    }
 }
 
 // Convex 函数接口
@@ -374,38 +289,5 @@ export const getPlayerTournamentHistory = query({
     },
     handler: async (ctx, args): Promise<any> => {
         return await TournamentService.getPlayerTournamentHistory(ctx, args);
-    },
-});
-
-export const createMatchQueue = mutation({
-    args: {
-        tournamentId: v.id("tournaments"),
-        gameType: v.string(),
-        maxPlayers: v.number(),
-        minPlayers: v.number(),
-    },
-    handler: async (ctx, args): Promise<any> => {
-        return await TournamentService.createMatchQueue(ctx, args);
-    },
-});
-
-export const joinMatchQueue = mutation({
-    args: {
-        matchId: v.id("matches"),
-        tournamentId: v.id("tournaments"),
-        uid: v.string(),
-        gameType: v.string(),
-    },
-    handler: async (ctx, args): Promise<any> => {
-        return await TournamentService.joinMatchQueue(ctx, args);
-    },
-});
-
-export const getMatchQueueStatus = query({
-    args: {
-        matchId: v.id("matches"),
-    },
-    handler: async (ctx, args): Promise<any> => {
-        return await TournamentService.getMatchQueueStatus(ctx, args.matchId);
     },
 }); 
