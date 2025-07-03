@@ -145,6 +145,7 @@ export class TournamentService {
 
         // 计算玩家统计
         const playerStats = new Map();
+
         for (const playerMatch of playerMatches) {
             if (!playerMatch.completed) continue;
 
@@ -173,8 +174,8 @@ export class TournamentService {
                 ...stats,
                 player: players.find((p: any) => p?.uid === uid)
             }))
-            .sort((a, b) => b.bestScore - a.bestScore)
-            .map((player, index) => ({
+            .sort((a: any, b: any) => b.bestScore - a.bestScore)
+            .map((player: any, index: number) => ({
                 ...player,
                 rank: index + 1
             }));
@@ -328,7 +329,7 @@ export const joinTournament = mutation({
         gameType: v.string(),
         tournamentType: v.string(),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentService.joinTournament(ctx, args);
     },
 });
@@ -343,7 +344,7 @@ export const submitScore = mutation({
         propsUsed: v.array(v.string()),
         gameId: v.optional(v.string()),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentService.submitScore(ctx, args);
     },
 });
@@ -352,7 +353,7 @@ export const settleTournament = mutation({
     args: {
         tournamentId: v.id("tournaments"),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentService.settleTournament(ctx, args.tournamentId);
     },
 });
@@ -361,7 +362,7 @@ export const getTournamentDetails = query({
     args: {
         tournamentId: v.id("tournaments"),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentService.getTournamentDetails(ctx, args.tournamentId);
     },
 });
@@ -371,7 +372,7 @@ export const getPlayerTournamentHistory = query({
         uid: v.string(),
         limit: v.optional(v.number()),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentService.getPlayerTournamentHistory(ctx, args);
     },
 });
@@ -383,7 +384,7 @@ export const createMatchQueue = mutation({
         maxPlayers: v.number(),
         minPlayers: v.number(),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentService.createMatchQueue(ctx, args);
     },
 });
@@ -395,7 +396,7 @@ export const joinMatchQueue = mutation({
         uid: v.string(),
         gameType: v.string(),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentService.joinMatchQueue(ctx, args);
     },
 });
@@ -404,7 +405,7 @@ export const getMatchQueueStatus = query({
     args: {
         matchId: v.id("matches"),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentService.getMatchQueueStatus(ctx, args.matchId);
     },
 }); 

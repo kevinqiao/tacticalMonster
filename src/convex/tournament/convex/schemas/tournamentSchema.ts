@@ -17,7 +17,8 @@ export const tournamentSchema = {
         createdAt: v.string(),
         updatedAt: v.string(),
         endTime: v.string(),
-    }).index("by_season_game_segment_status", ["seasonId", "gameType", "segmentName", "status"]),
+    }).index("by_season_game_segment_status", ["seasonId", "gameType", "segmentName", "status"])
+        .index("by_type_status", ["tournamentType", "status", "gameType", "segmentName"]),
 
     tournament_types: defineTable({
         typeId: v.string(), // 如 "daily_special"

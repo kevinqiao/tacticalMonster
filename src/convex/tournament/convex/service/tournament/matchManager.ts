@@ -1,4 +1,3 @@
-
 import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import { getTorontoDate } from "../utils";
@@ -392,60 +391,48 @@ export class MatchManager {
         const now = getTorontoDate();
 
         try {
-            // 构建游戏创建请求
-            const gameRequest = {
+            // 模拟远程游戏创建（用于测试）
+            const gameId = `game_${params.matchId}_${Date.now()}`;
+            const serverUrl = `https://game-server.example.com/game/${gameId}`;
+
+            // 记录游戏创建事件
+            await ctx.db.insert("match_events", {
                 matchId: params.matchId,
                 tournamentId: params.tournamentId,
-                uids: params.uids,
-                gameType: REMOTE_GAME_CONFIG.gameTypeMapping[params.gameType as keyof typeof REMOTE_GAME_CONFIG.gameTypeMapping] || params.gameType,
-                matchType: params.matchType,
-                timestamp: now.iso,
-                config: {
-                    timeout: REMOTE_GAME_CONFIG.timeout,
-                    maxPlayers: params.uids.length,
-                    gameMode: "tournament"
-                }
-            };
-
-            // 发送请求到远程游戏服务器
-            const gameResponse = await fetch(REMOTE_GAME_CONFIG.gameAPI, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${process.env.GAME_SERVER_TOKEN || ""}`
-                },
-                body: JSON.stringify(gameRequest),
-                signal: AbortSignal.timeout(REMOTE_GAME_CONFIG.timeout)
-            });
-
-            if (!gameResponse.ok) {
-                throw new Error(`游戏服务器响应错误: ${gameResponse.status} ${gameResponse.statusText}`);
-            }
-
-            const gameResult = await gameResponse.json();
-
-            // 验证响应
-            if (!gameResult.gameId || !gameResult.serverUrl) {
-                throw new Error("游戏服务器返回无效响应");
-            }
-
-            // 发送事件通知给所有玩家
-            await this.notifyPlayers(ctx, {
-                uids: params.uids,
-                eventType: "GameCreated",
+                eventType: "remote_game_created",
                 eventData: {
-                    gameId: gameResult.gameId,
-                    matchId: params.matchId,
-                    serverUrl: gameResult.serverUrl,
-                    gameType: params.gameType
-                }
+                    gameId,
+                    uids: params.uids,
+                    gameType: params.gameType,
+                    serverUrl,
+                    mock: true // 标记为模拟数据
+                },
+                timestamp: now.iso,
+                createdAt: now.iso,
             });
+
+            // 在本地记录玩家事件
+            for (const uid of params.uids) {
+                await ctx.db.insert("player_events", {
+                    uid,
+                    eventType: "GameCreated",
+                    eventData: {
+                        gameId,
+                        matchId: params.matchId,
+                        serverUrl,
+                        gameType: params.gameType
+                    },
+                    timestamp: now.iso,
+                    createdAt: now.iso
+                });
+            }
 
             return {
-                gameId: gameResult.gameId,
-                serverUrl: gameResult.serverUrl,
+                gameId,
+                serverUrl,
                 type: "remote",
-                success: true
+                success: true,
+                mock: true // 标记为模拟数据
             };
 
         } catch (error) {
@@ -483,22 +470,7 @@ export class MatchManager {
                 timestamp: now.iso
             }));
 
-            // 发送到事件同步服务
-            const eventResponse = await fetch(REMOTE_GAME_CONFIG.eventAPI, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${process.env.EVENT_SYNC_TOKEN || ""}`
-                },
-                body: JSON.stringify(events),
-                signal: AbortSignal.timeout(10000) // 10秒超时
-            });
-
-            if (!eventResponse.ok) {
-                console.warn(`事件通知失败: ${eventResponse.status} ${eventResponse.statusText}`);
-            }
-
-            // 同时在本地记录事件
+            // 在本地记录事件（模拟通知）
             for (const event of events) {
                 await ctx.db.insert("player_events", {
                     uid: event.uid,
@@ -508,6 +480,8 @@ export class MatchManager {
                     createdAt: now.iso
                 });
             }
+
+            console.log(`模拟通知 ${params.uids.length} 个玩家: ${params.eventType}`);
 
         } catch (error) {
             console.error("通知玩家失败:", error);
@@ -804,9 +778,9 @@ export const createMatch = mutation({
         matchType: v.string(),
         maxPlayers: v.number(),
         minPlayers: v.number(),
-        gameData: v.optional(v.any()),
+        gameData: v.optional(v.string()),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await MatchManager.createMatch(ctx, args);
     },
 });
@@ -818,7 +792,7 @@ export const joinMatch = mutation({
         uid: v.string(),
         gameType: v.string(),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await MatchManager.joinMatch(ctx, args);
     },
 });
@@ -830,11 +804,11 @@ export const submitScore = mutation({
         uid: v.string(),
         gameType: v.string(),
         score: v.number(),
-        gameData: v.any(),
+        gameData: v.string(),
         propsUsed: v.array(v.string()),
         attemptNumber: v.optional(v.number()),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await MatchManager.submitScore(ctx, args);
     },
 });
@@ -844,14 +818,14 @@ export const endMatch = mutation({
         matchId: v.id("matches"),
         tournamentId: v.id("tournaments"),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await MatchManager.endMatch(ctx, args);
     },
 });
 
 export const getMatchDetails = query({
     args: { matchId: v.id("matches") },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await MatchManager.getMatchDetails(ctx, args.matchId);
     },
 });
@@ -861,7 +835,7 @@ export const getPlayerMatchHistory = query({
         uid: v.string(),
         limit: v.optional(v.number()),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await MatchManager.getPlayerMatchHistory(ctx, args.uid, args.limit);
     },
 });
@@ -869,9 +843,14 @@ export const getPlayerMatchHistory = query({
 // 处理多人单场比赛事件
 export const handleMultiPlayerSingleMatchEvent = mutation({
     args: {
-        event: v.any()
+        event: v.object({
+            matchId: v.id("matches"),
+            tournamentId: v.id("tournaments"),
+            name: v.string(),
+            data: v.any()
+        })
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         const now = getTorontoDate();
 
         // 记录事件

@@ -21,7 +21,7 @@ interface JoinArgs {
   season: Doc<"seasons">;
 }
 
-interface JoinResult {
+export interface JoinResult {
   tournamentId: string;
   attemptNumber: number;
   matchId?: string;
@@ -167,20 +167,26 @@ async function createIndependentTournament(ctx: any, { uid, gameType, tournament
 
 export const baseHandler: TournamentHandler = {
   async validateJoin(ctx, { uid, gameType, tournamentType, player, season }) {
+    const now = getTorontoDate();
+    const today = now.localDate.toISOString().split("T")[0];
+
     const tournamentTypeConfig = await ctx.db
       .query("tournament_types")
       .withIndex("by_typeId", (q: any) => q.eq("typeId", tournamentType))
       .first();
-    if (!tournamentTypeConfig) throw new Error("未知锦标赛类型");
+    const config = tournamentTypeConfig?.defaultConfig || {};
 
-    await validateLimits(ctx, {
-      uid,
-      gameType,
-      tournamentType,
-      isSubscribed: player.isSubscribed,
-      limits: tournamentTypeConfig.defaultConfig.limits,
-      seasonId: season._id,
-    });
+    // 验证限制（如果配置了限制）
+    if (config.limits) {
+      await validateLimits(ctx, {
+        uid,
+        gameType,
+        tournamentType,
+        isSubscribed: player.isSubscribed,
+        limits: config.limits,
+        seasonId: season._id,
+      });
+    }
   },
 
   async join(ctx, { uid, gameType, tournamentType, player, season }) {
@@ -351,9 +357,15 @@ export const baseHandler: TournamentHandler = {
     if (!tournament) throw new Error("无效锦标赛");
     if (propsUsed.length > 3) throw new Error("道具使用超限");
     if (gameType === "solitaire") {
+      // Robust null checks for config and scoring
+      if (!tournament.config || !tournament.config.scoring) {
+        console.warn("锦标赛配置中缺少 scoring 配置，跳过分数验证");
+        return;
+      }
+      const scoring = tournament.config.scoring;
       const expectedScore =
-        gameData.moves * tournament.config.scoring.move +
-        (gameData.timeTaken < tournament.config.scoring.timeLimit ? tournament.config.scoring.completionBonus : 0);
+        (gameData?.moves || 0) * (scoring.move || 0) +
+        ((gameData?.timeTaken ?? Infinity) < (scoring.timeLimit || Infinity) ? (scoring.completionBonus || 0) : 0);
       if (Math.abs(score - expectedScore) > 10) throw new Error("得分不匹配");
     }
   },

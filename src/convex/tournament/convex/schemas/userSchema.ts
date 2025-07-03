@@ -3,28 +3,20 @@ import { v } from "convex/values";
 
 // 用户系统相关表
 export const userSchema = {
-    users: defineTable({
+    // 玩家表 - 合并了用户信息和游戏相关功能
+    players: defineTable({
         uid: v.string(),
         email: v.string(),
         displayName: v.string(),
         avatarUrl: v.optional(v.string()),
-        isSubscribed: v.boolean(),
-        subscriptionExpiry: v.optional(v.string()),
-        createdAt: v.string(),
-        updatedAt: v.string(),
-    }).index("by_uid", ["uid"]).index("by_email", ["email"]),
-
-    // 玩家表 - 用于排行榜和游戏相关功能
-    players: defineTable({
-        uid: v.string(),
-        displayName: v.string(),
         segmentName: v.string(), // "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"
         isSubscribed: v.boolean(),
+        subscriptionExpiry: v.optional(v.string()),
         lastActive: v.string(),
         totalPoints: v.number(),
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_uid", ["uid"]).index("by_segment", ["segmentName"]),
+    }).index("by_uid", ["uid"]).index("by_email", ["email"]).index("by_segment", ["segmentName"]),
 
     // 玩家活动表 - 用于跟踪玩家活跃度
     player_activities: defineTable({
@@ -96,4 +88,21 @@ export const userSchema = {
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_uid", ["uid"]).index("by_achievement", ["achievementId"]),
+
+    // 玩家库存表 - 存储玩家的金币、道具和门票
+    player_inventory: defineTable({
+        uid: v.string(),
+        coins: v.number(),
+        props: v.array(v.object({
+            gameType: v.string(),
+            propType: v.string(),
+            quantity: v.number(),
+        })),
+        tickets: v.array(v.object({
+            gameType: v.string(),
+            tournamentType: v.string(),
+            quantity: v.number(),
+        })),
+        updatedAt: v.string(),
+    }).index("by_uid", ["uid"]),
 }; 

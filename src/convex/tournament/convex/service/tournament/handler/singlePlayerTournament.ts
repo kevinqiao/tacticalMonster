@@ -26,7 +26,7 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
             .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .first();
         if (config.entryFee) {
-            const deductEntryFee = (internal as any)["service/tournament/ruleEngine"].deductEntryFee;
+            const deductEntryFee = (internal as any)["service/tournament/ruleEngine"].deductEntryFeeMutation;
             await ctx.runMutation(deductEntryFee, {
                 uid,
                 gameType,

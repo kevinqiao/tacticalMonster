@@ -83,7 +83,7 @@ export class TournamentMatchingService {
                 .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
                 .collect();
 
-            let gameResult = null;
+            let gameResult: any = undefined;
             let matchStatus = "waiting";
 
             if (this.shouldStartMatch(ctx, { match, currentPlayers, config })) {
@@ -118,8 +118,8 @@ export class TournamentMatchingService {
                 success: true,
                 matchId: match._id,
                 playerMatchId,
-                gameId: gameResult?.gameId || null,
-                serverUrl: gameResult?.serverUrl || null,
+                gameId: gameResult ? gameResult.gameId : undefined,
+                serverUrl: gameResult ? gameResult.serverUrl : undefined,
                 status: matchStatus,
                 matchInfo: {
                     currentPlayers: currentPlayers.length,
@@ -501,7 +501,7 @@ export const joinTournamentMatch = mutation({
         tournamentId: v.id("tournaments"),
         gameType: v.string(),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         // 获取玩家信息
         const player = await ctx.db
             .query("players")
@@ -535,7 +535,7 @@ export const getMatchStatus = query({
         tournamentId: v.id("tournaments"),
         gameType: v.string(),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentMatchingService.getMatchStatus(ctx, args);
     },
 });
@@ -546,7 +546,7 @@ export const leaveMatch = mutation({
         tournamentId: v.id("tournaments"),
         gameType: v.string(),
     },
-    handler: async (ctx, args) => {
+    handler: async (ctx, args): Promise<any> => {
         return await TournamentMatchingService.leaveMatch(ctx, args);
     },
 }); 

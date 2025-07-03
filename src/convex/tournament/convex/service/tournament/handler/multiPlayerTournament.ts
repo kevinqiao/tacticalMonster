@@ -2,7 +2,7 @@ import { internal } from "../../../_generated/api";
 import { getTorontoDate } from "../../utils";
 import { MatchManager } from "../matchManager";
 import { TournamentMatchingService } from "../tournamentMatchingService";
-import { baseHandler, getPlayerAttempts, TournamentHandler } from "./base";
+import { baseHandler, getPlayerAttempts, JoinResult, TournamentHandler } from "./base";
 
 // 多人锦标赛处理器
 export const multiPlayerTournamentHandler: TournamentHandler = {
@@ -27,7 +27,7 @@ export const multiPlayerTournamentHandler: TournamentHandler = {
             .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .first();
         if (config.entryFee) {
-            const deductEntryFee = (internal as any)["service/tournament/ruleEngine"].deductEntryFee;
+            const deductEntryFee = (internal as any)["service/tournament/ruleEngine"].deductEntryFeeMutation;
             await ctx.runMutation(deductEntryFee, {
                 uid,
                 gameType,
@@ -441,7 +441,7 @@ async function handleMultiMatchTournament(ctx: any, params: {
     gameType: string;
     player: any;
     config: any;
-}) {
+}): Promise<JoinResult> {
     const { tournament, uid, gameType, player, config } = params;
 
     // 使用锦标赛匹配服务
@@ -457,11 +457,11 @@ async function handleMultiMatchTournament(ctx: any, params: {
         tournamentId: tournament._id,
         matchId: matchResult.matchId,
         playerMatchId: matchResult.playerMatchId,
-        gameId: matchResult.gameId,
-        serverUrl: matchResult.serverUrl,
+        gameId: matchResult.gameId as string | undefined,
+        serverUrl: matchResult.serverUrl as string | undefined,
         attemptNumber: 1,
         matchStatus: matchResult.matchInfo
-    };
+    } as JoinResult;
 }
 
 async function findPlayerMatch(ctx: any, params: {

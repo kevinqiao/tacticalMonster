@@ -1,3 +1,5 @@
+import { v } from "convex/values";
+import { mutation } from "../../_generated/server";
 import { getTorontoDate } from "../utils";
 
 // 锦标赛配置规则
@@ -376,3 +378,52 @@ function determineSegment(gamePoints: number): string {
   if (gamePoints >= 1000) return "Silver";
   return "Bronze";
 }
+
+// Convex 函数接口
+export const deductEntryFeeMutation = mutation({
+  args: {
+    uid: v.string(),
+    gameType: v.string(),
+    tournamentType: v.string(),
+    entryFee: v.any(),
+    inventory: v.any(),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    return await deductEntryFee(ctx, args);
+  },
+});
+
+export const deductPropsMutation = mutation({
+  args: {
+    uid: v.string(),
+    gameType: v.string(),
+    propsUsed: v.array(v.string()),
+    inventory: v.any(),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    return await deductProps(ctx, args);
+  },
+});
+
+export const applyRulesMutation = mutation({
+  args: {
+    tournament: v.any(),
+    uid: v.string(),
+    matches: v.array(v.any()),
+    player: v.any(),
+    inventory: v.any(),
+    playerSeason: v.any(),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    return await applyRules(ctx, args);
+  },
+});
+
+export const distributeSeasonRewardsMutation = mutation({
+  args: {
+    seasonId: v.id("seasons"),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    return await distributeSeasonRewards(ctx, args.seasonId);
+  },
+});

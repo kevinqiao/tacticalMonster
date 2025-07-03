@@ -11,7 +11,7 @@
 const tableClassificationRules = {
     user: {
         patterns: ['user', 'player'],
-        tables: ['users', 'user_preferences', 'user_statistics', 'user_achievements'],
+        tables: ['players', 'user_preferences', 'user_statistics', 'user_achievements'],
     },
     tournament: {
         patterns: ['tournament', 'match', 'season'],
@@ -181,11 +181,11 @@ export function migrateTableExample() {
     };
 
     // 分析应该属于哪个模块
-    const suggestedModule = analyzeTableForModule("users", originalTable);
-    console.log(`表 'users' 建议分类到模块: ${suggestedModule}`);
+    const suggestedModule = analyzeTableForModule("players", originalTable);
+    console.log(`表 'players' 建议分类到模块: ${suggestedModule}`);
 
     // 生成模块化代码
-    const modularCode = generateModularSchemaCode("users", originalTable, suggestedModule);
+    const modularCode = generateModularSchemaCode("players", originalTable, suggestedModule);
     console.log("生成的模块化代码:");
     console.log(modularCode);
 }
