@@ -55,7 +55,7 @@ export const weeklyHandler: TournamentHandler = {
         }
 
         // 查找或创建每周锦标赛
-        let tournament = await this.findOrCreateWeeklyTournament(ctx, {
+        let tournament = await findOrCreateWeeklyTournament(ctx, {
             uid,
             gameType,
             tournamentType,
@@ -69,7 +69,7 @@ export const weeklyHandler: TournamentHandler = {
         // 根据锦标赛类型处理
         if (config.rules?.isSingleMatch) {
             // 单人比赛锦标赛 - 直接创建比赛
-            return await this.handleSingleMatchTournament(ctx, {
+            return await handleSingleMatchTournament(ctx, {
                 tournament,
                 uid,
                 gameType,
@@ -78,7 +78,7 @@ export const weeklyHandler: TournamentHandler = {
             });
         } else {
             // 多人比赛锦标赛 - 使用锦标赛匹配机制
-            return await this.handleMultiMatchTournament(ctx, {
+            return await handleMultiMatchTournament(ctx, {
                 tournament,
                 uid,
                 gameType,
@@ -102,7 +102,7 @@ export const weeklyHandler: TournamentHandler = {
             await this.validateScore(ctx, { tournamentId, gameType, score, gameData, propsUsed, uid });
 
             // 查找对应的比赛记录
-            const match = await this.findPlayerMatch(ctx, { tournamentId, uid, gameType });
+            const match = await findPlayerMatch(ctx, { tournamentId, uid, gameType });
             if (!match) {
                 throw new Error("未找到对应的比赛记录");
             }
@@ -146,7 +146,7 @@ export const weeklyHandler: TournamentHandler = {
 
             // 记录道具使用日志
             if (propsUsed.length > 0) {
-                await this.logPropUsage(ctx, {
+                await logPropUsage(ctx, {
                     uid,
                     tournamentId,
                     matchId: match.matchId,

@@ -2,7 +2,7 @@ import { internal } from "../../../_generated/api";
 import { mutation } from "../../../_generated/server";
 
 // 统一运行所有 tournament 测试
-export const runAllTournamentTests = mutation({
+export const runAllTournamentTests = (mutation as any)({
     args: {} as Record<string, never>,
     handler: async (ctx: any, args: any) => {
         const results = [];
@@ -72,30 +72,37 @@ export const runAllTournamentTests = mutation({
 });
 
 // 单独运行特定测试
-export const runJoinTournamentTest = mutation({
+export const runJoinTournamentTest = (mutation as any)({
     args: {} as Record<string, never>,
-    handler: async (ctx: any, args: any) => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await ctx.runMutation(internal.service.tournament.tests.testJoinTournament.runTestJoinTournament, {});
     }
 });
 
-export const runSubmitScoreTest = mutation({
+export const runSubmitScoreTest = (mutation as any)({
     args: {} as Record<string, never>,
-    handler: async (ctx: any, args: any) => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await ctx.runMutation(internal.service.tournament.tests.testSubmitScore.runTestSubmitScore, {});
     }
 });
 
-export const runLimitsTest = mutation({
+export const runLimitsTest = (mutation as any)({
     args: {} as Record<string, never>,
-    handler: async (ctx: any, args: any) => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await ctx.runMutation(internal.service.tournament.tests.testLimits.runTestLimits, {});
     }
 });
 
-export const runSettleTournamentTest = mutation({
+export const runSettleTournamentTest = (mutation as any)({
     args: {} as Record<string, never>,
-    handler: async (ctx: any, args: any) => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await ctx.runMutation(internal.service.tournament.tests.testSettleTournament.runTestSettleTournament, {});
+    }
+});
+
+export const runThresholdTournamentTest = (mutation as any)({
+    args: {} as Record<string, never>,
+    handler: async (ctx: any, args: any): Promise<any> => {
+        return await ctx.runMutation(internal.service.tournament.tests.testThresholdTournament.runTestThresholdTournament, {});
     }
 }); 

@@ -3,7 +3,7 @@ import { mutation } from "../../../_generated/server";
 import { getTorontoDate } from "../../utils";
 
 // 分数提交测试
-export const runTestSubmitScore = mutation({
+export const runTestSubmitScore = (mutation as any)({
     args: {} as Record<string, never>,
     handler: async (ctx: any, args: any) => {
         const testUid = "test_score_user_" + Date.now();

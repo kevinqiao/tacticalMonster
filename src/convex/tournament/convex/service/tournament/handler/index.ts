@@ -4,7 +4,6 @@ import { dailyHandler } from "./dailyHandler";
 import { multiPlayerTournamentHandler } from "./multiPlayerTournament";
 import { rankedHandler } from "./rankedHandler";
 import { seasonalHandler } from "./seasonalHandler";
-import { singlePlayerTournamentHandler } from "./singlePlayerTournament";
 import { specialHandler } from "./specialHandler";
 import { tournamentHandler } from "./tournamentHandler";
 import { weeklyHandler } from "./weeklyHandler";
@@ -62,14 +61,15 @@ const HANDLER_MAP: Record<string, any> = {
   "tournament_strategy_battle": tournamentHandler,
   "tournament_skill_showdown": tournamentHandler,
 
-  // 单人锦标赛
-  "single_player_tournament": singlePlayerTournamentHandler,
-  "single_player_threshold_tournament": singlePlayerTournamentHandler,
-  "independent_tournament": singlePlayerTournamentHandler,
+  // 单人锦标赛 - 统一使用multiPlayerTournamentHandler
+  "single_player_tournament": multiPlayerTournamentHandler,
+  "independent_tournament": multiPlayerTournamentHandler,
+  "single_player_threshold_tournament": multiPlayerTournamentHandler,
 
   // 多人锦标赛
   "multi_player_tournament": multiPlayerTournamentHandler,
   "team_tournament": multiPlayerTournamentHandler,
+  "multi_player_single_match_tournament": multiPlayerTournamentHandler,
 };
 
 /**
@@ -171,6 +171,6 @@ export function getHandlerCategories(): Record<string, string[]> {
 // 导出所有处理器
 export {
   casualHandler,
-  championshipHandler, dailyHandler, multiPlayerTournamentHandler, rankedHandler, seasonalHandler, singlePlayerTournamentHandler, specialHandler, tournamentHandler, weeklyHandler
+  championshipHandler, dailyHandler, multiPlayerTournamentHandler, rankedHandler, seasonalHandler, specialHandler, tournamentHandler, weeklyHandler
 };
 

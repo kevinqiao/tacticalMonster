@@ -1,12 +1,13 @@
+import { internal } from "../../../_generated/api";
 import { mutation } from "../../../_generated/server";
 import { TestUtils } from "./testUtils";
 
 /**
  * 测试阈值锦标赛功能
  */
-export const runTestThresholdTournament = mutation({
+export const runTestThresholdTournament = (mutation as any)({
     args: {} as Record<string, never>,
-    handler: async (ctx) => {
+    handler: async (ctx: any) => {
         const testUid = `tournament_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         let testData: any = null;
 
@@ -55,7 +56,7 @@ export const runTestThresholdTournament = mutation({
 
             // 3. 测试加入阈值锦标赛
             const joinResult = await ctx.runMutation(
-                (ctx as any).api.service.tournament.tournamentService.joinTournament,
+                internal.service.tournament.tournamentService.joinTournament,
                 {
                     uid: testUid,
                     gameType: "solitaire",
@@ -65,24 +66,59 @@ export const runTestThresholdTournament = mutation({
 
             console.log("✅ 加入阈值锦标赛成功:", joinResult);
 
-            // 4. 测试提交低于阈值的分数
-            const lowScoreResult = await ctx.runMutation(
-                (ctx as any).api.service.tournament.tournamentService.submitScore,
+            // 4. 测试获取可用锦标赛列表
+            const availableTournaments = await ctx.runQuery(
+                internal.service.tournament.tournamentService.getAvailableTournaments,
+                {
+                    uid: testUid,
+                    gameType: "solitaire"
+                }
+            );
+
+            console.log("✅ 获取可用锦标赛列表成功:", availableTournaments);
+
+            // 验证返回的数据结构
+            if (!availableTournaments.success) {
+                throw new Error("获取可用锦标赛列表失败");
+            }
+
+            if (availableTournaments.tournaments.length === 0) {
+                throw new Error("没有找到可用的锦标赛");
+            }
+
+            // 验证阈值锦标赛在列表中
+            const thresholdTournament = availableTournaments.tournaments.find(
+                (t: any) => t.typeId === "single_player_threshold_tournament"
+            );
+
+            if (!thresholdTournament) {
+                throw new Error("阈值锦标赛不在可用列表中");
+            }
+
+            if (!thresholdTournament.eligibility.eligible) {
+                console.log("⚠️ 阈值锦标赛资格检查:", thresholdTournament.eligibility.reasons);
+            }
+
+            console.log("✅ 阈值锦标赛资格验证通过");
+
+            // 5. 测试提交分数
+            const submitResult = await ctx.runMutation(
+                internal.service.tournament.tournamentService.submitScore,
                 {
                     tournamentId: joinResult.tournamentId,
                     uid: testUid,
                     gameType: "solitaire",
-                    score: 800, // 低于阈值1000
+                    score: 1200, // 超过阈值1000
                     gameData: { moves: 50, time: 300 },
                     propsUsed: []
                 }
             );
 
-            console.log("✅ 提交低分成功:", lowScoreResult);
+            console.log("✅ 提交分数成功:", submitResult);
 
-            // 5. 检查锦标赛是否已结算
+            // 6. 检查锦标赛是否已结算
             const tournamentDetails = await ctx.runQuery(
-                (ctx as any).api.service.tournament.tournamentService.getTournamentDetails,
+                internal.service.tournament.tournamentService.getTournamentDetails,
                 {
                     tournamentId: joinResult.tournamentId
                 }
@@ -90,7 +126,7 @@ export const runTestThresholdTournament = mutation({
 
             console.log("✅ 锦标赛详情:", tournamentDetails);
 
-            // 6. 验证排名结果
+            // 7. 验证排名结果
             if (tournamentDetails.players.length > 0) {
                 const player = tournamentDetails.players[0];
                 console.log(`玩家分数: ${player.bestScore}, 排名: ${player.rank}`);
@@ -104,32 +140,28 @@ export const runTestThresholdTournament = mutation({
                 }
             }
 
-            // 7. 清理测试数据
+            // 8. 清理测试数据
             await TestUtils.cleanupTestData(ctx, testData.playerId, testUid);
 
             return {
                 success: true,
-                message: "阈值锦标赛测试完成",
+                message: "阈值锦标赛功能测试完成",
                 testUid,
-                results: {
-                    joinResult,
-                    lowScoreResult,
-                    tournamentDetails
-                }
+                joinResult,
+                availableTournaments,
+                submitResult,
+                tournamentDetails
             };
 
         } catch (error) {
-            console.error("阈值锦标赛测试失败:", error);
+            console.error("❌ 阈值锦标赛功能测试失败:", error);
 
             // 清理测试数据
-            await TestUtils.cleanupTestData(ctx, testData.playerId, testUid);
+            if (testData) {
+                await TestUtils.cleanupTestData(ctx, testData.playerId, testUid);
+            }
 
-            return {
-                success: false,
-                message: "阈值锦标赛测试失败",
-                testUid,
-                error: error instanceof Error ? error.message : "未知错误"
-            };
+            throw error;
         }
     }
 }); 

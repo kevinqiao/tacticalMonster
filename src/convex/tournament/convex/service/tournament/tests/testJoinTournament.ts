@@ -26,8 +26,8 @@ export const runTestJoinTournament = (mutation as any)({
             console.log("加入锦标赛结果:", joinResult);
 
             // 3. 清理测试数据
-            console.log("3. 清理测试数据...");
-            await TestUtils.cleanupTestData(ctx, playerId, testUid);
+            // console.log("3. 清理测试数据...");
+            // await TestUtils.cleanupTestData(ctx, playerId, testUid);
 
             return {
                 success: true,
