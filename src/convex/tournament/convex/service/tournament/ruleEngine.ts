@@ -117,6 +117,7 @@ async function validateWeeklyLimits(ctx: any, { uid, gameType, tournamentType, i
       uid,
       gameType,
       tournamentType,
+      date: weekStart, // Use weekStart as the date for weekly limits
       weekStart,
       participationCount: 1,
       tournamentCount: 0,
@@ -156,6 +157,7 @@ async function validateSeasonalLimits(ctx: any, { uid, gameType, tournamentType,
       uid,
       gameType,
       tournamentType,
+      date: now.localDate.toISOString().split("T")[0], // Use current date for seasonal limits
       seasonId,
       participationCount: 1,
       tournamentCount: 0,
@@ -380,7 +382,7 @@ function determineSegment(gamePoints: number): string {
 }
 
 // Convex 函数接口
-export const deductEntryFeeMutation = mutation({
+export const deductEntryFeeMutation = (mutation as any)({
   args: {
     uid: v.string(),
     gameType: v.string(),
@@ -388,42 +390,42 @@ export const deductEntryFeeMutation = mutation({
     entryFee: v.any(),
     inventory: v.any(),
   },
-  handler: async (ctx, args): Promise<any> => {
+  handler: async (ctx: any, args: any): Promise<any> => {
     return await deductEntryFee(ctx, args);
   },
 });
 
-export const deductPropsMutation = mutation({
+export const deductPropsMutation = (mutation as any)({
   args: {
     uid: v.string(),
     gameType: v.string(),
-    propsUsed: v.array(v.string()),
+    propsUsed: v.any(),
     inventory: v.any(),
   },
-  handler: async (ctx, args): Promise<any> => {
+  handler: async (ctx: any, args: any): Promise<any> => {
     return await deductProps(ctx, args);
   },
 });
 
-export const applyRulesMutation = mutation({
+export const applyRulesMutation = (mutation as any)({
   args: {
     tournament: v.any(),
     uid: v.string(),
-    matches: v.array(v.any()),
+    matches: v.any(),
     player: v.any(),
     inventory: v.any(),
     playerSeason: v.any(),
   },
-  handler: async (ctx, args): Promise<any> => {
+  handler: async (ctx: any, args: any): Promise<any> => {
     return await applyRules(ctx, args);
   },
 });
 
-export const distributeSeasonRewardsMutation = mutation({
+export const distributeSeasonRewardsMutation = (mutation as any)({
   args: {
     seasonId: v.id("seasons"),
   },
-  handler: async (ctx, args): Promise<any> => {
+  handler: async (ctx: any, args: any): Promise<any> => {
     return await distributeSeasonRewards(ctx, args.seasonId);
   },
 });

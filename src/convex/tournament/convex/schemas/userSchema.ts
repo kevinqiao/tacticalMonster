@@ -6,11 +6,13 @@ export const userSchema = {
     // 玩家表 - 合并了用户信息和游戏相关功能
     players: defineTable({
         uid: v.string(),
-        email: v.string(),
+        email: v.optional(v.string()),
         displayName: v.string(),
         avatarUrl: v.optional(v.string()),
         segmentName: v.string(), // "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"
-        isSubscribed: v.boolean(),
+        isActive: v.optional(v.boolean()),
+        isSubscribed: v.optional(v.boolean()),
+        eloScore: v.optional(v.number()),
         subscriptionExpiry: v.optional(v.string()),
         lastActive: v.string(),
         totalPoints: v.number(),
@@ -103,6 +105,7 @@ export const userSchema = {
             tournamentType: v.string(),
             quantity: v.number(),
         })),
+        createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_uid", ["uid"]),
 }; 

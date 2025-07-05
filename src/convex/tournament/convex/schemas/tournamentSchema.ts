@@ -24,11 +24,15 @@ export const tournamentSchema = {
         typeId: v.string(), // 如 "daily_special"
         name: v.string(), // 如 "每日特别赛"
         description: v.string(),
+        category: v.string(), // "daily", "weekly", "seasonal", "special"
         handlerModule: v.string(), // 如 "tournamentHandlers/dailySpecial"
         defaultConfig: v.any(), // 包含 entryFee, rules, rewards 等
+        isActive: v.boolean(), // 是否激活
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_typeId", ["typeId"]),
+    }).index("by_typeId", ["typeId"])
+        .index("by_category", ["category"])
+        .index("by_isActive", ["isActive"]),
 
     // 比赛基础信息表 - 存储比赛的核心信息
     matches: defineTable({
@@ -91,14 +95,19 @@ export const tournamentSchema = {
         uid: v.string(),
         gameType: v.string(),
         tournamentType: v.string(),
-        date: v.string(), // "2025-06-18"
-        participationCount: v.number(), // 当日参与次数
-        tournamentCount: v.number(), // 当日锦标赛数量
-        submissionCount: v.number(), // 当日提交次数
+        date: v.string(), // "2025-06-18" - 用于每日限制
+        weekStart: v.optional(v.string()), // "2025-06-16" - 用于每周限制（周一）
+        seasonId: v.optional(v.id("seasons")), // 用于赛季限制
+        participationCount: v.number(), // 参与次数
+        tournamentCount: v.number(), // 锦标赛数量
+        submissionCount: v.number(), // 提交次数
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_uid_game_date", ["uid", "gameType", "date"])
         .index("by_uid_tournament_date", ["uid", "tournamentType", "date"])
+        .index("by_uid_tournament_week", ["uid", "tournamentType", "weekStart"])
+        .index("by_uid_tournament_season", ["uid", "tournamentType", "seasonId"])
+        .index("by_uid_tournament", ["uid", "tournamentType"])
         .index("by_date_tournament", ["date", "tournamentType"]),
 
     // 玩家锦标赛参与记录

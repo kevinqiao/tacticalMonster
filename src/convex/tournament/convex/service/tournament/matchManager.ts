@@ -771,7 +771,7 @@ export class TournamentMatchManager {
 }
 
 // Convex 函数接口
-export const createMatch = mutation({
+export const createMatch = (mutation as any)({
     args: {
         tournamentId: v.id("tournaments"),
         gameType: v.string(),
@@ -780,24 +780,24 @@ export const createMatch = mutation({
         minPlayers: v.number(),
         gameData: v.optional(v.string()),
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await MatchManager.createMatch(ctx, args);
     },
 });
 
-export const joinMatch = mutation({
+export const joinMatch = (mutation as any)({
     args: {
         matchId: v.id("matches"),
         tournamentId: v.id("tournaments"),
         uid: v.string(),
         gameType: v.string(),
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await MatchManager.joinMatch(ctx, args);
     },
 });
 
-export const submitScore = mutation({
+export const submitScore = (mutation as any)({
     args: {
         matchId: v.id("matches"),
         tournamentId: v.id("tournaments"),
@@ -805,52 +805,47 @@ export const submitScore = mutation({
         gameType: v.string(),
         score: v.number(),
         gameData: v.string(),
-        propsUsed: v.array(v.string()),
+        propsUsed: v.any(),
         attemptNumber: v.optional(v.number()),
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await MatchManager.submitScore(ctx, args);
     },
 });
 
-export const endMatch = mutation({
+export const endMatch = (mutation as any)({
     args: {
         matchId: v.id("matches"),
         tournamentId: v.id("tournaments"),
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await MatchManager.endMatch(ctx, args);
     },
 });
 
-export const getMatchDetails = query({
+export const getMatchDetails = (query as any)({
     args: { matchId: v.id("matches") },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await MatchManager.getMatchDetails(ctx, args.matchId);
     },
 });
 
-export const getPlayerMatchHistory = query({
+export const getPlayerMatchHistory = (query as any)({
     args: {
         uid: v.string(),
         limit: v.optional(v.number()),
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await MatchManager.getPlayerMatchHistory(ctx, args.uid, args.limit);
     },
 });
 
 // 处理多人单场比赛事件
-export const handleMultiPlayerSingleMatchEvent = mutation({
+export const handleMultiPlayerSingleMatchEvent = (mutation as any)({
     args: {
-        event: v.object({
-            matchId: v.id("matches"),
-            tournamentId: v.id("tournaments"),
-            name: v.string(),
-            data: v.any()
-        })
+        event: v.any()
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         const now = getTorontoDate();
 
         // 记录事件

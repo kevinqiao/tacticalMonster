@@ -184,7 +184,7 @@ export class TournamentMatchingService {
         }
 
         // 按优先级排序，选择最佳匹配
-        eligibleMatches.sort((a, b) => b.priority - a.priority);
+        eligibleMatches.sort((a: any, b: any) => b.priority - a.priority);
         return eligibleMatches.length > 0 ? eligibleMatches[0].match : null;
     }
 
@@ -495,13 +495,13 @@ export class TournamentMatchingService {
 }
 
 // Convex 函数接口
-export const joinTournamentMatch = mutation({
+export const joinTournamentMatch = (mutation as any)({
     args: {
         uid: v.string(),
         tournamentId: v.id("tournaments"),
         gameType: v.string(),
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         // 获取玩家信息
         const player = await ctx.db
             .query("players")
@@ -529,24 +529,24 @@ export const joinTournamentMatch = mutation({
     },
 });
 
-export const getMatchStatus = query({
+export const getMatchStatus = (query as any)({
     args: {
         uid: v.string(),
         tournamentId: v.id("tournaments"),
         gameType: v.string(),
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await TournamentMatchingService.getMatchStatus(ctx, args);
     },
 });
 
-export const leaveMatch = mutation({
+export const leaveMatch = (mutation as any)({
     args: {
         uid: v.string(),
         tournamentId: v.id("tournaments"),
         gameType: v.string(),
     },
-    handler: async (ctx, args): Promise<any> => {
+    handler: async (ctx: any, args: any): Promise<any> => {
         return await TournamentMatchingService.leaveMatch(ctx, args);
     },
 }); 

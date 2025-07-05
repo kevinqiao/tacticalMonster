@@ -1,21 +1,30 @@
 import { internal } from "../../../_generated/api";
 import { getTorontoDate } from "../../utils";
 import { MatchManager } from "../matchManager";
+import { TournamentMatchingService } from "../tournamentMatchingService";
 import { baseHandler, getPlayerAttempts, TournamentHandler } from "./base";
 
-// 单人锦标赛处理器
-export const singlePlayerTournamentHandler: TournamentHandler = {
+/**
+ * 休闲锦标赛处理器
+ * 处理 casual_ludo_fun 等休闲锦标赛
+ */
+export const casualHandler: TournamentHandler = {
     ...baseHandler,
 
     async join(ctx, { uid, gameType, tournamentType, player, season }) {
         const now = getTorontoDate();
-        const today = now.localDate.toISOString().split("T")[0];
 
+        // 获取锦标赛类型配置
         const tournamentTypeConfig = await ctx.db
             .query("tournament_types")
             .withIndex("by_typeId", (q: any) => q.eq("typeId", tournamentType))
             .first();
-        const config = tournamentTypeConfig?.defaultConfig || {};
+
+        if (!tournamentTypeConfig) {
+            throw new Error("锦标赛类型不存在");
+        }
+
+        const config = tournamentTypeConfig.defaultConfig;
 
         // 验证加入条件
         await this.validateJoin(ctx, { uid, gameType, tournamentType, player, season });
@@ -25,6 +34,7 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
             .query("player_inventory")
             .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .first();
+
         if (config.entryFee) {
             const deductEntryFee = (internal as any)["service/tournament/ruleEngine"].deductEntryFeeMutation;
             await ctx.runMutation(deductEntryFee, {
@@ -42,8 +52,8 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
             throw new Error("已达最大尝试次数");
         }
 
-        // 查找或创建锦标赛
-        let tournament = await findOrCreateTournament(ctx, {
+        // 查找或创建休闲锦标赛
+        let tournament = await this.findOrCreateCasualTournament(ctx, {
             uid,
             gameType,
             tournamentType,
@@ -53,69 +63,48 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
             now
         });
 
-        // 创建单场比赛
-        const matchId = await MatchManager.createMatch(ctx, {
-            tournamentId: tournament._id,
-            gameType,
-            matchType: "single_match",
-            maxPlayers: 1,
-            minPlayers: 1,
-            gameData: {
-                player: {
-                    uid,
-                    segmentName: player.segmentName,
-                    eloScore: player.totalPoints || 1000
-                }
-            }
-        });
-
-        // 玩家加入比赛
-        const playerMatchId = await MatchManager.joinMatch(ctx, {
-            matchId,
-            tournamentId: tournament._id,
-            uid,
-            gameType
-        });
-
-        // 创建远程游戏
-        const gameResult = await MatchManager.createRemoteGame(ctx, {
-            matchId,
-            tournamentId: tournament._id,
-            uids: [uid],
-            gameType,
-            matchType: "single_match"
-        });
-
-        return {
-            tournamentId: tournament._id,
-            matchId,
-            playerMatchId,
-            gameId: gameResult.gameId,
-            serverUrl: gameResult.serverUrl,
-            attemptNumber: 1
-        };
+        // 根据锦标赛类型处理
+        if (config.rules?.isSingleMatch) {
+            // 单人比赛锦标赛 - 直接创建比赛
+            return await this.handleSingleMatchTournament(ctx, {
+                tournament,
+                uid,
+                gameType,
+                player,
+                config
+            });
+        } else {
+            // 多人比赛锦标赛 - 使用锦标赛匹配机制
+            return await this.handleMultiMatchTournament(ctx, {
+                tournament,
+                uid,
+                gameType,
+                player,
+                config
+            });
+        }
     },
 
     async submitScore(ctx, { tournamentId, uid, gameType, score, gameData, propsUsed, gameId }) {
         const now = getTorontoDate();
 
         try {
-            // 1. 获取锦标赛信息
+            // 获取锦标赛信息
             const tournament = await ctx.db.get(tournamentId);
             if (!tournament) {
                 throw new Error("锦标赛不存在");
             }
 
-            // 2. 验证提交条件
+            // 验证提交条件
             await this.validateScore(ctx, { tournamentId, gameType, score, gameData, propsUsed, uid });
 
-            // 3. 查找对应的比赛记录
-            const match = await findPlayerMatch(ctx, { tournamentId, uid, gameType });
+            // 查找对应的比赛记录
+            const match = await this.findPlayerMatch(ctx, { tournamentId, uid, gameType });
             if (!match) {
                 throw new Error("未找到对应的比赛记录");
             }
 
-            // 4. 提交分数到比赛
+            // 提交分数到比赛
             const submitResult = await MatchManager.submitScore(ctx, {
                 matchId: match.matchId,
                 tournamentId,
@@ -127,7 +116,7 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
                 attemptNumber: match.attemptNumber
             });
 
-            // 5. 执行延迟扣除（如果使用了道具）
+            // 执行延迟扣除（如果使用了道具）
             let deductionResult = null;
             if (propsUsed.length > 0 && gameId) {
                 try {
@@ -142,20 +131,19 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
                             completed: true
                         }
                     });
-                    console.log("延迟扣除执行结果:", deductionResult);
                 } catch (error) {
                     console.error("执行延迟扣除失败:", error);
                 }
             }
 
-            // 6. 更新锦标赛状态
+            // 更新锦标赛状态
             await ctx.db.patch(tournament._id, {
                 updatedAt: now.iso
             });
 
-            // 7. 记录道具使用日志
+            // 记录道具使用日志
             if (propsUsed.length > 0) {
-                await logPropUsage(ctx, {
+                await this.logPropUsage(ctx, {
                     uid,
                     tournamentId,
                     matchId: match.matchId,
@@ -165,21 +153,48 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
                 });
             }
 
-            // 8. 立即结算单人锦标赛
+            // 检查是否需要结算锦标赛
             let settleResult = null;
-            try {
-                console.log(`立即结算单人锦标赛 ${tournamentId}`);
-                await this.settle(ctx, tournamentId);
-                settleResult = {
-                    settled: true,
-                    reason: "单人锦标赛完成"
-                };
-            } catch (settleError) {
-                console.error("单人锦标赛结算失败:", settleError);
-                settleResult = {
-                    settled: false,
-                    error: settleError instanceof Error ? settleError.message : "未知错误"
-                };
+            if (tournament.config?.rules?.isSingleMatch) {
+                // 单人比赛锦标赛 - 立即结算
+                try {
+                    console.log(`立即结算单人比赛锦标赛 ${tournamentId}`);
+                    await this.settle(ctx, tournamentId);
+                    settleResult = {
+                        settled: true,
+                        reason: "单人比赛锦标赛完成"
+                    };
+                } catch (settleError) {
+                    console.error("单人比赛锦标赛结算失败:", settleError);
+                    settleResult = {
+                        settled: false,
+                        error: settleError instanceof Error ? settleError.message : "未知错误"
+                    };
+                }
+            } else {
+                // 多人比赛锦标赛 - 检查是否所有比赛都完成
+                const allMatches = await ctx.db
+                    .query("matches")
+                    .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournamentId))
+                    .collect();
+
+                const completedMatches = allMatches.filter((m: any) => m.status === "completed");
+                if (completedMatches.length === allMatches.length && allMatches.length > 0) {
+                    try {
+                        console.log(`结算多人比赛锦标赛 ${tournamentId}`);
+                        await this.settle(ctx, tournamentId);
+                        settleResult = {
+                            settled: true,
+                            reason: "多人比赛锦标赛完成"
+                        };
+                    } catch (settleError) {
+                        console.error("多人比赛锦标赛结算失败:", settleError);
+                        settleResult = {
+                            settled: false,
+                            error: settleError instanceof Error ? settleError.message : "未知错误"
+                        };
+                    }
+                }
             }
 
             return {
@@ -188,7 +203,7 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
                 score,
                 deductionResult,
                 settleResult,
-                message: settleResult.settled ? "分数提交成功，锦标赛已结算" : "分数提交成功"
+                message: settleResult?.settled ? "分数提交成功，锦标赛已结算" : "分数提交成功"
             };
 
         } catch (error) {
@@ -203,7 +218,6 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
                         uid,
                         reason: "游戏中断"
                     });
-                    console.log("延迟扣除已取消");
                 } catch (error) {
                     console.error("取消延迟扣除失败:", error);
                 }
@@ -213,7 +227,6 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
         }
     },
 
-    // 重写结算方法，针对单人锦标赛优化
     async settle(ctx, tournamentId) {
         const now = getTorontoDate();
 
@@ -233,7 +246,7 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
             throw new Error("没有比赛记录");
         }
 
-        // 获取所有玩家比赛记录
+        // 计算玩家总积分和排名
         const playerScores = new Map<string, { totalScore: number; matchCount: number; bestScore: number }>();
 
         for (const match of matches) {
@@ -259,14 +272,7 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
             }
         }
 
-        // 获取锦标赛类型配置
-        const tournamentTypeConfig = await ctx.db
-            .query("tournament_types")
-            .withIndex("by_typeId", (q: any) => q.eq("typeId", tournament.tournamentType))
-            .first();
-        const config = tournamentTypeConfig?.defaultConfig || {};
-
-        // 单人锦标赛的排名计算（通常只有一个玩家）
+        // 根据锦标赛规则计算最终排名
         const sortedPlayers = Array.from(playerScores.entries())
             .map(([uid, stats]) => ({
                 uid,
@@ -274,40 +280,27 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
                 matchCount: stats.matchCount,
                 bestScore: stats.bestScore,
                 averageScore: stats.totalScore / stats.matchCount
-            }));
-
-        // 根据排名方法计算最终排名
-        let finalRankedPlayers;
-        if (config.matchRules?.rankingMethod === "threshold" && config.matchRules?.scoreThreshold) {
-            // 阈值排名：达到阈值获得第一名，否则第二名
-            finalRankedPlayers = sortedPlayers.map(player => ({
+            }))
+            .sort((a: any, b: any) => {
+                // 优先按总分排序，然后按平均分排序
+                if (b.totalScore !== a.totalScore) {
+                    return b.totalScore - a.totalScore;
+                }
+                return b.averageScore - a.averageScore;
+            })
+            .map((player, index) => ({
                 ...player,
-                rank: player.bestScore >= config.matchRules.scoreThreshold ? 1 : 2
+                rank: index + 1
             }));
-        } else {
-            // 默认排名：按最高分排序
-            finalRankedPlayers = sortedPlayers
-                .sort((a: any, b: any) => {
-                    // 优先按最高分排序，然后按平均分排序
-                    if (b.bestScore !== a.bestScore) {
-                        return b.bestScore - a.bestScore;
-                    }
-                    return b.averageScore - a.averageScore;
-                })
-                .map((player, index) => ({
-                    ...player,
-                    rank: index + 1
-                }));
-        }
 
         // 分配奖励
-        for (const playerData of finalRankedPlayers) {
+        for (const playerData of sortedPlayers) {
             try {
                 if (this.distributeRewards) {
                     await this.distributeRewards(ctx, {
                         uid: playerData.uid,
                         rank: playerData.rank,
-                        score: playerData.bestScore, // 使用最高分
+                        score: playerData.totalScore,
                         tournament,
                         matches: matches.filter((m: any) =>
                             ctx.db.query("player_matches")
@@ -320,10 +313,9 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
             } catch (error: any) {
                 console.error(`分配奖励失败 (${playerData.uid}):`, error);
 
-                // 记录错误日志
                 await ctx.db.insert("error_logs", {
                     error: `分配奖励失败: ${error.message}`,
-                    context: "single_player_tournament_settle",
+                    context: "casual_tournament_settle",
                     uid: playerData.uid,
                     createdAt: now.iso
                 });
@@ -336,12 +328,12 @@ export const singlePlayerTournamentHandler: TournamentHandler = {
             updatedAt: now.iso
         });
 
-        console.log(`单人锦标赛 ${tournamentId} 结算完成`);
+        console.log(`休闲锦标赛 ${tournamentId} 结算完成`);
     }
 };
 
 // 辅助函数
-async function findOrCreateTournament(ctx: any, params: {
+async function findOrCreateCasualTournament(ctx: any, params: {
     uid: string;
     gameType: string;
     tournamentType: string;
@@ -352,7 +344,7 @@ async function findOrCreateTournament(ctx: any, params: {
 }) {
     const { uid, gameType, tournamentType, player, season, config, now } = params;
 
-    // 查找现有的锦标赛
+    // 查找休闲锦标赛
     let tournament = await ctx.db
         .query("tournaments")
         .withIndex("by_type_status", (q: any) =>
@@ -364,7 +356,7 @@ async function findOrCreateTournament(ctx: any, params: {
         .first();
 
     if (!tournament) {
-        // 创建新锦标赛
+        // 创建新的休闲锦标赛
         const tournamentId = await ctx.db.insert("tournaments", {
             seasonId: season._id,
             gameType,
@@ -373,12 +365,17 @@ async function findOrCreateTournament(ctx: any, params: {
             playerUids: [uid],
             tournamentType,
             isSubscribedRequired: config.isSubscribedRequired || false,
-            isSingleMatch: true, // 单人锦标赛总是单场比赛
+            isSingleMatch: config.rules?.isSingleMatch || false,
             prizePool: config.entryFee?.coins ? config.entryFee.coins * 0.8 : 0,
             config,
             createdAt: now.iso,
             updatedAt: now.iso,
             endTime: new Date(now.localDate.getTime() + (config.duration || 24 * 60 * 60 * 1000)).toISOString(),
+            casualTournament: {
+                type: "casual",
+                funMode: true,
+                relaxedRules: true
+            }
         });
 
         tournament = await ctx.db.get(tournamentId);
@@ -393,6 +390,100 @@ async function findOrCreateTournament(ctx: any, params: {
     }
 
     return tournament;
+}
+
+async function handleSingleMatchTournament(ctx: any, params: {
+    tournament: any;
+    uid: string;
+    gameType: string;
+    player: any;
+    config: any;
+}) {
+    const { tournament, uid, gameType, player, config } = params;
+    const now = getTorontoDate();
+
+    // 创建单场比赛
+    const matchId = await MatchManager.createMatch(ctx, {
+        tournamentId: tournament._id,
+        gameType,
+        matchType: "casual_single_match",
+        maxPlayers: 1,
+        minPlayers: 1,
+        gameData: {
+            player: {
+                uid,
+                segmentName: player.segmentName,
+                eloScore: player.eloScore || 1000
+            },
+            casualMode: {
+                funMode: true,
+                relaxedRules: true
+            }
+        }
+    });
+
+    // 玩家加入比赛
+    const playerMatchId = await MatchManager.joinMatch(ctx, {
+        matchId,
+        tournamentId: tournament._id,
+        uid,
+        gameType
+    });
+
+    // 创建远程游戏
+    const gameResult = await MatchManager.createRemoteGame(ctx, {
+        matchId,
+        tournamentId: tournament._id,
+        uids: [uid],
+        gameType,
+        matchType: "casual_single_match"
+    });
+
+    return {
+        tournamentId: tournament._id,
+        matchId,
+        playerMatchId,
+        gameId: gameResult.gameId,
+        serverUrl: gameResult.serverUrl,
+        attemptNumber: 1,
+        casualMode: {
+            funMode: true,
+            relaxedRules: true
+        }
+    };
+}
+
+async function handleMultiMatchTournament(ctx: any, params: {
+    tournament: any;
+    uid: string;
+    gameType: string;
+    player: any;
+    config: any;
+}) {
+    const { tournament, uid, gameType, player, config } = params;
+
+    // 使用锦标赛匹配服务
+    const matchResult = await TournamentMatchingService.joinTournamentMatch(ctx, {
+        uid,
+        tournamentId: tournament._id,
+        gameType,
+        player,
+        config
+    });
+
+    return {
+        tournamentId: tournament._id,
+        matchId: matchResult.matchId,
+        playerMatchId: matchResult.playerMatchId,
+        gameId: matchResult.gameId,
+        serverUrl: matchResult.serverUrl,
+        attemptNumber: 1,
+        matchStatus: matchResult.matchInfo,
+        casualMode: {
+            funMode: true,
+            relaxedRules: true
+        }
+    };
 }
 
 async function findPlayerMatch(ctx: any, params: {

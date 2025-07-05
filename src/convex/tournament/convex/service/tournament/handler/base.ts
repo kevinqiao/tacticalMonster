@@ -1,5 +1,6 @@
 import { internal } from "../../../_generated/api";
 import { Doc } from "../../../_generated/dataModel";
+import { getTournamentConfig } from "../../../data/tournamentConfigs";
 import { getTorontoDate } from "../../utils";
 import { applyRules, deductEntryFee, validateLimits } from "../ruleEngine";
 
@@ -170,11 +171,11 @@ export const baseHandler: TournamentHandler = {
     const now = getTorontoDate();
     const today = now.localDate.toISOString().split("T")[0];
 
-    const tournamentTypeConfig = await ctx.db
-      .query("tournament_types")
-      .withIndex("by_typeId", (q: any) => q.eq("typeId", tournamentType))
-      .first();
-    const config = tournamentTypeConfig?.defaultConfig || {};
+    // 使用配置适配器获取统一格式的配置
+    const config = getTournamentConfig(tournamentType);
+    if (!config) {
+      throw new Error(`无效的锦标赛配置: ${tournamentType}`);
+    }
 
     // 验证限制（如果配置了限制）
     if (config.limits) {
