@@ -24,7 +24,8 @@
   },
   "include": [
     "./**/*",
-    "../http-bak.ts"
+    "../http-bak.ts",
+    "../../../component/lobby/tournament/frontendIntegration.tsx"
   ],
   "exclude": [
     "./_generated"

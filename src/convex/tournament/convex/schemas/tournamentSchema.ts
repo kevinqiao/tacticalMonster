@@ -8,7 +8,6 @@ export const tournamentSchema = {
         gameType: v.string(), // "solitaire", "uno", "ludo", "rummy"
         segmentName: v.string(), // "Bronze", "Silver", "Gold", "Platinum"
         status: v.string(), // "open", "completed"
-        playerUids: v.array(v.string()),
         tournamentType: v.string(), // 引用 tournament_types.typeId
         isSubscribedRequired: v.boolean(),
         isSingleMatch: v.boolean(),
@@ -20,9 +19,21 @@ export const tournamentSchema = {
     }).index("by_season_game_segment_status", ["seasonId", "gameType", "segmentName", "status"])
         .index("by_type_status", ["tournamentType", "status", "gameType", "segmentName"]),
 
+    // 玩家与锦标赛的关系表
+    player_tournaments: defineTable({
+        uid: v.string(),
+        tournamentId: v.id("tournaments"),
+        joinedAt: v.string(),
+        createdAt: v.string(),
+        updatedAt: v.string(),
+    }).index("by_uid", ["uid"])
+        .index("by_tournament", ["tournamentId"])
+        .index("by_uid_tournament", ["uid", "tournamentId"]),
+
     tournament_types: defineTable({
         typeId: v.string(), // 如 "daily_special"
         name: v.string(), // 如 "每日特别赛"
+        gameType: v.string(),
         description: v.string(),
         category: v.string(), // "daily", "weekly", "seasonal", "special"
         handlerModule: v.string(), // 如 "tournamentHandlers/dailySpecial"

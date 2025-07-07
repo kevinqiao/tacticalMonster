@@ -1,5 +1,4 @@
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineSchema } from "convex/server";
 import { propSchema } from "./schemas/propSchema";
 import { segmentSchema } from "./schemas/segmentSchema";
 import { taskSchema } from "./schemas/taskSchema";
@@ -27,16 +26,4 @@ export default defineSchema({
   // 任务系统
   ...taskSchema,
 
-  player_tournaments: defineTable({
-    uid: v.string(),
-    tournamentId: v.id("tournaments"),
-    tournamentType: v.string(),
-    gameType: v.string(),
-    joinedAt: v.string(),
-    createdAt: v.string(),
-    updatedAt: v.string(),
-  })
-    .index("by_uid_tournamentType", ["uid", "tournamentType"])
-    .index("by_tournamentId", ["tournamentId"])
-    .index("by_uid_joinedAt", ["uid", "joinedAt"]),
 });

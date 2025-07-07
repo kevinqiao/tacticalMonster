@@ -18,7 +18,13 @@ export const submitMatchResult = mutation({
     // 获取锦标赛
     const tournament = await ctx.db.get(args.tournamentId);
     if (!tournament) throw new Error("锦标赛不存在");
-    if (!tournament.playerUids.includes(args.uid)) throw new Error("玩家未加入此锦标赛");
+
+    // 检查玩家是否参与此锦标赛
+    const playerParticipation = await ctx.db
+      .query("player_tournaments")
+      .withIndex("by_uid_tournament", (q) => q.eq("uid", args.uid).eq("tournamentId", args.tournamentId))
+      .first();
+    if (!playerParticipation) throw new Error("玩家未加入此锦标赛");
 
     // 检查现有比赛记录
     const existingMatch = await ctx.db

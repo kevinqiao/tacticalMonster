@@ -52,10 +52,31 @@ export class TournamentService {
             season
         });
 
+        // 通知参与更新
+        await this.notifyTournamentChanges(ctx, {
+            uid: params.uid,
+            changeType: "participation_update",
+            tournamentType: params.tournamentType,
+            tournamentId: result.tournamentId,
+            data: {
+                name: tournamentType.name,
+                action: "joined",
+                matchId: result.matchId,
+                gameId: result.gameId
+            }
+        });
+
+        // 获取更新后的可参与锦标赛列表
+        const updatedAvailableTournaments = await this.getAvailableTournaments(ctx, {
+            uid: params.uid,
+            gameType: params.gameType
+        });
+
         return {
             success: true,
             ...result,
-            message: "成功加入锦标赛"
+            message: "成功加入锦标赛",
+            updatedAvailableTournaments: updatedAvailableTournaments.tournaments
         };
     }
 
@@ -93,7 +114,30 @@ export class TournamentService {
             gameId: params.gameId
         });
 
-        return result;
+        // 通知参与更新
+        await this.notifyTournamentChanges(ctx, {
+            uid: params.uid,
+            changeType: "participation_update",
+            tournamentType: tournament.tournamentType,
+            tournamentId: params.tournamentId,
+            data: {
+                name: tournament.tournamentType,
+                action: "score_submitted",
+                score: params.score,
+                matchId: result.matchId
+            }
+        });
+
+        // 获取更新后的可参与锦标赛列表
+        const updatedAvailableTournaments = await this.getAvailableTournaments(ctx, {
+            uid: params.uid,
+            gameType: params.gameType
+        });
+
+        return {
+            ...result,
+            updatedAvailableTournaments: updatedAvailableTournaments.tournaments
+        };
     }
 
     /**
@@ -136,20 +180,16 @@ export class TournamentService {
             .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournamentId))
             .collect();
 
-        // 获取玩家信息 - 简化版本
-        const playerUids: string[] = [];
-        const uidSet = new Set<string>();
-        for (const pm of playerMatches) {
-            if (pm.uid && !uidSet.has(pm.uid)) {
-                uidSet.add(pm.uid);
-                playerUids.push(pm.uid);
-            }
-        }
+        // 获取参与锦标赛的玩家信息 - 使用player_tournaments表
+        const playerTournaments = await ctx.db
+            .query("player_tournaments")
+            .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournamentId))
+            .collect();
 
         const players: any[] = [];
-        for (const uid of playerUids) {
+        for (const pt of playerTournaments) {
             const player = await ctx.db.query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .withIndex("by_uid", (q: any) => q.eq("uid", pt.uid))
                 .first();
             if (player) {
                 players.push(player);
@@ -210,7 +250,7 @@ export class TournamentService {
             matches,
             players: sortedPlayers,
             totalMatches: matches.length,
-            totalPlayers: playerUids.length
+            totalPlayers: playerTournaments.length
         };
     }
 
@@ -442,6 +482,13 @@ export class TournamentService {
             );
         }
 
+        // 自动创建缺失的锦标赛
+        await this.ensureTournamentsExist(ctx, {
+            tournamentTypes,
+            season,
+            player
+        });
+
         const availableTournaments: any[] = [];
 
         for (const tournamentType of tournamentTypes) {
@@ -468,7 +515,7 @@ export class TournamentService {
                         name: tournamentType.name,
                         description: tournamentType.description,
                         category: tournamentType.category,
-                        gameType: tournamentType.defaultConfig?.gameType,
+                        gameType: tournamentType.gameType,
                         config: tournamentType.defaultConfig,
                         eligibility,
                         participationStats,
@@ -489,6 +536,245 @@ export class TournamentService {
             tournaments: availableTournaments,
             totalCount: availableTournaments.length
         };
+    }
+
+    /**
+     * 确保锦标赛存在，如果不存在则自动创建
+     */
+    private static async ensureTournamentsExist(ctx: any, params: {
+        tournamentTypes: any[];
+        season: any;
+        player: any;
+    }) {
+        const { tournamentTypes, season, player } = params;
+        const now = getTorontoDate();
+
+        for (const tournamentType of tournamentTypes) {
+            try {
+                // 检查是否需要自动创建锦标赛
+                if (await this.shouldCreateTournament(ctx, { tournamentType, season, now })) {
+                    await this.createTournamentIfNeeded(ctx, {
+                        tournamentType,
+                        season,
+                        player,
+                        now
+                    });
+                }
+            } catch (error) {
+                console.error(`自动创建锦标赛失败 (${tournamentType.typeId}):`, error);
+                // 继续处理其他锦标赛，不中断整个流程
+            }
+        }
+    }
+
+    /**
+     * 判断是否需要创建锦标赛
+     */
+    private static async shouldCreateTournament(ctx: any, params: {
+        tournamentType: any;
+        season: any;
+        now: any;
+    }) {
+        const { tournamentType, season, now } = params;
+
+        // 根据锦标赛类型判断是否需要创建
+        switch (tournamentType.category) {
+            case "daily":
+                return await this.shouldCreateDailyTournament(ctx, { tournamentType, now });
+            case "weekly":
+                return await this.shouldCreateWeeklyTournament(ctx, { tournamentType, now });
+            case "seasonal":
+                return await this.shouldCreateSeasonalTournament(ctx, { tournamentType, season });
+            default:
+                // 其他类型（如 casual, special 等）不需要预创建
+                return false;
+        }
+    }
+
+    /**
+     * 判断是否需要创建每日锦标赛
+     */
+    private static async shouldCreateDailyTournament(ctx: any, params: {
+        tournamentType: any;
+        now: any;
+    }) {
+        const { tournamentType, now } = params;
+        const today = now.localDate.toISOString().split("T")[0];
+
+        // 检查是否已创建今日锦标赛
+        const existingTournaments = await ctx.db
+            .query("tournaments")
+            .withIndex("by_type_status", (q: any) =>
+                q.eq("tournamentType", tournamentType.typeId)
+                    .eq("status", "open")
+            )
+            .collect();
+
+        // 在 JavaScript 中过滤今日创建的锦标赛
+        const todayTournament = existingTournaments.find((tournament: any) => {
+            const createdAt = tournament.createdAt;
+            if (!createdAt) return false;
+            const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+            return createdAtStr.startsWith(today);
+        });
+
+        return !todayTournament;
+    }
+
+    /**
+     * 判断是否需要创建每周锦标赛
+     */
+    private static async shouldCreateWeeklyTournament(ctx: any, params: {
+        tournamentType: any;
+        now: any;
+    }) {
+        const { tournamentType, now } = params;
+        const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
+
+        // 检查是否已创建本周锦标赛
+        const existingTournaments = await ctx.db
+            .query("tournaments")
+            .withIndex("by_type_status", (q: any) =>
+                q.eq("tournamentType", tournamentType.typeId)
+                    .eq("status", "open")
+            )
+            .collect();
+
+        // 在 JavaScript 中过滤本周创建的锦标赛
+        const thisWeekTournament = existingTournaments.find((tournament: any) => {
+            const createdAt = tournament.createdAt;
+            if (!createdAt) return false;
+            const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+            const tournamentWeekStart = this.getWeekStart(createdAtStr.split("T")[0]);
+            return tournamentWeekStart === weekStart;
+        });
+
+        return !thisWeekTournament;
+    }
+
+    /**
+     * 判断是否需要创建赛季锦标赛
+     */
+    private static async shouldCreateSeasonalTournament(ctx: any, params: {
+        tournamentType: any;
+        season: any;
+    }) {
+        const { tournamentType, season } = params;
+
+        // 检查是否已创建本赛季锦标赛
+        const existingTournament = await ctx.db
+            .query("tournaments")
+            .withIndex("by_type_status", (q: any) =>
+                q.eq("tournamentType", tournamentType.typeId)
+                    .eq("status", "open")
+            )
+            .filter((q: any) => q.eq(q.field("seasonId"), season._id))
+            .first();
+
+        return !existingTournament;
+    }
+
+    /**
+     * 创建锦标赛（如果需要）
+     */
+    private static async createTournamentIfNeeded(ctx: any, params: {
+        tournamentType: any;
+        season: any;
+        player: any;
+        now: any;
+    }) {
+        const { tournamentType, season, player, now } = params;
+
+        console.log(`自动创建锦标赛: ${tournamentType.typeId}`);
+
+        // 计算结束时间
+        let endTime: string;
+        switch (tournamentType.category) {
+            case "daily":
+                endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+                break;
+            case "weekly":
+                endTime = new Date(now.localDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+                break;
+            case "seasonal":
+                endTime = new Date(now.localDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                break;
+            default:
+                endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        }
+
+        // 创建锦标赛
+        const tournamentId = await ctx.db.insert("tournaments", {
+            seasonId: season._id,
+            gameType: tournamentType.defaultConfig?.gameType || "solitaire",
+            segmentName: "all", // 对所有段位开放
+            status: "open",
+            tournamentType: tournamentType.typeId,
+            isSubscribedRequired: tournamentType.defaultConfig?.isSubscribedRequired || false,
+            isSingleMatch: tournamentType.defaultConfig?.rules?.isSingleMatch || false,
+            prizePool: tournamentType.defaultConfig?.entryFee?.coins ? tournamentType.defaultConfig.entryFee.coins * 0.8 : 0,
+            config: tournamentType.defaultConfig,
+            createdAt: now.iso,
+            updatedAt: now.iso,
+            endTime: endTime,
+        });
+
+        console.log(`成功创建锦标赛 ${tournamentType.typeId}: ${tournamentId}`);
+
+        // 可选：发送通知给所有玩家
+        await this.notifyPlayersAboutNewTournament(ctx, {
+            tournamentId,
+            tournamentType: tournamentType.typeId,
+            name: tournamentType.name,
+            description: tournamentType.description,
+            gameType: tournamentType.defaultConfig?.gameType || "solitaire"
+        });
+    }
+
+    /**
+     * 获取本周开始日期（周一）
+     */
+    private static getWeekStart(dateStr: string): string {
+        const date = new Date(dateStr);
+        const day = date.getDay() || 7;
+        date.setDate(date.getDate() - (day - 1));
+        return date.toISOString().split("T")[0];
+    }
+
+    /**
+     * 通知玩家新锦标赛
+     */
+    private static async notifyPlayersAboutNewTournament(ctx: any, params: {
+        tournamentId: string;
+        tournamentType: string;
+        name: string;
+        description: string;
+        gameType: string;
+    }) {
+        const now = getTorontoDate();
+
+        try {
+            // 获取所有活跃玩家
+            const players = await ctx.db
+                .query("players")
+                .filter((q: any) => q.eq(q.field("isActive"), true))
+                .collect();
+
+            // 为每个玩家创建通知
+            for (const player of players) {
+                await ctx.db.insert("notifications", {
+                    uid: player.uid,
+                    message: `新的${params.name}已开始！快来参与吧！`,
+                    createdAt: now.iso
+                });
+            }
+
+            console.log(`已通知 ${players.length} 个玩家关于新锦标赛 ${params.tournamentType}`);
+
+        } catch (error) {
+            console.error("通知玩家失败:", error);
+            // 不抛出错误，避免影响主要流程
+        }
     }
 
     /**
@@ -577,35 +863,47 @@ export class TournamentService {
         gameType: string;
     }) {
         const { uid, tournamentType, gameType } = params;
-        const now = getTorontoDate();
 
-        // 获取今日开始时间
-        const today = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
+        // 根据锦标赛类型确定需要查询的时间范围
+        const timeRange = this.getTimeRangeForTournament(tournamentType);
 
-        // 获取本周开始时间
-        const weekStart = new Date(now.localDate);
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-        weekStart.setHours(0, 0, 0, 0);
-
-        // 统计各种时间范围的参与次数
-        const dailyAttempts = await this.getPlayerAttempts(ctx, {
-            uid, tournamentType, gameType, timeRange: "daily"
+        // 只查询相关的时间范围
+        const attempts = await this.getPlayerAttempts(ctx, {
+            uid, tournamentType, gameType, timeRange
         });
 
-        const weeklyAttempts = await this.getPlayerAttempts(ctx, {
-            uid, tournamentType, gameType, timeRange: "weekly"
-        });
-
-        const totalAttempts = await this.getPlayerAttempts(ctx, {
-            uid, tournamentType, gameType, timeRange: "total"
-        });
-
-        return {
-            dailyAttempts,
-            weeklyAttempts,
-            totalAttempts,
-            lastParticipation: null // 可以扩展获取最后参与时间
-        };
+        // 根据锦标赛类型返回相应的统计
+        switch (timeRange) {
+            case "daily":
+                return {
+                    dailyAttempts: attempts,
+                    weeklyAttempts: 0, // 不需要查询
+                    totalAttempts: 0,   // 不需要查询
+                    lastParticipation: null
+                };
+            case "weekly":
+                return {
+                    dailyAttempts: 0,   // 不需要查询
+                    weeklyAttempts: attempts,
+                    totalAttempts: 0,   // 不需要查询
+                    lastParticipation: null
+                };
+            case "seasonal":
+                return {
+                    dailyAttempts: 0,   // 不需要查询
+                    weeklyAttempts: 0,  // 不需要查询
+                    totalAttempts: attempts,
+                    lastParticipation: null
+                };
+            case "total":
+            default:
+                return {
+                    dailyAttempts: 0,   // 不需要查询
+                    weeklyAttempts: 0,  // 不需要查询
+                    totalAttempts: attempts,
+                    lastParticipation: null
+                };
+        }
     }
 
     /**
@@ -659,19 +957,332 @@ export class TournamentService {
                 break;
         }
 
-        const tournaments = await ctx.db
-            .query("tournaments")
-            .filter((q: any) =>
-                q.and(
-                    q.eq(q.field("tournamentType"), tournamentType),
-                    q.eq(q.field("gameType"), gameType),
-                    q.includes(q.field("playerUids"), uid),
-                    q.gte(q.field("createdAt"), startTime)
-                )
-            )
+        // 使用player_tournaments关系表查询玩家参与的锦标赛
+        const playerTournaments = await ctx.db
+            .query("player_tournaments")
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .collect();
 
-        return tournaments.length;
+        // 获取这些锦标赛的详细信息
+        const tournamentIds = playerTournaments.map((pt: any) => pt.tournamentId);
+
+        // 如果没有参与的锦标赛，直接返回0
+        if (tournamentIds.length === 0) {
+            return 0;
+        }
+
+        // 分批查询锦标赛，避免查询条件过于复杂
+        let totalCount = 0;
+        for (const tournamentId of tournamentIds) {
+            const tournament = await ctx.db.get(tournamentId);
+            if (tournament &&
+                tournament.tournamentType === tournamentType &&
+                tournament.gameType === gameType &&
+                tournament.createdAt >= startTime) {
+                totalCount++;
+            }
+        }
+
+        return totalCount;
+    }
+
+    /**
+     * 获取玩家锦标赛实时状态
+     * 用于前端实时更新，包含参与统计和资格变化
+     */
+    static async getPlayerTournamentStatus(ctx: any, params: {
+        uid: string;
+        gameType?: string;
+        category?: string;
+    }) {
+        const { uid, gameType, category } = params;
+
+        // 获取玩家信息
+        const player = await ctx.db
+            .query("players")
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .first();
+        if (!player) {
+            throw new Error("玩家不存在");
+        }
+
+        // 获取玩家库存
+        const inventory = await ctx.db
+            .query("player_inventory")
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .first();
+
+        // 获取当前赛季
+        const season = await ctx.db
+            .query("seasons")
+            .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
+            .first();
+
+        // 获取所有活跃的锦标赛类型
+        let tournamentTypes = await ctx.db
+            .query("tournament_types")
+            .filter((q: any) => q.eq(q.field("isActive"), true))
+            .collect();
+
+        // 应用过滤条件
+        if (gameType) {
+            tournamentTypes = tournamentTypes.filter((tt: any) =>
+                tt.defaultConfig?.gameType === gameType
+            );
+        }
+
+        if (category) {
+            tournamentTypes = tournamentTypes.filter((tt: any) =>
+                tt.category === category
+            );
+        }
+
+        // 自动创建缺失的锦标赛
+        await this.ensureTournamentsExist(ctx, {
+            tournamentTypes,
+            season,
+            player
+        });
+
+        const tournamentStatus: any[] = [];
+
+        for (const tournamentType of tournamentTypes) {
+            try {
+                // 检查参赛资格
+                const eligibility = await this.checkTournamentEligibility(ctx, {
+                    uid,
+                    tournamentType,
+                    player,
+                    inventory,
+                    season
+                });
+
+                // 获取参与统计
+                const participationStats = await this.getParticipationStats(ctx, {
+                    uid,
+                    tournamentType: tournamentType.typeId,
+                    gameType: tournamentType.defaultConfig?.gameType
+                });
+
+                // 获取当前参与的锦标赛
+                const currentTournaments = await this.getCurrentParticipations(ctx, {
+                    uid,
+                    tournamentType: tournamentType.typeId,
+                    gameType: tournamentType.defaultConfig?.gameType
+                });
+
+                tournamentStatus.push({
+                    typeId: tournamentType.typeId,
+                    name: tournamentType.name,
+                    description: tournamentType.description,
+                    category: tournamentType.category,
+                    gameType: tournamentType.defaultConfig?.gameType,
+                    config: tournamentType.defaultConfig,
+                    eligibility,
+                    participationStats,
+                    currentParticipations: currentTournaments,
+                    priority: tournamentType.defaultConfig?.priority || 5,
+                    lastUpdated: new Date().toISOString()
+                });
+            } catch (error) {
+                console.error(`获取锦标赛状态失败 (${tournamentType.typeId}):`, error);
+                // 继续处理其他锦标赛
+            }
+        }
+
+        // 按优先级排序
+        tournamentStatus.sort((a: any, b: any) => a.priority - b.priority);
+
+        return {
+            success: true,
+            player: {
+                uid: player.uid,
+                segmentName: player.segmentName,
+                isSubscribed: player.isSubscribed,
+                lastActive: player.lastActive
+            },
+            inventory: {
+                coins: inventory?.coins || 0,
+                tickets: inventory?.tickets || [],
+                props: inventory?.props || []
+            },
+            season: season ? {
+                id: season._id,
+                name: season.name,
+                isActive: season.isActive
+            } : null,
+            tournaments: tournamentStatus,
+            totalCount: tournamentStatus.length,
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    /**
+     * 获取玩家当前参与的锦标赛
+     */
+    private static async getCurrentParticipations(ctx: any, params: {
+        uid: string;
+        tournamentType: string;
+        gameType: string;
+    }) {
+        const { uid, tournamentType, gameType } = params;
+
+        // 首先获取所有状态为 open 的锦标赛
+        const openTournaments = await ctx.db
+            .query("tournaments")
+            .filter((q: any) => q.eq(q.field("status"), "open"))
+            .filter((q: any) => q.eq(q.field("tournamentType"), tournamentType))
+            .filter((q: any) => q.eq(q.field("gameType"), gameType))
+            .collect();
+
+        if (openTournaments.length === 0) {
+            return [];
+        }
+
+        // 获取这些锦标赛的ID列表
+        const tournamentIds = openTournaments.map((t: any) => t._id);
+
+        // 查询玩家在这些锦标赛中的参与记录
+        const playerTournaments = await ctx.db
+            .query("player_tournaments")
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .collect();
+
+        // 过滤出玩家参与的开放锦标赛
+        const userParticipations = playerTournaments.filter((pt: any) =>
+            tournamentIds.includes(pt.tournamentId)
+        );
+
+        const currentParticipations: any[] = [];
+
+        for (const pt of userParticipations) {
+            const tournament = openTournaments.find((t: any) => t._id === pt.tournamentId);
+            if (!tournament) continue;
+
+            // 获取该锦标赛的比赛记录
+            const matches = await ctx.db
+                .query("matches")
+                .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournament._id))
+                .collect();
+
+            // 获取玩家在该锦标赛中的比赛记录
+            const playerMatches = await ctx.db
+                .query("player_matches")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .collect();
+
+            const tournamentMatches = playerMatches.filter((pm: any) =>
+                matches.some((m: any) => m._id === pm.matchId)
+            );
+
+            currentParticipations.push({
+                tournamentId: tournament._id,
+                tournamentName: tournament.tournamentType,
+                status: tournament.status,
+                joinedAt: pt.joinedAt,
+                matchCount: tournamentMatches.length,
+                completedMatches: tournamentMatches.filter((m: any) => m.completed).length,
+                bestScore: Math.max(...tournamentMatches.map((m: any) => m.score || 0), 0)
+            });
+        }
+
+        return currentParticipations;
+    }
+
+    /**
+     * 通知玩家锦标赛变化
+     */
+    private static async notifyTournamentChanges(ctx: any, params: {
+        uid: string;
+        changeType: "new_tournament" | "eligibility_change" | "participation_update" | "tournament_completed";
+        tournamentType?: string;
+        tournamentId?: string;
+        data?: any;
+    }) {
+        const now = getTorontoDate();
+        const { uid, changeType, tournamentType, tournamentId, data } = params;
+
+        let message = "";
+        let notificationData: any = {
+            changeType,
+            timestamp: now.iso
+        };
+
+        switch (changeType) {
+            case "new_tournament":
+                message = `新的锦标赛 "${data?.name || tournamentType}" 已开始！`;
+                notificationData = {
+                    ...notificationData,
+                    tournamentType,
+                    tournamentId: data?.tournamentId,
+                    name: data?.name,
+                    description: data?.description,
+                    gameType: data?.gameType
+                };
+                break;
+
+            case "eligibility_change":
+                message = `锦标赛 "${data?.name || tournamentType}" 的参与条件已更新`;
+                notificationData = {
+                    ...notificationData,
+                    tournamentType,
+                    tournamentId,
+                    eligibility: data?.eligibility,
+                    reasons: data?.reasons
+                };
+                break;
+
+            case "participation_update":
+                message = `您在锦标赛 "${data?.name || tournamentType}" 中的状态已更新`;
+                notificationData = {
+                    ...notificationData,
+                    tournamentType,
+                    tournamentId,
+                    participationStats: data?.participationStats,
+                    currentParticipations: data?.currentParticipations
+                };
+                break;
+
+            case "tournament_completed":
+                message = `锦标赛 "${data?.name || tournamentType}" 已结束，请查看结果！`;
+                notificationData = {
+                    ...notificationData,
+                    tournamentType,
+                    tournamentId,
+                    results: data?.results,
+                    rewards: data?.rewards
+                };
+                break;
+        }
+
+        // 创建通知记录
+        await ctx.db.insert("notifications", {
+            uid,
+            message,
+            type: "tournament_update",
+            read: false,
+            createdAt: now.iso
+        });
+
+        console.log(`已通知玩家 ${uid} 关于锦标赛变化: ${changeType}`);
+    }
+
+    /**
+     * 获取通知消息
+     */
+    private static getNotificationMessage(changeType: string, data?: any): string {
+        switch (changeType) {
+            case "new_tournament":
+                return `新的锦标赛 "${data?.name || '未知'}" 已开始！`;
+            case "eligibility_change":
+                return `锦标赛 "${data?.name || '未知'}" 的参与条件已更新`;
+            case "participation_update":
+                return `您在锦标赛 "${data?.name || '未知'}" 中的状态已更新`;
+            case "tournament_completed":
+                return `锦标赛 "${data?.name || '未知'}" 已结束，请查看结果！`;
+            default:
+                return "锦标赛状态已更新";
+        }
     }
 }
 
@@ -759,6 +1370,18 @@ export const getAvailableTournaments = (query as any)({
     },
     handler: async (ctx: any, args: any) => {
         const result = await TournamentService.getAvailableTournaments(ctx, args);
+        return result;
+    },
+});
+
+export const getPlayerTournamentStatus = (query as any)({
+    args: {
+        uid: v.string(),
+        gameType: v.optional(v.string()),
+        category: v.optional(v.string()),
+    },
+    handler: async (ctx: any, args: any) => {
+        const result = await TournamentService.getPlayerTournamentStatus(ctx, args);
         return result;
     },
 }); 

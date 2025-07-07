@@ -16,7 +16,7 @@ export class TestUtils {
             .query("tournament_types")
             .withIndex("by_typeId", (q: any) => q.eq("typeId", "daily_special"))
             .first();
-        console.log("tournamentType", tournamentType);
+
         if (!tournamentType) {
             console.log("创建 daily_special 锦标赛类型...");
             const typeId = await ctx.db.insert("tournament_types", {
@@ -24,6 +24,7 @@ export class TestUtils {
                 name: "每日特殊锦标赛",
                 description: "每日限时特殊锦标赛，提供丰厚奖励",
                 category: "daily",
+                gameType: "solitaire",
                 handlerModule: "single_player_tournament",
                 defaultConfig: {
                     entryFee: {

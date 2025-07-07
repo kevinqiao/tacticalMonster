@@ -51,6 +51,14 @@ export const runAllTournamentTests = (mutation as any)({
             results.push({ name: "thresholdTournament", success: false, error: e instanceof Error ? e.message : String(e) });
         }
 
+        try {
+            console.log("📋 运行可用锦标赛查询测试...");
+            const availableResult = await ctx.runMutation(internal.service.tournament.tests.runGetAvailableTournamentsTests.runGetAvailableTournamentsTests, {});
+            results.push({ name: "getAvailableTournaments", ...availableResult });
+        } catch (e) {
+            results.push({ name: "getAvailableTournaments", success: false, error: e instanceof Error ? e.message : String(e) });
+        }
+
         const endTime = Date.now();
         const duration = endTime - startTime;
 
@@ -105,4 +113,56 @@ export const runThresholdTournamentTest = (mutation as any)({
     handler: async (ctx: any, args: any): Promise<any> => {
         return await ctx.runMutation(internal.service.tournament.tests.testThresholdTournament.runTestThresholdTournament, {});
     }
-}); 
+});
+
+export const runGetAvailableTournamentsTest = (mutation as any)({
+    args: {} as Record<string, never>,
+    handler: async (ctx: any, args: any): Promise<any> => {
+        return await ctx.runMutation(internal.service.tournament.tests.runGetAvailableTournamentsTests.runGetAvailableTournamentsTests, {});
+    }
+});
+
+/**
+ * 锦标赛测试索引
+ * 
+ * 包含所有锦标赛相关的测试函数
+ */
+
+// 基础测试
+export { runGetAvailableTournamentsTests, runSingleTest } from "./runGetAvailableTournamentsTests";
+
+// 控制台测试 - 推荐使用
+export { consoleTestGetAvailableTournaments, quickTestGetAvailableTournaments } from "./runGetAvailableTournamentsTests";
+
+// 自动创建锦标赛测试
+export { consoleTestAutoCreate, quickTestAutoCreate, runAutoCreateTests, runSingleAutoCreateTest } from "./runAutoCreateTests";
+
+// 实时更新测试
+export { consoleTestRealtimeUpdates, quickTestRealtimeUpdates, runRealtimeUpdateTests, runSingleRealtimeTest } from "./runRealtimeUpdateTests";
+
+// 阈值锦标赛测试
+export { runIntegrationTest, runThresholdTests } from "./runThresholdTests";
+
+// 测试类
+export { TestAutoCreateTournaments } from "./testAutoCreateTournaments";
+export { TestGetAvailableTournaments } from "./testGetAvailableTournaments";
+export { TestRealtimeUpdates } from "./testRealtimeUpdates";
+
+// 测试工具
+export { TestUtils } from "./testUtils";
+
+/**
+ * 测试使用指南：
+ * 
+ * 1. 快速验证 - 使用 quickTest* 函数
+ * 2. 完整测试 - 使用 consoleTest* 函数
+ * 3. 单个测试 - 使用 runSingle* 函数
+ * 4. 详细文档 - 查看对应的 README 文件
+ * 
+ * 新增功能：
+ * - 自动创建锦标赛测试：验证 getAvailableTournaments 中的懒加载创建功能
+ * - 实时更新测试：验证锦标赛状态的实时更新功能
+ * - 支持每日、每周、赛季锦标赛的自动创建
+ * - 包含重复创建防护和通知功能测试
+ * - 测试资格变化、库存变化等实时更新场景
+ */ 

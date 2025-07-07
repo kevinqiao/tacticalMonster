@@ -25,17 +25,21 @@ export class TournamentScheduler {
 
             for (const config of dailyConfigs) {
                 // 检查是否已创建今日锦标赛
-                const existingTournament = await ctx.db
+                const existingTournaments = await ctx.db
                     .query("tournaments")
                     .withIndex("by_type_status", (q: any) =>
                         q.eq("tournamentType", config.typeId)
                             .eq("status", "open")
                     )
-                    .filter((q: any) => {
-                        const createdAt = q.field("createdAt");
-                        return q.eq(createdAt.split("T")[0], today);
-                    })
-                    .first();
+                    .collect();
+
+                // 在 JavaScript 中过滤今日创建的锦标赛
+                const existingTournament = existingTournaments.find((t: any) => {
+                    const createdAt = t.createdAt;
+                    if (!createdAt) return false;
+                    const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+                    return createdAtStr.startsWith(today);
+                });
 
                 if (existingTournament) {
                     console.log(`每日锦标赛 ${config.typeId} 今日已存在，跳过创建`);
@@ -59,7 +63,6 @@ export class TournamentScheduler {
                     gameType: config.gameType,
                     segmentName: "all", // 每日锦标赛对所有段位开放
                     status: "open",
-                    playerUids: [],
                     tournamentType: config.typeId,
                     isSubscribedRequired: config.defaultConfig?.isSubscribedRequired || false,
                     isSingleMatch: config.defaultConfig?.rules?.isSingleMatch || false,
@@ -113,18 +116,22 @@ export class TournamentScheduler {
 
             for (const config of weeklyConfigs) {
                 // 检查是否已创建本周锦标赛
-                const existingTournament = await ctx.db
+                const existingTournaments = await ctx.db
                     .query("tournaments")
                     .withIndex("by_type_status", (q: any) =>
                         q.eq("tournamentType", config.typeId)
                             .eq("status", "open")
                     )
-                    .filter((q: any) => {
-                        const createdAt = q.field("createdAt");
-                        const tournamentWeekStart = this.getWeekStart(createdAt.split("T")[0]);
-                        return q.eq(tournamentWeekStart, weekStart);
-                    })
-                    .first();
+                    .collect();
+
+                // 在 JavaScript 中过滤本周创建的锦标赛
+                const existingTournament = existingTournaments.find((t: any) => {
+                    const createdAt = t.createdAt;
+                    if (!createdAt) return false;
+                    const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+                    const tournamentWeekStart = this.getWeekStart(createdAtStr.split("T")[0]);
+                    return tournamentWeekStart === weekStart;
+                });
 
                 if (existingTournament) {
                     console.log(`每周锦标赛 ${config.typeId} 本周已存在，跳过创建`);
@@ -148,7 +155,6 @@ export class TournamentScheduler {
                     gameType: config.gameType,
                     segmentName: "all", // 每周锦标赛对所有段位开放
                     status: "open",
-                    playerUids: [],
                     tournamentType: config.typeId,
                     isSubscribedRequired: config.defaultConfig?.isSubscribedRequired || false,
                     isSingleMatch: config.defaultConfig?.rules?.isSingleMatch || false,
@@ -212,14 +218,20 @@ export class TournamentScheduler {
                 }
 
                 // 检查是否已创建本赛季锦标赛
-                const existingTournament = await ctx.db
+                const existingTournaments = await ctx.db
                     .query("tournaments")
                     .withIndex("by_type_status", (q: any) =>
                         q.eq("tournamentType", config.typeId)
                             .eq("status", "open")
                     )
-                    .filter((q: any) => q.eq(q.field("seasonId"), season._id))
-                    .first();
+                    .collect();
+
+                // 在 JavaScript 中过滤本赛季创建的锦标赛
+                const existingTournament = existingTournaments.find((t: any) => {
+                    const seasonId = t.seasonId;
+                    if (!seasonId) return false;
+                    return seasonId === season._id;
+                });
 
                 if (existingTournament) {
                     console.log(`赛季锦标赛 ${config.typeId} 本赛季已存在，跳过创建`);
@@ -232,7 +244,6 @@ export class TournamentScheduler {
                     gameType: config.gameType,
                     segmentName: "all", // 赛季锦标赛对所有段位开放
                     status: "open",
-                    playerUids: [],
                     tournamentType: config.typeId,
                     isSubscribedRequired: config.defaultConfig?.isSubscribedRequired || false,
                     isSingleMatch: config.defaultConfig?.rules?.isSingleMatch || false,
@@ -447,13 +458,6 @@ export class TournamentScheduler {
                 await ctx.db.insert("notifications", {
                     uid: player.uid,
                     message: `新的${params.name}已开始！快来参与吧！`,
-                    data: {
-                        tournamentId: params.tournamentId,
-                        tournamentType: params.tournamentType,
-                        gameType: params.gameType,
-                        name: params.name,
-                        description: params.description
-                    },
                     createdAt: now.iso
                 });
             }
