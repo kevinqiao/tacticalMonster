@@ -31,19 +31,219 @@ export const tournamentSchema = {
         .index("by_uid_tournament", ["uid", "tournamentId"]),
 
     tournament_types: defineTable({
+        // 基础信息
         typeId: v.string(), // 如 "daily_special"
-        name: v.string(), // 如 "每日特别赛"
-        gameType: v.string(),
+        name: v.string(), // 如 "每日特别锦标赛"
         description: v.string(),
-        category: v.string(), // "daily", "weekly", "seasonal", "special"
-        handlerModule: v.string(), // 如 "tournamentHandlers/dailySpecial"
-        defaultConfig: v.any(), // 包含 entryFee, rules, rewards 等
-        isActive: v.boolean(), // 是否激活
-        createdAt: v.string(),
-        updatedAt: v.string(),
+        category: v.string(), // "daily", "weekly", "seasonal", "special", "ranked", "casual", "championship", "tournament"
+
+        // 游戏配置
+        gameType: v.string(), // "solitaire", "rummy", "uno", "ludo", "chess", "checkers", "puzzle", "arcade"
+        isActive: v.boolean(),
+        priority: v.number(),
+
+        // 参赛条件
+        entryRequirements: v.object({
+            minSegment: v.optional(v.string()), // "bronze", "silver", "gold", "platinum", "diamond"
+            maxSegment: v.optional(v.string()),
+            isSubscribedRequired: v.boolean(),
+            minLevel: v.optional(v.number()),
+            maxLevel: v.optional(v.number()),
+            minPoints: v.optional(v.number()),
+            maxPoints: v.optional(v.number()),
+            entryFee: v.object({
+                coins: v.optional(v.number()),
+                tickets: v.optional(v.object({
+                    gameType: v.string(),
+                    tournamentType: v.string(),
+                    quantity: v.number()
+                })),
+                props: v.optional(v.array(v.object({
+                    gameType: v.string(),
+                    propType: v.string(),
+                    quantity: v.number()
+                })))
+            }),
+            specialConditions: v.optional(v.array(v.object({
+                type: v.string(),
+                value: v.any(),
+                description: v.string()
+            })))
+        }),
+
+        // 比赛规则
+        matchRules: v.object({
+            matchType: v.string(), // "single_match", "multi_match", "best_of_series", "elimination", "round_robin"
+            minPlayers: v.number(),
+            maxPlayers: v.number(),
+            isSingleMatch: v.boolean(),
+            maxAttempts: v.optional(v.number()),
+            allowMultipleAttempts: v.boolean(),
+            rankingMethod: v.string(), // "highest_score", "total_score", "average_score", "best_of_attempts", "threshold"
+            scoreThreshold: v.optional(v.number()),
+            timeLimit: v.optional(v.object({
+                perMatch: v.number(),
+                perTurn: v.optional(v.number()),
+                total: v.optional(v.number())
+            })),
+            specialRules: v.optional(v.array(v.object({
+                type: v.string(),
+                value: v.any(),
+                description: v.string()
+            })))
+        }),
+
+        // 奖励配置
+        rewards: v.object({
+            baseRewards: v.object({
+                coins: v.number(),
+                gamePoints: v.number(),
+                props: v.array(v.object({
+                    gameType: v.string(),
+                    propType: v.string(),
+                    quantity: v.number(),
+                    rarity: v.string() // "common", "rare", "epic", "legendary"
+                })),
+                tickets: v.array(v.object({
+                    gameType: v.string(),
+                    tournamentType: v.string(),
+                    quantity: v.number()
+                }))
+            }),
+            rankRewards: v.array(v.object({
+                rankRange: v.array(v.number()),
+                multiplier: v.number(),
+                bonusProps: v.optional(v.array(v.object({
+                    gameType: v.string(),
+                    propType: v.string(),
+                    quantity: v.number(),
+                    rarity: v.string()
+                }))),
+                bonusTickets: v.optional(v.array(v.object({
+                    gameType: v.string(),
+                    tournamentType: v.string(),
+                    quantity: v.number()
+                })))
+            })),
+            segmentBonus: v.object({
+                bronze: v.number(),
+                silver: v.number(),
+                gold: v.number(),
+                platinum: v.number(),
+                diamond: v.number()
+            }),
+            subscriptionBonus: v.number(),
+            participationReward: v.object({
+                coins: v.number(),
+                gamePoints: v.number()
+            }),
+            streakBonus: v.optional(v.object({
+                minStreak: v.number(),
+                bonusMultiplier: v.number()
+            }))
+        }),
+
+        // 时间配置
+        schedule: v.object({
+            startTime: v.object({
+                type: v.string(), // "fixed", "daily", "weekly", "monthly", "seasonal"
+                value: v.string()
+            }),
+            endTime: v.object({
+                type: v.string(), // "fixed", "duration", "until_completion"
+                value: v.union(v.string(), v.number())
+            }),
+            duration: v.number(),
+            registrationDeadline: v.optional(v.number()),
+            repeat: v.optional(v.object({
+                enabled: v.boolean(),
+                interval: v.string(), // "daily", "weekly", "monthly"
+                daysOfWeek: v.optional(v.array(v.number())),
+                dayOfMonth: v.optional(v.number())
+            })),
+            timezone: v.string()
+        }),
+
+        // 限制配置
+        limits: v.object({
+            daily: v.object({
+                maxParticipations: v.number(),
+                maxTournaments: v.number(),
+                maxAttempts: v.number()
+            }),
+            weekly: v.object({
+                maxParticipations: v.number(),
+                maxTournaments: v.number(),
+                maxAttempts: v.number()
+            }),
+            seasonal: v.object({
+                maxParticipations: v.number(),
+                maxTournaments: v.number(),
+                maxAttempts: v.number()
+            }),
+            total: v.object({
+                maxParticipations: v.number(),
+                maxTournaments: v.number(),
+                maxAttempts: v.number()
+            }),
+            subscribed: v.object({
+                daily: v.object({
+                    maxParticipations: v.number(),
+                    maxTournaments: v.number(),
+                    maxAttempts: v.number()
+                }),
+                weekly: v.object({
+                    maxParticipations: v.number(),
+                    maxTournaments: v.number(),
+                    maxAttempts: v.number()
+                }),
+                seasonal: v.object({
+                    maxParticipations: v.number(),
+                    maxTournaments: v.number(),
+                    maxAttempts: v.number()
+                })
+            })
+        }),
+
+        // 高级配置
+        advanced: v.object({
+            matching: v.object({
+                algorithm: v.string(), // "skill_based", "random", "segment_based", "elo_based"
+                skillRange: v.optional(v.number()),
+                maxWaitTime: v.number(),
+                fallbackToAI: v.boolean()
+            }),
+            settlement: v.object({
+                autoSettle: v.boolean(),
+                settleDelay: v.number(),
+                requireMinimumPlayers: v.boolean(),
+                minimumPlayers: v.number()
+            }),
+            notifications: v.object({
+                enabled: v.boolean(),
+                types: v.array(v.string()),
+                channels: v.array(v.string())
+            }),
+            monitoring: v.object({
+                enabled: v.boolean(),
+                metrics: v.array(v.string()),
+                alerts: v.array(v.string())
+            }),
+            custom: v.optional(v.any())
+        }),
+
+        // 兼容性字段（保留原有字段）
+        handlerModule: v.optional(v.string()), // 如 "tournamentHandlers/dailySpecial"
+        // defaultConfig: v.optional(v.any()), // 兼容旧版本
+
+        // 时间戳
+        createdAt: v.optional(v.string()),
+        updatedAt: v.optional(v.string()),
     }).index("by_typeId", ["typeId"])
         .index("by_category", ["category"])
-        .index("by_isActive", ["isActive"]),
+        .index("by_isActive", ["isActive"])
+        .index("by_gameType", ["gameType"])
+        .index("by_priority", ["priority"]),
 
     // 比赛基础信息表 - 存储比赛的核心信息
     matches: defineTable({

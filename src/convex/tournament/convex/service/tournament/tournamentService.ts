@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "../../_generated/server";
+import { internalMutation, mutation, query } from "../../_generated/server";
+import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import { getTorontoDate } from "../utils";
 import { getHandler } from "./handler";
 
@@ -8,6 +9,14 @@ import { getHandler } from "./handler";
  * 支持单人、多人锦标赛，只使用远程游戏服务器
  */
 export class TournamentService {
+    static async loadTournamentConfig(ctx: any) {
+
+        const tournamentConfig = TOURNAMENT_CONFIGS.forEach(async (tournamentConfig) => {
+            console.log("tournamentConfig", tournamentConfig)
+            await ctx.db.insert("tournament_types", tournamentConfig);
+        });
+
+    }
     /**
      * 加入锦标赛
      */
@@ -490,6 +499,7 @@ export class TournamentService {
         });
 
         const availableTournaments: any[] = [];
+        console.log("tournamentTypes", tournamentTypes)
 
         for (const tournamentType of tournamentTypes) {
             try {
@@ -501,27 +511,28 @@ export class TournamentService {
                     inventory,
                     season
                 });
-
+                console.log("eligibility", eligibility, tournamentType.typeId);
+                let participationStats: any;
                 if (eligibility.eligible) {
                     // 获取参与统计
-                    const participationStats = await this.getParticipationStats(ctx, {
+                    participationStats = await this.getParticipationStats(ctx, {
                         uid,
                         tournamentType: tournamentType.typeId,
                         gameType: tournamentType.defaultConfig?.gameType
                     });
 
-                    availableTournaments.push({
-                        typeId: tournamentType.typeId,
-                        name: tournamentType.name,
-                        description: tournamentType.description,
-                        category: tournamentType.category,
-                        gameType: tournamentType.gameType,
-                        config: tournamentType.defaultConfig,
-                        eligibility,
-                        participationStats,
-                        priority: tournamentType.defaultConfig?.priority || 5
-                    });
                 }
+                availableTournaments.push({
+                    typeId: tournamentType.typeId,
+                    name: tournamentType.name,
+                    description: tournamentType.description,
+                    category: tournamentType.category,
+                    gameType: tournamentType.gameType,
+                    config: tournamentType.defaultConfig,
+                    eligibility,
+                    participationStats,
+                    priority: tournamentType.defaultConfig?.priority || 5
+                });
             } catch (error) {
                 console.error(`检查锦标赛资格失败 (${tournamentType.typeId}):`, error);
                 // 继续检查其他锦标赛，不中断整个流程
@@ -1384,4 +1395,13 @@ export const getPlayerTournamentStatus = (query as any)({
         const result = await TournamentService.getPlayerTournamentStatus(ctx, args);
         return result;
     },
-}); 
+});
+export const loadTournamentConfig = (internalMutation as any)({
+    args: {
+
+    },
+    handler: async (ctx: any, args: any) => {
+        const result = await TournamentService.loadTournamentConfig(ctx);
+        return result;
+    },
+});

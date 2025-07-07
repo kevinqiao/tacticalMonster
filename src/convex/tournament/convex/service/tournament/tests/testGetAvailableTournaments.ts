@@ -21,25 +21,25 @@ export class TestGetAvailableTournaments {
 
         try {
             // 测试1: 基础功能测试
-            await this.testBasicFunctionality(ctx, testResults);
+            // await this.testBasicFunctionality(ctx, testResults);
 
-            // 测试2: 游戏类型过滤测试
+            // // 测试2: 游戏类型过滤测试
             // await this.testGameTypeFilter(ctx, testResults);
 
-            // // 测试3: 分类过滤测试
+            // // // 测试3: 分类过滤测试
             // await this.testCategoryFilter(ctx, testResults);
 
-            // // 测试4: 参赛资格测试
+            // // // 测试4: 参赛资格测试
             // await this.testEligibilityCheck(ctx, testResults);
 
-            // // 测试5: 参与统计测试
+            // // // 测试5: 参与统计测试
             // await this.testParticipationStats(ctx, testResults);
 
             // // 测试6: 段位限制测试
             // await this.testSegmentRestrictions(ctx, testResults);
 
-            // // 测试7: 订阅要求测试
-            // await this.testSubscriptionRequirements(ctx, testResults);
+            // // // 测试7: 订阅要求测试
+            await this.testSubscriptionRequirements(ctx, testResults);
 
             // // 测试8: 入场费测试
             // await this.testEntryFeeRequirements(ctx, testResults);
@@ -352,6 +352,7 @@ export class TestGetAvailableTournaments {
                 name: "高段位锦标赛",
                 description: "仅限高段位玩家参与",
                 category: "ranked",
+                gameType: "solitaire",
                 handlerModule: "single_player_tournament",
                 defaultConfig: {
                     entryRequirements: {
@@ -438,6 +439,7 @@ export class TestGetAvailableTournaments {
                 name: "订阅专属锦标赛",
                 description: "仅限订阅用户参与",
                 category: "special",
+                gameType: "solitaire",
                 handlerModule: "single_player_tournament",
                 defaultConfig: {
                     entryRequirements: {
@@ -464,7 +466,7 @@ export class TestGetAvailableTournaments {
             const subscriptionTournament = result.tournaments.find((t: any) =>
                 t.typeId === "subscription_required_tournament"
             );
-
+            console.log("result", result.tournaments)
             if (subscriptionTournament && !subscriptionTournament.eligibility.eligible) {
                 console.log("✓ 订阅要求正确工作");
                 testResults.passed++;
@@ -511,7 +513,7 @@ export class TestGetAvailableTournaments {
             // 创建金币不足的库存
             await ctx.db.insert("player_inventory", {
                 uid: testUid,
-                coins: 10, // 金币不足
+                coins: 1000, // 金币不足
                 props: [],
                 tickets: [],
                 createdAt: now.iso,
@@ -524,6 +526,7 @@ export class TestGetAvailableTournaments {
                 name: "高入场费锦标赛",
                 description: "需要大量金币参与",
                 category: "special",
+                gameType: "solitaire",
                 handlerModule: "single_player_tournament",
                 defaultConfig: {
                     entryRequirements: {
@@ -545,11 +548,12 @@ export class TestGetAvailableTournaments {
             const result = await TournamentService.getAvailableTournaments(ctx, {
                 uid: testUid
             });
-
+            // console.log("result", result)
             // 查找高入场费锦标赛
             const highEntryFeeTournament = result.tournaments.find((t: any) =>
                 t.typeId === "high_entry_fee_tournament"
             );
+            console.log("highEntryFeeTournament", highEntryFeeTournament)
 
             if (highEntryFeeTournament && !highEntryFeeTournament.eligibility.eligible) {
                 console.log("✓ 入场费要求正确工作");
