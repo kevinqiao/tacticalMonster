@@ -266,19 +266,23 @@ export async function createTournament(ctx: any, { uid, gameType, tournamentType
   config: any;
   now: any;
 }) {
+  const entryRequirements = config.entryRequirements;
+  const matchRules = config.matchRules;
+  const schedule = config.schedule;
+
   const tournamentId = await ctx.db.insert("tournaments", {
     seasonId: season._id,
     gameType,
     segmentName: player.segmentName,
     status: "open",
     tournamentType,
-    isSubscribedRequired: config.isSubscribedRequired || false,
-    isSingleMatch: config.rules?.isSingleMatch || false,
-    prizePool: config.entryFee?.coins ? config.entryFee.coins * 0.8 : 0,
+    isSubscribedRequired: entryRequirements?.isSubscribedRequired || false,
+    isSingleMatch: matchRules?.isSingleMatch || false,
+    prizePool: entryRequirements?.entryFee?.coins ? entryRequirements.entryFee.coins * 0.8 : 0,
     config,
     createdAt: now.iso,
     updatedAt: now.iso,
-    endTime: new Date(now.localDate.getTime() + (config.duration || 24 * 60 * 60 * 1000)).toISOString(),
+    endTime: new Date(now.localDate.getTime() + (schedule?.duration || 24 * 60 * 60 * 1000)).toISOString(),
   });
 
   // 创建玩家参与关系
@@ -306,15 +310,19 @@ export async function createIndependentTournament(ctx: any, { uid, gameType, tou
   now: any;
   attemptNumber: number;
 }) {
+  const entryRequirements = config.entryRequirements;
+  const matchRules = config.matchRules;
+  const schedule = config.schedule;
+
   const tournamentId = await ctx.db.insert("tournaments", {
     seasonId: season._id,
     gameType,
     segmentName: player.segmentName,
     status: "open",
     tournamentType,
-    isSubscribedRequired: config.isSubscribedRequired || false,
-    isSingleMatch: config.rules?.isSingleMatch || false,
-    prizePool: config.entryFee?.coins ? config.entryFee.coins * 0.8 : 0,
+    isSubscribedRequired: entryRequirements?.isSubscribedRequired || false,
+    isSingleMatch: matchRules?.isSingleMatch || false,
+    prizePool: entryRequirements?.entryFee?.coins ? entryRequirements.entryFee.coins * 0.8 : 0,
     config: {
       ...config,
       attemptNumber,
@@ -322,7 +330,7 @@ export async function createIndependentTournament(ctx: any, { uid, gameType, tou
     },
     createdAt: now.iso,
     updatedAt: now.iso,
-    endTime: new Date(now.localDate.getTime() + (config.duration || 24 * 60 * 60 * 1000)).toISOString(),
+    endTime: new Date(now.localDate.getTime() + (schedule?.duration || 24 * 60 * 60 * 1000)).toISOString(),
   });
 
   // 创建玩家参与关系
@@ -443,7 +451,7 @@ export async function calculatePlayerRankings(ctx: any, tournamentId: string) {
  * 判断是否应该立即结算
  */
 export async function shouldSettleImmediately(ctx: any, tournament: any, tournamentId: string) {
-  if (tournament.config?.rules?.isSingleMatch) {
+  if (tournament.config?.matchRules?.isSingleMatch) {
     return true;
   }
 
@@ -497,7 +505,13 @@ export const baseHandler: TournamentHandler = {
 
     // 获取配置
     const tournamentTypeConfig = await validateJoinConditions(ctx, { uid, gameType, tournamentType, player, season });
-    const config = tournamentTypeConfig.defaultConfig;
+
+    // 使用新的schema结构
+    const entryRequirements = tournamentTypeConfig.entryRequirements;
+    const matchRules = tournamentTypeConfig.matchRules;
+    const rewards = tournamentTypeConfig.rewards;
+    const limits = tournamentTypeConfig.limits;
+    const advanced = tournamentTypeConfig.advanced;
 
     // 验证加入条件
     await this.validateJoin(ctx, { uid, gameType, tournamentType, player, season });
@@ -508,20 +522,20 @@ export const baseHandler: TournamentHandler = {
       .withIndex("by_uid", (q: any) => q.eq("uid", uid))
       .first();
 
-    if (config.entryFee) {
+    if (entryRequirements?.entryFee) {
       const deductEntryFee = (internal as any)["service/tournament/ruleEngine"].deductEntryFeeMutation;
       await ctx.runMutation(deductEntryFee, {
         uid,
         gameType,
         tournamentType,
-        entryFee: config.entryFee,
+        entryFee: entryRequirements.entryFee,
         inventory
       });
     }
 
     // 检查参赛次数限制
     const attempts = await getPlayerAttempts(ctx, { uid, tournamentType, gameType });
-    if (config.rules?.maxAttempts && attempts >= config.rules.maxAttempts) {
+    if (matchRules?.maxAttempts && attempts >= matchRules.maxAttempts) {
       throw new Error("已达最大尝试次数");
     }
 
@@ -534,7 +548,13 @@ export const baseHandler: TournamentHandler = {
         tournamentType,
         player,
         season,
-        config,
+        config: {
+          entryRequirements,
+          matchRules,
+          rewards,
+          limits,
+          advanced
+        },
         now
       });
     } else {
@@ -545,7 +565,13 @@ export const baseHandler: TournamentHandler = {
         tournamentType,
         player,
         season,
-        config,
+        config: {
+          entryRequirements,
+          matchRules,
+          rewards,
+          limits,
+          advanced
+        },
         now,
         attemptNumber: attempts + 1
       });
@@ -553,8 +579,8 @@ export const baseHandler: TournamentHandler = {
     }
 
     // 根据配置选择处理方式
-    const isSingleMatch = config.rules?.isSingleMatch || false;
-    const maxPlayers = config.rules?.maxPlayers || 1;
+    const isSingleMatch = matchRules?.isSingleMatch || false;
+    const maxPlayers = matchRules?.maxPlayers || 1;
 
     if (isSingleMatch || maxPlayers === 1) {
       return await this.handleSingleMatchTournament!(ctx, {
@@ -562,7 +588,13 @@ export const baseHandler: TournamentHandler = {
         uid,
         gameType,
         player,
-        config,
+        config: {
+          entryRequirements,
+          matchRules,
+          rewards,
+          limits,
+          advanced
+        },
         attemptNumber: attempts + 1
       });
     } else {
@@ -571,7 +603,13 @@ export const baseHandler: TournamentHandler = {
         uid,
         gameType,
         player,
-        config,
+        config: {
+          entryRequirements,
+          matchRules,
+          rewards,
+          limits,
+          advanced
+        },
         attemptNumber: attempts + 1
       });
     }
@@ -580,14 +618,15 @@ export const baseHandler: TournamentHandler = {
   async handleSingleMatchTournament(ctx: any, params: SingleMatchParams) {
     const { tournamentId, uid, gameType, player, config, attemptNumber, timeIdentifier } = params;
     const now = getTorontoDate();
+    const matchRules = config.matchRules;
 
     // 创建单场比赛
     const matchId = await MatchManager.createMatch(ctx, {
       tournamentId,
       gameType,
-      matchType: "single_match",
-      maxPlayers: 1,
-      minPlayers: 1,
+      matchType: matchRules?.matchType || "single_match",
+      maxPlayers: matchRules?.maxPlayers || 1,
+      minPlayers: matchRules?.minPlayers || 1,
       gameData: {
         player: {
           uid,
@@ -595,7 +634,8 @@ export const baseHandler: TournamentHandler = {
           eloScore: player.eloScore || 1000
         },
         attemptNumber,
-        timeIdentifier
+        timeIdentifier,
+        timeLimit: matchRules?.timeLimit
       }
     });
 
@@ -613,7 +653,7 @@ export const baseHandler: TournamentHandler = {
       tournamentId,
       uids: [uid],
       gameType,
-      matchType: "single_match"
+      matchType: matchRules?.matchType || "single_match"
     });
 
     return {

@@ -42,12 +42,12 @@ export const multiPlayerTournamentHandler: TournamentHandler = {
                 tournamentType,
                 isSubscribedRequired: config.isSubscribedRequired || false,
                 isSingleMatch: false, // 多人锦标赛
-                prizePool: config.entryFee?.coins ? config.entryFee.coins * 0.8 : 0,
+                prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
                 config: {
                     ...config,
                     multiPlayer: {
-                        maxPlayers: config.rules?.maxPlayers || 4,
-                        minPlayers: config.rules?.minPlayers || 2,
+                        maxPlayers: config.matchRules?.maxPlayers || 4,
+                        minPlayers: config.matchRules?.minPlayers || 2,
                         attemptNumber: 1
                     }
                 },

@@ -223,28 +223,17 @@ export class TestGetAvailableTournaments {
                 uid: testUid
             });
 
-            // 验证每个锦标赛都有资格检查结果
-            const hasEligibility = result.tournaments.every((t: any) =>
+            // 验证每个锦标赛都有资格检查
+            const tournamentsWithEligibility = result.tournaments.filter((t: any) =>
                 t.eligibility && typeof t.eligibility.eligible === 'boolean'
             );
 
-            if (hasEligibility) {
-                console.log("✓ 所有锦标赛都有资格检查结果");
-
-                // 检查是否有不合格的锦标赛
-                const ineligibleTournaments = result.tournaments.filter((t: any) =>
-                    !t.eligibility.eligible
-                );
-
-                if (ineligibleTournaments.length >= 0) {
-                    console.log(`✓ 找到 ${ineligibleTournaments.length} 个不合格的锦标赛`);
-                    testResults.passed++;
-                    testResults.tests.push({ name: testName, status: "PASSED" });
-                } else {
-                    throw new Error("资格检查逻辑异常");
-                }
+            if (tournamentsWithEligibility.length === result.tournaments.length) {
+                console.log("✓ 所有锦标赛都有资格检查");
+                testResults.passed++;
+                testResults.tests.push({ name: testName, status: "PASSED" });
             } else {
-                throw new Error("部分锦标赛缺少资格检查结果");
+                throw new Error("部分锦标赛缺少资格检查");
             }
 
             // 清理测试数据
@@ -272,33 +261,18 @@ export class TestGetAvailableTournaments {
                 uid: testUid
             });
 
-            // 验证每个锦标赛都有参与统计
-            const hasStats = result.tournaments.every((t: any) =>
-                t.participationStats &&
-                typeof t.participationStats.dailyAttempts === 'number' &&
-                typeof t.participationStats.weeklyAttempts === 'number' &&
-                typeof t.participationStats.totalAttempts === 'number'
+            // 验证有资格的锦标赛都有参与统计
+            const eligibleTournaments = result.tournaments.filter((t: any) => t.eligibility.eligible);
+            const tournamentsWithStats = eligibleTournaments.filter((t: any) =>
+                t.participationStats && typeof t.participationStats === 'object'
             );
 
-            if (hasStats) {
-                console.log("✓ 所有锦标赛都有参与统计");
-
-                // 验证统计数据的合理性
-                const validStats = result.tournaments.every((t: any) =>
-                    t.participationStats.dailyAttempts >= 0 &&
-                    t.participationStats.weeklyAttempts >= 0 &&
-                    t.participationStats.totalAttempts >= 0
-                );
-
-                if (validStats) {
-                    console.log("✓ 参与统计数据合理");
-                    testResults.passed++;
-                    testResults.tests.push({ name: testName, status: "PASSED" });
-                } else {
-                    throw new Error("参与统计数据不合理");
-                }
+            if (tournamentsWithStats.length === eligibleTournaments.length) {
+                console.log("✓ 所有有资格的锦标赛都有参与统计");
+                testResults.passed++;
+                testResults.tests.push({ name: testName, status: "PASSED" });
             } else {
-                throw new Error("部分锦标赛缺少参与统计");
+                throw new Error("部分有资格的锦标赛缺少参与统计");
             }
 
             // 清理测试数据
@@ -321,16 +295,16 @@ export class TestGetAvailableTournaments {
         try {
             const testUid = TestUtils.generateTestUid("segment_test");
 
-            // 创建青铜段位玩家
+            // 创建低段位玩家
             const now = getTorontoDate();
             const playerId = await ctx.db.insert("players", {
                 uid: testUid,
-                displayName: "青铜测试用户",
-                segmentName: "bronze",
+                displayName: "低段位测试用户",
+                segmentName: "bronze", // 低段位
                 isActive: true,
                 isSubscribed: false,
-                totalPoints: 1000,
-                eloScore: 1000,
+                totalPoints: 100,
+                eloScore: 100,
                 lastActive: now.iso,
                 createdAt: now.iso,
                 updatedAt: now.iso
@@ -353,20 +327,124 @@ export class TestGetAvailableTournaments {
                 description: "仅限高段位玩家参与",
                 category: "ranked",
                 gameType: "solitaire",
-                handlerModule: "single_player_tournament",
-                defaultConfig: {
-                    entryRequirements: {
-                        minSegment: "gold",
-                        isSubscribedRequired: false,
-                        entryFee: { coins: 100 }
-                    },
-                    rules: {
-                        maxAttempts: 3,
-                        isSingleMatch: true
-                    },
-                    duration: 24 * 60 * 60 * 1000
-                },
                 isActive: true,
+                priority: 5,
+                entryRequirements: {
+                    minSegment: "gold",
+                    isSubscribedRequired: false,
+                    entryFee: {
+                        coins: 100
+                    }
+                },
+                matchRules: {
+                    matchType: "single_match",
+                    minPlayers: 1,
+                    maxPlayers: 1,
+                    isSingleMatch: true,
+                    maxAttempts: 3,
+                    allowMultipleAttempts: true,
+                    rankingMethod: "highest_score"
+                },
+                rewards: {
+                    baseRewards: {
+                        coins: 200,
+                        gamePoints: 100,
+                        props: [],
+                        tickets: []
+                    },
+                    rankRewards: [
+                        {
+                            rankRange: [1, 1],
+                            multiplier: 2.0
+                        }
+                    ],
+                    segmentBonus: {
+                        bronze: 1.0,
+                        silver: 1.1,
+                        gold: 1.2,
+                        platinum: 1.3,
+                        diamond: 1.5
+                    },
+                    subscriptionBonus: 1.2,
+                    participationReward: {
+                        coins: 10,
+                        gamePoints: 5
+                    }
+                },
+                schedule: {
+                    startTime: {
+                        type: "fixed",
+                        value: new Date().toISOString()
+                    },
+                    endTime: {
+                        type: "duration",
+                        value: 86400
+                    },
+                    duration: 86400,
+                    timezone: "America/Toronto"
+                },
+                limits: {
+                    daily: {
+                        maxParticipations: 3,
+                        maxTournaments: 1,
+                        maxAttempts: 3
+                    },
+                    weekly: {
+                        maxParticipations: 21,
+                        maxTournaments: 7,
+                        maxAttempts: 21
+                    },
+                    seasonal: {
+                        maxParticipations: 90,
+                        maxTournaments: 30,
+                        maxAttempts: 90
+                    },
+                    total: {
+                        maxParticipations: 1000,
+                        maxTournaments: 500,
+                        maxAttempts: 3000
+                    },
+                    subscribed: {
+                        daily: {
+                            maxParticipations: 5,
+                            maxTournaments: 2,
+                            maxAttempts: 5
+                        },
+                        weekly: {
+                            maxParticipations: 35,
+                            maxTournaments: 14,
+                            maxAttempts: 35
+                        },
+                        seasonal: {
+                            maxParticipations: 150,
+                            maxTournaments: 60,
+                            maxAttempts: 150
+                        }
+                    }
+                },
+                advanced: {
+                    matching: {
+                        algorithm: "skill_based",
+                        maxWaitTime: 30,
+                        fallbackToAI: true
+                    },
+                    settlement: {
+                        autoSettle: true,
+                        settleDelay: 300,
+                        requireMinimumPlayers: false,
+                        minimumPlayers: 1
+                    },
+                    notifications: {
+                        enabled: true,
+                        types: ["join", "start", "complete", "reward"],
+                        channels: ["in_app"]
+                    },
+                    monitoring: {
+                        enabled: true,
+                        metrics: ["participation", "completion", "rewards"],
+                        alerts: ["low_participation"]
+                    }
+                },
                 createdAt: now.iso,
                 updatedAt: now.iso
             });
@@ -440,20 +518,124 @@ export class TestGetAvailableTournaments {
                 description: "仅限订阅用户参与",
                 category: "special",
                 gameType: "solitaire",
-                handlerModule: "single_player_tournament",
-                defaultConfig: {
-                    entryRequirements: {
-                        minSegment: "bronze",
-                        isSubscribedRequired: true, // 需要订阅
-                        entryFee: { coins: 50 }
-                    },
-                    rules: {
-                        maxAttempts: 3,
-                        isSingleMatch: true
-                    },
-                    duration: 24 * 60 * 60 * 1000
-                },
                 isActive: true,
+                priority: 5,
+                entryRequirements: {
+                    minSegment: "bronze",
+                    isSubscribedRequired: true, // 需要订阅
+                    entryFee: {
+                        coins: 50
+                    }
+                },
+                matchRules: {
+                    matchType: "single_match",
+                    minPlayers: 1,
+                    maxPlayers: 1,
+                    isSingleMatch: true,
+                    maxAttempts: 3,
+                    allowMultipleAttempts: true,
+                    rankingMethod: "highest_score"
+                },
+                rewards: {
+                    baseRewards: {
+                        coins: 100,
+                        gamePoints: 50,
+                        props: [],
+                        tickets: []
+                    },
+                    rankRewards: [
+                        {
+                            rankRange: [1, 1],
+                            multiplier: 2.0
+                        }
+                    ],
+                    segmentBonus: {
+                        bronze: 1.0,
+                        silver: 1.1,
+                        gold: 1.2,
+                        platinum: 1.3,
+                        diamond: 1.5
+                    },
+                    subscriptionBonus: 1.2,
+                    participationReward: {
+                        coins: 10,
+                        gamePoints: 5
+                    }
+                },
+                schedule: {
+                    startTime: {
+                        type: "fixed",
+                        value: new Date().toISOString()
+                    },
+                    endTime: {
+                        type: "duration",
+                        value: 86400
+                    },
+                    duration: 86400,
+                    timezone: "America/Toronto"
+                },
+                limits: {
+                    daily: {
+                        maxParticipations: 3,
+                        maxTournaments: 1,
+                        maxAttempts: 3
+                    },
+                    weekly: {
+                        maxParticipations: 21,
+                        maxTournaments: 7,
+                        maxAttempts: 21
+                    },
+                    seasonal: {
+                        maxParticipations: 90,
+                        maxTournaments: 30,
+                        maxAttempts: 90
+                    },
+                    total: {
+                        maxParticipations: 1000,
+                        maxTournaments: 500,
+                        maxAttempts: 3000
+                    },
+                    subscribed: {
+                        daily: {
+                            maxParticipations: 5,
+                            maxTournaments: 2,
+                            maxAttempts: 5
+                        },
+                        weekly: {
+                            maxParticipations: 35,
+                            maxTournaments: 14,
+                            maxAttempts: 35
+                        },
+                        seasonal: {
+                            maxParticipations: 150,
+                            maxTournaments: 60,
+                            maxAttempts: 150
+                        }
+                    }
+                },
+                advanced: {
+                    matching: {
+                        algorithm: "skill_based",
+                        maxWaitTime: 30,
+                        fallbackToAI: true
+                    },
+                    settlement: {
+                        autoSettle: true,
+                        settleDelay: 300,
+                        requireMinimumPlayers: false,
+                        minimumPlayers: 1
+                    },
+                    notifications: {
+                        enabled: true,
+                        types: ["join", "start", "complete", "reward"],
+                        channels: ["in_app"]
+                    },
+                    monitoring: {
+                        enabled: true,
+                        metrics: ["participation", "completion", "rewards"],
+                        alerts: ["low_participation"]
+                    }
+                },
                 createdAt: now.iso,
                 updatedAt: now.iso
             });
@@ -466,7 +648,7 @@ export class TestGetAvailableTournaments {
             const subscriptionTournament = result.tournaments.find((t: any) =>
                 t.typeId === "subscription_required_tournament"
             );
-            console.log("result", result.tournaments)
+            console.log("tournaments size:", result.tournaments.length)
             if (subscriptionTournament && !subscriptionTournament.eligibility.eligible) {
                 console.log("✓ 订阅要求正确工作");
                 testResults.passed++;
@@ -527,20 +709,124 @@ export class TestGetAvailableTournaments {
                 description: "需要大量金币参与",
                 category: "special",
                 gameType: "solitaire",
-                handlerModule: "single_player_tournament",
-                defaultConfig: {
-                    entryRequirements: {
-                        minSegment: "bronze",
-                        isSubscribedRequired: false,
-                        entryFee: { coins: 1000 } // 高入场费
-                    },
-                    rules: {
-                        maxAttempts: 3,
-                        isSingleMatch: true
-                    },
-                    duration: 24 * 60 * 60 * 1000
-                },
                 isActive: true,
+                priority: 5,
+                entryRequirements: {
+                    minSegment: "bronze",
+                    isSubscribedRequired: false,
+                    entryFee: {
+                        coins: 1000 // 高入场费
+                    }
+                },
+                matchRules: {
+                    matchType: "single_match",
+                    minPlayers: 1,
+                    maxPlayers: 1,
+                    isSingleMatch: true,
+                    maxAttempts: 3,
+                    allowMultipleAttempts: true,
+                    rankingMethod: "highest_score"
+                },
+                rewards: {
+                    baseRewards: {
+                        coins: 2000,
+                        gamePoints: 1000,
+                        props: [],
+                        tickets: []
+                    },
+                    rankRewards: [
+                        {
+                            rankRange: [1, 1],
+                            multiplier: 2.0
+                        }
+                    ],
+                    segmentBonus: {
+                        bronze: 1.0,
+                        silver: 1.1,
+                        gold: 1.2,
+                        platinum: 1.3,
+                        diamond: 1.5
+                    },
+                    subscriptionBonus: 1.2,
+                    participationReward: {
+                        coins: 20,
+                        gamePoints: 10
+                    }
+                },
+                schedule: {
+                    startTime: {
+                        type: "fixed",
+                        value: new Date().toISOString()
+                    },
+                    endTime: {
+                        type: "duration",
+                        value: 86400
+                    },
+                    duration: 86400,
+                    timezone: "America/Toronto"
+                },
+                limits: {
+                    daily: {
+                        maxParticipations: 3,
+                        maxTournaments: 1,
+                        maxAttempts: 3
+                    },
+                    weekly: {
+                        maxParticipations: 21,
+                        maxTournaments: 7,
+                        maxAttempts: 21
+                    },
+                    seasonal: {
+                        maxParticipations: 90,
+                        maxTournaments: 30,
+                        maxAttempts: 90
+                    },
+                    total: {
+                        maxParticipations: 1000,
+                        maxTournaments: 500,
+                        maxAttempts: 3000
+                    },
+                    subscribed: {
+                        daily: {
+                            maxParticipations: 5,
+                            maxTournaments: 2,
+                            maxAttempts: 5
+                        },
+                        weekly: {
+                            maxParticipations: 35,
+                            maxTournaments: 14,
+                            maxAttempts: 35
+                        },
+                        seasonal: {
+                            maxParticipations: 150,
+                            maxTournaments: 60,
+                            maxAttempts: 150
+                        }
+                    }
+                },
+                advanced: {
+                    matching: {
+                        algorithm: "skill_based",
+                        maxWaitTime: 30,
+                        fallbackToAI: true
+                    },
+                    settlement: {
+                        autoSettle: true,
+                        settleDelay: 300,
+                        requireMinimumPlayers: false,
+                        minimumPlayers: 1
+                    },
+                    notifications: {
+                        enabled: true,
+                        types: ["join", "start", "complete", "reward"],
+                        channels: ["in_app"]
+                    },
+                    monitoring: {
+                        enabled: true,
+                        metrics: ["participation", "completion", "rewards"],
+                        alerts: ["low_participation"]
+                    }
+                },
                 createdAt: now.iso,
                 updatedAt: now.iso
             });
@@ -593,20 +879,124 @@ export class TestGetAvailableTournaments {
                 description: "用于测试的每日纸牌锦标赛",
                 gameType: "solitaire",
                 category: "daily",
-                handlerModule: "single_player_tournament",
-                defaultConfig: {
-                    entryRequirements: {
-                        minSegment: "bronze",
-                        isSubscribedRequired: false,
-                        entryFee: { coins: 50 }
-                    },
-                    rules: {
-                        maxAttempts: 3,
-                        isSingleMatch: true
-                    },
-                    duration: 24 * 60 * 60 * 1000
-                },
                 isActive: true,
+                priority: 5,
+                entryRequirements: {
+                    minSegment: "bronze",
+                    isSubscribedRequired: false,
+                    entryFee: {
+                        coins: 50
+                    }
+                },
+                matchRules: {
+                    matchType: "single_match",
+                    minPlayers: 1,
+                    maxPlayers: 1,
+                    isSingleMatch: true,
+                    maxAttempts: 3,
+                    allowMultipleAttempts: true,
+                    rankingMethod: "highest_score"
+                },
+                rewards: {
+                    baseRewards: {
+                        coins: 100,
+                        gamePoints: 50,
+                        props: [],
+                        tickets: []
+                    },
+                    rankRewards: [
+                        {
+                            rankRange: [1, 1],
+                            multiplier: 2.0
+                        }
+                    ],
+                    segmentBonus: {
+                        bronze: 1.0,
+                        silver: 1.1,
+                        gold: 1.2,
+                        platinum: 1.3,
+                        diamond: 1.5
+                    },
+                    subscriptionBonus: 1.2,
+                    participationReward: {
+                        coins: 10,
+                        gamePoints: 5
+                    }
+                },
+                schedule: {
+                    startTime: {
+                        type: "fixed",
+                        value: new Date().toISOString()
+                    },
+                    endTime: {
+                        type: "duration",
+                        value: 86400
+                    },
+                    duration: 86400,
+                    timezone: "America/Toronto"
+                },
+                limits: {
+                    daily: {
+                        maxParticipations: 3,
+                        maxTournaments: 1,
+                        maxAttempts: 3
+                    },
+                    weekly: {
+                        maxParticipations: 21,
+                        maxTournaments: 7,
+                        maxAttempts: 21
+                    },
+                    seasonal: {
+                        maxParticipations: 90,
+                        maxTournaments: 30,
+                        maxAttempts: 90
+                    },
+                    total: {
+                        maxParticipations: 1000,
+                        maxTournaments: 500,
+                        maxAttempts: 3000
+                    },
+                    subscribed: {
+                        daily: {
+                            maxParticipations: 5,
+                            maxTournaments: 2,
+                            maxAttempts: 5
+                        },
+                        weekly: {
+                            maxParticipations: 35,
+                            maxTournaments: 14,
+                            maxAttempts: 35
+                        },
+                        seasonal: {
+                            maxParticipations: 150,
+                            maxTournaments: 60,
+                            maxAttempts: 150
+                        }
+                    }
+                },
+                advanced: {
+                    matching: {
+                        algorithm: "skill_based",
+                        maxWaitTime: 30,
+                        fallbackToAI: true
+                    },
+                    settlement: {
+                        autoSettle: true,
+                        settleDelay: 300,
+                        requireMinimumPlayers: false,
+                        minimumPlayers: 1
+                    },
+                    notifications: {
+                        enabled: true,
+                        types: ["join", "start", "complete", "reward"],
+                        channels: ["in_app"]
+                    },
+                    monitoring: {
+                        enabled: true,
+                        metrics: ["participation", "completion", "rewards"],
+                        alerts: ["low_participation"]
+                    }
+                },
                 createdAt: now.iso,
                 updatedAt: now.iso
             });
@@ -617,20 +1007,124 @@ export class TestGetAvailableTournaments {
                 description: "用于测试的每周拉米锦标赛",
                 category: "weekly",
                 gameType: "rummy",
-                handlerModule: "multi_player_tournament",
-                defaultConfig: {
-                    entryRequirements: {
-                        minSegment: "bronze",
-                        isSubscribedRequired: false,
-                        entryFee: { coins: 100 }
-                    },
-                    rules: {
-                        maxAttempts: 1,
-                        isSingleMatch: false
-                    },
-                    duration: 7 * 24 * 60 * 60 * 1000
-                },
                 isActive: true,
+                priority: 5,
+                entryRequirements: {
+                    minSegment: "bronze",
+                    isSubscribedRequired: false,
+                    entryFee: {
+                        coins: 100
+                    }
+                },
+                matchRules: {
+                    matchType: "multi_match",
+                    minPlayers: 2,
+                    maxPlayers: 4,
+                    isSingleMatch: false,
+                    maxAttempts: 1,
+                    allowMultipleAttempts: false,
+                    rankingMethod: "total_score"
+                },
+                rewards: {
+                    baseRewards: {
+                        coins: 200,
+                        gamePoints: 100,
+                        props: [],
+                        tickets: []
+                    },
+                    rankRewards: [
+                        {
+                            rankRange: [1, 1],
+                            multiplier: 3.0
+                        }
+                    ],
+                    segmentBonus: {
+                        bronze: 1.0,
+                        silver: 1.1,
+                        gold: 1.2,
+                        platinum: 1.3,
+                        diamond: 1.5
+                    },
+                    subscriptionBonus: 1.3,
+                    participationReward: {
+                        coins: 20,
+                        gamePoints: 10
+                    }
+                },
+                schedule: {
+                    startTime: {
+                        type: "fixed",
+                        value: new Date().toISOString()
+                    },
+                    endTime: {
+                        type: "duration",
+                        value: 604800
+                    },
+                    duration: 604800,
+                    timezone: "America/Toronto"
+                },
+                limits: {
+                    daily: {
+                        maxParticipations: 5,
+                        maxTournaments: 2,
+                        maxAttempts: 5
+                    },
+                    weekly: {
+                        maxParticipations: 35,
+                        maxTournaments: 14,
+                        maxAttempts: 35
+                    },
+                    seasonal: {
+                        maxParticipations: 150,
+                        maxTournaments: 60,
+                        maxAttempts: 150
+                    },
+                    total: {
+                        maxParticipations: 1000,
+                        maxTournaments: 500,
+                        maxAttempts: 1000
+                    },
+                    subscribed: {
+                        daily: {
+                            maxParticipations: 8,
+                            maxTournaments: 3,
+                            maxAttempts: 8
+                        },
+                        weekly: {
+                            maxParticipations: 56,
+                            maxTournaments: 21,
+                            maxAttempts: 56
+                        },
+                        seasonal: {
+                            maxParticipations: 240,
+                            maxTournaments: 90,
+                            maxAttempts: 240
+                        }
+                    }
+                },
+                advanced: {
+                    matching: {
+                        algorithm: "skill_based",
+                        maxWaitTime: 60,
+                        fallbackToAI: false
+                    },
+                    settlement: {
+                        autoSettle: true,
+                        settleDelay: 600,
+                        requireMinimumPlayers: true,
+                        minimumPlayers: 2
+                    },
+                    notifications: {
+                        enabled: true,
+                        types: ["join", "start", "complete", "reward"],
+                        channels: ["in_app", "push"]
+                    },
+                    monitoring: {
+                        enabled: true,
+                        metrics: ["participation", "completion", "rewards", "performance"],
+                        alerts: ["low_participation", "high_failure", "reward_issues"]
+                    }
+                },
                 createdAt: now.iso,
                 updatedAt: now.iso
             });

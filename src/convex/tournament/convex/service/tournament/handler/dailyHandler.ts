@@ -50,8 +50,8 @@ export const dailyHandler: TournamentHandler = {
                 status: "open",
                 tournamentType,
                 isSubscribedRequired: config.isSubscribedRequired || false,
-                isSingleMatch: config.rules?.isSingleMatch || false,
-                prizePool: config.entryFee?.coins ? config.entryFee.coins * 0.8 : 0,
+                isSingleMatch: config.matchRules?.isSingleMatch || false,
+                prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
                 config: {
                     ...config,
                     dailyChallenge: {

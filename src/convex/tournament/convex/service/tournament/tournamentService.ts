@@ -10,9 +10,9 @@ import { getHandler } from "./handler";
  */
 export class TournamentService {
     static async loadTournamentConfig(ctx: any) {
-
+        console.log("loadTournamentConfig,TOURNAMENT_CONFIGS", TOURNAMENT_CONFIGS.length)
         const tournamentConfig = TOURNAMENT_CONFIGS.forEach(async (tournamentConfig) => {
-            console.log("tournamentConfig", tournamentConfig)
+
             await ctx.db.insert("tournament_types", tournamentConfig);
         });
 
@@ -481,7 +481,7 @@ export class TournamentService {
         // 应用过滤条件
         if (gameType) {
             tournamentTypes = tournamentTypes.filter((tt: any) =>
-                tt.defaultConfig?.gameType === gameType
+                tt.gameType === gameType
             );
         }
 
@@ -499,7 +499,6 @@ export class TournamentService {
         });
 
         const availableTournaments: any[] = [];
-        console.log("tournamentTypes", tournamentTypes)
 
         for (const tournamentType of tournamentTypes) {
             try {
@@ -511,14 +510,14 @@ export class TournamentService {
                     inventory,
                     season
                 });
-                console.log("eligibility", eligibility, tournamentType.typeId);
+
                 let participationStats: any;
                 if (eligibility.eligible) {
                     // 获取参与统计
                     participationStats = await this.getParticipationStats(ctx, {
                         uid,
                         tournamentType: tournamentType.typeId,
-                        gameType: tournamentType.defaultConfig?.gameType
+                        gameType: tournamentType.gameType
                     });
 
                 }
@@ -528,10 +527,17 @@ export class TournamentService {
                     description: tournamentType.description,
                     category: tournamentType.category,
                     gameType: tournamentType.gameType,
-                    config: tournamentType.defaultConfig,
+                    config: {
+                        entryRequirements: tournamentType.entryRequirements,
+                        matchRules: tournamentType.matchRules,
+                        rewards: tournamentType.rewards,
+                        schedule: tournamentType.schedule,
+                        limits: tournamentType.limits,
+                        advanced: tournamentType.advanced
+                    },
                     eligibility,
                     participationStats,
-                    priority: tournamentType.defaultConfig?.priority || 5
+                    priority: tournamentType.priority || 5
                 });
             } catch (error) {
                 console.error(`检查锦标赛资格失败 (${tournamentType.typeId}):`, error);
@@ -695,6 +701,9 @@ export class TournamentService {
         now: any;
     }) {
         const { tournamentType, season, player, now } = params;
+        const entryRequirements = tournamentType.entryRequirements;
+        const matchRules = tournamentType.matchRules;
+        const schedule = tournamentType.schedule;
 
         console.log(`自动创建锦标赛: ${tournamentType.typeId}`);
 
@@ -717,14 +726,21 @@ export class TournamentService {
         // 创建锦标赛
         const tournamentId = await ctx.db.insert("tournaments", {
             seasonId: season._id,
-            gameType: tournamentType.defaultConfig?.gameType || "solitaire",
+            gameType: tournamentType.gameType,
             segmentName: "all", // 对所有段位开放
             status: "open",
             tournamentType: tournamentType.typeId,
-            isSubscribedRequired: tournamentType.defaultConfig?.isSubscribedRequired || false,
-            isSingleMatch: tournamentType.defaultConfig?.rules?.isSingleMatch || false,
-            prizePool: tournamentType.defaultConfig?.entryFee?.coins ? tournamentType.defaultConfig.entryFee.coins * 0.8 : 0,
-            config: tournamentType.defaultConfig,
+            isSubscribedRequired: entryRequirements?.isSubscribedRequired || false,
+            isSingleMatch: matchRules?.isSingleMatch || false,
+            prizePool: entryRequirements?.entryFee?.coins ? entryRequirements.entryFee.coins * 0.8 : 0,
+            config: {
+                entryRequirements: tournamentType.entryRequirements,
+                matchRules: tournamentType.matchRules,
+                rewards: tournamentType.rewards,
+                schedule: tournamentType.schedule,
+                limits: tournamentType.limits,
+                advanced: tournamentType.advanced
+            },
             createdAt: now.iso,
             updatedAt: now.iso,
             endTime: endTime,
@@ -738,7 +754,7 @@ export class TournamentService {
             tournamentType: tournamentType.typeId,
             name: tournamentType.name,
             description: tournamentType.description,
-            gameType: tournamentType.defaultConfig?.gameType || "solitaire"
+            gameType: tournamentType.gameType
         });
     }
 
@@ -799,35 +815,36 @@ export class TournamentService {
         season: any;
     }) {
         const { uid, tournamentType, player, inventory, season } = params;
-        const config = tournamentType.defaultConfig;
+        const entryRequirements = tournamentType.entryRequirements;
+        const matchRules = tournamentType.matchRules;
         const reasons: string[] = [];
 
         // 检查段位要求
-        if (config.entryRequirements?.minSegment) {
+        if (entryRequirements?.minSegment) {
             const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
             const playerIndex = segments.indexOf(player.segmentName);
-            const minIndex = segments.indexOf(config.entryRequirements.minSegment);
+            const minIndex = segments.indexOf(entryRequirements.minSegment);
             if (playerIndex < minIndex) {
-                reasons.push(`需要至少 ${config.entryRequirements.minSegment} 段位`);
+                reasons.push(`需要至少 ${entryRequirements.minSegment} 段位`);
             }
         }
 
-        if (config.entryRequirements?.maxSegment) {
+        if (entryRequirements?.maxSegment) {
             const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
             const playerIndex = segments.indexOf(player.segmentName);
-            const maxIndex = segments.indexOf(config.entryRequirements.maxSegment);
+            const maxIndex = segments.indexOf(entryRequirements.maxSegment);
             if (playerIndex > maxIndex) {
-                reasons.push(`段位不能超过 ${config.entryRequirements.maxSegment}`);
+                reasons.push(`段位不能超过 ${entryRequirements.maxSegment}`);
             }
         }
 
         // 检查订阅要求
-        if (config.entryRequirements?.isSubscribedRequired && !player.isSubscribed) {
+        if (entryRequirements?.isSubscribedRequired && !player.isSubscribed) {
             reasons.push("需要订阅会员");
         }
 
         // 检查入场费
-        const entryFee = config.entryRequirements?.entryFee;
+        const entryFee = entryRequirements?.entryFee;
         if (entryFee?.coins && (!inventory || inventory.coins < entryFee.coins)) {
             reasons.push(`需要 ${entryFee.coins} 金币`);
         }
@@ -847,11 +864,11 @@ export class TournamentService {
         const attempts = await this.getPlayerAttempts(ctx, {
             uid,
             tournamentType: tournamentType.typeId,
-            gameType: config.gameType,
+            gameType: tournamentType.gameType,
             timeRange
         });
 
-        const maxAttempts = config.matchRules?.maxAttempts;
+        const maxAttempts = matchRules?.maxAttempts;
         if (maxAttempts && attempts >= maxAttempts) {
             const timeRangeText = timeRange === 'daily' ? '今日' :
                 timeRange === 'weekly' ? '本周' :
@@ -1038,7 +1055,7 @@ export class TournamentService {
         // 应用过滤条件
         if (gameType) {
             tournamentTypes = tournamentTypes.filter((tt: any) =>
-                tt.defaultConfig?.gameType === gameType
+                tt.gameType === gameType
             );
         }
 
@@ -1072,14 +1089,14 @@ export class TournamentService {
                 const participationStats = await this.getParticipationStats(ctx, {
                     uid,
                     tournamentType: tournamentType.typeId,
-                    gameType: tournamentType.defaultConfig?.gameType
+                    gameType: tournamentType.gameType
                 });
 
                 // 获取当前参与的锦标赛
                 const currentTournaments = await this.getCurrentParticipations(ctx, {
                     uid,
                     tournamentType: tournamentType.typeId,
-                    gameType: tournamentType.defaultConfig?.gameType
+                    gameType: tournamentType.gameType
                 });
 
                 tournamentStatus.push({
@@ -1087,12 +1104,18 @@ export class TournamentService {
                     name: tournamentType.name,
                     description: tournamentType.description,
                     category: tournamentType.category,
-                    gameType: tournamentType.defaultConfig?.gameType,
-                    config: tournamentType.defaultConfig,
+                    gameType: tournamentType.gameType,
+                    config: {
+                        entryRequirements: tournamentType.entryRequirements,
+                        matchRules: tournamentType.matchRules,
+                        rewards: tournamentType.rewards,
+                        schedule: tournamentType.schedule,
+                        limits: tournamentType.limits,
+                        advanced: tournamentType.advanced
+                    },
                     eligibility,
                     participationStats,
                     currentParticipations: currentTournaments,
-                    priority: tournamentType.defaultConfig?.priority || 5,
                     lastUpdated: new Date().toISOString()
                 });
             } catch (error) {
@@ -1281,20 +1304,7 @@ export class TournamentService {
     /**
      * 获取通知消息
      */
-    private static getNotificationMessage(changeType: string, data?: any): string {
-        switch (changeType) {
-            case "new_tournament":
-                return `新的锦标赛 "${data?.name || '未知'}" 已开始！`;
-            case "eligibility_change":
-                return `锦标赛 "${data?.name || '未知'}" 的参与条件已更新`;
-            case "participation_update":
-                return `您在锦标赛 "${data?.name || '未知'}" 中的状态已更新`;
-            case "tournament_completed":
-                return `锦标赛 "${data?.name || '未知'}" 已结束，请查看结果！`;
-            default:
-                return "锦标赛状态已更新";
-        }
-    }
+
 }
 
 // Convex 函数接口

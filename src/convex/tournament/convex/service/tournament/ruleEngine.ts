@@ -255,11 +255,11 @@ export async function applyRules(ctx: any, { tournament, uid, matches, player, i
   const highestScore = Math.max(...matches.map((m: any) => m.score));
   let rank: number = 0, reward: any = {}, pointsEarned: number = 0;
 
-  if (config.rules.ranking === "threshold") {
-    rank = highestScore >= config.rules.scoreThreshold ? 1 : 2;
-    pointsEarned = highestScore >= config.rules.scoreThreshold ? config.rewards[0].gamePoints : config.rewards[1].gamePoints;
-    reward = config.rewards.find((r: any) => r.rankRange[0] === rank);
-  } else if (config.rules.ranking === "highest_score") {
+  if (config.matchRules.rankingMethod === "threshold") {
+    rank = highestScore >= config.matchRules.scoreThreshold ? 1 : 2;
+    pointsEarned = highestScore >= config.matchRules.scoreThreshold ? config.rewards.baseRewards.gamePoints : config.rewards.baseRewards.gamePoints * 0.5;
+    reward = config.rewards.rankRewards.find((r: any) => r.rankRange[0] === rank);
+  } else if (config.matchRules.rankingMethod === "highest_score") {
     const playerScores = new Map<string, number>();
     for (const match of matches) {
       const currentScore = playerScores.get(match.uid) || 0;
@@ -270,27 +270,31 @@ export async function applyRules(ctx: any, { tournament, uid, matches, player, i
       .map(([uid], index) => ({ uid, rank: index + 1 }));
     const playerRank = sortedPlayers.find((p: any) => p.uid === uid);
     rank = playerRank?.rank || 0;
-    reward = config.rewards.find((r: any) => rank >= r.rankRange[0] && rank <= r.rankRange[1]);
-    pointsEarned = reward.gamePoints;
+    reward = config.rewards.rankRewards.find((r: any) => rank >= r.rankRange[0] && rank <= r.rankRange[1]);
+    pointsEarned = config.rewards.baseRewards.gamePoints * (reward?.multiplier || 1);
   }
 
-  let finalReward = { coins: reward.coins, props: reward.props, gamePoints: pointsEarned, tickets: [] };
+  let finalReward = {
+    coins: config.rewards.baseRewards.coins * (reward?.multiplier || 1),
+    props: [...config.rewards.baseRewards.props, ...(reward?.bonusProps || [])],
+    gamePoints: pointsEarned,
+    tickets: [...config.rewards.baseRewards.tickets, ...(reward?.bonusTickets || [])]
+  };
+
   if (player.isSubscribed) {
-    finalReward.coins *= config.subscriberBonus?.coins || 1.2;
-    finalReward.gamePoints *= config.subscriberBonus?.gamePoints || 1.5;
+    finalReward.coins *= config.rewards.subscriptionBonus || 1.2;
+    finalReward.gamePoints *= config.rewards.subscriptionBonus || 1.2;
   }
-  if (player.segmentName === "Gold") {
-    finalReward.coins *= 1.1;
-    finalReward.gamePoints *= 1.1;
-  } else if (player.segmentName === "Platinum") {
-    finalReward.coins *= 1.2;
-    finalReward.gamePoints *= 1.2;
-  }
+
+  // 应用段位加成
+  const segmentBonus = config.rewards.segmentBonus?.[player.segmentName.toLowerCase()] || 1.0;
+  finalReward.coins *= segmentBonus;
+  finalReward.gamePoints *= segmentBonus;
 
   await ctx.db.patch(inventory._id, {
     coins: inventory.coins + finalReward.coins,
     props: updateProps(inventory.props, finalReward.props),
-    tickets: updateTickets(inventory.tickets, finalReward.tickets ? finalReward.tickets : []),
+    tickets: updateTickets(inventory.tickets, finalReward.tickets),
     updatedAt: now.iso,
   });
 
@@ -308,7 +312,8 @@ export async function applyRules(ctx: any, { tournament, uid, matches, player, i
     await ctx.db.patch(player._id, { segmentName: newSegment });
   }
 
-  if (config.share && Math.random() < config.share.probability && rank >= config.share.rankRange[0] && rank <= config.share.rankRange[1]) {
+  // 检查是否需要分享（如果配置了分享功能）
+  if (config.advanced?.custom?.share && Math.random() < config.advanced.custom.share.probability && rank >= config.advanced.custom.share.rankRange[0] && rank <= config.advanced.custom.share.rankRange[1]) {
     await ctx.db.insert("player_shares", {
       uid,
       gameType: tournament.gameType,

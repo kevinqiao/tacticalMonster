@@ -64,13 +64,20 @@ export class TournamentScheduler {
                     segmentName: "all", // 每日锦标赛对所有段位开放
                     status: "open",
                     tournamentType: config.typeId,
-                    isSubscribedRequired: config.defaultConfig?.isSubscribedRequired || false,
-                    isSingleMatch: config.defaultConfig?.rules?.isSingleMatch || false,
-                    prizePool: config.defaultConfig?.entryFee?.coins ? config.defaultConfig.entryFee.coins * 0.8 : 0,
-                    config: config.defaultConfig,
+                    isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
+                    isSingleMatch: config.matchRules?.isSingleMatch || false,
+                    prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
+                    config: {
+                        entryRequirements: config.entryRequirements,
+                        matchRules: config.matchRules,
+                        rewards: config.rewards,
+                        schedule: config.schedule,
+                        limits: config.limits,
+                        advanced: config.advanced
+                    },
                     createdAt: now.iso,
                     updatedAt: now.iso,
-                    endTime: new Date(now.localDate.getTime() + (config.defaultConfig?.duration || 86400) * 1000).toISOString(),
+                    endTime: new Date(now.localDate.getTime() + (config.schedule?.duration || 86400) * 1000).toISOString(),
                 });
 
                 console.log(`成功创建每日锦标赛 ${config.typeId}: ${tournamentId}`);
@@ -156,13 +163,20 @@ export class TournamentScheduler {
                     segmentName: "all", // 每周锦标赛对所有段位开放
                     status: "open",
                     tournamentType: config.typeId,
-                    isSubscribedRequired: config.defaultConfig?.isSubscribedRequired || false,
-                    isSingleMatch: config.defaultConfig?.rules?.isSingleMatch || false,
-                    prizePool: config.defaultConfig?.entryFee?.coins ? config.defaultConfig.entryFee.coins * 0.8 : 0,
-                    config: config.defaultConfig,
+                    isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
+                    isSingleMatch: config.matchRules?.isSingleMatch || false,
+                    prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
+                    config: {
+                        entryRequirements: config.entryRequirements,
+                        matchRules: config.matchRules,
+                        rewards: config.rewards,
+                        schedule: config.schedule,
+                        limits: config.limits,
+                        advanced: config.advanced
+                    },
                     createdAt: now.iso,
                     updatedAt: now.iso,
-                    endTime: new Date(now.localDate.getTime() + (config.defaultConfig?.duration || 604800) * 1000).toISOString(),
+                    endTime: new Date(now.localDate.getTime() + (config.schedule?.duration || 604800) * 1000).toISOString(),
                 });
 
                 console.log(`成功创建每周锦标赛 ${config.typeId}: ${tournamentId}`);
@@ -245,13 +259,20 @@ export class TournamentScheduler {
                     segmentName: "all", // 赛季锦标赛对所有段位开放
                     status: "open",
                     tournamentType: config.typeId,
-                    isSubscribedRequired: config.defaultConfig?.isSubscribedRequired || false,
-                    isSingleMatch: config.defaultConfig?.rules?.isSingleMatch || false,
-                    prizePool: config.defaultConfig?.entryFee?.coins ? config.defaultConfig.entryFee.coins * 0.8 : 0,
-                    config: config.defaultConfig,
+                    isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
+                    isSingleMatch: config.matchRules?.isSingleMatch || false,
+                    prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
+                    config: {
+                        entryRequirements: config.entryRequirements,
+                        matchRules: config.matchRules,
+                        rewards: config.rewards,
+                        schedule: config.schedule,
+                        limits: config.limits,
+                        advanced: config.advanced
+                    },
                     createdAt: now.iso,
                     updatedAt: now.iso,
-                    endTime: new Date(now.localDate.getTime() + (config.defaultConfig?.duration || 2592000) * 1000).toISOString(),
+                    endTime: new Date(now.localDate.getTime() + (config.schedule?.duration || 2592000) * 1000).toISOString(),
                 });
 
                 console.log(`成功创建赛季锦标赛 ${config.typeId}: ${tournamentId}`);

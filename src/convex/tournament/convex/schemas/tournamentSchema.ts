@@ -43,7 +43,7 @@ export const tournamentSchema = {
         priority: v.number(),
 
         // 参赛条件
-        entryRequirements: v.object({
+        entryRequirements: v.optional(v.object({
             minSegment: v.optional(v.string()), // "bronze", "silver", "gold", "platinum", "diamond"
             maxSegment: v.optional(v.string()),
             isSubscribedRequired: v.boolean(),
@@ -69,7 +69,7 @@ export const tournamentSchema = {
                 value: v.any(),
                 description: v.string()
             })))
-        }),
+        })),
 
         // 比赛规则
         matchRules: v.object({
@@ -206,7 +206,7 @@ export const tournamentSchema = {
         }),
 
         // 高级配置
-        advanced: v.object({
+        advanced: v.optional(v.object({
             matching: v.object({
                 algorithm: v.string(), // "skill_based", "random", "segment_based", "elo_based"
                 skillRange: v.optional(v.number()),
@@ -230,7 +230,7 @@ export const tournamentSchema = {
                 alerts: v.array(v.string())
             }),
             custom: v.optional(v.any())
-        }),
+        })),
 
         // 兼容性字段（保留原有字段）
         handlerModule: v.optional(v.string()), // 如 "tournamentHandlers/dailySpecial"

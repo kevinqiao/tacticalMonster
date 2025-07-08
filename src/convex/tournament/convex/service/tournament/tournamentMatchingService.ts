@@ -20,6 +20,8 @@ export class TournamentMatchingService {
     }) {
         const now = getTorontoDate();
         const { uid, tournamentId, gameType, player, config } = params;
+        const matchRules = config.matchRules;
+        const advanced = config.advanced;
 
         try {
             // 1. 验证锦标赛状态
@@ -42,12 +44,12 @@ export class TournamentMatchingService {
                     tournamentId,
                     gameType,
                     matchType: "tournament_match",
-                    maxPlayers: config.rules?.maxPlayers || 4,
-                    minPlayers: config.rules?.minPlayers || 2,
+                    maxPlayers: matchRules?.maxPlayers || 4,
+                    minPlayers: matchRules?.minPlayers || 2,
                     gameData: {
                         matchType: "tournament_based",
                         createdAt: now.iso,
-                        matchingAlgorithm: config.advanced?.matching?.algorithm || "skill_based"
+                        matchingAlgorithm: advanced?.matching?.algorithm || "skill_based"
                     }
                 });
                 match = await ctx.db.get(matchId);
@@ -107,7 +109,7 @@ export class TournamentMatchingService {
                         players: currentPlayers.map((p: any) => p.uid),
                         gameId: gameResult.gameId,
                         playerCount: currentPlayers.length,
-                        matchingAlgorithm: config.advanced?.matching?.algorithm
+                        matchingAlgorithm: advanced?.matching?.algorithm
                     },
                     timestamp: now.iso,
                     createdAt: now.iso
@@ -198,13 +200,14 @@ export class TournamentMatchingService {
         config: any;
     }) {
         const { match, playerMatches, player, config } = params;
+        const advanced = config.advanced;
 
         // 如果没有其他玩家，直接匹配
         if (playerMatches.length === 0) {
             return { compatible: true, score: 1.0 };
         }
 
-        const algorithm = config.advanced?.matching?.algorithm || "skill_based";
+        const algorithm = advanced?.matching?.algorithm || "skill_based";
         let score = 0;
 
         switch (algorithm) {
@@ -224,7 +227,7 @@ export class TournamentMatchingService {
                 score = await this.calculateSkillCompatibility(ctx, { playerMatches, player });
         }
 
-        const compatible = score >= (config.advanced?.matching?.skillRange || 0.3);
+        const compatible = score >= (advanced?.matching?.skillRange || 0.3);
         return { compatible, score };
     }
 
@@ -344,6 +347,7 @@ export class TournamentMatchingService {
         config: any;
     }) {
         const { match, currentPlayers, config } = params;
+        const advanced = config.advanced;
 
         // 达到最小人数
         if (currentPlayers.length >= match.minPlayers) {
@@ -354,14 +358,14 @@ export class TournamentMatchingService {
 
             // 等待时间过长
             const waitTime = new Date().getTime() - new Date(match.createdAt).getTime();
-            const maxWaitTime = (config.advanced?.matching?.maxWaitTime || 60) * 1000; // 转换为毫秒
+            const maxWaitTime = (advanced?.matching?.maxWaitTime || 60) * 1000; // 转换为毫秒
 
             if (waitTime > maxWaitTime) {
                 return true;
             }
 
             // 如果配置了AI回退且等待时间超过阈值
-            if (config.advanced?.matching?.fallbackToAI && waitTime > maxWaitTime / 2) {
+            if (advanced?.matching?.fallbackToAI && waitTime > maxWaitTime / 2) {
                 return true;
             }
         }
@@ -517,7 +521,15 @@ export const joinTournamentMatch = (mutation as any)({
             throw new Error("锦标赛不存在");
         }
 
-        const config = tournament.config || {};
+        // 使用新的schema结构
+        const config = {
+            entryRequirements: tournament.config?.entryRequirements,
+            matchRules: tournament.config?.matchRules,
+            rewards: tournament.config?.rewards,
+            schedule: tournament.config?.schedule,
+            limits: tournament.config?.limits,
+            advanced: tournament.config?.advanced
+        };
 
         return await TournamentMatchingService.joinTournamentMatch(ctx, {
             uid: args.uid,
