@@ -6,7 +6,7 @@ export const tournamentSchema = {
     tournaments: defineTable({
         seasonId: v.id("seasons"),
         gameType: v.string(), // "solitaire", "uno", "ludo", "rummy"
-        segmentName: v.string(), // "Bronze", "Silver", "Gold", "Platinum"
+        segmentName: v.optional(v.string()), // "Bronze", "Silver", "Gold", "Platinum"
         status: v.string(), // "open", "completed"
         tournamentType: v.string(), // 引用 tournament_types.typeId
         isSubscribedRequired: v.boolean(),
@@ -35,6 +35,8 @@ export const tournamentSchema = {
         typeId: v.string(), // 如 "daily_special"
         name: v.string(), // 如 "每日特别锦标赛"
         description: v.string(),
+        timeRange: v.optional(v.string()),
+        independent: v.optional(v.boolean()),
         category: v.string(), // "daily", "weekly", "seasonal", "special", "ranked", "casual", "championship", "tournament"
 
         // 游戏配置

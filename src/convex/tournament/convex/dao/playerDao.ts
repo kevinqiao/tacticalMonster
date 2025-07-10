@@ -4,11 +4,12 @@ import { internalMutation, internalQuery } from "../_generated/server";
 export const create = internalMutation({
     args: {
         uid: v.string(),
-        segmentName: v.string(),
+        token: v.optional(v.string()),
+        expire: v.optional(v.number()),
         data: v.optional(v.any()),
     },
-    handler: async (ctx, { uid, segmentName, data }) => {
-        const pid = await ctx.db.insert("players", { uid, segmentName, ...data });
+    handler: async (ctx, { uid, token, expire, data }) => {
+        const pid = await ctx.db.insert("players", { uid, token, expire, ...data });
         return pid;
     },
 })
@@ -31,12 +32,13 @@ export const find = internalQuery({
 export const update = internalMutation({
     args: {
         uid: v.string(),
-        data: v.any()
+        token: v.optional(v.string()),
+        expire: v.optional(v.number()),
     },
-    handler: async (ctx, { uid, data }) => {
+    handler: async (ctx, { uid, token, expire }) => {
         const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
         if (player) {
-            return await ctx.db.patch(player._id, data);
+            return await ctx.db.patch(player._id, { token, expire });
         }
         return null;
     },

@@ -151,7 +151,7 @@ const evaluateCondition = (condition: any, { player, isHighActivity, today, acti
         if (!segments.includes(condition.minSegment)) {
             return false;
         }
-        return segments.indexOf(player.segmentName) >= segments.indexOf(condition.minSegment);
+        return segments.indexOf(player.segmentName ?? "") >= segments.indexOf(condition.minSegment);
     }
     // if (condition.gamePreferences) {
     //     return player.gamePreferences?.includes(condition.gamePreferences) ?? false;

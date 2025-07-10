@@ -6,18 +6,22 @@ export const userSchema = {
     // 玩家表 - 合并了用户信息和游戏相关功能
     players: defineTable({
         uid: v.string(),
+        token: v.optional(v.string()),
         email: v.optional(v.string()),
-        displayName: v.string(),
-        avatarUrl: v.optional(v.string()),
-        segmentName: v.string(), // "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"
+        displayName: v.optional(v.string()),
+        avatar: v.optional(v.string()),
+        segmentName: v.optional(v.string()), // "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"
         isActive: v.optional(v.boolean()),
         isSubscribed: v.optional(v.boolean()),
         eloScore: v.optional(v.number()),
         subscriptionExpiry: v.optional(v.string()),
-        lastActive: v.string(),
-        totalPoints: v.number(),
-        createdAt: v.string(),
-        updatedAt: v.string(),
+        lastActive: v.optional(v.string()),
+        totalPoints: v.optional(v.number()),
+        expire: v.optional(v.number()),
+        level: v.optional(v.number()),
+        exp: v.optional(v.number()),
+        createdAt: v.optional(v.string()),
+        updatedAt: v.optional(v.string()),
     }).index("by_uid", ["uid"]).index("by_email", ["email"]).index("by_segment", ["segmentName"]),
 
     // 玩家活动表 - 用于跟踪玩家活跃度

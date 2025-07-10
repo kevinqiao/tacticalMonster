@@ -7,7 +7,7 @@ import { getTorontoDate } from "../utils";
  */
 export class TournamentScheduler {
     /**
-     * 创建每日锦标赛
+     * 并发安全的创建每日锦标赛
      */
     static async createDailyTournaments(ctx: any) {
         const now = getTorontoDate();
@@ -24,80 +24,34 @@ export class TournamentScheduler {
                 .collect();
 
             for (const config of dailyConfigs) {
-                // 检查是否已创建今日锦标赛
-                const existingTournaments = await ctx.db
-                    .query("tournaments")
-                    .withIndex("by_type_status", (q: any) =>
-                        q.eq("tournamentType", config.typeId)
-                            .eq("status", "open")
-                    )
-                    .collect();
+                try {
+                    // 检查是否已创建今日锦标赛
+                    const existingTournament = await this.findDailyTournament(ctx, {
+                        tournamentType: config.typeId,
+                        now
+                    });
 
-                // 在 JavaScript 中过滤今日创建的锦标赛
-                const existingTournament = existingTournaments.find((t: any) => {
-                    const createdAt = t.createdAt;
-                    if (!createdAt) return false;
-                    const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-                    return createdAtStr.startsWith(today);
-                });
-
-                if (existingTournament) {
-                    console.log(`每日锦标赛 ${config.typeId} 今日已存在，跳过创建`);
-                    continue;
+                    if (!existingTournament) {
+                        // 创建锦标赛
+                        await this.createTournament(ctx, {
+                            config,
+                            season: await this.getCurrentSeason(ctx),
+                            now
+                        });
+                        console.log(`已创建每日锦标赛: ${config.typeId}`);
+                    } else {
+                        console.log(`每日锦标赛已存在: ${config.typeId}`);
+                    }
+                } catch (error) {
+                    console.error(`创建每日锦标赛失败 (${config.typeId}):`, error);
                 }
-
-                // 获取当前赛季
-                const season = await ctx.db
-                    .query("seasons")
-                    .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-                    .first();
-
-                if (!season) {
-                    console.log("无活跃赛季，跳过创建每日锦标赛");
-                    continue;
-                }
-
-                // 创建每日锦标赛
-                const tournamentId = await ctx.db.insert("tournaments", {
-                    seasonId: season._id,
-                    gameType: config.gameType,
-                    segmentName: "all", // 每日锦标赛对所有段位开放
-                    status: "open",
-                    tournamentType: config.typeId,
-                    isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
-                    isSingleMatch: config.matchRules?.isSingleMatch || false,
-                    prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
-                    config: {
-                        entryRequirements: config.entryRequirements,
-                        matchRules: config.matchRules,
-                        rewards: config.rewards,
-                        schedule: config.schedule,
-                        limits: config.limits,
-                        advanced: config.advanced
-                    },
-                    createdAt: now.iso,
-                    updatedAt: now.iso,
-                    endTime: new Date(now.localDate.getTime() + (config.schedule?.duration || 86400) * 1000).toISOString(),
-                });
-
-                console.log(`成功创建每日锦标赛 ${config.typeId}: ${tournamentId}`);
-
-                // 发送通知给所有玩家
-                await this.notifyPlayersAboutNewTournament(ctx, {
-                    tournamentId,
-                    tournamentType: config.typeId,
-                    name: config.name,
-                    description: config.description,
-                    gameType: config.gameType
-                });
             }
 
             return {
                 success: true,
-                message: `每日锦标赛创建完成 - ${today}`,
-                createdCount: dailyConfigs.length
+                message: "每日锦标赛创建完成",
+                date: today
             };
-
         } catch (error) {
             console.error("创建每日锦标赛失败:", error);
             throw error;
@@ -105,7 +59,7 @@ export class TournamentScheduler {
     }
 
     /**
-     * 创建每周锦标赛
+     * 并发安全的创建每周锦标赛
      */
     static async createWeeklyTournaments(ctx: any) {
         const now = getTorontoDate();
@@ -122,81 +76,34 @@ export class TournamentScheduler {
                 .collect();
 
             for (const config of weeklyConfigs) {
-                // 检查是否已创建本周锦标赛
-                const existingTournaments = await ctx.db
-                    .query("tournaments")
-                    .withIndex("by_type_status", (q: any) =>
-                        q.eq("tournamentType", config.typeId)
-                            .eq("status", "open")
-                    )
-                    .collect();
+                try {
+                    // 检查是否已创建本周锦标赛
+                    const existingTournament = await this.findWeeklyTournament(ctx, {
+                        tournamentType: config.typeId,
+                        now
+                    });
 
-                // 在 JavaScript 中过滤本周创建的锦标赛
-                const existingTournament = existingTournaments.find((t: any) => {
-                    const createdAt = t.createdAt;
-                    if (!createdAt) return false;
-                    const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-                    const tournamentWeekStart = this.getWeekStart(createdAtStr.split("T")[0]);
-                    return tournamentWeekStart === weekStart;
-                });
-
-                if (existingTournament) {
-                    console.log(`每周锦标赛 ${config.typeId} 本周已存在，跳过创建`);
-                    continue;
+                    if (!existingTournament) {
+                        // 创建锦标赛
+                        await this.createTournament(ctx, {
+                            config,
+                            season: await this.getCurrentSeason(ctx),
+                            now
+                        });
+                        console.log(`已创建每周锦标赛: ${config.typeId}`);
+                    } else {
+                        console.log(`每周锦标赛已存在: ${config.typeId}`);
+                    }
+                } catch (error) {
+                    console.error(`创建每周锦标赛失败 (${config.typeId}):`, error);
                 }
-
-                // 获取当前赛季
-                const season = await ctx.db
-                    .query("seasons")
-                    .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-                    .first();
-
-                if (!season) {
-                    console.log("无活跃赛季，跳过创建每周锦标赛");
-                    continue;
-                }
-
-                // 创建每周锦标赛
-                const tournamentId = await ctx.db.insert("tournaments", {
-                    seasonId: season._id,
-                    gameType: config.gameType,
-                    segmentName: "all", // 每周锦标赛对所有段位开放
-                    status: "open",
-                    tournamentType: config.typeId,
-                    isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
-                    isSingleMatch: config.matchRules?.isSingleMatch || false,
-                    prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
-                    config: {
-                        entryRequirements: config.entryRequirements,
-                        matchRules: config.matchRules,
-                        rewards: config.rewards,
-                        schedule: config.schedule,
-                        limits: config.limits,
-                        advanced: config.advanced
-                    },
-                    createdAt: now.iso,
-                    updatedAt: now.iso,
-                    endTime: new Date(now.localDate.getTime() + (config.schedule?.duration || 604800) * 1000).toISOString(),
-                });
-
-                console.log(`成功创建每周锦标赛 ${config.typeId}: ${tournamentId}`);
-
-                // 发送通知给所有玩家
-                await this.notifyPlayersAboutNewTournament(ctx, {
-                    tournamentId,
-                    tournamentType: config.typeId,
-                    name: config.name,
-                    description: config.description,
-                    gameType: config.gameType
-                });
             }
 
             return {
                 success: true,
-                message: `每周锦标赛创建完成 - ${weekStart}`,
-                createdCount: weeklyConfigs.length
+                message: "每周锦标赛创建完成",
+                weekStart
             };
-
         } catch (error) {
             console.error("创建每周锦标赛失败:", error);
             throw error;
@@ -204,12 +111,21 @@ export class TournamentScheduler {
     }
 
     /**
-     * 创建赛季锦标赛
+     * 并发安全的创建赛季锦标赛
      */
     static async createSeasonalTournaments(ctx: any) {
         const now = getTorontoDate();
+        const season = await this.getCurrentSeason(ctx);
 
-        console.log(`开始创建赛季锦标赛`);
+        if (!season) {
+            console.log("无活跃赛季，跳过赛季锦标赛创建");
+            return {
+                success: true,
+                message: "无活跃赛季，跳过创建"
+            };
+        }
+
+        console.log(`开始创建赛季锦标赛 - ${season.name}`);
 
         try {
             // 获取所有赛季锦标赛配置
@@ -220,79 +136,34 @@ export class TournamentScheduler {
                 .collect();
 
             for (const config of seasonalConfigs) {
-                // 获取当前赛季
-                const season = await ctx.db
-                    .query("seasons")
-                    .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-                    .first();
+                try {
+                    // 检查是否已创建本赛季锦标赛
+                    const existingTournament = await this.findSeasonalTournament(ctx, {
+                        tournamentType: config.typeId,
+                        season
+                    });
 
-                if (!season) {
-                    console.log("无活跃赛季，跳过创建赛季锦标赛");
-                    continue;
+                    if (!existingTournament) {
+                        // 创建锦标赛
+                        await this.createTournament(ctx, {
+                            config,
+                            season,
+                            now
+                        });
+                        console.log(`已创建赛季锦标赛: ${config.typeId}`);
+                    } else {
+                        console.log(`赛季锦标赛已存在: ${config.typeId}`);
+                    }
+                } catch (error) {
+                    console.error(`创建赛季锦标赛失败 (${config.typeId}):`, error);
                 }
-
-                // 检查是否已创建本赛季锦标赛
-                const existingTournaments = await ctx.db
-                    .query("tournaments")
-                    .withIndex("by_type_status", (q: any) =>
-                        q.eq("tournamentType", config.typeId)
-                            .eq("status", "open")
-                    )
-                    .collect();
-
-                // 在 JavaScript 中过滤本赛季创建的锦标赛
-                const existingTournament = existingTournaments.find((t: any) => {
-                    const seasonId = t.seasonId;
-                    if (!seasonId) return false;
-                    return seasonId === season._id;
-                });
-
-                if (existingTournament) {
-                    console.log(`赛季锦标赛 ${config.typeId} 本赛季已存在，跳过创建`);
-                    continue;
-                }
-
-                // 创建赛季锦标赛
-                const tournamentId = await ctx.db.insert("tournaments", {
-                    seasonId: season._id,
-                    gameType: config.gameType,
-                    segmentName: "all", // 赛季锦标赛对所有段位开放
-                    status: "open",
-                    tournamentType: config.typeId,
-                    isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
-                    isSingleMatch: config.matchRules?.isSingleMatch || false,
-                    prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
-                    config: {
-                        entryRequirements: config.entryRequirements,
-                        matchRules: config.matchRules,
-                        rewards: config.rewards,
-                        schedule: config.schedule,
-                        limits: config.limits,
-                        advanced: config.advanced
-                    },
-                    createdAt: now.iso,
-                    updatedAt: now.iso,
-                    endTime: new Date(now.localDate.getTime() + (config.schedule?.duration || 2592000) * 1000).toISOString(),
-                });
-
-                console.log(`成功创建赛季锦标赛 ${config.typeId}: ${tournamentId}`);
-
-                // 发送通知给所有玩家
-                await this.notifyPlayersAboutNewTournament(ctx, {
-                    tournamentId,
-                    tournamentType: config.typeId,
-                    name: config.name,
-                    description: config.description,
-                    gameType: config.gameType
-                });
             }
 
             return {
                 success: true,
-                message: `赛季锦标赛创建完成`,
-                createdCount: seasonalConfigs.length
+                message: "赛季锦标赛创建完成",
+                seasonName: season.name
             };
-
         } catch (error) {
             console.error("创建赛季锦标赛失败:", error);
             throw error;
@@ -489,6 +360,144 @@ export class TournamentScheduler {
             console.error("通知玩家失败:", error);
             // 不抛出错误，避免影响主要流程
         }
+    }
+
+    /**
+     * 查找每日锦标赛
+     */
+    private static async findDailyTournament(ctx: any, params: {
+        tournamentType: string;
+        now: any;
+    }) {
+        const { tournamentType, now } = params;
+        const today = now.localDate.toISOString().split("T")[0];
+
+        const existingTournaments = await ctx.db
+            .query("tournaments")
+            .withIndex("by_type_status", (q: any) =>
+                q.eq("tournamentType", tournamentType)
+                    .eq("status", "open")
+            )
+            .collect();
+
+        return existingTournaments.find((tournament: any) => {
+            const createdAt = tournament.createdAt;
+            if (!createdAt) return false;
+            const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+            return createdAtStr.startsWith(today);
+        });
+    }
+
+    /**
+     * 查找每周锦标赛
+     */
+    private static async findWeeklyTournament(ctx: any, params: {
+        tournamentType: string;
+        now: any;
+    }) {
+        const { tournamentType, now } = params;
+        const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
+
+        const existingTournaments = await ctx.db
+            .query("tournaments")
+            .withIndex("by_type_status", (q: any) =>
+                q.eq("tournamentType", tournamentType)
+                    .eq("status", "open")
+            )
+            .collect();
+
+        return existingTournaments.find((tournament: any) => {
+            const createdAt = tournament.createdAt;
+            if (!createdAt) return false;
+            const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+            const tournamentWeekStart = this.getWeekStart(createdAtStr.split("T")[0]);
+            return tournamentWeekStart === weekStart;
+        });
+    }
+
+    /**
+     * 查找赛季锦标赛
+     */
+    private static async findSeasonalTournament(ctx: any, params: {
+        tournamentType: string;
+        season: any;
+    }) {
+        const { tournamentType, season } = params;
+
+        return await ctx.db
+            .query("tournaments")
+            .withIndex("by_type_status", (q: any) =>
+                q.eq("tournamentType", tournamentType)
+                    .eq("status", "open")
+            )
+            .filter((q: any) => q.eq(q.field("seasonId"), season._id))
+            .first();
+    }
+
+    /**
+     * 获取当前赛季
+     */
+    private static async getCurrentSeason(ctx: any) {
+        return await ctx.db
+            .query("seasons")
+            .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
+            .first();
+    }
+
+    /**
+     * 创建锦标赛
+     */
+    private static async createTournament(ctx: any, params: {
+        config: any;
+        season: any;
+        now: any;
+    }) {
+        const { config, season, now } = params;
+        const entryRequirements = config.entryRequirements;
+        const matchRules = config.matchRules;
+        const schedule = config.schedule;
+
+        // 计算结束时间
+        let endTime: string;
+        switch (config.category) {
+            case "daily":
+                endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+                break;
+            case "weekly":
+                endTime = new Date(now.localDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+                break;
+            case "seasonal":
+                endTime = new Date(now.localDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                break;
+            default:
+                endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        }
+
+        // 创建锦标赛
+        const tournamentId = await ctx.db.insert("tournaments", {
+            seasonId: season._id,
+            gameType: config.gameType,
+            segmentName: "all", // 对所有段位开放
+            status: "open",
+            tournamentType: config.typeId,
+            isSubscribedRequired: entryRequirements?.isSubscribedRequired || false,
+            isSingleMatch: matchRules?.isSingleMatch || false,
+            prizePool: entryRequirements?.entryFee?.coins ? entryRequirements.entryFee.coins * 0.8 : 0,
+            config: {
+                entryRequirements: config.entryRequirements,
+                matchRules: config.matchRules,
+                rewards: config.rewards,
+                schedule: config.schedule,
+                limits: config.limits,
+                advanced: config.advanced
+            },
+            createdAt: now.iso,
+            updatedAt: now.iso,
+            endTime: endTime,
+        });
+
+        console.log(`成功创建锦标赛 ${config.typeId}: ${tournamentId}`);
+        return tournamentId;
     }
 }
 

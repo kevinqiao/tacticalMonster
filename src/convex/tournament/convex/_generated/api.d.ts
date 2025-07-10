@@ -13,7 +13,6 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
-import type * as crons from "../crons.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_notificationDao from "../dao/notificationDao.js";
 import type * as dao_playerDao from "../dao/playerDao.js";
@@ -46,6 +45,7 @@ import type * as service_localization_messageCodes from "../service/localization
 import type * as service_localization_messageHandler from "../service/localization/messageHandler.js";
 import type * as service_match from "../service/match.js";
 import type * as service_migration_migrateMatchesToPlayerMatches from "../service/migration/migrateMatchesToPlayerMatches.js";
+import type * as service_playerManager from "../service/playerManager.js";
 import type * as service_prop_gameIntegrationExample from "../service/prop/gameIntegrationExample.js";
 import type * as service_prop_gameIntegrationExamples from "../service/prop/gameIntegrationExamples.js";
 import type * as service_prop_gameModeAdapter from "../service/prop/gameModeAdapter.js";
@@ -137,7 +137,6 @@ import type * as service_utils from "../service/utils.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  crons: typeof crons;
   "custom/session": typeof custom_session;
   "dao/notificationDao": typeof dao_notificationDao;
   "dao/playerDao": typeof dao_playerDao;
@@ -170,6 +169,7 @@ declare const fullApi: ApiFromModules<{
   "service/localization/messageHandler": typeof service_localization_messageHandler;
   "service/match": typeof service_match;
   "service/migration/migrateMatchesToPlayerMatches": typeof service_migration_migrateMatchesToPlayerMatches;
+  "service/playerManager": typeof service_playerManager;
   "service/prop/gameIntegrationExample": typeof service_prop_gameIntegrationExample;
   "service/prop/gameIntegrationExamples": typeof service_prop_gameIntegrationExamples;
   "service/prop/gameModeAdapter": typeof service_prop_gameModeAdapter;
