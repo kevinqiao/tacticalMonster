@@ -1,4 +1,5 @@
-import { baseHandler, TournamentHandler } from "./base";
+import { TournamentHandler } from "../common";
+import { baseHandler } from "./base";
 
 /**
  * 每日锦标赛处理器
@@ -87,6 +88,8 @@ export const dailyHandler: TournamentHandler = {
                 await ctx.db.insert("player_tournaments", {
                     uid,
                     tournamentId: tournament._id,
+                    tournamentType, // 新增：存储锦标赛类型
+                    gameType, // 新增：存储游戏类型
                     joinedAt: now.iso,
                     createdAt: now.iso,
                     updatedAt: now.iso,
@@ -104,10 +107,5 @@ export const dailyHandler: TournamentHandler = {
         return now.localDate.toISOString().split("T")[0];
     },
 
-    /**
-     * 获取时间范围
-     */
-    getTimeRangeForTournament(tournamentType: string): "daily" | "weekly" | "seasonal" | "total" {
-        return "daily";
-    }
+
 }; 

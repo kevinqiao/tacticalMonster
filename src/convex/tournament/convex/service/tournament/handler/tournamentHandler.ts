@@ -1,4 +1,5 @@
-import { baseHandler, TournamentHandler } from "./base";
+import { TournamentHandler } from "../common";
+import { baseHandler } from "./base";
 
 /**
  * 通用锦标赛处理器
@@ -56,10 +57,5 @@ export const tournamentHandler: TournamentHandler = {
         return "general";
     },
 
-    /**
-     * 获取时间范围
-     */
-    getTimeRangeForTournament(tournamentType: string): "daily" | "weekly" | "seasonal" | "total" {
-        return "total";
-    }
+
 }; 

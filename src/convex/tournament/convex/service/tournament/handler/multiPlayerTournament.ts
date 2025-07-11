@@ -1,4 +1,5 @@
-import { baseHandler, TournamentHandler } from "./base";
+import { TournamentHandler } from "../common";
+import { baseHandler } from "./base";
 
 /**
  * 多人锦标赛处理器
@@ -79,6 +80,8 @@ export const multiPlayerTournamentHandler: TournamentHandler = {
                 await ctx.db.insert("player_tournaments", {
                     uid,
                     tournamentId: tournament._id,
+                    tournamentType, // 新增：存储锦标赛类型
+                    gameType, // 新增：存储游戏类型
                     joinedAt: now.iso,
                     createdAt: now.iso,
                     updatedAt: now.iso,
@@ -96,10 +99,5 @@ export const multiPlayerTournamentHandler: TournamentHandler = {
         return "multiplayer";
     },
 
-    /**
-     * 获取时间范围
-     */
-    getTimeRangeForTournament(tournamentType: string): "daily" | "weekly" | "seasonal" | "total" {
-        return "total";
-    }
+
 }; 

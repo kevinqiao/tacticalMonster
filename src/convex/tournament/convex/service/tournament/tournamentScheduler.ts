@@ -320,10 +320,8 @@ export class TournamentScheduler {
      * 获取本周开始日期（周一）
      */
     private static getWeekStart(dateStr: string): string {
-        const date = new Date(dateStr);
-        const day = date.getDay() || 7;
-        date.setDate(date.getDate() - (day - 1));
-        return date.toISOString().split("T")[0];
+        const { getWeekStart } = require("./common.js");
+        return getWeekStart(dateStr);
     }
 
     /**

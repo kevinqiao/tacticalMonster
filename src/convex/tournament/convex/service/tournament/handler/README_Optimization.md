@@ -36,7 +36,7 @@ export const dailyHandler: TournamentHandler = {
 每个 handler 只实现以下必要方法：
 - `findOrCreateTournament` - 锦标赛查找/创建逻辑
 - `getTimeIdentifier` - 时间标识符
-- `getTimeRangeForTournament` - 时间范围
+- 时间范围现在从数据库的 `timeRange` 字段获取
 
 ### 3. 移除重复代码
 删除了所有 handler 中的重复实现：
@@ -101,9 +101,7 @@ export const newHandler: TournamentHandler = {
         return "custom";
     },
     
-    getTimeRangeForTournament(tournamentType) {
-        return "total";
-    }
+    // 时间范围现在从数据库获取，无需在此指定
 };
 ```
 

@@ -88,7 +88,6 @@ import type * as service_tournament_errorCodes from "../service/tournament/error
 import type * as service_tournament_errorHandler from "../service/tournament/errorHandler.js";
 import type * as service_tournament_errorMigrationExample from "../service/tournament/errorMigrationExample.js";
 import type * as service_tournament_errorUsageExample from "../service/tournament/errorUsageExample.js";
-import type * as service_tournament_examples_tournamentTypeExamples from "../service/tournament/examples/tournamentTypeExamples.js";
 import type * as service_tournament_handler_base from "../service/tournament/handler/base.js";
 import type * as service_tournament_handler_casualHandler from "../service/tournament/handler/casualHandler.js";
 import type * as service_tournament_handler_championshipHandler from "../service/tournament/handler/championshipHandler.js";
@@ -103,6 +102,7 @@ import type * as service_tournament_handler_tournamentHandler from "../service/t
 import type * as service_tournament_handler_usageExamples from "../service/tournament/handler/usageExamples.js";
 import type * as service_tournament_handler_weeklyHandler from "../service/tournament/handler/weeklyHandler.js";
 import type * as service_tournament_matchManager from "../service/tournament/matchManager.js";
+import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
 import type * as service_tournament_ruleEngine from "../service/tournament/ruleEngine.js";
 import type * as service_tournament_tests_index from "../service/tournament/tests/index.js";
 import type * as service_tournament_tests_runAutoCreateTests from "../service/tournament/tests/runAutoCreateTests.js";
@@ -124,9 +124,11 @@ import type * as service_tournament_tests_testUtils from "../service/tournament/
 import type * as service_tournament_tournamentMatchingService from "../service/tournament/tournamentMatchingService.js";
 import type * as service_tournament_tournamentScheduler from "../service/tournament/tournamentScheduler.js";
 import type * as service_tournament_tournamentService from "../service/tournament/tournamentService.js";
+import type * as service_tournament_utils_tournamentTypeUtils from "../service/tournament/utils/tournamentTypeUtils.js";
 import type * as service_updateActivity from "../service/updateActivity.js";
 import type * as service_updatePlayerProfile from "../service/updatePlayerProfile.js";
 import type * as service_utils from "../service/utils.js";
+import type * as test_validation from "../test/validation.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -212,7 +214,6 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/errorHandler": typeof service_tournament_errorHandler;
   "service/tournament/errorMigrationExample": typeof service_tournament_errorMigrationExample;
   "service/tournament/errorUsageExample": typeof service_tournament_errorUsageExample;
-  "service/tournament/examples/tournamentTypeExamples": typeof service_tournament_examples_tournamentTypeExamples;
   "service/tournament/handler/base": typeof service_tournament_handler_base;
   "service/tournament/handler/casualHandler": typeof service_tournament_handler_casualHandler;
   "service/tournament/handler/championshipHandler": typeof service_tournament_handler_championshipHandler;
@@ -227,6 +228,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/handler/usageExamples": typeof service_tournament_handler_usageExamples;
   "service/tournament/handler/weeklyHandler": typeof service_tournament_handler_weeklyHandler;
   "service/tournament/matchManager": typeof service_tournament_matchManager;
+  "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;
   "service/tournament/ruleEngine": typeof service_tournament_ruleEngine;
   "service/tournament/tests/index": typeof service_tournament_tests_index;
   "service/tournament/tests/runAutoCreateTests": typeof service_tournament_tests_runAutoCreateTests;
@@ -248,9 +250,11 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/tournamentMatchingService": typeof service_tournament_tournamentMatchingService;
   "service/tournament/tournamentScheduler": typeof service_tournament_tournamentScheduler;
   "service/tournament/tournamentService": typeof service_tournament_tournamentService;
+  "service/tournament/utils/tournamentTypeUtils": typeof service_tournament_utils_tournamentTypeUtils;
   "service/updateActivity": typeof service_updateActivity;
   "service/updatePlayerProfile": typeof service_updatePlayerProfile;
   "service/utils": typeof service_utils;
+  "test/validation": typeof test_validation;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

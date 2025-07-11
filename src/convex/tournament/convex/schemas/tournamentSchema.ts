@@ -17,18 +17,75 @@ export const tournamentSchema = {
         updatedAt: v.string(),
         endTime: v.string(),
     }).index("by_season_game_segment_status", ["seasonId", "gameType", "segmentName", "status"])
-        .index("by_type_status", ["tournamentType", "status", "gameType", "segmentName"]),
+        .index("by_type_status", ["tournamentType", "status", "gameType", "segmentName"])
+        .index("by_type_status_game", ["tournamentType", "status", "gameType"]) // 新增：优化独立赛查询
+        .index("by_status_game", ["status", "gameType"]), // 新增：优化普通赛查询
 
     // 玩家与锦标赛的关系表
     player_tournaments: defineTable({
         uid: v.string(),
         tournamentId: v.id("tournaments"),
+        tournamentType: v.string(), // 新增：锦标赛类型，用于优化查询
+        gameType: v.string(), // 新增：游戏类型，用于优化查询
+        status: v.union(v.literal("active"), v.literal("completed"), v.literal("withdrawn"), v.literal("disqualified")), // 新增：参与状态
         joinedAt: v.string(),
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_uid", ["uid"])
         .index("by_tournament", ["tournamentId"])
-        .index("by_uid_tournament", ["uid", "tournamentId"]),
+        .index("by_uid_tournament", ["uid", "tournamentId"])
+        .index("by_uid_status", ["uid", "status"]) // 新增：优化状态查询
+        .index("by_uid_tournamentType", ["uid", "tournamentType"]) // 新增：优化按锦标赛类型查询
+        .index("by_uid_gameType", ["uid", "gameType"]) // 新增：优化按游戏类型查询
+        .index("by_uid_tournamentType_gameType", ["uid", "tournamentType", "gameType"]) // 新增：优化组合查询
+        .index("by_tournamentType_gameType", ["tournamentType", "gameType"]) // 新增：优化全局统计查询
+        .index("by_uid_tournamentType_createdAt", ["uid", "tournamentType", "createdAt"]), // 新增：优化时间范围查询
+
+    // 玩家锦标赛状态变更日志表
+    player_tournament_status_logs: defineTable({
+        uid: v.string(),
+        tournamentId: v.id("tournaments"),
+        oldStatus: v.string(),
+        newStatus: v.string(),
+        reason: v.string(),
+        metadata: v.optional(v.any()),
+        timestamp: v.string(),
+        createdAt: v.string(),
+    }).index("by_uid", ["uid"])
+        .index("by_tournament", ["tournamentId"])
+        .index("by_timestamp", ["timestamp"])
+        .index("by_uid_timestamp", ["uid", "timestamp"]),
+
+    // 批量处理任务表
+    batch_processing_tasks: defineTable({
+        tournamentId: v.id("tournaments"),
+        taskType: v.string(),
+        status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
+        batchSize: v.number(),
+        maxConcurrency: v.number(),
+        processed: v.optional(v.number()),
+        completed: v.optional(v.number()),
+        expired: v.optional(v.number()),
+        errors: v.optional(v.number()),
+        progress: v.optional(v.number()),
+        error: v.optional(v.string()),
+        createdAt: v.string(),
+        updatedAt: v.string(),
+    }).index("by_tournament", ["tournamentId"])
+        .index("by_status", ["status"])
+        .index("by_createdAt", ["createdAt"]),
+
+    // 锦标赛结算任务表
+    tournament_settlement_tasks: defineTable({
+        tournamentId: v.id("tournaments"),
+        taskId: v.string(),
+        totalPlayers: v.number(),
+        status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
+        createdAt: v.string(),
+        updatedAt: v.string(),
+    }).index("by_tournament", ["tournamentId"])
+        .index("by_status", ["status"])
+        .index("by_createdAt", ["createdAt"]),
 
     tournament_types: defineTable({
         // 基础信息
@@ -37,7 +94,7 @@ export const tournamentSchema = {
         description: v.string(),
         timeRange: v.optional(v.string()),
         independent: v.optional(v.boolean()),
-        category: v.string(), // "daily", "weekly", "seasonal", "special", "ranked", "casual", "championship", "tournament"
+        // category: v.string(), // "daily", "weekly", "seasonal", "special", "ranked", "casual", "championship", "tournament"
 
         // 游戏配置
         gameType: v.string(), // "solitaire", "rummy", "uno", "ludo", "chess", "checkers", "puzzle", "arcade"
@@ -242,7 +299,6 @@ export const tournamentSchema = {
         createdAt: v.optional(v.string()),
         updatedAt: v.optional(v.string()),
     }).index("by_typeId", ["typeId"])
-        .index("by_category", ["category"])
         .index("by_isActive", ["isActive"])
         .index("by_gameType", ["gameType"])
         .index("by_priority", ["priority"]),

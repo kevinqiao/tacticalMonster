@@ -1,0 +1,637 @@
+{
+    "tournament_types_examples": [
+        {
+            "typeId": "daily_solitaire_challenge",
+            "name": "每日纸牌挑战",
+            "description": "每日纸牌游戏锦标赛，挑战你的技能",
+            "timeRange": "daily",
+            "independent": false,
+            "gameType": "solitaire",
+            "isActive": true,
+            "priority": 1,
+            "entryRequirements": {
+                "minSegment": "bronze",
+                "isSubscribedRequired": false,
+                "entryFee": {
+                    "coins": 100
+                }
+            },
+            "matchRules": {
+                "matchType": "single_match",
+                "minPlayers": 1,
+                "maxPlayers": 1,
+                "isSingleMatch": true,
+                "maxAttempts": 3,
+                "allowMultipleAttempts": true,
+                "rankingMethod": "highest_score"
+            },
+            "rewards": {
+                "baseRewards": {
+                    "coins": 200,
+                    "gamePoints": 50,
+                    "props": [],
+                    "tickets": []
+                },
+                "rankRewards": [
+                    {
+                        "rankRange": [
+                            1,
+                            3
+                        ],
+                        "multiplier": 2.0
+                    }
+                ],
+                "segmentBonus": {
+                    "bronze": 1.0,
+                    "silver": 1.1,
+                    "gold": 1.2,
+                    "platinum": 1.3,
+                    "diamond": 1.5
+                },
+                "subscriptionBonus": 1.2,
+                "participationReward": {
+                    "coins": 50,
+                    "gamePoints": 10
+                }
+            },
+            "schedule": {
+                "startTime": {
+                    "type": "daily",
+                    "value": "00:00"
+                },
+                "endTime": {
+                    "type": "duration",
+                    "value": 86400000
+                },
+                "duration": 86400000,
+                "timezone": "America/Toronto"
+            },
+            "limits": {
+                "daily": {
+                    "maxParticipations": 1,
+                    "maxTournaments": 1,
+                    "maxAttempts": 3
+                },
+                "weekly": {
+                    "maxParticipations": 7,
+                    "maxTournaments": 7,
+                    "maxAttempts": 21
+                },
+                "seasonal": {
+                    "maxParticipations": 90,
+                    "maxTournaments": 90,
+                    "maxAttempts": 270
+                },
+                "total": {
+                    "maxParticipations": 1000,
+                    "maxTournaments": 1000,
+                    "maxAttempts": 3000
+                },
+                "subscribed": {
+                    "daily": {
+                        "maxParticipations": 2,
+                        "maxTournaments": 2,
+                        "maxAttempts": 6
+                    },
+                    "weekly": {
+                        "maxParticipations": 14,
+                        "maxTournaments": 14,
+                        "maxAttempts": 42
+                    },
+                    "seasonal": {
+                        "maxParticipations": 180,
+                        "maxTournaments": 180,
+                        "maxAttempts": 540
+                    }
+                }
+            },
+            "advanced": {
+                "matching": {
+                    "algorithm": "skill_based",
+                    "skillRange": 200,
+                    "maxWaitTime": 30000,
+                    "fallbackToAI": true
+                },
+                "settlement": {
+                    "autoSettle": true,
+                    "settleDelay": 300000,
+                    "requireMinimumPlayers": false,
+                    "minimumPlayers": 1
+                },
+                "notifications": {
+                    "enabled": true,
+                    "types": [
+                        "tournament_start",
+                        "tournament_end",
+                        "reward_distribution"
+                    ],
+                    "channels": [
+                        "in_app",
+                        "email"
+                    ]
+                },
+                "monitoring": {
+                    "enabled": true,
+                    "metrics": [
+                        "participation_rate",
+                        "completion_rate",
+                        "average_score"
+                    ]
+                }
+            }
+        },
+        {
+            "typeId": "weekly_rummy_championship",
+            "name": "每周拉米锦标赛",
+            "description": "每周拉米游戏锦标赛，争夺冠军宝座",
+            "timeRange": "weekly",
+            "independent": false,
+            "gameType": "rummy",
+            "isActive": true,
+            "priority": 2,
+            "entryRequirements": {
+                "minSegment": "silver",
+                "isSubscribedRequired": false,
+                "entryFee": {
+                    "coins": 500
+                }
+            },
+            "matchRules": {
+                "matchType": "multi_match",
+                "minPlayers": 4,
+                "maxPlayers": 8,
+                "isSingleMatch": false,
+                "maxAttempts": 5,
+                "allowMultipleAttempts": true,
+                "rankingMethod": "total_score"
+            },
+            "rewards": {
+                "baseRewards": {
+                    "coins": 1000,
+                    "gamePoints": 100,
+                    "props": [
+                        {
+                            "gameType": "rummy",
+                            "propType": "wild_card",
+                            "quantity": 2,
+                            "rarity": "rare"
+                        }
+                    ],
+                    "tickets": [
+                        {
+                            "gameType": "rummy",
+                            "tournamentType": "weekly_rummy_championship",
+                            "quantity": 1
+                        }
+                    ]
+                },
+                "rankRewards": [
+                    {
+                        "rankRange": [
+                            1,
+                            1
+                        ],
+                        "multiplier": 5.0,
+                        "bonusProps": [
+                            {
+                                "gameType": "rummy",
+                                "propType": "joker",
+                                "quantity": 1,
+                                "rarity": "epic"
+                            }
+                        ]
+                    },
+                    {
+                        "rankRange": [
+                            2,
+                            3
+                        ],
+                        "multiplier": 3.0
+                    },
+                    {
+                        "rankRange": [
+                            4,
+                            10
+                        ],
+                        "multiplier": 1.5
+                    }
+                ],
+                "segmentBonus": {
+                    "bronze": 1.0,
+                    "silver": 1.2,
+                    "gold": 1.4,
+                    "platinum": 1.6,
+                    "diamond": 2.0
+                },
+                "subscriptionBonus": 1.5,
+                "participationReward": {
+                    "coins": 100,
+                    "gamePoints": 20
+                }
+            },
+            "schedule": {
+                "startTime": {
+                    "type": "weekly",
+                    "value": "monday"
+                },
+                "endTime": {
+                    "type": "duration",
+                    "value": 604800000
+                },
+                "duration": 604800000,
+                "timezone": "America/Toronto"
+            },
+            "limits": {
+                "daily": {
+                    "maxParticipations": 3,
+                    "maxTournaments": 1,
+                    "maxAttempts": 15
+                },
+                "weekly": {
+                    "maxParticipations": 1,
+                    "maxTournaments": 1,
+                    "maxAttempts": 5
+                },
+                "seasonal": {
+                    "maxParticipations": 13,
+                    "maxTournaments": 13,
+                    "maxAttempts": 65
+                },
+                "total": {
+                    "maxParticipations": 1000,
+                    "maxTournaments": 1000,
+                    "maxAttempts": 5000
+                },
+                "subscribed": {
+                    "daily": {
+                        "maxParticipations": 5,
+                        "maxTournaments": 1,
+                        "maxAttempts": 25
+                    },
+                    "weekly": {
+                        "maxParticipations": 2,
+                        "maxTournaments": 2,
+                        "maxAttempts": 10
+                    },
+                    "seasonal": {
+                        "maxParticipations": 26,
+                        "maxTournaments": 26,
+                        "maxAttempts": 130
+                    }
+                }
+            },
+            "advanced": {
+                "matching": {
+                    "algorithm": "skill_based",
+                    "skillRange": 300,
+                    "maxWaitTime": 60000,
+                    "fallbackToAI": false
+                },
+                "settlement": {
+                    "autoSettle": true,
+                    "settleDelay": 600000,
+                    "requireMinimumPlayers": true,
+                    "minimumPlayers": 4
+                },
+                "notifications": {
+                    "enabled": true,
+                    "types": [
+                        "tournament_start",
+                        "tournament_end",
+                        "reward_distribution",
+                        "match_start"
+                    ],
+                    "channels": [
+                        "in_app",
+                        "email",
+                        "push"
+                    ]
+                },
+                "monitoring": {
+                    "enabled": true,
+                    "metrics": [
+                        "participation_rate",
+                        "completion_rate",
+                        "average_score",
+                        "match_quality"
+                    ]
+                }
+            }
+        },
+        {
+            "typeId": "seasonal_chess_masters",
+            "name": "赛季象棋大师赛",
+            "description": "赛季象棋大师锦标赛，展现你的战略思维",
+            "timeRange": "seasonal",
+            "independent": false,
+            "gameType": "chess",
+            "isActive": true,
+            "priority": 3,
+            "entryRequirements": {
+                "minSegment": "gold",
+                "isSubscribedRequired": true,
+                "entryFee": {
+                    "coins": 1000,
+                    "tickets": {
+                        "gameType": "chess",
+                        "tournamentType": "seasonal_chess_masters",
+                        "quantity": 1
+                    }
+                }
+            },
+            "matchRules": {
+                "matchType": "best_of_series",
+                "minPlayers": 2,
+                "maxPlayers": 2,
+                "isSingleMatch": false,
+                "maxAttempts": 10,
+                "allowMultipleAttempts": true,
+                "rankingMethod": "elo_based"
+            },
+            "rewards": {
+                "baseRewards": {
+                    "coins": 5000,
+                    "gamePoints": 500,
+                    "props": [
+                        {
+                            "gameType": "chess",
+                            "propType": "time_extension",
+                            "quantity": 5,
+                            "rarity": "rare"
+                        }
+                    ],
+                    "tickets": [
+                        {
+                            "gameType": "chess",
+                            "tournamentType": "seasonal_chess_masters",
+                            "quantity": 3
+                        }
+                    ]
+                },
+                "rankRewards": [
+                    {
+                        "rankRange": [
+                            1,
+                            1
+                        ],
+                        "multiplier": 10.0,
+                        "bonusProps": [
+                            {
+                                "gameType": "chess",
+                                "propType": "premium_board",
+                                "quantity": 1,
+                                "rarity": "legendary"
+                            }
+                        ]
+                    },
+                    {
+                        "rankRange": [
+                            2,
+                            5
+                        ],
+                        "multiplier": 5.0
+                    },
+                    {
+                        "rankRange": [
+                            6,
+                            20
+                        ],
+                        "multiplier": 2.0
+                    }
+                ],
+                "segmentBonus": {
+                    "bronze": 1.0,
+                    "silver": 1.0,
+                    "gold": 1.5,
+                    "platinum": 2.0,
+                    "diamond": 3.0
+                },
+                "subscriptionBonus": 2.0,
+                "participationReward": {
+                    "coins": 500,
+                    "gamePoints": 50
+                }
+            },
+            "schedule": {
+                "startTime": {
+                    "type": "seasonal",
+                    "value": "season_start"
+                },
+                "endTime": {
+                    "type": "duration",
+                    "value": 2592000000
+                },
+                "duration": 2592000000,
+                "timezone": "America/Toronto"
+            },
+            "limits": {
+                "daily": {
+                    "maxParticipations": 5,
+                    "maxTournaments": 1,
+                    "maxAttempts": 50
+                },
+                "weekly": {
+                    "maxParticipations": 20,
+                    "maxTournaments": 1,
+                    "maxAttempts": 200
+                },
+                "seasonal": {
+                    "maxParticipations": 1,
+                    "maxTournaments": 1,
+                    "maxAttempts": 10
+                },
+                "total": {
+                    "maxParticipations": 1000,
+                    "maxTournaments": 1000,
+                    "maxAttempts": 10000
+                },
+                "subscribed": {
+                    "daily": {
+                        "maxParticipations": 10,
+                        "maxTournaments": 1,
+                        "maxAttempts": 100
+                    },
+                    "weekly": {
+                        "maxParticipations": 40,
+                        "maxTournaments": 1,
+                        "maxAttempts": 400
+                    },
+                    "seasonal": {
+                        "maxParticipations": 2,
+                        "maxTournaments": 2,
+                        "maxAttempts": 20
+                    }
+                }
+            },
+            "advanced": {
+                "matching": {
+                    "algorithm": "elo_based",
+                    "skillRange": 500,
+                    "maxWaitTime": 120000,
+                    "fallbackToAI": false
+                },
+                "settlement": {
+                    "autoSettle": false,
+                    "settleDelay": 3600000,
+                    "requireMinimumPlayers": true,
+                    "minimumPlayers": 8
+                },
+                "notifications": {
+                    "enabled": true,
+                    "types": [
+                        "tournament_start",
+                        "tournament_end",
+                        "reward_distribution",
+                        "match_start",
+                        "ranking_update"
+                    ],
+                    "channels": [
+                        "in_app",
+                        "email",
+                        "push",
+                        "sms"
+                    ]
+                },
+                "monitoring": {
+                    "enabled": true,
+                    "metrics": [
+                        "participation_rate",
+                        "completion_rate",
+                        "average_score",
+                        "match_quality",
+                        "elo_distribution"
+                    ]
+                }
+            }
+        },
+        {
+            "typeId": "casual_ludo_fun",
+            "name": "休闲飞行棋",
+            "description": "休闲飞行棋游戏，轻松娱乐",
+            "timeRange": "total",
+            "independent": true,
+            "gameType": "ludo",
+            "isActive": true,
+            "priority": 5,
+            "entryRequirements": {
+                "minSegment": "bronze",
+                "isSubscribedRequired": false,
+                "entryFee": {
+                    "coins": 50
+                }
+            },
+            "matchRules": {
+                "matchType": "multi_match",
+                "minPlayers": 2,
+                "maxPlayers": 4,
+                "isSingleMatch": false,
+                "maxAttempts": 10,
+                "allowMultipleAttempts": true,
+                "rankingMethod": "highest_score"
+            },
+            "rewards": {
+                "baseRewards": {
+                    "coins": 100,
+                    "gamePoints": 20,
+                    "props": [],
+                    "tickets": []
+                },
+                "rankRewards": [
+                    {
+                        "rankRange": [
+                            1,
+                            1
+                        ],
+                        "multiplier": 2.0
+                    }
+                ],
+                "segmentBonus": {
+                    "bronze": 1.0,
+                    "silver": 1.0,
+                    "gold": 1.0,
+                    "platinum": 1.0,
+                    "diamond": 1.0
+                },
+                "subscriptionBonus": 1.0,
+                "participationReward": {
+                    "coins": 25,
+                    "gamePoints": 5
+                }
+            },
+            "schedule": {
+                "startTime": {
+                    "type": "fixed",
+                    "value": "2024-01-01T00:00:00.000Z"
+                },
+                "endTime": {
+                    "type": "duration",
+                    "value": 31536000000
+                },
+                "duration": 31536000000,
+                "timezone": "America/Toronto"
+            },
+            "limits": {
+                "daily": {
+                    "maxParticipations": 10,
+                    "maxTournaments": 10,
+                    "maxAttempts": 100
+                },
+                "weekly": {
+                    "maxParticipations": 50,
+                    "maxTournaments": 50,
+                    "maxAttempts": 500
+                },
+                "seasonal": {
+                    "maxParticipations": 500,
+                    "maxTournaments": 500,
+                    "maxAttempts": 5000
+                },
+                "total": {
+                    "maxParticipations": 10000,
+                    "maxTournaments": 10000,
+                    "maxAttempts": 100000
+                },
+                "subscribed": {
+                    "daily": {
+                        "maxParticipations": 20,
+                        "maxTournaments": 20,
+                        "maxAttempts": 200
+                    },
+                    "weekly": {
+                        "maxParticipations": 100,
+                        "maxTournaments": 100,
+                        "maxAttempts": 1000
+                    },
+                    "seasonal": {
+                        "maxParticipations": 1000,
+                        "maxTournaments": 1000,
+                        "maxAttempts": 10000
+                    }
+                }
+            },
+            "advanced": {
+                "matching": {
+                    "algorithm": "random",
+                    "skillRange": 1000,
+                    "maxWaitTime": 30000,
+                    "fallbackToAI": true
+                },
+                "settlement": {
+                    "autoSettle": true,
+                    "settleDelay": 300000,
+                    "requireMinimumPlayers": false,
+                    "minimumPlayers": 1
+                },
+                "notifications": {
+                    "enabled": false,
+                    "types": [],
+                    "channels": []
+                },
+                "monitoring": {
+                    "enabled": false,
+                    "metrics": []
+                }
+            }
+        }
+    ]
+}
