@@ -6,9 +6,9 @@ import {
     buildParticipationStats,
     checkTournamentEligibility,
     checkTournamentEligibilityWithAttempts,
-    createTournamentIfNeeded,
-    findExistingTournament,
+    getCommonData,
     getPlayerAttempts,
+    getTournamentTypeConfig,
     notifyTournamentChanges
 } from "./common";
 import { getHandler } from "./handler";
@@ -40,29 +40,15 @@ export class TournamentService {
         gameType: string;
         tournamentType: string;
     }) {
-        const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", params.tournamentType)).first();
-        if (!tournamentType) {
-            throw new Error("锦标赛类型不存在");
-        }
+        const tournamentType = await getTournamentTypeConfig(ctx, params.tournamentType);
         const now = getTorontoDate();
 
         // 获取玩家信息
-        const player = await ctx.db
-            .query("players")
-            .withIndex("by_uid", (q: any) => q.eq("uid", params.uid))
-            .first();
-        if (!player) {
-            throw new Error("玩家不存在");
-        }
-
-        // 获取当前赛季
-        const season = await ctx.db
-            .query("seasons")
-            .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-            .first();
-        if (!season) {
-            throw new Error("无活跃赛季");
-        }
+        const { player, season } = await getCommonData(ctx, {
+            uid: params.uid,
+            requireInventory: false,
+            requireSeason: true
+        });
 
         // 获取对应的处理器
         console.log("params.tournamentType", params.tournamentType);
@@ -77,31 +63,10 @@ export class TournamentService {
             season
         });
 
-        // 通知参与更新
-        // await this.notifyTournamentChanges(ctx, {
-        //     uid: params.uid,
-        //     changeType: "participation_update",
-        //     tournamentType: params.tournamentType,
-        //     tournamentId: result.tournamentId,
-        //     data: {
-        //         name: tournamentType.name,
-        //         action: "joined",
-        //         matchId: result.matchId,
-        //         gameId: result.gameId
-        //     }
-        // });
-
-        // 获取更新后的可参与锦标赛列表
-        // const updatedAvailableTournaments = await this.getAvailableTournaments(ctx, {
-        //     uid: params.uid,
-        //     gameType: params.gameType
-        // });
-
         return {
             success: true,
             ...result,
             message: "成功加入锦标赛",
-            // updatedAvailableTournaments: updatedAvailableTournaments.tournaments
         };
     }
 
@@ -468,25 +433,11 @@ export class TournamentService {
         const { uid, gameType, category } = params;
 
         // 获取玩家信息
-        const player = await ctx.db
-            .query("players")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-            .first();
-        if (!player) {
-            throw new Error("玩家不存在");
-        }
-
-        // 获取玩家库存
-        const inventory = await ctx.db
-            .query("player_inventory")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-            .first();
-
-        // 获取当前赛季
-        const season = await ctx.db
-            .query("seasons")
-            .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-            .first();
+        const { player, inventory, season } = await getCommonData(ctx, {
+            uid,
+            requireInventory: true,
+            requireSeason: true
+        });
 
         // 获取所有活跃的锦标赛类型
         let tournamentTypes = await ctx.db
@@ -569,9 +520,6 @@ export class TournamentService {
     }
 
 
-
-
-
     /**
      * 创建锦标赛（如果需要）
      */
@@ -633,20 +581,6 @@ export class TournamentService {
     }
 
     /**
-     * 获取本周开始日期（周一）
-     */
-    private static getWeekStart(dateStr: string): string {
-        const { getWeekStart } = require("./common.js");
-        return getWeekStart(dateStr);
-    }
-
-
-
-
-
-
-
-    /**
      * 获取玩家锦标赛实时状态
      * 用于前端实时更新，包含参与统计和资格变化
      */
@@ -659,25 +593,11 @@ export class TournamentService {
 
         try {
             // 获取玩家信息
-            const player = await ctx.db
-                .query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .first();
-            if (!player) {
-                throw new Error("玩家不存在");
-            }
-
-            // 获取玩家库存
-            const inventory = await ctx.db
-                .query("player_inventory")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .first();
-
-            // 获取当前赛季
-            const season = await ctx.db
-                .query("seasons")
-                .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-                .first();
+            const { player, inventory, season } = await getCommonData(ctx, {
+                uid,
+                requireInventory: true,
+                requireSeason: true
+            });
 
             // 获取所有活跃的锦标赛类型
             let tournamentTypes = await ctx.db
@@ -795,7 +715,7 @@ export class TournamentService {
         }
     }
 
-  
+
 
     /**
      * 获取玩家当前参与的锦标赛
@@ -1085,103 +1005,10 @@ export class TournamentService {
         return deletedCount;
     }
 
-  
 
 
-    /**
-     * 查找现有锦标赛
-     */
-    static async findExistingTournament(ctx: any, params: {
-        tournamentType: any;
-        season: any;
-        now: any;
-    }) {
-        const { tournamentType, season, now } = params;
 
-        // 根据锦标赛类型查找现有锦标赛
-        switch (tournamentType.category) {
-            case "daily":
-                return await this.findDailyTournament(ctx, { tournamentType, now });
-            case "weekly":
-                return await this.findWeeklyTournament(ctx, { tournamentType, now });
-            case "seasonal":
-                return await this.findSeasonalTournament(ctx, { tournamentType, season });
-            default:
-                return null;
-        }
-    }
 
-    /**
-     * 查找每日锦标赛
-     */
-    private static async findDailyTournament(ctx: any, params: {
-        tournamentType: any;
-        now: any;
-    }) {
-        const { tournamentType, now } = params;
-        const today = now.localDate.toISOString().split("T")[0];
-
-        const existingTournaments = await ctx.db
-            .query("tournaments")
-            .withIndex("by_type_status", (q: any) =>
-                q.eq("tournamentType", tournamentType.typeId)
-                    .eq("status", "open")
-            )
-            .collect();
-
-        return existingTournaments.find((tournament: any) => {
-            const createdAt = tournament.createdAt;
-            if (!createdAt) return false;
-            const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-            return createdAtStr.startsWith(today);
-        });
-    }
-
-    /**
-     * 查找每周锦标赛
-     */
-    private static async findWeeklyTournament(ctx: any, params: {
-        tournamentType: any;
-        now: any;
-    }) {
-        const { tournamentType, now } = params;
-        const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
-
-        const existingTournaments = await ctx.db
-            .query("tournaments")
-            .withIndex("by_type_status", (q: any) =>
-                q.eq("tournamentType", tournamentType.typeId)
-                    .eq("status", "open")
-            )
-            .collect();
-
-        return existingTournaments.find((tournament: any) => {
-            const createdAt = tournament.createdAt;
-            if (!createdAt) return false;
-            const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-            const tournamentWeekStart = this.getWeekStart(createdAtStr.split("T")[0]);
-            return tournamentWeekStart === weekStart;
-        });
-    }
-
-    /**
-     * 查找赛季锦标赛
-     */
-    private static async findSeasonalTournament(ctx: any, params: {
-        tournamentType: any;
-        season: any;
-    }) {
-        const { tournamentType, season } = params;
-
-        return await ctx.db
-            .query("tournaments")
-            .withIndex("by_type_status", (q: any) =>
-                q.eq("tournamentType", tournamentType.typeId)
-                    .eq("status", "open")
-            )
-            .filter((q: any) => q.eq(q.field("seasonId"), season._id))
-            .first();
-    }
 }
 
 // Convex 函数接口

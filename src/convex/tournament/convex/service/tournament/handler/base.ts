@@ -1,11 +1,16 @@
-import { internal } from "../../../_generated/api";
 import { getTorontoDate } from "../../utils";
 import {
   MultiMatchParams,
   SingleMatchParams,
   TournamentHandler,
   calculatePlayerRankings,
+  createMatchCommon,
+  deductEntryFeeCommon,
   findOrCreateTournament,
+  getCommonData,
+  getPlayerAttempts,
+  getTournamentTypeConfig,
+  joinMatchCommon,
   logPropUsage,
   shouldSettleImmediately,
   validateJoinConditions,
@@ -308,46 +313,35 @@ export const baseHandler: TournamentHandler = {
     const now = getTorontoDate();
 
     // 获取配置
-    const tournamentTypeConfig = await validateJoinConditions(ctx, { uid, gameType, tournamentType, player, season });
-
-    // 使用新的schema结构
-    const entryRequirements = tournamentTypeConfig.entryRequirements;
-    const matchRules = tournamentTypeConfig.matchRules;
-    const rewards = tournamentTypeConfig.rewards;
-    const limits = tournamentTypeConfig.limits;
-    const advanced = tournamentTypeConfig.advanced;
-
-    // 获取锦标赛的独立状态
-    const { getIndependentFromTournamentType } = await import("../utils/tournamentTypeUtils");
-    const isIndependent = await getIndependentFromTournamentType(ctx, tournamentType);
+    const tournamentTypeConfig = await getTournamentTypeConfig(ctx, tournamentType);
 
     // 验证加入条件
     await validateJoinConditions(ctx, { uid, gameType, tournamentType, player, season });
 
-    // 扣除入场费
-    const inventory = await ctx.db
-      .query("player_inventory")
-      .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-      .first();
+    // 获取玩家库存
+    const { inventory } = await getCommonData(ctx, { uid, requireInventory: true, requireSeason: false });
 
-    if (entryRequirements?.entryFee) {
-      const deductEntryFee = (internal as any)["service/tournament/ruleEngine"].deductEntryFeeMutation;
-      await ctx.runMutation(deductEntryFee, {
+    // 扣除入场费
+    if (tournamentTypeConfig.entryRequirements?.entryFee) {
+      await deductEntryFeeCommon(ctx, {
         uid,
         gameType,
         tournamentType,
-        entryFee: entryRequirements.entryFee,
+        entryFee: tournamentTypeConfig.entryRequirements.entryFee,
         inventory
       });
     }
 
     // 检查参赛次数限制
     const timeRange = tournamentTypeConfig?.timeRange || "total";
-    const { getPlayerAttempts } = await import("../common");
     const attempts = await getPlayerAttempts(ctx, { uid, tournamentType, gameType, timeRange });
-    if (matchRules?.maxAttempts && attempts >= matchRules.maxAttempts) {
+    if (tournamentTypeConfig.matchRules?.maxAttempts && attempts >= tournamentTypeConfig.matchRules.maxAttempts) {
       throw new Error("已达最大尝试次数");
     }
+
+    // 获取锦标赛的独立状态
+    const { getIndependentFromTournamentType } = await import("../utils/tournamentTypeUtils");
+    const isIndependent = await getIndependentFromTournamentType(ctx, tournamentType);
 
     // 查找或创建锦标赛
     const tournament = await findOrCreateTournament(ctx, {
@@ -363,30 +357,20 @@ export const baseHandler: TournamentHandler = {
     });
 
     // 创建比赛
-    const matchId = await MatchManager.createMatch(ctx, {
+    const matchId = await createMatchCommon(ctx, {
       tournamentId: tournament._id,
       gameType,
-      matchType: "tournament",
-      maxPlayers: 1,
-      minPlayers: 1,
-      gameData: { tournamentType, attemptNumber: attempts + 1 }
+      tournamentType,
+      attemptNumber: attempts + 1
     });
 
     // 玩家加入比赛
-    const playerMatchId = await MatchManager.joinMatch(ctx, {
+    const matchResult = await joinMatchCommon(ctx, {
       matchId,
       tournamentId: tournament._id,
       uid,
       gameType
     });
-
-    const matchResult = {
-      matchId,
-      playerMatchId,
-      gameId: `game_${matchId}`,
-      serverUrl: "remote_server_url",
-      matchStatus: "pending"
-    };
 
     return {
       tournamentId: tournament._id,

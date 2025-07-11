@@ -26,9 +26,10 @@ export class TournamentScheduler {
             for (const config of dailyConfigs) {
                 try {
                     // 检查是否已创建今日锦标赛
-                    const existingTournament = await this.findDailyTournament(ctx, {
+                    const existingTournament = await this.findExistingTournament(ctx, {
                         tournamentType: config.typeId,
-                        now
+                        now,
+                        category: "daily"
                     });
 
                     if (!existingTournament) {
@@ -78,9 +79,10 @@ export class TournamentScheduler {
             for (const config of weeklyConfigs) {
                 try {
                     // 检查是否已创建本周锦标赛
-                    const existingTournament = await this.findWeeklyTournament(ctx, {
+                    const existingTournament = await this.findExistingTournament(ctx, {
                         tournamentType: config.typeId,
-                        now
+                        now,
+                        category: "weekly"
                     });
 
                     if (!existingTournament) {
@@ -138,9 +140,11 @@ export class TournamentScheduler {
             for (const config of seasonalConfigs) {
                 try {
                     // 检查是否已创建本赛季锦标赛
-                    const existingTournament = await this.findSeasonalTournament(ctx, {
+                    const existingTournament = await this.findExistingTournament(ctx, {
                         tournamentType: config.typeId,
-                        season
+                        season,
+                        now,
+                        category: "seasonal"
                     });
 
                     if (!existingTournament) {
@@ -361,75 +365,56 @@ export class TournamentScheduler {
     }
 
     /**
-     * 查找每日锦标赛
+     * 查找现有锦标赛
      */
-    private static async findDailyTournament(ctx: any, params: {
+    private static async findExistingTournament(ctx: any, params: {
         tournamentType: string;
+        season?: any;
         now: any;
+        category: string;
     }) {
-        const { tournamentType, now } = params;
-        const today = now.localDate.toISOString().split("T")[0];
+        const { tournamentType, season, now, category } = params;
 
-        const existingTournaments = await ctx.db
+        // 基础查询：同类型的开放锦标赛
+        let query = ctx.db
             .query("tournaments")
             .withIndex("by_type_status", (q: any) =>
                 q.eq("tournamentType", tournamentType)
                     .eq("status", "open")
-            )
-            .collect();
+            );
 
-        return existingTournaments.find((tournament: any) => {
-            const createdAt = tournament.createdAt;
-            if (!createdAt) return false;
-            const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-            return createdAtStr.startsWith(today);
-        });
-    }
+        // 根据锦标赛类型添加时间过滤
+        switch (category) {
+            case "daily":
+                const today = now.localDate.toISOString().split("T")[0];
+                const dailyTournaments = await query.collect();
+                return dailyTournaments.find((tournament: any) => {
+                    const createdAt = tournament.createdAt;
+                    if (!createdAt) return false;
+                    const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+                    return createdAtStr.startsWith(today);
+                });
 
-    /**
-     * 查找每周锦标赛
-     */
-    private static async findWeeklyTournament(ctx: any, params: {
-        tournamentType: string;
-        now: any;
-    }) {
-        const { tournamentType, now } = params;
-        const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
+            case "weekly":
+                const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
+                const weeklyTournaments = await query.collect();
+                return weeklyTournaments.find((tournament: any) => {
+                    const createdAt = tournament.createdAt;
+                    if (!createdAt) return false;
+                    const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+                    const tournamentWeekStart = this.getWeekStart(createdAtStr.split("T")[0]);
+                    return tournamentWeekStart === weekStart;
+                });
 
-        const existingTournaments = await ctx.db
-            .query("tournaments")
-            .withIndex("by_type_status", (q: any) =>
-                q.eq("tournamentType", tournamentType)
-                    .eq("status", "open")
-            )
-            .collect();
+            case "seasonal":
+                if (!season) return null;
+                return await query
+                    .filter((q: any) => q.eq(q.field("seasonId"), season._id))
+                    .first();
 
-        return existingTournaments.find((tournament: any) => {
-            const createdAt = tournament.createdAt;
-            if (!createdAt) return false;
-            const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-            const tournamentWeekStart = this.getWeekStart(createdAtStr.split("T")[0]);
-            return tournamentWeekStart === weekStart;
-        });
-    }
-
-    /**
-     * 查找赛季锦标赛
-     */
-    private static async findSeasonalTournament(ctx: any, params: {
-        tournamentType: string;
-        season: any;
-    }) {
-        const { tournamentType, season } = params;
-
-        return await ctx.db
-            .query("tournaments")
-            .withIndex("by_type_status", (q: any) =>
-                q.eq("tournamentType", tournamentType)
-                    .eq("status", "open")
-            )
-            .filter((q: any) => q.eq(q.field("seasonId"), season._id))
-            .first();
+            default:
+                return null;
+        }
     }
 
     /**

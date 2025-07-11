@@ -1,4 +1,5 @@
 import { getTorontoDate } from "../utils";
+import { MatchManager } from "./matchManager";
 
 /**
  * 公共工具函数
@@ -304,89 +305,45 @@ export async function findExistingTournament(ctx: any, params: {
 }) {
     const { tournamentType, season, now } = params;
 
-    // 根据锦标赛类型查找现有锦标赛
+    // 基础查询：同类型的开放锦标赛
+    let query = ctx.db
+        .query("tournaments")
+        .withIndex("by_type_status", (q: any) =>
+            q.eq("tournamentType", tournamentType.typeId)
+                .eq("status", "open")
+        );
+
+    // 根据锦标赛类型添加时间过滤
     switch (tournamentType.category) {
         case "daily":
-            return await findDailyTournament(ctx, { tournamentType, now });
+            const today = now.localDate.toISOString().split("T")[0];
+            const dailyTournaments = await query.collect();
+            return dailyTournaments.find((tournament: any) => {
+                const createdAt = tournament.createdAt;
+                if (!createdAt) return false;
+                const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+                return createdAtStr.startsWith(today);
+            });
+
         case "weekly":
-            return await findWeeklyTournament(ctx, { tournamentType, now });
+            const weekStart = getWeekStart(now.localDate.toISOString().split("T")[0]);
+            const weeklyTournaments = await query.collect();
+            return weeklyTournaments.find((tournament: any) => {
+                const createdAt = tournament.createdAt;
+                if (!createdAt) return false;
+                const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
+                const tournamentWeekStart = getWeekStart(createdAtStr.split("T")[0]);
+                return tournamentWeekStart === weekStart;
+            });
+
         case "seasonal":
-            return await findSeasonalTournament(ctx, { tournamentType, season });
+            return await query
+                .filter((q: any) => q.eq(q.field("seasonId"), season._id))
+                .first();
+
         default:
             return null;
     }
-}
-
-/**
- * 查找每日锦标赛
- */
-async function findDailyTournament(ctx: any, params: {
-    tournamentType: any;
-    now: any;
-}) {
-    const { tournamentType, now } = params;
-    const today = now.localDate.toISOString().split("T")[0];
-
-    const existingTournaments = await ctx.db
-        .query("tournaments")
-        .withIndex("by_type_status", (q: any) =>
-            q.eq("tournamentType", tournamentType.typeId)
-                .eq("status", "open")
-        )
-        .collect();
-
-    return existingTournaments.find((tournament: any) => {
-        const createdAt = tournament.createdAt;
-        if (!createdAt) return false;
-        const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-        return createdAtStr.startsWith(today);
-    });
-}
-
-/**
- * 查找每周锦标赛
- */
-async function findWeeklyTournament(ctx: any, params: {
-    tournamentType: any;
-    now: any;
-}) {
-    const { tournamentType, now } = params;
-    const weekStart = getWeekStart(now.localDate.toISOString().split("T")[0]);
-
-    const existingTournaments = await ctx.db
-        .query("tournaments")
-        .withIndex("by_type_status", (q: any) =>
-            q.eq("tournamentType", tournamentType.typeId)
-                .eq("status", "open")
-        )
-        .collect();
-
-    return existingTournaments.find((tournament: any) => {
-        const createdAt = tournament.createdAt;
-        if (!createdAt) return false;
-        const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-        const tournamentWeekStart = getWeekStart(createdAtStr.split("T")[0]);
-        return tournamentWeekStart === weekStart;
-    });
-}
-
-/**
- * 查找赛季锦标赛
- */
-async function findSeasonalTournament(ctx: any, params: {
-    tournamentType: any;
-    season: any;
-}) {
-    const { tournamentType, season } = params;
-
-    return await ctx.db
-        .query("tournaments")
-        .withIndex("by_type_status", (q: any) =>
-            q.eq("tournamentType", tournamentType.typeId)
-                .eq("status", "open")
-        )
-        .filter((q: any) => q.eq(q.field("seasonId"), season._id))
-        .first();
 }
 
 /**
@@ -772,7 +729,7 @@ export async function findOrCreateTournament(ctx: any, params: {
     }
 }
 
-export async function updateTournamentStatus(ctx: any, tournament: any, score: number) {
+export async function updateTournamentTimestamp(ctx: any, tournament: any, score: number) {
     const now = getTorontoDate();
     await ctx.db.patch(tournament._id, {
         updatedAt: now.iso
@@ -936,4 +893,431 @@ export async function calculatePlayerRankings(ctx: any, tournamentId: string) {
 export async function shouldSettleImmediately(ctx: any, tournament: any, tournamentId: string) {
     // 可根据需要扩展更多结算时机判断逻辑
     return false;
+}
+
+// ==================== 通用工具函数 ====================
+
+/**
+ * 通用的锦标赛创建函数
+ */
+export async function createTournamentCommon(ctx: any, params: {
+    uid: string;
+    gameType: string;
+    tournamentType: string;
+    player: any;
+    season: any;
+    config: any;
+    now: any;
+    duration?: number;
+    isIndependent?: boolean;
+}) {
+    const { uid, gameType, tournamentType, player, season, config, now, duration = 24 * 60 * 60 * 1000, isIndependent = true } = params;
+
+    // 创建锦标赛
+    const tournamentId = await ctx.db.insert("tournaments", {
+        seasonId: season._id,
+        gameType,
+        segmentName: player.segmentName,
+        status: "open",
+        tournamentType,
+        isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
+        isSingleMatch: config.matchRules?.isSingleMatch || false,
+        prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
+        config: {
+            entryRequirements: config.entryRequirements,
+            matchRules: config.matchRules,
+            rewards: config.rewards,
+            schedule: config.schedule,
+            limits: config.limits,
+            advanced: config.advanced
+        },
+        createdAt: now.iso,
+        updatedAt: now.iso,
+        endTime: new Date(now.localDate.getTime() + duration).toISOString(),
+    });
+
+    // 创建玩家参与关系
+    await ctx.db.insert("player_tournaments", {
+        uid,
+        tournamentId,
+        tournamentType,
+        gameType,
+        status: "active",
+        joinedAt: now.iso,
+        createdAt: now.iso,
+        updatedAt: now.iso,
+    });
+
+    return await ctx.db.get(tournamentId);
+}
+
+/**
+ * 通用的锦标赛查找函数
+ */
+export async function findTournamentByTimeRange(ctx: any, params: {
+    tournamentType: string;
+    gameType: string;
+    segmentName: string;
+    timeFilter: (tournament: any) => boolean;
+}) {
+    const { tournamentType, gameType, segmentName, timeFilter } = params;
+
+    const existingTournaments = await ctx.db
+        .query("tournaments")
+        .withIndex("by_type_status", (q: any) =>
+            q.eq("tournamentType", tournamentType)
+                .eq("status", "open")
+                .eq("gameType", gameType)
+                .eq("segmentName", segmentName)
+        )
+        .collect();
+
+    return existingTournaments.find(timeFilter);
+}
+
+/**
+ * 通用的数据获取函数
+ */
+export async function getCommonData(ctx: any, params: {
+    uid: string;
+    requireInventory?: boolean;
+    requireSeason?: boolean;
+}) {
+    const { uid, requireInventory = true, requireSeason = true } = params;
+
+    // 获取玩家信息
+    const player = await ctx.db
+        .query("players")
+        .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+        .first();
+    if (!player) {
+        throw new Error("玩家不存在");
+    }
+
+    // 获取玩家库存
+    let inventory = null;
+    if (requireInventory) {
+        inventory = await ctx.db
+            .query("player_inventory")
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .first();
+    }
+
+    // 获取当前赛季
+    let season = null;
+    if (requireSeason) {
+        season = await ctx.db
+            .query("seasons")
+            .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
+            .first();
+        if (!season) {
+            throw new Error("无活跃赛季");
+        }
+    }
+
+    return { player, inventory, season };
+}
+
+/**
+ * 通用的锦标赛类型获取函数
+ */
+export async function getTournamentTypeConfig(ctx: any, tournamentType: string) {
+    const config = await ctx.db
+        .query("tournament_types")
+        .withIndex("by_typeId", (q: any) => q.eq("typeId", tournamentType))
+        .first();
+
+    if (!config) {
+        throw new Error("锦标赛类型不存在");
+    }
+
+    return config;
+}
+
+/**
+ * 通用的入场费扣除函数
+ */
+export async function deductEntryFeeCommon(ctx: any, params: {
+    uid: string;
+    gameType: string;
+    tournamentType: string;
+    entryFee: any;
+    inventory: any;
+}) {
+    const { uid, gameType, tournamentType, entryFee, inventory } = params;
+
+    if (!entryFee) return;
+
+    // 检查库存是否足够
+    if (entryFee.coins && inventory.coins < entryFee.coins) {
+        throw new Error("金币不足");
+    }
+
+    if (entryFee.tickets && (!inventory.tickets || inventory.tickets.length < entryFee.tickets.length)) {
+        throw new Error("门票不足");
+    }
+
+    // 扣除费用
+    const updateData: any = {};
+    if (entryFee.coins) {
+        updateData.coins = inventory.coins - entryFee.coins;
+    }
+    if (entryFee.tickets) {
+        updateData.tickets = inventory.tickets.filter((ticket: string) =>
+            !entryFee.tickets.includes(ticket)
+        );
+    }
+
+    if (Object.keys(updateData).length > 0) {
+        updateData.updatedAt = new Date().toISOString();
+        await ctx.db.patch(inventory._id, updateData);
+    }
+}
+
+/**
+ * 通用的比赛创建函数
+ */
+export async function createMatchCommon(ctx: any, params: {
+    tournamentId: string;
+    gameType: string;
+    tournamentType: string;
+    attemptNumber: number;
+    timeIdentifier?: string;
+}) {
+    const { tournamentId, gameType, tournamentType, attemptNumber, timeIdentifier } = params;
+
+    const gameData: any = { tournamentType, attemptNumber };
+    if (timeIdentifier) {
+        gameData.timeIdentifier = timeIdentifier;
+    }
+
+    // 创建比赛
+    const matchId = await MatchManager.createMatch(ctx, {
+        tournamentId,
+        gameType,
+        matchType: "tournament",
+        maxPlayers: 1,
+        minPlayers: 1,
+        gameData
+    });
+
+    return matchId;
+}
+
+/**
+ * 通用的玩家加入比赛函数
+ */
+export async function joinMatchCommon(ctx: any, params: {
+    matchId: string;
+    tournamentId: string;
+    uid: string;
+    gameType: string;
+}) {
+    const { matchId, tournamentId, uid, gameType } = params;
+
+    // 玩家加入比赛
+    const playerMatchId = await MatchManager.joinMatch(ctx, {
+        matchId,
+        tournamentId,
+        uid,
+        gameType
+    });
+
+    return {
+        matchId,
+        playerMatchId,
+        gameId: `game_${matchId}`,
+        serverUrl: "remote_server_url",
+        matchStatus: "pending"
+    };
+}
+
+/**
+ * 通用的分数提交验证函数
+ */
+export async function validateScoreSubmissionCommon(ctx: any, params: {
+    tournamentId: string;
+    uid: string;
+    gameType: string;
+    score: number;
+    gameData: any;
+    propsUsed: string[];
+    gameId?: string;
+}) {
+    const { tournamentId, uid, gameType, score, gameData, propsUsed, gameId } = params;
+
+    // 验证分数
+    if (score < 0) {
+        throw new Error("分数不能为负数");
+    }
+
+    // 获取玩家的比赛记录
+    const playerMatch = await ctx.db
+        .query("player_matches")
+        .withIndex("by_tournament_uid", (q: any) =>
+            q.eq("tournamentId", tournamentId).eq("uid", uid)
+        )
+        .order("desc")
+        .first();
+
+    if (!playerMatch) {
+        throw new Error("未找到比赛记录");
+    }
+
+    // 检查是否已经提交过分数
+    if (playerMatch.completed) {
+        throw new Error("比赛已完成，无法再次提交分数");
+    }
+
+    return {
+        matchId: playerMatch.matchId,
+        playerMatchId: playerMatch._id,
+        currentScore: playerMatch.score || 0
+    };
+}
+
+/**
+ * 通用的奖励计算函数
+ */
+export function calculateRewardCommon(rank: number, rewards: any) {
+    if (!rewards || !rewards.rankRewards) {
+        return {
+            coins: 0,
+            gamePoints: 0,
+            props: [],
+            tickets: []
+        };
+    }
+
+    // 根据排名计算奖励
+    const rankReward = rewards.rankRewards.find((r: any) =>
+        rank >= r.rankRange[0] && rank <= r.rankRange[1]
+    );
+
+    const baseRewards = rewards.baseRewards || { coins: 0, gamePoints: 0, props: [], tickets: [] };
+
+    return {
+        coins: baseRewards.coins * (rankReward?.multiplier || 1),
+        gamePoints: baseRewards.gamePoints * (rankReward?.multiplier || 1),
+        props: [...baseRewards.props, ...(rankReward?.bonusProps || [])],
+        tickets: [...baseRewards.tickets, ...(rankReward?.bonusTickets || [])]
+    };
+}
+
+/**
+ * 通用的奖励分配函数
+ */
+export async function distributeRewardCommon(ctx: any, params: {
+    uid: string;
+    rank: number;
+    score: number;
+    tournament: any;
+    matches: any[];
+    reward: any;
+}) {
+    const { uid, rank, score, tournament, matches, reward } = params;
+
+    // 更新玩家库存
+    const inventory = await ctx.db
+        .query("player_inventory")
+        .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+        .first();
+
+    if (inventory) {
+        const updateData: any = {
+            updatedAt: new Date().toISOString()
+        };
+
+        if (reward.coins) {
+            updateData.coins = inventory.coins + reward.coins;
+        }
+        if (reward.gamePoints) {
+            updateData.gamePoints = (inventory.gamePoints || 0) + reward.gamePoints;
+        }
+        if (reward.props && reward.props.length > 0) {
+            updateData.props = [...(inventory.props || []), ...reward.props];
+        }
+        if (reward.tickets && reward.tickets.length > 0) {
+            updateData.tickets = [...(inventory.tickets || []), ...reward.tickets];
+        }
+
+        await ctx.db.patch(inventory._id, updateData);
+    }
+
+    // 记录奖励分配
+    await ctx.db.insert("reward_distributions", {
+        uid,
+        tournamentId: tournament._id,
+        rank,
+        score,
+        reward,
+        createdAt: new Date().toISOString()
+    });
+}
+
+/**
+ * 通用的错误日志记录函数
+ */
+export async function logErrorCommon(ctx: any, params: {
+    error: any;
+    context: string;
+    uid?: string;
+    tournamentId?: string;
+    gameId?: string;
+    now?: any;
+}) {
+    const { error, context, uid, tournamentId, gameId, now = getTorontoDate() } = params;
+
+    console.error(`${context} 错误:`, error);
+
+    await ctx.db.insert("error_logs", {
+        error: error instanceof Error ? error.message : "未知错误",
+        context,
+        uid,
+        tournamentId,
+        gameId,
+        createdAt: now.iso
+    });
+}
+
+/**
+ * 通用的锦标赛状态更新函数
+ */
+export async function updateTournamentStatus(ctx: any, params: {
+    tournamentId: string;
+    status: string;
+    now?: any;
+}) {
+    const { tournamentId, status, now = getTorontoDate() } = params;
+
+    await ctx.db.patch(tournamentId, {
+        status,
+        updatedAt: now.iso
+    });
+}
+
+/**
+ * 通用的玩家参与状态更新函数
+ */
+export async function updatePlayerTournamentStatusCommon(ctx: any, params: {
+    uid: string;
+    tournamentId: string;
+    status: string;
+    now?: any;
+}) {
+    const { uid, tournamentId, status, now = getTorontoDate() } = params;
+
+    const playerTournament = await ctx.db
+        .query("player_tournaments")
+        .withIndex("by_uid_tournament", (q: any) =>
+            q.eq("uid", uid).eq("tournamentId", tournamentId)
+        )
+        .first();
+
+    if (playerTournament) {
+        await ctx.db.patch(playerTournament._id, {
+            status,
+            updatedAt: now.iso
+        });
+    }
 } 
