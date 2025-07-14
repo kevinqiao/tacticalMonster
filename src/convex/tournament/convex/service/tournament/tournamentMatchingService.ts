@@ -1,511 +1,1086 @@
 import { v } from "convex/values";
-import { mutation, query } from "../../_generated/server";
+import { internalMutation, mutation, query } from "../../_generated/server";
 import { getTorontoDate } from "../utils";
 import { MatchManager } from "./matchManager";
 
 /**
- * 锦标赛匹配服务
- * 基于锦标赛本身的匹配机制，支持技能匹配、段位匹配和智能排队
+ * 基于 matchingQueue 表的锦标赛匹配服务
+ * 支持多人匹配、优先级队列、智能算法
+ * 支持两种模式：
+ * 1. 传统模式：先创建锦标赛，再进行匹配
+ * 2. 独立模式：先进行匹配，匹配成功后为每场比赛创建独立锦标赛
+ * 
+ * 架构设计：
+ * - 前端只负责加入/退出队列和查询状态
+ * - 后台定时任务负责执行匹配逻辑
+ * - 通过事件系统通知匹配结果
  */
 export class TournamentMatchingService {
+
     /**
-     * 加入锦标赛匹配
+     * 加入匹配队列
+     * 只负责将玩家加入队列，不执行匹配逻辑
      */
-    static async joinTournamentMatch(ctx: any, params: {
+    static async joinMatchingQueue(ctx: any, params: {
         uid: string;
-        tournamentId: string;
+        tournamentId?: string; // 可选，独立模式下不需要
         gameType: string;
+        tournamentType?: string; // 新增：锦标赛类型，独立模式下需要
         player: any;
         config: any;
+        mode?: "traditional" | "independent"; // 新增：匹配模式
     }) {
         const now = getTorontoDate();
-        const { uid, tournamentId, gameType, player, config } = params;
-        const matchRules = config.matchRules;
-        const advanced = config.advanced;
+        const { uid, tournamentId, gameType, tournamentType, player, config, mode = "traditional" } = params;
 
         try {
-            // 1. 验证锦标赛状态
-            const tournament = await ctx.db.get(tournamentId);
-            if (!tournament || tournament.status !== "open") {
-                throw new Error("锦标赛不存在或已关闭");
-            }
-
-            // 2. 查找可用的比赛
-            let match = await this.findBestMatch(ctx, {
+            // 1. 检查是否已在队列中
+            const existingQueue = await this.findExistingQueue(ctx, {
+                uid,
                 tournamentId,
                 gameType,
-                player,
-                config
+                tournamentType,
+                mode
             });
 
-            // 3. 如果没有合适的比赛，创建新比赛
-            if (!match) {
-                const matchId = await MatchManager.createMatch(ctx, {
-                    tournamentId,
-                    gameType,
-                    matchType: "tournament_match",
-                    maxPlayers: matchRules?.maxPlayers || 4,
-                    minPlayers: matchRules?.minPlayers || 2,
-                    gameData: {
-                        matchType: "tournament_based",
-                        createdAt: now.iso,
-                        matchingAlgorithm: advanced?.matching?.algorithm || "skill_based"
-                    }
-                });
-                match = await ctx.db.get(matchId);
-            }
-
-            // 4. 检查玩家是否已在此比赛中
-            const existingPlayer = await ctx.db
-                .query("player_matches")
-                .withIndex("by_match_uid", (q: any) => q.eq("matchId", match._id).eq("uid", uid))
-                .first();
-
-            if (existingPlayer) {
+            if (existingQueue) {
                 return {
                     success: true,
-                    matchId: match._id,
-                    playerMatchId: existingPlayer._id,
-                    status: "already_joined",
-                    message: "已在此比赛中"
+                    queueId: existingQueue._id,
+                    status: "already_in_queue",
+                    message: "已在匹配队列中"
                 };
             }
 
-            // 5. 玩家加入比赛
-            const playerMatchId = await MatchManager.joinMatch(ctx, {
-                matchId: match._id,
-                tournamentId,
+            // 2. 计算优先级和权重
+            const priority = this.calculatePriority(player, config);
+            const weight = this.calculateWeight(player, config);
+
+            // 3. 创建匹配配置
+            const matchingConfig = {
+                algorithm: config.advanced?.matching?.algorithm || "skill_based",
+                maxWaitTime: config.advanced?.matching?.maxWaitTime || 300,
+                skillRange: config.advanced?.matching?.skillRange || 200,
+                eloRange: config.advanced?.matching?.eloRange || 100,
+                segmentRange: config.advanced?.matching?.segmentRange || 1,
+                fallbackToAI: config.advanced?.matching?.fallbackToAI || false
+            };
+
+            // 4. 加入匹配队列
+            const queueId = await ctx.db.insert("matchingQueue", {
                 uid,
-                gameType
+                tournamentId: tournamentId || null, // 独立模式下为null
+                gameType,
+                tournamentType: tournamentType || null, // 独立模式下需要
+                playerInfo: {
+                    uid: player.uid,
+                    skill: player.totalPoints || 1000,
+                    segmentName: player.segmentName,
+                    eloScore: player.eloScore,
+                    totalPoints: player.totalPoints,
+                    isSubscribed: player.isSubscribed
+                },
+                matchingConfig,
+                status: "waiting",
+                joinedAt: now.iso,
+                priority,
+                weight,
+                metadata: {
+                    config: config,
+                    playerLevel: player.level,
+                    playerRank: player.rank,
+                    mode: mode // 记录匹配模式
+                },
+                createdAt: now.iso,
+                updatedAt: now.iso
             });
 
-            // 6. 检查是否达到开始条件
-            const currentPlayers = await ctx.db
-                .query("player_matches")
-                .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
-                .collect();
-
-            let gameResult: any = undefined;
-            let matchStatus = "waiting";
-
-            if (this.shouldStartMatch(ctx, { match, currentPlayers, config })) {
-                // 创建远程游戏
-                gameResult = await MatchManager.createRemoteGame(ctx, {
-                    matchId: match._id,
-                    tournamentId,
-                    uids: currentPlayers.map((p: any) => p.uid),
-                    gameType,
-                    matchType: "tournament_match"
-                });
-
-                matchStatus = "started";
-
-                // 记录匹配成功事件
-                await ctx.db.insert("match_events", {
-                    matchId: match._id,
-                    tournamentId,
-                    eventType: "tournament_match_started",
-                    eventData: {
-                        players: currentPlayers.map((p: any) => p.uid),
-                        gameId: gameResult.gameId,
-                        playerCount: currentPlayers.length,
-                        matchingAlgorithm: advanced?.matching?.algorithm
-                    },
-                    timestamp: now.iso,
-                    createdAt: now.iso
-                });
-            }
+            // 5. 记录匹配事件
+            await ctx.db.insert("match_events", {
+                matchId: undefined,
+                tournamentId: tournamentId || undefined,
+                uid,
+                eventType: "player_joined_queue",
+                eventData: {
+                    algorithm: matchingConfig.algorithm,
+                    priority,
+                    weight,
+                    queueId,
+                    mode: mode
+                },
+                timestamp: now.iso,
+                createdAt: now.iso
+            });
 
             return {
                 success: true,
-                matchId: match._id,
-                playerMatchId,
-                gameId: gameResult ? gameResult.gameId : undefined,
-                serverUrl: gameResult ? gameResult.serverUrl : undefined,
-                status: matchStatus,
-                matchInfo: {
-                    currentPlayers: currentPlayers.length,
-                    maxPlayers: match.maxPlayers,
-                    minPlayers: match.minPlayers,
-                    isReady: currentPlayers.length >= match.minPlayers,
-                    message: this.getMatchStatusMessage(currentPlayers.length, match.minPlayers, matchStatus)
-                }
+                queueId,
+                status: "waiting",
+                message: "已加入匹配队列，等待匹配中",
+                waitTime: 0,
+                estimatedWaitTime: this.estimateWaitTime(ctx, gameType, tournamentType, mode)
             };
 
         } catch (error) {
-            console.error("加入锦标赛匹配失败:", error);
+            console.error("加入匹配队列失败:", error);
             throw error;
         }
     }
 
     /**
-     * 查找最佳匹配
+     * 后台执行匹配任务
+     * 由定时任务调用，执行实际的匹配逻辑
      */
-    private static async findBestMatch(ctx: any, params: {
-        tournamentId: string;
-        gameType: string;
-        player: any;
-        config: any;
+    static async executeMatchingTask(ctx: any, params: {
+        batchSize?: number;
+        maxProcessingTime?: number;
     }) {
-        const { tournamentId, gameType, player, config } = params;
+        const { batchSize = 50, maxProcessingTime = 30000 } = params; // 默认30秒处理时间
+        const startTime = Date.now();
+        const now = getTorontoDate();
 
-        // 获取所有待匹配的比赛
-        const availableMatches = await ctx.db
-            .query("matches")
-            .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournamentId))
-            .filter((q: any) => q.eq(q.field("status"), "pending"))
-            .collect();
+        console.log("开始执行匹配任务");
 
-        const eligibleMatches = [];
+        try {
+            let processedCount = 0;
+            let matchedCount = 0;
+            let errorCount = 0;
 
-        for (const match of availableMatches) {
-            const playerMatches = await ctx.db
-                .query("player_matches")
-                .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
-                .collect();
+            // 1. 获取所有等待中的队列条目
+            const waitingQueues = await ctx.db
+                .query("matchingQueue")
+                .withIndex("by_status_priority", (q: any) => q.eq("status", "waiting"))
+                .order("asc") // 按优先级排序，优先级高的先处理
+                .take(batchSize);
 
-            // 检查人数限制
-            if (playerMatches.length >= match.maxPlayers) continue;
-
-            // 检查匹配兼容性
-            const compatibility = await this.checkMatchCompatibility(ctx, {
-                match,
-                playerMatches,
-                player,
-                config
-            });
-
-            if (compatibility.compatible) {
-                eligibleMatches.push({
-                    match,
-                    playerCount: playerMatches.length,
-                    compatibility: compatibility.score,
-                    priority: this.calculateMatchPriority(match, playerMatches.length, compatibility.score)
-                });
+            if (waitingQueues.length === 0) {
+                return {
+                    success: true,
+                    message: "没有等待中的匹配队列",
+                    processedCount: 0,
+                    matchedCount: 0,
+                    errorCount: 0
+                };
             }
-        }
 
-        // 按优先级排序，选择最佳匹配
-        eligibleMatches.sort((a: any, b: any) => b.priority - a.priority);
-        return eligibleMatches.length > 0 ? eligibleMatches[0].match : null;
+            // 2. 按模式和锦标赛类型分组处理
+            const queueGroups = this.groupQueuesByType(waitingQueues);
+
+            for (const group of queueGroups) {
+                // 检查处理时间限制
+                if (Date.now() - startTime > maxProcessingTime) {
+                    console.log("达到最大处理时间限制，停止处理");
+                    break;
+                }
+
+                try {
+                    const groupResult = await this.processQueueGroup(ctx, group, now);
+                    processedCount += groupResult.processed;
+                    matchedCount += groupResult.matched;
+                    errorCount += groupResult.errors;
+                } catch (error) {
+                    console.error(`处理队列组失败:`, error);
+                    errorCount += group.length;
+                }
+            }
+
+            console.log(`匹配任务完成: 处理${processedCount}个，匹配${matchedCount}个，错误${errorCount}个`);
+
+            return {
+                success: true,
+                processedCount,
+                matchedCount,
+                errorCount,
+                processingTime: Date.now() - startTime
+            };
+
+        } catch (error) {
+            console.error("执行匹配任务失败:", error);
+            throw error;
+        }
     }
 
     /**
-     * 检查比赛兼容性
+     * 处理队列组
      */
-    private static async checkMatchCompatibility(ctx: any, params: {
-        match: any;
-        playerMatches: any[];
-        player: any;
-        config: any;
-    }) {
-        const { match, playerMatches, player, config } = params;
-        const advanced = config.advanced;
+    private static async processQueueGroup(ctx: any, queueGroup: any[], now: any) {
+        const { mode, tournamentId, gameType, tournamentType } = queueGroup[0];
+        let processed = 0;
+        let matched = 0;
+        let errors = 0;
 
-        // 如果没有其他玩家，直接匹配
-        if (playerMatches.length === 0) {
-            return { compatible: true, score: 1.0 };
+        // 按优先级排序
+        queueGroup.sort((a, b) => b.priority - a.priority);
+
+        // 查找兼容的玩家组合
+        const compatibleGroups = await this.findCompatibleGroups(ctx, queueGroup);
+
+        for (const group of compatibleGroups) {
+            try {
+                const matchResult = await this.createMatchFromGroup(ctx, group, now);
+                if (matchResult.success) {
+                    matched += group.length;
+                    processed += group.length;
+                } else {
+                    errors += group.length;
+                }
+            } catch (error) {
+                console.error("创建匹配失败:", error);
+                errors += group.length;
+            }
         }
 
-        const algorithm = advanced?.matching?.algorithm || "skill_based";
+        return { processed, matched, errors };
+    }
+
+    /**
+     * 查找兼容的玩家组合
+     */
+    private static async findCompatibleGroups(ctx: any, queueGroup: any[]) {
+        const compatibleGroups = [];
+        const processed = new Set();
+
+        for (const queueEntry of queueGroup) {
+            if (processed.has(queueEntry._id)) continue;
+
+            const compatiblePlayers = [queueEntry];
+            processed.add(queueEntry._id);
+
+            // 查找兼容的玩家
+            for (const otherEntry of queueGroup) {
+                if (processed.has(otherEntry._id)) continue;
+
+                const compatibility = this.calculateCompatibility({
+                    player1: queueEntry.playerInfo,
+                    player2: otherEntry.playerInfo,
+                    algorithm: queueEntry.matchingConfig.algorithm,
+                    config: queueEntry.metadata.config
+                });
+
+                if (compatibility.compatible) {
+                    compatiblePlayers.push(otherEntry);
+                    processed.add(otherEntry._id);
+
+                    // 检查是否达到最大玩家数
+                    const maxPlayers = queueEntry.metadata.config.matchRules?.maxPlayers || 4;
+                    if (compatiblePlayers.length >= maxPlayers) {
+                        break;
+                    }
+                }
+            }
+
+            // 检查是否满足最小玩家数要求
+            const minPlayers = queueEntry.metadata.config.matchRules?.minPlayers || 2;
+            if (compatiblePlayers.length >= minPlayers) {
+                compatibleGroups.push(compatiblePlayers);
+            }
+        }
+
+        return compatibleGroups;
+    }
+
+    /**
+     * 从玩家组创建匹配
+     */
+    private static async createMatchFromGroup(ctx: any, playerGroup: any[], now: any) {
+        try {
+            const firstPlayer = playerGroup[0];
+            const { mode, tournamentId, gameType, tournamentType } = firstPlayer;
+            const config = firstPlayer.metadata.config;
+
+            let actualTournamentId = tournamentId;
+
+            // 独立模式：为这场比赛创建新的锦标赛
+            if (mode === "independent") {
+                actualTournamentId = await this.createIndependentTournament(ctx, {
+                    gameType,
+                    tournamentType,
+                    players: playerGroup,
+                    config,
+                    now
+                });
+            }
+
+            // 创建比赛
+            const matchId = await MatchManager.createMatch(ctx, {
+                tournamentId: actualTournamentId,
+                gameType,
+                matchType: "multi_player",
+                maxPlayers: config.matchRules?.maxPlayers || 4,
+                minPlayers: config.matchRules?.minPlayers || 2,
+                gameData: {
+                    matchType: "queue_based_matching",
+                    algorithm: config.advanced?.matching?.algorithm || "skill_based",
+                    mode: mode,
+                    createdAt: now.iso,
+                    queueIds: playerGroup.map(p => p._id)
+                }
+            });
+
+            // 更新所有相关玩家的队列状态
+            for (const playerInfo of playerGroup) {
+                await ctx.db.patch(playerInfo._id, {
+                    status: "matched",
+                    matchId,
+                    tournamentId: actualTournamentId,
+                    matchedAt: now.iso,
+                    updatedAt: now.iso
+                });
+            }
+
+            // 所有玩家加入比赛
+            for (const playerInfo of playerGroup) {
+                await MatchManager.joinMatch(ctx, {
+                    matchId,
+                    tournamentId: actualTournamentId,
+                    uid: playerInfo.uid,
+                    gameType
+                });
+            }
+
+            // 记录匹配成功事件
+            await ctx.db.insert("match_events", {
+                matchId,
+                tournamentId: actualTournamentId,
+                eventType: "match_created",
+                eventData: {
+                    players: playerGroup.map(p => p.uid),
+                    algorithm: config.advanced?.matching?.algorithm,
+                    playerCount: playerGroup.length,
+                    queueIds: playerGroup.map(p => p._id),
+                    mode: mode
+                },
+                timestamp: now.iso,
+                createdAt: now.iso
+            });
+
+            // 发送匹配成功通知
+            await this.sendMatchNotification(ctx, {
+                players: playerGroup,
+                matchId,
+                tournamentId: actualTournamentId,
+                gameId: `match_${matchId}`,
+                serverUrl: "remote_server_url"
+            });
+
+            return {
+                success: true,
+                matchId,
+                tournamentId: actualTournamentId,
+                playerCount: playerGroup.length
+            };
+
+        } catch (error) {
+            console.error("创建匹配失败:", error);
+            return { success: false, error: error instanceof Error ? error.message : "未知错误" };
+        }
+    }
+
+    /**
+     * 发送匹配成功通知
+     */
+    private static async sendMatchNotification(ctx: any, params: {
+        players: any[];
+        matchId: string;
+        tournamentId: string;
+        gameId: string;
+        serverUrl: string;
+    }) {
+        const { players, matchId, tournamentId, gameId, serverUrl } = params;
+        const now = getTorontoDate();
+
+        for (const player of players) {
+            try {
+                // 创建通知记录
+                await ctx.db.insert("notifications", {
+                    uid: player.uid,
+                    type: "match_success",
+                    title: "匹配成功",
+                    message: "已找到合适的对手，比赛即将开始",
+                    data: {
+                        matchId,
+                        tournamentId,
+                        gameId,
+                        serverUrl,
+                        playerCount: players.length,
+                        joinedAt: player.joinedAt
+                    },
+                    read: false,
+                    createdAt: now.iso
+                });
+
+                // 记录事件
+                await ctx.db.insert("match_events", {
+                    matchId,
+                    tournamentId,
+                    uid: player.uid,
+                    eventType: "match_notification_sent",
+                    eventData: {
+                        gameId,
+                        serverUrl
+                    },
+                    timestamp: now.iso,
+                    createdAt: now.iso
+                });
+
+            } catch (error) {
+                console.error(`发送匹配通知失败 (${player.uid}):`, error);
+            }
+        }
+    }
+
+    /**
+     * 按类型分组队列
+     */
+    private static groupQueuesByType(queues: any[]) {
+        const groups = new Map();
+
+        for (const queue of queues) {
+            const key = `${queue.metadata?.mode || 'traditional'}_${queue.tournamentId || 'null'}_${queue.gameType}_${queue.tournamentType || 'null'}`;
+
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key).push(queue);
+        }
+
+        return Array.from(groups.values());
+    }
+
+    /**
+     * 估算等待时间
+     */
+    private static estimateWaitTime(ctx: any, gameType: string, tournamentType?: string, mode?: string): number {
+        // 基于历史数据估算等待时间
+        // 这里可以查询历史匹配数据来计算平均等待时间
+        const baseWaitTime = 30; // 基础等待时间30秒
+
+        // 根据游戏类型调整
+        const gameTypeMultiplier = {
+            'solitaire': 1.0,
+            'chess': 1.5,
+            'poker': 2.0
+        }[gameType] || 1.0;
+
+        // 根据模式调整
+        const modeMultiplier = mode === 'independent' ? 0.8 : 1.0;
+
+        return Math.floor(baseWaitTime * gameTypeMultiplier * modeMultiplier);
+    }
+
+    /**
+     * 查找现有队列条目
+     */
+    private static async findExistingQueue(ctx: any, params: {
+        uid: string;
+        tournamentId?: string;
+        gameType: string;
+        tournamentType?: string;
+        mode: string;
+    }) {
+        const { uid, tournamentId, gameType, tournamentType, mode } = params;
+
+        if (mode === "traditional" && tournamentId) {
+            // 传统模式：按锦标赛ID查找
+            return await ctx.db
+                .query("matchingQueue")
+                .withIndex("by_uid_tournament", (q: any) =>
+                    q.eq("uid", uid).eq("tournamentId", tournamentId)
+                )
+                .filter((q: any) => q.eq(q.field("status"), "waiting"))
+                .first();
+        } else if (mode === "independent" && tournamentType) {
+            // 独立模式：按锦标赛类型查找
+            return await ctx.db
+                .query("matchingQueue")
+                .withIndex("by_uid_tournament", (q: any) =>
+                    q.eq("uid", uid).eq("tournamentId", null)
+                )
+                .filter((q: any) =>
+                    q.and(
+                        q.eq(q.field("status"), "waiting"),
+                        q.eq(q.field("gameType"), gameType),
+                        q.eq(q.field("tournamentType"), tournamentType)
+                    )
+                )
+                .first();
+        }
+
+        return null;
+    }
+
+    /**
+     * 创建独立锦标赛（独立模式）
+     */
+    private static async createIndependentTournament(ctx: any, params: {
+        gameType: string;
+        tournamentType: string;
+        players: any[];
+        config: any;
+        now: any;
+    }) {
+        const { gameType, tournamentType, players, config, now } = params;
+
+        // 获取赛季信息（简化处理）
+        const season = await ctx.db
+            .query("seasons")
+            .filter((q: any) => q.eq(q.field("isActive"), true))
+            .first();
+
+        if (!season) {
+            throw new Error("没有活跃的赛季");
+        }
+
+        // 创建新的独立锦标赛
+        const tournamentId = await ctx.db.insert("tournaments", {
+            seasonId: season._id,
+            gameType,
+            segmentName: "all", // 独立锦标赛对所有段位开放
+            status: "open",
+            tournamentType,
+            isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
+            isSingleMatch: true, // 独立锦标赛是单场比赛
+            prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * players.length * 0.8 : 0,
+            config: {
+                entryRequirements: config.entryRequirements,
+                matchRules: config.matchRules,
+                rewards: config.rewards,
+                schedule: config.schedule,
+                limits: config.limits,
+                advanced: config.advanced,
+                independentMode: {
+                    createdFromMatching: true,
+                    playerCount: players.length,
+                    createdAt: now.iso
+                }
+            },
+            createdAt: now.iso,
+            updatedAt: now.iso,
+            endTime: new Date(now.localDate.getTime() + (config.schedule?.duration || 3600) * 1000).toISOString(),
+        });
+
+        // 为所有玩家创建参与关系
+        for (const playerInfo of players) {
+            await ctx.db.insert("player_tournaments", {
+                uid: playerInfo.uid,
+                tournamentId,
+                tournamentType,
+                gameType,
+                status: "active",
+                joinedAt: now.iso,
+                createdAt: now.iso,
+                updatedAt: now.iso,
+            });
+        }
+
+        console.log(`创建独立锦标赛 ${tournamentId}，包含 ${players.length} 名玩家`);
+        return tournamentId;
+    }
+
+    /**
+     * 计算兼容性
+     */
+    private static calculateCompatibility(params: {
+        player1: any;
+        player2: any;
+        algorithm: string;
+        config: any;
+    }) {
+        const { player1, player2, algorithm, config } = params;
+        const advanced = config.advanced;
+
         let score = 0;
 
         switch (algorithm) {
             case "skill_based":
-                score = await this.calculateSkillCompatibility(ctx, { playerMatches, player });
+                score = this.calculateSkillCompatibility(player1, player2);
                 break;
             case "segment_based":
-                score = await this.calculateSegmentCompatibility(ctx, { playerMatches, player });
+                score = this.calculateSegmentCompatibility(player1, player2);
                 break;
             case "elo_based":
-                score = await this.calculateEloCompatibility(ctx, { playerMatches, player });
+                score = this.calculateEloCompatibility(player1, player2);
                 break;
             case "random":
-                score = 0.5; // 随机匹配给中等分数
+                score = 0.5;
                 break;
             default:
-                score = await this.calculateSkillCompatibility(ctx, { playerMatches, player });
+                score = this.calculateSkillCompatibility(player1, player2);
         }
 
-        const compatible = score >= (advanced?.matching?.skillRange || 0.3);
+        const threshold = advanced?.matching?.skillRange || 0.3;
+        const compatible = score >= threshold;
+
         return { compatible, score };
     }
 
     /**
      * 计算技能兼容性
      */
-    private static async calculateSkillCompatibility(ctx: any, params: {
-        playerMatches: any[];
-        player: any;
-    }) {
-        const { playerMatches, player } = params;
-
-        let totalScore = 0;
-        let playerCount = 0;
-
-        for (const playerMatch of playerMatches) {
-            const otherPlayer = await ctx.db
-                .query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", playerMatch.uid))
-                .first();
-
-            if (otherPlayer) {
-                const skillDiff = Math.abs((player.totalPoints || 1000) - (otherPlayer.totalPoints || 1000));
-                const compatibility = Math.max(0, 1 - skillDiff / 2000); // 2000分差为0兼容性
-                totalScore += compatibility;
-                playerCount++;
-            }
-        }
-
-        return playerCount > 0 ? totalScore / playerCount : 1.0;
+    private static calculateSkillCompatibility(player1: any, player2: any): number {
+        const skill1 = player1.totalPoints || 1000;
+        const skill2 = player2.totalPoints || 1000;
+        const skillDiff = Math.abs(skill1 - skill2);
+        return Math.max(0, 1 - skillDiff / 2000);
     }
 
     /**
      * 计算段位兼容性
      */
-    private static async calculateSegmentCompatibility(ctx: any, params: {
-        playerMatches: any[];
-        player: any;
-    }) {
-        const { playerMatches, player } = params;
-
+    private static calculateSegmentCompatibility(player1: any, player2: any): number {
         const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
-        const playerIndex = segments.indexOf(player.segmentName);
-        let totalScore = 0;
-        let playerCount = 0;
-
-        for (const playerMatch of playerMatches) {
-            const otherPlayer = await ctx.db
-                .query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", playerMatch.uid))
-                .first();
-
-            if (otherPlayer) {
-                const otherIndex = segments.indexOf(otherPlayer.segmentName);
-                const segmentDiff = Math.abs(playerIndex - otherIndex);
-                const compatibility = Math.max(0, 1 - segmentDiff / 4); // 4个段位差为0兼容性
-                totalScore += compatibility;
-                playerCount++;
-            }
-        }
-
-        return playerCount > 0 ? totalScore / playerCount : 1.0;
+        const level1 = segments.indexOf(player1.segmentName?.toLowerCase()) + 1;
+        const level2 = segments.indexOf(player2.segmentName?.toLowerCase()) + 1;
+        const segmentDiff = Math.abs(level1 - level2);
+        return Math.max(0, 1 - segmentDiff / 4);
     }
 
     /**
      * 计算ELO兼容性
      */
-    private static async calculateEloCompatibility(ctx: any, params: {
-        playerMatches: any[];
-        player: any;
-    }) {
-        const { playerMatches, player } = params;
-
-        let totalScore = 0;
-        let playerCount = 0;
-
-        for (const playerMatch of playerMatches) {
-            const otherPlayer = await ctx.db
-                .query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", playerMatch.uid))
-                .first();
-
-            if (otherPlayer) {
-                const eloDiff = Math.abs((player.eloScore || 1000) - (otherPlayer.eloScore || 1000));
-                const compatibility = Math.max(0, 1 - eloDiff / 400); // 400分差为0兼容性
-                totalScore += compatibility;
-                playerCount++;
-            }
-        }
-
-        return playerCount > 0 ? totalScore / playerCount : 1.0;
+    private static calculateEloCompatibility(player1: any, player2: any): number {
+        const elo1 = player1.eloScore || 1000;
+        const elo2 = player2.eloScore || 1000;
+        const eloDiff = Math.abs(elo1 - elo2);
+        return Math.max(0, 1 - eloDiff / 400);
     }
 
     /**
-     * 计算比赛优先级
+     * 计算优先级
      */
-    private static calculateMatchPriority(match: any, playerCount: number, compatibilityScore: number): number {
-        // 等待时间优先级
-        const waitTime = new Date().getTime() - new Date(match.createdAt).getTime();
-        const timePriority = Math.min(waitTime / 60000, 10); // 最多10分优先级
+    private static calculatePriority(player: any, config: any): number {
+        let priority = 0;
 
-        // 人数平衡优先级
-        const balancePriority = 10 - Math.abs(match.maxPlayers / 2 - playerCount);
+        // 订阅用户优先级
+        if (player.isSubscribed) {
+            priority += 100;
+        }
 
-        // 兼容性优先级
-        const compatibilityPriority = compatibilityScore * 10;
+        // 段位优先级
+        const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
+        const segmentLevel = segments.indexOf(player.segmentName?.toLowerCase()) + 1;
+        priority += segmentLevel * 10;
 
-        return timePriority + balancePriority + compatibilityPriority;
+        // 技能优先级
+        priority += Math.floor((player.totalPoints || 1000) / 100);
+
+        // 等级优先级
+        priority += (player.level || 1) * 5;
+
+        return priority;
     }
 
     /**
-     * 判断是否应该开始比赛
+     * 计算权重
      */
-    private static shouldStartMatch(ctx: any, params: {
-        match: any;
-        currentPlayers: any[];
-        config: any;
-    }) {
-        const { match, currentPlayers, config } = params;
-        const advanced = config.advanced;
+    private static calculateWeight(player: any, config: any): number {
+        let weight = 1.0;
 
-        // 达到最小人数
-        if (currentPlayers.length >= match.minPlayers) {
-            // 达到最大人数
-            if (currentPlayers.length >= match.maxPlayers) {
-                return true;
-            }
-
-            // 等待时间过长
-            const waitTime = new Date().getTime() - new Date(match.createdAt).getTime();
-            const maxWaitTime = (advanced?.matching?.maxWaitTime || 60) * 1000; // 转换为毫秒
-
-            if (waitTime > maxWaitTime) {
-                return true;
-            }
-
-            // 如果配置了AI回退且等待时间超过阈值
-            if (advanced?.matching?.fallbackToAI && waitTime > maxWaitTime / 2) {
-                return true;
-            }
+        // 订阅用户权重
+        if (player.isSubscribed) {
+            weight *= 1.2;
         }
 
-        return false;
-    }
+        // 段位权重
+        const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
+        const segmentLevel = segments.indexOf(player.segmentName?.toLowerCase()) + 1;
+        weight *= (1 + segmentLevel * 0.1);
 
-    /**
-     * 获取比赛状态消息
-     */
-    private static getMatchStatusMessage(currentPlayers: number, minPlayers: number, status: string): string {
-        switch (status) {
-            case "started":
-                return "比赛已开始";
-            case "waiting":
-                return `等待更多玩家加入 (${currentPlayers}/${minPlayers})`;
-            default:
-                return "匹配中...";
-        }
+        // 等级权重
+        weight *= (1 + (player.level || 1) * 0.05);
+
+        return weight;
     }
 
     /**
      * 获取匹配状态
      */
-    static async getMatchStatus(ctx: any, params: {
+    static async getMatchingStatus(ctx: any, params: {
         uid: string;
-        tournamentId: string;
-        gameType: string;
+        tournamentId?: string;
+        tournamentType?: string; // 新增：独立模式下需要
+        gameType?: string; // 新增：独立模式下需要
+        mode?: string; // 新增：匹配模式
     }) {
-        const { uid, tournamentId, gameType } = params;
+        const { uid, tournamentId, tournamentType, gameType, mode = "traditional" } = params;
 
         try {
-            // 查找玩家的比赛
-            const playerMatches = await ctx.db
-                .query("player_matches")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .filter((q: any) => q.eq(q.field("tournamentId"), tournamentId))
-                .filter((q: any) => q.eq(q.field("gameType"), gameType))
-                .order("desc")
-                .take(1);
+            let queueEntry;
 
-            if (playerMatches.length === 0) {
+            if (mode === "traditional" && tournamentId) {
+                // 传统模式：按锦标赛ID查找
+                queueEntry = await ctx.db
+                    .query("matchingQueue")
+                    .withIndex("by_uid_tournament", (q: any) =>
+                        q.eq("uid", uid).eq("tournamentId", tournamentId)
+                    )
+                    .filter((q: any) => q.eq(q.field("status"), "waiting"))
+                    .first();
+            } else if (mode === "independent" && tournamentType && gameType) {
+                // 独立模式：按锦标赛类型和游戏类型查找
+                queueEntry = await ctx.db
+                    .query("matchingQueue")
+                    .withIndex("by_uid_tournament", (q: any) =>
+                        q.eq("uid", uid).eq("tournamentId", null)
+                    )
+                    .filter((q: any) =>
+                        q.and(
+                            q.eq(q.field("status"), "waiting"),
+                            q.eq(q.field("gameType"), gameType),
+                            q.eq(q.field("tournamentType"), tournamentType)
+                        )
+                    )
+                    .first();
+            }
+
+            if (!queueEntry) {
                 return {
-                    inMatch: false,
-                    message: "未找到匹配"
+                    inQueue: false,
+                    message: "未在匹配队列中"
                 };
             }
 
-            const playerMatch = playerMatches[0];
-            const match = await ctx.db.get(playerMatch.matchId);
+            // 计算等待时间
+            const waitTime = new Date().getTime() - new Date(queueEntry.joinedAt).getTime();
+            const waitTimeSeconds = Math.floor(waitTime / 1000);
 
-            if (!match) {
-                return {
-                    inMatch: false,
-                    message: "比赛不存在"
-                };
-            }
-
-            // 获取所有玩家
-            const allPlayers = await ctx.db
-                .query("player_matches")
-                .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
-                .collect();
+            // 获取同队列的其他玩家数量
+            const otherPlayers = await this.getOtherPlayersInQueue(ctx, {
+                tournamentId: queueEntry.tournamentId,
+                gameType: queueEntry.gameType,
+                tournamentType: queueEntry.tournamentType,
+                excludeUid: uid,
+                mode
+            });
 
             return {
-                inMatch: true,
-                matchId: match._id,
-                playerMatchId: playerMatch._id,
-                status: match.status,
-                currentPlayers: allPlayers.length,
-                maxPlayers: match.maxPlayers,
-                minPlayers: match.minPlayers,
-                gameId: match.gameId,
-                serverUrl: match.serverUrl,
-                message: this.getMatchStatusMessage(allPlayers.length, match.minPlayers, match.status)
+                inQueue: true,
+                queueId: queueEntry._id,
+                status: queueEntry.status,
+                waitTime: waitTimeSeconds,
+                priority: queueEntry.priority,
+                algorithm: queueEntry.matchingConfig.algorithm,
+                otherPlayers: otherPlayers.length,
+                mode: queueEntry.metadata?.mode || mode,
+                message: `等待匹配中 (${waitTimeSeconds}秒，队列中还有${otherPlayers.length}人)`
             };
 
         } catch (error) {
             console.error("获取匹配状态失败:", error);
+            return {
+                inQueue: false,
+                error: error instanceof Error ? error.message : "未知错误"
+            };
+        }
+    }
+
+    /**
+     * 获取队列中的其他玩家
+     */
+    private static async getOtherPlayersInQueue(ctx: any, params: {
+        tournamentId?: string;
+        gameType: string;
+        tournamentType?: string;
+        excludeUid: string;
+        mode: string;
+    }) {
+        const { tournamentId, gameType, tournamentType, excludeUid, mode } = params;
+
+        if (mode === "traditional" && tournamentId) {
+            return await ctx.db
+                .query("matchingQueue")
+                .withIndex("by_tournament_status", (q: any) =>
+                    q.eq("tournamentId", tournamentId).eq("status", "waiting")
+                )
+                .filter((q: any) =>
+                    q.and(
+                        q.eq(q.field("gameType"), gameType),
+                        q.neq(q.field("uid"), excludeUid)
+                    )
+                )
+                .collect();
+        } else if (mode === "independent" && tournamentType) {
+            return await ctx.db
+                .query("matchingQueue")
+                .withIndex("by_status_priority", (q: any) =>
+                    q.eq("status", "waiting")
+                )
+                .filter((q: any) =>
+                    q.and(
+                        q.eq(q.field("gameType"), gameType),
+                        q.eq(q.field("tournamentType"), tournamentType),
+                        q.neq(q.field("uid"), excludeUid)
+                    )
+                )
+                .collect();
+        }
+
+        return [];
+    }
+
+    /**
+     * 取消匹配
+     */
+    static async cancelMatching(ctx: any, params: {
+        uid: string;
+        tournamentId?: string;
+        tournamentType?: string; // 新增：独立模式下需要
+        gameType?: string; // 新增：独立模式下需要
+        reason?: string;
+        mode?: string; // 新增：匹配模式
+    }) {
+        const { uid, tournamentId, tournamentType, gameType, reason = "user_cancelled", mode = "traditional" } = params;
+        const now = getTorontoDate();
+
+        try {
+            // 查找队列条目
+            let queueEntry;
+
+            if (mode === "traditional" && tournamentId) {
+                queueEntry = await ctx.db
+                    .query("matchingQueue")
+                    .withIndex("by_uid_tournament", (q: any) =>
+                        q.eq("uid", uid).eq("tournamentId", tournamentId)
+                    )
+                    .filter((q: any) => q.eq(q.field("status"), "waiting"))
+                    .first();
+            } else if (mode === "independent" && tournamentType && gameType) {
+                queueEntry = await ctx.db
+                    .query("matchingQueue")
+                    .withIndex("by_uid_tournament", (q: any) =>
+                        q.eq("uid", uid).eq("tournamentId", null)
+                    )
+                    .filter((q: any) =>
+                        q.and(
+                            q.eq(q.field("status"), "waiting"),
+                            q.eq(q.field("gameType"), gameType),
+                            q.eq(q.field("tournamentType"), tournamentType)
+                        )
+                    )
+                    .first();
+            }
+
+            if (!queueEntry) {
+                return {
+                    success: false,
+                    message: "未找到匹配队列条目"
+                };
+            }
+
+            // 更新状态
+            await ctx.db.patch(queueEntry._id, {
+                status: "cancelled",
+                updatedAt: now.iso
+            });
+
+            // 记录事件
+            await ctx.db.insert("match_events", {
+                matchId: undefined,
+                tournamentId: queueEntry.tournamentId,
+                uid,
+                eventType: "player_cancelled",
+                eventData: {
+                    reason,
+                    waitTime: new Date().getTime() - new Date(queueEntry.joinedAt).getTime(),
+                    queueId: queueEntry._id,
+                    mode: queueEntry.metadata?.mode || mode
+                },
+                timestamp: now.iso,
+                createdAt: now.iso
+            });
+
+            return {
+                success: true,
+                message: "已取消匹配"
+            };
+
+        } catch (error) {
+            console.error("取消匹配失败:", error);
             throw error;
         }
     }
 
     /**
-     * 离开匹配
+     * 清理过期队列
      */
-    static async leaveMatch(ctx: any, params: {
-        uid: string;
-        tournamentId: string;
-        gameType: string;
-    }) {
+    static async cleanupExpiredQueue(ctx: any) {
         const now = getTorontoDate();
-        const { uid, tournamentId, gameType } = params;
+        const expiredTime = new Date(now.localDate.getTime() - 30 * 60 * 1000); // 30分钟前
 
         try {
-            // 查找玩家的比赛
-            const playerMatches = await ctx.db
-                .query("player_matches")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .filter((q: any) => q.eq(q.field("tournamentId"), tournamentId))
-                .filter((q: any) => q.eq(q.field("gameType"), gameType))
-                .filter((q: any) => q.eq(q.field("completed"), false))
+            // 查找过期的队列条目
+            const expiredEntries = await ctx.db
+                .query("matchingQueue")
+                .withIndex("by_joined_at", (q: any) =>
+                    q.lt("joinedAt", expiredTime.toISOString())
+                )
+                .filter((q: any) => q.eq(q.field("status"), "waiting"))
                 .collect();
 
-            for (const playerMatch of playerMatches) {
-                const match = await ctx.db.get(playerMatch.matchId);
-                if (match && match.status === "pending") {
-                    // 删除玩家比赛记录
-                    await ctx.db.delete(playerMatch._id);
+            let cleanedCount = 0;
 
-                    // 记录离开事件
-                    await ctx.db.insert("match_events", {
-                        matchId: match._id,
-                        tournamentId,
-                        uid,
-                        eventType: "player_left_match",
-                        eventData: { reason: "manual_leave" },
-                        timestamp: now.iso,
-                        createdAt: now.iso
-                    });
-                }
+            for (const entry of expiredEntries) {
+                await ctx.db.patch(entry._id, {
+                    status: "expired",
+                    expiredAt: now.iso,
+                    updatedAt: now.iso
+                });
+
+                // 记录过期事件
+                await ctx.db.insert("match_events", {
+                    matchId: undefined,
+                    tournamentId: entry.tournamentId,
+                    uid: entry.uid,
+                    eventType: "player_expired",
+                    eventData: {
+                        waitTime: new Date().getTime() - new Date(entry.joinedAt).getTime(),
+                        queueId: entry._id,
+                        mode: entry.metadata?.mode || "traditional"
+                    },
+                    timestamp: now.iso,
+                    createdAt: now.iso
+                });
+
+                cleanedCount++;
             }
 
-            return { success: true, message: "已离开匹配" };
+            return {
+                success: true,
+                cleanedCount,
+                message: `清理了 ${cleanedCount} 个过期队列条目`
+            };
 
         } catch (error) {
-            console.error("离开匹配失败:", error);
+            console.error("清理过期队列失败:", error);
             throw error;
+        }
+    }
+
+    /**
+     * 获取队列统计信息
+     */
+    static async getQueueStats(ctx: any, params: {
+        tournamentId?: string;
+        gameType?: string;
+        tournamentType?: string; // 新增：独立模式下需要
+        mode?: string; // 新增：匹配模式
+    }) {
+        const { tournamentId, gameType, tournamentType, mode = "traditional" } = params;
+
+        try {
+            let query = ctx.db.query("matchingQueue");
+
+            if (mode === "traditional" && tournamentId) {
+                query = query.withIndex("by_tournament_status", (q: any) =>
+                    q.eq("tournamentId", tournamentId).eq("status", "waiting")
+                );
+            } else if (mode === "independent" && tournamentType) {
+                query = query.withIndex("by_status_priority", (q: any) =>
+                    q.eq("status", "waiting")
+                );
+            } else {
+                query = query.withIndex("by_status_priority", (q: any) =>
+                    q.eq("status", "waiting")
+                );
+            }
+
+            const waitingPlayers = await query.collect();
+
+            // 过滤条件
+            let filteredPlayers = waitingPlayers;
+
+            if (mode === "traditional" && tournamentId) {
+                filteredPlayers = waitingPlayers.filter((p: any) => p.tournamentId === tournamentId);
+            } else if (mode === "independent" && tournamentType) {
+                filteredPlayers = waitingPlayers.filter((p: any) =>
+                    p.tournamentType === tournamentType &&
+                    (!gameType || p.gameType === gameType)
+                );
+            } else if (gameType) {
+                filteredPlayers = waitingPlayers.filter((p: any) => p.gameType === gameType);
+            }
+
+            // 计算统计信息
+            const stats = {
+                totalWaiting: filteredPlayers.length,
+                averageWaitTime: 0,
+                oldestWait: 0,
+                algorithmDistribution: {} as Record<string, number>,
+                segmentDistribution: {} as Record<string, number>,
+                priorityDistribution: {
+                    high: 0,
+                    medium: 0,
+                    low: 0
+                },
+                modeDistribution: {
+                    traditional: 0,
+                    independent: 0
+                }
+            };
+
+            if (filteredPlayers.length > 0) {
+                const now = new Date().getTime();
+                let totalWaitTime = 0;
+
+                for (const player of filteredPlayers) {
+                    const waitTime = now - new Date(player.joinedAt).getTime();
+                    totalWaitTime += waitTime;
+
+                    // 算法分布
+                    const algorithm = player.matchingConfig.algorithm;
+                    stats.algorithmDistribution[algorithm] = (stats.algorithmDistribution[algorithm] || 0) + 1;
+
+                    // 段位分布
+                    const segment = player.playerInfo.segmentName;
+                    stats.segmentDistribution[segment] = (stats.segmentDistribution[segment] || 0) + 1;
+
+                    // 优先级分布
+                    if (player.priority >= 150) {
+                        stats.priorityDistribution.high++;
+                    } else if (player.priority >= 100) {
+                        stats.priorityDistribution.medium++;
+                    } else {
+                        stats.priorityDistribution.low++;
+                    }
+
+                    // 模式分布
+                    const playerMode = player.metadata?.mode || "traditional";
+                    if (playerMode === "traditional" || playerMode === "independent") {
+                        stats.modeDistribution[playerMode as keyof typeof stats.modeDistribution]++;
+                    }
+                }
+
+                stats.averageWaitTime = Math.floor(totalWaitTime / filteredPlayers.length / 1000);
+                stats.oldestWait = Math.floor(Math.max(...filteredPlayers.map((p: any) =>
+                    now - new Date(p.joinedAt).getTime()
+                )) / 1000);
+            }
+
+            return {
+                success: true,
+                stats
+            };
+
+        } catch (error) {
+            console.error("获取队列统计失败:", error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "未知错误"
+            };
         }
     }
 }
 
 // Convex 函数接口
-export const joinTournamentMatch = (mutation as any)({
+export const joinMatchingQueue = (mutation as any)({
     args: {
         uid: v.string(),
-        tournamentId: v.id("tournaments"),
+        tournamentId: v.optional(v.id("tournaments")),
         gameType: v.string(),
+        tournamentType: v.optional(v.string()),
+        mode: v.optional(v.union(v.literal("traditional"), v.literal("independent")))
     },
-    handler: async (ctx: any, args: any): Promise<any> => {
+    handler: async (ctx: any, args: any) => {
         // 获取玩家信息
         const player = await ctx.db
             .query("players")
@@ -516,49 +1091,106 @@ export const joinTournamentMatch = (mutation as any)({
         }
 
         // 获取锦标赛配置
-        const tournament = await ctx.db.get(args.tournamentId);
-        if (!tournament) {
-            throw new Error("锦标赛不存在");
+        let config;
+        if (args.mode === "traditional" && args.tournamentId) {
+            const tournament = await ctx.db.get(args.tournamentId);
+            if (!tournament) {
+                throw new Error("锦标赛不存在");
+            }
+            config = {
+                entryRequirements: tournament.config?.entryRequirements,
+                matchRules: tournament.config?.matchRules,
+                rewards: tournament.config?.rewards,
+                schedule: tournament.config?.schedule,
+                limits: tournament.config?.limits,
+                advanced: tournament.config?.advanced
+            };
+        } else if (args.mode === "independent" && args.tournamentType) {
+            // 从锦标赛类型配置获取配置
+            const tournamentType = await ctx.db
+                .query("tournament_types")
+                .withIndex("by_typeId", (q: any) => q.eq("typeId", args.tournamentType))
+                .first();
+            if (!tournamentType) {
+                throw new Error("锦标赛类型不存在");
+            }
+            config = {
+                entryRequirements: tournamentType.entryRequirements,
+                matchRules: tournamentType.matchRules,
+                rewards: tournamentType.rewards,
+                schedule: tournamentType.schedule,
+                limits: tournamentType.limits,
+                advanced: tournamentType.advanced
+            };
+        } else {
+            throw new Error("无效的匹配模式或缺少必要参数");
         }
 
-        // 使用新的schema结构
-        const config = {
-            entryRequirements: tournament.config?.entryRequirements,
-            matchRules: tournament.config?.matchRules,
-            rewards: tournament.config?.rewards,
-            schedule: tournament.config?.schedule,
-            limits: tournament.config?.limits,
-            advanced: tournament.config?.advanced
-        };
-
-        return await TournamentMatchingService.joinTournamentMatch(ctx, {
+        return await TournamentMatchingService.joinMatchingQueue(ctx, {
             uid: args.uid,
             tournamentId: args.tournamentId,
             gameType: args.gameType,
+            tournamentType: args.tournamentType,
             player,
-            config
+            config,
+            mode: args.mode || "traditional"
         });
     },
 });
 
-export const getMatchStatus = (query as any)({
+export const getMatchingStatus = (query as any)({
     args: {
         uid: v.string(),
-        tournamentId: v.id("tournaments"),
-        gameType: v.string(),
+        tournamentId: v.optional(v.id("tournaments")),
+        tournamentType: v.optional(v.string()),
+        gameType: v.optional(v.string()),
+        mode: v.optional(v.union(v.literal("traditional"), v.literal("independent")))
     },
-    handler: async (ctx: any, args: any): Promise<any> => {
-        return await TournamentMatchingService.getMatchStatus(ctx, args);
+    handler: async (ctx: any, args: any) => {
+        return await TournamentMatchingService.getMatchingStatus(ctx, args);
     },
 });
 
-export const leaveMatch = (mutation as any)({
+export const cancelMatching = (mutation as any)({
     args: {
         uid: v.string(),
-        tournamentId: v.id("tournaments"),
-        gameType: v.string(),
+        tournamentId: v.optional(v.id("tournaments")),
+        tournamentType: v.optional(v.string()),
+        gameType: v.optional(v.string()),
+        reason: v.optional(v.string()),
+        mode: v.optional(v.union(v.literal("traditional"), v.literal("independent")))
     },
-    handler: async (ctx: any, args: any): Promise<any> => {
-        return await TournamentMatchingService.leaveMatch(ctx, args);
+    handler: async (ctx: any, args: any) => {
+        return await TournamentMatchingService.cancelMatching(ctx, args);
+    },
+});
+
+export const cleanupExpiredQueue = (mutation as any)({
+    args: {},
+    handler: async (ctx: any, args: any) => {
+        return await TournamentMatchingService.cleanupExpiredQueue(ctx);
+    },
+});
+
+export const getQueueStats = (query as any)({
+    args: {
+        tournamentId: v.optional(v.id("tournaments")),
+        gameType: v.optional(v.string()),
+        tournamentType: v.optional(v.string()),
+        mode: v.optional(v.union(v.literal("traditional"), v.literal("independent")))
+    },
+    handler: async (ctx: any, args: any) => {
+        return await TournamentMatchingService.getQueueStats(ctx, args);
+    },
+});
+
+// 后台任务接口
+export const executeMatchingTask = (internalMutation as any)({
+    args: {
+        batchSize: v.optional(v.number()),
+        maxProcessingTime: v.optional(v.number())
+    },
+    handler: async (ctx: any, args: any) => {
+        return await TournamentMatchingService.executeMatchingTask(ctx, args);
     },
 }); 

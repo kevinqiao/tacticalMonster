@@ -1,75 +1,33 @@
-import { casualHandler } from "./casualHandler";
-import { championshipHandler } from "./championshipHandler";
-import { dailyHandler } from "./dailyHandler";
-import { multiPlayerTournamentHandler } from "./multiPlayerTournament";
-import { rankedHandler } from "./rankedHandler";
-import { seasonalHandler } from "./seasonalHandler";
-import { specialHandler } from "./specialHandler";
-import { tournamentHandler } from "./tournamentHandler";
-import { weeklyHandler } from "./weeklyHandler";
+import { bestOfSeriesHandler } from "./bestOfSeriesHandler";
+import { independentTournamentHandler } from "./singlePlayerIndependentTournamentHandler";
+import { multiPlayerIndependentMatchHandler } from "./multiPlayerIndependentMatchHandler";
+import { multiPlayerSharedMatchHandler } from "./multiPlayerSharedMatchHandler";
 
 /**
  * 锦标赛处理器映射
  * 根据锦标赛类型返回对应的处理器
  */
 const HANDLER_MAP: Record<string, any> = {
-  // 每日锦标赛
-  "daily_solitaire_challenge": dailyHandler,
-  "daily_rummy_quick": dailyHandler,
-  "daily_uno_express": dailyHandler,
-  "daily_ludo_race": dailyHandler,
+  // Best of Series 锦标赛
+  "best_of_series_tournament": bestOfSeriesHandler,
+  "bo3_tournament": bestOfSeriesHandler,
+  "bo5_tournament": bestOfSeriesHandler,
 
-  // 每周锦标赛
-  "weekly_rummy_masters": weeklyHandler,
-  "weekly_chess_club": weeklyHandler,
-  "weekly_puzzle_league": weeklyHandler,
-  "weekly_arcade_showdown": weeklyHandler,
+  // 独立锦标赛 - 统一使用independentTournamentHandler
+  "single_player_tournament": independentTournamentHandler,
+  "independent_tournament": independentTournamentHandler,
+  "single_player_threshold_tournament": independentTournamentHandler,
 
-  // 赛季锦标赛
-  "seasonal_uno_championship": seasonalHandler,
-  "seasonal_ludo_kingdom": seasonalHandler,
-  "seasonal_puzzle_empire": seasonalHandler,
-  "seasonal_arcade_legends": seasonalHandler,
+  // 多人锦标赛 - 统一使用unifiedMultiPlayerHandler
+  "multi_player_tournament": multiPlayerSharedMatchHandler,
+  "team_tournament": multiPlayerSharedMatchHandler,
+  "multi_player_single_match_tournament": multiPlayerSharedMatchHandler,
 
-  // 特殊锦标赛
-  "special_holiday_event": specialHandler,
-  "special_weekend_warrior": specialHandler,
-  "special_festival_frenzy": specialHandler,
-  "special_anniversary_celebration": specialHandler,
+  // 多人独立游戏锦标赛 - 每个玩家玩独立游戏
+  "multi_player_independent_games_tournament": multiPlayerIndependentMatchHandler,
 
-  // 排位锦标赛
-  "ranked_chess_masters": rankedHandler,
-  "ranked_puzzle_grandmaster": rankedHandler,
-  "ranked_arcade_pro": rankedHandler,
-  "ranked_strategy_elite": rankedHandler,
-
-  // 休闲锦标赛
-  "casual_ludo_fun": casualHandler,
-  "casual_uno_party": casualHandler,
-  "casual_puzzle_relax": casualHandler,
-  "casual_arcade_chill": casualHandler,
-
-  // 冠军锦标赛
-  "championship_puzzle_masters": championshipHandler,
-  "championship_chess_grandmaster": championshipHandler,
-  "championship_arcade_legend": championshipHandler,
-  "championship_strategy_king": championshipHandler,
-
-  // 普通锦标赛
-  "tournament_arcade_challenge": tournamentHandler,
-  "tournament_puzzle_quest": tournamentHandler,
-  "tournament_strategy_battle": tournamentHandler,
-  "tournament_skill_showdown": tournamentHandler,
-
-  // 单人锦标赛 - 统一使用multiPlayerTournamentHandler
-  "single_player_tournament": multiPlayerTournamentHandler,
-  "independent_tournament": multiPlayerTournamentHandler,
-  "single_player_threshold_tournament": multiPlayerTournamentHandler,
-
-  // 多人锦标赛
-  "multi_player_tournament": multiPlayerTournamentHandler,
-  "team_tournament": multiPlayerTournamentHandler,
-  "multi_player_single_match_tournament": multiPlayerTournamentHandler,
+  // 多人独立比赛锦标赛 - 每人独立比赛
+  "shared_tournament_independent_matches": multiPlayerIndependentMatchHandler,
 };
 
 /**
@@ -81,7 +39,7 @@ export function getHandler(tournamentType: string): any {
   const handler = HANDLER_MAP[tournamentType];
   if (!handler) {
     console.warn(`未找到锦标赛类型 ${tournamentType} 的处理器，使用默认处理器`);
-    return tournamentHandler; // 默认使用普通锦标赛处理器
+    return independentTournamentHandler; // 默认使用独立锦标赛处理器
   }
   return handler;
 }
@@ -170,7 +128,9 @@ export function getHandlerCategories(): Record<string, string[]> {
 
 // 导出所有处理器
 export {
-  casualHandler,
-  championshipHandler, dailyHandler, multiPlayerTournamentHandler, rankedHandler, seasonalHandler, specialHandler, tournamentHandler, weeklyHandler
+  bestOfSeriesHandler,
+  independentTournamentHandler,
+  multiPlayerIndependentMatchHandler,
+  multiPlayerSharedMatchHandler
 };
 

@@ -3,6 +3,64 @@ import { v } from "convex/values";
 
 // 锦标赛系统相关表
 export const tournamentSchema = {
+    matchingQueue: defineTable({
+        // 基础信息
+        uid: v.string(),
+        tournamentId: v.id("tournaments"),
+        gameType: v.string(),
+
+        // 玩家信息
+        playerInfo: v.object({
+            uid: v.string(),
+            skill: v.number(),
+            segmentName: v.string(),
+            eloScore: v.optional(v.number()),
+            totalPoints: v.optional(v.number()),
+            isSubscribed: v.boolean()
+        }),
+
+        // 匹配配置
+        matchingConfig: v.object({
+            algorithm: v.string(), // "skill_based", "segment_based", "elo_based", "random"
+            maxWaitTime: v.number(),
+            skillRange: v.optional(v.number()),
+            eloRange: v.optional(v.number()),
+            segmentRange: v.optional(v.number()),
+            fallbackToAI: v.optional(v.boolean())
+        }),
+
+        // 匹配状态
+        status: v.union(
+            v.literal("waiting"),
+            v.literal("matched"),
+            v.literal("expired"),
+            v.literal("cancelled")
+        ),
+
+        // 匹配结果
+        matchId: v.optional(v.id("matches")),
+        playerMatchId: v.optional(v.id("player_matches")),
+
+        // 时间信息
+        joinedAt: v.string(),
+        matchedAt: v.optional(v.string()),
+        expiredAt: v.optional(v.string()),
+
+        // 优先级和权重
+        priority: v.number(),
+        weight: v.number(),
+
+        // 元数据
+        metadata: v.optional(v.any()),
+
+        // 系统字段
+        createdAt: v.string(),
+        updatedAt: v.string()
+    }).index("by_tournament_status", ["tournamentId", "status"])
+        .index("by_uid_tournament", ["uid", "tournamentId"])
+        .index("by_status_priority", ["status", "priority"])
+        .index("by_joined_at", ["joinedAt"])
+        .index("by_expired_at", ["expiredAt"]),
     tournaments: defineTable({
         seasonId: v.id("seasons"),
         gameType: v.string(), // "solitaire", "uno", "ludo", "rummy"
@@ -17,9 +75,10 @@ export const tournamentSchema = {
         updatedAt: v.string(),
         endTime: v.string(),
     }).index("by_season_game_segment_status", ["seasonId", "gameType", "segmentName", "status"])
-        .index("by_type_status", ["tournamentType", "status", "gameType", "segmentName"])
+        .index("by_type_status", ["tournamentType", "status"])
         .index("by_type_status_game", ["tournamentType", "status", "gameType"]) // 新增：优化独立赛查询
-        .index("by_status_game", ["status", "gameType"]), // 新增：优化普通赛查询
+        .index("by_status_game", ["status", "gameType"]) // 新增：优化普通赛查询
+        .index("by_type_status_createdAt", ["tournamentType", "status", "createdAt"]),
 
     // 玩家与锦标赛的关系表
     player_tournaments: defineTable({
@@ -225,42 +284,13 @@ export const tournamentSchema = {
 
         // 限制配置
         limits: v.object({
-            daily: v.object({
-                maxParticipations: v.number(),
-                maxTournaments: v.number(),
-                maxAttempts: v.number()
-            }),
-            weekly: v.object({
-                maxParticipations: v.number(),
-                maxTournaments: v.number(),
-                maxAttempts: v.number()
-            }),
-            seasonal: v.object({
-                maxParticipations: v.number(),
-                maxTournaments: v.number(),
-                maxAttempts: v.number()
-            }),
-            total: v.object({
-                maxParticipations: v.number(),
-                maxTournaments: v.number(),
-                maxAttempts: v.number()
-            }),
+            maxParticipations: v.number(),
+            maxTournaments: v.number(),
+            maxAttempts: v.number(),
             subscribed: v.object({
-                daily: v.object({
-                    maxParticipations: v.number(),
-                    maxTournaments: v.number(),
-                    maxAttempts: v.number()
-                }),
-                weekly: v.object({
-                    maxParticipations: v.number(),
-                    maxTournaments: v.number(),
-                    maxAttempts: v.number()
-                }),
-                seasonal: v.object({
-                    maxParticipations: v.number(),
-                    maxTournaments: v.number(),
-                    maxAttempts: v.number()
-                })
+                maxParticipations: v.number(),
+                maxTournaments: v.number(),
+                maxAttempts: v.number()
             })
         }),
 
@@ -325,6 +355,7 @@ export const tournamentSchema = {
     player_matches: defineTable({
         matchId: v.id("matches"),
         tournamentId: v.id("tournaments"),
+        tournamentType: v.string(),
         uid: v.string(),
         gameType: v.string(),
         score: v.number(),
@@ -338,10 +369,11 @@ export const tournamentSchema = {
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_match_uid", ["matchId", "uid"])
+        .index("by_tournament_uid_createdAt", ["tournamentId", "uid", "createdAt"])
         .index("by_tournament_uid", ["tournamentId", "uid"])
         .index("by_uid", ["uid"])
         .index("by_match", ["matchId"])
-        .index("by_tournament", ["tournamentId"])
+        .index("by_tournamentType_uid_createdAt", ["tournamentType", "uid", "createdAt"])
         .index("by_completed", ["completed"])
         .index("by_score", ["score"]),
 

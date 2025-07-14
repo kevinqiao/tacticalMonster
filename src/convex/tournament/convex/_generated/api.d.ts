@@ -18,6 +18,8 @@ import type * as dao_notificationDao from "../dao/notificationDao.js";
 import type * as dao_playerDao from "../dao/playerDao.js";
 import type * as dao_playerTaskDao from "../dao/playerTaskDao.js";
 import type * as dao_taskEventDao from "../dao/taskEventDao.js";
+import type * as dao_tournamentDao from "../dao/tournamentDao.js";
+import type * as data_testLimitsConfiguration from "../data/testLimitsConfiguration.js";
 import type * as data_tournamentConfigUsage from "../data/tournamentConfigUsage.js";
 import type * as data_tournamentConfigs from "../data/tournamentConfigs.js";
 import type * as http from "../http.js";
@@ -84,24 +86,20 @@ import type * as service_ticket_testTournamentIntegration from "../service/ticke
 import type * as service_ticket_ticketSchema from "../service/ticket/ticketSchema.js";
 import type * as service_ticket_ticketSystem from "../service/ticket/ticketSystem.js";
 import type * as service_ticket_tournamentIntegration from "../service/ticket/tournamentIntegration.js";
+import type * as service_tournament_common from "../service/tournament/common.js";
 import type * as service_tournament_errorCodes from "../service/tournament/errorCodes.js";
 import type * as service_tournament_errorHandler from "../service/tournament/errorHandler.js";
 import type * as service_tournament_errorMigrationExample from "../service/tournament/errorMigrationExample.js";
 import type * as service_tournament_errorUsageExample from "../service/tournament/errorUsageExample.js";
 import type * as service_tournament_handler_base from "../service/tournament/handler/base.js";
-import type * as service_tournament_handler_casualHandler from "../service/tournament/handler/casualHandler.js";
-import type * as service_tournament_handler_championshipHandler from "../service/tournament/handler/championshipHandler.js";
-import type * as service_tournament_handler_dailyHandler from "../service/tournament/handler/dailyHandler.js";
-import type * as service_tournament_handler_exampleHandler from "../service/tournament/handler/exampleHandler.js";
+import type * as service_tournament_handler_bestOfSeriesHandler from "../service/tournament/handler/bestOfSeriesHandler.js";
 import type * as service_tournament_handler_index from "../service/tournament/handler/index.js";
-import type * as service_tournament_handler_multiPlayerTournament from "../service/tournament/handler/multiPlayerTournament.js";
-import type * as service_tournament_handler_rankedHandler from "../service/tournament/handler/rankedHandler.js";
-import type * as service_tournament_handler_seasonalHandler from "../service/tournament/handler/seasonalHandler.js";
-import type * as service_tournament_handler_specialHandler from "../service/tournament/handler/specialHandler.js";
-import type * as service_tournament_handler_tournamentHandler from "../service/tournament/handler/tournamentHandler.js";
-import type * as service_tournament_handler_usageExamples from "../service/tournament/handler/usageExamples.js";
-import type * as service_tournament_handler_weeklyHandler from "../service/tournament/handler/weeklyHandler.js";
+import type * as service_tournament_handler_multiPlayerIndependentMatchHandler from "../service/tournament/handler/multiPlayerIndependentMatchHandler.js";
+import type * as service_tournament_handler_multiPlayerSharedMatchHandler from "../service/tournament/handler/multiPlayerSharedMatchHandler.js";
+import type * as service_tournament_handler_singlePlayerIndependentTournamentHandler from "../service/tournament/handler/singlePlayerIndependentTournamentHandler.js";
 import type * as service_tournament_matchManager from "../service/tournament/matchManager.js";
+import type * as service_tournament_matchingClientService from "../service/tournament/matchingClientService.js";
+import type * as service_tournament_matchingScheduler from "../service/tournament/matchingScheduler.js";
 import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
 import type * as service_tournament_ruleEngine from "../service/tournament/ruleEngine.js";
 import type * as service_tournament_tests_index from "../service/tournament/tests/index.js";
@@ -128,7 +126,6 @@ import type * as service_tournament_utils_tournamentTypeUtils from "../service/t
 import type * as service_updateActivity from "../service/updateActivity.js";
 import type * as service_updatePlayerProfile from "../service/updatePlayerProfile.js";
 import type * as service_utils from "../service/utils.js";
-import type * as test_validation from "../test/validation.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -144,6 +141,8 @@ declare const fullApi: ApiFromModules<{
   "dao/playerDao": typeof dao_playerDao;
   "dao/playerTaskDao": typeof dao_playerTaskDao;
   "dao/taskEventDao": typeof dao_taskEventDao;
+  "dao/tournamentDao": typeof dao_tournamentDao;
+  "data/testLimitsConfiguration": typeof data_testLimitsConfiguration;
   "data/tournamentConfigUsage": typeof data_tournamentConfigUsage;
   "data/tournamentConfigs": typeof data_tournamentConfigs;
   http: typeof http;
@@ -210,24 +209,20 @@ declare const fullApi: ApiFromModules<{
   "service/ticket/ticketSchema": typeof service_ticket_ticketSchema;
   "service/ticket/ticketSystem": typeof service_ticket_ticketSystem;
   "service/ticket/tournamentIntegration": typeof service_ticket_tournamentIntegration;
+  "service/tournament/common": typeof service_tournament_common;
   "service/tournament/errorCodes": typeof service_tournament_errorCodes;
   "service/tournament/errorHandler": typeof service_tournament_errorHandler;
   "service/tournament/errorMigrationExample": typeof service_tournament_errorMigrationExample;
   "service/tournament/errorUsageExample": typeof service_tournament_errorUsageExample;
   "service/tournament/handler/base": typeof service_tournament_handler_base;
-  "service/tournament/handler/casualHandler": typeof service_tournament_handler_casualHandler;
-  "service/tournament/handler/championshipHandler": typeof service_tournament_handler_championshipHandler;
-  "service/tournament/handler/dailyHandler": typeof service_tournament_handler_dailyHandler;
-  "service/tournament/handler/exampleHandler": typeof service_tournament_handler_exampleHandler;
+  "service/tournament/handler/bestOfSeriesHandler": typeof service_tournament_handler_bestOfSeriesHandler;
   "service/tournament/handler/index": typeof service_tournament_handler_index;
-  "service/tournament/handler/multiPlayerTournament": typeof service_tournament_handler_multiPlayerTournament;
-  "service/tournament/handler/rankedHandler": typeof service_tournament_handler_rankedHandler;
-  "service/tournament/handler/seasonalHandler": typeof service_tournament_handler_seasonalHandler;
-  "service/tournament/handler/specialHandler": typeof service_tournament_handler_specialHandler;
-  "service/tournament/handler/tournamentHandler": typeof service_tournament_handler_tournamentHandler;
-  "service/tournament/handler/usageExamples": typeof service_tournament_handler_usageExamples;
-  "service/tournament/handler/weeklyHandler": typeof service_tournament_handler_weeklyHandler;
+  "service/tournament/handler/multiPlayerIndependentMatchHandler": typeof service_tournament_handler_multiPlayerIndependentMatchHandler;
+  "service/tournament/handler/multiPlayerSharedMatchHandler": typeof service_tournament_handler_multiPlayerSharedMatchHandler;
+  "service/tournament/handler/singlePlayerIndependentTournamentHandler": typeof service_tournament_handler_singlePlayerIndependentTournamentHandler;
   "service/tournament/matchManager": typeof service_tournament_matchManager;
+  "service/tournament/matchingClientService": typeof service_tournament_matchingClientService;
+  "service/tournament/matchingScheduler": typeof service_tournament_matchingScheduler;
   "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;
   "service/tournament/ruleEngine": typeof service_tournament_ruleEngine;
   "service/tournament/tests/index": typeof service_tournament_tests_index;
@@ -254,7 +249,6 @@ declare const fullApi: ApiFromModules<{
   "service/updateActivity": typeof service_updateActivity;
   "service/updatePlayerProfile": typeof service_updatePlayerProfile;
   "service/utils": typeof service_utils;
-  "test/validation": typeof test_validation;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

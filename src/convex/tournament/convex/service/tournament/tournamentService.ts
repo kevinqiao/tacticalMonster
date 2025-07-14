@@ -3,12 +3,10 @@ import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import { getTorontoDate } from "../utils";
 import {
-    buildParticipationStats,
     checkTournamentEligibility,
     checkTournamentEligibilityWithAttempts,
     getCommonData,
     getPlayerAttempts,
-    getTournamentTypeConfig,
     notifyTournamentChanges
 } from "./common";
 import { getHandler } from "./handler";
@@ -38,29 +36,26 @@ export class TournamentService {
     static async joinTournament(ctx: any, params: {
         uid: string;
         gameType: string;
-        tournamentType: string;
+        typeId: string;
     }) {
-        const tournamentType = await getTournamentTypeConfig(ctx, params.tournamentType);
-        const now = getTorontoDate();
 
+        // const tournamentType = await ctx.runQuery(findTypeById, { typeId: params.typeId });
         // 获取玩家信息
-        const { player, season } = await getCommonData(ctx, {
-            uid: params.uid,
-            requireInventory: false,
-            requireSeason: true
-        });
+        // const { player, season } = await getCommonData(ctx, {
+        //     uid: params.uid,
+        //     requireInventory: false,
+        //     requireSeason: true
+        // });
 
         // 获取对应的处理器
-        console.log("params.tournamentType", params.tournamentType);
-        const handler = getHandler(params.tournamentType);
+        console.log("params.tournamentType", params.typeId);
+        const handler = getHandler(params.typeId);
 
         // 执行加入逻辑（处理器内部会处理锦标赛创建）
         const result = await handler.join(ctx, {
             uid: params.uid,
             gameType: params.gameType,
-            tournamentType: params.tournamentType,
-            player,
-            season
+            typeId: params.typeId
         });
 
         return {
@@ -428,9 +423,8 @@ export class TournamentService {
     static async getAvailableTournaments(ctx: any, params: {
         uid: string;
         gameType?: string; // 可选，过滤特定游戏类型
-        category?: string; // 可选，过滤特定分类
     }) {
-        const { uid, gameType, category } = params;
+        const { uid, gameType } = params;
 
         // 获取玩家信息
         const { player, inventory, season } = await getCommonData(ctx, {
@@ -449,12 +443,6 @@ export class TournamentService {
         if (gameType) {
             tournamentTypes = tournamentTypes.filter((tt: any) =>
                 tt.gameType === gameType
-            );
-        }
-
-        if (category) {
-            tournamentTypes = tournamentTypes.filter((tt: any) =>
-                tt.category === category
             );
         }
 
@@ -483,7 +471,11 @@ export class TournamentService {
                     });
 
                     // 构建参与统计
-                    participationStats = buildParticipationStats(attempts, timeRange);
+                    participationStats = {
+                        attempts,
+                        timeRange,
+                        lastParticipation: null
+                    };
                 }
                 availableTournaments.push({
                     typeId: tournamentType.typeId,
@@ -587,9 +579,8 @@ export class TournamentService {
     static async getPlayerTournamentStatus(ctx: any, params: {
         uid: string;
         gameType?: string;
-        category?: string;
     }) {
-        const { uid, gameType, category } = params;
+        const { uid, gameType } = params;
 
         try {
             // 获取玩家信息
@@ -612,12 +603,6 @@ export class TournamentService {
                 );
             }
 
-            if (category) {
-                tournamentTypes = tournamentTypes.filter((tt: any) =>
-                    tt.category === category
-                );
-            }
-
             const tournamentStatus: any[] = [];
 
             for (const tournamentType of tournamentTypes) {
@@ -632,7 +617,11 @@ export class TournamentService {
                     });
 
                     // 构建参与统计
-                    const participationStats = buildParticipationStats(attempts, timeRange);
+                    const participationStats = {
+                        attempts,
+                        timeRange,
+                        lastParticipation: null
+                    };
 
                     // 检查参赛资格（使用已获取的attempts数据）
                     const eligibility = await checkTournamentEligibilityWithAttempts(ctx, {
@@ -1016,7 +1005,7 @@ export const joinTournament = (mutation as any)({
     args: {
         uid: v.string(),
         gameType: v.string(),
-        tournamentType: v.string(),
+        typeId: v.string(),
     },
     handler: async (ctx: any, args: any) => {
         const result = await TournamentService.joinTournament(ctx, args);
