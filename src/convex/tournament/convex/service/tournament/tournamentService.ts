@@ -421,19 +421,19 @@ export class TournamentService {
 
         for (const tournamentType of tournamentTypes) {
             try {
-                const partitions = { rank: -1, attempts: 0 };
+                const participation = { rank: -1, attempts: 0 };
                 if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.matchRules.timeRange)) {
                     const tournament = await findTournamentByType(ctx, { uid, tournamntType: tournamentType });
                     if (!tournament) {
                         continue;
                     }
-                    partitions.rank = await findPlayerRank(ctx, { uid, tournamentId: tournament._id });
+                    participation.rank = await findPlayerRank(ctx, { uid, tournamentId: tournament._id });
                 }
                 const attempts = await getPlayerAttempts(ctx, {
                     uid,
                     tournamentType
                 });
-                partitions.attempts = attempts;
+                participation.attempts = attempts;
 
                 // 检查参赛资格
                 const eligibility = await checkTournamentEligibility(ctx, {
@@ -458,6 +458,7 @@ export class TournamentService {
                         advanced: tournamentType.advanced
                     },
                     eligibility,
+                    participation,
                     priority: tournamentType.priority || 5
                 });
             } catch (error) {
