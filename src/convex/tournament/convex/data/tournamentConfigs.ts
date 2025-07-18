@@ -125,13 +125,8 @@ export interface MatchRules {
         perTurn?: number; // 秒
         total?: number;   // 秒
     };
+    pointsPerMatch?: { [k: string]: number };
 
-    // 特殊规则
-    specialRules?: Array<{
-        type: string;
-        value: any;
-        description: string;
-    }>;
 }
 
 /**
@@ -681,6 +676,159 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 enabled: true,
                 metrics: ["participation", "completion", "rewards"],
                 alerts: ["low_participation"]
+            }
+        }
+    },
+
+    // 多人实时对战锦标赛
+    {
+        typeId: "multi_player_real_time_battle",
+        name: "多人实时对战锦标赛",
+        description: "多人实时对战，每场比赛获得点数，累积点数决定最终排名",
+        gameType: "rummy",
+        isActive: true,
+        priority: 4,
+
+        entryRequirements: {
+            minSegment: "bronze",
+            isSubscribedRequired: false,
+            entryFee: {
+                coins: 150,
+                tickets: {
+                    gameType: "rummy",
+                    tournamentType: "multi_player_real_time_battle",
+                    quantity: 1
+                }
+            }
+        },
+
+        matchRules: {
+            matchType: "multi_match",           // 多场比赛
+            minPlayers: 2,
+            maxPlayers: 4,
+            isSingleMatch: false,               // 是多人在一场比赛中比赛
+            maxAttempts: 10,                    // 允许参加10场比赛
+            allowMultipleAttempts: true,        // 允许多次尝试
+            rankingMethod: "total_score",       // 累积总分排名
+            timeLimit: {
+                perMatch: 600,                  // 每场10分钟
+                perTurn: 30                     // 每回合30秒
+            },
+
+            pointsPerMatch: {
+                "1st": 100,             // 第一名100分
+                "2nd": 60,              // 第二名60分
+                "3rd": 30,              // 第三名30分
+                "4th": 10               // 第四名10分
+            }
+
+
+        },
+
+        rewards: {
+            baseRewards: {
+                coins: 300,
+                gamePoints: 150,
+                props: [
+                    {
+                        gameType: "rummy",
+                        propType: "wild_card",
+                        quantity: 2,
+                        rarity: "rare"
+                    }
+                ],
+                tickets: []
+            },
+            rankRewards: [
+                {
+                    rankRange: [1, 1],
+                    multiplier: 5.0,
+                    bonusProps: [
+                        {
+                            gameType: "rummy",
+                            propType: "joker",
+                            quantity: 1,
+                            rarity: "epic"
+                        }
+                    ]
+                },
+                {
+                    rankRange: [2, 3],
+                    multiplier: 3.0
+                },
+                {
+                    rankRange: [4, 10],
+                    multiplier: 2.0
+                },
+                {
+                    rankRange: [11, 20],
+                    multiplier: 1.5
+                }
+            ],
+            segmentBonus: {
+                bronze: 1.0,
+                silver: 1.1,
+                gold: 1.2,
+                platinum: 1.3,
+                diamond: 1.5
+            },
+            subscriptionBonus: 1.25,
+            participationReward: {
+                coins: 25,
+                gamePoints: 15
+            },
+            streakBonus: {
+                minStreak: 3,
+                bonusMultiplier: 1.2
+            }
+        },
+
+        schedule: {
+            startTime: {
+                type: "fixed",
+                value: new Date().toISOString()
+            },
+            endTime: {
+                type: "duration",
+                value: 7200 // 2小时
+            },
+            duration: 7200,
+            timezone: "America/Toronto"
+        },
+
+        limits: {
+            maxParticipations: 1,
+            maxTournaments: 1,
+            maxAttempts: 10,
+            subscribed: {
+                maxParticipations: 1,
+                maxTournaments: 1,
+                maxAttempts: 15
+            }
+        },
+
+        advanced: {
+            matching: {
+                algorithm: "skill_based",
+                skillRange: 200,
+                maxWaitTime: 60,
+                fallbackToAI: true
+            },
+            settlement: {
+                autoSettle: true,
+                settleDelay: 300,
+                requireMinimumPlayers: true,
+                minimumPlayers: 2
+            },
+            notifications: {
+                enabled: true,
+                types: ["join", "start", "complete", "reward", "ranking_update"],
+                channels: ["in_app", "push"]
+            },
+            monitoring: {
+                enabled: true,
+                metrics: ["participation", "completion", "rewards", "performance", "match_duration"],
+                alerts: ["low_participation", "high_failure", "long_wait_time"]
             }
         }
     }

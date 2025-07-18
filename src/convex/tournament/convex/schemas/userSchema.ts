@@ -105,8 +105,7 @@ export const userSchema = {
             quantity: v.number(),
         })),
         tickets: v.array(v.object({
-            gameType: v.string(),
-            tournamentType: v.string(),
+            type: v.string(),
             quantity: v.number(),
         })),
         createdAt: v.string(),

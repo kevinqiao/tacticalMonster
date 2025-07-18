@@ -1,3 +1,4 @@
+import { Id } from "../../_generated/dataModel";
 import { getTorontoDate } from "../utils";
 
 /**
@@ -62,8 +63,7 @@ export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
         )
         .collect();
 
-    return playerMatches.length;
-
+    return playerMatches
 
 }
 
@@ -87,13 +87,12 @@ export function getTimeIdentifier(now: any, tournamentType: string): string {
  * 检查锦标赛参赛资格
  */
 export async function checkTournamentEligibility(ctx: any, params: {
-    uid: string;
     tournamentType: any;
     player: any;
     inventory: any;
-    season: any;
+    attempts: number;
 }) {
-    const { uid, tournamentType, player, inventory, season } = params;
+    const { tournamentType, player, inventory, attempts } = params;
     const entryRequirements = tournamentType.entryRequirements;
     const matchRules = tournamentType.matchRules;
     const reasons: string[] = [];
@@ -140,10 +139,10 @@ export async function checkTournamentEligibility(ctx: any, params: {
 
     // 检查参与次数限制
     const timeRange = tournamentType.timeRange || "total";
-    const attempts = await getPlayerAttempts(ctx, {
-        uid,
-        tournamentType
-    });
+    // const attempts = await getPlayerAttempts(ctx, {
+    //     uid,
+    //     tournamentType
+    // });
 
     const maxAttempts = matchRules?.maxAttempts;
     if (maxAttempts && attempts >= maxAttempts) {
@@ -159,56 +158,7 @@ export async function checkTournamentEligibility(ctx: any, params: {
     };
 }
 
-/**
- * 查找现有锦标赛
- */
-export async function findExistingTournament(ctx: any, params: {
-    tournamentType: any;
-    season: any;
-    now: any;
-}) {
-    const { tournamentType, season, now } = params;
 
-    // 基础查询：同类型的开放锦标赛
-    let query = ctx.db
-        .query("tournaments")
-        .withIndex("by_type_status", (q: any) =>
-            q.eq("tournamentType", tournamentType.typeId)
-                .eq("status", "open")
-        );
-
-    // 根据锦标赛类型添加时间过滤
-    switch (tournamentType.category) {
-        case "daily":
-            const today = now.localDate.toISOString().split("T")[0];
-            const dailyTournaments = await query.collect();
-            return dailyTournaments.find((tournament: any) => {
-                const createdAt = tournament.createdAt;
-                if (!createdAt) return false;
-                const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-                return createdAtStr.startsWith(today);
-            });
-
-        case "weekly":
-            const weekStart = getWeekStart(now.localDate.toISOString().split("T")[0]);
-            const weeklyTournaments = await query.collect();
-            return weeklyTournaments.find((tournament: any) => {
-                const createdAt = tournament.createdAt;
-                if (!createdAt) return false;
-                const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-                const tournamentWeekStart = getWeekStart(createdAtStr.split("T")[0]);
-                return tournamentWeekStart === weekStart;
-            });
-
-        case "seasonal":
-            return await query
-                .filter((q: any) => q.eq(q.field("seasonId"), season._id))
-                .first();
-
-        default:
-            return null;
-    }
-}
 
 /**
  * 创建锦标赛（如果需要）
@@ -354,12 +304,9 @@ export interface TournamentHandler {
     validateJoin(ctx: any, args: any): Promise<any>;
     join(ctx: any, args: JoinArgs): Promise<any>;
     deductJoinCost(ctx: any, args: any): Promise<any>;
-    validateScore(ctx: any, args: SubmitScoreArgs): Promise<void>;
-    submitScore(ctx: any, args: SubmitScoreArgs): Promise<SubmitScoreResult>;
+    submitScore(ctx: any, args: SubmitScoreArgs): Promise<SubmitScoreResult | undefined>;
     settle(ctx: any, tournamentId: string): Promise<void>;
-    findAndJoinTournament(ctx: any, params: any): Promise<any>;
-    distributeRewards?(ctx: any, data: DistributeRewardsArgs): Promise<void>;
-    getTimeIdentifier?(now: any, tournamentType: string): string;
+    findAndJoinTournament?(ctx: any, params: any): Promise<any>;
     findOrCreateTournament?(ctx: any, params: any): Promise<any>;
     prepareScoreSubmission?(ctx: any, params: any): Promise<any>;
     handlePropDeduction?(ctx: any, params: any): Promise<any>;
@@ -414,222 +361,9 @@ export interface SubmitScoreResult {
     settleReason?: string;
 }
 
-export interface DistributeRewardsArgs {
-    uid: string;
-    rank: number;
-    score: number;
-    tournament: any;
-    matches: any[];
-}
-
-export interface TournamentCreationParams {
-    uid: string;
-    gameType: string;
-    tournamentType: string;
-    player: any;
-    season: any;
-    config: any;
-    now: any;
-    timeIdentifier?: string;
-    isIndependent?: boolean;
-    attemptNumber?: number;
-}
-
-export interface SingleMatchParams {
-    tournamentId: string;
-    uid: string;
-    gameType: string;
-    player: any;
-    config: any;
-    attemptNumber: number;
-    timeIdentifier?: string;
-}
-
-export interface MultiMatchParams {
-    tournamentId: string;
-    uid: string;
-    gameType: string;
-    player: any;
-    config: any;
-    attemptNumber: number;
-}
 
 // ==================== 通用函数 ====================
 
-export async function findExistingNonIndependentTournament(ctx: any, params: {
-    tournamentType: string;
-    gameType: string;
-    segmentName?: string;
-    now: any;
-}) {
-    const { tournamentType, gameType, segmentName, now } = params;
-    const existingTournaments = await ctx.db
-        .query("tournaments")
-        .withIndex("by_type_status", (q: any) =>
-            q.eq("tournamentType", tournamentType)
-                .eq("status", "open")
-                .eq("gameType", gameType)
-        )
-        .collect();
-    const nonIndependentTournaments = existingTournaments.filter((tournament: any) => {
-        const isIndependent = tournament.config?.independent === true;
-        return !isIndependent;
-    });
-    if (segmentName) {
-        const segmentTournaments = nonIndependentTournaments.filter((tournament: any) => {
-            return tournament.segmentName === segmentName || !tournament.segmentName;
-        });
-        if (segmentTournaments.length > 0) {
-            return segmentTournaments.sort((a: any, b: any) =>
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            )[0];
-        }
-    }
-    if (nonIndependentTournaments.length > 0) {
-        return nonIndependentTournaments.sort((a: any, b: any) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )[0];
-    }
-    return null;
-}
-
-export async function isTournamentFull(ctx: any, tournamentId: string, maxPlayers: number): Promise<boolean> {
-    const activePlayers = await ctx.db
-        .query("player_tournaments")
-        .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournamentId))
-        .filter((q: any) => q.eq(q.field("status"), "active"))
-        .collect();
-    return activePlayers.length >= maxPlayers;
-}
-
-export async function isPlayerInTournament(ctx: any, params: {
-    uid: string;
-    tournamentId: string;
-}): Promise<boolean> {
-    const { uid, tournamentId } = params;
-    const playerTournament = await ctx.db
-        .query("player_tournaments")
-        .withIndex("by_uid_tournament", (q: any) =>
-            q.eq("uid", uid).eq("tournamentId", tournamentId)
-        )
-        .first();
-    return playerTournament !== null && playerTournament.status === "active";
-}
-
-export async function findOrCreateTournament(ctx: any, params: {
-    uid: string;
-    gameType: string;
-    tournamentType: string;
-    player: any;
-    season: any;
-    config: any;
-    now: any;
-    isIndependent: boolean;
-    attemptNumber: number;
-}) {
-    const { uid, gameType, tournamentType, player, season, config, now, isIndependent, attemptNumber } = params;
-    if (isIndependent) {
-        const tournamentId = await createIndependentTournament(ctx, {
-            uid,
-            gameType,
-            tournamentType,
-            player,
-            season,
-            config,
-            now,
-            attemptNumber
-        });
-        return await ctx.db.get(tournamentId);
-    } else {
-        const existingTournament = await findExistingNonIndependentTournament(ctx, {
-            tournamentType,
-            gameType,
-            segmentName: player.segmentName,
-            now
-        });
-        if (existingTournament) {
-            const alreadyJoined = await isPlayerInTournament(ctx, {
-                uid,
-                tournamentId: existingTournament._id
-            });
-            if (alreadyJoined) {
-                throw new Error("您已经参与了这个锦标赛");
-            }
-            const maxPlayers = config.matchRules?.maxPlayers || 1;
-            const isFull = await isTournamentFull(ctx, existingTournament._id, maxPlayers);
-            if (isFull) {
-                const tournamentId = await createTournament(ctx, {
-                    uid,
-                    gameType,
-                    tournamentType,
-                    player,
-                    season,
-                    config,
-                    now
-                });
-                return await ctx.db.get(tournamentId);
-            } else {
-                await ctx.db.insert("player_tournaments", {
-                    uid,
-                    tournamentId: existingTournament._id,
-                    status: "active",
-                    joinedAt: now.iso,
-                    createdAt: now.iso,
-                    updatedAt: now.iso,
-                });
-                return existingTournament;
-            }
-        } else {
-            const tournamentId = await createTournament(ctx, {
-                uid,
-                gameType,
-                tournamentType,
-                player,
-                season,
-                config,
-                now
-            });
-            return await ctx.db.get(tournamentId);
-        }
-    }
-}
-
-export async function updateTournamentTimestamp(ctx: any, tournament: any, score: number) {
-    const now = getTorontoDate();
-    await ctx.db.patch(tournament._id, {
-        updatedAt: now.iso
-    });
-}
-
-export async function logPropUsage(ctx: any, data: {
-    uid: string;
-    tournamentId: string;
-    matchId: string;
-    propsUsed: string[];
-    gameId?: string;
-    deductionResult?: any;
-}) {
-    const now = getTorontoDate();
-    const logData: any = {
-        uid: data.uid,
-        gameType: "tournament",
-        propType: data.propsUsed.join(","),
-        gameState: {
-            tournamentId: data.tournamentId,
-            matchId: data.matchId,
-            gameId: data.gameId
-        },
-        newGameState: {},
-        params: {},
-        deductionMode: "delayed",
-        gameId: data.gameId,
-        createdAt: now.iso
-    };
-    if (data.deductionResult?.deductionId) {
-        logData.deductionId = data.deductionResult.deductionId;
-    }
-    await ctx.db.insert("prop_usage_logs", logData);
-}
 
 export async function createTournament(ctx: any, { uid, gameType, tournamentType, player, season, config, now }: {
     uid: string;
@@ -724,60 +458,12 @@ export async function createIndependentTournament(ctx: any, { uid, gameType, tou
     return tournamentId;
 }
 
-export async function validateScoreSubmission(ctx: any, { tournamentId, gameType, score, gameData, propsUsed }: SubmitScoreArgs) {
-    // 可根据需要扩展更多校验逻辑
-    return true;
-}
 
-export async function calculatePlayerRankings(ctx: any, tournamentId: string) {
-    const matches = await ctx.db
-        .query("player_matches")
-        .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournamentId))
-        .collect();
-    const playerScores: Record<string, number> = {};
-    for (const match of matches) {
-        if (!playerScores[match.uid]) {
-            playerScores[match.uid] = 0;
-        }
-        playerScores[match.uid] = Math.max(playerScores[match.uid], match.score);
-    }
-    const sorted = Object.entries(playerScores)
-        .sort((a, b) => b[1] - a[1])
-        .map(([uid, score], idx) => ({ uid, score, rank: idx + 1 }));
-    return sorted;
-}
-
-export async function shouldSettleImmediately(ctx: any, tournament: any, tournamentId: string) {
-    // 可根据需要扩展更多结算时机判断逻辑
-    return false;
-}
 
 // ==================== 通用工具函数 ====================
 
 
-/**
- * 通用的锦标赛查找函数
- */
-export async function findTournamentByTimeRange(ctx: any, params: {
-    tournamentType: string;
-    gameType: string;
-    segmentName: string;
-    timeFilter: (tournament: any) => boolean;
-}) {
-    const { tournamentType, gameType, segmentName, timeFilter } = params;
 
-    const existingTournaments = await ctx.db
-        .query("tournaments")
-        .withIndex("by_type_status", (q: any) =>
-            q.eq("tournamentType", tournamentType)
-                .eq("status", "open")
-                .eq("gameType", gameType)
-                .eq("segmentName", segmentName)
-        )
-        .collect();
-
-    return existingTournaments.find(timeFilter);
-}
 
 /**
  * 通用的数据获取函数
@@ -957,33 +643,11 @@ export async function deductEntryFee(ctx: any, params: {
         createdAt: now.iso
     });
 }
-
-
-
-/**
- * 通用的锦标赛状态更新函数
- */
-export async function updateTournamentStatus(ctx: any, params: {
-    tournamentId: string;
-    status: string;
-    now?: any;
-}) {
-    const { tournamentId, status, now = getTorontoDate() } = params;
-
-    await ctx.db.patch(tournamentId, {
-        status,
-        updatedAt: now.iso
-    });
-}
-
-
-
-export async function findTournament(ctx: any, { tournamentType }: {
-    tournamentType: any;
-}) {
+export async function findTournamentByType(ctx: any, params: { uid: string; tournamntType: any }) {
     const now = getTorontoDate();
     let startTime: string;
-    switch (tournamentType.timeRange) {
+    // 根据时间范围确定开始时间
+    switch (params.tournamntType.timeRange) {
         case "daily":
             startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
             break;
@@ -1008,16 +672,137 @@ export async function findTournament(ctx: any, { tournamentType }: {
             startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
             break;
     }
-    const tournament = await ctx.db
-        .query("tournaments")
-        .withIndex("by_type_now", (q: any) =>
-            q.eq("tournamentType", tournamentType.typeId)
-                .eq("createdAt", startTime)
-        ).unique();
-
-    if (!tournament) {
-        throw new Error("锦标赛不存在");
-    }
+    const tournament = await ctx.db.query("tournaments").withIndex("by_tournamentType_startTime", (q: any) => q.eq("tournamentType", params.tournamntType.typeId).gte("startTime", startTime)).first();
     return tournament;
+}
+export async function findPlayerRank(ctx: any, params: { uid: string; tournamentId: string }) {
+    const { uid, tournamentId } = params;
+    const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid)).unique();
+    if (!playerTournament) {
+        return { uid, rank: -1 }
+    }
+    const tournamentType = await ctx.db.query("tournamentTypes").withIndex("by_typeId", (q: any) => q.eq("typeId", playerTournament.tournamentType)).unique();
+    const playerScore = tournamentType.matchRules.pointsPerMatch ? playerTournament.gamePoint : playerTournament.score;
 
+    const batchSize = 1000; // 每批加载 1000 条记录
+    let currentRank = 0; // 当前累计排名
+    let currentScore = 1000000; // 当前分数，用于处理并列
+    let rank = null;
+    let tournaments: any[] = [];
+    while (true) {
+        // 按 score 降序获取一批数据
+        if (tournamentType.matchRules.pointsPerMatch) {
+            tournaments = await ctx.db
+                .query("player_tournaments")
+                .withIndex("by_tournament_gamePoint", (q: any) => q.eq("tournamentId", tournamentId).lte("gamePoint", currentScore))
+                .order("desc")
+                .take(batchSize)
+                .collect();
+        } else {
+            tournaments = await ctx.db
+                .query("player_tournaments")
+                .withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId).lte("score", currentScore))
+                .order("desc")
+                .take(batchSize)
+                .collect();
+        }
+        // 如果本批次为空，说明已遍历完所有数据
+        if (tournaments.length === 0) {
+            break;
+        }
+
+        currentScore = tournamentType.matchRules.pointsPerMatch ? currentScore = tournaments[tournaments.length - 1].gamePoint : currentScore = tournaments[tournaments.length - 1].score;
+        if (playerScore >= currentScore) {
+            const aboveTournaments = tournaments.filter((t: any) => {
+                if (tournamentType.matchRules.pointsPerMatch) {
+                    return t.gamePoint > playerScore;
+                } else {
+                    return t.score > playerScore;
+                }
+            })
+            let sameScoreTournaments;
+            if (tournamentType.matchRules.pointsPerMatch) {
+                sameScoreTournaments = await ctx.db
+                    .query("player_tournaments")
+                    .withIndex("by_tournament_gamePoint", (q: any) => q.eq("tournamentId", tournamentId).eq("gamePoint", playerScore))
+                    .collect();
+            } else {
+                sameScoreTournaments = await ctx.db
+                    .query("player_tournaments")
+                    .withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId).eq("score", playerScore))
+                    .collect();
+            }
+            const index = sameScoreTournaments.sort((a: any, b: any) => a.updatedAt - b.updatedAt).findIndex((t: any) => t.uid === uid);
+            rank = currentRank + aboveTournaments.length + index;
+            break;
+        }
+        currentRank += tournaments.length;
+    }
+    return rank;
+}
+export async function settleTournament(ctx: any, tournament: any) {
+    const tournamentId = tournament._id;
+    let playerTournaments;
+    tournament.config.rewards.rankRewards.sort((a: any, b: any) => b.rankRange[0] - a.rankRange[0]);
+    const maxRank = tournament.config.rewards.rankRewards[0].rankRange[1]
+    if (tournament.config.matchRules.pointsPerMatch) {
+        playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_gamePoint", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").take(maxRank).collect();
+    } else {
+        playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").take(maxRank).collect();
+    }
+    let rank = 0;
+    for (const playerTournament of playerTournaments) {
+        rank++;
+        const rankReward = tournament.config.rewards.rankRewards.find((reward: any) => rank >= reward.rankRange[0] && playerTournament.rank <= reward.rankRange[1]);
+        if (rankReward) {
+            await ctx.db.patch(playerTournament._id, {
+                status: "settled",
+                rewards: rankReward
+            });
+            const inventory = await ctx.db.query("player_inventory").withIndex("by_uid", (q: any) => q.eq("uid", playerTournament.uid)).first();
+            if (inventory) {
+                const updateData: any = { updatedAt: getTorontoDate().iso };
+                updateData.coins = (inventory.coins ?? 0) + (rankReward.coins ?? 0);
+                if (rankReward.props) {
+                    const props = inventory.props ?? [];
+                    for (const rewardProp of rankReward.props) {
+                        const prop: any = props.find((p: any) => p.propType === rewardProp.propType);
+                        if (prop.quantity) {
+                            prop.quantity += rewardProp.quantity;
+                        } else {
+                            props.push({
+                                pid: rewardProp.propType,
+                                quantity: rewardProp.quantity
+                            });
+                        }
+                    }
+                    updateData.props = props;
+                }
+                if (rankReward.tickets) {
+                    const tickets = inventory.tickets ?? [];
+                    for (const rewardTicket of rankReward.tickets) {
+                        const ticket: any = tickets.find((t: any) => t.type === rewardTicket.type);
+                        if (ticket.quantity)
+                            ticket.quantity += rewardTicket.quantity;
+                        else {
+                            tickets.push({
+                                type: rewardTicket.type,
+                                quantity: rewardTicket.quantity
+                            });
+                        }
+                    }
+                    updateData.tickets = tickets;
+                }
+                await ctx.db.patch(inventory._id, updateData);
+            }
+        }
+        await ctx.db.patch(playerTournament._id, {
+            status: "settled",
+            rank,
+            rewards: rankReward
+        });
+    }
+    await ctx.db.patch(tournamentId as Id<"tournaments">, {
+        status: "completed"
+    });
 }

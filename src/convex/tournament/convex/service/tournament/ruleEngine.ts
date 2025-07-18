@@ -272,6 +272,52 @@ export async function applyRules(ctx: any, { tournament, uid, matches, player, i
     rank = playerRank?.rank || 0;
     reward = config.rewards.rankRewards.find((r: any) => rank >= r.rankRange[0] && rank <= r.rankRange[1]);
     pointsEarned = config.rewards.baseRewards.gamePoints * (reward?.multiplier || 1);
+  } else if (config.matchRules.rankingMethod === "total_score") {
+    // 计算累积总分排名
+    const playerScores = new Map<string, number>();
+    for (const match of matches) {
+      const currentScore = playerScores.get(match.uid) || 0;
+      playerScores.set(match.uid, currentScore + match.score);
+    }
+    const sortedPlayers = [...playerScores.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([uid], index) => ({ uid, rank: index + 1 }));
+    const playerRank = sortedPlayers.find((p: any) => p.uid === uid);
+    rank = playerRank?.rank || 0;
+    reward = config.rewards.rankRewards.find((r: any) => rank >= r.rankRange[0] && rank <= r.rankRange[1]);
+    pointsEarned = config.rewards.baseRewards.gamePoints * (reward?.multiplier || 1);
+  } else if (config.matchRules.rankingMethod === "average_score") {
+    // 计算平均分数排名
+    const playerScores = new Map<string, { total: number; count: number }>();
+    for (const match of matches) {
+      const current = playerScores.get(match.uid) || { total: 0, count: 0 };
+      playerScores.set(match.uid, {
+        total: current.total + match.score,
+        count: current.count + 1
+      });
+    }
+    const sortedPlayers = [...playerScores.entries()]
+      .map(([uid, stats]) => ({ uid, averageScore: stats.total / stats.count }))
+      .sort((a, b) => b.averageScore - a.averageScore)
+      .map((player, index) => ({ ...player, rank: index + 1 }));
+    const playerRank = sortedPlayers.find((p: any) => p.uid === uid);
+    rank = playerRank?.rank || 0;
+    reward = config.rewards.rankRewards.find((r: any) => rank >= r.rankRange[0] && rank <= r.rankRange[1]);
+    pointsEarned = config.rewards.baseRewards.gamePoints * (reward?.multiplier || 1);
+  } else if (config.matchRules.rankingMethod === "best_of_attempts") {
+    // 最佳尝试排名（类似highest_score但可能包含更复杂的评估）
+    const playerScores = new Map<string, number>();
+    for (const match of matches) {
+      const currentScore = playerScores.get(match.uid) || 0;
+      playerScores.set(match.uid, Math.max(currentScore, match.score));
+    }
+    const sortedPlayers = [...playerScores.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([uid], index) => ({ uid, rank: index + 1 }));
+    const playerRank = sortedPlayers.find((p: any) => p.uid === uid);
+    rank = playerRank?.rank || 0;
+    reward = config.rewards.rankRewards.find((r: any) => rank >= r.rankRange[0] && rank <= r.rankRange[1]);
+    pointsEarned = config.rewards.baseRewards.gamePoints * (reward?.multiplier || 1);
   }
 
   let finalReward = {

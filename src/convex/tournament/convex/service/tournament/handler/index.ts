@@ -1,7 +1,7 @@
-import { bestOfSeriesHandler } from "./bestOfSeriesHandler";
-import { independentTournamentHandler } from "./singlePlayerIndependentTournamentHandler";
+
 import { multiPlayerIndependentMatchHandler } from "./multiPlayerIndependentMatchHandler";
 import { multiPlayerSharedMatchHandler } from "./multiPlayerSharedMatchHandler";
+import { singlePlayerIndependentTournamentHandler } from "./singlePlayerIndependentTournamentHandler";
 
 /**
  * 锦标赛处理器映射
@@ -9,14 +9,11 @@ import { multiPlayerSharedMatchHandler } from "./multiPlayerSharedMatchHandler";
  */
 const HANDLER_MAP: Record<string, any> = {
   // Best of Series 锦标赛
-  "best_of_series_tournament": bestOfSeriesHandler,
-  "bo3_tournament": bestOfSeriesHandler,
-  "bo5_tournament": bestOfSeriesHandler,
 
   // 独立锦标赛 - 统一使用independentTournamentHandler
-  "single_player_tournament": independentTournamentHandler,
-  "independent_tournament": independentTournamentHandler,
-  "single_player_threshold_tournament": independentTournamentHandler,
+  "single_player_tournament": singlePlayerIndependentTournamentHandler,
+  "independent_tournament": singlePlayerIndependentTournamentHandler,
+  "single_player_threshold_tournament": singlePlayerIndependentTournamentHandler,
 
   // 多人锦标赛 - 统一使用unifiedMultiPlayerHandler
   "multi_player_tournament": multiPlayerSharedMatchHandler,
@@ -39,7 +36,7 @@ export function getHandler(tournamentType: string): any {
   const handler = HANDLER_MAP[tournamentType];
   if (!handler) {
     console.warn(`未找到锦标赛类型 ${tournamentType} 的处理器，使用默认处理器`);
-    return independentTournamentHandler; // 默认使用独立锦标赛处理器
+    return singlePlayerIndependentTournamentHandler; // 默认使用独立锦标赛处理器
   }
   return handler;
 }
@@ -128,9 +125,7 @@ export function getHandlerCategories(): Record<string, string[]> {
 
 // 导出所有处理器
 export {
-  bestOfSeriesHandler,
-  independentTournamentHandler,
   multiPlayerIndependentMatchHandler,
-  multiPlayerSharedMatchHandler
+  multiPlayerSharedMatchHandler, singlePlayerIndependentTournamentHandler
 };
 
