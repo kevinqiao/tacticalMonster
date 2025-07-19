@@ -4,7 +4,6 @@ import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import { getTorontoDate } from "../utils";
 import {
-    checkTournamentEligibility,
     findPlayerRank,
     findTournamentByType,
     getCommonData,
@@ -29,7 +28,7 @@ export class TournamentService {
         });
 
         console.log("loadTournamentConfig,TOURNAMENT_CONFIGS", TOURNAMENT_CONFIGS.length)
-        const tournamentConfig = TOURNAMENT_CONFIGS.forEach(async (tournamentConfig) => {
+        TOURNAMENT_CONFIGS.forEach(async (tournamentConfig) => {
 
             await ctx.db.insert("tournament_types", tournamentConfig);
         });
@@ -398,7 +397,7 @@ export class TournamentService {
         const { uid, gameType } = params;
 
         // 获取玩家信息
-        const { player, inventory, season } = await getCommonData(ctx, {
+        const { player, inventory } = await getCommonData(ctx, {
             uid,
             requireInventory: true,
             requireSeason: true
@@ -422,7 +421,7 @@ export class TournamentService {
         for (const tournamentType of tournamentTypes) {
             try {
                 const participation = { rank: -1, attempts: 0 };
-                if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.matchRules.timeRange)) {
+                if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
                     const tournament = await findTournamentByType(ctx, { uid, tournamntType: tournamentType });
                     if (!tournament) {
                         continue;
@@ -436,12 +435,12 @@ export class TournamentService {
                 participation.attempts = attempts;
 
                 // 检查参赛资格
-                const eligibility = await checkTournamentEligibility(ctx, {
-                    tournamentType,
-                    player,
-                    inventory,
-                    attempts
-                });
+                // const eligibility = await checkTournamentEligibility(ctx, {
+                //     tournamentType,
+                //     player,
+                //     inventory,
+                //     attempts
+                // });
 
                 availableTournaments.push({
                     typeId: tournamentType.typeId,
@@ -449,15 +448,15 @@ export class TournamentService {
                     description: tournamentType.description,
                     category: tournamentType.category,
                     gameType: tournamentType.gameType,
-                    config: {
-                        entryRequirements: tournamentType.entryRequirements,
-                        matchRules: tournamentType.matchRules,
-                        rewards: tournamentType.rewards,
-                        schedule: tournamentType.schedule,
-                        limits: tournamentType.limits,
-                        advanced: tournamentType.advanced
-                    },
-                    eligibility,
+                    // config: {
+                    //     entryRequirements: tournamentType.entryRequirements,
+                    //     matchRules: tournamentType.matchRules,
+                    //     rewards: tournamentType.rewards,
+                    //     schedule: tournamentType.schedule,
+                    //     limits: tournamentType.limits,
+                    //     advanced: tournamentType.advanced
+                    // },
+                    // eligibility,
                     participation,
                     priority: tournamentType.priority || 5
                 });
@@ -563,6 +562,7 @@ export const getAvailableTournaments = (query as any)({
         category: v.optional(v.string()),
     },
     handler: async (ctx: any, args: any) => {
+        console.log("getAvailableTournaments", args);
         const result = await TournamentService.getAvailableTournaments(ctx, args);
         return result;
     },

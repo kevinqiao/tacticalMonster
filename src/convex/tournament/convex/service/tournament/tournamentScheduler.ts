@@ -19,7 +19,7 @@ export class TournamentScheduler {
             // 获取所有每日锦标赛配置
             const dailyConfigs = await ctx.db
                 .query("tournament_types")
-                .filter((q: any) => q.eq(q.field("category"), "daily"))
+                .filter((q: any) => q.eq(q.field("timeRange"), "daily"))
                 .filter((q: any) => q.eq(q.field("isActive"), true))
                 .collect();
 
@@ -27,9 +27,7 @@ export class TournamentScheduler {
                 try {
                     // 检查是否已创建今日锦标赛
                     const existingTournament = await this.findExistingTournament(ctx, {
-                        tournamentType: config.typeId,
-                        now,
-                        category: "daily"
+                        tournamentType: config
                     });
 
                     if (!existingTournament) {
@@ -72,7 +70,7 @@ export class TournamentScheduler {
             // 获取所有每周锦标赛配置
             const weeklyConfigs = await ctx.db
                 .query("tournament_types")
-                .filter((q: any) => q.eq(q.field("category"), "weekly"))
+                .filter((q: any) => q.eq(q.field("timeRange"), "weekly"))
                 .filter((q: any) => q.eq(q.field("isActive"), true))
                 .collect();
 
@@ -80,9 +78,7 @@ export class TournamentScheduler {
                 try {
                     // 检查是否已创建本周锦标赛
                     const existingTournament = await this.findExistingTournament(ctx, {
-                        tournamentType: config.typeId,
-                        now,
-                        category: "weekly"
+                        tournamentType: config
                     });
 
                     if (!existingTournament) {
@@ -133,7 +129,7 @@ export class TournamentScheduler {
             // 获取所有赛季锦标赛配置
             const seasonalConfigs = await ctx.db
                 .query("tournament_types")
-                .filter((q: any) => q.eq(q.field("category"), "seasonal"))
+                .filter((q: any) => q.eq(q.field("timeRange"), "seasonal"))
                 .filter((q: any) => q.eq(q.field("isActive"), true))
                 .collect();
 
@@ -141,10 +137,7 @@ export class TournamentScheduler {
                 try {
                     // 检查是否已创建本赛季锦标赛
                     const existingTournament = await this.findExistingTournament(ctx, {
-                        tournamentType: config.typeId,
-                        season,
-                        now,
-                        category: "seasonal"
+                        tournamentType: config
                     });
 
                     if (!existingTournament) {
@@ -328,93 +321,43 @@ export class TournamentScheduler {
         return getWeekStart(dateStr);
     }
 
-    /**
-     * 通知玩家新锦标赛
-     */
-    private static async notifyPlayersAboutNewTournament(ctx: any, params: {
-        tournamentId: string;
-        tournamentType: string;
-        name: string;
-        description: string;
-        gameType: string;
-    }) {
-        const now = getTorontoDate();
-
-        try {
-            // 获取所有活跃玩家
-            const players = await ctx.db
-                .query("players")
-                .filter((q: any) => q.eq(q.field("isActive"), true))
-                .collect();
-
-            // 为每个玩家创建通知
-            for (const player of players) {
-                await ctx.db.insert("notifications", {
-                    uid: player.uid,
-                    message: `新的${params.name}已开始！快来参与吧！`,
-                    createdAt: now.iso
-                });
-            }
-
-            console.log(`已通知 ${players.length} 个玩家关于新锦标赛 ${params.tournamentType}`);
-
-        } catch (error) {
-            console.error("通知玩家失败:", error);
-            // 不抛出错误，避免影响主要流程
-        }
-    }
 
     /**
      * 查找现有锦标赛
      */
     private static async findExistingTournament(ctx: any, params: {
-        tournamentType: string;
-        season?: any;
-        now: any;
-        category: string;
+        tournamentType: any;
     }) {
-        const { tournamentType, season, now, category } = params;
-
-        // 基础查询：同类型的开放锦标赛
-        let query = ctx.db
-            .query("tournaments")
-            .withIndex("by_type_status", (q: any) =>
-                q.eq("tournamentType", tournamentType)
-                    .eq("status", "open")
-            );
-
-        // 根据锦标赛类型添加时间过滤
-        switch (category) {
+        const now = getTorontoDate();
+        let startTime: string;
+        // 根据时间范围确定开始时间
+        switch (params.tournamentType.timeRange) {
             case "daily":
-                const today = now.localDate.toISOString().split("T")[0];
-                const dailyTournaments = await query.collect();
-                return dailyTournaments.find((tournament: any) => {
-                    const createdAt = tournament.createdAt;
-                    if (!createdAt) return false;
-                    const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-                    return createdAtStr.startsWith(today);
-                });
-
+                startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
+                break;
             case "weekly":
-                const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
-                const weeklyTournaments = await query.collect();
-                return weeklyTournaments.find((tournament: any) => {
-                    const createdAt = tournament.createdAt;
-                    if (!createdAt) return false;
-                    const createdAtStr = typeof createdAt === 'string' ? createdAt : createdAt.toISOString();
-                    const tournamentWeekStart = this.getWeekStart(createdAtStr.split("T")[0]);
-                    return tournamentWeekStart === weekStart;
-                });
-
+                const weekStart = new Date(now.localDate);
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                weekStart.setHours(0, 0, 0, 0);
+                startTime = weekStart.toISOString();
+                break;
             case "seasonal":
-                if (!season) return null;
-                return await query
-                    .filter((q: any) => q.eq(q.field("seasonId"), season._id))
+                // 获取当前赛季开始时间
+                const season = await ctx.db
+                    .query("seasons")
+                    .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
                     .first();
-
+                startTime = season?.startDate || now.localDate.toISOString();
+                break;
+            case "total":
+                startTime = "1970-01-01T00:00:00.000Z";
+                break;
             default:
-                return null;
+                startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
+                break;
         }
+        return await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamentType.typeId).eq("status", "open").gte("createdAt", startTime)).first();
+
     }
 
     /**

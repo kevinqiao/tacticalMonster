@@ -22,6 +22,7 @@ import type * as dao_tournamentDao from "../dao/tournamentDao.js";
 import type * as data_testLimitsConfiguration from "../data/testLimitsConfiguration.js";
 import type * as data_tournamentConfigUsage from "../data/tournamentConfigUsage.js";
 import type * as data_tournamentConfigs from "../data/tournamentConfigs.js";
+import type * as data_tournamentConfigs_all from "../data/tournamentConfigs_all.js";
 import type * as http from "../http.js";
 import type * as init_initPlayers from "../init/initPlayers.js";
 import type * as init_initTournamentTypes from "../init/initTournamentTypes.js";
@@ -145,6 +146,7 @@ declare const fullApi: ApiFromModules<{
   "data/testLimitsConfiguration": typeof data_testLimitsConfiguration;
   "data/tournamentConfigUsage": typeof data_tournamentConfigUsage;
   "data/tournamentConfigs": typeof data_tournamentConfigs;
+  "data/tournamentConfigs_all": typeof data_tournamentConfigs_all;
   http: typeof http;
   "init/initPlayers": typeof init_initPlayers;
   "init/initTournamentTypes": typeof init_initTournamentTypes;

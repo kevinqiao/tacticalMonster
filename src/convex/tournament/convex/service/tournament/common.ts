@@ -647,6 +647,7 @@ export async function findTournamentByType(ctx: any, params: { uid: string; tour
     const now = getTorontoDate();
     let startTime: string;
     // 根据时间范围确定开始时间
+    console.log(params.tournamntType.timeRange);
     switch (params.tournamntType.timeRange) {
         case "daily":
             startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
@@ -672,7 +673,7 @@ export async function findTournamentByType(ctx: any, params: { uid: string; tour
             startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
             break;
     }
-    const tournament = await ctx.db.query("tournaments").withIndex("by_tournamentType_startTime", (q: any) => q.eq("tournamentType", params.tournamntType.typeId).gte("startTime", startTime)).first();
+    const tournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamntType.typeId).eq("status", "open").gte("createdAt", startTime)).first();
     return tournament;
 }
 export async function findPlayerRank(ctx: any, params: { uid: string; tournamentId: string }) {

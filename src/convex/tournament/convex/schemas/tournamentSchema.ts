@@ -76,9 +76,9 @@ export const tournamentSchema = {
         endTime: v.string(),
     }).index("by_season_game_segment_status", ["seasonId", "gameType", "segmentName", "status"])
         .index("by_type_status", ["tournamentType", "status"])
-        .index("by_type_status_game", ["tournamentType", "status", "gameType"]) // 新增：优化独立赛查询
-        .index("by_status_game", ["status", "gameType"]) // 新增：优化普通赛查询
-        .index("by_type_status_createdAt", ["tournamentType", "status", "createdAt"]),
+        .index("by_type_status_createdAt", ["tournamentType", "status", "createdAt"])
+        .index("by_type_status_gameType", ["tournamentType", "status", "gameType"])
+        .index("by_type_status_gameType_createdAt", ["tournamentType", "status", "gameType", "createdAt"]),
 
     // 玩家与锦标赛的关系表
     player_tournaments: defineTable({
