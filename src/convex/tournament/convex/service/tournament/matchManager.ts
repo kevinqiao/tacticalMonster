@@ -53,6 +53,14 @@ export class MatchManager {
         });
 
         // 记录比赛创建事件
+
+        const match = await ctx.db.get(matchId);
+        if (uids) {
+            await this.joinMatch(ctx, {
+                uids,
+                match: match
+            });
+        }
         await ctx.db.insert("match_events", {
             matchId,
             tournamentId: params.tournamentId,
@@ -65,14 +73,6 @@ export class MatchManager {
             timestamp: now.iso,
             createdAt: now.iso,
         });
-        const match = await ctx.db.get(matchId);
-        if (uids) {
-            await this.joinMatch(ctx, {
-                uids,
-                match: match
-            });
-        }
-
         return match;
     }
 
@@ -85,26 +85,30 @@ export class MatchManager {
     }) {
         const now = getTorontoDate();
         const { uids, match } = params;
+        if (uids.length === 0) {
+            throw new Error("玩家列表不能为空");
+        }
 
         // 检查比赛人数限制
-        const currentPlayers = await ctx.db
+        const currentPlayers = match.maxPlayers !== match.minPlayers ? await ctx.db
             .query("player_matches")
             .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
-            .collect();
+            .collect() : [];
         const size = currentPlayers.length + uids.length;
         if (size > match.maxPlayers) {
             throw new Error("比赛人数已满");
+        } else {
+            await ctx.db.patch(match._id, {
+                status: size === match.maxPlayers ? "matched" : "matching"
+            });
         }
         const gameSize = GAME_MODES[match.gameType] === "independent" ? uids.length : 1;
         const gameIds: string[] = [];
         for (let i = 0; i < gameSize; i++) {
-            const gameId = `game_${match._id}_100_${i + 1}`;
+            const gameId = `game_${match._id}_${Date.now()}_${i + 1}`;
             gameIds.push(gameId);
         }
-        await this.createRemoteGame(ctx, {
-            gameType: match.gameType,
-            gameIds: gameIds
-        });
+
         uids.forEach(async (uid: string, index: number) => {
             const gameId = GAME_MODES[match.gameType] === "independent" ? gameIds[index] : gameIds[0];
             await ctx.db.insert("player_matches", {
@@ -125,6 +129,10 @@ export class MatchManager {
                 updatedAt: now.iso,
             });
         });
+        // await this.createRemoteGame(ctx, {
+        //     gameType: match.gameType,
+        //     gameIds: gameIds
+        // });
 
     }
 

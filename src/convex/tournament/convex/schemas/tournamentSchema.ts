@@ -337,12 +337,11 @@ export const tournamentSchema = {
         tournamentType: v.string(),
         gameType: v.string(),
         matchType: v.string(), // "single_player", "multi_player", "team"
-        status: v.string(), // "pending", "in_progress", "completed", "cancelled"
+        status: v.string(), // "pending","tomatching", "matched", "completed", "cancelled"
         maxPlayers: v.number(),
         minPlayers: v.number(),
         startTime: v.optional(v.string()),
         endTime: v.optional(v.string()),
-        gameData: v.any(), // 游戏通用数据，如规则配置
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_tournament", ["tournamentId"])
