@@ -22,25 +22,21 @@ export class TournamentMatchingService {
      * 只负责将玩家加入队列，不执行匹配逻辑
      */
     static async joinMatchingQueue(ctx: any, params: {
-        uid: string;
-        tournamentId?: string; // 可选，独立模式下不需要
-        gameType: string;
-        tournamentType?: string; // 新增：锦标赛类型，独立模式下需要
+        tournament: any; // 可选，独立模式下不需要     
+        tournamentType: any; // 新增：锦标赛类型，独立模式下需要
         player: any;
-        config: any;
-        mode?: "traditional" | "independent"; // 新增：匹配模式
+
     }) {
         const now = getTorontoDate();
-        const { uid, tournamentId, gameType, tournamentType, player, config, mode = "traditional" } = params;
-
+        const { tournament, tournamentType, player } = params;
         try {
+            const config = tournamentType.config;
             // 1. 检查是否已在队列中
             const existingQueue = await this.findExistingQueue(ctx, {
-                uid,
-                tournamentId,
-                gameType,
-                tournamentType,
-                mode
+                uid: params.player.uid,
+                tournamentId: tournament._id,
+                gameType: tournamentType.gameType,
+                tournamentType: tournamentType.typeId,
             });
 
             if (existingQueue) {
@@ -68,9 +64,9 @@ export class TournamentMatchingService {
 
             // 4. 加入匹配队列
             const queueId = await ctx.db.insert("matchingQueue", {
-                uid,
-                tournamentId: tournamentId || null, // 独立模式下为null
-                gameType,
+                uid: params.player.uid,
+                tournamentId: tournament._id || null, // 独立模式下为null
+                gameType: tournamentType.gameType,
                 tournamentType: tournamentType || null, // 独立模式下需要
                 playerInfo: {
                     uid: player.uid,
@@ -89,7 +85,6 @@ export class TournamentMatchingService {
                     config: config,
                     playerLevel: player.level,
                     playerRank: player.rank,
-                    mode: mode // 记录匹配模式
                 },
                 createdAt: now.iso,
                 updatedAt: now.iso
@@ -98,15 +93,14 @@ export class TournamentMatchingService {
             // 5. 记录匹配事件
             await ctx.db.insert("match_events", {
                 matchId: undefined,
-                tournamentId: tournamentId || undefined,
-                uid,
+                tournamentId: tournament._id || undefined,
+                uid: params.player.uid,
                 eventType: "player_joined_queue",
                 eventData: {
                     algorithm: matchingConfig.algorithm,
                     priority,
                     weight,
                     queueId,
-                    mode: mode
                 },
                 timestamp: now.iso,
                 createdAt: now.iso
@@ -118,7 +112,7 @@ export class TournamentMatchingService {
                 status: "waiting",
                 message: "已加入匹配队列，等待匹配中",
                 waitTime: 0,
-                estimatedWaitTime: this.estimateWaitTime(ctx, gameType, tournamentType, mode)
+                estimatedWaitTime: this.estimateWaitTime(ctx, tournamentType.gameType, tournamentType.typeId)
             };
 
         } catch (error) {
@@ -303,18 +297,8 @@ export class TournamentMatchingService {
 
             // 创建比赛
             const matchId = await MatchManager.createMatch(ctx, {
-                tournamentId: actualTournamentId,
-                gameType,
-                matchType: "multi_player",
-                maxPlayers: config.matchRules?.maxPlayers || 4,
-                minPlayers: config.matchRules?.minPlayers || 2,
-                gameData: {
-                    matchType: "queue_based_matching",
-                    algorithm: config.advanced?.matching?.algorithm || "skill_based",
-                    mode: mode,
-                    createdAt: now.iso,
-                    queueIds: playerGroup.map(p => p._id)
-                }
+                tournamentId: tournamentId,
+                typeId: tournamentType,
             });
 
             // 更新所有相关玩家的队列状态
@@ -329,14 +313,12 @@ export class TournamentMatchingService {
             }
 
             // 所有玩家加入比赛
-            for (const playerInfo of playerGroup) {
-                await MatchManager.joinMatch(ctx, {
-                    matchId,
-                    tournamentId: actualTournamentId,
-                    uid: playerInfo.uid,
-                    gameType
-                });
-            }
+            // for (const playerInfo of playerGroup) {
+            //     await MatchManager.joinMatch(ctx, {
+            //         matchId,
+            //         players: playerGroup.map(p => p.playerInfo.uid),
+            //     });
+            // }
 
             // 记录匹配成功事件
             await ctx.db.insert("match_events", {
@@ -354,14 +336,7 @@ export class TournamentMatchingService {
                 createdAt: now.iso
             });
 
-            // 发送匹配成功通知
-            await this.sendMatchNotification(ctx, {
-                players: playerGroup,
-                matchId,
-                tournamentId: actualTournamentId,
-                gameId: `match_${matchId}`,
-                serverUrl: "remote_server_url"
-            });
+
 
             return {
                 success: true,
@@ -476,37 +451,25 @@ export class TournamentMatchingService {
         tournamentId?: string;
         gameType: string;
         tournamentType?: string;
-        mode: string;
     }) {
-        const { uid, tournamentId, gameType, tournamentType, mode } = params;
+        const { uid, tournamentId, gameType, tournamentType } = params;
 
-        if (mode === "traditional" && tournamentId) {
-            // 传统模式：按锦标赛ID查找
-            return await ctx.db
-                .query("matchingQueue")
-                .withIndex("by_uid_tournament", (q: any) =>
-                    q.eq("uid", uid).eq("tournamentId", tournamentId)
+        // 独立模式：按锦标赛类型查找
+        return await ctx.db
+            .query("matchingQueue")
+            .withIndex("by_uid_tournament", (q: any) =>
+                q.eq("uid", uid).eq("tournamentId", null)
+            )
+            .filter((q: any) =>
+                q.and(
+                    q.eq(q.field("status"), "waiting"),
+                    q.eq(q.field("gameType"), gameType),
+                    q.eq(q.field("tournamentType"), tournamentType)
                 )
-                .filter((q: any) => q.eq(q.field("status"), "waiting"))
-                .first();
-        } else if (mode === "independent" && tournamentType) {
-            // 独立模式：按锦标赛类型查找
-            return await ctx.db
-                .query("matchingQueue")
-                .withIndex("by_uid_tournament", (q: any) =>
-                    q.eq("uid", uid).eq("tournamentId", null)
-                )
-                .filter((q: any) =>
-                    q.and(
-                        q.eq(q.field("status"), "waiting"),
-                        q.eq(q.field("gameType"), gameType),
-                        q.eq(q.field("tournamentType"), tournamentType)
-                    )
-                )
-                .first();
-        }
+            )
+            .first();
 
-        return null;
+
     }
 
     /**
@@ -1074,11 +1037,9 @@ export class TournamentMatchingService {
 // Convex 函数接口
 export const joinMatchingQueue = (mutation as any)({
     args: {
-        uid: v.string(),
-        tournamentId: v.optional(v.id("tournaments")),
-        gameType: v.string(),
-        tournamentType: v.optional(v.string()),
-        mode: v.optional(v.union(v.literal("traditional"), v.literal("independent")))
+        player: v.any(),
+        tournament: v.any(),
+        tournamentType: v.any(),
     },
     handler: async (ctx: any, args: any) => {
         // 获取玩家信息
@@ -1127,13 +1088,9 @@ export const joinMatchingQueue = (mutation as any)({
         }
 
         return await TournamentMatchingService.joinMatchingQueue(ctx, {
-            uid: args.uid,
-            tournamentId: args.tournamentId,
-            gameType: args.gameType,
+            tournament: args.tournament,
             tournamentType: args.tournamentType,
             player,
-            config,
-            mode: args.mode || "traditional"
         });
     },
 });

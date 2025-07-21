@@ -4,6 +4,7 @@ import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import { getTorontoDate } from "../utils";
 import {
+    checkTournamentEligibility,
     findPlayerRank,
     findTournamentByType,
     getCommonData,
@@ -37,19 +38,15 @@ export class TournamentService {
     /**
      * 加入锦标赛
      */
-    static async joinTournament(ctx: any, params: {
-        uid: string;
-        gameType: string;
-        typeId: string;
+    static async join(ctx: any, params: {
+        player: any;
+        tournamentType: any;
+        tournament: any;
     }) {
 
-        const handler = getHandler(params.typeId);
+        const handler = getHandler(params.tournamentType.typeId);
         // 执行加入逻辑（处理器内部会处理锦标赛创建）
-        const result = await handler.join(ctx, {
-            uid: params.uid,
-            gameType: params.gameType,
-            typeId: params.typeId
-        });
+        const result = await handler.join(ctx, params);
 
         return {
             success: true,
@@ -421,11 +418,11 @@ export class TournamentService {
         for (const tournamentType of tournamentTypes) {
             try {
                 const participation = { rank: -1, attempts: 0 };
+
                 if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
                     const tournament = await findTournamentByType(ctx, { uid, tournamntType: tournamentType });
-                    if (!tournament) {
+                    if (!tournament)
                         continue;
-                    }
                     participation.rank = await findPlayerRank(ctx, { uid, tournamentId: tournament._id });
                 }
                 const attempts = await getPlayerAttempts(ctx, {
@@ -435,12 +432,12 @@ export class TournamentService {
                 participation.attempts = attempts;
 
                 // 检查参赛资格
-                // const eligibility = await checkTournamentEligibility(ctx, {
-                //     tournamentType,
-                //     player,
-                //     inventory,
-                //     attempts
-                // });
+                const eligibility = await checkTournamentEligibility(ctx, {
+                    tournamentType,
+                    player,
+                    inventory,
+                    attempts
+                });
 
                 availableTournaments.push({
                     typeId: tournamentType.typeId,
@@ -456,7 +453,7 @@ export class TournamentService {
                     //     limits: tournamentType.limits,
                     //     advanced: tournamentType.advanced
                     // },
-                    // eligibility,
+                    eligibility,
                     participation,
                     priority: tournamentType.priority || 5
                 });
@@ -483,11 +480,22 @@ export class TournamentService {
 export const joinTournament = (mutation as any)({
     args: {
         uid: v.string(),
-        gameType: v.string(),
         typeId: v.string(),
     },
-    handler: async (ctx: any, args: any) => {
-        const result = await TournamentService.joinTournament(ctx, args);
+    handler: async (ctx: any, { uid, typeId }: { uid: string, typeId: string }) => {
+        let tournament;
+        const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).unqiue();
+        if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
+            tournament = await findTournamentByType(ctx, { uid, tournamntType: tournamentType });
+            if (!tournament) {
+                throw new Error("锦标赛不存在");
+            }
+        }
+        const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", uid)).unique();
+        if (!player) {
+            throw new Error("玩家不存在");
+        }
+        const result = await TournamentService.join(ctx, { player, tournamentType, tournament });
         return result;
     },
 });
@@ -558,20 +566,16 @@ export const settleCompletedTournaments = (mutation as any)({
 export const getAvailableTournaments = (query as any)({
     args: {
         uid: v.string(),
-        gameType: v.optional(v.string()),
-        category: v.optional(v.string()),
     },
     handler: async (ctx: any, args: any) => {
-        console.log("getAvailableTournaments", args);
+
         const result = await TournamentService.getAvailableTournaments(ctx, args);
         return result;
     },
 });
 
 export const loadTournamentConfig = (internalMutation as any)({
-    args: {
-
-    },
+    args: {},
     handler: async (ctx: any, args: any) => {
         const result = await TournamentService.loadTournamentConfig(ctx);
         return result;

@@ -1,4 +1,5 @@
 
+import { baseHandler } from "./base";
 import { multiPlayerIndependentMatchHandler } from "./multiPlayerIndependentMatchHandler";
 import { multiPlayerSharedMatchHandler } from "./multiPlayerSharedMatchHandler";
 import { singlePlayerIndependentTournamentHandler } from "./singlePlayerIndependentTournamentHandler";
@@ -36,7 +37,8 @@ export function getHandler(tournamentType: string): any {
   const handler = HANDLER_MAP[tournamentType];
   if (!handler) {
     console.warn(`未找到锦标赛类型 ${tournamentType} 的处理器，使用默认处理器`);
-    return singlePlayerIndependentTournamentHandler; // 默认使用独立锦标赛处理器
+    return baseHandler
+    // return singlePlayerIndependentTournamentHandler; // 默认使用独立锦标赛处理器
   }
   return handler;
 }

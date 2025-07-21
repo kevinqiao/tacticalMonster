@@ -2,23 +2,18 @@ import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import { getTorontoDate } from "../utils";
 
+const GAME_MODES: Record<string, string> = {
+    solitaire: "independent",
+    uno: "shared",
+    ludo: "shared",
+    rummy: "shared"
+}
 // 远程游戏服务器配置
-const REMOTE_GAME_CONFIG = {
-    // 游戏服务器API端点
-    gameAPI: process.env.GAME_SERVER_API || "https://game-server.example.com/api/games",
-    eventAPI: process.env.EVENT_SYNC_API || "https://event-sync.example.com/api/events",
-
-    // 游戏类型映射
-    gameTypeMapping: {
-        "solitaire": "solitaire",
-        "uno": "uno",
-        "ludo": "ludo",
-        "rummy": "rummy"
-    },
-
-    // 超时配置
-    timeout: 30000, // 30秒
-    retryAttempts: 3
+const GAME_SERVER_CONFIG: Record<string, string> = {
+    "solitaire": "https://game-server.example.com/api/games",
+    "uno": "https://game-server.example.com/api/games",
+    "ludo": "https://game-server.example.com/api/games",
+    "rummy": "https://game-server.example.com/api/games"
 };
 
 /**
@@ -31,24 +26,28 @@ export class MatchManager {
      */
     static async createMatch(ctx: any, params: {
         tournamentId: string;
-        gameType: string;
-        matchType: string;
-        maxPlayers: number;
-        minPlayers: number;
-        gameData?: any;
+        typeId: string;
+        uids?: string[];
     }) {
+
+        const tournamentType = await ctx.db.query("tournamentTypes").withIndex("by_typeId", (q: any) => q.eq("typeId", params.typeId)).unique();
+        if (!tournamentType) {
+            throw new Error("锦标赛类型不存在");
+        }
+        const { uids, typeId, tournamentId } = params;
         const now = getTorontoDate();
 
         const matchId = await ctx.db.insert("matches", {
-            tournamentId: params.tournamentId,
-            gameType: params.gameType,
-            matchType: params.matchType,
+            tournamentId,
+            tournamentType: typeId,
+            gameType: tournamentType.gameType,
+            matchType: tournamentType.matchRules.matchType,
             status: "pending",
-            maxPlayers: params.maxPlayers,
-            minPlayers: params.minPlayers,
+            maxPlayers: tournamentType.matchRules.maxPlayers,
+            minPlayers: tournamentType.matchRules.minPlayers,
             startTime: undefined,
             endTime: undefined,
-            gameData: params?.gameData || {},
+            gameData: {},
             createdAt: now.iso,
             updatedAt: now.iso,
         });
@@ -59,131 +58,74 @@ export class MatchManager {
             tournamentId: params.tournamentId,
             eventType: "match_created",
             eventData: {
-                matchType: params.matchType,
-                maxPlayers: params.maxPlayers,
-                minPlayers: params.minPlayers,
+                matchType: tournamentType.matchRules.matchType,
+                maxPlayers: tournamentType.matchRules.maxPlayers,
+                minPlayers: tournamentType.matchRules.minPlayers,
             },
             timestamp: now.iso,
             createdAt: now.iso,
         });
+        const match = await ctx.db.get(matchId);
+        if (uids) {
+            await this.joinMatch(ctx, {
+                uids,
+                match: match
+            });
+        }
 
-        return matchId;
+        return match;
     }
 
     /**
      * 玩家加入比赛
      */
     static async joinMatch(ctx: any, params: {
-        matchId: string;
-        tournamentId: string;
-        uid: string;
-        gameType: string;
+        uids: string[];
+        match: any;
     }) {
         const now = getTorontoDate();
-
-        // 检查比赛状态
-        const match = await ctx.db.get(params.matchId);
-        if (!match || match.status !== "pending") {
-            throw new Error("比赛不存在或已开始");
-        }
-
-        // 检查玩家是否已加入
-        const existingPlayer = await ctx.db
-            .query("player_matches")
-            .withIndex("by_match_uid", (q: any) => q.eq("matchId", params.matchId).eq("uid", params.uid))
-            .first();
-
-        if (existingPlayer) {
-            throw new Error("玩家已加入此比赛");
-        }
+        const { uids, match } = params;
 
         // 检查比赛人数限制
         const currentPlayers = await ctx.db
             .query("player_matches")
-            .withIndex("by_match", (q: any) => q.eq("matchId", params.matchId))
+            .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
             .collect();
-
-        if (currentPlayers.length >= match.maxPlayers) {
+        const size = currentPlayers.length + uids.length;
+        if (size > match.maxPlayers) {
             throw new Error("比赛人数已满");
         }
-
-        // 创建玩家比赛记录
-        const playerMatchId = await ctx.db.insert("player_matches", {
-            matchId: params.matchId,
-            tournamentId: params.tournamentId,
-            uid: params.uid,
-            gameType: params.gameType,
-            score: 0,
-            rank: undefined,
-            completed: false,
-            attemptNumber: 1,
-            propsUsed: [],
-            playerGameData: {},
-            joinTime: now.iso,
-            leaveTime: undefined,
-            createdAt: now.iso,
-            updatedAt: now.iso,
+        const gameSize = GAME_MODES[match.gameType] === "independent" ? uids.length : 1;
+        const gameIds: string[] = [];
+        for (let i = 0; i < gameSize; i++) {
+            const gameId = `game_${match._id}_100_${i + 1}`;
+            gameIds.push(gameId);
+        }
+        await this.createRemoteGame(ctx, {
+            gameType: match.gameType,
+            gameIds: gameIds
         });
-
-        // 记录玩家加入事件
-        await ctx.db.insert("match_events", {
-            matchId: params.matchId,
-            tournamentId: params.tournamentId,
-            uid: params.uid,
-            eventType: "player_join",
-            eventData: {
-                playerCount: currentPlayers.length + 1,
-            },
-            timestamp: now.iso,
-            createdAt: now.iso,
-        });
-
-        // 如果达到最小人数，开始比赛并创建远程游戏
-        if (currentPlayers.length + 1 >= match.minPlayers) {
-            await ctx.db.patch(params.matchId, {
-                status: "in_progress",
-                startTime: now.iso,
+        uids.forEach(async (uid: string, index: number) => {
+            const gameId = GAME_MODES[match.gameType] === "independent" ? gameIds[index] : gameIds[0];
+            await ctx.db.insert("player_matches", {
+                matchId: match._id,
+                tournamentId: match.tournamentId,
+                uid: uid,
+                gameId: gameId,
+                gameType: match.gameType,
+                score: 0,
+                rank: undefined,
+                completed: false,
+                attemptNumber: 1,
+                propsUsed: [],
+                playerGameData: {},
+                joinTime: now.iso,
+                leaveTime: undefined,
+                createdAt: now.iso,
                 updatedAt: now.iso,
             });
+        });
 
-            await ctx.db.insert("match_events", {
-                matchId: params.matchId,
-                tournamentId: params.tournamentId,
-                eventType: "match_start",
-                eventData: {
-                    playerCount: currentPlayers.length + 1,
-                },
-                timestamp: now.iso,
-                createdAt: now.iso,
-            });
-
-            // 创建远程游戏
-            const allPlayers = [...currentPlayers, { uid: params.uid }];
-            const gameResult = await this.createRemoteGame(ctx, {
-                matchId: params.matchId,
-                tournamentId: params.tournamentId,
-                uids: allPlayers.map((p: any) => p.uid),
-                gameType: params.gameType,
-                matchType: match.matchType
-            });
-
-            // 记录游戏创建事件
-            await ctx.db.insert("match_events", {
-                matchId: params.matchId,
-                tournamentId: params.tournamentId,
-                eventType: "remote_game_created",
-                eventData: {
-                    gameId: gameResult.gameId,
-                    uids: allPlayers.map((p: any) => p.uid),
-                    gameType: params.gameType,
-                    serverUrl: gameResult.serverUrl
-                },
-                timestamp: now.iso,
-                createdAt: now.iso,
-            });
-        }
-
-        return playerMatchId;
     }
 
 
@@ -313,59 +255,26 @@ export class MatchManager {
      * 创建远程游戏 - 统一接口
      */
     static async createRemoteGame(ctx: any, params: {
-        matchId: string;
-        tournamentId: string;
-        uids: string[];
         gameType: string;
-        matchType: string;
+        gameIds: string[];
+        seed?: string;
     }) {
         const now = getTorontoDate();
 
         try {
-            // 模拟远程游戏创建（用于测试）
-            const gameId = `game_${params.matchId}_${Date.now()}`;
-            const serverUrl = `https://game-server.example.com/game/${gameId}`;
-
-            // 记录游戏创建事件
-            await ctx.db.insert("match_events", {
-                matchId: params.matchId,
-                tournamentId: params.tournamentId,
-                eventType: "remote_game_created",
-                eventData: {
-                    gameId,
-                    uids: params.uids,
-                    gameType: params.gameType,
-                    serverUrl,
-                    mock: true // 标记为模拟数据
-                },
-                timestamp: now.iso,
-                createdAt: now.iso,
-            });
-
-            // 在本地记录玩家事件
-            for (const uid of params.uids) {
-                await ctx.db.insert("player_events", {
-                    uid,
-                    eventType: "GameCreated",
-                    eventData: {
-                        gameId,
-                        matchId: params.matchId,
-                        serverUrl,
-                        gameType: params.gameType
-                    },
-                    timestamp: now.iso,
-                    createdAt: now.iso
-                });
+            const gameServerUrl = GAME_SERVER_CONFIG[params.gameType];
+            if (!gameServerUrl) {
+                throw new Error("游戏服务器配置不存在");
             }
-
-            return {
-                gameId,
-                serverUrl,
-                type: "remote",
-                success: true,
-                mock: true // 标记为模拟数据
-            };
-
+            const response = await fetch(gameServerUrl, {
+                method: "POST",
+                body: JSON.stringify({
+                    gameIds: params.gameIds,
+                    seed: params.seed
+                })
+            });
+            const data = await response.json();
+            return data;
         } catch (error) {
             console.error("创建远程游戏失败:", error);
 
@@ -373,8 +282,6 @@ export class MatchManager {
             await ctx.db.insert("error_logs", {
                 error: `创建远程游戏失败: ${error instanceof Error ? error.message : "未知错误"}`,
                 context: "createRemoteGame",
-                matchId: params.matchId,
-                tournamentId: params.tournamentId,
                 createdAt: now.iso
             });
 

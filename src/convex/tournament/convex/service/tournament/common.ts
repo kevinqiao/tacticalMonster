@@ -6,15 +6,6 @@ import { getTorontoDate } from "../utils";
  * 包含在多个地方使用的共享函数
  */
 
-/**
- * 获取本周开始日期（周一）
- */
-export function getWeekStart(dateStr: string): string {
-    const date = new Date(dateStr);
-    const day = date.getDay() || 7;
-    date.setDate(date.getDate() - (day - 1));
-    return date.toISOString().split("T")[0];
-}
 
 /**
  * 获取玩家尝试次数
@@ -67,21 +58,6 @@ export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
 
 }
 
-/**
- * 获取时间标识符
- */
-export function getTimeIdentifier(now: any, tournamentType: string): string {
-    if (tournamentType.startsWith("daily_")) {
-        return now.localDate.toISOString().split("T")[0];
-    } else if (tournamentType.startsWith("weekly_")) {
-        return getWeekStart(now.localDate.toISOString().split("T")[0]);
-    } else if (tournamentType.startsWith("seasonal_") || tournamentType.startsWith("monthly_")) {
-        return "seasonal";
-    }
-    return "total";
-}
-
-
 
 /**
  * 检查锦标赛参赛资格
@@ -129,8 +105,7 @@ export async function checkTournamentEligibility(ctx: any, params: {
 
     if (entryFee?.tickets) {
         const ticket = inventory?.tickets?.find((t: any) =>
-            t.gameType === entryFee.tickets.gameType &&
-            t.tournamentType === entryFee.tickets.tournamentType
+            t.type === entryFee.tickets.type
         );
         if (!ticket || ticket.quantity < entryFee.tickets.quantity) {
             reasons.push(`需要 ${entryFee.tickets.quantity} 张门票`);
@@ -322,9 +297,9 @@ export interface TournamentHandler {
 }
 
 export interface JoinArgs {
-    uid: string;
-    gameType: string;
-    typeId: string;
+    player: any;
+    tournamentType: any;
+    tournament: any;
 }
 export interface JoinValidateResult {
     attempted: number;
@@ -364,99 +339,56 @@ export interface SubmitScoreResult {
 
 // ==================== 通用函数 ====================
 
-
-export async function createTournament(ctx: any, { uid, gameType, tournamentType, player, season, config, now }: {
-    uid: string;
-    gameType: string;
-    tournamentType: string;
-    player: any;
-    season: any;
-    config: any;
-    now: any;
+export async function createTournament(ctx: any, params: {
+    players: string[];
+    tournamentType: any;
 }) {
-    const entryRequirements = config.entryRequirements;
-    const matchRules = config.matchRules;
-    const schedule = config.schedule;
-    const { getIndependentFromTournamentType } = await import("./utils/tournamentTypeUtils");
-    const isIndependent = await getIndependentFromTournamentType(ctx, tournamentType);
+    const { players, tournamentType } = params;
+    const now = getTorontoDate();
+    const config = tournamentType.config;
+    const season = await ctx.db
+        .query("seasons")
+        .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
+        .first();
+
+    // 创建新的独立锦标赛
     const tournamentId = await ctx.db.insert("tournaments", {
         seasonId: season._id,
-        gameType,
-        segmentName: player.segmentName,
+        gameType: tournamentType.gameType,
         status: "open",
         tournamentType,
-        isSubscribedRequired: entryRequirements?.isSubscribedRequired || false,
-        isSingleMatch: matchRules?.isSingleMatch || false,
-        prizePool: entryRequirements?.entryFee?.coins ? entryRequirements.entryFee.coins * 0.8 : 0,
+        isSubscribedRequired: config.isSubscribedRequired || false,
+        isSingleMatch: false, // 独立锦标赛
+        prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * 0.8 : 0,
         config: {
-            entryRequirements: config.entryRequirements,
-            matchRules: config.matchRules,
-            rewards: config.rewards,
-            schedule: config.schedule,
-            limits: config.limits,
-            advanced: config.advanced
+            ...config,
+            independent: {
+                maxPlayers: config.matchRules?.maxPlayers || 1,
+                minPlayers: config.matchRules?.minPlayers || 1,
+                attemptNumber: 1
+            }
         },
         createdAt: now.iso,
-        updatedAt: now.iso
-    });
-    await ctx.db.insert("player_tournaments", {
-        uid,
-        tournamentId,
-        tournamentType,
-        gameType,
-        status: "active",
-        joinedAt: now.iso,
-        createdAt: now.iso,
         updatedAt: now.iso,
+        endTime: new Date(now.localDate.getTime() + (config.duration || 24 * 60 * 60 * 1000)).toISOString(),
     });
-    return tournamentId;
+
+    // 创建玩家参与关系
+    players.forEach(async (player: string) => {
+        await ctx.db.insert("player_tournaments", {
+            uid: player,
+            tournamentId,
+            joinedAt: now.iso,
+            createdAt: now.iso,
+            updatedAt: now.iso,
+        });
+    });
+
+    const tournament = await ctx.db.get(tournamentId);
+
+    return tournament;
 }
 
-export async function createIndependentTournament(ctx: any, { uid, gameType, tournamentType, player, season, config, now, attemptNumber }: {
-    uid: string;
-    gameType: string;
-    tournamentType: string;
-    player: any;
-    season: any;
-    config: any;
-    now: any;
-    attemptNumber: number;
-}) {
-    const entryRequirements = config.entryRequirements;
-    const matchRules = config.matchRules;
-    const schedule = config.schedule;
-    const tournamentId = await ctx.db.insert("tournaments", {
-        seasonId: season._id,
-        gameType,
-        segmentName: player.segmentName,
-        status: "open",
-        tournamentType,
-        isSubscribedRequired: entryRequirements?.isSubscribedRequired || false,
-        isSingleMatch: matchRules?.isSingleMatch || false,
-        prizePool: entryRequirements?.entryFee?.coins ? entryRequirements.entryFee.coins * 0.8 : 0,
-        config: {
-            entryRequirements: config.entryRequirements,
-            matchRules: config.matchRules,
-            rewards: config.rewards,
-            schedule: config.schedule,
-            limits: config.limits,
-            advanced: config.advanced
-        },
-        createdAt: now.iso,
-        updatedAt: now.iso
-    });
-    await ctx.db.insert("player_tournaments", {
-        uid,
-        tournamentId,
-        tournamentType,
-        gameType,
-        status: "active",
-        joinedAt: now.iso,
-        createdAt: now.iso,
-        updatedAt: now.iso,
-    });
-    return tournamentId;
-}
 
 
 
@@ -647,7 +579,7 @@ export async function findTournamentByType(ctx: any, params: { uid: string; tour
     const now = getTorontoDate();
     let startTime: string;
     // 根据时间范围确定开始时间
-    console.log(params.tournamntType.timeRange);
+
     switch (params.tournamntType.timeRange) {
         case "daily":
             startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
@@ -680,7 +612,7 @@ export async function findPlayerRank(ctx: any, params: { uid: string; tournament
     const { uid, tournamentId } = params;
     const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid)).unique();
     if (!playerTournament) {
-        return { uid, rank: -1 }
+        return -1
     }
     const tournamentType = await ctx.db.query("tournamentTypes").withIndex("by_typeId", (q: any) => q.eq("typeId", playerTournament.tournamentType)).unique();
     const playerScore = tournamentType.matchRules.pointsPerMatch ? playerTournament.gamePoint : playerTournament.score;

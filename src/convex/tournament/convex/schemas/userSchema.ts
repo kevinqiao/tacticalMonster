@@ -99,15 +99,15 @@ export const userSchema = {
     player_inventory: defineTable({
         uid: v.string(),
         coins: v.number(),
-        props: v.array(v.object({
+        props: v.optional(v.array(v.object({
             gameType: v.string(),
             propType: v.string(),
             quantity: v.number(),
-        })),
-        tickets: v.array(v.object({
+        }))),
+        tickets: v.optional(v.array(v.object({
             type: v.string(),
             quantity: v.number(),
-        })),
+        }))),
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_uid", ["uid"]),

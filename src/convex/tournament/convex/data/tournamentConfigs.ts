@@ -75,8 +75,7 @@ export interface EntryRequirements {
     entryFee: {
         coins?: number;
         tickets?: {
-            gameType: string;
-            tournamentType: string;
+            type: string;
             quantity: number;
         };
         props?: Array<{
@@ -300,8 +299,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: {
                 coins: 50,
                 tickets: {
-                    gameType: "solitaire",
-                    tournamentType: "daily_special",
+                    type: "silver",
                     quantity: 1
                 }
             }

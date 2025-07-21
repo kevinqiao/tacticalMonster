@@ -1,8 +1,11 @@
 import { getTorontoDate } from "../../utils";
 import {
   TournamentHandler,
-  getPlayerAttempts,
+  createTournament,
+  getPlayerAttempts
 } from "../common";
+import { MatchManager } from "../matchManager";
+import { TournamentMatchingService } from "../tournamentMatchingService";
 
 // ============================================================================
 // 类型定义
@@ -213,11 +216,11 @@ export const baseHandler: TournamentHandler = {
    * 验证加入条件
    */
   validateJoin: async (ctx: any, params: {
-    uid: string;
+    player: any;
     tournamentType: any;
   }) => {
-    const { uid, tournamentType } = params;
-    const playedMatches = await getPlayerAttempts(ctx, { uid, tournamentType });
+    const { player, tournamentType } = params;
+    const playedMatches = await getPlayerAttempts(ctx, { uid: player.uid, tournamentType });
     const maxAttempts = tournamentType.matchRules?.maxAttempts || 1;
     if (playedMatches.length >= maxAttempts) {
       throw new Error(`已达到最大尝试次数: ${maxAttempts}`);
@@ -226,22 +229,15 @@ export const baseHandler: TournamentHandler = {
     // 获取玩家库存
     const inventory = await ctx.db
       .query("player_inventory")
-      .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+      .withIndex("by_uid", (q: any) => q.eq("uid", player.uid))
       .first();
 
     // 验证入场费
-    await validateEntryFee(ctx, { uid, tournamentType, inventory });
+    await validateEntryFee(ctx, { uid: player.uid, tournamentType, inventory });
 
     // 检查订阅要求
-    if (tournamentType.entryRequirements?.isSubscribedRequired) {
-      const player = await ctx.db
-        .query("players")
-        .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-        .first();
-
-      if (!player || !player.isSubscribed) {
-        throw new Error("此锦标赛需要订阅会员才能参与");
-      }
+    if (tournamentType.entryRequirements?.isSubscribedRequired && !player.isSubscribed) {
+      throw new Error("此锦标赛需要订阅会员才能参与");
     }
     return
   },
@@ -249,7 +245,27 @@ export const baseHandler: TournamentHandler = {
   /**
    * 加入锦标赛
    */
-  join: async (ctx, { uid, gameType, typeId }) => {
+  join: async (ctx, { player, tournamentType, tournament }) => {
+    baseHandler.validateJoin(ctx, { player, tournamentType });
+    if (tournamentType.matchRules.isSingleMatch && tournamentType.matchRules.matchType === "single_match") {
+      const tournamentObj = await createTournament(ctx, { players: [player.uid], tournamentType });
+      const matchId = await MatchManager.createMatch(ctx, {
+        tournamentId: tournamentObj._id,
+        typeId: tournamentType.typeId,
+      });
+      return {
+        tournamentId: tournament._id,
+        attemptNumber: 1,
+        matchId
+      }
+    }
+    await TournamentMatchingService.joinMatchingQueue(ctx, {
+      tournament,
+      tournamentType,
+      player
+    });
+
+
     return;
   },
 

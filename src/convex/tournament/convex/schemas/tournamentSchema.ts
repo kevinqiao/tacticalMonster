@@ -175,8 +175,7 @@ export const tournamentSchema = {
             entryFee: v.object({
                 coins: v.optional(v.number()),
                 tickets: v.optional(v.object({
-                    gameType: v.string(),
-                    tournamentType: v.string(),
+                    type: v.string(),
                     quantity: v.number()
                 })),
                 props: v.optional(v.array(v.object({
@@ -361,9 +360,9 @@ export const tournamentSchema = {
         score: v.number(),
         rank: v.optional(v.number()),
         completed: v.boolean(),
-        attemptNumber: v.number(),
         propsUsed: v.array(v.string()), // 如 ["hint", "undo"]
-        playerGameData: v.any(), // 玩家特定的游戏数据，如 { moves: 80, timeTaken: 200 }
+        gameId: v.string(),
+        gameSeed: v.optional(v.string()),
         joinTime: v.string(),
         leaveTime: v.optional(v.string()),
         createdAt: v.string(),
