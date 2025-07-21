@@ -279,25 +279,12 @@ export class TournamentMatchingService {
     private static async createMatchFromGroup(ctx: any, playerGroup: any[], now: any) {
         try {
             const firstPlayer = playerGroup[0];
-            const { mode, tournamentId, gameType, tournamentType } = firstPlayer;
-            const config = firstPlayer.metadata.config;
-
-            let actualTournamentId = tournamentId;
-
-            // 独立模式：为这场比赛创建新的锦标赛
-            if (mode === "independent") {
-                actualTournamentId = await this.createIndependentTournament(ctx, {
-                    gameType,
-                    tournamentType,
-                    players: playerGroup,
-                    config,
-                    now
-                });
-            }
-
+            const { tournamentId, tournamentType } = firstPlayer;
+            const uids = playerGroup.map((player: any) => player.uid);
             // 创建比赛
-            const matchId = await MatchManager.createMatch(ctx, {
-                tournamentId: tournamentId,
+            const match = await MatchManager.createMatch(ctx, {
+                uids,
+                tournamentId,
                 typeId: tournamentType,
             });
 
@@ -305,43 +292,17 @@ export class TournamentMatchingService {
             for (const playerInfo of playerGroup) {
                 await ctx.db.patch(playerInfo._id, {
                     status: "matched",
-                    matchId,
-                    tournamentId: actualTournamentId,
+                    matchId: match._id,
+                    tournamentId,
                     matchedAt: now.iso,
                     updatedAt: now.iso
                 });
             }
 
-            // 所有玩家加入比赛
-            // for (const playerInfo of playerGroup) {
-            //     await MatchManager.joinMatch(ctx, {
-            //         matchId,
-            //         players: playerGroup.map(p => p.playerInfo.uid),
-            //     });
-            // }
-
-            // 记录匹配成功事件
-            await ctx.db.insert("match_events", {
-                matchId,
-                tournamentId: actualTournamentId,
-                eventType: "match_created",
-                eventData: {
-                    players: playerGroup.map(p => p.uid),
-                    algorithm: config.advanced?.matching?.algorithm,
-                    playerCount: playerGroup.length,
-                    queueIds: playerGroup.map(p => p._id),
-                    mode: mode
-                },
-                timestamp: now.iso,
-                createdAt: now.iso
-            });
-
-
-
             return {
                 success: true,
-                matchId,
-                tournamentId: actualTournamentId,
+                matchId: match._id,
+                tournamentId,
                 playerCount: playerGroup.length
             };
 
