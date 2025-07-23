@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { Id } from "../../_generated/dataModel";
 import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import { getTorontoDate } from "../utils";
@@ -59,34 +58,21 @@ export class TournamentService {
      * 提交分数
      */
     static async submitScore(ctx: any, params: {
-        matchId: string;
         scores: {
+            gameId: string;
             uid: string;
             score: number;
             rank?: number;
             gameData: any;
         }[];
     }) {
-        const match = await ctx.db.get(params.matchId as Id<"matches">);
-        if (!match) {
-            throw new Error("比赛不存在");
-        }
-        const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", match.tournamentType)).first();
-        if (!tournamentType) {
-            throw new Error("锦标赛类型不存在");
-        }
 
-        await MatchManager.submitScore(ctx, {
-            match: match,
-            tournamentType: tournamentType,
-            scores: params.scores
-        });
-        if (tournamentType.matchRules.matchType === "single") {
-            const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament", (q: any) => q.eq("tournamentId", match.tournamentId)).collect();
-            if (playerTournaments.length === tournamentType.matchRules.maxPlayers) {
-                await TournamentService.settle(ctx, match.tournamentId);
-            }
-        }
+
+
+
+        const match = await MatchManager.submitScore(ctx, params);
+
+
         return {
             success: true,
             message: "分数提交成功"
@@ -330,7 +316,9 @@ export class TournamentService {
             throw error;
         }
     }
+    static async collectRewards(ctx: any,params:{uid:string;tournamentId:string}) {
 
+    }
     /**
      * 结算完成的锦标赛
      */
@@ -562,7 +550,13 @@ export const settleCompletedTournaments = (mutation as any)({
         return result;
     },
 });
-
+export const collectRewards = (mutation as any)({
+    args: {},
+    handler: async (ctx: any, args: any) => {
+        const result = await TournamentService.settleCompletedTournaments(ctx);
+        return result;
+    },
+});
 export const getAvailableTournaments = (query as any)({
     args: {
         uid: v.string(),

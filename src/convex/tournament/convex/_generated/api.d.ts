@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as api_segmentAPI from "../api/segmentAPI.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_notificationDao from "../dao/notificationDao.js";
 import type * as dao_playerDao from "../dao/playerDao.js";
@@ -23,6 +24,7 @@ import type * as data_testLimitsConfiguration from "../data/testLimitsConfigurat
 import type * as data_tournamentConfigUsage from "../data/tournamentConfigUsage.js";
 import type * as data_tournamentConfigs from "../data/tournamentConfigs.js";
 import type * as data_tournamentConfigs_all from "../data/tournamentConfigs_all.js";
+import type * as examples_segmentSystemExample from "../examples/segmentSystemExample.js";
 import type * as http from "../http.js";
 import type * as init_initPlayers from "../init/initPlayers.js";
 import type * as init_initTournamentTypes from "../init/initTournamentTypes.js";
@@ -66,6 +68,7 @@ import type * as service_segment_rewardManager from "../service/segment/rewardMa
 import type * as service_segment_segmentDataLoader from "../service/segment/segmentDataLoader.js";
 import type * as service_segment_segmentManager from "../service/segment/segmentManager.js";
 import type * as service_segment_segmentScoringSystem from "../service/segment/segmentScoringSystem.js";
+import type * as service_segment_segmentSystem from "../service/segment/segmentSystem.js";
 import type * as service_segment_softSegmentSystem from "../service/segment/softSegmentSystem.js";
 import type * as service_segment_testScoringSystem from "../service/segment/testScoringSystem.js";
 import type * as service_segment_testSoftSegmentSystem from "../service/segment/testSoftSegmentSystem.js";
@@ -137,6 +140,7 @@ import type * as service_utils from "../service/utils.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "api/segmentAPI": typeof api_segmentAPI;
   "custom/session": typeof custom_session;
   "dao/notificationDao": typeof dao_notificationDao;
   "dao/playerDao": typeof dao_playerDao;
@@ -147,6 +151,7 @@ declare const fullApi: ApiFromModules<{
   "data/tournamentConfigUsage": typeof data_tournamentConfigUsage;
   "data/tournamentConfigs": typeof data_tournamentConfigs;
   "data/tournamentConfigs_all": typeof data_tournamentConfigs_all;
+  "examples/segmentSystemExample": typeof examples_segmentSystemExample;
   http: typeof http;
   "init/initPlayers": typeof init_initPlayers;
   "init/initTournamentTypes": typeof init_initTournamentTypes;
@@ -190,6 +195,7 @@ declare const fullApi: ApiFromModules<{
   "service/segment/segmentDataLoader": typeof service_segment_segmentDataLoader;
   "service/segment/segmentManager": typeof service_segment_segmentManager;
   "service/segment/segmentScoringSystem": typeof service_segment_segmentScoringSystem;
+  "service/segment/segmentSystem": typeof service_segment_segmentSystem;
   "service/segment/softSegmentSystem": typeof service_segment_softSegmentSystem;
   "service/segment/testScoringSystem": typeof service_segment_testScoringSystem;
   "service/segment/testSoftSegmentSystem": typeof service_segment_testSoftSegmentSystem;

@@ -1,3 +1,4 @@
+import { SegmentSystem } from "../../segment/segmentSystem";
 import { getTorontoDate } from "../../utils";
 import {
   TournamentHandler,
@@ -38,6 +39,17 @@ interface SettlementResult {
   settleReason: string;
 }
 
+/**
+ * 段位奖励结果
+ */
+interface SegmentRewardResult {
+  uid: string;
+  oldSegment: string;
+  newSegment: string;
+  scoreChange: number;
+  segmentChanged: boolean;
+  isPromotion: boolean;
+}
 
 // ============================================================================
 // 锦标赛结算相关函数
@@ -59,9 +71,6 @@ async function validateTournamentForSettlement(ctx: any, tournamentId: string) {
   return tournament;
 }
 
-
-
-
 /**
  * 完成锦标赛
  */
@@ -70,6 +79,150 @@ async function completeTournament(ctx: any, tournamentId: string, now: any): Pro
     status: "completed",
     updatedAt: now.iso
   });
+}
+
+/**
+ * 计算锦标赛排名并分配段位分数
+ */
+async function calculateTournamentRankingsAndSegmentRewards(ctx: any, tournamentId: string, tournamentType: string) {
+  const now = getTorontoDate();
+
+  // 获取所有参与玩家
+  const playerTournaments = await ctx.db
+    .query("player_tournaments")
+    .withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId))
+    .filter((q: any) => q.eq(q.field("status"), "active"))
+    .collect();
+
+  // 根据锦标赛类型确定排名方法
+  let rankings: any[] = [];
+
+  if (tournamentType === "single_match") {
+    // 单场比赛：根据单场比赛排名
+    rankings = await calculateSingleMatchRankings(ctx, tournamentId);
+  } else {
+    // 多场比赛：根据累计 gamePoint 排名
+    rankings = await calculateMultiMatchRankings(ctx, tournamentId);
+  }
+
+  // 分配段位分数奖励
+  const segmentRewards: SegmentRewardResult[] = [];
+  const totalPlayers = rankings.length;
+
+  for (const ranking of rankings) {
+    const { uid, rank, gameType } = ranking;
+
+    // 计算段位分数奖励
+    const scoreChange = SegmentSystem.calculateTournamentSegmentReward(
+      tournamentType,
+      rank,
+      totalPlayers
+    );
+
+    // 更新玩家段位分数
+    const segmentResult = await SegmentSystem.updatePlayerSegmentScore(ctx, {
+      uid,
+      gameType,
+      scoreChange,
+      tournamentType,
+      tournamentId,
+      rank,
+      totalPlayers
+    });
+
+    segmentRewards.push({
+      uid,
+      oldSegment: segmentResult.oldSegment,
+      newSegment: segmentResult.newSegment,
+      scoreChange,
+      segmentChanged: segmentResult.segmentChanged,
+      isPromotion: segmentResult.isPromotion
+    });
+
+    // 记录段位奖励日志
+    await ctx.db.insert("segment_rewards", {
+      uid,
+      tournamentId,
+      tournamentType,
+      gameType,
+      rank,
+      scoreChange,
+      oldSegment: segmentResult.oldSegment,
+      newSegment: segmentResult.newSegment,
+      segmentChanged: segmentResult.segmentChanged,
+      isPromotion: segmentResult.isPromotion,
+      createdAt: now.iso
+    });
+  }
+
+  return {
+    rankings,
+    segmentRewards,
+    totalPlayers
+  };
+}
+
+/**
+ * 计算单场比赛排名
+ */
+async function calculateSingleMatchRankings(ctx: any, tournamentId: string) {
+  // 获取锦标赛的所有比赛
+  const matches = await ctx.db
+    .query("matches")
+    .withIndex("by_tournament", (q: any) => q.eq("tournamentId", tournamentId))
+    .filter((q: any) => q.eq(q.field("status"), "completed"))
+    .collect();
+
+  if (matches.length === 0) {
+    return [];
+  }
+
+  // 单场比赛只有一个比赛，直接使用比赛排名
+  const match = matches[0];
+  const playerMatches = await ctx.db
+    .query("player_matches")
+    .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
+    .filter((q: any) => q.eq(q.field("completed"), true))
+    .order("desc", (q: any) => q.field("score"))
+    .collect();
+
+  // 按分数排序并分配排名
+  const rankings = [];
+  for (let i = 0; i < playerMatches.length; i++) {
+    const playerMatch = playerMatches[i];
+    rankings.push({
+      uid: playerMatch.uid,
+      gameType: playerMatch.gameType,
+      score: playerMatch.score,
+      rank: i + 1
+    });
+  }
+
+  return rankings;
+}
+
+/**
+ * 计算多场比赛排名
+ */
+async function calculateMultiMatchRankings(ctx: any, tournamentId: string) {
+  // 获取所有参与玩家的累计 gamePoint
+  const playerTournaments = await ctx.db
+    .query("player_tournaments")
+    .withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId))
+    .filter((q: any) => q.eq(q.field("status"), "active"))
+    .collect();
+
+  // 按累计 gamePoint 排序
+  const rankings = playerTournaments
+    .sort((a: any, b: any) => (b.gamePoint || 0) - (a.gamePoint || 0))
+    .map((pt: any, index: number) => ({
+      uid: pt.uid,
+      gameType: pt.gameType,
+      gamePoint: pt.gamePoint || 0,
+      rank: index + 1
+    }));
+
+  return rankings;
 }
 
 /**
@@ -239,14 +392,36 @@ export const baseHandler: TournamentHandler = {
     if (tournamentType.entryRequirements?.isSubscribedRequired && !player.isSubscribed) {
       throw new Error("此锦标赛需要订阅会员才能参与");
     }
-    return
+
+    // 检查段位要求
+    if (tournamentType.entryRequirements?.minSegment) {
+      const playerSegment = await ctx.db
+        .query("player_segments")
+        .withIndex("by_uid_game", (q: any) => q.eq("uid", player.uid).eq("gameType", tournamentType.gameType))
+        .first();
+
+      if (!playerSegment) {
+        // 初始化玩家段位
+        await SegmentSystem.initializePlayerSegment(ctx, player.uid, tournamentType.gameType);
+      } else {
+        const playerSegmentTier = SegmentSystem.getSegmentTier(playerSegment.segmentName);
+        const requiredSegmentTier = SegmentSystem.getSegmentTier(tournamentType.entryRequirements.minSegment);
+
+        if (playerSegmentTier < requiredSegmentTier) {
+          throw new Error(`段位不足，需要 ${tournamentType.entryRequirements.minSegment} 段位以上`);
+        }
+      }
+    }
+
+    return;
   },
 
   /**
    * 加入锦标赛
    */
   join: async (ctx, { player, tournamentType, tournament }) => {
-    baseHandler.validateJoin(ctx, { player, tournamentType });
+    await baseHandler.validateJoin(ctx, { player, tournamentType });
+
     if (tournamentType.matchRules.isSingleMatch && tournamentType.matchRules.matchType === "single_match") {
       const tournamentObj = await createTournament(ctx, { players: [player.uid], tournamentType });
       const matchId = await MatchManager.createMatch(ctx, {
@@ -259,12 +434,12 @@ export const baseHandler: TournamentHandler = {
         matchId
       }
     }
+
     await TournamentMatchingService.joinMatchingQueue(ctx, {
       tournament,
       tournamentType,
       player
     });
-
 
     return;
   },
@@ -273,9 +448,6 @@ export const baseHandler: TournamentHandler = {
     await deductEntryFee(ctx, { uid, tournamentType, inventory });
   },
 
-
-
-
   /**
    * 提交分数
    */
@@ -283,19 +455,62 @@ export const baseHandler: TournamentHandler = {
     const now = getTorontoDate();
 
     // 验证分数提交
-
-
-
     // 获取锦标赛信息
     const tournament = await ctx.db.get(tournamentId);
     if (!tournament) {
       throw new Error("锦标赛不存在");
     }
-    return Promise.resolve(undefined);
 
+    // 获取比赛记录
+    const playerMatch = await ctx.db
+      .query("player_matches")
+      .withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid))
+      .filter((q: any) => q.eq(q.field("completed"), false))
+      .first();
+
+    if (!playerMatch) {
+      throw new Error("未找到有效的比赛记录");
+    }
+
+    // 更新比赛记录
+    await ctx.db.patch(playerMatch._id, {
+      score,
+      gameData,
+      propsUsed,
+      completed: true,
+      updatedAt: now.iso
+    });
+
+    // 如果是单场比赛，检查是否需要立即结算
+    if (tournament.isSingleMatch) {
+      const allPlayerMatches = await ctx.db
+        .query("player_matches")
+        .withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId))
+        .filter((q: any) => q.eq(q.field("completed"), true))
+        .collect();
+
+      if (allPlayerMatches.length >= tournament.config?.matchRules?.minPlayers || 2) {
+        // 立即结算
+        await baseHandler.settle(ctx, tournamentId);
+        return {
+          success: true,
+          matchId: playerMatch._id,
+          score,
+          message: "分数提交成功，锦标赛已结算",
+          settled: true,
+          settleReason: "single_match_completed"
+        };
+      }
+    }
+
+    return {
+      success: true,
+      matchId: playerMatch._id,
+      score,
+      message: "分数提交成功",
+      settled: false
+    };
   },
-
-
 
   /**
    * 结算锦标赛
@@ -306,13 +521,16 @@ export const baseHandler: TournamentHandler = {
     // 验证锦标赛是否可以结算
     const tournament = await validateTournamentForSettlement(ctx, tournamentId);
 
-    // 计算玩家排名 - 使用锦标赛配置中的排名方法
-    const rankingMethod = tournament.config?.matchRules?.rankingMethod || "highest_score";
+    // 计算排名并分配段位分数
+    const { rankings, segmentRewards, totalPlayers } = await calculateTournamentRankingsAndSegmentRewards(
+      ctx,
+      tournamentId,
+      tournament.tournamentType
+    );
 
     // 完成锦标赛
     await completeTournament(ctx, tournamentId, now);
 
-    console.log(`锦标赛 ${tournamentId} 结算完成`);
+    console.log(`锦标赛 ${tournamentId} 结算完成，参与玩家 ${totalPlayers} 人，段位变更 ${segmentRewards.filter(r => r.segmentChanged).length} 人`);
   }
-
 };

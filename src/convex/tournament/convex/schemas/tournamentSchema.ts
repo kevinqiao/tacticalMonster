@@ -7,7 +7,7 @@ export const tournamentSchema = {
         // 基础信息
         uid: v.string(),
         tournamentId: v.id("tournaments"),
-        gameType: v.string(),
+        tournamentType: v.string(),
 
         // 玩家信息
         playerInfo: v.object({
@@ -37,10 +37,6 @@ export const tournamentSchema = {
             v.literal("cancelled")
         ),
 
-        // 匹配结果
-        matchId: v.optional(v.id("matches")),
-        playerMatchId: v.optional(v.id("player_matches")),
-
         // 时间信息
         joinedAt: v.string(),
         matchedAt: v.optional(v.string()),
@@ -56,8 +52,8 @@ export const tournamentSchema = {
         // 系统字段
         createdAt: v.string(),
         updatedAt: v.string()
-    }).index("by_tournament_status", ["tournamentId", "status"])
-        .index("by_uid_tournament", ["uid", "tournamentId"])
+    }).index("by_tournament", ["tournamentId"]).index("by_tournament_type", ["tournamentType"])
+        .index("by_uid", ["uid"])
         .index("by_status_priority", ["status", "priority"])
         .index("by_joined_at", ["joinedAt"])
         .index("by_expired_at", ["expiredAt"]),
@@ -67,10 +63,6 @@ export const tournamentSchema = {
         segmentName: v.optional(v.string()), // "Bronze", "Silver", "Gold", "Platinum"
         status: v.string(), // "open", "completed"
         tournamentType: v.string(), // 引用 tournament_types.typeId
-        isSubscribedRequired: v.boolean(),
-        isSingleMatch: v.boolean(),
-        prizePool: v.number(),
-        config: v.any(), // 包含 entryFee, rules, rewards 等
         createdAt: v.string(),
         updatedAt: v.string(),
         endTime: v.string(),
@@ -196,9 +188,6 @@ export const tournamentSchema = {
             matchType: v.string(), // "single_match", "multi_match", "best_of_series", "elimination", "round_robin"
             minPlayers: v.number(),
             maxPlayers: v.number(),
-            isSingleMatch: v.boolean(),
-            maxAttempts: v.optional(v.number()),
-            allowMultipleAttempts: v.boolean(),
             rankingMethod: v.string(), // "highest_score", "total_score", "average_score", "best_of_attempts", "threshold"
             scoreThreshold: v.optional(v.number()),
             timeLimit: v.optional(v.object({
@@ -206,7 +195,7 @@ export const tournamentSchema = {
                 perTurn: v.optional(v.number()),
                 total: v.optional(v.number())
             })),
-            pointsPerMatch: v.optional(v.any()),
+            matchPoints: v.optional(v.any()),
         }),
 
         // 奖励配置
@@ -318,11 +307,6 @@ export const tournamentSchema = {
             }),
             custom: v.optional(v.any())
         })),
-
-        // 兼容性字段（保留原有字段）
-        handlerModule: v.optional(v.string()), // 如 "tournamentHandlers/dailySpecial"
-        // defaultConfig: v.optional(v.any()), // 兼容旧版本
-
         // 时间戳
         createdAt: v.optional(v.string()),
         updatedAt: v.optional(v.string()),
@@ -336,7 +320,6 @@ export const tournamentSchema = {
         tournamentId: v.id("tournaments"),
         tournamentType: v.string(),
         gameType: v.string(),
-        matchType: v.string(), // "single_player", "multi_player", "team"
         status: v.string(), // "pending","tomatching", "matched", "completed", "cancelled"
         maxPlayers: v.number(),
         minPlayers: v.number(),
@@ -352,14 +335,11 @@ export const tournamentSchema = {
     // 玩家比赛记录表 - 存储每个玩家在比赛中的具体表现
     player_matches: defineTable({
         matchId: v.id("matches"),
-        tournamentId: v.id("tournaments"),
-        tournamentType: v.string(),
         uid: v.string(),
-        gameType: v.string(),
         score: v.number(),
         rank: v.optional(v.number()),
         completed: v.boolean(),
-        propsUsed: v.array(v.string()), // 如 ["hint", "undo"]
+        propsUsed: v.optional(v.array(v.string())), // 如 ["hint", "undo"]
         gameId: v.string(),
         gameSeed: v.optional(v.string()),
         joinTime: v.string(),
@@ -367,11 +347,10 @@ export const tournamentSchema = {
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_match_uid", ["matchId", "uid"])
-        .index("by_tournament_uid_createdAt", ["tournamentId", "uid", "createdAt"])
-        .index("by_tournament_uid", ["tournamentId", "uid"])
+        .index("by_uid_createdAt", ["uid", "createdAt"])
         .index("by_player_match", ["uid", "matchId"])
+        .index("by_player_game", ["uid", "gameId"])
         .index("by_match", ["matchId"])
-        .index("by_tournamentType_uid_createdAt", ["tournamentType", "uid", "createdAt"])
         .index("by_completed", ["completed"])
         .index("by_score", ["score"]),
 

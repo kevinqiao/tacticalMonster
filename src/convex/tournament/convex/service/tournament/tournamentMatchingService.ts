@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "../../_generated/server";
+import { SegmentSystem } from "../segment/segmentSystem";
 import { getTorontoDate } from "../utils";
 import { MatchManager } from "./matchManager";
 
@@ -14,12 +15,14 @@ import { MatchManager } from "./matchManager";
  * - 前端只负责加入/退出队列和查询状态
  * - 后台定时任务负责执行匹配逻辑
  * - 通过事件系统通知匹配结果
+ * - 集成段位系统进行智能匹配
  */
 export class TournamentMatchingService {
 
     /**
      * 加入匹配队列
      * 只负责将玩家加入队列，不执行匹配逻辑
+     * 集成段位系统，确保玩家段位已初始化
      */
     static async joinMatchingQueue(ctx: any, params: {
         tournament: any; // 可选，独立模式下不需要     
@@ -31,13 +34,9 @@ export class TournamentMatchingService {
         const { tournament, tournamentType, player } = params;
         try {
             const config = tournamentType.config;
+
             // 1. 检查是否已在队列中
-            const existingQueue = await this.findExistingQueue(ctx, {
-                uid: params.player.uid,
-                tournamentId: tournament._id,
-                gameType: tournamentType.gameType,
-                tournamentType: tournamentType.typeId,
-            });
+            const existingQueue = await ctx.db.query("matchingQueue").withIndex("by_uid", (q: any) => q.eq("uid", player.uid)).first();
 
             if (existingQueue) {
                 return {
@@ -48,11 +47,26 @@ export class TournamentMatchingService {
                 };
             }
 
-            // 2. 计算优先级和权重
-            const priority = this.calculatePriority(player, config);
-            const weight = this.calculateWeight(player, config);
+            // 2. 确保玩家段位已初始化
+            let playerSegment = await ctx.db
+                .query("player_segments")
+                .withIndex("by_uid_game", (q: any) => q.eq("uid", player.uid).eq("gameType", tournamentType.gameType))
+                .first();
 
-            // 3. 创建匹配配置
+            if (!playerSegment) {
+                // 初始化玩家段位
+                await SegmentSystem.initializePlayerSegment(ctx, player.uid, tournamentType.gameType);
+                playerSegment = await ctx.db
+                    .query("player_segments")
+                    .withIndex("by_uid_game", (q: any) => q.eq("uid", player.uid).eq("gameType", tournamentType.gameType))
+                    .first();
+            }
+
+            // 3. 计算优先级和权重（基于段位系统）
+            const priority = this.calculatePriority(player, config, playerSegment);
+            const weight = this.calculateWeight(player, config, playerSegment);
+
+            // 4. 创建匹配配置
             const matchingConfig = {
                 algorithm: config.advanced?.matching?.algorithm || "skill_based",
                 maxWaitTime: config.advanced?.matching?.maxWaitTime || 300,
@@ -62,16 +76,17 @@ export class TournamentMatchingService {
                 fallbackToAI: config.advanced?.matching?.fallbackToAI || false
             };
 
-            // 4. 加入匹配队列
+            // 5. 加入匹配队列
             const queueId = await ctx.db.insert("matchingQueue", {
                 uid: params.player.uid,
-                tournamentId: tournament._id || null, // 独立模式下为null
-                gameType: tournamentType.gameType,
-                tournamentType: tournamentType || null, // 独立模式下需要
+                tournamentId: tournament ? tournament._id : undefined,
+                tournamentType,
                 playerInfo: {
                     uid: player.uid,
                     skill: player.totalPoints || 1000,
-                    segmentName: player.segmentName,
+                    segmentName: playerSegment?.segmentName || "Bronze",
+                    segmentTier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
+                    segmentPoints: playerSegment?.currentPoints || 0,
                     eloScore: player.eloScore,
                     totalPoints: player.totalPoints,
                     isSubscribed: player.isSubscribed
@@ -85,12 +100,17 @@ export class TournamentMatchingService {
                     config: config,
                     playerLevel: player.level,
                     playerRank: player.rank,
+                    segmentInfo: {
+                        name: playerSegment?.segmentName,
+                        tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
+                        points: playerSegment?.currentPoints || 0
+                    }
                 },
                 createdAt: now.iso,
                 updatedAt: now.iso
             });
 
-            // 5. 记录匹配事件
+            // 6. 记录匹配事件
             await ctx.db.insert("match_events", {
                 matchId: undefined,
                 tournamentId: tournament._id || undefined,
@@ -101,6 +121,11 @@ export class TournamentMatchingService {
                     priority,
                     weight,
                     queueId,
+                    segmentInfo: {
+                        name: playerSegment?.segmentName,
+                        tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
+                        points: playerSegment?.currentPoints || 0
+                    }
                 },
                 timestamp: now.iso,
                 createdAt: now.iso
@@ -109,15 +134,23 @@ export class TournamentMatchingService {
             return {
                 success: true,
                 queueId,
-                status: "waiting",
-                message: "已加入匹配队列，等待匹配中",
-                waitTime: 0,
-                estimatedWaitTime: this.estimateWaitTime(ctx, tournamentType.gameType, tournamentType.typeId)
+                status: "joined",
+                message: "成功加入匹配队列",
+                estimatedWaitTime: this.estimateWaitTime(ctx, tournamentType.gameType, tournamentType.typeId, tournament ? "traditional" : "independent"),
+                segmentInfo: {
+                    name: playerSegment?.segmentName,
+                    tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
+                    points: playerSegment?.currentPoints || 0
+                }
             };
 
         } catch (error) {
             console.error("加入匹配队列失败:", error);
-            throw error;
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "未知错误",
+                message: "加入匹配队列失败"
+            };
         }
     }
 
@@ -313,66 +346,13 @@ export class TournamentMatchingService {
     }
 
     /**
-     * 发送匹配成功通知
-     */
-    private static async sendMatchNotification(ctx: any, params: {
-        players: any[];
-        matchId: string;
-        tournamentId: string;
-        gameId: string;
-        serverUrl: string;
-    }) {
-        const { players, matchId, tournamentId, gameId, serverUrl } = params;
-        const now = getTorontoDate();
-
-        for (const player of players) {
-            try {
-                // 创建通知记录
-                await ctx.db.insert("notifications", {
-                    uid: player.uid,
-                    type: "match_success",
-                    title: "匹配成功",
-                    message: "已找到合适的对手，比赛即将开始",
-                    data: {
-                        matchId,
-                        tournamentId,
-                        gameId,
-                        serverUrl,
-                        playerCount: players.length,
-                        joinedAt: player.joinedAt
-                    },
-                    read: false,
-                    createdAt: now.iso
-                });
-
-                // 记录事件
-                await ctx.db.insert("match_events", {
-                    matchId,
-                    tournamentId,
-                    uid: player.uid,
-                    eventType: "match_notification_sent",
-                    eventData: {
-                        gameId,
-                        serverUrl
-                    },
-                    timestamp: now.iso,
-                    createdAt: now.iso
-                });
-
-            } catch (error) {
-                console.error(`发送匹配通知失败 (${player.uid}):`, error);
-            }
-        }
-    }
-
-    /**
      * 按类型分组队列
      */
     private static groupQueuesByType(queues: any[]) {
         const groups = new Map();
 
         for (const queue of queues) {
-            const key = `${queue.metadata?.mode || 'traditional'}_${queue.tournamentId || 'null'}_${queue.gameType}_${queue.tournamentType || 'null'}`;
+            const key = `${queue.tournamentId ?? queue.tournamentType}`;
 
             if (!groups.has(key)) {
                 groups.set(key, []);
@@ -404,34 +384,34 @@ export class TournamentMatchingService {
         return Math.floor(baseWaitTime * gameTypeMultiplier * modeMultiplier);
     }
 
-    /**
-     * 查找现有队列条目
-     */
-    private static async findExistingQueue(ctx: any, params: {
-        uid: string;
-        tournamentId?: string;
-        gameType: string;
-        tournamentType?: string;
-    }) {
-        const { uid, tournamentId, gameType, tournamentType } = params;
+    // /**
+    //  * 查找现有队列条目
+    //  */
+    // private static async findExistingQueue(ctx: any, params: {
+    //     uid: string;
+    //     tournamentId?: string;
+    //     gameType: string;
+    //     tournamentType?: string;
+    // }) {
+    //     const { uid, tournamentId, gameType, tournamentType } = params;
 
-        // 独立模式：按锦标赛类型查找
-        return await ctx.db
-            .query("matchingQueue")
-            .withIndex("by_uid_tournament", (q: any) =>
-                q.eq("uid", uid).eq("tournamentId", null)
-            )
-            .filter((q: any) =>
-                q.and(
-                    q.eq(q.field("status"), "waiting"),
-                    q.eq(q.field("gameType"), gameType),
-                    q.eq(q.field("tournamentType"), tournamentType)
-                )
-            )
-            .first();
+    //     // 独立模式：按锦标赛类型查找
+    //     return await ctx.db
+    //         .query("matchingQueue")
+    //         .withIndex("by_uid_tournament", (q: any) =>
+    //             q.eq("uid", uid).eq("tournamentId", null)
+    //         )
+    //         .filter((q: any) =>
+    //             q.and(
+    //                 q.eq(q.field("status"), "waiting"),
+    //                 q.eq(q.field("gameType"), gameType),
+    //                 q.eq(q.field("tournamentType"), tournamentType)
+    //             )
+    //         )
+    //         .first();
 
 
-    }
+    // }
 
     /**
      * 创建独立锦标赛（独立模式）
@@ -549,14 +529,29 @@ export class TournamentMatchingService {
     }
 
     /**
-     * 计算段位兼容性
+     * 计算段位兼容性（基于新的段位系统）
      */
     private static calculateSegmentCompatibility(player1: any, player2: any): number {
-        const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
-        const level1 = segments.indexOf(player1.segmentName?.toLowerCase()) + 1;
-        const level2 = segments.indexOf(player2.segmentName?.toLowerCase()) + 1;
-        const segmentDiff = Math.abs(level1 - level2);
-        return Math.max(0, 1 - segmentDiff / 4);
+        // 使用新的段位系统计算兼容性
+        const tier1 = player1.segmentTier || SegmentSystem.getSegmentTier(player1.segmentName || "Bronze");
+        const tier2 = player2.segmentTier || SegmentSystem.getSegmentTier(player2.segmentName || "Bronze");
+
+        // 计算段位差异
+        const segmentDiff = Math.abs(tier1 - tier2);
+
+        // 计算段位分数差异
+        const points1 = player1.segmentPoints || 0;
+        const points2 = player2.segmentPoints || 0;
+        const pointsDiff = Math.abs(points1 - points2);
+
+        // 段位差异权重（70%）
+        const tierCompatibility = Math.max(0, 1 - segmentDiff / 8);
+
+        // 分数差异权重（30%）
+        const pointsCompatibility = Math.max(0, 1 - pointsDiff / 1000);
+
+        // 综合兼容性分数
+        return tierCompatibility * 0.7 + pointsCompatibility * 0.3;
     }
 
     /**
@@ -570,9 +565,9 @@ export class TournamentMatchingService {
     }
 
     /**
-     * 计算优先级
+     * 计算优先级（基于新的段位系统）
      */
-    private static calculatePriority(player: any, config: any): number {
+    private static calculatePriority(player: any, config: any, playerSegment: any): number {
         let priority = 0;
 
         // 订阅用户优先级
@@ -580,10 +575,13 @@ export class TournamentMatchingService {
             priority += 100;
         }
 
-        // 段位优先级
-        const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
-        const segmentLevel = segments.indexOf(player.segmentName?.toLowerCase()) + 1;
-        priority += segmentLevel * 10;
+        // 段位优先级（基于新的段位系统）
+        const segmentTier = playerSegment ? SegmentSystem.getSegmentTier(playerSegment.segmentName) : 1;
+        priority += segmentTier * 15; // 增加段位权重
+
+        // 段位分数优先级
+        const segmentPoints = playerSegment?.currentPoints || 0;
+        priority += Math.floor(segmentPoints / 50);
 
         // 技能优先级
         priority += Math.floor((player.totalPoints || 1000) / 100);
@@ -595,9 +593,9 @@ export class TournamentMatchingService {
     }
 
     /**
-     * 计算权重
+     * 计算权重（基于新的段位系统）
      */
-    private static calculateWeight(player: any, config: any): number {
+    private static calculateWeight(player: any, config: any, playerSegment: any): number {
         let weight = 1.0;
 
         // 订阅用户权重
@@ -605,10 +603,13 @@ export class TournamentMatchingService {
             weight *= 1.2;
         }
 
-        // 段位权重
-        const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
-        const segmentLevel = segments.indexOf(player.segmentName?.toLowerCase()) + 1;
-        weight *= (1 + segmentLevel * 0.1);
+        // 段位权重（基于新的段位系统）
+        const segmentTier = playerSegment ? SegmentSystem.getSegmentTier(playerSegment.segmentName) : 1;
+        weight *= (1 + segmentTier * 0.15); // 增加段位权重
+
+        // 段位分数权重
+        const segmentPoints = playerSegment?.currentPoints || 0;
+        weight *= (1 + (segmentPoints / 1000) * 0.1);
 
         // 等级权重
         weight *= (1 + (player.level || 1) * 0.05);

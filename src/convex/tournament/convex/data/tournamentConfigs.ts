@@ -103,17 +103,10 @@ export interface MatchRules {
     // 玩家数量
     minPlayers: number;
     maxPlayers: number;
-
-    // 是否单人比赛
-    isSingleMatch: boolean;
-
-    // 尝试次数
-    maxAttempts?: number;
-    allowMultipleAttempts: boolean;
-
     // 排名规则
-    rankingMethod: "highest_score" | "total_score" | "average_score" | "best_of_attempts" | "threshold";
-
+    rankingMethod: "highest_score" | "total_score" | "average_score" | "threshold";
+    rankingType: "game_point" | "game_score";
+    matchPoints?: { [k: string]: number };
     // 分数阈值（用于threshold排名）
     scoreThreshold?: number;
 
@@ -123,7 +116,7 @@ export interface MatchRules {
         perTurn?: number; // 秒
         total?: number;   // 秒
     };
-    pointsPerMatch?: { [k: string]: number };
+
 
 }
 
@@ -307,12 +300,16 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         matchRules: {
             matchType: "multi_match",
-            minPlayers: 1,
-            maxPlayers: 1,
-            isSingleMatch: true,
-            maxAttempts: 3,
-            allowMultipleAttempts: true,
+            minPlayers: 2,
+            maxPlayers: 4,
             rankingMethod: "highest_score",
+            rankingType: "game_point",
+            matchPoints: {
+                "1st": 100,
+                "2nd": 60,
+                "3rd": 30,
+                "4th": 10
+            },
             timeLimit: {
                 perMatch: 300, // 5分钟
                 total: 900     // 15分钟
@@ -442,10 +439,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            isSingleMatch: true,
-            maxAttempts: 5,
-            allowMultipleAttempts: true,
             rankingMethod: "highest_score",
+            rankingType: "game_score",
             timeLimit: {
                 perMatch: 600, // 10分钟
                 total: 1800    // 30分钟
@@ -647,9 +642,8 @@ export function createDefaultTournamentConfig(
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            isSingleMatch: true,
-            allowMultipleAttempts: true,
-            rankingMethod: "highest_score"
+            rankingMethod: "highest_score",
+            rankingType: "game_score",
         },
 
         rewards: {

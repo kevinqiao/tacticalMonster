@@ -1,6 +1,8 @@
 import { v } from "convex/values";
+import { Id } from "../../_generated/dataModel";
 import { mutation, query } from "../../_generated/server";
 import { getTorontoDate } from "../utils";
+import { TournamentService } from "./tournamentService";
 
 const GAME_MODES: Record<string, string> = {
     solitaire: "independent",
@@ -142,8 +144,6 @@ export class MatchManager {
      * 结束比赛
      */
     static async submitScore(ctx: any, params: {
-        match: any;
-        tournamentType: any;
         scores: {
             uid: string;
             score: number;
@@ -152,66 +152,88 @@ export class MatchManager {
         }[];
     }) {
         const now = getTorontoDate();
-
-        for (const score of params.scores) {
-            const playerMatch = await ctx.db.query("player_matches").withIndex("by_player_match", (q: any) => q.eq("uid", score.uid).eq("matchId", params.match._id)).unique();
+        const scores = params.scores;
+        let matchId: Id<"matches"> | undefined;
+        scores.forEach(async (score: any) => {
+            const playerMatch = await ctx.db.query("player_matches").withIndex("by_player_game", (q: any) => q.eq("uid", score.uid).eq("gameId", score.gameId)).unqiue();
             if (!playerMatch) {
                 throw new Error("玩家比赛记录不存在");
             }
-            const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_player_tournament", (q: any) => q.eq("uid", score.uid).eq("tournamentId", params.match.tournamentId)).unique();
-            if (!playerTournament) {
-                throw new Error("玩家锦标赛记录不存在");
-            }
-            const pointsPerMatch = params.tournamentType.matchRules.pointsPerMatch;
-            if (pointsPerMatch) {
-                if (score.rank) {
-                    playerTournament.gamePoint = (playerTournament.gamePoint ?? 0) + (pointsPerMatch[score.rank] ?? 0);
-                } else {
-                    throw new Error("排名积分不存在");
-                }
-            } else {
-                if (params.tournamentType.matchRules.rankingMethod === "best_score") {
-                    playerTournament.score = Math.max(playerTournament.score ?? 0, score.score);
-                } else if (params.tournamentType.matchRules.rankingMethod === "average_score") {
-                    playerTournament.score = Math.round(((playerTournament.score ?? 0) + score.score) / 2);
-                } else if (params.tournamentType.matchRules.rankingMethod === "total_score") {
-                    playerTournament.score = (playerTournament.score ?? 0) + score.score;
-                }
-            }
-            const playerTournamentPatch = {
-                gamePoint: playerTournament.gamePoint,
-                score: playerTournament.score,
-                completed: params.tournamentType.matchRules.matchType === "single" ? true : false,
-                updatedAt: getTorontoDate().iso
-            }
-            await ctx.db.patch(playerTournament._id, playerTournamentPatch);
+            matchId = playerMatch.matchId;
             await ctx.db.patch(playerMatch._id, {
                 score: score.score,
                 rank: score.rank,
-                gameData: score.gameData,
                 completed: true,
-                updatedAt: getTorontoDate().iso
+                updatedAt: now.iso
             });
+        });
+        if (!matchId) {
+            throw new Error("比赛不存在");
         }
-
-
-
-        // 记录比赛结束事件
-        await ctx.db.insert("match_events", {
-            matchId: params.match._id,
-            tournamentId: params.match.tournamentId,
-            eventType: "match_score_submitted",
-            eventData: {
-                scores: params.scores
-            },
-            timestamp: now.iso,
-            createdAt: now.iso,
+        return await this.settleMatch(ctx, {
+            matchId
         });
 
+    }
 
-        return {
-            success: true
-        };
+    /**
+     * 结算比赛
+     */
+    static async settleMatch(ctx: any, params: {
+        matchId: Id<"matches">;
+    }) {
+        const now = getTorontoDate();
+        const match = await ctx.db.get(params.matchId);
+        const playerMatches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", params.matchId)).collect();
+        const completed = playerMatches.every((playerMatch: any) => playerMatch.completed);
+        if (completed && playerMatches.length === match.maxPlayers) {
+            const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", match.tournamentType)).unique();
+            if (!tournamentType) {
+                throw new Error("锦标赛类型不存在");
+            }
+            const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament", (q: any) => q.eq("tournamentId", match.tournamentId)).collect();
+            const matchRules = tournamentType.matchRules;
+
+            playerMatches.sort((a: any, b: any) => b.score - a.score);
+            playerMatches.forEach(async (playerMatch: any, index: number) => {
+                const playerTournament = playerTournaments.find((playerTournament: any) => playerTournament.uid === playerMatch.uid);
+                playerMatch.rank = index + 1;
+                if (matchRules.matchPoints) {
+                    playerTournament.points = matchRules.matchPoints[playerMatch.rank];
+                } else {
+                    switch (tournamentType.matchRules.rankingMethod) {
+                        case "highest_score":
+                            playerTournament.score = Math.max(playerTournament.score, playerMatch.score);
+                            break;
+                        case "total_score":
+                            playerTournament.score += playerMatch.score;
+                            break;
+                        case "average_score":
+                            playerTournament.score = (playerTournament.score + playerMatch.score) / 2;
+                        case "threshold":
+                            if (playerMatch.score >= tournamentType.matchRules.threshold) {
+                                playerTournament.score = playerMatch.score;
+                            }
+                            break;
+                    }
+                }
+                await ctx.db.patch(playerTournament._id, {
+                    score: playerTournament.score,
+                    completed: true,
+                    updatedAt: now.iso
+                });
+            });
+            await ctx.db.patch(match._id, {
+                status: "completed",
+                updatedAt: now.iso
+            });
+
+            if (matchRules.matchType === "single_match") {
+                await TournamentService.settle(ctx, match.tournamentId);
+            }
+
+        }
+
     }
 
     /**
