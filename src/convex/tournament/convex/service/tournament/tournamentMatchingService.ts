@@ -48,23 +48,23 @@ export class TournamentMatchingService {
             }
 
             // 2. 确保玩家段位已初始化
-            let playerSegment = await ctx.db
-                .query("player_segments")
-                .withIndex("by_uid_game", (q: any) => q.eq("uid", player.uid).eq("gameType", tournamentType.gameType))
-                .first();
+            // let playerSegment = await ctx.db
+            //     .query("player_segments")
+            //     .withIndex("by_uid_game", (q: any) => q.eq("uid", player.uid).eq("gameType", tournamentType.gameType))
+            //     .first();
 
-            if (!playerSegment) {
-                // 初始化玩家段位
-                await SegmentSystem.initializePlayerSegment(ctx, player.uid, tournamentType.gameType);
-                playerSegment = await ctx.db
-                    .query("player_segments")
-                    .withIndex("by_uid_game", (q: any) => q.eq("uid", player.uid).eq("gameType", tournamentType.gameType))
-                    .first();
-            }
+            // if (!playerSegment) {
+            //     // 初始化玩家段位
+            //     await SegmentSystem.initializePlayerSegment(ctx, player.uid, tournamentType.gameType);
+            //     playerSegment = await ctx.db
+            //         .query("player_segments")
+            //         .withIndex("by_uid_game", (q: any) => q.eq("uid", player.uid).eq("gameType", tournamentType.gameType))
+            //         .first();
+            // }
 
             // 3. 计算优先级和权重（基于段位系统）
-            const priority = this.calculatePriority(player, config, playerSegment);
-            const weight = this.calculateWeight(player, config, playerSegment);
+            // const priority = this.calculatePriority(player, config, playerSegment);
+            // const weight = this.calculateWeight(player, config, playerSegment);
 
             // 4. 创建匹配配置
             const matchingConfig = {
@@ -79,14 +79,14 @@ export class TournamentMatchingService {
             // 5. 加入匹配队列
             const queueId = await ctx.db.insert("matchingQueue", {
                 uid: params.player.uid,
-                tournamentId: tournament ? tournament._id : undefined,
+                tournamentId: tournament?._id,
                 tournamentType,
                 playerInfo: {
                     uid: player.uid,
                     skill: player.totalPoints || 1000,
-                    segmentName: playerSegment?.segmentName || "Bronze",
-                    segmentTier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
-                    segmentPoints: playerSegment?.currentPoints || 0,
+                    // segmentName: playerSegment?.segmentName || "Bronze",
+                    // segmentTier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
+                    // segmentPoints: playerSegment?.currentPoints || 0,
                     eloScore: player.eloScore,
                     totalPoints: player.totalPoints,
                     isSubscribed: player.isSubscribed
@@ -94,54 +94,53 @@ export class TournamentMatchingService {
                 matchingConfig,
                 status: "waiting",
                 joinedAt: now.iso,
-                priority,
-                weight,
+                // priority,
+                // weight,
                 metadata: {
                     config: config,
                     playerLevel: player.level,
                     playerRank: player.rank,
-                    segmentInfo: {
-                        name: playerSegment?.segmentName,
-                        tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
-                        points: playerSegment?.currentPoints || 0
-                    }
+                    // segmentInfo: {
+                    //     name: playerSegment?.segmentName,
+                    //     tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
+                    //     points: playerSegment?.currentPoints || 0
+                    // }
                 },
                 createdAt: now.iso,
                 updatedAt: now.iso
             });
 
             // 6. 记录匹配事件
-            await ctx.db.insert("match_events", {
-                matchId: undefined,
-                tournamentId: tournament._id || undefined,
-                uid: params.player.uid,
-                eventType: "player_joined_queue",
-                eventData: {
-                    algorithm: matchingConfig.algorithm,
-                    priority,
-                    weight,
-                    queueId,
-                    segmentInfo: {
-                        name: playerSegment?.segmentName,
-                        tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
-                        points: playerSegment?.currentPoints || 0
-                    }
-                },
-                timestamp: now.iso,
-                createdAt: now.iso
-            });
+            // await ctx.db.insert("match_events", {
+            //     matchId: undefined,
+            //     tournamentId: tournament._id || undefined,
+            //     uid: params.player.uid,
+            //     eventType: "player_joined_queue",
+            //     eventData: {
+            //         algorithm: matchingConfig.algorithm,
+            //         // priority,
+            //         // weight,
+            //         queueId,
+            //         segmentInfo: {
+            //             name: playerSegment?.segmentName,
+            //             tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
+            //             points: playerSegment?.currentPoints || 0
+            //         }
+            //     },
+            //     timestamp: now.iso,
+            //     createdAt: now.iso
+            // });
 
             return {
                 success: true,
                 queueId,
                 status: "joined",
                 message: "成功加入匹配队列",
-                estimatedWaitTime: this.estimateWaitTime(ctx, tournamentType.gameType, tournamentType.typeId, tournament ? "traditional" : "independent"),
-                segmentInfo: {
-                    name: playerSegment?.segmentName,
-                    tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
-                    points: playerSegment?.currentPoints || 0
-                }
+                // segmentInfo: {
+                //     name: playerSegment?.segmentName,
+                //     tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
+                //     points: playerSegment?.currentPoints || 0
+                // }
             };
 
         } catch (error) {
@@ -363,123 +362,9 @@ export class TournamentMatchingService {
         return Array.from(groups.values());
     }
 
-    /**
-     * 估算等待时间
-     */
-    private static estimateWaitTime(ctx: any, gameType: string, tournamentType?: string, mode?: string): number {
-        // 基于历史数据估算等待时间
-        // 这里可以查询历史匹配数据来计算平均等待时间
-        const baseWaitTime = 30; // 基础等待时间30秒
-
-        // 根据游戏类型调整
-        const gameTypeMultiplier = {
-            'solitaire': 1.0,
-            'chess': 1.5,
-            'poker': 2.0
-        }[gameType] || 1.0;
-
-        // 根据模式调整
-        const modeMultiplier = mode === 'independent' ? 0.8 : 1.0;
-
-        return Math.floor(baseWaitTime * gameTypeMultiplier * modeMultiplier);
-    }
-
-    // /**
-    //  * 查找现有队列条目
-    //  */
-    // private static async findExistingQueue(ctx: any, params: {
-    //     uid: string;
-    //     tournamentId?: string;
-    //     gameType: string;
-    //     tournamentType?: string;
-    // }) {
-    //     const { uid, tournamentId, gameType, tournamentType } = params;
-
-    //     // 独立模式：按锦标赛类型查找
-    //     return await ctx.db
-    //         .query("matchingQueue")
-    //         .withIndex("by_uid_tournament", (q: any) =>
-    //             q.eq("uid", uid).eq("tournamentId", null)
-    //         )
-    //         .filter((q: any) =>
-    //             q.and(
-    //                 q.eq(q.field("status"), "waiting"),
-    //                 q.eq(q.field("gameType"), gameType),
-    //                 q.eq(q.field("tournamentType"), tournamentType)
-    //             )
-    //         )
-    //         .first();
 
 
-    // }
 
-    /**
-     * 创建独立锦标赛（独立模式）
-     */
-    private static async createIndependentTournament(ctx: any, params: {
-        gameType: string;
-        tournamentType: string;
-        players: any[];
-        config: any;
-        now: any;
-    }) {
-        const { gameType, tournamentType, players, config, now } = params;
-
-        // 获取赛季信息（简化处理）
-        const season = await ctx.db
-            .query("seasons")
-            .filter((q: any) => q.eq(q.field("isActive"), true))
-            .first();
-
-        if (!season) {
-            throw new Error("没有活跃的赛季");
-        }
-
-        // 创建新的独立锦标赛
-        const tournamentId = await ctx.db.insert("tournaments", {
-            seasonId: season._id,
-            gameType,
-            segmentName: "all", // 独立锦标赛对所有段位开放
-            status: "open",
-            tournamentType,
-            isSubscribedRequired: config.entryRequirements?.isSubscribedRequired || false,
-            isSingleMatch: true, // 独立锦标赛是单场比赛
-            prizePool: config.entryRequirements?.entryFee?.coins ? config.entryRequirements.entryFee.coins * players.length * 0.8 : 0,
-            config: {
-                entryRequirements: config.entryRequirements,
-                matchRules: config.matchRules,
-                rewards: config.rewards,
-                schedule: config.schedule,
-                limits: config.limits,
-                advanced: config.advanced,
-                independentMode: {
-                    createdFromMatching: true,
-                    playerCount: players.length,
-                    createdAt: now.iso
-                }
-            },
-            createdAt: now.iso,
-            updatedAt: now.iso,
-            endTime: new Date(now.localDate.getTime() + (config.schedule?.duration || 3600) * 1000).toISOString(),
-        });
-
-        // 为所有玩家创建参与关系
-        for (const playerInfo of players) {
-            await ctx.db.insert("player_tournaments", {
-                uid: playerInfo.uid,
-                tournamentId,
-                tournamentType,
-                gameType,
-                status: "active",
-                joinedAt: now.iso,
-                createdAt: now.iso,
-                updatedAt: now.iso,
-            });
-        }
-
-        console.log(`创建独立锦标赛 ${tournamentId}，包含 ${players.length} 名玩家`);
-        return tournamentId;
-    }
 
     /**
      * 计算兼容性

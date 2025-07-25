@@ -1,5 +1,6 @@
 import { internalMutation, mutation } from "../../_generated/server";
 import { getTorontoDate } from "../utils";
+import { TournamentStatus } from "./common";
 
 /**
  * 锦标赛调度器
@@ -356,8 +357,9 @@ export class TournamentScheduler {
                 startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
                 break;
         }
-        return await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamentType.typeId).eq("status", "open").gte("createdAt", startTime)).first();
-
+        const tournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamentType.typeId).eq("status", TournamentStatus.OPEN).gte("createdAt", startTime)).first();
+        console.log("tournament", tournament);
+        return tournament;
     }
 
     /**
@@ -379,13 +381,10 @@ export class TournamentScheduler {
         now: any;
     }) {
         const { config, season, now } = params;
-        const entryRequirements = config.entryRequirements;
-        const matchRules = config.matchRules;
-        const schedule = config.schedule;
-
+        console.log("config", config);
         // 计算结束时间
         let endTime: string;
-        switch (config.category) {
+        switch (config.timeRange) {
             case "daily":
                 endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
                 break;
@@ -404,19 +403,16 @@ export class TournamentScheduler {
             seasonId: season._id,
             gameType: config.gameType,
             segmentName: "all", // 对所有段位开放
-            status: "open",
+            status: TournamentStatus.OPEN,
             tournamentType: config.typeId,
-            isSubscribedRequired: entryRequirements?.isSubscribedRequired || false,
-            isSingleMatch: matchRules?.isSingleMatch || false,
-            prizePool: entryRequirements?.entryFee?.coins ? entryRequirements.entryFee.coins * 0.8 : 0,
-            config: {
-                entryRequirements: config.entryRequirements,
-                matchRules: config.matchRules,
-                rewards: config.rewards,
-                schedule: config.schedule,
-                limits: config.limits,
-                advanced: config.advanced
-            },
+            // config: {
+            //     entryRequirements: config.entryRequirements,
+            //     matchRules: config.matchRules,
+            //     rewards: config.rewards,
+            //     schedule: config.schedule,
+            //     limits: config.limits,
+            //     advanced: config.advanced
+            // },
             createdAt: now.iso,
             updatedAt: now.iso,
             endTime: endTime,

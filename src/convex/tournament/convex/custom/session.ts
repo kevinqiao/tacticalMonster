@@ -26,7 +26,7 @@ export const sessionQuery = customQuery(
         // The function handler, taking the validated arguments and context.
         input: async (ctx, { uid, token }) => {
             try {
-                const u = await ctx.db.get(uid as Id<"player">);
+                const u = await ctx.db.get(uid as Id<"players">);
                 return { ctx: { ...ctx, user: u }, args: {} };
             } catch (error) {
                 return { ctx: { ...ctx, user: null }, args: {} };
@@ -42,7 +42,7 @@ export const sessionMutation = customMutation(mutation,
         input: async (ctx, { uid, token }) => {
             try {
                 console.log("sessionMutation", uid, token);
-                const u = await ctx.db.query("game_player").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+                const u = await ctx.db.get(uid as Id<"players">);
                 console.log("sessionMutation", u);
                 return { ctx: { ...ctx, user: u }, args: {} };
             } catch (error) {

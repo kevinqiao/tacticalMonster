@@ -106,23 +106,7 @@ import type * as service_tournament_matchingScheduler from "../service/tournamen
 import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
 import type * as service_tournament_pointCalculator from "../service/tournament/pointCalculator.js";
 import type * as service_tournament_ruleEngine from "../service/tournament/ruleEngine.js";
-import type * as service_tournament_tests_index from "../service/tournament/tests/index.js";
-import type * as service_tournament_tests_runAutoCreateTests from "../service/tournament/tests/runAutoCreateTests.js";
-import type * as service_tournament_tests_runBaseHandlerIntegrationTests from "../service/tournament/tests/runBaseHandlerIntegrationTests.js";
-import type * as service_tournament_tests_runGetAvailableTournamentsTests from "../service/tournament/tests/runGetAvailableTournamentsTests.js";
-import type * as service_tournament_tests_runRealtimeUpdateTests from "../service/tournament/tests/runRealtimeUpdateTests.js";
-import type * as service_tournament_tests_runThresholdTests from "../service/tournament/tests/runThresholdTests.js";
-import type * as service_tournament_tests_testAutoCreateTournaments from "../service/tournament/tests/testAutoCreateTournaments.js";
-import type * as service_tournament_tests_testBaseHandlerIntegration from "../service/tournament/tests/testBaseHandlerIntegration.js";
-import type * as service_tournament_tests_testGetAvailableTournaments from "../service/tournament/tests/testGetAvailableTournaments.js";
-import type * as service_tournament_tests_testJoinTournament from "../service/tournament/tests/testJoinTournament.js";
-import type * as service_tournament_tests_testLimits from "../service/tournament/tests/testLimits.js";
-import type * as service_tournament_tests_testRealtimeUpdates from "../service/tournament/tests/testRealtimeUpdates.js";
-import type * as service_tournament_tests_testSettleTournament from "../service/tournament/tests/testSettleTournament.js";
-import type * as service_tournament_tests_testSubmitScore from "../service/tournament/tests/testSubmitScore.js";
-import type * as service_tournament_tests_testThresholdTournament from "../service/tournament/tests/testThresholdTournament.js";
-import type * as service_tournament_tests_testThresholdTournamentIntegration from "../service/tournament/tests/testThresholdTournamentIntegration.js";
-import type * as service_tournament_tests_testUtils from "../service/tournament/tests/testUtils.js";
+import type * as service_tournament_tests_tournamentTest from "../service/tournament/tests/tournamentTest.js";
 import type * as service_tournament_tournamentMatchingService from "../service/tournament/tournamentMatchingService.js";
 import type * as service_tournament_tournamentScheduler from "../service/tournament/tournamentScheduler.js";
 import type * as service_tournament_tournamentService from "../service/tournament/tournamentService.js";
@@ -130,6 +114,7 @@ import type * as service_tournament_utils_tournamentTypeUtils from "../service/t
 import type * as service_updateActivity from "../service/updateActivity.js";
 import type * as service_updatePlayerProfile from "../service/updatePlayerProfile.js";
 import type * as service_utils from "../service/utils.js";
+import type * as tests_runTests from "../tests/runTests.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -233,23 +218,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;
   "service/tournament/pointCalculator": typeof service_tournament_pointCalculator;
   "service/tournament/ruleEngine": typeof service_tournament_ruleEngine;
-  "service/tournament/tests/index": typeof service_tournament_tests_index;
-  "service/tournament/tests/runAutoCreateTests": typeof service_tournament_tests_runAutoCreateTests;
-  "service/tournament/tests/runBaseHandlerIntegrationTests": typeof service_tournament_tests_runBaseHandlerIntegrationTests;
-  "service/tournament/tests/runGetAvailableTournamentsTests": typeof service_tournament_tests_runGetAvailableTournamentsTests;
-  "service/tournament/tests/runRealtimeUpdateTests": typeof service_tournament_tests_runRealtimeUpdateTests;
-  "service/tournament/tests/runThresholdTests": typeof service_tournament_tests_runThresholdTests;
-  "service/tournament/tests/testAutoCreateTournaments": typeof service_tournament_tests_testAutoCreateTournaments;
-  "service/tournament/tests/testBaseHandlerIntegration": typeof service_tournament_tests_testBaseHandlerIntegration;
-  "service/tournament/tests/testGetAvailableTournaments": typeof service_tournament_tests_testGetAvailableTournaments;
-  "service/tournament/tests/testJoinTournament": typeof service_tournament_tests_testJoinTournament;
-  "service/tournament/tests/testLimits": typeof service_tournament_tests_testLimits;
-  "service/tournament/tests/testRealtimeUpdates": typeof service_tournament_tests_testRealtimeUpdates;
-  "service/tournament/tests/testSettleTournament": typeof service_tournament_tests_testSettleTournament;
-  "service/tournament/tests/testSubmitScore": typeof service_tournament_tests_testSubmitScore;
-  "service/tournament/tests/testThresholdTournament": typeof service_tournament_tests_testThresholdTournament;
-  "service/tournament/tests/testThresholdTournamentIntegration": typeof service_tournament_tests_testThresholdTournamentIntegration;
-  "service/tournament/tests/testUtils": typeof service_tournament_tests_testUtils;
+  "service/tournament/tests/tournamentTest": typeof service_tournament_tests_tournamentTest;
   "service/tournament/tournamentMatchingService": typeof service_tournament_tournamentMatchingService;
   "service/tournament/tournamentScheduler": typeof service_tournament_tournamentScheduler;
   "service/tournament/tournamentService": typeof service_tournament_tournamentService;
@@ -257,6 +226,7 @@ declare const fullApi: ApiFromModules<{
   "service/updateActivity": typeof service_updateActivity;
   "service/updatePlayerProfile": typeof service_updatePlayerProfile;
   "service/utils": typeof service_utils;
+  "tests/runTests": typeof tests_runTests;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

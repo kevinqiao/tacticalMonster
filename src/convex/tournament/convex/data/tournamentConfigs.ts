@@ -23,7 +23,7 @@ export interface TournamentConfig {
     rewards: RewardConfig;
 
     // 时间配置
-    schedule: ScheduleConfig;
+    schedule?: ScheduleConfig;
 
     // 限制配置
     limits: LimitConfig;
@@ -105,11 +105,9 @@ export interface MatchRules {
     maxPlayers: number;
     // 排名规则
     rankingMethod: "highest_score" | "total_score" | "average_score" | "threshold";
-    rankingType: "game_point" | "game_score";
     matchPoints?: { [k: string]: number };
     // 分数阈值（用于threshold排名）
     scoreThreshold?: number;
-
     // 时间限制
     timeLimit?: {
         perMatch: number; // 秒
@@ -301,14 +299,13 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             matchType: "multi_match",
             minPlayers: 2,
-            maxPlayers: 4,
-            rankingMethod: "highest_score",
-            rankingType: "game_point",
+            maxPlayers: 2,
+            rankingMethod: "total_score",
             matchPoints: {
-                "1st": 100,
-                "2nd": 60,
-                "3rd": 30,
-                "4th": 10
+                "1": 100,
+                "2": 60,
+                "3": 30,
+                "4": 10
             },
             timeLimit: {
                 perMatch: 300, // 5分钟
@@ -416,7 +413,113 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         }
     },
 
+    {
+        typeId: "multi_competition",
+        name: "竞技锦标赛",
+        description: "玩家竞技锦标赛，按分数排名",
+        gameType: "solitaire",
+        isActive: true,
+        priority: 3,
+        timeRange: "total",
 
+        entryRequirements: {
+            minSegment: "bronze",
+            isSubscribedRequired: false,
+            entryFee: {
+                coins: 75
+            }
+        },
+
+        matchRules: {
+            matchType: "single_match",
+            minPlayers: 2,
+            maxPlayers: 2,
+            rankingMethod: "highest_score",
+            timeLimit: {
+                perMatch: 600, // 10分钟
+                total: 1800    // 30分钟
+            }
+        },
+
+        rewards: {
+            baseRewards: {
+                coins: 150,
+                gamePoints: 75,
+                props: [
+                    {
+                        gameType: "solitaire",
+                        propType: "undo",
+                        quantity: 3,
+                        rarity: "common"
+                    }
+                ],
+                tickets: []
+            },
+            rankRewards: [
+                {
+                    rankRange: [1, 1],
+                    multiplier: 2.5
+                },
+                {
+                    rankRange: [2, 5],
+                    multiplier: 1.8
+                },
+                {
+                    rankRange: [6, 15],
+                    multiplier: 1.3
+                }
+            ],
+            segmentBonus: {
+                bronze: 1.0,
+                silver: 1.1,
+                gold: 1.2,
+                platinum: 1.3,
+                diamond: 1.5
+            },
+            subscriptionBonus: 1.15,
+            participationReward: {
+                coins: 15,
+                gamePoints: 8
+            }
+        },
+
+
+
+        limits: {
+            maxParticipations: 2,
+            maxTournaments: 1,
+            maxAttempts: 5,
+            subscribed: {
+                maxParticipations: 3,
+                maxTournaments: 1,
+                maxAttempts: 7
+            }
+        },
+
+        advanced: {
+            matching: {
+                algorithm: "random",
+                maxWaitTime: 10,
+                fallbackToAI: false
+            },
+            settlement: {
+                autoSettle: true,
+                settleDelay: 600,
+                requireMinimumPlayers: false,
+                minimumPlayers: 1
+            },
+            notifications: {
+                enabled: true,
+                types: ["join", "start", "complete", "reward"],
+                channels: ["in_app"]
+            },
+            monitoring: {
+                enabled: true,
+                metrics: ["participation", "completion", "rewards"],
+                alerts: ["low_participation"]
+            }
+        }
+    },
 
     // 独立游戏锦标赛
     {
@@ -426,6 +529,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         gameType: "solitaire",
         isActive: true,
         priority: 3,
+        timeRange: "total",
 
         entryRequirements: {
             minSegment: "bronze",
@@ -440,7 +544,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             minPlayers: 1,
             maxPlayers: 1,
             rankingMethod: "highest_score",
-            rankingType: "game_score",
             timeLimit: {
                 perMatch: 600, // 10分钟
                 total: 1800    // 30分钟
@@ -643,7 +746,6 @@ export function createDefaultTournamentConfig(
             minPlayers: 1,
             maxPlayers: 1,
             rankingMethod: "highest_score",
-            rankingType: "game_score",
         },
 
         rewards: {

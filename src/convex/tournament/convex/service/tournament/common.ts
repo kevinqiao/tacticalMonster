@@ -274,7 +274,12 @@ export async function notifyTournamentChanges(ctx: any, params: {
 }
 
 // ==================== 类型定义 ====================
-
+export enum TournamentStatus {
+    OPEN = 0,
+    COMPLETED = 1,
+    COLLECTED = 2,
+    CANCELLED = 3
+}
 export interface TournamentHandler {
     validateJoin(ctx: any, args: any): Promise<any>;
     join(ctx: any, args: JoinArgs): Promise<any>;
@@ -575,12 +580,12 @@ export async function deductEntryFee(ctx: any, params: {
         createdAt: now.iso
     });
 }
-export async function findTournamentByType(ctx: any, params: { uid: string; tournamntType: any }) {
+export async function findTournamentByType(ctx: any, params: { tournamentType: any }) {
     const now = getTorontoDate();
     let startTime: string;
     // 根据时间范围确定开始时间
 
-    switch (params.tournamntType.timeRange) {
+    switch (params.tournamentType.timeRange) {
         case "daily":
             startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
             break;
@@ -605,7 +610,7 @@ export async function findTournamentByType(ctx: any, params: { uid: string; tour
             startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
             break;
     }
-    const tournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamntType.typeId).eq("status", "open").gte("createdAt", startTime)).first();
+    const tournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamentType.typeId).eq("status", TournamentStatus.OPEN).gte("createdAt", startTime)).first();
     return tournament;
 }
 export async function findPlayerRank(ctx: any, params: { uid: string; tournamentId: string }) {
@@ -675,10 +680,11 @@ export async function findPlayerRank(ctx: any, params: { uid: string; tournament
 }
 export async function settleTournament(ctx: any, tournament: any) {
     const tournamentId = tournament._id;
+    const tournamentType = await ctx.db.query("tournamentTypes").withIndex("by_typeId", (q: any) => q.eq("typeId", tournament.tournamentType)).unique();
     let playerTournaments;
-    tournament.config.rewards.rankRewards.sort((a: any, b: any) => b.rankRange[0] - a.rankRange[0]);
-    const maxRank = tournament.config.rewards.rankRewards[0].rankRange[1]
-    if (tournament.config.matchRules.pointsPerMatch) {
+    tournamentType.rewards.rankRewards.sort((a: any, b: any) => b.rankRange[0] - a.rankRange[0]);
+    const maxRank = tournamentType.rewards.rankRewards[0].rankRange[1]
+    if (tournamentType.matchRules.pointsPerMatch) {
         playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_gamePoint", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").take(maxRank).collect();
     } else {
         playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").take(maxRank).collect();
@@ -686,56 +692,57 @@ export async function settleTournament(ctx: any, tournament: any) {
     let rank = 0;
     for (const playerTournament of playerTournaments) {
         rank++;
-        const rankReward = tournament.config.rewards.rankRewards.find((reward: any) => rank >= reward.rankRange[0] && playerTournament.rank <= reward.rankRange[1]);
+        const rankReward = tournamentType.rewards.rankRewards.find((reward: any) => rank >= reward.rankRange[0] && playerTournament.rank <= reward.rankRange[1]);
         if (rankReward) {
             await ctx.db.patch(playerTournament._id, {
-                status: "settled",
+                status: "completed",
                 rewards: rankReward
             });
-            const inventory = await ctx.db.query("player_inventory").withIndex("by_uid", (q: any) => q.eq("uid", playerTournament.uid)).first();
-            if (inventory) {
-                const updateData: any = { updatedAt: getTorontoDate().iso };
-                updateData.coins = (inventory.coins ?? 0) + (rankReward.coins ?? 0);
-                if (rankReward.props) {
-                    const props = inventory.props ?? [];
-                    for (const rewardProp of rankReward.props) {
-                        const prop: any = props.find((p: any) => p.propType === rewardProp.propType);
-                        if (prop.quantity) {
-                            prop.quantity += rewardProp.quantity;
-                        } else {
-                            props.push({
-                                pid: rewardProp.propType,
-                                quantity: rewardProp.quantity
-                            });
-                        }
-                    }
-                    updateData.props = props;
-                }
-                if (rankReward.tickets) {
-                    const tickets = inventory.tickets ?? [];
-                    for (const rewardTicket of rankReward.tickets) {
-                        const ticket: any = tickets.find((t: any) => t.type === rewardTicket.type);
-                        if (ticket.quantity)
-                            ticket.quantity += rewardTicket.quantity;
-                        else {
-                            tickets.push({
-                                type: rewardTicket.type,
-                                quantity: rewardTicket.quantity
-                            });
-                        }
-                    }
-                    updateData.tickets = tickets;
-                }
-                await ctx.db.patch(inventory._id, updateData);
-            }
         }
-        await ctx.db.patch(playerTournament._id, {
-            status: "settled",
-            rank,
-            rewards: rankReward
-        });
     }
     await ctx.db.patch(tournamentId as Id<"tournaments">, {
         status: "completed"
     });
+}
+export async function collectRewards(ctx: any, playerTournament: any) {
+
+    const rankReward = playerTournament.rewards;
+    const inventory = await ctx.db.query("player_inventory").withIndex("by_uid", (q: any) => q.eq("uid", playerTournament.uid)).unique();
+    if (inventory) {
+        const updateData: any = { updatedAt: getTorontoDate().iso };
+        updateData.coins = (inventory.coins ?? 0) + (rankReward.coins ?? 0);
+        if (rankReward.props) {
+            const props = inventory.props ?? [];
+            for (const rewardProp of rankReward.props) {
+                const prop: any = props.find((p: any) => p.propType === rewardProp.propType);
+                if (prop.quantity) {
+                    prop.quantity += rewardProp.quantity;
+                } else {
+                    props.push({
+                        pid: rewardProp.propType,
+                        quantity: rewardProp.quantity
+                    });
+                }
+            }
+            updateData.props = props;
+        }
+        if (rankReward.tickets) {
+            const tickets = inventory.tickets ?? [];
+            for (const rewardTicket of rankReward.tickets) {
+                const ticket: any = tickets.find((t: any) => t.type === rewardTicket.type);
+                if (ticket.quantity)
+                    ticket.quantity += rewardTicket.quantity;
+                else {
+                    tickets.push({
+                        type: rewardTicket.type,
+                        quantity: rewardTicket.quantity
+                    });
+                }
+            }
+            updateData.tickets = tickets;
+        }
+        await ctx.db.patch(inventory._id, updateData);
+    }
+
+
 }

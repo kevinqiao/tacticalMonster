@@ -1,17 +1,22 @@
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { Id } from "../../_generated/dataModel";
 import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import { getTorontoDate } from "../utils";
 import {
     checkTournamentEligibility,
+    collectRewards,
     findPlayerRank,
     findTournamentByType,
     getCommonData,
     getPlayerAttempts,
-    settleTournament
+    settleTournament,
+    TournamentStatus
 } from "./common";
 import { getHandler } from "./handler";
 import { MatchManager } from "./matchManager";
+
 
 /**
  * 统一锦标赛服务
@@ -83,7 +88,7 @@ export class TournamentService {
      * 结算锦标赛
      */
     static async settle(ctx: any, tournamentId: string) {
-        const tournament = await ctx.db.get(tournamentId);
+        const tournament = await ctx.db.get(tournamentId as Id<"tournaments">);
         if (!tournament) {
             throw new Error("锦标赛不存在");
         }
@@ -195,73 +200,26 @@ export class TournamentService {
     /**
      * 获取玩家锦标赛历史
      */
-    static async getPlayerTournamentHistory(ctx: any, params: {
+    static async getPlayerTournamentHistory(ctx: any, args: {
         uid: string;
-        limit?: number;
+        gameType: string;
+        paginationOpts: any
     }) {
-        const { uid, limit = 20 } = params;
-
-        // 获取玩家参与的所有锦标赛
-        const playerMatches = await ctx.db
-            .query("player_matches")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-            .order("desc")
-            .take(limit);
-
-        // 收集唯一的锦标赛和比赛ID
-        const tournamentIdSet = new Set<string>();
-        const matchIdSet = new Set<string>();
-
-        for (const pm of playerMatches) {
-            tournamentIdSet.add(pm.tournamentId);
-            matchIdSet.add(pm.matchId);
-        }
-
-        const tournamentIds = Array.from(tournamentIdSet);
-        const matchIds = Array.from(matchIdSet);
-
-        // 获取锦标赛和比赛数据
-        const tournaments: any[] = [];
-        const matches: any[] = [];
-
-        for (const id of tournamentIds) {
-            const tournament = await ctx.db.get(id);
-            if (tournament) {
-                tournaments.push(tournament);
+        const { uid, gameType, paginationOpts } = args;
+        const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_uid_gameType_status", (q: any) => q.eq("uid", uid).eq("gameType", gameType).gt("status", 0)).order("desc").paginate(paginationOpts);
+        const history = playerTournaments.map((playerTournament: any) => {
+            return {
+                score: playerTournament.score,
+                gamePoint: playerTournament.gamePoint,
+                rank: playerTournament.rank,
+                rewards: playerTournament.rewards,
+                updatedAt: playerTournament.updatedAt,
+                status: playerTournament.status,
+                tournamentId: playerTournament.tournamentId,
+                tournamentType: playerTournament.tournamentType,
             }
-        }
-
-        for (const id of matchIds) {
-            const match = await ctx.db.get(id);
-            if (match) {
-                matches.push(match);
-            }
-        }
-
-        // 构建历史记录
-        const history: any[] = [];
-        for (const pm of playerMatches) {
-            const tournament = tournaments.find((t: any) => t?._id === pm.tournamentId);
-            const match = matches.find((m: any) => m?._id === pm.matchId);
-
-            history.push({
-                playerMatch: pm,
-                tournament,
-                match,
-                gameType: pm.gameType,
-                score: pm.score,
-                rank: pm.rank,
-                completed: pm.completed,
-                createdAt: pm.createdAt
-            });
-        }
-
-        // 排序历史记录
-        history.sort((a: any, b: any) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-
-        return history;
+        });
+        return history
     }
 
     /**
@@ -316,8 +274,12 @@ export class TournamentService {
             throw error;
         }
     }
-    static async collectRewards(ctx: any,params:{uid:string;tournamentId:string}) {
-
+    static async collect(ctx: any, playerTournament: any) {
+        await collectRewards(ctx, playerTournament);
+        await ctx.db.patch(playerTournament._id, {
+            status: TournamentStatus.COLLECTED,
+            updatedAt: getTorontoDate().iso
+        });
     }
     /**
      * 结算完成的锦标赛
@@ -402,13 +364,14 @@ export class TournamentService {
         }
 
         const availableTournaments: any[] = [];
+        console.log("tournamentTypes size:", tournamentTypes.length);
 
         for (const tournamentType of tournamentTypes) {
             try {
                 const participation = { rank: -1, attempts: 0 };
 
                 if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
-                    const tournament = await findTournamentByType(ctx, { uid, tournamntType: tournamentType });
+                    const tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
                     if (!tournament)
                         continue;
                     participation.rank = await findPlayerRank(ctx, { uid, tournamentId: tournament._id });
@@ -474,7 +437,7 @@ export const joinTournament = (mutation as any)({
         let tournament;
         const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).unqiue();
         if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
-            tournament = await findTournamentByType(ctx, { uid, tournamntType: tournamentType });
+            tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
             if (!tournament) {
                 throw new Error("锦标赛不存在");
             }
@@ -527,7 +490,8 @@ export const getTournamentDetails = (query as any)({
 export const getPlayerTournamentHistory = (query as any)({
     args: {
         uid: v.string(),
-        limit: v.optional(v.number()),
+        gameType: v.string(),
+        paginationOpts: paginationOptsValidator
     },
     handler: async (ctx: any, args: any) => {
         const result = await TournamentService.getPlayerTournamentHistory(ctx, args);
@@ -550,10 +514,21 @@ export const settleCompletedTournaments = (mutation as any)({
         return result;
     },
 });
-export const collectRewards = (mutation as any)({
-    args: {},
+export const collect = (mutation as any)({
+    args: {
+        uid: v.string(),
+        tournamentId: v.string(),
+    },
     handler: async (ctx: any, args: any) => {
-        const result = await TournamentService.settleCompletedTournaments(ctx);
+        const { uid, tournamentId } = args;
+        const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid)).unique();
+        if (!playerTournament) {
+            throw new Error("锦标赛不存在");
+        }
+        if (playerTournament.status >= TournamentStatus.COLLECTED) {
+            throw new Error("锦标赛已领取");
+        }
+        const result = await TournamentService.collect(ctx, playerTournament);
         return result;
     },
 });
