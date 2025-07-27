@@ -26,7 +26,7 @@ export interface TournamentConfig {
     schedule?: ScheduleConfig;
 
     // 限制配置
-    limits: LimitConfig;
+    limits?: LimitConfig;
 
     // 高级配置
     advanced?: AdvancedConfig;
@@ -108,6 +108,7 @@ export interface MatchRules {
     matchPoints?: { [k: string]: number };
     // 分数阈值（用于threshold排名）
     scoreThreshold?: number;
+    maxAttempts?: number;
     // 时间限制
     timeLimit?: {
         perMatch: number; // 秒
@@ -124,15 +125,14 @@ export interface MatchRules {
 export interface RewardConfig {
     // 基础奖励
     baseRewards: {
-        coins: number;
-        gamePoints: number;
-        props: Array<{
+        coins?: number;
+        gamePoints?: number;
+        props?: Array<{
             gameType: string;
-            propType: string;
+            propId: string;
             quantity: number;
-            rarity: "common" | "rare" | "epic" | "legendary";
         }>;
-        tickets: Array<{
+        tickets?: Array<{
             gameType: string;
             tournamentType: string;
             quantity: number;
@@ -145,19 +145,17 @@ export interface RewardConfig {
         multiplier: number;
         bonusProps?: Array<{
             gameType: string;
-            propType: string;
+            propId: string;
             quantity: number;
-            rarity: "common" | "rare" | "epic" | "legendary";
         }>;
         bonusTickets?: Array<{
-            gameType: string;
             tournamentType: string;
             quantity: number;
         }>;
     }>;
 
     // 段位加成
-    segmentBonus: {
+    segmentBonus?: {
         bronze: number;
         silver: number;
         gold: number;
@@ -166,12 +164,21 @@ export interface RewardConfig {
     };
 
     // 订阅加成
-    subscriptionBonus: number;
+    subscriptionBonus?: number;
 
     // 参与奖励
-    participationReward: {
-        coins: number;
-        gamePoints: number;
+    participationReward?: {
+        coins?: number;
+        gamePoints?: number;
+        props?: Array<{
+            gameType: string;
+            propIde: string;
+            quantity: number;
+        }>;
+        tickets?: Array<{
+            tournamentType: string;
+            quantity: number;
+        }>;
     };
 
     // 连胜奖励
@@ -320,9 +327,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 props: [
                     {
                         gameType: "solitaire",
-                        propType: "hint",
+                        propId: "hint",
                         quantity: 2,
-                        rarity: "common"
                     }
                 ],
                 tickets: []
@@ -334,9 +340,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                     bonusProps: [
                         {
                             gameType: "solitaire",
-                            propType: "time_boost",
+                            propId: "time_boost",
                             quantity: 1,
-                            rarity: "rare"
                         }
                     ]
                 },
@@ -435,6 +440,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             minPlayers: 2,
             maxPlayers: 2,
             rankingMethod: "highest_score",
+            maxAttempts: 2,
             timeLimit: {
                 perMatch: 600, // 10分钟
                 total: 1800    // 30分钟
@@ -444,13 +450,11 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         rewards: {
             baseRewards: {
                 coins: 150,
-                gamePoints: 75,
                 props: [
                     {
                         gameType: "solitaire",
-                        propType: "undo",
+                        propId: "undo",
                         quantity: 3,
-                        rarity: "common"
                     }
                 ],
                 tickets: []
@@ -557,9 +561,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 props: [
                     {
                         gameType: "solitaire",
-                        propType: "undo",
+                        propId: "undo",
                         quantity: 3,
-                        rarity: "common"
                     }
                 ],
                 tickets: []

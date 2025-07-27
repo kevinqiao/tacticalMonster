@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation, query } from "../_generated/server";
-import { getTorontoDate } from "./utils";
+import { getTorontoMidnight } from "./simpleTimezoneUtils";
 
 
 export class PlayerManager {
@@ -14,7 +14,7 @@ export class PlayerManager {
     }) {
         const player: any = await ctx.runQuery(internal.dao.playerDao.find, { uid: params.uid });
         // const token = generateRandomString(36);
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         if (!player) {
 
             await ctx.runMutation(internal.dao.playerDao.create, {
@@ -28,8 +28,8 @@ export class PlayerManager {
                 coins: 1000,
                 props: [],
                 tickets: [],
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: now.localDate.toISOString(),
+                updatedAt: now.localDate.toISOString()
             });
 
         } else {

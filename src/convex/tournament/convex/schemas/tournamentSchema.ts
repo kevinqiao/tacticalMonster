@@ -6,28 +6,28 @@ export const tournamentSchema = {
     matchingQueue: defineTable({
         // 基础信息
         uid: v.string(),
-        tournamentId: v.id("tournaments"),
-        tournamentType: v.string(),
+        tournamentId: v.optional(v.id("tournaments")),
+        tournamentType: v.optional(v.string()),
 
         // 玩家信息
         playerInfo: v.object({
             uid: v.string(),
             skill: v.number(),
-            segmentName: v.string(),
+            segmentName: v.optional(v.string()),
             eloScore: v.optional(v.number()),
             totalPoints: v.optional(v.number()),
-            isSubscribed: v.boolean()
+            isSubscribed: v.optional(v.boolean())
         }),
 
         // 匹配配置
-        matchingConfig: v.object({
+        matchingConfig: v.optional(v.object({
             algorithm: v.string(), // "skill_based", "segment_based", "elo_based", "random"
             maxWaitTime: v.number(),
             skillRange: v.optional(v.number()),
             eloRange: v.optional(v.number()),
             segmentRange: v.optional(v.number()),
             fallbackToAI: v.optional(v.boolean())
-        }),
+        })),
         // 匹配状态
         status: v.union(
             v.literal("waiting"),
@@ -42,8 +42,8 @@ export const tournamentSchema = {
         expiredAt: v.optional(v.string()),
 
         // 优先级和权重
-        priority: v.number(),
-        weight: v.number(),
+        priority: v.optional(v.number()),
+        weight: v.optional(v.number()),
 
         // 元数据
         metadata: v.optional(v.any()),
@@ -76,66 +76,23 @@ export const tournamentSchema = {
         uid: v.string(),
         tournamentId: v.id("tournaments"),
         tournamentType: v.string(), // 新增：锦标赛类型，用于优化查询
-        gameType: v.string(), // 新增：游戏类型，用于优化查询
-        status: v.number(), // 0:open，1：completed，2：collected,3:cancelled
+        gameType: v.optional(v.string()), // 新增：游戏类型，用于优化查询
+        status: v.optional(v.number()), // 0:open，1：completed，2：collected,3:cancelled
         gamePoint: v.optional(v.number()), // 新增：累积的比赛点数，基于每场比赛的排名计算
         matchCount: v.optional(v.number()), // 新增：参与的比赛场数
         score: v.optional(v.number()), // 新增：累积的分数
         rewards: v.optional(v.any()),
+        completed: v.optional(v.boolean()),
         lastMatchAt: v.optional(v.string()), // 新增：最后一场比赛时间
-        joinedAt: v.string(),
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_tournament_uid", ["tournamentId", "uid"])
+    }).index("by_tournament", ["tournamentId"])
+        .index("by_tournament_uid", ["tournamentId", "uid"])
         .index("by_uid_gameType_status", ["uid", "gameType", "status", "updatedAt"]) // 新增：优化状态查询
         .index("by_tournament_score", ["tournamentId", "score"])
         .index("by_tournament_point", ["tournamentId", "gamePoint"]),
 
-    // 玩家锦标赛状态变更日志表
-    player_tournament_status_logs: defineTable({
-        uid: v.string(),
-        tournamentId: v.id("tournaments"),
-        oldStatus: v.string(),
-        newStatus: v.string(),
-        reason: v.string(),
-        metadata: v.optional(v.any()),
-        timestamp: v.string(),
-        createdAt: v.string(),
-    }).index("by_uid", ["uid"])
-        .index("by_tournament", ["tournamentId"])
-        .index("by_timestamp", ["timestamp"])
-        .index("by_uid_timestamp", ["uid", "timestamp"]),
 
-    // 批量处理任务表
-    batch_processing_tasks: defineTable({
-        tournamentId: v.id("tournaments"),
-        taskType: v.string(),
-        status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
-        batchSize: v.number(),
-        maxConcurrency: v.number(),
-        processed: v.optional(v.number()),
-        completed: v.optional(v.number()),
-        expired: v.optional(v.number()),
-        errors: v.optional(v.number()),
-        progress: v.optional(v.number()),
-        error: v.optional(v.string()),
-        createdAt: v.string(),
-        updatedAt: v.string(),
-    }).index("by_tournament", ["tournamentId"])
-        .index("by_status", ["status"])
-        .index("by_createdAt", ["createdAt"]),
-
-    // 锦标赛结算任务表
-    tournament_settlement_tasks: defineTable({
-        tournamentId: v.id("tournaments"),
-        taskId: v.string(),
-        totalPlayers: v.number(),
-        status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
-        createdAt: v.string(),
-        updatedAt: v.string(),
-    }).index("by_tournament", ["tournamentId"])
-        .index("by_status", ["status"])
-        .index("by_createdAt", ["createdAt"]),
 
     tournament_types: defineTable({
         // 基础信息
@@ -184,6 +141,7 @@ export const tournamentSchema = {
             minPlayers: v.number(),
             maxPlayers: v.number(),
             rankingMethod: v.string(), // "highest_score", "total_score", "average_score", "best_of_attempts", "threshold"
+            maxAttempts: v.optional(v.number()),
             timeLimit: v.optional(v.object({
                 perMatch: v.number(),
                 perTurn: v.optional(v.number()),
@@ -311,7 +269,7 @@ export const tournamentSchema = {
 
     // 比赛基础信息表 - 存储比赛的核心信息
     matches: defineTable({
-        tournamentId: v.id("tournaments"),
+        tournamentId: v.optional(v.string()),
         tournamentType: v.string(),
         gameType: v.string(),
         status: v.number(), // 0:started,1:tomatching,2:matched,3:completed,4:settled,5:cancelled
@@ -349,7 +307,7 @@ export const tournamentSchema = {
         .index("by_player_match", ["uid", "matchId"])
         .index("by_player_game", ["uid", "gameId"])
         .index("by_match", ["matchId"])
-        .index("by_completed", ["completed"])
+        .index("by_uid_completed", ["uid", "completed"])
         .index("by_score", ["score"]),
 
     // 比赛事件日志表 - 记录比赛过程中的重要事件
@@ -367,56 +325,6 @@ export const tournamentSchema = {
         .index("by_event_type", ["eventType"])
         .index("by_timestamp", ["timestamp"]),
 
-    player_tournament_limits: defineTable({
-        uid: v.string(),
-        gameType: v.string(),
-        tournamentType: v.string(),
-        date: v.string(), // "2025-06-18" - 用于每日限制
-        weekStart: v.optional(v.string()), // "2025-06-16" - 用于每周限制（周一）
-        seasonId: v.optional(v.id("seasons")), // 用于赛季限制
-        participationCount: v.number(), // 参与次数
-        tournamentCount: v.number(), // 锦标赛数量
-        submissionCount: v.number(), // 提交次数
-        createdAt: v.string(),
-        updatedAt: v.string(),
-    }).index("by_uid_game_date", ["uid", "gameType", "date"])
-        .index("by_uid_tournament_date", ["uid", "tournamentType", "date"])
-        .index("by_uid_tournament_week", ["uid", "tournamentType", "weekStart"])
-        .index("by_uid_tournament_season", ["uid", "tournamentType", "seasonId"])
-        .index("by_uid_tournament", ["uid", "tournamentType"])
-        .index("by_date_tournament", ["date", "tournamentType"]),
-
-    // 玩家锦标赛参与记录
-    player_tournament_participation: defineTable({
-        uid: v.string(),
-        tournamentId: v.id("tournaments"),
-        tournamentType: v.string(),
-        gameType: v.string(),
-        participationDate: v.string(), // YYYY-MM-DD 格式
-        submissionCount: v.number(), // 在该锦标赛中的提交次数
-        bestScore: v.optional(v.number()), // 最佳分数
-        lastSubmissionAt: v.optional(v.string()),
-        createdAt: v.string(),
-        updatedAt: v.string(),
-    })
-        .index("by_uid_tournament", ["uid", "tournamentId"])
-        .index("by_uid_date", ["uid", "participationDate"])
-        .index("by_tournament_uid", ["tournamentId", "uid"]),
-
-    // 锦标赛道具分配
-    tournament_prop_distributions: defineTable({
-        uid: v.string(),
-        tournamentId: v.string(),
-        rewards: v.array(v.any()),
-        distributedProps: v.array(v.object({
-            gameType: v.string(),
-            propType: v.string(),
-            quantity: v.number()
-        })),
-        createdAt: v.string()
-    })
-        .index("by_uid", ["uid"])
-        .index("by_tournamentId", ["tournamentId"]),
 
     // 锦标赛参赛费用
     tournament_entry_fees: defineTable({
@@ -429,38 +337,7 @@ export const tournamentSchema = {
         .index("by_uid", ["uid"])
         .index("by_tournamentId", ["tournamentId"]),
 
-    // 锦标赛道具效果
-    tournament_prop_effects: defineTable({
-        uid: v.string(),
-        tournamentId: v.string(),
-        gameType: v.string(),
-        originalResult: v.any(),
-        modifiedResult: v.any(),
-        createdAt: v.string()
-    })
-        .index("by_uid", ["uid"])
-        .index("by_tournamentId", ["tournamentId"]),
 
-    // 游戏点数变化日志表
-    game_point_changes: defineTable({
-        uid: v.string(),
-        tournamentId: v.id("tournaments"),
-        matchId: v.id("matches"),
-        oldGamePoint: v.number(),
-        newGamePoint: v.number(),
-        pointsEarned: v.number(),
-        matchRank: v.number(),
-        totalPlayers: v.number(),
-        score: v.number(),
-        gameData: v.any(),
-        timestamp: v.string(),
-        createdAt: v.string(),
-    }).index("by_uid", ["uid"])
-        .index("by_tournament", ["tournamentId"])
-        .index("by_uid_tournament", ["uid", "tournamentId"])
-        .index("by_match", ["matchId"])
-        .index("by_timestamp", ["timestamp"])
-        .index("by_uid_timestamp", ["uid", "timestamp"]),
 
     seasons: defineTable({
         name: v.string(),

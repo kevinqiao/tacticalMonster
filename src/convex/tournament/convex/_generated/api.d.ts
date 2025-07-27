@@ -13,25 +13,18 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
-import type * as api_segmentAPI from "../api/segmentAPI.js";
+import type * as api_propAPI from "../api/propAPI.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_notificationDao from "../dao/notificationDao.js";
 import type * as dao_playerDao from "../dao/playerDao.js";
 import type * as dao_playerTaskDao from "../dao/playerTaskDao.js";
 import type * as dao_taskEventDao from "../dao/taskEventDao.js";
 import type * as dao_tournamentDao from "../dao/tournamentDao.js";
-import type * as data_testLimitsConfiguration from "../data/testLimitsConfiguration.js";
-import type * as data_tournamentConfigUsage from "../data/tournamentConfigUsage.js";
 import type * as data_tournamentConfigs from "../data/tournamentConfigs.js";
 import type * as data_tournamentConfigs_all from "../data/tournamentConfigs_all.js";
-import type * as examples_segmentSystemExample from "../examples/segmentSystemExample.js";
 import type * as http from "../http.js";
-import type * as init_initPlayers from "../init/initPlayers.js";
-import type * as init_initTournamentTypes from "../init/initTournamentTypes.js";
-import type * as init_loadTaskTemplatesFromJson from "../init/loadTaskTemplatesFromJson.js";
 import type * as schemas_config from "../schemas/config.js";
 import type * as schemas_exampleNewModule from "../schemas/exampleNewModule.js";
-import type * as schemas_index from "../schemas/index.js";
 import type * as schemas_migrationHelper from "../schemas/migrationHelper.js";
 import type * as schemas_propSchema from "../schemas/propSchema.js";
 import type * as schemas_segmentSchema from "../schemas/segmentSchema.js";
@@ -49,29 +42,12 @@ import type * as service_localization_localizationManager from "../service/local
 import type * as service_localization_messageCodes from "../service/localization/messageCodes.js";
 import type * as service_localization_messageHandler from "../service/localization/messageHandler.js";
 import type * as service_match from "../service/match.js";
-import type * as service_migration_migrateMatchesToPlayerMatches from "../service/migration/migrateMatchesToPlayerMatches.js";
 import type * as service_playerManager from "../service/playerManager.js";
-import type * as service_prop_gameIntegrationExample from "../service/prop/gameIntegrationExample.js";
-import type * as service_prop_gameIntegrationExamples from "../service/prop/gameIntegrationExamples.js";
-import type * as service_prop_gameModeAdapter from "../service/prop/gameModeAdapter.js";
-import type * as service_prop_inventoryManager from "../service/prop/inventoryManager.js";
-import type * as service_prop_propManager from "../service/prop/propManager.js";
-import type * as service_prop_propUsageExample from "../service/prop/propUsageExample.js";
-import type * as service_prop_smartPropUsage from "../service/prop/smartPropUsage.js";
-import type * as service_prop_testDeductionIdFix from "../service/prop/testDeductionIdFix.js";
-import type * as service_prop_testUnifiedPropManager from "../service/prop/testUnifiedPropManager.js";
-import type * as service_prop_unifiedPropManager from "../service/prop/unifiedPropManager.js";
+import type * as service_props_propEffectSystem from "../service/props/propEffectSystem.js";
+import type * as service_props_propShop from "../service/props/propShop.js";
+import type * as service_props_propSystem from "../service/props/propSystem.js";
 import type * as service_recordLogin from "../service/recordLogin.js";
-import type * as service_seasons from "../service/seasons.js";
-import type * as service_segment_leaderboardManager from "../service/segment/leaderboardManager.js";
-import type * as service_segment_rewardManager from "../service/segment/rewardManager.js";
-import type * as service_segment_segmentDataLoader from "../service/segment/segmentDataLoader.js";
-import type * as service_segment_segmentManager from "../service/segment/segmentManager.js";
-import type * as service_segment_segmentScoringSystem from "../service/segment/segmentScoringSystem.js";
-import type * as service_segment_segmentSystem from "../service/segment/segmentSystem.js";
-import type * as service_segment_softSegmentSystem from "../service/segment/softSegmentSystem.js";
-import type * as service_segment_testScoringSystem from "../service/segment/testScoringSystem.js";
-import type * as service_segment_testSoftSegmentSystem from "../service/segment/testSoftSegmentSystem.js";
+import type * as service_simpleTimezoneUtils from "../service/simpleTimezoneUtils.js";
 import type * as service_task_assignTasks from "../service/task/assignTasks.js";
 import type * as service_task_processTaskEvents from "../service/task/processTaskEvents.js";
 import type * as service_task_recordShare from "../service/task/recordShare.js";
@@ -83,13 +59,6 @@ import type * as service_task_test_testSeasonTasks from "../service/task/test/te
 import type * as service_task_test_testTaskHandlers from "../service/task/test/testTaskHandlers.js";
 import type * as service_task_test_testTaskSystem from "../service/task/test/testTaskSystem.js";
 import type * as service_task_testTaskTemplates from "../service/task/testTaskTemplates.js";
-import type * as service_ticket_taskIntegration from "../service/ticket/taskIntegration.js";
-import type * as service_ticket_testTaskIntegration from "../service/ticket/testTaskIntegration.js";
-import type * as service_ticket_testTicketSystem from "../service/ticket/testTicketSystem.js";
-import type * as service_ticket_testTournamentIntegration from "../service/ticket/testTournamentIntegration.js";
-import type * as service_ticket_ticketSchema from "../service/ticket/ticketSchema.js";
-import type * as service_ticket_ticketSystem from "../service/ticket/ticketSystem.js";
-import type * as service_ticket_tournamentIntegration from "../service/ticket/tournamentIntegration.js";
 import type * as service_tournament_common from "../service/tournament/common.js";
 import type * as service_tournament_errorCodes from "../service/tournament/errorCodes.js";
 import type * as service_tournament_errorHandler from "../service/tournament/errorHandler.js";
@@ -102,7 +71,6 @@ import type * as service_tournament_handler_multiPlayerIndependentMatchHandler f
 import type * as service_tournament_handler_multiPlayerSharedMatchHandler from "../service/tournament/handler/multiPlayerSharedMatchHandler.js";
 import type * as service_tournament_handler_singlePlayerIndependentTournamentHandler from "../service/tournament/handler/singlePlayerIndependentTournamentHandler.js";
 import type * as service_tournament_matchManager from "../service/tournament/matchManager.js";
-import type * as service_tournament_matchingScheduler from "../service/tournament/matchingScheduler.js";
 import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
 import type * as service_tournament_pointCalculator from "../service/tournament/pointCalculator.js";
 import type * as service_tournament_ruleEngine from "../service/tournament/ruleEngine.js";
@@ -111,10 +79,7 @@ import type * as service_tournament_tournamentMatchingService from "../service/t
 import type * as service_tournament_tournamentScheduler from "../service/tournament/tournamentScheduler.js";
 import type * as service_tournament_tournamentService from "../service/tournament/tournamentService.js";
 import type * as service_tournament_utils_tournamentTypeUtils from "../service/tournament/utils/tournamentTypeUtils.js";
-import type * as service_updateActivity from "../service/updateActivity.js";
 import type * as service_updatePlayerProfile from "../service/updatePlayerProfile.js";
-import type * as service_utils from "../service/utils.js";
-import type * as tests_runTests from "../tests/runTests.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -125,25 +90,18 @@ import type * as tests_runTests from "../tests/runTests.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  "api/segmentAPI": typeof api_segmentAPI;
+  "api/propAPI": typeof api_propAPI;
   "custom/session": typeof custom_session;
   "dao/notificationDao": typeof dao_notificationDao;
   "dao/playerDao": typeof dao_playerDao;
   "dao/playerTaskDao": typeof dao_playerTaskDao;
   "dao/taskEventDao": typeof dao_taskEventDao;
   "dao/tournamentDao": typeof dao_tournamentDao;
-  "data/testLimitsConfiguration": typeof data_testLimitsConfiguration;
-  "data/tournamentConfigUsage": typeof data_tournamentConfigUsage;
   "data/tournamentConfigs": typeof data_tournamentConfigs;
   "data/tournamentConfigs_all": typeof data_tournamentConfigs_all;
-  "examples/segmentSystemExample": typeof examples_segmentSystemExample;
   http: typeof http;
-  "init/initPlayers": typeof init_initPlayers;
-  "init/initTournamentTypes": typeof init_initTournamentTypes;
-  "init/loadTaskTemplatesFromJson": typeof init_loadTaskTemplatesFromJson;
   "schemas/config": typeof schemas_config;
   "schemas/exampleNewModule": typeof schemas_exampleNewModule;
-  "schemas/index": typeof schemas_index;
   "schemas/migrationHelper": typeof schemas_migrationHelper;
   "schemas/propSchema": typeof schemas_propSchema;
   "schemas/segmentSchema": typeof schemas_segmentSchema;
@@ -161,29 +119,12 @@ declare const fullApi: ApiFromModules<{
   "service/localization/messageCodes": typeof service_localization_messageCodes;
   "service/localization/messageHandler": typeof service_localization_messageHandler;
   "service/match": typeof service_match;
-  "service/migration/migrateMatchesToPlayerMatches": typeof service_migration_migrateMatchesToPlayerMatches;
   "service/playerManager": typeof service_playerManager;
-  "service/prop/gameIntegrationExample": typeof service_prop_gameIntegrationExample;
-  "service/prop/gameIntegrationExamples": typeof service_prop_gameIntegrationExamples;
-  "service/prop/gameModeAdapter": typeof service_prop_gameModeAdapter;
-  "service/prop/inventoryManager": typeof service_prop_inventoryManager;
-  "service/prop/propManager": typeof service_prop_propManager;
-  "service/prop/propUsageExample": typeof service_prop_propUsageExample;
-  "service/prop/smartPropUsage": typeof service_prop_smartPropUsage;
-  "service/prop/testDeductionIdFix": typeof service_prop_testDeductionIdFix;
-  "service/prop/testUnifiedPropManager": typeof service_prop_testUnifiedPropManager;
-  "service/prop/unifiedPropManager": typeof service_prop_unifiedPropManager;
+  "service/props/propEffectSystem": typeof service_props_propEffectSystem;
+  "service/props/propShop": typeof service_props_propShop;
+  "service/props/propSystem": typeof service_props_propSystem;
   "service/recordLogin": typeof service_recordLogin;
-  "service/seasons": typeof service_seasons;
-  "service/segment/leaderboardManager": typeof service_segment_leaderboardManager;
-  "service/segment/rewardManager": typeof service_segment_rewardManager;
-  "service/segment/segmentDataLoader": typeof service_segment_segmentDataLoader;
-  "service/segment/segmentManager": typeof service_segment_segmentManager;
-  "service/segment/segmentScoringSystem": typeof service_segment_segmentScoringSystem;
-  "service/segment/segmentSystem": typeof service_segment_segmentSystem;
-  "service/segment/softSegmentSystem": typeof service_segment_softSegmentSystem;
-  "service/segment/testScoringSystem": typeof service_segment_testScoringSystem;
-  "service/segment/testSoftSegmentSystem": typeof service_segment_testSoftSegmentSystem;
+  "service/simpleTimezoneUtils": typeof service_simpleTimezoneUtils;
   "service/task/assignTasks": typeof service_task_assignTasks;
   "service/task/processTaskEvents": typeof service_task_processTaskEvents;
   "service/task/recordShare": typeof service_task_recordShare;
@@ -195,13 +136,6 @@ declare const fullApi: ApiFromModules<{
   "service/task/test/testTaskHandlers": typeof service_task_test_testTaskHandlers;
   "service/task/test/testTaskSystem": typeof service_task_test_testTaskSystem;
   "service/task/testTaskTemplates": typeof service_task_testTaskTemplates;
-  "service/ticket/taskIntegration": typeof service_ticket_taskIntegration;
-  "service/ticket/testTaskIntegration": typeof service_ticket_testTaskIntegration;
-  "service/ticket/testTicketSystem": typeof service_ticket_testTicketSystem;
-  "service/ticket/testTournamentIntegration": typeof service_ticket_testTournamentIntegration;
-  "service/ticket/ticketSchema": typeof service_ticket_ticketSchema;
-  "service/ticket/ticketSystem": typeof service_ticket_ticketSystem;
-  "service/ticket/tournamentIntegration": typeof service_ticket_tournamentIntegration;
   "service/tournament/common": typeof service_tournament_common;
   "service/tournament/errorCodes": typeof service_tournament_errorCodes;
   "service/tournament/errorHandler": typeof service_tournament_errorHandler;
@@ -214,7 +148,6 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/handler/multiPlayerSharedMatchHandler": typeof service_tournament_handler_multiPlayerSharedMatchHandler;
   "service/tournament/handler/singlePlayerIndependentTournamentHandler": typeof service_tournament_handler_singlePlayerIndependentTournamentHandler;
   "service/tournament/matchManager": typeof service_tournament_matchManager;
-  "service/tournament/matchingScheduler": typeof service_tournament_matchingScheduler;
   "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;
   "service/tournament/pointCalculator": typeof service_tournament_pointCalculator;
   "service/tournament/ruleEngine": typeof service_tournament_ruleEngine;
@@ -223,10 +156,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/tournamentScheduler": typeof service_tournament_tournamentScheduler;
   "service/tournament/tournamentService": typeof service_tournament_tournamentService;
   "service/tournament/utils/tournamentTypeUtils": typeof service_tournament_utils_tournamentTypeUtils;
-  "service/updateActivity": typeof service_updateActivity;
   "service/updatePlayerProfile": typeof service_updatePlayerProfile;
-  "service/utils": typeof service_utils;
-  "tests/runTests": typeof tests_runTests;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
 import { mutation, query } from "../../_generated/server";
-import { getTorontoDate } from "../utils";
+import { getTorontoMidnight } from "../simpleTimezoneUtils";
+import { MatchStatus } from "./common";
 import { TournamentService } from "./tournamentService";
 
 const GAME_MODES: Record<string, string> = {
@@ -31,53 +32,56 @@ export class MatchManager {
         typeId: string;
         uids?: string[];
     }) {
+        try {
+            console.log("params", params);
+            const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", params.typeId)).unique();
+            if (!tournamentType) {
+                throw new Error("锦标赛类型不存在");
+            }
+            const { uids, typeId, tournamentId } = params;
+            const now = getTorontoMidnight();
 
-        const tournamentType = await ctx.db.query("tournamentTypes").withIndex("by_typeId", (q: any) => q.eq("typeId", params.typeId)).unique();
-        if (!tournamentType) {
-            throw new Error("锦标赛类型不存在");
-        }
-        const { uids, typeId, tournamentId } = params;
-        const now = getTorontoDate();
-
-        const matchId = await ctx.db.insert("matches", {
-            tournamentId,
-            tournamentType: typeId,
-            gameType: tournamentType.gameType,
-            matchType: tournamentType.matchRules.matchType,
-            status: "pending",
-            maxPlayers: tournamentType.matchRules.maxPlayers,
-            minPlayers: tournamentType.matchRules.minPlayers,
-            startTime: undefined,
-            endTime: undefined,
-            gameData: {},
-            createdAt: now.iso,
-            updatedAt: now.iso,
-        });
-
-        // 记录比赛创建事件
-
-        const match = await ctx.db.get(matchId);
-        if (uids) {
-            await this.joinMatch(ctx, {
-                uids,
-                match: match
-            });
-        }
-        await ctx.db.insert("match_events", {
-            matchId,
-            tournamentId: params.tournamentId,
-            eventType: "match_created",
-            eventData: {
-                matchType: tournamentType.matchRules.matchType,
+            const matchId = await ctx.db.insert("matches", {
+                tournamentId,
+                tournamentType: typeId,
+                gameType: tournamentType.gameType,
+                status: MatchStatus.MATCHING,
                 maxPlayers: tournamentType.matchRules.maxPlayers,
                 minPlayers: tournamentType.matchRules.minPlayers,
-            },
-            timestamp: now.iso,
-            createdAt: now.iso,
-        });
-        return match;
-    }
+                startTime: undefined,
+                endTime: undefined,
+                createdAt: now.iso,
+                updatedAt: now.iso,
+            });
+            console.log("matchId", matchId);
+            // 记录比赛创建事件
 
+            const match = await ctx.db.get(matchId);
+            console.log("match", match);
+            if (uids) {
+                await this.joinMatch(ctx, {
+                    uids,
+                    match: match
+                });
+            }
+            // await ctx.db.insert("match_events", {
+            //     matchId,
+            //     tournamentId: params.tournamentId,
+            //     eventType: "match_created",
+            //     eventData: {
+            //         matchType: tournamentType.matchRules.matchType,
+            //         maxPlayers: tournamentType.matchRules.maxPlayers,
+            //         minPlayers: tournamentType.matchRules.minPlayers,
+            //     },
+            //     timestamp: now.iso,
+            //     createdAt: now.iso,
+            // });
+            return match;
+        } catch (error) {
+            console.error("创建比赛失败:", error);
+            throw error;
+        }
+    }
     /**
      * 玩家加入比赛
      */
@@ -85,7 +89,7 @@ export class MatchManager {
         uids: string[];
         match: any;
     }) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const { uids, match } = params;
         if (uids.length === 0) {
             throw new Error("玩家列表不能为空");
@@ -101,7 +105,7 @@ export class MatchManager {
             throw new Error("比赛人数已满");
         } else {
             await ctx.db.patch(match._id, {
-                status: size === match.maxPlayers ? "matched" : "matching"
+                status: size === match.maxPlayers ? MatchStatus.MATCHED : MatchStatus.MATCHING
             });
         }
         const gameSize = GAME_MODES[match.gameType] === "independent" ? uids.length : 1;
@@ -116,15 +120,14 @@ export class MatchManager {
             await ctx.db.insert("player_matches", {
                 matchId: match._id,
                 tournamentId: match.tournamentId,
+                tournamentType: match.tournamentType,
                 uid: uid,
                 gameId: gameId,
                 gameType: match.gameType,
                 score: 0,
                 rank: undefined,
                 completed: false,
-                attemptNumber: 1,
                 propsUsed: [],
-                playerGameData: {},
                 joinTime: now.iso,
                 leaveTime: undefined,
                 createdAt: now.iso,
@@ -146,33 +149,35 @@ export class MatchManager {
     static async submitScore(ctx: any, params: {
         scores: {
             uid: string;
+            gameId: string;
             score: number;
-            rank?: number;
             gameData: any;
         }[];
     }) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const scores = params.scores;
-        let matchId: Id<"matches"> | undefined;
-        scores.forEach(async (score: any) => {
-            const playerMatch = await ctx.db.query("player_matches").withIndex("by_player_game", (q: any) => q.eq("uid", score.uid).eq("gameId", score.gameId)).unqiue();
+        let matchId: string | null = null;
+
+        await Promise.all(scores.map(async (score: any) => {
+            const playerMatch = await ctx.db.query("player_matches").withIndex("by_player_game", (q: any) => q.eq("uid", score.uid).eq("gameId", score.gameId)).first();
             if (!playerMatch) {
                 throw new Error("玩家比赛记录不存在");
             }
-            matchId = playerMatch.matchId;
+            if (matchId === null) {
+                matchId = playerMatch.matchId;
+            }
+
             await ctx.db.patch(playerMatch._id, {
                 score: score.score,
-                rank: score.rank,
                 completed: true,
                 updatedAt: now.iso
             });
-        });
-        if (!matchId) {
-            throw new Error("比赛不存在");
+        }));
+        console.log("matchId", matchId);
+        if (matchId) {
+            await this.settleMatch(ctx, { matchId });
         }
-        return await this.settleMatch(ctx, {
-            matchId
-        });
+
 
     }
 
@@ -182,21 +187,25 @@ export class MatchManager {
     static async settleMatch(ctx: any, params: {
         matchId: Id<"matches">;
     }) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const match = await ctx.db.get(params.matchId);
+
         const playerMatches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", params.matchId)).collect();
-        const completed = playerMatches.every((playerMatch: any) => playerMatch.completed);
-        if (completed && playerMatches.length === match.maxPlayers) {
+        const completed = playerMatches.every((playerMatch: any) => playerMatch.completed) && playerMatches.length === match.maxPlayers;
+
+        if (completed) {
             const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", match.tournamentType)).unique();
             if (!tournamentType) {
                 throw new Error("锦标赛类型不存在");
             }
+
             const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament", (q: any) => q.eq("tournamentId", match.tournamentId)).collect();
             const matchRules = tournamentType.matchRules;
 
-            playerMatches.sort((a: any, b: any) => b.score - a.score);
-            playerMatches.forEach(async (playerMatch: any, index: number) => {
+            await Promise.all(playerMatches.map(async (playerMatch: any, index: number) => {
+                // console.log("playerMatch", playerMatch);
                 const playerTournament = playerTournaments.find((playerTournament: any) => playerTournament.uid === playerMatch.uid);
+                playerTournament.score = playerTournament.score ?? 0
                 playerMatch.rank = index + 1;
                 if (matchRules.matchPoints) {
                     playerTournament.points = matchRules.matchPoints[playerMatch.rank];
@@ -217,14 +226,15 @@ export class MatchManager {
                             break;
                     }
                 }
+
                 await ctx.db.patch(playerTournament._id, {
                     score: playerTournament.score,
                     completed: true,
                     updatedAt: now.iso
                 });
-            });
+            }));
             await ctx.db.patch(match._id, {
-                status: "completed",
+                status: MatchStatus.COMPLETED,
                 updatedAt: now.iso
             });
 
@@ -232,7 +242,7 @@ export class MatchManager {
                 await TournamentService.settle(ctx, match.tournamentId);
             }
 
-        }
+        };
 
     }
 
@@ -289,7 +299,7 @@ export class MatchManager {
         gameIds: string[];
         seed?: string;
     }) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         try {
             const gameServerUrl = GAME_SERVER_CONFIG[params.gameType];
@@ -350,14 +360,12 @@ export const joinMatch = (mutation as any)({
 
 export const submitScore = (mutation as any)({
     args: {
-        matchId: v.id("matches"),
-        tournamentId: v.id("tournaments"),
-        uid: v.string(),
-        gameType: v.string(),
-        score: v.number(),
-        gameData: v.string(),
-        propsUsed: v.any(),
-        attemptNumber: v.optional(v.number()),
+        scores: v.array(v.object({
+            uid: v.string(),
+            gameId: v.string(),
+            score: v.number(),
+            gameData: v.optional(v.string()),
+        })),
     },
     handler: async (ctx: any, args: any): Promise<any> => {
         return await MatchManager.submitScore(ctx, args);

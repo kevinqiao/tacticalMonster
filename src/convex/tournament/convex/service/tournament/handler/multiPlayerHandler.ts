@@ -1,4 +1,4 @@
-import { getTorontoDate } from "../../utils";
+import { getTorontoMidnight } from "../../simpleTimezoneUtils";
 import {
     TournamentHandler
 } from "../common";
@@ -20,7 +20,7 @@ export const multiPlayerHandler: TournamentHandler = {
 
     }) => {
         const { uid, gameType, tournamentType } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         let startTime: string;
         // 根据时间范围确定开始时间
         switch (tournamentType.timeRange) {

@@ -1,4 +1,4 @@
-import { getTorontoDate } from "../utils";
+import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
 /**
  * 玩家锦标赛参与状态枚举
@@ -51,7 +51,7 @@ export class PlayerTournamentStatusManager {
         metadata?: any;
     }) {
         const { uid, tournamentId, newStatus, reason, metadata } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         // 查找现有的参与记录
         const playerTournament = await ctx.db
@@ -100,7 +100,7 @@ export class PlayerTournamentStatusManager {
         metadata?: any;
     }) {
         const { tournamentId, newStatus, reason, metadata } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         // 获取所有参与该锦标赛的玩家
         const playerTournaments = await ctx.db
@@ -141,7 +141,7 @@ export class PlayerTournamentStatusManager {
         reason?: string;
     }) {
         const { tournamentId, completedPlayers, reason } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         // 获取所有参与该锦标赛的玩家
         const playerTournaments = await ctx.db
@@ -199,7 +199,7 @@ export class PlayerTournamentStatusManager {
             newStatus: PlayerTournamentStatus.WITHDRAWN,
             reason: reason || "玩家主动退出",
             metadata: {
-                withdrawalTime: getTorontoDate().iso
+                withdrawalTime: getTorontoMidnight().iso
             }
         });
     }
@@ -221,7 +221,7 @@ export class PlayerTournamentStatusManager {
             newStatus: PlayerTournamentStatus.DISQUALIFIED,
             reason,
             metadata: {
-                disqualificationTime: getTorontoDate().iso,
+                disqualificationTime: getTorontoMidnight().iso,
                 ...metadata
             }
         });
@@ -234,7 +234,7 @@ export class PlayerTournamentStatusManager {
         daysToKeep?: number;
     }) {
         const { daysToKeep = 30 } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const cutoffDate = new Date(now.localDate.getTime() - daysToKeep * 24 * 60 * 60 * 1000);
 
         // 查找过期的参与记录（已完成、退出、取消资格且超过保留期限）
@@ -269,7 +269,7 @@ export class PlayerTournamentStatusManager {
         timeRange?: "daily" | "weekly" | "seasonal" | "total";
     }) {
         const { uid, timeRange = "total" } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         let startDate: Date;
         switch (timeRange) {
@@ -350,7 +350,7 @@ export class PlayerTournamentStatusManager {
         progressCallback?: (progress: any) => void;
     }) {
         const { tournamentId, batchSize = 100, maxConcurrency = 5, progressCallback } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         console.log(`开始批量处理锦标赛 ${tournamentId} 的参与者状态`);
 
@@ -447,7 +447,7 @@ export class PlayerTournamentStatusManager {
             }
         }
 
-        results.endTime = getTorontoDate().iso;
+        results.endTime = getTorontoMidnight().iso;
 
         console.log(`锦标赛 ${tournamentId} 批量处理完成:`, {
             processed: results.processed,
@@ -471,7 +471,7 @@ export class PlayerTournamentStatusManager {
         progressCallback?: (progress: any) => void;
     }) {
         const { batch, completedPlayers, batchNumber, totalBatches, progressCallback } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         const batchResult = {
             processed: 0,
@@ -573,8 +573,8 @@ export class PlayerTournamentStatusManager {
             status: "running",
             batchSize,
             maxConcurrency,
-            createdAt: getTorontoDate().iso,
-            updatedAt: getTorontoDate().iso
+            createdAt: getTorontoMidnight().iso,
+            updatedAt: getTorontoMidnight().iso
         });
 
         // 启动异步处理
@@ -648,7 +648,7 @@ export class PlayerTournamentStatusManager {
                     expired,
                     errors,
                     progress: Math.round((processed / totalPlayers) * 100),
-                    updatedAt: getTorontoDate().iso
+                    updatedAt: getTorontoMidnight().iso
                 });
 
                 // 避免过度占用资源
@@ -658,7 +658,7 @@ export class PlayerTournamentStatusManager {
             // 完成任务
             await ctx.db.patch(taskId, {
                 status: "completed",
-                updatedAt: getTorontoDate().iso
+                updatedAt: getTorontoMidnight().iso
             });
 
         } catch (error) {
@@ -666,7 +666,7 @@ export class PlayerTournamentStatusManager {
             await ctx.db.patch(taskId, {
                 status: "failed",
                 error: error instanceof Error ? error.message : String(error),
-                updatedAt: getTorontoDate().iso
+                updatedAt: getTorontoMidnight().iso
             });
         }
     }
@@ -724,7 +724,7 @@ export class PlayerTournamentStatusManager {
                 if (this.isValidTransition(playerTournament.status, newStatus)) {
                     await ctx.db.patch(playerTournament._id, {
                         status: newStatus,
-                        updatedAt: getTorontoDate().iso
+                        updatedAt: getTorontoMidnight().iso
                     });
                 }
 
@@ -747,7 +747,7 @@ export class PlayerTournamentStatusManager {
         maxConcurrency?: number;
     }) {
         const { tournamentId, batchSize = 100, maxConcurrency = 5 } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         console.log(`开始优化处理锦标赛 ${tournamentId} 的结算`);
 
@@ -810,7 +810,7 @@ export class PlayerTournamentStatusManager {
             console.log(`批次 ${i + maxConcurrency}/${batches.length} 处理完成，进度: ${Math.round((results.processed / results.total) * 100)}%`);
         }
 
-        results.endTime = getTorontoDate().iso;
+        results.endTime = getTorontoMidnight().iso;
 
         console.log(`锦标赛 ${tournamentId} 优化处理完成:`, {
             processed: results.processed,
@@ -833,7 +833,7 @@ export class PlayerTournamentStatusManager {
         totalBatches: number;
     }) {
         const { batch, tournamentId, batchNumber, totalBatches } = params;
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         const batchResult = {
             processed: 0,

@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
 import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
-import { getTorontoDate } from "../utils";
+import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import {
     checkTournamentEligibility,
     collectRewards,
@@ -44,13 +44,26 @@ export class TournamentService {
      */
     static async join(ctx: any, params: {
         player: any;
-        tournamentType: any;
-        tournament: any;
-    }) {
+        typeId: any;
 
-        const handler = getHandler(params.tournamentType.typeId);
+    }) {
+        const { player, typeId } = params;
+        const match = await ctx.db.query("player_matches").withIndex("by_uid_completed", (q: any) => q.eq("uid", player.uid).eq("completed", false)).first();
+        if (match) {
+            throw new Error("玩家已有未完成的锦标赛");
+        }
+        let tournament;
+        const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).first();
+        if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
+            tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
+            if (!tournament) {
+                throw new Error("锦标赛不存在");
+            }
+        }
+
+        const handler = getHandler(tournamentType.typeId);
         // 执行加入逻辑（处理器内部会处理锦标赛创建）
-        const result = await handler.join(ctx, params);
+        const result = await handler.join(ctx, { player, tournamentType, tournament });
 
         return {
             success: true,
@@ -226,7 +239,7 @@ export class TournamentService {
      * 清理过期锦标赛
      */
     static async cleanupExpiredTournaments(ctx: any) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         console.log("开始清理过期锦标赛");
 
@@ -278,14 +291,14 @@ export class TournamentService {
         await collectRewards(ctx, playerTournament);
         await ctx.db.patch(playerTournament._id, {
             status: TournamentStatus.COLLECTED,
-            updatedAt: getTorontoDate().iso
+            updatedAt: getTorontoMidnight().iso
         });
     }
     /**
      * 结算完成的锦标赛
      */
     static async settleCompletedTournaments(ctx: any) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         console.log("开始结算完成的锦标赛");
 
@@ -380,7 +393,7 @@ export class TournamentService {
                     uid,
                     tournamentType
                 });
-                participation.attempts = attempts;
+                participation.attempts = attempts.length;
 
                 // 检查参赛资格
                 const eligibility = await checkTournamentEligibility(ctx, {
@@ -394,7 +407,7 @@ export class TournamentService {
                     typeId: tournamentType.typeId,
                     name: tournamentType.name,
                     description: tournamentType.description,
-                    category: tournamentType.category,
+                    timeRange: tournamentType.timeRange,
                     gameType: tournamentType.gameType,
                     // config: {
                     //     entryRequirements: tournamentType.entryRequirements,
@@ -434,19 +447,16 @@ export const joinTournament = (mutation as any)({
         typeId: v.string(),
     },
     handler: async (ctx: any, { uid, typeId }: { uid: string, typeId: string }) => {
-        let tournament;
-        const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).unqiue();
-        if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
-            tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
-            if (!tournament) {
-                throw new Error("锦标赛不存在");
-            }
+        const match = await ctx.db.query("player_matches").withIndex("by_uid_completed", (q: any) => q.eq("uid", uid).eq("completed", false)).first();
+        if (match) {
+            throw new Error("玩家已有未完成的锦标赛");
         }
+
         const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", uid)).unique();
         if (!player) {
             throw new Error("玩家不存在");
         }
-        const result = await TournamentService.join(ctx, { player, tournamentType, tournament });
+        const result = await TournamentService.join(ctx, { player, typeId });
         return result;
     },
 });

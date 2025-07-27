@@ -1,6 +1,6 @@
 import { internalMutation, mutation } from "../../_generated/server";
-import { getTorontoDate } from "../utils";
-import { TournamentStatus } from "./common";
+import { getTorontoMidnight } from "../simpleTimezoneUtils";
+import { createTournament, findTournamentByType } from "./common";
 
 /**
  * 锦标赛调度器
@@ -11,7 +11,7 @@ export class TournamentScheduler {
      * 并发安全的创建每日锦标赛
      */
     static async createDailyTournaments(ctx: any) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const today = now.localDate.toISOString().split("T")[0];
 
         console.log(`开始创建每日锦标赛 - ${today}`);
@@ -27,16 +27,14 @@ export class TournamentScheduler {
             for (const config of dailyConfigs) {
                 try {
                     // 检查是否已创建今日锦标赛
-                    const existingTournament = await this.findExistingTournament(ctx, {
+                    const existingTournament = await findTournamentByType(ctx, {
                         tournamentType: config
                     });
 
                     if (!existingTournament) {
                         // 创建锦标赛
-                        await this.createTournament(ctx, {
+                        await createTournament(ctx, {
                             config,
-                            season: await this.getCurrentSeason(ctx),
-                            now
                         });
                         console.log(`已创建每日锦标赛: ${config.typeId}`);
                     } else {
@@ -62,7 +60,7 @@ export class TournamentScheduler {
      * 并发安全的创建每周锦标赛
      */
     static async createWeeklyTournaments(ctx: any) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
 
         console.log(`开始创建每周锦标赛 - ${weekStart}`);
@@ -78,16 +76,14 @@ export class TournamentScheduler {
             for (const config of weeklyConfigs) {
                 try {
                     // 检查是否已创建本周锦标赛
-                    const existingTournament = await this.findExistingTournament(ctx, {
+                    const existingTournament = await findTournamentByType(ctx, {
                         tournamentType: config
                     });
 
                     if (!existingTournament) {
                         // 创建锦标赛
-                        await this.createTournament(ctx, {
+                        await createTournament(ctx, {
                             config,
-                            season: await this.getCurrentSeason(ctx),
-                            now
                         });
                         console.log(`已创建每周锦标赛: ${config.typeId}`);
                     } else {
@@ -113,7 +109,7 @@ export class TournamentScheduler {
      * 并发安全的创建赛季锦标赛
      */
     static async createSeasonalTournaments(ctx: any) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const season = await this.getCurrentSeason(ctx);
 
         if (!season) {
@@ -137,16 +133,14 @@ export class TournamentScheduler {
             for (const config of seasonalConfigs) {
                 try {
                     // 检查是否已创建本赛季锦标赛
-                    const existingTournament = await this.findExistingTournament(ctx, {
+                    const existingTournament = await findTournamentByType(ctx, {
                         tournamentType: config
                     });
 
                     if (!existingTournament) {
                         // 创建锦标赛
-                        await this.createTournament(ctx, {
+                        await createTournament(ctx, {
                             config,
-                            season,
-                            now
                         });
                         console.log(`已创建赛季锦标赛: ${config.typeId}`);
                     } else {
@@ -172,7 +166,7 @@ export class TournamentScheduler {
      * 重置每日限制
      */
     static async resetDailyLimits(ctx: any) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const today = now.localDate.toISOString().split("T")[0];
 
         console.log(`开始重置每日限制 - ${today}`);
@@ -216,7 +210,7 @@ export class TournamentScheduler {
      * 重置每周限制
      */
     static async resetWeeklyLimits(ctx: any) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
         const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
 
         console.log(`开始重置每周限制 - ${weekStart}`);
@@ -260,7 +254,7 @@ export class TournamentScheduler {
      * 重置赛季限制
      */
     static async resetSeasonalLimits(ctx: any) {
-        const now = getTorontoDate();
+        const now = getTorontoMidnight();
 
         console.log(`开始重置赛季限制`);
 
@@ -323,44 +317,44 @@ export class TournamentScheduler {
     }
 
 
-    /**
-     * 查找现有锦标赛
-     */
-    private static async findExistingTournament(ctx: any, params: {
-        tournamentType: any;
-    }) {
-        const now = getTorontoDate();
-        let startTime: string;
-        // 根据时间范围确定开始时间
-        switch (params.tournamentType.timeRange) {
-            case "daily":
-                startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
-                break;
-            case "weekly":
-                const weekStart = new Date(now.localDate);
-                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-                weekStart.setHours(0, 0, 0, 0);
-                startTime = weekStart.toISOString();
-                break;
-            case "seasonal":
-                // 获取当前赛季开始时间
-                const season = await ctx.db
-                    .query("seasons")
-                    .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-                    .first();
-                startTime = season?.startDate || now.localDate.toISOString();
-                break;
-            case "total":
-                startTime = "1970-01-01T00:00:00.000Z";
-                break;
-            default:
-                startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
-                break;
-        }
-        const tournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamentType.typeId).eq("status", TournamentStatus.OPEN).gte("createdAt", startTime)).first();
-        console.log("tournament", tournament);
-        return tournament;
-    }
+    // /**
+    //  * 查找现有锦标赛
+    //  */
+    // private static async findExistingTournament(ctx: any, params: {
+    //     tournamentType: any;
+    // }) {
+    //     const now = getTorontoDate();
+    //     let startTime: string;
+    //     // 根据时间范围确定开始时间
+    //     switch (params.tournamentType.timeRange) {
+    //         case "daily":
+    //             startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
+    //             break;
+    //         case "weekly":
+    //             const weekStart = new Date(now.localDate);
+    //             weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    //             weekStart.setHours(0, 0, 0, 0);
+    //             startTime = weekStart.toISOString();
+    //             break;
+    //         case "seasonal":
+    //             // 获取当前赛季开始时间
+    //             const season = await ctx.db
+    //                 .query("seasons")
+    //                 .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
+    //                 .first();
+    //             startTime = season?.startDate || now.localDate.toISOString();
+    //             break;
+    //         case "total":
+    //             startTime = "1970-01-01T00:00:00.000Z";
+    //             break;
+    //         default:
+    //             startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
+    //             break;
+    //     }
+    //     const tournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamentType.typeId).eq("status", TournamentStatus.OPEN).gte("createdAt", startTime)).first();
+    //     console.log("tournament", tournament);
+    //     return tournament;
+    // }
 
     /**
      * 获取当前赛季
@@ -375,52 +369,52 @@ export class TournamentScheduler {
     /**
      * 创建锦标赛
      */
-    private static async createTournament(ctx: any, params: {
-        config: any;
-        season: any;
-        now: any;
-    }) {
-        const { config, season, now } = params;
-        console.log("config", config);
-        // 计算结束时间
-        let endTime: string;
-        switch (config.timeRange) {
-            case "daily":
-                endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
-                break;
-            case "weekly":
-                endTime = new Date(now.localDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-                break;
-            case "seasonal":
-                endTime = new Date(now.localDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-                break;
-            default:
-                endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
-        }
+    // private static async createTournament(ctx: any, params: {
+    //     config: any;
+    //     season: any;
+    //     now: any;
+    // }) {
+    //     const { config, season, now } = params;
+    //     console.log("config", config);
+    //     // 计算结束时间
+    //     let endTime: string;
+    //     switch (config.timeRange) {
+    //         case "daily":
+    //             endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    //             break;
+    //         case "weekly":
+    //             endTime = new Date(now.localDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    //             break;
+    //         case "seasonal":
+    //             endTime = new Date(now.localDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    //             break;
+    //         default:
+    //             endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    //     }
 
-        // 创建锦标赛
-        const tournamentId = await ctx.db.insert("tournaments", {
-            seasonId: season._id,
-            gameType: config.gameType,
-            segmentName: "all", // 对所有段位开放
-            status: TournamentStatus.OPEN,
-            tournamentType: config.typeId,
-            // config: {
-            //     entryRequirements: config.entryRequirements,
-            //     matchRules: config.matchRules,
-            //     rewards: config.rewards,
-            //     schedule: config.schedule,
-            //     limits: config.limits,
-            //     advanced: config.advanced
-            // },
-            createdAt: now.iso,
-            updatedAt: now.iso,
-            endTime: endTime,
-        });
+    //     // 创建锦标赛
+    //     const tournamentId = await ctx.db.insert("tournaments", {
+    //         seasonId: season._id,
+    //         gameType: config.gameType,
+    //         segmentName: "all", // 对所有段位开放
+    //         status: TournamentStatus.OPEN,
+    //         tournamentType: config.typeId,
+    //         // config: {
+    //         //     entryRequirements: config.entryRequirements,
+    //         //     matchRules: config.matchRules,
+    //         //     rewards: config.rewards,
+    //         //     schedule: config.schedule,
+    //         //     limits: config.limits,
+    //         //     advanced: config.advanced
+    //         // },
+    //         createdAt: now.iso,
+    //         updatedAt: now.iso,
+    //         endTime: endTime,
+    //     });
 
-        console.log(`成功创建锦标赛 ${config.typeId}: ${tournamentId}`);
-        return tournamentId;
-    }
+    //     console.log(`成功创建锦标赛 ${config.typeId}: ${tournamentId}`);
+    //     return tournamentId;
+    // }
 }
 
 // Convex 函数接口

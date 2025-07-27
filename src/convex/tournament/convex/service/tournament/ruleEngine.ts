@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
-import { getTorontoDate } from "../utils";
+import { getTorontoDate, getTorontoMidnight } from "../simpleTimezoneUtils";
 
 // 锦标赛配置规则
 export interface TournamentRules {
@@ -30,7 +30,7 @@ export interface TournamentRules {
 // 注意：锦标赛配置已移至 data/tournamentConfigs.ts
 
 export async function validateLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, seasonId }: any) {
-  const now = getTorontoDate();
+  const now = getTorontoMidnight();
   const today = now.localDate.toISOString().split("T")[0];
   const weekStart = getWeekStart(today);
 

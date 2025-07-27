@@ -1,8 +1,5 @@
 import { defineSchema } from "convex/server";
 import { propSchema } from "./schemas/propSchema";
-import { segmentSchema } from "./schemas/segmentSchema";
-import { taskSchema } from "./schemas/taskSchema";
-import { ticketSchema } from "./schemas/ticketSchema";
 import { tournamentSchema } from "./schemas/tournamentSchema";
 import { userSchema } from "./schemas/userSchema";
 
@@ -15,15 +12,15 @@ export default defineSchema({
   ...tournamentSchema,
 
   // 段位系统
-  ...segmentSchema,
+  // ...segmentSchema,
 
   // 道具系统
   ...propSchema,
 
   // 门票系统
-  ...ticketSchema,
+  // ...ticketSchema,
 
   // 任务系统
-  ...taskSchema,
+  // ...taskSchema,
 
 });
