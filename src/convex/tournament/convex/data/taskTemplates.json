@@ -1,0 +1,482 @@
+{
+    "taskTemplates": [
+        {
+            "templateId": "daily_login",
+            "name": "每日登录",
+            "description": "每日登录游戏即可获得奖励",
+            "type": "daily",
+            "category": "gameplay",
+            "condition": {
+                "type": "simple",
+                "action": "login",
+                "targetValue": 1
+            },
+            "rewards": {
+                "coins": 50,
+                "props": [],
+                "tickets": [],
+                "seasonPoints": 10,
+                "gamePoints": {
+                    "general": 20
+                }
+            },
+            "resetInterval": "daily",
+            "isActive": true
+        },
+        {
+            "templateId": "daily_win_3_matches",
+            "name": "连胜三局",
+            "description": "在任意游戏中连续获胜3局",
+            "type": "daily",
+            "category": "gameplay",
+            "condition": {
+                "type": "simple",
+                "action": "win_match",
+                "targetValue": 3
+            },
+            "rewards": {
+                "coins": 100,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "dice_boost",
+                        "quantity": 2
+                    }
+                ],
+                "tickets": [
+                    {
+                        "gameType": "ludo",
+                        "tournamentType": "daily",
+                        "quantity": 1
+                    }
+                ],
+                "seasonPoints": 25,
+                "gamePoints": {
+                    "general": 50
+                }
+            },
+            "resetInterval": "daily",
+            "isActive": true
+        },
+        {
+            "templateId": "weekly_solitaire_master",
+            "name": "Solitaire大师",
+            "description": "在Solitaire游戏中完成10局游戏",
+            "type": "weekly",
+            "category": "gameplay",
+            "gameType": "solitaire",
+            "condition": {
+                "type": "simple",
+                "action": "complete_match",
+                "targetValue": 10,
+                "gameType": "solitaire"
+            },
+            "rewards": {
+                "coins": 200,
+                "props": [
+                    {
+                        "gameType": "solitaire",
+                        "propType": "hint_card",
+                        "quantity": 5
+                    }
+                ],
+                "tickets": [
+                    {
+                        "gameType": "solitaire",
+                        "tournamentType": "weekly",
+                        "quantity": 2
+                    }
+                ],
+                "seasonPoints": 50,
+                "gamePoints": {
+                    "general": 100,
+                    "specific": {
+                        "gameType": "solitaire",
+                        "points": 50
+                    }
+                }
+            },
+            "resetInterval": "weekly",
+            "isActive": true
+        },
+        {
+            "templateId": "consecutive_login_7",
+            "name": "连续登录7天",
+            "description": "连续登录游戏7天",
+            "type": "one_time",
+            "category": "challenge",
+            "condition": {
+                "type": "time_based",
+                "action": "login",
+                "targetValue": 7,
+                "consecutive": true
+            },
+            "rewards": {
+                "coins": 500,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "golden_dice",
+                        "quantity": 1
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "propType": "premium_hint",
+                        "quantity": 3
+                    }
+                ],
+                "tickets": [
+                    {
+                        "gameType": "ludo",
+                        "tournamentType": "elite",
+                        "quantity": 1
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "tournamentType": "elite",
+                        "quantity": 1
+                    }
+                ],
+                "seasonPoints": 100,
+                "gamePoints": {
+                    "general": 200
+                }
+            },
+            "isActive": true
+        },
+        {
+            "templateId": "multi_stage_tournament_champion",
+            "name": "锦标赛冠军之路",
+            "description": "完成多阶段锦标赛挑战",
+            "type": "multi_stage",
+            "category": "tournament",
+            "condition": {
+                "type": "multi_stage",
+                "stages": [
+                    {
+                        "action": "tournament_join",
+                        "targetValue": 1,
+                        "reward": {
+                            "coins": 50,
+                            "seasonPoints": 10
+                        }
+                    },
+                    {
+                        "action": "win_match",
+                        "targetValue": 3,
+                        "reward": {
+                            "coins": 100,
+                            "seasonPoints": 20
+                        }
+                    },
+                    {
+                        "action": "complete_match",
+                        "targetValue": 5,
+                        "reward": {
+                            "coins": 200,
+                            "seasonPoints": 50
+                        }
+                    }
+                ]
+            },
+            "rewards": {
+                "coins": 500,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "tournament_boost",
+                        "quantity": 1
+                    }
+                ],
+                "tickets": [
+                    {
+                        "gameType": "ludo",
+                        "tournamentType": "championship",
+                        "quantity": 1
+                    }
+                ],
+                "seasonPoints": 150,
+                "gamePoints": {
+                    "general": 300
+                }
+            },
+            "isActive": true
+        },
+        {
+            "templateId": "conditional_social_achiever",
+            "name": "社交达人",
+            "description": "完成社交任务组合",
+            "type": "conditional",
+            "category": "social",
+            "condition": {
+                "type": "conditional",
+                "logic": "or",
+                "subConditions": [
+                    {
+                        "action": "invite_friend",
+                        "targetValue": 3
+                    },
+                    {
+                        "action": "share_game",
+                        "targetValue": 5
+                    },
+                    {
+                        "action": "join_clan",
+                        "targetValue": 1
+                    }
+                ]
+            },
+            "rewards": {
+                "coins": 150,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "social_boost",
+                        "quantity": 1
+                    }
+                ],
+                "tickets": [],
+                "seasonPoints": 30,
+                "gamePoints": {
+                    "general": 60
+                }
+            },
+            "isActive": true
+        },
+        {
+            "templateId": "season_gold_promotion",
+            "name": "黄金段位晋升",
+            "description": "晋升到黄金段位",
+            "type": "season",
+            "category": "achievement",
+            "condition": {
+                "type": "simple",
+                "action": "reach_segment",
+                "targetValue": 1
+            },
+            "rewards": {
+                "coins": 1000,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "golden_frame",
+                        "quantity": 1
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "propType": "golden_theme",
+                        "quantity": 1
+                    }
+                ],
+                "tickets": [
+                    {
+                        "gameType": "ludo",
+                        "tournamentType": "elite",
+                        "quantity": 3
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "tournamentType": "elite",
+                        "quantity": 3
+                    }
+                ],
+                "seasonPoints": 200,
+                "gamePoints": {
+                    "general": 400
+                }
+            },
+            "isActive": true,
+            "allocationRules": {
+                "segmentName": [
+                    "bronze",
+                    "silver"
+                ]
+            }
+        },
+        {
+            "templateId": "weekly_prop_collector",
+            "name": "道具收集者",
+            "description": "使用10个道具",
+            "type": "weekly",
+            "category": "collection",
+            "condition": {
+                "type": "simple",
+                "action": "use_prop",
+                "targetValue": 10
+            },
+            "rewards": {
+                "coins": 300,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "prop_chest",
+                        "quantity": 1
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "propType": "prop_chest",
+                        "quantity": 1
+                    }
+                ],
+                "tickets": [],
+                "seasonPoints": 40,
+                "gamePoints": {
+                    "general": 80
+                }
+            },
+            "resetInterval": "weekly",
+            "isActive": true
+        },
+        {
+            "templateId": "daily_tournament_participant",
+            "name": "锦标赛参与者",
+            "description": "参与任意锦标赛",
+            "type": "daily",
+            "category": "tournament",
+            "condition": {
+                "type": "simple",
+                "action": "tournament_join",
+                "targetValue": 1
+            },
+            "rewards": {
+                "coins": 75,
+                "props": [],
+                "tickets": [
+                    {
+                        "gameType": "ludo",
+                        "tournamentType": "daily",
+                        "quantity": 1
+                    }
+                ],
+                "seasonPoints": 15,
+                "gamePoints": {
+                    "general": 30
+                }
+            },
+            "resetInterval": "daily",
+            "isActive": true
+        },
+        {
+            "templateId": "achievement_unlocker",
+            "name": "成就解锁者",
+            "description": "解锁任意成就",
+            "type": "one_time",
+            "category": "achievement",
+            "condition": {
+                "type": "simple",
+                "action": "unlock_achievement",
+                "targetValue": 1
+            },
+            "rewards": {
+                "coins": 200,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "achievement_badge",
+                        "quantity": 1
+                    }
+                ],
+                "tickets": [],
+                "seasonPoints": 25,
+                "gamePoints": {
+                    "general": 50
+                }
+            },
+            "isActive": true
+        },
+        {
+            "templateId": "premium_subscriber_bonus",
+            "name": "订阅者专属奖励",
+            "description": "订阅者每日额外奖励",
+            "type": "daily",
+            "category": "challenge",
+            "condition": {
+                "type": "simple",
+                "action": "login",
+                "targetValue": 1
+            },
+            "rewards": {
+                "coins": 100,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "premium_boost",
+                        "quantity": 1
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "propType": "premium_hint",
+                        "quantity": 2
+                    }
+                ],
+                "tickets": [
+                    {
+                        "gameType": "ludo",
+                        "tournamentType": "daily",
+                        "quantity": 2
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "tournamentType": "daily",
+                        "quantity": 2
+                    }
+                ],
+                "seasonPoints": 20,
+                "gamePoints": {
+                    "general": 40
+                }
+            },
+            "resetInterval": "daily",
+            "isActive": true,
+            "allocationRules": {
+                "subscriptionRequired": true
+            }
+        },
+        {
+            "templateId": "time_based_weekly_challenge",
+            "name": "一周挑战",
+            "description": "在一周内完成多个目标",
+            "type": "time_based",
+            "category": "challenge",
+            "condition": {
+                "type": "time_based",
+                "action": "complete_match",
+                "targetValue": 20,
+                "withinDays": 7
+            },
+            "rewards": {
+                "coins": 400,
+                "props": [
+                    {
+                        "gameType": "ludo",
+                        "propType": "weekly_chest",
+                        "quantity": 1
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "propType": "weekly_chest",
+                        "quantity": 1
+                    }
+                ],
+                "tickets": [
+                    {
+                        "gameType": "ludo",
+                        "tournamentType": "weekly",
+                        "quantity": 3
+                    },
+                    {
+                        "gameType": "solitaire",
+                        "tournamentType": "weekly",
+                        "quantity": 3
+                    }
+                ],
+                "seasonPoints": 75,
+                "gamePoints": {
+                    "general": 150
+                }
+            },
+            "resetInterval": "weekly",
+            "isActive": true
+        }
+    ]
+}

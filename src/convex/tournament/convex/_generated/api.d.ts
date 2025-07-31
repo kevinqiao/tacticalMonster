@@ -13,16 +13,17 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
-import type * as api_propAPI from "../api/propAPI.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_notificationDao from "../dao/notificationDao.js";
 import type * as dao_playerDao from "../dao/playerDao.js";
 import type * as dao_playerTaskDao from "../dao/playerTaskDao.js";
 import type * as dao_taskEventDao from "../dao/taskEventDao.js";
 import type * as dao_tournamentDao from "../dao/tournamentDao.js";
+import type * as data_taskTemplate from "../data/taskTemplate.js";
 import type * as data_tournamentConfigs from "../data/tournamentConfigs.js";
 import type * as data_tournamentConfigs_all from "../data/tournamentConfigs_all.js";
 import type * as http from "../http.js";
+import type * as init_initTicketSystem from "../init/initTicketSystem.js";
 import type * as schemas_config from "../schemas/config.js";
 import type * as schemas_exampleNewModule from "../schemas/exampleNewModule.js";
 import type * as schemas_migrationHelper from "../schemas/migrationHelper.js";
@@ -32,6 +33,7 @@ import type * as schemas_taskSchema from "../schemas/taskSchema.js";
 import type * as schemas_ticketSchema from "../schemas/ticketSchema.js";
 import type * as schemas_tournamentSchema from "../schemas/tournamentSchema.js";
 import type * as schemas_userSchema from "../schemas/userSchema.js";
+import type * as scripts_initTaskTemplates from "../scripts/initTaskTemplates.js";
 import type * as service_auth from "../service/auth.js";
 import type * as service_join from "../service/join.js";
 import type * as service_leaderboard from "../service/leaderboard.js";
@@ -48,17 +50,9 @@ import type * as service_props_propShop from "../service/props/propShop.js";
 import type * as service_props_propSystem from "../service/props/propSystem.js";
 import type * as service_recordLogin from "../service/recordLogin.js";
 import type * as service_simpleTimezoneUtils from "../service/simpleTimezoneUtils.js";
-import type * as service_task_assignTasks from "../service/task/assignTasks.js";
-import type * as service_task_processTaskEvents from "../service/task/processTaskEvents.js";
-import type * as service_task_recordShare from "../service/task/recordShare.js";
-import type * as service_task_resetTasks from "../service/task/resetTasks.js";
-import type * as service_task_scheduleTaskAssignment from "../service/task/scheduleTaskAssignment.js";
-import type * as service_task_submitMatchResult from "../service/task/submitMatchResult.js";
-import type * as service_task_test_testComplexTasks from "../service/task/test/testComplexTasks.js";
-import type * as service_task_test_testSeasonTasks from "../service/task/test/testSeasonTasks.js";
-import type * as service_task_test_testTaskHandlers from "../service/task/test/testTaskHandlers.js";
-import type * as service_task_test_testTaskSystem from "../service/task/test/testTaskSystem.js";
-import type * as service_task_testTaskTemplates from "../service/task/testTaskTemplates.js";
+import type * as service_task_taskIntegration from "../service/task/taskIntegration.js";
+import type * as service_task_taskSystem from "../service/task/taskSystem.js";
+import type * as service_ticket_ticketSystem from "../service/ticket/ticketSystem.js";
 import type * as service_tournament_common from "../service/tournament/common.js";
 import type * as service_tournament_errorCodes from "../service/tournament/errorCodes.js";
 import type * as service_tournament_errorHandler from "../service/tournament/errorHandler.js";
@@ -80,6 +74,7 @@ import type * as service_tournament_tournamentScheduler from "../service/tournam
 import type * as service_tournament_tournamentService from "../service/tournament/tournamentService.js";
 import type * as service_tournament_utils_tournamentTypeUtils from "../service/tournament/utils/tournamentTypeUtils.js";
 import type * as service_updatePlayerProfile from "../service/updatePlayerProfile.js";
+import type * as tasks from "../tasks.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -90,16 +85,17 @@ import type * as service_updatePlayerProfile from "../service/updatePlayerProfil
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  "api/propAPI": typeof api_propAPI;
   "custom/session": typeof custom_session;
   "dao/notificationDao": typeof dao_notificationDao;
   "dao/playerDao": typeof dao_playerDao;
   "dao/playerTaskDao": typeof dao_playerTaskDao;
   "dao/taskEventDao": typeof dao_taskEventDao;
   "dao/tournamentDao": typeof dao_tournamentDao;
+  "data/taskTemplate": typeof data_taskTemplate;
   "data/tournamentConfigs": typeof data_tournamentConfigs;
   "data/tournamentConfigs_all": typeof data_tournamentConfigs_all;
   http: typeof http;
+  "init/initTicketSystem": typeof init_initTicketSystem;
   "schemas/config": typeof schemas_config;
   "schemas/exampleNewModule": typeof schemas_exampleNewModule;
   "schemas/migrationHelper": typeof schemas_migrationHelper;
@@ -109,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   "schemas/ticketSchema": typeof schemas_ticketSchema;
   "schemas/tournamentSchema": typeof schemas_tournamentSchema;
   "schemas/userSchema": typeof schemas_userSchema;
+  "scripts/initTaskTemplates": typeof scripts_initTaskTemplates;
   "service/auth": typeof service_auth;
   "service/join": typeof service_join;
   "service/leaderboard": typeof service_leaderboard;
@@ -125,17 +122,9 @@ declare const fullApi: ApiFromModules<{
   "service/props/propSystem": typeof service_props_propSystem;
   "service/recordLogin": typeof service_recordLogin;
   "service/simpleTimezoneUtils": typeof service_simpleTimezoneUtils;
-  "service/task/assignTasks": typeof service_task_assignTasks;
-  "service/task/processTaskEvents": typeof service_task_processTaskEvents;
-  "service/task/recordShare": typeof service_task_recordShare;
-  "service/task/resetTasks": typeof service_task_resetTasks;
-  "service/task/scheduleTaskAssignment": typeof service_task_scheduleTaskAssignment;
-  "service/task/submitMatchResult": typeof service_task_submitMatchResult;
-  "service/task/test/testComplexTasks": typeof service_task_test_testComplexTasks;
-  "service/task/test/testSeasonTasks": typeof service_task_test_testSeasonTasks;
-  "service/task/test/testTaskHandlers": typeof service_task_test_testTaskHandlers;
-  "service/task/test/testTaskSystem": typeof service_task_test_testTaskSystem;
-  "service/task/testTaskTemplates": typeof service_task_testTaskTemplates;
+  "service/task/taskIntegration": typeof service_task_taskIntegration;
+  "service/task/taskSystem": typeof service_task_taskSystem;
+  "service/ticket/ticketSystem": typeof service_ticket_ticketSystem;
   "service/tournament/common": typeof service_tournament_common;
   "service/tournament/errorCodes": typeof service_tournament_errorCodes;
   "service/tournament/errorHandler": typeof service_tournament_errorHandler;
@@ -157,6 +146,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/tournamentService": typeof service_tournament_tournamentService;
   "service/tournament/utils/tournamentTypeUtils": typeof service_tournament_utils_tournamentTypeUtils;
   "service/updatePlayerProfile": typeof service_updatePlayerProfile;
+  tasks: typeof tasks;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

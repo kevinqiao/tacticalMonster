@@ -15,7 +15,7 @@ import {
   getBeijingMidnight,
   TimezoneUtils,
   TIMEZONES 
-} from "../service/utils";
+} from "../service/simpleTimezoneUtils";
 
 // 获取多伦多时区的0点时间
 const torontoMidnight = getTorontoMidnight();

@@ -33,27 +33,33 @@ export const taskSchema = {
         name: v.string(),
         description: v.string(),
         type: v.string(),
+        category: v.string(), // 添加category字段
         gameType: v.optional(v.string()),
         condition: v.any(),
-        rewards: v.object({
-            coins: v.number(),
-            props: v.array(v.object({ gameType: v.string(), propType: v.string(), quantity: v.number() })),
-            tickets: v.array(v.object({ gameType: v.string(), tournamentType: v.string(), quantity: v.number() })),
-            gamePoints: v.number(),
-        }),
-        resetInterval: v.string(),
-        allocationRules: v.any(),
-        isDynamic: v.optional(v.boolean()),
-        validDate: v.optional(v.string()),
+        rewards: v.any(), // 改为any类型以支持更灵活的奖励结构
+        resetInterval: v.optional(v.string()), // 改为optional
+        maxCompletions: v.optional(v.number()), // 添加maxCompletions字段
+        isActive: v.boolean(), // 添加isActive字段
+        validFrom: v.optional(v.string()), // 添加validFrom字段
+        validUntil: v.optional(v.string()), // 添加validUntil字段
+        allocationRules: v.optional(v.any()),
+        version: v.optional(v.string()), // 添加version字段
+        lastUpdated: v.optional(v.string()), // 添加lastUpdated字段
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_templateId", ["templateId"]).index("by_validDate", ["validDate"]),
+    }).index("by_templateId", ["templateId"])
+        .index("by_type", ["type"])
+        .index("by_category", ["category"])
+        .index("by_active", ["isActive"])
+        .index("by_validDate", ["validFrom", "validUntil"]),
 
     player_tasks: defineTable({
         uid: v.string(),
         taskId: v.string(),
+        templateId: v.string(), // 添加模板ID字段
         name: v.string(),
         type: v.string(),
+        category: v.string(), // 添加category字段
         description: v.string(),
         condition: v.any(), // 任务条件
         progress: v.any(), // 进度（可以是数字或复杂对象）
@@ -61,21 +67,35 @@ export const taskSchema = {
         completedAt: v.optional(v.string()),
         rewardsClaimed: v.boolean(),
         claimedAt: v.optional(v.string()),
+        completions: v.number(), // 添加completions字段
         lastReset: v.optional(v.string()),
         rewards: v.any(), // 奖励配置
+        version: v.optional(v.string()), // 添加version字段
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_uid", ["uid"]).index("by_task", ["taskId"]).index("by_completed", ["isCompleted"]).index("by_uid_taskId", ["uid", "taskId"]),
+    }).index("by_uid", ["uid"])
+        .index("by_task", ["taskId"])
+        .index("by_completed", ["isCompleted"])
+        .index("by_uid_taskId", ["uid", "taskId"])
+        .index("by_uid_templateId", ["uid", "templateId"]) // 添加新的复合索引
+        .index("by_templateId", ["templateId"]), // 添加模板ID索引
 
     // 任务事件表 - 用于记录任务相关的事件
     task_events: defineTable({
         uid: v.string(),
         action: v.string(), // "login", "game_win", "tournament_join", etc.
         actionData: v.any(), // 事件相关的数据
+        gameType: v.optional(v.string()),
+        tournamentId: v.optional(v.string()),
+        matchId: v.optional(v.string()),
         processed: v.boolean(), // 是否已处理
+        error: v.optional(v.string()), // 处理错误信息
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_uid", ["uid"]).index("by_uid_processed", ["uid", "processed"]).index("by_action", ["action"]),
+    }).index("by_uid", ["uid"])
+        .index("by_uid_processed", ["uid", "processed"])
+        .index("by_action", ["action"])
+        .index("by_processed", ["processed"]), // 添加processed索引用于批量查询
 
     task_progress_logs: defineTable({
         uid: v.string(),
@@ -109,4 +129,20 @@ export const taskSchema = {
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_uid", ["uid"]).index("by_achievement", ["achievementId"]),
+
+    // 任务历史记录表
+    task_history: defineTable({
+        uid: v.string(),
+        taskId: v.string(),
+        templateId: v.string(),
+        action: v.string(), // "created", "completed", "claimed", "reset", "progress_updated"
+        oldState: v.optional(v.any()), // 操作前的状态
+        newState: v.optional(v.any()), // 操作后的状态
+        metadata: v.optional(v.any()), // 额外信息
+        createdAt: v.string(),
+    }).index("by_uid", ["uid"])
+        .index("by_taskId", ["taskId"])
+        .index("by_action", ["action"])
+        .index("by_uid_action", ["uid", "action"])
+        .index("by_createdAt", ["createdAt"]),
 }; 
