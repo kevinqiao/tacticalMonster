@@ -4,51 +4,77 @@ import { TaskIntegration } from "./service/task/taskIntegration";
 import { TaskSystem } from "./service/task/taskSystem";
 
 // ============================================================================
-// 任务系统API接口
+// 任务系统API接口 - 基于三表设计
 // ============================================================================
 
 // 查询接口
 
 /**
- * 获取玩家所有任务
+ * 获取玩家活跃任务
  */
-export const getPlayerTasks = query({
+export const getPlayerActiveTasks = query({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerTasks(ctx, args.uid);
+        return await TaskSystem.getPlayerActiveTasks(ctx, args.uid);
     },
 });
 
 /**
- * 获取玩家特定任务
+ * 获取玩家已完成任务
  */
-export const getPlayerTask = query({
+export const getPlayerCompletedTasks = query({
+    args: { uid: v.string() },
+    handler: async (ctx, args) => {
+        return await TaskSystem.getPlayerCompletedTasks(ctx, args.uid);
+    },
+});
+
+/**
+ * 获取玩家过期任务
+ */
+export const getPlayerExpiredTasks = query({
+    args: { uid: v.string() },
+    handler: async (ctx, args) => {
+        return await TaskSystem.getPlayerExpiredTasks(ctx, args.uid);
+    },
+});
+
+/**
+ * 获取玩家特定活跃任务
+ */
+export const getPlayerActiveTask = query({
     args: {
         uid: v.string(),
         taskId: v.string()
     },
     handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerTask(ctx, args.uid, args.taskId);
+        return await TaskSystem.getPlayerActiveTask(ctx, args.uid, args.taskId);
     },
 });
 
 /**
- * 获取玩家未完成任务
+ * 获取玩家特定已完成任务
  */
-export const getPlayerIncompleteTasks = query({
-    args: { uid: v.string() },
+export const getPlayerCompletedTask = query({
+    args: {
+        uid: v.string(),
+        taskId: v.string()
+    },
     handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerIncompleteTasks(ctx, args.uid);
+        return await TaskSystem.getPlayerCompletedTask(ctx, args.uid, args.taskId);
     },
 });
 
 /**
- * 获取玩家已完成但未领取奖励的任务
+ * 获取玩家特定过期任务
  */
-export const getPlayerCompletedUnclaimedTasks = query({
-    args: { uid: v.string() },
+export const getPlayerExpiredTask = query({
+    args: {
+        uid: v.string(),
+        taskId: v.string()
+    },
     handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerCompletedUnclaimedTasks(ctx, args.uid);
+        return await TaskSystem.getPlayerExpiredTask(ctx, args.uid, args.taskId);
     },
 });
 
@@ -82,26 +108,6 @@ export const getTaskTemplatesByGameType = query({
     },
 });
 
-/**
- * 获取玩家任务统计
- */
-export const getPlayerTaskStats = query({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        return await TaskSystem.getPlayerTaskStats(ctx, args.uid);
-    },
-});
-
-/**
- * 获取热门任务模板
- */
-export const getPopularTaskTemplates = query({
-    args: {},
-    handler: async (ctx, args) => {
-        return await TaskSystem.getPopularTaskTemplates(ctx);
-    },
-});
-
 // 修改接口
 
 /**
@@ -115,12 +121,48 @@ export const allocateTasksForPlayer = mutation({
 });
 
 /**
- * 重新分配周期性任务
+ * 完成任务
  */
-export const reallocatePeriodicTasks = mutation({
+export const completeTask = mutation({
+    args: {
+        uid: v.string(),
+        taskId: v.string()
+    },
+    handler: async (ctx, args) => {
+        return await TaskSystem.completeTask(ctx, args.uid, args.taskId);
+    },
+});
+
+/**
+ * 处理过期任务
+ */
+export const handleExpiredTasks = mutation({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
-        return await TaskSystem.reallocatePeriodicTasks(ctx, args.uid);
+        return await TaskSystem.handleExpiredTasks(ctx, args.uid);
+    },
+});
+
+/**
+ * 恢复过期任务
+ */
+export const restoreExpiredTask = mutation({
+    args: {
+        uid: v.string(),
+        taskId: v.string()
+    },
+    handler: async (ctx, args) => {
+        return await TaskSystem.restoreExpiredTask(ctx, args.uid, args.taskId);
+    },
+});
+
+/**
+ * 统一的任务管理
+ */
+export const managePlayerTasks = mutation({
+    args: { uid: v.string() },
+    handler: async (ctx, args) => {
+        return await TaskSystem.managePlayerTasks(ctx, args.uid);
     },
 });
 
@@ -151,32 +193,6 @@ export const claimTaskRewards = mutation({
     },
     handler: async (ctx, args) => {
         return await TaskSystem.claimTaskRewards(ctx, args);
-    },
-});
-
-/**
- * 重置玩家任务
- */
-export const resetPlayerTasks = mutation({
-    args: {
-        uid: v.string(),
-        resetType: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly")),
-    },
-    handler: async (ctx, args) => {
-        return await TaskSystem.resetPlayerTasks(ctx, args.uid, args.resetType);
-    },
-});
-
-/**
- * 智能重置玩家任务
- */
-export const smartResetPlayerTasks = mutation({
-    args: {
-        uid: v.string(),
-        resetType: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly")),
-    },
-    handler: async (ctx, args) => {
-        return await TaskSystem.smartResetPlayerTasks(ctx, args.uid, args.resetType);
     },
 });
 
@@ -417,26 +433,6 @@ export const batchAllocateTasks = mutation({
     },
 });
 
-/**
- * 批量处理未处理的事件
- */
-export const processUnprocessedEvents = mutation({
-    args: { uid: v.optional(v.string()) },
-    handler: async (ctx, args) => {
-        return await TaskSystem.processUnprocessedEvents(ctx, args.uid);
-    },
-});
-
-/**
- * 获取未处理事件统计
- */
-export const getUnprocessedEventsStats = query({
-    args: {},
-    handler: async (ctx, args) => {
-        return await TaskSystem.getUnprocessedEventsStats(ctx);
-    },
-});
-
 // ============================================================================
 // 管理接口
 // ============================================================================
@@ -545,51 +541,12 @@ export const deleteTaskTemplate = mutation({
     },
 });
 
-
-
-
-/**
- * 管理玩家周期性任务
- */
-export const managePlayerPeriodicTasks = mutation({
-    args: {
-        uid: v.string(),
-        taskType: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))
-    },
-    handler: async (ctx, args) => {
-        return await TaskSystem.managePeriodicTasks(ctx, args.uid, args.taskType);
-    },
-});
-
-
+// ============================================================================
+// 集成接口
+// ============================================================================
 
 /**
- * 统一的任务管理 - 处理新玩家和现有玩家的所有任务逻辑
- */
-export const managePlayerTasks = mutation({
-    args: { uid: v.string() },
-    handler: async (ctx, args) => {
-        try {
-            const results = await TaskIntegration.managePlayerTasks(ctx, args.uid);
-
-            return {
-                success: true,
-                message: "任务管理完成",
-                results
-            };
-        } catch (error) {
-            console.error("任务管理失败:", error);
-            return {
-                success: false,
-                message: error instanceof Error ? error.message : "任务管理失败",
-                results: null
-            };
-        }
-    },
-});
-
-/**
- * 玩家登录时的完整任务管理 - 包含登录事件处理和任务管理
+ * 玩家登录时的完整任务管理
  */
 export const handlePlayerLoginComplete = mutation({
     args: { uid: v.string() },
@@ -602,22 +559,22 @@ export const handlePlayerLoginComplete = mutation({
                 actionData: { increment: 1 }
             });
 
-            // 统一的任务管理 - 处理新玩家和现有玩家的所有任务逻辑
-            const taskManagementResults = await TaskIntegration.managePlayerTasks(ctx, args.uid);
+            // 统一的任务管理
+            const taskManagementResults = await TaskSystem.managePlayerTasks(ctx, args.uid);
 
             // 获取玩家当前任务状态
-            const playerTasks = await TaskSystem.getPlayerTasks(ctx, args.uid);
-            const incompleteTasks = await TaskSystem.getPlayerIncompleteTasks(ctx, args.uid);
-            const completedUnclaimedTasks = await TaskSystem.getPlayerCompletedUnclaimedTasks(ctx, args.uid);
+            const activeTasks = await TaskSystem.getPlayerActiveTasks(ctx, args.uid);
+            const completedTasks = await TaskSystem.getPlayerCompletedTasks(ctx, args.uid);
+            const expiredTasks = await TaskSystem.getPlayerExpiredTasks(ctx, args.uid);
 
             return {
                 success: true,
                 message: "登录任务管理完成",
                 taskManagementResults,
                 playerTasks: {
-                    total: playerTasks.length,
-                    incomplete: incompleteTasks.length,
-                    completedUnclaimed: completedUnclaimedTasks.length
+                    active: activeTasks.length,
+                    completed: completedTasks.length,
+                    expired: expiredTasks.length
                 }
             };
         } catch (error) {

@@ -53,32 +53,75 @@ export const taskSchema = {
         .index("by_active", ["isActive"])
         .index("by_validDate", ["validFrom", "validUntil"]),
 
+    // 玩家任务表 - 只存储正在进行中的任务
     player_tasks: defineTable({
         uid: v.string(),
         taskId: v.string(),
-        templateId: v.string(), // 添加模板ID字段
+        templateId: v.string(),
         name: v.string(),
-        type: v.string(),
-        category: v.string(), // 添加category字段
         description: v.string(),
+        type: v.string(),
+        category: v.string(),
         condition: v.any(), // 任务条件
         progress: v.any(), // 进度（可以是数字或复杂对象）
-        isCompleted: v.boolean(),
-        completedAt: v.optional(v.string()),
-        rewardsClaimed: v.boolean(),
-        claimedAt: v.optional(v.string()),
-        completions: v.number(), // 添加completions字段
-        lastReset: v.optional(v.string()),
+        dueTime: v.optional(v.string()), // 任务过期时间
         rewards: v.any(), // 奖励配置
         version: v.optional(v.string()), // 添加version字段
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_uid", ["uid"])
         .index("by_task", ["taskId"])
-        .index("by_completed", ["isCompleted"])
         .index("by_uid_taskId", ["uid", "taskId"])
         .index("by_uid_templateId", ["uid", "templateId"]) // 添加新的复合索引
-        .index("by_templateId", ["templateId"]), // 添加模板ID索引
+        .index("by_templateId", ["templateId"]) // 添加模板ID索引
+        .index("by_dueTime", ["dueTime"]), // 添加过期时间索引
+
+    // 已完成任务表 - 存储成功完成的任务
+    task_completed: defineTable({
+        uid: v.string(),
+        taskId: v.string(),
+        templateId: v.string(),
+        name: v.string(),
+        description: v.string(),
+        type: v.string(),
+        category: v.string(),
+        condition: v.any(), // 任务条件
+        progress: v.any(), // 最终进度
+        completedAt: v.string(),
+        rewardsClaimed: v.boolean(),
+        claimedAt: v.optional(v.string()),
+        rewards: v.any(), // 奖励配置
+        version: v.optional(v.string()),
+        createdAt: v.string(),
+    }).index("by_uid", ["uid"])
+        .index("by_task", ["taskId"])
+        .index("by_uid_taskId", ["uid", "taskId"])
+        .index("by_uid_templateId", ["uid", "templateId"])
+        .index("by_templateId", ["templateId"])
+        .index("by_completedAt", ["completedAt"])
+        .index("by_rewardsClaimed", ["rewardsClaimed"]),
+
+    // 过期任务表 - 存储过期未完成的任务
+    task_expired: defineTable({
+        uid: v.string(),
+        taskId: v.string(),
+        templateId: v.string(),
+        name: v.string(),
+        description: v.string(),
+        type: v.string(),
+        category: v.string(),
+        condition: v.any(), // 任务条件
+        progress: v.any(), // 最终进度
+        expiredAt: v.string(), // 过期时间
+        rewards: v.any(), // 奖励配置
+        version: v.optional(v.string()),
+        createdAt: v.string(),
+    }).index("by_uid", ["uid"])
+        .index("by_task", ["taskId"])
+        .index("by_uid_taskId", ["uid", "taskId"])
+        .index("by_uid_templateId", ["uid", "templateId"])
+        .index("by_templateId", ["templateId"])
+        .index("by_expiredAt", ["expiredAt"]),
 
     // 任务事件表 - 用于记录任务相关的事件
     task_events: defineTable({
@@ -112,12 +155,6 @@ export const taskSchema = {
         createdAt: v.string(),
     }).index("by_uid", ["uid"]).index("by_task", ["taskId"]),
 
-    daily_task_resets: defineTable({
-        uid: v.string(),
-        resetDate: v.string(),
-        tasksReset: v.number(),
-        createdAt: v.string(),
-    }).index("by_uid", ["uid"]).index("by_date", ["resetDate"]),
 
     achievement_tasks: defineTable({
         uid: v.string(),

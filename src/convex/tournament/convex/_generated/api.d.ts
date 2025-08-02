@@ -52,6 +52,7 @@ import type * as service_recordLogin from "../service/recordLogin.js";
 import type * as service_simpleTimezoneUtils from "../service/simpleTimezoneUtils.js";
 import type * as service_task_taskIntegration from "../service/task/taskIntegration.js";
 import type * as service_task_taskSystem from "../service/task/taskSystem.js";
+import type * as service_task_tests_LoginTest from "../service/task/tests/LoginTest.js";
 import type * as service_ticket_ticketSystem from "../service/ticket/ticketSystem.js";
 import type * as service_tournament_common from "../service/tournament/common.js";
 import type * as service_tournament_errorCodes from "../service/tournament/errorCodes.js";
@@ -124,6 +125,7 @@ declare const fullApi: ApiFromModules<{
   "service/simpleTimezoneUtils": typeof service_simpleTimezoneUtils;
   "service/task/taskIntegration": typeof service_task_taskIntegration;
   "service/task/taskSystem": typeof service_task_taskSystem;
+  "service/task/tests/LoginTest": typeof service_task_tests_LoginTest;
   "service/ticket/ticketSystem": typeof service_ticket_ticketSystem;
   "service/tournament/common": typeof service_tournament_common;
   "service/tournament/errorCodes": typeof service_tournament_errorCodes;
