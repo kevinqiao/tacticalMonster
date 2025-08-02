@@ -21,9 +21,9 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
             props: [],
             tickets: [],
             seasonPoints: 10,
-            gamePoints: {
-                general: 20
-            }
+            // gamePoints: {
+            //     general: 20
+            // }
         },
         resetInterval: "daily",
         isActive: true,
@@ -157,66 +157,63 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     //     version: "1.0.0",
     //     lastUpdated: "2024-01-01T00:00:00.000Z"
     // },
-    // {
-    //     templateId: "multi_stage_tournament_champion",
-    //     name: "锦标赛冠军之路",
-    //     description: "完成多阶段锦标赛挑战",
-    //     type: "multi_stage",
-    //     category: "tournament",
-    //     condition: {
-    //         type: "multi_stage",
-    //         stages: [
-    //             {
-    //                 action: "tournament_join",
-    //                 targetValue: 1,
-    //                 reward: {
-    //                     coins: 50,
-    //                     seasonPoints: 10
-    //                 }
-    //             },
-    //             {
-    //                 action: "win_match",
-    //                 targetValue: 3,
-    //                 reward: {
-    //                     coins: 100,
-    //                     seasonPoints: 20
-    //                 }
-    //             },
-    //             {
-    //                 action: "complete_match",
-    //                 targetValue: 5,
-    //                 reward: {
-    //                     coins: 200,
-    //                     seasonPoints: 50
-    //                 }
-    //             }
-    //         ]
-    //     },
-    //     rewards: {
-    //         coins: 500,
-    //         props: [
-    //             {
-    //                 gameType: "ludo",
-    //                 propType: "tournament_boost",
-    //                 quantity: 1
-    //             }
-    //         ],
-    //         tickets: [
-    //             {
-    //                 gameType: "ludo",
-    //                 tournamentType: "championship",
-    //                 quantity: 1
-    //             }
-    //         ],
-    //         seasonPoints: 150,
-    //         gamePoints: {
-    //             general: 300
-    //         }
-    //     },
-    //     isActive: true,
-    //     version: "1.0.0",
-    //     lastUpdated: "2024-01-01T00:00:00.000Z"
-    // },
+    {
+        templateId: "multi_stage_tournament_champion",
+        name: "锦标赛冠军之路",
+        description: "完成多阶段锦标赛挑战",
+        type: "multi_stage",
+        category: "tournament",
+        condition: {
+            type: "multi_stage",
+            stages: [
+                {
+                    action: "tournament_join",
+                    targetValue: 1,
+                    reward: {
+                        coins: 50,
+                        seasonPoints: 10
+                    }
+                },
+                {
+                    action: "win_match",
+                    targetValue: 3,
+                    reward: {
+                        coins: 100,
+                        seasonPoints: 20
+                    }
+                },
+                {
+                    action: "complete_match",
+                    targetValue: 5,
+                    reward: {
+                        coins: 200,
+                        seasonPoints: 50
+                    }
+                }
+            ]
+        },
+        rewards: {
+            coins: 500,
+            props: [
+                {
+                    gameType: "ludo",
+                    propType: "tournament_boost",
+                    quantity: 1
+                }
+            ],
+            tickets: [
+                {
+                    gameType: "ludo",
+                    tournamentType: "championship",
+                    quantity: 1
+                }
+            ],
+            seasonPoints: 150,
+        },
+        isActive: true,
+        version: "1.0.0",
+        lastUpdated: "2024-01-01T00:00:00.000Z"
+    },
     // {
     //     templateId: "conditional_social_achiever",
     //     name: "社交达人",
@@ -636,9 +633,9 @@ export function validateTaskTemplates(): { valid: boolean; errors: string[] } {
             if (template.rewards.seasonPoints === undefined) {
                 errors.push(`模板 ${template.templateId}: 奖励缺少 seasonPoints`);
             }
-            if (!template.rewards.gamePoints) {
-                errors.push(`模板 ${template.templateId}: 奖励缺少 gamePoints`);
-            }
+            // if (!template.rewards.gamePoints) {
+            //     errors.push(`模板 ${template.templateId}: 奖励缺少 gamePoints`);
+            // }
         }
     });
 

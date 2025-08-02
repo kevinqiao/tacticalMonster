@@ -44,17 +44,17 @@ export interface TaskStage {
 }
 
 export interface TaskRewards {
-    coins: number;
-    props: TaskProp[];
-    tickets: TaskTicket[];
-    seasonPoints: number;
-    gamePoints: {
-        general: number;
-        specific?: {
-            gameType: string;
-            points: number;
-        };
-    };
+    coins?: number;
+    props?: TaskProp[];
+    tickets?: TaskTicket[];
+    seasonPoints?: number;
+    // gamePoints: {
+    //     general: number;
+    //     specific?: {
+    //         gameType: string;
+    //         points: number;
+    //     };
+    // };
 }
 
 export interface TaskProp {
@@ -883,13 +883,16 @@ export class TaskSystem {
                 case "monthly":
                     isValidPeriod = daysDiff < 30; // 30天内有效
                     break;
-                case "one_time":
-                case "achievement":
                 case "season":
-                    isValidPeriod = true; // 永久有效
+                    // 赛季任务需要检查是否在当前赛季内完成过
+                    // 这里需要获取当前赛季ID，暂时使用简单的日期判断
+                    const currentSeasonStart = new Date(now.localDate.getFullYear(), Math.floor(now.localDate.getMonth() / 3) * 3, 1);
+                    const completedAt = new Date(task.completedAt);
+                    isValidPeriod = completedAt >= currentSeasonStart;
                     break;
                 default:
-                    isValidPeriod = false;
+                    // one_time, achievement 等任务一旦完成就永久有效，不能重复完成
+                    return true;
             }
 
             if (isValidPeriod) return true;
@@ -1145,7 +1148,7 @@ export class TaskSystem {
         const now = getTorontoMidnight();
 
         // 发放金币
-        if (rewards.coins > 0) {
+        if (rewards.coins && rewards.coins > 0) {
             const player = await ctx.db.query("players")
                 .withIndex("by_uid", (q: any) => q.eq("uid", uid))
                 .unique();
@@ -1174,16 +1177,16 @@ export class TaskSystem {
         }
 
         // 发放赛季点
-        if (rewards.seasonPoints > 0) {
+        if (rewards.seasonPoints && rewards.seasonPoints > 0) {
             // 这里应该调用赛季系统的发放接口
             console.log(`发放赛季点: ${rewards.seasonPoints}`);
         }
 
         // 发放游戏积分
-        if (rewards.gamePoints) {
-            // 这里应该调用积分系统的发放接口
-            console.log(`发放游戏积分: ${rewards.gamePoints.general}`);
-        }
+        // if (rewards.gamePoints) {
+        //     // 这里应该调用积分系统的发放接口
+        //     console.log(`发放游戏积分: ${rewards.gamePoints.general}`);
+        // }
 
         return {
             success: true,
