@@ -34,6 +34,8 @@ import type * as schemas_ticketSchema from "../schemas/ticketSchema.js";
 import type * as schemas_tournamentSchema from "../schemas/tournamentSchema.js";
 import type * as schemas_userSchema from "../schemas/userSchema.js";
 import type * as scripts_initTaskTemplates from "../scripts/initTaskTemplates.js";
+import type * as scripts_initTicketSystem from "../scripts/initTicketSystem.js";
+import type * as scripts_testTicketSystem from "../scripts/testTicketSystem.js";
 import type * as service_auth from "../service/auth.js";
 import type * as service_join from "../service/join.js";
 import type * as service_leaderboard from "../service/leaderboard.js";
@@ -52,8 +54,10 @@ import type * as service_recordLogin from "../service/recordLogin.js";
 import type * as service_simpleTimezoneUtils from "../service/simpleTimezoneUtils.js";
 import type * as service_task_taskIntegration from "../service/task/taskIntegration.js";
 import type * as service_task_taskSystem from "../service/task/taskSystem.js";
+import type * as service_task_tests_ConditionalTest from "../service/task/tests/ConditionalTest.js";
 import type * as service_task_tests_LoginTest from "../service/task/tests/LoginTest.js";
 import type * as service_task_tests_MultiStageTest from "../service/task/tests/MultiStageTest.js";
+import type * as service_task_tests_TimeBasedTest from "../service/task/tests/TimeBasedTest.js";
 import type * as service_ticket_ticketSystem from "../service/ticket/ticketSystem.js";
 import type * as service_tournament_common from "../service/tournament/common.js";
 import type * as service_tournament_errorCodes from "../service/tournament/errorCodes.js";
@@ -77,6 +81,7 @@ import type * as service_tournament_tournamentService from "../service/tournamen
 import type * as service_tournament_utils_tournamentTypeUtils from "../service/tournament/utils/tournamentTypeUtils.js";
 import type * as service_updatePlayerProfile from "../service/updatePlayerProfile.js";
 import type * as tasks from "../tasks.js";
+import type * as tickets from "../tickets.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -108,6 +113,8 @@ declare const fullApi: ApiFromModules<{
   "schemas/tournamentSchema": typeof schemas_tournamentSchema;
   "schemas/userSchema": typeof schemas_userSchema;
   "scripts/initTaskTemplates": typeof scripts_initTaskTemplates;
+  "scripts/initTicketSystem": typeof scripts_initTicketSystem;
+  "scripts/testTicketSystem": typeof scripts_testTicketSystem;
   "service/auth": typeof service_auth;
   "service/join": typeof service_join;
   "service/leaderboard": typeof service_leaderboard;
@@ -126,8 +133,10 @@ declare const fullApi: ApiFromModules<{
   "service/simpleTimezoneUtils": typeof service_simpleTimezoneUtils;
   "service/task/taskIntegration": typeof service_task_taskIntegration;
   "service/task/taskSystem": typeof service_task_taskSystem;
+  "service/task/tests/ConditionalTest": typeof service_task_tests_ConditionalTest;
   "service/task/tests/LoginTest": typeof service_task_tests_LoginTest;
   "service/task/tests/MultiStageTest": typeof service_task_tests_MultiStageTest;
+  "service/task/tests/TimeBasedTest": typeof service_task_tests_TimeBasedTest;
   "service/ticket/ticketSystem": typeof service_ticket_ticketSystem;
   "service/tournament/common": typeof service_tournament_common;
   "service/tournament/errorCodes": typeof service_tournament_errorCodes;
@@ -151,6 +160,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/utils/tournamentTypeUtils": typeof service_tournament_utils_tournamentTypeUtils;
   "service/updatePlayerProfile": typeof service_updatePlayerProfile;
   tasks: typeof tasks;
+  tickets: typeof tickets;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

@@ -1,6 +1,7 @@
 import { internalMutation } from "../../_generated/server";
 import { TASK_TEMPLATES } from "../../data/taskTemplate";
 import { getTorontoMidnight } from "../simpleTimezoneUtils";
+import { TicketSystem } from "../ticket/ticketSystem";
 
 // ============================================================================
 // 任务系统核心服务 - 基于三表设计
@@ -46,7 +47,7 @@ export interface TaskStage {
 export interface TaskRewards {
     coins?: number;
     props?: TaskProp[];
-    tickets?: TaskTicket[];
+    tickets?: Ticket[];
     seasonPoints?: number;
     // gamePoints: {
     //     general: number;
@@ -63,9 +64,8 @@ export interface TaskProp {
     quantity: number;
 }
 
-export interface TaskTicket {
-    gameType: string;
-    tournamentType: string;
+export interface Ticket {
+    type: string; // 门票类型：bronze, silver, gold
     quantity: number;
 }
 
@@ -439,6 +439,7 @@ export class TaskSystem {
         const templates = await this.getAllTaskTemplates(ctx);
 
         for (const template of templates) {
+            console.log("template", template)
             // 检查分配规则
             if (!this.checkAllocationRules(template.allocationRules, player)) {
                 continue;
@@ -998,13 +999,13 @@ export class TaskSystem {
                 };
 
             case "multi_stage":
-                return this.updateMultiStageProgress(currentProgress, action, actionData);
+                return this.updateMultiStageProgress(currentProgress, action, actionData, condition);
 
             case "conditional":
-                return this.updateConditionalProgress(currentProgress, action, actionData);
+                return this.updateConditionalProgress(currentProgress, action, actionData, condition);
 
             case "time_based":
-                return this.updateTimeBasedProgress(currentProgress, action, actionData);
+                return this.updateTimeBasedProgress(currentProgress, action, actionData, condition);
 
             default:
                 return currentProgress;
@@ -1014,54 +1015,114 @@ export class TaskSystem {
     /**
      * 更新多阶段进度
      */
-    private static updateMultiStageProgress(progress: TaskProgress, action: string, actionData: any): TaskProgress {
+    private static updateMultiStageProgress(progress: TaskProgress, action: string, actionData: any, taskCondition: TaskCondition): TaskProgress {
         const stageProgress = progress.stageProgress || [];
-        const currentStage = stageProgress.findIndex((value: number, index: number) => {
-            // 这里需要根据具体的阶段条件来判断
-            return value < (actionData.targetValue || 1);
-        });
 
-        if (currentStage >= 0) {
-            const newStageProgress = [...stageProgress];
-            newStageProgress[currentStage] = (newStageProgress[currentStage] || 0) + (actionData.increment || 1);
-
-            return {
-                ...progress,
-                stageProgress: newStageProgress,
-                currentValue: newStageProgress.reduce((sum, value) => sum + value, 0)
-            };
+        if (!taskCondition.stages || taskCondition.stages.length === 0) {
+            return progress;
         }
 
-        return progress;
+        // 找到当前应该处理的阶段（第一个未完成的阶段）
+        let currentStageIndex = -1;
+        for (let i = 0; i < taskCondition.stages.length; i++) {
+            const stageProgressValue = stageProgress[i] || 0;
+            const stageTarget = taskCondition.stages[i].targetValue;
+
+            if (stageProgressValue < stageTarget) {
+                currentStageIndex = i;
+                break;
+            }
+        }
+
+        // 如果所有阶段都完成了，不更新进度
+        if (currentStageIndex === -1) {
+            return progress;
+        }
+
+        // 检查当前事件是否匹配当前阶段需要的action
+        const currentStage = taskCondition.stages[currentStageIndex];
+        if (currentStage.action !== action) {
+            return progress;
+        }
+
+        console.log("updateMultiStageProgress", currentStageIndex, action, actionData);
+
+        // 更新当前阶段的进度
+        const newStageProgress = [...stageProgress];
+        newStageProgress[currentStageIndex] = (newStageProgress[currentStageIndex] || 0) + (actionData.increment || 1);
+
+        return {
+            ...progress,
+            stageProgress: newStageProgress,
+            currentValue: newStageProgress.reduce((sum, value) => sum + value, 0)
+        };
     }
 
     /**
      * 更新条件进度
      */
-    private static updateConditionalProgress(progress: TaskProgress, action: string, actionData: any): TaskProgress {
+    private static updateConditionalProgress(progress: TaskProgress, action: string, actionData: any, taskCondition: TaskCondition): TaskProgress {
         const subProgress = progress.subProgress || {};
-        const subKey = action;
+
+        // 检查当前action是否匹配任何子条件
+        if (!taskCondition.subConditions) {
+            return progress;
+        }
+
+        const matchingSubCondition = taskCondition.subConditions.find(subCondition =>
+            subCondition.action === action
+        );
+
+        if (!matchingSubCondition) {
+            return progress;
+        }
+
+        // 更新匹配的子条件进度
+        const newSubProgress = {
+            ...subProgress,
+            [action]: (subProgress[action] || 0) + (actionData.increment || 1)
+        };
+
+        // 计算总的currentValue（所有子条件进度的总和）
+        const totalProgress = Object.values(newSubProgress).reduce((sum, value) => sum + (value || 0), 0);
 
         return {
             ...progress,
-            subProgress: {
-                ...subProgress,
-                [subKey]: (subProgress[subKey] || 0) + (actionData.increment || 1)
-            }
+            subProgress: newSubProgress,
+            currentValue: totalProgress
         };
     }
 
     /**
      * 更新时间进度
      */
-    private static updateTimeBasedProgress(progress: TaskProgress, action: string, actionData: any): TaskProgress {
+    private static updateTimeBasedProgress(progress: TaskProgress, action: string, actionData: any, taskCondition: TaskCondition): TaskProgress {
+        // 检查当前action是否匹配任务条件
+        if (taskCondition.action && taskCondition.action !== action) {
+            return progress;
+        }
+
+        // 检查时间窗口
+        const now = new Date();
+        const timeProgress = progress.timeProgress;
+
+        if (timeProgress) {
+            const startTime = new Date(timeProgress.startTime);
+            const endTime = new Date(timeProgress.endTime);
+
+            // 如果当前时间超出时间窗口，不更新进度
+            if (now < startTime || now > endTime) {
+                return progress;
+            }
+        }
+
         return {
             ...progress,
             currentValue: (progress.currentValue || 0) + (actionData.increment || 1),
             timeProgress: {
                 startTime: progress.timeProgress?.startTime || new Date().toISOString(),
                 endTime: progress.timeProgress?.endTime || new Date().toISOString(),
-                currentTime: new Date().toISOString()
+                currentTime: now.toISOString()
             }
         };
     }
@@ -1171,8 +1232,16 @@ export class TaskSystem {
         // 发放门票
         if (rewards.tickets && rewards.tickets.length > 0) {
             for (const ticket of rewards.tickets) {
-                // 这里应该调用门票系统的发放接口
-                console.log(`发放门票: ${ticket.tournamentType} x${ticket.quantity}`);
+                try {
+                    await TicketSystem.grantTicketReward(ctx, {
+                        uid,
+                        type: ticket.type,
+                        quantity: ticket.quantity
+                    });
+                    console.log(`成功发放门票: ${ticket.type} x${ticket.quantity}`);
+                } catch (error) {
+                    console.error(`发放门票失败: ${ticket.type}`, error);
+                }
             }
         }
 

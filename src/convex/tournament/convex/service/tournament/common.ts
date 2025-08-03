@@ -1,6 +1,6 @@
 import { Id } from "../../_generated/dataModel";
-import { PropSystem } from "../props/propSystem";
 import { getTorontoMidnight } from "../simpleTimezoneUtils";
+import { TicketSystem } from "../ticket/ticketSystem";
 
 /**
  * 公共工具函数
@@ -590,11 +590,20 @@ export async function collectRewards(ctx: any, playerTournament: any) {
         coins,
         gamePoints
     });
-    if (playerTournament.rewards.props) {
-        await Promise.all(playerTournament.rewards.props.forEach(async (prop: any) => {
-            await PropSystem.addPropToPlayer(ctx, playerTournament.uid, prop.propId, prop.quantity)
+    if (playerTournament.rewards.tickets) {
+        await Promise.all(playerTournament.rewards.tickets.forEach(async (ticket: any) => {
+            await TicketSystem.grantTicketReward(ctx, {
+                uid: playerTournament.uid,
+                type: ticket.type,
+                quantity: ticket.quantity
+            });
         }));
     }
+    // if (playerTournament.rewards.props) {
+    //     await Promise.all(playerTournament.rewards.props.forEach(async (prop: any) => {
+    //         await PropSystem.addPropToPlayer(ctx, playerTournament.uid, prop.propId, prop.quantity)
+    //     }));
+    // }
 
 }
 export async function calculateRewards(ctx: any, params: {

@@ -1,32 +1,32 @@
 import { mutation } from "../../../_generated/server";
 import { TaskSystem } from "../taskSystem";
 
-export const testJoinTournament = (mutation as any)({
+export const testInviteFriend = (mutation as any)({
     args: {},
     handler: async (ctx: any) => {
         await TaskSystem.processTaskEvent(ctx, {
             uid: "2-22222",
-            action: "tournament_join",
+            action: "invite_friend",
             actionData: { increment: 1 }
         });
     },
 });
-export const testWinMatch = (mutation as any)({
+export const testShareGame = (mutation as any)({
     args: {},
     handler: async (ctx: any) => {
         await TaskSystem.processTaskEvent(ctx, {
             uid: "2-22222",
-            action: "win_match",
+            action: "share_game",
             actionData: { increment: 1 }
         });
     },
 });
-export const testCompleteMatch = (mutation as any)({
+export const testJoinClan = (mutation as any)({
     args: {},
     handler: async (ctx: any) => {
         await TaskSystem.processTaskEvent(ctx, {
             uid: "2-22222",
-            action: "complete_match",
+            action: "join_clan",
             actionData: { increment: 1 }
         });
     },

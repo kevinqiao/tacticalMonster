@@ -203,8 +203,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
             ],
             tickets: [
                 {
-                    gameType: "ludo",
-                    tournamentType: "championship",
+                    type: "bronze",
                     quantity: 1
                 }
             ],
@@ -214,52 +213,49 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
         version: "1.0.0",
         lastUpdated: "2024-01-01T00:00:00.000Z"
     },
-    // {
-    //     templateId: "conditional_social_achiever",
-    //     name: "社交达人",
-    //     description: "完成社交任务组合",
-    //     type: "conditional",
-    //     category: "social",
-    //     condition: {
-    //         type: "conditional",
-    //         logic: "or",
-    //         subConditions: [
-    //             {
-    //                 type: "simple",
-    //                 action: "invite_friend",
-    //                 targetValue: 3
-    //             },
-    //             {
-    //                 type: "simple",
-    //                 action: "share_game",
-    //                 targetValue: 5
-    //             },
-    //             {
-    //                 type: "simple",
-    //                 action: "join_clan",
-    //                 targetValue: 1
-    //             }
-    //         ]
-    //     },
-    //     rewards: {
-    //         coins: 150,
-    //         props: [
-    //             {
-    //                 gameType: "ludo",
-    //                 propType: "social_boost",
-    //                 quantity: 1
-    //             }
-    //         ],
-    //         tickets: [],
-    //         seasonPoints: 30,
-    //         gamePoints: {
-    //             general: 60
-    //         }
-    //     },
-    //     isActive: true,
-    //     version: "1.0.0",
-    //     lastUpdated: "2024-01-01T00:00:00.000Z"
-    // },
+    {
+        templateId: "conditional_social_achiever",
+        name: "社交达人",
+        description: "完成社交任务组合",
+        type: "conditional",
+        category: "social",
+        condition: {
+            type: "conditional",
+            logic: "or",
+            subConditions: [
+                {
+                    type: "simple",
+                    action: "invite_friend",
+                    targetValue: 3
+                },
+                {
+                    type: "simple",
+                    action: "share_game",
+                    targetValue: 5
+                },
+                {
+                    type: "simple",
+                    action: "join_clan",
+                    targetValue: 1
+                }
+            ]
+        },
+        rewards: {
+            coins: 150,
+            props: [
+                {
+                    gameType: "ludo",
+                    propType: "social_boost",
+                    quantity: 1
+                }
+            ],
+            tickets: [],
+            seasonPoints: 30,
+        },
+        isActive: true,
+        version: "1.0.0",
+        lastUpdated: "2024-01-01T00:00:00.000Z"
+    },
     // {
     //     templateId: "season_gold_promotion",
     //     name: "黄金段位晋升",
@@ -459,54 +455,50 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     //     version: "1.0.0",
     //     lastUpdated: "2024-01-01T00:00:00.000Z"
     // },
-    // {
-    //     templateId: "time_based_weekly_challenge",
-    //     name: "一周挑战",
-    //     description: "在一周内完成多个目标",
-    //     type: "time_based",
-    //     category: "challenge",
-    //     condition: {
-    //         type: "time_based",
-    //         action: "complete_match",
-    //         targetValue: 20,
-    //         withinDays: 7
-    //     },
-    //     rewards: {
-    //         coins: 400,
-    //         props: [
-    //             {
-    //                 gameType: "ludo",
-    //                 propType: "weekly_chest",
-    //                 quantity: 1
-    //             },
-    //             {
-    //                 gameType: "solitaire",
-    //                 propType: "weekly_chest",
-    //                 quantity: 1
-    //             }
-    //         ],
-    //         tickets: [
-    //             {
-    //                 gameType: "ludo",
-    //                 tournamentType: "weekly",
-    //                 quantity: 3
-    //             },
-    //             {
-    //                 gameType: "solitaire",
-    //                 tournamentType: "weekly",
-    //                 quantity: 3
-    //             }
-    //         ],
-    //         seasonPoints: 75,
-    //         gamePoints: {
-    //             general: 150
-    //         }
-    //     },
-    //     resetInterval: "weekly",
-    //     isActive: true,
-    //     version: "1.0.0",
-    //     lastUpdated: "2024-01-01T00:00:00.000Z"
-    // }
+    {
+        templateId: "time_based_weekly_challenge",
+        name: "一周挑战",
+        description: "在一周内完成多个目标",
+        type: "time_based",
+        category: "challenge",
+        condition: {
+            type: "time_based",
+            action: "complete_match",
+            targetValue: 4,
+            withinDays: 7
+        },
+        rewards: {
+            coins: 400,
+            props: [
+                {
+                    gameType: "ludo",
+                    propType: "weekly_chest",
+                    quantity: 1
+                },
+                {
+                    gameType: "solitaire",
+                    propType: "weekly_chest",
+                    quantity: 1
+                }
+            ],
+            tickets: [
+                {
+                    type: "bronze",
+                    quantity: 3
+                },
+                {
+                    type: "silver",
+                    quantity: 3
+                }
+            ],
+            seasonPoints: 75,
+
+        },
+        resetInterval: "weekly",
+        isActive: true,
+        version: "1.0.0",
+        lastUpdated: "2024-01-01T00:00:00.000Z"
+    }
 ];
 
 // ============================================================================
