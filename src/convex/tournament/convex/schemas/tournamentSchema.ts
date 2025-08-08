@@ -153,28 +153,26 @@ export const tournamentSchema = {
         // 奖励配置
         rewards: v.object({
             baseRewards: v.object({
-                coins: v.number(),
-                gamePoints: v.number(),
-                props: v.array(v.object({
+                coins: v.optional(v.number()),
+                seasonPoints: v.optional(v.number()),
+                props: v.optional(v.array(v.object({
                     gameType: v.string(),
-                    propType: v.string(),
-                    quantity: v.number(),
-                    rarity: v.string() // "common", "rare", "epic", "legendary"
-                })),
-                tickets: v.array(v.object({
+                    propId: v.string(),
+                    quantity: v.number()
+                }))),
+                tickets: v.optional(v.array(v.object({
                     gameType: v.string(),
                     tournamentType: v.string(),
                     quantity: v.number()
-                }))
+                })))
             }),
             rankRewards: v.array(v.object({
                 rankRange: v.array(v.number()),
                 multiplier: v.number(),
                 bonusProps: v.optional(v.array(v.object({
                     gameType: v.string(),
-                    propType: v.string(),
+                    propId: v.string(),
                     quantity: v.number(),
-                    rarity: v.string()
                 }))),
                 bonusTickets: v.optional(v.array(v.object({
                     gameType: v.string(),
@@ -182,18 +180,18 @@ export const tournamentSchema = {
                     quantity: v.number()
                 })))
             })),
-            segmentBonus: v.object({
+            segmentBonus: v.optional(v.object({
                 bronze: v.number(),
                 silver: v.number(),
                 gold: v.number(),
                 platinum: v.number(),
                 diamond: v.number()
-            }),
-            subscriptionBonus: v.number(),
-            participationReward: v.object({
-                coins: v.number(),
-                gamePoints: v.number()
-            }),
+            })),
+            subscriptionBonus: v.optional(v.number()),
+            participationReward: v.optional(v.object({
+                coins: v.optional(v.number()),
+                gamePoints: v.optional(v.number())
+            })),
             streakBonus: v.optional(v.object({
                 minStreak: v.number(),
                 bonusMultiplier: v.number()
@@ -202,23 +200,20 @@ export const tournamentSchema = {
 
         // 时间配置
         schedule: v.optional(v.object({
-            startTime: v.object({
-                type: v.string(), // "fixed", "daily", "weekly", "monthly", "seasonal"
-                value: v.string()
+            open: v.object({
+                day: v.optional(v.string()),
+                time: v.string()
             }),
-            endTime: v.object({
-                type: v.string(), // "fixed", "duration", "until_completion"
-                value: v.union(v.string(), v.number())
+            start: v.object({
+                day: v.optional(v.string()),
+                time: v.string()
             }),
-            duration: v.number(),
-            registrationDeadline: v.optional(v.number()),
-            repeat: v.optional(v.object({
-                enabled: v.boolean(),
-                interval: v.string(), // "daily", "weekly", "monthly"
-                daysOfWeek: v.optional(v.array(v.number())),
-                dayOfMonth: v.optional(v.number())
-            })),
-            timezone: v.string()
+            end: v.object({
+                day: v.optional(v.string()),
+                time: v.string()
+            }),
+            duration: v.optional(v.number()),
+            timeZone: v.optional(v.string())
         })),
 
         // 限制配置

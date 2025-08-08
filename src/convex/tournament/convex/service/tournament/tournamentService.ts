@@ -11,6 +11,7 @@ import {
     findTournamentByType,
     getCommonData,
     getPlayerAttempts,
+    scheduleIsOpen,
     settleTournament,
     TournamentStatus
 } from "./common";
@@ -385,8 +386,7 @@ export class TournamentService {
 
                 if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
                     const tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
-                    if (!tournament)
-                        continue;
+                    if (!tournament || !await scheduleIsOpen(ctx, tournamentType)) continue;
                     participation.rank = await findPlayerRank(ctx, { uid, tournamentId: tournament._id });
                 }
                 const attempts = await getPlayerAttempts(ctx, {

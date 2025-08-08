@@ -1,7 +1,7 @@
 import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
 // ============================================================================
-// 统一门票系统 - 通用门票，适用于所有游戏和活动
+// 统一门票系统 - 支持跨赛季保留
 // ============================================================================
 
 export type TicketType = "bronze" | "silver" | "gold";
@@ -12,24 +12,28 @@ const TICKET_CONFIGS: Record<TicketType, {
     description: string;
     price: { coins: number };
     maxUsagePerDay: number;
+    seasonalRetention: number; // 跨赛季保留比例 (0-1)
 }> = {
     bronze: {
         name: "青铜门票",
-        description: "通用门票，适用于所有游戏和活动",
+        description: "通用门票，适用于所有游戏和活动，跨赛季保留",
         price: { coins: 100 },
-        maxUsagePerDay: 10
+        maxUsagePerDay: 10,
+        seasonalRetention: 1.0 // 完全保留
     },
     silver: {
         name: "白银门票",
-        description: "通用高级门票，提供更好的奖励",
+        description: "通用高级门票，提供更好的奖励，50%跨赛季保留",
         price: { coins: 250 },
-        maxUsagePerDay: 5
+        maxUsagePerDay: 5,
+        seasonalRetention: 0.5 // 50%保留
     },
     gold: {
         name: "黄金门票",
-        description: "通用顶级门票，提供最佳奖励",
+        description: "通用顶级门票，提供最佳奖励，赛季重置",
         price: { coins: 500 },
-        maxUsagePerDay: 3
+        maxUsagePerDay: 3,
+        seasonalRetention: 0.0 // 完全重置
     }
 };
 
@@ -38,6 +42,7 @@ export interface PlayerTicket {
     type: string; // "bronze", "silver", "gold"
     quantity: number;
     lastUsedAt?: string;
+    seasonId?: string; // 记录获得赛季
 }
 
 export class TicketSystem {
@@ -85,7 +90,8 @@ export class TicketSystem {
             uid: ticket.uid,
             type: ticket.type,
             quantity: ticket.quantity,
-            lastUsedAt: ticket.lastUsedAt
+            lastUsedAt: ticket.lastUsedAt,
+            seasonId: ticket.seasonId
         };
     }
 
@@ -102,7 +108,8 @@ export class TicketSystem {
             uid: ticket.uid,
             type: ticket.type,
             quantity: ticket.quantity,
-            lastUsedAt: ticket.lastUsedAt
+            lastUsedAt: ticket.lastUsedAt,
+            seasonId: ticket.seasonId
         }));
     }
 
@@ -172,7 +179,8 @@ export class TicketSystem {
                 ticket: updatedTicket || {
                     uid,
                     type,
-                    quantity
+                    quantity,
+                    seasonId: this.getCurrentSeasonId()
                 },
                 cost: totalCost
             };
@@ -186,8 +194,8 @@ export class TicketSystem {
     }
 
     /**
- * 使用门票
- */
+     * 使用门票
+     */
     static async useTicket(ctx: any, params: {
         uid: string;
         type: string; // "bronze", "silver", "gold"
@@ -277,7 +285,8 @@ export class TicketSystem {
                 ticket: updatedTicket || {
                     uid,
                     type,
-                    quantity
+                    quantity,
+                    seasonId: this.getCurrentSeasonId()
                 }
             };
         } catch (error) {
@@ -287,6 +296,76 @@ export class TicketSystem {
                 message: "发放失败，请稍后重试"
             };
         }
+    }
+
+    // ============================================================================
+    // 赛季管理
+    // ============================================================================
+
+    /**
+     * 处理赛季重置时的门票保留
+     */
+    static async handleSeasonalReset(ctx: any, uid: string): Promise<{ success: boolean; message: string; resetResults?: any }> {
+        const now = getTorontoMidnight();
+        const currentSeasonId = this.getCurrentSeasonId();
+        const resetResults: any = {};
+
+        try {
+            const playerTickets = await ctx.db.query("player_tickets")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .collect();
+
+            for (const ticket of playerTickets) {
+                const config = this.getTicketConfig(ticket.type as TicketType);
+                const retentionRate = config.seasonalRetention;
+                const newQuantity = Math.floor(ticket.quantity * retentionRate);
+
+                await ctx.db.patch(ticket._id, {
+                    quantity: newQuantity,
+                    seasonId: currentSeasonId,
+                    updatedAt: now.iso
+                });
+
+                resetResults[ticket.type] = {
+                    oldQuantity: ticket.quantity,
+                    newQuantity,
+                    retentionRate,
+                    retained: newQuantity > 0
+                };
+            }
+
+            return {
+                success: true,
+                message: "赛季门票重置完成",
+                resetResults
+            };
+        } catch (error) {
+            console.error("赛季门票重置失败:", error);
+            return {
+                success: false,
+                message: "赛季门票重置失败，请稍后重试"
+            };
+        }
+    }
+
+    /**
+     * 获取门票赛季统计
+     */
+    static async getSeasonalStats(ctx: any, uid: string): Promise<any> {
+        const playerTickets = await this.getPlayerTickets(ctx, uid);
+        const stats: any = {};
+
+        for (const ticket of playerTickets) {
+            const config = this.getTicketConfig(ticket.type as TicketType);
+            stats[ticket.type] = {
+                quantity: ticket.quantity,
+                retentionRate: config.seasonalRetention,
+                willRetain: ticket.quantity * config.seasonalRetention,
+                seasonId: ticket.seasonId
+            };
+        }
+
+        return stats;
     }
 
     // ============================================================================
@@ -361,7 +440,15 @@ export class TicketSystem {
     // 工具方法
     // ============================================================================
 
-
+    /**
+     * 获取当前赛季ID
+     */
+    private static getCurrentSeasonId(): string {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        return `season_${year}_${month}`;
+    }
 
     // ============================================================================
     // 私有辅助方法
@@ -372,6 +459,7 @@ export class TicketSystem {
      */
     private static async addTicketsToPlayer(ctx: any, uid: string, type: string, quantity: number): Promise<void> {
         const now = getTorontoMidnight();
+        const currentSeasonId = this.getCurrentSeasonId();
 
         // 直接查询现有门票记录
         const playerTicket = await ctx.db.query("player_tickets")
@@ -383,6 +471,7 @@ export class TicketSystem {
             // 更新现有门票
             await ctx.db.patch(playerTicket._id, {
                 quantity: playerTicket.quantity + quantity,
+                seasonId: currentSeasonId,
                 updatedAt: now.iso
             });
         } else {
@@ -391,6 +480,7 @@ export class TicketSystem {
                 uid,
                 type,
                 quantity,
+                seasonId: currentSeasonId,
                 createdAt: now.iso,
                 updatedAt: now.iso
             });

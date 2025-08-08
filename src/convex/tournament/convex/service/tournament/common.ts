@@ -1,4 +1,6 @@
 import { Id } from "../../_generated/dataModel";
+import { TimeZoneUtils } from "../../util/TimeZoneUtils";
+import { LeaderboardSystem } from "../leaderboard/leaderboardSystem";
 import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import { TicketSystem } from "../ticket/ticketSystem";
 
@@ -577,10 +579,47 @@ export async function settleTournament(ctx: any, tournament: any) {
             rank,
             rewards
         });
+
+        // 如果是快速对局锦标赛（single_match类型），累积排行榜积分
+        if (tournamentType.matchRules.matchType === "single_match" && tournamentType.matchRules.matchPoints) {
+            await accumulateLeaderboardPoints(ctx, {
+                uid: playerTournament.uid,
+                gameType: tournamentType.gameType,
+                score: playerTournament.score, // 传递实际排名
+            });
+        }
     }
     await ctx.db.patch(tournamentId as Id<"tournaments">, {
         status: TournamentStatus.COMPLETED
     });
+}
+
+/**
+ * 为快速对局累积排行榜积分
+ */
+async function accumulateLeaderboardPoints(ctx: any, params: {
+    uid: string;
+    gameType: string;
+    score: number; // 对局中的排名
+}) {
+    try {
+        // 使用便捷的积分更新方法
+        const result = await LeaderboardSystem.updatePoints(ctx, params);
+
+        if (result.success) {
+            console.log(`快速对局积分累积完成：玩家 ${params.uid}，排名 ${params.score}，游戏类型 ${params.gameType}`);
+        } else {
+            console.error("积分累积失败:", result.message);
+        }
+
+        return result;
+    } catch (error) {
+        console.error("累积排行榜积分失败:", error);
+        return {
+            success: false,
+            message: "累积排行榜积分失败"
+        };
+    }
 }
 export async function collectRewards(ctx: any, playerTournament: any) {
     const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", playerTournament.uid)).unique();
@@ -665,4 +704,26 @@ export async function calculateRewards(ctx: any, params: {
     //     }
     // }
     return reward;
+}
+
+export async function scheduleIsOpen(ctx: any,
+    tournamentType: any
+) {
+    const schedule = tournamentType.schedule;
+    if (schedule) {
+        switch (tournamentType.timeRange) {
+            case "daily":
+                const today = TimeZoneUtils.getCurrentDate(schedule.timeZone);
+                const openISO = TimeZoneUtils.getSpecificTimeZoneISO({ timeZone: schedule.timeZone, date: today, time: schedule.open.time });
+                const now = new Date();
+                return openISO && now.toISOString() >= openISO
+            case "weekly":
+                return TimeZoneUtils.getSpecificTimeZoneISO({ timeZone: schedule.timeZone, date: schedule.open.day, time: schedule.open.time });
+            case "seasonal":
+                break;
+            default:
+                break;
+        }
+    }
+    return true;
 }

@@ -881,10 +881,7 @@ export class TaskSystem {
                 case "weekly":
                     isValidPeriod = daysDiff < 7; // 7天内有效
                     break;
-                case "monthly":
-                    isValidPeriod = daysDiff < 30; // 30天内有效
-                    break;
-                case "season":
+                case "seasonal":
                     // 赛季任务需要检查是否在当前赛季内完成过
                     // 这里需要获取当前赛季ID，暂时使用简单的日期判断
                     const currentSeasonStart = new Date(now.localDate.getFullYear(), Math.floor(now.localDate.getMonth() / 3) * 3, 1);
@@ -892,7 +889,7 @@ export class TaskSystem {
                     isValidPeriod = completedAt >= currentSeasonStart;
                     break;
                 default:
-                    // one_time, achievement 等任务一旦完成就永久有效，不能重复完成
+                    // one_time 任务一旦完成就永久有效，不能重复完成
                     return true;
             }
 
@@ -946,17 +943,12 @@ export class TaskSystem {
             case "weekly":
                 dueTime.setDate(dueTime.getDate() + 7); // 每周任务，过期时间为7天后
                 break;
-            case "monthly":
-                dueTime.setMonth(dueTime.getMonth() + 1); // 每月任务，过期时间为下个月
-                dueTime.setDate(1); // 设置为下个月1日
-                break;
             case "one_time":
-            case "achievement":
-            case "season":
+            case "seasonal":
             case "multi_stage":
             case "conditional":
             case "time_based":
-                // 一次性任务和成就任务没有固定过期时间
+                // 一次性任务、赛季任务等没有固定过期时间
                 return undefined;
             default:
                 return undefined;

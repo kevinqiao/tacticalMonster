@@ -3,129 +3,123 @@ import { v } from "convex/values";
 
 // 段位系统相关表
 export const segmentSchema = {
-    segments: defineTable({
-        name: v.string(), // "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"
-        tier: v.number(), // 1-5
-        minPoints: v.number(),
-        maxPoints: v.number(),
-        promotionThreshold: v.number(),
-        demotionThreshold: v.number(),
-        protectionPeriod: v.number(), // 保护期天数
-        createdAt: v.string(),
-        updatedAt: v.string(),
-    }).index("by_name", ["name"]).index("by_tier", ["tier"]),
-
+    // 玩家段位表
     player_segments: defineTable({
         uid: v.string(),
-        gameType: v.string(),
-        segmentName: v.string(),
-        currentPoints: v.number(),
-        seasonPoints: v.number(),
-        globalPoints: v.number(),
-        highestPoints: v.number(),
-        protectionExpiry: v.string(),
-        lastActivityDate: v.string(),
+        segmentName: v.string(), // "bronze", "silver", "gold", "platinum", "diamond", "master", "grandmaster"
+        rankPoints: v.number(), // 段位积分
+        seasonId: v.string(), // 赛季ID
+        lastUpdated: v.string(),
+        upgradeHistory: v.array(v.object({
+            fromSegment: v.string(),
+            toSegment: v.string(),
+            rankPoints: v.number(),
+            upgradeDate: v.string(),
+            rewards: v.object({
+                coins: v.number(),
+                seasonPoints: v.number(),
+                tickets: v.array(v.object({
+                    type: v.string(),
+                    quantity: v.number()
+                })),
+                props: v.array(v.object({
+                    gameType: v.string(),
+                    propType: v.string(),
+                    quantity: v.number()
+                }))
+            })
+        })),
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_uid_game", ["uid", "gameType"]).index("by_segment", ["segmentName"]),
+    }).index("by_uid_season", ["uid", "seasonId"])
+        .index("by_season", ["seasonId"])
+        .index("by_segment", ["segmentName"])
+        .index("by_rank_points", ["rankPoints"]),
 
-    // 玩家赛季数据 - 用于排行榜
-    player_seasons: defineTable({
+    // 段位升级记录表
+    segment_upgrade_logs: defineTable({
         uid: v.string(),
-        seasonId: v.id("seasons"),
-        seasonPoints: v.number(),
-        gamePoints: v.object({
-            solitaire: v.number(),
-            uno: v.number(),
-            ludo: v.number(),
-            rummy: v.number(),
+        fromSegment: v.string(),
+        toSegment: v.string(),
+        rankPoints: v.number(),
+        upgradeDate: v.string(),
+        seasonId: v.string(),
+        rewards: v.object({
+            coins: v.number(),
+            seasonPoints: v.number(),
+            tickets: v.array(v.object({
+                type: v.string(),
+                quantity: v.number()
+            })),
+            props: v.array(v.object({
+                gameType: v.string(),
+                propType: v.string(),
+                quantity: v.number()
+            }))
         }),
-        matchesPlayed: v.number(),
-        matchesWon: v.number(),
-        winRate: v.number(),
-        lastMatchAt: v.string(),
+        createdAt: v.string(),
+    }).index("by_uid", ["uid"])
+        .index("by_season", ["seasonId"])
+        .index("by_upgrade_date", ["upgradeDate"]),
+
+    // 段位积分获得记录表
+    segment_points_logs: defineTable({
+        uid: v.string(),
+        points: v.number(), // 获得的积分
+        source: v.string(), // 积分来源: "tournament", "quick_match", "leaderboard", "task"
+        sourceDetails: v.optional(v.object({
+            gameType: v.optional(v.string()),
+            tournamentId: v.optional(v.string()),
+            matchId: v.optional(v.string()),
+            taskId: v.optional(v.string()),
+            leaderboardType: v.optional(v.string()),
+            leaderboardDate: v.optional(v.string())
+        })),
+        seasonId: v.string(),
+        createdAt: v.string(),
+    }).index("by_uid", ["uid"])
+        .index("by_season", ["seasonId"])
+        .index("by_source", ["source"])
+        .index("by_created_at", ["createdAt"]),
+
+    // 段位配置表（可选，用于动态配置）
+    segment_configs: defineTable({
+        segmentName: v.string(),
+        displayName: v.string(),
+        minRankPoints: v.number(),
+        maxRankPoints: v.number(),
+        color: v.string(),
+        icon: v.string(),
+        upgradeRewards: v.object({
+            coins: v.number(),
+            seasonPoints: v.number(),
+            tickets: v.array(v.object({
+                type: v.string(),
+                quantity: v.number()
+            })),
+            props: v.array(v.object({
+                gameType: v.string(),
+                propType: v.string(),
+                quantity: v.number()
+            }))
+        }),
+        isActive: v.boolean(),
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_uid_season", ["uid", "seasonId"]).index("by_season_points", ["seasonId", "seasonPoints"]),
+    }).index("by_segment_name", ["segmentName"])
+        .index("by_is_active", ["isActive"]),
 
-    segment_changes: defineTable({
-        uid: v.string(),
-        gameType: v.string(),
-        oldSegment: v.string(),
-        newSegment: v.string(),
-        pointsChange: v.number(),
-        reason: v.string(), // "promotion", "demotion", "season_reset", "inactivity"
-        createdAt: v.string(),
-    }).index("by_uid", ["uid"]).index("by_gameType", ["gameType"]),
-
-    segment_rewards: defineTable({
+    // 段位统计表
+    segment_stats: defineTable({
+        seasonId: v.string(),
         segmentName: v.string(),
-        rewardType: v.string(), // "promotion", "maintenance", "season_end"
-        rewards: v.array(v.object({
-            type: v.string(), // "tickets", "props", "coins"
-            itemId: v.string(),
-            quantity: v.number()
-        })),
+        playerCount: v.number(), // 该段位玩家数量
+        averageRankPoints: v.number(), // 平均积分
+        totalUpgrades: v.number(), // 升级到该段位的次数
+        totalDowngrades: v.number(), // 从该段位降级的次数
+        date: v.string(), // 统计日期
         createdAt: v.string(),
-        updatedAt: v.string(),
-    }).index("by_segment", ["segmentName"]),
-
-    leaderboards: defineTable({
-        gameType: v.string(),
-        segmentName: v.string(),
-        uid: v.string(),
-        points: v.number(),
-        rank: v.number(),
-        seasonId: v.optional(v.id("seasons")),
-        isGlobal: v.boolean(),
-        createdAt: v.string(),
-        updatedAt: v.string(),
-    }).index("by_game_segment_rank", ["gameType", "segmentName", "rank"]).index("by_uid", ["uid"]),
-
-    segment_statistics: defineTable({
-        gameType: v.string(),
-        segmentName: v.string(),
-        totalPlayers: v.number(),
-        averagePoints: v.number(),
-        promotionRate: v.number(),
-        demotionRate: v.number(),
-        date: v.string(),
-        createdAt: v.string(),
-    }).index("by_game_segment_date", ["gameType", "segmentName", "date"]),
-
-    inactivity_penalties: defineTable({
-        uid: v.string(),
-        gameType: v.string(),
-        segmentName: v.string(),
-        penaltyAmount: v.number(),
-        reason: v.string(), // "weekly_inactivity"
-        appliedAt: v.string(),
-        createdAt: v.string(),
-    }).index("by_uid", ["uid"]).index("by_gameType", ["gameType"]),
-
-    return_rewards: defineTable({
-        uid: v.string(),
-        gameType: v.string(),
-        rewards: v.array(v.object({
-            type: v.string(), // "points", "tickets", "props"
-            itemId: v.string(),
-            quantity: v.number()
-        })),
-        appliedAt: v.string(),
-        createdAt: v.string(),
-    }).index("by_uid", ["uid"]),
-
-    master_maintenance: defineTable({
-        uid: v.string(),
-        gameType: v.string(),
-        currentPoints: v.number(),
-        tournamentsCompleted: v.number(),
-        maintenanceRewards: v.array(v.object({
-            type: v.string(),
-            itemId: v.string(),
-            quantity: v.number()
-        })),
-        checkedAt: v.string(),
-        createdAt: v.string(),
-    }).index("by_uid", ["uid"]).index("by_gameType", ["gameType"]),
+    }).index("by_season_segment", ["seasonId", "segmentName"])
+        .index("by_date", ["date"])
+        .index("by_segment_date", ["segmentName", "date"])
 }; 
