@@ -158,16 +158,7 @@ export interface TournamentHandler {
     validateJoin(ctx: any, args: any): Promise<any>;
     join(ctx: any, args: JoinArgs): Promise<any>;
     deductJoinCost(ctx: any, args: any): Promise<any>;
-    submitScore(ctx: any, args: SubmitScoreArgs): Promise<SubmitScoreResult | undefined>;
     settle(ctx: any, tournamentId: string): Promise<void>;
-    findAndJoinTournament?(ctx: any, params: any): Promise<any>;
-    findOrCreateTournament?(ctx: any, params: any): Promise<any>;
-    prepareScoreSubmission?(ctx: any, params: any): Promise<any>;
-    handlePropDeduction?(ctx: any, params: any): Promise<any>;
-    handleTournamentSettlement?(ctx: any, params: any): Promise<any>;
-    logPropUsageIfNeeded?(ctx: any, params: any): Promise<void>;
-    buildSubmitScoreResult?(params: any): any;
-    handleScoreSubmissionError?(ctx: any, params: any): Promise<void>;
     validateTournamentForSettlement?(ctx: any, tournamentId: string): Promise<any>;
     getCompletedMatches?(ctx: any, tournamentId: string): Promise<any[]>;
     distributeRewardsToPlayers?(ctx: any, params: any): Promise<void>;
@@ -332,9 +323,8 @@ export async function getCommonData(ctx: any, params: {
 export async function validateEntryFee(ctx: any, params: {
     uid: string;
     tournamentType: any;
-    inventory: any;
 }) {
-    const { uid, tournamentType, inventory } = params;
+    const { uid, tournamentType } = params;
 
     if (!tournamentType.entryRequirements?.entryFee) {
         return; // 没有入场费要求
@@ -342,44 +332,12 @@ export async function validateEntryFee(ctx: any, params: {
 
     const entryFee = tournamentType.entryRequirements.entryFee;
 
-    // 检查金币入场费
-    if (entryFee.coins) {
-        if (!inventory || inventory.coins < entryFee.coins) {
-            throw new Error(`金币不足，需要 ${entryFee.coins} 金币，当前拥有 ${inventory?.coins || 0} 金币`);
-        }
-    }
-
-    // 检查游戏点数入场费
-    if (entryFee.gamePoints) {
-        if (!inventory || inventory.gamePoints < entryFee.gamePoints) {
-            throw new Error(`游戏点数不足，需要 ${entryFee.gamePoints} 点数，当前拥有 ${inventory?.gamePoints || 0} 点数`);
-        }
-    }
-
-    // 检查道具入场费
-    if (entryFee.props && entryFee.props.length > 0) {
-        if (!inventory || !inventory.props) {
-            throw new Error(`需要道具入场费，但玩家没有道具库存`);
-        }
-
-        for (const requiredProp of entryFee.props) {
-            const hasProp = inventory.props.some((prop: any) =>
-                prop.id === requiredProp.id || prop.name === requiredProp.name
-            );
-            if (!hasProp) {
-                throw new Error(`缺少必需道具: ${requiredProp.name || requiredProp.id}`);
-            }
-        }
-    }
-
     // 检查门票入场费
     if (entryFee.tickets && entryFee.tickets.length > 0) {
-        if (!inventory || !inventory.tickets) {
-            throw new Error(`需要门票入场费，但玩家没有门票库存`);
-        }
+        const tickets = await TicketSystem.getPlayerTickets(ctx, uid);
 
         for (const requiredTicket of entryFee.tickets) {
-            const hasTicket = inventory.tickets.some((ticket: any) =>
+            const hasTicket = tickets.some((ticket: any) =>
                 ticket.id === requiredTicket.id || ticket.name === requiredTicket.name
             );
             if (!hasTicket) {
@@ -413,10 +371,6 @@ export async function deductEntryFee(ctx: any, params: {
         updateData.coins = inventory.coins - entryFee.coins;
     }
 
-    // 扣除游戏点数入场费
-    if (entryFee.gamePoints) {
-        updateData.gamePoints = inventory.gamePoints - entryFee.gamePoints;
-    }
 
     // 扣除道具入场费
     if (entryFee.props && entryFee.props.length > 0) {
@@ -719,6 +673,27 @@ export async function scheduleIsOpen(ctx: any,
                 return openISO && now.toISOString() >= openISO
             case "weekly":
                 return TimeZoneUtils.getSpecificTimeZoneISO({ timeZone: schedule.timeZone, date: schedule.open.day, time: schedule.open.time });
+            case "seasonal":
+                break;
+            default:
+                break;
+        }
+    }
+    return true;
+}
+export async function scheduleIsStart(ctx: any,
+    tournamentType: any
+) {
+    const schedule = tournamentType.schedule;
+    if (schedule) {
+        switch (tournamentType.timeRange) {
+            case "daily":
+                const today = TimeZoneUtils.getCurrentDate(schedule.timeZone);
+                const startISO = TimeZoneUtils.getSpecificTimeZoneISO({ timeZone: schedule.timeZone, date: today, time: schedule.start.time });
+                const now = new Date();
+                return startISO && now.toISOString() >= startISO
+            case "weekly":
+                return TimeZoneUtils.getSpecificTimeZoneISO({ timeZone: schedule.timeZone, date: schedule.start.day, time: schedule.start.time });
             case "seasonal":
                 break;
             default:

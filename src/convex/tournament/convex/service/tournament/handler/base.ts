@@ -7,53 +7,6 @@ import {
 import { MatchManager } from "../matchManager";
 import { TournamentMatchingService } from "../tournamentMatchingService";
 
-// ============================================================================
-// 类型定义
-// ============================================================================
-
-/**
- * 分数提交准备数据
- */
-interface ScoreSubmissionData {
-  matchId: string;
-  playerMatchId: string;
-  currentScore: number;
-}
-
-/**
- * 道具扣除结果
- */
-interface PropDeductionResult {
-  success: boolean;
-  deductedProps: string[];
-  deductionId?: string;
-  error?: string;
-}
-
-/**
- * 锦标赛结算结果
- */
-interface SettlementResult {
-  settled: boolean;
-  settleReason: string;
-}
-
-/**
- * 段位奖励结果
- */
-interface SegmentRewardResult {
-  uid: string;
-  oldSegment: string;
-  newSegment: string;
-  scoreChange: number;
-  segmentChanged: boolean;
-  isPromotion: boolean;
-}
-
-// ============================================================================
-// 锦标赛结算相关函数
-// ============================================================================
-
 /**
  * 验证锦标赛是否可以结算
  */
@@ -80,31 +33,6 @@ async function completeTournament(ctx: any, tournamentId: string, now: any): Pro
   });
 }
 
-
-
-/**
- * 计算多场比赛排名
- */
-async function calculateMultiMatchRankings(ctx: any, tournamentId: string) {
-  // 获取所有参与玩家的累计 gamePoint
-  const playerTournaments = await ctx.db
-    .query("player_tournaments")
-    .withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId))
-    .filter((q: any) => q.eq(q.field("status"), "active"))
-    .collect();
-
-  // 按累计 gamePoint 排序
-  const rankings = playerTournaments
-    .sort((a: any, b: any) => (b.gamePoint || 0) - (a.gamePoint || 0))
-    .map((pt: any, index: number) => ({
-      uid: pt.uid,
-      gameType: pt.gameType,
-      gamePoint: pt.gamePoint || 0,
-      rank: index + 1
-    }));
-
-  return rankings;
-}
 
 /**
  * 验证入场费
@@ -194,24 +122,6 @@ export async function deductEntryFee(ctx: any, params: {
     updateData.coins = inventory.coins - entryFee.coins;
   }
 
-  // 扣除游戏点数入场费
-  if (entryFee.gamePoints) {
-    updateData.gamePoints = inventory.gamePoints - entryFee.gamePoints;
-  }
-
-  // 扣除道具入场费
-  if (entryFee.props && entryFee.props.length > 0) {
-    const updatedProps = [...(inventory.props || [])];
-    for (const requiredProp of entryFee.props) {
-      const propIndex = updatedProps.findIndex((prop: any) =>
-        prop.id === requiredProp.id || prop.name === requiredProp.name
-      );
-      if (propIndex !== -1) {
-        updatedProps.splice(propIndex, 1);
-      }
-    }
-    updateData.props = updatedProps;
-  }
 
   // 扣除门票入场费
   if (entryFee.tickets && entryFee.tickets.length > 0) {
@@ -282,21 +192,17 @@ export const baseHandler: TournamentHandler = {
    * 加入锦标赛
    */
   join: async (ctx, { player, tournamentType, tournament }) => {
-    await baseHandler.validateJoin(ctx, { player, tournamentType });
+    // await baseHandler.validateJoin(ctx, { player, tournamentType });
 
     if (tournamentType.matchRules.maxPlayers === 1) {
-      let tournamentId = tournament?._id;
-      if (!tournament && tournamentType.matchRules.matchType === "single_match") {
-        const tournamentObj = await createTournament(ctx, { config: tournamentType });
-        tournamentId = tournamentObj._id;
-      }
+      const tournamentObj = tournament ?? await createTournament(ctx, { config: tournamentType });
       const matchId = await MatchManager.createMatch(ctx, {
-        tournamentId,
+        tournamentId: tournamentObj._id,
         typeId: tournamentType.typeId,
         uids: [player.uid]
       });
       return {
-        tournamentId,
+        tournamentId: tournamentObj._id,
         matchId
       }
     }
@@ -314,69 +220,6 @@ export const baseHandler: TournamentHandler = {
     await deductEntryFee(ctx, { uid, tournamentType, inventory });
   },
 
-  /**
-   * 提交分数
-   */
-  submitScore: async (ctx, { tournamentId, uid, gameType, score, gameData, propsUsed, gameId }) => {
-    const now = getTorontoMidnight();
-
-    // 验证分数提交
-    // 获取锦标赛信息
-    const tournament = await ctx.db.get(tournamentId);
-    if (!tournament) {
-      throw new Error("锦标赛不存在");
-    }
-
-    // 获取比赛记录
-    const playerMatch = await ctx.db
-      .query("player_matches")
-      .withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid))
-      .filter((q: any) => q.eq(q.field("completed"), false))
-      .first();
-
-    if (!playerMatch) {
-      throw new Error("未找到有效的比赛记录");
-    }
-
-    // 更新比赛记录
-    await ctx.db.patch(playerMatch._id, {
-      score,
-      gameData,
-      propsUsed,
-      completed: true,
-      updatedAt: now.iso
-    });
-
-    // 如果是单场比赛，检查是否需要立即结算
-    if (tournament.isSingleMatch) {
-      const allPlayerMatches = await ctx.db
-        .query("player_matches")
-        .withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId))
-        .filter((q: any) => q.eq(q.field("completed"), true))
-        .collect();
-
-      if (allPlayerMatches.length >= tournament.config?.matchRules?.minPlayers || 2) {
-        // 立即结算
-        await baseHandler.settle(ctx, tournamentId);
-        return {
-          success: true,
-          matchId: playerMatch._id,
-          score,
-          message: "分数提交成功，锦标赛已结算",
-          settled: true,
-          settleReason: "single_match_completed"
-        };
-      }
-    }
-
-    return {
-      success: true,
-      matchId: playerMatch._id,
-      score,
-      message: "分数提交成功",
-      settled: false
-    };
-  },
 
   /**
    * 结算锦标赛

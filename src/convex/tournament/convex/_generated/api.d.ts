@@ -67,8 +67,6 @@ import type * as service_ticket_tickets from "../service/ticket/tickets.js";
 import type * as service_tournament_common from "../service/tournament/common.js";
 import type * as service_tournament_errorCodes from "../service/tournament/errorCodes.js";
 import type * as service_tournament_errorHandler from "../service/tournament/errorHandler.js";
-import type * as service_tournament_errorMigrationExample from "../service/tournament/errorMigrationExample.js";
-import type * as service_tournament_errorUsageExample from "../service/tournament/errorUsageExample.js";
 import type * as service_tournament_handler_base from "../service/tournament/handler/base.js";
 import type * as service_tournament_handler_index from "../service/tournament/handler/index.js";
 import type * as service_tournament_handler_multiPlayerHandler from "../service/tournament/handler/multiPlayerHandler.js";
@@ -154,8 +152,6 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/common": typeof service_tournament_common;
   "service/tournament/errorCodes": typeof service_tournament_errorCodes;
   "service/tournament/errorHandler": typeof service_tournament_errorHandler;
-  "service/tournament/errorMigrationExample": typeof service_tournament_errorMigrationExample;
-  "service/tournament/errorUsageExample": typeof service_tournament_errorUsageExample;
   "service/tournament/handler/base": typeof service_tournament_handler_base;
   "service/tournament/handler/index": typeof service_tournament_handler_index;
   "service/tournament/handler/multiPlayerHandler": typeof service_tournament_handler_multiPlayerHandler;

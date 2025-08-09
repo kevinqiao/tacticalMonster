@@ -301,7 +301,7 @@ export const tournamentSchema = {
         .index("by_uid_createdAt", ["uid", "createdAt"])
         .index("by_player_match", ["uid", "matchId"])
         .index("by_player_game", ["uid", "gameId"])
-        .index("by_match", ["matchId"])
+        .index("by_match", ["matchId", "score"])
         .index("by_uid_completed", ["uid", "completed"])
         .index("by_score", ["score"]),
 

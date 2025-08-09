@@ -323,10 +323,10 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         schedule: {
             timeZone: "America/Toronto",
             open: {
-                time: "18:00:00"
+                time: "11:00:00"
             },
             start: {
-                time: "00:00:00"
+                time: "13:00:00"
             },
             end: {
                 time: "23:59:59"
