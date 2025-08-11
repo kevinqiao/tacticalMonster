@@ -217,6 +217,7 @@ export async function createTournament(ctx: any, params: {
     config: any;
     uids?: string[];
 }) {
+    console.log("createTournament", params)
     const { config, uids } = params;
     const now = getTorontoMidnight();
     const season = await ctx.db
@@ -253,6 +254,7 @@ export async function createTournament(ctx: any, params: {
     });
 
     if (uids) {
+        console.log("join player_tournaments", uids)
         await Promise.all(uids.map(async (uid: string) => {
             await ctx.db.insert("player_tournaments", {
                 uid,
@@ -260,7 +262,7 @@ export async function createTournament(ctx: any, params: {
                 tournamentType: config.typeId,
                 gameType: config.gameType,
                 score: 0,
-                gamePoint: 0,
+                matchPoint: 0,
                 status: TournamentStatus.OPEN,
                 createdAt: now.iso,
                 updatedAt: now.iso,
@@ -450,57 +452,35 @@ export async function findPlayerRank(ctx: any, params: { uid: string; tournament
     if (!playerTournament) {
         return -1
     }
-    const tournamentType = await ctx.db.query("tournamentTypes").withIndex("by_typeId", (q: any) => q.eq("typeId", playerTournament.tournamentType)).unique();
-    const playerScore = tournamentType.matchRules.pointsPerMatch ? playerTournament.gamePoint : playerTournament.score;
+    const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", playerTournament.tournamentType)).unique();
+    // const playerScore = tournamentType.matchRules.pointsMatch ? playerTournament.gamePoint : playerTournament.score;
 
     const batchSize = 1000; // 每批加载 1000 条记录
     let currentRank = 0; // 当前累计排名
     let currentScore = 1000000; // 当前分数，用于处理并列
     let rank = null;
     let tournaments: any[] = [];
+    const playerScore = playerTournament.score;
     while (true) {
         // 按 score 降序获取一批数据
-        if (tournamentType.matchRules.pointsPerMatch) {
-            tournaments = await ctx.db
-                .query("player_tournaments")
-                .withIndex("by_tournament_gamePoint", (q: any) => q.eq("tournamentId", tournamentId).lte("gamePoint", currentScore))
-                .order("desc")
-                .take(batchSize)
-                .collect();
-        } else {
-            tournaments = await ctx.db
-                .query("player_tournaments")
-                .withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId).lte("score", currentScore))
-                .order("desc")
-                .take(batchSize)
-                .collect();
-        }
+        tournaments = await ctx.db
+            .query("player_tournaments")
+            .withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId).lte("score", currentScore))
+            .order("desc")
+            .take(batchSize)
+
         // 如果本批次为空，说明已遍历完所有数据
         if (tournaments.length === 0) {
             break;
         }
 
-        currentScore = tournamentType.matchRules.pointsPerMatch ? currentScore = tournaments[tournaments.length - 1].gamePoint : currentScore = tournaments[tournaments.length - 1].score;
+        currentScore = tournaments[tournaments.length - 1].score;
         if (playerScore >= currentScore) {
-            const aboveTournaments = tournaments.filter((t: any) => {
-                if (tournamentType.matchRules.pointsPerMatch) {
-                    return t.gamePoint > playerScore;
-                } else {
-                    return t.score > playerScore;
-                }
-            })
-            let sameScoreTournaments;
-            if (tournamentType.matchRules.pointsPerMatch) {
-                sameScoreTournaments = await ctx.db
-                    .query("player_tournaments")
-                    .withIndex("by_tournament_gamePoint", (q: any) => q.eq("tournamentId", tournamentId).eq("gamePoint", playerScore))
-                    .collect();
-            } else {
-                sameScoreTournaments = await ctx.db
-                    .query("player_tournaments")
-                    .withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId).eq("score", playerScore))
-                    .collect();
-            }
+            const aboveTournaments = tournaments.filter((t: any) => t.score > playerScore);
+            const sameScoreTournaments = await ctx.db
+                .query("player_tournaments")
+                .withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId).eq("score", playerScore))
+                .collect();
             const index = sameScoreTournaments.sort((a: any, b: any) => a.updatedAt - b.updatedAt).findIndex((t: any) => t.uid === uid);
             rank = currentRank + aboveTournaments.length + index;
             break;

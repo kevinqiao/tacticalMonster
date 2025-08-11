@@ -72,6 +72,7 @@ export const baseHandler: TournamentHandler = {
       const nowISO = new Date().toISOString();
       let tournamentId: string = tournament?._id;
       if (tournament) {
+
         if (!player_tournament) {
           await ctx.db.insert("player_tournaments", {
             uid: player.uid,
@@ -79,7 +80,7 @@ export const baseHandler: TournamentHandler = {
             tournamentType: tournamentType.typeId,
             gameType: tournamentType.gameType,
             score: 0,
-            gamePoint: 0,
+            matchPoint: 0,
             status: TournamentStatus.OPEN,
             createdAt: nowISO,
             updatedAt: nowISO,

@@ -78,7 +78,6 @@ export const tournamentSchema = {
         tournamentType: v.string(), // 新增：锦标赛类型，用于优化查询
         gameType: v.optional(v.string()), // 新增：游戏类型，用于优化查询
         status: v.optional(v.number()), // 0:open，1：completed，2：collected,3:cancelled
-        gamePoint: v.optional(v.number()), // 新增：累积的比赛点数，基于每场比赛的排名计算
         matchCount: v.optional(v.number()), // 新增：参与的比赛场数
         score: v.optional(v.number()), // 新增：累积的分数
         rewards: v.optional(v.any()),
@@ -89,11 +88,7 @@ export const tournamentSchema = {
     }).index("by_tournament", ["tournamentId"])
         .index("by_tournament_uid", ["tournamentId", "uid"])
         .index("by_uid_gameType_status", ["uid", "gameType", "status", "updatedAt"]) // 新增：优化状态查询
-        .index("by_tournament_score", ["tournamentId", "score"])
-        .index("by_tournament_point", ["tournamentId", "gamePoint"]),
-
-
-
+        .index("by_tournament_score", ["tournamentId", "score"]),
     tournament_types: defineTable({
         // 基础信息
         typeId: v.string(), // 如 "daily_special"

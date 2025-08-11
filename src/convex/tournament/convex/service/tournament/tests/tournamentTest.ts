@@ -16,7 +16,6 @@ export const testJoin = (mutation as any)({
         // const uid = "2-22222";
         try {
             const typeId = "jackpot_solitaire_free";
-
             const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", args.uid)).unique();
             if (!player) {
                 throw new Error("玩家不存在");

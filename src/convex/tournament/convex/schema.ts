@@ -1,6 +1,5 @@
 import { defineSchema } from "convex/server";
 import { battlePassSchema } from "./schemas/battlePassSchema";
-import { propSchema } from "./schemas/propSchema";
 import { segmentSchema } from "./schemas/segmentSchema";
 import { taskSchema } from "./schemas/taskSchema";
 import { ticketSchema } from "./schemas/ticketSchema";
@@ -19,7 +18,7 @@ export default defineSchema({
   ...segmentSchema,
 
   // 道具系统
-  ...propSchema,
+  // ...propSchema,
 
   // 门票系统
   ...ticketSchema,

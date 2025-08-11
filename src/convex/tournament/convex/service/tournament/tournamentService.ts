@@ -5,7 +5,6 @@ import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import {
-    checkTournamentEligibility,
     collectRewards,
     findPlayerRank,
     findTournamentByType,
@@ -54,6 +53,7 @@ export class TournamentService {
         const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).first();
         if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
             tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
+            // console.log("tournament", tournament)
             if (!tournament) {
                 throw new Error("锦标赛不存在");
             }
@@ -61,6 +61,10 @@ export class TournamentService {
         const isStart = await scheduleIsStart(ctx, tournamentType);
         if (!isStart) {
             throw new Error("锦标赛未开始");
+        }
+        const match = await ctx.db.query("player_matches").withIndex("by_uid_completed", (q: any) => q.eq("uid", player.uid).eq("completed", false)).first();
+        if (match) {
+            throw new Error("玩家有未完成的比赛，请先完成比赛");
         }
         const handler = getHandler(tournamentType.typeId);
         // // 执行加入逻辑（处理器内部会处理锦标赛创建）
@@ -384,22 +388,25 @@ export class TournamentService {
 
                 if (tournamentType.matchRules.matchType !== "single_match" && ['daily', 'weekly', 'seasonal'].includes(tournamentType.timeRange)) {
                     const tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
-                    if (!tournament || !await scheduleIsOpen(ctx, tournamentType)) continue;
+                    const isOpen = await scheduleIsOpen(ctx, tournamentType)
+                    // console.log("isOpen", isOpen, tournament)
+                    if (!tournament || !isOpen) continue;
                     participation.rank = await findPlayerRank(ctx, { uid, tournamentId: tournament._id });
                 }
                 const attempts = await getPlayerAttempts(ctx, {
                     uid,
                     tournamentType
                 });
+                console.log("attempts", attempts.length, tournamentType.typeId)
                 participation.attempts = attempts.length;
 
                 // 检查参赛资格
-                const eligibility = await checkTournamentEligibility(ctx, {
-                    tournamentType,
-                    player,
-                    inventory,
-                    attempts
-                });
+                // const eligibility = await checkTournamentEligibility(ctx, {
+                //     tournamentType,
+                //     player,
+                //     inventory,
+                //     attempts
+                // });
 
                 availableTournaments.push({
                     typeId: tournamentType.typeId,
@@ -414,7 +421,7 @@ export class TournamentService {
                     //     schedule: tournamentType.schedule,
                     //     limits: tournamentType.limits,
                     // },
-                    eligibility,
+                    // eligibility,
                     participation,
                 });
             } catch (error) {
@@ -448,6 +455,7 @@ export const joinTournament = (mutation as any)({
             throw new Error("玩家不存在");
         }
         const match = await ctx.db.query("player_matches").withIndex("by_uid_completed", (q: any) => q.eq("uid", uid).eq("completed", false)).first();
+        console.log("match", match)
         if (match) {
             throw new Error("玩家已有未完成的锦标赛");
         }

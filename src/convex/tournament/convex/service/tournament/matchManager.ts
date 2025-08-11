@@ -34,7 +34,7 @@ export class MatchManager {
         uids?: string[];
     }) {
         try {
-            console.log("params", params);
+
             const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", params.typeId)).unique();
             if (!tournamentType) {
                 throw new Error("锦标赛类型不存在");
@@ -54,11 +54,11 @@ export class MatchManager {
                 createdAt: now,
                 updatedAt: now,
             });
-            console.log("matchId", matchId);
+
             // 记录比赛创建事件
 
             const match = await ctx.db.get(matchId);
-            console.log("match", match);
+
             if (uids) {
                 await this.joinMatch(ctx, {
                     uids,
@@ -210,25 +210,22 @@ export class MatchManager {
             });
             const playerTournament = playerTournaments.find((playerTournament: any) => playerTournament.uid === playerMatch.uid);
             playerTournament.score = playerTournament.score ?? 0
-            if (matchRules.matchPoints) {
-                playerTournament.points = matchRules.matchPoints[playerMatch.rank];
-            } else {
-                switch (tournamentType.matchRules.rankingMethod) {
-                    case "highest_score":
-                        playerTournament.score = Math.max(playerTournament.score, playerMatch.score);
-                        break;
-                    case "total_score":
-                        playerTournament.score += playerMatch.score;
-                        break;
-                    case "average_score":
-                        playerTournament.score = (playerTournament.score + playerMatch.score) / 2;
-                    case "threshold":
-                        if (playerMatch.score >= tournamentType.matchRules.threshold) {
-                            playerTournament.score = playerMatch.score;
-                        }
-                        break;
-                }
+
+            switch (tournamentType.matchRules.rankingMethod) {
+                case "highest_score":
+                    playerTournament.score = Math.max(playerTournament.score, matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score);
+                    break;
+                case "total_score":
+                    playerTournament.score += matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score;
+                    break;
+                case "average_score":
+                    playerTournament.score = (playerTournament.score + (matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score)) / 2;
+                    break;
+                case "threshold":
+                    playerTournament.score = playerMatch.score;
+                    break;
             }
+
             await ctx.db.patch(playerTournament._id, {
                 score: playerTournament.score,
                 completed: true,
