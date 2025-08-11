@@ -4,9 +4,9 @@ import { MatchManager } from "../matchManager";
 import { TournamentMatchingService } from "../tournamentMatchingService";
 import { TournamentService } from "../tournamentService";
 export const testAvailableTournaments = (query as any)({
-    args: {},
-    handler: async (ctx: any) => {
-        const result = await TournamentService.getAvailableTournaments(ctx, { uid: "2-22222" });
+    args: { uid: v.string() },
+    handler: async (ctx: any, args: { uid: string }) => {
+        const result = await TournamentService.getAvailableTournaments(ctx, { uid: args.uid });
         return result;
     },
 });
@@ -15,7 +15,7 @@ export const testJoin = (mutation as any)({
     handler: async (ctx: any, args: { uid: string }) => {
         // const uid = "2-22222";
         try {
-            const typeId = "multi_competition";
+            const typeId = "jackpot_solitaire_free";
 
             const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", args.uid)).unique();
             if (!player) {
@@ -47,31 +47,23 @@ export const testSubmitScore = (mutation as any)({
         return result;
     },
 });
-export const loadInventory = (mutation as any)({
-    args: { uid: v.string() },
-    handler: async (ctx: any, args: { uid: string }) => {
-        const uid = args.uid;
-        const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", uid)).unique();
-        if (!player) {
-            throw new Error("玩家不存在");
-        }
-        const inventory = await ctx.db.query("player_inventory").withIndex("by_uid", (q: any) => q.eq("uid", uid)).unique();
-        if (!inventory) {
-            await ctx.db.insert("player_inventory", {
-                uid: uid,
+export const testLoadPlayers = (mutation as any)({
+    args: { count: v.number() },
+    handler: async (ctx: any, { count }: { count: number }) => {
+        const players = await ctx.db.query("players").collect();
+
+        players.forEach(async (player: any) => {
+            await ctx.db.delete(player._id);
+        });
+
+        for (let i = 0; i < count; i++) {
+            await ctx.db.insert("players", {
+                uid: `${i + 1}-11111`,
                 coins: 1000,
-                props: [{ gameType: "1", propType: "1", quantity: 100 }],
-                tickets: [{ type: "1", quantity: 100 }],
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            });
-        } else {
-            await ctx.db.patch(inventory._id, {
-                coins: inventory.coins + 1000,
-                updatedAt: new Date().toISOString(),
+                displayName: `Player ${i}`,
+                avatar: `https://example.com/avatar${i}.png`,
             });
         }
 
-        return inventory;
     },
 });

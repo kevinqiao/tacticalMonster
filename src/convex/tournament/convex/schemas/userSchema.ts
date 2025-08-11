@@ -6,6 +6,7 @@ export const userSchema = {
     // 玩家表 - 合并了用户信息和游戏相关功能
     players: defineTable({
         uid: v.string(),
+        coins: v.optional(v.number()),
         token: v.optional(v.string()),
         email: v.optional(v.string()),
         displayName: v.optional(v.string()),

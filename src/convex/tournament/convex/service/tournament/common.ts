@@ -18,15 +18,16 @@ export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
     uid: string;
     tournamentType: any;
 }) {
-    const now = getTorontoMidnight();
+
+    const nowISO = new Date().toISOString();
     let startTime: string;
     // 根据时间范围确定开始时间
     switch (tournamentType.timeRange) {
         case "daily":
-            startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
+            startTime = TimeZoneUtils.getTimeZoneMidnightISO("America/Toronto");
             break;
         case "weekly":
-            const weekStart = new Date(now.localDate);
+            const weekStart = new Date(nowISO);
             weekStart.setDate(weekStart.getDate() - weekStart.getDay());
             weekStart.setHours(0, 0, 0, 0);
             startTime = weekStart.toISOString();
@@ -37,7 +38,7 @@ export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
                 .query("seasons")
                 .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
                 .first();
-            startTime = season?.startDate || now.localDate.toISOString();
+            startTime = season?.startDate;
             break;
         case "total":
             startTime = "1970-01-01T00:00:00.000Z";
@@ -157,7 +158,6 @@ export enum MatchStatus {
 export interface TournamentHandler {
     validateJoin(ctx: any, args: any): Promise<any>;
     join(ctx: any, args: JoinArgs): Promise<any>;
-    deductJoinCost(ctx: any, args: any): Promise<any>;
     settle(ctx: any, tournamentId: string): Promise<void>;
     validateTournamentForSettlement?(ctx: any, tournamentId: string): Promise<any>;
     getCompletedMatches?(ctx: any, tournamentId: string): Promise<any[]>;
@@ -314,7 +314,31 @@ export async function getCommonData(ctx: any, params: {
 
     return { player, inventory, season };
 }
+export async function validateLimits(ctx: any, params: {
+    uid: string;
+    tournamentType: any;
+}) {
+    const { uid, tournamentType } = params;
+    const attempts = await getPlayerAttempts(ctx, { uid, tournamentType });
+    const maxAttempts = tournamentType.limits?.maxAttempts;
+    if (maxAttempts && attempts >= maxAttempts) {
+        throw new Error(`已达最大尝试次数 (${attempts}/${maxAttempts})`);
+    }
+    const maxTournaments = tournamentType.limits?.maxTournaments;
+    if (maxTournaments) {
+        const playerTournaments = await ctx.db
+            .query("player_tournaments")
+            .withIndex("by_tournament_uid", (q: any) =>
+                q.eq("uid", uid)
+                    .eq("tournamentType", tournamentType.typeId)
+            )
+            .collect();
+        if (playerTournaments.length >= maxTournaments) {
+            throw new Error(`已达最大锦标赛次数 (${playerTournaments.length}/${maxTournaments})`);
+        }
+    }
 
+}
 
 /**
  * 验证入场费
@@ -352,66 +376,40 @@ export async function validateEntryFee(ctx: any, params: {
  * 扣除入场费并记录日志
  */
 export async function deductEntryFee(ctx: any, params: {
-    uid: string;
+    player: any;
     tournamentType: any;
-    inventory: any;
-    now: any;
 }) {
-    const { uid, tournamentType, inventory, now } = params;
+    const { player, tournamentType } = params;
 
-    if (!tournamentType.entryRequirements?.entryFee || !inventory) {
-        return; // 没有入场费要求或没有库存
-    }
 
     const entryFee = tournamentType.entryRequirements.entryFee;
-    const updateData: any = { updatedAt: now.iso };
 
     // 扣除金币入场费
-    if (entryFee.coins) {
-        updateData.coins = inventory.coins - entryFee.coins;
-    }
-
-
-    // 扣除道具入场费
-    if (entryFee.props && entryFee.props.length > 0) {
-        const updatedProps = [...(inventory.props || [])];
-        for (const requiredProp of entryFee.props) {
-            const propIndex = updatedProps.findIndex((prop: any) =>
-                prop.id === requiredProp.id || prop.name === requiredProp.name
-            );
-            if (propIndex !== -1) {
-                updatedProps.splice(propIndex, 1);
-            }
-        }
-        updateData.props = updatedProps;
+    if (!entryFee.coins || player.coins >= entryFee.coins) {
+        player.coins = player.coins - entryFee.coins;
+        await ctx.db.patch(player._id, {
+            coins: player.coins
+        });
+    } else {
+        throw new Error(`金币不足: ${entryFee.coins - player.coins}`);
     }
 
     // 扣除门票入场费
+
     if (entryFee.tickets && entryFee.tickets.length > 0) {
-        const updatedTickets = [...(inventory.tickets || [])];
+        const tickets = await TicketSystem.getPlayerTickets(ctx, player.uid);
+
         for (const requiredTicket of entryFee.tickets) {
-            const ticketIndex = updatedTickets.findIndex((ticket: any) =>
+            const hasTicket = tickets.some((ticket: any) =>
                 ticket.id === requiredTicket.id || ticket.name === requiredTicket.name
             );
-            if (ticketIndex !== -1) {
-                updatedTickets.splice(ticketIndex, 1);
+            if (!hasTicket) {
+                throw new Error(`缺少必需门票: ${requiredTicket.name || requiredTicket.id}`);
             }
         }
-        updateData.tickets = updatedTickets;
     }
 
-    // 更新库存
-    await ctx.db.patch(inventory._id, updateData);
 
-    // 记录入场费扣除日志
-    await ctx.db.insert("entry_fee_logs", {
-        uid,
-        tournamentType: tournamentType.typeId,
-        gameType: tournamentType.gameType,
-        entryFee,
-        deductedAt: now.iso,
-        createdAt: now.iso
-    });
 }
 export async function findTournamentByType(ctx: any, params: { tournamentType: any }) {
     const now = getTorontoMidnight();
@@ -670,7 +668,9 @@ export async function scheduleIsOpen(ctx: any,
                 const today = TimeZoneUtils.getCurrentDate(schedule.timeZone);
                 const openISO = TimeZoneUtils.getSpecificTimeZoneISO({ timeZone: schedule.timeZone, date: today, time: schedule.open.time });
                 const now = new Date();
-                return openISO && now.toISOString() >= openISO
+                const isOpen = openISO && now.toISOString() >= openISO
+                console.log("isOpen", isOpen, openISO, now.toISOString())
+                return isOpen
             case "weekly":
                 return TimeZoneUtils.getSpecificTimeZoneISO({ timeZone: schedule.timeZone, date: schedule.open.day, time: schedule.open.time });
             case "seasonal":

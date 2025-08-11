@@ -108,7 +108,7 @@ export interface MatchRules {
     matchPoints?: { [k: string]: number };
     // 分数阈值（用于threshold排名）
     scoreThreshold?: number;
-    maxAttempts?: number;
+    // maxAttempts?: number;
     // 时间限制
     timeLimit?: {
         perMatch: number; // 秒
@@ -212,15 +212,15 @@ export interface ScheduleConfig {
  */
 export interface LimitConfig {
     // 最大参与次数
-    maxParticipations: number;
-    maxTournaments: number;
-    maxAttempts: number;
+    maxParticipations?: number;
+    maxTournaments?: number;
+    maxAttempts?: number;
 
     // 订阅用户限制
-    subscribed: {
-        maxParticipations: number;
-        maxTournaments: number;
-        maxAttempts: number;
+    subscribed?: {
+        maxParticipations?: number;
+        maxTournaments?: number;
+        maxAttempts?: number;
     };
 }
 
@@ -269,7 +269,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
     // 快速对局配置 - 免费模式
     {
         typeId: "jackpot_solitaire_free",
-        name: "Solitaire锦标赛(免费)",
+        name: "Solitaire锦标赛(最好成绩)",
         description: "Solitaire锦标赛，免费模式，积分累积用于排行榜",
         gameType: "solitaire",
         isActive: true,
@@ -323,10 +323,10 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         schedule: {
             timeZone: "America/Toronto",
             open: {
-                time: "11:00:00"
+                time: "00:00:00"
             },
             start: {
-                time: "13:00:00"
+                time: "01:00:00"
             },
             end: {
                 time: "23:59:59"
@@ -408,16 +408,16 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         },
 
 
-        limits: {
-            maxParticipations: 5, // 每日5局门票
-            maxTournaments: 1,
-            maxAttempts: 5,
-            subscribed: {
-                maxParticipations: 8,
-                maxTournaments: 1,
-                maxAttempts: 8
-            }
-        },
+        // limits: {
+        //     maxParticipations: 5, // 每日5局门票
+        //     maxTournaments: 1,
+        //     maxAttempts: 5,
+        //     subscribed: {
+        //         maxParticipations: 8,
+        //         maxTournaments: 1,
+        //         maxAttempts: 8
+        //     }
+        // },
         createdAt: "2025-08-01T00:00:00.000Z",
         updatedAt: "2025-08-01T00:00:00.000Z"
     },
@@ -503,16 +503,16 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             }
         },
 
-        limits: {
-            maxParticipations: 3,
-            maxTournaments: 1,
-            maxAttempts: 3,
-            subscribed: {
-                maxParticipations: 5,
-                maxTournaments: 2,
-                maxAttempts: 5
-            }
-        },
+        // limits: {
+        //     maxParticipations: 3,
+        //     maxTournaments: 1,
+        //     maxAttempts: 3,
+        //     subscribed: {
+        //         maxParticipations: 5,
+        //         maxTournaments: 2,
+        //         maxAttempts: 5
+        //     }
+        // },
 
         createdAt: "2025-08-01T00:00:00.000Z",
         updatedAt: "2025-08-01T00:00:00.000Z"

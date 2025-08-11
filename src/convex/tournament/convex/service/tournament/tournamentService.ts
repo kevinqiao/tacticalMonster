@@ -63,7 +63,7 @@ export class TournamentService {
             throw new Error("锦标赛未开始");
         }
         const handler = getHandler(tournamentType.typeId);
-        // 执行加入逻辑（处理器内部会处理锦标赛创建）
+        // // 执行加入逻辑（处理器内部会处理锦标赛创建）
         const result = await handler.join(ctx, { player, tournamentType, tournament });
 
         return {

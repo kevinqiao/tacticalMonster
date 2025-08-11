@@ -73,6 +73,7 @@ import type * as service_tournament_handler_multiPlayerHandler from "../service/
 import type * as service_tournament_handler_multiPlayerIndependentMatchHandler from "../service/tournament/handler/multiPlayerIndependentMatchHandler.js";
 import type * as service_tournament_handler_multiPlayerSharedMatchHandler from "../service/tournament/handler/multiPlayerSharedMatchHandler.js";
 import type * as service_tournament_handler_singlePlayerIndependentTournamentHandler from "../service/tournament/handler/singlePlayerIndependentTournamentHandler.js";
+import type * as service_tournament_handler_validator from "../service/tournament/handler/validator.js";
 import type * as service_tournament_matchManager from "../service/tournament/matchManager.js";
 import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
 import type * as service_tournament_pointCalculator from "../service/tournament/pointCalculator.js";
@@ -158,6 +159,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/handler/multiPlayerIndependentMatchHandler": typeof service_tournament_handler_multiPlayerIndependentMatchHandler;
   "service/tournament/handler/multiPlayerSharedMatchHandler": typeof service_tournament_handler_multiPlayerSharedMatchHandler;
   "service/tournament/handler/singlePlayerIndependentTournamentHandler": typeof service_tournament_handler_singlePlayerIndependentTournamentHandler;
+  "service/tournament/handler/validator": typeof service_tournament_handler_validator;
   "service/tournament/matchManager": typeof service_tournament_matchManager;
   "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;
   "service/tournament/pointCalculator": typeof service_tournament_pointCalculator;

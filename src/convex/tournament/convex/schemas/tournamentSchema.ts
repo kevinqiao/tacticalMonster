@@ -217,16 +217,16 @@ export const tournamentSchema = {
         })),
 
         // 限制配置
-        limits: v.object({
-            maxParticipations: v.number(),
-            maxTournaments: v.number(),
-            maxAttempts: v.number(),
-            subscribed: v.object({
+        limits: v.optional(v.object({
+            maxParticipations: v.optional(v.number()),
+            maxTournaments: v.optional(v.number()),
+            maxAttempts: v.optional(v.number()),
+            subscribed: v.optional(v.object({
                 maxParticipations: v.number(),
-                maxTournaments: v.number(),
-                maxAttempts: v.number()
-            })
-        }),
+                maxTournaments: v.optional(v.number()),
+                maxAttempts: v.optional(v.number())
+            }))
+        })),
 
         // 高级配置
         advanced: v.optional(v.object({

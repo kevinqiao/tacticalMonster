@@ -198,7 +198,6 @@ export class MatchManager {
             throw new Error("锦标赛类型不存在");
         }
         const playerMatches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", params.matchId)).order("desc").collect();
-
         const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament", (q: any) => q.eq("tournamentId", match.tournamentId)).collect();
         const matchRules = tournamentType.matchRules;
 
@@ -230,7 +229,6 @@ export class MatchManager {
                         break;
                 }
             }
-
             await ctx.db.patch(playerTournament._id, {
                 score: playerTournament.score,
                 completed: true,
@@ -248,7 +246,6 @@ export class MatchManager {
                 await TournamentService.settle(ctx, match.tournamentId);
             }
         }
-
     }
 
     /**
