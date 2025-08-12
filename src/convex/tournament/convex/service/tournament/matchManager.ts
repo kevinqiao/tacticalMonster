@@ -3,7 +3,6 @@ import { Id } from "../../_generated/dataModel";
 import { mutation, query } from "../../_generated/server";
 // import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import { TimeZoneUtils } from "../../util/TimeZoneUtils";
-import { MatchStatus } from "./common";
 import { TournamentService } from "./tournamentService";
 
 const GAME_MODES: Record<string, string> = {
@@ -46,7 +45,7 @@ export class MatchManager {
                 tournamentId,
                 tournamentType: typeId,
                 gameType: tournamentType.gameType,
-                status: MatchStatus.MATCHING,
+                completed: false,
                 maxPlayers: tournamentType.matchRules.maxPlayers,
                 minPlayers: tournamentType.matchRules.minPlayers,
                 startTime: undefined,
@@ -104,10 +103,6 @@ export class MatchManager {
         const size = currentPlayers.length + uids.length;
         if (size > match.maxPlayers) {
             throw new Error("比赛人数已满");
-        } else {
-            await ctx.db.patch(match._id, {
-                status: size === match.maxPlayers ? MatchStatus.MATCHED : MatchStatus.MATCHING
-            });
         }
         const gameSize = GAME_MODES[match.gameType] === "independent" ? uids.length : 1;
         const gameIds: string[] = [];
@@ -158,16 +153,14 @@ export class MatchManager {
         const nowISO = new Date().toISOString();
         const scores = params.scores;
         let matchId: string | null = null;
-
         await Promise.all(scores.map(async (score: any) => {
-            const playerMatch = await ctx.db.query("player_matches").withIndex("by_player_game", (q: any) => q.eq("uid", score.uid).eq("gameId", score.gameId)).first();
+            const playerMatch = await ctx.db.query("player_matches").withIndex("by_player_game", (q: any) => q.eq("uid", score.uid).eq("gameId", score.gameId)).unique();
             if (!playerMatch) {
                 throw new Error("玩家比赛记录不存在");
             }
             if (matchId === null) {
                 matchId = playerMatch.matchId;
             }
-
             await ctx.db.patch(playerMatch._id, {
                 score: score.score,
                 completed: true,
@@ -189,19 +182,21 @@ export class MatchManager {
         const match = await ctx.db.get(params.matchId);
         if (!match) {
             throw new Error("比赛不存在");
+        } else if (match.completed) {
+            return;
         }
-        if (match.status !== MatchStatus.COMPLETED) {
-            return
-        }
+
+
         const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", match.tournamentType)).unique();
         if (!tournamentType) {
             throw new Error("锦标赛类型不存在");
         }
         const playerMatches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", params.matchId)).order("desc").collect();
+        console.log("len:", playerMatches.length)
         const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament", (q: any) => q.eq("tournamentId", match.tournamentId)).collect();
         const matchRules = tournamentType.matchRules;
 
-        await Promise.all(playerMatches.forEach(async (playerMatch: any, index: number) => {
+        playerMatches.forEach(async (playerMatch: any, index: number) => {
             // console.log("playerMatch", playerMatch);
             playerMatch.rank = index + 1;
             await ctx.db.patch(playerMatch._id, {
@@ -225,17 +220,17 @@ export class MatchManager {
                     playerTournament.score = playerMatch.score;
                     break;
             }
-
+            console.log("score", playerTournament.score)
             await ctx.db.patch(playerTournament._id, {
                 score: playerTournament.score,
                 completed: true,
                 updatedAt: (new Date()).toISOString()
             });
-        }));
+        });
         const completed = playerMatches.every((playerMatch: any) => playerMatch.completed) && playerMatches.length === match.maxPlayers;
-        if (completed && match.status !== MatchStatus.COMPLETED) {
+        if (completed && playerMatches.length === match.maxPlayers) {
             await ctx.db.patch(match._id, {
-                status: MatchStatus.COMPLETED,
+                completed: true,
                 updatedAt: (new Date()).toISOString()
             });
 

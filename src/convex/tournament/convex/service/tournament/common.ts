@@ -262,7 +262,6 @@ export async function createTournament(ctx: any, params: {
                 tournamentType: config.typeId,
                 gameType: config.gameType,
                 score: 0,
-                matchPoint: 0,
                 status: TournamentStatus.OPEN,
                 createdAt: now.iso,
                 updatedAt: now.iso,

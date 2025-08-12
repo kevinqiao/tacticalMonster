@@ -136,7 +136,6 @@ export const tournamentSchema = {
             minPlayers: v.number(),
             maxPlayers: v.number(),
             rankingMethod: v.string(), // "highest_score", "total_score", "average_score", "best_of_attempts", "threshold"
-            maxAttempts: v.optional(v.number()),
             timeLimit: v.optional(v.object({
                 perMatch: v.number(),
                 perTurn: v.optional(v.number()),
@@ -262,7 +261,7 @@ export const tournamentSchema = {
         tournamentId: v.optional(v.string()),
         tournamentType: v.string(),
         gameType: v.string(),
-        status: v.number(), // 0:started,1:tomatching,2:matched,3:completed,4:settled,5:cancelled
+        completed: v.boolean(),
         maxPlayers: v.number(),
         minPlayers: v.number(),
         startTime: v.optional(v.string()),
@@ -270,9 +269,8 @@ export const tournamentSchema = {
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_tournament", ["tournamentId"])
-        .index("by_status", ["status"])
         .index("by_game_type", ["gameType"])
-        .index("by_tournament_status", ["tournamentId", "status"]),
+        .index("by_tournament_completed", ["tournamentId", "completed"]),
 
     // 玩家比赛记录表 - 存储每个玩家在比赛中的具体表现
     player_matches: defineTable({

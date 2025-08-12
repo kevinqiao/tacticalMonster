@@ -326,7 +326,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 time: "00:00:00"
             },
             start: {
-                time: "01:00:00"
+                time: "00:30:00"
             },
             end: {
                 time: "23:59:59"

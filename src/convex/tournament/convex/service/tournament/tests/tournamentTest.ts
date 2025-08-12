@@ -27,6 +27,23 @@ export const testJoin = (mutation as any)({
         }
     },
 });
+export const testBatchJoin = (mutation as any)({
+    args: {},
+    handler: async (ctx: any, args: { uid: string }) => {
+        // const uid = "2-22222";
+        try {
+            const typeId = "jackpot_solitaire_free";
+            const players = await ctx.db.query("players").collect();
+            players.forEach(async (player: any) => {
+                const result = await TournamentService.join(ctx, { player, typeId });
+                return result;
+            });
+            return { success: true };
+        } catch (error: any) {
+            return { error: error.message };
+        }
+    },
+});
 
 export const testMatching = (mutation as any)({
     args: {},
@@ -44,6 +61,17 @@ export const testSubmitScore = (mutation as any)({
         const scores = [{ uid: args.uid, gameId: args.gameId, score: args.score, gameData: {} }]
         const result = await MatchManager.submitScore(ctx, { scores });
         return result;
+    },
+});
+export const testBatchSubmitScore = (mutation as any)({
+    args: {},
+    handler: async (ctx: any) => {
+        const matches = await ctx.db.query("player_matches").collect();
+        matches.filter((match: any) => !match.completed).forEach(async (match: any, index: number) => {
+            const score = Math.floor(Math.random() * 1000);
+            const scores = [{ uid: match.uid, gameId: match.gameId, score, gameData: {} }]
+            await MatchManager.submitScore(ctx, { scores });
+        });
     },
 });
 export const testLoadPlayers = (mutation as any)({
