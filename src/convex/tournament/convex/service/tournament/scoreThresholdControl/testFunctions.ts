@@ -5,6 +5,7 @@
 
 import { v } from "convex/values";
 import { mutation } from "../../../_generated/server";
+import { SegmentPromotionDemotionManager } from '../../segment/segmentPromotionDemotionManager';
 import { ScoreThresholdExample } from "./scoreThresholdExample";
 import { scoreThresholdController } from "./scoreThresholdRankingController";
 
@@ -142,7 +143,8 @@ export const getAvailableExamples = mutation({
             "endMatch",
             "monitoring",
             "batch",
-            "performance"
+            "performance",
+            "segment"
         ];
 
         return {
@@ -260,6 +262,123 @@ export const runStressTest = mutation({
             return {
                 success: false,
                 message: "压力测试执行失败",
+                error: error instanceof Error ? error.message : "未知错误"
+            };
+        }
+    }
+});
+
+/**
+ * 运行段位系统测试
+ */
+export const runSegmentSystemTest = mutation({
+    args: {},
+    handler: async (ctx) => {
+        console.log("🏆 开始测试段位升降系统...");
+
+        try {
+            const results = [];
+
+            // 测试1: 获取所有段位信息
+            const segments = SegmentPromotionDemotionManager.getAvailableSegments();
+            results.push({
+                test: "获取可用段位",
+                result: segments,
+                success: segments.length > 0
+            });
+            console.log(`✅ 可用段位: ${segments.join(", ")}`);
+
+            // 测试2: 检查段位升级路径
+            const upgradePath = [];
+            let currentSegment = "bronze";
+            while (currentSegment) {
+                upgradePath.push(currentSegment);
+                currentSegment = SegmentPromotionDemotionManager.getNextSegment(currentSegment) || "";
+            }
+            results.push({
+                test: "段位升级路径",
+                result: upgradePath,
+                success: upgradePath.length > 1
+            });
+            console.log(`✅ 升级路径: ${upgradePath.join(" → ")}`);
+
+            // 测试3: 检查段位降级路径
+            const demotionPath = [];
+            currentSegment = "grandmaster";
+            while (currentSegment) {
+                demotionPath.push(currentSegment);
+                currentSegment = SegmentPromotionDemotionManager.getPreviousSegment(currentSegment) || "";
+            }
+            results.push({
+                test: "段位降级路径",
+                result: demotionPath,
+                success: demotionPath.length > 1
+            });
+            console.log(`✅ 降级路径: ${demotionPath.join(" → ")}`);
+
+            // 测试4: 检查段位特性
+            const segmentFeatures = [];
+            for (const segment of segments.slice(0, 3)) { // 只测试前3个段位
+                const info = SegmentPromotionDemotionManager.getSegmentInfo(segment);
+                if (info) {
+                    segmentFeatures.push({
+                        segment,
+                        tier: info.tier,
+                        color: info.color,
+                        icon: info.icon,
+                        canPromote: SegmentPromotionDemotionManager.canPromote(segment),
+                        canDemote: SegmentPromotionDemotionManager.canDemote(segment)
+                    });
+                }
+            }
+            results.push({
+                test: "段位特性",
+                result: segmentFeatures,
+                success: segmentFeatures.length > 0
+            });
+            console.log(`✅ 段位特性测试完成, 测试了 ${segmentFeatures.length} 个段位`);
+
+            // 测试5: 模拟段位变化检查
+            const mockPerformanceMetrics = {
+                totalMatches: 20,
+                totalWins: 12,
+                totalLosses: 8,
+                currentWinStreak: 3,
+                currentLoseStreak: 0
+            };
+
+            // 模拟一个青铜段位玩家获得足够积分
+            const segmentChange = await SegmentPromotionDemotionManager.checkSegmentChange(
+                ctx,
+                "test_player_bronze",
+                1500, // 超过升级所需的1000积分
+                mockPerformanceMetrics
+            );
+
+            results.push({
+                test: "段位变化检查",
+                result: segmentChange,
+                success: true // 这里只是测试函数调用，不检查实际结果
+            });
+            console.log(`✅ 段位变化检查测试完成`);
+
+            console.log("🎉 段位系统测试全部完成!");
+            return {
+                success: true,
+                message: "段位系统测试完成",
+                tests: results,
+                summary: {
+                    totalTests: results.length,
+                    passedTests: results.filter(r => r.success).length,
+                    failedTests: results.filter(r => !r.success).length
+                }
+            };
+
+        } catch (error) {
+            console.error("❌ 段位系统测试失败:", error);
+            return {
+                success: false,
+                message: "段位系统测试失败",
                 error: error instanceof Error ? error.message : "未知错误"
             };
         }

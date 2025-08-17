@@ -53,6 +53,8 @@ import type * as service_props_propEffectSystem from "../service/props/propEffec
 import type * as service_props_propShop from "../service/props/propShop.js";
 import type * as service_props_propSystem from "../service/props/propSystem.js";
 import type * as service_recordLogin from "../service/recordLogin.js";
+import type * as service_segment_segmentManagerFunctions from "../service/segment/segmentManagerFunctions.js";
+import type * as service_segment_segmentPromotionDemotionManager from "../service/segment/segmentPromotionDemotionManager.js";
 import type * as service_segment_segmentSystem from "../service/segment/segmentSystem.js";
 import type * as service_segment_segments from "../service/segment/segments.js";
 import type * as service_task_taskIntegration from "../service/task/taskIntegration.js";
@@ -75,7 +77,6 @@ import type * as service_tournament_playerTournamentStatusManager from "../servi
 import type * as service_tournament_pointCalculator from "../service/tournament/pointCalculator.js";
 import type * as service_tournament_ruleEngine from "../service/tournament/ruleEngine.js";
 import type * as service_tournament_scoreThresholdControl_configFunctions from "../service/tournament/scoreThresholdControl/configFunctions.js";
-import type * as service_tournament_scoreThresholdControl_functions from "../service/tournament/scoreThresholdControl/functions.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdExample from "../service/tournament/scoreThresholdControl/scoreThresholdExample.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdIntegration from "../service/tournament/scoreThresholdControl/scoreThresholdIntegration.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdRankingController from "../service/tournament/scoreThresholdControl/scoreThresholdRankingController.js";
@@ -145,6 +146,8 @@ declare const fullApi: ApiFromModules<{
   "service/props/propShop": typeof service_props_propShop;
   "service/props/propSystem": typeof service_props_propSystem;
   "service/recordLogin": typeof service_recordLogin;
+  "service/segment/segmentManagerFunctions": typeof service_segment_segmentManagerFunctions;
+  "service/segment/segmentPromotionDemotionManager": typeof service_segment_segmentPromotionDemotionManager;
   "service/segment/segmentSystem": typeof service_segment_segmentSystem;
   "service/segment/segments": typeof service_segment_segments;
   "service/task/taskIntegration": typeof service_task_taskIntegration;
@@ -167,7 +170,6 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/pointCalculator": typeof service_tournament_pointCalculator;
   "service/tournament/ruleEngine": typeof service_tournament_ruleEngine;
   "service/tournament/scoreThresholdControl/configFunctions": typeof service_tournament_scoreThresholdControl_configFunctions;
-  "service/tournament/scoreThresholdControl/functions": typeof service_tournament_scoreThresholdControl_functions;
   "service/tournament/scoreThresholdControl/scoreThresholdExample": typeof service_tournament_scoreThresholdControl_scoreThresholdExample;
   "service/tournament/scoreThresholdControl/scoreThresholdIntegration": typeof service_tournament_scoreThresholdControl_scoreThresholdIntegration;
   "service/tournament/scoreThresholdControl/scoreThresholdRankingController": typeof service_tournament_scoreThresholdControl_scoreThresholdRankingController;

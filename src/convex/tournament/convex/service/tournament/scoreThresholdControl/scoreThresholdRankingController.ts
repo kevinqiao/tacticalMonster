@@ -3,6 +3,8 @@
  * 完全基于数据库存储，与现有Convex系统完全集成
  */
 
+import { SegmentPromotionDemotionManager } from '../../segment/segmentPromotionDemotionManager';
+
 export interface ScoreThreshold {
     minScore: number;           // 最小分数
     maxScore: number;           // 最大分数
@@ -62,7 +64,8 @@ export interface SegmentChangeRecord {
     oldSegment: string;
     newSegment: string;
     changeType: 'promotion' | 'demotion';
-    reason: string;
+    reason?: string;
+    pointsConsumed?: number;
     matchId?: string;
     createdAt: string;
 }
@@ -634,105 +637,54 @@ export class ScoreThresholdRankingController {
      * 检查段位变化
      */
     private async checkSegmentChange(ctx: any, playerData: PlayerPerformanceData, points: number): Promise<void> {
-        const { protectionStatus, performanceMetrics } = playerData;
-        const segmentConfig = SEGMENT_CONFIGS[playerData.segmentName];
+        // 使用新的段位升降管理器
+        const segmentChange = await SegmentPromotionDemotionManager.checkSegmentChange(
+            ctx,
+            playerData.uid,
+            points,
+            playerData.performanceMetrics
+        );
 
-        if (!segmentConfig) {
-            return;
-        }
-
-        // 检查是否需要升级
-        if (points >= segmentConfig.promotionStabilityPeriod) {
-            await this.promotePlayer(ctx, playerData);
-        }
-        // 检查是否需要降级
-        else if (points <= -segmentConfig.demotionGracePeriod) {
-            await this.demotePlayer(ctx, playerData);
+        if (segmentChange.changed) {
+            // 处理段位变化
+            await this.handleSegmentChange(ctx, playerData, segmentChange);
         }
     }
 
     /**
-     * 升级玩家
+     * 处理段位变化
      */
-    private async promotePlayer(ctx: any, playerData: PlayerPerformanceData): Promise<void> {
-        const segments = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
-        const currentIndex = segments.indexOf(playerData.segmentName);
+    private async handleSegmentChange(ctx: any, playerData: PlayerPerformanceData, segmentChange: any): Promise<void> {
+        const { changeType, oldSegment, newSegment, pointsConsumed, message } = segmentChange;
 
-        if (currentIndex < segments.length - 1) {
-            const newSegment = segments[currentIndex + 1];
+        // 更新玩家数据中的段位
+        playerData.segmentName = newSegment;
 
-            // 记录段位变化
-            const segmentChange: SegmentChangeRecord = {
-                uid: playerData.uid,
-                oldSegment: playerData.segmentName,
-                newSegment,
-                changeType: 'promotion',
-                reason: '积分达到升级要求',
-                createdAt: new Date().toISOString()
-            };
-
-            await this.saveSegmentChangeToDB(ctx, segmentChange);
-
-            // 更新玩家段位
-            playerData.segmentName = newSegment;
-            playerData.protectionStatus.segmentName = newSegment;
-
-            // 更新保护状态配置
-            const newSegmentConfig = SEGMENT_CONFIGS[newSegment];
-            if (newSegmentConfig) {
-                playerData.protectionStatus.protectionThreshold = newSegmentConfig.protectionThreshold;
-                playerData.protectionStatus.demotionGracePeriod = newSegmentConfig.demotionGracePeriod;
-                playerData.protectionStatus.promotionStabilityPeriod = newSegmentConfig.promotionStabilityPeriod;
-            }
-
-            // 重置保护等级
+        // 更新保护状态
+        if (changeType === "promotion") {
+            // 升级后重置保护状态
             playerData.protectionStatus.protectionLevel = 0;
-            playerData.protectionStatus.lastSegmentChange = new Date().toISOString();
-
-            await this.savePlayerDataToDB(ctx, playerData);
-        }
-    }
-
-    /**
-     * 降级玩家
-     */
-    private async demotePlayer(ctx: any, playerData: PlayerPerformanceData): Promise<void> {
-        const segments = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
-        const currentIndex = segments.indexOf(playerData.segmentName);
-
-        if (currentIndex > 0) {
-            const newSegment = segments[currentIndex - 1];
-
-            // 记录段位变化
-            const segmentChange: SegmentChangeRecord = {
-                uid: playerData.uid,
-                oldSegment: playerData.segmentName,
-                newSegment,
-                changeType: 'demotion',
-                reason: '积分未达到保级要求',
-                createdAt: new Date().toISOString()
-            };
-
-            await this.saveSegmentChangeToDB(ctx, segmentChange);
-
-            // 更新玩家段位
-            playerData.segmentName = newSegment;
             playerData.protectionStatus.segmentName = newSegment;
-
-            // 更新保护状态配置
-            const newSegmentConfig = SEGMENT_CONFIGS[newSegment];
-            if (newSegmentConfig) {
-                playerData.protectionStatus.protectionThreshold = newSegmentConfig.protectionThreshold;
-                playerData.protectionStatus.demotionGracePeriod = newSegmentConfig.demotionGracePeriod;
-                playerData.protectionStatus.promotionStabilityPeriod = newSegmentConfig.promotionStabilityPeriod;
-            }
-
-            // 重置保护等级
-            playerData.protectionStatus.protectionLevel = 0;
-            playerData.protectionStatus.lastSegmentChange = new Date().toISOString();
-
-            await this.savePlayerDataToDB(ctx, playerData);
+        } else if (changeType === "demotion") {
+            // 降级后设置保护状态
+            playerData.protectionStatus.protectionLevel = 1;
+            playerData.protectionStatus.segmentName = newSegment;
         }
+
+        // 记录段位变化
+        const segmentChangeRecord: SegmentChangeRecord = {
+            uid: playerData.uid,
+            oldSegment,
+            newSegment,
+            changeType,
+            pointsConsumed: pointsConsumed || 0,
+            createdAt: new Date().toISOString()
+        };
+
+        await this.saveSegmentChangeToDB(ctx, segmentChangeRecord);
+
+        // 发送通知
+        console.log(`段位变化: ${message}`);
     }
 
     // ==================== 数据库操作方法 ====================

@@ -23,7 +23,7 @@ scoreThresholdControl/
 ├── scoreThresholdRankingController.ts  # 核心控制器
 ├── scoreThresholdIntegration.ts        # 系统集成适配器
 ├── scoreThresholdExample.ts            # 示例和测试代码
-├── functions.ts                        # Convex函数（主要功能）
+
 ├── configFunctions.ts                  # Convex函数（配置管理）
 └── testFunctions.ts                    # Convex函数（测试功能）
 ```
