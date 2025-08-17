@@ -1,12 +1,11 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
 import { mutation, query } from "../../_generated/server";
+import { settleTournament, TournamentStatus } from "./common";
 // import { getTorontoMidnight } from "../simpleTimezoneUtils";
-import { TimeZoneUtils } from "../../util/TimeZoneUtils";
-import { TournamentService } from "./tournamentService";
 
 const GAME_MODES: Record<string, string> = {
-    solitaire: "independent",
+    solitaire: "solo",
     uno: "shared",
     ludo: "shared",
     rummy: "shared"
@@ -39,7 +38,7 @@ export class MatchManager {
                 throw new Error("锦标赛类型不存在");
             }
             const { uids, typeId, tournamentId } = params;
-            const now = TimeZoneUtils.getTimeZoneMidnightISO();
+            const nowISO = new Date().toISOString();
 
             const matchId = await ctx.db.insert("matches", {
                 tournamentId,
@@ -50,8 +49,8 @@ export class MatchManager {
                 minPlayers: tournamentType.matchRules.minPlayers,
                 startTime: undefined,
                 endTime: undefined,
-                createdAt: now,
-                updatedAt: now,
+                createdAt: nowISO,
+                updatedAt: nowISO,
             });
 
             // 记录比赛创建事件
@@ -96,39 +95,41 @@ export class MatchManager {
         }
 
         // 检查比赛人数限制
-        const currentPlayers = match.maxPlayers !== match.minPlayers ? await ctx.db
-            .query("player_matches")
-            .withIndex("by_match", (q: any) => q.eq("matchId", match._id))
-            .collect() : [];
-        const size = currentPlayers.length + uids.length;
-        if (size > match.maxPlayers) {
-            throw new Error("比赛人数已满");
-        }
-        const gameSize = GAME_MODES[match.gameType] === "independent" ? uids.length : 1;
-        const gameIds: string[] = [];
-        for (let i = 0; i < gameSize; i++) {
-            const gameId = `game_${match._id}_${Date.now()}_${i + 1}`;
-            gameIds.push(gameId);
+        const playerMatches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", match._id)).collect();
+        if ((playerMatches.length + uids.length) > match.maxPlayers) {
+            throw new Error("比赛已满");
         }
 
         uids.forEach(async (uid: string, index: number) => {
-            const gameId = GAME_MODES[match.gameType] === "independent" ? gameIds[index] : gameIds[0];
-            await ctx.db.insert("player_matches", {
-                matchId: match._id,
-                tournamentId: match.tournamentId,
-                tournamentType: match.tournamentType,
-                uid: uid,
-                gameId: gameId,
-                gameType: match.gameType,
-                score: 0,
-                rank: undefined,
-                completed: false,
-                propsUsed: [],
-                joinTime: nowISO,
-                leaveTime: undefined,
-                createdAt: nowISO,
-                updatedAt: nowISO,
-            });
+            const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", match.tournamentId).eq("uid", uid)).unique();
+            if (!playerTournament) {
+                await ctx.db.insert("player_tournaments", {
+                    uid,
+                    tournamentId: match.tournamentId,
+                    tournamentType: match.tournamentType,
+                    gameType: match.gameType,
+                    score: 0,
+                    status: TournamentStatus.OPEN,
+                    createdAt: nowISO,
+                    updatedAt: nowISO,
+                });
+            }
+            const playerMatch = await ctx.db.query("player_matches").withIndex("by_match_uid", (q: any) => q.eq("matchId", match._id).eq("uid", uid)).unique();
+            if (!playerMatch) {
+                await ctx.db.insert("player_matches", {
+                    matchId: match._id,
+                    tournamentId: match.tournamentId,
+                    tournamentType: match.tournamentType,
+                    uid: uid,
+                    gameId: GAME_MODES[match.gameType] === "solo" ? `game_${match._id}_${uid}` : `game_${match._id}`,
+                    gameType: match.gameType,
+                    score: 0,
+                    completed: false,
+                    createdAt: nowISO,
+                    updatedAt: nowISO,
+                });
+
+            }
         });
         // await this.createRemoteGame(ctx, {
         //     gameType: match.gameType,
@@ -150,6 +151,7 @@ export class MatchManager {
             gameData: any;
         }[];
     }) {
+        console.log("submitScore", params)
         const nowISO = new Date().toISOString();
         const scores = params.scores;
         let matchId: string | null = null;
@@ -178,64 +180,62 @@ export class MatchManager {
     static async settleMatch(ctx: any, params: {
         matchId: Id<"matches">;
     }) {
-
         const match = await ctx.db.get(params.matchId);
         if (!match) {
             throw new Error("比赛不存在");
         } else if (match.completed) {
             return;
         }
-
-
         const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", match.tournamentType)).unique();
         if (!tournamentType) {
             throw new Error("锦标赛类型不存在");
         }
         const playerMatches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", params.matchId)).order("desc").collect();
-        console.log("len:", playerMatches.length)
-        const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament", (q: any) => q.eq("tournamentId", match.tournamentId)).collect();
+
         const matchRules = tournamentType.matchRules;
-
-        playerMatches.forEach(async (playerMatch: any, index: number) => {
-            // console.log("playerMatch", playerMatch);
-            playerMatch.rank = index + 1;
+        await Promise.all(playerMatches.map(async (playerMatch: any, index: number) => {
+            // const pmid = playerMatch._id as Id<"player_matches">;
             await ctx.db.patch(playerMatch._id, {
-                rank: playerMatch.rank,
-                updatedAt: (new Date()).toISOString()
-            });
-            const playerTournament = playerTournaments.find((playerTournament: any) => playerTournament.uid === playerMatch.uid);
-            playerTournament.score = playerTournament.score ?? 0
-
-            switch (tournamentType.matchRules.rankingMethod) {
-                case "highest_score":
-                    playerTournament.score = Math.max(playerTournament.score, matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score);
-                    break;
-                case "total_score":
-                    playerTournament.score += matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score;
-                    break;
-                case "average_score":
-                    playerTournament.score = (playerTournament.score + (matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score)) / 2;
-                    break;
-                case "threshold":
-                    playerTournament.score = playerMatch.score;
-                    break;
-            }
-            console.log("score", playerTournament.score)
-            await ctx.db.patch(playerTournament._id, {
-                score: playerTournament.score,
+                rank: index + 1,
                 completed: true,
                 updatedAt: (new Date()).toISOString()
             });
-        });
+
+            const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", match.tournamentId).eq("uid", playerMatch.uid)).unique();
+            if (playerTournament) {
+                playerTournament.score = playerMatch.score ?? 0
+
+                switch (tournamentType.matchRules.rankingMethod) {
+                    case "highest_score":
+                        playerTournament.score = Math.max(playerTournament.score, matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score);
+                        break;
+                    case "total_score":
+                        playerTournament.score += matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score;
+                        break;
+                    case "average_score":
+                        playerTournament.score = (playerTournament.score + (matchRules.matchPoints ? matchRules.matchPoints[playerMatch.rank] : playerMatch.score)) / 2;
+                        break;
+                    case "threshold":
+                        playerTournament.score = playerMatch.score;
+                        break;
+                }
+                await ctx.db.patch(playerTournament._id, {
+                    score: playerTournament.score,
+                    updatedAt: (new Date()).toISOString()
+                });
+            }
+        }));
+        // const completed = playerMatches.every((playerMatch: any) => playerMatch.completed);
         const completed = playerMatches.every((playerMatch: any) => playerMatch.completed) && playerMatches.length === match.maxPlayers;
-        if (completed && playerMatches.length === match.maxPlayers) {
+        console.log("completed", completed)
+        if (completed) {
             await ctx.db.patch(match._id, {
                 completed: true,
                 updatedAt: (new Date()).toISOString()
             });
 
             if (tournamentType.matchRules.matchType === "single_match") {
-                await TournamentService.settle(ctx, match.tournamentId);
+                await settleTournament(ctx, match.tournamentId);
             }
         }
     }

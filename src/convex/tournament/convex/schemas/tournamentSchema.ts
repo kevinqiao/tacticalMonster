@@ -64,7 +64,7 @@ export const tournamentSchema = {
         tournamentType: v.string(), // 引用 tournament_types.typeId
         createdAt: v.string(),
         updatedAt: v.string(),
-        endTime: v.string(),
+        endTime: v.optional(v.string()),
     }).index("by_season_game_segment_status", ["seasonId", "gameType", "segmentName", "status"])
         .index("by_type_status", ["tournamentType", "status"])
         .index("by_type_status_createdAt", ["tournamentType", "status", "createdAt"])
@@ -78,10 +78,10 @@ export const tournamentSchema = {
         tournamentType: v.string(), // 新增：锦标赛类型，用于优化查询
         gameType: v.optional(v.string()), // 新增：游戏类型，用于优化查询
         status: v.optional(v.number()), // 0:open，1：completed，2：collected,3:cancelled
+        rank: v.optional(v.number()),
         matchCount: v.optional(v.number()), // 新增：参与的比赛场数
         score: v.optional(v.number()), // 新增：累积的分数
         rewards: v.optional(v.any()),
-        completed: v.optional(v.boolean()),
         lastMatchAt: v.optional(v.string()), // 新增：最后一场比赛时间
         createdAt: v.string(),
         updatedAt: v.string(),
@@ -282,13 +282,12 @@ export const tournamentSchema = {
         score: v.number(),
         rank: v.optional(v.number()),
         completed: v.boolean(),
-        propsUsed: v.optional(v.array(v.string())), // 如 ["hint", "undo"]
         gameId: v.string(),
         gameSeed: v.optional(v.string()),
-        joinTime: v.string(),
+        joinTime: v.optional(v.string()),
         leaveTime: v.optional(v.string()),
         createdAt: v.string(),
-        updatedAt: v.string(),
+        updatedAt: v.optional(v.string()),
     }).index("by_match_uid", ["matchId", "uid"])
         .index("by_tournamentType_uid_createdAt", ["tournamentType", "uid", "createdAt"])
         .index("by_uid_createdAt", ["uid", "createdAt"])

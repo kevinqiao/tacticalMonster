@@ -78,7 +78,7 @@ console.log('');
 // 7. 使用其他现有方法
 console.log('7. 其他实用方法:');
 console.log('多伦多当前时间 ISO:', TimeZoneUtils.getTimeZoneISO('America/Toronto'));
-console.log('多伦多午夜时间 ISO:', TimeZoneUtils.getTimeZoneMidnightISO('America/Toronto'));
+console.log('多伦多午夜时间 ISO:', TimeZoneUtils.getTimeZoneDayStartISO('America/Toronto'));
 console.log('多伦多周开始时间 ISO:', TimeZoneUtils.getTimeZoneWeekStartISO('America/Toronto'));
 console.log('多伦多月开始时间 ISO:', TimeZoneUtils.getTimeZoneMonthStartISO('America/Toronto'));
 console.log('');

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import { BattlePassSystem } from "./battlePassSystem";
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
+
 
 // ============================================================================
 // Battle Pass API接口 - 基于Season Points
@@ -402,7 +402,7 @@ export const createBattlePassSnapshot = mutation({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
         const config = BattlePassSystem.getCurrentBattlePassConfig();
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         const playerBattlePass = await BattlePassSystem.getPlayerBattlePass(ctx, args.uid);
         if (!playerBattlePass) {
@@ -419,8 +419,8 @@ export const createBattlePassSnapshot = mutation({
             isPremium: playerBattlePass.isPremium,
             claimedLevels: playerBattlePass.claimedLevels,
             progress: playerBattlePass.progress,
-            snapshotDate: now.localDate.toISOString().split('T')[0],
-            createdAt: now.iso
+            snapshotDate: nowISO.split('T')[0],
+            createdAt: nowISO
         });
 
         return {

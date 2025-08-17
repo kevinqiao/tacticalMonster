@@ -3,7 +3,6 @@ import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
 import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import {
     collectRewards,
     findPlayerRank,
@@ -16,7 +15,6 @@ import {
     TournamentStatus
 } from "./common";
 import { getHandler } from "./handler";
-import { MatchManager } from "./matchManager";
 
 
 /**
@@ -44,9 +42,8 @@ export class TournamentService {
      * 加入锦标赛
      */
     static async join(ctx: any, params: {
-        player: any;
-        typeId: any;
-
+        player: any,
+        typeId: any
     }) {
         const { player, typeId } = params;
         let tournament;
@@ -77,30 +74,6 @@ export class TournamentService {
         };
     }
 
-    /**
-     * 提交分数
-     */
-    static async submitScore(ctx: any, params: {
-        scores: {
-            gameId: string;
-            uid: string;
-            score: number;
-            rank?: number;
-            gameData: any;
-        }[];
-    }) {
-
-
-
-
-        const match = await MatchManager.submitScore(ctx, params);
-
-
-        return {
-            success: true,
-            message: "分数提交成功"
-        };
-    }
 
     /**
      * 结算锦标赛
@@ -120,6 +93,27 @@ export class TournamentService {
         };
     }
 
+    /**
+     * 结算锦标赛
+     */
+    static async getLeaderboard(ctx: any, args: { tournamentId: string, paginationOpts: any }) {
+        const { tournamentId, paginationOpts } = args;
+        console.log("getLeaderboard", tournamentId, paginationOpts)
+        const tournament = await ctx.db.get(tournamentId as Id<"tournaments">);
+        if (!tournament) {
+            throw new Error("锦标赛不存在");
+        }
+
+        const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").paginate(paginationOpts);
+        console.log("playerTournaments", playerTournaments)
+        const leaderboard = playerTournaments.page.map((playerTournament: any) => { return { uid: playerTournament.uid, score: playerTournament.score } })
+        console.log("leaderboard", leaderboard)
+        // return {
+        //     success: true,
+        //     leaderboard,
+        //     message: "锦标赛结算完成"
+        // };
+    }
     /**
      * 获取锦标赛详情
      */
@@ -244,7 +238,7 @@ export class TournamentService {
      * 清理过期锦标赛
      */
     static async cleanupExpiredTournaments(ctx: any) {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         console.log("开始清理过期锦标赛");
 
@@ -253,7 +247,7 @@ export class TournamentService {
             const expiredTournaments = await ctx.db
                 .query("tournaments")
                 .filter((q: any) => q.eq(q.field("status"), "open"))
-                .filter((q: any) => q.lt(q.field("endTime"), now.iso))
+                .filter((q: any) => q.lt(q.field("endTime"), nowISO))
                 .collect();
 
             let cleanedCount = 0;
@@ -274,7 +268,7 @@ export class TournamentService {
                 // 关闭锦标赛
                 await ctx.db.patch(tournament._id, {
                     status: "expired",
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 cleanedCount++;
@@ -295,15 +289,15 @@ export class TournamentService {
     static async collect(ctx: any, playerTournament: any) {
         await collectRewards(ctx, playerTournament);
         await ctx.db.patch(playerTournament._id, {
-            status: TournamentStatus.COLLECTED,
-            updatedAt: getTorontoMidnight().iso
+            status: TournamentStatus.SETTLED,
+            updatedAt: new Date().toISOString()
         });
     }
     /**
      * 结算完成的锦标赛
      */
     static async settleCompletedTournaments(ctx: any) {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         console.log("开始结算完成的锦标赛");
 
@@ -312,7 +306,7 @@ export class TournamentService {
             const completedTournaments = await ctx.db
                 .query("tournaments")
                 .filter((q: any) => q.eq(q.field("status"), "open"))
-                .filter((q: any) => q.lt(q.field("endTime"), now.iso))
+                .filter((q: any) => q.lt(q.field("endTime"), nowISO))
                 .collect();
 
             let settledCount = 0;
@@ -335,7 +329,7 @@ export class TournamentService {
                         error: `结算锦标赛失败: ${error instanceof Error ? error.message : "未知错误"}`,
                         context: "settleCompletedTournaments",
                         tournamentId: tournament._id,
-                        createdAt: now.iso
+                        createdAt: nowISO
                     });
                 }
             }
@@ -431,7 +425,7 @@ export class TournamentService {
         }
 
         // 按优先级排序
-        availableTournaments.sort((a: any, b: any) => a.priority - b.priority);
+        // availableTournaments.sort((a: any, b: any) => a.priority - b.priority);
 
         return {
             success: true,
@@ -463,19 +457,13 @@ export const joinTournament = (mutation as any)({
         return result;
     },
 });
-
-export const submitScore = mutation({
+export const getLeaderboard = (query as any)({
     args: {
-        matchId: v.id("matches"),
-        games: v.array(v.object({
-            uid: v.string(),
-            score: v.number(),
-            gameData: v.any(),
-            gameId: v.optional(v.string()),
-        })),
+        tournamentId: v.string(),
+        paginationOpts: paginationOptsValidator,
     },
     handler: async (ctx: any, args: any) => {
-        const result = await TournamentService.submitScore(ctx, args);
+        const result = await TournamentService.getLeaderboard(ctx, args);
         return result;
     },
 });
@@ -512,21 +500,7 @@ export const getPlayerTournamentHistory = (query as any)({
     },
 });
 
-export const cleanupExpiredTournaments = (mutation as any)({
-    args: {},
-    handler: async (ctx: any, args: any) => {
-        const result = await TournamentService.cleanupExpiredTournaments(ctx);
-        return result;
-    },
-});
 
-export const settleCompletedTournaments = (mutation as any)({
-    args: {},
-    handler: async (ctx: any, args: any) => {
-        const result = await TournamentService.settleCompletedTournaments(ctx);
-        return result;
-    },
-});
 export const collect = (mutation as any)({
     args: {
         uid: v.string(),
@@ -538,7 +512,7 @@ export const collect = (mutation as any)({
         if (!playerTournament) {
             throw new Error("锦标赛不存在");
         }
-        if (playerTournament.status >= TournamentStatus.COLLECTED) {
+        if (playerTournament.status >= TournamentStatus.SETTLED) {
             throw new Error("锦标赛已领取");
         }
         const result = await TournamentService.collect(ctx, playerTournament);

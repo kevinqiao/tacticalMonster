@@ -1,8 +1,9 @@
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
 // ============================================================================
 // Battle Pass 系统核心服务 - 基于Season Points
 // ============================================================================
+
+import { TimeZoneUtils } from "../../util/TimeZoneUtils";
 
 export interface BattlePassConfig {
     seasonId: string;
@@ -127,8 +128,8 @@ export class BattlePassSystem {
      * 获取当前赛季Battle Pass配置
      */
     static getCurrentBattlePassConfig(): BattlePassConfig {
-        const now = getTorontoMidnight();
-        const seasonStart = new Date(now.localDate);
+        const nowISO = new Date().toISOString();
+        const seasonStart = new Date(nowISO);
         seasonStart.setDate(1); // 每月1日开始
         const seasonEnd = new Date(seasonStart);
         seasonEnd.setMonth(seasonEnd.getMonth() + 1);
@@ -367,7 +368,7 @@ export class BattlePassSystem {
      */
     static async initializePlayerBattlePass(ctx: any, uid: string): Promise<PlayerBattlePass> {
         const config = this.getCurrentBattlePassConfig();
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         const initialProgress: BattlePassProgress = {
             tournamentSeasonPoints: 0,
@@ -389,11 +390,11 @@ export class BattlePassSystem {
             currentSeasonPoints: 0,
             totalSeasonPoints: 0,
             isPremium: false,
-            lastUpdated: now.iso,
+            lastUpdated: nowISO,
             progress: initialProgress,
             claimedLevels: [],
-            createdAt: now.iso,
-            updatedAt: now.iso
+            createdAt: nowISO,
+            updatedAt: nowISO
         });
 
         return {
@@ -403,7 +404,7 @@ export class BattlePassSystem {
             currentSeasonPoints: 0,
             totalSeasonPoints: 0,
             isPremium: false,
-            lastUpdated: now.iso,
+            lastUpdated: nowISO,
             progress: initialProgress,
             claimedLevels: [],
             nextRewardLevel: 1
@@ -415,7 +416,7 @@ export class BattlePassSystem {
      */
     static async purchasePremiumBattlePass(ctx: any, uid: string): Promise<{ success: boolean; message: string; battlePass?: PlayerBattlePass | null }> {
         const config = this.getCurrentBattlePassConfig();
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 检查玩家金币
         const player = await ctx.db.query("players")
@@ -454,9 +455,9 @@ export class BattlePassSystem {
             if (battlePassRecord) {
                 await ctx.db.patch(battlePassRecord._id, {
                     isPremium: true,
-                    purchasedAt: now.iso,
-                    lastUpdated: now.iso,
-                    updatedAt: now.iso
+                    purchasedAt: nowISO,
+                    lastUpdated: nowISO,
+                    updatedAt: nowISO
                 });
             }
 
@@ -465,8 +466,8 @@ export class BattlePassSystem {
                 uid,
                 seasonId: config.seasonId,
                 price: config.price,
-                purchasedAt: now.iso,
-                createdAt: now.iso
+                purchasedAt: nowISO,
+                createdAt: nowISO
             });
 
             // 获取更新后的Battle Pass信息
@@ -491,7 +492,7 @@ export class BattlePassSystem {
      * 添加赛季积分到玩家Battle Pass
      */
     static async addSeasonPoints(ctx: any, uid: string, seasonPointsAmount: number, source: string): Promise<{ success: boolean; message: string; newLevel?: number; rewards?: BattlePassRewards[] }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const config = this.getCurrentBattlePassConfig();
 
         try {
@@ -535,15 +536,15 @@ export class BattlePassSystem {
             }
 
             // 更新每日统计
-            const today = now.localDate.toISOString().split('T')[0];
+            const today = nowISO.split('T')[0];
             progress.dailySeasonPoints[today] = (progress.dailySeasonPoints[today] || 0) + seasonPointsAmount;
 
             // 更新每周统计
-            const weekStart = this.getWeekStart(now.localDate);
+            const weekStart = TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto");
             progress.weeklySeasonPoints[weekStart] = (progress.weeklySeasonPoints[weekStart] || 0) + seasonPointsAmount;
 
             // 更新每月统计
-            const monthStart = now.localDate.toISOString().split('T')[0].substring(0, 7);
+            const monthStart = TimeZoneUtils.getTimeZoneMonthStartISO("America/Toronto");
             progress.monthlySeasonPoints[monthStart] = (progress.monthlySeasonPoints[monthStart] || 0) + seasonPointsAmount;
 
             // 获取数据库记录进行更新
@@ -556,9 +557,9 @@ export class BattlePassSystem {
                     currentSeasonPoints: newSeasonPoints,
                     totalSeasonPoints: playerBattlePass.totalSeasonPoints + seasonPointsAmount,
                     currentLevel: newLevel,
-                    lastUpdated: now.iso,
+                    lastUpdated: nowISO,
                     progress: progress,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
             }
 
@@ -569,7 +570,7 @@ export class BattlePassSystem {
                 source,
                 currentLevel: newLevel,
                 totalSeasonPoints: playerBattlePass.totalSeasonPoints + seasonPointsAmount,
-                createdAt: now.iso
+                createdAt: nowISO
             });
 
             // 检查是否有新等级解锁的奖励
@@ -609,7 +610,7 @@ export class BattlePassSystem {
      */
     static async claimBattlePassRewards(ctx: any, uid: string, level: number): Promise<{ success: boolean; message: string; rewards?: BattlePassRewards }> {
         const config = this.getCurrentBattlePassConfig();
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 获取玩家Battle Pass
         const playerBattlePass = await this.getPlayerBattlePass(ctx, uid);
@@ -649,8 +650,8 @@ export class BattlePassSystem {
                 const updatedClaimedLevels = [...playerBattlePass.claimedLevels, level];
                 await ctx.db.patch(battlePassRecord._id, {
                     claimedLevels: updatedClaimedLevels,
-                    lastUpdated: now.iso,
-                    updatedAt: now.iso
+                    lastUpdated: nowISO,
+                    updatedAt: nowISO
                 });
             }
 
@@ -660,8 +661,8 @@ export class BattlePassSystem {
                 seasonId: config.seasonId,
                 level,
                 rewards,
-                claimedAt: now.iso,
-                createdAt: now.iso
+                claimedAt: nowISO,
+                createdAt: nowISO
             });
 
             return {
@@ -679,7 +680,7 @@ export class BattlePassSystem {
      * 发放Battle Pass奖励的具体实现
      */
     private static async grantBattlePassRewards(ctx: any, uid: string, rewards: BattlePassRewards): Promise<{ success: boolean; message: string }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         try {
             // 发放金币

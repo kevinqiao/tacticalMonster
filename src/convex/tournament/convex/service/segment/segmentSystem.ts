@@ -1,4 +1,3 @@
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
 // ============================================================================
 // 段位系统核心服务
@@ -193,7 +192,7 @@ export class SegmentSystem {
      * 获取玩家段位信息
      */
     static async getPlayerSegment(ctx: any, uid: string): Promise<PlayerSegment | null> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const currentSeasonId = this.getCurrentSeasonId();
 
         const playerSegment = await ctx.db.query("player_segments")
@@ -218,7 +217,7 @@ export class SegmentSystem {
      * 初始化玩家段位
      */
     static async initializePlayerSegment(ctx: any, uid: string): Promise<PlayerSegment> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const currentSeasonId = this.getCurrentSeasonId();
 
         // 检查是否已存在
@@ -233,7 +232,7 @@ export class SegmentSystem {
             segmentName: "bronze",
             rankPoints: 0,
             seasonId: currentSeasonId,
-            lastUpdated: now.iso,
+            lastUpdated: nowISO,
             upgradeHistory: []
         };
 
@@ -242,10 +241,10 @@ export class SegmentSystem {
             segmentName: "bronze",
             rankPoints: 0,
             seasonId: currentSeasonId,
-            lastUpdated: now.iso,
+            lastUpdated: nowISO,
             upgradeHistory: [],
-            createdAt: now.iso,
-            updatedAt: now.iso
+            createdAt: nowISO,
+            updatedAt: nowISO
         });
 
         return playerSegment;
@@ -255,7 +254,7 @@ export class SegmentSystem {
      * 添加积分并检查段位升级
      */
     static async addRankPoints(ctx: any, uid: string, rankPoints: number, source: string): Promise<{ success: boolean; message: string; newSegment?: SegmentName; upgradeRewards?: SegmentUpgradeRewards }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         try {
             // 获取或初始化玩家段位
@@ -282,8 +281,8 @@ export class SegmentSystem {
             // 更新积分
             await ctx.db.patch(segmentRecord._id, {
                 rankPoints: newRankPoints,
-                lastUpdated: now.iso,
-                updatedAt: now.iso
+                lastUpdated: nowISO,
+                updatedAt: nowISO
             });
 
             // 检查是否段位升级
@@ -295,14 +294,14 @@ export class SegmentSystem {
                     fromSegment: oldSegment,
                     toSegment: newSegment,
                     rankPoints: newRankPoints,
-                    upgradeDate: now.iso,
+                    upgradeDate: nowISO,
                     rewards: upgradeRewards
                 };
 
                 await ctx.db.patch(segmentRecord._id, {
                     segmentName: newSegment,
                     upgradeHistory: [...playerSegment.upgradeHistory, upgradeHistory],
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 // 发放升级奖励
@@ -335,7 +334,7 @@ export class SegmentSystem {
      * 发放升级奖励
      */
     private static async grantUpgradeRewards(ctx: any, uid: string, rewards: SegmentUpgradeRewards, fromSegment: SegmentName, toSegment: SegmentName, rankPoints: number): Promise<void> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 发放金币
         if (rewards.coins > 0) {
@@ -387,7 +386,7 @@ export class SegmentSystem {
             fromSegment,
             toSegment,
             rankPoints,
-            upgradeDate: now.iso,
+            upgradeDate: nowISO,
             seasonId: this.getCurrentSeasonId(),
             rewards: {
                 coins: rewards.coins,
@@ -395,7 +394,7 @@ export class SegmentSystem {
                 tickets: rewards.tickets,
                 props: rewards.props
             },
-            createdAt: now.iso
+            createdAt: nowISO
         });
     }
 

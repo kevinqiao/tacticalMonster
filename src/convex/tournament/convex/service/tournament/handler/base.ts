@@ -1,24 +1,13 @@
-import { TimeZoneUtils } from "../../../util/TimeZoneUtils";
 import {
   TournamentHandler,
-  TournamentStatus,
   createTournament,
   getPlayerAttempts,
+  joinTournament,
   validateEntryFee
 } from "../common";
 import { MatchManager } from "../matchManager";
+import { TournamentMatchingService } from "../tournamentMatchingService";
 
-
-
-/**
- * 完成锦标赛
- */
-async function completeTournament(ctx: any, tournamentId: string, now: any): Promise<void> {
-  await ctx.db.patch(tournamentId, {
-    status: "completed",
-    updatedAt: now.iso
-  });
-}
 
 
 // ============================================================================
@@ -73,16 +62,7 @@ export const baseHandler: TournamentHandler = {
       let tournamentId: string = tournament?._id;
       if (tournament) {
         if (!player_tournament) {
-          await ctx.db.insert("player_tournaments", {
-            uid: player.uid,
-            tournamentId,
-            tournamentType: tournamentType.typeId,
-            gameType: tournamentType.gameType,
-            score: 0,
-            status: TournamentStatus.OPEN,
-            createdAt: nowISO,
-            updatedAt: nowISO,
-          });
+          await joinTournament(ctx, { tournamentId, uids: [player.uid] });
         }
       } else {
         const tournamentObj = await createTournament(ctx, { config: tournamentType, uids: [player.uid] });
@@ -99,25 +79,13 @@ export const baseHandler: TournamentHandler = {
       }
     }
 
-    // await TournamentMatchingService.joinMatchingQueue(ctx, {
-    //   tournament,
-    //   tournamentType,
-    //   player
-    // });
+    await TournamentMatchingService.joinMatchingQueue(ctx, {
+      tournament,
+      tournamentType,
+      player
+    });
 
     return;
   },
 
-
-  /**
-   * 结算锦标赛
-   */
-  async settle(ctx, tournamentId) {
-    const now = TimeZoneUtils.getTimeZoneMidnightISO();
-
-
-    // 完成锦标赛
-    await completeTournament(ctx, tournamentId, now);
-
-  }
 };

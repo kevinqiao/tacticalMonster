@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
-import { getTorontoDate, getTorontoMidnight } from "../simpleTimezoneUtils";
+import { TimeZoneUtils } from "../../util/TimeZoneUtils";
+
 
 // 锦标赛配置规则
 export interface TournamentRules {
@@ -30,12 +31,12 @@ export interface TournamentRules {
 // 注意：锦标赛配置已移至 data/tournamentConfigs.ts
 
 export async function validateLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, seasonId }: any) {
-  const now = getTorontoMidnight();
-  const today = now.localDate.toISOString().split("T")[0];
-  const weekStart = getWeekStart(today);
+  const nowISO = new Date().toISOString();
+  const dayStartISO = TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto");
+  const weekStart = TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto");
 
   // 验证每日限制
-  await validateDailyLimits(ctx, { uid, gameType, tournamentType, isSubscribed, limits, today });
+  await validateDailyLimits(ctx, { uid, gameType, tournamentType, isSubscribed, limits, dayStartISO });
 
   // 验证每周限制
   await validateWeeklyLimits(ctx, { uid, gameType, tournamentType, isSubscribed, limits, weekStart });
@@ -51,7 +52,7 @@ export async function validateLimits(ctx: any, { uid, gameType, tournamentType, 
 
 // 验证每日限制
 async function validateDailyLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, today }: any) {
-  const now = getTorontoDate();
+  const nowISO = new Date().toISOString();
   const maxDailyParticipations = isSubscribed ?
     limits.daily.subscribed.maxParticipations :
     limits.daily.maxParticipations;
@@ -71,7 +72,7 @@ async function validateDailyLimits(ctx: any, { uid, gameType, tournamentType, is
   if (dailyLimit) {
     await ctx.db.patch(dailyLimit._id, {
       participationCount: dailyLimit.participationCount + 1,
-      updatedAt: now.iso,
+      updatedAt: nowISO,
     });
   } else {
     await ctx.db.insert("player_tournament_limits", {
@@ -82,15 +83,15 @@ async function validateDailyLimits(ctx: any, { uid, gameType, tournamentType, is
       participationCount: 1,
       tournamentCount: 0,
       submissionCount: 0,
-      createdAt: now.iso,
-      updatedAt: now.iso,
+      createdAt: nowISO,
+      updatedAt: nowISO,
     });
   }
 }
 
 // 验证每周限制
 async function validateWeeklyLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, weekStart }: any) {
-  const now = getTorontoDate();
+  const nowISO = new Date().toISOString();
   const maxWeeklyParticipations = isSubscribed ?
     limits.weekly.subscribed.maxParticipations :
     limits.weekly.maxParticipations;
@@ -110,7 +111,7 @@ async function validateWeeklyLimits(ctx: any, { uid, gameType, tournamentType, i
   if (weeklyLimit) {
     await ctx.db.patch(weeklyLimit._id, {
       participationCount: weeklyLimit.participationCount + 1,
-      updatedAt: now.iso,
+      updatedAt: nowISO,
     });
   } else {
     await ctx.db.insert("player_tournament_limits", {
@@ -122,15 +123,15 @@ async function validateWeeklyLimits(ctx: any, { uid, gameType, tournamentType, i
       participationCount: 1,
       tournamentCount: 0,
       submissionCount: 0,
-      createdAt: now.iso,
-      updatedAt: now.iso,
+      createdAt: nowISO,
+      updatedAt: nowISO,
     });
   }
 }
 
 // 验证赛季限制
 async function validateSeasonalLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits, seasonId }: any) {
-  const now = getTorontoDate();
+  const nowISO = new Date().toISOString();
   const maxSeasonalParticipations = isSubscribed ?
     limits.seasonal.subscribed.maxParticipations :
     limits.seasonal.maxParticipations;
@@ -150,27 +151,27 @@ async function validateSeasonalLimits(ctx: any, { uid, gameType, tournamentType,
   if (seasonalLimit) {
     await ctx.db.patch(seasonalLimit._id, {
       participationCount: seasonalLimit.participationCount + 1,
-      updatedAt: now.iso,
+      updatedAt: nowISO,
     });
   } else {
     await ctx.db.insert("player_tournament_limits", {
       uid,
       gameType,
       tournamentType,
-      date: now.localDate.toISOString().split("T")[0], // Use current date for seasonal limits
+      date: nowISO.split("T")[0], // Use current date for seasonal limits
       seasonId,
       participationCount: 1,
       tournamentCount: 0,
       submissionCount: 0,
-      createdAt: now.iso,
-      updatedAt: now.iso,
+      createdAt: nowISO,
+      updatedAt: nowISO,
     });
   }
 }
 
 // 验证总限制
 async function validateTotalLimits(ctx: any, { uid, gameType, tournamentType, isSubscribed, limits }: any) {
-  const now = getTorontoDate();
+  const nowISO = new Date().toISOString();
   const maxTotalParticipations = isSubscribed ?
     limits.total.subscribed.maxParticipations :
     limits.total.maxParticipations;
@@ -199,7 +200,7 @@ function getWeekStart(dateStr: string): string {
 }
 
 export async function deductEntryFee(ctx: any, { uid, gameType, tournamentType, entryFee, inventory }: any) {
-  const now = getTorontoDate();
+  const nowISO = new Date().toISOString();
   const ticket = entryFee.ticket
     ? inventory.tickets?.find(
       (t: any) => t.gameType === gameType && t.tournamentType === tournamentType && t.quantity >= entryFee.ticket.quantity
@@ -213,13 +214,13 @@ export async function deductEntryFee(ctx: any, { uid, gameType, tournamentType, 
           ? { ...t, quantity: t.quantity - entryFee.ticket.quantity }
           : t
       ),
-      updatedAt: now.iso,
+      updatedAt: nowISO,
     });
     return { method: "ticket", amount: entryFee.ticket.quantity };
   } else if (inventory.coins >= entryFee.coins) {
     await ctx.db.patch(inventory._id, {
       coins: inventory.coins - entryFee.coins,
-      updatedAt: now.iso,
+      updatedAt: nowISO,
     });
     return { method: "coins", amount: entryFee.coins };
   } else {
@@ -228,7 +229,7 @@ export async function deductEntryFee(ctx: any, { uid, gameType, tournamentType, 
 }
 
 export async function deductProps(ctx: any, { uid, gameType, propsUsed, inventory }: any) {
-  const now = getTorontoDate();
+  const nowISO = new Date().toISOString();
   const propCounts = new Map<string, number>();
   for (const prop of propsUsed) {
     propCounts.set(prop, (propCounts.get(prop) || 0) + 1);
@@ -245,12 +246,12 @@ export async function deductProps(ctx: any, { uid, gameType, propsUsed, inventor
 
   await ctx.db.patch(inventory._id, {
     props: updatedProps,
-    updatedAt: now.iso,
+    updatedAt: nowISO,
   });
 }
 
 export async function applyRules(ctx: any, { tournament, uid, matches, player, inventory, playerSeason }: any) {
-  const now = getTorontoDate();
+  const nowISO = new Date().toISOString();
   const config = tournament.config;
   const highestScore = Math.max(...matches.map((m: any) => m.score));
   let rank: number = 0, reward: any = {}, pointsEarned: number = 0;
@@ -341,7 +342,7 @@ export async function applyRules(ctx: any, { tournament, uid, matches, player, i
     coins: inventory.coins + finalReward.coins,
     props: updateProps(inventory.props, finalReward.props),
     tickets: updateTickets(inventory.tickets, finalReward.tickets),
-    updatedAt: now.iso,
+    updatedAt: nowISO,
   });
 
   await ctx.db.patch(playerSeason._id, {
@@ -350,7 +351,7 @@ export async function applyRules(ctx: any, { tournament, uid, matches, player, i
       ...playerSeason.gamePoints,
       [tournament.gameType]: playerSeason.gamePoints[tournament.gameType] + finalReward.gamePoints,
     },
-    updatedAt: now.iso,
+    updatedAt: nowISO,
   });
 
   const newSegment = determineSegment(playerSeason.gamePoints[tournament.gameType]);
@@ -365,7 +366,7 @@ export async function applyRules(ctx: any, { tournament, uid, matches, player, i
       gameType: tournament.gameType,
       content: `我在 ${tournament.gameType} ${tournament.tournamentType} 锦标赛中排名第${rank}！#GamePlatform`,
       platform: "x",
-      createdAt: now.iso,
+      createdAt: nowISO,
     });
   }
 
@@ -373,7 +374,7 @@ export async function applyRules(ctx: any, { tournament, uid, matches, player, i
 }
 
 export async function distributeSeasonRewards(ctx: any, seasonId: string) {
-  const now = getTorontoDate();
+  const nowISO = new Date().toISOString();
   const playerSeasons = await ctx.db
     .query("player_seasons")
     .filter((q: any) => q.eq(q.field("seasonId"), seasonId))
@@ -391,7 +392,7 @@ export async function distributeSeasonRewards(ctx: any, seasonId: string) {
       tickets: updateTickets(inventory.tickets, [
         { gameType: "solitaire", tournamentType: "daily_special", quantity: 2 },
       ]),
-      updatedAt: now.iso,
+      updatedAt: nowISO,
     });
     rewardedPlayers++;
   }

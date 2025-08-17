@@ -1,4 +1,3 @@
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import { TaskSystem } from "./taskSystem";
 
 // ============================================================================
@@ -49,7 +48,7 @@ export class TaskIntegration {
      * 发放道具奖励
      */
     static async grantPropRewards(ctx: any, uid: string, props: any[]): Promise<{ success: boolean; message: string; grantedProps?: any[] }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const grantedProps: any[] = [];
 
         for (const prop of props) {
@@ -70,7 +69,7 @@ export class TaskIntegration {
                     propType: prop.propType,
                     quantity: prop.quantity,
                     source: "task",
-                    createdAt: now.iso
+                    createdAt: nowISO
                 });
 
                 grantedProps.push(prop);
@@ -127,7 +126,7 @@ export class TaskIntegration {
      * 发放门票奖励
      */
     static async grantTicketRewards(ctx: any, uid: string, tickets: any[]): Promise<{ success: boolean; message: string; grantedTickets?: any[] }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const grantedTickets: any[] = [];
 
         for (const ticket of tickets) {
@@ -147,7 +146,7 @@ export class TaskIntegration {
                     quantity: ticket.quantity,
                     transactionType: "reward",
                     source: "task",
-                    createdAt: now.iso
+                    createdAt: nowISO
                 });
 
                 grantedTickets.push(ticket);
@@ -201,7 +200,7 @@ export class TaskIntegration {
      * 发放赛季点奖励
      */
     static async grantSeasonPoints(ctx: any, uid: string, seasonPoints: number): Promise<{ success: boolean; message: string; grantedPoints?: number }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         try {
             // 这里应该调用赛季积分系统的发放接口
@@ -216,7 +215,7 @@ export class TaskIntegration {
                 uid,
                 points: seasonPoints,
                 source: "task",
-                createdAt: now.iso
+                createdAt: nowISO
             });
 
             return {
@@ -242,7 +241,7 @@ export class TaskIntegration {
      * 发放游戏积分奖励
      */
     static async grantGamePoints(ctx: any, uid: string, gamePoints: any): Promise<{ success: boolean; message: string; grantedPoints?: any }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         try {
             // 这里应该调用积分转换系统的发放接口
@@ -258,7 +257,7 @@ export class TaskIntegration {
                 generalPoints: gamePoints.general || 0,
                 specificPoints: gamePoints.specific || {},
                 source: "task",
-                createdAt: now.iso
+                createdAt: nowISO
             });
 
             return {

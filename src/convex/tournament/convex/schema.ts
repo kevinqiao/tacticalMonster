@@ -5,6 +5,7 @@ import { taskSchema } from "./schemas/taskSchema";
 import { ticketSchema } from "./schemas/ticketSchema";
 import { tournamentSchema } from "./schemas/tournamentSchema";
 import { userSchema } from "./schemas/userSchema";
+import scoreThresholdSchema from "./service/tournament/scoreThresholdControl/scoreThresholdSchema";
 
 // 合并所有模块的schema
 export default defineSchema({
@@ -28,5 +29,8 @@ export default defineSchema({
 
   // 战斗通行证系统
   ...battlePassSchema,
+
+  // 分数门槛控制系统
+  ...scoreThresholdSchema,
 
 });

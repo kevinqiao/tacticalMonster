@@ -31,7 +31,7 @@ export class TimeZoneUtils {
     /**
      * 获取指定时区的午夜时间ISO字符串
      */
-    static getTimeZoneMidnightISO(timeZone: string = 'America/Toronto'): string {
+    static getTimeZoneDayStartISO(timeZone: string = 'America/Toronto'): string {
         const now = new Date();
         const localMidnight = new Date(now.toLocaleString("en-US", {
             timeZone: timeZone

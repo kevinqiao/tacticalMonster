@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "../../_generated/server";
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
-import { createTournament } from "./common";
+import { createTournament, joinTournament } from "./common";
 import { MatchManager } from "./matchManager";
 
 /**
@@ -30,7 +29,7 @@ export class TournamentMatchingService {
         player: any;
 
     }) {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const { tournament, tournamentType, player } = params;
         try {
             const config = tournamentType.config;
@@ -39,6 +38,7 @@ export class TournamentMatchingService {
             const existingQueue = await ctx.db.query("matchingQueue").withIndex("by_uid", (q: any) => q.eq("uid", player.uid)).first();
 
             if (existingQueue) {
+                console.log("existingQueue", existingQueue)
                 return {
                     success: true,
                     queueId: existingQueue._id,
@@ -93,7 +93,7 @@ export class TournamentMatchingService {
                 },
                 // matchingConfig,
                 status: "waiting",
-                joinedAt: now.iso,
+                joinedAt: nowISO,
                 // priority,
                 // weight,
                 metadata: {
@@ -106,8 +106,8 @@ export class TournamentMatchingService {
                     //     points: playerSegment?.currentPoints || 0
                     // }
                 },
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             });
 
             // 6. 记录匹配事件
@@ -163,7 +163,7 @@ export class TournamentMatchingService {
     }) {
         const { batchSize = 50, maxProcessingTime = 30000 } = params; // 默认30秒处理时间
         const startTime = Date.now();
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         console.log("开始执行匹配任务");
 
@@ -191,7 +191,7 @@ export class TournamentMatchingService {
 
             // 2. 按模式和锦标赛类型分组处理
             const queueGroups = this.groupQueuesByType(waitingQueues);
-
+            console.log("queueGroups", queueGroups)
             for (const group of queueGroups) {
                 // 检查处理时间限制
                 if (Date.now() - startTime > maxProcessingTime) {
@@ -200,7 +200,7 @@ export class TournamentMatchingService {
                 }
 
                 try {
-                    await this.processQueueGroup(ctx, group, now);
+                    await this.processQueueGroup(ctx, group, nowISO);
                 } catch (error) {
                     console.error(`处理队列组失败:`, error);
                     errorCount += group.length;
@@ -230,10 +230,13 @@ export class TournamentMatchingService {
         const uids = group.map((player: any) => player.uid);
         let tid;
         if (!tournamentId) {
+            console.log("createTournament players:", uids)
             tid = await createTournament(ctx, {
                 config,
                 uids
             });
+        } else {
+            await joinTournament(ctx, { tournamentId, uids });
         }
         await MatchManager.createMatch(ctx, {
             uids,
@@ -265,82 +268,28 @@ export class TournamentMatchingService {
         return Array.from(groups.values());
     }
 
-
-
-
-
-
     /**
      * 取消匹配
      */
     static async cancelMatching(ctx: any, params: {
         uid: string;
-        tournamentId?: string;
-        tournamentType?: string; // 新增：独立模式下需要
-        gameType?: string; // 新增：独立模式下需要
-        reason?: string;
-        mode?: string; // 新增：匹配模式
     }) {
-        const { uid, tournamentId, tournamentType, gameType, reason = "user_cancelled", mode = "traditional" } = params;
-        const now = getTorontoMidnight();
+        const { uid, } = params;
+        const nowISO = new Date().toISOString();
 
         try {
             // 查找队列条目
-            let queueEntry;
+            const queueEntry = await ctx.db
+                .query("matchingQueue")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .first();
 
-            if (mode === "traditional" && tournamentId) {
-                queueEntry = await ctx.db
-                    .query("matchingQueue")
-                    .withIndex("by_uid_tournament", (q: any) =>
-                        q.eq("uid", uid).eq("tournamentId", tournamentId)
-                    )
-                    .filter((q: any) => q.eq(q.field("status"), "waiting"))
-                    .first();
-            } else if (mode === "independent" && tournamentType && gameType) {
-                queueEntry = await ctx.db
-                    .query("matchingQueue")
-                    .withIndex("by_uid_tournament", (q: any) =>
-                        q.eq("uid", uid).eq("tournamentId", null)
-                    )
-                    .filter((q: any) =>
-                        q.and(
-                            q.eq(q.field("status"), "waiting"),
-                            q.eq(q.field("gameType"), gameType),
-                            q.eq(q.field("tournamentType"), tournamentType)
-                        )
-                    )
-                    .first();
-            }
-
-            if (!queueEntry) {
-                return {
-                    success: false,
-                    message: "未找到匹配队列条目"
-                };
-            }
 
             // 更新状态
             await ctx.db.patch(queueEntry._id, {
                 status: "cancelled",
-                updatedAt: now.iso
+                updatedAt: nowISO
             });
-
-            // 记录事件
-            await ctx.db.insert("match_events", {
-                matchId: undefined,
-                tournamentId: queueEntry.tournamentId,
-                uid,
-                eventType: "player_cancelled",
-                eventData: {
-                    reason,
-                    waitTime: new Date().getTime() - new Date(queueEntry.joinedAt).getTime(),
-                    queueId: queueEntry._id,
-                    mode: queueEntry.metadata?.mode || mode
-                },
-                timestamp: now.iso,
-                createdAt: now.iso
-            });
-
             return {
                 success: true,
                 message: "已取消匹配"
@@ -356,8 +305,8 @@ export class TournamentMatchingService {
      * 清理过期队列
      */
     static async cleanupExpiredQueue(ctx: any) {
-        const now = getTorontoMidnight();
-        const expiredTime = new Date(now.localDate.getTime() - 30 * 60 * 1000); // 30分钟前
+        const nowISO = new Date().toISOString();
+        const expiredTime = new Date(Date.now() - 30 * 60 * 1000); // 30分钟前
 
         try {
             // 查找过期的队列条目
@@ -374,8 +323,8 @@ export class TournamentMatchingService {
             for (const entry of expiredEntries) {
                 await ctx.db.patch(entry._id, {
                     status: "expired",
-                    expiredAt: now.iso,
-                    updatedAt: now.iso
+                    expiredAt: nowISO,
+                    updatedAt: nowISO
                 });
 
                 // 记录过期事件
@@ -389,8 +338,8 @@ export class TournamentMatchingService {
                         queueId: entry._id,
                         mode: entry.metadata?.mode || "traditional"
                     },
-                    timestamp: now.iso,
-                    createdAt: now.iso
+                    timestamp: nowISO,
+                    createdAt: nowISO
                 });
 
                 cleanedCount++;

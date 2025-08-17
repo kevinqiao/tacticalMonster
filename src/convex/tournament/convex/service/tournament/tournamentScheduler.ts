@@ -1,5 +1,4 @@
 import { internalMutation, mutation } from "../../_generated/server";
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import { createTournament, findTournamentByType } from "./common";
 
 /**
@@ -11,8 +10,8 @@ export class TournamentScheduler {
      * 并发安全的创建每日锦标赛
      */
     static async createDailyTournaments(ctx: any) {
-        const now = getTorontoMidnight();
-        const today = now.localDate.toISOString().split("T")[0];
+        const nowISO = new Date().toISOString();
+        const today = nowISO.split("T")[0];
 
         console.log(`开始创建每日锦标赛 - ${today}`);
 
@@ -60,8 +59,8 @@ export class TournamentScheduler {
      * 并发安全的创建每周锦标赛
      */
     static async createWeeklyTournaments(ctx: any) {
-        const now = getTorontoMidnight();
-        const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
+        const nowISO = new Date().toISOString();
+        const weekStart = this.getWeekStart(nowISO.split("T")[0]);
 
         console.log(`开始创建每周锦标赛 - ${weekStart}`);
 
@@ -109,7 +108,7 @@ export class TournamentScheduler {
      * 并发安全的创建赛季锦标赛
      */
     static async createSeasonalTournaments(ctx: any) {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const season = await this.getCurrentSeason(ctx);
 
         if (!season) {
@@ -166,8 +165,8 @@ export class TournamentScheduler {
      * 重置每日限制
      */
     static async resetDailyLimits(ctx: any) {
-        const now = getTorontoMidnight();
-        const today = now.localDate.toISOString().split("T")[0];
+        const nowISO = new Date().toISOString();
+        const today = nowISO.split("T")[0];
 
         console.log(`开始重置每日限制 - ${today}`);
 
@@ -186,7 +185,7 @@ export class TournamentScheduler {
                     participationCount: 0,
                     tournamentCount: 0,
                     submissionCount: 0,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 resetCount++;
@@ -210,8 +209,8 @@ export class TournamentScheduler {
      * 重置每周限制
      */
     static async resetWeeklyLimits(ctx: any) {
-        const now = getTorontoMidnight();
-        const weekStart = this.getWeekStart(now.localDate.toISOString().split("T")[0]);
+        const nowISO = new Date().toISOString();
+        const weekStart = this.getWeekStart(nowISO.split("T")[0]);
 
         console.log(`开始重置每周限制 - ${weekStart}`);
 
@@ -230,7 +229,7 @@ export class TournamentScheduler {
                     participationCount: 0,
                     tournamentCount: 0,
                     submissionCount: 0,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 resetCount++;
@@ -254,7 +253,7 @@ export class TournamentScheduler {
      * 重置赛季限制
      */
     static async resetSeasonalLimits(ctx: any) {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         console.log(`开始重置赛季限制`);
 
@@ -288,7 +287,7 @@ export class TournamentScheduler {
                     participationCount: 0,
                     tournamentCount: 0,
                     submissionCount: 0,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 resetCount++;

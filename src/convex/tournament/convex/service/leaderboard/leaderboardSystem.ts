@@ -1,4 +1,3 @@
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
 // ============================================================================
 // 排行榜系统 - 基于快速对局积分累积
@@ -85,8 +84,8 @@ export class LeaderboardSystem {
         score: number; // 要累积的积分
     }): Promise<{ success: boolean; message: string; newTotalScore?: number; score?: number }> {
         const { uid, gameType, tournamentType, score } = params;
-        const now = getTorontoMidnight();
-        const today = now.localDate.toISOString().split('T')[0];
+        const nowISO = new Date().toISOString();
+        const today = nowISO.split('T')[0];
 
         try {
             // 获取玩家信息
@@ -113,7 +112,7 @@ export class LeaderboardSystem {
                 await ctx.db.patch(pointsRecord._id, {
                     totalScore: newTotalScore,
                     matchesPlayed: newMatchesPlayed,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -131,8 +130,8 @@ export class LeaderboardSystem {
                     tournamentType,
                     totalScore: score, // 使用传入的积分作为初始积分
                     matchesPlayed: 1,
-                    createdAt: now.iso,
-                    updatedAt: now.iso
+                    createdAt: nowISO,
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -161,9 +160,9 @@ export class LeaderboardSystem {
         score: number; // 要累积的积分
     }): Promise<{ success: boolean; message: string; newTotalScore?: number; score?: number }> {
         const { uid, gameType, tournamentType, score } = params;
-        const now = getTorontoMidnight();
-        const weekStart = this.getWeekStart(now.localDate);
-        const weekEnd = this.getWeekEnd(now.localDate);
+        const nowISO = new Date().toISOString();
+        const weekStart = this.getWeekStart(new Date(nowISO));
+        const weekEnd = this.getWeekEnd(new Date(nowISO));
 
         try {
             // 获取玩家信息
@@ -190,7 +189,7 @@ export class LeaderboardSystem {
                 await ctx.db.patch(pointsRecord._id, {
                     totalScore: newTotalScore,
                     matchesPlayed: newMatchesPlayed,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -209,8 +208,8 @@ export class LeaderboardSystem {
                     tournamentType,
                     totalScore: score, // 使用传入的积分作为初始积分
                     matchesPlayed: 1,
-                    createdAt: now.iso,
-                    updatedAt: now.iso
+                    createdAt: nowISO,
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -237,8 +236,8 @@ export class LeaderboardSystem {
         score: number; // 要累积的积分
     }): Promise<{ success: boolean; message: string; newTotalScore?: number; score?: number }> {
         const { uid, score } = params;
-        const now = getTorontoMidnight();
-        const today = now.localDate.toISOString().split('T')[0];
+        const nowISO = new Date().toISOString();
+        const today = nowISO.split('T')[0];
 
         try {
             // 获取玩家信息
@@ -263,7 +262,7 @@ export class LeaderboardSystem {
                 await ctx.db.patch(pointsRecord._id, {
                     totalScore: newTotalScore,
                     matchesPlayed: newMatchesPlayed,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -279,8 +278,8 @@ export class LeaderboardSystem {
                     uid,
                     totalScore: score, // 使用传入的积分作为初始积分
                     matchesPlayed: 1,
-                    createdAt: now.iso,
-                    updatedAt: now.iso
+                    createdAt: nowISO,
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -308,8 +307,8 @@ export class LeaderboardSystem {
         score: number; // 要累积的积分
     }): Promise<{ success: boolean; message: string; newTotalScore?: number; score?: number }> {
         const { uid, gameType, score } = params;
-        const now = getTorontoMidnight();
-        const today = now.localDate.toISOString().split('T')[0];
+        const nowISO = new Date().toISOString();
+        const today = nowISO.split('T')[0];
 
         try {
             // 获取玩家信息
@@ -334,7 +333,7 @@ export class LeaderboardSystem {
                 await ctx.db.patch(pointsRecord._id, {
                     totalScore: newTotalScore,
                     matchesPlayed: newMatchesPlayed,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -351,8 +350,8 @@ export class LeaderboardSystem {
                     gameType,
                     totalScore: score, // 使用传入的积分作为初始积分
                     matchesPlayed: 1,
-                    createdAt: now.iso,
-                    updatedAt: now.iso
+                    createdAt: nowISO,
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -379,9 +378,9 @@ export class LeaderboardSystem {
         score: number; // 要累积的积分
     }): Promise<{ success: boolean; message: string; newTotalScore?: number; score?: number }> {
         const { uid, score } = params;
-        const now = getTorontoMidnight();
-        const weekStart = this.getWeekStart(now.localDate);
-        const weekEnd = this.getWeekEnd(now.localDate);
+        const nowISO = new Date().toISOString();
+        const weekStart = this.getWeekStart(new Date(nowISO));
+        const weekEnd = this.getWeekEnd(new Date(nowISO));
 
         try {
             // 获取玩家信息
@@ -406,7 +405,7 @@ export class LeaderboardSystem {
                 await ctx.db.patch(pointsRecord._id, {
                     totalScore: newTotalScore,
                     matchesPlayed: newMatchesPlayed,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -423,8 +422,8 @@ export class LeaderboardSystem {
                     uid,
                     totalScore: score, // 使用传入的积分作为初始积分
                     matchesPlayed: 1,
-                    createdAt: now.iso,
-                    updatedAt: now.iso
+                    createdAt: nowISO,
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -452,9 +451,9 @@ export class LeaderboardSystem {
         score: number; // 要累积的积分
     }): Promise<{ success: boolean; message: string; newTotalScore?: number; score?: number }> {
         const { uid, gameType, score } = params;
-        const now = getTorontoMidnight();
-        const weekStart = this.getWeekStart(now.localDate);
-        const weekEnd = this.getWeekEnd(now.localDate);
+        const nowISO = new Date().toISOString();
+        const weekStart = this.getWeekStart(new Date(nowISO));
+        const weekEnd = this.getWeekEnd(new Date(nowISO));
 
         try {
             // 获取玩家信息
@@ -479,7 +478,7 @@ export class LeaderboardSystem {
                 await ctx.db.patch(pointsRecord._id, {
                     totalScore: newTotalScore,
                     matchesPlayed: newMatchesPlayed,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -497,8 +496,8 @@ export class LeaderboardSystem {
                     gameType,
                     totalScore: score, // 使用传入的积分作为初始积分
                     matchesPlayed: 1,
-                    createdAt: now.iso,
-                    updatedAt: now.iso
+                    createdAt: nowISO,
+                    updatedAt: nowISO
                 });
 
                 return {
@@ -591,8 +590,8 @@ export class LeaderboardSystem {
         offset?: number;
     }): Promise<{ success: boolean; leaderboard?: LeaderboardEntry[]; totalPlayers?: number }> {
         const { date, gameType, limit = 100, offset = 0 } = params;
-        const now = getTorontoMidnight();
-        const targetDate = date || now.localDate.toISOString().split('T')[0];
+        const nowISO = new Date().toISOString();
+        const targetDate = date || nowISO.split('T')[0];
 
         try {
             const entries = await ctx.db.query("daily_leaderboard_points")
@@ -634,8 +633,8 @@ export class LeaderboardSystem {
         offset?: number;
     }): Promise<{ success: boolean; leaderboard?: LeaderboardEntry[]; totalPlayers?: number }> {
         const { weekStart, gameType, limit = 100, offset = 0 } = params;
-        const now = getTorontoMidnight();
-        const targetWeekStart = weekStart || this.getWeekStart(now.localDate);
+        const nowISO = new Date().toISOString();
+        const targetWeekStart = weekStart || this.getWeekStart(new Date(nowISO));
 
         try {
             const entries = await ctx.db.query("weekly_leaderboard_points")
@@ -679,7 +678,7 @@ export class LeaderboardSystem {
         gameType: string;
     }): Promise<{ success: boolean; message: string; rewardsIssued?: number }> {
         const { date, gameType } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         try {
             // 获取排行榜配置
@@ -731,7 +730,7 @@ export class LeaderboardSystem {
                         coinsReward: reward.coins,
                         isTicketPlayer,
                         claimed: false,
-                        createdAt: now.iso
+                        createdAt: nowISO
                     });
 
                     rewardsIssued++;
@@ -745,8 +744,8 @@ export class LeaderboardSystem {
                 gameType,
                 totalPlayers: leaderboard.length,
                 totalRewards: rewardsIssued,
-                resetAt: now.iso,
-                createdAt: now.iso
+                resetAt: nowISO,
+                createdAt: nowISO
             });
 
             return {
@@ -771,7 +770,7 @@ export class LeaderboardSystem {
         gameType: string;
     }): Promise<{ success: boolean; message: string; rewardsIssued?: number }> {
         const { weekStart, gameType } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         try {
             // 获取排行榜配置
@@ -823,7 +822,7 @@ export class LeaderboardSystem {
                         coinsReward: reward.coins,
                         isTicketPlayer,
                         claimed: false,
-                        createdAt: now.iso
+                        createdAt: nowISO
                     });
 
                     rewardsIssued++;
@@ -837,8 +836,8 @@ export class LeaderboardSystem {
                 gameType,
                 totalPlayers: leaderboard.length,
                 totalRewards: rewardsIssued,
-                resetAt: now.iso,
-                createdAt: now.iso
+                resetAt: nowISO,
+                createdAt: nowISO
             });
 
             return {
@@ -869,7 +868,7 @@ export class LeaderboardSystem {
         gameType: string;
     }): Promise<{ success: boolean; message: string; rewards?: any }> {
         const { uid, leaderboardType, date, gameType } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         try {
             // 查找未领取的奖励
@@ -890,7 +889,7 @@ export class LeaderboardSystem {
             // 标记为已领取
             await ctx.db.patch(settlement._id, {
                 claimed: true,
-                claimedAt: now.iso
+                claimedAt: nowISO
             });
 
             // 发放奖励到玩家账户

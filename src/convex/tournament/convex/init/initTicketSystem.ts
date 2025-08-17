@@ -1,4 +1,4 @@
-import { getTorontoMidnight } from "../service/simpleTimezoneUtils";
+
 
 // ============================================================================
 // 简化门票系统初始化 - 无时效设计
@@ -8,7 +8,7 @@ import { getTorontoMidnight } from "../service/simpleTimezoneUtils";
  * 初始化门票系统
  */
 export async function initTicketSystem(ctx: any) {
-    const now = getTorontoMidnight();
+    const nowISO = new Date().toISOString();
     console.log("开始初始化简化门票系统（无时效设计）...");
 
     try {
@@ -32,8 +32,8 @@ export async function initTicketSystem(ctx: any) {
                 maxUsagePerDay: 3,
                 gameTypes: ["ludo", "solitaire", "rummy", "uno"],
                 isActive: true,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             },
 
             // 白银门票 - 进阶玩家
@@ -48,8 +48,8 @@ export async function initTicketSystem(ctx: any) {
                 maxUsagePerDay: 5,
                 gameTypes: ["ludo", "solitaire", "rummy", "uno"],
                 isActive: true,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             },
 
             // 黄金门票 - 高级玩家
@@ -64,8 +64,8 @@ export async function initTicketSystem(ctx: any) {
                 maxUsagePerDay: 10,
                 gameTypes: ["ludo", "solitaire", "rummy", "uno"],
                 isActive: true,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             }
         ];
 
@@ -95,8 +95,8 @@ export async function initTicketSystem(ctx: any) {
                 },
                 maxPurchases: 3,
                 isActive: true,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             },
             {
                 bundleId: "advanced_pack",
@@ -111,8 +111,8 @@ export async function initTicketSystem(ctx: any) {
                 },
                 maxPurchases: 2,
                 isActive: true,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             },
             {
                 bundleId: "pro_pack",
@@ -127,8 +127,8 @@ export async function initTicketSystem(ctx: any) {
                 },
                 maxPurchases: 1,
                 isActive: true,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             }
         ];
 
@@ -218,7 +218,7 @@ export async function checkTicketSystemStatus(ctx: any) {
  * 创建测试门票数据
  */
 export async function createTestTicketData(ctx: any) {
-    const now = getTorontoMidnight();
+    const nowISO = new Date().toISOString();
     console.log("开始创建测试门票数据...");
 
     try {
@@ -232,8 +232,8 @@ export async function createTestTicketData(ctx: any) {
                     uid,
                     templateId,
                     quantity: Math.floor(Math.random() * 5) + 1,
-                    createdAt: now.iso,
-                    updatedAt: now.iso
+                    createdAt: nowISO,
+                    updatedAt: nowISO
                 });
             }
         }
@@ -254,7 +254,7 @@ export async function createTestTicketData(ctx: any) {
  * 发放每日门票奖励
  */
 export async function grantDailyTicketRewards(ctx: any) {
-    const now = getTorontoMidnight();
+    const nowISO = new Date().toISOString();
     console.log("开始发放每日门票奖励...");
 
     try {
@@ -277,7 +277,7 @@ export async function grantDailyTicketRewards(ctx: any) {
                 // 更新现有门票
                 await ctx.db.patch(existingTicket._id, {
                     quantity: existingTicket.quantity + 1,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
             } else {
                 // 创建新门票
@@ -285,8 +285,8 @@ export async function grantDailyTicketRewards(ctx: any) {
                     uid: player.uid,
                     templateId: randomTicket,
                     quantity: 1,
-                    createdAt: now.iso,
-                    updatedAt: now.iso
+                    createdAt: nowISO,
+                    updatedAt: nowISO
                 });
             }
 
@@ -298,7 +298,7 @@ export async function grantDailyTicketRewards(ctx: any) {
                 transactionType: "reward",
                 source: "daily",
                 context: {},
-                createdAt: now.iso
+                createdAt: nowISO
             });
 
             grantedCount++;

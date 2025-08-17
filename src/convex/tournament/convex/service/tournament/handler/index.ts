@@ -1,7 +1,5 @@
 
 import { baseHandler } from "./base";
-import { multiPlayerIndependentMatchHandler } from "./multiPlayerIndependentMatchHandler";
-import { multiPlayerSharedMatchHandler } from "./multiPlayerSharedMatchHandler";
 import { singlePlayerIndependentTournamentHandler } from "./singlePlayerIndependentTournamentHandler";
 
 /**
@@ -15,17 +13,6 @@ const HANDLER_MAP: Record<string, any> = {
   "single_player_tournament": singlePlayerIndependentTournamentHandler,
   "independent_tournament": singlePlayerIndependentTournamentHandler,
   "single_player_threshold_tournament": singlePlayerIndependentTournamentHandler,
-
-  // 多人锦标赛 - 统一使用unifiedMultiPlayerHandler
-  "multi_player_tournament": multiPlayerSharedMatchHandler,
-  "team_tournament": multiPlayerSharedMatchHandler,
-  "multi_player_single_match_tournament": multiPlayerSharedMatchHandler,
-
-  // 多人独立游戏锦标赛 - 每个玩家玩独立游戏
-  "multi_player_independent_games_tournament": multiPlayerIndependentMatchHandler,
-
-  // 多人独立比赛锦标赛 - 每人独立比赛
-  "shared_tournament_independent_matches": multiPlayerIndependentMatchHandler,
 };
 
 /**
@@ -127,7 +114,6 @@ export function getHandlerCategories(): Record<string, string[]> {
 
 // 导出所有处理器
 export {
-  multiPlayerIndependentMatchHandler,
-  multiPlayerSharedMatchHandler, singlePlayerIndependentTournamentHandler
+  singlePlayerIndependentTournamentHandler
 };
 

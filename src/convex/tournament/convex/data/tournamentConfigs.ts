@@ -398,7 +398,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 },
                 {
                     rankRange: [3, 4],
-                    multiplier: 0.0
+                    multiplier: 0.1
                 }
             ],
             participationReward: {
@@ -408,16 +408,16 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         },
 
 
-        // limits: {
-        //     maxParticipations: 5, // 每日5局门票
-        //     maxTournaments: 1,
-        //     maxAttempts: 5,
-        //     subscribed: {
-        //         maxParticipations: 8,
-        //         maxTournaments: 1,
-        //         maxAttempts: 8
-        //     }
-        // },
+        limits: {
+            maxParticipations: 5, // 每日5局门票
+            maxTournaments: 1,
+            maxAttempts: 5,
+            subscribed: {
+                maxParticipations: 8,
+                maxTournaments: 1,
+                maxAttempts: 8
+            }
+        },
         createdAt: "2025-08-01T00:00:00.000Z",
         updatedAt: "2025-08-01T00:00:00.000Z"
     },

@@ -1,7 +1,6 @@
 import { Id } from "../../_generated/dataModel";
 import { TimeZoneUtils } from "../../util/TimeZoneUtils";
 import { LeaderboardSystem } from "../leaderboard/leaderboardSystem";
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import { TicketSystem } from "../ticket/ticketSystem";
 
 /**
@@ -24,13 +23,10 @@ export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
     // 根据时间范围确定开始时间
     switch (tournamentType.timeRange) {
         case "daily":
-            startTime = TimeZoneUtils.getTimeZoneMidnightISO("America/Toronto");
+            startTime = TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto");
             break;
         case "weekly":
-            const weekStart = new Date(nowISO);
-            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-            weekStart.setHours(0, 0, 0, 0);
-            startTime = weekStart.toISOString();
+            startTime = TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto");
             break;
         case "seasonal":
             // 获取当前赛季开始时间
@@ -145,8 +141,9 @@ export async function checkTournamentEligibility(ctx: any, params: {
 export enum TournamentStatus {
     OPEN = 0,
     COMPLETED = 1,
-    COLLECTED = 2,
-    CANCELLED = 3
+    SETTLED = 2,
+    COLLECTED = 3,
+    CANCELLED = 4
 }
 export enum MatchStatus {
     MATCHING = 0,
@@ -158,7 +155,6 @@ export enum MatchStatus {
 export interface TournamentHandler {
     validateJoin(ctx: any, args: any): Promise<any>;
     join(ctx: any, args: JoinArgs): Promise<any>;
-    settle(ctx: any, tournamentId: string): Promise<void>;
     validateTournamentForSettlement?(ctx: any, tournamentId: string): Promise<any>;
     getCompletedMatches?(ctx: any, tournamentId: string): Promise<any[]>;
     distributeRewardsToPlayers?(ctx: any, params: any): Promise<void>;
@@ -216,30 +212,40 @@ export interface SubmitScoreResult {
 export async function createTournament(ctx: any, params: {
     config: any;
     uids?: string[];
+    endTime?: string;
 }) {
-    console.log("createTournament", params)
+
     const { config, uids } = params;
-    const now = getTorontoMidnight();
+    const nowISO = new Date().toISOString();
     const season = await ctx.db
         .query("seasons")
         .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
         .first();
 
     // 计算结束时间
-    let endTime: string;
-    switch (config.timeRange) {
-        case "daily":
-            endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
-            break;
-        case "weekly":
-            endTime = new Date(now.localDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-            break;
-        case "seasonal":
-            endTime = new Date(now.localDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-            break;
-        default:
-            endTime = new Date(now.localDate.getTime() + 24 * 60 * 60 * 1000).toISOString();
-    }
+    let endTime: string | null = null;
+    // if (config.matchRules.matchType !== 'single_match' && ['daily', 'weekly', 'monthly'].includes(config.timeRange)) {
+    //     if (config.schedule.end) {
+
+    //     } else {
+    //         switch (config.timeRange) {
+    //             case "daily":
+    //                 const dayStartISO = new Date(TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto"));
+    //                 endTime = new Date(new Date(dayStartISO).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    //                 break;
+    //             case "weekly":
+    //                 const weekStartISO = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
+    //                 endTime = new Date(new Date(weekStartISO).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    //                 break;
+    //             case "monthly":
+    //                 const monthStartISO = new Date(TimeZoneUtils.getTimeZoneMonthStartISO("America/Toronto"));
+    //                 endTime = new Date(new Date(monthStartISO).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    //                 break;
+    //             default:
+    //                 break;
+    //         }
+    //     }
+    // }
 
     // 创建锦标赛
     const tournamentId = await ctx.db.insert("tournaments", {
@@ -248,9 +254,8 @@ export async function createTournament(ctx: any, params: {
         segmentName: "all", // 对所有段位开放
         status: TournamentStatus.OPEN,
         tournamentType: config.typeId,
-        createdAt: now.iso,
-        updatedAt: now.iso,
-        endTime: endTime,
+        createdAt: nowISO,
+        updatedAt: nowISO,
     });
 
     if (uids) {
@@ -263,15 +268,79 @@ export async function createTournament(ctx: any, params: {
                 gameType: config.gameType,
                 score: 0,
                 status: TournamentStatus.OPEN,
-                createdAt: now.iso,
-                updatedAt: now.iso,
+                createdAt: nowISO,
+                updatedAt: nowISO,
             });
         }));
     }
     console.log(`成功创建锦标赛 ${config.typeId}: ${tournamentId}`);
     return tournamentId;
 }
+/**
+  * 加入锦标赛
+  */
+export async function joinTournament(ctx: any, params: {
+    tournamentId: string;
+    uids: string[];
+}) {
+    const { tournamentId, uids } = params;
+    if (uids.length === 0) {
+        throw new Error("玩家列表不能为空");
+    }
+    const tournament = await ctx.db.get(tournamentId as Id<"tournaments">);
+    if (!tournament) {
+        throw new Error("锦标赛不存在");
+    }
 
+    const nowISO = new Date().toISOString();
+    await Promise.all(uids.map(async (uid: string) => {
+        const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid)).unique();
+        if (!playerTournament) {
+            await ctx.db.insert("player_tournaments", {
+                uid,
+                tournamentId,
+                tournamentType: tournament.tournamentType,
+                gameType: tournament.gameType,
+                score: 0,
+                status: TournamentStatus.OPEN,
+                createdAt: nowISO,
+                updatedAt: nowISO,
+            });
+        }
+    }));
+
+}
+export async function joinMatch(ctx: any, params: {
+    matchId: string;
+    uids: string[];
+}) {
+
+    const { matchId, uids } = params;
+    if (uids.length === 0) {
+        throw new Error("玩家列表不能为空");
+    }
+    const match = await ctx.db.get(matchId as Id<"matches">);
+    if (!match) {
+        throw new Error("比赛不存在");
+    }
+    const playerMatches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", matchId)).collect();
+    if ((playerMatches.length + uids.length) > match.maxPlayers) {
+        throw new Error("比赛已满");
+    }
+    const nowISO = new Date().toISOString();
+    await Promise.all(uids.map(async (uid: string) => {
+        const playerMatch = await ctx.db.query("player_matches").withIndex("by_match_uid", (q: any) => q.eq("matchId", matchId).eq("uid", uid)).unique();
+        if (!playerMatch) {
+            await ctx.db.insert("player_matches", {
+                matchId,
+                uid,
+                createdAt: nowISO,
+                updatedAt: nowISO,
+            });
+        }
+    }));
+
+}
 
 /**
  * 通用的数据获取函数
@@ -413,27 +482,27 @@ export async function deductEntryFee(ctx: any, params: {
 
 }
 export async function findTournamentByType(ctx: any, params: { tournamentType: any }) {
-    const now = getTorontoMidnight();
+    const nowISO = new Date().toISOString();
     let startTime: string;
     // 根据时间范围确定开始时间
 
     switch (params.tournamentType.timeRange) {
         case "daily":
-            startTime = now.localDate.toISOString().split("T")[0] + "T00:00:00.000Z";
+            startTime = TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto");
             break;
         case "weekly":
-            const weekStart = new Date(now.localDate);
+            const weekStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
             weekStart.setDate(weekStart.getDate() - weekStart.getDay());
             weekStart.setHours(0, 0, 0, 0);
             startTime = weekStart.toISOString();
             break;
-        case "seasonal":
+        case "monthly":
             // 获取当前赛季开始时间
             const season = await ctx.db
                 .query("seasons")
                 .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
                 .first();
-            startTime = season?.startDate || now.localDate.toISOString();
+            startTime = season?.startDate || TimeZoneUtils.getTimeZoneMonthStartISO("America/Toronto");
             break;
         case "total":
             startTime = "1970-01-01T00:00:00.000Z";
@@ -488,17 +557,17 @@ export async function findPlayerRank(ctx: any, params: { uid: string; tournament
     }
     return rank;
 }
-export async function settleTournament(ctx: any, tournament: any) {
-    const tournamentId = tournament._id;
+export async function settleTournament(ctx: any, tournamentId: string) {
+    const tournament = await ctx.db.get(tournamentId as Id<"tournaments">);
+    if (!tournament) {
+        throw new Error("锦标赛不存在");
+    }
     const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", tournament.tournamentType)).unique();
-    let playerTournaments;
+
     tournamentType.rewards.rankRewards.sort((a: any, b: any) => b.rankRange[0] - a.rankRange[0]);
     const maxRank = tournamentType.rewards.rankRewards[0].rankRange[1]
-    if (tournamentType.matchRules.pointsPerMatch) {
-        playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_point", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").take(maxRank);
-    } else {
-        playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").take(maxRank);
-    }
+
+    const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").take(maxRank);
 
     let rank = 0;
     for (const playerTournament of playerTournaments) {
@@ -508,23 +577,15 @@ export async function settleTournament(ctx: any, tournament: any) {
         playerTournament.rewards = rewards;
         await ctx.db.patch(playerTournament._id, {
             rank,
-            rewards
+            status: TournamentStatus.SETTLED
         });
 
-        // 如果是快速对局锦标赛（single_match类型），累积排行榜积分
-        if (tournamentType.matchRules.matchType === "single_match" && tournamentType.matchRules.matchPoints) {
-            await accumulateLeaderboardPoints(ctx, {
-                uid: playerTournament.uid,
-                gameType: tournamentType.gameType,
-                score: playerTournament.score, // 传递实际排名
-            });
-        }
+        // }
+        await ctx.db.patch(tournamentId as Id<"tournaments">, {
+            status: TournamentStatus.SETTLED
+        });
     }
-    await ctx.db.patch(tournamentId as Id<"tournaments">, {
-        status: TournamentStatus.COMPLETED
-    });
 }
-
 /**
  * 为快速对局累积排行榜积分
  */
@@ -581,34 +642,40 @@ export async function calculateRewards(ctx: any, params: {
     playerTournament: any;
 }) {
     const { tournamentType, playerTournament } = params;
-    const reward: any = { coins: tournamentType.rewards.baseRewards.coins ?? 0, gamePoints: tournamentType.rewards.baseRewards.gamePoints ?? 0, props: [], tickets: [] };
-    if (tournamentType.rewards.baseRewards.props)
-        reward.props = [...tournamentType.rewards.baseRewards.props];
-    if (tournamentType.rewards.baseRewards.tickets)
-        reward.tickets = [...tournamentType.rewards.baseRewards.tickets];
+    const reward: any = { coins: tournamentType.rewards.baseRewards.coins ?? 0, seasonPoints: tournamentType.rewards.baseRewards.seasonPoints ?? 0, props: [], tickets: [] };
+
+    // if (tournamentType.rewards.baseRewards.props)
+    //     reward.props = [...tournamentType.rewards.baseRewards.props];
+    // if (tournamentType.rewards.baseRewards.tickets)
+    //     reward.tickets = [...tournamentType.rewards.baseRewards.tickets];
     if (tournamentType.rewards.rankRewards) {
         const rankReward = tournamentType.rewards.rankRewards.find((reward: any) => playerTournament.rank >= reward.rankRange[0] && playerTournament.rank <= reward.rankRange[1]);
+
         if (rankReward?.multiplier) {
             reward.coins *= rankReward.multiplier;
-            reward.gamePoints *= rankReward.multiplier;
+            reward.seasonPoints *= rankReward.multiplier;
         }
-        await Promise.all(rankReward?.bonusProps?.forEach(async (prop: any) => {
-            const propIndex = reward.props.findIndex((p: any) => p.propId === prop.propId);
-            if (propIndex !== -1) {
-                reward.props[propIndex].quantity += prop.quantity;
-            } else {
-                reward.props.push(prop);
-            }
-        }));
 
-        await Promise.all(rankReward?.bonusTickets?.forEach(async (ticket: any) => {
-            const ticketIndex = reward.tickets.findIndex((t: any) => t.type === ticket.type);
-            if (ticketIndex !== -1) {
-                reward.tickets[ticketIndex].quantity += ticket.quantity;
-            } else {
-                reward.tickets.push(ticket);
-            }
-        }));
+        if (rankReward?.bonusProps) {
+            rankReward?.bonusProps?.forEach((prop: any) => {
+                const propIndex = reward.props.findIndex((p: any) => p.propId === prop.propId);
+                if (propIndex !== -1) {
+                    reward.props[propIndex].quantity += prop.quantity;
+                } else {
+                    reward.props.push(prop);
+                }
+            });
+        }
+        if (rankReward?.bonusTickets) {
+            rankReward?.bonusTickets?.forEach((ticket: any) => {
+                const ticketIndex = reward.tickets.findIndex((t: any) => t.type === ticket.type);
+                if (ticketIndex !== -1) {
+                    reward.tickets[ticketIndex].quantity += ticket.quantity;
+                } else {
+                    reward.tickets.push(ticket);
+                }
+            });
+        }
     }
 
 

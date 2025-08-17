@@ -1,4 +1,3 @@
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
 /**
  * 玩家锦标赛参与状态枚举
@@ -51,7 +50,7 @@ export class PlayerTournamentStatusManager {
         metadata?: any;
     }) {
         const { uid, tournamentId, newStatus, reason, metadata } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 查找现有的参与记录
         const playerTournament = await ctx.db
@@ -73,7 +72,7 @@ export class PlayerTournamentStatusManager {
         // 更新状态
         await ctx.db.patch(playerTournament._id, {
             status: newStatus,
-            updatedAt: now.iso
+            updatedAt: nowISO
         });
 
         // 记录状态变更日志
@@ -84,7 +83,7 @@ export class PlayerTournamentStatusManager {
             newStatus,
             reason,
             metadata,
-            timestamp: now.iso
+            timestamp: nowISO
         });
 
         console.log(`玩家 ${uid} 在锦标赛 ${tournamentId} 中的状态已更新: ${playerTournament.status} -> ${newStatus}`);
@@ -100,7 +99,7 @@ export class PlayerTournamentStatusManager {
         metadata?: any;
     }) {
         const { tournamentId, newStatus, reason, metadata } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 获取所有参与该锦标赛的玩家
         const playerTournaments = await ctx.db
@@ -112,7 +111,7 @@ export class PlayerTournamentStatusManager {
             if (this.isValidTransition(pt.status, newStatus)) {
                 await ctx.db.patch(pt._id, {
                     status: newStatus,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 // 记录状态变更日志
@@ -123,7 +122,7 @@ export class PlayerTournamentStatusManager {
                     newStatus,
                     reason,
                     metadata,
-                    timestamp: now.iso
+                    timestamp: nowISO
                 });
             }
         });
@@ -141,7 +140,7 @@ export class PlayerTournamentStatusManager {
         reason?: string;
     }) {
         const { tournamentId, completedPlayers, reason } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 获取所有参与该锦标赛的玩家
         const playerTournaments = await ctx.db
@@ -161,7 +160,7 @@ export class PlayerTournamentStatusManager {
             if (this.isValidTransition(pt.status, newStatus)) {
                 await ctx.db.patch(pt._id, {
                     status: newStatus,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 // 记录状态变更日志
@@ -174,7 +173,7 @@ export class PlayerTournamentStatusManager {
                     metadata: {
                         completed: newStatus === PlayerTournamentStatus.COMPLETED
                     },
-                    timestamp: now.iso
+                    timestamp: nowISO
                 });
             }
         });
@@ -199,7 +198,7 @@ export class PlayerTournamentStatusManager {
             newStatus: PlayerTournamentStatus.WITHDRAWN,
             reason: reason || "玩家主动退出",
             metadata: {
-                withdrawalTime: getTorontoMidnight().iso
+                withdrawalTime: new Date().toISOString()
             }
         });
     }
@@ -221,92 +220,13 @@ export class PlayerTournamentStatusManager {
             newStatus: PlayerTournamentStatus.DISQUALIFIED,
             reason,
             metadata: {
-                disqualificationTime: getTorontoMidnight().iso,
+                disqualificationTime: new Date().toISOString(),
                 ...metadata
             }
         });
     }
 
-    /**
-     * 清理过期的参与记录
-     */
-    static async cleanupExpiredParticipations(ctx: any, params: {
-        daysToKeep?: number;
-    }) {
-        const { daysToKeep = 30 } = params;
-        const now = getTorontoMidnight();
-        const cutoffDate = new Date(now.localDate.getTime() - daysToKeep * 24 * 60 * 60 * 1000);
 
-        // 查找过期的参与记录（已完成、退出、取消资格且超过保留期限）
-        const expiredParticipations = await ctx.db
-            .query("player_tournaments")
-            .filter((q: any) =>
-                q.and(
-                    q.or(
-                        q.eq(q.field("status"), PlayerTournamentStatus.COMPLETED),
-                        q.eq(q.field("status"), PlayerTournamentStatus.WITHDRAWN),
-                        q.eq(q.field("status"), PlayerTournamentStatus.DISQUALIFIED)
-                    ),
-                    q.lt(q.field("updatedAt"), cutoffDate.toISOString())
-                )
-            )
-            .collect();
-
-        // 删除过期记录
-        for (const participation of expiredParticipations) {
-            await ctx.db.delete(participation._id);
-        }
-
-        console.log(`清理了 ${expiredParticipations.length} 条过期的参与记录`);
-        return expiredParticipations.length;
-    }
-
-    /**
-     * 获取玩家锦标赛参与统计
-     */
-    static async getPlayerParticipationStats(ctx: any, params: {
-        uid: string;
-        timeRange?: "daily" | "weekly" | "seasonal" | "total";
-    }) {
-        const { uid, timeRange = "total" } = params;
-        const now = getTorontoMidnight();
-
-        let startDate: Date;
-        switch (timeRange) {
-            case "daily":
-                startDate = new Date(now.localDate.getTime() - 24 * 60 * 60 * 1000);
-                break;
-            case "weekly":
-                startDate = new Date(now.localDate.getTime() - 7 * 24 * 60 * 60 * 1000);
-                break;
-            case "seasonal":
-                startDate = new Date(now.localDate.getTime() - 90 * 24 * 60 * 60 * 1000);
-                break;
-            default:
-                startDate = new Date(0); // 从开始时间
-        }
-
-        const participations = await ctx.db
-            .query("player_tournaments")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-            .filter((q: any) => q.gte(q.field("createdAt"), startDate.toISOString()))
-            .collect();
-
-        const stats = {
-            total: participations.length,
-            active: participations.filter((p: any) => p.status === PlayerTournamentStatus.ACTIVE).length,
-            completed: participations.filter((p: any) => p.status === PlayerTournamentStatus.COMPLETED).length,
-            withdrawn: participations.filter((p: any) => p.status === PlayerTournamentStatus.WITHDRAWN).length,
-            disqualified: participations.filter((p: any) => p.status === PlayerTournamentStatus.DISQUALIFIED).length,
-            expired: participations.filter((p: any) => p.status === PlayerTournamentStatus.EXPIRED).length
-        };
-
-        return {
-            timeRange,
-            stats,
-            participations: participations.slice(0, 10) // 只返回最近10条记录
-        };
-    }
 
     /**
      * 记录状态变更日志
@@ -350,7 +270,7 @@ export class PlayerTournamentStatusManager {
         progressCallback?: (progress: any) => void;
     }) {
         const { tournamentId, batchSize = 100, maxConcurrency = 5, progressCallback } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         console.log(`开始批量处理锦标赛 ${tournamentId} 的参与者状态`);
 
@@ -402,7 +322,7 @@ export class PlayerTournamentStatusManager {
             expired: 0,
             errors: 0,
             batches: batches.length,
-            startTime: now.iso,
+            startTime: nowISO,
             endTime: null as string | null
         };
 
@@ -447,7 +367,7 @@ export class PlayerTournamentStatusManager {
             }
         }
 
-        results.endTime = getTorontoMidnight().iso;
+        results.endTime = new Date().toISOString();
 
         console.log(`锦标赛 ${tournamentId} 批量处理完成:`, {
             processed: results.processed,
@@ -471,7 +391,7 @@ export class PlayerTournamentStatusManager {
         progressCallback?: (progress: any) => void;
     }) {
         const { batch, completedPlayers, batchNumber, totalBatches, progressCallback } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         const batchResult = {
             processed: 0,
@@ -496,7 +416,7 @@ export class PlayerTournamentStatusManager {
                 if (this.isValidTransition(playerTournament.status, newStatus)) {
                     await ctx.db.patch(playerTournament._id, {
                         status: newStatus,
-                        updatedAt: now.iso
+                        updatedAt: nowISO
                     });
 
                     // 记录状态变更日志（可选，避免日志过多）
@@ -512,7 +432,7 @@ export class PlayerTournamentStatusManager {
                                 totalBatches,
                                 completed: newStatus === PlayerTournamentStatus.COMPLETED
                             },
-                            timestamp: now.iso
+                            timestamp: nowISO
                         });
                     }
                 }
@@ -573,8 +493,8 @@ export class PlayerTournamentStatusManager {
             status: "running",
             batchSize,
             maxConcurrency,
-            createdAt: getTorontoMidnight().iso,
-            updatedAt: getTorontoMidnight().iso
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         });
 
         // 启动异步处理
@@ -648,7 +568,7 @@ export class PlayerTournamentStatusManager {
                     expired,
                     errors,
                     progress: Math.round((processed / totalPlayers) * 100),
-                    updatedAt: getTorontoMidnight().iso
+                    updatedAt: new Date().toISOString()
                 });
 
                 // 避免过度占用资源
@@ -658,7 +578,7 @@ export class PlayerTournamentStatusManager {
             // 完成任务
             await ctx.db.patch(taskId, {
                 status: "completed",
-                updatedAt: getTorontoMidnight().iso
+                updatedAt: new Date().toISOString()
             });
 
         } catch (error) {
@@ -666,7 +586,7 @@ export class PlayerTournamentStatusManager {
             await ctx.db.patch(taskId, {
                 status: "failed",
                 error: error instanceof Error ? error.message : String(error),
-                updatedAt: getTorontoMidnight().iso
+                updatedAt: new Date().toISOString()
             });
         }
     }
@@ -724,7 +644,7 @@ export class PlayerTournamentStatusManager {
                 if (this.isValidTransition(playerTournament.status, newStatus)) {
                     await ctx.db.patch(playerTournament._id, {
                         status: newStatus,
-                        updatedAt: getTorontoMidnight().iso
+                        updatedAt: new Date().toISOString()
                     });
                 }
 
@@ -747,7 +667,7 @@ export class PlayerTournamentStatusManager {
         maxConcurrency?: number;
     }) {
         const { tournamentId, batchSize = 100, maxConcurrency = 5 } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         console.log(`开始优化处理锦标赛 ${tournamentId} 的结算`);
 
@@ -774,7 +694,7 @@ export class PlayerTournamentStatusManager {
             expired: 0,
             errors: 0,
             batches: batches.length,
-            startTime: now.iso,
+            startTime: nowISO,
             endTime: null as string | null
         };
 
@@ -810,7 +730,7 @@ export class PlayerTournamentStatusManager {
             console.log(`批次 ${i + maxConcurrency}/${batches.length} 处理完成，进度: ${Math.round((results.processed / results.total) * 100)}%`);
         }
 
-        results.endTime = getTorontoMidnight().iso;
+        results.endTime = new Date().toISOString();
 
         console.log(`锦标赛 ${tournamentId} 优化处理完成:`, {
             processed: results.processed,
@@ -833,7 +753,7 @@ export class PlayerTournamentStatusManager {
         totalBatches: number;
     }) {
         const { batch, tournamentId, batchNumber, totalBatches } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         const batchResult = {
             processed: 0,
@@ -875,7 +795,7 @@ export class PlayerTournamentStatusManager {
                 if (this.isValidTransition(playerTournament.status, newStatus)) {
                     await ctx.db.patch(playerTournament._id, {
                         status: newStatus,
-                        updatedAt: now.iso
+                        updatedAt: nowISO
                     });
 
                     // 减少日志记录频率，避免日志过多
@@ -891,7 +811,7 @@ export class PlayerTournamentStatusManager {
                                 totalBatches,
                                 completed: newStatus === PlayerTournamentStatus.COMPLETED
                             },
-                            timestamp: now.iso
+                            timestamp: nowISO
                         });
                     }
                 }

@@ -1,6 +1,5 @@
 import { internalMutation } from "../../_generated/server";
 import { TASK_TEMPLATES } from "../../data/taskTemplate";
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 import { TicketSystem } from "../ticket/ticketSystem";
 
 // ============================================================================
@@ -423,7 +422,7 @@ export class TaskSystem {
      * 为玩家分配任务 - 基于三表设计
      */
     static async allocateTasksForPlayer(ctx: any, uid: string): Promise<{ success: boolean; message: string; allocatedTasks?: string[] }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const allocatedTasks: string[] = [];
 
         // 获取玩家信息
@@ -446,10 +445,10 @@ export class TaskSystem {
             }
 
             // 检查有效期
-            if (template.validFrom && now.iso < template.validFrom) {
+            if (template.validFrom && nowISO < template.validFrom) {
                 continue;
             }
-            if (template.validUntil && now.iso > template.validUntil) {
+            if (template.validUntil && nowISO > template.validUntil) {
                 continue;
             }
 
@@ -469,9 +468,9 @@ export class TaskSystem {
             }
 
             // 创建新活跃任务
-            const taskId = `${uid}_${template.templateId}_${now.iso}`;
+            const taskId = `${uid}_${template.templateId}_${nowISO}`;
             const initialProgress = this.getInitialProgress(template.condition);
-            const dueTime = this.calculateTaskDueTime(template.type, now);
+            const dueTime = this.calculateTaskDueTime(template.type, nowISO);
 
             await ctx.db.insert("player_tasks", {
                 uid,
@@ -486,8 +485,8 @@ export class TaskSystem {
                 dueTime: dueTime,
                 rewards: template.rewards,
                 version: template.version,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             });
 
             allocatedTasks.push(taskId);
@@ -504,7 +503,7 @@ export class TaskSystem {
      * 完成任务 - 从活跃任务移动到已完成任务
      */
     static async completeTask(ctx: any, uid: string, taskId: string): Promise<{ success: boolean; message: string; rewards?: TaskRewards }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 获取活跃任务
         const activeTask = await ctx.db.query("player_tasks")
@@ -529,9 +528,9 @@ export class TaskSystem {
             category: activeTask.category,
             condition: activeTask.condition,
             progress: activeTask.progress,
-            completedAt: now.iso,
+            completedAt: nowISO,
             rewardsClaimed: true, // 奖励已结算
-            claimedAt: now.iso,   // 记录结算时间
+            claimedAt: nowISO,   // 记录结算时间
             rewards: activeTask.rewards,
             version: activeTask.version,
             createdAt: activeTask.createdAt
@@ -556,7 +555,7 @@ export class TaskSystem {
         movedTasks?: string[];
         totalExpired?: number;
     }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const movedTasks: string[] = [];
         let totalExpired = 0;
 
@@ -567,7 +566,7 @@ export class TaskSystem {
             if (!task.dueTime) continue; // 没有过期时间的任务跳过
 
             const taskDueTime = new Date(task.dueTime);
-            const nowTime = now.localDate.getTime();
+            const nowTime = Date.now();
             const isExpired = nowTime > taskDueTime.getTime();
 
             if (isExpired) {
@@ -588,7 +587,7 @@ export class TaskSystem {
                         category: activeTaskRecord.category,
                         condition: activeTaskRecord.condition,
                         progress: activeTaskRecord.progress,
-                        expiredAt: now.iso,
+                        expiredAt: nowISO,
                         rewards: activeTaskRecord.rewards,
                         version: activeTaskRecord.version,
                         createdAt: activeTaskRecord.createdAt
@@ -613,7 +612,7 @@ export class TaskSystem {
      * 恢复过期任务 - 从过期任务表移回活跃任务表
      */
     static async restoreExpiredTask(ctx: any, uid: string, taskId: string): Promise<{ success: boolean; message: string }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 查找过期任务
         const expiredTask = await ctx.db.query("task_expired")
@@ -625,7 +624,7 @@ export class TaskSystem {
         }
 
         // 计算新的过期时间
-        const newDueTime = this.calculateTaskDueTime(expiredTask.type, now);
+        const newDueTime = this.calculateTaskDueTime(expiredTask.type, nowISO);
 
         // 创建新的活跃任务
         await ctx.db.insert("player_tasks", {
@@ -642,7 +641,7 @@ export class TaskSystem {
             rewards: expiredTask.rewards,
             version: expiredTask.version,
             createdAt: expiredTask.createdAt,
-            updatedAt: now.iso
+            updatedAt: nowISO
         });
 
         // 删除过期任务
@@ -710,7 +709,7 @@ export class TaskSystem {
         matchId?: string;
     }): Promise<{ success: boolean; message: string; updatedTasks?: any[] }> {
         const { uid, action, actionData, gameType, tournamentId, matchId } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 记录任务事件
         await ctx.db.insert("task_events", {
@@ -721,8 +720,8 @@ export class TaskSystem {
             tournamentId,
             matchId,
             processed: false,
-            createdAt: now.iso,
-            updatedAt: now.iso
+            createdAt: nowISO,
+            updatedAt: nowISO
         });
 
         // 获取玩家活跃任务
@@ -746,7 +745,7 @@ export class TaskSystem {
                 if (taskRecord) {
                     await ctx.db.patch(taskRecord._id, {
                         progress: newProgress,
-                        updatedAt: now.iso
+                        updatedAt: nowISO
                     });
 
                     updatedTasks.push({
@@ -773,7 +772,7 @@ export class TaskSystem {
         if (eventRecord) {
             await ctx.db.patch(eventRecord._id, {
                 processed: true,
-                updatedAt: now.iso
+                updatedAt: nowISO
             });
         }
 
@@ -796,7 +795,7 @@ export class TaskSystem {
         taskId: string;
     }): Promise<{ success: boolean; message: string; rewards?: TaskRewards }> {
         const { uid, taskId } = params;
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 查找已完成但未领取奖励的任务
         const completedTask = await ctx.db.query("task_completed")
@@ -817,7 +816,7 @@ export class TaskSystem {
         // 更新任务状态
         await ctx.db.patch(completedTask._id, {
             rewardsClaimed: true,
-            claimedAt: now.iso
+            claimedAt: nowISO
         });
 
         return {
@@ -866,10 +865,10 @@ export class TaskSystem {
         if (completedTasks.length === 0) return false;
 
         // 检查是否有在有效期内的已完成任务
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         for (const task of completedTasks) {
             const completedAt = new Date(task.completedAt);
-            const taskAge = now.localDate.getTime() - completedAt.getTime();
+            const taskAge = Date.now() - completedAt.getTime();
             const daysDiff = taskAge / (1000 * 60 * 60 * 24);
 
             // 根据任务类型判断是否在有效期内
@@ -884,7 +883,8 @@ export class TaskSystem {
                 case "seasonal":
                     // 赛季任务需要检查是否在当前赛季内完成过
                     // 这里需要获取当前赛季ID，暂时使用简单的日期判断
-                    const currentSeasonStart = new Date(now.localDate.getFullYear(), Math.floor(now.localDate.getMonth() / 3) * 3, 1);
+                    const now = new Date(nowISO);
+                    const currentSeasonStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
                     const completedAt = new Date(task.completedAt);
                     isValidPeriod = completedAt >= currentSeasonStart;
                     break;
@@ -1198,7 +1198,7 @@ export class TaskSystem {
      * 发放奖励
      */
     private static async grantRewards(ctx: any, uid: string, rewards: TaskRewards): Promise<{ success: boolean; message: string }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         // 发放金币
         if (rewards.coins && rewards.coins > 0) {

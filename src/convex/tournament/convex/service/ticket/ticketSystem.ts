@@ -1,4 +1,3 @@
-import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
 // ============================================================================
 // 统一门票系统 - 支持跨赛季保留
@@ -209,10 +208,7 @@ export class TicketSystem {
 
         const config = this.getTicketConfig(type);
 
-        // 检查每日使用限制
-        if (!(await this.checkDailyUsageLimit(ctx, uid, type, config.maxUsagePerDay))) {
-            return { success: false, message: `今日使用次数已达上限（${config.maxUsagePerDay}次）` };
-        }
+
 
         // 获取并检查门票记录
         const ticketRecord = await ctx.db.query("player_tickets")
@@ -224,13 +220,15 @@ export class TicketSystem {
             return { success: false, message: "门票数量不足" };
         }
 
+        const nowISO = new Date().toISOString();
+
         try {
             // 减少门票数量
             const remainingQuantity = ticketRecord.quantity - 1;
             await ctx.db.patch(ticketRecord._id, {
                 quantity: remainingQuantity,
-                lastUsedAt: getTorontoMidnight().iso,
-                updatedAt: getTorontoMidnight().iso
+                lastUsedAt: nowISO,
+                updatedAt: nowISO
             });
 
             return {
@@ -306,7 +304,7 @@ export class TicketSystem {
      * 处理赛季重置时的门票保留
      */
     static async handleSeasonalReset(ctx: any, uid: string): Promise<{ success: boolean; message: string; resetResults?: any }> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const currentSeasonId = this.getCurrentSeasonId();
         const resetResults: any = {};
 
@@ -323,7 +321,7 @@ export class TicketSystem {
                 await ctx.db.patch(ticket._id, {
                     quantity: newQuantity,
                     seasonId: currentSeasonId,
-                    updatedAt: now.iso
+                    updatedAt: nowISO
                 });
 
                 resetResults[ticket.type] = {
@@ -405,7 +403,7 @@ export class TicketSystem {
             .filter((q: any) => q.eq(q.field("type"), type))
             .unique();
 
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
 
         if (existingStat) {
             const newTotalUsed = existingStat.totalUsed + 1;
@@ -418,8 +416,8 @@ export class TicketSystem {
                 totalWon: newTotalWon,
                 totalLost: newTotalLost,
                 winRate: newWinRate,
-                lastUsedAt: now.iso,
-                updatedAt: now.iso
+                lastUsedAt: nowISO,
+                updatedAt: nowISO
             });
         } else {
             await ctx.db.insert("ticket_usage_stats", {
@@ -429,9 +427,9 @@ export class TicketSystem {
                 totalWon: isWin ? 1 : 0,
                 totalLost: isWin ? 0 : 1,
                 winRate: isWin ? 1 : 0,
-                lastUsedAt: now.iso,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                lastUsedAt: nowISO,
+                createdAt: nowISO,
+                updatedAt: nowISO
             });
         }
     }
@@ -458,7 +456,7 @@ export class TicketSystem {
      * 添加门票到玩家库存
      */
     private static async addTicketsToPlayer(ctx: any, uid: string, type: string, quantity: number): Promise<void> {
-        const now = getTorontoMidnight();
+        const nowISO = new Date().toISOString();
         const currentSeasonId = this.getCurrentSeasonId();
 
         // 直接查询现有门票记录
@@ -472,7 +470,7 @@ export class TicketSystem {
             await ctx.db.patch(playerTicket._id, {
                 quantity: playerTicket.quantity + quantity,
                 seasonId: currentSeasonId,
-                updatedAt: now.iso
+                updatedAt: nowISO
             });
         } else {
             // 创建新门票记录
@@ -481,26 +479,10 @@ export class TicketSystem {
                 type,
                 quantity,
                 seasonId: currentSeasonId,
-                createdAt: now.iso,
-                updatedAt: now.iso
+                createdAt: nowISO,
+                updatedAt: nowISO
             });
         }
     }
 
-    /**
-     * 检查每日使用限制
-     */
-    private static async checkDailyUsageLimit(ctx: any, uid: string, type: string, maxUsagePerDay: number): Promise<boolean> {
-        const todayStart = new Date(getTorontoMidnight().localDate.getTime() - getTorontoMidnight().localDate.getHours() * 60 * 60 * 1000 - getTorontoMidnight().localDate.getMinutes() * 60 * 1000 - getTorontoMidnight().localDate.getSeconds() * 1000).toISOString();
-        const todayEnd = new Date(todayStart).toISOString();
-
-        const todayUsage = await ctx.db.query("ticket_usage_stats")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-            .filter((q: any) => q.eq(q.field("type"), type))
-            .filter((q: any) => q.gte(q.field("lastUsedAt"), todayStart))
-            .filter((q: any) => q.lte(q.field("lastUsedAt"), todayEnd))
-            .collect();
-
-        return todayUsage.length < maxUsagePerDay;
-    }
 } 

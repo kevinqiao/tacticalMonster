@@ -94,3 +94,10 @@ export const testLoadPlayers = (mutation as any)({
 
     },
 });
+export const testGetLeaderboard = (query as any)({
+    args: { tournamentId: v.id("tournaments") },
+    handler: async (ctx: any, args: { tournamentId: string }) => {
+        const result = await TournamentService.getLeaderboard(ctx, { tournamentId: args.tournamentId, paginationOpts: { numItems: 5, cursor: null } });
+        return result;
+    },
+});
