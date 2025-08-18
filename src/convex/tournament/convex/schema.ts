@@ -3,6 +3,7 @@ import { battlePassSchema } from "./schemas/battlePassSchema";
 import { segmentSchema } from "./schemas/segmentSchema";
 import { taskSchema } from "./schemas/taskSchema";
 import { ticketSchema } from "./schemas/ticketSchema";
+import { tournamentRulesSchema } from "./schemas/tournamentRulesSchema";
 import { tournamentSchema } from "./schemas/tournamentSchema";
 import { userSchema } from "./schemas/userSchema";
 import scoreThresholdSchema from "./service/tournament/scoreThresholdControl/scoreThresholdSchema";
@@ -32,5 +33,8 @@ export default defineSchema({
 
   // 分数门槛控制系统
   ...scoreThresholdSchema,
+
+  // 锦标赛规则系统
+  ...tournamentRulesSchema,
 
 });

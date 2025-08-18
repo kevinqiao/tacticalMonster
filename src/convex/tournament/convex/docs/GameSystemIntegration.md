@@ -143,7 +143,11 @@ await LeaderboardSystem.updatePoints(ctx, {
 });
 
 // 2. 添加段位积分
-await SegmentSystem.addRankPoints(ctx, "player123", 5, "quick_match");
+await ctx.runMutation(api.segmentManagerFunctions.addRankPoints, {
+    uid: "player123",
+    rankPoints: 5,
+    source: "quick_match"
+});
 
 // 3. 添加赛季积分到Battle Pass
 await BattlePassSystem.addSeasonPoints(ctx, "player123", 10, "quick_match");
@@ -166,13 +170,21 @@ await TaskIntegration.grantComprehensiveRewards(ctx, "player123", {
 await BattlePassSystem.addSeasonPoints(ctx, "player123", 50, "task");
 
 // 4. 更新段位
-await SegmentSystem.addRankPoints(ctx, "player123", 20, "task");
+await ctx.runMutation(api.segmentManagerFunctions.addRankPoints, {
+    uid: "player123",
+    rankPoints: 20,
+    source: "task"
+});
 ```
 
 ### 段位升级流程
 ```typescript
 // 1. 检查段位升级
-const result = await SegmentSystem.addRankPoints(ctx, "player123", 100, "tournament");
+const result = await ctx.runMutation(api.segmentManagerFunctions.addRankPoints, {
+    uid: "player123",
+    rankPoints: 100,
+    source: "tournament"
+});
 
 // 2. 如果升级，发放奖励
 if (result.newSegment && result.upgradeRewards) {

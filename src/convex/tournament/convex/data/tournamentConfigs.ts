@@ -123,10 +123,16 @@ export interface MatchRules {
  * 奖励配置
  */
 export interface RewardConfig {
-    // 基础奖励
+    // 基础奖励 - 支持多种积分类型
     baseRewards: {
         coins?: number;
-        seasonPoints?: number;
+        // 积分独立设计 - 支持多种积分类型
+        rankPoints?: number;           // 段位积分 - 用于段位升降级
+        seasonPoints?: number;         // 赛季积分 - 用于Battle Pass升级
+        prestigePoints?: number;       // 声望积分 - 用于特殊成就和奖励
+        achievementPoints?: number;    // 成就积分 - 用于成就系统
+        tournamentPoints?: number;     // 锦标赛积分 - 用于锦标赛排名
+
         props?: Array<{
             gameType: string;
             propId: string;
@@ -138,10 +144,20 @@ export interface RewardConfig {
         }>;
     };
 
-    // 排名奖励
+    // 排名奖励 - 支持积分独立设计
     rankRewards: Array<{
         rankRange: number[]; // [minRank, maxRank]
         multiplier: number;
+
+        // 积分独立奖励
+        pointRewards?: {
+            rankPoints?: number;
+            seasonPoints?: number;
+            prestigePoints?: number;
+            achievementPoints?: number;
+            tournamentPoints?: number;
+        };
+
         bonusProps?: Array<{
             gameType: string;
             propId: string;
@@ -153,25 +169,67 @@ export interface RewardConfig {
         }>;
     }>;
 
-    // 段位加成
+    // 段位加成 - 支持积分独立设计
     segmentBonus?: {
-        bronze: number;
-        silver: number;
-        gold: number;
-        platinum: number;
-        diamond: number;
+        bronze: {
+            rankPoints?: number;
+            seasonPoints?: number;
+            prestigePoints?: number;
+            achievementPoints?: number;
+            tournamentPoints?: number;
+        };
+        silver: {
+            rankPoints?: number;
+            seasonPoints?: number;
+            prestigePoints?: number;
+            achievementPoints?: number;
+            tournamentPoints?: number;
+        };
+        gold: {
+            rankPoints?: number;
+            seasonPoints?: number;
+            prestigePoints?: number;
+            achievementPoints?: number;
+            tournamentPoints?: number;
+        };
+        platinum: {
+            rankPoints?: number;
+            seasonPoints?: number;
+            prestigePoints?: number;
+            achievementPoints?: number;
+            tournamentPoints?: number;
+        };
+        diamond: {
+            rankPoints?: number;
+            seasonPoints?: number;
+            prestigePoints?: number;
+            achievementPoints?: number;
+            tournamentPoints?: number;
+        };
     };
 
     // 订阅加成
-    subscriptionBonus?: number;
+    subscriptionBonus?: {
+        rankPoints?: number;
+        seasonPoints?: number;
+        prestigePoints?: number;
+        achievementPoints?: number;
+        tournamentPoints?: number;
+    };
 
     // 参与奖励
     participationReward?: {
         coins?: number;
-        gamePoints?: number;
+        // 积分独立设计
+        rankPoints?: number;
+        seasonPoints?: number;
+        prestigePoints?: number;
+        achievementPoints?: number;
+        tournamentPoints?: number;
+
         props?: Array<{
             gameType: string;
-            propIde: string;
+            propId: string;
             quantity: number;
         }>;
         tickets?: Array<{
@@ -316,7 +374,11 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             ],
             participationReward: {
                 coins: 5,
-                gamePoints: 0
+                rankPoints: 0,
+                seasonPoints: 0,
+                prestigePoints: 0,
+                achievementPoints: 0,
+                tournamentPoints: 0
             }
         },
 
@@ -403,7 +465,11 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             ],
             participationReward: {
                 coins: 10,
-                gamePoints: 0
+                rankPoints: 0,
+                seasonPoints: 0,
+                prestigePoints: 0,
+                achievementPoints: 0,
+                tournamentPoints: 0
             }
         },
 
@@ -490,16 +556,56 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 }
             ],
             segmentBonus: {
-                bronze: 1.0,
-                silver: 1.1,
-                gold: 1.2,
-                platinum: 1.3,
-                diamond: 1.5
+                bronze: {
+                    rankPoints: 1.0,
+                    seasonPoints: 1.0,
+                    prestigePoints: 1.0,
+                    achievementPoints: 1.0,
+                    tournamentPoints: 1.0
+                },
+                silver: {
+                    rankPoints: 1.1,
+                    seasonPoints: 1.1,
+                    prestigePoints: 1.1,
+                    achievementPoints: 1.1,
+                    tournamentPoints: 1.1
+                },
+                gold: {
+                    rankPoints: 1.2,
+                    seasonPoints: 1.2,
+                    prestigePoints: 1.2,
+                    achievementPoints: 1.2,
+                    tournamentPoints: 1.2
+                },
+                platinum: {
+                    rankPoints: 1.3,
+                    seasonPoints: 1.3,
+                    prestigePoints: 1.3,
+                    achievementPoints: 1.3,
+                    tournamentPoints: 1.3
+                },
+                diamond: {
+                    rankPoints: 1.5,
+                    seasonPoints: 1.5,
+                    prestigePoints: 1.5,
+                    achievementPoints: 1.5,
+                    tournamentPoints: 1.5
+                }
             },
-            subscriptionBonus: 1.2,
+            subscriptionBonus: {
+                rankPoints: 1.2,
+                seasonPoints: 1.2,
+                prestigePoints: 1.2,
+                achievementPoints: 1.2,
+                tournamentPoints: 1.2
+            },
             participationReward: {
                 coins: 10,
-                gamePoints: 5
+                rankPoints: 5,
+                seasonPoints: 5,
+                prestigePoints: 2,
+                achievementPoints: 2,
+                tournamentPoints: 5
             }
         },
 

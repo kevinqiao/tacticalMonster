@@ -5,8 +5,9 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "../../../_generated/server";
+import { SegmentPromotionDemotionManager } from "../../segment/segmentPromotionDemotionManager";
 import { ScoreThresholdIntegration } from "./scoreThresholdIntegration";
-import { HYBRID_SEGMENT_CONFIGS, PlayerScoreThresholdConfig, SEGMENT_CONFIGS } from "./scoreThresholdRankingController";
+import { PlayerScoreThresholdConfig } from "./scoreThresholdRankingController";
 
 // ==================== 配置查询函数 ====================
 
@@ -67,7 +68,7 @@ export const validateScoreThresholdConfig = query({
 export const getAvailableSegments = query({
     args: {},
     handler: async (ctx) => {
-        return Object.keys(HYBRID_SEGMENT_CONFIGS);
+        return SegmentPromotionDemotionManager.getAvailableSegments();
     }
 });
 
@@ -77,7 +78,7 @@ export const getAvailableSegments = query({
 export const getSegmentProtectionConfig = query({
     args: { segmentName: v.string() },
     handler: async (ctx, args) => {
-        return SEGMENT_CONFIGS[args.segmentName] || null;
+        return SegmentPromotionDemotionManager.getSegmentInfo(args.segmentName);
     }
 });
 
@@ -87,30 +88,21 @@ export const getSegmentProtectionConfig = query({
 export const getHybridModeConfigDetails = query({
     args: { segmentName: v.string() },
     handler: async (ctx, args) => {
-        const config = HYBRID_SEGMENT_CONFIGS[args.segmentName];
-        if (!config) {
+        const segmentInfo = SegmentPromotionDemotionManager.getSegmentInfo(args.segmentName);
+        if (!segmentInfo) {
             return null;
         }
 
-        // 计算配置统计信息
-        const avgRank1Probability = config.scoreThresholds.reduce((sum, t) => sum + t.rankingProbabilities[0], 0) / config.scoreThresholds.length;
-        const avgRank2Probability = config.scoreThresholds.reduce((sum, t) => sum + t.rankingProbabilities[1], 0) / config.scoreThresholds.length;
-        const avgRank3Probability = config.scoreThresholds.reduce((sum, t) => sum + t.rankingProbabilities[2], 0) / config.scoreThresholds.length;
-        const avgRank4Probability = config.scoreThresholds.reduce((sum, t) => sum + t.rankingProbabilities[3], 0) / config.scoreThresholds.length;
-
+        // 返回段位基本信息
         return {
-            ...config,
-            statistics: {
-                avgRank1Probability,
-                avgRank2Probability,
-                avgRank3Probability,
-                avgRank4Probability,
-                thresholdCount: config.scoreThresholds.length,
-                scoreRange: {
-                    min: Math.min(...config.scoreThresholds.map(t => t.minScore)),
-                    max: Math.max(...config.scoreThresholds.map(t => t.maxScore))
-                }
-            }
+            segmentName: args.segmentName,
+            tier: segmentInfo.tier,
+            color: segmentInfo.color,
+            icon: segmentInfo.icon,
+            promotion: segmentInfo.promotion,
+            demotion: segmentInfo.demotion,
+            nextSegment: segmentInfo.nextSegment,
+            previousSegment: segmentInfo.previousSegment
         };
     }
 });
@@ -439,7 +431,7 @@ export const optimizeScoreThresholds = query({
             optimizedConfig,
             changes: {
                 learningRateChange: optimizedLearningRate - currentConfig.learningRate,
-                thresholdChanges: optimizedThresholds.map((opt, index) => ({
+                thresholdChanges: optimizedThresholds.map((opt: any, index: number) => ({
                     index,
                     original: currentConfig.scoreThresholds[index],
                     optimized: opt,
@@ -467,8 +459,8 @@ export const getConfigRecommendations = query({
     handler: async (ctx, args) => {
         const { segmentName, playerLevel, playStyle } = args;
 
-        const baseConfig = HYBRID_SEGMENT_CONFIGS[segmentName];
-        if (!baseConfig) {
+        const segmentInfo = SegmentPromotionDemotionManager.getSegmentInfo(segmentName);
+        if (!segmentInfo) {
             return null;
         }
 
@@ -476,83 +468,41 @@ export const getConfigRecommendations = query({
             segmentName,
             playerLevel,
             playStyle,
-            recommendedConfig: { ...baseConfig },
+            segmentInfo,
             reasoning: [] as string[],
             alternatives: [] as Array<{
                 name: string;
                 description: string;
-                config: typeof baseConfig;
+                segmentInfo: typeof segmentInfo;
             }>
         };
 
-        // 基于玩家等级调整
+        // 基于玩家等级调整建议
         if (playerLevel === "beginner") {
-            recommendations.recommendedConfig.learningRate = Math.min(0.1, baseConfig.learningRate);
-            recommendations.reasoning.push("新手玩家建议使用较低的学习率，避免配置变化过快");
+            recommendations.reasoning.push("新手玩家建议从青铜段位开始，逐步提升");
         } else if (playerLevel === "advanced") {
-            recommendations.recommendedConfig.learningRate = Math.min(0.25, baseConfig.learningRate * 1.2);
-            recommendations.reasoning.push("高级玩家可以使用较高的学习率，快速适应游戏变化");
+            recommendations.reasoning.push("高级玩家可以挑战更高段位，注意保持稳定性");
         }
 
-        // 基于游戏风格调整
+        // 基于游戏风格调整建议
         if (playStyle === "aggressive") {
-            recommendations.recommendedConfig.scoreThresholds = baseConfig.scoreThresholds.map(threshold => ({
-                ...threshold,
-                rankingProbabilities: [
-                    Math.min(0.5, threshold.rankingProbabilities[0] * 1.1),
-                    threshold.rankingProbabilities[1],
-                    threshold.rankingProbabilities[2],
-                    Math.max(0.05, threshold.rankingProbabilities[3] * 0.9)
-                ]
-            }));
-            recommendations.reasoning.push("激进风格玩家建议提高高名次概率");
+            recommendations.reasoning.push("激进风格玩家建议关注连胜要求，保持高胜率");
         } else if (playStyle === "conservative") {
-            recommendations.recommendedConfig.scoreThresholds = baseConfig.scoreThresholds.map(threshold => ({
-                ...threshold,
-                rankingProbabilities: [
-                    Math.max(0.1, threshold.rankingProbabilities[0] * 0.9),
-                    Math.min(0.4, threshold.rankingProbabilities[1] * 1.1),
-                    threshold.rankingProbabilities[2],
-                    threshold.rankingProbabilities[3]
-                ]
-            }));
-            recommendations.reasoning.push("保守风格玩家建议提高稳定名次概率");
+            recommendations.reasoning.push("保守风格玩家建议稳定积累积分，避免连续失败");
         }
 
-        // 提供替代配置
+        // 提供替代建议
         if (playStyle === "balanced") {
             recommendations.alternatives.push({
                 name: "激进替代方案",
                 description: "适合想要挑战高名次的玩家",
-                config: {
-                    ...baseConfig,
-                    scoreThresholds: baseConfig.scoreThresholds.map(threshold => ({
-                        ...threshold,
-                        rankingProbabilities: [
-                            Math.min(0.5, threshold.rankingProbabilities[0] * 1.2),
-                            threshold.rankingProbabilities[1],
-                            threshold.rankingProbabilities[2],
-                            Math.max(0.05, threshold.rankingProbabilities[3] * 0.8)
-                        ]
-                    }))
-                }
+                segmentInfo: segmentInfo
             });
 
             recommendations.alternatives.push({
                 name: "保守替代方案",
                 description: "适合追求稳定性的玩家",
-                config: {
-                    ...baseConfig,
-                    scoreThresholds: baseConfig.scoreThresholds.map(threshold => ({
-                        ...threshold,
-                        rankingProbabilities: [
-                            Math.max(0.1, threshold.rankingProbabilities[0] * 0.8),
-                            Math.min(0.4, threshold.rankingProbabilities[1] * 1.2),
-                            threshold.rankingProbabilities[2],
-                            threshold.rankingProbabilities[3]
-                        ]
-                    }))
-                }
+                segmentInfo: segmentInfo
             });
         }
 
