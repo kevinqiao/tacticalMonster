@@ -73,8 +73,6 @@ import type * as service_tournament_handler_singlePlayerIndependentTournamentHan
 import type * as service_tournament_handler_validator from "../service/tournament/handler/validator.js";
 import type * as service_tournament_matchManager from "../service/tournament/matchManager.js";
 import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
-import type * as service_tournament_pointCalculator from "../service/tournament/pointCalculator.js";
-import type * as service_tournament_ruleEngine from "../service/tournament/ruleEngine.js";
 import type * as service_tournament_scoreThresholdControl_configFunctions from "../service/tournament/scoreThresholdControl/configFunctions.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdExample from "../service/tournament/scoreThresholdControl/scoreThresholdExample.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdIntegration from "../service/tournament/scoreThresholdControl/scoreThresholdIntegration.js";
@@ -167,8 +165,6 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/handler/validator": typeof service_tournament_handler_validator;
   "service/tournament/matchManager": typeof service_tournament_matchManager;
   "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;
-  "service/tournament/pointCalculator": typeof service_tournament_pointCalculator;
-  "service/tournament/ruleEngine": typeof service_tournament_ruleEngine;
   "service/tournament/scoreThresholdControl/configFunctions": typeof service_tournament_scoreThresholdControl_configFunctions;
   "service/tournament/scoreThresholdControl/scoreThresholdExample": typeof service_tournament_scoreThresholdControl_scoreThresholdExample;
   "service/tournament/scoreThresholdControl/scoreThresholdIntegration": typeof service_tournament_scoreThresholdControl_scoreThresholdIntegration;

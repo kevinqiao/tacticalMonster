@@ -382,68 +382,39 @@ export const DEFAULT_RANK_POINT_CONFIGS: RankPointConfig[] = [
     }
 ];
 
-// ==================== 规则管理函数 ====================
+// ==================== 锦标赛规则服务类 ====================
 
 /**
- * 获取段位积分规则
+ * 锦标赛规则服务类
+ * 提供积分计算、规则管理等功能
  */
-export const getSegmentPointRules = query({
-    args: { segmentName: v.string() },
-    handler: async (ctx, args) => {
-        return DEFAULT_SEGMENT_POINT_RULES[args.segmentName] || null;
+export class TournamentRulesService {
+
+    /**
+     * 获取段位积分规则
+     */
+    static getSegmentPointRules(segmentName: string) {
+        return DEFAULT_SEGMENT_POINT_RULES[segmentName] || null;
     }
-});
 
-/**
- * 获取排名积分配置
- */
-export const getRankPointConfigs = query({
-    args: {},
-    handler: async (ctx) => {
+    /**
+     * 获取排名积分配置
+     */
+    static getRankPointConfigs() {
         return DEFAULT_RANK_POINT_CONFIGS;
     }
-});
 
-/**
- * 获取特定排名的积分配置
- */
-export const getRankPointConfig = query({
-    args: { rank: v.number() },
-    handler: async (ctx, args) => {
-        return DEFAULT_RANK_POINT_CONFIGS.find(config => config.rank === args.rank) || null;
+    /**
+     * 获取特定排名的积分配置
+     */
+    static getRankPointConfig(rank: number) {
+        return DEFAULT_RANK_POINT_CONFIGS.find(config => config.rank === rank) || null;
     }
-});
 
-/**
- * 验证锦标赛规则
- */
-export const validateTournamentRules = mutation({
-    args: {
-        rules: v.object({
-            tournamentId: v.string(),
-            gameType: v.string(),
-            tournamentType: v.string(),
-            minPlayers: v.number(),
-            maxPlayers: v.number(),
-            timeLimit: v.number(),
-            pointMultiplier: v.number(),
-            enableRankPoints: v.boolean(),
-            enableSeasonPoints: v.boolean(),
-            enablePrestigePoints: v.boolean(),
-            enableAchievementPoints: v.boolean(),
-            enableTournamentPoints: v.boolean(),
-            segmentBasedScoring: v.boolean(),
-            segmentBonusMultiplier: v.number(),
-            maxAttemptsPerPlayer: v.number(),
-            dailyLimit: v.number(),
-            weeklyLimit: v.number(),
-            startTime: v.string(),
-            endTime: v.string(),
-            registrationDeadline: v.string()
-        })
-    },
-    handler: async (ctx, args) => {
-        const { rules } = args;
+    /**
+     * 验证锦标赛规则
+     */
+    static validateTournamentRules(rules: any) {
         const errors: string[] = [];
 
         // 验证基础规则
@@ -511,37 +482,11 @@ export const validateTournamentRules = mutation({
             errors
         };
     }
-});
 
-/**
- * 创建自定义锦标赛规则
- */
-export const createCustomTournamentRules = mutation({
-    args: {
-        rules: v.object({
-            tournamentId: v.string(),
-            gameType: v.string(),
-            tournamentType: v.string(),
-            minPlayers: v.number(),
-            maxPlayers: v.number(),
-            timeLimit: v.number(),
-            pointMultiplier: v.number(),
-            enableRankPoints: v.boolean(),
-            enableSeasonPoints: v.boolean(),
-            enablePrestigePoints: v.boolean(),
-            enableAchievementPoints: v.boolean(),
-            enableTournamentPoints: v.boolean(),
-            segmentBasedScoring: v.boolean(),
-            segmentBonusMultiplier: v.number(),
-            maxAttemptsPerPlayer: v.number(),
-            dailyLimit: v.number(),
-            weeklyLimit: v.number(),
-            startTime: v.string(),
-            endTime: v.string(),
-            registrationDeadline: v.string()
-        })
-    },
-    handler: async (ctx, args) => {
+    /**
+     * 创建自定义锦标赛规则
+     */
+    static async createCustomTournamentRules(ctx: any, rules: any) {
         const nowISO = new Date().toISOString();
 
         // 验证规则 - 暂时跳过验证，直接保存
@@ -550,17 +495,17 @@ export const createCustomTournamentRules = mutation({
         // 保存到数据库
         const existing = await ctx.db
             .query("tournament_rules")
-            .withIndex("by_tournament_id", (q) => q.eq("tournamentId", args.rules.tournamentId))
+            .withIndex("by_tournament_id", (q: any) => q.eq("tournamentId", rules.tournamentId))
             .unique();
 
         if (existing) {
             await ctx.db.patch(existing._id, {
-                ...args.rules,
+                ...rules,
                 updatedAt: nowISO
             });
         } else {
             await ctx.db.insert("tournament_rules", {
-                ...args.rules,
+                ...rules,
                 isActive: true,
                 version: "1.0.0",
                 createdBy: "system",
@@ -571,60 +516,46 @@ export const createCustomTournamentRules = mutation({
 
         return { success: true, message: "锦标赛规则创建成功" };
     }
-});
 
-/**
- * 获取锦标赛规则
- */
-export const getTournamentRules = query({
-    args: { tournamentId: v.string() },
-    handler: async (ctx, args) => {
+    /**
+     * 获取锦标赛规则
+     */
+    static async getTournamentRules(ctx: any, tournamentId: string) {
         return await ctx.db
             .query("tournament_rules")
-            .withIndex("by_tournament_id", (q) => q.eq("tournamentId", args.tournamentId))
+            .withIndex("by_tournament_id", (q: any) => q.eq("tournamentId", tournamentId))
             .unique();
     }
-});
 
-/**
- * 获取所有可用段位
- */
-export const getAvailableSegments = query({
-    args: {},
-    handler: async (ctx) => {
+    /**
+     * 获取所有可用段位
+     */
+    static getAvailableSegments() {
         return SegmentPromotionDemotionManager.getAvailableSegments();
     }
-});
 
-/**
- * 获取段位信息
- */
-export const getSegmentInfo = query({
-    args: { segmentName: v.string() },
-    handler: async (ctx, args) => {
-        return SegmentPromotionDemotionManager.getSegmentInfo(args.segmentName);
+    /**
+     * 获取段位信息
+     */
+    static getSegmentInfo(segmentName: string) {
+        return SegmentPromotionDemotionManager.getSegmentInfo(segmentName);
     }
-});
 
-// ==================== 积分计算函数 ====================
-
-/**
- * 计算玩家在锦标赛中获得的各类积分
- */
-export const calculatePlayerTournamentPoints = mutation({
-    args: {
-        tournamentId: v.string(),
-        uid: v.string(),
-        matchRank: v.number(),
-        matchScore: v.number(),
-        matchDuration: v.number(),
-        segmentName: v.string(),
-        isPerfectScore: v.boolean(),
-        isQuickWin: v.boolean(),
-        isComebackWin: v.boolean(),
-        winningStreak: v.number()
-    },
-    handler: async (ctx, args) => {
+    /**
+     * 计算玩家在锦标赛中获得的各类积分
+     */
+    static async calculatePlayerTournamentPoints(ctx: any, args: {
+        tournamentId: string;
+        uid: string;
+        matchRank: number;
+        matchScore: number;
+        matchDuration: number;
+        segmentName: string;
+        isPerfectScore: boolean;
+        isQuickWin: boolean;
+        isComebackWin: boolean;
+        winningStreak: number;
+    }) {
         const {
             tournamentId,
             uid,
@@ -641,7 +572,7 @@ export const calculatePlayerTournamentPoints = mutation({
         // 获取锦标赛规则
         const tournamentRules = await ctx.db
             .query("tournament_rules")
-            .withIndex("by_tournament_id", (q) => q.eq("tournamentId", tournamentId))
+            .withIndex("by_tournament_id", (q: any) => q.eq("tournamentId", tournamentId))
             .unique();
 
         if (!tournamentRules) {
@@ -671,7 +602,7 @@ export const calculatePlayerTournamentPoints = mutation({
 
         // 计算段位积分
         if (tournamentRules.enableRankPoints) {
-            points.rankPoints = calculateRankPoints(
+            points.rankPoints = this.calculateRankPoints(
                 rankConfig.rankPoints,
                 segmentRules,
                 tournamentRules,
@@ -684,7 +615,7 @@ export const calculatePlayerTournamentPoints = mutation({
 
         // 计算赛季积分
         if (tournamentRules.enableSeasonPoints) {
-            points.seasonPoints = calculateSeasonPoints(
+            points.seasonPoints = this.calculateSeasonPoints(
                 rankConfig.seasonPoints,
                 segmentRules,
                 tournamentRules,
@@ -697,7 +628,7 @@ export const calculatePlayerTournamentPoints = mutation({
 
         // 计算声望积分
         if (tournamentRules.enablePrestigePoints) {
-            points.prestigePoints = calculatePrestigePoints(
+            points.prestigePoints = this.calculatePrestigePoints(
                 rankConfig.prestigePoints,
                 segmentRules,
                 tournamentRules,
@@ -710,7 +641,7 @@ export const calculatePlayerTournamentPoints = mutation({
 
         // 计算成就积分
         if (tournamentRules.enableAchievementPoints) {
-            points.achievementPoints = calculateAchievementPoints(
+            points.achievementPoints = this.calculateAchievementPoints(
                 rankConfig.achievementPoints,
                 segmentRules,
                 tournamentRules,
@@ -724,7 +655,7 @@ export const calculatePlayerTournamentPoints = mutation({
 
         // 计算锦标赛积分
         if (tournamentRules.enableTournamentPoints) {
-            points.tournamentPoints = calculateTournamentPoints(
+            points.tournamentPoints = this.calculateTournamentPoints(
                 rankConfig.tournamentPoints,
                 segmentRules,
                 tournamentRules,
@@ -757,159 +688,308 @@ export const calculatePlayerTournamentPoints = mutation({
             message: "积分计算完成"
         };
     }
+
+    // ==================== 辅助计算函数 ====================
+
+    /**
+     * 计算段位积分
+     */
+    private static calculateRankPoints(
+        config: PointAllocationConfig,
+        segmentRules: SegmentPointRules,
+        tournamentRules: any,
+        matchScore: number,
+        isPerfectScore: boolean,
+        isQuickWin: boolean,
+        winningStreak: number
+    ): number {
+        let points = config.basePoints * segmentRules.rankPointsConfig.basePoints;
+
+        // 应用段位倍数
+        points *= segmentRules.baseMultiplier;
+
+        // 应用全局倍数
+        points *= tournamentRules.pointMultiplier;
+
+        // 应用奖励倍数
+        if (isPerfectScore) points *= 1.5;
+        if (isQuickWin) points *= 1.3;
+        if (winningStreak >= 3) points *= 1.2;
+
+        // 应用段位奖励倍数
+        points *= segmentRules.rankPointsConfig.bonusMultiplier;
+
+        // 限制在配置范围内
+        return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
+    }
+
+    /**
+     * 计算赛季积分
+     */
+    private static calculateSeasonPoints(
+        config: PointAllocationConfig,
+        segmentRules: SegmentPointRules,
+        tournamentRules: any,
+        matchScore: number,
+        isPerfectScore: boolean,
+        isQuickWin: boolean,
+        winningStreak: number
+    ): number {
+        let points = config.basePoints * segmentRules.seasonPointsConfig.basePoints;
+
+        // 应用段位倍数
+        points *= segmentRules.baseMultiplier;
+
+        // 应用全局倍数
+        points *= tournamentRules.pointMultiplier;
+
+        // 应用奖励倍数
+        if (isPerfectScore) points *= 1.4;
+        if (isQuickWin) points *= 1.2;
+        if (winningStreak >= 3) points *= 1.1;
+
+        // 应用段位奖励倍数
+        points *= segmentRules.seasonPointsConfig.bonusMultiplier;
+
+        // 限制在配置范围内
+        return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
+    }
+
+    /**
+     * 计算声望积分
+     */
+    private static calculatePrestigePoints(
+        config: PointAllocationConfig,
+        segmentRules: SegmentPointRules,
+        tournamentRules: any,
+        matchScore: number,
+        isPerfectScore: boolean,
+        isQuickWin: boolean,
+        winningStreak: number
+    ): number {
+        let points = config.basePoints;
+
+        // 应用段位倍数
+        points *= segmentRules.baseMultiplier;
+
+        // 应用全局倍数
+        points *= tournamentRules.pointMultiplier;
+
+        // 应用奖励倍数
+        if (isPerfectScore) points *= 2.0;
+        if (isQuickWin) points *= 1.5;
+        if (winningStreak >= 5) points *= 1.3;
+
+        // 限制在配置范围内
+        return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
+    }
+
+    /**
+     * 计算成就积分
+     */
+    private static calculateAchievementPoints(
+        config: PointAllocationConfig,
+        segmentRules: SegmentPointRules,
+        tournamentRules: any,
+        matchScore: number,
+        isPerfectScore: boolean,
+        isQuickWin: boolean,
+        isComebackWin: boolean,
+        winningStreak: number
+    ): number {
+        let points = config.basePoints;
+
+        // 应用段位倍数
+        points *= segmentRules.baseMultiplier;
+
+        // 应用全局倍数
+        points *= tournamentRules.pointMultiplier;
+
+        // 应用奖励倍数
+        if (isPerfectScore) points *= 3.0;
+        if (isQuickWin) points *= 2.0;
+        if (isComebackWin) points *= 1.8;
+        if (winningStreak >= 7) points *= 1.5;
+
+        // 限制在配置范围内
+        return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
+    }
+
+    /**
+     * 计算锦标赛积分
+     */
+    private static calculateTournamentPoints(
+        config: PointAllocationConfig,
+        segmentRules: SegmentPointRules,
+        tournamentRules: any,
+        matchScore: number,
+        isPerfectScore: boolean,
+        isQuickWin: boolean,
+        winningStreak: number
+    ): number {
+        let points = config.basePoints;
+
+        // 应用段位倍数
+        points *= segmentRules.baseMultiplier;
+
+        // 应用全局倍数
+        points *= tournamentRules.pointMultiplier;
+
+        // 应用奖励倍数
+        if (isPerfectScore) points *= 1.8;
+        if (isQuickWin) points *= 1.4;
+        if (winningStreak >= 3) points *= 1.2;
+
+        // 限制在配置范围内
+        return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
+    }
+}
+
+// ==================== Convex 函数导出 ====================
+
+/**
+ * 获取段位积分规则
+ */
+export const getSegmentPointRules = query({
+    args: { segmentName: v.string() },
+    handler: async (ctx, args) => {
+        return TournamentRulesService.getSegmentPointRules(args.segmentName);
+    }
 });
 
-// ==================== 辅助计算函数 ====================
+/**
+ * 获取排名积分配置
+ */
+export const getRankPointConfigs = query({
+    args: {},
+    handler: async (ctx) => {
+        return TournamentRulesService.getRankPointConfigs();
+    }
+});
 
 /**
- * 计算段位积分
+ * 获取特定排名的积分配置
  */
-function calculateRankPoints(
-    config: PointAllocationConfig,
-    segmentRules: SegmentPointRules,
-    tournamentRules: any,
-    matchScore: number,
-    isPerfectScore: boolean,
-    isQuickWin: boolean,
-    winningStreak: number
-): number {
-    let points = config.basePoints * segmentRules.rankPointsConfig.basePoints;
-
-    // 应用段位倍数
-    points *= segmentRules.baseMultiplier;
-
-    // 应用全局倍数
-    points *= tournamentRules.pointMultiplier;
-
-    // 应用奖励倍数
-    if (isPerfectScore) points *= 1.5;
-    if (isQuickWin) points *= 1.3;
-    if (winningStreak >= 3) points *= 1.2;
-
-    // 应用段位奖励倍数
-    points *= segmentRules.rankPointsConfig.bonusMultiplier;
-
-    // 限制在配置范围内
-    return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
-}
+export const getRankPointConfig = query({
+    args: { rank: v.number() },
+    handler: async (ctx, args) => {
+        return TournamentRulesService.getRankPointConfig(args.rank);
+    }
+});
 
 /**
- * 计算赛季积分
+ * 验证锦标赛规则
  */
-function calculateSeasonPoints(
-    config: PointAllocationConfig,
-    segmentRules: SegmentPointRules,
-    tournamentRules: any,
-    matchScore: number,
-    isPerfectScore: boolean,
-    isQuickWin: boolean,
-    winningStreak: number
-): number {
-    let points = config.basePoints * segmentRules.seasonPointsConfig.basePoints;
-
-    // 应用段位倍数
-    points *= segmentRules.baseMultiplier;
-
-    // 应用全局倍数
-    points *= tournamentRules.pointMultiplier;
-
-    // 应用奖励倍数
-    if (isPerfectScore) points *= 1.4;
-    if (isQuickWin) points *= 1.2;
-    if (winningStreak >= 3) points *= 1.1;
-
-    // 应用段位奖励倍数
-    points *= segmentRules.seasonPointsConfig.bonusMultiplier;
-
-    // 限制在配置范围内
-    return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
-}
+export const validateTournamentRules = mutation({
+    args: {
+        rules: v.object({
+            tournamentId: v.string(),
+            gameType: v.string(),
+            tournamentType: v.string(),
+            minPlayers: v.number(),
+            maxPlayers: v.number(),
+            timeLimit: v.number(),
+            pointMultiplier: v.number(),
+            enableRankPoints: v.boolean(),
+            enableSeasonPoints: v.boolean(),
+            enablePrestigePoints: v.boolean(),
+            enableAchievementPoints: v.boolean(),
+            enableTournamentPoints: v.boolean(),
+            segmentBasedScoring: v.boolean(),
+            segmentBonusMultiplier: v.number(),
+            maxAttemptsPerPlayer: v.number(),
+            dailyLimit: v.number(),
+            weeklyLimit: v.number(),
+            startTime: v.string(),
+            endTime: v.string(),
+            registrationDeadline: v.string()
+        })
+    },
+    handler: async (ctx, args) => {
+        return TournamentRulesService.validateTournamentRules(args.rules);
+    }
+});
 
 /**
- * 计算声望积分
+ * 创建自定义锦标赛规则
  */
-function calculatePrestigePoints(
-    config: PointAllocationConfig,
-    segmentRules: SegmentPointRules,
-    tournamentRules: any,
-    matchScore: number,
-    isPerfectScore: boolean,
-    isQuickWin: boolean,
-    winningStreak: number
-): number {
-    let points = config.basePoints;
-
-    // 应用段位倍数
-    points *= segmentRules.baseMultiplier;
-
-    // 应用全局倍数
-    points *= tournamentRules.pointMultiplier;
-
-    // 应用奖励倍数
-    if (isPerfectScore) points *= 2.0;
-    if (isQuickWin) points *= 1.5;
-    if (winningStreak >= 5) points *= 1.3;
-
-    // 限制在配置范围内
-    return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
-}
+export const createCustomTournamentRules = mutation({
+    args: {
+        rules: v.object({
+            tournamentId: v.string(),
+            gameType: v.string(),
+            tournamentType: v.string(),
+            minPlayers: v.number(),
+            maxPlayers: v.number(),
+            timeLimit: v.number(),
+            pointMultiplier: v.number(),
+            enableRankPoints: v.boolean(),
+            enableSeasonPoints: v.boolean(),
+            enablePrestigePoints: v.boolean(),
+            enableAchievementPoints: v.boolean(),
+            enableTournamentPoints: v.boolean(),
+            segmentBasedScoring: v.boolean(),
+            segmentBonusMultiplier: v.number(),
+            maxAttemptsPerPlayer: v.number(),
+            dailyLimit: v.number(),
+            weeklyLimit: v.number(),
+            startTime: v.string(),
+            endTime: v.string(),
+            registrationDeadline: v.string()
+        })
+    },
+    handler: async (ctx, args) => {
+        return TournamentRulesService.createCustomTournamentRules(ctx, args.rules);
+    }
+});
 
 /**
- * 计算成就积分
+ * 获取锦标赛规则
  */
-function calculateAchievementPoints(
-    config: PointAllocationConfig,
-    segmentRules: SegmentPointRules,
-    tournamentRules: any,
-    matchScore: number,
-    isPerfectScore: boolean,
-    isQuickWin: boolean,
-    isComebackWin: boolean,
-    winningStreak: number
-): number {
-    let points = config.basePoints;
-
-    // 应用段位倍数
-    points *= segmentRules.baseMultiplier;
-
-    // 应用全局倍数
-    points *= tournamentRules.pointMultiplier;
-
-    // 应用奖励倍数
-    if (isPerfectScore) points *= 3.0;
-    if (isQuickWin) points *= 2.0;
-    if (isComebackWin) points *= 1.8;
-    if (winningStreak >= 7) points *= 1.5;
-
-    // 限制在配置范围内
-    return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
-}
+export const getTournamentRules = query({
+    args: { tournamentId: v.string() },
+    handler: async (ctx, args) => {
+        return TournamentRulesService.getTournamentRules(ctx, args.tournamentId);
+    }
+});
 
 /**
- * 计算锦标赛积分
+ * 获取所有可用段位
  */
-function calculateTournamentPoints(
-    config: PointAllocationConfig,
-    segmentRules: SegmentPointRules,
-    tournamentRules: any,
-    matchScore: number,
-    isPerfectScore: boolean,
-    isQuickWin: boolean,
-    winningStreak: number
-): number {
-    let points = config.basePoints;
+export const getAvailableSegments = query({
+    args: {},
+    handler: async (ctx) => {
+        return TournamentRulesService.getAvailableSegments();
+    }
+});
 
-    // 应用段位倍数
-    points *= segmentRules.baseMultiplier;
+/**
+ * 获取段位信息
+ */
+export const getSegmentInfo = query({
+    args: { segmentName: v.string() },
+    handler: async (ctx, args) => {
+        return TournamentRulesService.getSegmentInfo(args.segmentName);
+    }
+});
 
-    // 应用全局倍数
-    points *= tournamentRules.pointMultiplier;
-
-    // 应用奖励倍数
-    if (isPerfectScore) points *= 1.8;
-    if (isQuickWin) points *= 1.4;
-    if (winningStreak >= 3) points *= 1.2;
-
-    // 限制在配置范围内
-    return Math.max(config.minPoints, Math.min(config.maxPoints, Math.round(points)));
-}
+/**
+ * 计算玩家在锦标赛中获得的各类积分
+ */
+export const calculatePlayerTournamentPoints = mutation({
+    args: {
+        tournamentId: v.string(),
+        uid: v.string(),
+        matchRank: v.number(),
+        matchScore: v.number(),
+        matchDuration: v.number(),
+        segmentName: v.string(),
+        isPerfectScore: v.boolean(),
+        isQuickWin: v.boolean(),
+        isComebackWin: v.boolean(),
+        winningStreak: v.number()
+    },
+    handler: async (ctx, args) => {
+        return TournamentRulesService.calculatePlayerTournamentPoints(ctx, args);
+    }
+});

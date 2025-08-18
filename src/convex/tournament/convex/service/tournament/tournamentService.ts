@@ -435,6 +435,8 @@ export class TournamentService {
     }
 
 
+
+
 }
 
 // Convex 函数接口
@@ -536,5 +538,41 @@ export const loadTournamentConfig = (internalMutation as any)({
         const result = await TournamentService.loadTournamentConfig(ctx);
         return result;
     },
+});
+
+
+
+
+/**
+ * Convex 函数：获取锦标赛积分规则
+ */
+export const getTournamentPointRules = query({
+    args: { tournamentId: v.string() },
+    handler: async (ctx, args) => {
+        try {
+            // 获取锦标赛配置
+            const tournamentType = await ctx.db
+                .query("tournament_types")
+                .withIndex("by_typeId", (q) => q.eq("typeId", args.tournamentId))
+                .unique();
+
+            if (!tournamentType) {
+                return null;
+            }
+
+            // 返回积分规则信息
+            return {
+                tournamentId: args.tournamentId,
+                gameType: tournamentType.gameType,
+                rewards: tournamentType.rewards,
+                segmentBonus: tournamentType.rewards.segmentBonus,
+                subscriptionBonus: tournamentType.rewards.subscriptionBonus,
+                participationReward: tournamentType.rewards.participationReward
+            };
+        } catch (error) {
+            console.error("获取锦标赛积分规则失败:", error);
+            return null;
+        }
+    }
 });
 

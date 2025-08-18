@@ -148,25 +148,26 @@ export const tournamentSchema = {
         rewards: v.object({
             baseRewards: v.object({
                 coins: v.optional(v.number()),
-                seasonPoints: v.optional(v.number()),
-                props: v.optional(v.array(v.object({
-                    gameType: v.string(),
-                    propId: v.string(),
-                    quantity: v.number()
-                }))),
-                tickets: v.optional(v.array(v.object({
-                    gameType: v.string(),
-                    tournamentType: v.string(),
-                    quantity: v.number()
-                })))
+                rankPoints: v.optional(v.number()),      // 段位积分 - 用于段位升降级
+                seasonPoints: v.optional(v.number()),    // 赛季积分 - 用于Battle Pass升级
+                prestigePoints: v.optional(v.number()),  // 声望积分 - 用于特殊成就和奖励
+                achievementPoints: v.optional(v.number()), // 成就积分 - 用于成就系统
+                tournamentPoints: v.optional(v.number())   // 锦标赛积分 - 用于锦标赛排名
             }),
             rankRewards: v.array(v.object({
                 rankRange: v.array(v.number()),
                 multiplier: v.number(),
+                pointRewards: v.optional(v.object({
+                    rankPoints: v.optional(v.number()),
+                    seasonPoints: v.optional(v.number()),
+                    prestigePoints: v.optional(v.number()),
+                    achievementPoints: v.optional(v.number()),
+                    tournamentPoints: v.optional(v.number())
+                })),
                 bonusProps: v.optional(v.array(v.object({
                     gameType: v.string(),
                     propId: v.string(),
-                    quantity: v.number(),
+                    quantity: v.number()
                 }))),
                 bonusTickets: v.optional(v.array(v.object({
                     gameType: v.string(),
@@ -175,16 +176,56 @@ export const tournamentSchema = {
                 })))
             })),
             segmentBonus: v.optional(v.object({
-                bronze: v.number(),
-                silver: v.number(),
-                gold: v.number(),
-                platinum: v.number(),
-                diamond: v.number()
+                bronze: v.object({
+                    rankPoints: v.optional(v.number()),
+                    seasonPoints: v.optional(v.number()),
+                    prestigePoints: v.optional(v.number()),
+                    achievementPoints: v.optional(v.number()),
+                    tournamentPoints: v.optional(v.number())
+                }),
+                silver: v.object({
+                    rankPoints: v.optional(v.number()),
+                    seasonPoints: v.optional(v.number()),
+                    prestigePoints: v.optional(v.number()),
+                    achievementPoints: v.optional(v.number()),
+                    tournamentPoints: v.optional(v.number())
+                }),
+                gold: v.object({
+                    rankPoints: v.optional(v.number()),
+                    seasonPoints: v.optional(v.number()),
+                    prestigePoints: v.optional(v.number()),
+                    achievementPoints: v.optional(v.number()),
+                    tournamentPoints: v.optional(v.number())
+                }),
+                platinum: v.object({
+                    rankPoints: v.optional(v.number()),
+                    seasonPoints: v.optional(v.number()),
+                    prestigePoints: v.optional(v.number()),
+                    achievementPoints: v.optional(v.number()),
+                    tournamentPoints: v.optional(v.number())
+                }),
+                diamond: v.object({
+                    rankPoints: v.optional(v.number()),
+                    seasonPoints: v.optional(v.number()),
+                    prestigePoints: v.optional(v.number()),
+                    achievementPoints: v.optional(v.number()),
+                    tournamentPoints: v.optional(v.number())
+                })
             })),
-            subscriptionBonus: v.optional(v.number()),
+            subscriptionBonus: v.optional(v.object({
+                rankPoints: v.optional(v.number()),
+                seasonPoints: v.optional(v.number()),
+                prestigePoints: v.optional(v.number()),
+                achievementPoints: v.optional(v.number()),
+                tournamentPoints: v.optional(v.number())
+            })),
             participationReward: v.optional(v.object({
                 coins: v.optional(v.number()),
-                gamePoints: v.optional(v.number())
+                rankPoints: v.optional(v.number()),
+                seasonPoints: v.optional(v.number()),
+                prestigePoints: v.optional(v.number()),
+                achievementPoints: v.optional(v.number()),
+                tournamentPoints: v.optional(v.number())
             })),
             streakBonus: v.optional(v.object({
                 minStreak: v.number(),
