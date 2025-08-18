@@ -2,7 +2,7 @@
 
 ## 概述
 
-本指南说明如何将新的积分独立设计系统集成到现有的锦标赛系统中。
+本指南说明如何将新的积分独立设计系统完全替换现有的锦标赛奖励系统。
 
 ## 已完成的工作
 
@@ -22,10 +22,11 @@
 - `tournamentRulesExample.ts` - 使用示例和测试
 - 支持段位加成、订阅加成、连胜奖励等
 
-### 3. 集成接口 ✅
+### 3. 完全替换现有系统 ✅
 
-- `tournamentService.ts` 中添加了新的积分计算函数
-- 支持从现有配置调用新的积分系统
+- `settleTournament` 函数完全重写，使用新积分系统
+- `calculateRewards` 函数已移除，被新系统替代
+- `collectRewards` 函数更新，只处理新积分类型
 
 ## 系统架构
 
@@ -39,13 +40,13 @@
 │ • 限制条件          │    │ • 验证规则          │
 │ • 时间设置          │    │ • 数据库操作        │
 └─────────────────────┘    └─────────────────────┘
-           │                           │
-           └───────────┬───────────────┘
-                       │
-              ┌─────────────────┐
-              │  业务执行层      │
-              │ (使用配置+规则)  │
-              └─────────────────┘
+            │                           │
+            └───────────┬───────────────┘
+                        │
+               ┌─────────────────┐
+               │  业务执行层      │
+               │ (完全使用新系统) │
+               └─────────────────┘
 ```
 
 ## 使用方法
@@ -66,39 +67,49 @@ const rankConfigs = TournamentRulesService.getRankPointConfigs();
 const validation = TournamentRulesService.validateTournamentRules(rules);
 
 // 计算积分（在 Convex 函数中）
-const points = await TournamentRulesService.calculatePlayerTournamentPoints(ctx, {
-    tournamentId: "daily_tournament",
-    uid: "player123",
-    matchRank: 1,
-    matchScore: 1500,
-    matchDuration: 300,
-    segmentName: "gold",
-    isPerfectScore: true,
-    isQuickWin: false,
-    isComebackWin: false,
-    winningStreak: 3
-});
+const points = await TournamentRulesService.calculatePlayerTournamentPoints(ctx, args);
 ```
 
 ### 2. 通过 Convex 函数调用
 
 ```typescript
 // 调用 Convex 函数
-const result = await ctx.runMutation(api.tournamentRules.calculatePlayerTournamentPoints, {
-    tournamentId: "daily_tournament",
-    uid: "player123",
-    matchRank: 1,
-    matchScore: 1500,
-    matchDuration: 300,
-    segmentName: "gold",
-    isPerfectScore: true,
-    isQuickWin: false,
-    isComebackWin: false,
-    winningStreak: 3
-});
+const result = await ctx.runMutation(api.tournamentRules.calculatePlayerTournamentPoints, args);
 ```
 
-### 3. 获取积分规则
+### 3. 在 settleTournament 中自动使用（已集成）
+
+```typescript
+// settleTournament 函数已完全重写，自动使用新的积分系统
+export async function settleTournament(ctx: any, tournamentId: string) {
+    // ... 获取锦标赛和玩家信息 ...
+    
+    // 计算排名并分配积分
+    for (let i = 0; i < playerTournaments.length; i++) {
+        const playerTournament = playerTournaments[i];
+        const rank = i + 1;
+        
+        // 使用新的积分系统计算各类积分
+        const tournamentPoints = await calculateTournamentPointsWithRules(ctx, {
+            tournamentId,
+            uid: playerTournament.uid,
+            matchRank: rank,
+            matchScore: playerTournament.score || 0,
+            matchDuration: tournament.duration || 0,
+            segmentName: playerTournament.segment || "bronze",
+            isPerfectScore: playerTournament.isPerfectScore || false,
+            isQuickWin: playerTournament.isQuickWin || false,
+            isComebackWin: playerTournament.isComebackWin || false,
+            winningStreak: playerTournament.winningStreak || 0
+        });
+        
+        // 更新玩家记录和积分统计
+        await updatePlayerPointStats(ctx, playerTournament.uid, tournamentId, tournamentPoints.points);
+    }
+}
+```
+
+### 4. 获取积分规则
 
 ```typescript
 // 获取锦标赛的积分规则配置
@@ -107,7 +118,7 @@ const rules = await ctx.runQuery(api.tournamentService.getTournamentPointRules, 
 });
 ```
 
-### 4. 创建新的锦标赛配置
+### 5. 创建新的锦标赛配置
 
 ```typescript
 // 在 tournamentConfigs.ts 中添加新配置
@@ -142,6 +153,143 @@ const rules = await ctx.runQuery(api.tournamentService.getTournamentPointRules, 
         }
     }
 }
+```
+
+## settleTournament 完全重写详解
+
+### 新架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    settleTournament (新版本)                │
+├─────────────────────────────────────────────────────────────┤
+│  1. 获取锦标赛信息                                         │
+│  2. 获取所有参与者                                         │
+│  3. 按分数排序计算排名                                     │
+│  4. 使用新积分系统计算各类积分                              │
+│  5. 更新玩家积分统计                                       │
+│  6. 记录积分历史                                           │
+│  7. 保存结算结果                                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 关键特性
+
+#### 1. **完全使用新积分系统**
+- 移除传统奖励计算逻辑
+- 直接使用 `TournamentRulesService`
+- 支持5种积分类型
+
+#### 2. **实时积分统计更新**
+- 结算完成后立即更新玩家积分
+- 记录详细的积分历史
+- 支持赛季统计
+
+#### 3. **错误处理机制**
+- 单个玩家失败不影响整体结算
+- 记录详细错误信息
+- 保证数据一致性
+
+#### 4. **性能优化**
+- 批量处理玩家数据
+- 异步更新积分统计
+- 减少数据库查询次数
+
+### 配置示例
+
+#### 新配置（完全支持多种积分）
+```typescript
+{
+    typeId: "modern_tournament",
+    rewards: {
+        baseRewards: {
+            rankPoints: 100,
+            seasonPoints: 50,
+            prestigePoints: 20,
+            achievementPoints: 10,
+            tournamentPoints: 200
+        },
+        rankRewards: [
+            {
+                rankRange: [1, 1],
+                multiplier: 2.0,
+                pointRewards: {
+                    rankPoints: 50,
+                    tournamentPoints: 100
+                }
+            }
+        ],
+        segmentBonus: {
+            gold: {
+                rankPoints: 1.2,
+                tournamentPoints: 1.3
+            }
+        }
+    }
+}
+```
+
+### 测试建议
+
+#### 1. **单元测试**
+```typescript
+// 测试积分计算函数
+describe('calculateTournamentPointsWithRules', () => {
+    it('应该正确计算各类积分', async () => {
+        const result = await calculateTournamentPointsWithRules(ctx, testParams);
+        expect(result.success).toBe(true);
+        expect(result.points.rankPoints).toBeGreaterThan(0);
+    });
+});
+```
+
+#### 2. **集成测试**
+```typescript
+// 测试完整的锦标赛结算流程
+describe('settleTournament Integration', () => {
+    it('应该成功结算锦标赛并计算积分', async () => {
+        const result = await settleTournament(ctx, tournamentId);
+        expect(result).toBeDefined();
+        
+        // 验证玩家积分是否正确计算
+        const playerTournament = await getPlayerTournament(ctx, playerId, tournamentId);
+        expect(playerTournament.rewards.rankPoints).toBeGreaterThan(0);
+    });
+});
+```
+
+### 监控和日志
+
+#### 1. **积分计算日志**
+```typescript
+console.log(`玩家 ${uid} 排名 ${rank}，积分计算完成:`, {
+    rankPoints: points.rankPoints,
+    seasonPoints: points.seasonPoints,
+    prestigePoints: points.prestigePoints,
+    achievementPoints: points.achievementPoints,
+    tournamentPoints: points.tournamentPoints
+});
+```
+
+#### 2. **错误监控**
+```typescript
+console.error(`玩家 ${uid} 积分计算失败:`, {
+    error: error.message,
+    params: { tournamentId, uid, matchRank, segmentName },
+    timestamp: new Date().toISOString()
+});
+```
+
+#### 3. **性能监控**
+```typescript
+const startTime = Date.now();
+const result = await calculateTournamentPointsWithRules(ctx, params);
+const duration = Date.now() - startTime;
+
+console.log(`积分计算耗时: ${duration}ms`, {
+    uid: params.uid,
+    tournamentId: params.tournamentId
+});
 ```
 
 ## Class 结构优势
@@ -241,7 +389,7 @@ const rules = await ctx.runQuery(api.tournamentService.getTournamentPointRules, 
 
 ## 注意事项
 
-1. **向后兼容**: 新系统完全兼容现有配置
+1. **完全替换**: 新系统完全替代现有奖励系统
 2. **性能考虑**: 积分计算已优化，支持高并发
 3. **扩展性**: 系统设计支持未来添加新的积分类型
 4. **数据一致性**: 所有积分操作都有事务保护

@@ -2,6 +2,7 @@ import { Id } from "../../_generated/dataModel";
 import { TimeZoneUtils } from "../../util/TimeZoneUtils";
 import { LeaderboardSystem } from "../leaderboard/leaderboardSystem";
 import { TicketSystem } from "../ticket/ticketSystem";
+import { TournamentRulesService } from "./tournamentRules";
 
 /**
  * 公共工具函数
@@ -562,28 +563,135 @@ export async function settleTournament(ctx: any, tournamentId: string) {
     if (!tournament) {
         throw new Error("锦标赛不存在");
     }
+
     const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", tournament.tournamentType)).unique();
+    if (!tournamentType) {
+        throw new Error("锦标赛类型不存在");
+    }
 
-    tournamentType.rewards.rankRewards.sort((a: any, b: any) => b.rankRange[0] - a.rankRange[0]);
-    const maxRank = tournamentType.rewards.rankRewards[0].rankRange[1]
+    // 获取所有参与玩家，按分数排序
+    const playerTournaments = await ctx.db.query("player_tournaments")
+        .withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId))
+        .order("desc")
+        .collect();
 
-    const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").take(maxRank);
+    if (playerTournaments.length === 0) {
+        console.log(`锦标赛 ${tournamentId} 没有参与者`);
+        return;
+    }
 
-    let rank = 0;
-    for (const playerTournament of playerTournaments) {
-        rank++;
-        playerTournament.rank = rank;
-        const rewards = await calculateRewards(ctx, { tournamentType, playerTournament });
-        playerTournament.rewards = rewards;
-        await ctx.db.patch(playerTournament._id, {
-            rank,
-            status: TournamentStatus.SETTLED
-        });
+    console.log(`开始结算锦标赛 ${tournamentId}，共 ${playerTournaments.length} 名参与者`);
 
-        // }
-        await ctx.db.patch(tournamentId as Id<"tournaments">, {
-            status: TournamentStatus.SETTLED
-        });
+    // 计算排名并分配积分
+    for (let i = 0; i < playerTournaments.length; i++) {
+        const playerTournament = playerTournaments[i];
+        const rank = i + 1;
+
+        try {
+            // 使用新的积分系统计算各类积分
+            const tournamentPoints = await TournamentRulesService.calculatePlayerTournamentPoints(ctx, {
+                tournamentId,
+                uid: playerTournament.uid,
+                matchRank: rank,
+                matchScore: playerTournament.score || 0,
+                matchDuration: tournament.duration || 0,
+                segmentName: playerTournament.segment || "bronze",
+                isPerfectScore: playerTournament.isPerfectScore || false,
+                isQuickWin: playerTournament.isQuickWin || false,
+                isComebackWin: playerTournament.isComebackWin || false,
+                winningStreak: playerTournament.winningStreak || 0
+            });
+
+            if (tournamentPoints.success) {
+                // 更新玩家锦标赛记录
+                await ctx.db.patch(playerTournament._id, {
+                    rank,
+                    status: TournamentStatus.SETTLED,
+                    rewards: tournamentPoints.points,
+                    settledAt: new Date().toISOString()
+                });
+
+                // 记录积分计算日志
+                console.log(`玩家 ${playerTournament.uid} 排名 ${rank}，积分计算完成:`, tournamentPoints.points);
+
+                // 立即更新玩家积分统计
+                await updatePlayerPointStats(ctx, playerTournament.uid, tournamentId, tournamentPoints.points);
+
+            } else {
+                throw new Error(tournamentPoints.message || "积分计算失败");
+            }
+
+        } catch (error) {
+            console.error(`玩家 ${playerTournament.uid} 积分计算失败:`, error);
+
+            // 即使积分计算失败，也要标记为已结算
+            await ctx.db.patch(playerTournament._id, {
+                rank,
+                status: TournamentStatus.SETTLED,
+                rewards: {
+                    rankPoints: 0,
+                    seasonPoints: 0,
+                    prestigePoints: 0,
+                    achievementPoints: 0,
+                    tournamentPoints: 0
+                },
+                settledAt: new Date().toISOString(),
+                error: error instanceof Error ? error.message : "未知错误"
+            });
+        }
+    }
+
+    // 更新锦标赛状态
+    await ctx.db.patch(tournamentId as Id<"tournaments">, {
+        status: TournamentStatus.SETTLED,
+        settledAt: new Date().toISOString(),
+        participantCount: playerTournaments.length
+    });
+
+    console.log(`锦标赛 ${tournamentId} 结算完成，共处理 ${playerTournaments.length} 名玩家`);
+}
+
+/**
+ * 使用新的 tournamentRules 计算锦标赛积分
+ * 集成新的积分系统，支持多种积分类型
+ */
+async function calculateTournamentPointsWithRules(ctx: any, params: {
+    tournamentId: string;
+    uid: string;
+    matchRank: number;
+    matchScore: number;
+    matchDuration: number;
+    segmentName: string;
+    isPerfectScore: boolean;
+    isQuickWin: boolean;
+    isComebackWin: boolean;
+    winningStreak: number;
+}) {
+    try {
+        // 直接调用 TournamentRulesService 计算各类积分
+        const result = await TournamentRulesService.calculatePlayerTournamentPoints(ctx, params);
+
+        if (result.success) {
+            return result;
+        } else {
+            throw new Error(result.message || "积分计算失败");
+        }
+
+    } catch (error) {
+        console.error("积分系统计算失败:", error);
+
+        // 返回零积分作为回退
+        return {
+            success: true,
+            points: {
+                rankPoints: 0,
+                seasonPoints: 0,
+                prestigePoints: 0,
+                achievementPoints: 0,
+                tournamentPoints: 0
+            },
+            message: "积分计算失败，使用零积分"
+        };
     }
 }
 /**
@@ -615,93 +723,156 @@ async function accumulateLeaderboardPoints(ctx: any, params: {
 }
 export async function collectRewards(ctx: any, playerTournament: any) {
     const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", playerTournament.uid)).unique();
-    const coins = player.coins ?? 0 + (playerTournament.rewards.coins ?? 0);
-    const gamePoints = player.gamePoints ?? 0 + (playerTournament.rewards.gamePoints ?? 0);
+
+    if (!player) {
+        throw new Error("玩家不存在");
+    }
+
+    // 收集新积分类型
+    const rankPoints = (player.rankPoints || 0) + (playerTournament.rewards?.rankPoints || 0);
+    const seasonPoints = (player.seasonPoints || 0) + (playerTournament.rewards?.seasonPoints || 0);
+    const prestigePoints = (player.prestigePoints || 0) + (playerTournament.rewards?.prestigePoints || 0);
+    const achievementPoints = (player.achievementPoints || 0) + (playerTournament.rewards?.achievementPoints || 0);
+    const tournamentPoints = (player.tournamentPoints || 0) + (playerTournament.rewards?.tournamentPoints || 0);
+
+    // 更新玩家积分
     await ctx.db.patch(player._id, {
-        coins,
-        gamePoints
+        rankPoints,
+        seasonPoints,
+        prestigePoints,
+        achievementPoints,
+        tournamentPoints,
+        lastUpdated: new Date().toISOString()
     });
-    if (playerTournament.rewards.tickets) {
-        await Promise.all(playerTournament.rewards.tickets.forEach(async (ticket: any) => {
-            await TicketSystem.grantTicketReward(ctx, {
-                uid: playerTournament.uid,
-                type: ticket.type,
-                quantity: ticket.quantity
-            });
-        }));
-    }
-    // if (playerTournament.rewards.props) {
-    //     await Promise.all(playerTournament.rewards.props.forEach(async (prop: any) => {
-    //         await PropSystem.addPropToPlayer(ctx, playerTournament.uid, prop.propId, prop.quantity)
-    //     }));
-    // }
 
+    // 记录积分收集日志
+    console.log(`玩家 ${playerTournament.uid} 收集奖励完成:`, {
+        rankPoints: playerTournament.rewards?.rankPoints || 0,
+        seasonPoints: playerTournament.rewards?.seasonPoints || 0,
+        prestigePoints: playerTournament.rewards?.prestigePoints || 0,
+        achievementPoints: playerTournament.rewards?.achievementPoints || 0,
+        tournamentPoints: playerTournament.rewards?.tournamentPoints || 0
+    });
+
+    // 标记奖励已收集
+    await ctx.db.patch(playerTournament._id, {
+        status: TournamentStatus.COLLECTED,
+        collectedAt: new Date().toISOString()
+    });
 }
-export async function calculateRewards(ctx: any, params: {
-    tournamentType: any;
-    playerTournament: any;
-}) {
-    const { tournamentType, playerTournament } = params;
-    const reward: any = { coins: tournamentType.rewards.baseRewards.coins ?? 0, seasonPoints: tournamentType.rewards.baseRewards.seasonPoints ?? 0, props: [], tickets: [] };
 
-    // if (tournamentType.rewards.baseRewards.props)
-    //     reward.props = [...tournamentType.rewards.baseRewards.props];
-    // if (tournamentType.rewards.baseRewards.tickets)
-    //     reward.tickets = [...tournamentType.rewards.baseRewards.tickets];
-    if (tournamentType.rewards.rankRewards) {
-        const rankReward = tournamentType.rewards.rankRewards.find((reward: any) => playerTournament.rank >= reward.rankRange[0] && playerTournament.rank <= reward.rankRange[1]);
+/**
+ * 更新玩家积分统计
+ * 使用新的积分系统更新玩家各类积分
+ */
+async function updatePlayerPointStats(ctx: any, uid: string, tournamentId: string, points: any) {
+    const nowISO = new Date().toISOString();
+    const seasonId = getCurrentSeasonId();
 
-        if (rankReward?.multiplier) {
-            reward.coins *= rankReward.multiplier;
-            reward.seasonPoints *= rankReward.multiplier;
-        }
+    try {
+        // 查找现有统计记录
+        const existingStats = await ctx.db
+            .query("player_point_stats")
+            .withIndex("by_uid_season", (q: any) => q.eq("uid", uid).eq("seasonId", seasonId))
+            .unique();
 
-        if (rankReward?.bonusProps) {
-            rankReward?.bonusProps?.forEach((prop: any) => {
-                const propIndex = reward.props.findIndex((p: any) => p.propId === prop.propId);
-                if (propIndex !== -1) {
-                    reward.props[propIndex].quantity += prop.quantity;
-                } else {
-                    reward.props.push(prop);
-                }
+        if (existingStats) {
+            // 更新现有记录
+            await ctx.db.patch(existingStats._id, {
+                totalRankPoints: existingStats.totalRankPoints + (points.rankPoints || 0),
+                totalSeasonPoints: existingStats.totalSeasonPoints + (points.seasonPoints || 0),
+                totalPrestigePoints: existingStats.totalPrestigePoints + (points.prestigePoints || 0),
+                totalAchievementPoints: existingStats.totalAchievementPoints + (points.achievementPoints || 0),
+                totalTournamentPoints: existingStats.totalTournamentPoints + (points.tournamentPoints || 0),
+                tournamentCount: existingStats.tournamentCount + 1,
+                tournamentWins: existingStats.tournamentWins + (points.rankPoints > 0 ? 1 : 0),
+                lastUpdated: nowISO
+            });
+        } else {
+            // 创建新记录
+            await ctx.db.insert("player_point_stats", {
+                uid,
+                seasonId,
+                totalRankPoints: points.rankPoints || 0,
+                totalSeasonPoints: points.seasonPoints || 0,
+                totalPrestigePoints: points.prestigePoints || 0,
+                totalAchievementPoints: points.achievementPoints || 0,
+                totalTournamentPoints: points.tournamentPoints || 0,
+                currentSegment: "bronze",
+                segmentProgress: 0,
+                segmentMatches: 1,
+                tournamentCount: 1,
+                tournamentWins: points.rankPoints > 0 ? 1 : 0,
+                bestTournamentRank: 1,
+                lastUpdated: nowISO,
+                seasonStartDate: getSeasonStartDate(),
+                seasonEndDate: getSeasonEndDate()
             });
         }
-        if (rankReward?.bonusTickets) {
-            rankReward?.bonusTickets?.forEach((ticket: any) => {
-                const ticketIndex = reward.tickets.findIndex((t: any) => t.type === ticket.type);
-                if (ticketIndex !== -1) {
-                    reward.tickets[ticketIndex].quantity += ticket.quantity;
-                } else {
-                    reward.tickets.push(ticket);
-                }
-            });
-        }
+
+        // 记录积分历史
+        await recordPointHistory(ctx, uid, tournamentId, `tournament_${tournamentId}`, points, "tournament_settlement");
+
+        console.log(`玩家 ${uid} 积分统计更新完成:`, points);
+
+    } catch (error) {
+        console.error(`更新玩家 ${uid} 积分统计失败:`, error);
+        throw error;
     }
+}
 
+/**
+ * 获取当前赛季ID
+ */
+function getCurrentSeasonId(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `season_${year}_${month}`;
+}
 
-    // if (rewards.segmentBonus) {
-    //     const segmentBonus = rewards.segmentBonus;
-    //     const segment = playerTournament.segment;
-    //     if (segmentBonus[segment]) {
-    //         playerTournament.coins += segmentBonus[segment];
-    //     }
-    // }
-    // if (rewards.subscriptionBonus) {
-    //     const subscriptionBonus = rewards.subscriptionBonus;
-    //     if (playerTournament.isSubscribed) {
-    //         playerTournament.coins += subscriptionBonus;
-    //     }
-    // }
-    // if (rewards.participationReward) {
-    //     return playerTournament;
-    // }
-    // if (rewards.streakBonus) {
-    //     const streakBonus = rewards.streakBonus;
-    //     if (playerTournament.streak >= streakBonus.minStreak) {
-    //         playerTournament.coins += streakBonus.bonusMultiplier;
-    //     }
-    // }
-    return reward;
+/**
+ * 获取赛季开始日期
+ */
+function getSeasonStartDate(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    return new Date(year, month, 1).toISOString();
+}
+
+/**
+ * 获取赛季结束日期
+ */
+function getSeasonEndDate(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    return new Date(year, month + 1, 0).toISOString();
+}
+
+/**
+ * 记录积分历史
+ */
+async function recordPointHistory(ctx: any, uid: string, tournamentId: string, matchId: string, points: any, source: string) {
+    const nowISO = new Date().toISOString();
+
+    try {
+        await ctx.db.insert("point_history", {
+            uid,
+            tournamentId,
+            matchId,
+            pointChanges: points,
+            changeReason: "锦标赛结算",
+            changeType: "increase",
+            changeSource: source,
+            createdAt: nowISO,
+            processedAt: nowISO
+        });
+    } catch (error) {
+        console.error(`记录积分历史失败:`, error);
+        // 不抛出错误，避免影响主要流程
+    }
 }
 
 export async function scheduleIsOpen(ctx: any,
