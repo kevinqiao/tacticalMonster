@@ -1,6 +1,7 @@
 /**
- * 分数门槛控制系统核心控制器
- * 整合段位系统和分数门槛系统
+ * 分数门槛控制系统级控制器
+ * 专注于系统级操作：比赛处理、批量操作、系统统计等
+ * 与ScoreThresholdPlayerController分工明确，避免功能重复
  */
 
 import { SegmentManager } from '../../segment/SegmentManager';
@@ -32,7 +33,7 @@ export interface DatabaseContext {
     auth: any;
 }
 
-export class ScoreThresholdController {
+export class ScoreThresholdSystemController {
     private ctx: DatabaseContext;
     private segmentManager: SegmentManager;
 
@@ -41,7 +42,8 @@ export class ScoreThresholdController {
         this.segmentManager = new SegmentManager(ctx);
     }
 
-    // ==================== 主要方法 ====================
+    // ==================== 系统级方法 ====================
+    // 专注于：比赛处理、批量操作、系统统计等
 
     /**
      * 处理比赛结束，计算排名和段位变化
@@ -57,7 +59,7 @@ export class ScoreThresholdController {
             const rankings = await this.calculateRankings(matchId, playerScores);
 
             // 2. 检查段位变化
-            const segmentChanges = await this.checkSegmentChanges(rankings);
+            const segmentChanges = await this.checkSegmentChanges(rankings, matchId);
 
             // 3. 更新玩家数据
             await this.updatePlayerData(rankings, segmentChanges);
@@ -79,6 +81,120 @@ export class ScoreThresholdController {
             console.error(`处理比赛结束时发生错误: ${matchId}`, error);
             throw new Error(`比赛处理失败: ${error instanceof Error ? error.message : String(error)}`);
         }
+    }
+
+    /**
+     * 批量获取多个玩家的排名
+     */
+    async getBatchRanksByScores(
+        playerScores: Array<{ uid: string; score: number }>
+    ): Promise<Array<{
+        uid: string;
+        rank: number;
+        rankingProbability: number;
+        segmentName: SegmentName;
+        protectionActive: boolean;
+        reason: string;
+    }>> {
+        try {
+            const results = [];
+
+            for (const player of playerScores) {
+                try {
+                    // 使用玩家级控制器获取单个玩家排名
+                    const playerController = new (await import('./ScoreThresholdPlayerController')).ScoreThresholdPlayerController(this.ctx);
+                    const rankInfo = await playerController.getRankByScore(player.uid, player.score);
+                    results.push({
+                        uid: player.uid,
+                        ...rankInfo
+                    });
+                } catch (error) {
+                    console.error(`获取玩家 ${player.uid} 排名失败:`, error);
+                    // 使用默认排名
+                    results.push({
+                        uid: player.uid,
+                        rank: playerScores.length,
+                        rankingProbability: 0.1,
+                        segmentName: 'bronze' as SegmentName,
+                        protectionActive: false,
+                        reason: '排名计算失败，使用默认排名'
+                    });
+                }
+            }
+
+            // 按排名排序
+            return results.sort((a, b) => a.rank - b.rank);
+
+        } catch (error) {
+            console.error('批量获取排名失败:', error);
+            throw new Error(`批量排名计算失败: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    /**
+     * 生成排名原因说明
+     */
+    private generateRankReason(
+        score: number,
+        rank: number,
+        config: ScoreThresholdConfig,
+        rankingProbability: number
+    ): string {
+        const reasons = [];
+
+        // 基于分数范围的原因
+        if (score >= 50000) {
+            reasons.push('超高分数表现');
+        } else if (score >= 20000) {
+            reasons.push('优秀分数表现');
+        } else if (score >= 10000) {
+            reasons.push('良好分数表现');
+        } else if (score >= 5000) {
+            reasons.push('中等分数表现');
+        } else if (score >= 1000) {
+            reasons.push('基础分数表现');
+        } else {
+            reasons.push('需要提升分数');
+        }
+
+        // 基于排名模式的原因
+        switch (config.rankingMode) {
+            case 'score_based':
+                reasons.push('基于分数排名');
+                break;
+            case 'segment_based':
+                reasons.push('基于段位排名');
+                break;
+            case 'hybrid':
+                reasons.push('混合模式排名');
+                break;
+        }
+
+        // 基于自适应模式的原因
+        switch (config.adaptiveMode) {
+            case 'static':
+                reasons.push('静态模式');
+                break;
+            case 'dynamic':
+                reasons.push('动态模式');
+                break;
+            case 'learning':
+                reasons.push(`学习模式(学习率: ${config.learningRate})`);
+                break;
+        }
+
+        // 基于概率的原因
+        if (rankingProbability >= 0.8) {
+            reasons.push('高概率排名');
+        } else if (rankingProbability >= 0.6) {
+            reasons.push('中高概率排名');
+        } else if (rankingProbability >= 0.4) {
+            reasons.push('中等概率排名');
+        } else {
+            reasons.push('低概率排名');
+        }
+
+        return reasons.join(' + ');
     }
 
     /**
@@ -116,7 +232,7 @@ export class ScoreThresholdController {
 
                 // 检查保护状态
                 const protectionStatus = await this.getPlayerProtectionStatus(player.uid);
-                const protectionActive = protectionStatus?.protectionLevel > 0;
+                const protectionActive = protectionStatus?.protectionLevel ? protectionStatus.protectionLevel > 0 : false;
 
                 const rankingResult: RankingResult = {
                     uid: player.uid,
@@ -152,7 +268,7 @@ export class ScoreThresholdController {
     /**
      * 检查段位变化
      */
-    async checkSegmentChanges(rankings: RankingResult[]): Promise<any[]> {
+    async checkSegmentChanges(rankings: RankingResult[], matchId: string): Promise<any[]> {
         const segmentChanges = [];
 
         for (const ranking of rankings) {
@@ -161,7 +277,7 @@ export class ScoreThresholdController {
                 const changeResult = await this.segmentManager.checkAndProcessSegmentChange(
                     ranking.uid,
                     ranking.points,
-                    ranking.matchId
+                    matchId
                 );
 
                 if (changeResult.changed) {
@@ -170,8 +286,8 @@ export class ScoreThresholdController {
                         oldSegment: changeResult.oldSegment,
                         newSegment: changeResult.newSegment,
                         changeType: changeResult.changeType,
-                        reason: changeResult.reason,
-                        matchId: ranking.matchId,
+                        reason: changeResult.reason || '段位变化',
+                        matchId: matchId,
                         createdAt: new Date().toISOString()
                     });
 
@@ -180,7 +296,7 @@ export class ScoreThresholdController {
                         changeType: changeResult.changeType,
                         oldSegment: changeResult.oldSegment,
                         newSegment: changeResult.newSegment,
-                        reason: changeResult.reason
+                        reason: changeResult.reason || '段位变化'
                     };
                 }
 
@@ -370,7 +486,21 @@ export class ScoreThresholdController {
      */
     private async getPlayerProtectionStatus(uid: string): Promise<PlayerProtectionStatus | null> {
         try {
-            return await this.segmentManager.getPlayerProtectionStatus(uid);
+            const protectionData = await this.segmentManager.getPlayerProtectionStatus(uid);
+            if (!protectionData) return null;
+
+            // 转换为PlayerProtectionStatus格式
+            return {
+                uid: protectionData.uid,
+                segmentName: protectionData.segmentName,
+                protectionLevel: protectionData.protectionLevel,
+                protectionThreshold: 5, // 默认值
+                demotionGracePeriod: 7, // 默认值
+                promotionStabilityPeriod: 5, // 默认值
+                lastSegmentChange: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
         } catch (error) {
             console.error(`获取玩家保护状态失败: ${uid}`, error);
             return null;
@@ -572,7 +702,8 @@ export class ScoreThresholdController {
         }
     }
 
-    // ==================== 统计查询 ====================
+    // ==================== 系统统计查询 ====================
+    // 专注于：系统级统计、段位分布、整体性能等
 
     /**
      * 获取系统统计信息
@@ -582,24 +713,24 @@ export class ScoreThresholdController {
             const totalPlayers = await this.ctx.db
                 .query("player_performance_metrics")
                 .collect()
-                .then(players => players.length);
+                .then((players: any[]) => players.length);
 
             const totalMatches = await this.ctx.db
                 .query("player_match_records")
                 .collect()
-                .then(records => new Set(records.map(r => r.matchId)).size);
+                .then((records: any[]) => new Set(records.map((r: any) => r.matchId)).size);
 
             const segmentDistribution = await this.ctx.db
                 .query("player_performance_metrics")
                 .collect()
-                .then(players => {
+                .then((players: any[]) => {
                     const distribution: Record<SegmentName, number> = {
                         bronze: 0, silver: 0, gold: 0, platinum: 0,
                         diamond: 0, master: 0, grandmaster: 0
                     };
-                    players.forEach(p => {
-                        if (distribution[p.segmentName]) {
-                            distribution[p.segmentName]++;
+                    players.forEach((p: any) => {
+                        if (p.segmentName && distribution[p.segmentName as SegmentName] !== undefined) {
+                            distribution[p.segmentName as SegmentName]++;
                         }
                     });
                     return distribution;

@@ -22,6 +22,7 @@ export interface ScoreThreshold {
 }
 
 export interface ScoreThresholdConfig {
+    _id?: string;
     uid: string;
     segmentName: SegmentName;
     scoreThresholds: ScoreThreshold[];

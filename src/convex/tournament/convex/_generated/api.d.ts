@@ -78,7 +78,8 @@ import type * as service_tournament_matchManager from "../service/tournament/mat
 import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
 import type * as service_tournament_pointCalculationExample from "../service/tournament/pointCalculationExample.js";
 import type * as service_tournament_pointCalculationService from "../service/tournament/pointCalculationService.js";
-import type * as service_tournament_scoreThresholdControl_ScoreThresholdController from "../service/tournament/scoreThresholdControl/ScoreThresholdController.js";
+import type * as service_tournament_scoreThresholdControl_ScoreThresholdPlayerController from "../service/tournament/scoreThresholdControl/ScoreThresholdPlayerController.js";
+import type * as service_tournament_scoreThresholdControl_ScoreThresholdSystemController from "../service/tournament/scoreThresholdControl/ScoreThresholdSystemController.js";
 import type * as service_tournament_scoreThresholdControl_config from "../service/tournament/scoreThresholdControl/config.js";
 import type * as service_tournament_scoreThresholdControl_configFunctions from "../service/tournament/scoreThresholdControl/configFunctions.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdExample from "../service/tournament/scoreThresholdControl/scoreThresholdExample.js";
@@ -177,7 +178,8 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;
   "service/tournament/pointCalculationExample": typeof service_tournament_pointCalculationExample;
   "service/tournament/pointCalculationService": typeof service_tournament_pointCalculationService;
-  "service/tournament/scoreThresholdControl/ScoreThresholdController": typeof service_tournament_scoreThresholdControl_ScoreThresholdController;
+  "service/tournament/scoreThresholdControl/ScoreThresholdPlayerController": typeof service_tournament_scoreThresholdControl_ScoreThresholdPlayerController;
+  "service/tournament/scoreThresholdControl/ScoreThresholdSystemController": typeof service_tournament_scoreThresholdControl_ScoreThresholdSystemController;
   "service/tournament/scoreThresholdControl/config": typeof service_tournament_scoreThresholdControl_config;
   "service/tournament/scoreThresholdControl/configFunctions": typeof service_tournament_scoreThresholdControl_configFunctions;
   "service/tournament/scoreThresholdControl/scoreThresholdExample": typeof service_tournament_scoreThresholdControl_scoreThresholdExample;
