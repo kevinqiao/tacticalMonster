@@ -8,6 +8,7 @@ import {
     AdaptiveMode,
     RankingMode,
     ScoreThreshold,
+    ScoreThresholdConfig,
     ScoreThresholdSystemConfig,
     SegmentProtectionConfig
 } from './types';
@@ -189,6 +190,86 @@ export const DEFAULT_ADAPTIVE_MODES: Record<SegmentName, AdaptiveMode> = {
     grandmaster: 'learning'
 };
 
+// ==================== 混合模式段位配置 ====================
+
+export const HYBRID_SEGMENT_CONFIGS: Record<SegmentName, {
+    scoreThresholds: ScoreThreshold[];
+    adaptiveMode: AdaptiveMode;
+    learningRate: number;
+    maxRank: number;
+}> = {
+    bronze: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 1000, rankingProbabilities: [0.15, 0.25, 0.35, 0.25], priority: 1, segmentName: "bronze" },
+            { minScore: 1001, maxScore: 2000, rankingProbabilities: [0.20, 0.30, 0.30, 0.20], priority: 2, segmentName: "bronze" },
+            { minScore: 2001, maxScore: 3000, rankingProbabilities: [0.25, 0.35, 0.25, 0.15], priority: 3, segmentName: "bronze" }
+        ],
+        adaptiveMode: "learning",
+        learningRate: 0.05
+    },
+    silver: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 1500, rankingProbabilities: [0.20, 0.30, 0.30, 0.20], priority: 1, segmentName: "silver" },
+            { minScore: 1501, maxScore: 2500, rankingProbabilities: [0.25, 0.35, 0.25, 0.15], priority: 2, segmentName: "silver" },
+            { minScore: 2501, maxScore: 3500, rankingProbabilities: [0.30, 0.35, 0.20, 0.15], priority: 3, segmentName: "silver" }
+        ],
+        adaptiveMode: "learning",
+        learningRate: 0.08
+    },
+    gold: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 2000, rankingProbabilities: [0.25, 0.35, 0.25, 0.15], priority: 1, segmentName: "gold" },
+            { minScore: 2001, maxScore: 3000, rankingProbabilities: [0.30, 0.35, 0.20, 0.15], priority: 2, segmentName: "gold" },
+            { minScore: 3001, maxScore: 4000, rankingProbabilities: [0.35, 0.30, 0.20, 0.15], priority: 3, segmentName: "gold" }
+        ],
+        adaptiveMode: "learning",
+        learningRate: 0.12
+    },
+    platinum: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 2500, rankingProbabilities: [0.30, 0.35, 0.20, 0.15], priority: 1, segmentName: "platinum" },
+            { minScore: 2501, maxScore: 3500, rankingProbabilities: [0.35, 0.30, 0.20, 0.15], priority: 2, segmentName: "platinum" },
+            { minScore: 3501, maxScore: 4500, rankingProbabilities: [0.40, 0.30, 0.20, 0.10], priority: 3, segmentName: "platinum" }
+        ],
+        adaptiveMode: "learning",
+        learningRate: 0.15
+    },
+    diamond: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 3000, rankingProbabilities: [0.35, 0.35, 0.20, 0.10], priority: 1, segmentName: "diamond" },
+            { minScore: 3001, maxScore: 4000, rankingProbabilities: [0.40, 0.30, 0.20, 0.10], priority: 2, segmentName: "diamond" },
+            { minScore: 4001, maxScore: 5000, rankingProbabilities: [0.45, 0.30, 0.15, 0.10], priority: 3, segmentName: "diamond" }
+        ],
+        adaptiveMode: "learning",
+        learningRate: 0.18
+    },
+    master: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 4000, rankingProbabilities: [0.40, 0.35, 0.15, 0.10], priority: 1, segmentName: "master" },
+            { minScore: 4001, maxScore: 6000, rankingProbabilities: [0.45, 0.30, 0.15, 0.10], priority: 2, segmentName: "master" },
+            { minScore: 6001, maxScore: 8000, rankingProbabilities: [0.50, 0.30, 0.15, 0.05], priority: 3, segmentName: "master" }
+        ],
+        adaptiveMode: "learning",
+        learningRate: 0.20
+    },
+    grandmaster: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 5000, rankingProbabilities: [0.45, 0.35, 0.15, 0.05], priority: 1, segmentName: "grandmaster" },
+            { minScore: 5001, maxScore: 8000, rankingProbabilities: [0.50, 0.30, 0.15, 0.05], priority: 2, segmentName: "grandmaster" },
+            { minScore: 8001, maxScore: 10000, rankingProbabilities: [0.55, 0.30, 0.10, 0.05], priority: 3, segmentName: "grandmaster" }
+        ],
+        adaptiveMode: "learning",
+        learningRate: 0.25
+    }
+};
+
 // ==================== 辅助函数 ====================
 
 /**
@@ -258,4 +339,64 @@ export function validateRankingProbabilities(probabilities: number[]): boolean {
 
     const sum = probabilities.reduce((a, b) => a + b, 0);
     return Math.abs(sum - 1) <= 0.01; // 允许1%的误差
+}
+
+/**
+ * 获取混合模式配置
+ */
+export function getHybridSegmentConfig(segmentName: SegmentName) {
+    return HYBRID_SEGMENT_CONFIGS[segmentName] || HYBRID_SEGMENT_CONFIGS.bronze;
+}
+
+/**
+ * 获取混合模式分数门槛
+ */
+export function getHybridScoreThresholds(segmentName: SegmentName): ScoreThreshold[] {
+    const config = getHybridSegmentConfig(segmentName);
+    return config.scoreThresholds;
+}
+
+/**
+ * 获取混合模式最大名次
+ */
+export function getHybridMaxRank(segmentName: SegmentName): number {
+    const config = getHybridSegmentConfig(segmentName);
+    return config.maxRank;
+}
+
+/**
+ * 获取混合模式自适应模式
+ */
+export function getHybridAdaptiveMode(segmentName: SegmentName): AdaptiveMode {
+    const config = getHybridSegmentConfig(segmentName);
+    return config.adaptiveMode;
+}
+
+/**
+ * 获取混合模式学习率
+ */
+export function getHybridLearningRate(segmentName: SegmentName): number {
+    const config = getHybridSegmentConfig(segmentName);
+    return config.learningRate;
+}
+
+/**
+ * 创建玩家默认混合配置
+ */
+export function createDefaultHybridConfig(uid: string, segmentName: SegmentName): ScoreThresholdConfig {
+    const hybridConfig = getHybridSegmentConfig(segmentName);
+
+    return {
+        uid,
+        segmentName,
+        scoreThresholds: hybridConfig.scoreThresholds,
+        baseRankingProbability: getDefaultRankingProbabilities(segmentName),
+        maxRank: hybridConfig.maxRank,
+        adaptiveMode: hybridConfig.adaptiveMode,
+        learningRate: hybridConfig.learningRate,
+        rankingMode: getRankingMode(segmentName),
+        autoAdjustLearningRate: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
 }

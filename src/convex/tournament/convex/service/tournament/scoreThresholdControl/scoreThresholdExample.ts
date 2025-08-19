@@ -5,8 +5,9 @@
  */
 
 import { SegmentName } from '../../segment/types';
-import { ScoreThresholdIntegration } from './scoreThresholdIntegration';
-import { PlayerScoreThresholdConfig, ScoreThreshold } from './scoreThresholdRankingController';
+import { createDefaultHybridConfig } from './config';
+import { ScoreThresholdPlayerController } from './ScoreThresholdPlayerController';
+import { ScoreThresholdSystemController } from './ScoreThresholdSystemController';
 
 export class ScoreThresholdExample {
     /**
@@ -17,37 +18,31 @@ export class ScoreThresholdExample {
 
         try {
             // 1. 初始化玩家
-            const playerData = await ScoreThresholdIntegration.initializePlayer(ctx, {
-                uid: "player_001",
-                segmentName: "gold",
-                useHybridMode: true
-            });
+            const playerController = new ScoreThresholdPlayerController(ctx);
+            const defaultConfig = await playerController.createPlayerDefaultConfig("player_001", "gold");
 
             console.log("玩家初始化成功:", {
-                uid: playerData.uid,
-                segment: playerData.segmentName,
-                adaptiveMode: playerData.scoreThresholdConfig.adaptiveMode,
-                learningRate: playerData.scoreThresholdConfig.learningRate,
-                maxRank: playerData.scoreThresholdConfig.maxRank
+                uid: defaultConfig.uid,
+                segment: defaultConfig.segmentName,
+                adaptiveMode: defaultConfig.adaptiveMode,
+                learningRate: defaultConfig.learningRate,
+                maxRank: defaultConfig.maxRank
             });
 
-            // 2. 记录比赛结果
-            await ScoreThresholdIntegration.recordMatchResult(ctx, {
-                matchId: "match_001",
-                uid: "player_001",
-                score: 2500,
-                rank: 2,
-                points: 15
+            // 2. 获取玩家排名
+            const rankInfo = await playerController.getRankByScore("player_001", 2500);
+            console.log("玩家排名信息:", {
+                rank: rankInfo.rank,
+                probability: rankInfo.rankingProbability,
+                reason: rankInfo.reason
             });
-
-            console.log("比赛结果记录成功");
 
             // 3. 获取玩家统计
-            const stats = await ScoreThresholdIntegration.getPlayerStats(ctx, "player_001");
+            const metrics = await playerController.getPlayerPerformanceMetrics("player_001");
             console.log("玩家统计:", {
-                totalMatches: stats?.performanceMetrics.totalMatches,
-                totalWins: stats?.performanceMetrics.totalWins,
-                currentWinStreak: stats?.performanceMetrics.currentWinStreak
+                totalMatches: metrics?.totalMatches || 0,
+                totalWins: metrics?.totalWins || 0,
+                currentWinStreak: metrics?.currentWinStreak || 0
             });
 
         } catch (error) {
@@ -66,7 +61,7 @@ export class ScoreThresholdExample {
             const segments: SegmentName[] = ["bronze", "silver", "gold", "platinum", "diamond"];
 
             for (const segment of segments) {
-                const config = ScoreThresholdIntegration.createHybridModeConfig(`player_${segment}`, segment);
+                const config = createDefaultHybridConfig(`player_${segment}`, segment);
 
                 console.log(`${segment} 段位配置:`, {
                     learningRate: config.learningRate,
@@ -77,11 +72,8 @@ export class ScoreThresholdExample {
                 });
 
                 // 初始化玩家
-                await ScoreThresholdIntegration.initializePlayer(ctx, {
-                    uid: `player_${segment}`,
-                    segmentName: segment,
-                    useHybridMode: true
-                });
+                const playerController = new ScoreThresholdPlayerController(ctx);
+                await playerController.createPlayerDefaultConfig(`player_${segment}`, segment);
             }
 
             console.log("混合模式配置完成");
@@ -98,43 +90,26 @@ export class ScoreThresholdExample {
         console.log("=== 段位升级示例 ===");
 
         try {
-            // 模拟玩家从青铜升级到白银
-            const oldSegment = "bronze";
-            const newSegment = "silver";
+            const playerController = new ScoreThresholdPlayerController(ctx);
+            const systemController = new ScoreThresholdSystemController(ctx);
 
-            // 创建升级配置
-            const upgradeConfig = ScoreThresholdIntegration.createSegmentUpgradeConfig(
-                "player_upgrade_test",
-                oldSegment,
-                newSegment
-            );
+            // 1. 创建玩家配置
+            const config = await playerController.createPlayerDefaultConfig("upgrade_player", "bronze");
+            console.log("初始段位:", config.segmentName);
 
-            console.log("段位升级配置:", {
-                oldSegment,
-                newSegment,
-                newLearningRate: upgradeConfig.learningRate,
-                newThresholdCount: upgradeConfig.scoreThresholds.length,
-                newMaxRank: upgradeConfig.maxRank
-            });
-
-            // 比较两个段位的配置差异
-            const comparison = ScoreThresholdIntegration.compareSegmentConfigs(oldSegment, newSegment);
-            if (comparison) {
-                console.log("段位配置对比:", {
-                    learningRateDifference: comparison.differences.learningRate.difference,
-                    rank1ProbabilityDifference: comparison.differences.avgRank1Probability.difference,
-                    protectionLevelDifference: comparison.differences.protectionLevel.difference
-                });
+            // 2. 模拟多次胜利
+            for (let i = 1; i <= 5; i++) {
+                const rankInfo = await playerController.getRankByScore("upgrade_player", 1500 + i * 100);
+                console.log(`第${i}次比赛: 排名${rankInfo.rank}, 概率${rankInfo.rankingProbability.toFixed(2)}`);
             }
 
-            // 初始化升级后的玩家
-            await ScoreThresholdIntegration.initializePlayer(ctx, {
-                uid: "player_upgrade_test",
-                segmentName: newSegment,
-                useHybridMode: true
-            });
+            // 3. 检查升级条件
+            const canPromote = await playerController.canPlayerPromote("upgrade_player");
+            console.log("是否可以升级:", canPromote);
 
-            console.log("段位升级示例完成");
+            // 4. 检查段位变化
+            const segmentChange = await playerController.checkSegmentChange("upgrade_player", 50);
+            console.log("段位变化检查:", segmentChange);
 
         } catch (error) {
             console.error("段位升级示例执行失败:", error);
@@ -142,185 +117,40 @@ export class ScoreThresholdExample {
     }
 
     /**
-     * 自定义配置示例 - 支持动态N名次
+     * 自适应学习示例
      */
-    static async customConfigExample(ctx: any) {
-        console.log("=== 自定义配置示例 ===");
+    static async adaptiveLearningExample(ctx: any) {
+        console.log("=== 自适应学习示例 ===");
 
         try {
-            // 创建自定义分数门槛配置 - 支持5名次
-            const customThresholds: ScoreThreshold[] = [
-                {
-                    minScore: 0,
-                    maxScore: 1000,
-                    rankingProbabilities: [0.10, 0.20, 0.30, 0.25, 0.15], // 5名次概率
-                    priority: 1
-                },
-                {
-                    minScore: 1001,
-                    maxScore: 2000,
-                    rankingProbabilities: [0.25, 0.30, 0.25, 0.15, 0.05], // 5名次概率
-                    priority: 2
-                },
-                {
-                    minScore: 2001,
-                    maxScore: 3000,
-                    rankingProbabilities: [0.40, 0.30, 0.20, 0.08, 0.02], // 5名次概率
-                    priority: 3
-                }
+            const playerController = new ScoreThresholdPlayerController(ctx);
+
+            // 1. 创建学习模式配置
+            const config = await playerController.createPlayerDefaultConfig("learning_player", "gold");
+            console.log("初始学习率:", config.learningRate);
+
+            // 2. 模拟不同表现
+            const scenarios = [
+                { score: 3000, expectedRank: 1, description: "优秀表现" },
+                { score: 2500, expectedRank: 2, description: "良好表现" },
+                { score: 2000, expectedRank: 3, description: "一般表现" },
+                { score: 1500, expectedRank: 4, description: "需要改进" }
             ];
 
-            // 验证配置
-            const customConfig: PlayerScoreThresholdConfig = {
-                uid: "player_custom",
-                segmentName: "gold",
-                scoreThresholds: customThresholds,
-                baseRankingProbability: [0.25, 0.27, 0.25, 0.16, 0.07], // 5名次基础概率
-                maxRank: 5, // 支持5名次
-                adaptiveMode: true,
-                learningRate: 0.15,
-                autoAdjustLearningRate: false,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
+            for (const scenario of scenarios) {
+                const rankInfo = await playerController.getRankByScore("learning_player", scenario.score);
+                console.log(`${scenario.description}: 分数${scenario.score}, 实际排名${rankInfo.rank}, 预期排名${scenario.expectedRank}`);
 
-            const validation = ScoreThresholdIntegration.validateScoreThresholdConfig(customConfig);
-            console.log("配置验证结果:", {
-                isValid: validation.isValid,
-                errors: validation.errors,
-                warnings: validation.warnings
-            });
-
-            if (validation.isValid) {
-                // 应用自定义配置
-                await ScoreThresholdIntegration.adjustScoreThresholds(ctx, {
-                    uid: "player_custom",
-                    scoreThresholds: customThresholds,
-                    adaptiveMode: true,
-                    learningRate: 0.15
-                });
-
-                console.log("自定义配置应用成功 - 支持5名次");
+                // 自动调整学习率
+                await playerController.autoAdjustLearningRate("learning_player");
             }
 
-        } catch (error) {
-            console.error("自定义配置示例执行失败:", error);
-        }
-    }
-
-    /**
-     * 比赛结束示例 - 支持动态N名次
-     */
-    static async endMatchExample(ctx: any) {
-        console.log("=== 比赛结束示例 ===");
-
-        try {
-            // 模拟结束一场比赛 - 支持5名次
-            const matchResult = await ScoreThresholdIntegration.endMatch(ctx, {
-                matchId: "match_end_example",
-                humanPlayerUid: "player_001",
-                humanScore: 2800,
-                targetRank: 2, // 目标第2名
-                aiPlayerCount: 4 // 4个AI玩家，总共5名次
-            });
-
-            console.log("比赛结束结果:", {
-                aiScores: matchResult.aiScores,
-                finalRankings: matchResult.finalRankings
-            });
-
-            // 验证目标名次是否达成
-            const humanRanking = matchResult.finalRankings.find(r => r.uid === "player_001");
-            if (humanRanking && humanRanking.rank === 2) {
-                console.log("✅ 目标名次达成: 玩家获得第2名");
-            } else {
-                console.log("❌ 目标名次未达成: 玩家实际排名", humanRanking?.rank);
-            }
+            // 3. 查看调整后的配置
+            const updatedConfig = await playerController.getPlayerConfig("learning_player");
+            console.log("调整后学习率:", updatedConfig?.learningRate);
 
         } catch (error) {
-            console.error("比赛结束示例执行失败:", error);
-        }
-    }
-
-    /**
-     * 动态名次配置示例
-     */
-    static async dynamicRankingExample(ctx: any) {
-        console.log("=== 动态名次配置示例 ===");
-
-        try {
-            // 测试不同名次数量的配置
-            const rankConfigs = [
-                { name: "3名次配置", maxRank: 3, probabilities: [0.40, 0.35, 0.25] },
-                { name: "4名次配置", maxRank: 4, probabilities: [0.35, 0.30, 0.25, 0.10] },
-                { name: "5名次配置", maxRank: 5, probabilities: [0.30, 0.25, 0.20, 0.15, 0.10] },
-                { name: "6名次配置", maxRank: 6, probabilities: [0.25, 0.20, 0.18, 0.17, 0.12, 0.08] }
-            ];
-
-            for (const config of rankConfigs) {
-                const customThresholds: ScoreThreshold[] = [
-                    {
-                        minScore: 0,
-                        maxScore: 1000,
-                        rankingProbabilities: config.probabilities,
-                        priority: 1
-                    }
-                ];
-
-                const playerConfig: PlayerScoreThresholdConfig = {
-                    uid: `player_${config.maxRank}ranks`,
-                    segmentName: "bronze",
-                    scoreThresholds: customThresholds,
-                    baseRankingProbability: config.probabilities,
-                    maxRank: config.maxRank,
-                    adaptiveMode: false,
-                    learningRate: 0.1,
-                    autoAdjustLearningRate: false,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-
-                console.log(`${config.name}:`, {
-                    maxRank: playerConfig.maxRank,
-                    probabilities: playerConfig.baseRankingProbability,
-                    totalProbability: playerConfig.baseRankingProbability.reduce((sum, p) => sum + p, 0)
-                });
-            }
-
-            console.log("动态名次配置示例完成");
-
-        } catch (error) {
-            console.error("动态名次配置示例执行失败:", error);
-        }
-    }
-
-    /**
-     * 系统状态监控示例
-     */
-    static async systemMonitoringExample(ctx: any) {
-        console.log("=== 系统状态监控示例 ===");
-
-        try {
-            // 获取系统状态概览
-            const systemStatus = await ScoreThresholdIntegration.getSystemStatus(ctx);
-
-            console.log("系统状态概览:", {
-                totalPlayers: systemStatus.totalPlayers,
-                activeMatches: systemStatus.activeMatches,
-                segmentDistribution: systemStatus.segmentDistribution,
-                averageLearningRate: systemStatus.averageLearningRate.toFixed(3),
-                adaptiveModeEnabled: systemStatus.adaptiveModeEnabled
-            });
-
-            // 分析段位分布
-            console.log("段位分布分析:");
-            for (const [segment, count] of Object.entries(systemStatus.segmentDistribution)) {
-                const percentage = ((count / systemStatus.totalPlayers) * 100).toFixed(1);
-                console.log(`  ${segment}: ${count} 人 (${percentage}%)`);
-            }
-
-        } catch (error) {
-            console.error("系统监控示例执行失败:", error);
+            console.error("自适应学习示例执行失败:", error);
         }
     }
 
@@ -331,32 +161,90 @@ export class ScoreThresholdExample {
         console.log("=== 批量操作示例 ===");
 
         try {
-            // 批量更新多个玩家的学习率
-            const updates = [
-                { uid: "player_001", learningRate: 0.12 },
-                { uid: "player_002", learningRate: 0.15 },
-                { uid: "player_003", learningRate: 0.18 },
-                { uid: "player_004", adaptiveMode: true },
-                { uid: "player_005", adaptiveMode: false }
+            const systemController = new ScoreThresholdSystemController(ctx);
+
+            // 1. 批量处理比赛
+            const matches = [
+                {
+                    matchId: "batch_001", playerScores: [
+                        { uid: "player_001", score: 2500, points: 15 },
+                        { uid: "player_002", score: 2300, points: 10 },
+                        { uid: "player_003", score: 2100, points: 5 }
+                    ]
+                },
+                {
+                    matchId: "batch_002", playerScores: [
+                        { uid: "player_004", score: 2800, points: 20 },
+                        { uid: "player_005", score: 2600, points: 15 },
+                        { uid: "player_006", score: 2400, points: 10 }
+                    ]
+                }
             ];
 
-            const result = await ScoreThresholdIntegration.batchUpdatePlayerConfigs(ctx, updates);
-
-            console.log("批量更新结果:", {
-                success: result.success,
-                failed: result.failed,
-                errors: result.errors
-            });
-
-            if (result.errors.length > 0) {
-                console.log("更新失败的玩家:");
-                for (const error of result.errors) {
-                    console.log(`  ${error.uid}: ${error.error}`);
+            // 逐个处理比赛
+            const batchResults = [];
+            for (const match of matches) {
+                try {
+                    const result = await systemController.processMatchEnd(match.matchId, match.playerScores);
+                    batchResults.push({ matchId: match.matchId, success: true, result });
+                } catch (error) {
+                    batchResults.push({
+                        matchId: match.matchId,
+                        success: false,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
                 }
             }
+            console.log("批量处理结果:", batchResults);
+
+            // 2. 批量获取排名
+            const playerScores = [
+                { uid: "player_001", score: 2500 },
+                { uid: "player_002", score: 2300 },
+                { uid: "player_003", score: 2100 }
+            ];
+
+            const batchRanks = await systemController.getBatchRanksByScores(playerScores);
+            console.log("批量排名结果:", batchRanks);
 
         } catch (error) {
             console.error("批量操作示例执行失败:", error);
+        }
+    }
+
+    /**
+     * 配置优化示例
+     */
+    static async configOptimizationExample(ctx: any) {
+        console.log("=== 配置优化示例 ===");
+
+        try {
+            const playerController = new ScoreThresholdPlayerController(ctx);
+
+            // 1. 创建基础配置
+            const config = await playerController.createPlayerDefaultConfig("optimize_player", "platinum");
+            console.log("原始配置:", {
+                learningRate: config.learningRate,
+                adaptiveMode: config.adaptiveMode,
+                thresholdCount: config.scoreThresholds.length
+            });
+
+            // 2. 切换自适应模式
+            await playerController.toggleAdaptiveMode("optimize_player");
+            const updatedConfig = await playerController.getPlayerConfig("optimize_player");
+            console.log("切换后模式:", updatedConfig?.adaptiveMode);
+
+            // 3. 调整分数门槛
+            const adjustments = {
+                learningRate: 0.2,
+                adaptiveMode: "learning" as const
+            };
+
+            const adjustResult = await playerController.adjustScoreThresholds("optimize_player", adjustments);
+            console.log("调整结果:", adjustResult);
+
+        } catch (error) {
+            console.error("配置优化示例执行失败:", error);
         }
     }
 
@@ -367,36 +255,42 @@ export class ScoreThresholdExample {
         console.log("=== 性能测试示例 ===");
 
         try {
+            const playerController = new ScoreThresholdPlayerController(ctx);
+            const systemController = new ScoreThresholdSystemController(ctx);
+
             const startTime = Date.now();
 
-            // 模拟大量玩家初始化
+            // 1. 批量创建玩家
             const playerCount = 100;
-            const promises = [];
-
+            const players = [];
             for (let i = 0; i < playerCount; i++) {
-                const uid = `perf_test_player_${i.toString().padStart(3, '0')}`;
-                const segment: SegmentName = ["bronze", "silver", "gold"][i % 3] as SegmentName;
-
-                promises.push(
-                    ScoreThresholdIntegration.initializePlayer(ctx, {
-                        uid,
-                        segmentName: segment,
-                        useHybridMode: true
-                    })
-                );
+                const uid = `perf_player_${i.toString().padStart(3, '0')}`;
+                const segment = ["bronze", "silver", "gold"][i % 3] as SegmentName;
+                players.push({ uid, segment });
             }
 
-            await Promise.all(promises);
+            // 2. 批量初始化
+            for (const player of players) {
+                await playerController.createPlayerDefaultConfig(player.uid, player.segment);
+            }
+
+            // 3. 批量排名计算
+            const scores = players.map(player => ({
+                uid: player.uid,
+                score: Math.floor(Math.random() * 5000) + 1000
+            }));
+
+            const ranks = await systemController.getBatchRanksByScores(scores);
+
             const endTime = Date.now();
+            const duration = endTime - startTime;
 
-            console.log(`性能测试完成: ${playerCount} 个玩家初始化耗时 ${endTime - startTime}ms`);
-
-            // 测试批量查询性能
-            const queryStartTime = Date.now();
-            const allPlayers = await ScoreThresholdIntegration.getAllPlayers(ctx);
-            const queryEndTime = Date.now();
-
-            console.log(`批量查询性能: ${allPlayers.length} 个玩家数据查询耗时 ${queryEndTime - queryStartTime}ms`);
+            console.log("性能测试结果:", {
+                playerCount,
+                duration: `${duration}ms`,
+                avgTimePerPlayer: `${duration / playerCount}ms`,
+                successCount: ranks.length
+            });
 
         } catch (error) {
             console.error("性能测试示例执行失败:", error);
@@ -407,66 +301,20 @@ export class ScoreThresholdExample {
      * 运行所有示例
      */
     static async runAllExamples(ctx: any) {
-        console.log("🚀 开始运行所有示例...\n");
+        console.log("🚀 开始运行所有示例...");
 
         try {
             await this.basicUsageExample(ctx);
-            console.log();
-
             await this.hybridModeExample(ctx);
-            console.log();
-
             await this.segmentUpgradeExample(ctx);
-            console.log();
-
-            await this.customConfigExample(ctx);
-            console.log();
-
-            await this.endMatchExample(ctx);
-            console.log();
-
-            await this.dynamicRankingExample(ctx);
-            console.log();
-
-            await this.systemMonitoringExample(ctx);
-            console.log();
-
+            await this.adaptiveLearningExample(ctx);
             await this.batchOperationExample(ctx);
-            console.log();
-
+            await this.configOptimizationExample(ctx);
             await this.performanceTestExample(ctx);
-            console.log();
 
-            console.log("✅ 所有示例运行完成!");
-
+            console.log("✅ 所有示例运行完成！");
         } catch (error) {
-            console.error("❌ 示例运行过程中出现错误:", error);
-        }
-    }
-
-    /**
-     * 运行特定示例
-     */
-    static async runSpecificExample(ctx: any, exampleName: string) {
-        const examples: Record<string, (ctx: any) => Promise<void>> = {
-            "basic": this.basicUsageExample,
-            "hybrid": this.hybridModeExample,
-            "upgrade": this.segmentUpgradeExample,
-            "custom": this.customConfigExample,
-            "endMatch": this.endMatchExample,
-            "dynamicRanking": this.dynamicRankingExample,
-            "monitoring": this.systemMonitoringExample,
-            "batch": this.batchOperationExample,
-            "performance": this.performanceTestExample
-        };
-
-        const example = examples[exampleName];
-        if (example) {
-            console.log(`🚀 运行示例: ${exampleName}`);
-            await example.call(this, ctx);
-        } else {
-            console.error(`❌ 未知示例: ${exampleName}`);
-            console.log("可用示例:", Object.keys(examples).join(", "));
+            console.error("❌ 示例运行失败:", error);
         }
     }
 }

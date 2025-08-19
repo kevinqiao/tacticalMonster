@@ -85,7 +85,6 @@ import type * as service_tournament_scoreThresholdControl_configFunctions from "
 import type * as service_tournament_scoreThresholdControl_scoreThresholdExample from "../service/tournament/scoreThresholdControl/scoreThresholdExample.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdFunctions from "../service/tournament/scoreThresholdControl/scoreThresholdFunctions.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdIntegration from "../service/tournament/scoreThresholdControl/scoreThresholdIntegration.js";
-import type * as service_tournament_scoreThresholdControl_scoreThresholdRankingController from "../service/tournament/scoreThresholdControl/scoreThresholdRankingController.js";
 import type * as service_tournament_scoreThresholdControl_scoreThresholdSchema from "../service/tournament/scoreThresholdControl/scoreThresholdSchema.js";
 import type * as service_tournament_scoreThresholdControl_testFunctions from "../service/tournament/scoreThresholdControl/testFunctions.js";
 import type * as service_tournament_scoreThresholdControl_types from "../service/tournament/scoreThresholdControl/types.js";
@@ -185,7 +184,6 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/scoreThresholdControl/scoreThresholdExample": typeof service_tournament_scoreThresholdControl_scoreThresholdExample;
   "service/tournament/scoreThresholdControl/scoreThresholdFunctions": typeof service_tournament_scoreThresholdControl_scoreThresholdFunctions;
   "service/tournament/scoreThresholdControl/scoreThresholdIntegration": typeof service_tournament_scoreThresholdControl_scoreThresholdIntegration;
-  "service/tournament/scoreThresholdControl/scoreThresholdRankingController": typeof service_tournament_scoreThresholdControl_scoreThresholdRankingController;
   "service/tournament/scoreThresholdControl/scoreThresholdSchema": typeof service_tournament_scoreThresholdControl_scoreThresholdSchema;
   "service/tournament/scoreThresholdControl/testFunctions": typeof service_tournament_scoreThresholdControl_testFunctions;
   "service/tournament/scoreThresholdControl/types": typeof service_tournament_scoreThresholdControl_types;

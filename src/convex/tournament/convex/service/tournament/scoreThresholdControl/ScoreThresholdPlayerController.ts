@@ -5,8 +5,9 @@
  */
 import { canDemote, canPromote, getSegmentRule, getSegmentTier } from '../../segment/config';
 import { SegmentManager } from '../../segment/SegmentManager';
-import { SegmentName } from '../../segment/types';
+import { ChangeType, SegmentName } from '../../segment/types';
 import {
+    createDefaultHybridConfig,
     getAdaptiveMode,
     getDefaultRankingProbabilities,
     getDefaultScoreThresholds,
@@ -120,30 +121,106 @@ export class ScoreThresholdPlayerController {
     /**
      * 创建玩家默认配置
      */
-    async createPlayerDefaultConfig(uid: string, segmentName: SegmentName): Promise<boolean> {
+    async createPlayerDefaultConfig(uid: string, segmentName?: SegmentName): Promise<ScoreThresholdConfig> {
         try {
-            const existingConfig = await this.getPlayerConfig(uid);
-            if (existingConfig) return true; // 配置已存在
+            // 如果没有指定段位，获取玩家当前段位
+            let targetSegmentName = segmentName;
+            if (!targetSegmentName) {
+                const segmentInfo = await this.getPlayerSegmentInfo(uid);
+                targetSegmentName = segmentInfo?.currentSegment || 'bronze';
+            }
 
-            const defaultConfig: ScoreThresholdConfig = {
+            // 使用混合模式配置创建默认配置
+            return createDefaultHybridConfig(uid, targetSegmentName);
+        } catch (error) {
+            console.error(`创建玩家默认配置失败: ${uid}`, error);
+            // 返回基础配置作为后备
+            const fallbackSegmentName = segmentName || 'bronze';
+            return {
                 uid,
-                segmentName,
-                scoreThresholds: getDefaultScoreThresholds(segmentName),
-                baseRankingProbability: getDefaultRankingProbabilities(segmentName),
+                segmentName: fallbackSegmentName,
+                scoreThresholds: getDefaultScoreThresholds(fallbackSegmentName),
+                baseRankingProbability: getDefaultRankingProbabilities(fallbackSegmentName),
                 maxRank: 4,
-                adaptiveMode: getAdaptiveMode(segmentName),
-                learningRate: getLearningRate(segmentName),
+                adaptiveMode: 'static',
+                learningRate: 0.1,
+                rankingMode: 'hybrid',
                 autoAdjustLearningRate: true,
-                rankingMode: getRankingMode(segmentName),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             };
+        }
+    }
 
-            await this.ctx.db.insert("player_score_threshold_configs", defaultConfig);
-            return true;
+    /**
+     * 获取混合模式配置
+     */
+    async getHybridConfig(uid: string): Promise<ScoreThresholdConfig | null> {
+        try {
+            const config = await this.getPlayerConfig(uid);
+            if (!config) return null;
 
+            // 如果当前配置不是混合模式，转换为混合模式
+            if (config.adaptiveMode !== 'learning' || config.rankingMode !== 'hybrid') {
+                const hybridConfig = createDefaultHybridConfig(uid, config.segmentName);
+                await this.updatePlayerConfig(uid, {
+                    scoreThresholds: hybridConfig.scoreThresholds,
+                    maxRank: hybridConfig.maxRank,
+                    adaptiveMode: hybridConfig.adaptiveMode,
+                    learningRate: hybridConfig.learningRate,
+                    rankingMode: hybridConfig.rankingMode
+                });
+                return hybridConfig;
+            }
+
+            return config;
         } catch (error) {
-            console.error(`创建玩家默认配置失败: ${uid}`, error);
+            console.error(`获取混合模式配置失败: ${uid}`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 切换自适应模式
+     */
+    async toggleAdaptiveMode(uid: string): Promise<void> {
+        try {
+            const config = await this.getPlayerConfig(uid);
+            if (!config) return;
+
+            // 在三种模式之间循环切换
+            const modes: AdaptiveMode[] = ['static', 'dynamic', 'learning'];
+            const currentIndex = modes.indexOf(config.adaptiveMode);
+            const nextMode = modes[(currentIndex + 1) % modes.length];
+
+            await this.updatePlayerConfig(uid, { adaptiveMode: nextMode });
+        } catch (error) {
+            console.error(`切换自适应模式失败: ${uid}`, error);
+        }
+    }
+
+    /**
+     * 调整分数门槛
+     */
+    async adjustScoreThresholds(uid: string, adjustments: {
+        scoreThresholds?: ScoreThreshold[];
+        learningRate?: number;
+        adaptiveMode?: AdaptiveMode;
+    }): Promise<boolean> {
+        try {
+            const config = await this.getPlayerConfig(uid);
+            if (!config) return false;
+
+            // 验证新的分数门槛
+            if (adjustments.scoreThresholds && !validateScoreThresholds(adjustments.scoreThresholds)) {
+                throw new Error('分数门槛配置无效');
+            }
+
+            // 更新配置
+            await this.updatePlayerConfig(uid, adjustments);
+            return true;
+        } catch (error) {
+            console.error(`调整分数门槛失败: ${uid}`, error);
             return false;
         }
     }
@@ -361,15 +438,20 @@ export class ScoreThresholdPlayerController {
         thresholds: ScoreThreshold[],
         rankingMode: RankingMode
     ): number {
-        switch (rankingMode) {
-            case 'score_based':
-                return this.calculateScoreBasedProbability(score, thresholds);
-            case 'segment_based':
-                return this.calculateSegmentBasedProbability(score);
-            case 'hybrid':
-                return this.calculateHybridProbability(score, thresholds);
-            default:
-                return 0.5;
+        try {
+            switch (rankingMode) {
+                case 'score_based':
+                    return this.calculateScoreBasedProbability(score, thresholds);
+                case 'segment_based':
+                    return this.calculateSegmentBasedProbability(score, thresholds);
+                case 'hybrid':
+                    return this.calculateHybridProbability(score, thresholds);
+                default:
+                    return this.calculateHybridProbability(score, thresholds);
+            }
+        } catch (error) {
+            console.error('计算排名概率失败:', error);
+            return 0.5; // 默认概率
         }
     }
 
@@ -377,23 +459,28 @@ export class ScoreThresholdPlayerController {
      * 基于分数的概率计算
      */
     private calculateScoreBasedProbability(score: number, thresholds: ScoreThreshold[]): number {
-        for (const threshold of thresholds) {
-            if (score >= threshold.minScore && score <= threshold.maxScore) {
-                // 在阈值范围内，使用线性插值计算概率
-                const range = threshold.maxScore - threshold.minScore;
-                const position = (score - threshold.minScore) / range;
-                return threshold.rankingProbabilities[0] +
-                    (threshold.rankingProbabilities[1] - threshold.rankingProbabilities[0]) * position;
-            }
+        // 找到匹配的分数门槛
+        const matchingThreshold = thresholds.find(t =>
+            score >= t.minScore && score <= t.maxScore
+        );
+
+        if (!matchingThreshold) {
+            return 0.5; // 默认概率
         }
-        return 0.5; // 默认概率
+
+        // 基于分数在范围内的位置计算概率
+        const range = matchingThreshold.maxScore - matchingThreshold.minScore;
+        const position = (score - matchingThreshold.minScore) / range;
+
+        // 分数越高，概率越高
+        return Math.min(0.9, Math.max(0.1, 0.5 + position * 0.4));
     }
 
     /**
      * 基于段位的概率计算
      */
-    private calculateSegmentBasedProbability(score: number): number {
-        // 根据分数范围确定段位概率
+    private calculateSegmentBasedProbability(score: number, thresholds: ScoreThreshold[]): number {
+        // 基于段位规则计算概率
         if (score >= 50000) return 0.9;      // Grandmaster
         if (score >= 20000) return 0.8;      // Master
         if (score >= 10000) return 0.7;      // Diamond
@@ -408,8 +495,10 @@ export class ScoreThresholdPlayerController {
      */
     private calculateHybridProbability(score: number, thresholds: ScoreThreshold[]): number {
         const scoreProb = this.calculateScoreBasedProbability(score, thresholds);
-        const segmentProb = this.calculateSegmentBasedProbability(score);
-        return (scoreProb * 0.6) + (segmentProb * 0.4); // 60% 分数权重，40% 段位权重
+        const segmentProb = this.calculateSegmentBasedProbability(score, thresholds);
+
+        // 加权平均：分数权重60%，段位权重40%
+        return scoreProb * 0.6 + segmentProb * 0.4;
     }
 
     /**
@@ -417,58 +506,87 @@ export class ScoreThresholdPlayerController {
      */
     private determineFinalRank(
         rankingProbability: number,
-        baseProbabilities: number[],
+        baseRankingProbability: number[],
         adaptiveMode: AdaptiveMode,
         learningRate: number
     ): number {
-        if (adaptiveMode === 'static') {
-            return this.determineStaticRank(rankingProbability, baseProbabilities);
-        } else if (adaptiveMode === 'dynamic') {
-            return this.determineDynamicRank(rankingProbability, baseProbabilities);
-        } else {
-            return this.determineLearningRank(rankingProbability, baseProbabilities, learningRate);
+        try {
+            switch (adaptiveMode) {
+                case 'static':
+                    return this.determineStaticRank(rankingProbability, baseRankingProbability);
+                case 'dynamic':
+                    return this.determineDynamicRank(rankingProbability, baseRankingProbability);
+                case 'learning':
+                    return this.determineLearningRank(rankingProbability, baseRankingProbability, learningRate);
+                default:
+                    return this.determineStaticRank(rankingProbability, baseRankingProbability);
+            }
+        } catch (error) {
+            console.error('确定最终排名失败:', error);
+            return 1; // 默认第1名
         }
     }
 
     /**
      * 静态排名确定
      */
-    private determineStaticRank(probability: number, baseProbabilities: number[]): number {
-        let cumulative = 0;
-        for (let i = 0; i < baseProbabilities.length; i++) {
-            cumulative += baseProbabilities[i];
-            if (probability <= cumulative) {
+    private determineStaticRank(rankingProbability: number, baseRankingProbability: number[]): number {
+        // 基于概率分布确定排名
+        const random = Math.random();
+        let cumulativeProbability = 0;
+
+        for (let i = 0; i < baseRankingProbability.length; i++) {
+            cumulativeProbability += baseRankingProbability[i];
+            if (random <= cumulativeProbability) {
                 return i + 1;
             }
         }
-        return baseProbabilities.length;
+
+        return baseRankingProbability.length; // 最后一名
     }
 
     /**
      * 动态排名确定
      */
-    private determineDynamicRank(probability: number, baseProbabilities: number[]): number {
-        // 添加随机性，避免完全确定性的排名
-        const randomFactor = Math.random() * 0.2 - 0.1; // ±10% 随机性
-        const adjustedProbability = Math.max(0, Math.min(1, probability + randomFactor));
-        return this.determineStaticRank(adjustedProbability, baseProbabilities);
+    private determineDynamicRank(rankingProbability: number, baseRankingProbability: number[]): number {
+        // 动态调整概率分布
+        const adjustedProbabilities = baseRankingProbability.map((prob, index) => {
+            const rank = index + 1;
+            const adjustment = rankingProbability * (1 - rank / baseRankingProbability.length);
+            return Math.max(0.05, Math.min(0.9, prob + adjustment));
+        });
+
+        // 重新归一化概率
+        const total = adjustedProbabilities.reduce((sum, prob) => sum + prob, 0);
+        const normalizedProbabilities = adjustedProbabilities.map(prob => prob / total);
+
+        return this.determineStaticRank(rankingProbability, normalizedProbabilities);
     }
 
     /**
-     * 学习排名确定
+     * 学习模式排名确定
      */
     private determineLearningRank(
-        probability: number,
-        baseProbabilities: number[],
+        rankingProbability: number,
+        baseRankingProbability: number[],
         learningRate: number
     ): number {
-        // 根据学习率调整概率
-        const adjustedProbability = probability * (1 + learningRate);
-        return this.determineStaticRank(adjustedProbability, baseProbabilities);
+        // 基于学习率调整概率
+        const adjustedProbabilities = baseRankingProbability.map((prob, index) => {
+            const rank = index + 1;
+            const learningAdjustment = learningRate * (rankingProbability - 0.5) * (1 - rank / baseRankingProbability.length);
+            return Math.max(0.05, Math.min(0.9, prob + learningAdjustment));
+        });
+
+        // 重新归一化概率
+        const total = adjustedProbabilities.reduce((sum, prob) => sum + prob, 0);
+        const normalizedProbabilities = adjustedProbabilities.map(prob => prob / total);
+
+        return this.determineStaticRank(rankingProbability, normalizedProbabilities);
     }
 
     /**
-     * 生成排名原因说明
+     * 生成排名原因
      */
     private generateRankReason(
         score: number,
@@ -478,58 +596,119 @@ export class ScoreThresholdPlayerController {
     ): string {
         const reasons = [];
 
-        // 基于分数范围的原因
-        if (score >= 50000) {
-            reasons.push('超高分数表现');
-        } else if (score >= 20000) {
-            reasons.push('优秀分数表现');
-        } else if (score >= 10000) {
-            reasons.push('良好分数表现');
-        } else if (score >= 5000) {
-            reasons.push('中等分数表现');
-        } else if (score >= 1000) {
-            reasons.push('基础分数表现');
+        // 基于分数分析
+        if (score > 10000) {
+            reasons.push('高分表现');
+        } else if (score > 5000) {
+            reasons.push('良好表现');
+        } else if (score > 1000) {
+            reasons.push('稳定表现');
         } else {
-            reasons.push('需要提升分数');
+            reasons.push('基础表现');
         }
 
-        // 基于排名模式的原因
-        switch (config.rankingMode) {
-            case 'score_based':
-                reasons.push('基于分数排名');
-                break;
-            case 'segment_based':
-                reasons.push('基于段位排名');
-                break;
-            case 'hybrid':
-                reasons.push('混合模式排名');
-                break;
-        }
-
-        // 基于自适应模式的原因
-        switch (config.adaptiveMode) {
-            case 'static':
-                reasons.push('静态模式');
-                break;
-            case 'dynamic':
-                reasons.push('动态模式');
-                break;
-            case 'learning':
-                reasons.push(`学习模式(学习率: ${config.learningRate})`);
-                break;
-        }
-
-        // 基于概率的原因
-        if (rankingProbability >= 0.8) {
-            reasons.push('高概率排名');
-        } else if (rankingProbability >= 0.6) {
-            reasons.push('中高概率排名');
-        } else if (rankingProbability >= 0.4) {
-            reasons.push('中等概率排名');
+        // 基于排名分析
+        if (rank === 1) {
+            reasons.push('获得第1名');
+        } else if (rank <= 3) {
+            reasons.push('获得前3名');
         } else {
-            reasons.push('低概率排名');
+            reasons.push('需要继续努力');
         }
 
-        return reasons.join(' + ');
+        // 基于概率分析
+        if (rankingProbability > 0.8) {
+            reasons.push('高概率预期');
+        } else if (rankingProbability > 0.6) {
+            reasons.push('中高概率预期');
+        } else if (rankingProbability > 0.4) {
+            reasons.push('中等概率预期');
+        } else {
+            reasons.push('低概率预期');
+        }
+
+        return reasons.join('，');
+    }
+
+    /**
+     * 自动调整学习率
+     */
+    async autoAdjustLearningRate(uid: string): Promise<void> {
+        try {
+            const config = await this.getPlayerConfig(uid);
+            if (!config || !config.autoAdjustLearningRate) return;
+
+            const metrics = await this.getPlayerPerformanceMetrics(uid);
+            if (!metrics) return;
+
+            // 基于胜率调整学习率
+            const winRate = metrics.totalMatches > 0 ? metrics.totalWins / metrics.totalMatches : 0.5;
+            let newLearningRate = config.learningRate;
+
+            if (winRate > 0.7) {
+                // 胜率高，降低学习率（更稳定）
+                newLearningRate = Math.max(0.01, config.learningRate * 0.9);
+            } else if (winRate < 0.3) {
+                // 胜率低，提高学习率（更快适应）
+                newLearningRate = Math.min(0.3, config.learningRate * 1.1);
+            }
+
+            if (Math.abs(newLearningRate - config.learningRate) > 0.01) {
+                await this.updatePlayerConfig(uid, { learningRate: newLearningRate });
+            }
+        } catch (error) {
+            console.error(`自动调整学习率失败: ${uid}`, error);
+        }
+    }
+
+    /**
+     * 检查段位变化
+     */
+    async checkSegmentChange(uid: string, points: number): Promise<{
+        shouldChange: boolean;
+        changeType?: ChangeType;
+        reason?: string;
+    }> {
+        try {
+            const config = await this.getPlayerConfig(uid);
+            if (!config) return { shouldChange: false };
+
+            const metrics = await this.getPlayerPerformanceMetrics(uid);
+            if (!metrics) return { shouldChange: false };
+
+            const protectionStatus = await this.getPlayerProtectionStatus(uid);
+            if (!protectionStatus) return { shouldChange: false };
+
+            // 检查升级条件
+            if (await this.canPlayerPromote(uid)) {
+                return {
+                    shouldChange: true,
+                    changeType: 'promotion',
+                    reason: '满足升级条件'
+                };
+            }
+
+            // 检查降级条件
+            if (await this.shouldPlayerDemote(uid)) {
+                // 检查保护状态
+                if (protectionStatus.protectionLevel > 0) {
+                    return {
+                        shouldChange: false,
+                        reason: '保护状态激活'
+                    };
+                }
+
+                return {
+                    shouldChange: true,
+                    changeType: 'demotion',
+                    reason: '满足降级条件'
+                };
+            }
+
+            return { shouldChange: false };
+        } catch (error) {
+            console.error(`检查段位变化失败: ${uid}`, error);
+            return { shouldChange: false };
+        }
     }
 }

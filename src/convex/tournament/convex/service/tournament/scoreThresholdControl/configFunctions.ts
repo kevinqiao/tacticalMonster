@@ -6,8 +6,21 @@
 import { v } from "convex/values";
 import { mutation, query } from "../../../_generated/server";
 import { getAllSegmentNames, getSegmentRule } from "../../segment/config";
+import {
+    getAdaptiveMode,
+    getDefaultRankingProbabilities,
+    getDefaultScoreThresholds,
+    getHybridSegmentConfig,
+    getLearningRate,
+    getRankingMode,
+    validateRankingProbabilities,
+    validateScoreThresholds
+} from "./config";
 import { ScoreThresholdIntegration } from "./scoreThresholdIntegration";
-import { PlayerScoreThresholdConfig } from "./scoreThresholdRankingController";
+import {
+    ScoreThreshold,
+    ScoreThresholdConfig
+} from "./types";
 
 // 定义段位验证器
 const segmentNameValidator = v.union(
@@ -28,7 +41,27 @@ const segmentNameValidator = v.union(
 export const getSegmentConfigInfo = query({
     args: { segmentName: segmentNameValidator },
     handler: async (ctx, args) => {
-        return ScoreThresholdIntegration.getSegmentConfigInfo(args.segmentName);
+        try {
+            const hybridConfig = getHybridSegmentConfig(args.segmentName);
+            const defaultThresholds = getDefaultScoreThresholds(args.segmentName);
+            const defaultProbabilities = getDefaultRankingProbabilities(args.segmentName);
+            const adaptiveMode = getAdaptiveMode(args.segmentName);
+            const learningRate = getLearningRate(args.segmentName);
+            const rankingMode = getRankingMode(args.segmentName);
+
+            return {
+                segmentName: args.segmentName,
+                hybridConfig,
+                defaultThresholds,
+                defaultProbabilities,
+                adaptiveMode,
+                learningRate,
+                rankingMode
+            };
+        } catch (error) {
+            console.error(`获取段位配置信息失败: ${args.segmentName}`, error);
+            return null;
+        }
     }
 });
 
@@ -41,7 +74,30 @@ export const compareSegmentConfigs = query({
         segment2: segmentNameValidator
     },
     handler: async (ctx, args) => {
-        return ScoreThresholdIntegration.compareSegmentConfigs(args.segment1, args.segment2);
+        try {
+            const config1 = getHybridSegmentConfig(args.segment1);
+            const config2 = getHybridSegmentConfig(args.segment2);
+
+            return {
+                segment1: {
+                    name: args.segment1,
+                    config: config1
+                },
+                segment2: {
+                    name: args.segment2,
+                    config: config2
+                },
+                differences: {
+                    maxRank: config1.maxRank !== config2.maxRank,
+                    learningRate: config1.learningRate !== config2.learningRate,
+                    adaptiveMode: config1.adaptiveMode !== config2.adaptiveMode,
+                    scoreThresholdsCount: config1.scoreThresholds.length !== config2.scoreThresholds.length
+                }
+            };
+        } catch (error) {
+            console.error('比较段位配置失败:', error);
+            return null;
+        }
     }
 });
 
@@ -57,19 +113,47 @@ export const validateScoreThresholdConfig = query({
                 minScore: v.number(),
                 maxScore: v.number(),
                 rankingProbabilities: v.array(v.number()),
-                priority: v.number()
+                priority: v.number(),
+                segmentName: v.optional(segmentNameValidator)
             })),
             baseRankingProbability: v.array(v.number()),
             maxRank: v.number(),
-            adaptiveMode: v.boolean(),
+            adaptiveMode: v.union(
+                v.literal("static"),
+                v.literal("dynamic"),
+                v.literal("learning")
+            ),
             learningRate: v.number(),
             autoAdjustLearningRate: v.boolean(),
+            rankingMode: v.union(
+                v.literal("score_based"),
+                v.literal("segment_based"),
+                v.literal("hybrid")
+            ),
             createdAt: v.string(),
             updatedAt: v.string()
         })
     },
     handler: async (ctx, args) => {
-        return ScoreThresholdIntegration.validateScoreThresholdConfig(args.config as any);
+        try {
+            const isValidThresholds = validateScoreThresholds(args.config.scoreThresholds);
+            const isValidProbabilities = validateRankingProbabilities(args.config.baseRankingProbability);
+
+            return {
+                isValid: isValidThresholds && isValidProbabilities,
+                thresholdValidation: isValidThresholds,
+                probabilityValidation: isValidProbabilities,
+                errors: []
+            };
+        } catch (error) {
+            console.error('验证分数门槛配置失败:', error);
+            return {
+                isValid: false,
+                thresholdValidation: false,
+                probabilityValidation: false,
+                errors: [error instanceof Error ? error.message : String(error)]
+            };
+        }
     }
 });
 
@@ -99,22 +183,19 @@ export const getSegmentProtectionConfig = query({
 export const getHybridModeConfigDetails = query({
     args: { segmentName: segmentNameValidator },
     handler: async (ctx, args) => {
-        const segmentInfo = getSegmentRule(args.segmentName);
-        if (!segmentInfo) {
+        try {
+            const config = getHybridSegmentConfig(args.segmentName);
+            return {
+                segmentName: args.segmentName,
+                maxRank: config.maxRank,
+                adaptiveMode: config.adaptiveMode,
+                learningRate: config.learningRate,
+                scoreThresholds: config.scoreThresholds
+            };
+        } catch (error) {
+            console.error(`获取混合模式配置详情失败: ${args.segmentName}`, error);
             return null;
         }
-
-        // 返回段位基本信息
-        return {
-            segmentName: args.segmentName,
-            tier: segmentInfo.tier,
-            color: segmentInfo.color,
-            icon: segmentInfo.icon,
-            promotion: segmentInfo.promotion,
-            demotion: segmentInfo.demotion,
-            nextSegment: segmentInfo.nextSegment,
-            previousSegment: segmentInfo.previousSegment
-        };
     }
 });
 
@@ -127,7 +208,7 @@ export const getConfigTemplates = query({
         const templates: Record<string, {
             name: string;
             description: string;
-            config: Partial<PlayerScoreThresholdConfig>;
+            config: Partial<ScoreThresholdConfig>;
         }> = {
             "balanced": {
                 name: "平衡型配置",
@@ -137,7 +218,7 @@ export const getConfigTemplates = query({
                         { minScore: 0, maxScore: 1000, rankingProbabilities: [0.25, 0.25, 0.25, 0.25], priority: 1 },
                         { minScore: 1001, maxScore: 2000, rankingProbabilities: [0.30, 0.30, 0.25, 0.15], priority: 2 }
                     ],
-                    adaptiveMode: true,
+                    adaptiveMode: "dynamic",
                     learningRate: 0.1
                 }
             },
@@ -149,7 +230,7 @@ export const getConfigTemplates = query({
                         { minScore: 0, maxScore: 1000, rankingProbabilities: [0.40, 0.35, 0.20, 0.05], priority: 1 },
                         { minScore: 1001, maxScore: 2000, rankingProbabilities: [0.45, 0.30, 0.20, 0.05], priority: 2 }
                     ],
-                    adaptiveMode: true,
+                    adaptiveMode: "dynamic",
                     learningRate: 0.15
                 }
             },
@@ -161,7 +242,7 @@ export const getConfigTemplates = query({
                         { minScore: 0, maxScore: 1000, rankingProbabilities: [0.15, 0.35, 0.35, 0.15], priority: 1 },
                         { minScore: 1001, maxScore: 2000, rankingProbabilities: [0.20, 0.40, 0.30, 0.10], priority: 2 }
                     ],
-                    adaptiveMode: false,
+                    adaptiveMode: "static",
                     learningRate: 0.05
                 }
             }
@@ -217,7 +298,11 @@ export const createCustomConfig = mutation({
             rankingProbabilities: v.array(v.number()),
             priority: v.number()
         })),
-        adaptiveMode: v.boolean(),
+        adaptiveMode: v.union(
+            v.literal("static"),
+            v.literal("dynamic"),
+            v.literal("learning")
+        ),
         learningRate: v.number(),
         autoAdjustLearningRate: v.boolean()
     },
@@ -228,7 +313,7 @@ export const createCustomConfig = mutation({
         const sortedThresholds = [...args.scoreThresholds].sort((a, b) => b.priority - a.priority);
         const baseThreshold = sortedThresholds[0];
 
-        const config: PlayerScoreThresholdConfig = {
+        const config: ScoreThresholdConfig = {
             uid: args.uid,
             segmentName: args.segmentName,
             scoreThresholds: args.scoreThresholds,
@@ -237,14 +322,15 @@ export const createCustomConfig = mutation({
             adaptiveMode: args.adaptiveMode,
             learningRate: Math.max(0.01, Math.min(0.3, args.learningRate)),
             autoAdjustLearningRate: args.autoAdjustLearningRate,
+            rankingMode: "hybrid", // 默认混合模式
             createdAt: nowISO,
             updatedAt: nowISO
         };
 
         // 验证配置
-        const validation = ScoreThresholdIntegration.validateScoreThresholdConfig(config);
-        if (!validation.isValid) {
-            throw new Error(`配置验证失败: ${validation.errors.join(", ")}`);
+        const isValidThresholds = validateScoreThresholds(config.scoreThresholds);
+        if (!isValidThresholds) {
+            throw new Error(`配置验证失败: 分数门槛配置无效`);
         }
 
         // 保存到数据库
@@ -254,9 +340,9 @@ export const createCustomConfig = mutation({
             .unique();
 
         if (existing) {
-            await ctx.db.patch(existing._id, config);
+            await ctx.db.patch(existing._id, config as any);
         } else {
-            await ctx.db.insert("score_threshold_configs", config);
+            await ctx.db.insert("score_threshold_configs", config as any);
         }
 
         return { success: true, config };
@@ -277,7 +363,11 @@ export const batchCreateConfigs = mutation({
                 rankingProbabilities: v.array(v.number()),
                 priority: v.number()
             })),
-            adaptiveMode: v.boolean(),
+            adaptiveMode: v.union(
+                v.literal("static"),
+                v.literal("dynamic"),
+                v.literal("learning")
+            ),
             learningRate: v.number(),
             autoAdjustLearningRate: v.boolean()
         }))
@@ -292,7 +382,7 @@ export const batchCreateConfigs = mutation({
                 const sortedThresholds = [...configData.scoreThresholds].sort((a, b) => b.priority - a.priority);
                 const baseThreshold = sortedThresholds[0];
 
-                const config: PlayerScoreThresholdConfig = {
+                const config: ScoreThresholdConfig = {
                     uid: configData.uid,
                     segmentName: configData.segmentName,
                     scoreThresholds: configData.scoreThresholds,
@@ -301,17 +391,18 @@ export const batchCreateConfigs = mutation({
                     adaptiveMode: configData.adaptiveMode,
                     learningRate: Math.max(0.01, Math.min(0.3, configData.learningRate)),
                     autoAdjustLearningRate: configData.autoAdjustLearningRate,
+                    rankingMode: "hybrid", // 默认混合模式
                     createdAt: nowISO,
                     updatedAt: nowISO
                 };
 
                 // 验证配置
-                const validation = ScoreThresholdIntegration.validateScoreThresholdConfig(config);
-                if (!validation.isValid) {
+                const isValidThresholds = validateScoreThresholds(config.scoreThresholds);
+                if (!isValidThresholds) {
                     results.push({
                         uid: configData.uid,
                         success: false,
-                        error: `配置验证失败: ${validation.errors.join(", ")}`
+                        error: `配置验证失败: 分数门槛配置无效`
                     });
                     continue;
                 }
@@ -323,9 +414,9 @@ export const batchCreateConfigs = mutation({
                     .unique();
 
                 if (existing) {
-                    await ctx.db.patch(existing._id, config);
+                    await ctx.db.patch(existing._id, config as any);
                 } else {
-                    await ctx.db.insert("score_threshold_configs", config);
+                    await ctx.db.insert("score_threshold_configs", config as any);
                 }
 
                 results.push({
@@ -347,6 +438,116 @@ export const batchCreateConfigs = mutation({
     }
 });
 
+/**
+ * 优化配置
+ */
+export const optimizeConfig = mutation({
+    args: {
+        uid: v.string(),
+        optimizationType: v.union(
+            v.literal("performance"),
+            v.literal("balance"),
+            v.literal("aggressive")
+        )
+    },
+    handler: async (ctx, args) => {
+        try {
+            // 获取当前配置
+            const currentConfig = await ctx.db
+                .query("score_threshold_configs")
+                .withIndex("by_uid", (q: any) => q.eq("uid", args.uid))
+                .unique();
+
+            if (!currentConfig) {
+                throw new Error('配置未找到');
+            }
+
+            // 根据优化类型调整配置
+            let optimizedThresholds: ScoreThreshold[];
+            let optimizedLearningRate: number;
+
+            switch (args.optimizationType) {
+                case "performance":
+                    // 性能优化：提高高分概率
+                    optimizedThresholds = currentConfig.scoreThresholds.map(threshold => ({
+                        ...threshold,
+                        rankingProbabilities: threshold.rankingProbabilities.map((prob, index) =>
+                            index === 0 ? Math.min(0.9, prob * 1.2) : prob * 0.9
+                        )
+                    }));
+                    optimizedLearningRate = Math.min(0.3, currentConfig.learningRate * 1.1);
+                    break;
+
+                case "balance":
+                    // 平衡优化：平均分配概率
+                    optimizedThresholds = currentConfig.scoreThresholds.map(threshold => ({
+                        ...threshold,
+                        rankingProbabilities: threshold.rankingProbabilities.map(() =>
+                            1 / threshold.rankingProbabilities.length
+                        )
+                    }));
+                    optimizedLearningRate = currentConfig.learningRate;
+                    break;
+
+                case "aggressive":
+                    // 激进优化：提高学习率
+                    optimizedThresholds = currentConfig.scoreThresholds;
+                    optimizedLearningRate = Math.min(0.3, currentConfig.learningRate * 1.3);
+                    break;
+
+                default:
+                    throw new Error('未知的优化类型');
+            }
+
+            // 重新归一化概率
+            optimizedThresholds = optimizedThresholds.map(threshold => ({
+                ...threshold,
+                rankingProbabilities: threshold.rankingProbabilities.map(prob =>
+                    prob / threshold.rankingProbabilities.reduce((sum, p) => sum + p, 0)
+                )
+            }));
+
+            const optimizedConfig: ScoreThresholdConfig = {
+                ...currentConfig,
+                segmentName: currentConfig.segmentName as any,
+                scoreThresholds: optimizedThresholds,
+                learningRate: optimizedLearningRate,
+                rankingMode: "hybrid" as any,
+                adaptiveMode: "dynamic" as any,
+                updatedAt: currentConfig.updatedAt // Use existing updatedAt
+            };
+
+            // 验证优化后的配置
+            const isValidThresholds = validateScoreThresholds(optimizedConfig.scoreThresholds);
+            if (!isValidThresholds) {
+                throw new Error('优化后的配置验证失败');
+            }
+
+            // 更新配置
+            await ctx.db.patch(currentConfig._id, {
+                scoreThresholds: optimizedConfig.scoreThresholds,
+                learningRate: optimizedConfig.learningRate,
+                updatedAt: optimizedConfig.updatedAt
+            });
+
+            return {
+                success: true,
+                message: `配置优化成功: ${args.optimizationType}`,
+                changes: {
+                    thresholdsOptimized: true,
+                    learningRateChanged: optimizedLearningRate !== currentConfig.learningRate
+                }
+            };
+        } catch (error) {
+            console.error('优化配置失败:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
+        }
+    }
+});
+
 // ==================== 配置优化函数 ====================
 
 /**
@@ -363,9 +564,18 @@ export const optimizeScoreThresholds = query({
                 rankingProbabilities: v.array(v.number()),
                 priority: v.number()
             })),
-            adaptiveMode: v.boolean(),
+            adaptiveMode: v.union(
+                v.literal("static"),
+                v.literal("dynamic"),
+                v.literal("learning")
+            ),
             learningRate: v.number(),
             autoAdjustLearningRate: v.boolean(),
+            rankingMode: v.union(
+                v.literal("score_based"),
+                v.literal("segment_based"),
+                v.literal("hybrid")
+            ),
             createdAt: v.string(),
             updatedAt: v.string()
         }),
@@ -428,7 +638,7 @@ export const optimizeScoreThresholds = query({
         const sortedThresholds = [...optimizedThresholds].sort((a, b) => b.priority - a.priority);
         const baseThreshold = sortedThresholds[0];
 
-        const optimizedConfig: PlayerScoreThresholdConfig = {
+        const optimizedConfig: ScoreThresholdConfig = {
             ...currentConfig,
             segmentName: currentConfig.segmentName,
             scoreThresholds: optimizedThresholds,
