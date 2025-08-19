@@ -263,6 +263,132 @@ export const tournamentSchema = {
             }))
         })),
 
+        // 积分规则配置
+        pointRules: v.optional(v.object({
+            // 积分开关
+            enableRankPoints: v.boolean(),
+            enableSeasonPoints: v.boolean(),
+            enablePrestigePoints: v.boolean(),
+            enableAchievementPoints: v.boolean(),
+            enableTournamentPoints: v.boolean(),
+
+            // 全局积分倍数
+            pointMultiplier: v.number(),
+
+            // 段位相关规则
+            segmentBasedScoring: v.boolean(),
+            segmentBonusMultiplier: v.number(),
+
+            // 排名积分配置
+            rankPointConfigs: v.array(v.object({
+                rank: v.number(),
+                rankPoints: v.object({
+                    basePoints: v.number(),
+                    bonusMultiplier: v.number(),
+                    maxPoints: v.number(),
+                    minPoints: v.number()
+                }),
+                seasonPoints: v.object({
+                    basePoints: v.number(),
+                    bonusMultiplier: v.number(),
+                    maxPoints: v.number(),
+                    minPoints: v.number()
+                }),
+                prestigePoints: v.object({
+                    basePoints: v.number(),
+                    bonusMultiplier: v.number(),
+                    maxPoints: v.number(),
+                    minPoints: v.number()
+                }),
+                achievementPoints: v.object({
+                    basePoints: v.number(),
+                    bonusMultiplier: v.number(),
+                    maxPoints: v.number(),
+                    minPoints: v.number()
+                }),
+                tournamentPoints: v.object({
+                    basePoints: v.number(),
+                    bonusMultiplier: v.number(),
+                    maxPoints: v.number(),
+                    minPoints: v.number()
+                })
+            })),
+
+            // 段位积分规则
+            segmentPointRules: v.object({
+                bronze: v.object({
+                    baseMultiplier: v.number(),
+                    bonusMultiplier: v.number(),
+                    rankPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    }),
+                    seasonPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    })
+                }),
+                silver: v.object({
+                    baseMultiplier: v.number(),
+                    bonusMultiplier: v.number(),
+                    rankPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    }),
+                    seasonPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    })
+                }),
+                gold: v.object({
+                    baseMultiplier: v.number(),
+                    bonusMultiplier: v.number(),
+                    rankPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    }),
+                    seasonPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    })
+                }),
+                platinum: v.object({
+                    baseMultiplier: v.number(),
+                    bonusMultiplier: v.number(),
+                    rankPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    }),
+                    seasonPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    })
+                }),
+                diamond: v.object({
+                    baseMultiplier: v.number(),
+                    bonusMultiplier: v.number(),
+                    rankPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    }),
+                    seasonPointsConfig: v.object({
+                        basePoints: v.number(),
+                        bonusMultiplier: v.number(),
+                        maxPoints: v.number()
+                    })
+                })
+            })
+        })),
+
         // 高级配置
         advanced: v.optional(v.object({
             matching: v.object({

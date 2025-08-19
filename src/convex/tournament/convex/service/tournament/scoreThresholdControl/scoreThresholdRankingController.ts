@@ -3,7 +3,8 @@
  * 完全基于数据库存储，与现有Convex系统完全集成
  */
 
-import { SegmentPromotionDemotionManager } from '../../segment/segmentPromotionDemotionManager';
+import { SegmentManager } from '../../segment/SegmentManager';
+import { ChangeType, ProtectionLevel, SegmentName } from '../../segment/types';
 
 export interface ScoreThreshold {
     minScore: number;           // 最小分数
@@ -14,7 +15,7 @@ export interface ScoreThreshold {
 
 export interface PlayerScoreThresholdConfig {
     uid: string;
-    segmentName: string;        // 段位信息
+    segmentName: SegmentName;        // 段位信息
     scoreThresholds: ScoreThreshold[];
     baseRankingProbability: number[]; // 动态名次概率数组
     maxRank: number;            // 最大名次数量
@@ -49,8 +50,8 @@ export interface PlayerPerformanceMetrics {
 
 export interface PlayerProtectionStatus {
     uid: string;
-    segmentName: string;
-    protectionLevel: number;    // 保护等级 (0-3)
+    segmentName: SegmentName;
+    protectionLevel: ProtectionLevel;    // 保护等级 (0-3)
     protectionThreshold: number; // 保护阈值
     demotionGracePeriod: number; // 降级宽限期
     promotionStabilityPeriod: number; // 升级稳定期
@@ -61,9 +62,9 @@ export interface PlayerProtectionStatus {
 
 export interface SegmentChangeRecord {
     uid: string;
-    oldSegment: string;
-    newSegment: string;
-    changeType: 'promotion' | 'demotion';
+    oldSegment: SegmentName;
+    newSegment: SegmentName;
+    changeType: ChangeType;
     reason?: string;
     pointsConsumed?: number;
     matchId?: string;
@@ -72,7 +73,7 @@ export interface SegmentChangeRecord {
 
 export interface PlayerPerformanceData {
     uid: string;
-    segmentName: string;
+    segmentName: SegmentName;
     scoreThresholdConfig: PlayerScoreThresholdConfig;
     performanceMetrics: PlayerPerformanceMetrics;
     protectionStatus: PlayerProtectionStatus;
@@ -89,7 +90,7 @@ export interface SegmentProtectionConfig {
 }
 
 // 段位配置常量
-export const SEGMENT_CONFIGS: Record<string, SegmentProtectionConfig> = {
+export const SEGMENT_CONFIGS: Record<SegmentName, SegmentProtectionConfig> = {
     bronze: {
         protectionThreshold: 3,
         demotionGracePeriod: 5,
@@ -119,11 +120,23 @@ export const SEGMENT_CONFIGS: Record<string, SegmentProtectionConfig> = {
         demotionGracePeriod: 10,
         promotionStabilityPeriod: 8,
         maxProtectionLevel: 3
+    },
+    master: {
+        protectionThreshold: 8,
+        demotionGracePeriod: 2,
+        promotionStabilityPeriod: 8,
+        maxProtectionLevel: 2
+    },
+    grandmaster: {
+        protectionThreshold: 10,
+        demotionGracePeriod: 1,
+        promotionStabilityPeriod: 10,
+        maxProtectionLevel: 1
     }
 };
 
 // 混合模式段位配置
-export const HYBRID_SEGMENT_CONFIGS: Record<string, {
+export const HYBRID_SEGMENT_CONFIGS: Record<SegmentName, {
     scoreThresholds: ScoreThreshold[];
     adaptiveMode: boolean;
     learningRate: number;
@@ -178,6 +191,26 @@ export const HYBRID_SEGMENT_CONFIGS: Record<string, {
         ],
         adaptiveMode: true,
         learningRate: 0.18
+    },
+    master: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 4000, rankingProbabilities: [0.40, 0.35, 0.15, 0.10], priority: 1 },
+            { minScore: 4001, maxScore: 6000, rankingProbabilities: [0.45, 0.30, 0.15, 0.10], priority: 2 },
+            { minScore: 6001, maxScore: 8000, rankingProbabilities: [0.50, 0.30, 0.15, 0.05], priority: 3 }
+        ],
+        adaptiveMode: true,
+        learningRate: 0.20
+    },
+    grandmaster: {
+        maxRank: 4, // 4名次
+        scoreThresholds: [
+            { minScore: 0, maxScore: 5000, rankingProbabilities: [0.45, 0.35, 0.15, 0.05], priority: 1 },
+            { minScore: 5001, maxScore: 8000, rankingProbabilities: [0.50, 0.30, 0.15, 0.05], priority: 2 },
+            { minScore: 8001, maxScore: 10000, rankingProbabilities: [0.55, 0.30, 0.10, 0.05], priority: 3 }
+        ],
+        adaptiveMode: true,
+        learningRate: 0.25
     }
 };
 
@@ -198,7 +231,7 @@ export class ScoreThresholdRankingController {
      */
     async initializePlayer(ctx: any, params: {
         uid: string;
-        segmentName: string;
+        segmentName: SegmentName;
         scoreThresholdConfig?: PlayerScoreThresholdConfig;
         useHybridMode?: boolean;
     }): Promise<PlayerPerformanceData> {
@@ -517,7 +550,7 @@ export class ScoreThresholdRankingController {
     /**
      * 创建默认配置
      */
-    private createDefaultConfig(uid: string, segmentName: string): PlayerScoreThresholdConfig {
+    private createDefaultConfig(uid: string, segmentName: SegmentName): PlayerScoreThresholdConfig {
         const nowISO = new Date().toISOString();
         const defaultThresholds: ScoreThreshold[] = [
             { minScore: 0, maxScore: 1000, rankingProbabilities: [0.25, 0.25, 0.25, 0.25], priority: 1 }
@@ -637,12 +670,11 @@ export class ScoreThresholdRankingController {
      * 检查段位变化
      */
     private async checkSegmentChange(ctx: any, playerData: PlayerPerformanceData, points: number): Promise<void> {
-        // 使用新的段位升降管理器
-        const segmentChange = await SegmentPromotionDemotionManager.checkSegmentChange(
-            ctx,
+        // 使用新的段位管理器
+        const segmentManager = new SegmentManager(ctx);
+        const segmentChange = await segmentManager.checkAndProcessSegmentChange(
             playerData.uid,
-            points,
-            playerData.performanceMetrics
+            points
         );
 
         if (segmentChange.changed) {

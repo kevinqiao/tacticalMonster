@@ -8,7 +8,7 @@ import { mutation, query } from "../../_generated/server";
 import {
     DEFAULT_RANK_POINT_CONFIGS,
     DEFAULT_SEGMENT_POINT_RULES
-} from "./tournamentRules";
+} from "./pointCalculationService";
 
 // ==================== 示例配置 ====================
 

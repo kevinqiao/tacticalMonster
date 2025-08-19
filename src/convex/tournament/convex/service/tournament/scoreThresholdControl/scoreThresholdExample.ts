@@ -4,6 +4,7 @@
  * 支持动态N名次配置
  */
 
+import { SegmentName } from '../../segment/types';
 import { ScoreThresholdIntegration } from './scoreThresholdIntegration';
 import { PlayerScoreThresholdConfig, ScoreThreshold } from './scoreThresholdRankingController';
 
@@ -62,7 +63,7 @@ export class ScoreThresholdExample {
 
         try {
             // 为不同段位创建混合模式配置
-            const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
+            const segments: SegmentName[] = ["bronze", "silver", "gold", "platinum", "diamond"];
 
             for (const segment of segments) {
                 const config = ScoreThresholdIntegration.createHybridModeConfig(`player_${segment}`, segment);
@@ -268,7 +269,7 @@ export class ScoreThresholdExample {
 
                 const playerConfig: PlayerScoreThresholdConfig = {
                     uid: `player_${config.maxRank}ranks`,
-                    segmentName: "test",
+                    segmentName: "bronze",
                     scoreThresholds: customThresholds,
                     baseRankingProbability: config.probabilities,
                     maxRank: config.maxRank,
@@ -374,7 +375,7 @@ export class ScoreThresholdExample {
 
             for (let i = 0; i < playerCount; i++) {
                 const uid = `perf_test_player_${i.toString().padStart(3, '0')}`;
-                const segment = ["bronze", "silver", "gold"][i % 3];
+                const segment: SegmentName = ["bronze", "silver", "gold"][i % 3] as SegmentName;
 
                 promises.push(
                     ScoreThresholdIntegration.initializePlayer(ctx, {

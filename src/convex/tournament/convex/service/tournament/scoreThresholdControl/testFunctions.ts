@@ -5,7 +5,9 @@
 
 import { v } from "convex/values";
 import { mutation } from "../../../_generated/server";
-import { SegmentPromotionDemotionManager } from '../../segment/segmentPromotionDemotionManager';
+import { canDemote, canPromote, getAllSegmentNames, getNextSegment, getPreviousSegment, getSegmentRule } from '../../segment/config';
+import { SegmentManager } from '../../segment/SegmentManager';
+import { SegmentName } from '../../segment/types';
 import { ScoreThresholdExample } from "./scoreThresholdExample";
 import { scoreThresholdController } from "./scoreThresholdRankingController";
 
@@ -221,7 +223,7 @@ export const runStressTest = mutation({
                     batch.push(
                         scoreThresholdController.initializePlayer(ctx, {
                             uid,
-                            segmentName: segment,
+                            segmentName: segment as SegmentName,
                             useHybridMode: true
                         })
                     );
@@ -280,7 +282,7 @@ export const runSegmentSystemTest = mutation({
             const results = [];
 
             // 测试1: 获取所有段位信息
-            const segments = SegmentPromotionDemotionManager.getAvailableSegments();
+            const segments = getAllSegmentNames();
             results.push({
                 test: "获取可用段位",
                 result: segments,
@@ -293,7 +295,7 @@ export const runSegmentSystemTest = mutation({
             let currentSegment = "bronze";
             while (currentSegment) {
                 upgradePath.push(currentSegment);
-                currentSegment = SegmentPromotionDemotionManager.getNextSegment(currentSegment) || "";
+                currentSegment = getNextSegment(currentSegment as SegmentName) || "";
             }
             results.push({
                 test: "段位升级路径",
@@ -307,7 +309,7 @@ export const runSegmentSystemTest = mutation({
             currentSegment = "grandmaster";
             while (currentSegment) {
                 demotionPath.push(currentSegment);
-                currentSegment = SegmentPromotionDemotionManager.getPreviousSegment(currentSegment) || "";
+                currentSegment = getPreviousSegment(currentSegment as SegmentName) || "";
             }
             results.push({
                 test: "段位降级路径",
@@ -319,15 +321,15 @@ export const runSegmentSystemTest = mutation({
             // 测试4: 检查段位特性
             const segmentFeatures = [];
             for (const segment of segments.slice(0, 3)) { // 只测试前3个段位
-                const info = SegmentPromotionDemotionManager.getSegmentInfo(segment);
+                const info = getSegmentRule(segment as SegmentName);
                 if (info) {
                     segmentFeatures.push({
                         segment,
                         tier: info.tier,
                         color: info.color,
                         icon: info.icon,
-                        canPromote: SegmentPromotionDemotionManager.canPromote(segment),
-                        canDemote: SegmentPromotionDemotionManager.canDemote(segment)
+                        canPromote: canPromote(segment as SegmentName),
+                        canDemote: canDemote(segment as SegmentName)
                     });
                 }
             }
@@ -348,11 +350,10 @@ export const runSegmentSystemTest = mutation({
             };
 
             // 模拟一个青铜段位玩家获得足够积分
-            const segmentChange = await SegmentPromotionDemotionManager.checkSegmentChange(
-                ctx,
+            const segmentManager = new SegmentManager(ctx);
+            const segmentChange = await segmentManager.checkAndProcessSegmentChange(
                 "test_player_bronze",
-                1500, // 超过升级所需的1000积分
-                mockPerformanceMetrics
+                1500 // 超过升级所需的1000积分
             );
 
             results.push({

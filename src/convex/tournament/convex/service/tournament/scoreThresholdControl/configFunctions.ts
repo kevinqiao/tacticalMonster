@@ -5,9 +5,20 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "../../../_generated/server";
-import { SegmentPromotionDemotionManager } from "../../segment/segmentPromotionDemotionManager";
+import { getAllSegmentNames, getSegmentRule } from "../../segment/config";
 import { ScoreThresholdIntegration } from "./scoreThresholdIntegration";
 import { PlayerScoreThresholdConfig } from "./scoreThresholdRankingController";
+
+// 定义段位验证器
+const segmentNameValidator = v.union(
+    v.literal("bronze"),
+    v.literal("silver"),
+    v.literal("gold"),
+    v.literal("platinum"),
+    v.literal("diamond"),
+    v.literal("master"),
+    v.literal("grandmaster")
+);
 
 // ==================== 配置查询函数 ====================
 
@@ -15,7 +26,7 @@ import { PlayerScoreThresholdConfig } from "./scoreThresholdRankingController";
  * 获取段位配置信息
  */
 export const getSegmentConfigInfo = query({
-    args: { segmentName: v.string() },
+    args: { segmentName: segmentNameValidator },
     handler: async (ctx, args) => {
         return ScoreThresholdIntegration.getSegmentConfigInfo(args.segmentName);
     }
@@ -26,8 +37,8 @@ export const getSegmentConfigInfo = query({
  */
 export const compareSegmentConfigs = query({
     args: {
-        segment1: v.string(),
-        segment2: v.string()
+        segment1: segmentNameValidator,
+        segment2: segmentNameValidator
     },
     handler: async (ctx, args) => {
         return ScoreThresholdIntegration.compareSegmentConfigs(args.segment1, args.segment2);
@@ -41,7 +52,7 @@ export const validateScoreThresholdConfig = query({
     args: {
         config: v.object({
             uid: v.string(),
-            segmentName: v.string(),
+            segmentName: segmentNameValidator,
             scoreThresholds: v.array(v.object({
                 minScore: v.number(),
                 maxScore: v.number(),
@@ -68,7 +79,7 @@ export const validateScoreThresholdConfig = query({
 export const getAvailableSegments = query({
     args: {},
     handler: async (ctx) => {
-        return SegmentPromotionDemotionManager.getAvailableSegments();
+        return getAllSegmentNames();
     }
 });
 
@@ -76,9 +87,9 @@ export const getAvailableSegments = query({
  * 获取段位保护配置
  */
 export const getSegmentProtectionConfig = query({
-    args: { segmentName: v.string() },
+    args: { segmentName: segmentNameValidator },
     handler: async (ctx, args) => {
-        return SegmentPromotionDemotionManager.getSegmentInfo(args.segmentName);
+        return getSegmentRule(args.segmentName);
     }
 });
 
@@ -86,9 +97,9 @@ export const getSegmentProtectionConfig = query({
  * 获取混合模式配置详情
  */
 export const getHybridModeConfigDetails = query({
-    args: { segmentName: v.string() },
+    args: { segmentName: segmentNameValidator },
     handler: async (ctx, args) => {
-        const segmentInfo = SegmentPromotionDemotionManager.getSegmentInfo(args.segmentName);
+        const segmentInfo = getSegmentRule(args.segmentName);
         if (!segmentInfo) {
             return null;
         }
@@ -168,7 +179,7 @@ export const getConfigTemplates = query({
 export const createHybridModeConfig = query({
     args: {
         playerUid: v.string(),
-        segmentName: v.string()
+        segmentName: segmentNameValidator
     },
     handler: async (ctx, args) => {
         return ScoreThresholdIntegration.createHybridModeConfig(args.playerUid, args.segmentName);
@@ -181,8 +192,8 @@ export const createHybridModeConfig = query({
 export const createSegmentUpgradeConfig = query({
     args: {
         playerUid: v.string(),
-        oldSegment: v.string(),
-        newSegment: v.string()
+        oldSegment: segmentNameValidator,
+        newSegment: segmentNameValidator
     },
     handler: async (ctx, args) => {
         return ScoreThresholdIntegration.createSegmentUpgradeConfig(
@@ -199,7 +210,7 @@ export const createSegmentUpgradeConfig = query({
 export const createCustomConfig = mutation({
     args: {
         uid: v.string(),
-        segmentName: v.string(),
+        segmentName: segmentNameValidator,
         scoreThresholds: v.array(v.object({
             minScore: v.number(),
             maxScore: v.number(),
@@ -259,7 +270,7 @@ export const batchCreateConfigs = mutation({
     args: {
         configs: v.array(v.object({
             uid: v.string(),
-            segmentName: v.string(),
+            segmentName: segmentNameValidator,
             scoreThresholds: v.array(v.object({
                 minScore: v.number(),
                 maxScore: v.number(),
@@ -345,7 +356,7 @@ export const optimizeScoreThresholds = query({
     args: {
         currentConfig: v.object({
             uid: v.string(),
-            segmentName: v.string(),
+            segmentName: segmentNameValidator,
             scoreThresholds: v.array(v.object({
                 minScore: v.number(),
                 maxScore: v.number(),
@@ -419,6 +430,7 @@ export const optimizeScoreThresholds = query({
 
         const optimizedConfig: PlayerScoreThresholdConfig = {
             ...currentConfig,
+            segmentName: currentConfig.segmentName,
             scoreThresholds: optimizedThresholds,
             baseRankingProbability: baseThreshold.rankingProbabilities,
             maxRank: baseThreshold.rankingProbabilities.length,
@@ -452,14 +464,14 @@ export const optimizeScoreThresholds = query({
  */
 export const getConfigRecommendations = query({
     args: {
-        segmentName: v.string(),
+        segmentName: segmentNameValidator,
         playerLevel: v.union(v.literal("beginner"), v.literal("intermediate"), v.literal("advanced")),
         playStyle: v.union(v.literal("aggressive"), v.literal("balanced"), v.literal("conservative"))
     },
     handler: async (ctx, args) => {
         const { segmentName, playerLevel, playStyle } = args;
 
-        const segmentInfo = SegmentPromotionDemotionManager.getSegmentInfo(segmentName);
+        const segmentInfo = getSegmentRule(segmentName);
         if (!segmentInfo) {
             return null;
         }

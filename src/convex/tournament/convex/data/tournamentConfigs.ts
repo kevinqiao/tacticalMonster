@@ -28,6 +28,9 @@ export interface TournamentConfig {
     // 限制配置
     limits?: LimitConfig;
 
+    // 积分规则配置
+    pointRules?: PointRules;
+
     // 高级配置
     advanced?: AdvancedConfig;
 
@@ -120,128 +123,91 @@ export interface MatchRules {
 }
 
 /**
- * 奖励配置
+ * 奖励配置 - 专注于传统游戏奖励，积分通过 pointRules 配置
  */
 export interface RewardConfig {
-    // 基础奖励 - 支持多种积分类型
+    // 基础奖励 - 参与即可获得
     baseRewards: {
         coins?: number;
-        // 积分独立设计 - 支持多种积分类型
-        rankPoints?: number;           // 段位积分 - 用于段位升降级
-        seasonPoints?: number;         // 赛季积分 - 用于Battle Pass升级
-        prestigePoints?: number;       // 声望积分 - 用于特殊成就和奖励
-        achievementPoints?: number;    // 成就积分 - 用于成就系统
-        tournamentPoints?: number;     // 锦标赛积分 - 用于锦标赛排名
-
+        tickets?: Array<{
+            type: string;
+            quantity: number;
+        }>;
         props?: Array<{
             gameType: string;
             propId: string;
             quantity: number;
         }>;
-        tickets?: Array<{
-            type: string;
-            quantity: number;
-        }>;
     };
 
-    // 排名奖励 - 支持积分独立设计
+    // 排名奖励 - 基于排名范围
     rankRewards: Array<{
         rankRange: number[]; // [minRank, maxRank]
         multiplier: number;
 
-        // 积分独立奖励
-        pointRewards?: {
-            rankPoints?: number;
-            seasonPoints?: number;
-            prestigePoints?: number;
-            achievementPoints?: number;
-            tournamentPoints?: number;
-        };
-
-        bonusProps?: Array<{
-            gameType: string;
-            propId: string;
-            quantity: number;
-        }>;
-        bonusTickets?: Array<{
+        // 传统游戏奖励
+        coins?: number;
+        tickets?: Array<{
             type: string;
             quantity: number;
         }>;
-    }>;
-
-    // 段位加成 - 支持积分独立设计
-    segmentBonus?: {
-        bronze: {
-            rankPoints?: number;
-            seasonPoints?: number;
-            prestigePoints?: number;
-            achievementPoints?: number;
-            tournamentPoints?: number;
-        };
-        silver: {
-            rankPoints?: number;
-            seasonPoints?: number;
-            prestigePoints?: number;
-            achievementPoints?: number;
-            tournamentPoints?: number;
-        };
-        gold: {
-            rankPoints?: number;
-            seasonPoints?: number;
-            prestigePoints?: number;
-            achievementPoints?: number;
-            tournamentPoints?: number;
-        };
-        platinum: {
-            rankPoints?: number;
-            seasonPoints?: number;
-            prestigePoints?: number;
-            achievementPoints?: number;
-            tournamentPoints?: number;
-        };
-        diamond: {
-            rankPoints?: number;
-            seasonPoints?: number;
-            prestigePoints?: number;
-            achievementPoints?: number;
-            tournamentPoints?: number;
-        };
-    };
-
-    // 订阅加成
-    subscriptionBonus?: {
-        rankPoints?: number;
-        seasonPoints?: number;
-        prestigePoints?: number;
-        achievementPoints?: number;
-        tournamentPoints?: number;
-    };
-
-    // 参与奖励
-    participationReward?: {
-        coins?: number;
-        // 积分独立设计
-        rankPoints?: number;
-        seasonPoints?: number;
-        prestigePoints?: number;
-        achievementPoints?: number;
-        tournamentPoints?: number;
-
         props?: Array<{
             gameType: string;
             propId: string;
             quantity: number;
         }>;
-        tickets?: Array<{
-            type: string;
-            quantity: number;
-        }>;
+    }>;
+
+    // 段位加成 - 传统奖励的段位加成
+    segmentBonus?: {
+        bronze: {
+            coins?: number;
+            tickets?: Array<{ type: string; quantity: number; }>;
+            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+        };
+        silver: {
+            coins?: number;
+            tickets?: Array<{ type: string; quantity: number; }>;
+            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+        };
+        gold: {
+            coins?: number;
+            tickets?: Array<{ type: string; quantity: number; }>;
+            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+        };
+        platinum: {
+            coins?: number;
+            tickets?: Array<{ type: string; quantity: number; }>;
+            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+        };
+        diamond: {
+            coins?: number;
+            tickets?: Array<{ type: string; quantity: number; }>;
+            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+        };
     };
 
-    // 连胜奖励
+    // 订阅加成 - 传统奖励的订阅加成
+    subscriptionBonus?: {
+        coins?: number;
+        tickets?: Array<{ type: string; quantity: number; }>;
+        props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+    };
+
+    // 参与奖励 - 参与即可获得
+    participationReward?: {
+        coins?: number;
+        tickets?: Array<{ type: string; quantity: number; }>;
+        props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+    };
+
+    // 连胜奖励 - 传统奖励的连胜加成
     streakBonus?: {
         minStreak: number;
         bonusMultiplier: number;
+        coins?: number;
+        tickets?: Array<{ type: string; quantity: number; }>;
+        props?: Array<{ gameType: string; propId: string; quantity: number; }>;
     };
 }
 
@@ -280,6 +246,56 @@ export interface LimitConfig {
         maxTournaments?: number;
         maxAttempts?: number;
     };
+}
+
+/**
+ * 积分配置
+ */
+export interface PointConfig {
+    basePoints: number;
+    bonusMultiplier: number;
+    maxPoints: number;
+    minPoints: number;
+}
+
+/**
+ * 段位积分配置 - 简化版
+ */
+export interface SegmentPointConfig {
+    segment: "bronze" | "silver" | "gold" | "platinum" | "diamond";
+    multiplier: number;           // 段位积分倍数
+}
+
+/**
+ * 积分规则配置
+ */
+export interface PointRules {
+    // 积分开关
+    enableRankPoints: boolean;
+    enableSeasonPoints: boolean;
+    enablePrestigePoints: boolean;
+    enableAchievementPoints: boolean;
+    enableTournamentPoints: boolean;
+
+    // 全局积分倍数
+    pointMultiplier: number;
+
+    // 段位相关规则
+    segmentBasedScoring: boolean;
+    segmentBonusMultiplier: number;
+
+    // 排名积分配置
+    rankPointConfigs: Array<{
+        rank: number;
+        rankPoints: PointConfig;
+        seasonPoints: PointConfig;
+        prestigePoints: PointConfig;
+        achievementPoints: PointConfig;
+        tournamentPoints: PointConfig;
+    }>;
+
+    // 段位积分规则 - 数组配置
+    segmentPointRules: SegmentPointConfig[];
 }
 
 /**
@@ -354,31 +370,27 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         rewards: {
             baseRewards: {
-                coins: 5, // 参与奖励
-                seasonPoints: 0 // 不直接给seasonPoints，通过排行榜获得
+                coins: 5 // 参与奖励
             },
             rankRewards: [
                 {
                     rankRange: [1, 1],
                     multiplier: 1.0,
-                    bonusProps: []
+                    coins: 10
                 },
                 {
                     rankRange: [2, 2],
-                    multiplier: 0.5
+                    multiplier: 0.5,
+                    coins: 5
                 },
                 {
                     rankRange: [3, 4],
-                    multiplier: 0.0
+                    multiplier: 0.0,
+                    coins: 0
                 }
             ],
             participationReward: {
-                coins: 5,
-                rankPoints: 0,
-                seasonPoints: 0,
-                prestigePoints: 0,
-                achievementPoints: 0,
-                tournamentPoints: 0
+                coins: 5
             }
         },
 
@@ -405,6 +417,66 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 maxTournaments: 1,
                 maxAttempts: 15
             }
+        },
+
+        pointRules: {
+            enableRankPoints: true,
+            enableSeasonPoints: true,
+            enablePrestigePoints: true,
+            enableAchievementPoints: true,
+            enableTournamentPoints: true,
+            pointMultiplier: 1,
+            segmentBasedScoring: false,
+            segmentBonusMultiplier: 1,
+            rankPointConfigs: [
+                {
+                    rank: 1,
+                    rankPoints: { basePoints: 100, bonusMultiplier: 1.5, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 50, bonusMultiplier: 1.2, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 20, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 10, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 5, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 2,
+                    rankPoints: { basePoints: 80, bonusMultiplier: 1.3, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 40, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 15, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 8, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 4, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 3,
+                    rankPoints: { basePoints: 60, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 30, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 10, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 6, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 3, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 4,
+                    rankPoints: { basePoints: 40, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 20, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 5, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 4, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 2, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 5,
+                    rankPoints: { basePoints: 20, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 10, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 2, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 2, bonusMultiplier: 0.6, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 1, bonusMultiplier: 0.6, maxPoints: 1000, minPoints: 0 }
+                }
+            ],
+            segmentPointRules: [
+                { segment: "bronze", multiplier: 1 },
+                { segment: "silver", multiplier: 1.1 },
+                { segment: "gold", multiplier: 1.2 },
+                { segment: "platinum", multiplier: 1.3 },
+                { segment: "diamond", multiplier: 1.5 }
+            ]
         },
 
         createdAt: "2025-08-01T00:00:00.000Z",
@@ -445,31 +517,27 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         rewards: {
             baseRewards: {
-                coins: 10, // 参与奖励
-                seasonPoints: 0 // 不直接给seasonPoints，通过排行榜获得
+                coins: 10 // 参与奖励
             },
             rankRewards: [
                 {
                     rankRange: [1, 1],
                     multiplier: 1.0,
-                    bonusProps: []
+                    coins: 20
                 },
                 {
                     rankRange: [2, 2],
-                    multiplier: 0.5
+                    multiplier: 0.5,
+                    coins: 10
                 },
                 {
                     rankRange: [3, 4],
-                    multiplier: 0.1
+                    multiplier: 0.1,
+                    coins: 2
                 }
             ],
             participationReward: {
-                coins: 10,
-                rankPoints: 0,
-                seasonPoints: 0,
-                prestigePoints: 0,
-                achievementPoints: 0,
-                tournamentPoints: 0
+                coins: 10
             }
         },
 
@@ -483,6 +551,65 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 maxTournaments: 1,
                 maxAttempts: 8
             }
+        },
+        pointRules: {
+            enableRankPoints: true,
+            enableSeasonPoints: true,
+            enablePrestigePoints: true,
+            enableAchievementPoints: true,
+            enableTournamentPoints: true,
+            pointMultiplier: 1,
+            segmentBasedScoring: false,
+            segmentBonusMultiplier: 1,
+            rankPointConfigs: [
+                {
+                    rank: 1,
+                    rankPoints: { basePoints: 100, bonusMultiplier: 1.5, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 50, bonusMultiplier: 1.2, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 20, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 10, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 5, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 2,
+                    rankPoints: { basePoints: 80, bonusMultiplier: 1.3, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 40, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 15, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 8, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 4, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 3,
+                    rankPoints: { basePoints: 60, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 30, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 10, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 6, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 3, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 4,
+                    rankPoints: { basePoints: 40, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 20, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 5, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 4, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 2, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 5,
+                    rankPoints: { basePoints: 20, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 10, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 2, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 2, bonusMultiplier: 0.6, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 1, bonusMultiplier: 0.6, maxPoints: 1000, minPoints: 0 }
+                }
+            ],
+            segmentPointRules: [
+                { segment: "bronze", multiplier: 1 },
+                { segment: "silver", multiplier: 1.1 },
+                { segment: "gold", multiplier: 1.2 },
+                { segment: "platinum", multiplier: 1.3 },
+                { segment: "diamond", multiplier: 1.5 }
+            ]
         },
         createdAt: "2025-08-01T00:00:00.000Z",
         updatedAt: "2025-08-01T00:00:00.000Z"
@@ -524,7 +651,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         rewards: {
             baseRewards: {
                 coins: 100,
-                seasonPoints: 50,
                 props: [
                     {
                         gameType: "solitaire",
@@ -538,7 +664,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 {
                     rankRange: [1, 1],
                     multiplier: 3.0,
-                    bonusProps: [
+                    coins: 300,
+                    props: [
                         {
                             gameType: "solitaire",
                             propId: "time_boost",
@@ -548,64 +675,22 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 },
                 {
                     rankRange: [2, 3],
-                    multiplier: 2.0
+                    multiplier: 2.0,
+                    coins: 200
                 },
                 {
                     rankRange: [4, 10],
-                    multiplier: 1.5
+                    multiplier: 1.5,
+                    coins: 150
                 }
             ],
-            segmentBonus: {
-                bronze: {
-                    rankPoints: 1.0,
-                    seasonPoints: 1.0,
-                    prestigePoints: 1.0,
-                    achievementPoints: 1.0,
-                    tournamentPoints: 1.0
-                },
-                silver: {
-                    rankPoints: 1.1,
-                    seasonPoints: 1.1,
-                    prestigePoints: 1.1,
-                    achievementPoints: 1.1,
-                    tournamentPoints: 1.1
-                },
-                gold: {
-                    rankPoints: 1.2,
-                    seasonPoints: 1.2,
-                    prestigePoints: 1.2,
-                    achievementPoints: 1.2,
-                    tournamentPoints: 1.2
-                },
-                platinum: {
-                    rankPoints: 1.3,
-                    seasonPoints: 1.3,
-                    prestigePoints: 1.3,
-                    achievementPoints: 1.3,
-                    tournamentPoints: 1.3
-                },
-                diamond: {
-                    rankPoints: 1.5,
-                    seasonPoints: 1.5,
-                    prestigePoints: 1.5,
-                    achievementPoints: 1.5,
-                    tournamentPoints: 1.5
-                }
-            },
             subscriptionBonus: {
-                rankPoints: 1.2,
-                seasonPoints: 1.2,
-                prestigePoints: 1.2,
-                achievementPoints: 1.2,
-                tournamentPoints: 1.2
+                coins: 1.2,
+                tickets: [],
+                props: []
             },
             participationReward: {
-                coins: 10,
-                rankPoints: 5,
-                seasonPoints: 5,
-                prestigePoints: 2,
-                achievementPoints: 2,
-                tournamentPoints: 5
+                coins: 10
             }
         },
 
@@ -619,6 +704,66 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         //         maxAttempts: 5
         //     }
         // },
+
+        pointRules: {
+            enableRankPoints: true,
+            enableSeasonPoints: true,
+            enablePrestigePoints: true,
+            enableAchievementPoints: true,
+            enableTournamentPoints: true,
+            pointMultiplier: 1,
+            segmentBasedScoring: false,
+            segmentBonusMultiplier: 1,
+            rankPointConfigs: [
+                {
+                    rank: 1,
+                    rankPoints: { basePoints: 100, bonusMultiplier: 1.5, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 50, bonusMultiplier: 1.2, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 20, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 10, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 5, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 2,
+                    rankPoints: { basePoints: 80, bonusMultiplier: 1.3, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 40, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 15, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 8, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 4, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 3,
+                    rankPoints: { basePoints: 60, bonusMultiplier: 1.1, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 30, bonusMultiplier: 1.0, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 10, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 6, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 3, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 4,
+                    rankPoints: { basePoints: 40, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 20, bonusMultiplier: 0.9, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 5, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 4, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 2, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 }
+                },
+                {
+                    rank: 5,
+                    rankPoints: { basePoints: 20, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    seasonPoints: { basePoints: 10, bonusMultiplier: 0.8, maxPoints: 1000, minPoints: 0 },
+                    prestigePoints: { basePoints: 2, bonusMultiplier: 0.7, maxPoints: 1000, minPoints: 0 },
+                    achievementPoints: { basePoints: 2, bonusMultiplier: 0.6, maxPoints: 1000, minPoints: 0 },
+                    tournamentPoints: { basePoints: 1, bonusMultiplier: 0.6, maxPoints: 1000, minPoints: 0 }
+                }
+            ],
+            segmentPointRules: [
+                { segment: "bronze", multiplier: 1 },
+                { segment: "silver", multiplier: 1.1 },
+                { segment: "gold", multiplier: 1.2 },
+                { segment: "platinum", multiplier: 1.3 },
+                { segment: "diamond", multiplier: 1.5 }
+            ]
+        },
 
         createdAt: "2025-08-01T00:00:00.000Z",
         updatedAt: "2025-08-01T00:00:00.000Z"

@@ -3,7 +3,8 @@
  * 提供与现有锦标赛系统的接口
  */
 
-import { HYBRID_SEGMENT_CONFIGS, PlayerPerformanceData, PlayerScoreThresholdConfig, ScoreThreshold, scoreThresholdController } from './scoreThresholdRankingController';
+import { SegmentName } from '../../segment/types';
+import { HYBRID_SEGMENT_CONFIGS, PlayerPerformanceData, PlayerScoreThresholdConfig, ScoreThreshold, scoreThresholdController, SEGMENT_CONFIGS } from './scoreThresholdRankingController';
 
 export class ScoreThresholdIntegration {
     /**
@@ -11,7 +12,7 @@ export class ScoreThresholdIntegration {
      */
     static async initializePlayer(ctx: any, params: {
         uid: string;
-        segmentName: string;
+        segmentName: SegmentName;
         useHybridMode?: boolean;
     }): Promise<PlayerPerformanceData> {
         return await scoreThresholdController.initializePlayer(ctx, params);
@@ -95,7 +96,7 @@ export class ScoreThresholdIntegration {
     /**
      * 创建混合模式配置
      */
-    static createHybridModeConfig(playerUid: string, segmentName: string): PlayerScoreThresholdConfig {
+    static createHybridModeConfig(playerUid: string, segmentName: SegmentName): PlayerScoreThresholdConfig {
         const hybridConfig = HYBRID_SEGMENT_CONFIGS[segmentName];
         if (!hybridConfig) {
             throw new Error(`段位 ${segmentName} 不支持混合模式`);
@@ -119,7 +120,7 @@ export class ScoreThresholdIntegration {
     /**
      * 创建段位升级配置
      */
-    static createSegmentUpgradeConfig(playerUid: string, oldSegment: string, newSegment: string): PlayerScoreThresholdConfig {
+    static createSegmentUpgradeConfig(playerUid: string, oldSegment: SegmentName, newSegment: SegmentName): PlayerScoreThresholdConfig {
         const newSegmentConfig = HYBRID_SEGMENT_CONFIGS[newSegment];
         if (!newSegmentConfig) {
             throw new Error(`段位 ${newSegment} 不支持混合模式`);
@@ -143,7 +144,7 @@ export class ScoreThresholdIntegration {
     /**
      * 获取段位配置信息
      */
-    static getSegmentConfigInfo(segmentName: string): {
+    static getSegmentConfigInfo(segmentName: SegmentName): {
         scoreThresholds: ScoreThreshold[];
         adaptiveMode: boolean;
         learningRate: number;
@@ -159,8 +160,8 @@ export class ScoreThresholdIntegration {
             return null;
         }
 
-        // 这里需要导入 SEGMENT_CONFIGS，暂时返回默认值
-        const protectionConfig = {
+        // 使用正确的段位保护配置
+        const protectionConfig = SEGMENT_CONFIGS[segmentName] || {
             protectionThreshold: 5,
             demotionGracePeriod: 7,
             promotionStabilityPeriod: 5,
@@ -178,9 +179,9 @@ export class ScoreThresholdIntegration {
     /**
      * 比较段位配置
      */
-    static compareSegmentConfigs(segment1: string, segment2: string): {
-        segment1: string;
-        segment2: string;
+    static compareSegmentConfigs(segment1: SegmentName, segment2: SegmentName): {
+        segment1: SegmentName;
+        segment2: SegmentName;
         differences: {
             learningRate: { segment1: number; segment2: number; difference: number };
             avgRank1Probability: { segment1: number; segment2: number; difference: number };

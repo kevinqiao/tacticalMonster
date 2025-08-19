@@ -1,8 +1,7 @@
 import { Id } from "../../_generated/dataModel";
 import { TimeZoneUtils } from "../../util/TimeZoneUtils";
-import { LeaderboardSystem } from "../leaderboard/leaderboardSystem";
 import { TicketSystem } from "../ticket/ticketSystem";
-import { TournamentRulesService } from "./tournamentRules";
+import { PointCalculationService } from "./pointCalculationService";
 
 /**
  * 公共工具函数
@@ -589,17 +588,13 @@ export async function settleTournament(ctx: any, tournamentId: string) {
 
         try {
             // 使用新的积分系统计算各类积分
-            const tournamentPoints = await TournamentRulesService.calculatePlayerTournamentPoints(ctx, {
+            const tournamentPoints = await PointCalculationService.calculatePlayerTournamentPoints(ctx, {
                 tournamentId,
                 uid: playerTournament.uid,
                 matchRank: rank,
                 matchScore: playerTournament.score || 0,
                 matchDuration: tournament.duration || 0,
-                segmentName: playerTournament.segment || "bronze",
-                isPerfectScore: playerTournament.isPerfectScore || false,
-                isQuickWin: playerTournament.isQuickWin || false,
-                isComebackWin: playerTournament.isComebackWin || false,
-                winningStreak: playerTournament.winningStreak || 0
+                segmentName: playerTournament.segment || "bronze"
             });
 
             if (tournamentPoints.success) {
@@ -651,76 +646,7 @@ export async function settleTournament(ctx: any, tournamentId: string) {
     console.log(`锦标赛 ${tournamentId} 结算完成，共处理 ${playerTournaments.length} 名玩家`);
 }
 
-/**
- * 使用新的 tournamentRules 计算锦标赛积分
- * 集成新的积分系统，支持多种积分类型
- */
-async function calculateTournamentPointsWithRules(ctx: any, params: {
-    tournamentId: string;
-    uid: string;
-    matchRank: number;
-    matchScore: number;
-    matchDuration: number;
-    segmentName: string;
-    isPerfectScore: boolean;
-    isQuickWin: boolean;
-    isComebackWin: boolean;
-    winningStreak: number;
-}) {
-    try {
-        // 直接调用 TournamentRulesService 计算各类积分
-        const result = await TournamentRulesService.calculatePlayerTournamentPoints(ctx, params);
 
-        if (result.success) {
-            return result;
-        } else {
-            throw new Error(result.message || "积分计算失败");
-        }
-
-    } catch (error) {
-        console.error("积分系统计算失败:", error);
-
-        // 返回零积分作为回退
-        return {
-            success: true,
-            points: {
-                rankPoints: 0,
-                seasonPoints: 0,
-                prestigePoints: 0,
-                achievementPoints: 0,
-                tournamentPoints: 0
-            },
-            message: "积分计算失败，使用零积分"
-        };
-    }
-}
-/**
- * 为快速对局累积排行榜积分
- */
-async function accumulateLeaderboardPoints(ctx: any, params: {
-    uid: string;
-    gameType: string;
-    score: number; // 对局中的排名
-}) {
-    try {
-        // 使用便捷的积分更新方法
-        const result = await LeaderboardSystem.updatePoints(ctx, params);
-
-        if (result.success) {
-            console.log(`快速对局积分累积完成：玩家 ${params.uid}，排名 ${params.score}，游戏类型 ${params.gameType}`);
-        } else {
-            console.error("积分累积失败:", result.message);
-        }
-
-        return result;
-    } catch (error) {
-        console.error("累积排行榜积分失败:", error);
-        return {
-            success: false,
-            message: "累积排行榜积分失败"
-        };
-    }
-}
 export async function collectRewards(ctx: any, playerTournament: any) {
     const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", playerTournament.uid)).unique();
 

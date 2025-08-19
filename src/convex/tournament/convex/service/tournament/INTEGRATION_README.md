@@ -18,8 +18,8 @@
 
 ### 2. 新的积分规则系统 ✅
 
-- `tournamentRules.ts` - 核心积分计算逻辑（使用 class 包装）
-- `tournamentRulesExample.ts` - 使用示例和测试
+- `pointCalculationService.ts` - 核心积分计算逻辑（使用 class 包装）
+- `pointCalculationExample.ts` - 使用示例和测试
 - 支持段位加成、订阅加成、连胜奖励等
 
 ### 3. 完全替换现有系统 ✅
@@ -32,326 +32,109 @@
 
 ```
 ┌─────────────────────┐    ┌─────────────────────┐
-│   tournamentConfigs │    │   tournamentRules   │
-│   (配置数据)        │    │   (业务逻辑)        │
+│   tournamentConfigs │    │   pointCalculation  │
+│   (配置数据)        │    │   Service           │
 ├─────────────────────┤    ├─────────────────────┤
-│ • 积分基础值        │    │ • 积分计算公式      │
-│ • 段位倍数          │    │ • 奖励计算逻辑      │
-│ • 限制条件          │    │ • 验证规则          │
-│ • 时间设置          │    │ • 数据库操作        │
+│ • rewards          │    │ • 积分计算公式      │
+│   - 传统游戏奖励    │    │ • 默认规则配置      │
+│   - 金币、道具      │    │ • 积分计算引擎      │
+│   - 门票、段位加成  │    │ • 段位积分规则      │
+│ • pointRules       │    │ • 排名积分配置      │
+│   - 积分计算规则    │    │ • 积分类型开关      │
+│   - 段位积分配置    │    │ • 积分倍数限制      │
 └─────────────────────┘    └─────────────────────┘
-            │                           │
-            └───────────┬───────────────┘
-                        │
-               ┌─────────────────┐
-               │  业务执行层      │
-               │ (完全使用新系统) │
-               └─────────────────┘
 ```
+
+## 配置架构说明
+
+### **`rewards` - 传统游戏奖励系统**
+- **用途**：定义传统的游戏奖励（金币、道具、门票等）
+- **特点**：静态配置，基于排名范围给予固定奖励
+- **结构**：
+  ```typescript
+  rewards: {
+      baseRewards: { coins: 5 },
+      rankRewards: [
+          { rankRange: [1, 1], multiplier: 1.0, coins: 10 },
+          { rankRange: [2, 2], multiplier: 0.5, coins: 5 }
+      ],
+      participationReward: { coins: 5 }
+  }
+  ```
+
+### **`pointRules` - 积分计算规则系统**
+- **用途**：定义积分计算的详细规则和参数
+- **特点**：动态计算，支持复杂的积分公式和段位加成
+- **结构**：
+  ```typescript
+  pointRules: {
+      enableRankPoints: true,
+      pointMultiplier: 1,
+      rankPointConfigs: [
+          {
+              rank: 1,
+              rankPoints: { basePoints: 100, bonusMultiplier: 1.5 }
+          }
+      ],
+      segmentPointRules: {
+          gold: { baseMultiplier: 1.2, bonusMultiplier: 1.2 }
+      }
+  }
+  ```
 
 ## 使用方法
 
-### 1. 直接调用 Class 方法（推荐）
+### 1. 直接调用 PointCalculationService 的静态方法
 
 ```typescript
-// 直接调用 TournamentRulesService 的静态方法
-import { TournamentRulesService } from './tournamentRules';
+import { PointCalculationService } from './pointCalculationService';
 
 // 获取段位积分规则
-const segmentRules = TournamentRulesService.getSegmentPointRules("gold");
+const segmentRules = PointCalculationService.getSegmentPointRules("gold");
 
 // 获取排名积分配置
-const rankConfigs = TournamentRulesService.getRankPointConfigs();
+const rankConfigs = PointCalculationService.getRankPointConfigs();
 
 // 验证锦标赛规则
-const validation = TournamentRulesService.validateTournamentRules(rules);
+const validation = PointCalculationService.validateTournamentRules(rules);
 
-// 计算积分（在 Convex 函数中）
-const points = await TournamentRulesService.calculatePlayerTournamentPoints(ctx, args);
+// 计算玩家积分
+const points = await PointCalculationService.calculatePlayerTournamentPoints(ctx, args);
 ```
 
-### 2. 通过 Convex 函数调用
+### 2. 通过 Convex API 调用
 
 ```typescript
-// 调用 Convex 函数
-const result = await ctx.runMutation(api.tournamentRules.calculatePlayerTournamentPoints, args);
+// 计算玩家积分
+const result = await ctx.runMutation(api.pointCalculationService.calculatePlayerTournamentPoints, args);
 ```
 
-### 3. 在 settleTournament 中自动使用（已集成）
+### 3. 在 settleTournament 中的集成
+
+在 `settleTournament` 函数中，我们完全使用新的积分系统：
 
 ```typescript
-// settleTournament 函数已完全重写，自动使用新的积分系统
-export async function settleTournament(ctx: any, tournamentId: string) {
-    // ... 获取锦标赛和玩家信息 ...
-    
-    // 计算排名并分配积分
-    for (let i = 0; i < playerTournaments.length; i++) {
-        const playerTournament = playerTournaments[i];
-        const rank = i + 1;
-        
-        // 使用新的积分系统计算各类积分
-        const tournamentPoints = await calculateTournamentPointsWithRules(ctx, {
-            tournamentId,
-            uid: playerTournament.uid,
-            matchRank: rank,
-            matchScore: playerTournament.score || 0,
-            matchDuration: tournament.duration || 0,
-            segmentName: playerTournament.segment || "bronze",
-            isPerfectScore: playerTournament.isPerfectScore || false,
-            isQuickWin: playerTournament.isQuickWin || false,
-            isComebackWin: playerTournament.isComebackWin || false,
-            winningStreak: playerTournament.winningStreak || 0
-        });
-        
-        // 更新玩家记录和积分统计
-        await updatePlayerPointStats(ctx, playerTournament.uid, tournamentId, tournamentPoints.points);
-    }
-}
-```
-
-### 4. 获取积分规则
-
-```typescript
-// 获取锦标赛的积分规则配置
-const rules = await ctx.runQuery(api.tournamentService.getTournamentPointRules, {
-    tournamentId: "daily_tournament"
+// 直接使用 `PointCalculationService`
+const tournamentPoints = await PointCalculationService.calculatePlayerTournamentPoints(ctx, {
+    tournamentId,
+    uid: playerTournament.uid,
+    matchRank: rank,
+    matchScore: playerTournament.score || 0,
+    matchDuration: tournament.duration || 0,
+    segmentName: playerTournament.segment || "bronze"
 });
 ```
 
-### 5. 创建新的锦标赛配置
+## 核心组件说明
 
-```typescript
-// 在 tournamentConfigs.ts 中添加新配置
-{
-    typeId: "new_tournament",
-    name: "新锦标赛",
-    // ... 其他配置
-    rewards: {
-        baseRewards: {
-            rankPoints: 100,        // 段位积分
-            seasonPoints: 50,       // 赛季积分
-            prestigePoints: 20,     // 声望积分
-            achievementPoints: 10,  // 成就积分
-            tournamentPoints: 200   // 锦标赛积分
-        },
-        segmentBonus: {
-            bronze: {
-                rankPoints: 1.0,
-                seasonPoints: 1.0,
-                prestigePoints: 1.0,
-                achievementPoints: 1.0,
-                tournamentPoints: 1.0
-            },
-            gold: {
-                rankPoints: 1.2,
-                seasonPoints: 1.2,
-                prestigePoints: 1.2,
-                achievementPoints: 1.2,
-                tournamentPoints: 1.2
-            }
-            // ... 其他段位
-        }
-    }
-}
-```
-
-## settleTournament 完全重写详解
-
-### 新架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    settleTournament (新版本)                │
-├─────────────────────────────────────────────────────────────┤
-│  1. 获取锦标赛信息                                         │
-│  2. 获取所有参与者                                         │
-│  3. 按分数排序计算排名                                     │
-│  4. 使用新积分系统计算各类积分                              │
-│  5. 更新玩家积分统计                                       │
-│  6. 记录积分历史                                           │
-│  7. 保存结算结果                                           │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 关键特性
-
-#### 1. **完全使用新积分系统**
-- 移除传统奖励计算逻辑
-- 直接使用 `TournamentRulesService`
-- 支持5种积分类型
-
-#### 2. **实时积分统计更新**
-- 结算完成后立即更新玩家积分
-- 记录详细的积分历史
-- 支持赛季统计
-
-#### 3. **错误处理机制**
-- 单个玩家失败不影响整体结算
-- 记录详细错误信息
-- 保证数据一致性
-
-#### 4. **性能优化**
-- 批量处理玩家数据
-- 异步更新积分统计
-- 减少数据库查询次数
-
-### 配置示例
-
-#### 新配置（完全支持多种积分）
-```typescript
-{
-    typeId: "modern_tournament",
-    rewards: {
-        baseRewards: {
-            rankPoints: 100,
-            seasonPoints: 50,
-            prestigePoints: 20,
-            achievementPoints: 10,
-            tournamentPoints: 200
-        },
-        rankRewards: [
-            {
-                rankRange: [1, 1],
-                multiplier: 2.0,
-                pointRewards: {
-                    rankPoints: 50,
-                    tournamentPoints: 100
-                }
-            }
-        ],
-        segmentBonus: {
-            gold: {
-                rankPoints: 1.2,
-                tournamentPoints: 1.3
-            }
-        }
-    }
-}
-```
-
-### 测试建议
-
-#### 1. **单元测试**
-```typescript
-// 测试积分计算函数
-describe('calculateTournamentPointsWithRules', () => {
-    it('应该正确计算各类积分', async () => {
-        const result = await calculateTournamentPointsWithRules(ctx, testParams);
-        expect(result.success).toBe(true);
-        expect(result.points.rankPoints).toBeGreaterThan(0);
-    });
-});
-```
-
-#### 2. **集成测试**
-```typescript
-// 测试完整的锦标赛结算流程
-describe('settleTournament Integration', () => {
-    it('应该成功结算锦标赛并计算积分', async () => {
-        const result = await settleTournament(ctx, tournamentId);
-        expect(result).toBeDefined();
-        
-        // 验证玩家积分是否正确计算
-        const playerTournament = await getPlayerTournament(ctx, playerId, tournamentId);
-        expect(playerTournament.rewards.rankPoints).toBeGreaterThan(0);
-    });
-});
-```
-
-### 监控和日志
-
-#### 1. **积分计算日志**
-```typescript
-console.log(`玩家 ${uid} 排名 ${rank}，积分计算完成:`, {
-    rankPoints: points.rankPoints,
-    seasonPoints: points.seasonPoints,
-    prestigePoints: points.prestigePoints,
-    achievementPoints: points.achievementPoints,
-    tournamentPoints: points.tournamentPoints
-});
-```
-
-#### 2. **错误监控**
-```typescript
-console.error(`玩家 ${uid} 积分计算失败:`, {
-    error: error.message,
-    params: { tournamentId, uid, matchRank, segmentName },
-    timestamp: new Date().toISOString()
-});
-```
-
-#### 3. **性能监控**
-```typescript
-const startTime = Date.now();
-const result = await calculateTournamentPointsWithRules(ctx, params);
-const duration = Date.now() - startTime;
-
-console.log(`积分计算耗时: ${duration}ms`, {
-    uid: params.uid,
-    tournamentId: params.tournamentId
-});
-```
-
-## Class 结构优势
-
-### 1. **一致性**
-- 与 `tournamentService.ts` 保持相同的代码风格
-- 统一的调用方式和命名规范
-
-### 2. **可维护性**
-- 所有相关功能集中在 `TournamentRulesService` 类中
-- 便于代码组织和重构
-
-### 3. **可扩展性**
-- 易于添加新的方法和功能
-- 支持继承和多态
-
-### 4. **测试友好**
-- 可以直接测试 class 方法，无需 Convex 环境
-- 支持单元测试和集成测试
-
-## 核心方法说明
-
-### TournamentRulesService 类
+### PointCalculationService 类
 
 | 方法 | 类型 | 说明 |
 |------|------|------|
 | `getSegmentPointRules` | 静态方法 | 获取段位积分规则 |
 | `getRankPointConfigs` | 静态方法 | 获取排名积分配置 |
 | `getRankPointConfig` | 静态方法 | 获取特定排名配置 |
-| `validateTournamentRules` | 静态方法 | 验证锦标赛规则 |
-| `createCustomTournamentRules` | 静态异步方法 | 创建自定义规则 |
-| `getTournamentRules` | 静态异步方法 | 获取锦标赛规则 |
-| `getAvailableSegments` | 静态方法 | 获取可用段位 |
-| `getSegmentInfo` | 静态方法 | 获取段位信息 |
 | `calculatePlayerTournamentPoints` | 静态异步方法 | 计算玩家积分 |
-
-## 积分类型说明
-
-### 1. 段位积分 (rankPoints)
-- **用途**: 段位升降级
-- **获取**: 通过比赛排名和表现
-- **消耗**: 段位升级时扣除
-
-### 2. 赛季积分 (seasonPoints)  
-- **用途**: Battle Pass 升级
-- **获取**: 通过比赛参与和成就
-- **特点**: 每个赛季重置
-
-### 3. 声望积分 (prestigePoints)
-- **用途**: 特殊成就和奖励
-- **获取**: 通过完美表现和连胜
-- **特点**: 永久保留
-
-### 4. 成就积分 (achievementPoints)
-- **用途**: 成就系统解锁
-- **获取**: 通过特定成就达成
-- **特点**: 累积型积分
-
-### 5. 锦标赛积分 (tournamentPoints)
-- **用途**: 锦标赛排名和奖励
-- **获取**: 通过锦标赛表现
-- **特点**: 锦标赛专用
 
 ## 配置建议
 
@@ -372,39 +155,35 @@ console.log(`积分计算耗时: ${duration}ms`, {
 
 ## 测试建议
 
-### 1. 单元测试
-- 测试 `TournamentRulesService` 的各个静态方法
-- 验证积分计算逻辑正确性
-- 检查段位加成和奖励机制
+- 测试 `PointCalculationService` 的各个静态方法
+- 验证积分计算的准确性
+- 测试默认规则回退机制
+- 验证数据库记录的正确性
 
-### 2. 集成测试
-- 测试与现有系统的兼容性
-- 验证数据库操作正确性
-- 检查性能表现
+## 文件结构
 
-### 3. 用户测试
-- 验证积分获取逻辑合理性
-- 检查段位升级体验
-- 评估奖励系统吸引力
+```
+src/convex/tournament/convex/service/tournament/
+├── pointCalculationService.ts - 核心逻辑实现（PointCalculationService 类）
+├── pointCalculationExample.ts - 使用示例和测试
+├── common.ts - 公共函数（包含 settleTournament）
+└── INTEGRATION_README.md - 本集成指南
+```
 
-## 注意事项
+## 架构优势
 
-1. **完全替换**: 新系统完全替代现有奖励系统
-2. **性能考虑**: 积分计算已优化，支持高并发
-3. **扩展性**: 系统设计支持未来添加新的积分类型
-4. **数据一致性**: 所有积分操作都有事务保护
-5. **Class 调用**: 推荐直接调用 class 方法，性能更好
+### 1. **职责分离**
+- `rewards` 专注于传统游戏奖励（金币、道具、门票）
+- `pointRules` 专注于积分计算规则和配置
 
-## 下一步计划
+### 2. **配置清晰**
+- 传统奖励和积分规则分别配置，避免混淆
+- 积分计算逻辑更加透明和可维护
 
-1. **监控系统**: 添加积分获取和使用统计
-2. **平衡调整**: 基于用户反馈调整积分参数
-3. **新功能**: 支持积分交易、积分商城等
-4. **国际化**: 支持多语言和地区化配置
+### 3. **扩展性强**
+- 可以独立调整传统奖励和积分规则
+- 支持未来添加新的奖励类型或积分类型
 
-## 技术支持
-
-如有问题，请参考：
-- `tournamentRules.ts` - 核心逻辑实现（TournamentRulesService 类）
-- `tournamentRulesExample.ts` - 使用示例和测试
-- `TOURNAMENT_RULES_README.md` - 详细文档
+### 4. **维护简单**
+- 两套系统独立维护，减少相互影响
+- 配置结构更加清晰，便于调试和优化
