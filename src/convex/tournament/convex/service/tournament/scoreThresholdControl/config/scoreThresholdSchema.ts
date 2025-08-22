@@ -81,21 +81,27 @@ export default {
         .index("by_oldSegment", ["oldSegment"])
         .index("by_newSegment", ["newSegment"]),
 
-    // 玩家比赛记录表
-    player_match_records: defineTable({
+    // 比赛结果表（统一存储所有比赛数据，包含种子信息）
+    match_results: defineTable({
         matchId: v.string(),
-        uid: v.string(),
-        score: v.number(),
-        rank: v.number(),
-        points: v.number(),
-        createdAt: v.string()
+        seed: v.string(),          // 种子标识
+        uid: v.string(),           // 玩家用户ID
+        score: v.number(),         // 玩家得分
+        rank: v.number(),          // 玩家排名
+        points: v.number(),        // 玩家获得的积分
+        segmentName: v.optional(v.string()), // 玩家当前段位（可选）
+        createdAt: v.string()      // 记录创建时间
     })
-        .index("by_uid", ["uid"])
         .index("by_matchId", ["matchId"])
+        .index("by_seed", ["seed"])
+        .index("by_uid", ["uid"])
         .index("by_createdAt", ["createdAt"])
-        .index("by_score", ["score"])
-        .index("by_rank", ["rank"])
-        .index("by_points", ["points"]),
+        .index("by_seed_created", ["seed", "createdAt"]) // 复合索引，用于增量查询
+        .index("by_score", ["score"])                    // 按得分查询
+        .index("by_rank", ["rank"])                      // 按排名查询
+        .index("by_points", ["points"])                  // 按积分查询
+        .index("by_segment", ["segmentName"])            // 按段位查询
+        .index("by_uid_created", ["uid", "createdAt"]),  // 复合索引，用于玩家历史查询
 
     // 分数门槛比赛配置表
     score_threshold_match_configs: defineTable({
@@ -117,5 +123,24 @@ export default {
         .index("by_uid", ["uid"])
         .index("by_status", ["status"])
         .index("by_targetRank", ["targetRank"])
-        .index("by_createdAt", ["createdAt"])
+        .index("by_createdAt", ["createdAt"]),
+
+    // 种子统计缓存表
+    seed_statistics_cache: defineTable({
+        seed: v.string(),
+        totalMatches: v.number(),
+        lastAnalysisTime: v.string(),
+        lastMatchCreatedAt: v.string(),
+        scoreStats: v.object({
+            totalScores: v.number(),
+            averageScore: v.number(),
+            minScore: v.number(),
+            maxScore: v.number(),
+            scoreCount: v.number()
+        }),
+        createdAt: v.string()
+    })
+        .index("by_seed", ["seed"])
+        .index("by_lastAnalysisTime", ["lastAnalysisTime"])
+        .index("by_totalMatches", ["totalMatches"])
 };

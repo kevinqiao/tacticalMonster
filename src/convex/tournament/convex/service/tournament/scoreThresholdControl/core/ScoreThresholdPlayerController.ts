@@ -1,0 +1,1494 @@
+/**
+ * 分数门槛控制玩家级控制器
+ * 专注于玩家级操作：配置管理、个人统计、保护状态等
+ * 整合了系统级和玩家级功能，提供完整的分数门槛控制
+ */
+import {
+    getAdaptiveMode,
+    getDefaultScoreThresholds,
+    getLearningRate,
+    getRankingMode
+} from "../config/config";
+import {
+    AdaptiveMode,
+    ChangeType,
+    PlayerPerformanceMetrics,
+    PlayerProtectionStatus,
+    ProtectionLevel,
+    RankingMode,
+    ScoreThresholdConfig,
+    SegmentName
+} from "../config/types";
+import { IntelligentExperienceManager } from "../managers/IntelligentExperienceManager";
+
+// 添加缺失的常量
+const DEFAULT_PROTECTION_LEVEL = 1;
+const DEFAULT_GRACE_PERIOD = 3;
+const DEFAULT_PROTECTION_DURATION = 7;
+
+// 简化的SegmentManager类
+class SegmentManager {
+    private ctx: any;
+
+    constructor(ctx: any) {
+        this.ctx = ctx;
+    }
+
+    async canPromote(uid: string): Promise<boolean> {
+        return true;
+    }
+
+    async canDemote(uid: string): Promise<boolean> {
+        return true;
+    }
+
+    async getSegmentProtectionConfig(segmentName: SegmentName) {
+        return {
+            protectionLevel: DEFAULT_PROTECTION_LEVEL,
+            gracePeriod: DEFAULT_GRACE_PERIOD,
+            protectionDuration: DEFAULT_PROTECTION_DURATION
+        };
+    }
+
+    async getSegmentRule(segmentName: SegmentName) {
+        return {
+            minScore: 0,
+            maxScore: 10000,
+            promotionRequirement: 100,
+            demotionThreshold: 50
+        };
+    }
+
+    async getSegmentTier(segmentName: SegmentName): Promise<number> {
+        const tiers: Record<SegmentName, number> = {
+            bronze: 1,
+            silver: 2,
+            gold: 3,
+            platinum: 4,
+            diamond: 5,
+            master: 6,
+            grandmaster: 7
+        };
+        return tiers[segmentName] || 1;
+    }
+
+    async checkAndProcessSegmentChange(uid: string, points: number): Promise<any> {
+        return { changed: false, newSegment: null };
+    }
+}
+
+// 历史数据分析器类
+class HistoricalDataAnalyzer {
+    private ctx: any;
+
+    constructor(ctx: any) {
+        this.ctx = ctx;
+    }
+
+    /**
+     * 分析玩家历史数据并生成配置建议
+     */
+    async analyzePlayerHistory(uid: string): Promise<{
+        learningRateAdjustment: number;
+        rankingModeSuggestion: RankingMode;
+        adaptiveModeSuggestion: AdaptiveMode;
+        scoreThresholdAdjustments: any[];
+        confidence: number;
+    }> {
+        try {
+            // 获取玩家历史数据
+            const performanceMetrics = await this.getPlayerPerformanceMetrics(uid);
+            const matchRecords = await this.getPlayerMatchRecords(uid);
+
+            if (!performanceMetrics || matchRecords.length === 0) {
+                return this.getDefaultSuggestions();
+            }
+
+            // 分析胜率趋势
+            const winRateAnalysis = this.analyzeWinRate(performanceMetrics, matchRecords);
+
+            // 分析分数稳定性
+            const scoreStabilityAnalysis = this.analyzeScoreStability(matchRecords);
+
+            // 分析排名分布
+            const rankingDistributionAnalysis = this.analyzeRankingDistribution(matchRecords);
+
+            // 分析学习曲线
+            const learningCurveAnalysis = this.analyzeLearningCurve(matchRecords);
+
+            // 生成配置建议
+            const suggestions = this.generateConfigSuggestions({
+                winRateAnalysis,
+                scoreStabilityAnalysis,
+                rankingDistributionAnalysis,
+                learningCurveAnalysis
+            });
+
+            return suggestions;
+        } catch (error) {
+            console.error(`分析玩家历史数据失败: ${uid}`, error);
+            return this.getDefaultSuggestions();
+        }
+    }
+
+    /**
+     * 分析胜率趋势
+     */
+    private analyzeWinRate(metrics: any, records: any[]): {
+        trend: 'improving' | 'stable' | 'declining';
+        confidence: number;
+        recentWinRate: number;
+        overallWinRate: number;
+    } {
+        const overallWinRate = metrics.totalWins / metrics.totalMatches;
+
+        // 分析最近10场比赛的胜率
+        const recentRecords = records.slice(-10);
+        const recentWins = recentRecords.filter(r => r.rank === 1).length;
+        const recentWinRate = recentWins / recentRecords.length;
+
+        let trend: 'improving' | 'stable' | 'declining';
+        if (recentWinRate > overallWinRate + 0.1) {
+            trend = 'improving';
+        } else if (recentWinRate < overallWinRate - 0.1) {
+            trend = 'declining';
+        } else {
+            trend = 'stable';
+        }
+
+        return {
+            trend,
+            confidence: Math.min(records.length / 20, 1), // 基于数据量的置信度
+            recentWinRate,
+            overallWinRate
+        };
+    }
+
+    /**
+     * 分析分数稳定性
+     */
+    private analyzeScoreStability(records: any[]): {
+        stability: 'high' | 'medium' | 'low';
+        scoreVariance: number;
+        averageScore: number;
+    } {
+        const scores = records.map(r => r.score);
+        const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+
+        // 计算分数方差
+        const variance = scores.reduce((sum, score) => sum + Math.pow(score - averageScore, 2), 0) / scores.length;
+        const standardDeviation = Math.sqrt(variance);
+        const coefficientOfVariation = standardDeviation / averageScore;
+
+        let stability: 'high' | 'medium' | 'low';
+        if (coefficientOfVariation < 0.2) {
+            stability = 'high';
+        } else if (coefficientOfVariation < 0.4) {
+            stability = 'medium';
+        } else {
+            stability = 'low';
+        }
+
+        return {
+            stability,
+            scoreVariance: variance,
+            averageScore
+        };
+    }
+
+    /**
+     * 分析排名分布
+     */
+    private analyzeRankingDistribution(records: any[]): {
+        distribution: 'top_heavy' | 'balanced' | 'bottom_heavy';
+        averageRank: number;
+        top3Percentage: number;
+    } {
+        const ranks = records.map(r => r.rank);
+        const averageRank = ranks.reduce((a, b) => a + b, 0) / ranks.length;
+        const top3Count = ranks.filter(r => r <= 3).length;
+        const top3Percentage = top3Count / ranks.length;
+
+        let distribution: 'top_heavy' | 'balanced' | 'bottom_heavy';
+        if (averageRank < 2.5) {
+            distribution = 'top_heavy';
+        } else if (averageRank < 3.5) {
+            distribution = 'balanced';
+        } else {
+            distribution = 'bottom_heavy';
+        }
+
+        return {
+            distribution,
+            averageRank,
+            top3Percentage
+        };
+    }
+
+    /**
+     * 分析学习曲线
+     */
+    private analyzeLearningCurve(records: any[]): {
+        learningSpeed: 'fast' | 'medium' | 'slow';
+        improvementRate: number;
+        plateauDetected: boolean;
+    } {
+        if (records.length < 10) {
+            return { learningSpeed: 'medium', improvementRate: 0, plateauDetected: false };
+        }
+
+        // 将记录分为前半段和后半段
+        const midPoint = Math.floor(records.length / 2);
+        const firstHalf = records.slice(0, midPoint);
+        const secondHalf = records.slice(midPoint);
+
+        const firstHalfAvgScore = firstHalf.reduce((sum, r) => sum + r.score, 0) / firstHalf.length;
+        const secondHalfAvgScore = secondHalf.reduce((sum, r) => sum + r.score, 0) / secondHalf.length;
+
+        const improvementRate = (secondHalfAvgScore - firstHalfAvgScore) / firstHalfAvgScore;
+
+        let learningSpeed: 'fast' | 'medium' | 'slow';
+        if (improvementRate > 0.2) {
+            learningSpeed = 'fast';
+        } else if (improvementRate > 0.05) {
+            learningSpeed = 'medium';
+        } else {
+            learningSpeed = 'slow';
+        }
+
+        // 检测学习平台期（最近5场比赛分数变化很小）
+        const recentScores = records.slice(-5).map(r => r.score);
+        const recentVariance = this.calculateVariance(recentScores);
+        const plateauDetected = recentVariance < 1000; // 分数变化小于1000认为进入平台期
+
+        return {
+            learningSpeed,
+            improvementRate,
+            plateauDetected
+        };
+    }
+
+    /**
+     * 计算方差
+     */
+    private calculateVariance(values: number[]): number {
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        return values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
+    }
+
+    /**
+     * 生成配置建议
+     */
+    private generateConfigSuggestions(analysis: any): {
+        learningRateAdjustment: number;
+        rankingModeSuggestion: RankingMode;
+        adaptiveModeSuggestion: AdaptiveMode;
+        scoreThresholdAdjustments: any[];
+        confidence: number;
+    } {
+        const { winRateAnalysis, scoreStabilityAnalysis, rankingDistributionAnalysis, learningCurveAnalysis } = analysis;
+
+        // 学习率调整建议
+        let learningRateAdjustment = 0;
+        if (winRateAnalysis.trend === 'improving' && learningCurveAnalysis.learningSpeed === 'fast') {
+            learningRateAdjustment = 0.05; // 增加学习率
+        } else if (winRateAnalysis.trend === 'declining' || learningCurveAnalysis.plateauDetected) {
+            learningRateAdjustment = -0.03; // 降低学习率
+        }
+
+        // 排名模式建议
+        let rankingModeSuggestion: RankingMode = 'hybrid';
+        if (scoreStabilityAnalysis.stability === 'high' && rankingDistributionAnalysis.distribution === 'top_heavy') {
+            rankingModeSuggestion = 'segment_based'; // 稳定且表现好的玩家使用段位模式
+        } else if (scoreStabilityAnalysis.stability === 'low') {
+            rankingModeSuggestion = 'score_based'; // 不稳定的玩家使用分数模式
+        }
+
+        // 自适应模式建议
+        let adaptiveModeSuggestion: AdaptiveMode = 'learning';
+        if (learningCurveAnalysis.learningSpeed === 'fast' && winRateAnalysis.trend === 'improving') {
+            adaptiveModeSuggestion = 'learning'; // 学习能力强且进步的玩家
+        } else if (learningCurveAnalysis.plateauDetected) {
+            adaptiveModeSuggestion = 'dynamic'; // 进入平台期的玩家使用动态模式
+        } else if (scoreStabilityAnalysis.stability === 'high') {
+            adaptiveModeSuggestion = 'static'; // 稳定的玩家使用静态模式
+        }
+
+        // 分数门槛调整建议
+        const scoreThresholdAdjustments = this.generateScoreThresholdAdjustments(analysis);
+
+        // 计算整体置信度
+        const confidence = Math.min(
+            (winRateAnalysis.confidence +
+                Math.min(analysis.records?.length || 0, 20) / 20) / 2,
+            1
+        );
+
+        return {
+            learningRateAdjustment,
+            rankingModeSuggestion,
+            adaptiveModeSuggestion,
+            scoreThresholdAdjustments,
+            confidence
+        };
+    }
+
+    /**
+     * 生成分数门槛调整建议
+     */
+    private generateScoreThresholdAdjustments(analysis: any): any[] {
+        const adjustments = [];
+
+        // 基于分数稳定性调整
+        if (analysis.scoreStabilityAnalysis.stability === 'low') {
+            adjustments.push({
+                type: 'expand_thresholds',
+                reason: '分数不稳定，扩大分数门槛范围',
+                adjustment: { expandRange: 0.2 }
+            });
+        }
+
+        // 基于排名分布调整
+        if (analysis.rankingDistributionAnalysis.distribution === 'bottom_heavy') {
+            adjustments.push({
+                type: 'lower_thresholds',
+                reason: '排名偏低，降低分数门槛',
+                adjustment: { lowerThresholds: 0.15 }
+            });
+        }
+
+        return adjustments;
+    }
+
+    /**
+     * 获取默认建议
+     */
+    private getDefaultSuggestions(): {
+        learningRateAdjustment: number;
+        rankingModeSuggestion: RankingMode;
+        adaptiveModeSuggestion: AdaptiveMode;
+        scoreThresholdAdjustments: any[];
+        confidence: number;
+    } {
+        return {
+            learningRateAdjustment: 0,
+            rankingModeSuggestion: 'hybrid',
+            adaptiveModeSuggestion: 'learning',
+            scoreThresholdAdjustments: [],
+            confidence: 0
+        };
+    }
+
+    /**
+     * 获取玩家性能指标
+     */
+    private async getPlayerPerformanceMetrics(uid: string): Promise<any> {
+        try {
+            return await this.ctx.db
+                .query("player_performance_metrics")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .unique();
+        } catch (error) {
+            console.error(`获取玩家性能指标失败: ${uid}`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 获取玩家比赛记录
+     */
+    private async getPlayerMatchRecords(uid: string): Promise<any[]> {
+        try {
+            return await this.ctx.db
+                .query("match_results")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .order("desc")
+                .collect();
+        } catch (error) {
+            console.error(`获取玩家比赛记录失败: ${uid}`, error);
+            return [];
+        }
+    }
+}
+
+// 添加缺失的类型定义
+interface MatchRankingResult {
+    matchId: string;
+    rankings: RankingResult[];
+    segmentChanges: any[];
+    timestamp: string;
+}
+
+interface RankingResult {
+    uid: string;
+    rank: number;
+    score: number;
+    points: number;
+    rankingProbability: number;
+    segmentName: SegmentName;
+    protectionActive: boolean;
+    reason: string;
+}
+
+type DatabaseContext = any;
+
+export class ScoreThresholdPlayerController {
+    private ctx: DatabaseContext;
+    private segmentManager: SegmentManager;
+    private intelligentExperienceManager: IntelligentExperienceManager;
+    private historicalDataAnalyzer: HistoricalDataAnalyzer;
+
+    constructor(ctx: DatabaseContext) {
+        this.ctx = ctx;
+        this.segmentManager = new SegmentManager(ctx);
+        this.intelligentExperienceManager = new IntelligentExperienceManager(ctx);
+        this.historicalDataAnalyzer = new HistoricalDataAnalyzer(ctx);
+    }
+
+    // ==================== 系统级方法（整合了原ScoreThresholdSystemController的功能） ====================
+
+    /**
+     * 处理比赛结束
+     */
+    async processMatchEnd(
+        matchId: string,
+        playerScores: Array<{ uid: string; score: number; points: number }>
+    ): Promise<MatchRankingResult> {
+        try {
+            // 1. 计算玩家排名
+            const rankings = await this.calculateRankings(matchId, playerScores);
+
+            // 2. 检查段位变化
+            const segmentChanges = await this.checkSegmentChanges(rankings, matchId);
+
+            // 3. 更新玩家数据
+            await this.updatePlayerData(rankings, matchId);
+
+            // 4. 记录比赛结果
+            await this.recordMatchResults(matchId, rankings, segmentChanges);
+
+            // 5. 基于历史数据智能更新玩家配置
+            await this.autoUpdatePlayerConfigsAfterMatch(rankings);
+
+            return {
+                matchId,
+                rankings,
+                segmentChanges,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error(`处理比赛结束失败: ${matchId}`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 批量获取多个玩家的排名
+     * 支持动态参与者数量
+     */
+    async getBatchRanksByScores(
+        playerScores: Array<{ uid: string; score: number }>
+    ): Promise<Array<{
+        uid: string;
+        rank: number;
+        rankingProbability: number;
+        segmentName: SegmentName;
+        protectionActive: boolean;
+        reason: string;
+    }>> {
+        try {
+            const results = [];
+            const participantCount = playerScores.length;
+
+            for (const player of playerScores) {
+                try {
+                    const rankInfo = await this.getRankByScore(player.uid, player.score, participantCount);
+                    results.push({
+                        uid: player.uid,
+                        ...rankInfo
+                    });
+                } catch (error) {
+                    console.error(`获取玩家 ${player.uid} 排名失败:`, error);
+                    // 使用默认排名
+                    results.push({
+                        uid: player.uid,
+                        rank: participantCount,
+                        rankingProbability: 0.1,
+                        segmentName: 'bronze' as SegmentName,
+                        protectionActive: false,
+                        reason: '排名计算失败，使用默认排名'
+                    });
+                }
+            }
+
+            return results;
+        } catch (error) {
+            console.error('批量获取排名失败:', error);
+            throw error;
+        }
+    }
+
+    // ==================== 排名计算 ====================
+
+    /**
+     * 计算玩家排名
+     */
+    async calculateRankings(
+        matchId: string,
+        playerScores: Array<{ uid: string; score: number; points: number }>
+    ): Promise<RankingResult[]> {
+        const rankings: RankingResult[] = [];
+
+        for (const player of playerScores) {
+            try {
+                // 获取玩家配置
+                const config = await this.getPlayerConfig(player.uid);
+                if (!config) {
+                    console.warn(`玩家配置未找到: ${player.uid}`);
+                    continue;
+                }
+
+                // 确定最终排名 - 根据参与者数量动态获取基础概率
+                const participantCount = playerScores.length;
+                const baseProbs = this.getBaseRankingProbabilities(config.segmentName, participantCount);
+                const rank = this.determineFinalRank(
+                    player.score,
+                    baseProbs,
+                    config.adaptiveMode,
+                    config.learningRate
+                );
+
+                // 检查保护状态
+                const protectionStatus = await this.getPlayerProtectionStatus(player.uid);
+                const protectionActive = protectionStatus?.protectionLevel ? protectionStatus.protectionLevel > 0 : false;
+
+                // 生成排名原因
+                const reason = this.generateRankReason(player.score, rank, config, 0.5);
+
+                rankings.push({
+                    uid: player.uid,
+                    rank,
+                    score: player.score,
+                    points: player.points,
+                    rankingProbability: 0.5,
+                    segmentName: config.segmentName,
+                    protectionActive,
+                    reason
+                });
+            } catch (error) {
+                console.error(`计算玩家 ${player.uid} 排名失败:`, error);
+                // 添加默认排名
+                rankings.push({
+                    uid: player.uid,
+                    rank: playerScores.length,
+                    score: player.score,
+                    points: player.points,
+                    rankingProbability: 0.1,
+                    segmentName: 'bronze' as SegmentName,
+                    protectionActive: false,
+                    reason: '排名计算失败，使用默认排名'
+                });
+            }
+        }
+
+        return rankings;
+    }
+
+    /**
+     * 确定最终排名
+     */
+    private determineFinalRank(
+        score: number,
+        baseProbabilities: number[],
+        adaptiveMode: AdaptiveMode,
+        learningRate: number
+    ): number {
+        if (adaptiveMode === 'static') {
+            return this.determineStaticRank(score, baseProbabilities);
+        } else if (adaptiveMode === 'dynamic') {
+            return this.determineDynamicRank(score, baseProbabilities);
+        } else {
+            return this.determineLearningRank(score, baseProbabilities, learningRate);
+        }
+    }
+
+    /**
+     * 静态排名确定
+     */
+    private determineStaticRank(score: number, baseProbabilities: number[]): number {
+        // 基于分数和概率分布确定排名
+        const normalizedScore = Math.min(Math.max(score / 10000, 0), 1); // 将分数标准化到0-1
+        let cumulative = 0;
+        for (let i = 0; i < baseProbabilities.length; i++) {
+            cumulative += baseProbabilities[i];
+            if (normalizedScore <= cumulative) {
+                return i + 1;
+            }
+        }
+        return baseProbabilities.length;
+    }
+
+    /**
+     * 动态排名确定
+     */
+    private determineDynamicRank(score: number, baseProbabilities: number[]): number {
+        // 添加随机性，避免完全确定性的排名
+        const normalizedScore = Math.min(Math.max(score / 10000, 0), 1);
+        const randomFactor = Math.random() * 0.2 - 0.1; // ±10% 随机性
+        const adjustedScore = Math.max(0, Math.min(1, normalizedScore + randomFactor));
+        return this.determineStaticRank(adjustedScore * 10000, baseProbabilities);
+    }
+
+    /**
+     * 学习排名确定
+     */
+    private determineLearningRank(
+        score: number,
+        baseProbabilities: number[],
+        learningRate: number
+    ): number {
+        // 根据学习率调整分数
+        const adjustedScore = score * (1 + learningRate);
+        return this.determineStaticRank(adjustedScore, baseProbabilities);
+    }
+
+    /**
+     * 检查段位变化
+     */
+    async checkSegmentChanges(rankings: RankingResult[], matchId: string): Promise<any[]> {
+        const segmentChanges = [];
+
+        for (const ranking of rankings) {
+            try {
+                // 使用段位管理器检查变化
+                const changeResult = await this.segmentManager.checkAndProcessSegmentChange(
+                    ranking.uid,
+                    ranking.points
+                );
+
+                if (changeResult.changed) {
+                    segmentChanges.push({
+                        uid: ranking.uid,
+                        matchId,
+                        oldSegment: ranking.segmentName,
+                        newSegment: changeResult.newSegment,
+                        changeType: changeResult.changeType,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            } catch (error) {
+                console.error(`检查玩家 ${ranking.uid} 段位变化失败:`, error);
+            }
+        }
+
+        return segmentChanges;
+    }
+
+    /**
+     * 获取基础排名概率
+     * 直接从 DEFAULT_SCORE_THRESHOLDS 获取，不再需要 DEFAULT_RANKING_PROBABILITIES
+     */
+    private getBaseRankingProbabilities(segmentName: SegmentName, participantCount: number): number[] {
+        try {
+            // 直接从系统配置获取基础概率
+            const { getDefaultRankingProbabilities } = require("../config/config");
+            return getDefaultRankingProbabilities(segmentName, participantCount);
+        } catch (error) {
+            console.error(`获取基础排名概率失败: ${segmentName}, ${participantCount}`, error);
+            // 返回默认概率
+            return [0.25, 0.25, 0.25, 0.25];
+        }
+    }
+
+
+
+    // ==================== 玩家级方法 ====================
+
+    /**
+     * 根据玩家分数获取相应名次
+     * 支持动态参与者数量，默认4人比赛
+     */
+    async getRankByScore(
+        uid: string,
+        score: number,
+        participantCount: number = 4,
+    ): Promise<{
+        rank: number;
+        rankingProbability: number;
+        segmentName: SegmentName;
+        protectionActive: boolean;
+        reason: string;
+    }> {
+        try {
+            // 1. 获取玩家配置
+            const config = await this.getPlayerConfig(uid);
+            if (!config) {
+                throw new Error(`玩家配置未找到: ${uid}`);
+            }
+
+            // 2. 确定最终排名 - 根据实际参与者数量获取概率数组
+            const baseProbs = this.getBaseRankingProbabilities(config.segmentName, participantCount);
+            const rank = this.determineFinalRank(
+                score,
+                baseProbs,
+                config.adaptiveMode,
+                config.learningRate
+            );
+
+            // 4. 检查保护状态
+            const protectionStatus = await this.getPlayerProtectionStatus(uid);
+            const protectionActive = protectionStatus?.protectionLevel ? protectionStatus.protectionLevel > 0 : false;
+
+            // 5. 生成排名原因
+            const reason = this.generateRankReason(score, rank, config, 0.5);
+
+            return {
+                rank,
+                rankingProbability: 0.5,
+                segmentName: config.segmentName,
+                protectionActive,
+                reason
+            };
+        } catch (error) {
+            console.error(`获取玩家排名失败: ${uid}`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 生成排名原因
+     */
+    private generateRankReason(
+        score: number,
+        rank: number,
+        config: ScoreThresholdConfig,
+        rankingProbability: number
+    ): string {
+        const reasons = [];
+
+        // 基于分数分析
+        if (score > 10000) {
+            reasons.push('高分表现');
+        } else if (score > 5000) {
+            reasons.push('良好表现');
+        } else if (score > 1000) {
+            reasons.push('稳定表现');
+        } else {
+            reasons.push('基础表现');
+        }
+
+        // 基于排名分析
+        if (rank === 1) {
+            reasons.push('获得第1名');
+        } else if (rank <= 3) {
+            reasons.push('获得前3名');
+        } else {
+            reasons.push('需要继续努力');
+        }
+
+        // 基于概率分析
+        if (rankingProbability > 0.8) {
+            reasons.push('高概率预期');
+        } else if (rankingProbability > 0.6) {
+            reasons.push('中高概率预期');
+        } else if (rankingProbability > 0.4) {
+            reasons.push('中等概率预期');
+        } else {
+            reasons.push('低概率预期');
+        }
+
+        return reasons.join('，');
+    }
+
+    /**
+     * 获取玩家配置
+     */
+    async getPlayerConfig(uid: string): Promise<ScoreThresholdConfig | null> {
+        try {
+            const config = await this.ctx.db
+                .query("score_threshold_configs")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .unique();
+
+            return config;
+        } catch (error) {
+            console.error(`获取玩家配置失败: ${uid}`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 更新玩家配置
+     */
+    async updatePlayerConfig(uid: string, updates: Partial<ScoreThresholdConfig>): Promise<boolean> {
+        try {
+            const existing = await this.getPlayerConfig(uid);
+            if (!existing) {
+                console.warn(`玩家配置不存在，无法更新: ${uid}`);
+                return false;
+            }
+
+            await this.ctx.db.patch(existing._id, {
+                ...updates,
+                updatedAt: new Date().toISOString()
+            });
+
+            return true;
+        } catch (error) {
+            console.error(`更新玩家配置失败: ${uid}`, error);
+            return false;
+        }
+    }
+
+    /**
+     * 重置玩家配置
+     */
+    async resetPlayerConfig(uid: string): Promise<boolean> {
+        try {
+            const existing = await this.getPlayerConfig(uid);
+            if (!existing) {
+                return false;
+            }
+
+            // 获取默认配置
+            const defaultConfig = getDefaultScoreThresholds(existing.segmentName);
+
+            await this.ctx.db.patch(existing._id, {
+                scoreThresholds: defaultConfig,
+                adaptiveMode: getAdaptiveMode(existing.segmentName),
+                learningRate: getLearningRate(existing.segmentName),
+                rankingMode: getRankingMode(existing.segmentName),
+                updatedAt: new Date().toISOString()
+            });
+
+            return true;
+        } catch (error) {
+            console.error(`重置玩家配置失败: ${uid}`, error);
+            return false;
+        }
+    }
+
+    /**
+     * 获取玩家段位信息
+     */
+    async getPlayerSegmentInfo(uid: string): Promise<{ currentSegment: SegmentName } | null> {
+        try {
+            const config = await this.getPlayerConfig(uid);
+            return config ? { currentSegment: config.segmentName } : null;
+        } catch (error) {
+            console.error(`获取玩家段位信息失败: ${uid}`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 获取玩家性能指标
+     */
+    async getPlayerPerformanceMetrics(uid: string): Promise<PlayerPerformanceMetrics | null> {
+        try {
+            const metrics = await this.ctx.db
+                .query("player_performance_metrics")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .unique();
+
+            return metrics;
+        } catch (error) {
+            console.error(`获取玩家性能指标失败: ${uid}`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 获取玩家保护状态
+     */
+    async getPlayerProtectionStatus(uid: string): Promise<PlayerProtectionStatus | null> {
+        try {
+            const status = await this.ctx.db
+                .query("player_protection_status")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .unique();
+
+            return status;
+        } catch (error) {
+            console.error(`获取玩家保护状态失败: ${uid}`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 检查段位变化
+     */
+    async checkSegmentChange(uid: string, changeType: ChangeType): Promise<{
+        shouldChange: boolean;
+        changeType?: ChangeType;
+        reason?: string;
+    }> {
+        try {
+            if (changeType === 'promotion') {
+                const canPromote = await this.segmentManager.canPromote(uid);
+                return {
+                    shouldChange: canPromote,
+                    changeType: 'promotion',
+                    reason: canPromote ? '满足升级条件' : '不满足升级条件'
+                };
+            } else {
+                const canDemote = await this.segmentManager.canDemote(uid);
+                return {
+                    shouldChange: canDemote,
+                    changeType: 'demotion',
+                    reason: canDemote ? '满足降级条件' : '受保护机制保护'
+                };
+            }
+        } catch (error) {
+            console.error(`检查段位变化失败: ${uid}`, error);
+            return { shouldChange: false, reason: '检查失败' };
+        }
+    }
+
+    // ==================== 数据更新和记录方法 ====================
+
+    /**
+     * 更新玩家数据
+     */
+    async updatePlayerData(rankings: RankingResult[], matchId: string): Promise<void> {
+        for (const ranking of rankings) {
+            try {
+                // 更新性能指标
+                await this.updatePlayerPerformanceMetrics(ranking);
+
+                // 更新保护状态
+                await this.updatePlayerProtectionStatus(ranking);
+            } catch (error) {
+                console.error(`更新玩家数据失败: ${ranking.uid}`, error);
+            }
+        }
+    }
+
+    /**
+     * 更新玩家性能指标
+     */
+    async updatePlayerPerformanceMetrics(ranking: RankingResult): Promise<void> {
+        try {
+            const existing = await this.getPlayerPerformanceMetrics(ranking.uid);
+
+            if (existing) {
+                // 更新现有记录
+                await this.ctx.db.patch(existing._id, {
+                    totalMatches: existing.totalMatches + 1,
+                    totalWins: existing.totalWins + (ranking.rank === 1 ? 1 : 0),
+                    totalScore: existing.totalScore + ranking.score,
+                    lastMatchScore: ranking.score,
+                    lastMatchRank: ranking.rank,
+                    updatedAt: new Date().toISOString()
+                });
+            } else {
+                // 创建新记录
+                await this.ctx.db.insert("player_performance_metrics", {
+                    uid: ranking.uid,
+                    totalMatches: 1,
+                    totalWins: ranking.rank === 1 ? 1 : 0,
+                    totalScore: ranking.score,
+                    averageScore: ranking.score,
+                    lastMatchScore: ranking.score,
+                    lastMatchRank: ranking.rank,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                });
+            }
+        } catch (error) {
+            console.error(`更新玩家性能指标失败: ${ranking.uid}`, error);
+        }
+    }
+
+    /**
+     * 更新玩家保护状态
+     */
+    async updatePlayerProtectionStatus(ranking: RankingResult): Promise<void> {
+        try {
+            const existing = await this.getPlayerProtectionStatus(ranking.uid);
+            const config = await this.getPlayerConfig(ranking.uid);
+
+            if (!config) return;
+
+            const protectionConfig = await this.segmentManager.getSegmentProtectionConfig(config.segmentName);
+
+            if (existing) {
+                // 更新保护状态
+                let newProtectionLevel = existing.protectionLevel;
+
+                if (ranking.rank === 1) {
+                    // 获胜增加保护
+                    newProtectionLevel = Math.min(
+                        (protectionConfig?.protectionLevel ?? DEFAULT_PROTECTION_LEVEL) + 1,
+                        5
+                    ) as ProtectionLevel;
+                } else if (ranking.rank > 3) {
+                    // 排名较低减少保护
+                    newProtectionLevel = Math.max(newProtectionLevel - 1, 0) as ProtectionLevel;
+                }
+
+                await this.ctx.db.patch(existing._id, {
+                    protectionLevel: newProtectionLevel,
+                    gracePeriod: protectionConfig?.gracePeriod ?? DEFAULT_GRACE_PERIOD,
+                    protectionDuration: protectionConfig?.protectionDuration ?? DEFAULT_PROTECTION_DURATION,
+                    lastUpdateMatch: ranking.uid,
+                    updatedAt: new Date().toISOString()
+                });
+            } else {
+                // 创建新的保护状态
+                await this.ctx.db.insert("player_protection_status", {
+                    uid: ranking.uid,
+                    protectionLevel: protectionConfig?.protectionLevel ?? DEFAULT_PROTECTION_LEVEL,
+                    gracePeriod: protectionConfig?.gracePeriod ?? DEFAULT_GRACE_PERIOD,
+                    protectionDuration: protectionConfig?.protectionDuration ?? DEFAULT_PROTECTION_DURATION,
+                    isActive: true,
+                    lastUpdateMatch: ranking.uid,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                });
+            }
+        } catch (error) {
+            console.error(`更新玩家保护状态失败: ${ranking.uid}`, error);
+        }
+    }
+
+    /**
+     * 记录比赛结果
+     */
+    async recordMatchResults(
+        matchId: string,
+        rankings: RankingResult[],
+        segmentChanges: any[]
+    ): Promise<void> {
+        try {
+            // 记录比赛结果
+            await this.ctx.db.insert("match_results", {
+                matchId,
+                rankings,
+                segmentChanges,
+                timestamp: new Date().toISOString()
+            });
+
+            // 为每个玩家记录比赛记录
+            for (const ranking of rankings) {
+                await this.ctx.db.insert("match_results", {
+                    matchId,
+                    seed: "default", // 需要从比赛数据中获取实际种子
+                    uid: ranking.uid,
+                    score: ranking.score,
+                    rank: ranking.rank,
+                    points: ranking.points,
+                    segmentName: ranking.segmentName,
+                    createdAt: new Date().toISOString()
+                });
+            }
+        } catch (error) {
+            console.error(`记录比赛结果失败: ${matchId}`, error);
+        }
+    }
+
+    /**
+     * 获取系统统计信息
+     */
+    async getSystemStatistics(): Promise<any> {
+        try {
+            const totalPlayers = await this.ctx.db.query("score_threshold_configs").collect();
+            const totalMatches = await this.ctx.db.query("match_results").collect();
+
+            return {
+                totalPlayers: totalPlayers.length,
+                totalMatches: totalMatches.length,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error('获取系统统计信息失败:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 创建玩家默认配置
+     */
+    async createPlayerDefaultConfig(uid: string, segmentName?: SegmentName): Promise<ScoreThresholdConfig> {
+        try {
+            const segment = segmentName || 'bronze';
+            const defaultConfig = getDefaultScoreThresholds(segment);
+
+            const config: ScoreThresholdConfig = {
+                uid,
+                segmentName: segment,
+                scoreThresholds: defaultConfig,
+                maxRank: 8,
+                adaptiveMode: getAdaptiveMode(segment),
+                learningRate: getLearningRate(segment),
+                autoAdjustLearningRate: true,
+                rankingMode: getRankingMode(segment),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            // 保存到数据库
+            const result = await this.ctx.db.insert("score_threshold_configs", config);
+            return { ...config, _id: result };
+        } catch (error) {
+            console.error(`创建玩家默认配置失败: ${uid}`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 调整分数门槛配置
+     */
+    async adjustScoreThresholds(uid: string, adjustments: any): Promise<boolean> {
+        try {
+            return await this.updatePlayerConfig(uid, adjustments);
+        } catch (error) {
+            console.error(`调整分数门槛配置失败: ${uid}`, error);
+            return false;
+        }
+    }
+
+    /**
+     * 切换自适应模式
+     */
+    async toggleAdaptiveMode(uid: string): Promise<void> {
+        try {
+            const config = await this.getPlayerConfig(uid);
+            if (!config) return;
+
+            const modes: AdaptiveMode[] = ['static', 'dynamic', 'learning'];
+            const currentIndex = modes.indexOf(config.adaptiveMode);
+            const nextIndex = (currentIndex + 1) % modes.length;
+            const nextMode = modes[nextIndex];
+
+            await this.updatePlayerConfig(uid, { adaptiveMode: nextMode });
+        } catch (error) {
+            console.error(`切换自适应模式失败: ${uid}`, error);
+        }
+    }
+
+    /**
+     * 基于历史数据智能更新玩家配置
+     */
+    async updatePlayerConfigBasedOnHistory(uid: string): Promise<{
+        updated: boolean;
+        changes: any[];
+        confidence: number;
+        reason: string;
+    }> {
+        try {
+            // 分析玩家历史数据
+            const analysis = await this.historicalDataAnalyzer.analyzePlayerHistory(uid);
+
+            if (analysis.confidence < 0.3) {
+                return {
+                    updated: false,
+                    changes: [],
+                    confidence: analysis.confidence,
+                    reason: '历史数据不足，无法生成可靠的配置建议'
+                };
+            }
+
+            // 获取当前配置
+            const currentConfig = await this.getPlayerConfig(uid);
+            if (!currentConfig) {
+                return {
+                    updated: false,
+                    changes: [],
+                    confidence: 0,
+                    reason: '玩家配置未找到'
+                };
+            }
+
+            const changes = [];
+            let hasChanges = false;
+
+            // 1. 调整学习率
+            if (Math.abs(analysis.learningRateAdjustment) > 0.01) {
+                const newLearningRate = Math.max(0.01, Math.min(0.3,
+                    currentConfig.learningRate + analysis.learningRateAdjustment));
+
+                if (Math.abs(newLearningRate - currentConfig.learningRate) > 0.01) {
+                    changes.push({
+                        field: 'learningRate',
+                        oldValue: currentConfig.learningRate,
+                        newValue: newLearningRate,
+                        reason: analysis.learningRateAdjustment > 0 ? '基于进步趋势增加学习率' : '基于表现下降降低学习率'
+                    });
+                    hasChanges = true;
+                }
+            }
+
+            // 2. 更新排名模式
+            if (analysis.rankingModeSuggestion !== currentConfig.rankingMode) {
+                changes.push({
+                    field: 'rankingMode',
+                    oldValue: currentConfig.rankingMode,
+                    newValue: analysis.rankingModeSuggestion,
+                    reason: '基于历史表现分析优化排名模式'
+                });
+                hasChanges = true;
+            }
+
+            // 3. 更新自适应模式
+            if (analysis.adaptiveModeSuggestion !== currentConfig.adaptiveMode) {
+                changes.push({
+                    field: 'adaptiveMode',
+                    oldValue: currentConfig.adaptiveMode,
+                    newValue: analysis.adaptiveModeSuggestion,
+                    reason: '基于学习曲线分析优化自适应模式'
+                });
+                hasChanges = true;
+            }
+
+            // 4. 应用分数门槛调整
+            if (analysis.scoreThresholdAdjustments.length > 0) {
+                const adjustedThresholds = this.applyScoreThresholdAdjustments(
+                    currentConfig.scoreThresholds,
+                    analysis.scoreThresholdAdjustments
+                );
+
+                if (JSON.stringify(adjustedThresholds) !== JSON.stringify(currentConfig.scoreThresholds)) {
+                    changes.push({
+                        field: 'scoreThresholds',
+                        oldValue: currentConfig.scoreThresholds,
+                        newValue: adjustedThresholds,
+                        reason: '基于分数稳定性分析调整分数门槛'
+                    });
+                    hasChanges = true;
+                }
+            }
+
+            // 如果有变化，更新配置
+            if (hasChanges) {
+                const updates: Partial<ScoreThresholdConfig> = {};
+
+                changes.forEach(change => {
+                    if (change.field === 'learningRate') {
+                        updates.learningRate = change.newValue as number;
+                    } else if (change.field === 'rankingMode') {
+                        updates.rankingMode = change.newValue as RankingMode;
+                    } else if (change.field === 'adaptiveMode') {
+                        updates.adaptiveMode = change.newValue as AdaptiveMode;
+                    } else if (change.field === 'scoreThresholds') {
+                        updates.scoreThresholds = change.newValue as any[];
+                    }
+                });
+
+                updates.updatedAt = new Date().toISOString();
+                await this.updatePlayerConfig(uid, updates);
+
+                return {
+                    updated: true,
+                    changes,
+                    confidence: analysis.confidence,
+                    reason: `基于历史数据分析成功更新了 ${changes.length} 项配置`
+                };
+            }
+
+            return {
+                updated: false,
+                changes: [],
+                confidence: analysis.confidence,
+                reason: '当前配置已是最优，无需更新'
+            };
+
+        } catch (error) {
+            console.error(`基于历史数据更新玩家配置失败: ${uid}`, error);
+            return {
+                updated: false,
+                changes: [],
+                confidence: 0,
+                reason: `更新失败: ${error instanceof Error ? error.message : '未知错误'}`
+            };
+        }
+    }
+
+    /**
+     * 应用分数门槛调整
+     */
+    private applyScoreThresholdAdjustments(
+        thresholds: any[],
+        adjustments: any[]
+    ): any[] {
+        const adjustedThresholds = JSON.parse(JSON.stringify(thresholds));
+
+        adjustments.forEach(adjustment => {
+            if (adjustment.type === 'expand_thresholds') {
+                // 扩大分数门槛范围
+                adjustedThresholds.forEach((threshold: any) => {
+                    const range = threshold.maxScore - threshold.minScore;
+                    const expandAmount = range * adjustment.adjustment.expandRange;
+                    threshold.minScore = Math.max(0, threshold.minScore - expandAmount / 2);
+                    threshold.maxScore = threshold.maxScore + expandAmount / 2;
+                });
+            } else if (adjustment.type === 'lower_thresholds') {
+                // 降低分数门槛
+                adjustedThresholds.forEach((threshold: any) => {
+                    const range = threshold.maxScore - threshold.minScore;
+                    const lowerAmount = range * adjustment.adjustment.lowerThresholds;
+                    threshold.minScore = Math.max(0, threshold.minScore - lowerAmount);
+                    threshold.maxScore = Math.max(threshold.minScore + 100, threshold.maxScore - lowerAmount);
+                });
+            }
+        });
+
+        return adjustedThresholds;
+    }
+
+    /**
+     * 获取玩家配置优化建议
+     */
+    async getPlayerConfigOptimizationSuggestions(uid: string): Promise<{
+        suggestions: any[];
+        confidence: number;
+        lastAnalysis: string;
+    }> {
+        try {
+            const analysis = await this.historicalDataAnalyzer.analyzePlayerHistory(uid);
+            const currentConfig = await this.getPlayerConfig(uid);
+
+            if (!currentConfig) {
+                return {
+                    suggestions: [],
+                    confidence: 0,
+                    lastAnalysis: new Date().toISOString()
+                };
+            }
+
+            const suggestions = [];
+
+            // 学习率建议
+            if (analysis.learningRateAdjustment !== 0) {
+                suggestions.push({
+                    type: 'learningRate',
+                    current: currentConfig.learningRate,
+                    suggested: Math.max(0.01, Math.min(0.3,
+                        currentConfig.learningRate + analysis.learningRateAdjustment)),
+                    reason: analysis.learningRateAdjustment > 0 ?
+                        '基于进步趋势建议增加学习率' :
+                        '基于表现下降建议降低学习率',
+                    priority: 'medium'
+                });
+            }
+
+            // 排名模式建议
+            if (analysis.rankingModeSuggestion !== currentConfig.rankingMode) {
+                suggestions.push({
+                    type: 'rankingMode',
+                    current: currentConfig.rankingMode,
+                    suggested: analysis.rankingModeSuggestion,
+                    reason: '基于历史表现分析建议优化排名模式',
+                    priority: 'high'
+                });
+            }
+
+            // 自适应模式建议
+            if (analysis.adaptiveModeSuggestion !== currentConfig.adaptiveMode) {
+                suggestions.push({
+                    type: 'adaptiveMode',
+                    current: currentConfig.adaptiveMode,
+                    suggested: analysis.adaptiveModeSuggestion,
+                    reason: '基于学习曲线分析建议优化自适应模式',
+                    priority: 'high'
+                });
+            }
+
+            // 分数门槛建议
+            if (analysis.scoreThresholdAdjustments.length > 0) {
+                analysis.scoreThresholdAdjustments.forEach(adjustment => {
+                    suggestions.push({
+                        type: 'scoreThresholds',
+                        current: '当前配置',
+                        suggested: adjustment.reason,
+                        reason: adjustment.reason,
+                        priority: 'low'
+                    });
+                });
+            }
+
+            return {
+                suggestions,
+                confidence: analysis.confidence,
+                lastAnalysis: new Date().toISOString()
+            };
+
+        } catch (error) {
+            console.error(`获取玩家配置优化建议失败: ${uid}`, error);
+            return {
+                suggestions: [],
+                confidence: 0,
+                lastAnalysis: new Date().toISOString()
+            };
+        }
+    }
+
+    /**
+     * 比赛结束后自动更新玩家配置
+     */
+    private async autoUpdatePlayerConfigsAfterMatch(rankings: RankingResult[]): Promise<void> {
+        try {
+            // 为每个玩家尝试更新配置
+            for (const ranking of rankings) {
+                try {
+                    // 检查是否有足够的历史数据（至少5场比赛）
+                    const metrics = await this.getPlayerPerformanceMetrics(ranking.uid);
+                    if (metrics && metrics.totalMatches >= 5) {
+                        // 异步更新配置，不阻塞比赛结果返回
+                        this.updatePlayerConfigBasedOnHistory(ranking.uid).catch(error => {
+                            console.error(`自动更新玩家 ${ranking.uid} 配置失败:`, error);
+                        });
+                    }
+                } catch (error) {
+                    console.error(`检查玩家 ${ranking.uid} 历史数据失败:`, error);
+                }
+            }
+        } catch (error) {
+            console.error('自动更新玩家配置失败:', error);
+        }
+    }
+
+    /**
+     * 批量更新多个玩家的配置
+     */
+    async batchUpdatePlayerConfigs(uids: string[]): Promise<{
+        total: number;
+        updated: number;
+        failed: number;
+        results: any[];
+    }> {
+        const results = [];
+        let updated = 0;
+        let failed = 0;
+
+        for (const uid of uids) {
+            try {
+                const result = await this.updatePlayerConfigBasedOnHistory(uid);
+                results.push({ uid, ...result });
+
+                if (result.updated) {
+                    updated++;
+                }
+            } catch (error) {
+                console.error(`批量更新玩家 ${uid} 配置失败:`, error);
+                results.push({
+                    uid,
+                    updated: false,
+                    changes: [],
+                    confidence: 0,
+                    reason: `更新失败: ${error instanceof Error ? error.message : '未知错误'}`
+                });
+                failed++;
+            }
+        }
+
+        return {
+            total: uids.length,
+            updated,
+            failed,
+            results
+        };
+    }
+
+
+}

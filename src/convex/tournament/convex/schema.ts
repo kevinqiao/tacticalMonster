@@ -6,7 +6,7 @@ import { ticketSchema } from "./schemas/ticketSchema";
 import { tournamentRulesSchema } from "./schemas/tournamentRulesSchema";
 import { tournamentSchema } from "./schemas/tournamentSchema";
 import { userSchema } from "./schemas/userSchema";
-import scoreThresholdSchema from "./service/tournament/scoreThresholdControl/scoreThresholdSchema";
+import scoreThresholdSchema from "./service/tournament/scoreThresholdControl/config/scoreThresholdSchema";
 
 // 合并所有模块的schema
 export default defineSchema({

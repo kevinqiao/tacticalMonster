@@ -340,7 +340,7 @@ export class MatchRecordAccess {
     ): Promise<any[]> {
         try {
             const matches = await ctx.db
-                .query("player_match_records")
+                .query("match_results")
                 .withIndex("by_uid", (q: any) => q.eq("uid", uid))
                 .order("desc")
                 .take(limit);
