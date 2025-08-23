@@ -142,5 +142,28 @@ export default {
     })
         .index("by_seed", ["seed"])
         .index("by_lastAnalysisTime", ["lastAnalysisTime"])
+        .index("by_totalMatches", ["totalMatches"]),
+
+    // 玩家技能等级缓存表（支持增量统计）
+    player_skill_cache: defineTable({
+        uid: v.string(),
+        totalMatches: v.number(),
+        lastAnalysisTime: v.string(),
+        lastMatchCreatedAt: v.string(),
+        skillStats: v.object({
+            totalRanks: v.number(),
+            averageRank: v.number(),
+            totalScores: v.number(),
+            averageScore: v.number(),
+            wins: v.number(),
+            winRate: v.number(),
+            rankCount: v.number()
+        }),
+        createdAt: v.string()
+    })
+        .index("by_uid", ["uid"])
+        .index("by_lastAnalysisTime", ["lastAnalysisTime"])
         .index("by_totalMatches", ["totalMatches"])
+        .index("by_averageRank", ["skillStats.averageRank"])
+        .index("by_winRate", ["skillStats.winRate"])
 };
