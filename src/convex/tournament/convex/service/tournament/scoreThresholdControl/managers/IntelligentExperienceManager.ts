@@ -6,6 +6,7 @@
 import {
     AIStrategy,
     EmotionalState,
+    ExperienceTarget,
     IntelligentRankingStrategy,
     LearningCurveOptimization,
     LearningMilestone,
@@ -134,6 +135,69 @@ export class IntelligentExperienceManager {
             behavior: 'balanced',
             scoreRange: { min: 1000, max: 5000 },
             rankingBias: 'neutral'
+        };
+    }
+
+    // ==================== 公共接口方法（供其他管理器调用）====================
+
+    /**
+     * 获取玩家情绪状态（公共接口）
+     */
+    async getPlayerEmotionalState(uid: string): Promise<EmotionalState> {
+        try {
+            const historicalData = await this.historicalDataManager.getPlayerHistoricalData(uid);
+            if (historicalData) {
+                return this.historicalDataManager.analyzeEmotionalState(historicalData);
+            }
+            return this.getDefaultEmotionalState();
+        } catch (error) {
+            console.error(`获取玩家情绪状态失败: ${uid}`, error);
+            return this.getDefaultEmotionalState();
+        }
+    }
+
+    /**
+     * 获取玩家体验目标（公共接口）
+     */
+    async getPlayerExperienceTarget(uid: string): Promise<ExperienceTarget> {
+        try {
+            const historicalData = await this.historicalDataManager.getPlayerHistoricalData(uid);
+            if (historicalData) {
+                const emotionalState = this.historicalDataManager.analyzeEmotionalState(historicalData);
+                return this.historicalDataManager.determineExperienceTarget(
+                    emotionalState,
+                    historicalData.learningPatterns
+                );
+            }
+            return this.getDefaultExperienceTarget();
+        } catch (error) {
+            console.error(`获取玩家体验目标失败: ${uid}`, error);
+            return this.getDefaultExperienceTarget();
+        }
+    }
+
+    /**
+     * 获取默认情绪状态
+     */
+    private getDefaultEmotionalState(): EmotionalState {
+        return {
+            confidence: 0.5,
+            frustration: 0.3,
+            motivation: 0.6,
+            satisfaction: 0.5,
+            overallState: 'balanced'
+        };
+    }
+
+    /**
+     * 获取默认体验目标
+     */
+    private getDefaultExperienceTarget(): ExperienceTarget {
+        return {
+            primary: 'balance',
+            secondary: 'skill_development',
+            intensity: 'low',
+            duration: 'medium'
         };
     }
 

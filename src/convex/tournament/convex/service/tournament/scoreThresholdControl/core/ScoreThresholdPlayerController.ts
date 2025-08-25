@@ -423,7 +423,6 @@ interface RankingResult {
     uid: string;
     rank: number;
     score: number;
-    points: number;
     rankingProbability: number;
     segmentName: SegmentName;
     protectionActive: boolean;
@@ -445,7 +444,495 @@ export class ScoreThresholdPlayerController {
         this.historicalDataAnalyzer = new HistoricalDataAnalyzer(ctx);
     }
 
-    // ==================== 系统级方法（整合了原ScoreThresholdSystemController的功能） ====================
+    // ==================== 游戏流程方法 ====================
+
+    /**
+     * 获取推荐种子（游戏开始）
+     */
+    async getRecommendedSeeds(
+        uid: string,
+        options: {
+            limit?: number;
+            gameType?: string;
+            preferredDifficulty?: 'practice' | 'balanced' | 'challenge';
+        } = {}
+    ): Promise<{
+        success: boolean;
+        recommendedSeeds?: string[];
+        reasoning?: string;
+        difficulty?: string;
+        playerSkillLevel?: string;
+        error?: string;
+    }> {
+        try {
+            // 使用智能推荐管理器获取推荐
+            const { IntelligentRecommendationManager } = await import("../managers/IntelligentRecommendationManager");
+            const recommendationManager = new IntelligentRecommendationManager(this.ctx);
+
+            const result = await recommendationManager.intelligentRecommendSeeds(
+                uid,
+                options.limit || 3
+            );
+
+            return {
+                success: true,
+                recommendedSeeds: result.recommendation.seeds,
+                reasoning: result.reasoning,
+                difficulty: result.adaptiveDifficulty,
+                playerSkillLevel: result.playerSkillLevel
+            };
+
+        } catch (error) {
+            console.error('获取推荐种子失败:', error);
+            return {
+                success: false,
+                error: String(error)
+            };
+        }
+    }
+    async settleMatchAIAndHumanScore(
+        matchId: string,
+        playerScores: Array<{ uid: string; segmentName: SegmentName; score: number; seed: string; }>,
+        aiCount: number
+    ): Promise<{ uid?: string, rank: number, score: number }[]> {
+        const targetRanks: RankingResult[] = await this.calculateRankings(matchId, playerScores);
+        const aiScores: { uid?: string, rank: number, score: number }[] = this.generateAIScoresForTargetRanks(aiCount, targetRanks);
+        const humanScores: { uid?: string, rank: number, score: number }[] = targetRanks.map(r => ({ uid: r.uid, rank: r.rank, score: r.score }));
+        humanScores.forEach(async p => {
+            const pscore = playerScores.find(s => s.uid === p.uid);
+            await this.ctx.db.insert("match_results", {
+                matchId,
+                seed: pscore?.seed,
+                uid: p.uid,
+                score: pscore?.score,
+                rank: p.rank,
+                points: 0,
+                segmentName: pscore?.segmentName,
+                createdAt: new Date().toISOString()
+            });
+        });
+        await this.autoUpdatePlayerConfigsAfterMatch(targetRanks);
+        return [...aiScores, ...humanScores].sort((a, b) => a.rank - b.rank);
+    }
+
+    /**
+     * 获取比赛参与者信息
+     */
+    private async getMatchParticipants(matchId: string): Promise<any[]> {
+        try {
+            // 从比赛配置中获取参与者信息
+            const matchConfig = await this.ctx.db
+                .query("score_threshold_match_configs")
+                .withIndex("by_matchId", (q: any) => q.eq("matchId", matchId))
+                .unique();
+
+            if (matchConfig) {
+                // 如果有配置的比赛，返回配置的参与者
+                const participants = [];
+
+                // 添加人类玩家
+                if (matchConfig.humanScore !== undefined) {
+                    participants.push({
+                        uid: matchConfig.uid,
+                        score: matchConfig.humanScore,
+                        isAI: false
+                    });
+                }
+
+                // 注意：AI分数在玩家提交分数后才生成，这里不返回AI
+                // AI数量和配置在创建match时已确定，但分数需要智能生成
+                return participants;
+            }
+
+            // 如果没有配置，返回默认数量的AI对手（分数为0，等待后续生成）
+            return await this.generateIntelligentAIOpponents(undefined, 3); // 默认3个AI
+
+        } catch (error) {
+            console.error('获取比赛参与者失败:', error);
+            return await this.generateIntelligentAIOpponents(undefined, 3); // 默认3个AI
+        }
+    }
+
+    /**
+     * 生成智能AI对手（基于match配置）
+     */
+    private async generateIntelligentAIOpponents(
+        playerSkillLevel: string = 'normal',
+        aiCount: number = 3
+    ): Promise<any[]> {
+        // AI数量在创建match时已确定，这里直接使用
+        // 根据玩家技能水平调整AI难度范围
+        const difficultyConfig = {
+            'beginner': { min: 600, max: 900 },
+            'normal': { min: 800, max: 1200 },
+            'advanced': { min: 1000, max: 1400 },
+            'expert': { min: 1200, max: 1600 }
+        };
+
+        const config = difficultyConfig[playerSkillLevel as keyof typeof difficultyConfig] || difficultyConfig.normal;
+
+        const aiScores = [];
+
+        // 生成阶梯式AI分数，确保有挑战性
+        for (let i = 0; i < aiCount; i++) {
+            const baseScore = config.min + (config.max - config.min) * (i / (aiCount - 1));
+            // 添加随机波动，但保持阶梯性
+            const variation = (Math.random() - 0.5) * 100;
+            const score = Math.max(100, Math.floor(baseScore + variation));
+            aiScores.push(score);
+        }
+
+        // 按分数降序排序，确保AI难度递增
+        aiScores.sort((a, b) => b - a);
+
+        return aiScores.map((score, index) => ({
+            uid: `ai_${index + 1}`,
+            score: score,
+            isAI: true,
+            difficulty: this.getDifficultyByIndex(index, aiCount)
+        }));
+    }
+
+
+
+    /**
+     * 基于多个真人玩家的目标排名生成AI分数
+     * 支持多个真人玩家，每个玩家都有目标排名
+     */
+    private generateAIScoresForTargetRanks(
+        aiCount: number,
+        targetRanks: { uid: string, score: number, rank: number }[],
+    ): { rank: number, score: number }[] {
+        if (targetRanks.length === 0 || aiCount === 0) {
+            return [];
+        }
+
+        const totalParticipants = targetRanks.length + aiCount;
+        const aiScores: { rank: number, score: number }[] = [];
+
+        // 按目标排名排序，确保处理顺序正确
+        const sortedTargetRanks = [...targetRanks].sort((a, b) => a.rank - b.rank);
+
+        // 计算所有AI需要填充的排名位置
+        const allRankPositions = Array.from({ length: totalParticipants }, (_, i) => i + 1);
+        const humanRankPositions = sortedTargetRanks.map(r => r.rank);
+        const aiRankPositions = allRankPositions.filter(pos => !humanRankPositions.includes(pos));
+
+        // 为每个AI位置生成合适的分数
+        for (let i = 0; i < aiCount; i++) {
+            const aiRank = aiRankPositions[i];
+            const aiScore = this.generateAIScoreForPosition(
+                aiRank,
+                sortedTargetRanks,
+                totalParticipants
+            );
+            aiScores.push({ rank: aiRank, score: aiScore });
+        }
+
+        // 按分数降序排序，确保排名正确
+        aiScores.sort((a, b) => a.rank - b.rank);
+
+        return aiScores;
+    }
+
+    /**
+     * 为特定AI排名位置生成合适的分数
+     */
+    private generateAIScoreForPosition(
+        aiRank: number,
+        humanPlayers: { uid: string, score: number, rank: number }[],
+        totalParticipants: number
+    ): number {
+        // 找到排名在AI之前和之后的人类玩家
+        const playersBeforeAI = humanPlayers.filter(p => p.rank < aiRank);
+        const playersAfterAI = humanPlayers.filter(p => p.rank > aiRank);
+
+        let targetScore: number;
+
+        if (playersBeforeAI.length > 0 && playersAfterAI.length > 0) {
+            // AI在两个人类玩家之间，分数应该在这两个分数之间
+            const maxScoreBefore = Math.max(...playersBeforeAI.map(p => p.score));
+            const minScoreAfter = Math.min(...playersAfterAI.map(p => p.score));
+            targetScore = (maxScoreBefore + minScoreAfter) / 2;
+        } else if (playersBeforeAI.length > 0) {
+            // AI在所有人类玩家之后，分数应该比最低的人类分数还低
+            const minHumanScore = Math.min(...humanPlayers.map(p => p.score));
+            targetScore = Math.max(100, minHumanScore - 50 - Math.random() * 30);
+        } else if (playersAfterAI.length > 0) {
+            // AI在所有人类玩家之前，分数应该比最高的人类分数还高
+            const maxHumanScore = Math.max(...humanPlayers.map(p => p.score));
+            targetScore = maxHumanScore + 50 + Math.random() * 30;
+        } else {
+            // 没有人类玩家，生成默认分数
+            targetScore = 500 + Math.random() * 200;
+        }
+
+        // 添加随机波动，避免分数过于整齐
+        const variation = (Math.random() - 0.5) * 40;
+        return Math.max(100, Math.floor(targetScore + variation));
+    }
+
+    /**
+     * 计算玩家目标排名
+     */
+    private calculateTargetRank(skillLevel: string, totalParticipants: number): number {
+        // 根据技能水平确定目标排名范围
+        const targetRankingRanges = {
+            'beginner': { min: Math.floor(totalParticipants * 0.6), max: Math.floor(totalParticipants * 0.8) }, // 60%-80%
+            'normal': { min: Math.floor(totalParticipants * 0.4), max: Math.floor(totalParticipants * 0.7) },   // 40%-70%
+            'advanced': { min: Math.floor(totalParticipants * 0.2), max: Math.floor(totalParticipants * 0.6) }, // 20%-60%
+            'expert': { min: 1, max: Math.floor(totalParticipants * 0.5) }                                     // 1-50%
+        };
+
+        const targetRange = targetRankingRanges[skillLevel as keyof typeof targetRankingRanges] || targetRankingRanges.normal;
+
+        // 返回目标排名范围的中点
+        return Math.floor((targetRange.min + targetRange.max) / 2);
+    }
+
+    /**
+     * 智能调整AI分数，确保玩家获得合适的排名
+     */
+    private adjustAIScoresForTargetRanking(
+        playerScore: number,
+        initialAIScores: number[],
+        totalParticipants: number,
+        skillLevel: string
+    ): number[] {
+        // 根据技能水平确定目标排名范围
+        const targetRankingRanges = {
+            'beginner': { min: Math.floor(totalParticipants * 0.6), max: Math.floor(totalParticipants * 0.8) }, // 60%-80%
+            'normal': { min: Math.floor(totalParticipants * 0.4), max: Math.floor(totalParticipants * 0.7) },   // 40%-70%
+            'advanced': { min: Math.floor(totalParticipants * 0.2), max: Math.floor(totalParticipants * 0.6) }, // 20%-60%
+            'expert': { min: 1, max: Math.floor(totalParticipants * 0.5) }                                     // 1-50%
+        };
+
+        const targetRange = targetRankingRanges[skillLevel as keyof typeof targetRankingRanges] || targetRankingRanges.normal;
+        const targetRank = Math.floor((targetRange.min + targetRange.max) / 2);
+
+        // 计算当前预估排名
+        const allScores = [playerScore, ...initialAIScores];
+        allScores.sort((a, b) => b - a);
+        const currentPlayerRank = allScores.indexOf(playerScore) + 1;
+
+        // 如果当前排名接近目标排名，直接返回
+        if (Math.abs(currentPlayerRank - targetRank) <= 1) {
+            return initialAIScores;
+        }
+
+        // 调整AI分数以达到目标排名
+        const adjustedScores = [...initialAIScores];
+
+        if (currentPlayerRank > targetRank) {
+            // 玩家排名太低，需要降低一些AI分数
+            const adjustmentFactor = 0.8;
+            for (let i = 0; i < Math.min(2, adjustedScores.length); i++) {
+                adjustedScores[i] = Math.floor(adjustedScores[i] * adjustmentFactor);
+            }
+        } else {
+            // 玩家排名太高，需要提高一些AI分数
+            const adjustmentFactor = 1.2;
+            for (let i = 0; i < Math.min(2, adjustedScores.length); i++) {
+                adjustedScores[i] = Math.floor(adjustedScores[i] * adjustmentFactor);
+            }
+        }
+
+        // 确保分数在合理范围内
+        return adjustedScores.map(score => Math.max(100, Math.min(score, 2000)));
+    }
+
+    /**
+     * 根据AI数量和位置确定难度等级
+     */
+    private getDifficultyByIndex(index: number, totalCount: number): string {
+        if (totalCount <= 3) {
+            // 3个或更少AI：简单难度分布
+            return index === 0 ? 'hard' : index === 1 ? 'medium' : 'easy';
+        } else if (totalCount <= 5) {
+            // 4-5个AI：中等难度分布
+            if (index === 0) return 'hard';
+            if (index === 1) return 'medium_hard';
+            if (index === 2) return 'medium';
+            if (index === 3) return 'easy';
+            return 'very_easy';
+        } else {
+            // 6个以上AI：精细难度分布
+            if (index === 0) return 'very_hard';
+            if (index === 1) return 'hard';
+            if (index === 2) return 'medium_hard';
+            if (index === 3) return 'medium';
+            if (index === 4) return 'medium_easy';
+            if (index === 5) return 'easy';
+            return 'very_easy';
+        }
+    }
+
+    /**
+     * 计算最终排名（智能排名计算）
+     */
+    private async calculateFinalRankings(participants: any[], humanUid: string, humanScore: number): Promise<any[]> {
+        // 创建包含人类玩家的完整参与者列表
+        const allParticipants = [
+            ...participants,
+            {
+                uid: humanUid,
+                score: humanScore,
+                isAI: false
+            }
+        ];
+
+        // 转换为 calculateRankings 需要的格式
+        const playerScores = allParticipants.map(participant => ({
+            uid: participant.uid,
+            score: participant.score,
+            points: 0 // 临时积分，稍后计算
+        }));
+
+        // 使用智能排名计算
+        const rankings = await this.calculateRankings("temp_match_id", playerScores);
+
+        // 转换为原有格式，保持兼容性
+        return rankings.map(ranking => ({
+            uid: ranking.uid,
+            score: ranking.score,
+            rank: ranking.rank,
+            isAI: participants.find(p => p.uid === ranking.uid)?.isAI || false
+        }));
+    }
+
+    /**
+     * 计算积分
+     */
+    private calculatePoints(rank: number, totalParticipants: number): number {
+        // 基础积分规则
+        const basePoints: Record<number, number> = {
+            1: 100,
+            2: 60,
+            3: 30,
+            4: 10
+        };
+
+        // 根据参与人数调整积分
+        const participantMultiplier = Math.max(1, totalParticipants / 4);
+
+        return Math.floor((basePoints[rank] || 0) * participantMultiplier);
+    }
+
+    /**
+     * 获取玩家游戏历史
+     */
+    async getPlayerGameHistory(
+        uid: string,
+        limit: number = 20
+    ): Promise<{
+        success: boolean;
+        matches?: any[];
+        error?: string;
+    }> {
+        try {
+            const matches = await this.ctx.db
+                .query("match_results")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .order("desc")
+                .take(limit);
+
+            return {
+                success: true,
+                matches: matches.map((match: any) => ({
+                    matchId: match.matchId,
+                    seedId: match.seed,
+                    score: match.score,
+                    rank: match.rank,
+                    points: match.points,
+                    segmentName: match.segmentName,
+                    createdAt: match.createdAt
+                }))
+            };
+
+        } catch (error) {
+            console.error('获取玩家游戏历史失败:', error);
+            return {
+                success: false,
+                error: String(error)
+            };
+        }
+    }
+
+    /**
+     * 获取种子难度统计
+     */
+    async getSeedDifficultyStats(seedId: string): Promise<{
+        success: boolean;
+        difficulty?: string;
+        averageScore?: number;
+        completionRate?: number;
+        playerCount?: number;
+        error?: string;
+    }> {
+        try {
+            // 从种子统计缓存中获取数据
+            const stats = await this.ctx.db
+                .query("seed_statistics_cache")
+                .withIndex("by_seed", (q: any) => q.eq("seed", seedId))
+                .unique();
+
+            if (stats) {
+                return {
+                    success: true,
+                    difficulty: stats.difficulty,
+                    averageScore: stats.averageScore,
+                    completionRate: stats.completionRate,
+                    playerCount: stats.playerCount
+                };
+            }
+
+            // 如果没有缓存数据，返回默认值
+            return {
+                success: true,
+                difficulty: 'normal',
+                averageScore: 1000,
+                completionRate: 0.8,
+                playerCount: 0
+            };
+
+        } catch (error) {
+            console.error('获取种子难度统计失败:', error);
+            return {
+                success: false,
+                error: String(error)
+            };
+        }
+    }
+
+    /**
+     * 获取玩家技能等级
+     */
+    async getPlayerSkillLevel(uid: string): Promise<{
+        success: boolean;
+        skillLevel?: string;
+        confidence?: number;
+        error?: string;
+    }> {
+        try {
+            // 使用增量统计管理器获取技能等级
+            const { IncrementalStatisticsManager } = await import("../managers/IncrementalStatisticsManager");
+            const statsManager = new IncrementalStatisticsManager(this.ctx);
+            const skillLevel = await statsManager.getPlayerSkillLevel(uid);
+
+            return {
+                success: true,
+                skillLevel,
+                confidence: 0.8 // 可以从统计数据中计算
+            };
+
+        } catch (error) {
+            console.error('获取玩家技能等级失败:', error);
+            return {
+                success: false,
+                error: String(error)
+            };
+        }
+    }
 
     /**
      * 处理比赛结束
@@ -482,60 +969,13 @@ export class ScoreThresholdPlayerController {
         }
     }
 
-    /**
-     * 批量获取多个玩家的排名
-     * 支持动态参与者数量
-     */
-    async getBatchRanksByScores(
-        playerScores: Array<{ uid: string; score: number }>
-    ): Promise<Array<{
-        uid: string;
-        rank: number;
-        rankingProbability: number;
-        segmentName: SegmentName;
-        protectionActive: boolean;
-        reason: string;
-    }>> {
-        try {
-            const results = [];
-            const participantCount = playerScores.length;
-
-            for (const player of playerScores) {
-                try {
-                    const rankInfo = await this.getRankByScore(player.uid, player.score, participantCount);
-                    results.push({
-                        uid: player.uid,
-                        ...rankInfo
-                    });
-                } catch (error) {
-                    console.error(`获取玩家 ${player.uid} 排名失败:`, error);
-                    // 使用默认排名
-                    results.push({
-                        uid: player.uid,
-                        rank: participantCount,
-                        rankingProbability: 0.1,
-                        segmentName: 'bronze' as SegmentName,
-                        protectionActive: false,
-                        reason: '排名计算失败，使用默认排名'
-                    });
-                }
-            }
-
-            return results;
-        } catch (error) {
-            console.error('批量获取排名失败:', error);
-            throw error;
-        }
-    }
-
-    // ==================== 排名计算 ====================
 
     /**
      * 计算玩家排名
      */
     async calculateRankings(
         matchId: string,
-        playerScores: Array<{ uid: string; score: number; points: number }>
+        playerScores: Array<{ uid: string; score: number, rank?: number }>
     ): Promise<RankingResult[]> {
         const rankings: RankingResult[] = [];
 
@@ -569,7 +1009,6 @@ export class ScoreThresholdPlayerController {
                     uid: player.uid,
                     rank,
                     score: player.score,
-                    points: player.points,
                     rankingProbability: 0.5,
                     segmentName: config.segmentName,
                     protectionActive,
@@ -582,7 +1021,6 @@ export class ScoreThresholdPlayerController {
                     uid: player.uid,
                     rank: playerScores.length,
                     score: player.score,
-                    points: player.points,
                     rankingProbability: 0.1,
                     segmentName: 'bronze' as SegmentName,
                     protectionActive: false,
@@ -663,7 +1101,7 @@ export class ScoreThresholdPlayerController {
                 // 使用段位管理器检查变化
                 const changeResult = await this.segmentManager.checkAndProcessSegmentChange(
                     ranking.uid,
-                    ranking.points
+                    0 // 临时使用0，因为RankingResult没有points属性
                 );
 
                 if (changeResult.changed) {
@@ -701,59 +1139,6 @@ export class ScoreThresholdPlayerController {
     }
 
 
-
-    // ==================== 玩家级方法 ====================
-
-    /**
-     * 根据玩家分数获取相应名次
-     * 支持动态参与者数量，默认4人比赛
-     */
-    async getRankByScore(
-        uid: string,
-        score: number,
-        participantCount: number = 4,
-    ): Promise<{
-        rank: number;
-        rankingProbability: number;
-        segmentName: SegmentName;
-        protectionActive: boolean;
-        reason: string;
-    }> {
-        try {
-            // 1. 获取玩家配置
-            const config = await this.getPlayerConfig(uid);
-            if (!config) {
-                throw new Error(`玩家配置未找到: ${uid}`);
-            }
-
-            // 2. 确定最终排名 - 根据实际参与者数量获取概率数组
-            const baseProbs = this.getBaseRankingProbabilities(config.segmentName, participantCount);
-            const rank = this.determineFinalRank(
-                score,
-                baseProbs,
-                config.adaptiveMode,
-                config.learningRate
-            );
-
-            // 4. 检查保护状态
-            const protectionStatus = await this.getPlayerProtectionStatus(uid);
-            const protectionActive = protectionStatus?.protectionLevel ? protectionStatus.protectionLevel > 0 : false;
-
-            // 5. 生成排名原因
-            const reason = this.generateRankReason(score, rank, config, 0.5);
-
-            return {
-                rank,
-                rankingProbability: 0.5,
-                segmentName: config.segmentName,
-                protectionActive,
-                reason
-            };
-        } catch (error) {
-            console.error(`获取玩家排名失败: ${uid}`, error);
-            throw error;
-        }
-    }
 
     /**
      * 生成排名原因
@@ -1077,7 +1462,6 @@ export class ScoreThresholdPlayerController {
                     uid: ranking.uid,
                     score: ranking.score,
                     rank: ranking.rank,
-                    points: ranking.points,
                     segmentName: ranking.segmentName,
                     createdAt: new Date().toISOString()
                 });

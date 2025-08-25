@@ -111,24 +111,34 @@ export class PlayerHistoricalDataManager {
      */
     private async buildSegmentProgression(uid: string): Promise<any> {
         try {
-            // 这里应该从数据库获取段位变化历史
-            // 暂时返回默认值
+            // 从比赛历史分析段位变化
+            const matchHistory = await this.getPlayerMatchHistory(uid);
+
+            if (!matchHistory || matchHistory.length === 0) {
+                return this.getDefaultSegmentProgression();
+            }
+
+            // 基于历史表现计算当前段位
+            const currentSegment = this.calculateCurrentSegment(matchHistory);
+
+            // 分析段位变化历史
+            const segmentHistory = this.analyzeSegmentHistory(matchHistory);
+
+            // 计算稳定性周期
+            const stabilityPeriod = this.calculateStabilityPeriod(matchHistory);
+
             return {
-                currentSegment: 'bronze',
-                previousSegments: [],
-                promotionHistory: [],
-                demotionHistory: [],
-                stabilityPeriod: 5
+                currentSegment,
+                previousSegments: segmentHistory.previousSegments,
+                promotionHistory: segmentHistory.promotions,
+                demotionHistory: segmentHistory.demotions,
+                stabilityPeriod,
+                lastSegmentChange: segmentHistory.lastChange,
+                segmentTrend: segmentHistory.trend
             };
         } catch (error) {
             console.error(`构建段位进展失败: ${uid}`, error);
-            return {
-                currentSegment: 'bronze',
-                previousSegments: [],
-                promotionHistory: [],
-                demotionHistory: [],
-                stabilityPeriod: 5
-            };
+            return this.getDefaultSegmentProgression();
         }
     }
 
@@ -137,9 +147,23 @@ export class PlayerHistoricalDataManager {
      */
     private async getPlayerMatchHistory(uid: string): Promise<any[] | null> {
         try {
-            // 这里应该从数据库查询
-            // 暂时返回空数组
-            return [];
+            const matches = await this.ctx.db
+                .query("match_results")
+                .withIndex("by_uid")
+                .filter((q: any) => q.eq(q.field("uid"), uid))
+                .order("desc")
+                .take(100); // 获取最近100场比赛
+
+            if (matches.length === 0) {
+                return [];
+            }
+
+            // 按时间排序并添加时间戳
+            return matches.map((match: any) => ({
+                ...match,
+                timestamp: match.createdAt || match.timestamp || Date.now()
+            })).sort((a: any, b: any) => b.timestamp - a.timestamp);
+
         } catch (error) {
             console.error(`获取玩家比赛历史失败: ${uid}`, error);
             return null;
@@ -175,6 +199,256 @@ export class PlayerHistoricalDataManager {
             lastLearningRate: 0.1,
             learningEfficiency: 0.5
         };
+    }
+
+    /**
+     * 获取默认段位进展
+     */
+    private getDefaultSegmentProgression(): any {
+        return {
+            currentSegment: 'bronze',
+            previousSegments: [],
+            promotionHistory: [],
+            demotionHistory: [],
+            stabilityPeriod: 5,
+            lastSegmentChange: null,
+            segmentTrend: 'stable'
+        };
+    }
+
+    /**
+     * 计算当前段位
+     */
+    private calculateCurrentSegment(matchHistory: any[]): string {
+        if (matchHistory.length === 0) return 'bronze';
+
+        // 基于最近20场比赛的表现计算段位
+        const recentMatches = matchHistory.slice(0, 20);
+        const averageScore = recentMatches.reduce((sum, m) => sum + m.score, 0) / recentMatches.length;
+        const averageRank = recentMatches.reduce((sum, m) => sum + m.rank, 0) / recentMatches.length;
+        const winRate = recentMatches.filter(m => m.rank === 1).length / recentMatches.length;
+
+        // 段位判断逻辑
+        if (averageScore >= 8000 && averageRank <= 1.5 && winRate >= 0.7) return 'diamond';
+        if (averageScore >= 6000 && averageRank <= 2.0 && winRate >= 0.6) return 'platinum';
+        if (averageScore >= 4000 && averageRank <= 2.5 && winRate >= 0.5) return 'gold';
+        if (averageScore >= 2000 && averageRank <= 3.0 && winRate >= 0.4) return 'silver';
+        return 'bronze';
+    }
+
+    /**
+     * 分析段位历史
+     */
+    private analyzeSegmentHistory(matchHistory: any[]): any {
+        if (matchHistory.length < 10) {
+            return {
+                previousSegments: [],
+                promotions: [],
+                demotions: [],
+                lastChange: null,
+                trend: 'stable'
+            };
+        }
+
+        // 按时间分组分析段位变化
+        const segments = this.groupMatchesBySegment(matchHistory);
+        const changes = this.detectSegmentChanges(segments);
+
+        return {
+            previousSegments: changes.previousSegments,
+            promotions: changes.promotions,
+            demotions: changes.demotions,
+            lastChange: changes.lastChange,
+            trend: changes.trend
+        };
+    }
+
+    /**
+     * 按段位分组比赛
+     */
+    private groupMatchesBySegment(matchHistory: any[]): any[] {
+        const segments: any[] = [];
+        let currentSegment = 'bronze';
+        let segmentStart = 0;
+
+        for (let i = 0; i < matchHistory.length; i++) {
+            const match = matchHistory[i];
+            const matchSegment = this.calculateSegmentForMatch(match);
+
+            if (matchSegment !== currentSegment) {
+                // 记录上一个段位
+                if (i > segmentStart) {
+                    segments.push({
+                        segment: currentSegment,
+                        startIndex: segmentStart,
+                        endIndex: i - 1,
+                        duration: i - segmentStart,
+                        performance: this.calculateSegmentPerformance(matchHistory.slice(segmentStart, i))
+                    });
+                }
+
+                currentSegment = matchSegment;
+                segmentStart = i;
+            }
+        }
+
+        // 添加最后一个段位
+        if (segmentStart < matchHistory.length) {
+            segments.push({
+                segment: currentSegment,
+                startIndex: segmentStart,
+                endIndex: matchHistory.length - 1,
+                duration: matchHistory.length - segmentStart,
+                performance: this.calculateSegmentPerformance(matchHistory.slice(segmentStart))
+            });
+        }
+
+        return segments;
+    }
+
+    /**
+     * 计算单场比赛的段位
+     */
+    private calculateSegmentForMatch(match: any): string {
+        const score = match.score;
+        const rank = match.rank;
+
+        if (score >= 8000 && rank <= 1) return 'diamond';
+        if (score >= 6000 && rank <= 2) return 'platinum';
+        if (score >= 4000 && rank <= 2) return 'gold';
+        if (score >= 2000 && rank <= 3) return 'silver';
+        return 'bronze';
+    }
+
+    /**
+     * 计算段位表现
+     */
+    private calculateSegmentPerformance(matches: any[]): any {
+        if (matches.length === 0) return { averageScore: 0, averageRank: 0, winRate: 0 };
+
+        const scores = matches.map(m => m.score);
+        const ranks = matches.map(m => m.rank);
+        const wins = matches.filter(m => m.rank === 1).length;
+
+        return {
+            averageScore: scores.reduce((sum, score) => sum + score, 0) / scores.length,
+            averageRank: ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length,
+            winRate: wins / matches.length
+        };
+    }
+
+    /**
+     * 检测段位变化
+     */
+    private detectSegmentChanges(segments: any[]): any {
+        if (segments.length <= 1) {
+            return {
+                previousSegments: [],
+                promotions: [],
+                demotions: [],
+                lastChange: null,
+                trend: 'stable'
+            };
+        }
+
+        const promotions: any[] = [];
+        const demotions: any[] = [];
+        const previousSegments: string[] = [];
+
+        for (let i = 1; i < segments.length; i++) {
+            const prevSegment = segments[i - 1];
+            const currSegment = segments[i];
+
+            previousSegments.push(prevSegment.segment);
+
+            const prevLevel = this.getSegmentLevel(prevSegment.segment);
+            const currLevel = this.getSegmentLevel(currSegment.segment);
+
+            if (currLevel > prevLevel) {
+                promotions.push({
+                    from: prevSegment.segment,
+                    to: currSegment.segment,
+                    timestamp: prevSegment.endIndex,
+                    performance: prevSegment.performance
+                });
+            } else if (currLevel < prevLevel) {
+                demotions.push({
+                    from: prevSegment.segment,
+                    to: currSegment.segment,
+                    timestamp: prevSegment.endIndex,
+                    performance: prevSegment.performance
+                });
+            }
+        }
+
+        const lastChange = promotions.length > 0 || demotions.length > 0 ?
+            (promotions.length > 0 ? promotions[promotions.length - 1] : demotions[demotions.length - 1]) : null;
+
+        const trend = this.determineSegmentTrend(segments);
+
+        return {
+            previousSegments,
+            promotions,
+            demotions,
+            lastChange,
+            trend
+        };
+    }
+
+    /**
+     * 获取段位等级
+     */
+    private getSegmentLevel(segment: string): number {
+        const levels: { [key: string]: number } = {
+            'bronze': 1,
+            'silver': 2,
+            'gold': 3,
+            'platinum': 4,
+            'diamond': 5
+        };
+        return levels[segment] || 1;
+    }
+
+    /**
+     * 确定段位趋势
+     */
+    private determineSegmentTrend(segments: any[]): string {
+        if (segments.length < 3) return 'stable';
+
+        const recentSegments = segments.slice(-3);
+        const levels = recentSegments.map(s => this.getSegmentLevel(s.segment));
+
+        // 检查是否持续上升或下降
+        let rising = 0;
+        let falling = 0;
+
+        for (let i = 1; i < levels.length; i++) {
+            if (levels[i] > levels[i - 1]) rising++;
+            else if (levels[i] < levels[i - 1]) falling++;
+        }
+
+        if (rising >= 2) return 'rising';
+        if (falling >= 2) return 'falling';
+        return 'stable';
+    }
+
+    /**
+     * 计算稳定性周期
+     */
+    private calculateStabilityPeriod(matchHistory: any[]): number {
+        if (matchHistory.length < 5) return 5;
+
+        const recentMatches = matchHistory.slice(0, 10);
+        const segments = recentMatches.map(m => this.calculateSegmentForMatch(m));
+
+        // 计算段位变化的频率
+        let changes = 0;
+        for (let i = 1; i < segments.length; i++) {
+            if (segments[i] !== segments[i - 1]) changes++;
+        }
+
+        // 稳定性周期 = 总比赛数 / (变化次数 + 1)
+        return Math.max(1, Math.round(recentMatches.length / (changes + 1)));
     }
 
     /**
@@ -1072,5 +1346,344 @@ export class PlayerHistoricalDataManager {
                 timestamp: new Date().toISOString()
             };
         }
+    }
+
+    // ==================== 新增实用方法 ====================
+
+    /**
+     * 获取玩家技能发展趋势
+     */
+    async getPlayerSkillTrend(uid: string, timeRange: 'week' | 'month' | 'quarter' = 'month'): Promise<{
+        trend: 'improving' | 'declining' | 'stable';
+        confidence: number;
+        metrics: {
+            scoreTrend: number;
+            rankTrend: number;
+            winRateTrend: number;
+            consistencyTrend: number;
+        };
+        recommendations: string[];
+    }> {
+        try {
+            const matchHistory = await this.getPlayerMatchHistory(uid);
+
+            if (!matchHistory || matchHistory.length < 10) {
+                return {
+                    trend: 'stable',
+                    confidence: 0.3,
+                    metrics: { scoreTrend: 0, rankTrend: 0, winRateTrend: 0, consistencyTrend: 0 },
+                    recommendations: ['需要更多比赛数据来分析趋势']
+                };
+            }
+
+            // 按时间段分组
+            const timeGroups = this.groupMatchesByTime(matchHistory, timeRange);
+            const trends = this.calculateTrendsByTimeGroups(timeGroups);
+
+            // 确定整体趋势
+            const overallTrend = this.determineOverallTrend(trends);
+            const confidence = this.calculateTrendConfidence(matchHistory.length, trends);
+            const recommendations = this.generateTrendRecommendations(overallTrend, trends);
+
+            return {
+                trend: overallTrend,
+                confidence,
+                metrics: trends,
+                recommendations
+            };
+        } catch (error) {
+            console.error(`获取玩家技能趋势失败: ${uid}`, error);
+            return {
+                trend: 'stable',
+                confidence: 0.1,
+                metrics: { scoreTrend: 0, rankTrend: 0, winRateTrend: 0, consistencyTrend: 0 },
+                recommendations: ['分析失败，请稍后重试']
+            };
+        }
+    }
+
+    /**
+     * 按时间段分组比赛
+     */
+    private groupMatchesByTime(matchHistory: any[], timeRange: string): any[] {
+        const now = Date.now();
+        const timeRanges = {
+            week: 7 * 24 * 60 * 60 * 1000,
+            month: 30 * 24 * 60 * 60 * 1000,
+            quarter: 90 * 24 * 60 * 60 * 1000
+        };
+
+        const rangeMs = timeRanges[timeRange as keyof typeof timeRanges] || timeRanges.month;
+        const groups: any[] = [];
+        const groupCount = 4; // 分成4组
+        const groupSize = rangeMs / groupCount;
+
+        for (let i = 0; i < groupCount; i++) {
+            const startTime = now - rangeMs + (i * groupSize);
+            const endTime = now - rangeMs + ((i + 1) * groupSize);
+
+            const groupMatches = matchHistory.filter(match => {
+                const matchTime = match.timestamp || match.createdAt || 0;
+                return matchTime >= startTime && matchTime < endTime;
+            });
+
+            groups.push({
+                period: i + 1,
+                startTime,
+                endTime,
+                matches: groupMatches,
+                metrics: this.calculateGroupMetrics(groupMatches)
+            });
+        }
+
+        return groups;
+    }
+
+    /**
+     * 计算分组指标
+     */
+    private calculateGroupMetrics(matches: any[]): any {
+        if (matches.length === 0) {
+            return { averageScore: 0, averageRank: 0, winRate: 0, consistency: 0 };
+        }
+
+        const scores = matches.map(m => m.score);
+        const ranks = matches.map(m => m.rank);
+        const wins = matches.filter(m => m.rank === 1).length;
+
+        // 计算一致性（基于分数的标准差）
+        const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        const variance = scores.reduce((sum, score) => sum + Math.pow(score - avgScore, 2), 0) / scores.length;
+        const consistency = Math.max(0, 1 - Math.sqrt(variance) / avgScore);
+
+        return {
+            averageScore: avgScore,
+            averageRank: ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length,
+            winRate: wins / matches.length,
+            consistency
+        };
+    }
+
+    /**
+     * 计算时间段趋势
+     */
+    private calculateTrendsByTimeGroups(groups: any[]): any {
+        if (groups.length < 2) {
+            return { scoreTrend: 0, rankTrend: 0, winRateTrend: 0, consistencyTrend: 0 };
+        }
+
+        // 计算各指标的变化趋势
+        const scoreTrend = this.calculateMetricTrend(groups, 'averageScore');
+        const rankTrend = this.calculateMetricTrend(groups, 'averageRank', true); // 排名越低越好
+        const winRateTrend = this.calculateMetricTrend(groups, 'winRate');
+        const consistencyTrend = this.calculateMetricTrend(groups, 'consistency');
+
+        return { scoreTrend, rankTrend, winRateTrend, consistencyTrend };
+    }
+
+    /**
+     * 计算指标趋势
+     */
+    private calculateMetricTrend(groups: any[], metric: string, reverse: boolean = false): number {
+        if (groups.length < 2) return 0;
+
+        const values = groups.map(g => g.metrics[metric]);
+        let trend = 0;
+
+        for (let i = 1; i < values.length; i++) {
+            const change = values[i] - values[i - 1];
+            trend += reverse ? -change : change;
+        }
+
+        // 标准化到 -1 到 1 范围
+        const maxValue = Math.max(...values);
+        return Math.max(-1, Math.min(1, trend / (maxValue * (groups.length - 1))));
+    }
+
+    /**
+     * 确定整体趋势
+     */
+    private determineOverallTrend(trends: any): 'improving' | 'declining' | 'stable' {
+        const { scoreTrend, rankTrend, winRateTrend, consistencyTrend } = trends;
+
+        // 加权计算整体趋势
+        const overallScore = (
+            scoreTrend * 0.3 +
+            rankTrend * 0.3 +
+            winRateTrend * 0.25 +
+            consistencyTrend * 0.15
+        );
+
+        if (overallScore > 0.2) return 'improving';
+        if (overallScore < -0.2) return 'declining';
+        return 'stable';
+    }
+
+    /**
+     * 计算趋势置信度
+     */
+    private calculateTrendConfidence(matchCount: number, trends: any): number {
+        // 基于数据量的基础置信度
+        let baseConfidence = Math.min(1, matchCount / 50);
+
+        // 基于趋势一致性的调整
+        const { scoreTrend, rankTrend, winRateTrend, consistencyTrend } = trends;
+        const trendValues = [scoreTrend, rankTrend, winRateTrend, consistencyTrend];
+        const positiveTrends = trendValues.filter(t => t > 0).length;
+        const negativeTrends = trendValues.filter(t => t < 0).length;
+
+        const consistencyAdjustment = Math.abs(positiveTrends - negativeTrends) / trendValues.length;
+
+        return Math.max(0.1, Math.min(1, (baseConfidence + consistencyAdjustment) / 2));
+    }
+
+    /**
+     * 生成趋势建议
+     */
+    private generateTrendRecommendations(overallTrend: string, trends: any): string[] {
+        const recommendations: string[] = [];
+
+        if (overallTrend === 'improving') {
+            recommendations.push('技能持续提升，建议尝试更具挑战性的内容');
+            recommendations.push('保持当前学习节奏，巩固已掌握的技能');
+        } else if (overallTrend === 'declining') {
+            recommendations.push('技能有所下降，建议回顾基础策略');
+            recommendations.push('考虑调整游戏策略，寻找新的突破点');
+        } else {
+            recommendations.push('技能保持稳定，建议尝试新的游戏模式');
+            recommendations.push('可以挑战更高难度的内容来提升技能');
+        }
+
+        // 基于具体指标的建议
+        if (trends.consistencyTrend < -0.3) {
+            recommendations.push('表现一致性下降，建议练习基础操作');
+        }
+        if (trends.winRateTrend < -0.3) {
+            recommendations.push('胜率下降，建议分析失败原因并调整策略');
+        }
+
+        return recommendations;
+    }
+
+    /**
+     * 获取玩家对比分析
+     */
+    async getPlayerComparison(uid: string, compareUids: string[]): Promise<{
+        playerStats: any;
+        comparisons: { [compareUid: string]: any };
+        ranking: { uid: string; rank: number; score: number }[];
+        insights: string[];
+    }> {
+        try {
+            const playerData = await this.getPlayerHistoricalData(uid);
+            if (!playerData) {
+                throw new Error('无法获取玩家数据');
+            }
+
+            const comparisons: { [key: string]: any } = {};
+            const allPlayerStats: any[] = [];
+
+            // 获取对比玩家的数据
+            for (const compareUid of compareUids) {
+                const compareData = await this.getPlayerHistoricalData(compareUid);
+                if (compareData) {
+                    comparisons[compareUid] = compareData;
+                    allPlayerStats.push({
+                        playerUid: compareUid,
+                        ...compareData.performanceMetrics
+                    });
+                }
+            }
+
+            // 添加当前玩家
+            allPlayerStats.push({
+                playerUid: uid,
+                ...playerData.performanceMetrics
+            });
+
+            // 排序并生成排名
+            const ranking = this.generatePlayerRanking(allPlayerStats);
+            const insights = this.generateComparisonInsights(playerData, comparisons, ranking);
+
+            return {
+                playerStats: playerData,
+                comparisons,
+                ranking,
+                insights
+            };
+        } catch (error) {
+            console.error(`获取玩家对比分析失败: ${uid}`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 生成玩家排名
+     */
+    private generatePlayerRanking(allPlayerStats: any[]): { uid: string; rank: number; score: number }[] {
+        // 计算综合得分
+        const scoredPlayers = allPlayerStats.map(player => {
+            const score = this.calculatePlayerScore(player);
+            return { uid: player.playerUid, score, rank: 0 };
+        });
+
+        // 按得分排序
+        scoredPlayers.sort((a, b) => b.score - a.score);
+
+        // 分配排名
+        scoredPlayers.forEach((player, index) => {
+            player.rank = index + 1;
+        });
+
+        return scoredPlayers;
+    }
+
+    /**
+     * 计算玩家综合得分
+     */
+    private calculatePlayerScore(player: any): number {
+        const { averageScore, averageRank, winRate } = player;
+
+        // 标准化各项指标到0-100
+        const normalizedScore = Math.min(100, averageScore / 100);
+        const normalizedRank = Math.max(0, 100 - (averageRank - 1) * 25);
+        const normalizedWinRate = winRate * 100;
+
+        // 加权计算综合得分
+        return Math.round(
+            normalizedScore * 0.4 +
+            normalizedRank * 0.35 +
+            normalizedWinRate * 0.25
+        );
+    }
+
+    /**
+     * 生成对比洞察
+     */
+    private generateComparisonInsights(playerData: any, comparisons: any, ranking: any[]): string[] {
+        const insights: string[] = [];
+        const playerRank = ranking.find(r => r.uid === playerData.uid)?.rank || 0;
+
+        if (playerRank === 1) {
+            insights.push('你在对比玩家中表现最佳，继续保持！');
+        } else if (playerRank <= Math.ceil(ranking.length / 2)) {
+            insights.push('你在对比玩家中表现良好，有进一步提升空间');
+        } else {
+            insights.push('你在对比玩家中还有提升空间，建议分析差距并改进');
+        }
+
+        // 分析具体指标
+        const playerMetrics = playerData.performanceMetrics;
+        Object.entries(comparisons).forEach(([compareUid, compareData]) => {
+            const compareMetrics = (compareData as any).performanceMetrics;
+
+            if (playerMetrics.averageScore > compareMetrics.averageScore * 1.2) {
+                insights.push(`相比${compareUid}，你的平均分数明显更高`);
+            } else if (playerMetrics.averageScore < compareMetrics.averageScore * 0.8) {
+                insights.push(`相比${compareUid}，你的平均分数还有提升空间`);
+            }
+        });
+
+        return insights;
     }
 }

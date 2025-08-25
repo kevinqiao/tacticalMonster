@@ -1,14 +1,15 @@
 /**
  * 种子推荐系统 - 重构版本
- * 基于 IncrementalStatisticsManager 提供高效查询接口
+ * 基于 IntelligentRecommendationManager 提供智能推荐接口
  */
 
 import { v } from "convex/values";
 import { mutation, query } from "../../../../_generated/server";
 import { IncrementalStatisticsManager } from "../managers/IncrementalStatisticsManager";
+import { IntelligentRecommendationManager } from "../managers/IntelligentRecommendationManager";
 
 /**
- * 根据玩家技能等级推荐种子
+ * 根据玩家技能等级推荐种子（传统方式）
  */
 export const recommendSeedsBySkill = query({
     args: {
@@ -46,6 +47,35 @@ export const recommendSeedsBySkill = query({
                 success: false,
                 error: String(error)
             };
+        }
+    }
+});
+
+/**
+ * 智能推荐种子（结合智能体验管理）
+ */
+export const intelligentRecommendSeeds = query({
+    args: {
+        uid: v.string(),
+        limit: v.optional(v.number())
+    },
+    handler: async (ctx, args) => {
+        try {
+            const recommendationManager = new IntelligentRecommendationManager(ctx);
+
+            const result = await recommendationManager.intelligentRecommendSeeds(
+                args.uid,
+                args.limit || 5
+            );
+
+            return {
+                success: true,
+                ...result
+            };
+
+        } catch (error) {
+            console.error('智能推荐失败:', error);
+            return { success: false, error: String(error) };
         }
     }
 });
@@ -241,6 +271,37 @@ export const cleanupExpiredCache = mutation({
                 success: false,
                 error: String(error)
             };
+        }
+    }
+});
+
+/**
+ * 用户反馈学习（用于改进推荐算法）
+ */
+export const submitUserFeedback = mutation({
+    args: {
+        uid: v.string(),
+        seedId: v.string(),
+        feedback: v.object({
+            difficulty: v.union(v.literal("too_easy"), v.literal("just_right"), v.literal("too_hard")),
+            enjoyment: v.optional(v.number()), // 1-5 评分
+            completionTime: v.optional(v.number()),
+            retryCount: v.optional(v.number())
+        })
+    },
+    handler: async (ctx, args) => {
+        try {
+            const expManager = new IntelligentRecommendationManager(ctx);
+            await expManager.learnFromUserFeedback(
+                args.uid,
+                args.seedId,
+                args.feedback
+            );
+
+            return { success: true };
+        } catch (error) {
+            console.error('提交用户反馈失败:', error);
+            return { success: false, error: String(error) };
         }
     }
 });

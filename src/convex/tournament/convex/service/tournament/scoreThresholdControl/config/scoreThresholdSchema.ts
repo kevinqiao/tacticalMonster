@@ -108,9 +108,10 @@ export default {
         matchId: v.string(),
         uid: v.string(),
         status: v.string(), // "active", "completed", "cancelled"
+        aiCount: v.number(), // AI数量在创建match时确定
         targetRank: v.optional(v.number()),
         humanScore: v.optional(v.number()),
-        aiScores: v.optional(v.array(v.number())),
+        // aiScores: v.optional(v.array(v.number())), // 移除：AI分数应该在提交分数后智能生成
         finalRankings: v.optional(v.array(v.object({
             uid: v.string(),
             score: v.number(),
@@ -122,6 +123,7 @@ export default {
         .index("by_matchId", ["matchId"])
         .index("by_uid", ["uid"])
         .index("by_status", ["status"])
+        .index("by_aiCount", ["aiCount"]) // 新增：按AI数量查询
         .index("by_targetRank", ["targetRank"])
         .index("by_createdAt", ["createdAt"]),
 
@@ -165,5 +167,22 @@ export default {
         .index("by_lastAnalysisTime", ["lastAnalysisTime"])
         .index("by_totalMatches", ["totalMatches"])
         .index("by_averageRank", ["skillStats.averageRank"])
-        .index("by_winRate", ["skillStats.winRate"])
+        .index("by_winRate", ["skillStats.winRate"]),
+
+    // 用户反馈表（用于改进推荐算法）
+    user_feedback: defineTable({
+        uid: v.string(),
+        seedId: v.string(),
+        feedback: v.object({
+            difficulty: v.union(v.literal("too_easy"), v.literal("just_right"), v.literal("too_hard")),
+            enjoyment: v.optional(v.number()),
+            completionTime: v.optional(v.number()),
+            retryCount: v.optional(v.number())
+        }),
+        createdAt: v.string()
+    })
+        .index("by_uid", ["uid"])
+        .index("by_seedId", ["seedId"])
+        .index("by_createdAt", ["createdAt"])
+        .index("by_difficulty", ["feedback.difficulty"])
 };
