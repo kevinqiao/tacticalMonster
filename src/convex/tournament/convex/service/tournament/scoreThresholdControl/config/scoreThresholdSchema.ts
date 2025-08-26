@@ -88,7 +88,6 @@ export default {
         uid: v.string(),           // 玩家用户ID
         score: v.number(),         // 玩家得分
         rank: v.number(),          // 玩家排名
-        points: v.number(),        // 玩家获得的积分
         segmentName: v.optional(v.string()), // 玩家当前段位（可选）
         createdAt: v.string()      // 记录创建时间
     })
@@ -99,7 +98,6 @@ export default {
         .index("by_seed_created", ["seed", "createdAt"]) // 复合索引，用于增量查询
         .index("by_score", ["score"])                    // 按得分查询
         .index("by_rank", ["rank"])                      // 按排名查询
-        .index("by_points", ["points"])                  // 按积分查询
         .index("by_segment", ["segmentName"])            // 按段位查询
         .index("by_uid_created", ["uid", "createdAt"]),  // 复合索引，用于玩家历史查询
 

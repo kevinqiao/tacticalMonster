@@ -26,26 +26,8 @@ export class ScoreThresholdIntegration {
     }
 
     /**
-     * 记录比赛结果
-     */
-    static async recordMatchResult(ctx: any, params: {
-        matchId: string;
-        uid: string;
-        score: number;
-        rank: number;
-        points: number;
-    }): Promise<void> {
-        const playerController = new ScoreThresholdPlayerController(ctx);
-        await playerController.processMatchEnd(params.matchId, [{
-            uid: params.uid,
-            score: params.score,
-            points: params.points
-        }]);
-    }
-
-    /**
-     * 获取玩家统计信息
-     */
+  * 获取玩家统计信息
+  */
     static async getPlayerStats(ctx: any, uid: string): Promise<{
         config: ScoreThresholdConfig | null;
         metrics: any;
