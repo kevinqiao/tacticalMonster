@@ -83,28 +83,16 @@ export class TournamentMatchingService {
                 tournamentType: tournamentType.typeId,
                 playerInfo: {
                     uid: player.uid,
-                    skill: player.totalPoints || 1000,
-                    // segmentName: playerSegment?.segmentName || "Bronze",
-                    // segmentTier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
-                    // segmentPoints: playerSegment?.currentPoints || 0,
+                    skill: player.eloScore || 1000, // 使用 eloScore 替代 totalPoints
                     eloScore: player.eloScore,
-                    totalPoints: player.totalPoints,
                     isSubscribed: player.isSubscribed
                 },
-                // matchingConfig,
                 status: "waiting",
                 joinedAt: nowISO,
-                // priority,
-                // weight,
                 metadata: {
                     config: config,
                     playerLevel: player.level,
                     playerRank: player.rank,
-                    // segmentInfo: {
-                    //     name: playerSegment?.segmentName,
-                    //     tier: SegmentSystem.getSegmentTier(playerSegment?.segmentName || "Bronze"),
-                    //     points: playerSegment?.currentPoints || 0
-                    // }
                 },
                 createdAt: nowISO,
                 updatedAt: nowISO

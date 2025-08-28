@@ -61,7 +61,6 @@ export interface PlayerPerformanceMetrics {
     totalMatches: number;
     totalWins: number;
     totalLosses?: number;
-    totalPoints?: number;
     totalScore: number;
     averageScore: number;
     currentWinStreak?: number;
@@ -130,12 +129,6 @@ export interface RankingResult {
     segmentName: SegmentName;
     rankingProbability: number;
     protectionActive: boolean;
-    segmentChange?: {
-        changeType: ChangeType;
-        oldSegment: SegmentName;
-        newSegment: SegmentName;
-        reason: string;
-    };
 }
 
 export interface MatchRankingResult {
@@ -191,7 +184,6 @@ export interface PlayerHistoricalData {
     performanceMetrics: PlayerPerformanceMetrics;
     learningPatterns: LearningPatterns;
     rankingHistory: RankingHistory[];
-    segmentProgression: SegmentProgression;
 }
 
 export interface LearningPatterns {

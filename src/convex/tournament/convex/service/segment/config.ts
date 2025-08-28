@@ -181,7 +181,13 @@ export const SEGMENT_SYSTEM_CONFIG: SegmentSystemConfig = {
     defaultStabilityPeriod: 5,
     pointsDecayRate: 0.1, // 每天衰减10%
     winStreakBonus: 50,   // 连胜奖励
-    loseStreakPenalty: 25 // 连败惩罚
+    loseStreakPenalty: 25, // 连败惩罚
+
+    // 表现保护配置
+    performanceProtectionMultiplier: 1.5,  // 积分表现保护倍数
+    performanceProtectionDays: 3,           // 表现保护天数
+    stabilityProtectionMultiplier: 1.2,    // 稳定性保护倍数
+    stabilityProtectionDays: 2             // 稳定性保护天数
 };
 
 // ==================== 段位颜色主题 ====================
@@ -255,6 +261,14 @@ export function getSegmentColor(segmentName: SegmentName): string {
  */
 export function getSegmentIcon(segmentName: SegmentName): string {
     return SEGMENT_ICONS[segmentName] || "🏆";
+}
+
+/**
+ * 获取段位升级所需积分
+ */
+export function getSegmentPointsRequired(segmentName: SegmentName): number {
+    const rule = getSegmentRule(segmentName);
+    return rule?.promotion.pointsRequired || 0;
 }
 
 /**

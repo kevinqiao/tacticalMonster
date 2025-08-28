@@ -5,16 +5,11 @@
  */
 import {
     getAdaptiveMode,
-    getDefaultScoreThresholds,
-    getLearningRate,
     getRankingMode
 } from "../config/config";
 import {
     AdaptiveMode,
-    ChangeType,
     PlayerPerformanceMetrics,
-    PlayerProtectionStatus,
-    ProtectionLevel,
     RankingMode,
     ScoreThresholdConfig,
     SegmentName
@@ -26,56 +21,23 @@ const DEFAULT_PROTECTION_LEVEL = 1;
 const DEFAULT_GRACE_PERIOD = 3;
 const DEFAULT_PROTECTION_DURATION = 7;
 
-// 简化的SegmentManager类
-class SegmentManager {
-    private ctx: any;
-
-    constructor(ctx: any) {
-        this.ctx = ctx;
+// 默认配置常量
+const DEFAULT_SCORE_THRESHOLDS: any[] = [
+    {
+        minScore: 0,
+        maxScore: 1000,
+        rankingProbabilities: {
+            4: [0.25, 0.25, 0.25, 0.25],
+            6: [0.20, 0.20, 0.20, 0.20, 0.10, 0.10],
+            8: [0.18, 0.18, 0.18, 0.18, 0.12, 0.08, 0.05, 0.03]
+        },
+        priority: 1,
+        segmentName: "bronze"
     }
+];
 
-    async canPromote(uid: string): Promise<boolean> {
-        return true;
-    }
+const DEFAULT_LEARNING_RATE = 0.1;
 
-    async canDemote(uid: string): Promise<boolean> {
-        return true;
-    }
-
-    async getSegmentProtectionConfig(segmentName: SegmentName) {
-        return {
-            protectionLevel: DEFAULT_PROTECTION_LEVEL,
-            gracePeriod: DEFAULT_GRACE_PERIOD,
-            protectionDuration: DEFAULT_PROTECTION_DURATION
-        };
-    }
-
-    async getSegmentRule(segmentName: SegmentName) {
-        return {
-            minScore: 0,
-            maxScore: 10000,
-            promotionRequirement: 100,
-            demotionThreshold: 50
-        };
-    }
-
-    async getSegmentTier(segmentName: SegmentName): Promise<number> {
-        const tiers: Record<SegmentName, number> = {
-            bronze: 1,
-            silver: 2,
-            gold: 3,
-            platinum: 4,
-            diamond: 5,
-            master: 6,
-            grandmaster: 7
-        };
-        return tiers[segmentName] || 1;
-    }
-
-    async checkAndProcessSegmentChange(uid: string, points: number): Promise<any> {
-        return { changed: false, newSegment: null };
-    }
-}
 
 // 历史数据分析器类
 class HistoricalDataAnalyzer {
@@ -415,7 +377,7 @@ class HistoricalDataAnalyzer {
 interface MatchRankingResult {
     matchId: string;
     rankings: RankingResult[];
-    segmentChanges: any[];
+    // segmentChanges: any[];
     timestamp: string;
 }
 
@@ -423,9 +385,10 @@ interface RankingResult {
     uid: string;
     rank: number;
     score: number;
+    points: number;
+    seed: string;
     rankingProbability: number;
     segmentName: SegmentName;
-    protectionActive: boolean;
     reason: string;
 }
 
@@ -433,13 +396,11 @@ type DatabaseContext = any;
 
 export class ScoreThresholdPlayerController {
     private ctx: DatabaseContext;
-    private segmentManager: SegmentManager;
     private intelligentExperienceManager: IntelligentExperienceManager;
     private historicalDataAnalyzer: HistoricalDataAnalyzer;
 
     constructor(ctx: DatabaseContext) {
         this.ctx = ctx;
-        this.segmentManager = new SegmentManager(ctx);
         this.intelligentExperienceManager = new IntelligentExperienceManager(ctx);
         this.historicalDataAnalyzer = new HistoricalDataAnalyzer(ctx);
     }
@@ -495,7 +456,7 @@ export class ScoreThresholdPlayerController {
         playerScores: Array<{ uid: string; segmentName: SegmentName; score: number; seed: string; }>,
         aiCount: number
     ): Promise<{ uid?: string, rank: number, score: number }[]> {
-        const targetRanks: RankingResult[] = await this.calculateRankings(matchId, playerScores);
+        const targetRanks: RankingResult[] = await this.calculateRankings(playerScores);
         const aiScores: { uid?: string, rank: number, score: number }[] = this.generateAIScoresForTargetRanks(aiCount, targetRanks);
         const humanScores: { uid?: string, rank: number, score: number }[] = targetRanks.map(r => ({ uid: r.uid, rank: r.rank, score: r.score }));
         humanScores.forEach(async p => {
@@ -513,7 +474,7 @@ export class ScoreThresholdPlayerController {
         });
         // 从第一个玩家分数中获取种子信息
         const seed = playerScores[0]?.seed || "default";
-        await this.processMatchEnd(matchId, targetRanks, seed);
+        await this.processMatchEnd(matchId, targetRanks);
         return [...aiScores, ...humanScores].sort((a, b) => a.rank - b.rank);
     }
 
@@ -713,27 +674,29 @@ export class ScoreThresholdPlayerController {
             };
         }
     }
+    async processTournamentSettle(matchId: string, rankings: RankingResult[]) {
 
+    }
     /**
      * 处理比赛结束
      */
     async processMatchEnd(
         matchId: string,
         rankings: RankingResult[],
-        seed: string  // 添加种子参数
+        // 添加种子参数
     ): Promise<MatchRankingResult> {
         try {
             // 1. 计算玩家排名
             // const rankings = await this.calculateRankings(matchId, playerScores);
 
             // 2. 检查段位变化
-            const segmentChanges = await this.checkSegmentChanges(rankings, matchId);
+            // const segmentChanges = await this.checkSegmentChanges(rankings, matchId);
 
             // 3. 更新玩家数据
-            await this.updatePlayerData(rankings, matchId);
+            // await this.updatePlayerData(rankings, matchId);
 
             // 4. 记录比赛结果
-            await this.recordMatchResults(matchId, rankings, segmentChanges, seed);
+            await this.recordMatchResults(matchId, rankings);
 
             // 5. 基于历史数据智能更新玩家配置
             await this.autoUpdatePlayerConfigsAfterMatch(rankings);
@@ -741,7 +704,7 @@ export class ScoreThresholdPlayerController {
             return {
                 matchId,
                 rankings,
-                segmentChanges,
+                // segmentChanges,
                 timestamp: new Date().toISOString()
             };
         } catch (error) {
@@ -755,8 +718,7 @@ export class ScoreThresholdPlayerController {
      * 计算玩家排名
      */
     async calculateRankings(
-        matchId: string,
-        playerScores: Array<{ uid: string; score: number, rank?: number }>
+        playerScores: Array<{ uid: string; score: number, rank?: number, seed: string }>
     ): Promise<RankingResult[]> {
         const rankings: RankingResult[] = [];
 
@@ -779,9 +741,7 @@ export class ScoreThresholdPlayerController {
                     config.learningRate
                 );
 
-                // 检查保护状态
-                const protectionStatus = await this.getPlayerProtectionStatus(player.uid);
-                const protectionActive = protectionStatus?.protectionLevel ? protectionStatus.protectionLevel > 0 : false;
+
 
                 // 生成排名原因
                 const reason = this.generateRankReason(player.score, rank, config, 0.5);
@@ -790,9 +750,10 @@ export class ScoreThresholdPlayerController {
                     uid: player.uid,
                     rank,
                     score: player.score,
+                    points: 0,
+                    seed: player.seed,
                     rankingProbability: 0.5,
                     segmentName: config.segmentName,
-                    protectionActive,
                     reason
                 });
             } catch (error) {
@@ -802,9 +763,10 @@ export class ScoreThresholdPlayerController {
                     uid: player.uid,
                     rank: playerScores.length,
                     score: player.score,
+                    points: 0,
+                    seed: player.seed,
                     rankingProbability: 0.1,
                     segmentName: 'bronze' as SegmentName,
-                    protectionActive: false,
                     reason: '排名计算失败，使用默认排名'
                 });
             }
@@ -873,35 +835,57 @@ export class ScoreThresholdPlayerController {
 
     /**
      * 检查段位变化
+     * 基于累积积分进行段位检查，避免重复计算
      */
-    async checkSegmentChanges(rankings: RankingResult[], matchId: string): Promise<any[]> {
-        const segmentChanges = [];
+    // async checkSegmentChanges(rankings: RankingResult[], matchId: string): Promise<any[]> {
+    //     const segmentChanges = [];
 
-        for (const ranking of rankings) {
-            try {
-                // 使用段位管理器检查变化
-                const changeResult = await this.segmentManager.checkAndProcessSegmentChange(
-                    ranking.uid,
-                    0 // 临时使用0，因为RankingResult没有points属性
-                );
+    //     for (const ranking of rankings) {
+    //         try {
+    //             // 计算本场比赛获得的积分
+    //             const matchPoints = this.calculateMatchPoints(ranking.rank, ranking.segmentName);
 
-                if (changeResult.changed) {
-                    segmentChanges.push({
-                        uid: ranking.uid,
-                        matchId,
-                        oldSegment: ranking.segmentName,
-                        newSegment: changeResult.newSegment,
-                        changeType: changeResult.changeType,
-                        timestamp: new Date().toISOString()
-                    });
-                }
-            } catch (error) {
-                console.error(`检查玩家 ${ranking.uid} 段位变化失败:`, error);
-            }
-        }
+    //             // 获取玩家当前累积积分
+    //             const currentTotalPoints = await this.getPlayerCurrentTotalPoints(ranking.uid);
 
-        return segmentChanges;
-    }
+    //             // 计算新的累积积分
+    //             const newTotalPoints = currentTotalPoints + matchPoints;
+
+    //             // 使用段位管理器检查变化（包含保护机制）
+    //             const changeResult = await this.segmentManager.processPoints(
+    //                 ranking.uid,
+    //                 newTotalPoints,
+
+    //             );
+
+    //             if (changeResult.changed) {
+    //                 segmentChanges.push({
+    //                     uid: ranking.uid,
+    //                     oldSegment: ranking.segmentName,
+    //                     newSegment: changeResult.newSegment,
+    //                     changeType: changeResult.changeType,
+    //                     pointsConsumed: changeResult.pointsConsumed || 0,
+    //                     reason: changeResult.reason || '段位变化',
+    //                     timestamp: new Date().toISOString()
+    //                 });
+
+    //                 // 更新玩家累积积分
+    //                 await this.updatePlayerTotalPoints(ranking.uid, newTotalPoints);
+    //             } else {
+    //                 // 即使段位没有变化，也要更新累积积分
+    //                 await this.updatePlayerTotalPoints(ranking.uid, newTotalPoints);
+    //             }
+
+    //         } catch (error) {
+    //             console.error(`检查玩家 ${ranking.uid} 段位变化失败:`, error);
+    //         }
+    //     }
+
+    //     return segmentChanges;
+    // }
+
+
+   
 
     /**
      * 获取基础排名概率
@@ -1017,12 +1001,12 @@ export class ScoreThresholdPlayerController {
             }
 
             // 获取默认配置
-            const defaultConfig = getDefaultScoreThresholds(existing.segmentName);
+            const defaultConfig = DEFAULT_SCORE_THRESHOLDS;
 
             await this.ctx.db.patch(existing._id, {
                 scoreThresholds: defaultConfig,
                 adaptiveMode: getAdaptiveMode(existing.segmentName),
-                learningRate: getLearningRate(existing.segmentName),
+                learningRate: DEFAULT_LEARNING_RATE,
                 rankingMode: getRankingMode(existing.segmentName),
                 updatedAt: new Date().toISOString()
             });
@@ -1034,18 +1018,7 @@ export class ScoreThresholdPlayerController {
         }
     }
 
-    /**
-     * 获取玩家段位信息
-     */
-    async getPlayerSegmentInfo(uid: string): Promise<{ currentSegment: SegmentName } | null> {
-        try {
-            const config = await this.getPlayerConfig(uid);
-            return config ? { currentSegment: config.segmentName } : null;
-        } catch (error) {
-            console.error(`获取玩家段位信息失败: ${uid}`, error);
-            return null;
-        }
-    }
+
 
     /**
      * 获取玩家性能指标
@@ -1064,71 +1037,8 @@ export class ScoreThresholdPlayerController {
         }
     }
 
-    /**
-     * 获取玩家保护状态
-     */
-    async getPlayerProtectionStatus(uid: string): Promise<PlayerProtectionStatus | null> {
-        try {
-            const status = await this.ctx.db
-                .query("player_protection_status")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .unique();
 
-            return status;
-        } catch (error) {
-            console.error(`获取玩家保护状态失败: ${uid}`, error);
-            return null;
-        }
-    }
 
-    /**
-     * 检查段位变化
-     */
-    async checkSegmentChange(uid: string, changeType: ChangeType): Promise<{
-        shouldChange: boolean;
-        changeType?: ChangeType;
-        reason?: string;
-    }> {
-        try {
-            if (changeType === 'promotion') {
-                const canPromote = await this.segmentManager.canPromote(uid);
-                return {
-                    shouldChange: canPromote,
-                    changeType: 'promotion',
-                    reason: canPromote ? '满足升级条件' : '不满足升级条件'
-                };
-            } else {
-                const canDemote = await this.segmentManager.canDemote(uid);
-                return {
-                    shouldChange: canDemote,
-                    changeType: 'demotion',
-                    reason: canDemote ? '满足降级条件' : '受保护机制保护'
-                };
-            }
-        } catch (error) {
-            console.error(`检查段位变化失败: ${uid}`, error);
-            return { shouldChange: false, reason: '检查失败' };
-        }
-    }
-
-    // ==================== 数据更新和记录方法 ====================
-
-    /**
-     * 更新玩家数据
-     */
-    async updatePlayerData(rankings: RankingResult[], matchId: string): Promise<void> {
-        for (const ranking of rankings) {
-            try {
-                // 更新性能指标
-                await this.updatePlayerPerformanceMetrics(ranking);
-
-                // 更新保护状态
-                await this.updatePlayerProtectionStatus(ranking);
-            } catch (error) {
-                console.error(`更新玩家数据失败: ${ranking.uid}`, error);
-            }
-        }
-    }
 
     /**
      * 更新玩家性能指标
@@ -1166,57 +1076,7 @@ export class ScoreThresholdPlayerController {
         }
     }
 
-    /**
-     * 更新玩家保护状态
-     */
-    async updatePlayerProtectionStatus(ranking: RankingResult): Promise<void> {
-        try {
-            const existing = await this.getPlayerProtectionStatus(ranking.uid);
-            const config = await this.getPlayerConfig(ranking.uid);
 
-            if (!config) return;
-
-            const protectionConfig = await this.segmentManager.getSegmentProtectionConfig(config.segmentName);
-
-            if (existing) {
-                // 更新保护状态
-                let newProtectionLevel = existing.protectionLevel;
-
-                if (ranking.rank === 1) {
-                    // 获胜增加保护
-                    newProtectionLevel = Math.min(
-                        (protectionConfig?.protectionLevel ?? DEFAULT_PROTECTION_LEVEL) + 1,
-                        5
-                    ) as ProtectionLevel;
-                } else if (ranking.rank > 3) {
-                    // 排名较低减少保护
-                    newProtectionLevel = Math.max(newProtectionLevel - 1, 0) as ProtectionLevel;
-                }
-
-                await this.ctx.db.patch(existing._id, {
-                    protectionLevel: newProtectionLevel,
-                    gracePeriod: protectionConfig?.gracePeriod ?? DEFAULT_GRACE_PERIOD,
-                    protectionDuration: protectionConfig?.protectionDuration ?? DEFAULT_PROTECTION_DURATION,
-                    lastUpdateMatch: ranking.uid,
-                    updatedAt: new Date().toISOString()
-                });
-            } else {
-                // 创建新的保护状态
-                await this.ctx.db.insert("player_protection_status", {
-                    uid: ranking.uid,
-                    protectionLevel: protectionConfig?.protectionLevel ?? DEFAULT_PROTECTION_LEVEL,
-                    gracePeriod: protectionConfig?.gracePeriod ?? DEFAULT_GRACE_PERIOD,
-                    protectionDuration: protectionConfig?.protectionDuration ?? DEFAULT_PROTECTION_DURATION,
-                    isActive: true,
-                    lastUpdateMatch: ranking.uid,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                });
-            }
-        } catch (error) {
-            console.error(`更新玩家保护状态失败: ${ranking.uid}`, error);
-        }
-    }
 
     /**
      * 记录比赛结果
@@ -1224,15 +1084,15 @@ export class ScoreThresholdPlayerController {
     async recordMatchResults(
         matchId: string,
         rankings: RankingResult[],
-        segmentChanges: any[],
-        seed: string
+        // segmentChanges: any[],
+        // seed: string
     ): Promise<void> {
         try {
             // 为每个玩家记录比赛结果，符合 match_results 表结构
             for (const ranking of rankings) {
                 await this.ctx.db.insert("match_results", {
                     matchId,
-                    seed,
+                    seed: ranking.seed,
                     uid: ranking.uid,
                     score: ranking.score,
                     rank: ranking.rank,
@@ -1242,16 +1102,16 @@ export class ScoreThresholdPlayerController {
             }
 
             // 记录段位变化到 segment_change_history 表
-            for (const change of segmentChanges) {
-                await this.ctx.db.insert("segment_change_history", {
-                    uid: change.uid,
-                    oldSegment: change.oldSegment,
-                    newSegment: change.newSegment,
-                    changeType: change.changeType,
-                    matchId,
-                    createdAt: new Date().toISOString()
-                });
-            }
+            // for (const change of segmentChanges) {
+            //     await this.ctx.db.insert("segment_change_history", {
+            //         uid: change.uid,
+            //         oldSegment: change.oldSegment,
+            //         newSegment: change.newSegment,
+            //         changeType: change.changeType,
+            //         matchId,
+            //         createdAt: new Date().toISOString()
+            //     });
+            // }
         } catch (error) {
             console.error(`记录比赛结果失败: ${matchId}`, error);
         }
@@ -1282,7 +1142,7 @@ export class ScoreThresholdPlayerController {
     async createPlayerDefaultConfig(uid: string, segmentName?: SegmentName): Promise<ScoreThresholdConfig> {
         try {
             const segment = segmentName || 'bronze';
-            const defaultConfig = getDefaultScoreThresholds(segment);
+            const defaultConfig = DEFAULT_SCORE_THRESHOLDS;
 
             const config: ScoreThresholdConfig = {
                 uid,
@@ -1290,7 +1150,7 @@ export class ScoreThresholdPlayerController {
                 scoreThresholds: defaultConfig,
                 maxRank: 8,
                 adaptiveMode: getAdaptiveMode(segment),
-                learningRate: getLearningRate(segment),
+                learningRate: DEFAULT_LEARNING_RATE,
                 autoAdjustLearningRate: true,
                 rankingMode: getRankingMode(segment),
                 createdAt: new Date().toISOString(),

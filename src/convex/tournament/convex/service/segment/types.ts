@@ -82,7 +82,6 @@ export interface SegmentChangeRecord {
     changeType: ChangeType;
     pointsConsumed?: number;
     reason: string;
-    matchId?: string;
     createdAt: string;
 }
 
@@ -127,6 +126,13 @@ export interface SegmentChangeResult {
     message: string;
     reason: string;
     timestamp: string;
+    protectionInfo?: {
+        isProtected: boolean;
+        protectionType: 'new_segment' | 'performance' | 'grace_period' | 'demotion_protection' | 'none';
+        reason: string;
+        remainingDays: number;
+        protectionLevel: number;
+    };
 }
 
 // ==================== 配置接口 ====================
@@ -141,6 +147,12 @@ export interface SegmentSystemConfig {
     pointsDecayRate: number;
     winStreakBonus: number;
     loseStreakPenalty: number;
+
+    // 表现保护配置
+    performanceProtectionMultiplier?: number;  // 积分表现保护倍数
+    performanceProtectionDays?: number;        // 表现保护天数
+    stabilityProtectionMultiplier?: number;   // 稳定性保护倍数
+    stabilityProtectionDays?: number;         // 稳定性保护天数
 }
 
 // ==================== 统计接口 ====================

@@ -1,6 +1,7 @@
 /**
  * 玩家历史数据管理器
  * 负责分析玩家历史数据，为智能体验管理提供数据支持
+ * 修复：段位计算现在基于积分而不是分数和排名
  */
 
 import {
@@ -9,6 +10,15 @@ import {
     LearningPatterns,
     PlayerHistoricalData
 } from "../config/types";
+
+// 直接定义段位配置，避免依赖 pointRules
+const SEGMENT_POINT_REQUIREMENTS: { [key: string]: number } = {
+    'bronze': 0, 'silver': 500, 'gold': 2000, 'platinum': 5000, 'diamond': 10000
+};
+
+const SEGMENT_LEVELS: { [key: string]: number } = {
+    'bronze': 1, 'silver': 2, 'gold': 3, 'platinum': 4, 'diamond': 5
+};
 
 export class PlayerHistoricalDataManager {
     private ctx: any;
@@ -31,7 +41,7 @@ export class PlayerHistoricalDataManager {
 
             const learningPatterns = this.analyzeLearningPatterns(matchHistory);
             const rankingHistory = this.buildRankingHistory(matchHistory);
-            const segmentProgression = await this.buildSegmentProgression(uid);
+
 
             return {
                 uid,
@@ -39,7 +49,6 @@ export class PlayerHistoricalDataManager {
                 performanceMetrics,
                 learningPatterns,
                 rankingHistory,
-                segmentProgression
             };
         } catch (error) {
             console.error(`获取玩家历史数据失败: ${uid}`, error);
@@ -55,9 +64,8 @@ export class PlayerHistoricalDataManager {
             return this.getDefaultLearningPatterns();
         }
 
-        const recentMatches = matchHistory.slice(-10);
-        const scores = recentMatches.map(m => m.score);
-        const ranks = recentMatches.map(m => m.rank);
+        const scores = matchHistory.map(m => m.score);
+        const ranks = matchHistory.map(m => m.rank);
 
         // 计算适应速度（分数变化率）
         const scoreChanges = scores.slice(1).map((score, i) => score - scores[i]);
@@ -98,94 +106,14 @@ export class PlayerHistoricalDataManager {
         return matchHistory.map(match => ({
             matchId: match.matchId,
             rank: match.rank,
-            totalParticipants: 4, // 假设固定4人比赛
             score: match.score,
-            timestamp: match.timestamp,
-            rankingMode: match.rankingMode || 'hybrid',
-            probability: 0.25 // 默认概率
+            timestamp: match.createdAt,
+            segmentName: match.segmentName
         }));
     }
 
-    /**
-     * 构建段位进展
-     */
-    private async buildSegmentProgression(uid: string): Promise<any> {
-        try {
-            // 从比赛历史分析段位变化
-            const matchHistory = await this.getPlayerMatchHistory(uid);
 
-            if (!matchHistory || matchHistory.length === 0) {
-                return this.getDefaultSegmentProgression();
-            }
 
-            // 基于历史表现计算当前段位
-            const currentSegment = this.calculateCurrentSegment(matchHistory);
-
-            // 分析段位变化历史
-            const segmentHistory = this.analyzeSegmentHistory(matchHistory);
-
-            // 计算稳定性周期
-            const stabilityPeriod = this.calculateStabilityPeriod(matchHistory);
-
-            return {
-                currentSegment,
-                previousSegments: segmentHistory.previousSegments,
-                promotionHistory: segmentHistory.promotions,
-                demotionHistory: segmentHistory.demotions,
-                stabilityPeriod,
-                lastSegmentChange: segmentHistory.lastChange,
-                segmentTrend: segmentHistory.trend
-            };
-        } catch (error) {
-            console.error(`构建段位进展失败: ${uid}`, error);
-            return this.getDefaultSegmentProgression();
-        }
-    }
-
-    /**
-     * 获取玩家比赛历史
-     */
-    private async getPlayerMatchHistory(uid: string): Promise<any[] | null> {
-        try {
-            const matches = await this.ctx.db
-                .query("match_results")
-                .withIndex("by_uid")
-                .filter((q: any) => q.eq(q.field("uid"), uid))
-                .order("desc")
-                .take(100); // 获取最近100场比赛
-
-            if (matches.length === 0) {
-                return [];
-            }
-
-            // 按时间排序并添加时间戳
-            return matches.map((match: any) => ({
-                ...match,
-                timestamp: match.createdAt || match.timestamp || Date.now()
-            })).sort((a: any, b: any) => b.timestamp - a.timestamp);
-
-        } catch (error) {
-            console.error(`获取玩家比赛历史失败: ${uid}`, error);
-            return null;
-        }
-    }
-
-    /**
-     * 获取玩家性能指标
-     */
-    private async getPlayerPerformanceMetrics(uid: string): Promise<any | null> {
-        try {
-            const metrics = await this.ctx.db
-                .query("player_performance_metrics")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .unique();
-
-            return metrics;
-        } catch (error) {
-            console.error(`获取玩家性能指标失败: ${uid}`, error);
-            return null;
-        }
-    }
 
     /**
      * 获取默认学习模式
@@ -202,254 +130,36 @@ export class PlayerHistoricalDataManager {
     }
 
     /**
-     * 获取默认段位进展
+     * 获取玩家比赛历史
      */
-    private getDefaultSegmentProgression(): any {
-        return {
-            currentSegment: 'bronze',
-            previousSegments: [],
-            promotionHistory: [],
-            demotionHistory: [],
-            stabilityPeriod: 5,
-            lastSegmentChange: null,
-            segmentTrend: 'stable'
-        };
-    }
-
-    /**
-     * 计算当前段位
-     */
-    private calculateCurrentSegment(matchHistory: any[]): string {
-        if (matchHistory.length === 0) return 'bronze';
-
-        // 基于最近20场比赛的表现计算段位
-        const recentMatches = matchHistory.slice(0, 20);
-        const averageScore = recentMatches.reduce((sum, m) => sum + m.score, 0) / recentMatches.length;
-        const averageRank = recentMatches.reduce((sum, m) => sum + m.rank, 0) / recentMatches.length;
-        const winRate = recentMatches.filter(m => m.rank === 1).length / recentMatches.length;
-
-        // 段位判断逻辑
-        if (averageScore >= 8000 && averageRank <= 1.5 && winRate >= 0.7) return 'diamond';
-        if (averageScore >= 6000 && averageRank <= 2.0 && winRate >= 0.6) return 'platinum';
-        if (averageScore >= 4000 && averageRank <= 2.5 && winRate >= 0.5) return 'gold';
-        if (averageScore >= 2000 && averageRank <= 3.0 && winRate >= 0.4) return 'silver';
-        return 'bronze';
-    }
-
-    /**
-     * 分析段位历史
-     */
-    private analyzeSegmentHistory(matchHistory: any[]): any {
-        if (matchHistory.length < 10) {
-            return {
-                previousSegments: [],
-                promotions: [],
-                demotions: [],
-                lastChange: null,
-                trend: 'stable'
-            };
+    private async getPlayerMatchHistory(uid: string): Promise<any[]> {
+        try {
+            return await this.ctx.db.query("match_results")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .order("desc")
+                .collect();
+        } catch (error) {
+            console.error(`获取玩家比赛历史失败: ${uid}`, error);
+            return [];
         }
-
-        // 按时间分组分析段位变化
-        const segments = this.groupMatchesBySegment(matchHistory);
-        const changes = this.detectSegmentChanges(segments);
-
-        return {
-            previousSegments: changes.previousSegments,
-            promotions: changes.promotions,
-            demotions: changes.demotions,
-            lastChange: changes.lastChange,
-            trend: changes.trend
-        };
     }
 
     /**
-     * 按段位分组比赛
+     * 获取玩家性能指标
      */
-    private groupMatchesBySegment(matchHistory: any[]): any[] {
-        const segments: any[] = [];
-        let currentSegment = 'bronze';
-        let segmentStart = 0;
-
-        for (let i = 0; i < matchHistory.length; i++) {
-            const match = matchHistory[i];
-            const matchSegment = this.calculateSegmentForMatch(match);
-
-            if (matchSegment !== currentSegment) {
-                // 记录上一个段位
-                if (i > segmentStart) {
-                    segments.push({
-                        segment: currentSegment,
-                        startIndex: segmentStart,
-                        endIndex: i - 1,
-                        duration: i - segmentStart,
-                        performance: this.calculateSegmentPerformance(matchHistory.slice(segmentStart, i))
-                    });
-                }
-
-                currentSegment = matchSegment;
-                segmentStart = i;
-            }
+    private async getPlayerPerformanceMetrics(uid: string): Promise<any> {
+        try {
+            return await this.ctx.db.query("player_performance_metrics")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .unique();
+        } catch (error) {
+            console.error(`获取玩家性能指标失败: ${uid}`, error);
+            return null;
         }
-
-        // 添加最后一个段位
-        if (segmentStart < matchHistory.length) {
-            segments.push({
-                segment: currentSegment,
-                startIndex: segmentStart,
-                endIndex: matchHistory.length - 1,
-                duration: matchHistory.length - segmentStart,
-                performance: this.calculateSegmentPerformance(matchHistory.slice(segmentStart))
-            });
-        }
-
-        return segments;
     }
 
-    /**
-     * 计算单场比赛的段位
-     */
-    private calculateSegmentForMatch(match: any): string {
-        const score = match.score;
-        const rank = match.rank;
 
-        if (score >= 8000 && rank <= 1) return 'diamond';
-        if (score >= 6000 && rank <= 2) return 'platinum';
-        if (score >= 4000 && rank <= 2) return 'gold';
-        if (score >= 2000 && rank <= 3) return 'silver';
-        return 'bronze';
-    }
 
-    /**
-     * 计算段位表现
-     */
-    private calculateSegmentPerformance(matches: any[]): any {
-        if (matches.length === 0) return { averageScore: 0, averageRank: 0, winRate: 0 };
-
-        const scores = matches.map(m => m.score);
-        const ranks = matches.map(m => m.rank);
-        const wins = matches.filter(m => m.rank === 1).length;
-
-        return {
-            averageScore: scores.reduce((sum, score) => sum + score, 0) / scores.length,
-            averageRank: ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length,
-            winRate: wins / matches.length
-        };
-    }
-
-    /**
-     * 检测段位变化
-     */
-    private detectSegmentChanges(segments: any[]): any {
-        if (segments.length <= 1) {
-            return {
-                previousSegments: [],
-                promotions: [],
-                demotions: [],
-                lastChange: null,
-                trend: 'stable'
-            };
-        }
-
-        const promotions: any[] = [];
-        const demotions: any[] = [];
-        const previousSegments: string[] = [];
-
-        for (let i = 1; i < segments.length; i++) {
-            const prevSegment = segments[i - 1];
-            const currSegment = segments[i];
-
-            previousSegments.push(prevSegment.segment);
-
-            const prevLevel = this.getSegmentLevel(prevSegment.segment);
-            const currLevel = this.getSegmentLevel(currSegment.segment);
-
-            if (currLevel > prevLevel) {
-                promotions.push({
-                    from: prevSegment.segment,
-                    to: currSegment.segment,
-                    timestamp: prevSegment.endIndex,
-                    performance: prevSegment.performance
-                });
-            } else if (currLevel < prevLevel) {
-                demotions.push({
-                    from: prevSegment.segment,
-                    to: currSegment.segment,
-                    timestamp: prevSegment.endIndex,
-                    performance: prevSegment.performance
-                });
-            }
-        }
-
-        const lastChange = promotions.length > 0 || demotions.length > 0 ?
-            (promotions.length > 0 ? promotions[promotions.length - 1] : demotions[demotions.length - 1]) : null;
-
-        const trend = this.determineSegmentTrend(segments);
-
-        return {
-            previousSegments,
-            promotions,
-            demotions,
-            lastChange,
-            trend
-        };
-    }
-
-    /**
-     * 获取段位等级
-     */
-    private getSegmentLevel(segment: string): number {
-        const levels: { [key: string]: number } = {
-            'bronze': 1,
-            'silver': 2,
-            'gold': 3,
-            'platinum': 4,
-            'diamond': 5
-        };
-        return levels[segment] || 1;
-    }
-
-    /**
-     * 确定段位趋势
-     */
-    private determineSegmentTrend(segments: any[]): string {
-        if (segments.length < 3) return 'stable';
-
-        const recentSegments = segments.slice(-3);
-        const levels = recentSegments.map(s => this.getSegmentLevel(s.segment));
-
-        // 检查是否持续上升或下降
-        let rising = 0;
-        let falling = 0;
-
-        for (let i = 1; i < levels.length; i++) {
-            if (levels[i] > levels[i - 1]) rising++;
-            else if (levels[i] < levels[i - 1]) falling++;
-        }
-
-        if (rising >= 2) return 'rising';
-        if (falling >= 2) return 'falling';
-        return 'stable';
-    }
-
-    /**
-     * 计算稳定性周期
-     */
-    private calculateStabilityPeriod(matchHistory: any[]): number {
-        if (matchHistory.length < 5) return 5;
-
-        const recentMatches = matchHistory.slice(0, 10);
-        const segments = recentMatches.map(m => this.calculateSegmentForMatch(m));
-
-        // 计算段位变化的频率
-        let changes = 0;
-        for (let i = 1; i < segments.length; i++) {
-            if (segments[i] !== segments[i - 1]) changes++;
-        }
-
-        // 稳定性周期 = 总比赛数 / (变化次数 + 1)
-        return Math.max(1, Math.round(recentMatches.length / (changes + 1)));
-    }
 
     /**
      * 分析玩家情绪状态

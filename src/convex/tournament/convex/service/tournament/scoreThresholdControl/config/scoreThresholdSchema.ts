@@ -35,7 +35,6 @@ export default {
         totalMatches: v.number(),
         totalWins: v.number(),
         totalLosses: v.number(),
-        totalPoints: v.number(),
         averageScore: v.number(),
         currentWinStreak: v.number(),
         currentLoseStreak: v.number(),
@@ -45,7 +44,6 @@ export default {
     })
         .index("by_uid", ["uid"])
         .index("by_totalMatches", ["totalMatches"])
-        .index("by_totalPoints", ["totalPoints"])
         .index("by_winStreak", ["currentWinStreak"])
         .index("by_loseStreak", ["currentLoseStreak"]),
 

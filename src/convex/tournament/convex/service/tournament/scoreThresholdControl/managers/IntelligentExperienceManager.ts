@@ -1937,4 +1937,305 @@ export class IntelligentExperienceManager {
             confidence: 0.5
         };
     }
+
+    // ==================== 5. 段位保护机制 ====================
+
+    /**
+     * 检查段位保护状态
+     * 防止玩家频繁升降级，提供稳定的游戏体验
+     */
+    async checkSegmentProtection(
+        uid: string,
+        currentSegment: string,
+        recentMatchResults?: Array<{ rank: number; score: number; timestamp: string }>
+    ): Promise<{
+        isProtected: boolean;
+        protectionLevel: number;
+        remainingProtectionDays: number;
+        reason: string;
+        protectionType: 'new_segment' | 'performance' | 'grace_period' | 'none';
+        recommendations: string[];
+    }> {
+        try {
+            // 获取玩家保护数据
+            const protectionData = await this.getPlayerProtectionData(uid);
+            const historicalData = await this.historicalDataManager.getPlayerHistoricalData(uid);
+
+            if (!historicalData) {
+                return this.getDefaultProtectionResult();
+            }
+
+            // 1. 新段位保护检查
+            const newSegmentProtection = this.checkNewSegmentProtection(protectionData, currentSegment);
+            if (newSegmentProtection.isProtected) {
+                return newSegmentProtection;
+            }
+
+            // 2. 表现保护检查
+            const performanceProtection = this.checkPerformanceProtection(
+                historicalData,
+                recentMatchResults || []
+            );
+            if (performanceProtection.isProtected) {
+                return performanceProtection;
+            }
+
+            // 3. 宽限期保护检查
+            const gracePeriodProtection = this.checkGracePeriodProtection(protectionData, currentSegment);
+            if (gracePeriodProtection.isProtected) {
+                return gracePeriodProtection;
+            }
+
+            // 4. 无保护状态
+            return {
+                isProtected: false,
+                protectionLevel: 0,
+                remainingProtectionDays: 0,
+                reason: '不满足保护条件',
+                protectionType: 'none',
+                recommendations: [
+                    '继续努力提升表现',
+                    '保持稳定的比赛频率',
+                    '关注段位要求变化'
+                ]
+            };
+
+        } catch (error) {
+            console.error(`检查段位保护失败: ${uid}`, error);
+            return this.getDefaultProtectionResult();
+        }
+    }
+
+    /**
+     * 新段位保护检查
+     * 刚晋升的段位给予一定时间的保护期
+     */
+    private checkNewSegmentProtection(
+        protectionData: any,
+        currentSegment: string
+    ): {
+        isProtected: boolean;
+        protectionLevel: number;
+        remainingProtectionDays: number;
+        reason: string;
+        protectionType: 'new_segment' | 'performance' | 'grace_period' | 'none';
+        recommendations: string[];
+    } {
+        if (!protectionData?.lastPromotionDate || !protectionData?.promotionSegment) {
+            return { isProtected: false, protectionLevel: 0, remainingProtectionDays: 0, reason: '', protectionType: 'none', recommendations: [] };
+        }
+
+        const lastPromotion = new Date(protectionData.lastPromotionDate);
+        const currentDate = new Date();
+        const daysSincePromotion = Math.floor((currentDate.getTime() - lastPromotion.getTime()) / (1000 * 60 * 60 * 24));
+
+        // 新段位保护期：7天
+        const NEW_SEGMENT_PROTECTION_DAYS = 7;
+
+        if (daysSincePromotion < NEW_SEGMENT_PROTECTION_DAYS && protectionData.promotionSegment === currentSegment) {
+            const remainingDays = NEW_SEGMENT_PROTECTION_DAYS - daysSincePromotion;
+            return {
+                isProtected: true,
+                protectionLevel: 2, // 高级保护
+                remainingProtectionDays: remainingDays,
+                reason: `新段位保护期，剩余 ${remainingDays} 天`,
+                protectionType: 'new_segment',
+                recommendations: [
+                    '利用保护期熟悉新段位',
+                    '保持稳定的比赛表现',
+                    '避免冒险性策略'
+                ]
+            };
+        }
+
+        return { isProtected: false, protectionLevel: 0, remainingProtectionDays: 0, reason: '', protectionType: 'none', recommendations: [] };
+    }
+
+    /**
+     * 表现保护检查
+     * 基于最近表现给予保护
+     */
+    private checkPerformanceProtection(
+        historicalData: PlayerHistoricalData,
+        recentMatchResults: Array<{ rank: number; score: number; timestamp: string }>
+    ): {
+        isProtected: boolean;
+        protectionLevel: number;
+        remainingProtectionDays: number;
+        reason: string;
+        protectionType: 'new_segment' | 'performance' | 'grace_period' | 'none';
+        recommendations: string[];
+    } {
+        if (recentMatchResults.length < 3) {
+            return { isProtected: false, protectionLevel: 0, remainingProtectionDays: 0, reason: '', protectionType: 'none', recommendations: [] };
+        }
+
+        // 分析最近3场比赛的表现
+        const recentRanks = recentMatchResults.map(m => m.rank);
+        const recentScores = recentMatchResults.map(m => m.score);
+
+        // 计算表现指标
+        const averageRank = recentRanks.reduce((sum, rank) => sum + rank, 0) / recentRanks.length;
+        const averageScore = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
+        const rankVolatility = Math.sqrt(recentRanks.reduce((sum, rank) => sum + Math.pow(rank - averageRank, 2), 0) / recentRanks.length);
+
+        // 表现保护条件
+        const hasGoodPerformance = averageRank <= 3 && averageScore >= 3000;
+        const hasStablePerformance = rankVolatility <= 1.5;
+        const hasRecentImprovement = recentScores[recentScores.length - 1] > recentScores[0];
+
+        if (hasGoodPerformance && hasStablePerformance && hasRecentImprovement) {
+            return {
+                isProtected: true,
+                protectionLevel: 1, // 基础保护
+                remainingProtectionDays: 3, // 3天保护
+                reason: '表现优秀，给予短期保护',
+                protectionType: 'performance',
+                recommendations: [
+                    '保持当前的良好状态',
+                    '继续稳定发挥',
+                    '避免过度自信'
+                ]
+            };
+        }
+
+        return { isProtected: false, protectionLevel: 0, remainingProtectionDays: 0, reason: '', protectionType: 'none', recommendations: [] };
+    }
+
+    /**
+     * 宽限期保护检查
+     * 给予玩家适应新段位的时间
+     */
+    private checkGracePeriodProtection(
+        protectionData: any,
+        currentSegment: string
+    ): {
+        isProtected: boolean;
+        protectionLevel: number;
+        remainingProtectionDays: number;
+        reason: string;
+        protectionType: 'new_segment' | 'performance' | 'grace_period' | 'none';
+        recommendations: string[];
+    } {
+        if (!protectionData?.gracePeriodStart || !protectionData?.gracePeriodSegment) {
+            return { isProtected: false, protectionLevel: 0, remainingProtectionDays: 0, reason: '', protectionType: 'none', recommendations: [] };
+        }
+
+        const graceStart = new Date(protectionData.gracePeriodStart);
+        const currentDate = new Date();
+        const daysInGrace = Math.floor((currentDate.getTime() - graceStart.getTime()) / (1000 * 60 * 60 * 24));
+
+        // 宽限期：5天
+        const GRACE_PERIOD_DAYS = 5;
+
+        if (daysInGrace < GRACE_PERIOD_DAYS && protectionData.gracePeriodSegment === currentSegment) {
+            const remainingDays = GRACE_PERIOD_DAYS - daysInGrace;
+            return {
+                isProtected: true,
+                protectionLevel: 1, // 基础保护
+                remainingProtectionDays: remainingDays,
+                reason: `段位适应宽限期，剩余 ${remainingDays} 天`,
+                protectionType: 'grace_period',
+                recommendations: [
+                    '利用宽限期适应新段位',
+                    '调整游戏策略',
+                    '保持学习心态'
+                ]
+            };
+        }
+
+        return { isProtected: false, protectionLevel: 0, remainingProtectionDays: 0, reason: '', protectionType: 'none', recommendations: [] };
+    }
+
+    /**
+     * 获取玩家保护数据
+     */
+    private async getPlayerProtectionData(uid: string): Promise<any> {
+        try {
+            // 这里应该查询专门的保护数据表
+            // 暂时返回模拟数据，实际实现时需要创建相应的数据库表
+            return {
+                lastPromotionDate: null,
+                promotionSegment: null,
+                gracePeriodStart: null,
+                gracePeriodSegment: null,
+                protectionHistory: []
+            };
+        } catch (error) {
+            console.error(`获取玩家保护数据失败: ${uid}`, error);
+            return null;
+        }
+    }
+
+    /**
+     * 获取默认保护结果
+     */
+    private getDefaultProtectionResult(): {
+        isProtected: boolean;
+        protectionLevel: number;
+        remainingProtectionDays: number;
+        reason: string;
+        protectionType: 'new_segment' | 'performance' | 'grace_period' | 'none';
+        recommendations: string[];
+    } {
+        return {
+            isProtected: false,
+            protectionLevel: 0,
+            remainingProtectionDays: 0,
+            reason: '无法获取保护信息',
+            protectionType: 'none',
+            recommendations: [
+                '联系客服获取帮助',
+                '检查账号状态',
+                '重新登录游戏'
+            ]
+        };
+    }
+
+    /**
+     * 更新玩家保护状态
+     * 在段位变化时调用
+     */
+    async updatePlayerProtectionStatus(
+        uid: string,
+        oldSegment: string,
+        newSegment: string,
+        changeType: 'promotion' | 'demotion'
+    ): Promise<void> {
+        try {
+            if (changeType === 'promotion') {
+                // 晋升：设置新段位保护
+                await this.setNewSegmentProtection(uid, newSegment);
+            } else {
+                // 降级：设置宽限期保护
+                await this.setGracePeriodProtection(uid, oldSegment);
+            }
+        } catch (error) {
+            console.error(`更新玩家保护状态失败: ${uid}`, error);
+        }
+    }
+
+    /**
+     * 设置新段位保护
+     */
+    private async setNewSegmentProtection(uid: string, newSegment: string): Promise<void> {
+        try {
+            // 这里应该更新数据库中的保护数据
+            console.log(`设置玩家 ${uid} 的新段位保护: ${newSegment}`);
+        } catch (error) {
+            console.error(`设置新段位保护失败: ${uid}`, error);
+        }
+    }
+
+    /**
+     * 设置宽限期保护
+     */
+    private async setGracePeriodProtection(uid: string, oldSegment: string): Promise<void> {
+        try {
+            // 这里应该更新数据库中的宽限期数据
+            console.log(`设置玩家 ${uid} 的宽限期保护: ${oldSegment}`);
+        } catch (error) {
+            console.error(`设置宽限期保护失败: ${uid}`, error);
+        }
+    }
 }
