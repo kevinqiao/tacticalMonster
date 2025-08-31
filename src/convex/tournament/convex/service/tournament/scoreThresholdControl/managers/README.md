@@ -1,105 +1,189 @@
-# 智能管理器协作架构
+# 简化的管理器架构
 
 ## 概述
 
-本系统采用**保持分离 + 增强协作**的架构设计，包含两个核心管理器：
+基于实际需求，将复杂的四个管理器简化为两个核心管理器：
 
-- **IntelligentRecommendationManager**: 智能推荐管理器
-- **IntelligentExperienceManager**: 智能体验管理器
+- **RankingRecommendationManager**: 排名推荐管理器
+- **SeedRecommendationManager**: 种子推荐管理器
 
-## 架构设计原则
+## 核心功能
 
-### 1. 职责分离
-- **RecommendationManager**: 专注于种子推荐和用户偏好分析
-- **ExperienceManager**: 专注于AI难度调节、情感体验和排名策略
+### 1. 排名推荐管理器 (RankingRecommendationManager)
 
-### 2. 增强协作
-- 通过公共接口实现数据共享
-- 推荐时考虑体验因素
-- 体验优化时参考推荐结果
+**主要功能**：根据玩家历史数据和当前分数，智能推荐排名
 
-## 协作流程
-
-```
-用户请求推荐 → RecommendationManager → 调用 ExperienceManager → 生成体验感知的推荐
+**核心方法**：
+```typescript
+async generateMatchRankings(
+    humanPlayers: HumanPlayer[],
+    aiCount: number
+): Promise<MatchRankingResult>
 ```
 
-### 具体步骤：
+**推荐逻辑**：
+1. 分析玩家历史表现档案
+2. 评估当前分数相对表现
+3. 基于段位系统计算排名概率分布
+4. 考虑表现趋势调整概率
+5. 生成推荐排名和信心度
 
-1. **RecommendationManager.intelligentRecommendSeeds()**
-   - 获取基础统计数据和技能等级
-   - 调用 `expManager.adjustAIDifficulty()` 获取AI策略
-   - 调用 `expManager.getPlayerEmotionalState()` 获取情绪状态
-   - 调用 `expManager.getPlayerExperienceTarget()` 获取体验目标
+**返回结果**：
+```typescript
+interface RankingRecommendation {
+    recommendedRank: number;        // 推荐排名
+    confidence: number;             // 信心度 (0-1)
+    reasoning: string;              // 推理说明
+    probabilityDistribution: number[]; // 概率分布
+}
+```
 
-2. **生成体验感知的推荐**
-   - 结合AI策略调整难度
-   - 考虑情绪状态优化体验
-   - 基于体验目标定制推荐
+### 2. 种子推荐管理器 (SeedRecommendationManager)
 
-3. **返回增强的推荐结果**
-   - 种子推荐列表
-   - 体验优化建议
-   - AI策略配置
-   - 情绪支持建议
+**主要功能**：基于玩家历史数据，智能推荐新的比赛种子
+
+**核心方法**：
+```typescript
+async recommendSeedsForPlayer(
+    uid: string,
+    options: {
+        limit?: number;
+        preferredDifficulty?: 'practice' | 'balanced' | 'challenge';
+        excludeSeeds?: string[];
+    } = {}
+): Promise<SeedRecommendation>
+```
+
+**推荐逻辑**：
+1. 分析玩家技能水平（基于历史表现）
+2. 映射技能等级到目标难度
+3. 获取符合难度的候选种子
+4. 过滤已玩过的种子
+5. 选择最佳匹配的种子
+
+**返回结果**：
+```typescript
+interface SeedRecommendation {
+    seeds: string[];               // 推荐种子列表
+    difficultyLevel: string;       // 难度等级
+    reasoning: string;             // 推荐理由
+    confidence: number;            // 信心度
+    metadata: {                    // 元数据
+        playerSkillLevel: string;
+        preferredDifficulty: string;
+        totalCandidates: number;
+    };
+}
+```
 
 ## 使用示例
 
-### 基础推荐调用
-```typescript
-const recommendationManager = new IntelligentRecommendationManager(ctx);
-const result = await recommendationManager.intelligentRecommendSeeds(uid, 5);
+### 排名推荐
 
-console.log('推荐种子:', result.recommendation.seeds);
-console.log('AI策略:', result.experienceOptimization.aiStrategy);
-console.log('情绪建议:', result.experienceOptimization.emotionalSupport.recommendations);
+```typescript
+const rankingManager = new RankingRecommendationManager(ctx);
+
+// 为玩家当前分数推荐排名
+const rankingResult = await rankingManager.recommendRankingForScore(
+    "player123",
+    2500,  // 当前分数
+    6      // 参与者数量
+);
+
+console.log(`推荐排名: ${rankingResult.recommendedRank}`);
+console.log(`信心度: ${rankingResult.confidence}`);
+console.log(`理由: ${rankingResult.reasoning}`);
 ```
 
-### 体验优化调用
+### 种子推荐
+
 ```typescript
-const experienceManager = new IntelligentExperienceManager(ctx);
-const aiStrategy = await experienceManager.adjustAIDifficulty(uid);
-const emotionalState = await experienceManager.getPlayerEmotionalState(uid);
-const experienceTarget = await experienceManager.getPlayerExperienceTarget(uid);
+const seedManager = new SeedRecommendationManager(ctx);
+
+// 为玩家推荐新种子
+const seedResult = await seedManager.recommendSeedsForPlayer(
+    "player123",
+    {
+        limit: 5,
+        preferredDifficulty: 'balanced',
+        excludeSeeds: ['seed001', 'seed002']
+    }
+);
+
+console.log(`推荐种子: ${seedResult.seeds}`);
+console.log(`难度等级: ${seedResult.difficultyLevel}`);
+console.log(`推荐理由: ${seedResult.reasoning}`);
 ```
 
-## 优势
+## 技术特性
 
-### 1. 模块化设计
-- 每个管理器专注特定领域
-- 代码结构清晰，易于维护
-- 支持独立开发和测试
+### 1. 数据驱动决策
+- 基于玩家历史比赛数据
+- 利用种子统计缓存
+- 段位系统集成
 
-### 2. 智能协作
-- 推荐时自动考虑体验因素
-- 避免重复计算，提高性能
-- 统一的用户体验
+### 2. 智能算法
+- 概率分布计算
+- 趋势分析
+- 技能等级评估
 
-### 3. 可扩展性
-- 可以独立扩展各自功能
-- 支持新的协作模式
-- 便于团队协作开发
+### 3. 自适应推荐
+- 根据表现调整难度
+- 考虑玩家偏好
+- 动态过滤机制
+
+### 4. 高性能
+- 缓存机制
+- 增量更新
+- 批量处理
+
+## 架构优势
+
+### 1. 简化复杂性
+- 从4个复杂manager简化为2个专门manager
+- 移除冗余的协作逻辑
+- 专注核心功能
+
+### 2. 清晰职责
+- 排名推荐：专注于当前比赛排名预测
+- 种子推荐：专注于新比赛内容推荐
+- 各自独立，互不干扰
+
+### 3. 易于维护
+- 代码结构清晰
+- 功能边界明确
+- 测试更容易
+
+### 4. 性能优化
+- 减少不必要的计算
+- 直接访问所需数据
+- 避免复杂的管理器间调用
+
+## 数据依赖
+
+### 数据库表
+- `match_results`: 比赛结果数据
+- `seed_statistics_cache`: 种子统计缓存
+
+
+### 配置依赖
+- 段位系统配置 (`segment/config.ts`)
+- 排名概率配置
 
 ## 扩展建议
 
-### 1. 缓存优化
-- 共享用户状态缓存
-- 避免重复调用相同接口
-- 实现智能缓存失效策略
+### 1. 机器学习增强
+- 集成ML模型优化推荐算法
+- 基于更多特征的预测
 
-### 2. 异步协作
-- 支持并行调用多个管理器
-- 实现异步结果聚合
-- 优化响应时间
+### 2. A/B测试支持
+- 支持不同推荐策略的对比
+- 效果监控和优化
 
-### 3. 配置化协作
-- 支持动态配置协作策略
-- 实现A/B测试支持
-- 提供协作效果监控
+### 3. 实时调整
+- 基于实时反馈调整推荐
+- 动态学习玩家偏好
 
-## 注意事项
-
-1. **错误处理**: 确保单个管理器失败不影响整体功能
-2. **性能监控**: 监控协作调用的性能影响
-3. **数据一致性**: 确保共享数据的一致性
-4. **向后兼容**: 保持API的向后兼容性
+### 4. 个性化深化
+- 更细粒度的玩家画像
+- 基于游戏风格的推荐

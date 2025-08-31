@@ -47,37 +47,9 @@ export default {
         .index("by_winStreak", ["currentWinStreak"])
         .index("by_loseStreak", ["currentLoseStreak"]),
 
-    // 玩家保护状态表
-    player_protection_status: defineTable({
-        uid: v.string(),
-        segmentName: v.string(),
-        protectionLevel: v.number(),
-        protectionThreshold: v.number(),
-        demotionGracePeriod: v.number(),
-        promotionStabilityPeriod: v.number(),
-        lastSegmentChange: v.string(),
-        createdAt: v.string(),
-        updatedAt: v.string()
-    })
-        .index("by_uid", ["uid"])
-        .index("by_segment", ["segmentName"])
-        .index("by_protectionLevel", ["protectionLevel"]),
 
-    // 段位变化历史表
-    segment_change_history: defineTable({
-        uid: v.string(),
-        oldSegment: v.string(),
-        newSegment: v.string(),
-        changeType: v.union(v.literal("promotion"), v.literal("demotion")),
-        reason: v.string(),
-        matchId: v.optional(v.string()),
-        createdAt: v.string()
-    })
-        .index("by_uid", ["uid"])
-        .index("by_changeType", ["changeType"])
-        .index("by_createdAt", ["createdAt"])
-        .index("by_oldSegment", ["oldSegment"])
-        .index("by_newSegment", ["newSegment"]),
+
+
 
     // 比赛结果表（统一存储所有比赛数据，包含种子信息）
     match_results: defineTable({
@@ -142,28 +114,7 @@ export default {
         .index("by_lastAnalysisTime", ["lastAnalysisTime"])
         .index("by_totalMatches", ["totalMatches"]),
 
-    // 玩家技能等级缓存表（支持增量统计）
-    player_skill_cache: defineTable({
-        uid: v.string(),
-        totalMatches: v.number(),
-        lastAnalysisTime: v.string(),
-        lastMatchCreatedAt: v.string(),
-        skillStats: v.object({
-            totalRanks: v.number(),
-            averageRank: v.number(),
-            totalScores: v.number(),
-            averageScore: v.number(),
-            wins: v.number(),
-            winRate: v.number(),
-            rankCount: v.number()
-        }),
-        createdAt: v.string()
-    })
-        .index("by_uid", ["uid"])
-        .index("by_lastAnalysisTime", ["lastAnalysisTime"])
-        .index("by_totalMatches", ["totalMatches"])
-        .index("by_averageRank", ["skillStats.averageRank"])
-        .index("by_winRate", ["skillStats.winRate"]),
+
 
     // 用户反馈表（用于改进推荐算法）
     user_feedback: defineTable({

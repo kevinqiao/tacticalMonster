@@ -227,17 +227,46 @@ export class MatchManager {
         }));
         // const completed = playerMatches.every((playerMatch: any) => playerMatch.completed);
         const completed = playerMatches.every((playerMatch: any) => playerMatch.completed) && playerMatches.length === match.maxPlayers;
-        console.log("completed", completed)
+
         if (completed) {
             await ctx.db.patch(match._id, {
                 completed: true,
                 updatedAt: (new Date()).toISOString()
             });
 
+
+            const playerScores = playerMatches.map((playerMatch: any) => ({
+                uid: playerMatch.uid,
+                score: playerMatch.score,
+                seed: playerMatch.seed
+            }));
+            // const scoreThresholdControl = new ScoreThresholdPlayerController(ctx);
+            // const aiCount = match.maxPlayers - playerMatches.length;
+
+            // const rankings: RankingResult[] = await scoreThresholdControl.calculateRankings(playerScores);
+            // console.log("rankings", rankings)
+            // rankings.forEach(async (ranking: any) => {
+            //     await ctx.db.patch(ranking.uid, {
+            //         rank: ranking.rank,
+            //         score: ranking.score,
+            //         updatedAt: (new Date()).toISOString()
+            //     });
+            // });
+
             if (tournamentType.matchRules.matchType === "single_match") {
                 await settleTournament(ctx, match.tournamentId);
             }
         }
+    }
+    static async completeMatchAIs(ctx: any, match: any, playerMatches: any[]) {
+        const count = match.maxPlayers - playerMatches.length;
+        const playerScores = playerMatches.map((playerMatch: any) => ({
+            uid: playerMatch.uid,
+            segmentName: playerMatch.segmentName,
+            score: playerMatch.score,
+            seed: playerMatch.seed
+        }));
+
     }
 
     /**

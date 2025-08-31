@@ -45,6 +45,11 @@ export interface SegmentRule {
         winRateThreshold?: number;
     };
 
+    // 排名概率配置
+    rankingProbabilities: {
+        [participantCount: number]: number[];  // 参与者数量 -> 排名概率数组
+    };
+
     // 段位关系
     nextSegment: SegmentName | null;
     previousSegment: SegmentName | null;

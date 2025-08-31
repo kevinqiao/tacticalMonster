@@ -1,16 +1,13 @@
 /**
  * ScoreThresholdControl 模块主入口
- * 重新导出所有组件，提供统一的访问接口
+ * 简化后的统一访问接口
  */
 
-// ==================== 核心控制器 ====================
-export { ScoreThresholdPlayerController } from "./core/ScoreThresholdPlayerController";
-
-
-// ==================== 管理器 ====================
-export { IncrementalStatisticsManager } from "./managers/IncrementalStatisticsManager";
-export { IntelligentExperienceManager } from "./managers/IntelligentExperienceManager";
+// ==================== 简化的管理器 ====================
+// ScoreThresholdPlayerController removed - use managers directly
 export { PlayerHistoricalDataManager } from "./managers/PlayerHistoricalDataManager";
+export { RankingRecommendationManager } from "./managers/RankingRecommendationManager";
+export { SeedRecommendationManager } from "./managers/SeedRecommendationManager";
 
 // ==================== 类型定义 ====================
 export * from "./config/types";
@@ -18,52 +15,33 @@ export * from "./config/types";
 // ==================== 配置 ====================
 export * from "./config/config";
 
-// ==================== 函数接口 ====================
-// 核心功能
-// export * from "./functions/core";
-// 配置管理
-// 智能体验
-
-// 种子推荐系统
-export * from "./functions/seedRecommendation";
-
-// 数据迁移
-export * from "./functions/dataMigration";
-
-// 示例和测试
-
-
-// ==================== 集成 ====================
-export * from "./integration/scoreThresholdIntegration";
-
-// ==================== 测试 ====================
-export * from "./tests/testFunctions";
-
 // ==================== 系统信息 ====================
 export const SYSTEM_INFO = {
     name: "ScoreThresholdControl",
-    version: "2.1.0",
-    description: "分数门槛控制系统 - 统一架构版本",
-    architecture: "分层架构设计 + 统一数据模型",
+    version: "3.1.0",
+    description: "分数门槛控制系统 - 简化重构版本",
+    architecture: "简化架构：核心需求驱动设计",
+    coreFeatures: [
+        "基于当前分数推荐排名",
+        "基于历史数据推荐新种子"
+    ],
     features: [
-        "智能体验管理",
-        "动态排名分配",
-        "学习曲线优化",
-        "情感体验管理",
-        "混合模式支持",
-        "批量操作优化",
-        "种子难度分析",
-        "智能种子推荐",
-        "统一数据模型",
-        "数据迁移支持"
+        "智能排名推荐",
+        "种子推荐系统",
+        "玩家历史分析",
+        "技能等级评估",
+        "概率分布计算",
+        "缓存优化"
     ],
     directoryStructure: {
-        core: "核心控制器",
-        managers: "业务管理器",
-        config: "配置和类型",
-        functions: "Convex函数接口",
-        integration: "系统集成",
-        docs: "文档",
-        tests: "测试和示例"
+        managers: "简化管理器 - 排名推荐 & 种子推荐 & 历史数据",
+        config: "配置和类型定义",
+        docs: "架构文档"
+    },
+    changelog: {
+        "3.1.0": "移除ScoreThresholdPlayerController：直接使用Manager架构",
+        "3.0.0": "重构简化：从4个复杂manager简化为2个核心manager",
+        "2.1.0": "统一架构版本",
+        "2.0.0": "分层架构设计"
     }
 };

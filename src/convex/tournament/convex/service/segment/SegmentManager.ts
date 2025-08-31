@@ -37,7 +37,7 @@ export class SegmentManager {
    * @param uid 玩家ID
    * @param pointsDelta 积分增量（正数表示获得，负数表示失去）
    */
-  async checkAndProcessSegmentChange(
+  async updatePoints(
     uid: string,
     pointsDelta: number,
   ): Promise<SegmentChangeResult> {

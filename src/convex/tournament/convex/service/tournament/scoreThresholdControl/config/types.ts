@@ -125,10 +125,8 @@ export interface RankingResult {
     uid: string;
     rank: number;
     score: number;
-    points: number;
     segmentName: SegmentName;
     rankingProbability: number;
-    protectionActive: boolean;
 }
 
 export interface MatchRankingResult {

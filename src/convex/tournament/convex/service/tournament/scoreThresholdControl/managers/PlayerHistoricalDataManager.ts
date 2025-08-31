@@ -11,14 +11,6 @@ import {
     PlayerHistoricalData
 } from "../config/types";
 
-// 直接定义段位配置，避免依赖 pointRules
-const SEGMENT_POINT_REQUIREMENTS: { [key: string]: number } = {
-    'bronze': 0, 'silver': 500, 'gold': 2000, 'platinum': 5000, 'diamond': 10000
-};
-
-const SEGMENT_LEVELS: { [key: string]: number } = {
-    'bronze': 1, 'silver': 2, 'gold': 3, 'platinum': 4, 'diamond': 5
-};
 
 export class PlayerHistoricalDataManager {
     private ctx: any;

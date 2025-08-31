@@ -121,5 +121,38 @@ export const segmentSchema = {
         createdAt: v.string(),
     }).index("by_season_segment", ["seasonId", "segmentName"])
         .index("by_date", ["date"])
-        .index("by_segment_date", ["segmentName", "date"])
+        .index("by_segment_date", ["segmentName", "date"]),
+
+    // 玩家保护状态表
+    player_protection_status: defineTable({
+        uid: v.string(),
+        segmentName: v.string(),
+        protectionLevel: v.union(v.literal(0), v.literal(1), v.literal(2), v.literal(3)), // ProtectionLevel: 0-3
+        protectionThreshold: v.number(),
+        demotionGracePeriod: v.number(),
+        promotionStabilityPeriod: v.number(),
+        lastSegmentChange: v.string(),
+        createdAt: v.string(),
+        updatedAt: v.string()
+    })
+        .index("by_uid", ["uid"])
+        .index("by_segment", ["segmentName"])
+        .index("by_protectionLevel", ["protectionLevel"]),
+
+    // 段位变化历史表
+    segment_change_history: defineTable({
+        uid: v.string(),
+        oldSegment: v.string(),
+        newSegment: v.string(),
+        changeType: v.union(v.literal("promotion"), v.literal("demotion")),
+        pointsConsumed: v.number(), // 升级消耗的积分
+        reason: v.string(),
+        matchId: v.optional(v.string()),
+        createdAt: v.string()
+    })
+        .index("by_uid", ["uid"])
+        .index("by_changeType", ["changeType"])
+        .index("by_createdAt", ["createdAt"])
+        .index("by_oldSegment", ["oldSegment"])
+        .index("by_newSegment", ["newSegment"])
 }; 

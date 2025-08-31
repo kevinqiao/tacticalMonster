@@ -27,6 +27,11 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
             maxProtectionLevel: 2,
             winRateThreshold: 0.3
         },
+        rankingProbabilities: {
+            4: [0.25, 0.25, 0.25, 0.25],      // 4人比赛：均等概率
+            6: [0.20, 0.20, 0.20, 0.20, 0.10, 0.10],  // 6人比赛：前4名概率较高
+            8: [0.18, 0.18, 0.18, 0.18, 0.12, 0.08, 0.05, 0.03]  // 8人比赛：前4名优势明显
+        },
         nextSegment: "silver",
         previousSegment: null
     },
@@ -49,6 +54,11 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
             gracePeriod: 4,
             maxProtectionLevel: 2,
             winRateThreshold: 0.35
+        },
+        rankingProbabilities: {
+            4: [0.30, 0.25, 0.25, 0.20],      // 4人比赛：第1名优势
+            6: [0.25, 0.22, 0.20, 0.18, 0.10, 0.05],  // 6人比赛：前3名优势
+            8: [0.22, 0.20, 0.18, 0.16, 0.12, 0.08, 0.03, 0.01]  // 8人比赛：前4名优势
         },
         nextSegment: "gold",
         previousSegment: "bronze"
@@ -73,6 +83,11 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
             maxProtectionLevel: 1,
             winRateThreshold: 0.4
         },
+        rankingProbabilities: {
+            4: [0.35, 0.25, 0.25, 0.15],      // 4人比赛：第1名明显优势
+            6: [0.30, 0.25, 0.20, 0.15, 0.07, 0.03],  // 6人比赛：前3名优势
+            8: [0.28, 0.22, 0.18, 0.15, 0.10, 0.05, 0.01, 0.01]  // 8人比赛：前4名优势
+        },
         nextSegment: "platinum",
         previousSegment: "silver"
     },
@@ -95,6 +110,11 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
             gracePeriod: 2,
             maxProtectionLevel: 1,
             winRateThreshold: 0.45
+        },
+        rankingProbabilities: {
+            4: [0.40, 0.25, 0.20, 0.15],      // 4人比赛：第1名优势明显
+            6: [0.35, 0.25, 0.20, 0.15, 0.04, 0.01],  // 6人比赛：前3名优势
+            8: [0.32, 0.25, 0.18, 0.15, 0.08, 0.02, 0.00, 0.00]  // 8人比赛：前4名优势
         },
         nextSegment: "diamond",
         previousSegment: "gold"
@@ -119,6 +139,11 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
             maxProtectionLevel: 3,
             winRateThreshold: 0.5
         },
+        rankingProbabilities: {
+            4: [0.45, 0.25, 0.20, 0.10],      // 4人比赛：第1名绝对优势
+            6: [0.40, 0.25, 0.20, 0.12, 0.02, 0.01],  // 6人比赛：前3名优势
+            8: [0.38, 0.25, 0.18, 0.15, 0.03, 0.01, 0.00, 0.00]  // 8人比赛：前4名优势
+        },
         nextSegment: "master",
         previousSegment: "platinum"
     },
@@ -142,6 +167,11 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
             maxProtectionLevel: 2,
             winRateThreshold: 0.55
         },
+        rankingProbabilities: {
+            4: [0.50, 0.25, 0.15, 0.10],      // 4人比赛：第1名绝对优势
+            6: [0.45, 0.25, 0.18, 0.10, 0.01, 0.01],  // 6人比赛：前3名优势
+            8: [0.42, 0.25, 0.18, 0.12, 0.02, 0.01, 0.00, 0.00]  // 8人比赛：前4名优势
+        },
         nextSegment: "grandmaster",
         previousSegment: "diamond"
     },
@@ -164,6 +194,11 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
             gracePeriod: 1,
             maxProtectionLevel: 1,
             winRateThreshold: 0.6
+        },
+        rankingProbabilities: {
+            4: [0.55, 0.25, 0.15, 0.05],      // 4人比赛：第1名绝对优势
+            6: [0.50, 0.25, 0.15, 0.08, 0.01, 0.01],  // 6人比赛：前3名优势
+            8: [0.48, 0.25, 0.15, 0.10, 0.01, 0.01, 0.00, 0.00]  // 8人比赛：前4名优势
         },
         nextSegment: null,
         previousSegment: "master"
@@ -328,4 +363,29 @@ export function getSegmentPath(from: SegmentName, to: SegmentName): SegmentName[
 export function getSegmentDistance(from: SegmentName, to: SegmentName): number {
     const path = getSegmentPath(from, to);
     return path.length > 0 ? path.length - 1 : -1;
+}
+
+/**
+ * 获取段位排名概率
+ * @param segmentName 段位名称
+ * @param participantCount 参与者数量
+ * @returns 排名概率数组，如果配置不存在则返回默认概率
+ */
+export function getSegmentRankingProbabilities(
+    segmentName: SegmentName,
+    participantCount: number
+): number[] {
+    const rule = getSegmentRule(segmentName);
+    if (!rule?.rankingProbabilities?.[participantCount]) {
+        // 返回默认概率：均等分布
+        return new Array(participantCount).fill(1 / participantCount);
+    }
+    return rule.rankingProbabilities[participantCount];
+}
+
+/**
+ * 获取所有支持的参与者数量
+ */
+export function getSupportedParticipantCounts(): number[] {
+    return [4, 6, 8]; // 当前支持的参与者数量
 }
