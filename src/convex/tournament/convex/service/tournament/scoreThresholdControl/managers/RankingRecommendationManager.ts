@@ -74,6 +74,7 @@ export interface PlayerPerformanceProfile {
 
 export class RankingRecommendationManager {
     private ctx: any;
+    private static callCounter = 0; // 静态计数器确保每次调用都有不同的种子
 
     constructor(ctx: any) {
         this.ctx = ctx;
@@ -251,7 +252,7 @@ export class RankingRecommendationManager {
         return Math.max(0, Math.min(1, 1 - (standardDeviation / mean)));
     }
 
-   
+
 
 
     // ==================== 缺失的辅助方法 ====================
@@ -401,7 +402,12 @@ export class RankingRecommendationManager {
     }
 
     private calculateAIScoreVariance(humanAnalysis: any, aiStrategy: any): number {
-        const baseVariance = humanAnalysis.scoreVariance * 0.3; // AI分数变化范围相对较小
+        let baseVariance = humanAnalysis.scoreVariance * 0.3; // AI分数变化范围相对较小
+
+        // 如果人类分数变化范围太小（如单玩家情况），使用平均分作为基础变化范围
+        if (baseVariance < humanAnalysis.averageScore * 0.05) {
+            baseVariance = humanAnalysis.averageScore * 0.1; // 使用平均分的10%作为基础变化范围
+        }
 
         // 根据策略调整变化范围
         const strategyMultiplier = {
@@ -554,8 +560,8 @@ export class RankingRecommendationManager {
     }
 
     /**
-     * 智能生成AI对手
-     */
+ * 智能生成AI对手
+ */
     private async generateIntelligentAIOpponents(
         humanPlayers: HumanPlayer[],
         humanAnalysis: any,
@@ -563,33 +569,401 @@ export class RankingRecommendationManager {
         humanRankings: PlayerRankingResult[]
     ): Promise<AIOpponent[]> {
         const totalParticipants = humanPlayers.length + aiCount;
-        const aiOpponents: AIOpponent[] = [];
-
-        // 分析需要填补的排名位置
-        const occupiedRanks = new Set(humanRankings.map(h => h.recommendedRank));
-        const availableRanks = Array.from({ length: totalParticipants }, (_, i) => i + 1)
-            .filter(rank => !occupiedRanks.has(rank));
 
         // 根据人类玩家水平决定AI配置策略
         const aiStrategy = this.determineAIStrategy(humanAnalysis);
 
+        // 🔥 新逻辑：生成AI对手（使用临时排名）
+        const tempAIOpponents: AIOpponent[] = [];
+
         for (let i = 0; i < aiCount; i++) {
-            const aiRank = availableRanks[i] || (totalParticipants - aiCount + i + 1);
+            // 使用临时排名生成AI（稍后会重新分配）
+            const tempRank = i + 1;
 
             const aiOpponent = this.generateSingleAIOpponent(
                 `ai_${i + 1}`,
-                aiRank,
+                tempRank,
                 totalParticipants,
                 humanAnalysis,
                 aiStrategy,
                 i
             );
 
-            aiOpponents.push(aiOpponent);
+            tempAIOpponents.push(aiOpponent);
         }
 
-        // 按推荐分数排序
-        return aiOpponents.sort((a, b) => b.recommendedScore - a.recommendedScore);
+        // 🎯 关键修复：重新分配所有排名，确保分数和排名一致
+        return this.reassignAllRanksBasedOnScores(tempAIOpponents, humanRankings, humanPlayers);
+    }
+
+    /**
+ * 🔥 新方法：重新分配所有参与者的排名，确保排名与分数一致
+ */
+    private reassignAllRanksBasedOnScores(
+        aiOpponents: AIOpponent[],
+        humanRankings: PlayerRankingResult[],
+        humanPlayers: HumanPlayer[]
+    ): AIOpponent[] {
+        // 创建所有参与者的分数-排名映射
+        const allParticipants = [
+            ...humanRankings.map(h => ({
+                uid: h.uid,
+                score: this.getHumanPlayerScore(h.uid, humanPlayers),
+                type: 'human' as const,
+                data: h
+            })),
+            ...aiOpponents.map(ai => ({
+                uid: ai.uid,
+                score: ai.recommendedScore,
+                type: 'ai' as const,
+                data: ai
+            }))
+        ];
+
+        // 按分数排序（分数高的排名靠前）
+        allParticipants.sort((a, b) => b.score - a.score);
+
+        // 🔍 调试日志：显示排序后的参与者
+        console.log("🔄 重新分配排名 - 按分数排序后的参与者:");
+        allParticipants.forEach((p, index) => {
+            console.log(`  第${index + 1}名: ${p.uid} (${p.type}) - 分数: ${p.score}`);
+        });
+
+        // 重新分配排名并更新数据
+        const reassignedAI: AIOpponent[] = [];
+
+        allParticipants.forEach((participant, index) => {
+            const newRank = index + 1;
+
+            if (participant.type === 'ai') {
+                const aiData = participant.data as AIOpponent;
+                reassignedAI.push({
+                    ...aiData,
+                    recommendedRank: newRank
+                });
+            } else {
+                // 更新人类玩家的排名（直接修改原对象）
+                const humanData = participant.data as PlayerRankingResult;
+                humanData.recommendedRank = newRank;
+            }
+        });
+
+        // 🎯 关键新增：重新计算AI分数范围，确保无重叠
+        console.log("🔧 重新计算AI分数范围前:");
+        reassignedAI.forEach(ai => {
+            console.log(`  ${ai.uid}: 第${ai.recommendedRank}名, 分数${ai.recommendedScore}`);
+        });
+
+        const finalAI = this.ensureNonOverlappingScoreRanges(reassignedAI, humanPlayers);
+
+        console.log("🔧 重新计算AI分数范围后:");
+        finalAI.forEach(ai => {
+            console.log(`  ${ai.uid}: 第${ai.recommendedRank}名, 分数${ai.recommendedScore} (范围: ${ai.scoreRange.min}-${ai.scoreRange.max})`);
+        });
+
+        return finalAI.sort((a, b) => a.recommendedRank - b.recommendedRank);
+    }
+
+    /**
+ * 🎯 确保AI分数范围无重叠
+ */
+    private ensureNonOverlappingScoreRanges(
+        aiOpponents: AIOpponent[],
+        humanPlayers: HumanPlayer[]
+    ): AIOpponent[] {
+        if (aiOpponents.length === 0) return aiOpponents;
+
+        // 🔧 修复：按排名排序而不是按分数排序，保持排名的正确性
+        const sortedAI = [...aiOpponents].sort((a, b) => a.recommendedRank - b.recommendedRank);
+
+        // 获取人类玩家分数作为约束条件
+        const humanScores = humanPlayers.map(p => p.score).sort((a, b) => b - a);
+
+        // 🔥 新策略：全局分数区间分配
+        return this.allocateNonOverlappingRanges(sortedAI, humanScores);
+    }
+
+    /**
+     * 🎯 全局分数区间分配策略
+     */
+    private allocateNonOverlappingRanges(
+        sortedAI: AIOpponent[],
+        humanScores: number[]
+    ): AIOpponent[] {
+        const allScores = [
+            ...sortedAI.map(ai => ai.recommendedScore),
+            ...humanScores
+        ].sort((a, b) => b - a);
+
+        const minScore = Math.min(...allScores);
+        const maxScore = Math.max(...allScores);
+
+        // 扩展总范围
+        const totalRange = maxScore - minScore;
+        const buffer = Math.max(totalRange * 0.15, 100); // 15%缓冲区，最少100分
+        const globalMin = Math.max(0, minScore - buffer);
+        const globalMax = maxScore + buffer;
+
+        // 创建分数区间映射
+        const scoreIntervals = this.createScoreIntervals(sortedAI, humanScores, globalMin, globalMax);
+
+        // 为每个AI分配区间
+        const updatedAI: AIOpponent[] = [];
+
+        for (let i = 0; i < sortedAI.length; i++) {
+            const ai = sortedAI[i];
+            const interval = scoreIntervals[i];
+
+            updatedAI.push({
+                ...ai,
+                scoreRange: {
+                    min: Math.round(interval.min),
+                    max: Math.round(interval.max)
+                }
+            });
+        }
+
+        return updatedAI;
+    }
+
+    /**
+     * 创建无重叠的分数区间
+     */
+    private createScoreIntervals(
+        sortedAI: AIOpponent[],
+        humanScores: number[],
+        globalMin: number,
+        globalMax: number
+    ): Array<{ min: number; max: number }> {
+        const intervals: Array<{ min: number; max: number }> = [];
+        const aiCount = sortedAI.length;
+
+        // 计算每个AI的基础变化范围
+        const baseVariances = sortedAI.map(ai => Math.max(ai.recommendedScore * 0.08, 15));
+
+        // 🔧 修复：现在AI按排名排序，需要按排名分配区间
+        // 排名越小（越靠前），分数应该越高
+        let currentUpperBound = globalMax;
+
+        for (let i = 0; i < aiCount; i++) {
+            const ai = sortedAI[i];
+            const baseVariance = baseVariances[i];
+            const recommendedScore = ai.recommendedScore;
+
+            // 计算理想区间
+            let idealMin = recommendedScore - baseVariance;
+            let idealMax = recommendedScore + baseVariance;
+
+            // 应用上边界约束（排名靠前的AI应该有更高的分数上限）
+            idealMax = Math.min(idealMax, currentUpperBound);
+
+            // 检查与人类分数的冲突
+            for (const humanScore of humanScores) {
+                if (humanScore >= idealMin && humanScore <= idealMax) {
+                    // 调整区间避免与人类分数重叠
+                    if (humanScore > recommendedScore) {
+                        idealMax = Math.min(idealMax, humanScore - 1);
+                    } else {
+                        idealMin = Math.max(idealMin, humanScore + 1);
+                    }
+                }
+            }
+
+            // 确保区间有效
+            if (idealMin >= idealMax) {
+                const midPoint = (idealMin + currentUpperBound) / 2;
+                idealMin = Math.max(globalMin, midPoint - 5);
+                idealMax = Math.min(currentUpperBound, midPoint + 5);
+            }
+
+            // 最终安全检查
+            idealMin = Math.max(globalMin, idealMin);
+            idealMax = Math.min(currentUpperBound, idealMax);
+
+            if (idealMin >= idealMax) {
+                idealMin = Math.max(globalMin, currentUpperBound - 10);
+                idealMax = currentUpperBound;
+            }
+
+            intervals.push({
+                min: idealMin,
+                max: idealMax
+            });
+
+            // 更新下一个AI的上边界
+            currentUpperBound = idealMin - 1;
+        }
+
+        return intervals;
+    }
+
+    /**
+     * 计算全局分数范围
+     */
+    private calculateGlobalScoreRange(
+        sortedAI: AIOpponent[],
+        humanScores: number[]
+    ): { min: number; max: number } {
+        const allScores = [
+            ...sortedAI.map(ai => ai.recommendedScore),
+            ...humanScores
+        ];
+
+        const minScore = Math.min(...allScores);
+        const maxScore = Math.max(...allScores);
+
+        // 扩展范围以提供缓冲区
+        const range = maxScore - minScore;
+        const buffer = Math.max(range * 0.1, 50); // 至少50分的缓冲区
+
+        return {
+            min: Math.max(0, minScore - buffer),
+            max: maxScore + buffer
+        };
+    }
+
+    /**
+ * 为单个AI计算无重叠的分数范围
+ */
+    private calculateNonOverlappingRange(
+        currentAI: AIOpponent,
+        index: number,
+        sortedAI: AIOpponent[],
+        globalRange: { min: number; max: number },
+        humanScores: number[]
+    ): { min: number; max: number } {
+        const currentScore = currentAI.recommendedScore;
+
+        // 计算基础变化范围（基于推荐分数的8%，最少15分）
+        const baseVariance = Math.max(currentScore * 0.08, 15);
+
+        // 初始边界设定
+        let upperBound = globalRange.max;
+        let lowerBound = globalRange.min;
+
+        // 🔥 修复：正确的相邻AI约束逻辑
+        // 前一个AI（分数更高）的最小分数应该是当前AI的上边界
+        if (index > 0) {
+            const previousAI = sortedAI[index - 1];
+            // 如果前一个AI已经有分数范围，使用其最小值作为约束
+            if (previousAI.scoreRange) {
+                upperBound = Math.min(upperBound, previousAI.scoreRange.min - 1);
+            } else {
+                upperBound = Math.min(upperBound, previousAI.recommendedScore - 1);
+            }
+        }
+
+        // 后一个AI（分数更低）的最大分数应该是当前AI的下边界
+        if (index < sortedAI.length - 1) {
+            const nextAI = sortedAI[index + 1];
+            // 如果后一个AI已经有分数范围，使用其最大值作为约束
+            if (nextAI.scoreRange) {
+                lowerBound = Math.max(lowerBound, nextAI.scoreRange.max + 1);
+            } else {
+                lowerBound = Math.max(lowerBound, nextAI.recommendedScore + 1);
+            }
+        }
+
+        // 考虑人类玩家分数的约束
+        for (const humanScore of humanScores) {
+            if (humanScore > currentScore) {
+                upperBound = Math.min(upperBound, humanScore - 1);
+            } else if (humanScore < currentScore) {
+                lowerBound = Math.max(lowerBound, humanScore + 1);
+            }
+        }
+
+        // 计算理想的分数范围
+        let idealMin = currentScore - baseVariance;
+        let idealMax = currentScore + baseVariance;
+
+        // 应用边界约束
+        let finalMin = Math.max(lowerBound, idealMin);
+        let finalMax = Math.min(upperBound, idealMax);
+
+        // 🎯 关键修复：确保范围有效且合理
+        if (finalMin >= finalMax) {
+            // 如果约束太严格，创建一个最小的有效范围
+            const midPoint = (lowerBound + upperBound) / 2;
+            const minGap = 2; // 最小间隙
+
+            if (upperBound - lowerBound >= minGap * 2) {
+                // 有足够空间，在中点附近创建范围
+                finalMin = Math.max(lowerBound, Math.floor(midPoint - minGap));
+                finalMax = Math.min(upperBound, Math.ceil(midPoint + minGap));
+            } else {
+                // 空间不足，使用可用空间
+                finalMin = lowerBound;
+                finalMax = upperBound;
+
+                // 如果还是无效，使用推荐分数的紧密范围
+                if (finalMin >= finalMax) {
+                    finalMin = Math.max(0, currentScore - 1);
+                    finalMax = currentScore + 1;
+                }
+            }
+        }
+
+        return {
+            min: Math.round(Math.max(0, finalMin)),
+            max: Math.round(finalMax)
+        };
+    }
+
+    /**
+     * 根据分数重新分配AI排名，确保排名与分数一致（旧方法，保留兼容性）
+     */
+    private reassignAIRanksBasedOnScores(
+        aiOpponents: AIOpponent[],
+        humanRankings: PlayerRankingResult[],
+        humanPlayers: HumanPlayer[],
+        totalParticipants: number
+    ): AIOpponent[] {
+        // 创建所有参与者的分数-排名映射
+        const allParticipants = [
+            ...humanRankings.map(h => ({
+                uid: h.uid,
+                score: this.getHumanPlayerScore(h.uid, humanPlayers),
+                type: 'human' as const,
+                originalRank: h.recommendedRank,
+                data: h
+            })),
+            ...aiOpponents.map(ai => ({
+                uid: ai.uid,
+                score: ai.recommendedScore,
+                type: 'ai' as const,
+                originalRank: ai.recommendedRank,
+                data: ai
+            }))
+        ];
+
+        // 按分数排序（分数高的排名靠前）
+        allParticipants.sort((a, b) => b.score - a.score);
+
+        // 重新分配排名
+        const reassignedAI: AIOpponent[] = [];
+
+        allParticipants.forEach((participant, index) => {
+            const newRank = index + 1;
+
+            if (participant.type === 'ai') {
+                const aiData = participant.data as AIOpponent;
+                reassignedAI.push({
+                    ...aiData,
+                    recommendedRank: newRank
+                });
+            }
+        });
+
+        return reassignedAI.sort((a, b) => a.recommendedRank - b.recommendedRank);
+    }
+
+    /**
+     * 获取人类玩家分数（辅助方法）
+     */
+    private getHumanPlayerScore(uid: string, humanPlayers: HumanPlayer[]): number {
+        const player = humanPlayers.find(p => p.uid === uid);
+        return player ? player.score : 1000; // 如果找不到，使用默认分数
     }
 
     /**
@@ -655,7 +1029,12 @@ export class RankingRecommendationManager {
         totalParticipants: number,
         humanPlayers: HumanPlayer[]
     ): number {
-        // 计算技能调整因子（用于预测AI插入影响）
+        // 对于单玩家场景，使用更智能的排名预测
+        if (humanPlayers.length === 1) {
+            return this.calculateSinglePlayerRankWithAI(player, profile, totalParticipants);
+        }
+
+        // 多玩家场景：使用原有逻辑
         const skillFactor = this.calculateSkillFactor(profile);
         const scoreFactor = this.calculateScoreFactor(player.score, humanAnalysis);
 
@@ -685,6 +1064,56 @@ export class RankingRecommendationManager {
     }
 
     /**
+     * 单玩家场景下的智能排名计算
+     */
+    private calculateSinglePlayerRankWithAI(
+        player: HumanPlayer,
+        profile: PlayerPerformanceProfile,
+        totalParticipants: number
+    ): number {
+        // 基于玩家历史表现和当前分数，预测在总体中的合理排名
+        const skillFactor = this.calculateSkillFactor(profile);
+        const currentScore = player.score;
+
+        // 根据技能水平和分数确定基础排名位置
+        let baseRankRatio: number;
+
+        if (skillFactor >= 0.8) {
+            // 高技能玩家：通常排在前25%
+            baseRankRatio = 0.1 + (1 - skillFactor) * 0.15;
+        } else if (skillFactor >= 0.6) {
+            // 中等技能玩家：排在25%-60%
+            baseRankRatio = 0.25 + (0.8 - skillFactor) * 1.75;
+        } else if (skillFactor >= 0.4) {
+            // 较低技能玩家：排在60%-80%
+            baseRankRatio = 0.6 + (0.6 - skillFactor) * 1.0;
+        } else {
+            // 新手玩家：排在后20%
+            baseRankRatio = 0.8 + (0.4 - skillFactor) * 0.5;
+        }
+
+        // 根据当前分数调整：分数太低时排名应该更靠后
+        if (currentScore < profile.averageScore * 0.5) {
+            // 当前分数远低于历史平均，排名下调
+            baseRankRatio = Math.min(0.95, baseRankRatio + 0.2);
+        } else if (currentScore > profile.averageScore * 1.5) {
+            // 当前分数远高于历史平均，排名上调
+            baseRankRatio = Math.max(0.05, baseRankRatio - 0.2);
+        }
+
+        // 转换为具体排名
+        let predictedRank = Math.round(baseRankRatio * totalParticipants);
+
+        // 🎲 添加随机变化：在单玩家场景中也引入一些不确定性
+        const randomVariation = this.generateSmartRandomVariation(predictedRank, predictedRank, totalParticipants);
+        const rankAdjustment = Math.round(randomVariation / 10); // 将分数变化转换为排名调整
+
+        predictedRank += rankAdjustment;
+
+        return Math.max(1, Math.min(totalParticipants, predictedRank));
+    }
+
+    /**
      * 强制约束：确保人类玩家之间的排名不违背分数排序
      */
     private enforceHumanRankingConstraints(
@@ -708,8 +1137,8 @@ export class RankingRecommendationManager {
     }
 
     /**
-     * 计算AI基础分数
-     */
+ * 计算AI基础分数
+ */
     private calculateAIBaseScore(
         targetRank: number,
         totalParticipants: number,
@@ -720,14 +1149,89 @@ export class RankingRecommendationManager {
         // 根据排名位置插值计算分数
         const rankRatio = (targetRank - 1) / (totalParticipants - 1); // 0表示第1名，1表示最后一名
 
-        // 使用人类分数分布作为参考
-        const scoreRange = scoreDistribution.highest - scoreDistribution.lowest;
-        const baseScore = scoreDistribution.highest - (rankRatio * scoreRange);
+        // 为单玩家场景创建更合理的分数分布
+        let highScore, lowScore, scoreRange;
 
-        // 添加一些智能调整
+        if (scoreDistribution.highest === scoreDistribution.lowest) {
+            // 单玩家场景：基于玩家分数和历史表现创建合理的分数范围
+            const playerScore = scoreDistribution.highest;
+            const baseRange = Math.max(averageScore * 0.6, playerScore * 0.8); // 确保有足够的分数范围
+
+            // 创建以玩家分数为中心的分数分布
+            highScore = playerScore + baseRange * 0.4;
+            lowScore = Math.max(0, playerScore - baseRange * 0.6);
+            scoreRange = highScore - lowScore;
+        } else {
+            // 多玩家场景：使用实际分数分布
+            highScore = scoreDistribution.highest;
+            lowScore = scoreDistribution.lowest;
+            scoreRange = highScore - lowScore;
+
+            // 确保最小分数范围
+            if (scoreRange < averageScore * 0.2) {
+                scoreRange = averageScore * 0.4;
+            }
+        }
+
+        const baseScore = highScore - (rankRatio * scoreRange);
+
+        // 添加智能调整和随机变化
         const adjustment = this.calculateAIScoreAdjustment(targetRank, totalParticipants, averageScore);
+        const randomVariation = this.generateSmartRandomVariation(baseScore, targetRank, totalParticipants);
 
-        return Math.max(0, baseScore + adjustment);
+        return Math.max(0, baseScore + adjustment + randomVariation);
+    }
+
+    /**
+ * 🎲 生成智能随机变化
+ */
+    private generateSmartRandomVariation(baseScore: number, targetRank: number, totalParticipants: number): number {
+        // 使用静态计数器确保每次调用都有不同的种子
+        RankingRecommendationManager.callCounter++;
+
+        const baseSeed = Date.now();
+        const complexSeed = baseSeed + targetRank * 1000 + RankingRecommendationManager.callCounter * 7919; // 使用质数增加随机性
+        const pseudoRandom = this.seededRandom(complexSeed);
+
+        // 计算变化范围（基于分数的5-15%，增加变化幅度）
+        const variationRange = baseScore * (0.05 + pseudoRandom * 0.10);
+
+        // 生成变化值（可正可负）
+        const variation = (pseudoRandom - 0.5) * 2 * variationRange;
+
+        // 根据排名调整变化倾向
+        const rankFactor = this.calculateRankVariationFactor(targetRank, totalParticipants);
+
+        return variation * rankFactor;
+    }
+
+    /**
+     * 简单的种子随机数生成器
+     */
+    private seededRandom(seed: number): number {
+        // 简单的线性同余生成器
+        const a = 1664525;
+        const c = 1013904223;
+        const m = Math.pow(2, 32);
+
+        seed = (a * seed + c) % m;
+        return Math.abs(seed) / m;
+    }
+
+    /**
+     * 计算排名变化因子
+     */
+    private calculateRankVariationFactor(targetRank: number, totalParticipants: number): number {
+        const rankRatio = targetRank / totalParticipants;
+
+        // 中间排名的AI有更大的变化空间
+        if (rankRatio >= 0.3 && rankRatio <= 0.7) {
+            return 1.2; // 中间排名变化更大
+        } else if (rankRatio < 0.3) {
+            return 0.8; // 前排变化较小
+        } else {
+            return 0.9; // 后排变化适中
+        }
     }
 
     /**

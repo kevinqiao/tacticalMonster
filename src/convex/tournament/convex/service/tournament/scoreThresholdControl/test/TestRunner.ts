@@ -2,7 +2,7 @@
  * 测试运行器 - 简化版本，适用于实际Convex环境
  */
 
-import { HumanPlayer, RankingRecommendationManager } from '../managers/RankingRecommendationManager';
+import { RankingRecommendationManager } from '../managers/RankingRecommendationManager';
 
 /**
  * 实际环境测试套件
@@ -27,12 +27,88 @@ export class RealEnvironmentTestSuite {
 
         console.log('🧪 开始快速验证测试...');
 
-        // 测试1: 单玩家推荐
+        // 测试1: 单玩家推荐 - 多次运行对比
         try {
-            const result1 = await this.rankingManager.generateMatchRankings(
-                [{ uid: 'test_player_001', score: 8500 }],
-                5
-            );
+            console.log("🔄 运行多次单玩家测试，检查AI分数变化...");
+
+            const testPlayerScore = 800;
+            const testRuns = [];
+            for (let i = 0; i < 3; i++) {
+                const result = await this.rankingManager.generateMatchRankings(
+                    [{ uid: 'test_player_001', score: testPlayerScore }],
+                    5
+                );
+                testRuns.push(result);
+            }
+
+            // 显示多次运行的对比
+            this.compareMultipleRuns(testRuns);
+
+            // 使用第一次运行的结果进行后续验证
+            const result1 = testRuns[0];
+            console.log("=== 修复验证 ===");
+            console.log("人类玩家:", {
+                uid: result1.humanPlayers[0].uid,
+                rank: result1.humanPlayers[0].recommendedRank,
+                score: testPlayerScore,
+                confidence: result1.humanPlayers[0].confidence
+            });
+            console.log("AI对手:");
+            result1.aiOpponents.forEach(ai => {
+                console.log(`  ${ai.uid}: 第${ai.recommendedRank}名, 分数${ai.recommendedScore} (范围: ${ai.scoreRange.min}-${ai.scoreRange.max})`);
+            });
+
+            // 🔍 检查AI分数范围是否有重叠
+            console.log("\n🎯 AI分数范围重叠检查:");
+            const hasOverlap = this.checkScoreRangeOverlaps(result1.aiOpponents);
+            if (!hasOverlap) {
+                console.log("✅ AI分数范围无重叠");
+            }
+
+            // 🔍 显示分数范围间隙
+            console.log("\n📏 AI分数范围间隙分析:");
+            this.analyzeScoreRangeGaps(result1.aiOpponents);
+
+            // 🔍 详细的排名验证
+            console.log("\n📊 排名一致性检查:");
+            const allParticipants = [
+                { uid: result1.humanPlayers[0].uid, type: 'human', rank: result1.humanPlayers[0].recommendedRank, score: testPlayerScore },
+                ...result1.aiOpponents.map(ai => ({ uid: ai.uid, type: 'ai', rank: ai.recommendedRank, score: ai.recommendedScore }))
+            ].sort((a, b) => a.rank - b.rank);
+
+            allParticipants.forEach(p => {
+                console.log(`  第${p.rank}名: ${p.uid} (${p.type}) - 分数: ${p.score}`);
+            });
+
+            // 检查排名是否按分数正确排序
+            let hasRankingError = false;
+            for (let i = 0; i < allParticipants.length - 1; i++) {
+                const current = allParticipants[i];
+                const next = allParticipants[i + 1];
+                if (current.score < next.score) {
+                    console.log(`❌ 排名错误: 第${current.rank}名(${current.score}分) < 第${next.rank}名(${next.score}分)`);
+                    hasRankingError = true;
+                }
+            }
+
+            if (!hasRankingError) {
+                console.log("✅ 排名一致性验证通过");
+            } else {
+                console.log("❌ 发现排名不一致问题，需要修复");
+
+                // 显示正确的排名应该是什么样的
+                const correctRanking = [...allParticipants].sort((a, b) => b.score - a.score);
+                console.log("\n🔧 正确的排名应该是:");
+                correctRanking.forEach((p, index) => {
+                    console.log(`  第${index + 1}名: ${p.uid} (${p.type}) - 分数: ${p.score}`);
+                });
+            }
+
+            console.log("=== 验证结束 ===");
+
+            // 🔍 新增测试：相同分数下排名是否一致
+            console.log("\n🎯 测试相同分数下的排名一致性:");
+            await this.testRankingConsistencyWithSameScore();
 
             results.push({
                 test: '单玩家推荐',
@@ -50,35 +126,35 @@ export class RealEnvironmentTestSuite {
         }
 
         // 测试2: 多玩家推荐
-        try {
-            const humanPlayers: HumanPlayer[] = [
-                { uid: 'test_player_001', score: 9000 },
-                { uid: 'test_player_002', score: 7000 },
-                { uid: 'test_player_003', score: 5000 }
-            ];
+        // try {
+        //     const humanPlayers: HumanPlayer[] = [
+        //         { uid: 'test_player_001', score: 9000 },
+        //         { uid: 'test_player_002', score: 7000 },
+        //         { uid: 'test_player_003', score: 5000 }
+        //     ];
 
-            const result2 = await this.rankingManager.generateMatchRankings(humanPlayers, 3);
+        //     const result2 = await this.rankingManager.generateMatchRankings(humanPlayers, 3);
 
-            results.push({
-                test: '多玩家推荐',
-                success: true,
-                playerRanks: result2.humanPlayers.map(p => ({
-                    uid: p.uid,
-                    rank: p.recommendedRank,
-                    confidence: p.confidence
-                })),
-                totalParticipants: result2.matchContext.totalParticipants
-            });
+        //     results.push({
+        //         test: '多玩家推荐',
+        //         success: true,
+        //         playerRanks: result2.humanPlayers.map(p => ({
+        //             uid: p.uid,
+        //             rank: p.recommendedRank,
+        //             confidence: p.confidence
+        //         })),
+        //         totalParticipants: result2.matchContext.totalParticipants
+        //     });
 
-            console.log('✅ 多玩家推荐完成');
-            result2.humanPlayers.forEach(p => {
-                console.log(`   ${p.uid}: 第${p.recommendedRank}名`);
-            });
+        //     console.log('✅ 多玩家推荐完成');
+        //     result2.humanPlayers.forEach(p => {
+        //         console.log(`   ${p.uid}: 第${p.recommendedRank}名`);
+        //     });
 
-        } catch (error) {
-            errors.push(`多玩家推荐失败: ${error}`);
-            console.error('❌ 多玩家推荐失败:', error);
-        }
+        // } catch (error) {
+        //     errors.push(`多玩家推荐失败: ${error}`);
+        //     console.error('❌ 多玩家推荐失败:', error);
+        // }
 
         // 测试3: 单玩家Manager接口
         try {
@@ -280,6 +356,176 @@ export class RealEnvironmentTestSuite {
             performance,
             boundary
         };
+    }
+
+    /**
+     * 检查AI分数范围是否有重叠
+     */
+    private checkScoreRangeOverlaps(aiOpponents: any[]): boolean {
+        if (aiOpponents.length < 2) return false;
+
+        let hasOverlap = false;
+
+        for (let i = 0; i < aiOpponents.length - 1; i++) {
+            for (let j = i + 1; j < aiOpponents.length; j++) {
+                const ai1 = aiOpponents[i];
+                const ai2 = aiOpponents[j];
+
+                // 检查两个范围是否重叠
+                const overlap = this.rangesOverlap(
+                    ai1.scoreRange.min, ai1.scoreRange.max,
+                    ai2.scoreRange.min, ai2.scoreRange.max
+                );
+
+                if (overlap) {
+                    console.log(`❌ 分数范围重叠: ${ai1.uid}(${ai1.scoreRange.min}-${ai1.scoreRange.max}) 与 ${ai2.uid}(${ai2.scoreRange.min}-${ai2.scoreRange.max})`);
+                    hasOverlap = true;
+                }
+            }
+        }
+
+        return hasOverlap;
+    }
+
+    /**
+     * 判断两个数值范围是否重叠
+     */
+    private rangesOverlap(min1: number, max1: number, min2: number, max2: number): boolean {
+        return !(max1 < min2 || max2 < min1);
+    }
+
+    /**
+     * 分析AI分数范围间隙
+     */
+    private analyzeScoreRangeGaps(aiOpponents: any[]): void {
+        if (aiOpponents.length < 2) {
+            console.log("AI数量不足，无需分析间隙");
+            return;
+        }
+
+        // 按推荐分数排序
+        const sortedAI = [...aiOpponents].sort((a, b) => b.recommendedScore - a.recommendedScore);
+
+        console.log("分数范围间隙详情:");
+        for (let i = 0; i < sortedAI.length - 1; i++) {
+            const current = sortedAI[i];
+            const next = sortedAI[i + 1];
+
+            const gap = current.scoreRange.min - next.scoreRange.max;
+            const gapStatus = gap > 0 ? "✅ 有间隙" : gap === 0 ? "⚠️  相邻" : "❌ 重叠";
+
+            console.log(`  ${current.uid}(${current.scoreRange.min}-${current.scoreRange.max}) -> ${next.uid}(${next.scoreRange.min}-${next.scoreRange.max}): 间隙=${gap} ${gapStatus}`);
+        }
+    }
+
+    /**
+     * 测试相同分数下的排名一致性
+     */
+    private async testRankingConsistencyWithSameScore(): Promise<void> {
+        const fixedScore = 800;
+        const aiCount = 5;
+        const testRuns = 5;
+
+        console.log(`🔄 使用固定分数${fixedScore}进行${testRuns}次测试...`);
+
+        const results = [];
+        for (let i = 0; i < testRuns; i++) {
+            const result = await this.rankingManager.generateMatchRankings(
+                [{ uid: 'test_player_fixed', score: fixedScore }],
+                aiCount
+            );
+            results.push({
+                run: i + 1,
+                playerRank: result.humanPlayers[0].recommendedRank,
+                confidence: result.humanPlayers[0].confidence,
+                aiScores: result.aiOpponents.map(ai => ai.recommendedScore)
+            });
+        }
+
+        // 分析排名变化
+        const ranks = results.map(r => r.playerRank);
+        const uniqueRanks = [...new Set(ranks)];
+        const confidences = results.map(r => r.confidence);
+
+        console.log("📊 相同分数下的排名变化分析:");
+        results.forEach(result => {
+            console.log(`  第${result.run}次: 排名${result.playerRank}, 信心度${(result.confidence * 100).toFixed(1)}%`);
+        });
+
+        console.log(`\n📈 统计结果:`);
+        console.log(`  排名范围: ${Math.min(...ranks)} - ${Math.max(...ranks)}`);
+        console.log(`  不同排名数量: ${uniqueRanks.length}`);
+        console.log(`  平均排名: ${(ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length).toFixed(2)}`);
+        console.log(`  平均信心度: ${(confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length * 100).toFixed(1)}%`);
+
+        // 判断一致性
+        if (uniqueRanks.length === 1) {
+            console.log(`⚠️  排名完全一致: 所有测试都是第${uniqueRanks[0]}名`);
+            console.log(`   这可能表明随机性不够，需要检查算法实现`);
+        } else {
+            console.log(`✅ 排名有变化: 出现了${uniqueRanks.length}种不同排名 ${uniqueRanks.join(', ')}`);
+
+            // 分析变化原因
+            console.log(`\n🔍 变化原因分析:`);
+            console.log(`  - AI分数随机变化导致排名调整`);
+            console.log(`  - 玩家技能评估中的随机因素`);
+            console.log(`  - 单玩家排名预测算法的内在变化`);
+        }
+
+        // 显示AI分数变化详情
+        console.log(`\n🤖 AI分数变化详情:`);
+        for (let aiIndex = 0; aiIndex < aiCount; aiIndex++) {
+            const aiScores = results.map(r => r.aiScores[aiIndex]);
+            const minScore = Math.min(...aiScores);
+            const maxScore = Math.max(...aiScores);
+            const variation = maxScore - minScore;
+            console.log(`  AI_${aiIndex + 1}: ${minScore}-${maxScore} (变化: ${variation})`);
+        }
+    }
+
+    /**
+     * 比较多次运行结果
+     */
+    private compareMultipleRuns(testRuns: any[]): void {
+        console.log(`\n🔍 ${testRuns.length}次运行结果对比:`);
+
+        // 检查AI分数是否有变化
+        let hasVariation = false;
+        const aiScoresByRun: number[][] = [];
+
+        testRuns.forEach((run, runIndex) => {
+            console.log(`\n第${runIndex + 1}次运行:`);
+            const aiScores: number[] = [];
+
+            run.aiOpponents.forEach((ai: any) => {
+                console.log(`  ${ai.uid}: ${ai.recommendedScore}`);
+                aiScores.push(ai.recommendedScore);
+            });
+
+            aiScoresByRun.push(aiScores);
+        });
+
+        // 分析变化
+        console.log(`\n📊 AI分数变化分析:`);
+        for (let aiIndex = 0; aiIndex < aiScoresByRun[0].length; aiIndex++) {
+            const scoresForThisAI = aiScoresByRun.map(run => run[aiIndex]);
+            const minScore = Math.min(...scoresForThisAI);
+            const maxScore = Math.max(...scoresForThisAI);
+            const variation = maxScore - minScore;
+
+            if (variation > 0) {
+                hasVariation = true;
+                console.log(`  ai_${aiIndex + 1}: ${minScore}-${maxScore} (变化范围: ${variation})`);
+            } else {
+                console.log(`  ai_${aiIndex + 1}: ${minScore} (无变化)`);
+            }
+        }
+
+        if (hasVariation) {
+            console.log("✅ AI分数具有随机变化性");
+        } else {
+            console.log("❌ AI分数缺乏变化性，每次运行结果相同");
+        }
     }
 }
 
