@@ -110,6 +110,9 @@ export class RealEnvironmentTestSuite {
             console.log("\n🎯 测试相同分数下的排名一致性:");
             await this.testRankingConsistencyWithSameScore();
 
+            // 🔍 新增测试：并列名次处理
+            await this.testTiedRankingHandling();
+
             results.push({
                 test: '单玩家推荐',
                 success: true,
@@ -480,6 +483,94 @@ export class RealEnvironmentTestSuite {
             const maxScore = Math.max(...aiScores);
             const variation = maxScore - minScore;
             console.log(`  AI_${aiIndex + 1}: ${minScore}-${maxScore} (变化: ${variation})`);
+        }
+    }
+
+    /**
+     * 测试并列名次处理
+     */
+    private async testTiedRankingHandling(): Promise<void> {
+        console.log('\n🎯 测试并列名次处理...');
+
+        try {
+            // 测试场景1：玩家分数与AI分数相同
+            console.log('📋 测试场景1: 玩家分数与AI分数相同');
+            const result1 = await this.rankingManager.generateMatchRankings(
+                [{ uid: 'test_player_tied', score: 800 }], // 玩家分数800
+                3 // 3个AI
+            );
+
+            // 检查是否有并列名次
+            const allParticipants = [
+                { uid: result1.humanPlayers[0].uid, type: 'human', rank: result1.humanPlayers[0].recommendedRank, score: 800 },
+                ...result1.aiOpponents.map(ai => ({ uid: ai.uid, type: 'ai', rank: ai.recommendedRank, score: ai.recommendedScore }))
+            ];
+
+            // 按分数分组，检查相同分数的参与者是否有相同排名
+            const scoreGroups = new Map<number, any[]>();
+            allParticipants.forEach(p => {
+                if (!scoreGroups.has(p.score)) {
+                    scoreGroups.set(p.score, []);
+                }
+                scoreGroups.get(p.score)!.push(p);
+            });
+
+            console.log('📊 分数分组分析:');
+            let hasTiedRanks = false;
+            scoreGroups.forEach((participants, score) => {
+                if (participants.length > 1) {
+                    const ranks = participants.map(p => p.rank);
+                    const uniqueRanks = [...new Set(ranks)];
+                    if (uniqueRanks.length === 1) {
+                        console.log(`  ✅ 分数${score}: ${participants.length}个参与者并列第${uniqueRanks[0]}名`);
+                        hasTiedRanks = true;
+                    } else {
+                        console.log(`  ❌ 分数${score}: ${participants.length}个参与者排名不一致 ${ranks.join(', ')}`);
+                    }
+                } else {
+                    console.log(`  📋 分数${score}: 1个参与者第${participants[0].rank}名`);
+                }
+            });
+
+            if (hasTiedRanks) {
+                console.log('✅ 并列名次处理正确');
+            } else {
+                console.log('⚠️  未发现并列名次情况');
+            }
+
+            // 测试场景2：多个AI分数相同
+            console.log('\n📋 测试场景2: 多个AI分数相同');
+            // 这里我们可以通过多次运行来观察AI分数是否会出现相同的情况
+            const testRuns = 10;
+            let foundTiedAIs = false;
+
+            for (let i = 0; i < testRuns; i++) {
+                const result = await this.rankingManager.generateMatchRankings(
+                    [{ uid: 'test_player_ai_tied', score: 1000 }],
+                    5
+                );
+
+                // 检查AI分数是否有相同
+                const aiScores = result.aiOpponents.map(ai => ai.recommendedScore);
+                const scoreCounts = new Map<number, number>();
+                aiScores.forEach(score => {
+                    scoreCounts.set(score, (scoreCounts.get(score) || 0) + 1);
+                });
+
+                const tiedScores = Array.from(scoreCounts.entries()).filter(([score, count]) => count > 1);
+                if (tiedScores.length > 0) {
+                    console.log(`  ✅ 第${i + 1}次运行发现AI并列: ${tiedScores.map(([score, count]) => `${count}个AI分数${score}`).join(', ')}`);
+                    foundTiedAIs = true;
+                    break;
+                }
+            }
+
+            if (!foundTiedAIs) {
+                console.log(`  ⚠️  在${testRuns}次运行中未发现AI分数相同的情况`);
+            }
+
+        } catch (error) {
+            console.error('❌ 并列名次测试失败:', error);
         }
     }
 

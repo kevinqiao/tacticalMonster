@@ -625,27 +625,53 @@ export class RankingRecommendationManager {
 
         // 🔍 调试日志：显示排序后的参与者
         console.log("🔄 重新分配排名 - 按分数排序后的参与者:");
+        let debugRank = 1;
+        let debugScore = allParticipants[0]?.score;
         allParticipants.forEach((p, index) => {
-            console.log(`  第${index + 1}名: ${p.uid} (${p.type}) - 分数: ${p.score}`);
+            if (p.score !== debugScore) {
+                debugRank = index + 1;
+                debugScore = p.score;
+            }
+            console.log(`  第${debugRank}名: ${p.uid} (${p.type}) - 分数: ${p.score}`);
         });
 
-        // 重新分配排名并更新数据
+        // 重新分配排名并更新数据（支持并列名次）
         const reassignedAI: AIOpponent[] = [];
 
+        // 🔧 修复：正确处理并列名次
+        let currentRank = 1;
+        let currentScore = allParticipants[0]?.score;
+        let tiedCount = 0;
+
         allParticipants.forEach((participant, index) => {
-            const newRank = index + 1;
+            // 如果分数不同，更新当前排名和分数
+            if (participant.score !== currentScore) {
+                // 跳过并列名次的数量，设置下一个排名
+                currentRank = index + 1;
+                currentScore = participant.score;
+                tiedCount = 1;
+            } else {
+                // 分数相同，增加并列计数
+                tiedCount++;
+            }
 
             if (participant.type === 'ai') {
                 const aiData = participant.data as AIOpponent;
                 reassignedAI.push({
                     ...aiData,
-                    recommendedRank: newRank
+                    recommendedRank: currentRank
                 });
             } else {
                 // 更新人类玩家的排名（直接修改原对象）
                 const humanData = participant.data as PlayerRankingResult;
-                humanData.recommendedRank = newRank;
+                humanData.recommendedRank = currentRank;
             }
+        });
+
+        // 🔍 调试日志：显示最终排名分配
+        console.log("🔧 最终排名分配:");
+        allParticipants.forEach((p, index) => {
+            console.log(`  ${index + 1}. ${p.uid} (${p.type}) - 分数: ${p.score}, 排名: ${p.type === 'ai' ? reassignedAI.find(ai => ai.uid === p.uid)?.recommendedRank : (p.data as PlayerRankingResult).recommendedRank}`);
         });
 
         // 🎯 关键新增：重新计算AI分数范围，确保无重叠
