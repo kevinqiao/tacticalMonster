@@ -102,7 +102,7 @@ export class RankingRecommendationManager {
 
             // 2. 分析人类玩家的整体水平和分布
             const humanAnalysis = this.analyzeHumanPlayers(humanPlayers, playerProfiles);
-
+            console.log("humanAnalysis", humanAnalysis);
             // 3. 为每个人类玩家推荐排名
             const humanRankings = await this.generateHumanPlayerRankings(
                 humanPlayers,

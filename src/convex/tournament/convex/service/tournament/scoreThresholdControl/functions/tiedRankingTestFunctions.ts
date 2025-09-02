@@ -9,6 +9,129 @@ import { RankingRecommendationManager } from "../managers/RankingRecommendationM
 import { quickTiedRankingTest, testTiedRanking } from "../test/tiedRankingTest";
 
 /**
+ * 模拟数据库上下文 - 为并列名次测试提供完整的历史数据
+ */
+class MockDatabaseContext {
+    private mockMatchResults: Map<string, any[]> = new Map();
+
+    constructor() {
+        this.initializeMockData();
+    }
+
+    // 初始化测试数据 - 专门为并列名次测试设计
+    private initializeMockData() {
+        // 高技能玩家数据 - 用于测试高分并列
+        this.mockMatchResults.set('player1', [
+            { matchId: 'm1', score: 12000, rank: 1, createdAt: '2024-01-20T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm2', score: 11500, rank: 2, createdAt: '2024-01-19T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm3', score: 12500, rank: 1, createdAt: '2024-01-18T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm4', score: 11800, rank: 1, createdAt: '2024-01-17T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm5', score: 11200, rank: 2, createdAt: '2024-01-16T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm6', score: 13000, rank: 1, createdAt: '2024-01-15T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm7', score: 11700, rank: 2, createdAt: '2024-01-14T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm8', score: 12200, rank: 1, createdAt: '2024-01-13T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm9', score: 11900, rank: 1, createdAt: '2024-01-12T10:00:00Z', segmentName: 'diamond' },
+            { matchId: 'm10', score: 12300, rank: 1, createdAt: '2024-01-11T10:00:00Z', segmentName: 'diamond' }
+        ]);
+
+        // 中等技能玩家数据 - 用于测试中等分数并列
+        this.mockMatchResults.set('player2', [
+            { matchId: 'm11', score: 8500, rank: 3, createdAt: '2024-01-20T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm12', score: 8200, rank: 2, createdAt: '2024-01-19T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm13', score: 7800, rank: 4, createdAt: '2024-01-18T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm14', score: 8800, rank: 2, createdAt: '2024-01-17T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm15', score: 8100, rank: 3, createdAt: '2024-01-16T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm16', score: 8600, rank: 2, createdAt: '2024-01-15T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm17', score: 7900, rank: 4, createdAt: '2024-01-14T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm18', score: 8300, rank: 3, createdAt: '2024-01-13T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm19', score: 8700, rank: 1, createdAt: '2024-01-12T10:00:00Z', segmentName: 'gold' },
+            { matchId: 'm20', score: 8000, rank: 3, createdAt: '2024-01-11T10:00:00Z', segmentName: 'gold' }
+        ]);
+
+        // 低技能玩家数据 - 用于测试低分并列
+        this.mockMatchResults.set('player3', [
+            { matchId: 'm21', score: 3200, rank: 5, createdAt: '2024-01-20T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm22', score: 3000, rank: 6, createdAt: '2024-01-19T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm23', score: 3400, rank: 4, createdAt: '2024-01-18T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm24', score: 2800, rank: 6, createdAt: '2024-01-17T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm25', score: 3100, rank: 5, createdAt: '2024-01-16T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm26', score: 3500, rank: 4, createdAt: '2024-01-15T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm27', score: 2900, rank: 6, createdAt: '2024-01-14T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm28', score: 3300, rank: 5, createdAt: '2024-01-13T10:00:00Z', segmentName: 'bronze' }
+        ]);
+
+        // 为高密度并列测试添加更多玩家数据
+        this.mockMatchResults.set('player5', [
+            { matchId: 'm37', score: 1000, rank: 1, createdAt: '2024-01-20T10:00:00Z', segmentName: 'silver' },
+            { matchId: 'm38', score: 1000, rank: 1, createdAt: '2024-01-19T10:00:00Z', segmentName: 'silver' },
+            { matchId: 'm39', score: 1000, rank: 2, createdAt: '2024-01-18T10:00:00Z', segmentName: 'silver' },
+            { matchId: 'm40', score: 1000, rank: 1, createdAt: '2024-01-17T10:00:00Z', segmentName: 'silver' },
+            { matchId: 'm41', score: 1000, rank: 2, createdAt: '2024-01-16T10:00:00Z', segmentName: 'silver' }
+        ]);
+
+        this.mockMatchResults.set('player6', [
+            { matchId: 'm42', score: 800, rank: 3, createdAt: '2024-01-20T10:00:00Z', segmentName: 'silver' },
+            { matchId: 'm43', score: 800, rank: 3, createdAt: '2024-01-19T10:00:00Z', segmentName: 'silver' },
+            { matchId: 'm44', score: 800, rank: 4, createdAt: '2024-01-18T10:00:00Z', segmentName: 'silver' },
+            { matchId: 'm45', score: 800, rank: 3, createdAt: '2024-01-17T10:00:00Z', segmentName: 'silver' },
+            { matchId: 'm46', score: 800, rank: 4, createdAt: '2024-01-16T10:00:00Z', segmentName: 'silver' }
+        ]);
+
+        this.mockMatchResults.set('player7', [
+            { matchId: 'm47', score: 600, rank: 5, createdAt: '2024-01-20T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm48', score: 600, rank: 5, createdAt: '2024-01-19T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm49', score: 600, rank: 6, createdAt: '2024-01-18T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm50', score: 600, rank: 5, createdAt: '2024-01-17T10:00:00Z', segmentName: 'bronze' },
+            { matchId: 'm51', score: 600, rank: 6, createdAt: '2024-01-16T10:00:00Z', segmentName: 'bronze' }
+        ]);
+    }
+
+    // 模拟数据库查询
+    db = {
+        query: (tableName: string) => ({
+            withIndex: (indexName: string, filterFn: Function) => ({
+                order: (direction: string) => ({
+                    take: (limit: number) => {
+                        if (tableName === 'match_results') {
+                            // 通过执行 filterFn 来获取实际的 uid 值
+                            let extractedUid: string | null = null;
+
+                            // 创建一个模拟的查询对象来捕获 uid
+                            const mockQuery = {
+                                eq: (field: string, value: any) => {
+                                    if (field === 'uid') {
+                                        extractedUid = value;
+                                    }
+                                    return mockQuery;
+                                }
+                            };
+
+                            // 执行 filterFn 来获取 uid
+                            try {
+                                filterFn(mockQuery);
+                            } catch (error) {
+                                console.warn('Filter function execution failed:', error);
+                            }
+
+                            // 如果成功提取到 uid，返回对应的数据
+                            if (extractedUid) {
+                                const matches = this.mockMatchResults.get(extractedUid) || [];
+                                console.log(`📊 模拟数据库查询: ${extractedUid} -> ${matches.length} 条记录`);
+                                return Promise.resolve(matches.slice(0, limit));
+                            }
+
+                            console.warn('无法从 filterFn 中提取 uid');
+                            return Promise.resolve([]);
+                        }
+                        return Promise.resolve([]);
+                    }
+                })
+            })
+        })
+    };
+}
+
+/**
  * 运行完整的并列名次测试
  * 测试包括：
  * 1. 玩家与AI分数相同的情况
@@ -581,16 +704,20 @@ export const testRankingLogic = mutation({
         console.log("🎯 开始排名逻辑测试...");
 
         try {
-            const rankingManager = new RankingRecommendationManager(ctx);
+            // 使用模拟数据库上下文而不是真实的 ctx
+            const mockCtx = new MockDatabaseContext();
+            const rankingManager = new RankingRecommendationManager(mockCtx);
 
-            // 创建一个简单的测试场景
+            console.log("📊 使用模拟历史数据进行排名逻辑测试");
+
+            // 创建一个基于历史数据的测试场景
             const testScenario = {
                 humanPlayers: [
-                    { uid: 'player1', score: 1000 },
-                    { uid: 'player2', score: 1000 },
-                    { uid: 'player3', score: 800 },
-                    { uid: 'player4', score: 800 },
-                    { uid: 'player5', score: 600 }
+                    { uid: 'player1', score: 12000 }, // 高技能玩家 (Diamond段位)
+                    { uid: 'player2', score: 8500 },  // 中等技能玩家 (Gold段位)
+                    { uid: 'player3', score: 3200 },  // 低技能玩家 (Bronze段位)
+                    { uid: 'player5', score: 1000 },  // 高密度并列测试玩家 (Silver段位)
+                    { uid: 'player6', score: 800 }    // 高密度并列测试玩家 (Silver段位)
                 ],
                 aiCount: 3
             };
@@ -639,6 +766,116 @@ export const testRankingLogic = mutation({
 
         } catch (error) {
             console.error("❌ 排名逻辑测试失败:", error);
+            return {
+                success: false,
+                error: String(error),
+                timestamp: new Date().toISOString()
+            };
+        }
+    }
+});
+
+/**
+ * 历史数据使用测试
+ * 专门测试基于历史数据的排名推荐功能
+ */
+export const testHistoricalDataUsage = mutation({
+    args: {},
+    handler: async (ctx) => {
+        console.log("🎯 开始历史数据使用测试...");
+        try {
+            // 使用模拟数据库上下文
+            const mockCtx = new MockDatabaseContext();
+            const rankingManager = new RankingRecommendationManager(mockCtx);
+
+            console.log("📊 测试历史数据对排名推荐的影响");
+
+            const testScenarios = [
+                {
+                    name: '高技能玩家测试',
+                    player: { uid: 'player1', score: 12000 },
+                    aiCount: 4,
+                    expectedProfile: {
+                        segmentName: 'diamond',
+                        averageScore: 12000,
+                        winRate: 0.8,
+                        totalMatches: 10
+                    }
+                },
+                {
+                    name: '中等技能玩家测试',
+                    player: { uid: 'player2', score: 8500 },
+                    aiCount: 3,
+                    expectedProfile: {
+                        segmentName: 'gold',
+                        averageScore: 8500,
+                        winRate: 0.4,
+                        totalMatches: 10
+                    }
+                },
+                {
+                    name: '低技能玩家测试',
+                    player: { uid: 'player3', score: 3200 },
+                    aiCount: 5,
+                    expectedProfile: {
+                        segmentName: 'bronze',
+                        averageScore: 3200,
+                        winRate: 0.2,
+                        totalMatches: 8
+                    }
+                }
+            ];
+
+            const results: any[] = [];
+
+            for (const scenario of testScenarios) {
+                console.log(`📋 测试 ${scenario.name}...`);
+
+                const result = await rankingManager.generateMatchRankings(
+                    [scenario.player],
+                    scenario.aiCount
+                );
+
+                const humanPlayer = result.humanPlayers[0];
+
+                // 分析历史数据的影响
+                const analysis = {
+                    scenario: scenario.name,
+                    playerUid: scenario.player.uid,
+                    currentScore: scenario.player.score,
+                    recommendedRank: humanPlayer.recommendedRank,
+                    confidence: humanPlayer.confidence,
+                    reasoning: humanPlayer.reasoning,
+                    relativePerformance: humanPlayer.relativePerformance,
+                    aiOpponents: result.aiOpponents.map(ai => ({
+                        uid: ai.uid,
+                        rank: ai.recommendedRank,
+                        score: ai.recommendedScore,
+                        difficulty: ai.difficulty,
+                        behavior: ai.behavior
+                    })),
+                    historicalDataImpact: {
+                        expectedSegment: scenario.expectedProfile.segmentName,
+                        expectedAverageScore: scenario.expectedProfile.averageScore,
+                        expectedWinRate: scenario.expectedProfile.winRate,
+                        expectedMatches: scenario.expectedProfile.totalMatches,
+                        confidenceLevel: humanPlayer.confidence > 0.7 ? 'high' : humanPlayer.confidence > 0.5 ? 'medium' : 'low'
+                    }
+                };
+
+                results.push(analysis);
+                console.log(`  ✅ ${scenario.name}: 推荐排名第${humanPlayer.recommendedRank}名，信心度${(humanPlayer.confidence * 100).toFixed(1)}%`);
+            }
+
+            return {
+                success: true,
+                testResults: results,
+                summary: `历史数据使用测试完成，测试了${testScenarios.length}种技能水平的玩家`,
+                timestamp: new Date().toISOString()
+            };
+
+        } catch (error) {
+            console.error("❌ 历史数据使用测试失败:", error);
             return {
                 success: false,
                 error: String(error),
