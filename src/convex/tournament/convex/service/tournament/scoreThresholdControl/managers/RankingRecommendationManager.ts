@@ -102,7 +102,7 @@ export class RankingRecommendationManager {
 
             // 2. 分析人类玩家的整体水平和分布
             const humanAnalysis = this.analyzeHumanPlayers(humanPlayers, playerProfiles);
-            console.log("humanAnalysis", humanAnalysis);
+            // console.log("humanAnalysis", humanAnalysis);
             // 3. 为每个人类玩家推荐排名
             const humanRankings = await this.generateHumanPlayerRankings(
                 humanPlayers,
@@ -150,7 +150,7 @@ export class RankingRecommendationManager {
             .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .order("desc")
             .take(50);
-
+        console.log("recentMatches", recentMatches.length);
         if (recentMatches.length < 3) {
             return this.getDefaultPlayerProfile(uid);
         }
@@ -244,12 +244,82 @@ export class RankingRecommendationManager {
     private calculateConsistency(scores: number[]): number {
         if (scores.length < 3) return 0.5;
 
-        const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-        const variance = scores.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scores.length;
-        const standardDeviation = Math.sqrt(variance);
+        // 过滤无效分数
+        const validScores = scores.filter(score => score >= 0 && !isNaN(score));
+        if (validScores.length < 3) return 0.5;
 
-        // 一致性 = 1 - (标准差 / 平均值)，限制在0-1之间
-        return Math.max(0, Math.min(1, 1 - (standardDeviation / mean)));
+        const mean = validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
+
+        // 安全检查：避免除零错误
+        if (mean === 0) return 0.5;
+
+        // 计算加权方差（最近比赛权重更高）
+        const timeWeights = this.calculateTimeWeights(validScores.length);
+        const weightedVariance = this.calculateWeightedVariance(validScores, timeWeights, mean);
+        const weightedStandardDeviation = Math.sqrt(weightedVariance);
+
+        // 基础一致性计算
+        const baseConsistency = 1 - (weightedStandardDeviation / mean);
+
+        // 考虑分数范围的调整
+        const scoreRange = Math.max(...validScores) - Math.min(...validScores);
+        const rangeAdjustment = this.calculateRangeAdjustment(scoreRange, mean);
+
+        // 综合一致性计算
+        const finalConsistency = baseConsistency * rangeAdjustment;
+
+        // 限制在0-1之间
+        return Math.max(0, Math.min(1, finalConsistency));
+    }
+
+    /**
+     * 计算时间权重（最近比赛权重更高）
+     */
+    private calculateTimeWeights(length: number): number[] {
+        const weights: number[] = [];
+        for (let i = 0; i < length; i++) {
+            // 最近比赛的权重为1，越早的比赛权重递减
+            const weight = Math.pow(0.9, i); // 每场比赛权重递减10%
+            weights.push(weight);
+        }
+        return weights;
+    }
+
+    /**
+     * 计算加权方差
+     */
+    private calculateWeightedVariance(scores: number[], weights: number[], mean: number): number {
+        let weightedSumSquaredDiffs = 0;
+        let totalWeight = 0;
+
+        for (let i = 0; i < scores.length; i++) {
+            const diff = scores[i] - mean;
+            const weight = weights[i];
+            weightedSumSquaredDiffs += weight * diff * diff;
+            totalWeight += weight;
+        }
+
+        return totalWeight > 0 ? weightedSumSquaredDiffs / totalWeight : 0;
+    }
+
+    /**
+     * 计算分数范围调整因子
+     */
+    private calculateRangeAdjustment(scoreRange: number, mean: number): number {
+        // 如果分数范围相对于平均值很小，说明分数很集中，给予奖励
+        const rangeRatio = scoreRange / mean;
+
+        if (rangeRatio < 0.1) {
+            return 1.1; // 分数很集中，给予10%奖励
+        } else if (rangeRatio < 0.2) {
+            return 1.05; // 分数较集中，给予5%奖励
+        } else if (rangeRatio > 0.5) {
+            return 0.9; // 分数范围很大，给予10%惩罚
+        } else if (rangeRatio > 0.3) {
+            return 0.95; // 分数范围较大，给予5%惩罚
+        }
+
+        return 1.0; // 正常范围，无调整
     }
 
 

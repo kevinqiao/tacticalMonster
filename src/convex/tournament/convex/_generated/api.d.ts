@@ -81,6 +81,9 @@ import type * as service_tournament_scoreThresholdControl_config_config from "..
 import type * as service_tournament_scoreThresholdControl_config_scoreThresholdSchema from "../service/tournament/scoreThresholdControl/config/scoreThresholdSchema.js";
 import type * as service_tournament_scoreThresholdControl_config_types from "../service/tournament/scoreThresholdControl/config/types.js";
 import type * as service_tournament_scoreThresholdControl_examples_RankingTestExamples from "../service/tournament/scoreThresholdControl/examples/RankingTestExamples.js";
+import type * as service_tournament_scoreThresholdControl_functions_consistencyOptimizationFunctions from "../service/tournament/scoreThresholdControl/functions/consistencyOptimizationFunctions.js";
+import type * as service_tournament_scoreThresholdControl_functions_consistencyPlayerSimulationFunctions from "../service/tournament/scoreThresholdControl/functions/consistencyPlayerSimulationFunctions.js";
+import type * as service_tournament_scoreThresholdControl_functions_consistencyTestFunctions from "../service/tournament/scoreThresholdControl/functions/consistencyTestFunctions.js";
 import type * as service_tournament_scoreThresholdControl_functions_testRankingRecommendation from "../service/tournament/scoreThresholdControl/functions/testRankingRecommendation.js";
 import type * as service_tournament_scoreThresholdControl_functions_tiedRankingTestFunctions from "../service/tournament/scoreThresholdControl/functions/tiedRankingTestFunctions.js";
 import type * as service_tournament_scoreThresholdControl_index from "../service/tournament/scoreThresholdControl/index.js";
@@ -88,6 +91,10 @@ import type * as service_tournament_scoreThresholdControl_managers_MultiPlayerRa
 import type * as service_tournament_scoreThresholdControl_managers_PlayerHistoricalDataManager from "../service/tournament/scoreThresholdControl/managers/PlayerHistoricalDataManager.js";
 import type * as service_tournament_scoreThresholdControl_managers_RankingRecommendationManager from "../service/tournament/scoreThresholdControl/managers/RankingRecommendationManager.js";
 import type * as service_tournament_scoreThresholdControl_managers_SeedRecommendationManager from "../service/tournament/scoreThresholdControl/managers/SeedRecommendationManager.js";
+import type * as service_tournament_scoreThresholdControl_test_ConsistencyCalculationTest from "../service/tournament/scoreThresholdControl/test/ConsistencyCalculationTest.js";
+import type * as service_tournament_scoreThresholdControl_test_ConsistencyOptimizationExample from "../service/tournament/scoreThresholdControl/test/ConsistencyOptimizationExample.js";
+import type * as service_tournament_scoreThresholdControl_test_ConsistencyPlayerSimulation from "../service/tournament/scoreThresholdControl/test/ConsistencyPlayerSimulation.js";
+import type * as service_tournament_scoreThresholdControl_test_ConsistencySimulationDemo from "../service/tournament/scoreThresholdControl/test/ConsistencySimulationDemo.js";
 import type * as service_tournament_scoreThresholdControl_test_RankingRecommendationTest from "../service/tournament/scoreThresholdControl/test/RankingRecommendationTest.js";
 import type * as service_tournament_scoreThresholdControl_test_TestRunner from "../service/tournament/scoreThresholdControl/test/TestRunner.js";
 import type * as service_tournament_scoreThresholdControl_test_tiedRankingTest from "../service/tournament/scoreThresholdControl/test/tiedRankingTest.js";
@@ -183,6 +190,9 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/scoreThresholdControl/config/scoreThresholdSchema": typeof service_tournament_scoreThresholdControl_config_scoreThresholdSchema;
   "service/tournament/scoreThresholdControl/config/types": typeof service_tournament_scoreThresholdControl_config_types;
   "service/tournament/scoreThresholdControl/examples/RankingTestExamples": typeof service_tournament_scoreThresholdControl_examples_RankingTestExamples;
+  "service/tournament/scoreThresholdControl/functions/consistencyOptimizationFunctions": typeof service_tournament_scoreThresholdControl_functions_consistencyOptimizationFunctions;
+  "service/tournament/scoreThresholdControl/functions/consistencyPlayerSimulationFunctions": typeof service_tournament_scoreThresholdControl_functions_consistencyPlayerSimulationFunctions;
+  "service/tournament/scoreThresholdControl/functions/consistencyTestFunctions": typeof service_tournament_scoreThresholdControl_functions_consistencyTestFunctions;
   "service/tournament/scoreThresholdControl/functions/testRankingRecommendation": typeof service_tournament_scoreThresholdControl_functions_testRankingRecommendation;
   "service/tournament/scoreThresholdControl/functions/tiedRankingTestFunctions": typeof service_tournament_scoreThresholdControl_functions_tiedRankingTestFunctions;
   "service/tournament/scoreThresholdControl/index": typeof service_tournament_scoreThresholdControl_index;
@@ -190,6 +200,10 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/scoreThresholdControl/managers/PlayerHistoricalDataManager": typeof service_tournament_scoreThresholdControl_managers_PlayerHistoricalDataManager;
   "service/tournament/scoreThresholdControl/managers/RankingRecommendationManager": typeof service_tournament_scoreThresholdControl_managers_RankingRecommendationManager;
   "service/tournament/scoreThresholdControl/managers/SeedRecommendationManager": typeof service_tournament_scoreThresholdControl_managers_SeedRecommendationManager;
+  "service/tournament/scoreThresholdControl/test/ConsistencyCalculationTest": typeof service_tournament_scoreThresholdControl_test_ConsistencyCalculationTest;
+  "service/tournament/scoreThresholdControl/test/ConsistencyOptimizationExample": typeof service_tournament_scoreThresholdControl_test_ConsistencyOptimizationExample;
+  "service/tournament/scoreThresholdControl/test/ConsistencyPlayerSimulation": typeof service_tournament_scoreThresholdControl_test_ConsistencyPlayerSimulation;
+  "service/tournament/scoreThresholdControl/test/ConsistencySimulationDemo": typeof service_tournament_scoreThresholdControl_test_ConsistencySimulationDemo;
   "service/tournament/scoreThresholdControl/test/RankingRecommendationTest": typeof service_tournament_scoreThresholdControl_test_RankingRecommendationTest;
   "service/tournament/scoreThresholdControl/test/TestRunner": typeof service_tournament_scoreThresholdControl_test_TestRunner;
   "service/tournament/scoreThresholdControl/test/tiedRankingTest": typeof service_tournament_scoreThresholdControl_test_tiedRankingTest;
