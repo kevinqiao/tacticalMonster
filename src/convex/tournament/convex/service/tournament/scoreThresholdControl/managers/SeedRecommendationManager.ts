@@ -3,6 +3,8 @@
  * 核心功能：基于玩家历史数据，智能推荐新的比赛种子
  */
 
+import { UnifiedSkillAssessment } from '../core/UnifiedSkillAssessment';
+
 
 export interface SeedRecommendation {
     seeds: string[];
@@ -27,9 +29,11 @@ export interface SeedStatistics {
 
 export class SeedRecommendationManager {
     private ctx: any;
+    private skillAssessment: UnifiedSkillAssessment;
 
     constructor(ctx: any) {
         this.ctx = ctx;
+        this.skillAssessment = new UnifiedSkillAssessment();
     }
 
     /**
@@ -95,27 +99,48 @@ export class SeedRecommendationManager {
      */
     private async analyzePlayerSkillLevel(uid: string): Promise<string> {
         try {
-            // 获取最近20场比赛
+            // 获取最近50场比赛（使用统一标准）
             const recentMatches = await this.ctx.db
                 .query("match_results")
                 .withIndex("by_uid", (q: any) => q.eq("uid", uid))
                 .order("desc")
-                .take(20);
+                .take(50);
 
             if (recentMatches.length < 5) {
                 return 'bronze'; // 新玩家默认青铜
             }
 
-            // 计算技能指标
-            const ranks = recentMatches.map((m:any) => m.rank || 1);
-            const scores = recentMatches.map((m:any) => m.score || 0);
+            // 构建 PlayerPerformanceProfile
+            const scores = recentMatches.map((m: any) => m.score || 0);
+            const ranks = recentMatches.map((m: any) => m.rank || 1);
+            const wins = ranks.filter((rank: any) => rank === 1).length;
 
-            const averageRank = ranks.reduce((sum:any, rank:any) => sum + rank, 0) / ranks.length;
-            const averageScore = scores.reduce((sum:any, score:any) => sum + score, 0) / scores.length;
-            const winRate = ranks.filter((rank:any) => rank === 1).length / ranks.length;
+            const averageScore = scores.reduce((sum: any, score: any) => sum + score, 0) / scores.length;
+            const averageRank = ranks.reduce((sum: any, rank: any) => sum + rank, 0) / ranks.length;
+            const winRate = wins / ranks.length;
 
-            // 基于综合指标判断技能等级
-            return this.calculateSkillLevel(averageRank, averageScore, winRate);
+            // 分析最近10场趋势
+            const last10Matches = recentMatches.slice(0, 10);
+            const trendDirection = this.analyzeTrend(last10Matches);
+            const consistency = this.calculateConsistency(scores);
+
+            const profile = {
+                uid,
+                segmentName: (recentMatches[0]?.segmentName as any) || 'bronze',
+                averageScore,
+                averageRank,
+                winRate,
+                totalMatches: recentMatches.length,
+                recentPerformance: {
+                    last10Matches,
+                    trendDirection,
+                    consistency
+                }
+            };
+
+            // 使用统一技能评估系统
+            const assessment = this.skillAssessment.assessPlayerSkill(profile);
+            return assessment.level;
 
         } catch (error) {
             console.error(`分析玩家技能水平失败: ${uid}`, error);
@@ -124,35 +149,95 @@ export class SeedRecommendationManager {
     }
 
     /**
-     * 计算技能等级
+     * 分析趋势
      */
-    private calculateSkillLevel(averageRank: number, averageScore: number, winRate: number): string {
-        // 综合评分系统
-        let skillScore = 0;
+    private analyzeTrend(matches: any[]): 'improving' | 'declining' | 'stable' {
+        if (matches.length < 5) return 'stable';
 
-        // 排名因子 (40%)
-        if (averageRank <= 1.5) skillScore += 40;
-        else if (averageRank <= 2.0) skillScore += 30;
-        else if (averageRank <= 2.5) skillScore += 20;
-        else if (averageRank <= 3.0) skillScore += 10;
+        const recentScores = matches.slice(0, 5).map(m => m.score || 0);
+        const olderScores = matches.slice(5, 10).map(m => m.score || 0);
 
-        // 胜率因子 (30%)
-        if (winRate >= 0.6) skillScore += 30;
-        else if (winRate >= 0.4) skillScore += 20;
-        else if (winRate >= 0.25) skillScore += 10;
+        const recentAvg = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
+        const olderAvg = olderScores.length > 0 ? olderScores.reduce((sum, score) => sum + score, 0) / olderScores.length : recentAvg;
 
-        // 分数因子 (30%)
-        if (averageScore >= 5000) skillScore += 30;
-        else if (averageScore >= 3000) skillScore += 20;
-        else if (averageScore >= 1500) skillScore += 15;
-        else if (averageScore >= 800) skillScore += 10;
+        const improvement = (recentAvg - olderAvg) / olderAvg;
 
-        // 根据总分确定等级
-        if (skillScore >= 80) return 'diamond';
-        if (skillScore >= 60) return 'platinum';
-        if (skillScore >= 40) return 'gold';
-        if (skillScore >= 20) return 'silver';
-        return 'bronze';
+        if (improvement > 0.1) return 'improving';
+        if (improvement < -0.1) return 'declining';
+        return 'stable';
+    }
+
+    /**
+     * 计算一致性
+     */
+    private calculateConsistency(scores: number[]): number {
+        if (scores.length < 3) return 0.5;
+
+        const validScores = scores.filter(score => score >= 0 && !isNaN(score));
+        if (validScores.length < 3) return 0.5;
+
+        const mean = validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
+        if (mean === 0) return 0.5;
+
+        // 计算加权方差（最近比赛权重更高）
+        const timeWeights = this.calculateTimeWeights(validScores.length);
+        const weightedVariance = this.calculateWeightedVariance(validScores, timeWeights, mean);
+        const weightedStandardDeviation = Math.sqrt(weightedVariance);
+
+        // 基础一致性计算
+        const baseConsistency = 1 - (weightedStandardDeviation / mean);
+
+        // 考虑分数范围的调整
+        const scoreRange = Math.max(...validScores) - Math.min(...validScores);
+        const rangeAdjustment = this.calculateRangeAdjustment(scoreRange, mean);
+
+        // 综合一致性计算
+        const finalConsistency = baseConsistency * rangeAdjustment;
+
+        return Math.max(0, Math.min(1, finalConsistency));
+    }
+
+    /**
+     * 计算时间权重
+     */
+    private calculateTimeWeights(length: number): number[] {
+        const weights: number[] = [];
+        for (let i = 0; i < length; i++) {
+            const weight = Math.pow(0.9, i);
+            weights.push(weight);
+        }
+        return weights;
+    }
+
+    /**
+     * 计算加权方差
+     */
+    private calculateWeightedVariance(scores: number[], weights: number[], mean: number): number {
+        let weightedSumSquaredDiffs = 0;
+        let totalWeight = 0;
+
+        for (let i = 0; i < scores.length; i++) {
+            const diff = scores[i] - mean;
+            const weight = weights[i];
+            weightedSumSquaredDiffs += weight * diff * diff;
+            totalWeight += weight;
+        }
+
+        return totalWeight > 0 ? weightedSumSquaredDiffs / totalWeight : 0;
+    }
+
+    /**
+     * 计算分数范围调整因子
+     */
+    private calculateRangeAdjustment(scoreRange: number, mean: number): number {
+        const rangeRatio = scoreRange / mean;
+
+        if (rangeRatio < 0.1) return 1.1;
+        else if (rangeRatio < 0.2) return 1.05;
+        else if (rangeRatio > 0.5) return 0.9;
+        else if (rangeRatio > 0.3) return 0.95;
+
+        return 1.0;
     }
 
     /**
@@ -438,9 +523,9 @@ export class SeedRecommendationManager {
             if (matches.length === 0) return false;
 
             // 计算统计数据
-            const scores = matches.map((m:any) => m.score || 0).filter((s:any) => s > 0);
+            const scores = matches.map((m: any) => m.score || 0).filter((s: any) => s > 0);
             const totalMatches = matches.length;
-            const averageScore = scores.reduce((sum:any, score:any) => sum + score, 0) / scores.length;
+            const averageScore = scores.reduce((sum: any, score: any) => sum + score, 0) / scores.length;
             const minScore = Math.min(...scores);
             const maxScore = Math.max(...scores);
 
@@ -448,7 +533,7 @@ export class SeedRecommendationManager {
                 seed,
                 totalMatches,
                 scoreStats: {
-                    totalScores: scores.reduce((sum:any, score:any) => sum + score, 0),
+                    totalScores: scores.reduce((sum: any, score: any) => sum + score, 0),
                     averageScore,
                     minScore,
                     maxScore,

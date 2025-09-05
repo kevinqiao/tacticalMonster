@@ -3,7 +3,10 @@
  * 核心功能：基于玩家历史数据和当前分数，智能推荐排名
  */
 
-import { SegmentName } from "../../../segment/types";
+import { getSegmentRankingProbabilities } from "../../../segment/config";
+import { SegmentManager } from "../../../segment/SegmentManager";
+import { PlayerSegmentData, SegmentName } from "../../../segment/types";
+import { UnifiedSkillAssessment } from "../core/UnifiedSkillAssessment";
 
 
 
@@ -75,9 +78,11 @@ export interface PlayerPerformanceProfile {
 export class RankingRecommendationManager {
     private ctx: any;
     private static callCounter = 0; // 静态计数器确保每次调用都有不同的种子
+    private skillAssessment: UnifiedSkillAssessment;
 
     constructor(ctx: any) {
         this.ctx = ctx;
+        this.skillAssessment = new UnifiedSkillAssessment();
     }
 
 
@@ -169,8 +174,9 @@ export class RankingRecommendationManager {
         const trendDirection = this.analyzeTrend(last10Matches);
         const consistency = this.calculateConsistency(scores);
 
-        // 获取段位信息
-        const segmentName = (recentMatches[0]?.segmentName as SegmentName) || 'bronze';
+        // 获取段位信息：使用积分累积段位（玩家可见的段位）
+        const segmentInfo = await this.getPlayerSegmentInfo(uid);
+        const segmentName = (segmentInfo?.currentSegment as SegmentName) || 'bronze';
 
         return {
             uid,
@@ -328,12 +334,12 @@ export class RankingRecommendationManager {
     // ==================== 缺失的辅助方法 ====================
 
     private classifyPlayerSkillLevel(profile: PlayerPerformanceProfile): 'beginner' | 'intermediate' | 'advanced' {
-        const { averageRank, winRate, totalMatches } = profile;
+        // 使用统一技能评估系统
+        const assessment = this.skillAssessment.assessPlayerSkill(profile);
 
-        if (totalMatches < 5) return 'beginner';
-
-        if (averageRank <= 1.8 && winRate >= 0.5) return 'advanced';
-        if (averageRank <= 2.5 && winRate >= 0.35) return 'intermediate';
+        // 映射到3个等级
+        if (assessment.level === 'diamond' || assessment.level === 'platinum') return 'advanced';
+        if (assessment.level === 'gold' || assessment.level === 'silver') return 'intermediate';
         return 'beginner';
     }
 
@@ -356,25 +362,9 @@ export class RankingRecommendationManager {
     }
 
     private calculateSkillFactor(profile: PlayerPerformanceProfile): number {
-        const { averageRank, winRate, totalMatches, recentPerformance } = profile;
-
-        let skillFactor = 0.5; // 基础值
-
-        // 排名因子
-        if (averageRank <= 1.5) skillFactor += 0.3;
-        else if (averageRank <= 2.0) skillFactor += 0.2;
-        else if (averageRank <= 2.5) skillFactor += 0.1;
-        else skillFactor -= 0.1;
-
-        // 胜率因子
-        if (winRate >= 0.6) skillFactor += 0.2;
-        else if (winRate >= 0.4) skillFactor += 0.1;
-        else skillFactor -= 0.1;
-
-        // 一致性因子
-        skillFactor += (recentPerformance.consistency - 0.5) * 0.2;
-
-        return Math.max(0, Math.min(1, skillFactor));
+        // 使用统一技能评估系统
+        const assessment = this.skillAssessment.assessPlayerSkill(profile);
+        return assessment.factor;
     }
 
     private calculateScoreFactor(score: number, humanAnalysis: any): number {
@@ -436,7 +426,8 @@ export class RankingRecommendationManager {
         recommendedRank: number,
         totalParticipants: number,
         aiCount: number,
-        relativePerformance: 'excellent' | 'good' | 'average' | 'poor'
+        relativePerformance: 'excellent' | 'good' | 'average' | 'poor',
+        usedSegmentProbability: boolean = false
     ): string {
         const reasons = [];
 
@@ -461,6 +452,23 @@ export class RankingRecommendationManager {
 
         // 竞争环境
         reasons.push(`在${totalParticipants}人比赛中（含${aiCount}个AI对手）`);
+
+        // 🆕 段位排名概率影响
+        if (usedSegmentProbability) {
+            const segmentName = profile.segmentName;
+
+            const segmentDesc = {
+                'bronze': '青铜段位',
+                'silver': '白银段位',
+                'gold': '黄金段位',
+                'platinum': '铂金段位',
+                'diamond': '钻石段位',
+                'master': '大师段位',
+                'grandmaster': '宗师段位'
+            }[segmentName] || '当前段位';
+
+            reasons.push(`基于${segmentDesc}的排名概率分布`);
+        }
 
         // 技能水平影响
         const skillLevel = this.classifyPlayerSkillLevel(profile);
@@ -576,22 +584,40 @@ export class RankingRecommendationManager {
         const totalParticipants = humanPlayers.length + aiCount;
         const results: PlayerRankingResult[] = [];
 
+        // 🆕 判断是否使用段位概率：单真人玩家 + 有对应概率配置的场景
+        const shouldUseSegmentProbability = this.shouldUseSegmentProbabilityForSinglePlayer(
+            humanPlayers.length,
+            totalParticipants
+        );
+
         for (const player of humanPlayers) {
             const profile = playerProfiles.get(player.uid)!;
 
             // 基础排名（基于分数在人类玩家中的位置）
             const humanRank = this.calculateHumanRank(player, humanPlayers);
 
-            // 考虑AI对手后的调整排名
-            const adjustedRank = this.calculateAdjustedRankWithAI(
-                player,
-                profile,
-                humanAnalysis,
-                humanRank,
-                aiCount,
-                totalParticipants,
-                humanPlayers
-            );
+            let adjustedRank: number;
+
+            if (shouldUseSegmentProbability) {
+                // 🆕 单真人玩家场景：使用段位概率调整排名
+                adjustedRank = this.calculateSegmentAdjustedRankForSinglePlayer(
+                    player,
+                    profile,
+                    humanRank,
+                    totalParticipants
+                );
+            } else {
+                // 多真人玩家场景：使用传统排名逻辑
+                adjustedRank = this.calculateAdjustedRankWithAI(
+                    player,
+                    profile,
+                    humanAnalysis,
+                    humanRank,
+                    aiCount,
+                    totalParticipants,
+                    humanPlayers
+                );
+            }
 
             // 计算信心度
             const confidence = this.calculateRankingConfidence(
@@ -614,7 +640,8 @@ export class RankingRecommendationManager {
                 adjustedRank,
                 totalParticipants,
                 aiCount,
-                relativePerformance
+                relativePerformance,
+                shouldUseSegmentProbability
             );
 
             results.push({
@@ -1383,6 +1410,225 @@ export class RankingRecommendationManager {
         else behavior = 'balanced';
 
         return { difficulty, behavior };
+    }
+
+    // ==================== 段位信息获取方法 ====================
+
+    /**
+     * 获取玩家段位信息（积分累积段位）
+     */
+    private async getPlayerSegmentInfo(uid: string): Promise<PlayerSegmentData | null> {
+        try {
+            // 创建SegmentManager实例并获取玩家段位信息
+            const segmentManager = new SegmentManager(this.ctx);
+            const segmentData = await segmentManager.getPlayerSegmentInfo(uid);
+
+            if (!segmentData) {
+                console.warn(`玩家 ${uid} 的段位信息不存在，使用默认段位`);
+                // 返回默认的段位信息
+                return {
+                    uid,
+                    currentSegment: 'bronze' as SegmentName,
+                    points: 0,
+                    totalMatches: 0,
+                    totalWins: 0,
+                    currentWinStreak: 0,
+                    currentLoseStreak: 0,
+                    lastMatchDate: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+            }
+
+            return segmentData;
+        } catch (error) {
+            console.error(`获取玩家段位信息失败: ${uid}`, error);
+            return null;
+        }
+    }
+
+    // ==================== 段位排名概率支持方法 ====================
+
+    /**
+     * 判断是否应该为单真人玩家使用段位概率
+     * 基于段位配置中的数量key来决定是否有对应的概率配置
+     */
+    private shouldUseSegmentProbabilityForSinglePlayer(
+        humanPlayerCount: number,
+        totalParticipants: number
+    ): boolean {
+        // 只在单真人玩家场景下使用段位概率
+        if (humanPlayerCount !== 1) {
+            return false;
+        }
+
+        // 检查段位配置中是否有对应参与者数量的概率配置
+        return this.hasSegmentProbabilityForParticipantCount(totalParticipants);
+    }
+
+    /**
+     * 检查段位配置中是否有对应参与者数量的概率配置
+     */
+    private hasSegmentProbabilityForParticipantCount(participantCount: number): boolean {
+        // 从段位配置中获取所有支持的参与者数量
+        const supportedCounts = this.getSupportedParticipantCounts();
+
+        // 检查是否有对应的概率配置
+        return supportedCounts.includes(participantCount);
+    }
+
+    /**
+     * 获取段位配置中支持的所有参与者数量
+     */
+    private getSupportedParticipantCounts(): number[] {
+        // 从段位配置中获取支持的参与者数量
+        // 这里使用硬编码，实际应该从配置中动态获取
+        return [4, 6, 8]; // 对应段位配置中的 rankingProbabilities 的 key
+    }
+
+    /**
+     * 为单真人玩家计算段位调整排名
+     */
+    private calculateSegmentAdjustedRankForSinglePlayer(
+        player: HumanPlayer,
+        profile: PlayerPerformanceProfile,
+        humanRank: number,
+        totalParticipants: number
+    ): number {
+        const segmentName = profile.segmentName;
+
+        // 获取段位排名概率分布
+        const probabilities = getSegmentRankingProbabilities(segmentName, totalParticipants);
+
+        if (probabilities.length === 0) {
+            return humanRank; // 如果没有概率配置，返回原始排名
+        }
+
+        // 直接使用段位概率配置，不需要额外的段位优势计算
+        // 因为段位概率配置已经体现了不同段位的优势差异
+        const randomValue = Math.random();
+        let cumulativeProb = 0;
+
+        for (let i = 0; i < probabilities.length; i++) {
+            cumulativeProb += probabilities[i];
+            if (randomValue <= cumulativeProb) {
+                return i + 1;
+            }
+        }
+
+        return humanRank; // 兜底返回原始排名
+    }
+
+    /**
+     * 获取段位排名概率分布（保留用于多玩家场景）
+     */
+    private getSegmentRankingProbabilities(
+        humanPlayers: HumanPlayer[],
+        playerProfiles: Map<string, PlayerPerformanceProfile>,
+        totalParticipants: number
+    ): Map<string, number[]> {
+        const probabilities = new Map<string, number[]>();
+
+        for (const player of humanPlayers) {
+            const profile = playerProfiles.get(player.uid)!;
+            const segmentName = profile.segmentName;
+
+            // 获取该段位的排名概率分布
+            const segmentProbabilities = getSegmentRankingProbabilities(segmentName, totalParticipants);
+            probabilities.set(player.uid, segmentProbabilities);
+        }
+
+        return probabilities;
+    }
+
+    /**
+     * 计算基于段位排名概率的调整排名
+     */
+    private calculateSegmentAdjustedRank(
+        player: HumanPlayer,
+        profile: PlayerPerformanceProfile,
+        humanRank: number,
+        totalParticipants: number,
+        segmentRankingProbabilities: Map<string, number[]>
+    ): number {
+        const segmentName = profile.segmentName;
+        const probabilities = segmentRankingProbabilities.get(player.uid) || [];
+
+        if (probabilities.length === 0) {
+            return humanRank; // 如果没有概率配置，返回原始排名
+        }
+
+        // 根据段位概率分布调整排名
+        const segmentAdjustedRank = this.applySegmentProbabilityAdjustment(
+            humanRank,
+            probabilities,
+            totalParticipants,
+            segmentName
+        );
+
+        return segmentAdjustedRank;
+    }
+
+    /**
+     * 应用段位概率调整
+     */
+    private applySegmentProbabilityAdjustment(
+        originalRank: number,
+        probabilities: number[],
+        totalParticipants: number,
+        segmentName: SegmentName
+    ): number {
+        // 计算段位优势系数
+        const segmentAdvantage = this.calculateSegmentAdvantage(segmentName);
+
+        // 根据段位优势调整概率权重
+        const adjustedProbabilities = probabilities.map((prob, index) => {
+            const rank = index + 1;
+            const distanceFromOriginal = Math.abs(rank - originalRank);
+
+            // 段位优势影响：高段位玩家更容易获得好排名
+            const advantageMultiplier = 1 + (segmentAdvantage * (1 - distanceFromOriginal / totalParticipants));
+
+            return prob * advantageMultiplier;
+        });
+
+        // 归一化概率
+        const totalProb = adjustedProbabilities.reduce((sum, prob) => sum + prob, 0);
+        const normalizedProbabilities = adjustedProbabilities.map(prob => prob / totalProb);
+
+        // 根据调整后的概率分布选择排名
+        const randomValue = Math.random();
+        let cumulativeProb = 0;
+
+        for (let i = 0; i < normalizedProbabilities.length; i++) {
+            cumulativeProb += normalizedProbabilities[i];
+            if (randomValue <= cumulativeProb) {
+                return i + 1;
+            }
+        }
+
+        return originalRank; // 兜底返回原始排名
+    }
+
+    /**
+     * 计算段位优势系数
+     */
+    private calculateSegmentAdvantage(segmentName: SegmentName): number {
+        const segmentTiers = {
+            'bronze': 1,
+            'silver': 2,
+            'gold': 3,
+            'platinum': 4,
+            'diamond': 5,
+            'master': 6,
+            'grandmaster': 7
+        };
+
+        const tier = segmentTiers[segmentName] || 1;
+        const maxTier = 7;
+
+        // 段位优势系数：0-0.3，高段位有更大优势
+        return (tier - 1) / (maxTier - 1) * 0.3;
     }
 
     // ==================== 多玩家推荐支持方法（保留旧方法） ====================
