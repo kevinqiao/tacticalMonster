@@ -3,7 +3,7 @@
  * 验证单真人玩家 + 多AI场景下的段位概率使用
  */
 
-import { getSegmentRankingProbabilities } from '../../../segment/config';
+import { SEGMENT_RULES } from '../../../segment/config';
 import { HumanPlayer, RankingRecommendationManager } from '../managers/RankingRecommendationManager';
 
 /**
@@ -179,9 +179,10 @@ export class SinglePlayerSegmentProbabilityTest {
         }
 
         // 获取黄金段位6人比赛的理论概率
-        const theoreticalProbabilities = getSegmentRankingProbabilities('gold', 6);
+        const segmentRule = SEGMENT_RULES['gold'];
+        const theoreticalProbabilities = segmentRule?.rankingProbabilities[6] || [];
         console.log('\n理论概率分布:');
-        theoreticalProbabilities.forEach((prob, index) => {
+        theoreticalProbabilities.forEach((prob: number, index: number) => {
             console.log(`   第${index + 1}名: ${(prob * 100).toFixed(1)}%`);
         });
 

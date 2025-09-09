@@ -3,24 +3,19 @@
  * 核心业务逻辑，负责段位升降、保护机制和规则检查
  */
 
-import { getSegmentRule, SEGMENT_SYSTEM_CONFIG } from './config';
+import { getSegmentRule, SEASON_RESET_CONFIG, SEGMENT_SYSTEM_CONFIG } from './config';
 import {
   DatabaseContext,
-  MatchRecordAccess,
   PlayerProtectionDataAccess,
   PlayerSegmentDataAccess,
   SegmentChangeRecordAccess
 } from './dataAccess';
 import {
-  DemotionCheckResult,
-  GracePeriodCheckResult,
   PlayerProtectionData,
   PlayerSegmentData,
   PromotionCheckResult,
-  ProtectionLevel,
   SegmentChangeResult,
-  SegmentName,
-  StabilityCheckResult
+  SegmentName
 } from './types';
 
 export class SegmentManager {
@@ -33,15 +28,29 @@ export class SegmentManager {
   // ==================== 主要方法 ====================
 
   /**
-   * 检查并处理段位变化
+   * 检查并处理段位变化（仅升级，无降级）
    * @param uid 玩家ID
-   * @param pointsDelta 积分增量（正数表示获得，负数表示失去）
+   * @param pointsDelta 积分增量（正数表示获得积分）
    */
   async updatePoints(
     uid: string,
     pointsDelta: number,
   ): Promise<SegmentChangeResult> {
     try {
+      // 只处理正数积分增量
+      if (pointsDelta <= 0) {
+        return {
+          changed: false,
+          changeType: "none",
+          oldSegment: "bronze" as SegmentName,
+          newSegment: "bronze" as SegmentName,
+          pointsConsumed: 0,
+          message: "积分增量必须为正数",
+          reason: "段位系统只支持升级，不支持降级",
+          timestamp: new Date().toISOString()
+        };
+      }
+
       // 获取玩家当前数据
       const playerData = await PlayerSegmentDataAccess.getPlayerSegmentData(this.ctx, uid);
       if (!playerData) {
@@ -60,61 +69,32 @@ export class SegmentManager {
       // 记录积分变化过程（调试用）
       console.log(`[段位检查] 玩家 ${uid}: ${playerData.points} + ${pointsDelta} = ${newTotalPoints}`);
 
-      // 🆕 检查段位保护状态
-      const protectionResult = await this.checkSegmentProtection(uid, currentSegment, newTotalPoints);
-
-      // 如果玩家处于保护状态，阻止降级
-      if (protectionResult.isProtected && protectionResult.protectionType === 'demotion_protection') {
-        return {
-          changed: false,
-          changeType: "none",
-          oldSegment: currentSegment,
-          newSegment: currentSegment,
-          pointsConsumed: 0,
-          message: `段位保护中：${protectionResult.reason}`,
-          reason: protectionResult.reason,
-          timestamp: new Date().toISOString(),
-          protectionInfo: protectionResult
-        };
-      }
-
       // 检查升级（使用新积分）
       const promotionResult = await this.checkPromotion(playerData, segmentRule, newTotalPoints);
       if (promotionResult.shouldPromote) {
         const result = await this.executePromotion(playerData, promotionResult);
-
-        // 🆕 晋升后设置保护状态
-        if (result.changed) {
-          await this.setNewSegmentProtection(uid, result.newSegment);
-        }
-
         return result;
       }
 
-      // 检查降级（使用新积分）
-      const demotionResult = await this.checkDemotion(playerData, segmentRule, newTotalPoints);
-      if (demotionResult.shouldDemote) {
-        const result = await this.executeDemotion(playerData, demotionResult);
-
-        // 🆕 降级后设置宽限期保护
-        if (result.changed) {
-          await this.setGracePeriodProtection(uid, result.oldSegment);
+      // 无变化，只更新积分
+      await PlayerSegmentDataAccess.updatePlayerSegmentData(
+        this.ctx,
+        uid,
+        {
+          points: newTotalPoints,
+          lastMatchDate: new Date().toISOString()
         }
+      );
 
-        return result;
-      }
-
-      // 无变化
       return {
         changed: false,
         changeType: "none",
         oldSegment: currentSegment,
         newSegment: currentSegment,
         pointsConsumed: 0,
-        message: "段位无变化",
-        reason: "不满足升降级条件",
-        timestamp: new Date().toISOString(),
-        protectionInfo: protectionResult
+        message: "积分已更新，段位无变化",
+        reason: "不满足升级条件",
+        timestamp: new Date().toISOString()
       };
 
     } catch (error) {
@@ -126,7 +106,7 @@ export class SegmentManager {
   // ==================== 升级检查 ====================
 
   /**
-   * 检查升级条件
+   * 检查升级条件（仅积分要求）
    */
   private async checkPromotion(
     playerData: PlayerSegmentData,
@@ -136,40 +116,9 @@ export class SegmentManager {
     const { promotion } = segmentRule;
     const missingRequirements: string[] = [];
 
-    // 检查积分要求（使用新积分）
+    // 只检查积分要求
     if (newTotalPoints < promotion.pointsRequired) {
       missingRequirements.push(`积分不足，需要 ${promotion.pointsRequired}，当前 ${newTotalPoints}`);
-    }
-
-    // 检查胜率要求
-    const winRate = playerData.totalMatches > 0
-      ? playerData.totalWins / playerData.totalMatches
-      : 0;
-    if (winRate < promotion.winRateRequired) {
-      missingRequirements.push(`胜率不足，需要 ${(promotion.winRateRequired * 100).toFixed(1)}%，当前 ${(winRate * 100).toFixed(1)}%`);
-    }
-
-    // 检查比赛场次
-    if (playerData.totalMatches < promotion.minMatches) {
-      missingRequirements.push(`比赛场次不足，需要 ${promotion.minMatches} 场，当前 ${playerData.totalMatches} 场`);
-    }
-
-    // 检查连续胜利要求
-    if (promotion.consecutiveWinsRequired &&
-      playerData.currentWinStreak < promotion.consecutiveWinsRequired) {
-      missingRequirements.push(`连续胜利不足，需要 ${promotion.consecutiveWinsRequired} 场，当前 ${playerData.currentWinStreak} 场`);
-    }
-
-    // 检查稳定期
-    if (SEGMENT_SYSTEM_CONFIG.enableStabilityCheck) {
-      const stabilityCheck = await this.checkStabilityPeriod(
-        playerData.uid,
-        playerData.currentSegment,
-        promotion.stabilityPeriod
-      );
-      if (!stabilityCheck.stable) {
-        missingRequirements.push(`稳定期未满足，需要 ${stabilityCheck.requiredPeriod} 场，当前 ${stabilityCheck.currentPeriod} 场`);
-      }
     }
 
     const shouldPromote = missingRequirements.length === 0;
@@ -178,154 +127,17 @@ export class SegmentManager {
       shouldPromote,
       nextSegment: shouldPromote ? segmentRule.nextSegment : null,
       pointsConsumed: shouldPromote ? promotion.pointsRequired : 0,
-      reason: shouldPromote ? "满足所有升级条件" : "不满足升级条件",
+      reason: shouldPromote ? "满足升级条件" : "积分不足",
       missingRequirements
     };
   }
 
-  // ==================== 降级检查 ====================
-
-  /**
-   * 检查降级条件
-   */
-  private async checkDemotion(
-    playerData: PlayerSegmentData,
-    segmentRule: any,
-    newTotalPoints: number
-  ): Promise<DemotionCheckResult> {
-    const { demotion } = segmentRule;
-
-    // 检查保护状态
-    if (SEGMENT_SYSTEM_CONFIG.enableProtection) {
-      const protectionData = await PlayerProtectionDataAccess.getPlayerProtectionData(this.ctx, playerData.uid);
-      if (protectionData && protectionData.protectionLevel > 0) {
-        return {
-          shouldDemote: false,
-          previousSegment: null,
-          reason: `处于保护状态，保护等级 ${protectionData.protectionLevel}`,
-          protectionActive: true
-        };
-      }
-    }
-
-    // 检查积分阈值（使用新积分）
-    if (newTotalPoints > demotion.pointsThreshold) {
-      return {
-        shouldDemote: false,
-        previousSegment: null,
-        reason: `积分未达到降级阈值，当前 ${newTotalPoints}，阈值 ${demotion.pointsThreshold}`,
-        protectionActive: false
-      };
-    }
-
-    // 检查连续失败
-    if (playerData.currentLoseStreak >= demotion.consecutiveLosses) {
-      return {
-        shouldDemote: false,
-        previousSegment: null,
-        reason: `连续失败次数过多，触发保护，当前 ${playerData.currentLoseStreak} 场`,
-        protectionActive: true
-      };
-    }
-
-    // 检查胜率阈值
-    if (demotion.winRateThreshold) {
-      const winRate = playerData.totalMatches > 0
-        ? playerData.totalWins / playerData.totalMatches
-        : 0;
-      if (winRate >= demotion.winRateThreshold) {
-        return {
-          shouldDemote: false,
-          previousSegment: null,
-          reason: `胜率未达到降级阈值，当前 ${(winRate * 100).toFixed(1)}%，阈值 ${(demotion.winRateThreshold * 100).toFixed(1)}%`,
-          protectionActive: false
-        };
-      }
-    }
-
-    // 检查宽限期
-    if (SEGMENT_SYSTEM_CONFIG.enableGracePeriod) {
-      const gracePeriodCheck = await this.checkGracePeriod(
-        playerData.uid,
-        playerData.currentSegment,
-        demotion.gracePeriod
-      );
-      if (gracePeriodCheck.inGracePeriod) {
-        return {
-          shouldDemote: false,
-          previousSegment: null,
-          reason: `处于降级宽限期，剩余 ${gracePeriodCheck.daysRemaining} 天`,
-          protectionActive: true
-        };
-      }
-    }
-
-    return {
-      shouldDemote: true,
-      previousSegment: segmentRule.previousSegment,
-      reason: "满足降级条件",
-      protectionActive: false
-    };
-  }
+  // ==================== 降级检查（已禁用） ====================
+  // 根据 systemdesign.pdf，段位系统不支持降级，因此移除所有降级相关逻辑
 
   // ==================== 辅助检查方法 ====================
 
-  /**
-   * 检查稳定期
-   */
-  private async checkStabilityPeriod(
-    uid: string,
-    segmentName: SegmentName,
-    requiredPeriod: number
-  ): Promise<StabilityCheckResult> {
-    const result = await MatchRecordAccess.checkPlayerStabilityInSegment(
-      this.ctx, uid, segmentName, requiredPeriod
-    );
-
-    return {
-      ...result,
-      progress: Math.min(result.currentPeriod / result.requiredPeriod, 1)
-    };
-  }
-
-  /**
-   * 检查宽限期
-   */
-  private async checkGracePeriod(
-    uid: string,
-    segmentName: SegmentName,
-    gracePeriod: number
-  ): Promise<GracePeriodCheckResult> {
-    try {
-      const protectionData = await PlayerProtectionDataAccess.getPlayerProtectionData(this.ctx, uid);
-
-      if (!protectionData || protectionData.gracePeriodRemaining <= 0) {
-        return {
-          inGracePeriod: false,
-          remainingGrace: 0,
-          daysRemaining: 0
-        };
-      }
-
-      const lastChange = new Date(protectionData.lastSegmentChange);
-      const currentTime = new Date();
-      const daysSinceChange = (currentTime.getTime() - lastChange.getTime()) / (1000 * 60 * 60 * 24);
-      const remainingDays = Math.max(0, gracePeriod - daysSinceChange);
-
-      return {
-        inGracePeriod: remainingDays > 0,
-        remainingGrace: Math.ceil(remainingDays),
-        daysRemaining: Math.ceil(remainingDays)
-      };
-    } catch (error) {
-      console.error("检查宽限期失败:", error);
-      return {
-        inGracePeriod: false,
-        remainingGrace: 0,
-        daysRemaining: 0
-      };
-    }
-  }
+  // 由于只检查积分要求，移除了稳定期和宽限期检查方法
 
   // ==================== 执行方法 ====================
 
@@ -389,71 +201,8 @@ export class SegmentManager {
     }
   }
 
-  /**
-   * 执行降级
-   */
-  private async executeDemotion(
-    playerData: PlayerSegmentData,
-    demotionResult: DemotionCheckResult
-  ): Promise<SegmentChangeResult> {
-    const { previousSegment } = demotionResult;
-
-    if (!previousSegment) {
-      return this.createErrorResult("已达到最低段位");
-    }
-
-    try {
-      // 更新玩家段位数据
-      const updateSuccess = await PlayerSegmentDataAccess.updatePlayerSegmentData(
-        this.ctx,
-        playerData.uid,
-        { currentSegment: previousSegment }
-      );
-
-      if (!updateSuccess) {
-        return this.createErrorResult("更新段位数据失败");
-      }
-
-      // 设置保护状态
-      if (SEGMENT_SYSTEM_CONFIG.enableProtection) {
-        const segmentRule = getSegmentRule(previousSegment);
-        if (segmentRule) {
-          await PlayerProtectionDataAccess.setProtectionStatus(
-            this.ctx,
-            playerData.uid,
-            previousSegment,
-            Math.min(1, segmentRule.demotion.maxProtectionLevel) as ProtectionLevel,
-            segmentRule.demotion.gracePeriod
-          );
-        }
-      }
-
-      // 记录段位变化
-      await SegmentChangeRecordAccess.recordSegmentChange(this.ctx, {
-        uid: playerData.uid,
-        oldSegment: playerData.currentSegment,
-        newSegment: previousSegment,
-        changeType: "demotion",
-        pointsConsumed: 0,
-        reason: "满足降级条件"
-      });
-
-      return {
-        changed: true,
-        changeType: "demotion",
-        oldSegment: playerData.currentSegment,
-        newSegment: previousSegment,
-        pointsConsumed: 0,
-        message: `📉 很遗憾，您从 ${playerData.currentSegment} 降级到 ${previousSegment}，继续努力！`,
-        reason: "满足降级条件",
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      console.error("执行降级失败:", error);
-      return this.createErrorResult(`降级失败: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
+  // ==================== 降级执行（已禁用） ====================
+  // 根据 systemdesign.pdf，段位系统不支持降级，因此移除降级执行逻辑
 
   // ==================== 工具方法 ====================
 
@@ -511,261 +260,195 @@ export class SegmentManager {
     };
   }
 
-  // ==================== 段位保护机制 ====================
+  // ==================== 赛季重置功能 ====================
 
   /**
-   * 检查段位保护状态
+   * 执行赛季软重置
+   * @param seasonId 赛季ID
+   * @param resetReason 重置原因
    */
-  private async checkSegmentProtection(
-    uid: string,
-    currentSegment: string,
-    newPoints: number
+  async performSeasonReset(
+    seasonId: string,
+    resetReason: string = "赛季结束"
   ): Promise<{
-    isProtected: boolean;
-    protectionType: 'new_segment' | 'performance' | 'grace_period' | 'demotion_protection' | 'none';
-    reason: string;
-    remainingDays: number;
-    protectionLevel: number;
+    success: boolean;
+    resetCount: number;
+    errors: string[];
+    timestamp: string;
+  }> {
+    const results = {
+      success: true,
+      resetCount: 0,
+      errors: [] as string[],
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // 获取所有玩家段位数据
+      const allPlayers = await PlayerSegmentDataAccess.getAllPlayerSegments(this.ctx);
+
+      for (const player of allPlayers) {
+        try {
+          await this.resetPlayerForNewSeason(player.uid, seasonId, resetReason);
+          results.resetCount++;
+        } catch (error) {
+          const errorMsg = `重置玩家 ${player.uid} 失败: ${error instanceof Error ? error.message : String(error)}`;
+          results.errors.push(errorMsg);
+          console.error(errorMsg);
+        }
+      }
+
+      // 记录赛季重置日志
+      await this.recordSeasonReset(seasonId, results.resetCount, resetReason);
+
+      return results;
+
+    } catch (error) {
+      results.success = false;
+      results.errors.push(`赛季重置失败: ${error instanceof Error ? error.message : String(error)}`);
+      console.error("赛季重置失败:", error);
+      return results;
+    }
+  }
+
+  /**
+   * 重置单个玩家的段位（新赛季）
+   */
+  private async resetPlayerForNewSeason(
+    uid: string,
+    seasonId: string,
+    resetReason: string
+  ): Promise<void> {
+    // 获取玩家当前段位数据
+    const playerData = await PlayerSegmentDataAccess.getPlayerSegmentData(this.ctx, uid);
+    if (!playerData) {
+      throw new Error("玩家数据不存在");
+    }
+
+    const currentSegment = playerData.currentSegment;
+    const currentPoints = playerData.points;
+
+    // 根据重置规则确定新段位
+    const newSegment = (SEASON_RESET_CONFIG.resetRules[currentSegment] || SEASON_RESET_CONFIG.resetBaseSegment) as SegmentName;
+
+    // 计算保留的积分
+    const retainedPoints = this.calculateRetainedPoints(currentPoints);
+
+    // 更新玩家段位数据
+    await PlayerSegmentDataAccess.updatePlayerSegmentData(
+      this.ctx,
+      uid,
+      {
+        currentSegment: newSegment,
+        points: retainedPoints,
+        lastMatchDate: new Date().toISOString()
+      }
+    );
+
+    // 记录段位变化
+    await SegmentChangeRecordAccess.recordSegmentChange(this.ctx, {
+      uid,
+      oldSegment: currentSegment,
+      newSegment: newSegment,
+      changeType: "promotion", // 使用promotion类型记录重置
+      pointsConsumed: 0,
+      reason: `${resetReason} - 赛季重置`
+    });
+
+    console.log(`玩家 ${uid} 赛季重置: ${currentSegment}(${currentPoints}) -> ${newSegment}(${retainedPoints})`);
+  }
+
+  /**
+   * 计算保留的积分
+   */
+  private calculateRetainedPoints(currentPoints: number): number {
+    const { pointsRetentionRate, minRetainedPoints, maxRetainedPoints } = SEASON_RESET_CONFIG;
+
+    // 计算保留积分
+    let retainedPoints = Math.floor(currentPoints * pointsRetentionRate);
+
+    // 应用最小和最大限制
+    retainedPoints = Math.max(retainedPoints, minRetainedPoints);
+    retainedPoints = Math.min(retainedPoints, maxRetainedPoints);
+
+    return retainedPoints;
+  }
+
+  /**
+   * 记录赛季重置日志
+   */
+  private async recordSeasonReset(
+    seasonId: string,
+    resetCount: number,
+    resetReason: string
+  ): Promise<void> {
+    try {
+      // 这里可以记录到专门的赛季重置日志表
+      console.log(`赛季 ${seasonId} 重置完成: ${resetCount} 名玩家被重置, 原因: ${resetReason}`);
+    } catch (error) {
+      console.error("记录赛季重置日志失败:", error);
+    }
+  }
+
+  /**
+   * 获取赛季重置预览
+   */
+  async getSeasonResetPreview(): Promise<{
+    totalPlayers: number;
+    resetPreview: Array<{
+      segment: SegmentName;
+      count: number;
+      avgPoints: number;
+      newSegment: SegmentName;
+      avgRetainedPoints: number;
+    }>;
   }> {
     try {
-      // 获取玩家保护数据
-      const protectionData = await this.getPlayerProtectionData(uid);
+      const allPlayers = await PlayerSegmentDataAccess.getAllPlayerSegments(this.ctx);
+      const segmentStats = new Map<SegmentName, { count: number; totalPoints: number }>();
 
-      // 1. 新段位保护检查
-      const newSegmentProtection = this.checkNewSegmentProtection(protectionData, currentSegment);
-      if (newSegmentProtection.isProtected) {
-        return newSegmentProtection;
+      // 统计各段位玩家数据
+      for (const player of allPlayers) {
+        const segment = player.currentSegment;
+        if (!segmentStats.has(segment)) {
+          segmentStats.set(segment, { count: 0, totalPoints: 0 });
+        }
+        const stats = segmentStats.get(segment)!;
+        stats.count++;
+        stats.totalPoints += player.points;
       }
 
-      // 2. 宽限期保护检查
-      const gracePeriodProtection = this.checkGracePeriodProtection(protectionData, currentSegment);
-      if (gracePeriodProtection.isProtected) {
-        return gracePeriodProtection;
-      }
-
-      // 3. 表现保护检查（基于积分）
-      const performanceProtection = this.checkPerformanceProtection(newPoints, currentSegment);
-      if (performanceProtection.isProtected) {
-        return performanceProtection;
-      }
-
-      // 4. 无保护状态
-      return {
-        isProtected: false,
-        protectionType: 'none',
-        reason: '不满足保护条件',
-        remainingDays: 0,
-        protectionLevel: 0
-      };
-
-    } catch (error) {
-      console.error(`检查段位保护失败: ${uid}`, error);
-      return {
-        isProtected: false,
-        protectionType: 'none',
-        reason: '保护检查失败',
-        remainingDays: 0,
-        protectionLevel: 0
-      };
-    }
-  }
-
-  /**
-   * 新段位保护检查
-   */
-  private checkNewSegmentProtection(
-    protectionData: any,
-    currentSegment: string
-  ): {
-    isProtected: boolean;
-    protectionType: 'new_segment' | 'performance' | 'grace_period' | 'demotion_protection' | 'none';
-    reason: string;
-    remainingDays: number;
-    protectionLevel: number;
-  } {
-    if (!protectionData?.lastPromotionDate || !protectionData?.promotionSegment) {
-      return { isProtected: false, protectionType: 'none', reason: '', remainingDays: 0, protectionLevel: 0 };
-    }
-
-    const lastPromotion = new Date(protectionData.lastPromotionDate);
-    const currentDate = new Date();
-    const daysSincePromotion = Math.floor((currentDate.getTime() - lastPromotion.getTime()) / (1000 * 60 * 60 * 24));
-
-    // 新段位保护期：7天
-    const NEW_SEGMENT_PROTECTION_DAYS = 7;
-
-    if (daysSincePromotion < NEW_SEGMENT_PROTECTION_DAYS && protectionData.promotionSegment === currentSegment) {
-      const remainingDays = NEW_SEGMENT_PROTECTION_DAYS - daysSincePromotion;
-      return {
-        isProtected: true,
-        protectionType: 'new_segment',
-        reason: `新段位保护期，剩余 ${remainingDays} 天`,
-        remainingDays,
-        protectionLevel: 2
-      };
-    }
-
-    return { isProtected: false, protectionType: 'none', reason: '', remainingDays: 0, protectionLevel: 0 };
-  }
-
-  /**
-   * 宽限期保护检查
-   */
-  private checkGracePeriodProtection(
-    protectionData: any,
-    currentSegment: string
-  ): {
-    isProtected: boolean;
-    protectionType: 'new_segment' | 'performance' | 'grace_period' | 'demotion_protection' | 'none';
-    reason: string;
-    remainingDays: number;
-    protectionLevel: number;
-  } {
-    if (!protectionData?.gracePeriodStart || !protectionData?.gracePeriodSegment) {
-      return { isProtected: false, protectionType: 'none', reason: '', remainingDays: 0, protectionLevel: 0 };
-    }
-
-    const graceStart = new Date(protectionData.gracePeriodStart);
-    const currentDate = new Date();
-    const daysInGrace = Math.floor((currentDate.getTime() - graceStart.getTime()) / (1000 * 60 * 60 * 24));
-
-    // 宽限期：5天
-    const GRACE_PERIOD_DAYS = 5;
-
-    if (daysInGrace < GRACE_PERIOD_DAYS && protectionData.gracePeriodSegment === currentSegment) {
-      const remainingDays = GRACE_PERIOD_DAYS - daysInGrace;
-      return {
-        isProtected: true,
-        protectionType: 'grace_period',
-        reason: `段位适应宽限期，剩余 ${remainingDays} 天`,
-        remainingDays,
-        protectionLevel: 1
-      };
-    }
-
-    return { isProtected: false, protectionType: 'none', reason: '', remainingDays: 0, protectionLevel: 0 };
-  }
-
-  /**
-   * 表现保护检查
-   * 基于积分表现、段位等级和连胜情况综合评估
-   */
-  private checkPerformanceProtection(
-    newPoints: number,
-    currentSegment: string
-  ): {
-    isProtected: boolean;
-    protectionType: 'new_segment' | 'performance' | 'grace_period' | 'demotion_protection' | 'none';
-    reason: string;
-    remainingDays: number;
-    protectionLevel: number;
-  } {
-    try {
-      const segmentName = currentSegment as SegmentName;
-      const segmentRule = getSegmentRule(segmentName);
-
-      if (!segmentRule) {
-        return { isProtected: false, protectionType: 'none', reason: '段位规则未找到', remainingDays: 0, protectionLevel: 0 };
-      }
-
-      const { promotion, demotion } = segmentRule;
-      const pointsThreshold = promotion.pointsRequired;
-      const maxProtectionLevel = demotion.maxProtectionLevel;
-
-      // 1. 积分表现保护：积分远超升级要求
-      const pointsMultiplier = SEGMENT_SYSTEM_CONFIG.performanceProtectionMultiplier || 1.5;
-      if (newPoints >= pointsThreshold * pointsMultiplier) {
-        const protectionDays = SEGMENT_SYSTEM_CONFIG.performanceProtectionDays || 3;
-        const protectionLevel = Math.min(2, maxProtectionLevel) as ProtectionLevel;
+      // 生成重置预览
+      const resetPreview = Array.from(segmentStats.entries()).map(([segment, stats]) => {
+        const newSegment = (SEASON_RESET_CONFIG.resetRules[segment] || SEASON_RESET_CONFIG.resetBaseSegment) as SegmentName;
+        const avgPoints = stats.count > 0 ? Math.floor(stats.totalPoints / stats.count) : 0;
+        const avgRetainedPoints = this.calculateRetainedPoints(avgPoints);
 
         return {
-          isProtected: true,
-          protectionType: 'performance',
-          reason: `积分表现优秀（${newPoints}/${pointsThreshold}），给予保护`,
-          remainingDays: protectionDays,
-          protectionLevel
+          segment,
+          count: stats.count,
+          avgPoints,
+          newSegment,
+          avgRetainedPoints
         };
-      }
+      });
 
-      // 2. 段位稳定性保护：积分接近升级要求
-      const stabilityMultiplier = SEGMENT_SYSTEM_CONFIG.stabilityProtectionMultiplier || 1.2;
-      if (newPoints >= pointsThreshold * stabilityMultiplier) {
-        const protectionDays = SEGMENT_SYSTEM_CONFIG.stabilityProtectionDays || 2;
-        const protectionLevel = Math.min(1, maxProtectionLevel) as ProtectionLevel;
-
-        return {
-          isProtected: true,
-          protectionType: 'performance',
-          reason: `积分表现稳定（${newPoints}/${pointsThreshold}），给予保护`,
-          remainingDays: protectionDays,
-          protectionLevel
-        };
-      }
-
-      // 3. 无保护状态
       return {
-        isProtected: false,
-        protectionType: 'none',
-        reason: '积分表现未达到保护标准',
-        remainingDays: 0,
-        protectionLevel: 0
+        totalPlayers: allPlayers.length,
+        resetPreview
       };
 
     } catch (error) {
-      console.error(`检查表现保护失败: ${currentSegment}`, error);
+      console.error("获取赛季重置预览失败:", error);
       return {
-        isProtected: false,
-        protectionType: 'none',
-        reason: '保护检查失败',
-        remainingDays: 0,
-        protectionLevel: 0
+        totalPlayers: 0,
+        resetPreview: []
       };
     }
   }
 
-  /**
-   * 获取玩家保护数据
-   */
-  private async getPlayerProtectionData(uid: string): Promise<any> {
-    try {
-      // 这里应该查询专门的保护数据表
-      // 暂时返回模拟数据，实际实现时需要创建相应的数据库表
-      return {
-        lastPromotionDate: null,
-        promotionSegment: null,
-        gracePeriodStart: null,
-        gracePeriodSegment: null,
-        protectionHistory: []
-      };
-    } catch (error) {
-      console.error(`获取玩家保护数据失败: ${uid}`, error);
-      return null;
-    }
-  }
-
-  /**
-   * 设置新段位保护
-   */
-  private async setNewSegmentProtection(uid: string, newSegment: string): Promise<void> {
-    try {
-      // 这里应该更新数据库中的保护数据
-      console.log(`设置玩家 ${uid} 的新段位保护: ${newSegment}`);
-    } catch (error) {
-      console.error(`设置新段位保护失败: ${uid}`, error);
-    }
-  }
-
-  /**
-   * 设置宽限期保护
-   */
-  private async setGracePeriodProtection(uid: string, oldSegment: string): Promise<void> {
-    try {
-      // 这里应该更新数据库中的宽限期数据
-      console.log(`设置玩家 ${uid} 的宽限期保护: ${oldSegment}`);
-    } catch (error) {
-      console.error(`设置宽限期保护失败: ${uid}`, error);
-    }
-  }
+  // ==================== 段位保护机制（已禁用） ====================
+  // 根据 systemdesign.pdf，段位系统不支持降级，因此移除所有保护机制
 
 
 

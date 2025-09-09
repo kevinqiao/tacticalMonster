@@ -612,6 +612,32 @@ export async function settleTournament(ctx: any, tournamentId: string) {
                 // 立即更新玩家积分统计
                 await updatePlayerPointStats(ctx, playerTournament.uid, tournamentId, tournamentPoints.points);
 
+                // 🆕 处理段位变化
+                if (tournamentPoints.points.rankPoints > 0) {
+                    try {
+                        const { TournamentSegmentIntegration } = await import("../segment/tournamentIntegration");
+                        const segmentIntegration = new TournamentSegmentIntegration(ctx);
+
+                        // 检查段位变化
+                        const segmentChange = await segmentIntegration.handleTournamentCompletion(
+                            tournamentId,
+                            [{
+                                uid: playerTournament.uid,
+                                matchRank: rank,
+                                score: playerTournament.score || 0,
+                                segmentName: playerTournament.segment || "bronze"
+                            }]
+                        );
+
+                        if (segmentChange.segmentChanges.length > 0) {
+                            console.log(`玩家 ${playerTournament.uid} 段位变化:`, segmentChange.segmentChanges[0].message);
+                        }
+                    } catch (segmentError) {
+                        console.error(`处理玩家 ${playerTournament.uid} 段位变化失败:`, segmentError);
+                        // 段位处理失败不影响锦标赛结算
+                    }
+                }
+
             } else {
                 throw new Error(tournamentPoints.message || "积分计算失败");
             }

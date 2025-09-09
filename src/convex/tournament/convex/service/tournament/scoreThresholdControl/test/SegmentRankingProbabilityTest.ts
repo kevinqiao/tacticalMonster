@@ -3,7 +3,7 @@
  * 验证 RankingRecommendationManager 是否正确集成了 SEGMENT_RULES 中的 rankingProbabilities
  */
 
-import { getSegmentRankingProbabilities } from '../../../segment/config';
+import { getSegmentRankingProbabilitiesConfig } from '../../../segment/config';
 import { HumanPlayer, RankingRecommendationManager } from '../managers/RankingRecommendationManager';
 
 /**
@@ -112,7 +112,7 @@ export class SegmentRankingProbabilityTest {
         ];
 
         for (const testCase of testCases) {
-            const probabilities = getSegmentRankingProbabilities(testCase.segment, testCase.participants);
+            const probabilities = getSegmentRankingProbabilitiesConfig(testCase.segment, testCase.participants);
             console.log(`✅ ${testCase.segment}段位 ${testCase.participants}人比赛:`);
             console.log(`   概率分布: [${probabilities.map(p => p.toFixed(3)).join(', ')}]`);
             console.log(`   概率总和: ${probabilities.reduce((sum, p) => sum + p, 0).toFixed(3)}`);
@@ -230,7 +230,7 @@ export class SegmentRankingProbabilityTest {
         }
 
         // 获取黄金段位6人比赛的理论概率
-        const theoreticalProbabilities = getSegmentRankingProbabilities('gold', 6);
+        const theoreticalProbabilities = getSegmentRankingProbabilitiesConfig('gold', 6);
         console.log('\n理论概率分布:');
         theoreticalProbabilities.forEach((prob, index) => {
             console.log(`   第${index + 1}名: ${(prob * 100).toFixed(1)}%`);

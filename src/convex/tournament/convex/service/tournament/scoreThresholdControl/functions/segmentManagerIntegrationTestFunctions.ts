@@ -3,6 +3,7 @@
  * 用于在Convex中运行SegmentManager集成测试
  */
 
+import { v } from "convex/values";
 import { mutation } from "../../../../_generated/server";
 import { runSegmentManagerIntegrationTests } from "../test/SegmentManagerIntegrationTest";
 

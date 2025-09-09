@@ -58,6 +58,36 @@ export class PlayerSegmentDataAccess {
     }
 
     /**
+     * 获取所有玩家段位数据
+     */
+    static async getAllPlayerSegments(
+        ctx: DatabaseContext
+    ): Promise<PlayerSegmentData[]> {
+        try {
+            const allPlayers = await ctx.db
+                .query("player_segments")
+                .withIndex("by_season", (q: any) => q.eq("seasonId", "current"))
+                .collect();
+
+            return allPlayers.map((player: any) => ({
+                uid: player.uid,
+                currentSegment: player.segmentName as SegmentName,
+                points: player.rankPoints || 0,
+                totalMatches: 0, // 从 match_results 表获取
+                totalWins: 0,    // 从 match_results 表获取
+                currentWinStreak: 0, // 从 match_results 表计算
+                currentLoseStreak: 0, // 从 match_results 表计算
+                lastMatchDate: player.lastUpdated || new Date().toISOString(),
+                createdAt: player.createdAt || new Date().toISOString(),
+                updatedAt: player.updatedAt || new Date().toISOString()
+            }));
+        } catch (error) {
+            console.error("获取所有玩家段位数据失败:", error);
+            return [];
+        }
+    }
+
+    /**
      * 更新玩家段位数据
      */
     static async updatePlayerSegmentData(

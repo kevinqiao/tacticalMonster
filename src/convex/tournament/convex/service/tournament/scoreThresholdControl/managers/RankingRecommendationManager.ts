@@ -3,7 +3,7 @@
  * 核心功能：基于玩家历史数据和当前分数，智能推荐排名
  */
 
-import { getSegmentRankingProbabilities } from "../../../segment/config";
+import { SEGMENT_RULES } from "../../../segment/config";
 import { SegmentManager } from "../../../segment/SegmentManager";
 import { PlayerSegmentData, SegmentName } from "../../../segment/types";
 import { UnifiedSkillAssessment } from "../core/UnifiedSkillAssessment";
@@ -1498,7 +1498,8 @@ export class RankingRecommendationManager {
         const segmentName = profile.segmentName;
 
         // 获取段位排名概率分布
-        const probabilities = getSegmentRankingProbabilities(segmentName, totalParticipants);
+        const segmentRule = SEGMENT_RULES[segmentName];
+        const probabilities = segmentRule?.rankingProbabilities[totalParticipants] || [];
 
         if (probabilities.length === 0) {
             return humanRank; // 如果没有概率配置，返回原始排名
@@ -1534,7 +1535,8 @@ export class RankingRecommendationManager {
             const segmentName = profile.segmentName;
 
             // 获取该段位的排名概率分布
-            const segmentProbabilities = getSegmentRankingProbabilities(segmentName, totalParticipants);
+            const segmentRule = SEGMENT_RULES[segmentName];
+            const segmentProbabilities = segmentRule?.rankingProbabilities[totalParticipants] || [];
             probabilities.set(player.uid, segmentProbabilities);
         }
 

@@ -14,7 +14,7 @@ export type SegmentName =
     | "master"
     | "grandmaster";
 
-export type ChangeType = "promotion" | "demotion" | "none";
+export type ChangeType = "promotion" | "none"; // 只支持升级，不支持降级
 
 export type ProtectionLevel = 0 | 1 | 2 | 3;
 
@@ -27,22 +27,18 @@ export interface SegmentRule {
     color: string;
     icon: string;
 
-    // 升级条件
+    // 升级条件（仅积分要求）
     promotion: {
         pointsRequired: number;
-        winRateRequired: number;
-        stabilityPeriod: number;
-        minMatches: number;
-        consecutiveWinsRequired?: number;
     };
 
-    // 降级条件
+    // 降级条件（已禁用 - 段位系统不支持降级）
     demotion: {
-        pointsThreshold: number;
-        consecutiveLosses: number;
-        gracePeriod: number;
-        maxProtectionLevel: ProtectionLevel;
-        winRateThreshold?: number;
+        pointsThreshold: number; // 始终为0
+        consecutiveLosses: number; // 始终为0
+        gracePeriod: number; // 始终为0
+        maxProtectionLevel: ProtectionLevel; // 始终为0
+        winRateThreshold?: number; // 始终为0
     };
 
     // 排名概率配置

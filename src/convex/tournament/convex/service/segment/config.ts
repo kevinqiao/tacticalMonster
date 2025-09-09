@@ -14,18 +14,14 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
         color: "#CD7F32",
         icon: "🥉",
         promotion: {
-            pointsRequired: 1000,
-            winRateRequired: 0.4,
-            stabilityPeriod: 3,
-            minMatches: 10,
-            consecutiveWinsRequired: 2
+            pointsRequired: 1000
         },
         demotion: {
-            pointsThreshold: -200,
-            consecutiveLosses: 5,
-            gracePeriod: 5,
-            maxProtectionLevel: 2,
-            winRateThreshold: 0.3
+            pointsThreshold: 0,
+            consecutiveLosses: 0,
+            gracePeriod: 0,
+            maxProtectionLevel: 0,
+            winRateThreshold: 0
         },
         rankingProbabilities: {
             4: [0.25, 0.25, 0.25, 0.25],      // 4人比赛：均等概率
@@ -42,18 +38,14 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
         color: "#C0C0C0",
         icon: "🥈",
         promotion: {
-            pointsRequired: 2500,
-            winRateRequired: 0.45,
-            stabilityPeriod: 3,
-            minMatches: 15,
-            consecutiveWinsRequired: 3
+            pointsRequired: 2500
         },
         demotion: {
-            pointsThreshold: -150,
-            consecutiveLosses: 4,
-            gracePeriod: 4,
-            maxProtectionLevel: 2,
-            winRateThreshold: 0.35
+            pointsThreshold: 0,
+            consecutiveLosses: 0,
+            gracePeriod: 0,
+            maxProtectionLevel: 0,
+            winRateThreshold: 0
         },
         rankingProbabilities: {
             4: [0.30, 0.25, 0.25, 0.20],      // 4人比赛：第1名优势
@@ -70,18 +62,14 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
         color: "#FFD700",
         icon: "🥇",
         promotion: {
-            pointsRequired: 5000,
-            winRateRequired: 0.5,
-            stabilityPeriod: 4,
-            minMatches: 20,
-            consecutiveWinsRequired: 3
+            pointsRequired: 5000
         },
         demotion: {
-            pointsThreshold: -100,
-            consecutiveLosses: 3,
-            gracePeriod: 3,
-            maxProtectionLevel: 1,
-            winRateThreshold: 0.4
+            pointsThreshold: 0,
+            consecutiveLosses: 0,
+            gracePeriod: 0,
+            maxProtectionLevel: 0,
+            winRateThreshold: 0
         },
         rankingProbabilities: {
             4: [0.35, 0.25, 0.25, 0.15],      // 4人比赛：第1名明显优势
@@ -98,18 +86,14 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
         color: "#E5E4E2",
         icon: "💎",
         promotion: {
-            pointsRequired: 10000,
-            winRateRequired: 0.55,
-            stabilityPeriod: 5,
-            minMatches: 25,
-            consecutiveWinsRequired: 4
+            pointsRequired: 10000
         },
         demotion: {
-            pointsThreshold: -50,
-            consecutiveLosses: 3,
-            gracePeriod: 2,
-            maxProtectionLevel: 1,
-            winRateThreshold: 0.45
+            pointsThreshold: 0,
+            consecutiveLosses: 0,
+            gracePeriod: 0,
+            maxProtectionLevel: 0,
+            winRateThreshold: 0
         },
         rankingProbabilities: {
             4: [0.40, 0.25, 0.20, 0.15],      // 4人比赛：第1名优势明显
@@ -126,18 +110,14 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
         color: "#B9F2FF",
         icon: "💠",
         promotion: {
-            pointsRequired: 20000,
-            winRateRequired: 0.6,
-            stabilityPeriod: 6,
-            minMatches: 30,
-            consecutiveWinsRequired: 4
+            pointsRequired: 20000
         },
         demotion: {
             pointsThreshold: 0,
-            consecutiveLosses: 5,
-            gracePeriod: 3,
-            maxProtectionLevel: 3,
-            winRateThreshold: 0.5
+            consecutiveLosses: 0,
+            gracePeriod: 0,
+            maxProtectionLevel: 0,
+            winRateThreshold: 0
         },
         rankingProbabilities: {
             4: [0.45, 0.25, 0.20, 0.10],      // 4人比赛：第1名绝对优势
@@ -154,18 +134,14 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
         color: "#FF6B6B",
         icon: "👑",
         promotion: {
-            pointsRequired: 50000,
-            winRateRequired: 0.65,
-            stabilityPeriod: 8,
-            minMatches: 40,
-            consecutiveWinsRequired: 5
+            pointsRequired: 50000
         },
         demotion: {
-            pointsThreshold: 1000,
-            consecutiveLosses: 3,
-            gracePeriod: 2,
-            maxProtectionLevel: 2,
-            winRateThreshold: 0.55
+            pointsThreshold: 0,
+            consecutiveLosses: 0,
+            gracePeriod: 0,
+            maxProtectionLevel: 0,
+            winRateThreshold: 0
         },
         rankingProbabilities: {
             4: [0.50, 0.25, 0.15, 0.10],      // 4人比赛：第1名绝对优势
@@ -182,18 +158,14 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
         color: "#9B59B6",
         icon: "🌟",
         promotion: {
-            pointsRequired: 100000,
-            winRateRequired: 0.7,
-            stabilityPeriod: 10,
-            minMatches: 50,
-            consecutiveWinsRequired: 6
+            pointsRequired: 100000
         },
         demotion: {
-            pointsThreshold: 5000,
-            consecutiveLosses: 2,
-            gracePeriod: 1,
-            maxProtectionLevel: 1,
-            winRateThreshold: 0.6
+            pointsThreshold: 0,
+            consecutiveLosses: 0,
+            gracePeriod: 0,
+            maxProtectionLevel: 0,
+            winRateThreshold: 0
         },
         rankingProbabilities: {
             4: [0.55, 0.25, 0.15, 0.05],      // 4人比赛：第1名绝对优势
@@ -208,21 +180,48 @@ export const SEGMENT_RULES: Record<SegmentName, SegmentRule> = {
 // ==================== 系统配置 ====================
 
 export const SEGMENT_SYSTEM_CONFIG: SegmentSystemConfig = {
-    enableProtection: true,
-    enableGracePeriod: true,
-    enableStabilityCheck: true,
-    maxProtectionLevel: 3,
-    defaultGracePeriod: 7,
-    defaultStabilityPeriod: 5,
-    pointsDecayRate: 0.1, // 每天衰减10%
-    winStreakBonus: 50,   // 连胜奖励
-    loseStreakPenalty: 25, // 连败惩罚
+    enableProtection: false,
+    enableGracePeriod: false,
+    enableStabilityCheck: false, // 已禁用稳定期检查
+    maxProtectionLevel: 0,
+    defaultGracePeriod: 0,
+    defaultStabilityPeriod: 0, // 已禁用稳定期
+    pointsDecayRate: 0, // 无积分衰减
+    winStreakBonus: 0,   // 已禁用连胜奖励
+    loseStreakPenalty: 0, // 无连败惩罚
 
-    // 表现保护配置
-    performanceProtectionMultiplier: 1.5,  // 积分表现保护倍数
-    performanceProtectionDays: 3,           // 表现保护天数
-    stabilityProtectionMultiplier: 1.2,    // 稳定性保护倍数
-    stabilityProtectionDays: 2             // 稳定性保护天数
+    // 表现保护配置（已禁用）
+    performanceProtectionMultiplier: 1.0,  // 无保护倍数
+    performanceProtectionDays: 0,           // 无保护天数
+    stabilityProtectionMultiplier: 1.0,    // 无稳定性保护
+    stabilityProtectionDays: 0             // 无稳定性保护天数
+};
+
+// ==================== 赛季重置配置 ====================
+
+export const SEASON_RESET_CONFIG = {
+    // 重置基准段位
+    resetBaseSegment: "bronze" as SegmentName,
+
+    // 重置后保留的积分比例
+    pointsRetentionRate: 0.3, // 保留30%的积分
+
+    // 重置后最低积分
+    minRetainedPoints: 100,
+
+    // 重置后最高积分（防止保留过多积分）
+    maxRetainedPoints: 500,
+
+    // 重置规则：根据当前段位决定重置后的段位
+    resetRules: {
+        bronze: "bronze",      // 青铜保持青铜
+        silver: "bronze",      // 白银重置为青铜
+        gold: "bronze",        // 黄金重置为青铜
+        platinum: "silver",    // 铂金重置为白银
+        diamond: "silver",     // 钻石重置为白银
+        master: "gold",        // 大师重置为黄金
+        grandmaster: "gold"    // 宗师重置为黄金
+    }
 };
 
 // ==================== 段位颜色主题 ====================
@@ -371,7 +370,7 @@ export function getSegmentDistance(from: SegmentName, to: SegmentName): number {
  * @param participantCount 参与者数量
  * @returns 排名概率数组，如果配置不存在则返回默认概率
  */
-export function getSegmentRankingProbabilities(
+export function getSegmentRankingProbabilitiesConfig(
     segmentName: SegmentName,
     participantCount: number
 ): number[] {
