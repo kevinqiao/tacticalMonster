@@ -1,0 +1,355 @@
+/**
+ * 单人纸牌游戏样式
+ * 基于 solitaire 的多人版本，简化为单人玩法
+ */
+
+.solo-player-container {
+    font-family: 'Arial', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* 卡牌样式 */
+.solo-card {
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    position: relative;
+}
+
+.solo-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.solo-card.selected {
+    transform: translateY(-4px);
+    box-shadow: 0 0 10px #4CAF50;
+    border-color: #4CAF50;
+}
+
+.solo-card.hinted {
+    animation: hint-pulse 1s infinite;
+    box-shadow: 0 0 10px #FFC107;
+    border-color: #FFC107;
+}
+
+.solo-card.face-down {
+    background: linear-gradient(45deg, #1a4d80, #2c5aa0);
+    color: white;
+}
+
+.solo-card.face-down:hover {
+    background: linear-gradient(45deg, #2c5aa0, #3d6bb0);
+}
+
+/* 拖拽状态 */
+.solo-card.dragging {
+    transform: rotate(5deg) scale(1.1);
+    opacity: 0.8;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* 悬停区域 */
+.foundation-zone,
+.talon-zone,
+.waste-zone,
+.tableau-column {
+    transition: all 0.2s ease;
+}
+
+.foundation-zone:hover,
+.talon-zone:hover,
+.waste-zone:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: #4CAF50;
+}
+
+.tableau-column:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 拖拽悬停效果 */
+.drag-over {
+    background-color: rgba(76, 175, 80, 0.2) !important;
+    border-color: #4CAF50 !important;
+    transform: scale(1.05);
+}
+
+/* 控制面板 */
+.control-panel {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.control-panel button {
+    padding: 8px 16px;
+    margin: 0 2px;
+    border: none;
+    border-radius: 4px;
+    background: #2196F3;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.control-panel button:hover:not(:disabled) {
+    background: #1976D2;
+    transform: translateY(-1px);
+}
+
+.control-panel button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 游戏信息 */
+.game-info {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    font-weight: bold;
+}
+
+/* 游戏状态 */
+.game-status {
+    animation: fadeIn 0.5s ease;
+}
+
+.game-status.won {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+}
+
+.game-status.lost {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+}
+
+.game-status.paused {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+}
+
+.game-status h2 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+}
+
+.game-status p {
+    margin: 5px 0;
+    font-size: 16px;
+}
+
+.game-status button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.game-status button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+/* 动画 */
+@keyframes hint-pulse {
+    0% {
+        box-shadow: 0 0 5px #FFC107;
+    }
+
+    50% {
+        box-shadow: 0 0 15px #FFC107, 0 0 25px #FFC107;
+    }
+
+    100% {
+        box-shadow: 0 0 5px #FFC107;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes cardMove {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.1) rotate(5deg);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .solo-card {
+        width: 50px !important;
+        height: 70px !important;
+    }
+
+    .control-panel {
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        left: 10px !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+
+    .control-panel button {
+        flex: 1;
+        min-width: 80px;
+        margin: 2px;
+    }
+
+    .game-info {
+        position: fixed !important;
+        top: 60px !important;
+        left: 10px !important;
+        right: 10px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-around !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .solo-card {
+        width: 40px !important;
+        height: 56px !important;
+    }
+
+    .control-panel button {
+        font-size: 10px;
+        padding: 6px 12px;
+    }
+
+    .game-info {
+        font-size: 12px;
+    }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    .solo-card:hover {
+        transform: none;
+    }
+
+    .solo-card:active {
+        transform: scale(1.05);
+    }
+
+    .control-panel button:hover {
+        transform: none;
+    }
+
+    .control-panel button:active {
+        transform: scale(0.95);
+    }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    .solo-card {
+        border-width: 3px;
+    }
+
+    .solo-card.selected {
+        border-width: 4px;
+    }
+
+    .foundation-zone,
+    .talon-zone,
+    .waste-zone {
+        border-width: 3px;
+    }
+}
+
+/* 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+
+    .solo-card,
+    .foundation-zone,
+    .talon-zone,
+    .waste-zone,
+    .tableau-column,
+    .control-panel button {
+        transition: none;
+    }
+
+    .solo-card.hinted {
+        animation: none;
+    }
+
+    .game-status {
+        animation: none;
+    }
+}
+
+/* 拖拽动画效果 */
+@keyframes dragPulse {
+    0% {
+        transform: rotate(5deg) scale(1.1);
+        filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+    }
+
+    100% {
+        transform: rotate(5deg) scale(1.15);
+        filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.4));
+    }
+}
+
+/* 拖拽悬停效果 */
+.drag-over {
+    background-color: rgba(76, 175, 80, 0.1) !important;
+    border: 2px dashed #4CAF50 !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+/* 拖拽目标区域高亮 */
+.drag-target {
+    transition: all 0.2s ease;
+}
+
+.drag-target:hover {
+    background-color: rgba(76, 175, 80, 0.05);
+    border: 1px dashed #4CAF50;
+}
+
+/* 拖拽时的卡牌效果 */
+.solo-card.dragging {
+    opacity: 0.3 !important;
+    transform: scale(0.95) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* 拖拽副本卡牌样式 */
+.drag-copy {
+    border: 2px solid #4CAF50 !important;
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
+}

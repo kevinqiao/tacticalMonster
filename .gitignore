@@ -26,3 +26,24 @@ yarn-error.log*
 .env.local
 
 .env.local
+
+# 忽略非 TypeScript/JavaScript 文件
+*.md
+*.txt
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.log
+*.tmp
+*.temp
+
+# 忽略特定目录
+doc/
+docs/

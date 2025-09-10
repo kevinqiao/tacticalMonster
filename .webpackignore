@@ -1,0 +1,39 @@
+# Webpack 忽略文件
+# 忽略非 TypeScript/JavaScript 文件
+
+# 文档文件
+*.md
+*.txt
+*.pdf
+*.doc
+*.docx
+
+# 数据文件
+*.xls
+*.xlsx
+*.csv
+*.json
+
+# 压缩文件
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# 图片文件（如果需要忽略）
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+# *.svg
+
+# 其他文件
+*.log
+*.tmp
+*.temp
+
+# 特定目录
+doc/
+docs/
+*.md

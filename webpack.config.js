@@ -18,8 +18,36 @@ module.exports = {
     path: path.resolve(__dirname, "dist"),
     publicPath: "/",
   },
+  // 忽略文件
+  watchOptions: {
+    ignored: [
+      '**/node_modules/**',
+      '**/.git/**',
+      '**/dist/**',
+      '**/*.md',
+      '**/*.txt',
+      '**/*.pdf',
+      '**/*.doc',
+      '**/*.docx',
+      '**/*.xls',
+      '**/*.xlsx',
+      '**/*.zip',
+      '**/*.rar',
+      '**/*.7z',
+      '**/*.tar',
+      '**/*.gz',
+    ]
+  },
   module: {
     rules: [
+      // 忽略非 TypeScript/JavaScript 文件
+      {
+        test: /\.(md|txt|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz)$/,
+        type: 'asset/resource',
+        generator: {
+          filename: 'assets/[name][ext]'
+        }
+      },
       {
         test: /\.zip$/, // 匹配所有的zip文件
         use: [
@@ -166,8 +194,32 @@ module.exports = {
       components: path.resolve(__dirname, "src/components/"),
     },
     extensions: [".js", ".jsx", ".ts", ".tsx"],
+    // 忽略特定文件扩展名
+    fallback: {
+      // 对于非 JavaScript 文件，返回 false 表示不解析
+      ".md": false,
+      ".txt": false,
+      ".pdf": false,
+      ".doc": false,
+      ".docx": false,
+      ".xls": false,
+      ".xlsx": false,
+      ".zip": false,
+      ".rar": false,
+      ".7z": false,
+      ".tar": false,
+      ".gz": false,
+    }
   },
   devtool: "source-map",
+  // 忽略警告
+  ignoreWarnings: [
+    // 忽略非 JavaScript/TypeScript 文件的警告
+    /Module not found: Error: Can't resolve.*\.(md|txt|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz)$/,
+    // 忽略其他常见警告
+    /Critical dependency: the request of a dependency is an expression/,
+    /export .* was not found in/,
+  ],
   devServer: {
     allowedHosts: "all",
     static: {
