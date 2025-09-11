@@ -1,75 +1,106 @@
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import UserEventHandler from "service/handler/UserEventHandler";
 import usePlatform, { PlatformProvider } from "service/PlatformManager";
 import "./App.css";
 import GameCenterProvider from "./service/GameCenterManager";
 import { PageProvider } from "./service/PageManager";
 import { UserProvider } from "./service/UserManager";
-const master_client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
-// const convex = new ConvexReactClient("https://shocking-leopard-487.convex.cloud");
-// const convex = new ConvexReactClient("https://1252780878078152844.discordsays.com/convex-api", {
-//   skipConvexDeploymentUrlCheck: true,
-// });
 
-export const FlattenedProviderTree = (providers: any): any => {
-  if (providers?.length === 1) {
-    return providers[0][0];
-  }
-  const [A, paramsA] = providers.shift();
-  const [B, paramsB] = providers.shift();
-
-  return FlattenedProviderTree([
-    [
-      ({ children }: { children: any }) => (
-        <A {...(paramsA || {})}>
-          <B {...(paramsB || {})}>{children}</B>
-        </A>
-      ),
-    ],
-    ...providers,
-  ]);
+// 环境配置管理
+const getConvexClient = (): ConvexReactClient => {
+  const convexUrl = process.env.REACT_APP_CONVEX_URL || "https://cool-salamander-393.convex.cloud";
+  return new ConvexReactClient(convexUrl);
 };
-const StyleApp = () => {
-  // const { locale } = useLocalization();
-  // console.log("style locale:" + locale);
+
+const master_client = getConvexClient();
+
+// 统一状态管理 Hook
+const useAppState = () => {
   const [ssoLoaded, setSsoLoaded] = useState(false);
-  const { platform } = usePlatform();
-  const theme = {
+  const [theme, setTheme] = useState({
     primaryColor: "#4CAF50",
     secondaryColor: "#45A049",
     backgroundColor: "#F0F0F0",
+  });
+  const [loading, setLoading] = useState(true);
+
+  const { platform } = usePlatform();
+
+  const isAppReady = useMemo(() => {
+    return platform && ssoLoaded;
+  }, [platform, ssoLoaded]);
+
+  useEffect(() => {
+    // 模拟应用初始化
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return {
+    sso: { loaded: ssoLoaded, setLoaded: setSsoLoaded },
+    platform: { ready: !!platform },
+    ui: { theme, setTheme, loading },
+    isAppReady
   };
+};
+
+// 优化的 Provider 结构
+const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <ConvexProvider client={master_client}>
+      <UserProvider>
+        <PageProvider>
+          <PlatformProvider>
+            <GameCenterProvider>
+              {children}
+            </GameCenterProvider>
+          </PlatformProvider>
+        </PageProvider>
+      </UserProvider>
+    </ConvexProvider>
+  );
+};
+// 性能监控 Hook
+const usePerformanceMonitor = () => {
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const startTime = performance.now();
+
+      return () => {
+        const endTime = performance.now();
+        console.log(`App initialization time: ${(endTime - startTime).toFixed(2)}ms`);
+      };
+    }
+  }, []);
+};
+
+// 优化的主应用组件
+const MainApp: React.FC = () => {
+  const { sso, isAppReady } = useAppState();
 
   return (
     <>
-      {platform && ssoLoaded && <RenderApp />}
-      <SSOController onLoad={() => setSsoLoaded(true)} />
+      {isAppReady && <RenderApp />}
+      <SSOController onLoad={() => sso.setLoaded(true)} />
     </>
   );
 };
 
+// 主应用组件
 const App: React.FC = () => {
-
-  const Providers = FlattenedProviderTree([
-    [ConvexProvider, { client: master_client }],
-    [UserProvider],
-    [PageProvider],
-    [PlatformProvider],
-    [GameCenterProvider],
-    // [TerminalProvider],
-  ])
+  usePerformanceMonitor();
 
   return (
-
-    <Providers>
-      <StyleApp />
-      {/* <GameLauncher /> */}
+    <AppProviders>
+      <MainApp />
       <UserEventHandler />
-    </Providers>
-
+    </AppProviders>
   );
 };
 export default App;

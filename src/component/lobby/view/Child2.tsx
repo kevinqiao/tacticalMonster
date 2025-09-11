@@ -1,6 +1,5 @@
 import { PageProp } from "component/RenderApp";
 import React from "react";
-import TournamentList from "../tournament/TournamentList";
 
 
 const Child2: React.FC<PageProp> = ({ visible, data }) => {
@@ -12,7 +11,7 @@ const Child2: React.FC<PageProp> = ({ visible, data }) => {
     }}
   >
 
-    <TournamentList />
+    {/* <TournamentList /> */}
 
   </div>
   );
