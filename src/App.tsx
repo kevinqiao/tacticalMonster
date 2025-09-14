@@ -11,7 +11,10 @@ import { UserProvider } from "./service/UserManager";
 
 // 环境配置管理
 const getConvexClient = (): ConvexReactClient => {
-  const convexUrl = process.env.REACT_APP_CONVEX_URL || "https://cool-salamander-393.convex.cloud";
+  // 在浏览器环境中安全地获取环境变量
+  const convexUrl = (typeof process !== 'undefined' && process.env?.REACT_APP_CONVEX_URL)
+    ? process.env.REACT_APP_CONVEX_URL
+    : "https://cool-salamander-393.convex.cloud";
   return new ConvexReactClient(convexUrl);
 };
 
@@ -69,7 +72,9 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 // 性能监控 Hook
 const usePerformanceMonitor = () => {
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
+    // 安全地检查开发环境
+    const isDevelopment = typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
+    if (isDevelopment) {
       const startTime = performance.now();
 
       return () => {

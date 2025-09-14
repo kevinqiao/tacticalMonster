@@ -12,13 +12,18 @@ const LobbyHome: React.FC<PageProp> = ({ visible }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const open = useCallback(() => {
+    console.log("LobbyHome opening animation");
     const tl = gsap.timeline();
-    tl.fromTo(headRef.current, { autoAlpha: 0, y: "-100%" }, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }).fromTo(bottomRef.current, { autoAlpha: 0, y: "100%" }, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }, "<")
+    tl.fromTo(headRef.current, { autoAlpha: 0, y: "-100%" }, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" })
+      .fromTo(bottomRef.current, { autoAlpha: 0, y: "100%" }, { autoAlpha: 1, y: 0, duration: 0.7, ease: "power2.inOut" }, "<");
     tl.play();
   }, [])
+
   const close = useCallback(() => {
+    console.log("LobbyHome closing animation");
     const tl = gsap.timeline();
-    tl.to(headRef.current, { autoAlpha: 0, y: "-100%", duration: 0, ease: "power2.inOut" }).to(bottomRef.current, { autoAlpha: 0, y: "100%", duration: 0, ease: "power2.inOut" }, "<")
+    tl.to(headRef.current, { autoAlpha: 0, y: "-100%", duration: 0.7, ease: "power2.inOut" })
+      .to(bottomRef.current, { autoAlpha: 0, y: "100%", duration: 0.7, ease: "power2.inOut" }, "<");
     tl.play();
   }, [])
   useEffect(() => {

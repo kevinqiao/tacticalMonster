@@ -94,12 +94,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [sessions]);
 
-  const completeGame = useCallback(() => {
-
-  }, [user]);
-  const cancelGame = useCallback(() => {
-
-  }, [user]);
 
   useEffect(() => {
 

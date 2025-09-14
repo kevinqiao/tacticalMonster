@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { PageContainer } from "service/PageManager";
 
 interface InitStyle {
-    (args: { container: PageContainer; curcontainer: PageContainer, parent?: PageContainer, containers?: PageContainer[] }): void;
+    (args: { container: PageContainer; containers?: PageContainer[] }): void;
 }
 
 interface InitStyles {
@@ -10,18 +10,16 @@ interface InitStyles {
 }
 
 export const InitStyles: InitStyles = {
-    slide: ({ curcontainer, container, parent }) => {
-
+    slide: ({ container, containers }) => {
+        const parent = containers?.find((c) => c.uri === container.parentURI);
         if (!parent) return;
-        const index = parent.children?.filter((c) => c.init === "slide").findIndex((c) => c.name === container.name)
-        let cindex = parent.children?.filter((c) => c.init === "slide").findIndex((c) => c.name === curcontainer.name)
-        if (cindex === undefined || cindex < 0) {
-            cindex = parent.children?.filter((c) => c.init === "slide").findIndex((c) => c.name === parent.child);
-            cindex = cindex === undefined || cindex < 0 ? 0 : cindex
-        }
+        const slides = parent?.children?.filter((c) => c.init === "slide");
+        if (!slides || slides.length === 0 || !container.ele) return;
 
-        if (container.ele && index !== undefined) {
-            const offset = index - cindex;
+        let cindex = slides.findIndex((c) => c.name === container.name);
+        if (cindex >= 0) {
+            const center = Math.ceil(slides.length / 2);
+            const offset = center - cindex;
             // console.log("init slide", container, index, cindex, offset)
             // gsap.set(container.ele, { autoAlpha: 1, left: `${index * 100}%` })
             gsap.set(container.ele, { autoAlpha: 0, x: `${offset * 100}%` })

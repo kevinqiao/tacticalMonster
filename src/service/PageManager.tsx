@@ -11,7 +11,7 @@ export type App = {
 };
 
 export interface PageEvent {
-  prepage?: PageItem | undefined;
+  prepage?: PageItem | null;
   page: PageItem;
 }
 export interface PageItem {
@@ -25,9 +25,7 @@ export interface PageContainer extends PageConfig {
   closeEle?: HTMLDivElement | null;
   children?: PageContainer[];
   mask?: HTMLDivElement | null;
-  onExit?: PageItem;
   preventNavigation?: boolean;
-  noHistory?: number;
 }
 interface IPageContext {
   histories: PageItem[];
@@ -42,7 +40,6 @@ interface IPageContext {
   cancelAuth: () => void;
   authReq: { params?: { [k: string]: string }; pageURI?: string } | null;
   openPage: (page: PageItem) => void;
-  updatePage: (page: PageItem) => void;
   onLoad: () => void;
 
 }
@@ -59,7 +56,6 @@ const PageContext = createContext<IPageContext>({
   askAuth: () => null,
   cancelAuth: () => null,
   openPage: (p: PageItem) => null,
-  updatePage: (p: PageItem) => null,
   onLoad: () => null,
 
 });
@@ -67,7 +63,7 @@ const PageContext = createContext<IPageContext>({
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
   const historiesRef = useRef<PageItem[]>([]);
-  const currentPageRef = useRef<PageItem | undefined>(undefined);
+  const currentPageRef = useRef<PageItem | null>(null);
   const [pageUpdated, setPageUpdated] = useState<PageItem | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
@@ -100,41 +96,46 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const askAuth = useCallback(({ params, page }: { params?: { [k: string]: string }; page?: PageItem }) => {
     if (!user?.uid) {
-      if (page) {
-        const container = findContainer(pageContainers, page?.uri);
-        const force = container?.auth === 1 ? true : false;
-        setAuthReq({ params, page, force })
-      } else {
-        setAuthReq({ params })
-      }
-
+      setAuthReq({ params, page })
+      // if (page) {
+      //   const container = findContainer(pageContainers, page?.uri);
+      //   const force = container?.auth === 1 ? true : false;
+      //   setAuthReq({ params, page, force })
+      // } else {
+      //   setAuthReq({ params })
+      // }
     }
   }, [user, pageContainers]);
 
   const cancelAuth = useCallback(() => {
-    if (currentPageRef.current && authReq) {
-      const curcontainer = findContainer(pageContainers, currentPageRef.current.uri);
-      if (curcontainer && !curcontainer.auth) {
-        setAuthReq(null);
+    if (authReq) {
+      let authPage = currentPageRef.current ?? authReq.page;
+      if (authPage) {
+        const container = findContainer(pageContainers, authPage.uri);
+        if (container && (user?.uid || !container.auth)) {
+          setAuthReq(null);
+        }
       }
     }
   }, [user, authReq, pageContainers]);
 
 
   const openPage = useCallback((page: PageItem) => {
-    console.log("openPage", page, changeEvent);
-    if (!pageContainers || page.uri === currentPageRef.current?.uri) return;
-    console.log("openPage", page);
+
+    if (!pageContainers || page.uri === currentPageRef.current?.uri) {
+      console.log("openPage skipped:", { pageContainers: !!pageContainers, sameUri: page.uri === currentPageRef.current?.uri });
+      return;
+    }
+
     let newPage = page;
     // console.log("openPage", JSON.stringify(pageContainers))
     const container = findContainer(pageContainers, page.uri);
-    // console.log("openPage", pageContainers, page, container)
     let authRequired = container?.auth === 1 && (!user || !user.uid) ? true : false;
     if (container?.children && container.child) {
       const child = container.children.find((c) => c.name === container.child);
       if (child) {
         newPage = { ...page, uri: child.uri };
-        if (child.auth === 1 && !user.uid) {
+        if (child.auth === 1 && (!user || !user.uid)) {
           authRequired = true;
         }
       }
@@ -143,27 +144,23 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     if (authRequired) {
       setAuthReq({ page: newPage, force: true });
       return;
-    } else {
-      setAuthReq(null);
-      const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-      if (!container?.noHistory) {
-        history.pushState({ index: 0 }, "", uri);
-        historiesRef.current.push(newPage);
-        if (historiesRef.current.length > 10) {
-          historiesRef.current.shift();
-        }
-      }
+    }
+
+    const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
+    history.pushState({ index: 0 }, "", uri);
+    historiesRef.current.push(newPage);
+    if (historiesRef.current.length > 10) {
+      historiesRef.current.shift();
     }
 
     const prepage = currentPageRef.current;
     setChangeEvent({ prepage, page: newPage });
     currentPageRef.current = newPage;
+    console.log("openPage", currentPageRef.current);
     // setCurrentPage((pre) => pre ? Object.assign(pre, newPage) : newPage);
   }, [pageContainers, user]);
 
-  const updatePage = useCallback((page: PageItem) => {
-    setPageUpdated(page);
-  }, []);
+
 
   const onLoad = useCallback(
     () => {
@@ -213,31 +210,35 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
   useEffect(() => {
-    if (user?.uid) {
-      if (authReq)
-        if (authReq?.page)
-          openPage(authReq.page);
-      setAuthReq((pre) => pre ? null : pre);
-    }
-  }, [user, authReq]);
+    if (!containersLoaded || !user?.uid || !authReq) return;
+    // 如果用户已经登录，则取消认证
+    cancelAuth();
+  }, [user, authReq, cancelAuth, containersLoaded]);
   useEffect(() => {
-
-    if (user && !user.uid && !authReq && changeEvent?.page) {
-      const container = findContainer(pageContainers, changeEvent.page.uri);
-      if (container?.auth === 1) {
-        setAuthReq({ page: changeEvent.page, force: true });
-      }
+    if (!containersLoaded || authReq || user?.uid || !currentPageRef.current) return;
+    // 如果用户已经登录，则取消认证
+    const container = findContainer(pageContainers, currentPageRef.current.uri);
+    if (container?.auth === 1) {
+      setAuthReq({ page: currentPageRef.current, force: true });
     }
-  }, [user, authReq, changeEvent]);
+
+  }, [user, authReq, containersLoaded]);
+
 
   useEffect(() => {
-    if (!pageContainers || !user) return;
+    if (!containersLoaded || !user) return;
     const page = parseLocation();
-    if (page) {
+    console.log("onLoad", page);
+    if (page?.uri) {
       openPage(page);
+    } else {
+      // 如果没有解析到页面，默认导航到 lobby
+      const defaultPage = { uri: "/play/lobby" };
+      console.log("No page found, navigating to default:", defaultPage);
+      openPage(defaultPage);
     }
 
-  }, [pageContainers, user]);
+  }, [user, containersLoaded]);
 
 
   const value = {
@@ -252,7 +253,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     askAuth,
     cancelAuth,
     openPage,
-    updatePage,
     onLoad,
   };
   return (<PageContext.Provider value={value}><PageHandler>{children}</PageHandler></PageContext.Provider>);

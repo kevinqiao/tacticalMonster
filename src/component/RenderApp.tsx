@@ -19,53 +19,121 @@ export interface PageProp {
 // 组件缓存
 const ComponentCache = new Map<string, React.ComponentType<PageProp>>();
 
+// 错误边界组件
+const ErrorComponent: React.FC<{ path: string; error?: Error }> = ({ path, error }) => (
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    padding: '20px',
+    backgroundColor: '#f5f5f5',
+    color: '#666'
+  }}>
+    <h3>Component Load Error</h3>
+    <p>Failed to load: {path}</p>
+    {error && <p>Error: {error.message}</p>}
+    <button onClick={() => window.location.reload()}>Reload Page</button>
+  </div>
+);
+
+// 组件路径映射 - 静态映射所有可能的组件
+const componentMap: Record<string, () => Promise<any>> = {
+  './kumu/battle/PlayMap': () => import('./kumu/battle/PlayMap'),
+  './lobby/LobbyHome': () => import('./lobby/LobbyHome'),
+  './lobby/LobbyControl': () => import('./kumu/lobby/LobbyControl'),
+  './lobby/view/Child1': () => import('./lobby/view/Child1'),
+  './lobby/view/Child2': () => import('./lobby/view/Child2'),
+  './lobby/view/Child3': () => import('./lobby/view/Child3'),
+  './lobby/view/Child4': () => import('./lobby/view/Child4'),
+  './lobby/center/GameList': () => import('./lobby/center/GameList'),
+  './lobby/tournament/Join': () => import('./lobby/tournament/Join'),
+  './lobby/tournament/PlayMatch': () => import('./lobby/tournament/PlayMatch'),
+  './lobby/control/NavControl': () => import('./lobby/control/NavControl'),
+  './www/W3Home': () => import('./www/W3Home'),
+};
+
 // 获取缓存的组件
 const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
   if (!ComponentCache.has(path)) {
-    ComponentCache.set(path, lazy(() => import(path)));
+    const normalizedPath = path.startsWith('./') ? path : `./${path}`;
+
+    // 检查是否有静态映射
+    if (componentMap[normalizedPath]) {
+      ComponentCache.set(path, lazy(() => {
+        // console.log(`Loading component from static map: ${normalizedPath}`);
+        return componentMap[normalizedPath]().catch((error) => {
+          console.error(`Failed to load component: ${normalizedPath}`, error);
+          return {
+            default: (props: PageProp) => <ErrorComponent path={normalizedPath} error={error} />
+          };
+        });
+      }));
+    } else {
+      // 如果没有静态映射，使用动态导入
+      ComponentCache.set(path, lazy(() => {
+        console.log(`Loading component dynamically: ${normalizedPath}`);
+        return import(/* webpackChunkName: "component" */ normalizedPath).catch((error) => {
+          console.error(`Failed to load component: ${normalizedPath}`, error);
+          return {
+            default: (props: PageProp) => <ErrorComponent path={normalizedPath} error={error} />
+          };
+        });
+      }));
+    }
   }
   return ComponentCache.get(path)!;
 };
 
-// 动画状态管理 Hook
-const useAnimationState = (container: PageContainer) => {
-  const [animationState, setAnimationState] = useState<'idle' | 'entering' | 'exiting'>('idle');
+// 简化的动画管理 Hook
+const useAnimationManager = (container: PageContainer) => {
   const animationRef = useRef<gsap.core.Timeline | null>(null);
 
-  const startAnimation = useCallback((type: 'enter' | 'exit') => {
-    setAnimationState(type === 'enter' ? 'entering' : 'exiting');
-  }, []);
-
-  const endAnimation = useCallback(() => {
-    setAnimationState('idle');
+  const cleanupAnimation = useCallback(() => {
     if (animationRef.current) {
       animationRef.current.kill();
       animationRef.current = null;
     }
   }, []);
 
-  const setAnimationRef = useCallback((tl: gsap.core.Timeline) => {
+  const setAnimationRef = useCallback((tl: gsap.core.Timeline | null) => {
     animationRef.current = tl;
   }, []);
 
-  return { animationState, startAnimation, endAnimation, setAnimationRef };
+  const clearAnimationRef = useCallback(() => {
+    animationRef.current = null;
+  }, []);
+
+  return { cleanupAnimation, setAnimationRef, clearAnimationRef };
 };
 
 // 优化的可见性计算 Hook
 const usePageVisibility = (container: PageContainer, changeEvent: any, pageContainers: PageContainer[], parent?: PageContainer) => {
   return useMemo(() => {
-    if (!changeEvent?.page?.uri) return 0;
+    // 获取当前页面的 URI
+    const currentUri = changeEvent?.page?.uri || window.location.pathname;
 
-    const currentUri = changeEvent.page.uri;
     const containerUri = container.uri;
     const parentUri = parent?.uri;
     const containerParentUri = container.parentURI;
 
-    // 简化的可见性判断逻辑
-    return currentUri === containerUri ||
+    // 检查当前URI是否匹配容器URI（完全匹配或子路径匹配）
+    const isVisible = (currentUri === containerUri || currentUri.startsWith(containerUri + '/')) ||
       currentUri === parentUri ||
-      (containerParentUri && currentUri === containerParentUri) ||
-      (containerParentUri && parentUri && currentUri === containerParentUri) ? 1 : 0;
+      (containerParentUri && currentUri === containerParentUri);
+
+    console.log(`PageVisibility check:`, {
+      currentUri,
+      containerUri,
+      parentUri,
+      containerParentUri,
+      isVisible,
+      changeEvent: changeEvent?.page,
+      windowPath: window.location.pathname
+    });
+
+    return isVisible ? 1 : 0;
   }, [changeEvent?.page?.uri, container.uri, container.parentURI, parent?.uri]);
 };
 
@@ -73,7 +141,7 @@ const usePageVisibility = (container: PageContainer, changeEvent: any, pageConta
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
   const { openPage, pageUpdated, changeEvent, pageContainers, onLoad } = usePageManager();
-  const { animationState, startAnimation, endAnimation, setAnimationRef } = useAnimationState(container);
+  const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
 
   // 使用缓存的组件
   const SelectedComponent = useMemo(() => {
@@ -83,48 +151,69 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   // 优化的可见性计算
   const visible = usePageVisibility(container, changeEvent, pageContainers, parent);
 
+  // 调试信息
+  // console.log(`PageComponent ${container.name}:`, {
+  //   visible,
+  //   containerUri: container.uri,
+  //   currentUri: changeEvent?.page?.uri || window.location.pathname,
+  //   hasElement: !!container.ele
+  // });
+
   // 优化的关闭处理
   const close = useCallback((forwardPage?: PageItem) => {
     if (!container.close) return;
-
-    startAnimation('exit');
+    console.log("container close", container);
+    console.log("close", container, forwardPage);
+    // console.log(`🎬 Closing page: ${container.name}`);
 
     const tl = gsap.timeline({
       onComplete: () => {
-        endAnimation();
+        console.log("onComplete", container);
+        cleanupAnimation();
         if (forwardPage) {
           openPage(forwardPage);
-        } else if (container.onExit) {
-          console.log("onExit", container);
-          openPage(container.onExit);
         } else {
+          console.log("history.back");
           history.back();
         }
       }
     });
-
     setAnimationRef(tl);
-
     const closeEffect = CloseEffects[container.close.effect]({
       container: container,
       tl: tl
     });
+    console.log("closeEffect", closeEffect);
 
     if (closeEffect) {
       closeEffect.play();
     }
-  }, [container, openPage, startAnimation, endAnimation, setAnimationRef]);
+  }, [container, openPage, cleanupAnimation, setAnimationRef]);
 
   // 优化的加载处理
   const load = useCallback(
     (ele: HTMLDivElement | null) => {
       container.ele = ele;
       if (ele) {
+        // console.log(`🎬 Loading page: ${container.name}`);
+
         gsap.set(ele, { autoAlpha: 0 });
+
+        // 执行进入动画
+        const tl = gsap.timeline({
+          onComplete: () => {
+            // console.log(`🎬 Page loaded: ${container.name}`);
+            // 动画完成后清理引用，但不杀死动画
+            clearAnimationRef();
+          }
+        });
+
+        tl.to(ele, { autoAlpha: 1, duration: 0.3, ease: "power2.out" });
+        setAnimationRef(tl);
       }
       onLoad();
     },
-    [onLoad, container]
+    [onLoad, container, setAnimationRef, clearAnimationRef]
   );
 
   // 优化的全屏处理
@@ -162,9 +251,9 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   // 清理动画
   useEffect(() => {
     return () => {
-      endAnimation();
+      cleanupAnimation();
     };
-  }, [endAnimation]);
+  }, [cleanupAnimation]);
 
   return (
     <>
@@ -190,8 +279,14 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         key={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
         id={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
         ref={load}
-        className={`${container.class} ${animationState !== 'idle' ? `animating-${animationState}` : ''}`}
-        data-animation-state={animationState}
+        className={container.class}
+        style={{
+          display: visible ? 'block' : 'none',
+          opacity: visible ? 1 : 0.8,
+          visibility: visible ? 'visible' : 'hidden'
+        }}
+        data-visible={visible}
+        data-container-name={container.name}
       >
         <Suspense fallback={<div className="page-loading" />}>
           <SelectedComponent
@@ -226,14 +321,23 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
 // 性能监控 Hook
 const useRenderPerformance = () => {
+  const renderCount = useRef<number>(0);
+
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    if (isDevelopment) {
+      console.log('useRenderPerformance: Starting performance monitoring');
+
+      // 记录渲染开始时间
       const startTime = performance.now();
 
-      return () => {
-        const endTime = performance.now();
-        console.log(`RenderApp render time: ${(endTime - startTime).toFixed(2)}ms`);
-      };
+      console.log(`🚀 RenderApp render started at ${startTime.toFixed(2)}ms`);
+
+      const endTime = performance.now();
+      const renderTime = endTime - startTime;
+      console.log(`🚀 RenderApp render #${renderCount.current} completed in ${renderTime.toFixed(2)}ms`);
+    } else {
+      console.log('useRenderPerformance: Not in development mode, skipping monitoring');
     }
   }, []);
 };

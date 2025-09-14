@@ -194,6 +194,18 @@ module.exports = {
       components: path.resolve(__dirname, "src/components/"),
     },
     extensions: [".js", ".jsx", ".ts", ".tsx"],
+    modules: [
+      path.resolve(__dirname, "src"),
+      "node_modules"
+    ],
+    // 支持动态导入
+    symlinks: false,
+    // 支持动态导入的路径解析
+    mainFields: ["browser", "module", "main"],
+    // 支持动态导入的路径解析
+    fullySpecified: false,
+    // 支持动态导入的路径解析
+    preferRelative: true,
     // 忽略特定文件扩展名
     fallback: {
       // 对于非 JavaScript 文件，返回 false 表示不解析
@@ -240,6 +252,10 @@ module.exports = {
       //   { from: /^\/$/, to: "/index.html" },
       //   // 你可以添加更多的重定向规则
       // ],
+    },
+    // 支持动态导入
+    devMiddleware: {
+      writeToDisk: true,
     },
     setupMiddlewares: (middlewares, devServer) => {
       if (!devServer) {

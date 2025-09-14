@@ -11,7 +11,7 @@ const UserEventHandler = () => {
     const alertRef = useRef<HTMLDivElement>(null);
     const maskRef = useRef<HTMLDivElement>(null);
     const { user } = useUserManager();
-    const { changeEvent, openPage, updatePage, histories } = usePageManager();
+    const { changeEvent, openPage, histories } = usePageManager();
     const { activeGame } = useGameCenterManager();
     const [lastUpdate, setLastUpdate] = useState<number | undefined>(user?.lastUpdate);
     const convex = useConvex();
@@ -23,7 +23,7 @@ const UserEventHandler = () => {
             console.log("game is active", event.data);
             if (changeEvent?.page?.uri === "/play/lobby/join") {
                 console.log("updatePage", event.data);
-                updatePage({ uri: "/play/lobby/join", data: event.data });
+                // updatePage({ uri: "/play/lobby/join", data: event.data });
             } else {
                 console.log("openPage", event.data);
                 // openPage({ uri: "/play/lobby/join", data: event.data });

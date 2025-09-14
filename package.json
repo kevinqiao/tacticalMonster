@@ -79,8 +79,6 @@
   "scripts": {
     "hello": "node src/test/TestEngine.js",
     "start": "cross-env NODE_ENV=development webpack serve",
-    "start:consumer": "cross-env NODE_ENV=development APP=consumer webpack serve",
-    "start:merchant": "cross-env NODE_ENV=development APP=merchant webpack serve",
     "build": "cross-env NODE_ENV=production webpack --config webpack.config.js",
     "test": "cross-env NODE_ENV=test jest"
   },
