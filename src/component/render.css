@@ -33,6 +33,12 @@
   /* background-color: red; */
 }
 
+/* slide元素特殊处理，使用transform而不是left */
+/* .child_container[data-init="slide"] {
+  left: auto;
+  transform: translateX(0);
+} */
+
 .exit-menu {
   position: absolute;
   cursor: pointer;

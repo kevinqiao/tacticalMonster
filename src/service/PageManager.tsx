@@ -32,15 +32,18 @@ interface IPageContext {
   currentPage: PageItem | undefined | null;
   pageUpdated: PageItem | null;
   changeEvent: PageEvent | null;
+  loadingBG: { ele: HTMLDivElement | null; status: number };
   app: App | null;
   pageContainers: PageContainer[];
   containersLoaded: number;
+  initCompleted: boolean;
   // openChild: (child: string, data?: { [k: string]: any }) => void;
   askAuth: ({ params, pageURI }: { params?: { [k: string]: string }; pageURI?: string }) => void;
   cancelAuth: () => void;
   authReq: { params?: { [k: string]: string }; pageURI?: string } | null;
   openPage: (page: PageItem) => void;
   onLoad: () => void;
+  onInitCompleted: () => void;
 
 }
 
@@ -49,21 +52,25 @@ const PageContext = createContext<IPageContext>({
   histories: [],
   currentPage: null,
   pageUpdated: null,
+  loadingBG: { ele: null, status: 1 },
   app: null,
   authReq: null,
   pageContainers: [],
   containersLoaded: 0,
+  initCompleted: false,
   askAuth: () => null,
   cancelAuth: () => null,
   openPage: (p: PageItem) => null,
   onLoad: () => null,
-
+  onInitCompleted: () => null,
 });
 
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
+  const loadingBGRef = useRef<{ ele: HTMLDivElement | null; status: number }>({ ele: null, status: 1 });
   const historiesRef = useRef<PageItem[]>([]);
   const currentPageRef = useRef<PageItem | null>(null);
+  const [initCompleted, setInitCompleted] = useState(false);
   const [pageUpdated, setPageUpdated] = useState<PageItem | null>(null);
   const [changeEvent, setChangeEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
@@ -97,13 +104,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const askAuth = useCallback(({ params, page }: { params?: { [k: string]: string }; page?: PageItem }) => {
     if (!user?.uid) {
       setAuthReq({ params, page })
-      // if (page) {
-      //   const container = findContainer(pageContainers, page?.uri);
-      //   const force = container?.auth === 1 ? true : false;
-      //   setAuthReq({ params, page, force })
-      // } else {
-      //   setAuthReq({ params })
-      // }
     }
   }, [user, pageContainers]);
 
@@ -118,7 +118,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [user, authReq, pageContainers]);
-
 
   const openPage = useCallback((page: PageItem) => {
 
@@ -160,7 +159,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     // setCurrentPage((pre) => pre ? Object.assign(pre, newPage) : newPage);
   }, [pageContainers, user]);
 
-
+  const onInitCompleted = useCallback(() => {
+    setInitCompleted(true);
+  }, []);
 
   const onLoad = useCallback(
     () => {
@@ -171,8 +172,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         // 如果有子容器，递归检查所有子容器
-        if (container.children?.length) {
-          return container.children.every(child => child.ele !== null && child.ele !== undefined);
+
+        if (container.children?.some(child => !child.ele)) {
+          return false;
         }
 
         return true;
@@ -248,12 +250,15 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     changeEvent,
     pageContainers,
     containersLoaded,
+    initCompleted,
     app,
     authReq,
+    loadingBG: loadingBGRef.current,
     askAuth,
     cancelAuth,
     openPage,
     onLoad,
+    onInitCompleted,
   };
   return (<PageContext.Provider value={value}><PageHandler>{children}</PageHandler></PageContext.Provider>);
 };

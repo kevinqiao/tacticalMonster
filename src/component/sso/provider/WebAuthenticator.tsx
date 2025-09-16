@@ -12,7 +12,7 @@ const WebAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
 
     const { user, authComplete } = useUserManager();
     const { platform } = usePlatform();
-    const { authReq, cancelAuth } = usePageManager();
+    const { loadingBG, authReq, cancelAuth } = usePageManager();
     const containerRef = useRef<HTMLDivElement>(null);
     const maskRef = useRef<HTMLDivElement>(null);
     const convex = useConvex();
@@ -32,6 +32,9 @@ const WebAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
         if (containerRef.current && maskRef.current) {
 
             const tl = gsap.timeline();
+            if (loadingBG.status === 1) {
+                tl.to(loadingBG.ele, { autoAlpha: 0, duration: 0, ease: "power2.out" }, ">")
+            }
             tl.fromTo(maskRef.current,
                 { autoAlpha: 0, backgroundColor: "blue" },
                 { autoAlpha: 0.5, duration: 0.3 }, 0);
@@ -41,7 +44,7 @@ const WebAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
 
             tl.play();
         }
-    }, [])
+    }, [loadingBG])
     const close = useCallback(() => {
         if (containerRef.current && maskRef.current) {
 

@@ -1,13 +1,13 @@
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import UserEventHandler from "service/handler/UserEventHandler";
 import usePlatform, { PlatformProvider } from "service/PlatformManager";
 import "./App.css";
 import GameCenterProvider from "./service/GameCenterManager";
-import { PageProvider } from "./service/PageManager";
-import { UserProvider } from "./service/UserManager";
+import { PageProvider, usePageManager } from "./service/PageManager";
+import { UserProvider, useUserManager } from "./service/UserManager";
 
 // 环境配置管理
 const getConvexClient = (): ConvexReactClient => {
@@ -88,10 +88,19 @@ const usePerformanceMonitor = () => {
 // 优化的主应用组件
 const MainApp: React.FC = () => {
   const { sso, isAppReady } = useAppState();
-
+  const { user } = useUserManager();
+  const { loadingBG, onLoad } = usePageManager();
+  const load = useCallback(
+    (ele: HTMLDivElement | null) => {
+      loadingBG.ele = ele;
+      onLoad();
+    },
+    [onLoad, loadingBG]
+  );
   return (
     <>
-      {isAppReady && <RenderApp />}
+      <div ref={load} style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "black", color: "white", fontSize: 20 }}>Loading...</div>
+      <RenderApp />
       <SSOController onLoad={() => sso.setLoaded(true)} />
     </>
   );

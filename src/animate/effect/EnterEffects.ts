@@ -16,9 +16,10 @@ export const EnterEffects: EnterEffects = {
         if (!container.ele) return null;
         const timeline = tl ?? gsap.timeline();
 
-        timeline.to(container.ele,
-            { autoAlpha: 1, duration: duration ?? 0.5 }, "<"
-        );
+        // timeline.to(container.ele,
+        //     { autoAlpha: 1, duration: duration ?? 0.5 }, "<"
+        // );
+        gsap.set(container.ele, { autoAlpha: 1 });
 
         return timeline;
     }

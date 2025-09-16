@@ -1,6 +1,6 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { PageContainer, PageItem, usePageManager } from "service/PageManager";
 import { CloseEffects } from "../animate/effect/CloseEffects";
 import "./render.css";
@@ -86,33 +86,13 @@ const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
   return ComponentCache.get(path)!;
 };
 
-// 简化的动画管理 Hook
-const useAnimationManager = (container: PageContainer) => {
-  const animationRef = useRef<gsap.core.Timeline | null>(null);
-
-  const cleanupAnimation = useCallback(() => {
-    if (animationRef.current) {
-      animationRef.current.kill();
-      animationRef.current = null;
-    }
-  }, []);
-
-  const setAnimationRef = useCallback((tl: gsap.core.Timeline | null) => {
-    animationRef.current = tl;
-  }, []);
-
-  const clearAnimationRef = useCallback(() => {
-    animationRef.current = null;
-  }, []);
-
-  return { cleanupAnimation, setAnimationRef, clearAnimationRef };
-};
 
 // 优化的可见性计算 Hook
 const usePageVisibility = (container: PageContainer, changeEvent: any, pageContainers: PageContainer[], parent?: PageContainer) => {
   return useMemo(() => {
     // 获取当前页面的 URI
-    const currentUri = changeEvent?.page?.uri || window.location.pathname;
+    if (!changeEvent) return 0;
+    const currentUri = changeEvent?.page?.uri;
 
     const containerUri = container.uri;
     const parentUri = parent?.uri;
@@ -123,15 +103,18 @@ const usePageVisibility = (container: PageContainer, changeEvent: any, pageConta
       currentUri === parentUri ||
       (containerParentUri && currentUri === containerParentUri);
 
-    console.log(`PageVisibility check:`, {
-      currentUri,
-      containerUri,
-      parentUri,
-      containerParentUri,
-      isVisible,
-      changeEvent: changeEvent?.page,
-      windowPath: window.location.pathname
-    });
+    // 特殊处理：如果是slide元素，需要检查父容器是否可见
+
+
+    // console.log(`PageVisibility check:`, {
+    //   currentUri,
+    //   containerUri,
+    //   parentUri,
+    //   containerParentUri,
+    //   isVisible,
+    //   changeEvent: changeEvent?.page,
+    //   windowPath: window.location.pathname
+    // });
 
     return isVisible ? 1 : 0;
   }, [changeEvent?.page?.uri, container.uri, container.parentURI, parent?.uri]);
@@ -141,7 +124,7 @@ const usePageVisibility = (container: PageContainer, changeEvent: any, pageConta
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
   const { openPage, pageUpdated, changeEvent, pageContainers, onLoad } = usePageManager();
-  const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
+  // const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
 
   // 使用缓存的组件
   const SelectedComponent = useMemo(() => {
@@ -162,14 +145,11 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   // 优化的关闭处理
   const close = useCallback((forwardPage?: PageItem) => {
     if (!container.close) return;
-    console.log("container close", container);
-    console.log("close", container, forwardPage);
-    // console.log(`🎬 Closing page: ${container.name}`);
 
     const tl = gsap.timeline({
       onComplete: () => {
         console.log("onComplete", container);
-        cleanupAnimation();
+        // cleanupAnimation();
         if (forwardPage) {
           openPage(forwardPage);
         } else {
@@ -178,42 +158,24 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         }
       }
     });
-    setAnimationRef(tl);
+    // setAnimationRef(tl);
     const closeEffect = CloseEffects[container.close.effect]({
       container: container,
       tl: tl
     });
-    console.log("closeEffect", closeEffect);
 
     if (closeEffect) {
       closeEffect.play();
     }
-  }, [container, openPage, cleanupAnimation, setAnimationRef]);
+  }, [container, openPage]);
 
   // 优化的加载处理
   const load = useCallback(
     (ele: HTMLDivElement | null) => {
       container.ele = ele;
-      if (ele) {
-        // console.log(`🎬 Loading page: ${container.name}`);
-
-        gsap.set(ele, { autoAlpha: 0 });
-
-        // 执行进入动画
-        const tl = gsap.timeline({
-          onComplete: () => {
-            // console.log(`🎬 Page loaded: ${container.name}`);
-            // 动画完成后清理引用，但不杀死动画
-            clearAnimationRef();
-          }
-        });
-
-        tl.to(ele, { autoAlpha: 1, duration: 0.3, ease: "power2.out" });
-        setAnimationRef(tl);
-      }
       onLoad();
     },
-    [onLoad, container, setAnimationRef, clearAnimationRef]
+    [onLoad, container]
   );
 
   // 优化的全屏处理
@@ -248,13 +210,6 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     }
   }, [pageUpdated, container.uri]);
 
-  // 清理动画
-  useEffect(() => {
-    return () => {
-      cleanupAnimation();
-    };
-  }, [cleanupAnimation]);
-
   return (
     <>
       {/* 遮罩层 */}
@@ -280,13 +235,9 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         id={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
         ref={load}
         className={container.class}
-        style={{
-          display: visible ? 'block' : 'none',
-          opacity: visible ? 1 : 0.8,
-          visibility: visible ? 'visible' : 'hidden'
-        }}
-        data-visible={visible}
-        data-container-name={container.name}
+      // data-visible={visible}
+      // data-container-name={container.name}
+      // data-init={container.init}
       >
         <Suspense fallback={<div className="page-loading" />}>
           <SelectedComponent
@@ -319,38 +270,14 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   );
 };
 
-// 性能监控 Hook
-const useRenderPerformance = () => {
-  const renderCount = useRef<number>(0);
 
-  useEffect(() => {
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    if (isDevelopment) {
-      console.log('useRenderPerformance: Starting performance monitoring');
-
-      // 记录渲染开始时间
-      const startTime = performance.now();
-
-      console.log(`🚀 RenderApp render started at ${startTime.toFixed(2)}ms`);
-
-      const endTime = performance.now();
-      const renderTime = endTime - startTime;
-      console.log(`🚀 RenderApp render #${renderCount.current} completed in ${renderTime.toFixed(2)}ms`);
-    } else {
-      console.log('useRenderPerformance: Not in development mode, skipping monitoring');
-    }
-  }, []);
-};
 
 // 优化的主渲染组件
 const RenderApp: React.FC = () => {
-  const { pageContainers } = usePageManager();
-  useRenderPerformance();
 
+  const { pageContainers } = usePageManager();
   // 优化的页面渲染
   const renderPage = useMemo(() => {
-    if (!pageContainers?.length) return null;
-
     return pageContainers.map((container) => (
       <PageComponent
         key={container.uri}

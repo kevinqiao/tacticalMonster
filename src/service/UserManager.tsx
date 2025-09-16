@@ -101,10 +101,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       const u = await convex.action(api.service.AuthManager.authByToken, { uid, token });
       // console.log("UserProvider", "authByToken", u)
       if (u?.uid && u?.token) {
-        authComplete(u, 1);
+        setTimeout(() => { authComplete(u, 1); }, 2500);
       } else {
         localStorage.removeItem("user");
-        setUser({});
+        setTimeout(() => { setUser({}); }, 2500);
       }
     }
     const userJSON = localStorage.getItem("user");
@@ -116,7 +116,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         authByToken(uid, token);
       }
     } else {
-      setUser({});
+      setTimeout(() => { setUser({}); }, 2500);
     }
 
   }, []);
