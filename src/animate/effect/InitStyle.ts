@@ -34,11 +34,10 @@ export const InitStyles: InitStyles = {
     },
     pops1: ({ container, duration, tl }) => {
         if (!container.ele) return null;
-        const timeline = tl ?? gsap.timeline();
-        timeline.to(container.ele, { autoAlpha: 0, height: "auto", width: "30%", zIndex: 3000, left: "100%", duration: duration ?? 0 })
+        gsap.set(container.ele, { autoAlpha: 0, zIndex: 3000, width: "40vw", left: "100%", duration: duration ?? 0 })
         if (container.mask)
             gsap.set(container.mask, { autoAlpha: 0, zIndex: 2999, duration: duration ?? 0 })
-        return timeline;
+        return null
     },
     pop: ({ container, duration, tl }) => {
         if (!container.ele) return null;
