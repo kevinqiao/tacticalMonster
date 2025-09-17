@@ -23,30 +23,19 @@ export const InitStyles: InitStyles = {
             const offset = cindex - center;
             console.log("init slide", container.name, cindex, center, offset)
             gsap.set(container.ele, {
-                autoAlpha: 1,
-                x: `${offset * 100}%`,
+                left: `${offset * 100}%`,
                 force3D: true, // 启用硬件加速
                 willChange: "transform" // 提示浏览器优化
             })
         }
 
-        // 确保所有slide元素都可见并优化性能
-        slides.forEach((c) => {
-            if (c.ele) {
-                gsap.set(c.ele, {
-                    autoAlpha: 1,
-                    force3D: true,
-                    willChange: "transform"
-                });
-            }
-        });
         return null
 
     },
     pops1: ({ container, duration, tl }) => {
         if (!container.ele) return null;
         const timeline = tl ?? gsap.timeline();
-        timeline.to(container.ele, { autoAlpha: 0, height: "auto", width: "30%", zIndex: 3000, duration: duration ?? 0 })
+        timeline.to(container.ele, { autoAlpha: 0, height: "auto", width: "30%", zIndex: 3000, left: "100%", duration: duration ?? 0 })
         if (container.mask)
             gsap.set(container.mask, { autoAlpha: 0, zIndex: 2999, duration: duration ?? 0 })
         return timeline;

@@ -61,10 +61,10 @@ export const ExitEffects: ExitEffects = {
 
         return timeline;
     },
-    fadeOut: ({ container }) => {
+    fadeOut: ({ container, tl }) => {
         // console.log("container", container)
         if (!container.ele) return null;
-        const timeline = gsap.timeline();
+        const timeline = tl ?? gsap.timeline();
 
         timeline.to(container.ele,
             { autoAlpha: 0, duration: 0.5 }

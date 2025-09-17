@@ -156,7 +156,6 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         if (forwardPage) {
           openPage(forwardPage);
         } else {
-          console.log("history.back");
           history.back();
         }
         // 重置关闭状态
@@ -240,9 +239,9 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
         id={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
         ref={load}
         className={container.class}
-      // data-visible={visible}
-      // data-container-name={container.name}
-      // data-init={container.init}
+        data-visible={visible}
+        data-container-name={container.name}
+        data-init={container.init}
       >
         <Suspense fallback={<div className="page-loading" />}>
           <SelectedComponent

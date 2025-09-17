@@ -212,19 +212,23 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
   useEffect(() => {
-    if (!containersLoaded || !user?.uid || !authReq) return;
-    // 如果用户已经登录，则取消认证
-    cancelAuth();
-  }, [user, authReq, cancelAuth, containersLoaded]);
-  useEffect(() => {
-    if (!containersLoaded || authReq || user?.uid || !currentPageRef.current) return;
-    // 如果用户已经登录，则取消认证
-    const container = findContainer(pageContainers, currentPageRef.current.uri);
-    if (container?.auth === 1) {
-      setAuthReq({ page: currentPageRef.current, force: true });
+    if (!containersLoaded) return;
+    if (user?.uid && authReq && authReq.page) {
+      setAuthReq(null);
+      openPage(authReq.page);
     }
 
-  }, [user, authReq, containersLoaded]);
+  }, [user, authReq, openPage, containersLoaded]);
+
+  // useEffect(() => {
+  //   if (!containersLoaded || authReq || user?.uid || !currentPageRef.current) return;
+  //   // 如果用户未登录，当前页面需要认证
+  //   const container = findContainer(pageContainers, currentPageRef.current.uri);
+  //   if (container?.auth === 1) {
+  //     setAuthReq({ page: currentPageRef.current, force: true });
+  //   }
+
+  // }, [user, authReq, containersLoaded]);
 
 
   useEffect(() => {
