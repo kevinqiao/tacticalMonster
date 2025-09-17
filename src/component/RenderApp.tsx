@@ -1,7 +1,7 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PageContainer, PageItem, usePageManager } from "service/PageManager";
+import { PageContainer, usePageManager } from "service/PageManager";
 import { CloseEffects } from "../animate/effect/CloseEffects";
 import "./render.css";
 
@@ -11,7 +11,7 @@ gsap.registerPlugin(CSSPlugin);
 export interface PageProp {
   data?: { [key: string]: any };
   visible: number;
-  close?: (page?: PageItem) => void;
+  close?: () => Promise<void>;
   children?: React.ReactNode;
   openFull?: () => Promise<void>;
 }
@@ -124,7 +124,7 @@ const usePageVisibility = (container: PageContainer, changeEvent: any, pageConta
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
   const isClosingRef = useRef(false);
-  const { openPage, pageUpdated, changeEvent, pageContainers, onLoad } = usePageManager();
+  const { pageUpdated, changeEvent, pageContainers, onLoad } = usePageManager();
   // const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
 
   // 使用缓存的组件
@@ -143,35 +143,33 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   //   hasElement: !!container.ele
   // });
 
-  // 优化的关闭处理 - 使用ref防抖机制
-  const close = useCallback((forwardPage?: PageItem) => {
+  // 简化的关闭动画处理
+  const close = useCallback(async (): Promise<void> => {
     // 防止重复点击
     if (!container.close || isClosingRef.current) return;
 
     isClosingRef.current = true;
 
-    const tl = gsap.timeline({
-      onComplete: () => {
-        // cleanupAnimation();
-        if (forwardPage) {
-          openPage(forwardPage);
-        } else {
-          history.back();
-        }
-        // 重置关闭状态
-        isClosingRef.current = false;
-      }
-    });
-    // setAnimationRef(tl);
-    const closeEffect = CloseEffects[container.close.effect]({
-      container: container,
-      tl: tl
-    });
+    try {
+      const closeEffect = CloseEffects[container.close.effect];
 
-    if (closeEffect) {
-      closeEffect.play();
+      if (closeEffect) {
+        await new Promise<void>((resolve) => {
+          const tl = gsap.timeline({ onComplete: resolve });
+          const effect = closeEffect({ container, tl });
+          if (effect) {
+            effect.play();
+          } else {
+            resolve();
+          }
+        });
+      }
+    } catch (error) {
+      console.error('关闭动画错误:', error);
+    } finally {
+      isClosingRef.current = false;
     }
-  }, [container, openPage]);
+  }, [container]);
 
   // 优化的加载处理
   const load = useCallback(
@@ -201,6 +199,12 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       }
     });
   }, [container]);
+  const closeOnClick = useCallback(async () => {
+    if (!isClosingRef.current && changeEvent?.prepage) {
+      await close();
+      history.back();
+    }
+  }, [close, changeEvent]);
   // 数据更新处理
   useEffect(() => {
     if (changeEvent?.page?.uri === container.uri) {
@@ -230,7 +234,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           opacity: 0,
           visibility: "hidden"
         }}
-        onClick={() => !isClosingRef.current && close()}
+        onClick={closeOnClick}
       />
 
       {/* 页面容器 */}
@@ -257,7 +261,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           <div
             ref={(ele) => (container.closeEle = ele)}
             className="exit-menu"
-            onClick={() => !isClosingRef.current && close()}
+            onClick={closeOnClick}
           />
         )}
       </div>

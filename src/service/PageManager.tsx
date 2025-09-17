@@ -220,15 +220,15 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   }, [user, authReq, openPage, containersLoaded]);
 
-  // useEffect(() => {
-  //   if (!containersLoaded || authReq || user?.uid || !currentPageRef.current) return;
-  //   // 如果用户未登录，当前页面需要认证
-  //   const container = findContainer(pageContainers, currentPageRef.current.uri);
-  //   if (container?.auth === 1) {
-  //     setAuthReq({ page: currentPageRef.current, force: true });
-  //   }
+  useEffect(() => {
+    if (!containersLoaded || authReq || user?.uid || !currentPageRef.current) return;
+    // 如果用户未登录，当前页面需要认证
+    const container = findContainer(pageContainers, currentPageRef.current.uri);
+    if (container?.auth === 1) {
+      setAuthReq({ page: currentPageRef.current, force: true });
+    }
 
-  // }, [user, authReq, containersLoaded]);
+  }, [user, authReq, containersLoaded]);
 
 
   useEffect(() => {

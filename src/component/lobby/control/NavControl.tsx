@@ -16,9 +16,11 @@ const NavControl: React.FC<PageProp> = ({ close }) => {
     close?.()
     await logout();
   }, [logout, close]);
-  const open = useCallback((page: PageItem) => {
-    close?.(page);
-    // openPage({ uri });
+  const open = useCallback(async (page: PageItem) => {
+    if (close) {
+      await close();
+    }
+    openPage(page);
   }, [close, openPage]);
   return (
     <>
@@ -39,7 +41,7 @@ const NavControl: React.FC<PageProp> = ({ close }) => {
         <div className="nav-panel-item" onClick={() => open({ uri: "/play/lobby/c3" })}>
           Child5
         </div>
-        <div className="nav-panel-item" onClick={() => open({ uri: "/play/lobby/center", onExit: changeEvent?.page?.onExit ?? changeEvent?.prepage })}>
+        <div className="nav-panel-item" onClick={() => open({ uri: "/play/lobby/center" })}>
           Game Center
         </div>
         <div className="nav-panel-item" onClick={() => open({ uri: "/play/map" })}>
