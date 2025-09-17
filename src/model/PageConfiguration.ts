@@ -49,7 +49,7 @@ export const PlayPlace =
                 { name: "center", class: "pop-center-large", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
                 { name: "join", class: "pop-center-large", init: "center", path: "./lobby/tournament/Join", uri: "join", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" } },
                 { name: "play", class: "pop-center-full", init: "NONE", path: "./lobby/tournament/PlayMatch", uri: "battle", auth: 0, enter: "none", open: "popCenterIn", exit: "popCenterOut", close: { effect: "popCenterOut" }, preventNavigation: true },
-                { name: "topNav", class: "pop-right", init: "pop-s1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", exit: "popRightOut", close: { type: 1, effect: "popRightOut" }},
+                { name: "topNav", class: "pop-right", init: "pops1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", exit: "popRightOut", close: { type: 1, effect: "popRightOut" } },
 
             ]
         }

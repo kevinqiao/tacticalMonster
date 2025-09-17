@@ -43,7 +43,7 @@ export const InitStyles: InitStyles = {
         return null
 
     },
-    "pop-s1": ({ container, duration, tl }) => {
+    pops1: ({ container, duration, tl }) => {
         if (!container.ele) return null;
         const timeline = tl ?? gsap.timeline();
         timeline.to(container.ele, { autoAlpha: 0, height: "auto", width: "30%", zIndex: 3000, duration: duration ?? 0 })

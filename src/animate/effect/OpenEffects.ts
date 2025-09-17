@@ -37,18 +37,35 @@ export const OpenEffects: OpenEffects = {
         return timeline;
     },
     popRightIn: ({ container, duration, tl }) => {
-        // console.log("container", container)
         if (!container.ele) return null;
 
         const timeline = tl ?? gsap.timeline();
-        gsap.set(container.ele, { autoAlpha: 1 })
-        timeline.to(container.ele,
-            { x: "-100%", duration: 0.5, ease: "power2.inOut" }
-        );
 
+        // 设置初始状态
+        gsap.set(container.ele, {
+            autoAlpha: 1,
+            right: 0
+        });
+
+        // 简单的从右侧滑入动画
+        timeline.to(container.ele, {
+            x: "-100%",
+            duration: 0.5,
+            ease: "power2.out"
+        });
+
+        // 遮罩层动画
         if (container.mask) {
-            timeline.to(container.mask, { autoAlpha: 0.2, duration: 0.5 }, "<")
+            gsap.set(container.mask, {
+                autoAlpha: 0
+            });
+            timeline.to(container.mask, {
+                autoAlpha: 0.3,
+                duration: 0.3,
+                ease: "power2.out"
+            }, "<");
         }
+
         return timeline;
     },
     popIn: ({ container, duration, tl }) => {

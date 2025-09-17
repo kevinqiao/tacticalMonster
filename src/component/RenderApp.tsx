@@ -1,6 +1,6 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageContainer, PageItem, usePageManager } from "service/PageManager";
 import { CloseEffects } from "../animate/effect/CloseEffects";
 import "./render.css";
@@ -123,6 +123,7 @@ const usePageVisibility = (container: PageContainer, changeEvent: any, pageConta
 // 优化的页面组件
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
+  const isClosingRef = useRef(false);
   const { openPage, pageUpdated, changeEvent, pageContainers, onLoad } = usePageManager();
   // const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
 
@@ -142,13 +143,15 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   //   hasElement: !!container.ele
   // });
 
-  // 优化的关闭处理
+  // 优化的关闭处理 - 使用ref防抖机制
   const close = useCallback((forwardPage?: PageItem) => {
-    if (!container.close) return;
+    // 防止重复点击
+    if (!container.close || isClosingRef.current) return;
+
+    isClosingRef.current = true;
 
     const tl = gsap.timeline({
       onComplete: () => {
-        console.log("onComplete", container);
         // cleanupAnimation();
         if (forwardPage) {
           openPage(forwardPage);
@@ -156,6 +159,8 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           console.log("history.back");
           history.back();
         }
+        // 重置关闭状态
+        isClosingRef.current = false;
       }
     });
     // setAnimationRef(tl);
@@ -226,7 +231,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           opacity: 0,
           visibility: "hidden"
         }}
-        onClick={() => close()}
+        onClick={() => !isClosingRef.current && close()}
       />
 
       {/* 页面容器 */}
@@ -253,7 +258,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           <div
             ref={(ele) => (container.closeEle = ele)}
             className="exit-menu"
-            onClick={() => close()}
+            onClick={() => !isClosingRef.current && close()}
           />
         )}
       </div>

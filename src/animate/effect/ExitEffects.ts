@@ -28,14 +28,37 @@ export const ExitEffects: ExitEffects = {
         return timeline;
     },
     popRightOut: ({ container, tl }) => {
-        // console.log("container", container)
         if (!container.ele) return null;
         const timeline = tl ?? gsap.timeline();
-        timeline.to(container.ele,
-            { x: 0, duration: 0.7, ease: "power2.inOut" }
-        ).to(container.ele, { autoAlpha: 1, duration: 0 })
-        if (container.mask)
-            timeline.to(container.mask, { autoAlpha: 0, duration: 0.7 }, "<");
+
+        // 启用硬件加速
+        gsap.set(container.ele, {
+            force3D: true,
+            willChange: "transform"
+        });
+
+        // 向右侧滑出的动画
+        timeline.to(container.ele, {
+            x: "100%",
+            duration: 0.5,
+            ease: "power3.in"
+        });
+
+        // 遮罩层淡出
+        if (container.mask) {
+            timeline.to(container.mask, {
+                autoAlpha: 0,
+                duration: 0.3,
+                ease: "power2.in"
+            }, "<0.2");
+        }
+
+        // 最后隐藏元素
+        timeline.to(container.ele, {
+            autoAlpha: 0,
+            duration: 0
+        });
+
         return timeline;
     },
     fadeOut: ({ container }) => {
