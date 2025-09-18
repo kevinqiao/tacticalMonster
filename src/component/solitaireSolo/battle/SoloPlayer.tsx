@@ -205,6 +205,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
     // 处理新游戏
     const handleNewGame = useCallback(() => {
+        console.log("handleNewGame")
         startNewGame();
         onGameStart?.();
     }, [startNewGame, onGameStart]);
@@ -570,7 +571,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 height: '100%',
                 position: 'relative',
                 backgroundColor: '#0d5f0d',
-                overflow: 'hidden'
+                overflow: 'visible' // 允许拖拽元素超出边界
             }}
         >
             {renderControlPanel()}

@@ -67,7 +67,7 @@ export const ExitEffects: ExitEffects = {
         const timeline = tl ?? gsap.timeline();
 
         timeline.to(container.ele,
-            { autoAlpha: 0, duration: 0.5 }
+            { autoAlpha: 0, duration: 1, ease: "power2.in" }, "<"
         );
         return timeline;
     },

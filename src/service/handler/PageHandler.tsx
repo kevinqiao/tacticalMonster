@@ -27,8 +27,11 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
         if (loadingBG.ele && loadingBG.status === 1) {
             tl.to(loadingBG.ele, { autoAlpha: 0, duration: 0.5, ease: "power2.out" }, "<=-0.2")
         }
-
+        if (container.enter) {
+            EnterEffects[container.enter]({ container: container, tl })
+        }
         if (container.open) {
+            console.log("container.open", container);
             OpenEffects[container.open]({ container: container, containers: containers, tl })
         }
         const isParent = precontainer ? precontainer.children?.some((c) => c.uri === container.uri) || precontainer?.uri === container.parentURI : false;
@@ -58,7 +61,6 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
                 }
                 parentContainer.children?.forEach((c) => {
                     const effect = c.exit ?? parentContainer.exit
-                    console.log("effect", effect);
                     if (effect) {
                         ExitEffects[effect]({ container: c, tl })
                     }
@@ -78,9 +80,10 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         if (initCompleted && changeEvent) {
-            console.log("changeEvent", changeEvent);
+
             const container = changeEvent.page?.uri ? findContainer(pageContainers, changeEvent.page?.uri) : null;
             const precontainer = changeEvent.prepage?.uri ? findContainer(pageContainers, changeEvent.prepage?.uri) : undefined;
+            console.log("page change:", changeEvent, container, precontainer);
             if (!container) return;
             processOpen({ container, containers: pageContainers, precontainer })
         }

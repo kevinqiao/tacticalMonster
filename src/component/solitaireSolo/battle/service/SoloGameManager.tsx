@@ -233,7 +233,9 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
 
     // 开始新游戏
     const startNewGame = useCallback(() => {
+        console.log("startNewGame")
         const newGame = initializeGame();
+        console.log("startNewGame", newGame)
         setGameState(newGame);
         setIsGameActive(true);
         setIsPaused(false);

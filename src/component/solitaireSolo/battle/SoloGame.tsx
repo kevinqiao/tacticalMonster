@@ -4,7 +4,6 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import SoloGameControl from './control/SoloGameControl';
 import SoloDnDProvider from './service/SoloDnDProvider';
 import SoloGameProvider from './service/SoloGameManager';
 import SoloPlayer from './SoloPlayer';
@@ -90,6 +89,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
 
     // 初始化游戏
     useEffect(() => {
+        console.log('SoloGame initializing...');
         setIsInitialized(true);
     }, []);
 
@@ -110,6 +110,8 @@ const SoloGame: React.FC<SoloGameProps> = ({
         );
     }
 
+    console.log('SoloGame rendering, initialized:', isInitialized);
+
     return (
         <div className={`solo-game-container ${className}`} style={style}>
             <SoloGameProvider config={config}>
@@ -120,11 +122,11 @@ const SoloGame: React.FC<SoloGameProps> = ({
                         onGamePause={handleGamePause}
                         onGameResume={handleGameResume}
                     />
-                    <SoloGameControl
+                    {/* <SoloGameControl
                         onGameComplete={handleGameComplete}
                         onMoveComplete={handleMoveComplete}
                         onHintRequest={handleHintRequest}
-                    />
+                    /> */}
                 </SoloDnDProvider>
             </SoloGameProvider>
         </div>

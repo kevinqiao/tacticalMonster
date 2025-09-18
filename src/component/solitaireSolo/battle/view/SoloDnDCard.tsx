@@ -37,16 +37,21 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         isDragging,
         dragData,
         isTouchDevice,
+        isTransitioning,
         onDragStart,
         onDragOver,
         onDrop
     } = useSoloDnDManager();
     const { selectCard, canMoveCard } = useSoloGameManager();
 
-    // 检查是否正在被拖拽
+    // 检查是否正在被拖拽或处于过渡状态
     const isBeingDragged = useMemo(() => {
         return isDragging && dragData?.card.id === card.id;
     }, [isDragging, dragData, card.id]);
+
+    const isInTransition = useMemo(() => {
+        return isTransitioning && dragData?.card.id === card.id;
+    }, [isTransitioning, dragData, card.id]);
 
     // 检查是否可以移动
     const canMove = useMemo(() => {
@@ -65,7 +70,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             cursor: canMove ? 'grab' : 'default',
             transition: 'all 0.2s ease',
             transform: isBeingDragged ? 'rotate(5deg) scale(1.1)' : isTouching ? 'scale(1.05)' : 'none',
-            zIndex: isBeingDragged ? 1000 : card.zIndex || 1,
+            zIndex: isBeingDragged || isInTransition ? 9999 : card.zIndex || 1,
             opacity: isBeingDragged ? 0.8 : isTouching ? 0.9 : 1,
             boxShadow: isSelected
                 ? '0 0 10px #4CAF50'
@@ -80,7 +85,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         };
 
         return baseStyle;
-    }, [card, isBeingDragged, isSelected, isHinted, isHovered, isTouching, canMove, style]);
+    }, [card, isBeingDragged, isInTransition, isSelected, isHinted, isHovered, isTouching, canMove, style]);
 
     // 处理鼠标事件
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
