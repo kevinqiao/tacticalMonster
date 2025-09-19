@@ -63,15 +63,17 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         const baseStyle: React.CSSProperties = {
             width: '60px',
             height: '84px',
+            minHeight: '84px', // 确保最小高度
             borderRadius: '8px',
             border: '2px solid #333',
             backgroundColor: card.isRevealed ? '#fff' : '#1a4d80',
             position: 'relative',
             cursor: canMove ? 'grab' : 'default',
             transition: 'all 0.2s ease',
-            transform: isBeingDragged ? 'rotate(5deg) scale(1.1)' : isTouching ? 'scale(1.05)' : 'none',
+            transform: isTouching ? 'scale(1.05)' : 'none',
             zIndex: isBeingDragged || isInTransition ? 9999 : card.zIndex || 1,
-            opacity: isBeingDragged ? 0.8 : isTouching ? 0.9 : 1,
+            opacity: isBeingDragged ? 0 : isTouching ? 0.9 : 1,
+            overflow: 'hidden', // 确保内容不会溢出
             boxShadow: isSelected
                 ? '0 0 10px #4CAF50'
                 : isHinted
@@ -224,8 +226,9 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#fff',
-                    fontSize: '12px',
-                    fontWeight: 'bold'
+                    fontSize: '24px',
+                    fontWeight: 'bold',
+                    position: 'relative'
                 }}>
                     ♠
                 </div>
@@ -236,45 +239,59 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             <div style={{
                 width: '100%',
                 height: '100%',
+                minHeight: '84px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '4px',
-                position: 'relative'
+                position: 'relative',
+                boxSizing: 'border-box',
             }}>
                 {/* 左上角数字和花色 */}
                 <div style={{
                     position: 'absolute',
                     top: '2px',
                     left: '4px',
-                    fontSize: '12px',
+                    fontSize: '10px',
                     fontWeight: 'bold',
-                    color: card.isRed ? '#d32f2f' : '#000'
+                    color: card.isRed ? '#d32f2f' : '#000',
+                    lineHeight: '1',
+                    textAlign: 'center'
                 }}>
-                    {card.rank}
+                    <div>{card.rank}</div>
+                    <div style={{ fontSize: '8px' }}>{getSuitSymbol(card.suit)}</div>
                 </div>
 
                 {/* 中心花色 */}
                 <div style={{
                     fontSize: '24px',
                     color: card.isRed ? '#d32f2f' : '#000',
-                    marginTop: '8px'
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 1
                 }}>
                     {getSuitSymbol(card.suit)}
                 </div>
 
-                {/* 右下角数字和花色 */}
+                {/* 右下角数字和花色 - 使用不同的定位方法 */}
                 <div style={{
                     position: 'absolute',
-                    bottom: '2px',
-                    right: '4px',
-                    fontSize: '12px',
+                    top: 'calc(100% - 22px)',
+                    left: 'calc(100% - 18px)',
+                    fontSize: '10px',
                     fontWeight: 'bold',
                     color: card.isRed ? '#d32f2f' : '#000',
-                    transform: 'rotate(180deg)'
+                    transform: 'rotate(180deg)',
+                    transformOrigin: 'center center',
+                    lineHeight: '1',
+                    textAlign: 'center',
+                    width: '16px',
+                    height: '20px',
                 }}>
-                    {card.rank}
+                    {card.rank}{getSuitSymbol(card.suit)}
                 </div>
             </div>
         );
@@ -301,6 +318,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     return (
         <div
             ref={ref}
+            data-card-id={card.id}
             className={`solo-card ${className} ${isSelected ? 'selected' : ''} ${isHinted ? 'hinted' : ''} ${!card.isRevealed ? 'face-down' : ''}`}
             style={cardStyle}
             onMouseDown={handleMouseDown}
@@ -314,7 +332,6 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             onDoubleClick={handleDoubleClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            data-card-id={card.id}
             data-source={source}
             data-revealed={card.isRevealed}
         >
