@@ -57,6 +57,7 @@ interface ISoloGameContext {
     canMoveToZone: (card: SoloCard, targetZoneId: string) => boolean;
     getZone: (zoneId: string) => SoloZone | undefined;
     getZonesByType: (zoneType: ZoneType) => SoloZone[];
+    getMovableSequence: (card: SoloCard) => SoloCard[];
 }
 
 const SoloGameContext = createContext<ISoloGameContext>({
@@ -95,7 +96,8 @@ const SoloGameContext = createContext<ISoloGameContext>({
     moveCardToZone: () => false,
     canMoveToZone: () => false,
     getZone: () => undefined,
-    getZonesByType: () => []
+    getZonesByType: () => [],
+    getMovableSequence: () => []
 });
 
 export const useSoloGameManager = () => {
@@ -246,15 +248,16 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
         if (gameTimerRef.current) {
             clearInterval(gameTimerRef.current);
         }
-        gameTimerRef.current = setInterval(() => {
-            setGameState(prev => {
-                if (!prev || isPaused) return prev;
-                return {
-                    ...prev,
-                    timeElapsed: Math.floor((Date.now() - startTimeRef.current) / 1000)
-                };
-            });
-        }, 1000);
+
+        // gameTimerRef.current = setInterval(() => {
+        //     setGameState(prev => {
+        //         if (!prev || isPaused) return prev;
+        //         return {
+        //             ...prev,
+        //             timeElapsed: Math.floor((Date.now() - startTimeRef.current) / 1000)
+        //         };
+        //     });
+        // }, 1000);
     }, [initializeGame, isPaused]);
 
     // 暂停游戏
@@ -344,11 +347,236 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
         });
     }, []);
 
+    // 基于 cards 数组的工具方法
+    const getCardsByZone = useCallback((zoneId: string): SoloCard[] => {
+        if (!gameState) return [];
+        return gameState.cards.filter(card => card.zoneId === zoneId);
+    }, [gameState]);
+
+    const getCardsByZoneType = useCallback((zoneType: ZoneType): SoloCard[] => {
+        if (!gameState) return [];
+        return gameState.cards.filter(card => card.zone === zoneType);
+    }, [gameState]);
+
+    const getZone = useCallback((zoneId: string): SoloZone | undefined => {
+        if (!gameState) return undefined;
+        return gameState.zones.find(zone => zone.id === zoneId);
+    }, [gameState]);
+
+    const getZonesByType = useCallback((zoneType: ZoneType): SoloZone[] => {
+        if (!gameState) return [];
+        return gameState.zones.filter(zone => zone.type === zoneType);
+    }, [gameState]);
+
+    // 获取可移动的卡牌序列（从指定卡牌到列底部）
+    const getMovableSequence = useCallback((card: SoloCard): SoloCard[] => {
+        if (!gameState) return [card];
+
+        // 只有tableau列支持序列移动
+        if (!card.zoneId.startsWith('tableau-')) {
+            return [card];
+        }
+
+        // 获取该列的所有卡牌，按zoneIndex排序
+        const columnCards = getCardsByZone(card.zoneId)
+            .sort((a, b) => a.zoneIndex - b.zoneIndex);
+
+        // 找到起始卡牌的索引
+        const startIndex = columnCards.findIndex(c => c.id === card.id);
+        if (startIndex === -1) return [card];
+
+        // 获取从起始卡牌到列底部的所有卡牌
+        const sequence = columnCards.slice(startIndex);
+
+        // 验证序列是否有效（必须是连续的红黑交替递减序列）
+        for (let i = 1; i < sequence.length; i++) {
+            const currentCard = sequence[i];
+            const prevCard = sequence[i - 1];
+
+            // 检查是否翻开
+            if (!currentCard.isRevealed) {
+                console.log(`Sequence broken: card ${currentCard.id} is not revealed`);
+                return sequence.slice(0, i); // 返回到第一张隐藏卡牌为止
+            }
+
+            // 检查红黑交替和递减
+            if (currentCard.isRed === prevCard.isRed || currentCard.value !== prevCard.value - 1) {
+                console.log(`Sequence broken: invalid transition from ${prevCard.rank} to ${currentCard.rank}`);
+                return sequence.slice(0, i); // 返回到无效位置为止
+            }
+        }
+
+        console.log(`Valid sequence of ${sequence.length} cards starting from ${card.id}`);
+        return sequence;
+    }, [gameState, getCardsByZone]);
+
+    const canMoveToZone = useCallback((card: SoloCard, targetZoneId: string): boolean => {
+        if (!gameState) return false;
+
+        const targetZone = getZone(targetZoneId);
+        if (!targetZone) return false;
+
+        const targetCards = getCardsByZone(targetZoneId);
+
+        // 获取要移动的序列
+        const movableSequence = getMovableSequence(card);
+
+        switch (targetZone.type) {
+            case ZoneType.FOUNDATION: {
+                // Foundation只能移动单张卡牌
+                if (movableSequence.length > 1) {
+                    console.log('Foundation cannot accept card sequences');
+                    return false;
+                }
+
+                // Foundation规则：同花色，从A开始递增
+                if (targetCards.length === 0) {
+                    // 空基础堆只能放A
+                    return card.rank === 'A';
+                }
+
+                const topCard = targetCards[targetCards.length - 1];
+                // 必须同花色，且数值比顶牌大1
+                return card.suit === topCard.suit && card.value === topCard.value + 1;
+            }
+
+            case ZoneType.TABLEAU: {
+                // Tableau规则：红黑交替，递减
+                if (targetCards.length === 0) {
+                    // 空列只能放K（序列的第一张卡牌必须是K）
+                    console.log(`Empty tableau column, checking if first card is K: ${card.rank === 'K'}`);
+                    return card.rank === 'K';
+                }
+
+                const topCard = targetCards[targetCards.length - 1];
+                console.log(`Tableau move check: ${card.rank} of ${card.suit} (${card.isRed ? 'red' : 'black'}) -> ${topCard.rank} of ${topCard.suit} (${topCard.isRed ? 'red' : 'black'})`);
+                console.log(`Top card revealed: ${topCard.isRevealed}, card values: ${card.value} vs ${topCard.value}`);
+                console.log(`Moving sequence of ${movableSequence.length} cards`);
+
+                // 顶牌必须是翻开的，且必须不同颜色，且数值比顶牌小1
+                if (!topCard.isRevealed) {
+                    console.log('Top card is not revealed, cannot place card on it');
+                    return false;
+                }
+
+                const isValidMove = card.isRed !== topCard.isRed && card.value === topCard.value - 1;
+                console.log(`Tableau move valid: ${isValidMove}`);
+                return isValidMove;
+            }
+
+            case ZoneType.WASTE: {
+                // Waste堆通常不能直接放置卡牌（只能从Talon抽牌）
+                return false;
+            }
+
+            case ZoneType.TALON: {
+                // Talon堆不能直接放置卡牌
+                return false;
+            }
+
+            default:
+                return false;
+        }
+    }, [gameState, getZone, getCardsByZone, getMovableSequence]);
+
     // 获取提示
     const getHints = useCallback((): SoloHint[] => {
-        // 实现提示算法
-        return [];
-    }, []);
+        if (!gameState) return [];
+
+        const hints: SoloHint[] = [];
+
+        // 检查Waste堆的牌是否可以移动到Foundation或Tableau
+        const wasteCards = getCardsByZone('waste');
+        if (wasteCards.length > 0) {
+            const topWasteCard = wasteCards[wasteCards.length - 1];
+
+            // 检查是否可以移动到Foundation
+            const foundationZones = getZonesByType(ZoneType.FOUNDATION);
+            for (const zone of foundationZones) {
+                if (zone.suit === topWasteCard.suit || !zone.suit) {
+                    if (canMoveToZone(topWasteCard, zone.id)) {
+                        hints.push({
+                            card: topWasteCard,
+                            from: 'waste',
+                            to: zone.id,
+                            reason: `Move ${topWasteCard.rank} of ${topWasteCard.suit} to foundation`,
+                            priority: 5 // Foundation moves are high priority
+                        });
+                    }
+                }
+            }
+
+            // 检查是否可以移动到Tableau
+            const tableauZones = getZonesByType(ZoneType.TABLEAU);
+            for (const zone of tableauZones) {
+                if (canMoveToZone(topWasteCard, zone.id)) {
+                    hints.push({
+                        card: topWasteCard,
+                        from: 'waste',
+                        to: zone.id,
+                        reason: `Move ${topWasteCard.rank} of ${topWasteCard.suit} to tableau column`,
+                        priority: 3
+                    });
+                }
+            }
+        }
+
+        // 检查Tableau列之间的移动
+        const foundationZones = getZonesByType(ZoneType.FOUNDATION);
+        const tableauZones = getZonesByType(ZoneType.TABLEAU);
+        for (const sourceZone of tableauZones) {
+            const sourceCards = getCardsByZone(sourceZone.id);
+            if (sourceCards.length > 0) {
+                const topCard = sourceCards[sourceCards.length - 1];
+                if (topCard.isRevealed) {
+                    // 检查是否可以移动到其他Tableau列
+                    for (const targetZone of tableauZones) {
+                        if (sourceZone.id !== targetZone.id && canMoveToZone(topCard, targetZone.id)) {
+                            hints.push({
+                                card: topCard,
+                                from: sourceZone.id,
+                                to: targetZone.id,
+                                reason: `Move ${topCard.rank} of ${topCard.suit} between tableau columns`,
+                                priority: 2
+                            });
+                        }
+                    }
+
+                    // 检查是否可以移动到Foundation
+                    for (const foundationZone of foundationZones) {
+                        if (foundationZone.suit === topCard.suit || !foundationZone.suit) {
+                            if (canMoveToZone(topCard, foundationZone.id)) {
+                                hints.push({
+                                    card: topCard,
+                                    from: sourceZone.id,
+                                    to: foundationZone.id,
+                                    reason: `Move ${topCard.rank} of ${topCard.suit} to foundation`,
+                                    priority: 5
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 如果没有可移动的牌，建议抽牌
+        if (hints.length === 0) {
+            const talonCards = getCardsByZone('talon');
+            if (talonCards.length > 0) {
+                const topTalonCard = talonCards[0];
+                hints.push({
+                    card: topTalonCard,
+                    from: 'talon',
+                    to: 'waste',
+                    reason: 'Draw a card from the talon',
+                    priority: 1
+                });
+            }
+        }
+
+        return hints.slice(0, 3); // 最多返回3个提示
+    }, [gameState, getCardsByZone, getZonesByType, canMoveToZone]);
 
     // 自动完成
     const autoComplete = useCallback(() => {
@@ -359,16 +587,37 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
 
     // 检查是否可以移动牌
     const canMoveCard = useCallback((card: SoloCard, to: string): boolean => {
-        // 实现移动规则检查
-        return true;
-    }, []);
+        if (!gameState) return false;
+
+        const targetZone = getZone(to);
+        if (!targetZone) return false;
+
+        return canMoveToZone(card, to);
+    }, [gameState, getZone]);
 
     // 检查游戏是否胜利
     const isGameWon = useCallback((): boolean => {
         if (!gameState) return false;
-        const foundationCards = getCardsByZoneType(ZoneType.FOUNDATION);
-        return foundationCards.length === 52; // 所有牌都在基础堆
-    }, [gameState]);
+
+        // 检查每个基础堆是否都有13张牌（A到K）
+        const foundationZones = getZonesByType(ZoneType.FOUNDATION);
+        for (const zone of foundationZones) {
+            const cards = getCardsByZone(zone.id);
+            if (cards.length !== 13) {
+                return false;
+            }
+
+            // 验证基础堆的顺序是否正确（A到K）
+            const sortedCards = [...cards].sort((a, b) => a.value - b.value);
+            for (let i = 0; i < sortedCards.length; i++) {
+                if (sortedCards[i].value !== i + 1) {
+                    return false;
+                }
+            }
+        }
+
+        return true; // 所有基础堆都完整
+    }, [gameState, getZonesByType, getCardsByZone]);
 
     // 检查游戏是否失败
     const isGameLost = useCallback((): boolean => {
@@ -382,46 +631,76 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
         setBoardDimension(dimension);
     }, []);
 
-    // 基于 cards 数组的工具方法
-    const getCardsByZone = useCallback((zoneId: string): SoloCard[] => {
-        if (!gameState) return [];
-        return gameState.cards.filter(card => card.zoneId === zoneId);
-    }, [gameState]);
-
-    const getCardsByZoneType = useCallback((zoneType: ZoneType): SoloCard[] => {
-        if (!gameState) return [];
-        return gameState.cards.filter(card => card.zone === zoneType);
-    }, [gameState]);
-
     const moveCardToZone = useCallback((card: SoloCard, targetZoneId: string, targetIndex?: number): boolean => {
         if (!gameState) return false;
 
-        // 更新卡牌位置
-        card.zoneId = targetZoneId;
-        if (targetIndex !== undefined) {
-            card.zoneIndex = targetIndex;
-        } else {
-            card.zoneIndex = getCardsByZone(targetZoneId).length;
-        }
+        // 获取要移动的卡牌序列
+        const movableCards = getMovableSequence(card);
 
-        console.log(`Moving card ${card.id} to zone ${targetZoneId}`);
-        return true;
-    }, [gameState, getCardsByZone]);
+        // 更新游戏状态，触发React重新渲染
+        setGameState(prevState => {
+            if (!prevState) return prevState;
 
-    const canMoveToZone = useCallback((card: SoloCard, targetZoneId: string): boolean => {
-        // 实现区域移动规则检查
+            // 先计算目标区域的卡牌数量（排除正在移动的所有卡牌）
+            const movingCardIds = new Set(movableCards.map(c => c.id));
+            const targetCards = prevState.cards.filter(c =>
+                c.zoneId === targetZoneId && !movingCardIds.has(c.id)
+            );
+            const baseZoneIndex = targetIndex !== undefined ? targetIndex : targetCards.length;
+
+            const newCards = prevState.cards.map(c => {
+                // 检查是否是要移动的卡牌
+                const cardIndexInSequence = movableCards.findIndex(mc => mc.id === c.id);
+                if (cardIndexInSequence !== -1) {
+                    // 更新序列中卡牌的位置
+                    return {
+                        ...c,
+                        zone: getZoneType(targetZoneId),
+                        zoneId: targetZoneId,
+                        zoneIndex: baseZoneIndex + cardIndexInSequence
+                    };
+                }
+                return c;
+            });
+
+            // 检查源区域是否需要翻开新的顶牌
+            const sourceZoneId = card.zoneId;
+            if (sourceZoneId.startsWith('tableau-')) {
+                // 获取移动后源区域的卡牌
+                const sourceCards = newCards
+                    .filter(c => c.zoneId === sourceZoneId)
+                    .sort((a, b) => a.zoneIndex - b.zoneIndex);
+
+                // 如果还有卡牌且顶牌是隐藏的，则翻开它
+                if (sourceCards.length > 0) {
+                    const newTopCard = sourceCards[sourceCards.length - 1];
+                    if (!newTopCard.isRevealed) {
+                        console.log(`Auto-revealing new top card: ${newTopCard.id} in ${sourceZoneId}`);
+                        newTopCard.isRevealed = true;
+                    }
+                }
+            }
+
+            console.log(`Moving sequence of ${movableCards.length} cards to zone ${targetZoneId} starting at index ${baseZoneIndex}`);
+
+            return {
+                ...prevState,
+                cards: newCards,
+                moves: prevState.moves + 1
+            };
+        });
+
         return true;
+    }, [gameState]);
+
+    // 辅助函数：根据zoneId获取ZoneType
+    const getZoneType = useCallback((zoneId: string): ZoneType => {
+        if (zoneId === 'talon') return ZoneType.TALON;
+        if (zoneId === 'waste') return ZoneType.WASTE;
+        if (zoneId.startsWith('foundation-')) return ZoneType.FOUNDATION;
+        if (zoneId.startsWith('tableau-')) return ZoneType.TABLEAU;
+        return ZoneType.TABLEAU; // 默认值
     }, []);
-
-    const getZone = useCallback((zoneId: string): SoloZone | undefined => {
-        if (!gameState) return undefined;
-        return gameState.zones.find(zone => zone.id === zoneId);
-    }, [gameState]);
-
-    const getZonesByType = useCallback((zoneType: ZoneType): SoloZone[] => {
-        if (!gameState) return [];
-        return gameState.zones.filter(zone => zone.type === zoneType);
-    }, [gameState]);
 
     // 清理定时器
     useEffect(() => {
@@ -458,9 +737,12 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
         moveCardToZone,
         canMoveToZone,
         getZone,
-        getZonesByType
+        getZonesByType,
+        getMovableSequence
     };
-
+    useEffect(() => {
+        console.log('value', value);
+    }, [value]);
     return (
         <SoloGameContext.Provider value={value}>
             {children}

@@ -6,10 +6,10 @@
 import {
     CARD_VALUES,
     SoloCard,
-    SoloFoundation,
     SoloGameState,
     SoloHint,
-    SoloMove
+    SoloMove,
+    ZoneType
 } from '../types/SoloTypes';
 
 export class SoloRuleManager {
@@ -22,18 +22,24 @@ export class SoloRuleManager {
     /**
      * 检查是否可以移动卡牌到基础堆
      */
-    canMoveToFoundation(card: SoloCard, foundation: SoloFoundation): boolean {
+    canMoveToFoundation(card: SoloCard, foundationZoneId: string): boolean {
         if (!card.isRevealed) return false;
 
-        // 基础堆必须按花色和顺序排列
-        if (card.suit !== foundation.suit) return false;
+        // 获取基础堆中的卡牌（按zoneId过滤）
+        const foundationCards = this.gameState.cards
+            .filter(c => c.zone === ZoneType.FOUNDATION && c.zoneId === foundationZoneId)
+            .sort((a, b) => a.zoneIndex - b.zoneIndex);
 
-        if (foundation.cards.length === 0) {
+        // 基础堆必须按花色和顺序排列
+        const targetSuit = foundationZoneId.split('-')[1]; // 从 "foundation-hearts" 提取花色
+        if (card.suit !== targetSuit) return false;
+
+        if (foundationCards.length === 0) {
             // 空基础堆只能放A
             return card.rank === 'A';
         }
 
-        const topCard = foundation.cards[foundation.cards.length - 1];
+        const topCard = foundationCards[foundationCards.length - 1];
         return CARD_VALUES[card.rank] === CARD_VALUES[topCard.rank] + 1;
     }
 
@@ -96,18 +102,22 @@ export class SoloRuleManager {
         if (!card.isRevealed) return false;
 
         // 检查是否可以移动到基础堆
-        for (const foundation of this.gameState.foundations) {
-            if (this.canMoveToFoundation(card, foundation)) {
+        const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
+        for (const foundationZone of foundationZones) {
+            if (this.canMoveToFoundation(card, foundationZone.id)) {
                 return true;
             }
         }
 
         // 检查是否可以移动到牌桌
-        for (let col = 0; col < this.gameState.tableau.columns.length; col++) {
-            const column = this.gameState.tableau.columns[col];
-            const targetCard = column.length > 0 ? column[column.length - 1] : null;
+        const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+        for (const tableauZone of tableauZones) {
+            const zoneCards = this.gameState.cards
+                .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === tableauZone.id)
+                .sort((a, b) => b.zoneIndex - a.zoneIndex);
+            const targetCard = zoneCards.length > 0 ? zoneCards[0] : null;
 
-            if (this.canMoveToTableau(card, targetCard, col)) {
+            if (this.canMoveToTableau(card, targetCard, parseInt(tableauZone.id.split('-')[1]))) {
                 return true;
             }
         }
@@ -122,18 +132,23 @@ export class SoloRuleManager {
         if (!card.isRevealed) return false;
 
         // 检查是否可以移动到基础堆
-        for (const foundation of this.gameState.foundations) {
-            if (this.canMoveToFoundation(card, foundation)) {
+        const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
+        for (const foundationZone of foundationZones) {
+            if (this.canMoveToFoundation(card, foundationZone.id)) {
                 return true;
             }
         }
 
         // 检查是否可以移动到其他牌桌列
-        for (let col = 0; col < this.gameState.tableau.columns.length; col++) {
+        const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+        for (const tableauZone of tableauZones) {
+            const col = parseInt(tableauZone.id.split('-')[1]);
             if (col === sourceColumn) continue;
 
-            const column = this.gameState.tableau.columns[col];
-            const targetCard = column.length > 0 ? column[column.length - 1] : null;
+            const zoneCards = this.gameState.cards
+                .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === tableauZone.id)
+                .sort((a, b) => b.zoneIndex - a.zoneIndex);
+            const targetCard = zoneCards.length > 0 ? zoneCards[0] : null;
 
             if (this.canMoveToTableau(card, targetCard, col)) {
                 return true;
@@ -148,8 +163,12 @@ export class SoloRuleManager {
      */
     canFlipCard(card: SoloCard): boolean {
         // 只有牌桌中每列的最后一张牌可以翻开
-        for (const column of this.gameState.tableau.columns) {
-            if (column.length > 0 && column[column.length - 1].id === card.id) {
+        const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+        for (const tableauZone of tableauZones) {
+            const zoneCards = this.gameState.cards
+                .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === tableauZone.id)
+                .sort((a, b) => b.zoneIndex - a.zoneIndex);
+            if (zoneCards.length > 0 && zoneCards[0].id === card.id) {
                 return !card.isRevealed;
             }
         }
@@ -160,14 +179,19 @@ export class SoloRuleManager {
      * 检查是否可以抽牌
      */
     canDrawCard(): boolean {
-        return this.gameState.talon.cards.length > 0;
+        const talonCards = this.gameState.cards.filter(c => c.zone === ZoneType.TALON);
+        return talonCards.length > 0;
     }
 
     /**
      * 检查游戏是否胜利
      */
     isGameWon(): boolean {
-        return this.gameState.foundations.every(foundation => foundation.cards.length === 13);
+        const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
+        return foundationZones.every(foundationZone => {
+            const foundationCards = this.gameState.cards.filter(c => c.zone === ZoneType.FOUNDATION && c.zoneId === foundationZone.id);
+            return foundationCards.length === 13;
+        });
     }
 
     /**
@@ -178,16 +202,21 @@ export class SoloRuleManager {
         if (this.canDrawCard()) return false;
 
         // 检查废牌堆是否有可移动的卡牌
-        if (this.gameState.waste.length > 0) {
-            const topWasteCard = this.gameState.waste[this.gameState.waste.length - 1];
+        const wasteCards = this.gameState.cards.filter(c => c.zone === ZoneType.WASTE);
+        if (wasteCards.length > 0) {
+            const topWasteCard = wasteCards.sort((a, b) => b.zoneIndex - a.zoneIndex)[0];
             if (this.canMoveFromWaste(topWasteCard)) return false;
         }
 
         // 检查牌桌是否有可移动的卡牌
-        for (let col = 0; col < this.gameState.tableau.columns.length; col++) {
-            const column = this.gameState.tableau.columns[col];
-            for (let i = column.length - 1; i >= 0; i--) {
-                const card = column[i];
+        const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+        for (const tableauZone of tableauZones) {
+            const col = parseInt(tableauZone.id.split('-')[1]);
+            const zoneCards = this.gameState.cards
+                .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === tableauZone.id)
+                .sort((a, b) => b.zoneIndex - a.zoneIndex);
+
+            for (const card of zoneCards) {
                 if (card.isRevealed && this.canMoveFromTableau(card, col)) {
                     return false;
                 }
@@ -204,17 +233,19 @@ export class SoloRuleManager {
         const moves: SoloMove[] = [];
 
         // 检查废牌堆的移动
-        if (this.gameState.waste.length > 0) {
-            const topWasteCard = this.gameState.waste[this.gameState.waste.length - 1];
+        const wasteCards = this.gameState.cards.filter(c => c.zone === ZoneType.WASTE);
+        if (wasteCards.length > 0) {
+            const topWasteCard = wasteCards.sort((a, b) => b.zoneIndex - a.zoneIndex)[0];
 
             // 移动到基础堆
-            for (const foundation of this.gameState.foundations) {
-                if (this.canMoveToFoundation(topWasteCard, foundation)) {
+            const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
+            for (const foundationZone of foundationZones) {
+                if (this.canMoveToFoundation(topWasteCard, foundationZone.id)) {
                     moves.push({
                         id: `move-${Date.now()}-${Math.random()}`,
                         type: 'foundation',
                         from: 'waste',
-                        to: foundation.id,
+                        to: foundationZone.id,
                         card: topWasteCard,
                         timestamp: Date.now(),
                         isValid: true,
@@ -224,9 +255,13 @@ export class SoloRuleManager {
             }
 
             // 移动到牌桌
-            for (let col = 0; col < this.gameState.tableau.columns.length; col++) {
-                const column = this.gameState.tableau.columns[col];
-                const targetCard = column.length > 0 ? column[column.length - 1] : null;
+            const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+            for (const tableauZone of tableauZones) {
+                const col = parseInt(tableauZone.id.split('-')[1]);
+                const zoneCards = this.gameState.cards
+                    .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === tableauZone.id)
+                    .sort((a, b) => b.zoneIndex - a.zoneIndex);
+                const targetCard = zoneCards.length > 0 ? zoneCards[0] : null;
 
                 if (this.canMoveToTableau(topWasteCard, targetCard, col)) {
                     moves.push({
@@ -244,21 +279,26 @@ export class SoloRuleManager {
         }
 
         // 检查牌桌的移动
-        for (let col = 0; col < this.gameState.tableau.columns.length; col++) {
-            const column = this.gameState.tableau.columns[col];
+        const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+        for (const tableauZone of tableauZones) {
+            const col = parseInt(tableauZone.id.split('-')[1]);
+            const zoneCards = this.gameState.cards
+                .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === tableauZone.id)
+                .sort((a, b) => b.zoneIndex - a.zoneIndex);
 
-            for (let i = column.length - 1; i >= 0; i--) {
-                const card = column[i];
+            for (let i = zoneCards.length - 1; i >= 0; i--) {
+                const card = zoneCards[i];
                 if (!card.isRevealed) break;
 
                 // 移动到基础堆
-                for (const foundation of this.gameState.foundations) {
-                    if (this.canMoveToFoundation(card, foundation)) {
+                const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
+                for (const foundationZone of foundationZones) {
+                    if (this.canMoveToFoundation(card, foundationZone.id)) {
                         moves.push({
                             id: `move-${Date.now()}-${Math.random()}`,
                             type: 'foundation',
                             from: `tableau-${col}`,
-                            to: foundation.id,
+                            to: foundationZone.id,
                             card: card,
                             timestamp: Date.now(),
                             isValid: true,
@@ -268,11 +308,14 @@ export class SoloRuleManager {
                 }
 
                 // 移动到其他牌桌列
-                for (let targetCol = 0; targetCol < this.gameState.tableau.columns.length; targetCol++) {
+                for (const targetTableauZone of tableauZones) {
+                    const targetCol = parseInt(targetTableauZone.id.split('-')[1]);
                     if (targetCol === col) continue;
 
-                    const targetColumn = this.gameState.tableau.columns[targetCol];
-                    const targetCard = targetColumn.length > 0 ? targetColumn[targetColumn.length - 1] : null;
+                    const targetZoneCards = this.gameState.cards
+                        .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === targetTableauZone.id)
+                        .sort((a, b) => b.zoneIndex - a.zoneIndex);
+                    const targetCard = targetZoneCards.length > 0 ? targetZoneCards[0] : null;
 
                     if (this.canMoveToTableau(card, targetCard, targetCol)) {
                         moves.push({
@@ -325,10 +368,14 @@ export class SoloRuleManager {
         });
 
         // 提示翻牌
-        for (let col = 0; col < this.gameState.tableau.columns.length; col++) {
-            const column = this.gameState.tableau.columns[col];
-            if (column.length > 0) {
-                const lastCard = column[column.length - 1];
+        const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+        for (const tableauZone of tableauZones) {
+            const col = parseInt(tableauZone.id.split('-')[1]);
+            const zoneCards = this.gameState.cards
+                .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === tableauZone.id)
+                .sort((a, b) => b.zoneIndex - a.zoneIndex);
+            if (zoneCards.length > 0) {
+                const lastCard = zoneCards[0];
                 if (!lastCard.isRevealed) {
                     hints.push({
                         card: lastCard,
@@ -377,14 +424,15 @@ export class SoloRuleManager {
     validateMove(move: SoloMove): boolean {
         switch (move.type) {
             case 'foundation':
-                const foundation = this.gameState.foundations.find(f => f.id === move.to);
-                return foundation ? this.canMoveToFoundation(move.card, foundation) : false;
+                return this.canMoveToFoundation(move.card, move.to);
 
             case 'move':
                 if (move.to.startsWith('tableau-')) {
                     const targetCol = parseInt(move.to.split('-')[1]);
-                    const column = this.gameState.tableau.columns[targetCol];
-                    const targetCard = column.length > 0 ? column[column.length - 1] : null;
+                    const targetZoneCards = this.gameState.cards
+                        .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === `tableau-${targetCol}`)
+                        .sort((a, b) => b.zoneIndex - a.zoneIndex);
+                    const targetCard = targetZoneCards.length > 0 ? targetZoneCards[0] : null;
                     return this.canMoveToTableau(move.card, targetCard, targetCol);
                 }
                 return false;

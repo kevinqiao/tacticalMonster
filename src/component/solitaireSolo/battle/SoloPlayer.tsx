@@ -50,6 +50,22 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
+    // 统一的卡牌样式函数
+    const getUnifiedCardStyle = useCallback((additionalStyle: React.CSSProperties = {}): React.CSSProperties => {
+        if (!boardDimension) return additionalStyle;
+        return {
+            // 统一尺寸设置
+            width: boardDimension.cardWidth,
+            height: boardDimension.cardHeight,
+            minHeight: boardDimension.cardHeight, // 使用动态最小高度
+            maxHeight: boardDimension.cardHeight, // 强制最大高度
+            boxSizing: 'border-box',
+            flexShrink: 0,
+            // 附加样式
+            ...additionalStyle
+        };
+    }, [boardDimension]);
+
     // 计算棋盘尺寸 - 优化自适应逻辑
     const calculateBoardDimension = useCallback((): SoloBoardDimension => {
         if (!containerRef.current) {
@@ -79,16 +95,12 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         } else if (containerWidth < 1024) {
             currentScreenSize = 'tablet';
         }
-
+        console.log('currentScreenSize', currentScreenSize);
         // 更新屏幕尺寸状态
-        if (currentScreenSize !== screenSize) {
-            setScreenSize(currentScreenSize);
-        }
-
+        setScreenSize((prev) => prev !== currentScreenSize ? currentScreenSize : prev);
         // 根据屏幕尺寸调整参数
         const isMobile = currentScreenSize === 'mobile';
         const isTablet = currentScreenSize === 'tablet';
-
         const minWidth = isMobile ? 320 : isTablet ? 500 : 600;
         const minHeight = isMobile ? 300 : isTablet ? 350 : 400;
         const maxCardWidth = isMobile ? 50 : isTablet ? 65 : 80;
@@ -127,21 +139,23 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
         // 移动端时调整牌堆和废牌堆的布局
         let talonX, wasteX, wasteWidth;
-        if (isMobile) {
-            // 移动端：牌堆和废牌堆垂直排列
-            talonX = (availableWidth - finalCardWidth) / 2;
-            wasteX = talonX;
-            wasteWidth = finalCardWidth;
-        } else {
-            // 桌面端：牌堆和废牌堆水平排列
-            talonX = spacing;
-            wasteX = talonX + finalCardWidth + spacing;
-            wasteWidth = finalCardWidth * 3 + spacing * 2;
-        }
+        // if (isMobile) {
+        //     // 移动端：牌堆和废牌堆垂直排列
+        //     talonX = (availableWidth - finalCardWidth) / 2;
+        //     wasteX = talonX;
+        //     wasteWidth = finalCardWidth;
+        // } else {
+        // 桌面端：牌堆和废牌堆水平排列
+        talonX = spacing;
+        wasteX = talonX + finalCardWidth + spacing;
+        // wasteWidth = isMobile ? finalCardWidth : finalCardWidth * 3 + spacing * 2;
+        wasteWidth = finalCardWidth * 3 + spacing * 2;
+        // }
 
         const finalTableauWidth = finalCardWidth * 7 + spacing * 6;
         const tableauX = (availableWidth - finalTableauWidth) / 2;
-
+        console.log('finalCardWidth', finalCardWidth);
+        console.log('cardHeight', cardHeight);
         return {
             width: availableWidth,
             height: availableHeight,
@@ -163,7 +177,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 },
                 waste: {
                     x: wasteX,
-                    y: isMobile ? spacing * 3 + cardHeight * 2 : spacing * 2 + cardHeight,
+                    // y: isMobile ? spacing * 3 + cardHeight * 2 : spacing * 2 + cardHeight,
+                    y: spacing * 2 + cardHeight,
                     width: wasteWidth,
                     height: cardHeight
                 },
@@ -178,7 +193,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 }
             }
         };
-    }, []);
+    }, [screenSize]); // 添加 screenSize 依赖
 
     // 更新棋盘尺寸
     useEffect(() => {
@@ -202,6 +217,18 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
             clearTimeout(timeoutId);
         };
     }, [calculateBoardDimension, updateBoardDimension]);
+
+    // 调试信息 - 确保尺寸一致性
+    useEffect(() => {
+        if (process.env.NODE_ENV === 'development' && boardDimension) {
+            console.log('SoloPlayer Debug - Card Dimensions:', {
+                cardWidth: boardDimension.cardWidth,
+                cardHeight: boardDimension.cardHeight,
+                spacing: boardDimension.spacing,
+                screenSize: screenSize
+            });
+        }
+    }, [boardDimension, screenSize]);
 
     // 处理新游戏
     const handleNewGame = useCallback(() => {
@@ -259,6 +286,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 <div
                     key={`foundation-${suit}`}
                     className="foundation-zone"
+                    data-zone-id={`foundation-${suit}`}
+                    data-drop-zone="true"
                     style={{
                         position: 'absolute',
                         left: boardDimension.zones.foundations.x + index * (boardDimension.cardWidth + boardDimension.spacing),
@@ -279,6 +308,9 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                             source={`foundation-${suit}`}
                             onClick={handleCardClick}
                             onDoubleClick={handleCardDoubleClick}
+                            style={getUnifiedCardStyle({
+                                position: 'relative'
+                            })}
                         />
                     ) : (
                         <div style={{ color: '#999', fontSize: '12px' }}>
@@ -288,7 +320,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 </div>
             );
         });
-    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone]);
+    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone, getUnifiedCardStyle]);
 
     // 渲染牌堆
     const renderTalon = useCallback(() => {
@@ -340,9 +372,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     left: boardDimension.zones.waste.x,
                     top: boardDimension.zones.waste.y,
                     width: boardDimension.zones.waste.width,
-                    height: boardDimension.cardHeight,
-                    display: 'flex',
-                    gap: boardDimension.spacing
+                    height: boardDimension.cardHeight
                 }}
             >
                 {wasteCards.slice(-3).map((card, index) => (
@@ -352,26 +382,29 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                         source="waste"
                         onClick={handleCardClick}
                         onDoubleClick={handleCardDoubleClick}
-                        style={{
-                            position: 'relative',
-                            left: index * (boardDimension.cardWidth * 0.3)
-                        }}
+                        style={getUnifiedCardStyle({
+                            position: 'absolute', // 改为绝对定位，与 tableau 一致
+                            left: index * (boardDimension.cardWidth * 0.55),
+                            top: 0,
+                        })}
                     />
                 ))}
             </div>
         );
-    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone]);
+    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone, getUnifiedCardStyle]);
 
     // 渲染牌桌
     const renderTableau = useCallback(() => {
-        if (!gameState || !boardDimension) return null;
-
+        if (!boardDimension) return null;
+        console.log('boardDimension', boardDimension);
         return Array.from({ length: 7 }, (_, colIndex) => {
             const columnCards = getCardsByZone(`tableau-${colIndex}`);
             return (
                 <div
                     key={`tableau-col-${colIndex}`}
                     className="tableau-column"
+                    data-zone-id={`tableau-${colIndex}`}
+                    data-drop-zone="true"
                     style={{
                         position: 'absolute',
                         left: boardDimension.zones.tableau.x + colIndex * (boardDimension.cardWidth + boardDimension.spacing),
@@ -390,16 +423,16 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                             source={`tableau-${colIndex}`}
                             onClick={handleCardClick}
                             onDoubleClick={handleCardDoubleClick}
-                            style={{
+                            style={getUnifiedCardStyle({
                                 position: 'absolute',
-                                top: cardIndex * (boardDimension.cardHeight * 0.3)
-                            }}
+                                top: cardIndex * (boardDimension.cardHeight * 0.3),
+                            })}
                         />
                     ))}
                 </div>
             );
         });
-    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone]);
+    }, [boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone, getUnifiedCardStyle]);
 
     // 渲染控制面板
     const renderControlPanel = useCallback(() => {
@@ -407,21 +440,23 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         const isTablet = screenSize === 'tablet';
 
         return (
-            <div className="control-panel" style={{
-                position: 'absolute',
-                top: isMobile ? '5px' : '10px',
-                right: isMobile ? '5px' : '10px',
-                display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                gap: isMobile ? '5px' : '10px',
-                zIndex: 1000
-            }}>
+            <div
+                className={isMobile || isTablet ? "control-panel-mobile" : "control-panel"}
+                style={{
+                    display: 'flex',
+                    flexDirection: isMobile || isTablet ? 'row' : 'column',
+                    gap: isMobile || isTablet ? '5px' : '10px',
+                    zIndex: 1000
+                }}
+            >
                 <button
                     onClick={handleNewGame}
                     disabled={isGameActive && !isPaused}
                     style={{
                         fontSize: isMobile ? '12px' : '14px',
-                        padding: isMobile ? '6px 8px' : '8px 12px'
+                        padding: isMobile ? '6px 8px' : '8px 12px',
+                        height: isMobile ? '32px' : '36px', // 固定高度
+                        minHeight: isMobile ? '32px' : '36px',
                     }}
                 >
                     {isGameActive ? 'Restart' : 'New Game'}
@@ -431,7 +466,10 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                         onClick={handlePauseToggle}
                         style={{
                             fontSize: isMobile ? '12px' : '14px',
-                            padding: isMobile ? '6px 8px' : '8px 12px'
+                            padding: isMobile ? '6px 8px' : '8px 12px',
+                            height: isMobile ? '32px' : '36px',
+                            minHeight: isMobile ? '32px' : '36px',
+                            flex: 'none'
                         }}
                     >
                         {isPaused ? 'Resume' : 'Pause'}
@@ -442,7 +480,10 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     disabled={!isGameActive || isPaused}
                     style={{
                         fontSize: isMobile ? '12px' : '14px',
-                        padding: isMobile ? '6px 8px' : '8px 12px'
+                        padding: isMobile ? '6px 8px' : '8px 12px',
+                        height: isMobile ? '32px' : '36px',
+                        minHeight: isMobile ? '32px' : '36px',
+                        flex: 'none'
                     }}
                 >
                     Hints
@@ -453,7 +494,10 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                         disabled={!isGameActive || isPaused}
                         style={{
                             fontSize: isTablet ? '12px' : '14px',
-                            padding: isTablet ? '6px 8px' : '8px 12px'
+                            padding: isTablet ? '6px 8px' : '8px 12px',
+                            height: isTablet ? '32px' : '36px',
+                            minHeight: isTablet ? '32px' : '36px',
+                            flex: 'none'
                         }}
                     >
                         Auto Complete
@@ -472,18 +516,14 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
         return (
             <div className="game-info" style={{
-                position: 'absolute',
-                top: isMobile ? '5px' : '10px',
-                left: isMobile ? '5px' : '10px',
                 display: 'flex',
-                flexDirection: isMobile ? 'row' : 'column',
                 gap: isMobile ? '10px' : '5px',
                 zIndex: 1000,
                 color: '#333',
-                fontSize: isMobile ? '12px' : isTablet ? '13px' : '14px',
-                backgroundColor: isMobile ? 'rgba(255, 255, 255, 0.9)' : 'transparent',
-                padding: isMobile ? '4px 8px' : '0',
-                borderRadius: isMobile ? '4px' : '0'
+                fontSize: '12px',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                padding: '4px 8px',
+                borderRadius: '4px'
             }}>
                 <div>Score: {gameState.score}</div>
                 <div>Moves: {gameState.moves}</div>
@@ -561,7 +601,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
         return null;
     }, [isGameActive, isGameWon, isGameLost, isPaused, gameState, handleNewGame, handlePauseToggle]);
-
+    // console.log('boardDimension', boardDimension);
     return (
         <div
             ref={containerRef}

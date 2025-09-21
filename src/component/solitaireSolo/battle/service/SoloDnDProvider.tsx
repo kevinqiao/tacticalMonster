@@ -6,6 +6,7 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { SoloCard, SoloDragData } from '../types/SoloTypes';
 import SoloDnDCard from '../view/SoloDnDCard';
+import { useSoloGameManager } from './SoloGameManager';
 
 interface ISoloDnDContext {
     isDragging: boolean;
@@ -55,6 +56,9 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     const dragElementRef = useRef<HTMLDivElement | null>(null);
     const startPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
+    // 获取游戏管理器
+    const gameManager = useSoloGameManager();
+
     // 检测是否为触摸设备
     useEffect(() => {
         const checkTouchDevice = () => {
@@ -84,9 +88,14 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         const target = event.currentTarget as HTMLDivElement;
         const rect = target.getBoundingClientRect();
 
+        // 获取可移动的卡牌序列
+        const movableCards = gameManager.getMovableSequence(card);
+        console.log(`Dragging sequence of ${movableCards.length} cards:`, movableCards.map(c => c.id));
+
         const dragData: SoloDragData = {
             card,
-            source: card.id, // 这里需要根据实际位置设置
+            cards: movableCards, // 包含整个序列
+            source: card.zoneId, // 使用正确的zoneId
             x: position.x,
             y: position.y,
             offsetX: position.x - rect.left,
@@ -97,20 +106,15 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         setIsDragging(true);
         startPositionRef.current = { x: position.x, y: position.y };
 
-        // 标记原始卡牌为拖拽状态，立即隐藏所有同ID卡牌
-        const allCardsWithId = document.querySelectorAll(`[data-card-id="${card.id}"]`);
-        allCardsWithId.forEach(cardElement => {
-            cardElement.classList.add('dragging');
-            (cardElement as HTMLElement).style.setProperty('opacity', '0', 'important');
-            (cardElement as HTMLElement).style.setProperty('visibility', 'hidden', 'important');
+        // 隐藏整个拖拽序列
+        dragData.cards.forEach(sequenceCard => {
+            const allCardsWithId = document.querySelectorAll(`[data-card-id="${sequenceCard.id}"]`);
+            allCardsWithId.forEach(cardElement => {
+                cardElement.classList.add('dragging');
+                (cardElement as HTMLElement).style.setProperty('opacity', '0', 'important');
+                (cardElement as HTMLElement).style.setProperty('visibility', 'hidden', 'important');
+            });
         });
-
-        if (card.ele) {
-            card.ele.classList.add('dragging');
-            // 立即隐藏原始卡牌，使用!important确保优先级
-            card.ele.style.setProperty('opacity', '0', 'important');
-            card.ele.style.setProperty('visibility', 'hidden', 'important');
-        }
 
         // 创建拖拽元素
         if (dragElementRef.current) {
@@ -135,8 +139,8 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             y: position.y
         } : null);
 
-        // 更新拖拽元素位置
-        if (dragElementRef.current) {
+        // 更新拖拽元素位置，确保元素存在且仍在拖拽状态
+        if (dragElementRef.current && isDragging && dragData) {
             dragElementRef.current.style.left = `${position.x - dragData.offsetX}px`;
             dragElementRef.current.style.top = `${position.y - dragData.offsetY}px`;
         }
@@ -166,19 +170,78 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
             if (dropZone) {
                 console.log('Drag dropped to potential zone:', dropZone.className);
+                console.log('Drop zone element:', dropZone);
+                console.log('Drop zone data-zone-id:', dropZone.getAttribute('data-zone-id'));
 
-                // 暂时设置为取消，直到实现具体的移动验证逻辑
-                // TODO: 这里需要实现具体的卡牌移动规则验证
-                // 比如：检查移动是否符合纸牌游戏规则
-                dropSuccessful = false; // 暂时都视为取消，显示动画效果
+                // 实现具体的移动验证逻辑
+                let targetZoneId = dropZone.getAttribute('data-zone-id');
 
-                console.log('Move validation not implemented, treating as cancelled');
+                // 如果没有data-zone-id属性，则根据className推断
+                if (!targetZoneId) {
+                    if (dropZone.className.includes('foundation')) {
+                        targetZoneId = dropZone.getAttribute('data-foundation-suit') || 'foundation';
+                    } else if (dropZone.className.includes('tableau')) {
+                        targetZoneId = `tableau-${dropZone.getAttribute('data-tableau-index')}`;
+                    } else if (dropZone.className.includes('waste')) {
+                        targetZoneId = 'waste';
+                    }
+                }
+
+                console.log('Resolved target zone ID:', targetZoneId);
+
+                if (targetZoneId) {
+                    // 调用游戏管理器验证移动
+                    console.log(`Checking if ${dragData.card.id} (${dragData.card.rank} of ${dragData.card.suit}) can move to ${targetZoneId}`);
+                    const isValidMove = gameManager.canMoveToZone(dragData.card, targetZoneId);
+                    console.log('Move validation result:', isValidMove);
+
+                    if (isValidMove) {
+                        // 执行实际的卡牌移动
+                        const moveSuccess = gameManager.moveCardToZone(dragData.card, targetZoneId);
+                        if (moveSuccess) {
+                            dropSuccessful = true;
+                            console.log(`Valid move executed: ${dragData.card.id} to ${targetZoneId}`);
+                        } else {
+                            console.log(`Move execution failed: ${dragData.card.id} to ${targetZoneId}`);
+                        }
+                    } else {
+                        console.log(`Invalid move: ${dragData.card.id} to ${targetZoneId}`);
+                    }
+                } else {
+                    console.log('No valid target zone identified');
+                }
             }
         }
 
         // 如果移动距离太小，认为是点击而不是拖拽
         if (distance < 5) {
             console.log('Click detected instead of drag');
+        } else if (dropSuccessful) {
+            console.log('Move successful - cleaning up drag state');
+
+            // 立即重置拖拽状态，停止跟随鼠标
+            setIsDragging(false);
+            setDragData(null);
+            setIsTransitioning(false);
+
+            // 清理拖拽元素
+            if (dragElementRef.current) {
+                dragElementRef.current.style.display = 'none';
+            }
+
+            // 确保整个序列的拖拽样式被清除
+            dragData.cards.forEach(sequenceCard => {
+                const allCardsWithId = document.querySelectorAll(`[data-card-id="${sequenceCard.id}"]`);
+                allCardsWithId.forEach(cardElement => {
+                    const card = cardElement as HTMLElement;
+                    card.style.removeProperty('opacity');
+                    card.style.removeProperty('visibility');
+                    card.style.removeProperty('display');
+                    card.style.removeProperty('transform');
+                    card.classList.remove('dragging', 'drag-copy', 'drag-cancelled');
+                });
+            });
+
         } else if (!dropSuccessful) {
             console.log('Drag cancelled - no valid drop zone');
 
@@ -429,14 +492,16 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
         setHoveredTarget(null);
 
-        // 立即清理拖拽状态，但不影响原始卡牌
-        setIsDragging(false);
-        setDragData(null);
-        if (dragElementRef.current) {
-            dragElementRef.current.style.display = 'none';
+        // 只在没有成功移动时才重置拖拽状态
+        if (!dropSuccessful) {
+            setIsDragging(false);
+            setDragData(null);
+            if (dragElementRef.current) {
+                dragElementRef.current.style.display = 'none';
+            }
         }
 
-    }, [isDragging, dragData, getDragPosition]);
+    }, [isDragging, dragData, getDragPosition, gameManager]);
 
     // 拖拽悬停
     const onDragOver = useCallback((event: React.MouseEvent | React.TouchEvent) => {
@@ -593,18 +658,23 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                     filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
                 }}
             >
-                {/* 渲染被拖拽的卡牌副本 */}
-                {dragData && (
+                {/* 渲染被拖拽的卡牌序列 */}
+                {dragData && dragData.cards.map((sequenceCard, index) => (
                     <SoloDnDCard
-                        card={dragData.card}
+                        key={sequenceCard.id}
+                        card={sequenceCard}
                         source={dragData.source}
                         className="drag-copy"
                         style={{
                             opacity: 1,
-                            pointerEvents: 'none'
+                            pointerEvents: 'none',
+                            position: 'absolute',
+                            top: `${index * 20}px`, // 序列中的卡牌垂直偏移
+                            left: '0px',
+                            zIndex: 9999 - index // 确保顶部卡牌在最前面
                         }}
                     />
-                )}
+                ))}
             </div>
         </SoloDnDContext.Provider>
     );

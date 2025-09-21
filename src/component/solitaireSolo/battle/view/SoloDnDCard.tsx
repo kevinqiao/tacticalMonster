@@ -53,17 +53,21 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         return isTransitioning && dragData?.card.id === card.id;
     }, [isTransitioning, dragData, card.id]);
 
-    // 检查是否可以移动
-    const canMove = useMemo(() => {
-        return canMoveCard(card, source);
-    }, [canMoveCard, card, source]);
+    // 获取游戏管理器（在组件顶层调用Hook）
+    // const { getCardsByZone, getMovableSequence } = useSoloGameManager();
 
+    // 检查是否可以移动 - 只要是翻开的卡牌就可以尝试拖拽
+    const canMove = useMemo(() => {
+        return card.isRevealed;
+    }, [card.isRevealed]);
+    // console.log("style", source, card, style);
     // 获取卡牌样式
     const cardStyle = useMemo(() => {
         const baseStyle: React.CSSProperties = {
-            width: '60px',
-            height: '84px',
-            minHeight: '84px', // 确保最小高度
+            // 移除硬编码尺寸，让外部样式控制
+            // width: '60px',
+            // height: '84px',
+            // minHeight: '84px', // 完全移除，让外部控制
             borderRadius: '8px',
             border: '2px solid #333',
             backgroundColor: card.isRevealed ? '#fff' : '#1a4d80',
@@ -83,6 +87,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
                         : isHovered
                             ? '0 0 5px #666'
                             : '0 2px 4px rgba(0,0,0,0.3)',
+            // 外部样式优先级更高
             ...style
         };
 
