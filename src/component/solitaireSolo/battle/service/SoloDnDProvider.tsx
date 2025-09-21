@@ -245,135 +245,144 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         } else if (!dropSuccessful) {
             console.log('Drag cancelled - no valid drop zone');
 
-            // 立即停止拖拽状态
-            setIsDragging(false);
+            // 获取鼠标位置
+            const mousePos = getDragPosition(event);
 
-            // 保持过渡状态一段时间，让拖拽副本继续显示
-            setIsTransitioning(true);
-
-            // 清理拖拽元素
-            if (dragElementRef.current) {
-                dragElementRef.current.style.display = 'none';
-            }
-
-            // 清理DOM样式
+            // 获取原始卡牌位置
+            let targetCard = null;
             if (dragData && dragData.cards) {
-                dragData.cards.forEach(sequenceCard => {
-                    const allCardsWithId = document.querySelectorAll(`[data-card-id="${sequenceCard.id}"]`);
-                    allCardsWithId.forEach(cardElement => {
-                        const card = cardElement as HTMLElement;
-                        card.style.removeProperty('opacity');
-                        card.style.removeProperty('visibility');
-                        card.style.removeProperty('display');
-                        card.style.removeProperty('transform');
-                        card.classList.remove('dragging', 'drag-copy', 'drag-cancelled');
-                    });
-                });
+                const allCardsWithId = document.querySelectorAll(`[data-card-id="${dragData.card.id}"]`);
+                for (const card of allCardsWithId) {
+                    const parent = card.parentElement;
+                    if (parent && parent.style.display !== 'none' && !card.classList.contains('drag-copy')) {
+                        targetCard = card as HTMLElement;
+                        break;
+                    }
+                }
             }
+
+            if (targetCard && dragElementRef.current) {
+                const originalRect = targetCard.getBoundingClientRect();
+
+                // 创建简单的回归卡牌
+                const returnCard = document.createElement('div');
+                returnCard.style.cssText = `
+                    position: fixed;
+                    left: ${mousePos.x - dragData.offsetX}px;
+                    top: ${mousePos.y - dragData.offsetY}px;
+                    width: ${gameManager.boardDimension?.cardWidth || 80}px;
+                    height: ${gameManager.boardDimension?.cardHeight || 144}px;
+                    background: linear-gradient(135deg, #ffffff, #f0f0f0);
+                    border: 2px solid #333;
+                    border-radius: 8px;
+                    z-index: 99999;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                    font-size: 12px;
+                    color: #333;
+                    transition: all 1s ease-out;
+                `;
+
+                // 显示卡牌内容
+                const card = dragData.card;
+                const suitSymbols = {
+                    'hearts': '♥',
+                    'diamonds': '♦',
+                    'clubs': '♣',
+                    'spades': '♠'
+                };
+                const suitSymbol = suitSymbols[card.suit as keyof typeof suitSymbols] || '?';
+                const cardColor = card.isRed ? '#d32f2f' : '#000';
+
+                returnCard.innerHTML = `
+                    <div style="
+                        position: absolute;
+                        top: 4px;
+                        left: 4px;
+                        font-size: 10px;
+                        color: ${cardColor};
+                        line-height: 1;
+                    ">
+                        <div>${card.rank}</div>
+                        <div style="font-size: 8px;">${suitSymbol}</div>
+                    </div>
+                    <div style="
+                        font-size: 20px;
+                        color: ${cardColor};
+                    ">${suitSymbol}</div>
+                    <div style="
+                        position: absolute;
+                        bottom: 4px;
+                        right: 4px;
+                        font-size: 10px;
+                        color: ${cardColor};
+                        transform: rotate(180deg);
+                        line-height: 1;
+                    ">
+                        <div>${card.rank}</div>
+                        <div style="font-size: 8px;">${suitSymbol}</div>
+                    </div>
+                `;
+
+                document.body.appendChild(returnCard);
+
+                // 停止拖拽状态
+                setIsDragging(false);
+                setIsTransitioning(true);
+
+                // 清理拖拽元素
+                if (dragElementRef.current) {
+                    dragElementRef.current.style.display = 'none';
+                }
+
+                // 执行回归动画
+                setTimeout(() => {
+                    returnCard.style.left = `${originalRect.left}px`;
+                    returnCard.style.top = `${originalRect.top}px`;
+                }, 100);
+
+                // 清理回归元素
+                setTimeout(() => {
+                    if (document.body.contains(returnCard)) {
+                        document.body.removeChild(returnCard);
+                    }
+                }, 1100);
+            } else {
+                // 如果找不到目标卡牌，直接清理
+                setIsDragging(false);
+                setIsTransitioning(true);
+                if (dragElementRef.current) {
+                    dragElementRef.current.style.display = 'none';
+                }
+            }
+
+            // 延迟清理原始卡牌样式
+            setTimeout(() => {
+                if (dragData && dragData.cards) {
+                    dragData.cards.forEach(sequenceCard => {
+                        const allCardsWithId = document.querySelectorAll(`[data-card-id="${sequenceCard.id}"]`);
+                        allCardsWithId.forEach(cardElement => {
+                            const card = cardElement as HTMLElement;
+                            card.classList.remove('dragging', 'drag-copy', 'drag-cancelled');
+                            card.style.removeProperty('opacity');
+                            card.style.removeProperty('visibility');
+                            card.style.removeProperty('display');
+                            card.style.removeProperty('transform');
+                        });
+                    });
+                }
+            }, 1000);
 
             // 延迟清理所有状态
             setTimeout(() => {
                 setIsTransitioning(false);
                 setDragData(null);
-                console.log('Drag cancelled - cleanup complete');
-            }, 200); // 给足够时间让用户看到卡牌恢复
+                console.log('Drag cancelled - simple return complete');
+            }, 1200);
         }
 
-        // 摆动动画函数
-        const startSwingAnimation = (cardElement: HTMLDivElement) => {
-            if (!cardElement) return;
-
-            // 使用JavaScript实现摆动动画
-            cardElement.style.setProperty('opacity', '1', 'important');
-            cardElement.style.setProperty('visibility', 'visible', 'important');
-            cardElement.style.setProperty('z-index', '99999', 'important');
-            cardElement.style.setProperty('position', 'relative', 'important');
-
-            // JavaScript摆动动画
-            const startTime = Date.now();
-            const duration = 1200;
-
-            const swingAnimate = () => {
-                if (!cardElement) return;
-
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-
-                // 计算摆动角度和颜色
-                let rotation = 0;
-                let scale = 1;
-                let bgColor = 'white';
-                let borderColor = '#333';
-
-                if (progress < 0.15) {
-                    const p = progress / 0.15;
-                    rotation = -15 * p;
-                    scale = 1 + 0.4 * p;
-                    bgColor = `rgb(${255}, ${255 - 20 * p}, ${255 - 20 * p})`;
-                    borderColor = `rgb(${51 + 193 * p}, ${51 + 16 * p}, ${51 + 3 * p})`;
-                } else if (progress < 0.3) {
-                    const p = (progress - 0.15) / 0.15;
-                    rotation = -15 + 30 * p;
-                    scale = 1.4 - 0.3 * p;
-                    bgColor = `rgb(${255 - 11 * p}, ${235 - 168 * p}, ${238 - 171 * p})`;
-                    borderColor = `rgb(${244 - 33 * p}, ${67}, ${54 - 7 * p})`;
-                } else if (progress < 0.5) {
-                    const p = (progress - 0.3) / 0.2;
-                    rotation = 15 - 25 * p;
-                    scale = 1.1 + 0.2 * p;
-                    bgColor = `rgb(${255}, ${87 + 0 * p}, ${34})`;
-                    borderColor = `rgb(${216}, ${67 + 0 * p}, ${21})`;
-                } else {
-                    const p = (progress - 0.5) / 0.5;
-                    rotation = -10 + 10 * p;
-                    scale = 1.3 - 0.3 * p;
-                    bgColor = `rgb(${255}, ${255}, ${255})`;
-                    borderColor = `rgb(${51}, ${51}, ${51})`;
-                }
-
-                cardElement.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
-                cardElement.style.backgroundColor = bgColor;
-                cardElement.style.borderColor = borderColor;
-                cardElement.style.boxShadow = `0 0 ${20 + Math.abs(rotation)}px rgba(244, 67, 54, ${0.8 - progress * 0.3})`;
-
-
-                if (progress < 1) {
-                    requestAnimationFrame(swingAnimate);
-                } else {
-                    console.log('SWING: Animation complete');
-                    // 恢复正常样式，但保持可见性
-                    setTimeout(() => {
-                        const restoreElement = document.querySelector(`[data-card-id="${dragData.card.id}"]`) as HTMLDivElement;
-                        if (restoreElement) {
-                            restoreElement.classList.remove('drag-cancelled');
-                            restoreElement.style.removeProperty('transform');
-                            restoreElement.style.removeProperty('background-color');
-                            restoreElement.style.removeProperty('border-color');
-                            restoreElement.style.removeProperty('box-shadow');
-                            // 强制确保卡牌保持可见状态
-                            restoreElement.style.setProperty('opacity', '1', 'important');
-                            restoreElement.style.setProperty('visibility', 'visible', 'important');
-                            restoreElement.style.setProperty('z-index', '10', 'important');
-                            restoreElement.style.setProperty('position', 'relative', 'important');
-
-                            // 确保移除所有可能导致隐藏的CSS类
-                            restoreElement.classList.remove('dragging', 'drag-copy', 'drag-cancelled');
-
-                            // 检查最终状态
-                            const finalStyle = window.getComputedStyle(restoreElement);
-                            console.log('SWING: Final card state:', {
-                                opacity: finalStyle.opacity,
-                                visibility: finalStyle.visibility,
-                                display: finalStyle.display,
-                                zIndex: finalStyle.zIndex
-                            });
-                        }
-                    }, 100);
-                }
-            };
-
-            requestAnimationFrame(swingAnimate);
-        };
 
         // 恢复原始卡牌（只有非取消的情况才立即执行）
         if (dragData?.card?.ele && (dropSuccessful || distance < 5)) {
@@ -552,7 +561,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                     position: 'fixed',
                     zIndex: 9999,
                     pointerEvents: 'none',
-                    display: (isDragging || isTransitioning || forceShow || (dragData && !isDragging)) ? 'block' : 'none',
+                    display: (isDragging || isTransitioning || forceShow) ? 'block' : 'none',
                     opacity: 1,
                     filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
                 }}
