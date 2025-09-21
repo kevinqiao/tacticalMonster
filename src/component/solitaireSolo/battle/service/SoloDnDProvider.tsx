@@ -245,139 +245,38 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         } else if (!dropSuccessful) {
             console.log('Drag cancelled - no valid drop zone');
 
-            // 取消动画：创建回归移动效果
-            if (dragData.card.ele) {
-                // 立即确保原始卡牌完全隐藏，移除边框和遮盖
-                dragData.card.ele.style.setProperty('opacity', '0', 'important');
-                dragData.card.ele.style.setProperty('visibility', 'hidden', 'important');
-                dragData.card.ele.style.removeProperty('border');
-                dragData.card.ele.style.removeProperty('box-shadow');
-                dragData.card.ele.style.removeProperty('background-color');
+            // 立即停止拖拽状态
+            setIsDragging(false);
 
-                // 查找游戏区域中的原始卡牌
-                const allCardsWithId = document.querySelectorAll(`[data-card-id="${dragData.card.id}"]`);
+            // 保持过渡状态一段时间，让拖拽副本继续显示
+            setIsTransitioning(true);
 
-                // 第一阶段：拖拽副本回归动画
-                const mousePos = getDragPosition(event as any);
-                const returnElement = document.createElement('div');
+            // 清理拖拽元素
+            if (dragElementRef.current) {
+                dragElementRef.current.style.display = 'none';
+            }
 
-                // 找到游戏区域中的目标卡牌位置
-                let targetRect;
-                let targetCard;
-
-                for (const card of allCardsWithId) {
-                    const parent = card.parentElement;
-                    if (parent && parent.style.display !== 'none') {
-                        targetRect = card.getBoundingClientRect();
-                        targetCard = card as HTMLDivElement;
-                        break;
-                    }
-                }
-
-                if (!targetRect || !targetCard) {
-                    console.log('CANCEL: Could not find target card for animation');
-                    return;
-                }
-
-                // 创建回归动画元素，完全复制真实卡牌外观
-                returnElement.style.cssText = `
-                    position: fixed !important;
-                    left: ${mousePos.x - 40}px !important;
-                    top: ${mousePos.y - 50}px !important;
-                    width: 80px !important;
-                    height: 100px !important;
-                    z-index: 9999999 !important;
-                    opacity: 1 !important;
-                    visibility: visible !important;
-                    display: block !important;
-                    transition: left 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), top 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), height 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-                `;
-
-                // 复制真实卡牌的完整样式和内容
-                if (targetCard) {
-                    // 复制内容
-                    returnElement.innerHTML = targetCard.innerHTML;
-
-                    // 复制样式，但保持position和z-index
-                    const computedStyle = window.getComputedStyle(targetCard);
-                    returnElement.style.backgroundColor = computedStyle.backgroundColor;
-                    returnElement.style.border = computedStyle.border;
-                    returnElement.style.borderRadius = computedStyle.borderRadius;
-                    returnElement.style.boxShadow = computedStyle.boxShadow;
-                    returnElement.style.color = computedStyle.color;
-                    returnElement.style.fontSize = computedStyle.fontSize;
-                    returnElement.style.fontFamily = computedStyle.fontFamily;
-                }
-
-                document.body.appendChild(returnElement);
-
-                console.log('CANCEL: Created return element at mouse position:', mousePos.x - 40, mousePos.y - 50);
-                console.log('CANCEL: Target position:', targetRect.left, targetRect.top);
-
-                // 立即开始移动到目标位置，同时平滑调整尺寸，不改变外观
-                setTimeout(() => {
-                    returnElement.style.left = `${targetRect.left}px`;
-                    returnElement.style.top = `${targetRect.top}px`;
-                    returnElement.style.width = `${targetRect.width}px`;
-                    returnElement.style.height = `${targetRect.height}px`;
-                    // 不改变颜色和其他视觉属性，保持卡牌原本外观
-                }, 50);
-
-                // 0.8秒后回归完成，无缝切换
-                setTimeout(() => {
-                    // 首先准备原始卡牌，但保持隐藏
-                    const allCardsToRestore = document.querySelectorAll(`[data-card-id="${dragData.card.id}"]`);
-                    allCardsToRestore.forEach(cardElement => {
+            // 清理DOM样式
+            if (dragData && dragData.cards) {
+                dragData.cards.forEach(sequenceCard => {
+                    const allCardsWithId = document.querySelectorAll(`[data-card-id="${sequenceCard.id}"]`);
+                    allCardsWithId.forEach(cardElement => {
                         const card = cardElement as HTMLElement;
-                        // 清理拖拽相关的样式
+                        card.style.removeProperty('opacity');
+                        card.style.removeProperty('visibility');
                         card.style.removeProperty('display');
                         card.style.removeProperty('transform');
-                        card.style.removeProperty('background-color');
-                        card.style.removeProperty('border-color');
-                        card.style.removeProperty('box-shadow');
-                        card.style.removeProperty('transition');
                         card.classList.remove('dragging', 'drag-copy', 'drag-cancelled');
-
-                        // 设置为透明但可见，准备淡入
-                        card.style.setProperty('opacity', '0', 'important');
-                        card.style.setProperty('visibility', 'visible', 'important');
-
-                        // 预设z-index
-                        const isRevealed = card.dataset.revealed === 'true';
-                        if (isRevealed) {
-                            card.style.setProperty('z-index', '10', 'important');
-                        }
                     });
-
-                    // 快速但平滑的过渡：0.1s
-                    returnElement.style.transition = 'opacity 0.1s ease';
-                    returnElement.style.opacity = '0';
-
-                    // 原始卡牌快速淡入
-                    allCardsToRestore.forEach(cardElement => {
-                        const card = cardElement as HTMLElement;
-                        card.style.setProperty('transition', 'opacity 0.1s ease', 'important');
-                        card.style.setProperty('opacity', '1', 'important');
-                    });
-
-                    // 0.1秒后清理过渡效果和回归元素
-                    setTimeout(() => {
-                        allCardsToRestore.forEach(cardElement => {
-                            const card = cardElement as HTMLElement;
-                            card.style.removeProperty('transition');
-                            card.style.removeProperty('opacity');
-                            card.style.removeProperty('visibility');
-                        });
-
-                        // 移除回归元素
-                        if (document.body.contains(returnElement)) {
-                            document.body.removeChild(returnElement);
-                        }
-                        console.log('CANCEL: Smooth fast transition complete');
-                    }, 100);
-
-                }, 800);
+                });
             }
+
+            // 延迟清理所有状态
+            setTimeout(() => {
+                setIsTransitioning(false);
+                setDragData(null);
+                console.log('Drag cancelled - cleanup complete');
+            }, 200); // 给足够时间让用户看到卡牌恢复
         }
 
         // 摆动动画函数
@@ -653,28 +552,41 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                     position: 'fixed',
                     zIndex: 9999,
                     pointerEvents: 'none',
-                    display: (isDragging || isTransitioning || forceShow) ? 'block' : 'none',
+                    display: (isDragging || isTransitioning || forceShow || (dragData && !isDragging)) ? 'block' : 'none',
                     opacity: 1,
                     filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
                 }}
             >
                 {/* 渲染被拖拽的卡牌序列 */}
-                {dragData && dragData.cards.map((sequenceCard, index) => (
-                    <SoloDnDCard
-                        key={sequenceCard.id}
-                        card={sequenceCard}
-                        source={dragData.source}
-                        className="drag-copy"
-                        style={{
-                            opacity: 1,
-                            pointerEvents: 'none',
-                            position: 'absolute',
-                            top: `${index * 20}px`, // 序列中的卡牌垂直偏移
-                            left: '0px',
-                            zIndex: 9999 - index // 确保顶部卡牌在最前面
-                        }}
-                    />
-                ))}
+                {dragData && dragData.cards.map((sequenceCard, index) => {
+                    // 获取游戏管理器中的尺寸信息
+                    const cardWidth = gameManager.boardDimension?.cardWidth || 80;
+                    const cardHeight = gameManager.boardDimension?.cardHeight || 144;
+
+                    return (
+                        <SoloDnDCard
+                            key={sequenceCard.id}
+                            card={sequenceCard}
+                            source={dragData.source}
+                            className="drag-copy"
+                            style={{
+                                opacity: 1,
+                                pointerEvents: 'none',
+                                position: 'absolute',
+                                top: `${index * 20}px`, // 序列中的卡牌垂直偏移
+                                left: '0px',
+                                zIndex: 9999 - index, // 确保顶部卡牌在最前面
+                                // 确保拖拽副本使用正确的尺寸
+                                width: cardWidth,
+                                height: cardHeight,
+                                minWidth: cardWidth,
+                                maxWidth: cardWidth,
+                                minHeight: cardHeight,
+                                maxHeight: cardHeight
+                            }}
+                        />
+                    );
+                })}
             </div>
         </SoloDnDContext.Provider>
     );

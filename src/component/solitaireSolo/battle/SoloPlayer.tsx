@@ -621,6 +621,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
             {renderWaste()}
             {renderTableau()}
             {renderGameStatus()}
+            {/* 渲染被拖拽的卡牌序列 */}
+
         </div>
     );
 };
