@@ -251,6 +251,9 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     const handleSuccessfulDrop = useCallback((dropResult: { success: boolean; targetZoneId?: string }) => {
         console.log('Move successful - cleaning up drag state');
 
+        // 先保存 dragData 的引用
+        const currentDragData = dragData;
+
         // 立即重置拖拽状态
         setIsDragging(false);
         setDragData(null);
@@ -261,9 +264,9 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             dragElementRef.current.style.display = 'none';
         }
 
-        // 清理拖拽样式
-        if (dragData) {
-            clearDragStyles(dragData.cards);
+        // 使用保存的引用清理拖拽样式
+        if (currentDragData) {
+            clearDragStyles(currentDragData.cards);
         }
     }, [dragData]);
 
@@ -297,13 +300,9 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         return null;
     }, [dragData]);
 
-    // 创建回归动画
+    // 创建回归动画 - 多卡作为整体回归
     const createReturnAnimation = useCallback((targetCard: HTMLElement, mousePos: { x: number; y: number }) => {
-        const originalRect = targetCard.getBoundingClientRect();
-
-        // 创建回归卡牌
-        const returnCard = createReturnCardElement(mousePos);
-        document.body.appendChild(returnCard);
+        if (!dragData || !dragData.cards) return;
 
         // 停止拖拽状态
         setIsDragging(false);
@@ -314,16 +313,23 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             dragElementRef.current.style.display = 'none';
         }
 
-        // 执行回归动画
+        // 创建整体回归容器
+        const returnContainer = createReturnContainer(mousePos);
+        document.body.appendChild(returnContainer);
+
+        // 获取第一张卡牌的原始位置作为整体回归目标
+        const originalRect = targetCard.getBoundingClientRect();
+
+        // 执行整体回归动画
         setTimeout(() => {
-            returnCard.style.left = `${originalRect.left}px`;
-            returnCard.style.top = `${originalRect.top}px`;
+            returnContainer.style.left = `${originalRect.left}px`;
+            returnContainer.style.top = `${originalRect.top}px`;
         }, 100);
 
-        // 清理回归元素
+        // 清理回归容器
         setTimeout(() => {
-            if (document.body.contains(returnCard)) {
-                document.body.removeChild(returnCard);
+            if (document.body.contains(returnContainer)) {
+                document.body.removeChild(returnContainer);
             }
         }, 1100);
 
@@ -338,36 +344,65 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         setTimeout(() => {
             setIsTransitioning(false);
             setDragData(null);
-            console.log('Drag cancelled - simple return complete');
+            console.log('Drag cancelled - multi-card group return complete');
         }, 1200);
     }, [dragData]);
 
-    // 创建回归卡牌元素
-    const createReturnCardElement = useCallback((mousePos: { x: number; y: number }) => {
-        const returnCard = document.createElement('div');
-        const card = dragData!.card;
+    // 创建整体回归容器
+    const createReturnContainer = useCallback((mousePos: { x: number; y: number }) => {
+        const container = document.createElement('div');
 
-        // 卡牌样式
-        returnCard.style.cssText = `
+        // 容器样式
+        container.style.cssText = `
             position: fixed;
             left: ${mousePos.x - dragData!.offsetX}px;
             top: ${mousePos.y - dragData!.offsetY}px;
-            width: ${gameManager.boardDimension?.cardWidth || 80}px;
-            height: ${gameManager.boardDimension?.cardHeight || 144}px;
+            z-index: 9999;
+            pointer-events: none;
+            transition: all 1s ease-out;
+        `;
+
+        // 为每张卡牌创建元素，但作为整体移动
+        dragData!.cards.forEach((card, index) => {
+            const cardElement = createReturnCardElement(card, index);
+            container.appendChild(cardElement);
+        });
+
+        return container;
+    }, [dragData]);
+
+    // 创建回归卡牌元素 - 确保尺寸正确
+    const createReturnCardElement = useCallback((card: SoloCard, index: number) => {
+        const returnCard = document.createElement('div');
+        const cardWidth = gameManager.boardDimension?.cardWidth || 80;
+        const cardHeight = gameManager.boardDimension?.cardHeight || 144;
+
+        // 卡牌样式 - 确保尺寸设置
+        returnCard.style.cssText = `
+            position: absolute;
+            left: 0px;
+            top: ${index * 20}px;
+            width: ${cardWidth}px !important;
+            height: ${cardHeight}px !important;
+            min-width: ${cardWidth}px !important;
+            min-height: ${cardHeight}px !important;
+            max-width: ${cardWidth}px !important;
+            max-height: ${cardHeight}px !important;
             background: linear-gradient(135deg, #ffffff, #f0f0f0);
             border: 2px solid #333;
             border-radius: 8px;
-            z-index: 99999;
+            z-index: ${index};
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
             font-size: 12px;
             color: #333;
-            transition: all 1s ease-out;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-sizing: border-box;
         `;
 
-        // 卡牌内容
+        // 卡牌内容渲染
         const suitSymbols = {
             'hearts': '♥',
             'diamonds': '♦',
@@ -377,38 +412,58 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         const suitSymbol = suitSymbols[card.suit as keyof typeof suitSymbols] || '?';
         const cardColor = card.isRed ? '#d32f2f' : '#000';
 
-        returnCard.innerHTML = `
-            <div style="
-                position: absolute;
-                top: 4px;
-                left: 4px;
-                font-size: 10px;
-                color: ${cardColor};
-                line-height: 1;
-            ">
-                <div>${card.rank}</div>
-                <div style="font-size: 8px;">${suitSymbol}</div>
-            </div>
-            <div style="
-                font-size: 20px;
-                color: ${cardColor};
-            ">${suitSymbol}</div>
-            <div style="
-                position: absolute;
-                bottom: 4px;
-                right: 4px;
-                font-size: 10px;
-                color: ${cardColor};
-                transform: rotate(180deg);
-                line-height: 1;
-            ">
-                <div>${card.rank}</div>
-                <div style="font-size: 8px;">${suitSymbol}</div>
-            </div>
-        `;
+        if (card.isRevealed) {
+            returnCard.innerHTML = `
+                <div style="
+                    position: absolute;
+                    top: 4px;
+                    left: 4px;
+                    font-size: 10px;
+                    color: ${cardColor};
+                    line-height: 1;
+                ">
+                    <div>${card.rank}</div>
+                    <div style="font-size: 8px;">${suitSymbol}</div>
+                </div>
+                <div style="
+                    font-size: 20px;
+                    color: ${cardColor};
+                ">${suitSymbol}</div>
+                <div style="
+                    position: absolute;
+                    bottom: 4px;
+                    right: 4px;
+                    font-size: 10px;
+                    color: ${cardColor};
+                    transform: rotate(180deg);
+                    line-height: 1;
+                ">
+                    <div>${card.rank}</div>
+                    <div style="font-size: 8px;">${suitSymbol}</div>
+                </div>
+            `;
+        } else {
+            returnCard.innerHTML = `
+                <div style="
+                    width: 100%;
+                    height: 100%;
+                    background: linear-gradient(45deg, #1a4d80, #2c5aa0);
+                    border-radius: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #fff;
+                    font-size: 24px;
+                    font-weight: bold;
+                    position: relative;
+                ">
+                    ♠
+                </div>
+            `;
+        }
 
         return returnCard;
-    }, [dragData, gameManager]);
+    }, [gameManager]);
 
     // 清理拖拽样式
     const clearDragStyles = useCallback((cards: SoloCard[]) => {
@@ -619,7 +674,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                                 position: 'absolute',
                                 top: `${index * 20}px`, // 序列中的卡牌垂直偏移
                                 left: '0px',
-                                zIndex: 9999 + index, // 修正：后面的卡牌在最前面
+                                zIndex: index, // 修正：后面的卡牌在最前面
                                 // 确保拖拽副本使用正确的尺寸
                                 width: cardWidth,
                                 height: cardHeight,
