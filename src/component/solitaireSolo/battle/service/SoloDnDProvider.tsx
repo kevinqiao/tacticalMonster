@@ -159,237 +159,283 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             Math.pow(position.y - startPositionRef.current.y, 2)
         );
 
-        // 检查是否拖拽到有效的放置区域
-        let dropSuccessful = false;
+        // 处理点击（移动距离太小）
+        if (distance < 5) {
+            handleClickEvent();
+            return;
+        }
+
+        // 检查是否拖拽到有效区域
+        const dropResult = checkDropZone(position);
+
+        if (dropResult.success && dropResult.targetZoneId) {
+            handleSuccessfulDrop(dropResult);
+        } else {
+            handleDragCancel(event, position);
+        }
+
+        // 清理高亮状态
+        clearHoverEffects();
+    }, [isDragging, dragData, getDragPosition, gameManager]);
+
+    // 处理点击事件
+    const handleClickEvent = useCallback(() => {
+        console.log('Click detected instead of drag');
+        // 点击逻辑可以在这里添加
+    }, []);
+
+    // 检查放置区域
+    const checkDropZone = useCallback((position: { x: number; y: number }) => {
         const elementUnderPointer = document.elementFromPoint(position.x, position.y);
 
-        if (elementUnderPointer && distance >= 5) {
-            // 查找最近的可放置区域
-            const dropZone = elementUnderPointer.closest('[data-drop-zone]') ||
-                elementUnderPointer.closest('.foundation-zone, .tableau-column, .waste-zone');
-
-            if (dropZone) {
-                console.log('Drag dropped to potential zone:', dropZone.className);
-                console.log('Drop zone element:', dropZone);
-                console.log('Drop zone data-zone-id:', dropZone.getAttribute('data-zone-id'));
-
-                // 实现具体的移动验证逻辑
-                let targetZoneId = dropZone.getAttribute('data-zone-id');
-
-                // 如果没有data-zone-id属性，则根据className推断
-                if (!targetZoneId) {
-                    if (dropZone.className.includes('foundation')) {
-                        targetZoneId = dropZone.getAttribute('data-foundation-suit') || 'foundation';
-                    } else if (dropZone.className.includes('tableau')) {
-                        targetZoneId = `tableau-${dropZone.getAttribute('data-tableau-index')}`;
-                    } else if (dropZone.className.includes('waste')) {
-                        targetZoneId = 'waste';
-                    }
-                }
-
-                console.log('Resolved target zone ID:', targetZoneId);
-
-                if (targetZoneId) {
-                    // 调用游戏管理器验证移动
-                    console.log(`Checking if ${dragData.card.id} (${dragData.card.rank} of ${dragData.card.suit}) can move to ${targetZoneId}`);
-                    const isValidMove = gameManager.canMoveToZone(dragData.card, targetZoneId);
-                    console.log('Move validation result:', isValidMove);
-
-                    if (isValidMove) {
-                        // 执行实际的卡牌移动
-                        const moveSuccess = gameManager.moveCardToZone(dragData.card, targetZoneId);
-                        if (moveSuccess) {
-                            dropSuccessful = true;
-                            console.log(`Valid move executed: ${dragData.card.id} to ${targetZoneId}`);
-                        } else {
-                            console.log(`Move execution failed: ${dragData.card.id} to ${targetZoneId}`);
-                        }
-                    } else {
-                        console.log(`Invalid move: ${dragData.card.id} to ${targetZoneId}`);
-                    }
-                } else {
-                    console.log('No valid target zone identified');
-                }
-            }
+        if (!elementUnderPointer) {
+            return { success: false, reason: 'No element under pointer' };
         }
 
-        // 如果移动距离太小，认为是点击而不是拖拽
-        if (distance < 5) {
-            console.log('Click detected instead of drag');
-        } else if (dropSuccessful) {
-            console.log('Move successful - cleaning up drag state');
+        // 查找最近的可放置区域
+        const dropZone = elementUnderPointer.closest('[data-drop-zone]') ||
+            elementUnderPointer.closest('.foundation-zone, .tableau-column, .waste-zone');
 
-            // 立即重置拖拽状态，停止跟随鼠标
-            setIsDragging(false);
-            setDragData(null);
-            setIsTransitioning(false);
+        if (!dropZone) {
+            return { success: false, reason: 'No valid drop zone' };
+        }
 
-            // 清理拖拽元素
-            if (dragElementRef.current) {
-                dragElementRef.current.style.display = 'none';
+        console.log('Drag dropped to potential zone:', dropZone.className);
+
+        // 解析目标区域ID
+        let targetZoneId = dropZone.getAttribute('data-zone-id');
+        if (!targetZoneId) {
+            targetZoneId = parseZoneIdFromClassName(dropZone);
+        }
+
+        if (!targetZoneId) {
+            return { success: false, reason: 'Could not resolve target zone ID' };
+        }
+
+        console.log('Resolved target zone ID:', targetZoneId);
+
+        // 验证移动是否合法
+        const isValidMove = gameManager.canMoveToZone(dragData!.card, targetZoneId);
+        console.log('Move validation result:', isValidMove);
+
+        if (!isValidMove) {
+            return { success: false, reason: 'Invalid move' };
+        }
+
+        // 执行移动
+        const moveSuccess = gameManager.moveCardToZone(dragData!.card, targetZoneId);
+        if (!moveSuccess) {
+            return { success: false, reason: 'Move execution failed' };
+        }
+
+        console.log(`Valid move executed: ${dragData!.card.id} to ${targetZoneId}`);
+        return { success: true, targetZoneId };
+    }, [dragData, gameManager]);
+
+    // 从className解析区域ID
+    const parseZoneIdFromClassName = useCallback((dropZone: Element) => {
+        const className = dropZone.className;
+
+        if (className.includes('foundation')) {
+            return dropZone.getAttribute('data-foundation-suit') || 'foundation';
+        } else if (className.includes('tableau')) {
+            return `tableau-${dropZone.getAttribute('data-tableau-index')}`;
+        } else if (className.includes('waste')) {
+            return 'waste';
+        }
+
+        return null;
+    }, []);
+
+    // 处理成功放置
+    const handleSuccessfulDrop = useCallback((dropResult: { success: boolean; targetZoneId?: string }) => {
+        console.log('Move successful - cleaning up drag state');
+
+        // 立即重置拖拽状态
+        setIsDragging(false);
+        setDragData(null);
+        setIsTransitioning(false);
+
+        // 清理拖拽元素
+        if (dragElementRef.current) {
+            dragElementRef.current.style.display = 'none';
+        }
+
+        // 清理拖拽样式
+        if (dragData) {
+            clearDragStyles(dragData.cards);
+        }
+    }, [dragData]);
+
+    // 处理拖拽取消
+    const handleDragCancel = useCallback((event: React.MouseEvent | React.TouchEvent, position: { x: number; y: number }) => {
+        console.log('Drag cancelled - no valid drop zone');
+
+        // 获取鼠标位置和原始卡牌位置
+        const mousePos = position;
+        const targetCard = findOriginalCard();
+
+        if (targetCard && dragElementRef.current) {
+            createReturnAnimation(targetCard, mousePos);
+        } else {
+            // 如果找不到目标卡牌，直接清理
+            cleanupDragState();
+        }
+    }, [dragData]);
+
+    // 查找原始卡牌
+    const findOriginalCard = useCallback(() => {
+        if (!dragData || !dragData.cards) return null;
+
+        const allCardsWithId = document.querySelectorAll(`[data-card-id="${dragData.card.id}"]`);
+        for (const card of allCardsWithId) {
+            const parent = card.parentElement;
+            if (parent && parent.style.display !== 'none' && !card.classList.contains('drag-copy')) {
+                return card as HTMLElement;
             }
+        }
+        return null;
+    }, [dragData]);
 
-            // 确保整个序列的拖拽样式被清除
-            dragData.cards.forEach(sequenceCard => {
-                const allCardsWithId = document.querySelectorAll(`[data-card-id="${sequenceCard.id}"]`);
-                allCardsWithId.forEach(cardElement => {
-                    const card = cardElement as HTMLElement;
-                    card.style.removeProperty('opacity');
-                    card.style.removeProperty('visibility');
-                    card.style.removeProperty('display');
-                    card.style.removeProperty('transform');
-                    card.classList.remove('dragging', 'drag-copy', 'drag-cancelled');
-                });
-            });
+    // 创建回归动画
+    const createReturnAnimation = useCallback((targetCard: HTMLElement, mousePos: { x: number; y: number }) => {
+        const originalRect = targetCard.getBoundingClientRect();
 
-        } else if (!dropSuccessful) {
-            console.log('Drag cancelled - no valid drop zone');
+        // 创建回归卡牌
+        const returnCard = createReturnCardElement(mousePos);
+        document.body.appendChild(returnCard);
 
-            // 获取鼠标位置
-            const mousePos = getDragPosition(event);
+        // 停止拖拽状态
+        setIsDragging(false);
+        setIsTransitioning(true);
 
-            // 获取原始卡牌位置
-            let targetCard = null;
+        // 清理拖拽元素
+        if (dragElementRef.current) {
+            dragElementRef.current.style.display = 'none';
+        }
+
+        // 执行回归动画
+        setTimeout(() => {
+            returnCard.style.left = `${originalRect.left}px`;
+            returnCard.style.top = `${originalRect.top}px`;
+        }, 100);
+
+        // 清理回归元素
+        setTimeout(() => {
+            if (document.body.contains(returnCard)) {
+                document.body.removeChild(returnCard);
+            }
+        }, 1100);
+
+        // 延迟清理原始卡牌样式
+        setTimeout(() => {
             if (dragData && dragData.cards) {
-                const allCardsWithId = document.querySelectorAll(`[data-card-id="${dragData.card.id}"]`);
-                for (const card of allCardsWithId) {
-                    const parent = card.parentElement;
-                    if (parent && parent.style.display !== 'none' && !card.classList.contains('drag-copy')) {
-                        targetCard = card as HTMLElement;
-                        break;
-                    }
-                }
+                clearDragStyles(dragData.cards);
             }
+        }, 1000);
 
-            if (targetCard && dragElementRef.current) {
-                const originalRect = targetCard.getBoundingClientRect();
+        // 延迟清理所有状态
+        setTimeout(() => {
+            setIsTransitioning(false);
+            setDragData(null);
+            console.log('Drag cancelled - simple return complete');
+        }, 1200);
+    }, [dragData]);
 
-                // 创建简单的回归卡牌
-                const returnCard = document.createElement('div');
-                returnCard.style.cssText = `
-                    position: fixed;
-                    left: ${mousePos.x - dragData.offsetX}px;
-                    top: ${mousePos.y - dragData.offsetY}px;
-                    width: ${gameManager.boardDimension?.cardWidth || 80}px;
-                    height: ${gameManager.boardDimension?.cardHeight || 144}px;
-                    background: linear-gradient(135deg, #ffffff, #f0f0f0);
-                    border: 2px solid #333;
-                    border-radius: 8px;
-                    z-index: 99999;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    font-size: 12px;
-                    color: #333;
-                    transition: all 1s ease-out;
-                `;
+    // 创建回归卡牌元素
+    const createReturnCardElement = useCallback((mousePos: { x: number; y: number }) => {
+        const returnCard = document.createElement('div');
+        const card = dragData!.card;
 
-                // 显示卡牌内容
-                const card = dragData.card;
-                const suitSymbols = {
-                    'hearts': '♥',
-                    'diamonds': '♦',
-                    'clubs': '♣',
-                    'spades': '♠'
-                };
-                const suitSymbol = suitSymbols[card.suit as keyof typeof suitSymbols] || '?';
-                const cardColor = card.isRed ? '#d32f2f' : '#000';
+        // 卡牌样式
+        returnCard.style.cssText = `
+            position: fixed;
+            left: ${mousePos.x - dragData!.offsetX}px;
+            top: ${mousePos.y - dragData!.offsetY}px;
+            width: ${gameManager.boardDimension?.cardWidth || 80}px;
+            height: ${gameManager.boardDimension?.cardHeight || 144}px;
+            background: linear-gradient(135deg, #ffffff, #f0f0f0);
+            border: 2px solid #333;
+            border-radius: 8px;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            color: #333;
+            transition: all 1s ease-out;
+        `;
 
-                returnCard.innerHTML = `
-                    <div style="
-                        position: absolute;
-                        top: 4px;
-                        left: 4px;
-                        font-size: 10px;
-                        color: ${cardColor};
-                        line-height: 1;
-                    ">
-                        <div>${card.rank}</div>
-                        <div style="font-size: 8px;">${suitSymbol}</div>
-                    </div>
-                    <div style="
-                        font-size: 20px;
-                        color: ${cardColor};
-                    ">${suitSymbol}</div>
-                    <div style="
-                        position: absolute;
-                        bottom: 4px;
-                        right: 4px;
-                        font-size: 10px;
-                        color: ${cardColor};
-                        transform: rotate(180deg);
-                        line-height: 1;
-                    ">
-                        <div>${card.rank}</div>
-                        <div style="font-size: 8px;">${suitSymbol}</div>
-                    </div>
-                `;
+        // 卡牌内容
+        const suitSymbols = {
+            'hearts': '♥',
+            'diamonds': '♦',
+            'clubs': '♣',
+            'spades': '♠'
+        };
+        const suitSymbol = suitSymbols[card.suit as keyof typeof suitSymbols] || '?';
+        const cardColor = card.isRed ? '#d32f2f' : '#000';
 
-                document.body.appendChild(returnCard);
+        returnCard.innerHTML = `
+            <div style="
+                position: absolute;
+                top: 4px;
+                left: 4px;
+                font-size: 10px;
+                color: ${cardColor};
+                line-height: 1;
+            ">
+                <div>${card.rank}</div>
+                <div style="font-size: 8px;">${suitSymbol}</div>
+            </div>
+            <div style="
+                font-size: 20px;
+                color: ${cardColor};
+            ">${suitSymbol}</div>
+            <div style="
+                position: absolute;
+                bottom: 4px;
+                right: 4px;
+                font-size: 10px;
+                color: ${cardColor};
+                transform: rotate(180deg);
+                line-height: 1;
+            ">
+                <div>${card.rank}</div>
+                <div style="font-size: 8px;">${suitSymbol}</div>
+            </div>
+        `;
 
-                // 停止拖拽状态
-                setIsDragging(false);
-                setIsTransitioning(true);
+        return returnCard;
+    }, [dragData, gameManager]);
 
-                // 清理拖拽元素
-                if (dragElementRef.current) {
-                    dragElementRef.current.style.display = 'none';
-                }
+    // 清理拖拽样式
+    const clearDragStyles = useCallback((cards: SoloCard[]) => {
+        cards.forEach(sequenceCard => {
+            const allCardsWithId = document.querySelectorAll(`[data-card-id="${sequenceCard.id}"]`);
+            allCardsWithId.forEach(cardElement => {
+                const card = cardElement as HTMLElement;
+                card.classList.remove('dragging', 'drag-copy', 'drag-cancelled');
+                card.style.removeProperty('opacity');
+                card.style.removeProperty('visibility');
+                card.style.removeProperty('display');
+                card.style.removeProperty('transform');
+            });
+        });
+    }, []);
 
-                // 执行回归动画
-                setTimeout(() => {
-                    returnCard.style.left = `${originalRect.left}px`;
-                    returnCard.style.top = `${originalRect.top}px`;
-                }, 100);
-
-                // 清理回归元素
-                setTimeout(() => {
-                    if (document.body.contains(returnCard)) {
-                        document.body.removeChild(returnCard);
-                    }
-                }, 1100);
-            } else {
-                // 如果找不到目标卡牌，直接清理
-                setIsDragging(false);
-                setIsTransitioning(true);
-                if (dragElementRef.current) {
-                    dragElementRef.current.style.display = 'none';
-                }
-            }
-
-            // 延迟清理原始卡牌样式
-            setTimeout(() => {
-                if (dragData && dragData.cards) {
-                    dragData.cards.forEach(sequenceCard => {
-                        const allCardsWithId = document.querySelectorAll(`[data-card-id="${sequenceCard.id}"]`);
-                        allCardsWithId.forEach(cardElement => {
-                            const card = cardElement as HTMLElement;
-                            card.classList.remove('dragging', 'drag-copy', 'drag-cancelled');
-                            card.style.removeProperty('opacity');
-                            card.style.removeProperty('visibility');
-                            card.style.removeProperty('display');
-                            card.style.removeProperty('transform');
-                        });
-                    });
-                }
-            }, 1000);
-
-            // 延迟清理所有状态
-            setTimeout(() => {
-                setIsTransitioning(false);
-                setDragData(null);
-                console.log('Drag cancelled - simple return complete');
-            }, 1200);
+    // 清理拖拽状态
+    const cleanupDragState = useCallback(() => {
+        setIsDragging(false);
+        setIsTransitioning(true);
+        if (dragElementRef.current) {
+            dragElementRef.current.style.display = 'none';
         }
+    }, []);
 
-
-        // 恢复原始卡牌（只有非取消的情况才立即执行）
-        if (dragData?.card?.ele && (dropSuccessful || distance < 5)) {
-            dragData.card.ele.classList.remove('dragging', 'drag-copy');
-        }
-
-        // 清理所有高亮状态
+    // 清理悬停效果
+    const clearHoverEffects = useCallback(() => {
         document.querySelectorAll('.drag-over').forEach(el => {
             const element = el as HTMLElement;
             element.classList.remove('drag-over');
@@ -397,19 +443,8 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             element.style.border = '';
             element.style.borderRadius = '';
         });
-
         setHoveredTarget(null);
-
-        // 只在没有成功移动时才重置拖拽状态
-        if (!dropSuccessful) {
-            setIsDragging(false);
-            setDragData(null);
-            if (dragElementRef.current) {
-                dragElementRef.current.style.display = 'none';
-            }
-        }
-
-    }, [isDragging, dragData, getDragPosition, gameManager]);
+    }, []);
 
     // 拖拽悬停
     const onDragOver = useCallback((event: React.MouseEvent | React.TouchEvent) => {
@@ -584,7 +619,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                                 position: 'absolute',
                                 top: `${index * 20}px`, // 序列中的卡牌垂直偏移
                                 left: '0px',
-                                zIndex: 9999 - index, // 确保顶部卡牌在最前面
+                                zIndex: 9999 + index, // 修正：后面的卡牌在最前面
                                 // 确保拖拽副本使用正确的尺寸
                                 width: cardWidth,
                                 height: cardHeight,
