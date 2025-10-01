@@ -4,11 +4,11 @@
  */
 
 export enum SoloGameStatus {
-    Init = 0,
-    Playing = 1,
-    Won = 2,
-    Lost = 3,
-    Paused = 4
+    SHUFFLE = -1,
+    OPEN = 0,
+    DEAL = 1,
+    PLAYING = 2,
+    CLOSED = 3
 }
 
 // 区域类型枚举
@@ -18,19 +18,16 @@ export enum ZoneType {
     FOUNDATION = 'foundation',
     TABLEAU = 'tableau'
 }
-
-export interface SoloCard {
-    id: string;
-    suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
-    rank: 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
-    value: number; // A=1, 2-10=2-10, J=11, Q=12, K=13
-    isRed: boolean; // 红桃和方块为红色
-    isRevealed: boolean; // 是否已翻开
-    x?: number;
-    y?: number;
-    zIndex?: number;
+export interface SoloCard extends Card {
     ele?: HTMLDivElement | null;
-
+}
+export interface Card {
+    id: string;
+    suit?: 'hearts' | 'diamonds' | 'clubs' | 'spades' | null;
+    rank?: 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | null;
+    value?: number; // A=1, 2-10=2-10, J=11, Q=12, K=13
+    isRed?: boolean; // 红桃和方块为红色
+    isRevealed?: boolean; // 是否已翻开 
     // 位置信息
     zone: ZoneType; // 所属区域类型
     zoneId: string; // 具体区域ID（如 foundation-hearts, tableau-0）
@@ -41,39 +38,24 @@ export interface SoloCard {
 export interface SoloZone {
     id: string;
     type: ZoneType;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
     ele?: HTMLDivElement | null;
-
-    // 区域特定配置
-    suit?: 'hearts' | 'diamonds' | 'clubs' | 'spades'; // 基础堆花色
-    maxCards?: number; // 最大卡牌数
-    allowMultiple?: boolean; // 是否允许多张牌
 }
-
-// 简化的游戏状态 - 只使用统一的 cards 数组
-export interface SoloGameState {
+export interface GameModel {
     gameId: string;
+    cards: Card[];
     status: SoloGameStatus;
     score: number;
     moves: number;
+    lastUpdate?: string;//event id
     timeElapsed: number;
-
-    // 统一卡牌管理
-    cards: SoloCard[];
-
-    // 区域定义
-    zones: SoloZone[];
-
-    // 游戏状态
-    selectedCard: SoloCard | null;
-    hintCards: SoloCard[];
-    lastMove?: SoloMove;
-    isWon: boolean;
-    isLost: boolean;
 }
+// 简化的游戏状态 - 只使用统一的 cards 数组
+export interface SoloGameState extends GameModel {
+    // 统一卡牌管理
+    cards: SoloCard[];    // 区域定义
+    zones: SoloZone[];
+}
+
 
 export interface SoloMove {
     id: string;

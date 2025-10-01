@@ -3,54 +3,42 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { SoloDnDCard } from '..';
 import { useEventManager } from './service/EventProvider';
+import { useSoloGameManager } from './service/GameManager';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
-import { useSoloGameManager } from './service/SoloGameManager';
+import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
-import { SoloBoardDimension, SoloCard } from './types/SoloTypes';
-import SoloDnDCard from './view/SoloDnDCard';
+import { SoloBoardDimension, SoloCard, SoloGameStatus } from './types/SoloTypes';
 
 interface SoloPlayerProps {
-    onGameComplete?: (won: boolean, score: number) => void;
     onGameStart?: () => void;
-    onGamePause?: () => void;
-    onGameResume?: () => void;
 }
 
 const SoloPlayer: React.FC<SoloPlayerProps> = ({
-    onGameComplete,
     onGameStart,
-    onGamePause,
-    onGameResume
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const {
         gameState,
         boardDimension,
-        isGameActive,
-        isPaused,
         startNewGame,
-        pauseGame,
-        resumeGame,
-        resetGame,
-        drawCard,
-        moveCard,
         selectCard,
-        getHints,
-        autoComplete,
-        isGameWon,
-        isGameLost,
-        getCardsByZone,
-        getCardsByZoneType,
         updateBoardDimension
     } = useSoloGameManager();
+    const { cards } = gameState || {};
+
     const { addEvent } = useEventManager();
     const { isDragging, dragData } = useSoloDnDManager();
+
 
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
+    const gameEngine = useMemo(() => {
+        return new SoloGameEngine();
+    }, []);
     // 统一的卡牌样式函数
     const getUnifiedCardStyle = useCallback((additionalStyle: React.CSSProperties = {}): React.CSSProperties => {
         if (!boardDimension) return additionalStyle;
@@ -231,37 +219,45 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         }
     }, [boardDimension, screenSize]);
 
-    // 处理新游戏
-    const handleNewGame = useCallback(() => {
-        console.log("handleNewGame")
-        startNewGame();
-        onGameStart?.();
-    }, [startNewGame, onGameStart]);
-    const handleInitGame = useCallback(() => {
-        console.log("handleInitGame")
+
+    const handleShuffle = useCallback(() => {
+        console.log("handleShuffle")
+        const deck = SoloGameEngine.createDeck();
+        const game = {
+            gameId: `solo-${Date.now()}`,
+            status: SoloGameStatus.OPEN,
+            score: 0,
+            moves: 0,
+            timeElapsed: 0,
+            cards: deck,
+        }
+        startNewGame(game);
         addEvent({
             id: Date.now().toString(),
-            name: "gameInit",
-            data: {
-                time: Date.now()
-            }
+            name: "shuffle",
         });
-    }, [addEvent]);
-    // 处理暂停/恢复
-    const handlePauseToggle = useCallback(() => {
-        if (isPaused) {
-            resumeGame();
-            onGameResume?.();
-        } else {
-            pauseGame();
-            onGamePause?.();
-        }
-    }, [isPaused, pauseGame, resumeGame, onGamePause, onGameResume]);
 
-    // 处理抽牌
-    const handleDrawCard = useCallback(() => {
-        drawCard();
-    }, [drawCard]);
+    }, [addEvent, startNewGame, gameEngine]);
+
+    const handleInit = useCallback(() => {
+        const game = SoloGameEngine.createGame();
+        addEvent({
+            id: Date.now().toString(),
+            name: "init",
+            data: game
+        });
+    }, [startNewGame])
+    const handleDeal = useCallback(() => {
+        if (!gameState) return;
+
+        addEvent({
+            id: Date.now().toString(),
+            name: "deal",
+        });
+
+    }, [addEvent, gameState]);
+
+
 
     // 处理卡牌点击
     const handleCardClick = useCallback((card: SoloCard) => {
@@ -274,16 +270,6 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         console.log('Double click on card:', card.id);
     }, []);
 
-    // 处理提示
-    const handleGetHints = useCallback(() => {
-        const hints = getHints();
-        console.log('Hints:', hints);
-    }, [getHints]);
-
-    // 处理自动完成
-    const handleAutoComplete = useCallback(() => {
-        autoComplete();
-    }, [autoComplete]);
 
     // 渲染基础堆
     const renderFoundations = useCallback(() => {
@@ -291,7 +277,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
         const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
         return suits.map((suit, index) => {
-            const foundationCards = getCardsByZone(`foundation-${suit}`);
+
             return (
                 <div
                     key={`foundation-${suit}`}
@@ -312,31 +298,16 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                         backgroundColor: 'rgba(0,0,0,0.1)'
                     }}
                 >
-                    {foundationCards.length > 0 ? (
-                        <SoloDnDCard
-                            card={foundationCards[foundationCards.length - 1]}
-                            source={`foundation-${suit}`}
-                            onClick={handleCardClick}
-                            onDoubleClick={handleCardDoubleClick}
-                            style={getUnifiedCardStyle({
-                                position: 'relative'
-                            })}
-                        />
-                    ) : (
-                        <div style={{ color: '#999', fontSize: '12px' }}>
-                            {suit.toUpperCase()}
-                        </div>
-                    )}
+
                 </div>
             );
         });
-    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone, getUnifiedCardStyle]);
+    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
 
     // 渲染牌堆
     const renderTalon = useCallback(() => {
         if (!gameState || !boardDimension) return null;
 
-        const talonCards = getCardsByZone('talon');
         return (
             <div
                 className="talon-zone"
@@ -354,26 +325,16 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     backgroundColor: 'rgba(0,0,0,0.1)',
                     cursor: 'pointer'
                 }}
-                onClick={handleDrawCard}
             >
-                {talonCards.length > 0 ? (
-                    <div style={{ color: '#999', fontSize: '12px' }}>
-                        {talonCards.length}
-                    </div>
-                ) : (
-                    <div style={{ color: '#999', fontSize: '12px' }}>
-                        EMPTY
-                    </div>
-                )}
+
             </div>
         );
-    }, [gameState, boardDimension, handleDrawCard, getCardsByZone]);
+    }, [gameState, boardDimension]);
 
     // 渲染废牌堆
     const renderWaste = useCallback(() => {
         if (!gameState || !boardDimension) return null;
 
-        const wasteCards = getCardsByZone('waste');
         return (
             <div
                 className="waste-zone"
@@ -385,30 +346,16 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     height: boardDimension.cardHeight
                 }}
             >
-                {wasteCards.slice(-3).map((card, index) => (
-                    <SoloDnDCard
-                        key={card.id}
-                        card={card}
-                        source="waste"
-                        onClick={handleCardClick}
-                        onDoubleClick={handleCardDoubleClick}
-                        style={getUnifiedCardStyle({
-                            position: 'absolute', // 改为绝对定位，与 tableau 一致
-                            left: index * (boardDimension.cardWidth * 0.55),
-                            top: 0,
-                        })}
-                    />
-                ))}
+
             </div>
         );
-    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone, getUnifiedCardStyle]);
+    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
 
     // 渲染牌桌
     const renderTableau = useCallback(() => {
         if (!boardDimension) return null;
         // console.log('boardDimension', boardDimension);
         return Array.from({ length: 7 }, (_, colIndex) => {
-            const columnCards = getCardsByZone(`tableau-${colIndex}`);
             return (
                 <div
                     key={`tableau-col-${colIndex}`}
@@ -426,26 +373,38 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                         gap: boardDimension.spacing * 0.3
                     }}
                 >
-                    {columnCards.map((card, cardIndex) => (
-                        <SoloDnDCard
-                            key={card.id}
-                            card={card}
-                            source={`tableau-${colIndex}`}
-                            onClick={handleCardClick}
-                            onDoubleClick={handleCardDoubleClick}
-                            style={getUnifiedCardStyle({
-                                position: 'absolute',
-                                top: cardIndex * (boardDimension.cardHeight * 0.3),
-                            })}
-                        />
-                    ))}
+
                 </div>
             );
         });
-    }, [boardDimension, handleCardClick, handleCardDoubleClick, getCardsByZone, getUnifiedCardStyle]);
+    }, [boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
+    const renderCards = useMemo(() => {
+        if (!cards || !boardDimension) return null;
+
+        return cards.sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
+            <SoloDnDCard
+                key={card.id}
+                card={card}
+                source={`tableau-${cardIndex}`}
+                onClick={handleCardClick}
+                onDoubleClick={handleCardDoubleClick}
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    opacity: 0,
+                    width: boardDimension.cardWidth,
+                    height: boardDimension.cardHeight,
+                    zIndex: 100 - cardIndex
+                }}
+            />
+        ))
+
+    }, [cards]);
 
     // 渲染控制面板
     const renderControlPanel = useCallback(() => {
+        if (!gameState || gameState.gameId !== "game-open") return null;
         const isMobile = screenSize === 'mobile';
         const isTablet = screenSize === 'tablet';
 
@@ -459,9 +418,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     zIndex: 1000
                 }}
             >
-                <button
-                    onClick={handleNewGame}
-                    disabled={isGameActive && !isPaused}
+                {/* <button
+                    onClick={handleShuffle}
                     style={{
                         fontSize: isMobile ? '12px' : '14px',
                         padding: isMobile ? '6px 8px' : '8px 12px',
@@ -469,147 +427,32 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                         minHeight: isMobile ? '32px' : '36px',
                     }}
                 >
-                    {isGameActive ? 'Restart' : 'New Game'}
-                </button>
-                {isGameActive && (
-                    <button
-                        onClick={handlePauseToggle}
-                        style={{
-                            fontSize: isMobile ? '12px' : '14px',
-                            padding: isMobile ? '6px 8px' : '8px 12px',
-                            height: isMobile ? '32px' : '36px',
-                            minHeight: isMobile ? '32px' : '36px',
-                            flex: 'none'
-                        }}
-                    >
-                        {isPaused ? 'Resume' : 'Pause'}
-                    </button>
-                )}
+                    Shuffle
+                </button> */}
+
+
                 <button
-                    onClick={handleGetHints}
-                    disabled={!isGameActive || isPaused}
+                    onClick={handleDeal}
                     style={{
-                        fontSize: isMobile ? '12px' : '14px',
-                        padding: isMobile ? '6px 8px' : '8px 12px',
-                        height: isMobile ? '32px' : '36px',
-                        minHeight: isMobile ? '32px' : '36px',
+                        fontSize: isTablet ? '12px' : '14px',
+                        padding: isTablet ? '6px 8px' : '8px 12px',
+                        height: isTablet ? '32px' : '36px',
+                        minHeight: isTablet ? '32px' : '36px',
                         flex: 'none'
                     }}
                 >
-                    Hints
+                    Deal
                 </button>
-                {!isMobile && (
-                    <button
-                        onClick={handleInitGame}
-                        style={{
-                            fontSize: isTablet ? '12px' : '14px',
-                            padding: isTablet ? '6px 8px' : '8px 12px',
-                            height: isTablet ? '32px' : '36px',
-                            minHeight: isTablet ? '32px' : '36px',
-                            flex: 'none'
-                        }}
-                    >
-                        Init Game
-                    </button>
-                )}
+
             </div>
         );
-    }, [isGameActive, isPaused, screenSize, handleNewGame, handlePauseToggle, handleGetHints, handleAutoComplete]);
+    }, [gameState, screenSize, handleDeal, handleShuffle]);
 
-    // 渲染游戏信息
-    const renderGameInfo = useCallback(() => {
-        if (!gameState) return null;
+    // useEffect(() => {
+    //     console.log('cards', cards);
+    // }, [cards]);
 
-        const isMobile = screenSize === 'mobile';
-        const isTablet = screenSize === 'tablet';
 
-        return (
-            <div className="game-info" style={{
-                display: 'flex',
-                gap: isMobile ? '10px' : '5px',
-                zIndex: 1000,
-                color: '#333',
-                fontSize: '12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                padding: '4px 8px',
-                borderRadius: '4px'
-            }}>
-                <div>Score: {gameState.score}</div>
-                <div>Moves: {gameState.moves}</div>
-                <div>Time: {Math.floor(gameState.timeElapsed / 60)}:{(gameState.timeElapsed % 60).toString().padStart(2, '0')}</div>
-            </div>
-        );
-    }, [gameState, screenSize]);
-
-    // 渲染游戏状态
-    const renderGameStatus = useCallback(() => {
-        if (!isGameActive) return null;
-
-        if (isGameWon()) {
-            return (
-                <div className="game-status won" style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'rgba(76, 175, 80, 0.9)',
-                    color: 'white',
-                    padding: '20px',
-                    borderRadius: '10px',
-                    textAlign: 'center',
-                    zIndex: 2000
-                }}>
-                    <h2>Congratulations!</h2>
-                    <p>You won the game!</p>
-                    <p>Score: {gameState?.score}</p>
-                    <button onClick={handleNewGame}>Play Again</button>
-                </div>
-            );
-        }
-
-        if (isGameLost()) {
-            return (
-                <div className="game-status lost" style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'rgba(244, 67, 54, 0.9)',
-                    color: 'white',
-                    padding: '20px',
-                    borderRadius: '10px',
-                    textAlign: 'center',
-                    zIndex: 2000
-                }}>
-                    <h2>Game Over</h2>
-                    <p>No more moves available</p>
-                    <button onClick={handleNewGame}>Try Again</button>
-                </div>
-            );
-        }
-
-        if (isPaused) {
-            return (
-                <div className="game-status paused" style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    color: 'white',
-                    padding: '20px',
-                    borderRadius: '10px',
-                    textAlign: 'center',
-                    zIndex: 2000
-                }}>
-                    <h2>Game Paused</h2>
-                    <button onClick={handlePauseToggle}>Resume</button>
-                </div>
-            );
-        }
-
-        return null;
-    }, [isGameActive, isGameWon, isGameLost, isPaused, gameState, handleNewGame, handlePauseToggle]);
     // console.log('boardDimension', boardDimension);
     return (
         <div
@@ -618,19 +461,19 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
             style={{
                 width: '100%',
                 height: '100%',
-                position: 'relative',
+                position: 'absolute',
+                left: 0,
+                top: 0,
                 backgroundColor: '#0d5f0d',
                 overflow: 'visible' // 允许拖拽元素超出边界
             }}
         >
             {renderControlPanel()}
-            {renderGameInfo()}
             {renderFoundations()}
             {renderTalon()}
             {renderWaste()}
             {renderTableau()}
-            {renderGameStatus()}
-            {/* 渲染被拖拽的卡牌序列 */}
+            {renderCards}
 
         </div>
     );

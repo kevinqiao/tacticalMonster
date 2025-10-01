@@ -2,10 +2,10 @@
  * 单人纸牌游戏可拖拽卡牌组件
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
-
+import { gsap } from 'gsap';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSoloGameManager } from '../service/GameManager';
 import { useSoloDnDManager } from '../service/SoloDnDProvider';
-import { useSoloGameManager } from '../service/SoloGameManager';
 import { SoloCard } from '../types/SoloTypes';
 
 interface SoloDnDCardProps {
@@ -42,7 +42,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         onDragOver,
         onDrop
     } = useSoloDnDManager();
-    const { selectCard, canMoveCard } = useSoloGameManager();
+    const { selectCard, onCardLoad } = useSoloGameManager();
 
     // 检查是否正在被拖拽或处于过渡状态
     const isBeingDragged = useMemo(() => {
@@ -71,22 +71,23 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             borderRadius: '8px',
             border: '2px solid #333',
             backgroundColor: card.isRevealed ? '#fff' : '#1a4d80',
-            position: 'relative',
-            cursor: canMove ? 'grab' : 'default',
-            transition: 'all 0.2s ease',
-            transform: isTouching ? 'scale(1.05)' : 'none',
-            zIndex: isBeingDragged || isInTransition ? 9999 : card.zIndex || 1,
-            opacity: isBeingDragged ? 0 : isTouching ? 0.9 : 1,
-            overflow: 'hidden', // 确保内容不会溢出
-            boxShadow: isSelected
-                ? '0 0 10px #4CAF50'
-                : isHinted
-                    ? '0 0 10px #FFC107'
-                    : isTouching
-                        ? '0 0 8px #2196F3'
-                        : isHovered
-                            ? '0 0 5px #666'
-                            : '0 2px 4px rgba(0,0,0,0.3)',
+            // position: 'absolute',
+            // left: 0,
+            // top: 0,
+            // cursor: canMove ? 'grab' : 'default',
+            // transition: 'all 0.2s ease',
+            // transform: isTouching ? 'scale(1.05)' : 'none',
+            // zIndex: isBeingDragged || isInTransition ? 9999 : card.zIndex || 1,
+            // overflow: 'hidden', // 确保内容不会溢出
+            // boxShadow: isSelected
+            //     ? '0 0 10px #4CAF50'
+            //     : isHinted
+            //         ? '0 0 10px #FFC107'
+            //         : isTouching
+            //             ? '0 0 8px #2196F3'
+            //             : isHovered
+            //                 ? '0 0 5px #666'
+            //                 : '0 2px 4px rgba(0,0,0,0.3)',
             // 外部样式优先级更高
             ...style
         };
@@ -106,10 +107,6 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         onDragOver(e);
     }, [isDragging, onDragOver]);
 
-    const handleMouseUp = useCallback((e: React.MouseEvent) => {
-        if (!isDragging) return;
-        onDrop(e);
-    }, [isDragging, onDrop]);
 
     // 处理触摸事件
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -171,7 +168,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
         console.log('Touch ended on card:', card.id, 'duration:', touchDuration + 'ms');
 
-        onDrop(e);
+        // onDrop(e);
     }, [isDragging, onDrop, card.id, touchStartTime]);
 
     const handleTouchCancel = useCallback((e: React.TouchEvent) => {
@@ -220,7 +217,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
     // 渲染卡牌内容
     const renderCardContent = useCallback(() => {
-        if (!card.isRevealed) {
+        if (!card.isRevealed || !card.suit || !card.rank) {
             return (
                 <div style={{
                     width: '100%',
@@ -319,16 +316,22 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             card.ele = ref.current;
         }
     }, [card]);
-
+    const load = useCallback((ele: HTMLDivElement | null) => {
+        card.ele = ele;
+        if (ele) {
+            // const coord = getCoord(card);
+            gsap.set(ele, { left: 0, top: 0 });
+        }
+        onCardLoad(ele);
+    }, [onCardLoad]);
     return (
         <div
-            ref={ref}
+            ref={(ele) => load(ele)}
             data-card-id={card.id}
             className={`solo-card ${className} ${isSelected ? 'selected' : ''} ${isHinted ? 'hinted' : ''} ${!card.isRevealed ? 'face-down' : ''}`}
             style={cardStyle}
             onMouseDown={handleMouseDown}
             onMouseOver={handleMouseOver}
-            onMouseUp={handleMouseUp}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -337,8 +340,6 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             onDoubleClick={handleDoubleClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            data-source={source}
-            data-revealed={card.isRevealed}
         >
             {renderCardContent()}
         </div>

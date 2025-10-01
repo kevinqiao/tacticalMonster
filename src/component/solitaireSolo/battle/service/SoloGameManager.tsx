@@ -172,22 +172,22 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
     const createZones = useCallback((): SoloZone[] => {
         return [
             // 牌堆
-            { id: 'talon', type: ZoneType.TALON, x: 0, y: 0, width: 0, height: 0, maxCards: 52 },
+            { id: 'talon', type: ZoneType.TALON },
             // 废牌堆
-            { id: 'waste', type: ZoneType.WASTE, x: 0, y: 0, width: 0, height: 0, maxCards: 52, allowMultiple: true },
+            { id: 'waste', type: ZoneType.WASTE },
             // 基础堆
-            { id: 'foundation-hearts', type: ZoneType.FOUNDATION, x: 0, y: 0, width: 0, height: 0, suit: 'hearts', maxCards: 13 },
-            { id: 'foundation-diamonds', type: ZoneType.FOUNDATION, x: 0, y: 0, width: 0, height: 0, suit: 'diamonds', maxCards: 13 },
-            { id: 'foundation-clubs', type: ZoneType.FOUNDATION, x: 0, y: 0, width: 0, height: 0, suit: 'clubs', maxCards: 13 },
-            { id: 'foundation-spades', type: ZoneType.FOUNDATION, x: 0, y: 0, width: 0, height: 0, suit: 'spades', maxCards: 13 },
+            { id: 'foundation-hearts', type: ZoneType.FOUNDATION },
+            { id: 'foundation-diamonds', type: ZoneType.FOUNDATION },
+            { id: 'foundation-clubs', type: ZoneType.FOUNDATION },
+            { id: 'foundation-spades', type: ZoneType.FOUNDATION },
             // 牌桌
-            { id: 'tableau-0', type: ZoneType.TABLEAU, x: 0, y: 0, width: 0, height: 0, maxCards: 52, allowMultiple: true },
-            { id: 'tableau-1', type: ZoneType.TABLEAU, x: 0, y: 0, width: 0, height: 0, maxCards: 52, allowMultiple: true },
-            { id: 'tableau-2', type: ZoneType.TABLEAU, x: 0, y: 0, width: 0, height: 0, maxCards: 52, allowMultiple: true },
-            { id: 'tableau-3', type: ZoneType.TABLEAU, x: 0, y: 0, width: 0, height: 0, maxCards: 52, allowMultiple: true },
-            { id: 'tableau-4', type: ZoneType.TABLEAU, x: 0, y: 0, width: 0, height: 0, maxCards: 52, allowMultiple: true },
-            { id: 'tableau-5', type: ZoneType.TABLEAU, x: 0, y: 0, width: 0, height: 0, maxCards: 52, allowMultiple: true },
-            { id: 'tableau-6', type: ZoneType.TABLEAU, x: 0, y: 0, width: 0, height: 0, maxCards: 52, allowMultiple: true }
+            { id: 'tableau-0', type: ZoneType.TABLEAU },
+            { id: 'tableau-1', type: ZoneType.TABLEAU },
+            { id: 'tableau-2', type: ZoneType.TABLEAU },
+            { id: 'tableau-3', type: ZoneType.TABLEAU },
+            { id: 'tableau-4', type: ZoneType.TABLEAU },
+            { id: 'tableau-5', type: ZoneType.TABLEAU },
+            { id: 'tableau-6', type: ZoneType.TABLEAU }
         ];
     }, []);
 
@@ -220,16 +220,13 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
 
         return {
             gameId: `solo-${Date.now()}`,
-            status: SoloGameStatus.Playing,
+            status: SoloGameStatus.DEAL,
             score: 0,
             moves: 0,
             timeElapsed: 0,
             cards: deck, // 所有卡牌
             zones, // 区域定义
-            selectedCard: null,
-            hintCards: [],
-            isWon: false,
-            isLost: false
+
         };
     }, [createDeck, createZones]);
 
@@ -400,7 +397,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
             }
 
             // 检查红黑交替和递减
-            if (currentCard.isRed === prevCard.isRed || currentCard.value !== prevCard.value - 1) {
+            if (currentCard.isRed === prevCard.isRed || (prevCard.value !== undefined && currentCard.value !== prevCard.value - 1)) {
                 console.log(`Sequence broken: invalid transition from ${prevCard.rank} to ${currentCard.rank}`);
                 return sequence.slice(0, i); // 返回到无效位置为止
             }
@@ -437,7 +434,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
 
                 const topCard = targetCards[targetCards.length - 1];
                 // 必须同花色，且数值比顶牌大1
-                return card.suit === topCard.suit && card.value === topCard.value + 1;
+                return card.suit === topCard.suit &&
+                    (topCard.value !== undefined && card.value === topCard.value + 1);
             }
 
             case ZoneType.TABLEAU: {
@@ -459,7 +457,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
                     return false;
                 }
 
-                const isValidMove = card.isRed !== topCard.isRed && card.value === topCard.value - 1;
+                const isValidMove = card.isRed !== topCard.isRed &&
+                    (topCard.value !== undefined && card.value === topCard.value - 1);
                 console.log(`Tableau move valid: ${isValidMove}`);
                 return isValidMove;
             }
@@ -493,17 +492,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
             // 检查是否可以移动到Foundation
             const foundationZones = getZonesByType(ZoneType.FOUNDATION);
             for (const zone of foundationZones) {
-                if (zone.suit === topWasteCard.suit || !zone.suit) {
-                    if (canMoveToZone(topWasteCard, zone.id)) {
-                        hints.push({
-                            card: topWasteCard,
-                            from: 'waste',
-                            to: zone.id,
-                            reason: `Move ${topWasteCard.rank} of ${topWasteCard.suit} to foundation`,
-                            priority: 5 // Foundation moves are high priority
-                        });
-                    }
-                }
+
             }
 
             // 检查是否可以移动到Tableau
@@ -542,20 +531,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
                         }
                     }
 
-                    // 检查是否可以移动到Foundation
-                    for (const foundationZone of foundationZones) {
-                        if (foundationZone.suit === topCard.suit || !foundationZone.suit) {
-                            if (canMoveToZone(topCard, foundationZone.id)) {
-                                hints.push({
-                                    card: topCard,
-                                    from: sourceZone.id,
-                                    to: foundationZone.id,
-                                    reason: `Move ${topCard.rank} of ${topCard.suit} to foundation`,
-                                    priority: 5
-                                });
-                            }
-                        }
-                    }
+
                 }
             }
         }
@@ -592,7 +568,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
         const targetZone = getZone(to);
         if (!targetZone) return false;
 
-        return canMoveToZone(card, to);
+        return canMoveToZone(card, to) ?? false;
     }, [gameState, getZone]);
 
     // 检查游戏是否胜利
@@ -608,7 +584,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
             }
 
             // 验证基础堆的顺序是否正确（A到K）
-            const sortedCards = [...cards].sort((a, b) => a.value - b.value);
+            const sortedCards = [...cards].sort((a, b) => (a.value ?? 0) - (b.value ?? 0));
             for (let i = 0; i < sortedCards.length; i++) {
                 if (sortedCards[i].value !== i + 1) {
                     return false;

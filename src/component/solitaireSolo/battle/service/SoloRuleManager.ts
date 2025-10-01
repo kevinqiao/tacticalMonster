@@ -23,7 +23,7 @@ export class SoloRuleManager {
      * 检查是否可以移动卡牌到基础堆
      */
     canMoveToFoundation(card: SoloCard, foundationZoneId: string): boolean {
-        if (!card.isRevealed) return false;
+        if (!card.isRevealed || !card.rank) return false;
 
         // 获取基础堆中的卡牌（按zoneId过滤）
         const foundationCards = this.gameState.cards
@@ -40,6 +40,7 @@ export class SoloRuleManager {
         }
 
         const topCard = foundationCards[foundationCards.length - 1];
+        if (!topCard.rank) return false;
         return CARD_VALUES[card.rank] === CARD_VALUES[topCard.rank] + 1;
     }
 
@@ -47,7 +48,7 @@ export class SoloRuleManager {
      * 检查是否可以移动卡牌到牌桌
      */
     canMoveToTableau(card: SoloCard, targetCard: SoloCard | null, targetColumn: number): boolean {
-        if (!card.isRevealed) return false;
+        if (!card.isRevealed || !card.rank) return false;
 
         if (targetCard === null) {
             // 空列只能放K
@@ -58,6 +59,7 @@ export class SoloRuleManager {
 
         // 牌桌必须按颜色交替和降序排列
         const isAlternatingColor = card.isRed !== targetCard.isRed;
+        if (!targetCard.rank) return false;
         const isDescending = CARD_VALUES[card.rank] === CARD_VALUES[targetCard.rank] - 1;
 
         return isAlternatingColor && isDescending;
@@ -74,7 +76,7 @@ export class SoloRuleManager {
             const current = cards[i];
             const next = cards[i + 1];
 
-            if (!current.isRevealed || !next.isRevealed) return false;
+            if (!current.isRevealed || !next.isRevealed || !current.rank || !next.rank) return false;
 
             const isAlternatingColor = current.isRed !== next.isRed;
             const isDescending = CARD_VALUES[current.rank] === CARD_VALUES[next.rank] - 1;
