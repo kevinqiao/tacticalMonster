@@ -53,6 +53,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
 
     return (
         <div className={`solo-game-container ${className}`} style={style}>
+
             <SoloGameProvider config={config} gameId={gameId}>
                 <EventProvider>
                     <SoloDnDProvider>

@@ -47,7 +47,7 @@ export class SoloGameEngine {
             // console.log("shuffleDeck", deck[i], deck[j])
         }
         deck.forEach((card: Card, index: number) => {
-            card.zoneIndex = index;
+            card.zoneIndex = deck.length - index;
         });
         console.log("shuffleDeck", deck);
 

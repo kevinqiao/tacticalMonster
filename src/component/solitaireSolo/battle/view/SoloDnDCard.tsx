@@ -3,11 +3,14 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 import { gsap } from 'gsap';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useSoloGameManager } from '../service/GameManager';
 import { useSoloDnDManager } from '../service/SoloDnDProvider';
 import { SoloCard } from '../types/SoloTypes';
+import './card.css';
 
+import { getCoord } from '../Utils';
+import CardSVG from './CardSVG';
 interface SoloDnDCardProps {
     card: SoloCard;
     source: string; // 来源位置标识
@@ -29,7 +32,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     style,
     className = ''
 }) => {
-    const ref = useRef<HTMLDivElement>(null);
+
     const [isHovered, setIsHovered] = useState(false);
     const [isTouching, setIsTouching] = useState(false);
     const [touchStartTime, setTouchStartTime] = useState<number>(0);
@@ -42,7 +45,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         onDragOver,
         onDrop
     } = useSoloDnDManager();
-    const { selectCard, onCardLoad } = useSoloGameManager();
+    const { selectCard, boardDimension } = useSoloGameManager();
 
     // 检查是否正在被拖拽或处于过渡状态
     const isBeingDragged = useMemo(() => {
@@ -68,9 +71,11 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             // width: '60px',
             // height: '84px',
             // minHeight: '84px', // 完全移除，让外部控制
-            borderRadius: '8px',
-            border: '2px solid #333',
-            backgroundColor: card.isRevealed ? '#fff' : '#1a4d80',
+            // borderRadius: '8px',
+            // border: '2px solid #333',
+            // backgroundColor: card.isRevealed ? '#fff' : '#1a4d80',
+            // transformStyle: 'preserve-3d',
+            // backfaceVisibility: 'hidden',
             // position: 'absolute',
             // left: 0,
             // top: 0,
@@ -249,9 +254,10 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
                 padding: '4px',
                 position: 'relative',
                 boxSizing: 'border-box',
+                transformStyle: 'preserve-3d',
             }}>
                 {/* 左上角数字和花色 */}
-                <div style={{
+                < div style={{
                     position: 'absolute',
                     top: '2px',
                     left: '4px',
@@ -263,10 +269,10 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
                 }}>
                     <div>{card.rank}</div>
                     <div style={{ fontSize: '8px' }}>{getSuitSymbol(card.suit)}</div>
-                </div>
+                </div >
 
                 {/* 中心花色 */}
-                <div style={{
+                < div style={{
                     fontSize: '24px',
                     color: card.isRed ? '#d32f2f' : '#000',
                     position: 'absolute',
@@ -276,10 +282,10 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
                     zIndex: 1
                 }}>
                     {getSuitSymbol(card.suit)}
-                </div>
+                </div >
 
                 {/* 右下角数字和花色 - 使用不同的定位方法 */}
-                <div style={{
+                < div style={{
                     position: 'absolute',
                     top: 'calc(100% - 22px)',
                     left: 'calc(100% - 18px)',
@@ -294,8 +300,8 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
                     height: '20px',
                 }}>
                     {card.rank}{getSuitSymbol(card.suit)}
-                </div>
-            </div>
+                </div >
+            </div >
         );
     }, [card]);
 
@@ -311,24 +317,22 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     }, []);
 
     // 更新卡牌元素引用
-    useEffect(() => {
-        if (ref.current) {
-            card.ele = ref.current;
-        }
-    }, [card]);
+
     const load = useCallback((ele: HTMLDivElement | null) => {
+        if (!boardDimension) return;
         card.ele = ele;
         if (ele) {
-            // const coord = getCoord(card);
-            gsap.set(ele, { left: 0, top: 0 });
+            const coord = getCoord(card, boardDimension);
+            gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y });
         }
-        onCardLoad(ele);
-    }, [onCardLoad]);
+        // onCardLoad(ele);
+    }, [boardDimension]);
     return (
         <div
             ref={(ele) => load(ele)}
             data-card-id={card.id}
-            className={`solo-card ${className} ${isSelected ? 'selected' : ''} ${isHinted ? 'hinted' : ''} ${!card.isRevealed ? 'face-down' : ''}`}
+            className="card"
+            // className={`solo-card ${className} ${isSelected ? 'selected' : ''} ${isHinted ? 'hinted' : ''} ${!card.isRevealed ? 'face-down' : ''}`}
             style={cardStyle}
             onMouseDown={handleMouseDown}
             onMouseOver={handleMouseOver}
@@ -341,7 +345,11 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
-            {renderCardContent()}
+            {/* {renderCardContent()} */}
+            {/* <CardSolo card={card} /> */}
+            <CardSVG card={card} />
+            {/* {renderCardContent()} */}
+
         </div>
     );
 };

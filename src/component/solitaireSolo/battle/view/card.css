@@ -1,0 +1,52 @@
+.card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-style: preserve-3d;
+    perspective: 1000px;
+    -webkit-transform-style: preserve-3d;
+    /* 浏览器兼容性 */
+    -webkit-perspective: 1000px;
+    /* transform: rotateY(0deg); */
+    /* border-radius: 8px;
+    border: 2px solid #333; */
+    /* background-color: #fff; */
+    backface-visibility: hidden;
+}
+
+.card-solo {
+    width: 100%;
+    height: 100%;
+    background-color: #fff;
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+}
+
+.card svg {
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    /* 确保 SVG 也支持 3D */
+    -webkit-transform-style: preserve-3d;
+
+}
+
+.card .front,
+.card .back {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    /* 浏览器兼容性 */
+    transform-style: preserve-3d;
+    /* 确保每个 <g> 在 3D 空间中 */
+    -webkit-transform-style: preserve-3d;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.card .front {
+    transform: rotateY(180deg);
+    -webkit-transform: rotateY(180deg);
+}

@@ -155,8 +155,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
         const finalTableauWidth = finalCardWidth * 7 + spacing * 6;
         const tableauX = (availableWidth - finalTableauWidth) / 2;
-        console.log('finalCardWidth', finalCardWidth);
-        console.log('cardHeight', cardHeight);
+
         return {
             width: availableWidth,
             height: availableHeight,

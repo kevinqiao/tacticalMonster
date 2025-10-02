@@ -22,7 +22,6 @@ interface ISoloGameContext {
     // zones: SoloZone[];
     cardsLoaded: boolean;
     // 游戏控制
-    startNewGame: (gameModel: GameModel) => void;
     resetGame: () => void;
     getCoord: (card: SoloCard) => { x: number; y: number };
     moveCard: (card: SoloCard, from: string, to: string) => boolean;
@@ -41,7 +40,6 @@ const SoloGameContext = createContext<ISoloGameContext>({
     // zones: [],
     getCoord: (card: SoloCard) => { return { x: 0, y: 0 } },
     onCardLoad: () => { },
-    startNewGame: () => { },
     resetGame: () => { },
     moveCard: () => false,
     selectCard: () => { },
@@ -92,15 +90,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
             { id: 'tableau-6', type: ZoneType.TABLEAU }
         ];
     }, []);
-    // 开始新游戏
-    const startNewGame = useCallback((gameModel: GameModel) => {
-        const zones = createZones();
-        const newGame = {
-            ...gameModel,
-            zones, // 区域定义
-        };
-        setGameState(newGame);
-    }, [createZones]);
+
 
     const initializeGame = useCallback((gameModel: GameModel) => {
 
@@ -221,7 +211,6 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         cardsLoaded,
         getCoord,
         onCardLoad,
-        startNewGame,
         resetGame,
         moveCard,
         selectCard,

@@ -1,5 +1,6 @@
 import gsap from "gsap";
-import { SoloCard } from "../types/SoloTypes";
+import { SoloCard, ZoneType } from "../types/SoloTypes";
+import { getCoord } from "../Utils";
 interface PlayEffect {
     (args: { data: any; tl?: gsap.core.Timeline }): gsap.core.Timeline | null;
 }
@@ -76,12 +77,60 @@ export const PlayEffects: PlayEffects = {
         }
         return null;
     },
-    init: ({ data, tl }) => {
+    init: ({ data }) => {
+        const tl = gsap.timeline();
+        const mtl = gsap.timeline();
+        const otl = gsap.timeline();
         const { cards, boardDimension } = data;
-        console.log("init", cards, boardDimension)
+        cards.forEach((card: SoloCard) => {
+            const { x, y } = getCoord(card, boardDimension);
+            if (card.ele) {
+                mtl.to(card.ele, { x, y, duration: 0 }, "<");
+                otl.to(card.ele, { autoAlpha: 1, duration: 0.1 }, "<");
+            }
+        });
+        tl.add(mtl);
+        tl.add(otl, ">=+0.3");
+        tl.play();
         return null;
     },
-    deal: ({ data, tl }) => {
+    deal: ({ data }) => {
+        const { cards, boardDimension } = data;
+        const tl = gsap.timeline();
+
+        for (let i = 0; i < 7; i++) {
+            const row = cards.filter((card: SoloCard) => card.zone === ZoneType.TABLEAU && card.zoneIndex === i);
+            if (row.length > 0) {
+                const rtl = gsap.timeline();
+                row.forEach((card: SoloCard) => {
+                    const { x, y } = getCoord(card, boardDimension);
+                    if (card.ele) {
+                        rtl.to(card.ele, { x, y, duration: 0.2, ease: "power2.out" }, "<=+0.1");
+                    }
+                });
+                tl.add(rtl, ">");
+            }
+        }
+        const otl = gsap.timeline();
+        cards.filter((card: SoloCard) => card.isRevealed).sort((a: SoloCard, b: SoloCard) => {
+            const acol = a.zoneId.split('-')[1];
+            const bcol = b.zoneId.split('-')[1];
+            return +acol || 0 - +bcol || 0;
+            // return a.zoneIndex - b.zoneIndex
+        }).forEach((card: SoloCard) => {
+            if (card.ele) {
+                otl.to(card.ele, { rotateY: 180, duration: 0.2, ease: "power2.out" }, "<=+0.1");
+            }
+        });
+        tl.add(otl, ">");
+
+        // for(let i=0;i<7;i++){
+
+        // }
+        tl.play();
+
+
+
         return null;
     }
 };

@@ -89,16 +89,16 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         addEvent,
         removeEvent
     };
-    useEffect(() => {
-        if (!gameState) return;
-        const loadedCards = gameState.cards.every(c => c.ele);
-        console.log("gameState", gameState, loadedCards)
-        addEvent({
-            id: Date.now().toString(),
-            name: "init",
-        });
+    // useEffect(() => {
+    //     if (!gameState) return;
+    //     const loadedCards = gameState.cards.every(c => c.ele);
+    //     console.log("gameState", gameState, loadedCards)
+    //     addEvent({
+    //         id: Date.now().toString(),
+    //         name: "init",
+    //     });
 
-    }, [gameState, addEvent]);
+    // }, [gameState, addEvent]);
 
 
     return (

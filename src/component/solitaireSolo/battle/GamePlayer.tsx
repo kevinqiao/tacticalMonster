@@ -10,7 +10,7 @@ import { useSoloGameManager } from './service/GameManager';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
 import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
-import { SoloBoardDimension, SoloCard, SoloGameStatus } from './types/SoloTypes';
+import { SoloBoardDimension, SoloCard } from './types/SoloTypes';
 
 interface SoloPlayerProps {
     onGameStart?: () => void;
@@ -23,7 +23,6 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const {
         gameState,
         boardDimension,
-        startNewGame,
         selectCard,
         updateBoardDimension
     } = useSoloGameManager();
@@ -143,8 +142,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
         const finalTableauWidth = finalCardWidth * 7 + spacing * 6;
         const tableauX = (availableWidth - finalTableauWidth) / 2;
-        console.log('finalCardWidth', finalCardWidth);
-        console.log('cardHeight', cardHeight);
+
         return {
             width: availableWidth,
             height: availableHeight,
@@ -221,38 +219,23 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
 
     const handleShuffle = useCallback(() => {
-        console.log("handleShuffle")
-        const deck = SoloGameEngine.createDeck();
-        const game = {
-            gameId: `solo-${Date.now()}`,
-            status: SoloGameStatus.OPEN,
-            score: 0,
-            moves: 0,
-            timeElapsed: 0,
-            cards: deck,
-        }
-        startNewGame(game);
+        if (!gameState) return;
         addEvent({
             id: Date.now().toString(),
             name: "shuffle",
         });
 
-    }, [addEvent, startNewGame, gameEngine]);
+    }, [addEvent]);
 
-    const handleInit = useCallback(() => {
-        const game = SoloGameEngine.createGame();
-        addEvent({
-            id: Date.now().toString(),
-            name: "init",
-            data: game
-        });
-    }, [startNewGame])
+
     const handleDeal = useCallback(() => {
         if (!gameState) return;
+        const dealedCards = SoloGameEngine.deal(gameState.cards);
 
         addEvent({
             id: Date.now().toString(),
             name: "deal",
+            data: { cards: dealedCards }
         });
 
     }, [addEvent, gameState]);
@@ -395,16 +378,16 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     opacity: 0,
                     width: boardDimension.cardWidth,
                     height: boardDimension.cardHeight,
-                    zIndex: 100 - cardIndex
+                    zIndex: cardIndex
                 }}
             />
         ))
 
-    }, [cards]);
+    }, [cards, boardDimension]);
 
     // 渲染控制面板
     const renderControlPanel = useCallback(() => {
-        if (!gameState || gameState.gameId !== "game-open") return null;
+        if (!gameState) return null;
         const isMobile = screenSize === 'mobile';
         const isTablet = screenSize === 'tablet';
 
@@ -418,7 +401,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     zIndex: 1000
                 }}
             >
-                {/* <button
+                <button
                     onClick={handleShuffle}
                     style={{
                         fontSize: isMobile ? '12px' : '14px',
@@ -428,7 +411,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     }}
                 >
                     Shuffle
-                </button> */}
+                </button>
 
 
                 <button
