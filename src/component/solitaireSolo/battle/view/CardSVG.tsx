@@ -15,7 +15,7 @@ export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps)
 
   return (
     <>
-      <svg className="back" width={width} height={height} viewBox="0 0 100 140" preserveAspectRatio="xMidYMid meet">
+      <svg className="back" width={width} height={height} viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet">
         {/* 背景矩形，增加阴影 */}
         <rect
           width="100%"
@@ -73,7 +73,7 @@ export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps)
           strokeWidth="1.5" // 稍加粗描边
         />
       </svg>
-      <svg className="front" width={width} height={height} viewBox="0 0 100 140" preserveAspectRatio="xMidYMid meet">
+      <svg className="front" width={width} height={height} viewBox="0 0 100 150" preserveAspectRatio="xMidYMid meet">
         <rect width="100%" height="100%" fill="white" stroke="#333" strokeWidth="1" rx="5" ry="5" />
         <text x="10" y="25" fontSize="20" fill={color} fontFamily="Arial, sans-serif"></text>
         <text x="10" y="45" fontSize="20" fill={color} fontFamily="Arial, sans-serif"></text>

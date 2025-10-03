@@ -58,6 +58,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const calculateBoardDimension = useCallback((): SoloBoardDimension => {
         if (!containerRef.current) {
             return {
+                left: 0,
+                top: 0,
                 width: 800,
                 height: 600,
                 cardWidth: 60,
@@ -118,7 +120,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
         // 使用较小的卡牌宽度确保所有区域都能适应
         const finalCardWidth = Math.min(cardWidth, tableauCardWidth);
-        const cardHeight = finalCardWidth * 1.4;
+        const cardHeight = finalCardWidth * 1.5;
         const spacing = Math.max(8, finalCardWidth * 0.15);
 
         // 计算各区域位置
@@ -144,6 +146,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         const tableauX = (availableWidth - finalTableauWidth) / 2;
 
         return {
+            left: rect.left,
+            top: rect.top,
             width: availableWidth,
             height: availableHeight,
             cardWidth: finalCardWidth,

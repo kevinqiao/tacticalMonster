@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { SoloCard, ZoneType } from "../types/SoloTypes";
+import { SoloCard, SUIT_ICONS, ZoneType } from "../types/SoloTypes";
 import { getCoord } from "../Utils";
 interface PlayEffect {
     (args: { data: any; tl?: gsap.core.Timeline }): gsap.core.Timeline | null;
@@ -8,7 +8,32 @@ interface PlayEffect {
 interface PlayEffects {
     [key: string]: PlayEffect;
 }
+const popCard = (card: SoloCard) => {
 
+    if (card.ele) {
+        const frontSvg = card.ele.querySelector('.front'); // 选择 .front SVG
+        if (frontSvg) {
+            // 获取顶部 rank 和 suit 的 <text> 元素
+            const topRankText = frontSvg.querySelector('text[x="10"][y="25"]');
+            const topSuitText = frontSvg.querySelector('text[x="10"][y="45"]');
+
+            // 获取底部（旋转） rank 和 suit 的 <text> 元素
+            const bottomRankText = frontSvg.querySelector('g text[x="0"][y="20"]');
+            const bottomSuitText = frontSvg.querySelector('g text[x="0"][y="40"]');
+
+            // 获取中央 suit 的 <text> 元素
+            const centerSuitText = frontSvg.querySelector('text[x="50"][y="90"]');
+            if (topRankText && topSuitText && bottomRankText && bottomSuitText && centerSuitText) {
+                topRankText.textContent = card.rank || '';
+                topSuitText.textContent = card.suit ? SUIT_ICONS[card.suit] : '';
+                bottomRankText.textContent = card.rank || '';
+                bottomSuitText.textContent = card.suit ? SUIT_ICONS[card.suit] : '';
+                centerSuitText.textContent = card.suit ? SUIT_ICONS[card.suit] : '';
+            }
+        }
+    }
+
+}
 export const PlayEffects: PlayEffects = {
 
     shuffle: ({ data }) => {
@@ -119,6 +144,7 @@ export const PlayEffects: PlayEffects = {
             // return a.zoneIndex - b.zoneIndex
         }).forEach((card: SoloCard) => {
             if (card.ele) {
+                popCard(card);
                 otl.to(card.ele, { rotateY: 180, duration: 0.2, ease: "power2.out" }, "<=+0.1");
             }
         });

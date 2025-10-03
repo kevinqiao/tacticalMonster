@@ -105,25 +105,6 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
         setDragData(dragData);
         setIsDragging(true);
-        startPositionRef.current = { x: position.x, y: position.y };
-
-        // 创建拖拽元素
-        if (dragElementRef.current) {
-            dragElementRef.current.style.display = 'block';
-            dragElementRef.current.style.left = `${position.x - dragData.offsetX}px`;
-            dragElementRef.current.style.top = `${position.y - dragData.offsetY}px`;
-
-            // 简化开始动画，不使用opacity
-            gsap.fromTo(dragElementRef.current,
-                { scale: 0.9 },
-                {
-                    scale: 1,
-                    duration: 0.2,
-                    ease: "back.out(1.7)"
-                }
-            );
-        }
-
         console.log('Drag started:', card.id);
     }, [getDragPosition]);
 

@@ -102,12 +102,16 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
     // 处理鼠标事件
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (!canMove || !card.isRevealed) return;
+        if (!card.isRevealed) return;
         e.preventDefault();
         onDragStart(card, e);
     }, [canMove, card, onDragStart]);
 
     const handleMouseOver = useCallback((e: React.MouseEvent) => {
+        console.log('Mouse over on card:', card.id);
+        if (card.ele) {
+            document.body.style.cursor = 'grab';
+        }
         if (!isDragging) return;
         onDragOver(e);
     }, [isDragging, onDragOver]);
@@ -217,104 +221,13 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     }, []);
 
     const handleMouseLeave = useCallback(() => {
-        setIsHovered(false);
-    }, []);
-
-    // 渲染卡牌内容
-    const renderCardContent = useCallback(() => {
-        if (!card.isRevealed || !card.suit || !card.rank) {
-            return (
-                <div style={{
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(45deg, #1a4d80, #2c5aa0)',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontSize: '24px',
-                    fontWeight: 'bold',
-                    position: 'relative'
-                }}>
-                    ♠
-                </div>
-            );
+        if (card.ele) {
+            document.body.style.cursor = 'default';
         }
-
-        return (
-            <div style={{
-                width: '100%',
-                height: '100%',
-                minHeight: '84px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '4px',
-                position: 'relative',
-                boxSizing: 'border-box',
-                transformStyle: 'preserve-3d',
-            }}>
-                {/* 左上角数字和花色 */}
-                < div style={{
-                    position: 'absolute',
-                    top: '2px',
-                    left: '4px',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    color: card.isRed ? '#d32f2f' : '#000',
-                    lineHeight: '1',
-                    textAlign: 'center'
-                }}>
-                    <div>{card.rank}</div>
-                    <div style={{ fontSize: '8px' }}>{getSuitSymbol(card.suit)}</div>
-                </div >
-
-                {/* 中心花色 */}
-                < div style={{
-                    fontSize: '24px',
-                    color: card.isRed ? '#d32f2f' : '#000',
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 1
-                }}>
-                    {getSuitSymbol(card.suit)}
-                </div >
-
-                {/* 右下角数字和花色 - 使用不同的定位方法 */}
-                < div style={{
-                    position: 'absolute',
-                    top: 'calc(100% - 22px)',
-                    left: 'calc(100% - 18px)',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    color: card.isRed ? '#d32f2f' : '#000',
-                    transform: 'rotate(180deg)',
-                    transformOrigin: 'center center',
-                    lineHeight: '1',
-                    textAlign: 'center',
-                    width: '16px',
-                    height: '20px',
-                }}>
-                    {card.rank}{getSuitSymbol(card.suit)}
-                </div >
-            </div >
-        );
-    }, [card]);
-
-    // 获取花色符号
-    const getSuitSymbol = useCallback((suit: string) => {
-        const symbols = {
-            'hearts': '♥',
-            'diamonds': '♦',
-            'clubs': '♣',
-            'spades': '♠'
-        };
-        return symbols[suit as keyof typeof symbols] || '?';
+        // setIsHovered(false);
     }, []);
+
+
 
     // 更新卡牌元素引用
 

@@ -71,6 +71,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const calculateBoardDimension = useCallback((): SoloBoardDimension => {
         if (!containerRef.current) {
             return {
+                left: 0,
+                top: 0,
                 width: 800,
                 height: 600,
                 cardWidth: 60,
@@ -157,6 +159,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         const tableauX = (availableWidth - finalTableauWidth) / 2;
 
         return {
+            left: rect.left,
+            top: rect.top,
             width: availableWidth,
             height: availableHeight,
             cardWidth: finalCardWidth,
