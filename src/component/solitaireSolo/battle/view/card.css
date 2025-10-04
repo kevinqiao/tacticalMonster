@@ -55,13 +55,7 @@
     -webkit-transform: rotateY(180deg);
 }
 
-/* 旋转后的卡牌特殊处理 */
-.card[style*="rotateY(180deg)"] {
-    pointer-events: auto !important;
-    z-index: 9999 !important;
-    /* 强制重新计算渲染层 */
-    transform: translateZ(0);
-}
+
 
 /* 确保所有卡牌事件始终有效 */
 .card {

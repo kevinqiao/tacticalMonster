@@ -130,7 +130,7 @@ export const PlayEffects: PlayEffects = {
                 row.forEach((card: SoloCard) => {
                     const { x, y } = getCoord(card, boardDimension);
                     if (card.ele) {
-                        rtl.to(card.ele, { x, y, duration: 0.2, ease: "power2.out" }, "<=+0.1");
+                        rtl.to(card.ele, { x, y, duration: 0.2, zIndex: card.zoneIndex + 10, ease: "power2.out" }, "<=+0.1");
                     }
                 });
                 tl.add(rtl, ">");

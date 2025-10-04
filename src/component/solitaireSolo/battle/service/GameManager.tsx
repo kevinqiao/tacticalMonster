@@ -180,13 +180,13 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
 
     // 选择牌
     const selectCard = useCallback((card: SoloCard | null) => {
-        setGameState(prev => {
-            if (!prev) return prev;
-            return {
-                ...prev,
-                selectedCard: card
-            };
-        });
+        // setGameState(prev => {
+        //     if (!prev) return prev;
+        //     return {
+        //         ...prev,
+        //         selectedCard: card
+        //     };
+        // });
     }, []);
 
     // 更新棋盘尺寸

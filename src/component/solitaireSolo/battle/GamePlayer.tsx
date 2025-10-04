@@ -7,7 +7,6 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { SoloDnDCard } from '..';
 import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
-import { useSoloDnDManager } from './service/SoloDnDProvider';
 import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
 import { SoloBoardDimension, SoloCard } from './types/SoloTypes';
@@ -29,7 +28,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const { cards } = gameState || {};
 
     const { addEvent } = useEventManager();
-    const { isDragging, dragData } = useSoloDnDManager();
+
 
 
     // 响应式断点
@@ -367,12 +366,10 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     }, [boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
     const renderCards = useMemo(() => {
         if (!cards || !boardDimension) return null;
-
         return cards.sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
             <SoloDnDCard
                 key={card.id}
                 card={card}
-                source={`tableau-${cardIndex}`}
                 onClick={handleCardClick}
                 onDoubleClick={handleCardDoubleClick}
                 style={{
@@ -382,7 +379,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     opacity: 0,
                     width: boardDimension.cardWidth,
                     height: boardDimension.cardHeight,
-                    zIndex: cardIndex
+                    zIndex: card.zoneIndex + 100
                 }}
             />
         ))

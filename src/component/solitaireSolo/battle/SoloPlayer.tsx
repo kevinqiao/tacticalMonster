@@ -5,7 +5,6 @@
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useEventManager } from './service/EventProvider';
-import { useSoloDnDManager } from './service/SoloDnDProvider';
 import { useSoloGameManager } from './service/SoloGameManager';
 import './style.css';
 import { SoloBoardDimension, SoloCard } from './types/SoloTypes';
@@ -46,7 +45,6 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         updateBoardDimension
     } = useSoloGameManager();
     const { addEvent } = useEventManager();
-    const { isDragging, dragData } = useSoloDnDManager();
 
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');

@@ -13,9 +13,6 @@ import { getCoord } from '../Utils';
 import CardSVG from './CardSVG';
 interface SoloDnDCardProps {
     card: SoloCard;
-    source: string; // 来源位置标识
-    isSelected?: boolean;
-    isHinted?: boolean;
     onClick?: (card: SoloCard) => void;
     onDoubleClick?: (card: SoloCard) => void;
     style?: React.CSSProperties;
@@ -24,45 +21,23 @@ interface SoloDnDCardProps {
 
 const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     card,
-    source,
-    isSelected = false,
-    isHinted = false,
     onClick,
     onDoubleClick,
     style,
     className = ''
 }) => {
 
-    const [isHovered, setIsHovered] = useState(false);
-    const [isTouching, setIsTouching] = useState(false);
+
     const [touchStartTime, setTouchStartTime] = useState<number>(0);
     const {
-        isDragging,
         dragData,
-        isTouchDevice,
-        isTransitioning,
         onDragStart,
         onDragOver,
         onDrop
     } = useSoloDnDManager();
-    const { selectCard, boardDimension } = useSoloGameManager();
+    const { gameState, selectCard, boardDimension } = useSoloGameManager();
 
-    // 检查是否正在被拖拽或处于过渡状态
-    const isBeingDragged = useMemo(() => {
-        return isDragging && dragData?.card.id === card.id;
-    }, [isDragging, dragData, card.id]);
 
-    const isInTransition = useMemo(() => {
-        return isTransitioning && dragData?.card.id === card.id;
-    }, [isTransitioning, dragData, card.id]);
-
-    // 获取游戏管理器（在组件顶层调用Hook）
-    // const { getCardsByZone, getMovableSequence } = useSoloGameManager();
-
-    // 检查是否可以移动 - 只要是翻开的卡牌就可以尝试拖拽
-    const canMove = useMemo(() => {
-        return card.isRevealed;
-    }, [card.isRevealed]);
     // console.log("style", source, card, style);
     // 获取卡牌样式
     const cardStyle = useMemo(() => {
@@ -98,34 +73,37 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         };
 
         return baseStyle;
-    }, [card, isBeingDragged, isInTransition, isSelected, isHinted, isHovered, isTouching, canMove, style]);
+    }, [card, style]);
 
     // 处理鼠标事件
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (!card.isRevealed) return;
+        // if (!card.isRevealed) return;
         e.preventDefault();
-        onDragStart(card, e);
-    }, [canMove, card, onDragStart]);
-
-    const handleMouseOver = useCallback((e: React.MouseEvent) => {
-        console.log('Mouse over on card:', card.id);
+        e.stopPropagation();
         if (card.ele) {
             document.body.style.cursor = 'grab';
         }
-        if (!isDragging) return;
-        onDragOver(e);
-    }, [isDragging, onDragOver]);
+        onDragStart(card, e);
+    }, [card, onDragStart]);
+
+    const handleMouseOver = useCallback((e: React.MouseEvent) => {
+
+        // if (card.ele) {
+        //     document.body.style.cursor = 'grab';
+        // }
+        if (!dragData) return;
+        // onDragOver(e);
+    }, [dragData]);
 
 
     // 处理触摸事件
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
-        if (!canMove || !card.isRevealed) return;
+        if (!card.isRevealed) return;
 
         // 防止触摸时的默认行为（如滚动）
         e.preventDefault();
 
-        // 设置触摸状态
-        setIsTouching(true);
+        // 设置触摸状态       
         setTouchStartTime(Date.now());
 
         // 获取触摸点信息
@@ -142,10 +120,10 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
         // 开始拖拽
         onDragStart(card, e);
-    }, [canMove, card, onDragStart]);
+    }, [card, onDragStart]);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (!isDragging) return;
+        if (!dragData) return;
 
         // 防止触摸移动时的默认行为
         e.preventDefault();
@@ -160,10 +138,10 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         }
 
         onDragOver(e);
-    }, [isDragging, onDragOver, card.id]);
+    }, [dragData, onDragOver, card.id]);
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-        if (!isDragging) return;
+        if (!dragData) return;
 
         // 防止触摸结束时的默认行为
         e.preventDefault();
@@ -172,58 +150,49 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         const touchDuration = Date.now() - touchStartTime;
 
         // 重置触摸状态
-        setIsTouching(false);
+        // setIsTouching(false);
         setTouchStartTime(0);
 
         console.log('Touch ended on card:', card.id, 'duration:', touchDuration + 'ms');
 
         // onDrop(e);
-    }, [isDragging, onDrop, card.id, touchStartTime]);
+    }, [dragData, onDrop, card.id, touchStartTime]);
 
     const handleTouchCancel = useCallback((e: React.TouchEvent) => {
         // 触摸被取消（如被系统中断）
         console.log('Touch cancelled on card:', card.id);
 
         // 重置触摸状态
-        setIsTouching(false);
+        // setIsTouching(false);
         setTouchStartTime(0);
 
         // 如果正在拖拽，则结束拖拽
-        if (isDragging) {
+        if (dragData) {
             onDrop(e);
         }
-    }, [isDragging, onDrop, card.id]);
+    }, [dragData, onDrop, card.id]);
 
     // 处理点击事件
     const handleClick = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
-        if (card.isRevealed) {
-            selectCard(card);
-            onClick?.(card);
-        }
-    }, [card, selectCard, onClick]);
+    }, [card]);
 
     // 处理双击事件
     const handleDoubleClick = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
-        if (card.isRevealed) {
-            onDoubleClick?.(card);
-        }
-    }, [card, onDoubleClick]);
+    }, [card]);
 
     // 处理悬停事件
     const handleMouseEnter = useCallback(() => {
-        setIsHovered(true);
+        // setIsHovered(true);
     }, []);
 
     const handleMouseLeave = useCallback(() => {
-        if (card.ele) {
-            document.body.style.cursor = 'default';
-        }
+
         // setIsHovered(false);
     }, []);
 
@@ -235,36 +204,42 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         if (!boardDimension) return;
         card.ele = ele;
         if (ele) {
+            // console.log('load card:', card.id);
             const coord = getCoord(card, boardDimension);
             gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y });
         }
         // onCardLoad(ele);
     }, [boardDimension]);
-    return (
-        <div
-            ref={(ele) => load(ele)}
-            data-card-id={card.id}
-            className="card"
-            // className={`solo-card ${className} ${isSelected ? 'selected' : ''} ${isHinted ? 'hinted' : ''} ${!card.isRevealed ? 'face-down' : ''}`}
-            style={cardStyle}
-            onMouseDown={handleMouseDown}
-            onMouseOver={handleMouseOver}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchCancel}
-            onClick={handleClick}
-            onDoubleClick={handleDoubleClick}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-        >
-            {/* {renderCardContent()} */}
-            {/* <CardSolo card={card} /> */}
-            <CardSVG card={card} />
-            {/* {renderCardContent()} */}
 
-        </div>
-    );
+    const render = useMemo(() => {
+
+        return (
+            <div
+                ref={(ele) => load(ele)}
+                data-card-id={card.id}
+                className="card"
+                // className={`solo-card ${className} ${isSelected ? 'selected' : ''} ${isHinted ? 'hinted' : ''} ${!card.isRevealed ? 'face-down' : ''}`}
+                style={cardStyle}
+                onMouseDown={handleMouseDown}
+                onMouseOver={handleMouseOver}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
+                onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+            >
+                {/* {renderCardContent()} */}
+                {/* <CardSolo card={card} /> */}
+                <CardSVG card={card} />
+                {/* {renderCardContent()} */}
+
+            </div>
+        );
+    }, [card, handleMouseDown]);
+    return render;
 };
 
 export default SoloDnDCard;
