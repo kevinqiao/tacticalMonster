@@ -216,6 +216,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const loadZone = useCallback((zoneId: string, ele: HTMLDivElement | null) => {
         if (!gameState || !boardDimension) return;
         const zone = gameState.zones.find(z => z.id === zoneId);
+        console.log('zone', zone);
         if (zone) {
             zone.ele = ele;
         }
@@ -367,7 +368,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 </div>
             );
         });
-    }, [boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
+    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
     const renderCards = useMemo(() => {
         if (!cards || !boardDimension) return null;
         return cards.sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
