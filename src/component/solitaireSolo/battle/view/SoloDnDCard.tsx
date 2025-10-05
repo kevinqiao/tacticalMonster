@@ -174,7 +174,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     const handleClick = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log("click", card)
+        // console.log("click", card)
 
     }, [card]);
 

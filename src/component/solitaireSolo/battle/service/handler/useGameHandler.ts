@@ -7,9 +7,9 @@ import { useSoloGameManager } from "../GameManager";
 const useGameHandler = () => {
 
     const { gameState, boardDimension } = useSoloGameManager();
-    const handleEvent = useCallback((event: MatchEvent) => {
-        // const { removeEvent } = useEventManager();
-        console.log("handleEvent", event)
+
+    const handleEvent = useCallback((event: MatchEvent, onComplete?: () => void) => {
+        // const { removeEvent } = useEventManager();       
         if (!gameState) return;
         const { id, name, data } = event;
         event.status = 1;
@@ -30,9 +30,10 @@ const useGameHandler = () => {
                 console.log("deal", event)
                 break;
             case "init":
-
                 PlayEffects.init({ data: { cards: gameState.cards, boardDimension } });
-
+                break;
+            case "dragCancel":
+                PlayEffects.dragCancel({ data: { cards: gameState.cards, boardDimension } });
                 break;
             default:
                 console.log("gameDefault", event)

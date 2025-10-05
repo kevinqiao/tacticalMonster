@@ -5,8 +5,8 @@
 
 import gsap from 'gsap';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { PlayEffects } from '../animation/PlayEffects';
 import { SoloBoardDimension, SoloCard, SoloDragData, SoloZone } from '../types/SoloTypes';
-import { getCoord } from '../Utils';
 import { useSoloGameManager } from './GameManager';
 
 interface ISoloDnDContext {
@@ -171,14 +171,18 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
     // 清除目标高亮
     const clearDropTargetHighlight = useCallback(() => {
-        document.querySelectorAll('.drop-target-highlight').forEach(el => {
-            el.classList.remove('drop-target-highlight');
-        });
-    }, []);
+        if (dragDataRef.current && dragDataRef.current.dropTarget && gameState) {
+            const prevZoneId = dragDataRef.current.dropTarget.zoneId;
+            const prevTargetZone = gameState.zones.find((z: SoloZone) => z.id === prevZoneId);
+            if (prevTargetZone && prevTargetZone.ele) {
+                gsap.set(prevTargetZone.ele, { backgroundColor: "transparent" });
+            }
+        }
+    }, [gameState]);
 
     // 开始拖拽
     const onDragStart = useCallback((card: SoloCard, event: React.MouseEvent | React.TouchEvent) => {
-        if (!card.ele || !gameState) return;
+        if (!card.ele || !gameState || dragDataRef.current) return;
         event.preventDefault();
         event.stopPropagation();
 
@@ -191,7 +195,6 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         const dragData: SoloDragData = {
             card,
             cards, // 包含整个序列
-            source: card.zoneId, // 使用正确的zoneId
             offsetX: position.x - rect.left,
             offsetY: position.y - rect.top,
             lastPosition: position // 添加最后位置记录
@@ -209,7 +212,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     const onDragMove = useCallback((event: React.MouseEvent | React.TouchEvent) => {
         event.preventDefault();
         event.stopPropagation();
-        if (!dragDataRef.current || !boardDimension || !gameState) return;
+        if (!dragDataRef.current || dragDataRef.current.onDropping || !boardDimension || !gameState) return;
 
         const card = dragDataRef.current.card;
         if (!card.ele) return;
@@ -230,26 +233,15 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             const dropTarget = findBestDropTarget(position, card);
             if (dropTarget) {
                 if (!dragDataRef.current.dropTarget || dragDataRef.current.dropTarget.zoneId !== dropTarget.zoneId) {
-                    if (dragDataRef.current.dropTarget) {
-                        const prevZoneId = dragDataRef.current.dropTarget.zoneId;
-                        const prevTargetZone = gameState.zones.find((z: SoloZone) => z.id === prevZoneId);
-                        if (prevTargetZone && prevTargetZone.ele) {
-                            gsap.set(prevTargetZone.ele, { backgroundColor: "transparent" });
-                        }
-                    }
+                    clearDropTargetHighlight();
                     const targetZone = gameState.zones.find((z: SoloZone) => z.id === dropTarget.zoneId);
-
                     dragDataRef.current.dropTarget = dropTarget;
                     if (targetZone && targetZone.ele) {
                         gsap.set(targetZone.ele, { backgroundColor: "white" });
                     }
                 }
-            } else if (dragDataRef.current.dropTarget) {
-                const prevZoneId = dragDataRef.current.dropTarget.zoneId;
-                const prevTargetZone = gameState.zones.find((z: SoloZone) => z.id === prevZoneId);
-                if (prevTargetZone && prevTargetZone.ele) {
-                    gsap.set(prevTargetZone.ele, { backgroundColor: "transparent" });
-                }
+            } else {
+                clearDropTargetHighlight();
                 dragDataRef.current.dropTarget = null;
             }
             // console.log('dropTarget', dragDataRef.current.dropTarget);
@@ -271,7 +263,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     // 结束拖拽
     const onDragEnd = useCallback((event: React.MouseEvent | React.TouchEvent) => {
         if (!dragDataRef.current || !boardDimension) return;
-        const { card, cards } = dragDataRef.current;
+        // const { card, cards } = dragDataRef.current;
         event.preventDefault();
         event.stopPropagation();
 
@@ -287,13 +279,8 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             handleClickEvent();
             return;
         }
-
-
-        handleDragCancel(card, cards || []);
-        // 清理状态
-        // setCurrentTarget(null);
-        // clearDropTargetHighlight();
-        // dragDataRef.current = null;
+        dragDataRef.current.onDropping = true
+        handleDragCancel();
     }, [getDragPosition, boardDimension, gameState]);
 
     // 处理点击事件
@@ -302,129 +289,20 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         // 点击逻辑可以在这里添加
     }, []);
 
-    // 处理成功放置
-    const handleSuccessfulDrop = useCallback((card: SoloCard, targetZoneId: string) => {
-        console.log('Successful drop:', card.id, 'to', targetZoneId);
-        // 这里需要实现实际的移动逻辑
-        // 包括更新游戏状态、执行移动等
-    }, []);
 
     // 处理拖拽取消
-    const handleDragCancel = useCallback((card: SoloCard, cards: SoloCard[]) => {
+    const handleDragCancel = useCallback(() => {
         console.log('Drag cancelled, returning to original position');
-        if (!boardDimension) return;
-        const coord = getCoord(card, boardDimension);
-
-        // 返回原位置
-        if (card.ele) {
-            gsap.to(card.ele, {
-                onStart: () => {
-                    console.log("drag end", gameState, dragDataRef.current)
-                    if (gameState && dragDataRef.current && dragDataRef.current.dropTarget) {
-                        const prevZoneId = dragDataRef.current.dropTarget.zoneId;
-                        const prevTargetZone = gameState.zones.find((z: SoloZone) => z.id === prevZoneId);
-                        if (prevTargetZone && prevTargetZone.ele) {
-                            gsap.set(prevTargetZone.ele, { backgroundColor: "transparent" });
-                        }
-                    }
-                },
-                onComplete: () => {
-                    if (card.ele)
-                        gsap.set(card.ele, { zIndex: card.zoneIndex + 10 });
-                    dragDataRef.current = null;
-                },
-                x: coord.x,
-                y: coord.y,
-                duration: 0.5,
-                ease: "ease.out"
-            });
-        }
-
-        if (cards) {
-            cards.forEach((c: SoloCard, index: number) => {
-                const coord = getCoord(c, boardDimension);
-                if (c.ele) {
-                    gsap.to(c.ele, {
-                        onComplete: () => {
-                            if (c.ele)
-                                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-                        },
-                        x: coord.x,
-                        y: coord.y,
-                        duration: 0.5,
-                        ease: "ease.out"
-                    });
-                }
-            });
-        }
-    }, [boardDimension, gameState]);
-
-    // 拖拽悬停
-    // const onDragOver = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-    //     if (!dragDataRef.current) return;
-
-    //     event.preventDefault();
-    //     event.stopPropagation();
-
-    //     const target = event.currentTarget as HTMLElement;
-    //     const targetCardId = target.getAttribute('data-card-id');
-
-    //     // 如果悬停在被拖拽的卡牌上，给原始位置添加绿色边框
-    //     if (targetCardId === dragDataRef.current.card.id && dragDataRef.current.card.ele) {
-    //         // 移除之前的高亮
-    //         document.querySelectorAll('.drag-over').forEach(el => {
-    //             el.classList.remove('drag-over');
-    //             const element = el as HTMLElement;
-    //             element.style.backgroundColor = '';
-    //             element.style.border = '';
-    //             element.style.borderRadius = '';
-    //         });
-
-    //         // 给原始卡牌位置添加绿色边框
-    //         const originalCard = dragDataRef.current.card.ele;
-    //         originalCard.classList.add('drag-over');
-    //         originalCard.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
-    //         originalCard.style.border = '2px dashed #4CAF50';
-    //         originalCard.style.borderRadius = '8px';
-
-    //     } else {
-    //         // 悬停在其他区域，清除绿色边框
-    //         document.querySelectorAll('.drag-over').forEach(el => {
-    //             el.classList.remove('drag-over');
-    //             const element = el as HTMLElement;
-    //             element.style.backgroundColor = '';
-    //             element.style.border = '';
-    //             element.style.borderRadius = '';
-    //         });
-
-    //     }
-    // }, [dragDataRef]);
-
-    // 放置
-    // const onDrop = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-    //     if (!dragDataRef.current) return;
-
-    //     event.preventDefault();
-    //     event.stopPropagation();
-
-    //     const target = event.currentTarget as HTMLElement;
-
-    //     // 清理所有高亮状态
-    //     document.querySelectorAll('.drag-over').forEach(el => {
-    //         const element = el as HTMLElement;
-    //         element.classList.remove('drag-over');
-    //         element.style.backgroundColor = '';
-    //         element.style.border = '';
-    //         element.style.borderRadius = '';
-    //     });
+        if (!boardDimension || !dragDataRef.current || !gameState) return;
+        clearDropTargetHighlight();
+        PlayEffects.dragCancel({
+            data: { card: dragDataRef.current.card, cards: dragDataRef.current.cards, boardDimension }, onComplete: () => {
+                dragDataRef.current = null;
+            }
+        });
+    }, [boardDimension, dragDataRef, gameState]);
 
 
-
-    //     console.log('Drop:', dragDataRef.current.card.id, 'on', target.id);
-
-    //     // 这里需要处理放置逻辑
-    //     // 包括验证移动是否合法、执行移动等
-    // }, [dragDataRef]);
 
     // 全局事件监听
     useEffect(() => {

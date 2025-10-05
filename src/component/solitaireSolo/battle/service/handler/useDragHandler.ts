@@ -9,13 +9,8 @@ const useDragHandler = () => {
 
         switch (name) {
             case "skillTriggered":
-
-
                 break;
-
             case "skillCompleted":
-
-
                 break;
             default:
 

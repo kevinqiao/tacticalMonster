@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { SoloCard, SUIT_ICONS, ZoneType } from "../types/SoloTypes";
 import { getCoord } from "../Utils";
 interface PlayEffect {
-    (args: { data: any; tl?: gsap.core.Timeline }): gsap.core.Timeline | null;
+    (args: { data: any; onComplete?: () => void }): void;
 }
 
 interface PlayEffects {
@@ -100,7 +100,7 @@ export const PlayEffects: PlayEffects = {
             tl.add(ftl, ">=+0.5");
             tl.play();
         }
-        return null;
+        return;
     },
     init: ({ data }) => {
         const tl = gsap.timeline();
@@ -117,11 +117,17 @@ export const PlayEffects: PlayEffects = {
         tl.add(mtl);
         tl.add(otl, ">=+0.3");
         tl.play();
-        return null;
+        return;
     },
-    deal: ({ data }) => {
+    deal: ({ data, onComplete }) => {
         const { cards, boardDimension } = data;
-        const tl = gsap.timeline();
+        const tl = gsap.timeline({
+            onComplete: () => {
+                if (onComplete) {
+                    onComplete();
+                }
+            }
+        });
 
         for (let i = 0; i < 7; i++) {
             const row = cards.filter((card: SoloCard) => card.zone === ZoneType.TABLEAU && card.zoneIndex === i);
@@ -154,9 +160,50 @@ export const PlayEffects: PlayEffects = {
 
         // }
         tl.play();
+        return;
+    },
+    dragCancel: ({ data, onComplete }) => {
+        const { card, cards, boardDimension } = data;
+        const tl = gsap.timeline({
+            onComplete: () => {
+                if (onComplete) {
+                    onComplete();
+                }
+            }
+        });
+        if (card.ele) {
+            const coord = getCoord(card, boardDimension);
+            tl.to(card.ele, {
+                onComplete: () => {
+                    if (card.ele)
+                        gsap.set(card.ele, { zIndex: card.zoneIndex + 10 });
+                    onComplete?.();
+                },
+                x: coord.x,
+                y: coord.y,
+                duration: 0.5,
+                ease: "ease.out"
+            });
+        }
 
-
-
-        return null;
+        if (cards) {
+            cards.forEach((c: SoloCard, index: number) => {
+                const coord = getCoord(c, boardDimension);
+                if (c.ele) {
+                    tl.to(c.ele, {
+                        onComplete: () => {
+                            if (c.ele)
+                                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
+                        },
+                        x: coord.x,
+                        y: coord.y,
+                        duration: 0.5,
+                        ease: "ease.out"
+                    }, "<");
+                }
+            });
+        }
+        tl.play();
+        return;
     }
 };
