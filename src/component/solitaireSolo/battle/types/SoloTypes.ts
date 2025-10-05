@@ -109,12 +109,14 @@ export interface SoloBoardDimension {
 
 export interface SoloDragData {
     card: SoloCard;          // 主要被拖拽的卡牌
-    cards: SoloCard[] | null;       // 序列中的所有卡牌（包括主卡牌）
+    cards: SoloCard[] | null;
+    dropTarget?: { zoneId: string; element: Element; priority: number; count: number; area: number } | null;     // 序列中的所有卡牌（包括主卡牌）
     source: string;
     // x: number;
     // y: number;
     offsetX: number;
     offsetY: number;
+    lastPosition?: { x: number; y: number }; // Add this line
 }
 
 export interface SoloAnimationConfig {

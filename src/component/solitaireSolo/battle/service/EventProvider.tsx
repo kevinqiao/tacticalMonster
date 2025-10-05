@@ -1,5 +1,4 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { useSoloGameManager } from './GameManager';
 import useDragHandler from './handler/useDragHandler';
 import useGameHandler from './handler/useGameHandler';
 const enum EventCategory {
@@ -72,7 +71,6 @@ const EventHandle: React.FC<{
 };
 
 export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
-    const { gameState, cardsLoaded } = useSoloGameManager();
     const [eventQueue, setEventQueue] = useState<MatchEvent[]>([]);
     // console.log("eventQueue", eventQueue);
     const addEvent = useCallback((event: MatchEvent) => {

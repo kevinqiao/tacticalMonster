@@ -32,10 +32,8 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     const {
         dragData,
         onDragStart,
-        onDragOver,
-        onDrop
     } = useSoloDnDManager();
-    const { gameState, selectCard, boardDimension } = useSoloGameManager();
+    const { gameState, boardDimension } = useSoloGameManager();
 
 
     // console.log("style", source, card, style);
@@ -137,8 +135,8 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             });
         }
 
-        onDragOver(e);
-    }, [dragData, onDragOver, card.id]);
+        // onDragOver(e);
+    }, [dragData, card.id]);
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
         if (!dragData) return;
@@ -156,7 +154,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         console.log('Touch ended on card:', card.id, 'duration:', touchDuration + 'ms');
 
         // onDrop(e);
-    }, [dragData, onDrop, card.id, touchStartTime]);
+    }, [dragData, card.id, touchStartTime]);
 
     const handleTouchCancel = useCallback((e: React.TouchEvent) => {
         // 触摸被取消（如被系统中断）
@@ -168,9 +166,9 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
         // 如果正在拖拽，则结束拖拽
         if (dragData) {
-            onDrop(e);
+            // onDrop(e);
         }
-    }, [dragData, onDrop, card.id]);
+    }, [dragData, card.id]);
 
     // 处理点击事件
     const handleClick = useCallback((e: React.MouseEvent) => {
@@ -208,7 +206,6 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
             const coord = getCoord(card, boardDimension);
             gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y });
         }
-        // onCardLoad(ele);
     }, [boardDimension]);
 
     const render = useMemo(() => {
@@ -238,7 +235,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
             </div>
         );
-    }, [card, handleMouseDown]);
+    }, [card, handleMouseDown, handleMouseOver, handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, handleClick, handleDoubleClick, handleMouseEnter, handleMouseLeave]);
     return render;
 };
 

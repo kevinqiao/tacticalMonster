@@ -22,21 +22,15 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const {
         gameState,
         boardDimension,
-        selectCard,
         updateBoardDimension
     } = useSoloGameManager();
     const { cards } = gameState || {};
 
     const { addEvent } = useEventManager();
-
-
-
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
-    const gameEngine = useMemo(() => {
-        return new SoloGameEngine();
-    }, []);
+
     // 统一的卡牌样式函数
     const getUnifiedCardStyle = useCallback((additionalStyle: React.CSSProperties = {}): React.CSSProperties => {
         if (!boardDimension) return additionalStyle;
@@ -219,7 +213,13 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
             });
         }
     }, [boardDimension, screenSize]);
-
+    const loadZone = useCallback((zoneId: string, ele: HTMLDivElement | null) => {
+        if (!gameState || !boardDimension) return;
+        const zone = gameState.zones.find(z => z.id === zoneId);
+        if (zone) {
+            zone.ele = ele;
+        }
+    }, [gameState, boardDimension]);
 
     const handleShuffle = useCallback(() => {
         if (!gameState) return;
@@ -247,8 +247,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
     // 处理卡牌点击
     const handleCardClick = useCallback((card: SoloCard) => {
-        selectCard(card);
-    }, [selectCard]);
+
+    }, []);
 
     // 处理卡牌双击
     const handleCardDoubleClick = useCallback((card: SoloCard) => {
@@ -267,6 +267,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
             return (
                 <div
                     key={`foundation-${suit}`}
+                    ref={(ele) => loadZone(`foundation-${suit}`, ele)}
                     className="foundation-zone"
                     data-zone-id={`foundation-${suit}`}
                     data-drop-zone="true"
@@ -297,6 +298,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         return (
             <div
                 className="talon-zone"
+                ref={(ele) => loadZone('talon', ele)}
                 style={{
                     position: 'absolute',
                     left: boardDimension.zones.talon.x,
@@ -323,6 +325,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
         return (
             <div
+                ref={(ele) => loadZone('waste', ele)}
                 className="waste-zone"
                 style={{
                     position: 'absolute',
@@ -345,6 +348,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
             return (
                 <div
                     key={`tableau-col-${colIndex}`}
+                    ref={(ele) => loadZone(`tableau-${colIndex}`, ele)}
                     className="tableau-column"
                     data-zone-id={`tableau-${colIndex}`}
                     data-drop-zone="true"

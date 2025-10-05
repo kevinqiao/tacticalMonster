@@ -8,29 +8,23 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 import { SoloBoardDimension, SoloCard, SoloDragData } from '../types/SoloTypes';
 import { getCoord } from '../Utils';
 import { useSoloGameManager } from './GameManager';
-import { SoloGameEngine } from './SoloGameEngine';
 
 interface ISoloDnDContext {
     dragData: SoloDragData | null;
     isTouchDevice: boolean;
-    isTransitioning: boolean;
     onDragStart: (card: SoloCard, event: React.MouseEvent | React.TouchEvent) => void;
     onDragMove: (event: React.MouseEvent | React.TouchEvent) => void;
     onDragEnd: (event: React.MouseEvent | React.TouchEvent) => void;
-    onDragOver: (event: React.MouseEvent | React.TouchEvent) => void;
-    onDrop: (event: React.MouseEvent | React.TouchEvent) => void;
+    // onDrop: (event: React.MouseEvent | React.TouchEvent) => void;
     getDragPosition: (event: React.MouseEvent | React.TouchEvent) => { x: number; y: number };
 }
 
 const SoloDnDContext = createContext<ISoloDnDContext>({
     dragData: null,
     isTouchDevice: false,
-    isTransitioning: false,
     onDragStart: () => { },
     onDragMove: () => { },
     onDragEnd: () => { },
-    onDragOver: () => { },
-    onDrop: () => { },
     getDragPosition: () => ({ x: 0, y: 0 })
 });
 
@@ -49,8 +43,9 @@ interface SoloDnDProviderProps {
 export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) => {
 
     const dragDataRef = useRef<SoloDragData | null>(null);
+    // const [currentTarget, setCurrentTarget] = useState<string | null>(null);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
-    const [hoveredTarget, setHoveredTarget] = useState<string | null>(null);
+    // const [hoveredTarget, setHoveredTarget] = useState<string | null>(null);
     const startPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
     // 获取游戏管理器
@@ -76,28 +71,159 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         }
     }, []);
 
+    // 获取区域优先级
+    const getZonePriority = useCallback((zoneId: string, card: SoloCard) => {
+        if (zoneId.startsWith('foundation-')) return 100; // Foundation 最高优先级
+        if (zoneId.startsWith('tableau-')) return 50;    // Tableau 中等优先级
+        if (zoneId.startsWith('waste-')) return 25;      // Waste 较低优先级
+        return 0;
+    }, []);
+
+    // 改进的 parseZoneIdFromElement 函数
+    // const parseZoneIdFromElement = useCallback((element: Element) => {
+    //     try {
+    //         const className = element.className;
+    //         console.log('Parsing element:', element, 'className:', className);
+
+    //         if (className.includes('foundation')) {
+    //             const suit = element.getAttribute('data-foundation-suit');
+    //             const result = suit ? `foundation-${suit}` : 'foundation';
+    //             console.log('Foundation zoneId:', result);
+    //             return result;
+    //         } else if (className.includes('tableau')) {
+    //             const index = element.getAttribute('data-tableau-index');
+    //             const result = index ? `tableau-${index}` : null;
+    //             console.log('Tableau zoneId:', result);
+    //             return result;
+    //         } else if (className.includes('waste')) {
+    //             console.log('Waste zoneId: waste');
+    //             return 'waste';
+    //         }
+
+    //         console.log('No matching zone type found');
+    //         return null;
+    //     } catch (error) {
+    //         console.error('Error parsing zoneId from element:', error);
+    //         return null;
+    //     }
+    // }, []);
+
+    // 改进的 findBestDropTarget 函数 - 基于交集面积
+    const findBestDropTarget = useCallback((position: { x: number; y: number }, card: SoloCard): { zoneId: string; element: Element; priority: number; count: number; area: number } | null => {
+        try {
+            // 边界检查
+            if (position.x < 0 || position.y < 0 || position.x > window.innerWidth || position.y > window.innerHeight) {
+                return null;
+            }
+
+            // 卡牌尺寸
+            const cardWidth = 60;
+            const cardHeight = 84;
+
+            // 卡牌边界
+            const cardLeft = position.x - cardWidth / 2;
+            const cardRight = position.x + cardWidth / 2;
+            const cardTop = position.y - cardHeight / 2;
+            const cardBottom = position.y + cardHeight / 2;
+
+            // 获取所有可能的放置区域
+            const dropZones = document.querySelectorAll('[data-drop-zone], .foundation-zone, .tableau-column, .waste-zone');
+
+            let bestTarget: { zoneId: string; element: Element; priority: number; count: number; area: number } | null = null;
+            let bestScore = -1;
+
+            dropZones.forEach(zone => {
+                const rect = zone.getBoundingClientRect();
+                const zoneId = zone.getAttribute('data-zone-id');
+
+                if (!zoneId) return;
+
+                // 计算卡牌与区域的交集面积
+                const intersectionLeft = Math.max(cardLeft, rect.left);
+                const intersectionRight = Math.min(cardRight, rect.right);
+                const intersectionTop = Math.max(cardTop, rect.top);
+                const intersectionBottom = Math.min(cardBottom, rect.bottom);
+
+                // 如果没有交集，跳过
+                if (intersectionLeft >= intersectionRight || intersectionTop >= intersectionBottom) {
+                    return;
+                }
+
+                // 计算交集面积
+                const intersectionArea = (intersectionRight - intersectionLeft) * (intersectionBottom - intersectionTop);
+
+                // 如果完全没有交集，跳过
+                if (intersectionArea <= 0) {
+                    return;
+                }
+
+                // 获取优先级
+                const priority = getZonePriority(zoneId, card);
+
+                // 计算分数：优先级 * 100 + 交集面积
+                // 优先级高的区域即使面积小也会被选中，但面积大的区域在同优先级下更有优势
+                const score = priority * 100 + intersectionArea;
+
+                console.log(`Zone ${zoneId}: intersection area = ${intersectionArea}, priority = ${priority}, score = ${score}`);
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestTarget = {
+                        zoneId,
+                        element: zone,
+                        priority,
+                        count: 1,
+                        area: intersectionArea
+                    };
+                }
+            });
+
+            console.log('Best target:', bestTarget);
+            return bestTarget;
+
+        } catch (error) {
+            console.error('Error in findBestDropTarget:', error);
+            return null;
+        }
+    }, [getZonePriority]);
+
+    // 高亮目标区域
+    const highlightDropTarget = useCallback((target: any) => {
+        // 清除之前的高亮
+        clearDropTargetHighlight();
+
+        // 高亮当前目标
+        if (target.element) {
+            target.element.classList.add('drop-target-highlight');
+        }
+    }, []);
+
+    // 清除目标高亮
+    const clearDropTargetHighlight = useCallback(() => {
+        document.querySelectorAll('.drop-target-highlight').forEach(el => {
+            el.classList.remove('drop-target-highlight');
+        });
+    }, []);
+
     // 开始拖拽
     const onDragStart = useCallback((card: SoloCard, event: React.MouseEvent | React.TouchEvent) => {
-        console.log('Drag started:', card);
         if (!card.ele || !gameState) return;
         event.preventDefault();
         event.stopPropagation();
-        const cards = gameState.cards.filter((c: SoloCard) => c.zoneId === card.zoneId && c.zoneIndex > card.zoneIndex)
+
         const position = getDragPosition(event);
-        // const target = event.currentTarget as HTMLDivElement;
+        startPositionRef.current = position;
+
+        const cards = gameState.cards.filter((c: SoloCard) => c.zoneId === card.zoneId && c.zoneIndex > card.zoneIndex)
         const rect = card.ele.getBoundingClientRect();
-        // 获取可移动的卡牌序列
-        // const movableCards = gameManager.getMovableSequence(card);
-        // console.log(`Dragging sequence of ${movableCards.length} cards:`, movableCards.map(c => c.id));
-        // gsap.set(card.ele, { zIndex: 99999 });
+
         const dragData: SoloDragData = {
             card,
             cards, // 包含整个序列
             source: card.zoneId, // 使用正确的zoneId
-            // x: position.x,
-            // y: position.y,
             offsetX: position.x - rect.left,
-            offsetY: position.y - rect.top
+            offsetY: position.y - rect.top,
+            lastPosition: position // 添加最后位置记录
         };
         dragDataRef.current = dragData;
         gsap.set(card.ele, { zIndex: card.zoneIndex + 99999 });
@@ -106,22 +232,43 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                 gsap.set(c.ele, { zIndex: c.zoneIndex + 99999 });
         });
 
-
     }, [gameState, getDragPosition, boardDimension]);
 
-    // 拖拽移动 - 使用 GSAP 优化
+    // 拖拽移动 - 优化版本
     const onDragMove = useCallback((event: React.MouseEvent | React.TouchEvent) => {
         event.preventDefault();
         event.stopPropagation();
-        if (!dragDataRef.current || !boardDimension || !gameState) return;
+        if (!dragDataRef.current || !boardDimension) return;
+
         const card = dragDataRef.current.card;
         if (!card.ele) return;
 
         const position = getDragPosition(event);
-        const { offsetX, offsetY, cards } = dragDataRef.current;
+        const { offsetX, offsetY, cards, lastPosition } = dragDataRef.current;
         const { left, top } = boardDimension as SoloBoardDimension;
         const x = position.x - left - offsetX;
         const y = position.y - top - offsetY;
+
+        // 只在位置变化较大时重新检测
+        const distance = lastPosition ? Math.sqrt(
+            Math.pow(position.x - lastPosition.x, 2) +
+            Math.pow(position.y - lastPosition.y, 2)
+        ) : 10;
+
+        if (distance > 10) { // 只在移动超过10像素时重新检测
+            const dropTarget = findBestDropTarget(position, card);
+            console.log('dropTarget', dropTarget);
+            // if (dropTarget) {
+            //     setCurrentTarget(dropTarget.zoneId);
+            //     highlightDropTarget(dropTarget);
+            // } else {
+            //     setCurrentTarget(null);
+            //     clearDropTargetHighlight();
+            // }
+            // dragDataRef.current.lastPosition = position;
+        }
+
+        // 更新卡牌位置
         gsap.set(card.ele, { x, y });
         if (cards) {
             cards.forEach((c: SoloCard, index: number) => {
@@ -130,17 +277,8 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                     gsap.set(c.ele, { x, y: dy });
             });
         }
-        //  else {
-        //     const moveables = gameState.cards.filter((c: SoloCard) => c.zoneId === card.zoneId && c.zoneIndex > card.zoneIndex)
-        //     dragDataRef.current.cards = moveables;
-        //     moveables.forEach((c: SoloCard, index: number) => {
-        //         const dy = y + (index + 1) * (boardDimension.cardHeight * 0.3);
-        //         if (c.ele)
-        //             gsap.set(c.ele, { x, y: dy, zIndex: c.zoneIndex + 99999 });
-        //     });
-        // }
 
-    }, [gameState, getDragPosition, boardDimension]);
+    }, [getDragPosition, boardDimension, findBestDropTarget, highlightDropTarget, clearDropTargetHighlight]);
 
     // 结束拖拽
     const onDragEnd = useCallback((event: React.MouseEvent | React.TouchEvent) => {
@@ -161,52 +299,29 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             return;
         }
 
-        dragDataRef.current = null;
-        // 检查是否拖拽到有效区域
-        // const dropResult = checkDropZone(position);
-        const coord = getCoord(card, boardDimension);
-        // card.ele.style.zIndex = (card.zoneIndex + 100).toString();
-        const tl = gsap.timeline();
-        if (card.ele)
-            tl.to(card.ele, {
-                onComplete: () => {
-                    dragDataRef.current = null;
-                    const zIndex = card.zoneIndex + 10;
-                    if (card.ele)
-                        gsap.set(card.ele, { zIndex });
-                    if (cards)
-                        cards.forEach((c: SoloCard) => {
-                            if (c.ele)
-                                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-                        });
-                },
-                x: coord.x,
-                y: coord.y,
-                duration: 0.5,
-                ease: "ease.out"
-            });
-        if (cards) {
-            cards.forEach((c: SoloCard, index: number) => {
-                const coord = getCoord(c, boardDimension);
-                if (c.ele)
-                    tl.to(c.ele, {
-                        x: coord.x,
-                        y: coord.y,
-                        duration: 0.5,
-                        ease: "ease.out"
-                    }, "<");
-            });
-        }
-        tl.play();
-        // if (dropResult.success && dropResult.targetZoneId) {
-        //     handleSuccessfulDrop(dropResult);
-        // } else {
-        //     handleDragCancel(event, position);
-        // }
+        // 使用 onDragMove 中检测的结果
+        // const targetZoneId = currentTarget;
 
-        // // 清理高亮状态
-        // clearHoverEffects();
-    }, [getDragPosition, boardDimension]);
+        // if (targetZoneId && gameState) {
+        //     // 验证移动是否合法
+        //     const isValidMove = SoloGameEngine.canMoveToZone(card, targetZoneId, gameState.cards);
+        //     if (isValidMove) {
+        //         // 执行移动
+        //         handleSuccessfulDrop(card, targetZoneId);
+        //     } else {
+        //         // 移动不合法，返回原位置
+        //         handleDragCancel(card, cards || []);
+        //     }
+        // } else {
+        //     // 没有有效目标或游戏状态，返回原位置
+        //     handleDragCancel(card, cards || []);
+        // }
+        handleDragCancel(card, cards || []);
+        // 清理状态
+        // setCurrentTarget(null);
+        // clearDropTargetHighlight();
+        dragDataRef.current = null;
+    }, [getDragPosition, boardDimension, gameState]);
 
     // 处理点击事件
     const handleClickEvent = useCallback(() => {
@@ -214,139 +329,118 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         // 点击逻辑可以在这里添加
     }, []);
 
-    // 检查放置区域
-    const checkDropZone = useCallback((position: { x: number; y: number }) => {
-        if (!gameState) return { success: false, reason: 'No game state' };
-        const elementUnderPointer = document.elementFromPoint(position.x, position.y);
-
-        if (!elementUnderPointer) {
-            return { success: false, reason: 'No element under pointer' };
-        }
-
-        // 查找最近的可放置区域
-        const dropZone = elementUnderPointer.closest('[data-drop-zone]') ||
-            elementUnderPointer.closest('.foundation-zone, .tableau-column, .waste-zone');
-
-        if (!dropZone) {
-            return { success: false, reason: 'No valid drop zone' };
-        }
-
-        console.log('Drag dropped to potential zone:', dropZone.className);
-
-        // 解析目标区域ID
-        let targetZoneId = dropZone.getAttribute('data-zone-id');
-        if (!targetZoneId) {
-            targetZoneId = parseZoneIdFromClassName(dropZone);
-        }
-
-        if (!targetZoneId) {
-            return { success: false, reason: 'Could not resolve target zone ID' };
-        }
-
-        console.log('Resolved target zone ID:', targetZoneId);
-
-        // 验证移动是否合法
-        const isValidMove = SoloGameEngine.canMoveToZone(dragDataRef.current!.card, targetZoneId, gameState.cards);
-        console.log('Move validation result:', isValidMove);
-
-        // if (!isValidMove) {
-        //     return { success: false, reason: 'Invalid move' };
-        // }
-
-        // // 执行移动
-        // const moveSuccess = gameManager.moveCardToZone(dragData!.card, targetZoneId);
-        // if (!moveSuccess) {
-        //     return { success: false, reason: 'Move execution failed' };
-        // }
-
-        console.log(`Valid move executed: ${dragDataRef.current!.card.id} to ${targetZoneId}`);
-        return { success: true, targetZoneId };
-    }, [dragDataRef]);
-
-    // 从className解析区域ID
-    const parseZoneIdFromClassName = useCallback((dropZone: Element) => {
-        const className = dropZone.className;
-
-        if (className.includes('foundation')) {
-            return dropZone.getAttribute('data-foundation-suit') || 'foundation';
-        } else if (className.includes('tableau')) {
-            return `tableau-${dropZone.getAttribute('data-tableau-index')}`;
-        } else if (className.includes('waste')) {
-            return 'waste';
-        }
-
-        return null;
+    // 处理成功放置
+    const handleSuccessfulDrop = useCallback((card: SoloCard, targetZoneId: string) => {
+        console.log('Successful drop:', card.id, 'to', targetZoneId);
+        // 这里需要实现实际的移动逻辑
+        // 包括更新游戏状态、执行移动等
     }, []);
 
+    // 处理拖拽取消
+    const handleDragCancel = useCallback((card: SoloCard, cards: SoloCard[]) => {
+        console.log('Drag cancelled, returning to original position');
+        if (!boardDimension) return;
+        const coord = getCoord(card, boardDimension);
+
+        // 返回原位置
+        if (card.ele) {
+            gsap.to(card.ele, {
+                onComplete: () => {
+                    if (card.ele)
+                        gsap.set(card.ele, { zIndex: card.zoneIndex + 10 });
+                },
+                x: coord.x,
+                y: coord.y,
+                duration: 0.5,
+                ease: "ease.out"
+            });
+        }
+
+        if (cards) {
+            cards.forEach((c: SoloCard, index: number) => {
+                const coord = getCoord(c, boardDimension);
+                if (c.ele) {
+                    gsap.to(c.ele, {
+                        onComplete: () => {
+                            if (c.ele)
+                                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
+                        },
+                        x: coord.x,
+                        y: coord.y,
+                        duration: 0.5,
+                        ease: "ease.out"
+                    });
+                }
+            });
+        }
+    }, [boardDimension]);
 
     // 拖拽悬停
-    const onDragOver = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        if (!dragDataRef.current) return;
+    // const onDragOver = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+    //     if (!dragDataRef.current) return;
 
-        event.preventDefault();
-        event.stopPropagation();
+    //     event.preventDefault();
+    //     event.stopPropagation();
 
-        const target = event.currentTarget as HTMLElement;
-        const targetCardId = target.getAttribute('data-card-id');
+    //     const target = event.currentTarget as HTMLElement;
+    //     const targetCardId = target.getAttribute('data-card-id');
 
-        // 如果悬停在被拖拽的卡牌上，给原始位置添加绿色边框
-        if (targetCardId === dragDataRef.current.card.id && dragDataRef.current.card.ele) {
-            // 移除之前的高亮
-            document.querySelectorAll('.drag-over').forEach(el => {
-                el.classList.remove('drag-over');
-                const element = el as HTMLElement;
-                element.style.backgroundColor = '';
-                element.style.border = '';
-                element.style.borderRadius = '';
-            });
+    //     // 如果悬停在被拖拽的卡牌上，给原始位置添加绿色边框
+    //     if (targetCardId === dragDataRef.current.card.id && dragDataRef.current.card.ele) {
+    //         // 移除之前的高亮
+    //         document.querySelectorAll('.drag-over').forEach(el => {
+    //             el.classList.remove('drag-over');
+    //             const element = el as HTMLElement;
+    //             element.style.backgroundColor = '';
+    //             element.style.border = '';
+    //             element.style.borderRadius = '';
+    //         });
 
-            // 给原始卡牌位置添加绿色边框
-            const originalCard = dragDataRef.current.card.ele;
-            originalCard.classList.add('drag-over');
-            originalCard.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
-            originalCard.style.border = '2px dashed #4CAF50';
-            originalCard.style.borderRadius = '8px';
+    //         // 给原始卡牌位置添加绿色边框
+    //         const originalCard = dragDataRef.current.card.ele;
+    //         originalCard.classList.add('drag-over');
+    //         originalCard.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+    //         originalCard.style.border = '2px dashed #4CAF50';
+    //         originalCard.style.borderRadius = '8px';
 
+    //     } else {
+    //         // 悬停在其他区域，清除绿色边框
+    //         document.querySelectorAll('.drag-over').forEach(el => {
+    //             el.classList.remove('drag-over');
+    //             const element = el as HTMLElement;
+    //             element.style.backgroundColor = '';
+    //             element.style.border = '';
+    //             element.style.borderRadius = '';
+    //         });
 
-            setHoveredTarget(dragDataRef.current.card.id);
-        } else {
-            // 悬停在其他区域，清除绿色边框
-            document.querySelectorAll('.drag-over').forEach(el => {
-                el.classList.remove('drag-over');
-                const element = el as HTMLElement;
-                element.style.backgroundColor = '';
-                element.style.border = '';
-                element.style.borderRadius = '';
-            });
-            setHoveredTarget(null);
-        }
-    }, [dragDataRef, hoveredTarget]);
+    //     }
+    // }, [dragDataRef]);
 
     // 放置
-    const onDrop = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        if (!dragDataRef.current) return;
+    // const onDrop = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+    //     if (!dragDataRef.current) return;
 
-        event.preventDefault();
-        event.stopPropagation();
+    //     event.preventDefault();
+    //     event.stopPropagation();
 
-        const target = event.currentTarget as HTMLElement;
+    //     const target = event.currentTarget as HTMLElement;
 
-        // 清理所有高亮状态
-        document.querySelectorAll('.drag-over').forEach(el => {
-            const element = el as HTMLElement;
-            element.classList.remove('drag-over');
-            element.style.backgroundColor = '';
-            element.style.border = '';
-            element.style.borderRadius = '';
-        });
+    //     // 清理所有高亮状态
+    //     document.querySelectorAll('.drag-over').forEach(el => {
+    //         const element = el as HTMLElement;
+    //         element.classList.remove('drag-over');
+    //         element.style.backgroundColor = '';
+    //         element.style.border = '';
+    //         element.style.borderRadius = '';
+    //     });
 
-        setHoveredTarget(null);
 
-        console.log('Drop:', dragDataRef.current.card.id, 'on', target.id);
 
-        // 这里需要处理放置逻辑
-        // 包括验证移动是否合法、执行移动等
-    }, [dragDataRef]);
+    //     console.log('Drop:', dragDataRef.current.card.id, 'on', target.id);
+
+    //     // 这里需要处理放置逻辑
+    //     // 包括验证移动是否合法、执行移动等
+    // }, [dragDataRef]);
 
     // 全局事件监听
     useEffect(() => {
@@ -390,13 +484,11 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             }
         };
 
-
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
         document.addEventListener('touchend', handleTouchEnd);
         document.addEventListener('keydown', handleKeyDown);
-
 
         return () => {
             document.removeEventListener('mousemove', handleMouseMove);
@@ -410,12 +502,9 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     const value: ISoloDnDContext = {
         dragData: dragDataRef.current,
         isTouchDevice,
-        isTransitioning: false,
         onDragStart,
         onDragMove,
         onDragEnd,
-        onDragOver,
-        onDrop,
         getDragPosition
     };
 
