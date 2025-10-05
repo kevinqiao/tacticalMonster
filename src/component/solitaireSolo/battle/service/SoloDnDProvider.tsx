@@ -228,7 +228,6 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
         if (distance > 10) { // 只在移动超过10像素时重新检测
             const dropTarget = findBestDropTarget(position, card);
-
             if (dropTarget) {
                 if (!dragDataRef.current.dropTarget || dragDataRef.current.dropTarget.zoneId !== dropTarget.zoneId) {
                     if (dragDataRef.current.dropTarget) {
@@ -245,6 +244,13 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                         gsap.set(targetZone.ele, { backgroundColor: "white" });
                     }
                 }
+            } else if (dragDataRef.current.dropTarget) {
+                const prevZoneId = dragDataRef.current.dropTarget.zoneId;
+                const prevTargetZone = gameState.zones.find((z: SoloZone) => z.id === prevZoneId);
+                if (prevTargetZone && prevTargetZone.ele) {
+                    gsap.set(prevTargetZone.ele, { backgroundColor: "transparent" });
+                }
+                dragDataRef.current.dropTarget = null;
             }
             // console.log('dropTarget', dragDataRef.current.dropTarget);
             dragDataRef.current.lastPosition = position;

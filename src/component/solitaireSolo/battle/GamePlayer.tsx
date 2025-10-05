@@ -216,7 +216,6 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const loadZone = useCallback((zoneId: string, ele: HTMLDivElement | null) => {
         if (!gameState || !boardDimension) return;
         const zone = gameState.zones.find(z => z.id === zoneId);
-        console.log('zone', zone);
         if (zone) {
             zone.ele = ele;
         }
