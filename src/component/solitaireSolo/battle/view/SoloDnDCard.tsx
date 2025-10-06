@@ -140,21 +140,11 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
         if (!dragData) return;
-
-        // 防止触摸结束时的默认行为
+        // 防止触摸结束时的默认行为    
         e.preventDefault();
 
-        // 计算触摸持续时间
-        const touchDuration = Date.now() - touchStartTime;
-
-        // 重置触摸状态
-        // setIsTouching(false);
-        setTouchStartTime(0);
-
-        console.log('Touch ended on card:', card.id, 'duration:', touchDuration + 'ms');
-
         // onDrop(e);
-    }, [dragData, card.id, touchStartTime]);
+    }, [dragData, card.id]);
 
     const handleTouchCancel = useCallback((e: React.TouchEvent) => {
         // 触摸被取消（如被系统中断）
@@ -236,7 +226,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
             </div>
         );
-    }, [card, handleMouseDown, handleMouseOver, handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, handleClick, handleDoubleClick, handleMouseEnter, handleMouseLeave]);
+    }, [card]);
     return render;
 };
 

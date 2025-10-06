@@ -162,6 +162,38 @@ export const PlayEffects: PlayEffects = {
         tl.play();
         return;
     },
+    drop: ({ data, onComplete }) => {
+        const { dropCards, targetZoneId, boardDimension } = data;
+        const tl = gsap.timeline({
+            onComplete: () => {
+                if (onComplete) {
+                    onComplete();
+                }
+            }
+        });
+
+        if (dropCards) {
+            console.log('dropCards', dropCards)
+            dropCards.forEach((c: SoloCard, index: number) => {
+                const coord = getCoord(c, boardDimension);
+                if (c.ele) {
+                    tl.to(c.ele, {
+                        onComplete: () => {
+                            console.log('drop complete', c)
+                            if (c.ele)
+                                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
+                        },
+                        x: coord.x,
+                        y: coord.y,
+                        duration: 0.5,
+                        ease: "ease.out"
+                    }, "<");
+                }
+            });
+        }
+        tl.play();
+        return;
+    },
     dragCancel: ({ data, onComplete }) => {
         const { card, cards, boardDimension } = data;
         const tl = gsap.timeline({
@@ -185,7 +217,6 @@ export const PlayEffects: PlayEffects = {
                 ease: "ease.out"
             });
         }
-
         if (cards) {
             cards.forEach((c: SoloCard, index: number) => {
                 const coord = getCoord(c, boardDimension);

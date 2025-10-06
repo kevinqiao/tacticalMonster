@@ -35,6 +35,16 @@ const useGameHandler = () => {
             case "dragCancel":
                 PlayEffects.dragCancel({ data: { cards: gameState.cards, boardDimension } });
                 break;
+            case "drop":
+                const dropCards = event.data.dropCards;
+                dropCards.forEach((c: SoloCard) => {
+                    const gcard = gameState.cards.find(cc => cc.id === c.id);
+                    if (gcard) {
+                        Object.assign(gcard, c);
+                    }
+                });
+                PlayEffects.drop({ data: { ...event.data, boardDimension } });
+                break;
             default:
                 console.log("gameDefault", event)
                 break;

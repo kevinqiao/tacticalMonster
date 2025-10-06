@@ -370,6 +370,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
     const renderCards = useMemo(() => {
         if (!cards || !boardDimension) return null;
+        console.log('cards', cards)
         return cards.sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
             <SoloDnDCard
                 key={card.id}

@@ -9,6 +9,7 @@ const eventCategoryMap: { [k: string]: EventCategory } = {
     "shuffle": EventCategory.GAME,
     "deal": EventCategory.GAME,
     "init": EventCategory.GAME,
+    "drop": EventCategory.GAME,
 }
 export interface MatchEvent {
     id: string;
@@ -87,16 +88,6 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         addEvent,
         removeEvent
     };
-    // useEffect(() => {
-    //     if (!gameState) return;
-    //     const loadedCards = gameState.cards.every(c => c.ele);
-    //     console.log("gameState", gameState, loadedCards)
-    //     addEvent({
-    //         id: Date.now().toString(),
-    //         name: "init",
-    //     });
-
-    // }, [gameState, addEvent]);
 
 
     return (
