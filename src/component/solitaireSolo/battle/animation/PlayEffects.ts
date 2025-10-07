@@ -166,23 +166,19 @@ export const PlayEffects: PlayEffects = {
         const { dropCards, targetZoneId, boardDimension } = data;
         const tl = gsap.timeline({
             onComplete: () => {
-                if (onComplete) {
-                    onComplete();
-                }
+                dropCards.forEach((c: SoloCard) => {
+                    if (c.ele)
+                        gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
+                });
+               
+                onComplete?.();
             }
         });
-
         if (dropCards) {
-            console.log('dropCards', dropCards)
             dropCards.forEach((c: SoloCard, index: number) => {
                 const coord = getCoord(c, boardDimension);
                 if (c.ele) {
                     tl.to(c.ele, {
-                        onComplete: () => {
-                            console.log('drop complete', c)
-                            if (c.ele)
-                                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-                        },
                         x: coord.x,
                         y: coord.y,
                         duration: 0.5,
@@ -197,20 +193,20 @@ export const PlayEffects: PlayEffects = {
     dragCancel: ({ data, onComplete }) => {
         const { card, cards, boardDimension } = data;
         const tl = gsap.timeline({
+
             onComplete: () => {
-                if (onComplete) {
-                    onComplete();
-                }
+                if (card.ele)
+                    gsap.set(card.ele, { zIndex: card.zoneIndex + 10 });
+                cards.forEach((c: SoloCard) => {
+                    if (c.ele)
+                        gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
+                });
+                onComplete?.();
             }
         });
         if (card.ele) {
             const coord = getCoord(card, boardDimension);
             tl.to(card.ele, {
-                onComplete: () => {
-                    if (card.ele)
-                        gsap.set(card.ele, { zIndex: card.zoneIndex + 10 });
-                    onComplete?.();
-                },
                 x: coord.x,
                 y: coord.y,
                 duration: 0.5,
@@ -236,5 +232,25 @@ export const PlayEffects: PlayEffects = {
         }
         tl.play();
         return;
+    },
+    flipCard: ({ data, onComplete }) => {
+        const { card, boardDimension } = data;
+        const tl = gsap.timeline({
+            onComplete: () => {
+                onComplete?.();
+            }
+        });
+        if (card.ele) {
+            popCard(card);
+            tl.to(card.ele, {
+                rotateY: 180,
+                duration: 0.5,
+                ease: "ease.out"
+            });
+        }
+        tl.play();
+        return;
     }
+
+
 };

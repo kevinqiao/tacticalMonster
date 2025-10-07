@@ -9,7 +9,7 @@ import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
 import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
-import { SoloBoardDimension, SoloCard } from './types/SoloTypes';
+import { CARD_SUITS, SoloBoardDimension, SoloCard, SUIT_ICONS } from './types/SoloTypes';
 
 interface SoloPlayerProps {
     onGameStart?: () => void;
@@ -261,8 +261,8 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const renderFoundations = useCallback(() => {
         if (!gameState || !boardDimension) return null;
 
-        const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
-        return suits.map((suit, index) => {
+        // const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+        return CARD_SUITS.map((suit, index) => {
 
             return (
                 <div
@@ -285,7 +285,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                         backgroundColor: 'rgba(0,0,0,0.1)'
                     }}
                 >
-
+                    {SUIT_ICONS[suit]}
                 </div>
             );
         });
@@ -370,7 +370,6 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
     const renderCards = useMemo(() => {
         if (!cards || !boardDimension) return null;
-        console.log('cards', cards)
         return cards.sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
             <SoloDnDCard
                 key={card.id}

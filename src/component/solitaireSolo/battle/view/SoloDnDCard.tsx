@@ -195,7 +195,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         if (ele) {
             // console.log('load card:', card.id);
             const coord = getCoord(card, boardDimension);
-            gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y });
+            gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y, zIndex: card.zoneIndex + 10 });
         }
     }, [boardDimension]);
 
@@ -226,7 +226,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
             </div>
         );
-    }, [card]);
+    }, [card, boardDimension]);
     return render;
 };
 

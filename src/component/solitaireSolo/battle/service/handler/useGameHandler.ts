@@ -8,7 +8,7 @@ const useGameHandler = () => {
 
     const { gameState, boardDimension } = useSoloGameManager();
 
-    const handleEvent = useCallback((event: MatchEvent, onComplete?: () => void) => {
+    const handleEvent = useCallback((event: MatchEvent, onComplete?: (eventId: string) => void) => {
         // const { removeEvent } = useEventManager();       
         if (!gameState) return;
         const { id, name, data } = event;
@@ -26,7 +26,7 @@ const useGameHandler = () => {
                         Object.assign(gcard, c);
                     }
                 });
-                PlayEffects.deal({ data: { cards: event.data.cards, boardDimension } });
+                PlayEffects.deal({ data: { cards: event.data.cards, boardDimension }, onComplete: () => onComplete?.(event.id) });
                 console.log("deal", event)
                 break;
             case "init":
@@ -43,14 +43,14 @@ const useGameHandler = () => {
                         Object.assign(gcard, c);
                     }
                 });
-                PlayEffects.drop({ data: { ...event.data, boardDimension } });
+                PlayEffects.drop({ data: { ...event.data, boardDimension }, onComplete: () => onComplete?.(event.id) });
                 break;
             default:
                 console.log("gameDefault", event)
                 break;
         }
 
-    }, [gameState]);
+    }, [gameState, boardDimension]);
 
 
     return { handleEvent };

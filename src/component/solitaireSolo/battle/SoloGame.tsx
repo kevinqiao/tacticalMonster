@@ -22,15 +22,10 @@ const SoloGame: React.FC<SoloGameProps> = ({
     className = '',
     style
 }) => {
-    const [isInitialized, setIsInitialized] = useState(false);
+
     const [gameId, setGameId] = useState<string | undefined>(undefined);
-
-
     // 初始化游戏
-    useEffect(() => {
-        console.log('SoloGame initializing...');
-        // setIsInitialized(true);
-    }, []);
+
 
     // if (!isInitialized) {
     //     return (

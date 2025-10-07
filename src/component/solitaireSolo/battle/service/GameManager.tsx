@@ -6,6 +6,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 import {
     DEFAULT_GAME_CONFIG,
     SoloBoardDimension,
+    SoloCard,
     SoloGameConfig,
     SoloGameState,
     SoloZone,
@@ -17,11 +18,8 @@ interface ISoloGameContext {
     gameState: SoloGameState | null;
     boardDimension: SoloBoardDimension | null;
     config: SoloGameConfig;
-    // zones: SoloZone[];
-
-    // 游戏控制
-    resetGame: () => void;
-    // 界面控制
+    isActing: boolean;
+    moveCard: (card: SoloCard, toZoneId: string) => { ok: boolean, flipCard?: SoloCard };
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
 }
 
@@ -29,8 +27,8 @@ const SoloGameContext = createContext<ISoloGameContext>({
     gameState: null,
     boardDimension: null,
     config: DEFAULT_GAME_CONFIG,
-    // zones: [],
-    resetGame: () => { },
+    isActing: false,
+    moveCard: () => { return { ok: false, flipCard: undefined } },
     updateBoardDimension: () => { },
 
 });
@@ -52,6 +50,7 @@ interface SoloGameProviderProps {
 export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig }) => {
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
+    const [isActing, setIsActing] = useState<boolean>(false);
 
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
 
@@ -79,15 +78,19 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         ];
     }, []);
 
-    // 重置游戏
-    const resetGame = useCallback(() => {
-        setGameState(null);
-    }, []);
-
     // 更新棋盘尺寸
     const updateBoardDimension = useCallback((dimension: SoloBoardDimension) => {
         setBoardDimension(dimension);
     }, []);
+    const moveCard = useCallback((card: SoloCard, toZoneId: string) => {
+        if (!gameState) return { ok: true };
+        const cards = gameState.cards.filter(c => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex);
+        const flipCard = cards.length > 0 ? cards[cards.length - 1] : undefined;
+        if (cards.length > 0) {
+            return { ok: false, flipCard: flipCard };
+        }
+        return { ok: true, flipCard: undefined };
+    }, [gameState]);
 
     useEffect(() => {
         if (gameId) {
@@ -103,7 +106,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         gameState,
         boardDimension,
         config,
-        resetGame,
+        isActing,
+        moveCard,
         updateBoardDimension,
     };
 

@@ -6,7 +6,8 @@
 import gsap from 'gsap';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { PlayEffects } from '../animation/PlayEffects';
-import { SoloBoardDimension, SoloCard, SoloDragData, SoloZone } from '../types/SoloTypes';
+import { SoloBoardDimension, SoloCard, SoloDragData, SoloDropTarget, SoloZone } from '../types/SoloTypes';
+import { findBestDropTarget } from '../Utils';
 import { useEventManager } from './EventProvider';
 import { useSoloGameManager } from './GameManager';
 
@@ -43,14 +44,14 @@ interface SoloDnDProviderProps {
 
 export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) => {
 
-    const dragDataRef = useRef<SoloDragData | null>(null);
+    const dragDataRef = useRef<SoloDragData>({});
     // const [currentTarget, setCurrentTarget] = useState<string | null>(null);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     // const [hoveredTarget, setHoveredTarget] = useState<string | null>(null);
     const startPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
     // 获取游戏管理器
-    const { gameState, boardDimension } = useSoloGameManager();
+    const { gameState, boardDimension, moveCard } = useSoloGameManager();
     const { eventQueue, addEvent } = useEventManager();
 
     // 检测是否为触摸设备
@@ -73,91 +74,21 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         }
     }, []);
 
-    // 获取区域优先级
-    const getZonePriority = useCallback((zoneId: string, card: SoloCard) => {
-        if (zoneId.startsWith('foundation-')) return 100; // Foundation 最高优先级
-        if (zoneId.startsWith('tableau-')) return 50;    // Tableau 中等优先级
-        if (zoneId.startsWith('waste-')) return 25;      // Waste 较低优先级
-        return 0;
-    }, []);
-
-    // 改进的 findBestDropTarget 函数 - 基于交集面积
-    const findBestDropTarget = useCallback((position: { x: number; y: number }, card: SoloCard): { zoneId: string; element: Element; priority: number; count: number; area: number } | null => {
-        try {
-            // 边界检查
-            if (position.x < 0 || position.y < 0 || position.x > window.innerWidth || position.y > window.innerHeight) {
-                return null;
-            }
-
-            // 卡牌尺寸
-            const cardWidth = 60;
-            const cardHeight = 84;
-
-            // 卡牌边界
-            const cardLeft = position.x - cardWidth / 2;
-            const cardRight = position.x + cardWidth / 2;
-            const cardTop = position.y - cardHeight / 2;
-            const cardBottom = position.y + cardHeight / 2;
-
-            // 只选择带有 data-drop-zone 属性的元素
-            const dropZones = document.querySelectorAll('[data-drop-zone]');
-
-            let bestTarget: { zoneId: string; element: Element; priority: number; count: number; area: number } | null = null;
-            let bestScore = -1;
-
-            dropZones.forEach(zone => {
-                const rect = zone.getBoundingClientRect();
-                const zoneId = zone.getAttribute('data-zone-id');
-
-                if (!zoneId) return;
-
-                // 计算交集面积
-                const intersectionLeft = Math.max(cardLeft, rect.left);
-                const intersectionRight = Math.min(cardRight, rect.right);
-                const intersectionTop = Math.max(cardTop, rect.top);
-                const intersectionBottom = Math.min(cardBottom, rect.bottom);
-
-                // 如果没有交集，跳过
-                if (intersectionLeft >= intersectionRight || intersectionTop >= intersectionBottom) {
-                    return;
-                }
-
-                // 计算交集面积
-                const intersectionArea = (intersectionRight - intersectionLeft) * (intersectionBottom - intersectionTop);
-
-                // 如果完全没有交集，跳过
-                if (intersectionArea <= 0) {
-                    return;
-                }
-
-                // 获取优先级
-                const priority = getZonePriority(zoneId, card);
-
-                // 计算分数：优先级 * 100 + 交集面积
-                const score = priority * 100 + intersectionArea;
-
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestTarget = {
-                        zoneId,
-                        element: zone,
-                        priority,
-                        count: 1,
-                        area: intersectionArea
-                    };
-                }
-            });
-
-            return bestTarget;
-
-        } catch (error) {
-            console.error('Error in findBestDropTarget:', error);
-            return null;
+    const toggleDropTargetHighlight = useCallback((card: SoloCard, dropTarget: SoloDropTarget | null) => {
+        if (!gameState) return;
+        if (dragDataRef.current && dragDataRef.current.dropTarget && dragDataRef.current.dropTarget.zoneId === dropTarget?.zoneId) return;
+        if (dropTarget && dropTarget.element) {
+            gsap.set(dropTarget.element, { backgroundColor: "white" });
         }
-    }, [getZonePriority]);
 
-
-
+        if (dragDataRef.current && dragDataRef.current.dropTarget) {
+            const prevZoneId = dragDataRef.current.dropTarget.zoneId;
+            const prevTargetZone = gameState.zones.find((z: SoloZone) => z.id === prevZoneId);
+            if (prevTargetZone && prevTargetZone.ele) {
+                gsap.set(prevTargetZone.ele, { backgroundColor: "transparent" });
+            }
+        }
+    }, [gameState]);
     // 清除目标高亮
     const clearDropTargetHighlight = useCallback(() => {
         if (dragDataRef.current && dragDataRef.current.dropTarget && gameState) {
@@ -171,7 +102,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
     // 开始拖拽
     const onDragStart = useCallback((card: SoloCard, event: React.MouseEvent | React.TouchEvent) => {
-        if (eventQueue.length > 0 || !card.ele || !gameState || dragDataRef.current) return;
+        if (eventQueue.length > 0 || !card.ele || !gameState || dragDataRef.current.status === "dragging") return;
         event.preventDefault();
         event.stopPropagation();
 
@@ -186,7 +117,8 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             cards, // 包含整个序列
             offsetX: position.x - rect.left,
             offsetY: position.y - rect.top,
-            lastPosition: position // 添加最后位置记录
+            lastPosition: position, // 添加最后位置记录
+            status: 'dragging'
         };
         dragDataRef.current = dragData;
         gsap.set(card.ele, { zIndex: card.zoneIndex + 99999 });
@@ -194,7 +126,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             if (c.ele)
                 gsap.set(c.ele, { zIndex: c.zoneIndex + 99999 });
         });
-        console.log('dragData', dragData)
+
 
     }, [gameState, getDragPosition, boardDimension]);
 
@@ -202,16 +134,16 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     const onDragMove = useCallback((event: React.MouseEvent | React.TouchEvent) => {
         event.preventDefault();
         event.stopPropagation();
-        if (!dragDataRef.current || eventQueue.length > 0 || !boardDimension || !gameState) return;
+        if (dragDataRef.current.status !== 'dragging' || !boardDimension || !gameState) return;
 
         const card = dragDataRef.current.card;
-        if (!card.ele) return;
+        if (!card || !card.ele) return;
 
         const position = getDragPosition(event);
         const { offsetX, offsetY, cards, lastPosition } = dragDataRef.current;
         const { left, top } = boardDimension as SoloBoardDimension;
-        const x = position.x - left - offsetX;
-        const y = position.y - top - offsetY;
+        const x = position.x - left - (offsetX || 0);
+        const y = position.y - top - (offsetY || 0);
 
         // 只在位置变化较大时重新检测
         const distance = lastPosition ? Math.sqrt(
@@ -221,20 +153,8 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
         if (distance > 10) { // 只在移动超过10像素时重新检测
             const dropTarget = findBestDropTarget(position, card);
-            if (dropTarget) {
-                if (!dragDataRef.current.dropTarget || dragDataRef.current.dropTarget.zoneId !== dropTarget.zoneId) {
-                    clearDropTargetHighlight();
-                    const targetZone = gameState.zones.find((z: SoloZone) => z.id === dropTarget.zoneId);
-                    dragDataRef.current.dropTarget = dropTarget;
-                    if (targetZone && targetZone.ele) {
-                        gsap.set(targetZone.ele, { backgroundColor: "white" });
-                    }
-                }
-            } else {
-                clearDropTargetHighlight();
-                dragDataRef.current.dropTarget = null;
-            }
-            // console.log('dropTarget', dragDataRef.current.dropTarget);
+            toggleDropTargetHighlight(card, dropTarget);
+            dragDataRef.current.dropTarget = dropTarget;
             dragDataRef.current.lastPosition = position;
         }
 
@@ -248,11 +168,11 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             });
         }
 
-    }, [getDragPosition, eventQueue, gameState, boardDimension, findBestDropTarget, clearDropTargetHighlight]);
+    }, [getDragPosition, eventQueue, gameState, boardDimension, clearDropTargetHighlight]);
 
     // 结束拖拽
     const onDragEnd = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        if (!dragDataRef.current || !boardDimension) return;
+        if (dragDataRef.current.status !== 'dragging' || !boardDimension) return;
         // const { card, cards } = dragDataRef.current;
         event.preventDefault();
         event.stopPropagation();
@@ -265,18 +185,12 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
         // 处理点击（移动距离太小）
         if (distance < 5) {
-            dragDataRef.current = null;
+            dragDataRef.current = {};
             handleClickEvent();
             return;
         }
         handleDrop();
 
-        // if (dragDataRef.current.cards && dragDataRef.current.cards.length > 0) {
-        //     // handleDragCancel();
-        //     handleDrop();
-        // } else {
-        //     handleDrop();
-        // }
     }, [getDragPosition, boardDimension, gameState, eventQueue]);
 
     // 处理点击事件
@@ -286,48 +200,49 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     }, []);
 
     const handleDrop = useCallback(() => {
-        if (!boardDimension || !dragDataRef.current || !gameState) return;
+        if (!boardDimension || !gameState) return;
         clearDropTargetHighlight();
 
         const { card, cards } = dragDataRef.current;
         const targetZoneId = dragDataRef.current.dropTarget?.zoneId;
-
-        if (targetZoneId && targetZoneId !== card.zoneId) {
+        dragDataRef.current.status = 'dropping';
+        if (targetZoneId && card && targetZoneId !== card.zoneId) {
+            const targetZone = gameState.zones.find((z: SoloZone) => z.id === targetZoneId);
+            if (!targetZone) return;
             const dropCards = [];
             const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === targetZoneId).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
             const zoneIndex = zoneCards.length === 0 ? 0 : zoneCards[zoneCards.length - 1].zoneIndex + 1;
-            // card.zoneId = targetZoneId;
-            // card.zoneIndex = zoneIndex;
-            dropCards.push({ ...card, zoneId: targetZoneId, zoneIndex: zoneIndex });
+            dropCards.push({ ...card, zone: targetZone.type, zoneId: targetZoneId, zoneIndex: zoneIndex });
             cards?.sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex).forEach((c: SoloCard, index: number) => {
-                // c.zoneId = targetZoneId;
-                // c.zoneIndex = zoneIndex + index + 1;
-                dropCards.push({ ...c, zoneId: targetZoneId, zoneIndex: zoneIndex + index + 1 });
+                dropCards.push({ ...c, zone: targetZone.type, zoneId: targetZoneId, zoneIndex: zoneIndex + index + 1 });
             });
-
             addEvent({
                 id: Date.now().toString(),
                 name: "drop",
                 data: { dropCards, targetZoneId }
             });
+            console.log("drop start", dropCards, targetZoneId)
+            const { ok, flipCard } = moveCard(card, targetZoneId);
 
-            // const newZoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === targetZoneId).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
-            // console.log('newZoneCards', newZoneCards)
-
+            if (flipCard) {
+                PlayEffects.flipCard({
+                    data: { card: flipCard, boardDimension }
+                });
+            }
+        } else {
+            handleDragCancel();
         }
-        // dragDataRef.current = null;
-        handleDragCancel();
 
-
-    }, [boardDimension, dragDataRef, gameState, addEvent]);
+    }, [boardDimension, dragDataRef, gameState, addEvent, moveCard]);
     // 处理拖拽取消
     const handleDragCancel = useCallback(() => {
 
         if (!boardDimension || !dragDataRef.current || !gameState) return;
-        clearDropTargetHighlight();
+        const { card, cards } = dragDataRef.current;
+        dragDataRef.current.status = 'cancelled';
         PlayEffects.dragCancel({
-            data: { card: dragDataRef.current.card, cards: dragDataRef.current.cards, boardDimension }, onComplete: () => {
-                dragDataRef.current = null;
+            data: { card, cards, boardDimension }, onComplete: () => {
+                dragDataRef.current.status = 'finished';
             }
         });
     }, [boardDimension, dragDataRef, gameState]);

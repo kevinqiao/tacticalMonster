@@ -36,49 +36,45 @@ interface EventProviderProps {
 const EventHandle: React.FC<{
     children: ReactNode;
     eventQueue: MatchEvent[];
-    onProcessed: (eventId: string) => void;
-}> = ({ children, eventQueue, onProcessed }) => {
+    onComplete: (eventId: string) => void;
+}> = ({ children, eventQueue, onComplete }) => {
     const gameHandler = useGameHandler();
     const dragHandler = useDragHandler();
 
     useEffect(() => {
         if (eventQueue.length > 0) {
             const event = eventQueue[0];
+
             if (!event.status || event.status === 0) {
                 const category = eventCategoryMap[event.name];
-
-                const onComplete = () => {
-                    onProcessed(event.id);
-                };
-
+                console.log("event", event)
                 switch (category) {
                     case EventCategory.GAME:
-                        gameHandler.handleEvent(event);
-                        onComplete();
+                        gameHandler.handleEvent(event, onComplete);
                         break;
                     case EventCategory.DRAG:
                         dragHandler.handleEvent(event);
-                        onComplete();
                         break;
                     default:
-                        onComplete();
+
                         break;
                 }
             }
         }
-    }, [eventQueue, gameHandler, dragHandler, onProcessed]);
+    }, [eventQueue, gameHandler, dragHandler, onComplete]);
 
     return <>{children}</>;
 };
 
 export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     const [eventQueue, setEventQueue] = useState<MatchEvent[]>([]);
-    // console.log("eventQueue", eventQueue);
+    console.log("eventQueue", eventQueue);
     const addEvent = useCallback((event: MatchEvent) => {
         setEventQueue(prev => [...prev, event]);
     }, []);
 
     const removeEvent = useCallback((eventId: string) => {
+        console.log("removeEvent", eventId);
         setEventQueue(prev => prev.filter(e => e.id !== eventId));
     }, []);
 
@@ -94,7 +90,7 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
         <EventContext.Provider value={value}>
             <EventHandle
                 eventQueue={eventQueue}
-                onProcessed={removeEvent}
+                onComplete={removeEvent}
             >{children}
             </EventHandle>
         </EventContext.Provider>
