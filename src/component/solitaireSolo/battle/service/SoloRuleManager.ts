@@ -4,7 +4,10 @@
  */
 
 import {
+    ActMode,
+    Card,
     CARD_VALUES,
+    SolitaireRule,
     SoloCard,
     SoloGameState,
     SoloHint,
@@ -12,13 +15,38 @@ import {
     ZoneType
 } from '../types/SoloTypes';
 
-export class SoloRuleManager {
+export class SoloRuleManager implements SolitaireRule {
     private gameState: SoloGameState;
 
     constructor(gameState: SoloGameState) {
         this.gameState = gameState;
     }
-
+    getActModes(card: Card): ActMode[] {
+        const modes: ActMode[] = [];
+        if (!card.isRevealed && card.zone !== ZoneType.TALON) {
+            return modes;
+        }
+        if (card.zone === ZoneType.TALON) {
+            modes.push(ActMode.CLICK);
+            return modes;
+        }
+        if (card.zone === ZoneType.FOUNDATION) {
+            // modes.push(ActMode.CLICK);
+            modes.push(ActMode.DRAG);
+            return modes;
+        }
+        if (card.zone === ZoneType.TABLEAU) {
+            modes.push(ActMode.DRAG);
+            modes.push(ActMode.CLICK);
+            return modes;
+        }
+        if (card.zone === ZoneType.WASTE) {
+            modes.push(ActMode.CLICK);
+            modes.push(ActMode.DRAG);
+            return modes;
+        }
+        return modes;
+    }
     /**
      * 检查是否可以移动卡牌到基础堆
      */

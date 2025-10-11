@@ -1,6 +1,5 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import useDragHandler from './handler/useDragHandler';
-import useGameHandler from './handler/useGameHandler';
+import useEventHandler from './handler/useEventHandler';
 const enum EventCategory {
     GAME = "game",
     DRAG = "drag",
@@ -38,8 +37,8 @@ const EventHandle: React.FC<{
     eventQueue: MatchEvent[];
     onComplete: (eventId: string) => void;
 }> = ({ children, eventQueue, onComplete }) => {
-    const gameHandler = useGameHandler();
-    const dragHandler = useDragHandler();
+    const eventHandler = useEventHandler();
+
 
     useEffect(() => {
         if (eventQueue.length > 0) {
@@ -50,10 +49,7 @@ const EventHandle: React.FC<{
                 console.log("event", event)
                 switch (category) {
                     case EventCategory.GAME:
-                        gameHandler.handleEvent(event, onComplete);
-                        break;
-                    case EventCategory.DRAG:
-                        dragHandler.handleEvent(event);
+                        eventHandler.handleEvent(event, onComplete);
                         break;
                     default:
 
@@ -61,14 +57,13 @@ const EventHandle: React.FC<{
                 }
             }
         }
-    }, [eventQueue, gameHandler, dragHandler, onComplete]);
-
+    }, [eventQueue, eventHandler, onComplete]);
     return <>{children}</>;
 };
 
 export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     const [eventQueue, setEventQueue] = useState<MatchEvent[]>([]);
-    console.log("eventQueue", eventQueue);
+
     const addEvent = useCallback((event: MatchEvent) => {
         setEventQueue(prev => [...prev, event]);
     }, []);

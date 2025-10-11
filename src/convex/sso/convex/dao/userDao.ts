@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "../_generated/server";
+import { internalMutation, internalQuery, query } from "../_generated/server";
 import { sessionMutation } from "../custom/session";
 
 export const create = internalMutation({
@@ -22,6 +22,15 @@ export const create = internalMutation({
 });
 
 export const find = internalQuery({
+    args: {
+        uid: v.string(),
+    },
+    handler: async (ctx, { uid }) => {
+        const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        return user
+    },
+})
+export const findUser = query({
     args: {
         uid: v.string(),
     },

@@ -3,10 +3,6 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 
-// 主组件
-// export { default as SoloGame } from './battle/SoloGame';
-// export { default as SoloPlayer } from './battle/SoloPlayer';
-
 // 服务组件
 export { default as SoloGameProvider, useSoloGameManager } from './battle/service/GameManager';
 export { default as SoloDnDProvider, useSoloDnDManager } from './battle/service/SoloDnDProvider';

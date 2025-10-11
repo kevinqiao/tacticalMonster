@@ -102,23 +102,7 @@ export const PlayEffects: PlayEffects = {
         }
         return;
     },
-    init: ({ data }) => {
-        const tl = gsap.timeline();
-        const mtl = gsap.timeline();
-        const otl = gsap.timeline();
-        const { cards, boardDimension } = data;
-        cards.forEach((card: SoloCard) => {
-            const { x, y } = getCoord(card, boardDimension);
-            if (card.ele) {
-                mtl.to(card.ele, { x, y, duration: 0 }, "<");
-                otl.to(card.ele, { autoAlpha: 1, duration: 0.1 }, "<");
-            }
-        });
-        tl.add(mtl);
-        tl.add(otl, ">=+0.3");
-        tl.play();
-        return;
-    },
+
     deal: ({ data, onComplete }) => {
         const { cards, boardDimension } = data;
         const tl = gsap.timeline({
@@ -134,9 +118,10 @@ export const PlayEffects: PlayEffects = {
             if (row.length > 0) {
                 const rtl = gsap.timeline();
                 row.forEach((card: SoloCard) => {
-                    const { x, y } = getCoord(card, boardDimension);
+                    const zoneCards = cards.filter((c: SoloCard) => c.zoneId === card.zoneId)
+                    const { x, y } = getCoord(card, zoneCards, boardDimension);
                     if (card.ele) {
-                        rtl.to(card.ele, { x, y, duration: 0.2, zIndex: card.zoneIndex + 10, ease: "power2.out" }, "<=+0.1");
+                        rtl.to(card.ele, { x, y, rotateZ: 0, duration: 0.2, zIndex: card.zoneIndex + 10, ease: "power2.out" }, "<=+0.1");
                     }
                 });
                 tl.add(rtl, ">");
@@ -163,20 +148,21 @@ export const PlayEffects: PlayEffects = {
         return;
     },
     drop: ({ data, onComplete }) => {
-        const { dropCards, targetZoneId, boardDimension } = data;
+        const { dropCards, targetZoneId, boardDimension, gameState } = data;
         const tl = gsap.timeline({
             onComplete: () => {
                 dropCards.forEach((c: SoloCard) => {
                     if (c.ele)
                         gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
                 });
-               
+
                 onComplete?.();
             }
         });
         if (dropCards) {
+            const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === targetZoneId)
             dropCards.forEach((c: SoloCard, index: number) => {
-                const coord = getCoord(c, boardDimension);
+                const coord = getCoord(c, zoneCards, boardDimension);
                 if (c.ele) {
                     tl.to(c.ele, {
                         x: coord.x,
@@ -191,12 +177,9 @@ export const PlayEffects: PlayEffects = {
         return;
     },
     dragCancel: ({ data, onComplete }) => {
-        const { card, cards, boardDimension } = data;
+        const { cards, boardDimension, gameState } = data;
         const tl = gsap.timeline({
-
             onComplete: () => {
-                if (card.ele)
-                    gsap.set(card.ele, { zIndex: card.zoneIndex + 10 });
                 cards.forEach((c: SoloCard) => {
                     if (c.ele)
                         gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
@@ -204,24 +187,13 @@ export const PlayEffects: PlayEffects = {
                 onComplete?.();
             }
         });
-        if (card.ele) {
-            const coord = getCoord(card, boardDimension);
-            tl.to(card.ele, {
-                x: coord.x,
-                y: coord.y,
-                duration: 0.5,
-                ease: "ease.out"
-            });
-        }
+
         if (cards) {
+            const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === cards[0].zoneId);
             cards.forEach((c: SoloCard, index: number) => {
-                const coord = getCoord(c, boardDimension);
+                const coord = getCoord(c, zoneCards, boardDimension);
                 if (c.ele) {
                     tl.to(c.ele, {
-                        onComplete: () => {
-                            if (c.ele)
-                                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-                        },
                         x: coord.x,
                         y: coord.y,
                         duration: 0.5,
@@ -248,6 +220,62 @@ export const PlayEffects: PlayEffects = {
                 ease: "ease.out"
             });
         }
+        tl.play();
+        return;
+    },
+    drawCard: ({ data, onComplete }) => {
+        const { card, boardDimension, gameState } = data;
+        const tl = gsap.timeline({
+            onComplete: () => {
+                onComplete?.();
+            }
+        });
+        if (card.ele) {
+            popCard(card);
+            const coord = getCoord(card, gameState.cards, boardDimension);
+            tl.to(card.ele, {
+                x: coord.x + 120,
+                y: coord.y,
+                rotateY: 180,
+                rotateZ: 20,
+                duration: 0.8,
+                ease: "ease.out"
+            }).to(card.ele, {
+                x: coord.x + 80,
+                y: coord.y + 40,
+                rotateZ: 0,
+                duration: 0.7,
+                ease: "ease.in"
+            });
+        }
+        tl.play();
+        return;
+    },
+    moveCard: ({ data, onComplete }) => {
+        const { cards, gameState, boardDimension } = data;
+        const tl = gsap.timeline({
+            onComplete: () => {
+                cards.forEach((c: SoloCard) => {
+                    if (c.ele)
+                        gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
+                });
+                onComplete?.();
+            }
+        });
+        const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === cards[0].zoneId);
+        const columnCards = [...zoneCards, ...cards];
+        cards.forEach((c: SoloCard) => {
+            if (c.ele) {
+                const coord = getCoord(c, columnCards, boardDimension);
+                tl.to(c.ele, {
+                    x: coord.x,
+                    y: coord.y,
+                    rotateZ: 0,
+                    duration: 1.2,
+                    ease: "ease.in"
+                }, "<");
+            }
+        });
         tl.play();
         return;
     }

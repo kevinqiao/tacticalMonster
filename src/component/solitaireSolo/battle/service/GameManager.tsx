@@ -2,35 +2,35 @@
  * 单人纸牌游戏管理器
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
+    ActionStatus,
     DEFAULT_GAME_CONFIG,
+    SolitaireRule,
     SoloBoardDimension,
-    SoloCard,
     SoloGameConfig,
     SoloGameState,
     SoloZone,
     ZoneType
 } from '../types/SoloTypes';
 import { SoloGameEngine } from './SoloGameEngine';
+import SoloRuleManager from './SoloRuleManager';
 
 interface ISoloGameContext {
     gameState: SoloGameState | null;
     boardDimension: SoloBoardDimension | null;
     config: SoloGameConfig;
-    isActing: boolean;
-    moveCard: (card: SoloCard, toZoneId: string) => { ok: boolean, flipCard?: SoloCard };
+    ruleManager: SolitaireRule | null;
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
 }
 
 const SoloGameContext = createContext<ISoloGameContext>({
+
     gameState: null,
     boardDimension: null,
     config: DEFAULT_GAME_CONFIG,
-    isActing: false,
-    moveCard: () => { return { ok: false, flipCard: undefined } },
-    updateBoardDimension: () => { },
-
+    ruleManager: null,
+    updateBoardDimension: () => { }
 });
 
 export const useSoloGameManager = () => {
@@ -48,12 +48,14 @@ interface SoloGameProviderProps {
 }
 
 export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig }) => {
+    const [isActing, setIsActing] = useState(false);
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
-    const [isActing, setIsActing] = useState<boolean>(false);
-
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
-
+    const ruleManager = useMemo(() => {
+        if (!gameState) return null;
+        return new SoloRuleManager(gameState)
+    }, [gameState])
 
     // 创建区域定义
     const createZones = useCallback((): SoloZone[] => {
@@ -82,22 +84,14 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     const updateBoardDimension = useCallback((dimension: SoloBoardDimension) => {
         setBoardDimension(dimension);
     }, []);
-    const moveCard = useCallback((card: SoloCard, toZoneId: string) => {
-        if (!gameState) return { ok: true };
-        const cards = gameState.cards.filter(c => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex);
-        const flipCard = cards.length > 0 ? cards[cards.length - 1] : undefined;
-        if (cards.length > 0) {
-            return { ok: false, flipCard: flipCard };
-        }
-        return { ok: true, flipCard: undefined };
-    }, [gameState]);
+
 
     useEffect(() => {
         if (gameId) {
             const game = SoloGameEngine.createGame();
             game.gameId = gameId;
             const zones = createZones();
-            setGameState({ ...game, zones });
+            setGameState({ ...game, zones, actionStatus: ActionStatus.IDLE });
         }
     }, [gameId]);
 
@@ -106,8 +100,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         gameState,
         boardDimension,
         config,
-        isActing,
-        moveCard,
+        ruleManager,
         updateBoardDimension,
     };
 

@@ -11,7 +11,6 @@ export class SoloGameEngine {
     // 创建一副完整的牌
     public static createDeck = (): Card[] => {
         const deck: Card[] = [];
-        const baseTime = Date.now();
         CARD_SUITS.forEach(suit => {
             CARD_RANKS.forEach(rank => {
                 const value = CARD_VALUES[rank];

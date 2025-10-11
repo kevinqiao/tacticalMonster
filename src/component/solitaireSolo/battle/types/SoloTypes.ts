@@ -10,7 +10,22 @@ export enum SoloGameStatus {
     PLAYING = 2,
     CLOSED = 3
 }
-
+export enum ActionStatus {
+    IDLE = 'idle',
+    ACTING = 'acting',
+    DROPPING = 'dropping',
+}
+export enum ActMode {
+    DRAG = 'drag',
+    CLICK = 'click',
+}
+export enum ActType {
+    DRAW = 'draw',
+    MOVE = 'move',
+    FOUNDATION = 'foundation',
+    WASTE = 'waste',
+    UNDO = 'undo'
+}
 // 区域类型枚举
 export enum ZoneType {
     TALON = 'talon',
@@ -33,11 +48,12 @@ export interface Card {
     zoneId: string; // 具体区域ID（如 foundation-hearts, tableau-0）
     zoneIndex: number; // 在区域中的索引
 }
-
-// 区域定义接口 - 不包含卡牌数据
-export interface SoloZone {
+export interface Zone {
     id: string;
     type: ZoneType;
+}
+// 区域定义接口 - 不包含卡牌数据
+export interface SoloZone extends Zone {
     ele?: HTMLDivElement | null;
 }
 export interface GameModel {
@@ -52,8 +68,9 @@ export interface GameModel {
 // 简化的游戏状态 - 只使用统一的 cards 数组
 export interface SoloGameState extends GameModel {
     // 统一卡牌管理
-    cards: SoloCard[];    // 区域定义
+    cards: SoloCard[];
     zones: SoloZone[];
+    actionStatus: ActionStatus;
 }
 
 
@@ -113,14 +130,15 @@ export interface SoloDropTarget {
     count: number;
     area: number;
 }
-export interface SoloDragData {
+export interface SoloActionData {
     card?: SoloCard;          // 主要被拖拽的卡牌
     cards?: SoloCard[] | null;
+    actModes?: ActMode[] | null;
     dropTarget?: SoloDropTarget | null;     // 序列中的所有卡牌（包括主卡牌）
     offsetX?: number;
     offsetY?: number;
     lastPosition?: { x: number; y: number }; // Add this line
-    status?: 'dragging' | 'dropping' | 'cancelled' | 'clicked' | 'finished';
+    status?: 'acting' | 'dragging' | 'dropping' | 'cancelled' | 'finished';
 }
 
 export interface SoloAnimationConfig {
@@ -132,12 +150,7 @@ export interface SoloAnimationConfig {
 
 // 游戏规则相关
 export interface SolitaireRule {
-    canMoveToFoundation: (card: SoloCard, targetZone: SoloZone) => boolean;
-    canMoveToTableau: (card: SoloCard, targetCard: SoloCard | null) => boolean;
-    canMoveFromWaste: (card: SoloCard) => boolean;
-    canDrawFromDeck: (gameState: SoloGameState) => boolean;
-    isGameWon: (gameState: SoloGameState) => boolean;
-    isGameLost: (gameState: SoloGameState) => boolean;
+    getActModes: (card: Card) => ActMode[];
 }
 
 // 统计信息

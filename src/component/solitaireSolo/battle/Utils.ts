@@ -1,7 +1,8 @@
 import { CARD_SUITS, SoloBoardDimension, SoloCard, ZoneType } from "./types/SoloTypes";
 
-export const getCoord = (card: SoloCard, boardDimension: SoloBoardDimension) => {
+export const getCoord = (card: SoloCard, cards: SoloCard[], boardDimension: SoloBoardDimension) => {
     if (!boardDimension || !card.ele) return { x: 0, y: 0 };
+    // const zoneCards = cards.filter(c => c.zoneId === card.zoneId)
     switch (card.zone) {
         case ZoneType.TALON: {
             const x = boardDimension.zones.talon.x
@@ -16,8 +17,16 @@ export const getCoord = (card: SoloCard, boardDimension: SoloBoardDimension) => 
         case ZoneType.TABLEAU: {
             const colIndex = +card.zoneId.split('-')[1];
             const x = boardDimension.zones.tableau.x + colIndex * (boardDimension.cardWidth + boardDimension.spacing);
-            const y = boardDimension.zones.tableau.y + card.zoneIndex * (boardDimension.cardHeight * 0.3);
-            return { x, y };
+            if (card.isRevealed) {
+                const revealedIndex = cards.sort((a, b) => a.zoneIndex - b.zoneIndex).findIndex(c => c.isRevealed)
+                const offsetY = (card.zoneIndex - revealedIndex) * (boardDimension.cardHeight * 0.3) + revealedIndex * boardDimension.cardHeight * 0.1
+                const y = boardDimension.zones.tableau.y + offsetY;
+                return { x, y };
+            } else {
+                const offsetY = card.zoneIndex * (boardDimension.cardHeight * 0.1);
+                const y = boardDimension.zones.tableau.y + offsetY;
+                return { x, y };
+            }
         }
         case ZoneType.FOUNDATION: {
             const index = CARD_SUITS.findIndex(suit => suit === card.suit);
@@ -35,17 +44,21 @@ const getZonePriority = (zoneId: string, card: SoloCard) => {
     return 0;
 }
 
-// 改进的 findBestDropTarget 函数 - 基于交集面积
-export const findBestDropTarget = (position: { x: number; y: number }, card: SoloCard): { zoneId: string; element: Element; priority: number; count: number; area: number } | null => {
+// 改进的 findBestDropTarget 函数 - 使用动态卡牌尺寸
+export const findBestDropTarget = (
+    position: { x: number; y: number },
+    card: SoloCard,
+    boardDimension: SoloBoardDimension  // 添加 boardDimension 参数
+): { zoneId: string; element: Element; priority: number; count: number; area: number } | null => {
     try {
         // 边界检查
         if (position.x < 0 || position.y < 0 || position.x > window.innerWidth || position.y > window.innerHeight) {
             return null;
         }
 
-        // 卡牌尺寸
-        const cardWidth = 60;
-        const cardHeight = 84;
+        // 从 boardDimension 获取实际的卡牌尺寸
+        const cardWidth = boardDimension.cardWidth;
+        const cardHeight = boardDimension.cardHeight;
 
         // 卡牌边界
         const cardLeft = position.x - cardWidth / 2;

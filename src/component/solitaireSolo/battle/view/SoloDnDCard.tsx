@@ -30,7 +30,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
     const [touchStartTime, setTouchStartTime] = useState<number>(0);
     const {
-        dragData,
+        // dragData,
         onDragStart,
     } = useSoloDnDManager();
     const { gameState, boardDimension } = useSoloGameManager();
@@ -89,9 +89,9 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         // if (card.ele) {
         //     document.body.style.cursor = 'grab';
         // }
-        if (!dragData) return;
+
         // onDragOver(e);
-    }, [dragData]);
+    }, []);
 
 
     // 处理触摸事件
@@ -121,7 +121,6 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     }, [card, onDragStart]);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (!dragData) return;
 
         // 防止触摸移动时的默认行为
         e.preventDefault();
@@ -136,15 +135,15 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         }
 
         // onDragOver(e);
-    }, [dragData, card.id]);
+    }, [card.id]);
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-        if (!dragData) return;
+
         // 防止触摸结束时的默认行为    
         e.preventDefault();
 
         // onDrop(e);
-    }, [dragData, card.id]);
+    }, []);
 
     const handleTouchCancel = useCallback((e: React.TouchEvent) => {
         // 触摸被取消（如被系统中断）
@@ -155,10 +154,8 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         setTouchStartTime(0);
 
         // 如果正在拖拽，则结束拖拽
-        if (dragData) {
-            // onDrop(e);
-        }
-    }, [dragData, card.id]);
+
+    }, [card.id]);
 
     // 处理点击事件
     const handleClick = useCallback((e: React.MouseEvent) => {
@@ -194,10 +191,13 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         card.ele = ele;
         if (ele) {
             // console.log('load card:', card.id);
-            const coord = getCoord(card, boardDimension);
-            gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y, zIndex: card.zoneIndex + 10 });
+            const coord = getCoord(card, gameState?.cards || [], boardDimension);
+            const rotateY = card.isRevealed ? 180 : 0;
+            const rotateZ = card.isRevealed && card.zone === "talon" ? 0 : -20;
+
+            gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y, rotateZ, rotateY, zIndex: card.zoneIndex + 10 });
         }
-    }, [boardDimension]);
+    }, [boardDimension, gameState]);
 
     const render = useMemo(() => {
 
