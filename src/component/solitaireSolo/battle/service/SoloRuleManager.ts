@@ -4,6 +4,7 @@
  */
 
 import {
+    ActionStatus,
     ActMode,
     Card,
     CARD_VALUES,
@@ -23,6 +24,10 @@ export class SoloRuleManager implements SolitaireRule {
     }
     getActModes(card: Card): ActMode[] {
         const modes: ActMode[] = [];
+
+        if (this.gameState.actionStatus !== ActionStatus.IDLE) {
+            return modes;
+        }
         if (!card.isRevealed && card.zone !== ZoneType.TALON) {
             return modes;
         }
@@ -35,6 +40,7 @@ export class SoloRuleManager implements SolitaireRule {
             modes.push(ActMode.DRAG);
             return modes;
         }
+
         if (card.zone === ZoneType.TABLEAU) {
             modes.push(ActMode.DRAG);
             modes.push(ActMode.CLICK);

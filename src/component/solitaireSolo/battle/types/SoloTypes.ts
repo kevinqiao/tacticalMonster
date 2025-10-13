@@ -125,10 +125,10 @@ export interface SoloBoardDimension {
 }
 export interface SoloDropTarget {
     zoneId: string;
-    element: Element;
-    priority: number;
-    count: number;
-    area: number;
+    element?: Element;
+    priority?: number;
+    count?: number;
+    area?: number;
 }
 export interface SoloActionData {
     card?: SoloCard;          // 主要被拖拽的卡牌

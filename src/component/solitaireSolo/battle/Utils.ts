@@ -10,8 +10,12 @@ export const getCoord = (card: SoloCard, cards: SoloCard[], boardDimension: Solo
             return { x, y };
         }
         case ZoneType.WASTE: {
+            const openCards = cards.length <= 3 ? cards : cards.slice(cards.length - 3, cards.length);
+            const index = openCards.findIndex(c => c.id === card.id)
+            console.log("index", index, openCards)
+            const offsetY = index < 0 ? 0 : index;
             const x = boardDimension.zones.waste.x
-            const y = boardDimension.zones.waste.y
+            const y = boardDimension.zones.waste.y + boardDimension.cardHeight * 0.15 * offsetY
             return { x, y };
         }
         case ZoneType.TABLEAU: {

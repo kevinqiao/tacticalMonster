@@ -48,7 +48,6 @@ interface SoloGameProviderProps {
 }
 
 export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig }) => {
-    const [isActing, setIsActing] = useState(false);
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };

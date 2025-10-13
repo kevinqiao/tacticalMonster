@@ -7,7 +7,6 @@ import gsap from 'gsap';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { ActionStatus, ActMode, SoloActionData, SoloBoardDimension, SoloCard, SoloDropTarget, SoloZone, ZoneType } from '../types/SoloTypes';
 import { findBestDropTarget } from '../Utils';
-import { useEventManager } from './EventProvider';
 import { useSoloGameManager } from './GameManager';
 import useActHandler from './handler/useActHandler';
 
@@ -52,8 +51,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
     // 获取游戏管理器
     const { gameState, ruleManager, boardDimension } = useSoloGameManager();
-    const { drawCard, onClickOrTouch, onDrop } = useActHandler();
-    const { eventQueue, addEvent } = useEventManager();
+    const { onClickOrTouch, onDrop } = useActHandler();
 
 
     // 检测是否为触摸设备
@@ -104,9 +102,9 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
 
     // 开始拖拽
     const onDragStart = useCallback((card: SoloCard, event: React.MouseEvent | React.TouchEvent) => {
-        if (!ruleManager || !card.ele || !gameState || gameState.actionStatus !== ActionStatus.IDLE) return;
-        const actModes = ruleManager.getActModes(card);
-        if (actModes.length === 0) return;
+        const actModes = ruleManager?.getActModes(card) || [];
+        console.log('actModes', actModes);
+        if (!ruleManager || !card.ele || !gameState || actModes.length === 0) return;
         gameState.actionStatus = ActionStatus.ACTING;
         event.preventDefault();
         event.stopPropagation();
@@ -114,7 +112,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         startPositionRef.current = position;
         const rect = card.ele.getBoundingClientRect();
         const cards = card.zone === ZoneType.TABLEAU ? gameState.cards.filter((c: SoloCard) => c.zoneId === card.zoneId && c.zoneIndex > card.zoneIndex).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex) : [];
-        console.log('cards', card, cards);
+        // console.log('cards', card, cards);
         const dragData: SoloActionData = {
             card,
             cards, // 包含整个序列
@@ -184,8 +182,9 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             Math.pow(position.x - startPositionRef.current.x, 2) +
             Math.pow(position.y - startPositionRef.current.y, 2)
         );
-        console.log('distance', distance, actionDataRef.current);
+        console.log('distance', distance, gameState?.actionStatus, actionDataRef.current);
         // 处理点击（移动距离太小）
+        gameState.actionStatus = ActionStatus.DROPPING;
         if (distance < 5) {
             onClickOrTouch(actionDataRef.current);
         } else {

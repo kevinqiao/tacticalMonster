@@ -6,7 +6,7 @@ import { gsap } from 'gsap';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useSoloGameManager } from '../service/GameManager';
 import { useSoloDnDManager } from '../service/SoloDnDProvider';
-import { SoloCard } from '../types/SoloTypes';
+import { ActMode, SoloCard } from '../types/SoloTypes';
 import './card.css';
 
 import { getCoord } from '../Utils';
@@ -33,7 +33,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         // dragData,
         onDragStart,
     } = useSoloDnDManager();
-    const { gameState, boardDimension } = useSoloGameManager();
+    const { ruleManager, gameState, boardDimension } = useSoloGameManager();
 
 
     // console.log("style", source, card, style);
@@ -78,20 +78,22 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         // if (!card.isRevealed) return;
         e.preventDefault();
         e.stopPropagation();
-        if (card.ele) {
-            document.body.style.cursor = 'grab';
-        }
+        // if (card.ele) {
+        //     document.body.style.cursor = 'grab';
+        // }
         onDragStart(card, e);
     }, [card, onDragStart]);
 
     const handleMouseOver = useCallback((e: React.MouseEvent) => {
-
-        // if (card.ele) {
-        //     document.body.style.cursor = 'grab';
-        // }
+        e.stopPropagation();
+        e.preventDefault();
+        const actModes = ruleManager?.getActModes(card) || [];
+        if (actModes.includes(ActMode.DRAG)) {
+            document.body.style.cursor = 'grab';
+        }
 
         // onDragOver(e);
-    }, []);
+    }, [ruleManager, card]);
 
 
     // 处理触摸事件
@@ -173,12 +175,24 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
     }, [card]);
 
     // 处理悬停事件
-    const handleMouseEnter = useCallback(() => {
-        // setIsHovered(true);
-    }, []);
+    const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
 
-    const handleMouseLeave = useCallback(() => {
+        console.log('handleMouseEnter', card);
+        const actModes = ruleManager?.getActModes(card) || [];
+        if (actModes.includes(ActMode.DRAG)) {
+            document.body.style.cursor = 'grab';
+        }
+        // if (card.ele) {
+        //     document.body.style.cursor = 'grab';
+        // }
+    }, [ruleManager, card]);
 
+    const handleMouseLeave = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        document.body.style.cursor = 'default';
         // setIsHovered(false);
     }, []);
 

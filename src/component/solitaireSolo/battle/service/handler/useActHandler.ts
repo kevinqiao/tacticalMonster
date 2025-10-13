@@ -54,8 +54,22 @@ const useActHandler = () => {
 
     }, [gameState, boardDimension]);
     const onClickOrTouch = useCallback((data: SoloActionData) => {
+        if (!gameState) return;
+        const { card } = data;
+        if (card?.zone === ZoneType.TABLEAU) {
+            const zoneId = `foundation-${card.suit}`;
+            const targetZone = gameState.zones.find(z => z.type === ZoneType.TABLEAU && z.id !== card.zoneId);
+            if (targetZone) {
+                moveCard({ card, cards: [], dropTarget: { zoneId } });
+            }
+            return;
+        } else if (card?.zone === ZoneType.TALON) {
+            drawCard({ card });
+        }
 
-    }, []);
+
+
+    }, [gameState, boardDimension]);
     const cancelDrag = useCallback((data: SoloActionData) => {
         console.log('cancelDrag', data, gameState);
         PlayEffects.dragCancel({
@@ -67,22 +81,27 @@ const useActHandler = () => {
         });
     }, [gameState, boardDimension]);
     const drawCard = useCallback((data: SoloActionData) => {
-        console.log('drawCard', data);
-    }, []);
+        const { card } = data;
+        if (!gameState || !card) return;
+        const wasteCards = gameState.cards.filter((c: SoloCard) => c.zoneId === 'waste').sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
+        const wasteIndex = wasteCards.length === 0 ? 0 : wasteCards[wasteCards.length - 1].zoneIndex + 1;
+        PlayEffects.hideCard({ data: { card } });
+        setTimeout(() => {
+            PlayEffects.popCard({ data: { card } });
+        }, 400)
+        const drawedCard: SoloCard = { ...card, isRevealed: true, zone: ZoneType.WASTE, zoneId: 'waste', zoneIndex: wasteIndex };
+        PlayEffects.drawCard({
+            data: { card: drawedCard, boardDimension, gameState }, onComplete: () => {
+                onUpdate([drawedCard]);
+                gameState.actionStatus = ActionStatus.IDLE;
+            }
+        });
+
+    }, [gameState, boardDimension]);
     const wasteCard = useCallback((data: SoloActionData) => {
         console.log('wasteCard', data);
     }, []);
-    const foundationCard = useCallback((data: SoloActionData) => {
-        const { card, cards, dropTarget } = data;
-        if (!gameState || !card || !dropTarget) return;
-        const flipCards: SoloCard[] = [];
-        const dropCards: SoloCard[] = [];
-        if (dropTarget.zoneId && card && dropTarget.zoneId !== card.zoneId) {
-            const targetZone = gameState.zones.find((z: SoloZone) => z.id === dropTarget.zoneId);
-            if (!targetZone) return;
-            console.log('moveCard', data);
-        }
-    }, [gameState, boardDimension]);
+
     const moveCard = useCallback(async (data: SoloActionData) => {
         const { card, cards, dropTarget } = data;
         if (!gameState || !card || !dropTarget) return;
@@ -91,7 +110,6 @@ const useActHandler = () => {
         if (dropTarget.zoneId && card && dropTarget.zoneId !== card.zoneId) {
             const targetZone = gameState.zones.find((z: SoloZone) => z.id === dropTarget.zoneId);
             if (!targetZone) return;
-
             const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === dropTarget.zoneId).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
             const zoneIndex = zoneCards.length === 0 ? 0 : zoneCards[zoneCards.length - 1].zoneIndex + 1;
             dropCards.push({ ...card, zone: targetZone.type, zoneId: dropTarget.zoneId, zoneIndex: zoneIndex });
@@ -113,7 +131,7 @@ const useActHandler = () => {
                     });
                 }
                 resolve();
-            }, 300);
+            }, 100);
             // convex.query(api.dao.userDao.findUser, { uid: '111' })
             //     .then((user) => {
             //         if (user) {
@@ -139,6 +157,7 @@ const useActHandler = () => {
         await Promise.all([queryPromise, animationPromise]);
         onUpdate([...flipCards, ...dropCards]);
         gameState.actionStatus = ActionStatus.IDLE;
+        console.log("action finished", data);
         // data.status = 'finished';
         // 两个操作都完成后调用
 

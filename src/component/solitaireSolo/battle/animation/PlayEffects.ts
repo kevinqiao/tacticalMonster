@@ -34,8 +34,46 @@ const popCard = (card: SoloCard) => {
     }
 
 }
-export const PlayEffects: PlayEffects = {
+const hideCard = (card: SoloCard) => {
 
+
+    if (card.ele) {
+        const frontSvg = card.ele.querySelector('.front'); // 选择 .front SVG
+        if (frontSvg) {
+            // 获取顶部 rank 和 suit 的 <text> 元素
+            const topRankText = frontSvg.querySelector('text[x="10"][y="25"]');
+            const topSuitText = frontSvg.querySelector('text[x="10"][y="45"]');
+
+            // 获取底部（旋转） rank 和 suit 的 <text> 元素
+            const bottomRankText = frontSvg.querySelector('g text[x="0"][y="20"]');
+            const bottomSuitText = frontSvg.querySelector('g text[x="0"][y="40"]');
+
+            // 获取中央 suit 的 <text> 元素
+            const centerSuitText = frontSvg.querySelector('text[x="50"][y="90"]');
+            if (topRankText && topSuitText && bottomRankText && bottomSuitText && centerSuitText) {
+                topRankText.textContent = '';
+                topSuitText.textContent = '';
+                bottomRankText.textContent = '';
+                bottomSuitText.textContent = '';
+                centerSuitText.textContent = '';
+            }
+        }
+    }
+
+}
+export const PlayEffects: PlayEffects = {
+    popCard: ({ data }) => {
+        const { card } = data;
+        if (card && card.ele) {
+            popCard(card);
+        }
+    },
+    hideCard: ({ data }) => {
+        const { card } = data;
+        if (card && card.ele) {
+            hideCard(card);
+        }
+    },
     shuffle: ({ data }) => {
         const { cards, boardDimension } = data;
 
@@ -227,12 +265,17 @@ export const PlayEffects: PlayEffects = {
         const { card, boardDimension, gameState } = data;
         const tl = gsap.timeline({
             onComplete: () => {
+                if (card.ele)
+                    gsap.set(card.ele, { zIndex: card.zoneIndex + 10 });
                 onComplete?.();
             }
         });
         if (card.ele) {
-            popCard(card);
-            const coord = getCoord(card, gameState.cards, boardDimension);
+            // popCard(card);
+            const wasteCards = gameState.cards.filter((c: SoloCard) => c.zoneId === 'waste');
+            const cards = [...wasteCards, card].sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
+            console.log('drawCard cards', cards);
+            const coord = getCoord(card, cards, boardDimension);
             tl.to(card.ele, {
                 x: coord.x + 120,
                 y: coord.y,
@@ -247,6 +290,20 @@ export const PlayEffects: PlayEffects = {
                 duration: 0.7,
                 ease: "ease.in"
             });
+
+            wasteCards.forEach((c: SoloCard) => {
+                const coord = getCoord(c, cards, boardDimension);
+                if (c.ele) {
+                    tl.to(c.ele, {
+                        x: coord.x + 80,
+                        y: coord.y + 40,
+                        rotateZ: 0,
+                        duration: 0.7,
+                        ease: "ease.in"
+                    }, "<");
+                }
+            });
+
         }
         tl.play();
         return;
@@ -271,7 +328,7 @@ export const PlayEffects: PlayEffects = {
                     x: coord.x,
                     y: coord.y,
                     rotateZ: 0,
-                    duration: 1.2,
+                    duration: 0.6,
                     ease: "ease.in"
                 }, "<");
             }
