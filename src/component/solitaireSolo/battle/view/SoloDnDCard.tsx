@@ -11,6 +11,7 @@ import './card.css';
 
 import { getCoord } from '../Utils';
 import CardSVG from './CardSVG';
+import { popCard } from '../animation/effects/popCard';
 interface SoloDnDCardProps {
     card: SoloCard;
     onClick?: (card: SoloCard) => void;
@@ -179,7 +180,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         e.stopPropagation();
         e.preventDefault();
 
-        console.log('handleMouseEnter', card);
+        // console.log('handleMouseEnter', card);
         const actModes = ruleManager?.getActModes(card) || [];
         if (actModes.includes(ActMode.DRAG)) {
             document.body.style.cursor = 'grab';
@@ -205,11 +206,12 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         card.ele = ele;
         if (ele) {
             // console.log('load card:', card.id);
-            const coord = getCoord(card, gameState?.cards || [], boardDimension);
+            const zoneCards = gameState?.cards.filter((c: SoloCard) => c.zoneId === card.zoneId) || [];
+            const coord = getCoord(card, zoneCards, boardDimension);
             const rotateY = card.isRevealed ? 180 : 0;
             const rotateZ = card.isRevealed && card.zone === "talon" ? 0 : -20;
-
-            gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y, rotateZ, rotateY, zIndex: card.zoneIndex + 10 });
+            popCard(card);
+            gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y, rotateZ: 0, rotateY, zIndex: card.zoneIndex + 10 });
         }
     }, [boardDimension, gameState]);
 

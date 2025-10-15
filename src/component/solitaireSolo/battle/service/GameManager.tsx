@@ -2,18 +2,14 @@
  * 单人纸牌游戏管理器
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 import {
-    ActionStatus,
     DEFAULT_GAME_CONFIG,
     SolitaireRule,
     SoloBoardDimension,
     SoloGameConfig,
-    SoloGameState,
-    SoloZone,
-    ZoneType
+    SoloGameState
 } from '../types/SoloTypes';
-import { SoloGameEngine } from './SoloGameEngine';
 import SoloRuleManager from './SoloRuleManager';
 
 interface ISoloGameContext {
@@ -22,6 +18,7 @@ interface ISoloGameContext {
     config: SoloGameConfig;
     ruleManager: SolitaireRule | null;
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
+    loadGame: (game: SoloGameState) => void;
 }
 
 const SoloGameContext = createContext<ISoloGameContext>({
@@ -30,7 +27,8 @@ const SoloGameContext = createContext<ISoloGameContext>({
     boardDimension: null,
     config: DEFAULT_GAME_CONFIG,
     ruleManager: null,
-    updateBoardDimension: () => { }
+    updateBoardDimension: () => { },
+    loadGame: () => { }
 });
 
 export const useSoloGameManager = () => {
@@ -57,42 +55,49 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     }, [gameState])
 
     // 创建区域定义
-    const createZones = useCallback((): SoloZone[] => {
-        return [
-            // 牌堆
-            { id: 'talon', type: ZoneType.TALON },
-            // 废牌堆
-            { id: 'waste', type: ZoneType.WASTE },
-            // 基础堆
-            { id: 'foundation-hearts', type: ZoneType.FOUNDATION },
-            { id: 'foundation-diamonds', type: ZoneType.FOUNDATION },
-            { id: 'foundation-clubs', type: ZoneType.FOUNDATION },
-            { id: 'foundation-spades', type: ZoneType.FOUNDATION },
-            // 牌桌
-            { id: 'tableau-0', type: ZoneType.TABLEAU },
-            { id: 'tableau-1', type: ZoneType.TABLEAU },
-            { id: 'tableau-2', type: ZoneType.TABLEAU },
-            { id: 'tableau-3', type: ZoneType.TABLEAU },
-            { id: 'tableau-4', type: ZoneType.TABLEAU },
-            { id: 'tableau-5', type: ZoneType.TABLEAU },
-            { id: 'tableau-6', type: ZoneType.TABLEAU }
-        ];
-    }, []);
+    // const createZones = useCallback((): SoloZone[] => {
+    //     return [
+    //         // 牌堆
+    //         { id: 'talon', type: ZoneType.TALON },
+    //         // 废牌堆
+    //         { id: 'waste', type: ZoneType.WASTE },
+    //         // 基础堆
+    //         { id: 'foundation-hearts', type: ZoneType.FOUNDATION },
+    //         { id: 'foundation-diamonds', type: ZoneType.FOUNDATION },
+    //         { id: 'foundation-clubs', type: ZoneType.FOUNDATION },
+    //         { id: 'foundation-spades', type: ZoneType.FOUNDATION },
+    //         // 牌桌
+    //         { id: 'tableau-0', type: ZoneType.TABLEAU },
+    //         { id: 'tableau-1', type: ZoneType.TABLEAU },
+    //         { id: 'tableau-2', type: ZoneType.TABLEAU },
+    //         { id: 'tableau-3', type: ZoneType.TABLEAU },
+    //         { id: 'tableau-4', type: ZoneType.TABLEAU },
+    //         { id: 'tableau-5', type: ZoneType.TABLEAU },
+    //         { id: 'tableau-6', type: ZoneType.TABLEAU }
+    //     ];
+    // }, []);
 
     // 更新棋盘尺寸
     const updateBoardDimension = useCallback((dimension: SoloBoardDimension) => {
         setBoardDimension(dimension);
     }, []);
 
+    const loadGame = useCallback((game: SoloGameState) => {
+        console.log("loadGame", game);
+        setGameState(game);
+    }, []);
 
-    useEffect(() => {
-        if (gameId) {
-            const game = SoloGameEngine.createGame();
-            game.gameId = gameId;
-            const zones = createZones();
-            setGameState({ ...game, zones, actionStatus: ActionStatus.IDLE });
-        }
-    }, [gameId]);
+    // useEffect(() => {
+    //     if (!gameState) return;
+    //     const interval = setInterval(() => {
+    //         const isReady = gameState.cards.every(card => card.ele);
+    //         if (isReady) {
+    //             clearInterval(interval);
+    //             PlayEffects.initGame({ data: { cards: gameState.cards, boardDimension } });
+    //         }
+    //     }, 500);
+    // }, [gameState]);
+    console.log("gameState", gameState);
 
 
     const value: ISoloGameContext = {
@@ -101,6 +106,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         config,
         ruleManager,
         updateBoardDimension,
+        loadGame
     };
 
     return (

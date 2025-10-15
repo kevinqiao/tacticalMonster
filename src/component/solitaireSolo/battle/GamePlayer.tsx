@@ -7,9 +7,11 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { SoloDnDCard } from '..';
 import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
+import useActHandler from './service/handler/useActHandler';
 import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
-import { CARD_SUITS, SoloBoardDimension, SoloCard, SUIT_ICONS } from './types/SoloTypes';
+import { ActionStatus, CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
+import { createZones } from './Utils';
 
 interface SoloPlayerProps {
     onGameStart?: () => void;
@@ -22,10 +24,12 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     const {
         gameState,
         boardDimension,
-        updateBoardDimension
+        updateBoardDimension,
+        loadGame
     } = useSoloGameManager();
     const { cards } = gameState || {};
 
+    const { recycle, deal } = useActHandler();
     const { addEvent } = useEventManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -221,20 +225,10 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         }
     }, [gameState, boardDimension]);
 
-    const handleShuffle = useCallback(() => {
-        if (!gameState) return;
-        addEvent({
-            id: Date.now().toString(),
-            name: "shuffle",
-        });
-
-    }, [addEvent]);
-
 
     const handleDeal = useCallback(() => {
         if (!gameState) return;
         const dealedCards = SoloGameEngine.deal(gameState.cards);
-
         addEvent({
             id: Date.now().toString(),
             name: "deal",
@@ -243,18 +237,35 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
     }, [addEvent, gameState]);
 
+    const handleGameOpen = useCallback(() => {
+        console.log("handleGameOpen");
+        const game = SoloGameEngine.createGame();
+        SoloGameEngine.shuffleDeck(game.cards);
+        const zones = createZones();
+        const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
+        loadGame(gameState);
+    }, [loadGame]);
+    const handleGameInit = useCallback(() => {
+        console.log("handleGameInit");
+        const game = SoloGameEngine.createGame();
+        SoloGameEngine.shuffleDeck(game.cards);
+        const dealedCards = SoloGameEngine.deal(game.cards);
+        dealedCards.forEach((r: SoloCard) => {
+            const card = game.cards.find((c: SoloCard) => c.id === r.id);
+            if (card) {
+                card.isRevealed = r.isRevealed;
+                card.zone = r.zone;
+                card.zoneId = r.zoneId;
+                card.zoneIndex = r.zoneIndex;
+            }
+            // console.log('update card', card);
+        });
+        const zones = createZones();
+        const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
+        loadGame(gameState);
+    }, [loadGame]);
 
 
-    // 处理卡牌点击
-    const handleCardClick = useCallback((card: SoloCard) => {
-
-    }, []);
-
-    // 处理卡牌双击
-    const handleCardDoubleClick = useCallback((card: SoloCard) => {
-        // 双击自动移动到合适位置
-        console.log('Double click on card:', card.id);
-    }, []);
 
 
     // 渲染基础堆
@@ -289,7 +300,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 </div>
             );
         });
-    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
+    }, [gameState, boardDimension, getUnifiedCardStyle]);
 
     // 渲染牌堆
     const renderTalon = useCallback(() => {
@@ -338,7 +349,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
             </div>
         );
-    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
+    }, [gameState, boardDimension, getUnifiedCardStyle]);
 
     // 渲染牌桌
     const renderTableau = useCallback(() => {
@@ -367,15 +378,13 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 </div>
             );
         });
-    }, [gameState, boardDimension, handleCardClick, handleCardDoubleClick, getUnifiedCardStyle]);
+    }, [gameState, boardDimension, getUnifiedCardStyle]);
     const renderCards = useMemo(() => {
         if (!cards || !boardDimension) return null;
         return cards.sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
             <SoloDnDCard
                 key={card.id}
                 card={card}
-                onClick={handleCardClick}
-                onDoubleClick={handleCardDoubleClick}
                 style={{
                     position: 'absolute',
                     top: 0,
@@ -392,7 +401,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 
     // 渲染控制面板
     const renderControlPanel = useCallback(() => {
-        if (!gameState) return null;
+
         const isMobile = screenSize === 'mobile';
         const isTablet = screenSize === 'tablet';
 
@@ -407,7 +416,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 }}
             >
                 <button
-                    onClick={handleShuffle}
+                    onClick={handleGameOpen}
                     style={{
                         fontSize: isMobile ? '12px' : '14px',
                         padding: isMobile ? '6px 8px' : '8px 12px',
@@ -415,12 +424,34 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                         minHeight: isMobile ? '32px' : '36px',
                     }}
                 >
-                    Shuffle
+                    Open Game
+                </button>
+                <button
+                    onClick={handleGameInit}
+                    style={{
+                        fontSize: isMobile ? '12px' : '14px',
+                        padding: isMobile ? '6px 8px' : '8px 12px',
+                        height: isMobile ? '32px' : '36px', // 固定高度
+                        minHeight: isMobile ? '32px' : '36px',
+                    }}
+                >
+                    Init Game
+                </button>
+                <button
+                    onClick={recycle}
+                    style={{
+                        fontSize: isMobile ? '12px' : '14px',
+                        padding: isMobile ? '6px 8px' : '8px 12px',
+                        height: isMobile ? '32px' : '36px', // 固定高度
+                        minHeight: isMobile ? '32px' : '36px',
+                    }}
+                >
+                    Recycle
                 </button>
 
 
                 <button
-                    onClick={handleDeal}
+                    onClick={() => deal('fan')}
                     style={{
                         fontSize: isTablet ? '12px' : '14px',
                         padding: isTablet ? '6px 8px' : '8px 12px',
@@ -431,10 +462,45 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 >
                     Deal
                 </button>
-
+                <button
+                    onClick={() => deal('spiral')}
+                    style={{
+                        fontSize: isTablet ? '12px' : '14px',
+                        padding: isTablet ? '6px 8px' : '8px 12px',
+                        height: isTablet ? '32px' : '36px',
+                        minHeight: isTablet ? '32px' : '36px',
+                        flex: 'none'
+                    }}
+                >
+                    Deal(spiral)
+                </button>
+                <button
+                    onClick={() => deal('wave')}
+                    style={{
+                        fontSize: isTablet ? '12px' : '14px',
+                        padding: isTablet ? '6px 8px' : '8px 12px',
+                        height: isTablet ? '32px' : '36px',
+                        minHeight: isTablet ? '32px' : '36px',
+                        flex: 'none'
+                    }}
+                >
+                    Deal(wave)
+                </button>
+                <button
+                    onClick={() => deal('explosion')}
+                    style={{
+                        fontSize: isTablet ? '12px' : '14px',
+                        padding: isTablet ? '6px 8px' : '8px 12px',
+                        height: isTablet ? '32px' : '36px',
+                        minHeight: isTablet ? '32px' : '36px',
+                        flex: 'none'
+                    }}
+                >
+                    Deal(explosion)
+                </button>
             </div>
         );
-    }, [gameState, screenSize, handleDeal, handleShuffle]);
+    }, [gameState, screenSize, handleDeal]);
 
     // useEffect(() => {
     //     console.log('cards', cards);

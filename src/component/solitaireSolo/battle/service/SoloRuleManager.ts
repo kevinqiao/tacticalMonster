@@ -56,7 +56,7 @@ export class SoloRuleManager implements SolitaireRule {
     /**
      * 检查是否可以移动卡牌到基础堆
      */
-    canMoveToFoundation(card: SoloCard, foundationZoneId: string): boolean {
+    canMoveToFoundation(card: Card, foundationZoneId: string): boolean {
         if (!card.isRevealed || !card.rank) return false;
 
         // 获取基础堆中的卡牌（按zoneId过滤）
@@ -81,13 +81,12 @@ export class SoloRuleManager implements SolitaireRule {
     /**
      * 检查是否可以移动卡牌到牌桌
      */
-    canMoveToTableau(card: SoloCard, targetCard: SoloCard | null, targetColumn: number): boolean {
+    canMoveToTableau(card: Card, zoneId: string): boolean {
         if (!card.isRevealed || !card.rank) return false;
-
-        if (targetCard === null) {
-            // 空列只能放K
-            return card.rank === 'K';
-        }
+        const zoneCards = this.gameState.cards.filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === zoneId).sort((a, b) => b.zoneIndex - a.zoneIndex);
+        const targetCard = zoneCards.length > 0 ? zoneCards[zoneCards.length - 1] : null;
+        if (targetCard === null)
+            return card.rank !== 'K' ? false : true
 
         if (!targetCard.isRevealed) return false;
 
@@ -99,33 +98,12 @@ export class SoloRuleManager implements SolitaireRule {
         return isAlternatingColor && isDescending;
     }
 
-    /**
-     * 检查是否可以移动卡牌组到牌桌
-     */
-    canMoveCardSequence(cards: SoloCard[], targetCard: SoloCard | null, targetColumn: number): boolean {
-        if (cards.length === 0) return false;
 
-        // 检查卡牌序列是否有效（按降序和交替颜色排列）
-        for (let i = 0; i < cards.length - 1; i++) {
-            const current = cards[i];
-            const next = cards[i + 1];
-
-            if (!current.isRevealed || !next.isRevealed || !current.rank || !next.rank) return false;
-
-            const isAlternatingColor = current.isRed !== next.isRed;
-            const isDescending = CARD_VALUES[current.rank] === CARD_VALUES[next.rank] - 1;
-
-            if (!isAlternatingColor || !isDescending) return false;
-        }
-
-        // 检查是否可以移动到目标位置
-        return this.canMoveToTableau(cards[0], targetCard, targetColumn);
-    }
 
     /**
      * 检查是否可以移动卡牌到废牌堆
      */
-    canMoveToWaste(card: SoloCard): boolean {
+    canMoveToWaste(card: Card): boolean {
         // 废牌堆通常不能直接移动卡牌到其中
         // 只有从牌堆抽牌才能添加到废牌堆
         return false;
@@ -153,7 +131,7 @@ export class SoloRuleManager implements SolitaireRule {
                 .sort((a, b) => b.zoneIndex - a.zoneIndex);
             const targetCard = zoneCards.length > 0 ? zoneCards[0] : null;
 
-            if (this.canMoveToTableau(card, targetCard, parseInt(tableauZone.id.split('-')[1]))) {
+            if (this.canMoveToTableau(card, tableauZone.id)) {
                 return true;
             }
         }
@@ -186,7 +164,7 @@ export class SoloRuleManager implements SolitaireRule {
                 .sort((a, b) => b.zoneIndex - a.zoneIndex);
             const targetCard = zoneCards.length > 0 ? zoneCards[0] : null;
 
-            if (this.canMoveToTableau(card, targetCard, col)) {
+            if (this.canMoveToTableau(card, tableauZone.id)) {
                 return true;
             }
         }
@@ -219,48 +197,7 @@ export class SoloRuleManager implements SolitaireRule {
         return talonCards.length > 0;
     }
 
-    /**
-     * 检查游戏是否胜利
-     */
-    isGameWon(): boolean {
-        const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
-        return foundationZones.every(foundationZone => {
-            const foundationCards = this.gameState.cards.filter(c => c.zone === ZoneType.FOUNDATION && c.zoneId === foundationZone.id);
-            return foundationCards.length === 13;
-        });
-    }
 
-    /**
-     * 检查游戏是否失败
-     */
-    isGameLost(): boolean {
-        // 检查是否还有可移动的卡牌
-        if (this.canDrawCard()) return false;
-
-        // 检查废牌堆是否有可移动的卡牌
-        const wasteCards = this.gameState.cards.filter(c => c.zone === ZoneType.WASTE);
-        if (wasteCards.length > 0) {
-            const topWasteCard = wasteCards.sort((a, b) => b.zoneIndex - a.zoneIndex)[0];
-            if (this.canMoveFromWaste(topWasteCard)) return false;
-        }
-
-        // 检查牌桌是否有可移动的卡牌
-        const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
-        for (const tableauZone of tableauZones) {
-            const col = parseInt(tableauZone.id.split('-')[1]);
-            const zoneCards = this.gameState.cards
-                .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === tableauZone.id)
-                .sort((a, b) => b.zoneIndex - a.zoneIndex);
-
-            for (const card of zoneCards) {
-                if (card.isRevealed && this.canMoveFromTableau(card, col)) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
 
     /**
      * 获取所有可能的移动
@@ -299,7 +236,7 @@ export class SoloRuleManager implements SolitaireRule {
                     .sort((a, b) => b.zoneIndex - a.zoneIndex);
                 const targetCard = zoneCards.length > 0 ? zoneCards[0] : null;
 
-                if (this.canMoveToTableau(topWasteCard, targetCard, col)) {
+                if (this.canMoveToTableau(topWasteCard, tableauZone.id)) {
                     moves.push({
                         id: `move-${Date.now()}-${Math.random()}`,
                         type: 'move',
@@ -353,7 +290,7 @@ export class SoloRuleManager implements SolitaireRule {
                         .sort((a, b) => b.zoneIndex - a.zoneIndex);
                     const targetCard = targetZoneCards.length > 0 ? targetZoneCards[0] : null;
 
-                    if (this.canMoveToTableau(card, targetCard, targetCol)) {
+                    if (this.canMoveToTableau(card, targetTableauZone.id)) {
                         moves.push({
                             id: `move-${Date.now()}-${Math.random()}`,
                             type: 'move',
@@ -457,25 +394,51 @@ export class SoloRuleManager implements SolitaireRule {
     /**
      * 验证移动是否合法
      */
-    validateMove(move: SoloMove): boolean {
-        switch (move.type) {
-            case 'foundation':
-                return this.canMoveToFoundation(move.card, move.to);
+    canMoveToZone(card: Card, zoneId: string): boolean {
+        const moveType = zoneId === "talon" || zoneId === "waste" ? zoneId : zoneId.split('-')[0]
 
-            case 'move':
-                if (move.to.startsWith('tableau-')) {
-                    const targetCol = parseInt(move.to.split('-')[1]);
-                    const targetZoneCards = this.gameState.cards
-                        .filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === `tableau-${targetCol}`)
-                        .sort((a, b) => b.zoneIndex - a.zoneIndex);
-                    const targetCard = targetZoneCards.length > 0 ? targetZoneCards[0] : null;
-                    return this.canMoveToTableau(move.card, targetCard, targetCol);
-                }
-                return false;
+        switch (moveType) {
+            case 'foundation':
+                return this.canMoveToFoundation(card, zoneId);
+            case 'waste':
+                return this.canMoveToWaste(card);
+            case 'tableau':
+                return this.canMoveToTableau(card, zoneId);
 
             default:
                 return false;
         }
+    }
+
+    /**
+     * 检查游戏是否胜利
+     * 胜利条件：所有4个 foundation 堆都装满了13张牌（每种花色从A到K）
+     */
+    isGameWon(): boolean {
+        const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
+
+        // 检查每个 foundation 堆
+        for (const foundationZone of foundationZones) {
+            const foundationCards = this.gameState.cards.filter(
+                c => c.zone === ZoneType.FOUNDATION && c.zoneId === foundationZone.id
+            );
+
+            // 每个 foundation 堆应该有13张牌（A到K）
+            if (foundationCards.length !== 13) {
+                return false;
+            }
+
+            // 可选：验证顺序是否正确（A到K）
+            const sortedCards = foundationCards.sort((a, b) => (a.value || 0) - (b.value || 0));
+            for (let i = 0; i < sortedCards.length; i++) {
+                if (sortedCards[i].value !== i + 1) {
+                    return false;
+                }
+            }
+        }
+
+        // 所有4个 foundation 堆都满了，游戏胜利
+        return true;
     }
 }
 

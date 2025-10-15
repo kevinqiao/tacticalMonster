@@ -151,6 +151,7 @@ export interface SoloAnimationConfig {
 // 游戏规则相关
 export interface SolitaireRule {
     getActModes: (card: Card) => ActMode[];
+    isGameWon: () => boolean;
 }
 
 // 统计信息

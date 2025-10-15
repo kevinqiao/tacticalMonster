@@ -3,7 +3,7 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import GamePlayer from './GamePlayer';
 import { EventProvider } from './service/EventProvider';
 import SoloGameProvider from './service/GameManager';
@@ -25,7 +25,6 @@ const SoloGame: React.FC<SoloGameProps> = ({
 
     const [gameId, setGameId] = useState<string | undefined>(undefined);
     // 初始化游戏
-
 
     // if (!isInitialized) {
     //     return (
@@ -56,20 +55,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
                     </SoloDnDProvider>
                 </EventProvider>
             </SoloGameProvider>
-            <div style={{ position: 'absolute', top: 50, left: 0 }}>
-                <button
-                    onClick={() => setGameId("####")}
-                    style={{
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        padding: '8px 12px',
-                        height: '36px', // 固定高度
-                        minHeight: '36px',
-                    }}
-                >
-                    Shuffle
-                </button>
-            </div>
+
             <div style={{ position: 'absolute', top: 100, left: 0, zIndex: 2000 }}>
                 <button
                     onClick={() => setGameId("game-open")}
@@ -84,7 +70,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
                     Game Open
                 </button>
             </div>
-            <div style={{ position: 'absolute', top: 150, left: 0, zIndex: 2000 }}>
+            {/* <div style={{ position: 'absolute', top: 150, left: 0, zIndex: 2000 }}>
                 <button
                     onClick={() => setGameId("game-deal")}
                     style={{
@@ -97,7 +83,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
                 >
                     Game Dealed
                 </button>
-            </div>
+            </div> */}
         </div>
     );
 };

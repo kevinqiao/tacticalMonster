@@ -1,12 +1,14 @@
 import { ActionStatus, Card, SoloActionData, SoloCard, SoloZone, ZoneType } from "component/solitaireSolo";
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
+import { dealEffect } from "../../animation/effects/dealEffect";
 import { PlayEffects } from "../../animation/PlayEffects";
 import { useSoloGameManager } from "../GameManager";
+import { SoloGameEngine } from "../SoloGameEngine";
 
 const useActHandler = () => {
     const convex = useConvex();
-    const { gameState, boardDimension } = useSoloGameManager();
+    const { ruleManager, gameState, boardDimension } = useSoloGameManager();
 
     const onUpdate = useCallback((result: Card[]) => {
         if (!gameState) return;
@@ -18,13 +20,13 @@ const useActHandler = () => {
                 card.zoneId = r.zoneId;
                 card.zoneIndex = r.zoneIndex;
             }
-            console.log('update card', card);
+            // console.log('update card', card);
         });
 
     }, [gameState]);
 
     const onDrop = useCallback(async (data: SoloActionData) => {
-        console.log('onDrop', data, gameState);
+
         if (!gameState) return;
         gameState.actionStatus = ActionStatus.DROPPING;
         const { dropTarget, card, cards } = data;
@@ -47,10 +49,6 @@ const useActHandler = () => {
                 moveCard(data);
             return;
         }
-        if (zone?.type === ZoneType.WASTE) {
-            wasteCard(data);
-            return;
-        }
 
     }, [gameState, boardDimension]);
     const onClickOrTouch = useCallback((data: SoloActionData) => {
@@ -66,12 +64,45 @@ const useActHandler = () => {
         } else if (card?.zone === ZoneType.TALON) {
             drawCard({ card });
         }
-
-
-
     }, [gameState, boardDimension]);
+
+    const recycle = useCallback(() => {
+        if (!gameState) return;
+        gameState.actionStatus = ActionStatus.ACTING;
+        const talonCards = gameState.cards.filter((c: SoloCard) => c.zoneId === 'talon');
+        if (talonCards.length > 0)
+            return;
+        const wasteCards = gameState.cards.filter((c: SoloCard) => c.zoneId === 'waste');
+        if (wasteCards.length === 0)
+            return;
+        const cards = gameState.cards.filter((c: SoloCard) => c.zoneId === "waste").sort((a: SoloCard, b: SoloCard) => b.zoneIndex - a.zoneIndex).map((c: SoloCard, index: number) => {
+            return { ...c, zoneIndex: index, zoneId: "talon", zone: ZoneType.TALON };
+        });
+
+        PlayEffects.recycle({
+            data: { gameState, boardDimension, cards },
+            onComplete: () => {
+                onUpdate(cards);
+                gameState.actionStatus = ActionStatus.IDLE;
+            }
+        });
+    }, [gameState, boardDimension])
+    const deal = useCallback((effectType: 'default' | 'fan' | 'spiral' | 'wave' | 'explosion' = 'default') => {
+        if (!gameState) return;
+        gameState.actionStatus = ActionStatus.ACTING;
+        const dealedCards = SoloGameEngine.deal(gameState.cards);
+        dealEffect({
+            effectType: effectType,
+            data: { cards: dealedCards, gameState, boardDimension },
+            onComplete: () => {
+                onUpdate(dealedCards);
+                gameState.actionStatus = ActionStatus.IDLE;
+            }
+        });
+    }, [gameState, boardDimension]);
+
     const cancelDrag = useCallback((data: SoloActionData) => {
-        console.log('cancelDrag', data, gameState);
+        if (!data || !data.card) return;
         PlayEffects.dragCancel({
             data: { cards: [data.card, ...(data.cards || [])], gameState, boardDimension }, onComplete: () => {
                 if (gameState) {
@@ -83,6 +114,7 @@ const useActHandler = () => {
     const drawCard = useCallback((data: SoloActionData) => {
         const { card } = data;
         if (!gameState || !card) return;
+        console.log("drawCard", card);
         const wasteCards = gameState.cards.filter((c: SoloCard) => c.zoneId === 'waste').sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
         const wasteIndex = wasteCards.length === 0 ? 0 : wasteCards[wasteCards.length - 1].zoneIndex + 1;
         PlayEffects.hideCard({ data: { card } });
@@ -90,6 +122,7 @@ const useActHandler = () => {
             PlayEffects.popCard({ data: { card } });
         }, 400)
         const drawedCard: SoloCard = { ...card, isRevealed: true, zone: ZoneType.WASTE, zoneId: 'waste', zoneIndex: wasteIndex };
+        console.log("drawedCard", drawedCard);
         PlayEffects.drawCard({
             data: { card: drawedCard, boardDimension, gameState }, onComplete: () => {
                 onUpdate([drawedCard]);
@@ -98,9 +131,25 @@ const useActHandler = () => {
         });
 
     }, [gameState, boardDimension]);
-    const wasteCard = useCallback((data: SoloActionData) => {
-        console.log('wasteCard', data);
-    }, []);
+
+    const checkGameOver = useCallback((effectType: 'simple' | 'bounce' | 'fountain' | 'firework' = 'fountain') => {
+        if (!gameState || !ruleManager || !boardDimension) return;
+
+        if (ruleManager.isGameWon()) {
+            console.log('🎉 Game Won! Triggering victory animation...');
+            // 触发胜利动画
+            setTimeout(() => {
+                PlayEffects.gameOver({
+                    effectType: effectType,
+                    data: { cards: gameState.cards, boardDimension },
+                    onComplete: () => {
+                        console.log('🎊 Victory animation complete!');
+                        // 这里可以触发其他胜利后的逻辑，比如显示胜利界面、保存分数等
+                    }
+                });
+            }, 500); // 延迟500ms让最后的移牌动画完成
+        }
+    }, [gameState, ruleManager, boardDimension]);
 
     const moveCard = useCallback(async (data: SoloActionData) => {
         const { card, cards, dropTarget } = data;
@@ -119,19 +168,22 @@ const useActHandler = () => {
         }
         // 任务1: 手动控制 resolve 的查询 Promise
         const queryPromise = new Promise<void>((resolve) => {
-            const cards = gameState.cards.filter(c => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex);
+            if (card.zone === ZoneType.TABLEAU) {
+                const cards = gameState.cards.filter(c => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex);
 
-            setTimeout(() => {
-                const flipCard = cards.length > 0 ? cards[cards.length - 1] : undefined;
-                if (flipCard) {
-                    flipCard.isRevealed = true;
-                    flipCards.push({ ...flipCard, isRevealed: true })
-                    PlayEffects.flipCard({
-                        data: { card: flipCard, boardDimension }
-                    });
-                }
+                setTimeout(() => {
+                    const flipCard = cards.length > 0 ? cards[cards.length - 1] : undefined;
+                    if (flipCard) {
+                        flipCard.isRevealed = true;
+                        flipCards.push({ ...flipCard, isRevealed: true })
+                        PlayEffects.flipCard({
+                            data: { card: flipCard, boardDimension }
+                        });
+                    }
+                    resolve();
+                }, 100);
+            } else
                 resolve();
-            }, 100);
             // convex.query(api.dao.userDao.findUser, { uid: '111' })
             //     .then((user) => {
             //         if (user) {
@@ -157,14 +209,14 @@ const useActHandler = () => {
         await Promise.all([queryPromise, animationPromise]);
         onUpdate([...flipCards, ...dropCards]);
         gameState.actionStatus = ActionStatus.IDLE;
-        console.log("action finished", data);
-        // data.status = 'finished';
-        // 两个操作都完成后调用
 
-    }, [gameState, boardDimension]);
+        // 检查游戏是否胜利
+        checkGameOver('fountain'); // 可以根据需要更改效果类型：'simple', 'bounce', 'fountain', 'firework'
+
+    }, [gameState, boardDimension, checkGameOver]);
 
 
-    return { drawCard, onClickOrTouch, onDrop };
+    return { onClickOrTouch, onDrop, recycle, deal, checkGameOver };
 };
 
 export default useActHandler;

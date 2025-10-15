@@ -126,4 +126,24 @@ export const findBestDropTarget = (
         return null;
     }
 }
-
+export const createZones = () => {
+    return [
+        // 牌堆
+        { id: 'talon', type: ZoneType.TALON },
+        // 废牌堆
+        { id: 'waste', type: ZoneType.WASTE },
+        // 基础堆
+        { id: 'foundation-hearts', type: ZoneType.FOUNDATION },
+        { id: 'foundation-diamonds', type: ZoneType.FOUNDATION },
+        { id: 'foundation-clubs', type: ZoneType.FOUNDATION },
+        { id: 'foundation-spades', type: ZoneType.FOUNDATION },
+        // 牌桌
+        { id: 'tableau-0', type: ZoneType.TABLEAU },
+        { id: 'tableau-1', type: ZoneType.TABLEAU },
+        { id: 'tableau-2', type: ZoneType.TABLEAU },
+        { id: 'tableau-3', type: ZoneType.TABLEAU },
+        { id: 'tableau-4', type: ZoneType.TABLEAU },
+        { id: 'tableau-5', type: ZoneType.TABLEAU },
+        { id: 'tableau-6', type: ZoneType.TABLEAU }
+    ];
+}

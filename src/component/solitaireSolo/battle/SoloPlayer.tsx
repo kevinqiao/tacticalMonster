@@ -5,7 +5,7 @@
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useEventManager } from './service/EventProvider';
-import { useSoloGameManager } from './service/SoloGameManager';
+import { useSoloGameManager } from './service/GameManager';
 import './style.css';
 import { SoloBoardDimension, SoloCard } from './types/SoloTypes';
 import SoloDnDCard from './view/SoloDnDCard';
