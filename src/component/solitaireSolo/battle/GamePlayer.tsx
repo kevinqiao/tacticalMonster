@@ -5,11 +5,13 @@
 
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { SoloDnDCard } from '..';
+import { ThreeJsBounceLayer } from './animation/ThreeJsBounceLayer';
 import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
 import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
+import { victoryDeck } from './testData/victoryDeck';
 import { ActionStatus, CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
 import { createZones } from './Utils';
 
@@ -22,6 +24,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const {
+        ruleManager,
         gameState,
         boardDimension,
         updateBoardDimension,
@@ -29,7 +32,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     } = useSoloGameManager();
     const { cards } = gameState || {};
 
-    const { recycle, deal } = useActHandler();
+    const { recycle, deal, checkGameOver } = useActHandler();
     const { addEvent } = useEventManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -236,7 +239,17 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         });
 
     }, [addEvent, gameState]);
-
+    const handleGameOver = useCallback(() => {
+        const game = SoloGameEngine.createGame();
+        const cards: SoloCard[] = victoryDeck
+        const zones = createZones();
+        const modelGameState: SoloGameState = { ...game, cards, zones, actionStatus: ActionStatus.IDLE };
+        loadGame(modelGameState);
+        // setTimeout(() => {
+        //     console.log("checkGameOver");
+        //     checkGameOver('fountain');
+        // }, 2000);
+    }, [loadGame, gameState, ruleManager]);
     const handleGameOpen = useCallback(() => {
         console.log("handleGameOpen");
         const game = SoloGameEngine.createGame();
@@ -498,6 +511,30 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                 >
                     Deal(explosion)
                 </button>
+                <button
+                    onClick={handleGameOver}
+                    style={{
+                        fontSize: isTablet ? '12px' : '14px',
+                        padding: isTablet ? '6px 8px' : '8px 12px',
+                        height: isTablet ? '32px' : '36px',
+                        minHeight: isTablet ? '32px' : '36px',
+                        flex: 'none'
+                    }}
+                >
+                    GameOver
+                </button>
+                <button
+                    onClick={() => checkGameOver('default')}
+                    style={{
+                        fontSize: isTablet ? '12px' : '14px',
+                        padding: isTablet ? '6px 8px' : '8px 12px',
+                        height: isTablet ? '32px' : '36px',
+                        minHeight: isTablet ? '32px' : '36px',
+                        flex: 'none'
+                    }}
+                >
+                    Play Over
+                </button>
             </div>
         );
     }, [gameState, screenSize, handleDeal]);
@@ -528,6 +565,16 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
             {renderWaste()}
             {renderTableau()}
             {renderCards}
+
+            {/* Three.js 3D弹跳图层 */}
+            {boardDimension && (
+                <ThreeJsBounceLayer
+                    boardDimension={boardDimension}
+                    onAnimationComplete={() => {
+                        console.log('🎊 Three.js bounce animation completed');
+                    }}
+                />
+            )}
 
         </div>
     );

@@ -9,7 +9,7 @@ import { SoloGameEngine } from "../SoloGameEngine";
 const useActHandler = () => {
     const convex = useConvex();
     const { ruleManager, gameState, boardDimension } = useSoloGameManager();
-
+    console.log("useActHandler", ruleManager, gameState, boardDimension);
     const onUpdate = useCallback((result: Card[]) => {
         if (!gameState) return;
         result.forEach((r: SoloCard) => {
@@ -132,13 +132,29 @@ const useActHandler = () => {
 
     }, [gameState, boardDimension]);
 
-    const checkGameOver = useCallback((effectType: 'simple' | 'bounce' | 'fountain' | 'firework' = 'fountain') => {
-        if (!gameState || !ruleManager || !boardDimension) return;
+    const checkGameOver = useCallback((effectType: 'default' | 'simple' | 'bounce' | 'fountain' | 'firework' | 'classic' | 'classicSimple' | 'singleCard' = 'singleCard') => {
+        console.log("checkGameOver called", {
+            hasGameState: !!gameState,
+            hasRuleManager: !!ruleManager,
+            hasBoardDimension: !!boardDimension
+        });
 
-        if (ruleManager.isGameWon()) {
-            console.log('🎉 Game Won! Triggering victory animation...');
+        if (!gameState || !ruleManager || !boardDimension) {
+            console.warn('Missing dependencies for game over check');
+            return;
+        }
+
+        const isWon = ruleManager.isGameWon();
+        console.log('Game won status:', isWon);
+
+        if (isWon) {
+            const foundationCards = gameState.cards.filter(c => c.zone === ZoneType.FOUNDATION);
+            console.log('🎉 Game Won! Foundation cards:', foundationCards.length);
+            console.log('Foundation cards with elements:', foundationCards.filter(c => c.ele).length);
+
             // 触发胜利动画
             setTimeout(() => {
+                console.log('Triggering victory animation with effect:', effectType);
                 PlayEffects.gameOver({
                     effectType: effectType,
                     data: { cards: gameState.cards, boardDimension },
@@ -211,7 +227,7 @@ const useActHandler = () => {
         gameState.actionStatus = ActionStatus.IDLE;
 
         // 检查游戏是否胜利
-        checkGameOver('fountain'); // 可以根据需要更改效果类型：'simple', 'bounce', 'fountain', 'firework'
+        checkGameOver('singleCard'); // 测试单卡效果，确认后改为 'classic'
 
     }, [gameState, boardDimension, checkGameOver]);
 

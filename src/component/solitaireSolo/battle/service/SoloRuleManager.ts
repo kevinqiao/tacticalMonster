@@ -416,7 +416,7 @@ export class SoloRuleManager implements SolitaireRule {
      */
     isGameWon(): boolean {
         const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
-
+        console.log("foundationZones", foundationZones);
         // 检查每个 foundation 堆
         for (const foundationZone of foundationZones) {
             const foundationCards = this.gameState.cards.filter(

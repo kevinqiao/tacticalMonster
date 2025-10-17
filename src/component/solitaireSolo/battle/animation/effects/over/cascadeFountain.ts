@@ -19,35 +19,49 @@ export const cascadeFountain = ({ data, onComplete }: { data: any; onComplete?: 
     });
 
     const foundationCards = cards.filter((c: SoloCard) => c.zone === ZoneType.FOUNDATION);
+
+    if (foundationCards.length === 0) {
+        console.warn('No foundation cards found for victory animation');
+        onComplete?.();
+        return;
+    }
+
     const centerX = boardDimension.width / 2;
     const centerY = boardDimension.height / 2;
 
-    foundationCards.forEach((card: SoloCard, index: number) => {
-        if (!card.ele) return;
+    const eles = foundationCards.map((c: SoloCard) => c.ele).filter((ele: HTMLDivElement | null | undefined): ele is HTMLDivElement => ele !== null);
 
-        // 计算喷泉散射角度
-        const angle = (Math.random() - 0.5) * Math.PI; // -90度到90度
-        const velocity = 300 + Math.random() * 200;
-        const targetX = centerX + Math.cos(angle) * velocity;
-        const targetY = centerY - Math.abs(Math.sin(angle)) * velocity;
-        const rotation = Math.random() * 720 - 360;
+    console.log('Starting fountain animation for', eles.length, 'cards');
 
-        tl.to(card.ele, {
-            x: targetX,
-            y: targetY,
-            rotation: rotation * 0.5,
-            scale: 1.2,
-            duration: 0.6,
-            ease: "power2.out",
-            zIndex: 1000 + index
-        }, index * 0.05)
-            .to(card.ele, {
-                y: boardDimension.height + 50,
-                rotation: rotation,
-                scale: 1,
-                duration: 0.8,
-                ease: "power2.in"
+    // 使用类似 shuffle 的方式处理所有卡牌
+    tl.to(eles, {
+        x: () => centerX + (Math.random() - 0.5) * 400, // 随机散开
+        y: () => centerY - Math.random() * 300 - 100, // 向上喷射
+        width: boardDimension.cardWidth, // 保持宽度
+        height: boardDimension.cardHeight, // 保持高度
+        rotation: () => (Math.random() - 0.5) * 360,
+        scale: 1.2,
+        duration: 0.6,
+        stagger: 0.05, // 依次动画
+        ease: "power2.out",
+        onStart: () => {
+            // 设置高 zIndex
+            eles.forEach((ele: HTMLDivElement, idx: number) => {
+                if (ele) gsap.set(ele, { zIndex: 1000 + idx });
             });
+        }
+    });
+
+    // 第二阶段：下落
+    tl.to(eles, {
+        y: boardDimension.height + 100,
+        width: boardDimension.cardWidth, // 保持宽度
+        height: boardDimension.cardHeight, // 保持高度
+        rotation: () => (Math.random() - 0.5) * 720,
+        scale: 1,
+        duration: 0.8,
+        stagger: 0.05,
+        ease: "power2.in"
     });
 
     tl.play();
