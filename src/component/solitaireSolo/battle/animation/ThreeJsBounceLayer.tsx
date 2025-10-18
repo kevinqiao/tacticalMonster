@@ -6,6 +6,7 @@
 import gsap from 'gsap';
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { useEventManager } from '../service/EventProvider';
 import { SoloBoardDimension, SoloCard } from '../types/SoloTypes';
 
 interface ThreeJsBounceLayerProps {
@@ -36,6 +37,9 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
     const hasCompletedRef = useRef<boolean>(false);
     const textureCache = useRef<Map<string, THREE.Texture>>(new Map());
     const tickerFuncRef = useRef<(() => void) | null>(null);
+    const pendingCardsRef = useRef<SoloCard[]>([]);
+    const isLaunchingRef = useRef<boolean>(false);
+    const { nonBlockEvent } = useEventManager();
 
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -158,8 +162,12 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
         }
 
         // 所有卡牌都完成了（只触发一次）
-        if (bounceCardsRef.current.length === 0 && onAnimationComplete && !hasCompletedRef.current) {
+        if (bounceCardsRef.current.length === 0 &&
+            pendingCardsRef.current.length === 0 &&
+            onAnimationComplete &&
+            !hasCompletedRef.current) {
             hasCompletedRef.current = true;
+            console.log('🎊 All cards completed, trails preserved in scene');
             onAnimationComplete();
         }
     };
@@ -204,7 +212,11 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
 
             // 达到最大弹跳次数，停止
             if (bounceCard.bounceCount >= maxBounces) {
-                console.log('✅ Card finished (max bounces)');
+                console.log('✅ Card finished (max bounces), launching next card...');
+
+                // 启动下一张卡
+                setTimeout(() => launchNextCard(), 200);
+
                 return false;
             }
         }
@@ -238,16 +250,12 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
             gsap.set(bounceCard.card.ele, { opacity: 1 });
         }
 
-        // 清理主mesh
+        // 只移除主mesh，保留所有轨迹在场景中
         scene.remove(mesh);
         mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
 
-        // 不清理轨迹，让它们留在场景中
-        // trail.forEach(t => {
-        //     scene.remove(t);
-        //     (t.material as THREE.Material).dispose();
-        // });
+        console.log(`🎨 Trail preserved: ${trail.length} meshes remain in scene`);
     };
 
     // 创建轨迹网格（优化版）
@@ -288,209 +296,211 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
         trail.push(trailMesh);
     };
 
-    // 启动弹跳动画
+    // 启动下一张卡牌
+    const launchNextCard = () => {
+        if (isLaunchingRef.current) return;
+        if (pendingCardsRef.current.length === 0) {
+            console.log('🎊 All cards launched!');
+            return;
+        }
+
+        isLaunchingRef.current = true;
+        const card = pendingCardsRef.current.shift()!;
+        const cardIndex = 13 - pendingCardsRef.current.length; // 当前是第几张
+
+        console.log(`🚀 Launching card #${cardIndex}/13 (${card.rank}♥)`);
+
+        setTimeout(() => {
+            createBounceCard(card, cardIndex);
+            isLaunchingRef.current = false;
+        }, 100);
+    };
+
+    // 创建单张弹跳卡牌
+    const createBounceCard = (card: SoloCard, cardIndex: number) => {
+        const scene = sceneRef.current;
+        if (!scene || !card.ele) return;
+
+        const rect = card.ele.getBoundingClientRect();
+        const containerRect = card.ele.parentElement?.getBoundingClientRect();
+        if (!containerRect) return;
+
+        console.log(`Creating 3D mesh for card #${cardIndex}...`);
+
+        // 创建卡牌几何体（保持原始大小）
+        const geometry = new THREE.PlaneGeometry(
+            boardDimension.cardWidth,
+            boardDimension.cardHeight
+        );
+
+        // 绘制真实卡牌外观
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 384;
+        const ctx = canvas.getContext('2d');
+
+        if (ctx) {
+            if (card.isRevealed && card.rank && card.suit) {
+                // 正面：白色背景
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 灰色边框
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+
+                // 卡牌颜色（红色或黑色）
+                const cardColor = (card.suit === 'hearts' || card.suit === 'diamonds') ? '#dc2626' : '#000000';
+
+                // 左上角：牌面
+                ctx.fillStyle = cardColor;
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(card.rank, 20, 50);
+
+                // 左上角：花色
+                ctx.font = 'bold 40px Arial';
+                const suitSymbol = card.suit === 'hearts' ? '♥' :
+                    card.suit === 'diamonds' ? '♦' :
+                        card.suit === 'clubs' ? '♣' : '♠';
+                ctx.fillText(suitSymbol, 20, 95);
+
+                // 中心：大号花色
+                ctx.font = 'bold 120px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(suitSymbol, canvas.width / 2, canvas.height / 2);
+
+                // 右下角（旋转180度）
+                ctx.save();
+                ctx.translate(canvas.width - 20, canvas.height - 50);
+                ctx.rotate(Math.PI);
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(card.rank, 0, 0);
+                ctx.restore();
+
+                ctx.save();
+                ctx.translate(canvas.width - 20, canvas.height - 95);
+                ctx.rotate(Math.PI);
+                ctx.font = 'bold 40px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(suitSymbol, 0, 0);
+                ctx.restore();
+            } else {
+                // 背面：深绿色带图案
+                ctx.fillStyle = '#1a3c34';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.strokeStyle = '#555555';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+
+                // 对角线图案
+                ctx.strokeStyle = '#5a8a82';
+                ctx.lineWidth = 3;
+                for (let i = 0; i < 20; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(i * 20, 0);
+                    ctx.lineTo(i * 20 + canvas.height, canvas.height);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            side: THREE.DoubleSide,
+            transparent: false
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+
+        // 获取卡牌相对于容器的位置（CSS坐标）
+        const relativeLeft = rect.left - containerRect.left;
+        const relativeTop = rect.top - containerRect.top;
+
+        // 计算卡牌中心点（CSS坐标）
+        const centerX = relativeLeft + boardDimension.cardWidth / 2;
+        const centerY = relativeTop + boardDimension.cardHeight / 2;
+
+        // 转换到Three.js坐标系（中心在0,0，Y向上）
+        const threeX = centerX - boardDimension.width / 2;
+        const threeY = boardDimension.height / 2 - centerY; // Y轴翻转
+        const threeZ = 0; // 初始Z=0（和游戏平面一致）
+
+        // 设置精确位置
+        mesh.position.set(threeX, threeY, threeZ);
+
+        // 设置初始速度（每张卡稍微不同）
+        const velocity = new THREE.Vector3(
+            80 + (Math.random() - 0.5) * 40,   // X: 60-100随机
+            0,                                  // Y: 直接下落
+            100 + (Math.random() - 0.5) * 40    // Z: 80-120随机
+        );
+
+        // 隐藏原始DOM卡牌
+        gsap.set(card.ele, { opacity: 0 });
+
+        scene.add(mesh);
+
+        bounceCardsRef.current.push({
+            card,
+            mesh,
+            velocity,
+            gravity: -600,
+            bounceCount: 0,
+            maxBounces: 6,
+            trail: []
+        });
+
+        console.log(`✅ Card #${cardIndex} (${card.rank}♥) added and will bounce`);
+    };
+
+    // 启动弹跳动画（顺序模式）
     const startBounceAnimation = (cards: SoloCard[]) => {
         const scene = sceneRef.current;
         if (!scene) return;
 
-        console.log(`🎰 Starting Three.js bounce animation (single card test)`);
+        // 只选择一个花色的卡牌（hearts）
+        const heartsCards = cards.filter(card => card.suit === 'hearts');
+
+        console.log(`🎰 Starting sequential bounce for ${heartsCards.length} hearts cards`);
 
         // 重置完成标志
         hasCompletedRef.current = false;
+        isLaunchingRef.current = false;
 
-        // 清理之前的动画
+        // 清理之前的动画（但保留轨迹）
         bounceCardsRef.current.forEach(bounceCard => {
             scene.remove(bounceCard.mesh);
-            bounceCard.trail.forEach(t => scene.remove(t));
+            // 不清理轨迹！
         });
         bounceCardsRef.current = [];
 
-        // 只用第一张卡测试
-        const testCard = cards[0];
-        if (!testCard || !testCard.ele) {
-            console.warn('No card to animate');
-            return;
-        }
+        // 设置待发射队列
+        pendingCardsRef.current = [...heartsCards];
 
-        setTimeout(() => {
-            const card = testCard;
-            if (!card.ele) return;
-
-            const rect = card.ele.getBoundingClientRect();
-            const containerRect = card.ele.parentElement?.getBoundingClientRect();
-            if (!containerRect) return;
-
-            console.log('Creating 3D card mesh...', {
-                cardRect: rect,
-                containerRect: containerRect,
-                cardSize: [boardDimension.cardWidth, boardDimension.cardHeight]
-            });
-
-            // 创建卡牌几何体（保持原始大小，不放大）
-            const geometry = new THREE.PlaneGeometry(
-                boardDimension.cardWidth,
-                boardDimension.cardHeight
-            );
-
-            // 绘制真实卡牌外观
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 384;
-            const ctx = canvas.getContext('2d');
-
-            if (ctx) {
-                if (card.isRevealed && card.rank && card.suit) {
-                    // 正面：白色背景
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                    // 灰色边框
-                    ctx.strokeStyle = '#333333';
-                    ctx.lineWidth = 4;
-                    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
-
-                    // 卡牌颜色（红色或黑色）
-                    const cardColor = (card.suit === 'hearts' || card.suit === 'diamonds') ? '#dc2626' : '#000000';
-
-                    // 左上角：牌面
-                    ctx.fillStyle = cardColor;
-                    ctx.font = 'bold 48px Arial';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(card.rank, 20, 50);
-
-                    // 左上角：花色
-                    ctx.font = 'bold 40px Arial';
-                    const suitSymbol = card.suit === 'hearts' ? '♥' :
-                        card.suit === 'diamonds' ? '♦' :
-                            card.suit === 'clubs' ? '♣' : '♠';
-                    ctx.fillText(suitSymbol, 20, 95);
-
-                    // 中心：大号花色
-                    ctx.font = 'bold 120px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(suitSymbol, canvas.width / 2, canvas.height / 2);
-
-                    // 右下角（旋转180度）
-                    ctx.save();
-                    ctx.translate(canvas.width - 20, canvas.height - 50);
-                    ctx.rotate(Math.PI);
-                    ctx.font = 'bold 48px Arial';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(card.rank, 0, 0);
-                    ctx.restore();
-
-                    ctx.save();
-                    ctx.translate(canvas.width - 20, canvas.height - 95);
-                    ctx.rotate(Math.PI);
-                    ctx.font = 'bold 40px Arial';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(suitSymbol, 0, 0);
-                    ctx.restore();
-                } else {
-                    // 背面：深绿色带图案
-                    ctx.fillStyle = '#1a3c34';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                    ctx.strokeStyle = '#555555';
-                    ctx.lineWidth = 4;
-                    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
-
-                    // 对角线图案
-                    ctx.strokeStyle = '#5a8a82';
-                    ctx.lineWidth = 3;
-                    for (let i = 0; i < 20; i++) {
-                        ctx.beginPath();
-                        ctx.moveTo(i * 20, 0);
-                        ctx.lineTo(i * 20 + canvas.height, canvas.height);
-                        ctx.stroke();
-                    }
-                }
-            }
-
-            const texture = new THREE.CanvasTexture(canvas);
-            const material = new THREE.MeshBasicMaterial({
-                map: texture,
-                side: THREE.DoubleSide,
-                transparent: false
-            });
-
-            const mesh = new THREE.Mesh(geometry, material);
-
-            // 获取卡牌相对于容器的位置（CSS坐标）
-            const relativeLeft = rect.left - containerRect.left;
-            const relativeTop = rect.top - containerRect.top;
-
-            // 计算卡牌中心点（CSS坐标）
-            const centerX = relativeLeft + boardDimension.cardWidth / 2;
-            const centerY = relativeTop + boardDimension.cardHeight / 2;
-
-            // 转换到Three.js坐标系（中心在0,0，Y向上）
-            const threeX = centerX - boardDimension.width / 2;
-            const threeY = boardDimension.height / 2 - centerY; // Y轴翻转
-            const threeZ = 0; // 初始Z=0（和游戏平面一致）
-
-            console.log('📍 Position sync:', {
-                domRelative: { left: relativeLeft, top: relativeTop },
-                domCenter: { x: centerX, y: centerY },
-                threeJS: { x: threeX, y: threeY, z: threeZ },
-                boardCenter: { x: boardDimension.width / 2, y: boardDimension.height / 2 }
-            });
-
-            // 设置精确位置
-            mesh.position.set(threeX, threeY, threeZ);
-
-            console.log('✅ Mesh positioned at:', mesh.position.toArray());
-
-            // 设置初始速度（从Z=0开始，弹跳时向前）
-            const velocity = new THREE.Vector3(
-                80,     // X: 轻微向右移动
-                0,      // Y: 不向上，直接受重力下落
-                100     // Z: 向前速度减半，避免太快超出视野
-            );
-
-            console.log('Initial velocity (drop down):', velocity.toArray());
-
-            // 隐藏原始DOM卡牌
-            if (card.ele) {
-                gsap.set(card.ele, { opacity: 0 });
-            }
-
-            scene.add(mesh);
-
-            bounceCardsRef.current.push({
-                card,
-                mesh,
-                velocity,
-                gravity: -600, // 更低重力，让弹跳更温和
-                bounceCount: 0,
-                maxBounces: 6, // 增加到6次
-                trail: []
-            });
-
-            // 强制渲染一次以显示
-            if (rendererRef.current && cameraRef.current) {
-                rendererRef.current.render(scene, cameraRef.current);
-            }
-
-            console.log('✅ 3D card added to scene', {
-                position: mesh.position.toArray(),
-                velocity: velocity.toArray(),
-                groundY: -boardDimension.height / 2 + 100,
-                bounds: {
-                    x: [-boardDimension.width / 2 - 200, boardDimension.width / 2 + 200],
-                    y: [-boardDimension.height / 2 - 200, boardDimension.height / 2 + 200]
-                }
-            });
-        }, 100); // 100ms后启动
+        // 启动第一张卡
+        launchNextCard();
     };
 
     // 暴露启动方法
+    // useEffect(() => {
+    //     (window as any).__startThreeJsBounce = startBounceAnimation;
+    //     return () => {
+    //         delete (window as any).__startThreeJsBounce;
+    //     };
+    // }, [boardDimension]);
     useEffect(() => {
-        (window as any).__startThreeJsBounce = startBounceAnimation;
-        return () => {
-            delete (window as any).__startThreeJsBounce;
-        };
-    }, [boardDimension]);
+        console.log('nonBlockEvent', nonBlockEvent);
+        // if (nonBlockEvent && nonBlockEvent.name === 'gameOver' && nonBlockEvent.data && nonBlockEvent.data.cards) {
+        //     const cards = nonBlockEvent.data.cards;
+        //     const heartsCards = cards.filter((card: SoloCard) => card.suit === 'hearts');
+        //     startBounceAnimation(heartsCards);
+        // }
+    }, [nonBlockEvent]);
 
     return (
         <canvas

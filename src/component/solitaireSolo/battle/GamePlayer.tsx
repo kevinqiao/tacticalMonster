@@ -239,6 +239,14 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         });
 
     }, [addEvent, gameState]);
+    const createGameOverEvent = useCallback(() => {
+        if (!gameState) return;
+        addEvent({
+            id: Date.now().toString(),
+            name: "gameOver",
+            data: { cards: gameState.cards }
+        });
+    }, [gameState]);
     const handleGameOver = useCallback(() => {
         const game = SoloGameEngine.createGame();
         const cards: SoloCard[] = victoryDeck
@@ -524,7 +532,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     GameOver
                 </button>
                 <button
-                    onClick={() => checkGameOver('default')}
+                    onClick={createGameOverEvent}
                     style={{
                         fontSize: isTablet ? '12px' : '14px',
                         padding: isTablet ? '6px 8px' : '8px 12px',
@@ -539,12 +547,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         );
     }, [gameState, screenSize, handleDeal]);
 
-    // useEffect(() => {
-    //     console.log('cards', cards);
-    // }, [cards]);
 
-
-    // console.log('boardDimension', boardDimension);
     return (
         <div
             ref={containerRef}

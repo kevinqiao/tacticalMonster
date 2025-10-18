@@ -3,12 +3,14 @@ import useEventHandler from './handler/useEventHandler';
 const enum EventCategory {
     GAME = "game",
     DRAG = "drag",
+    NON_BLOCK = "nonBlock",
 }
 const eventCategoryMap: { [k: string]: EventCategory } = {
     "shuffle": EventCategory.GAME,
     "deal": EventCategory.GAME,
     "init": EventCategory.GAME,
     "drop": EventCategory.GAME,
+    "gameOver": EventCategory.NON_BLOCK,
 }
 export interface MatchEvent {
     id: string;
@@ -21,6 +23,7 @@ export interface MatchEvent {
 }
 interface EventContextType {
     eventQueue: MatchEvent[];
+    nonBlockEvent: MatchEvent | undefined;
     addEvent: (event: MatchEvent) => void;
     removeEvent: (eventId: string) => void;
 }
@@ -63,9 +66,14 @@ const EventHandle: React.FC<{
 
 export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
     const [eventQueue, setEventQueue] = useState<MatchEvent[]>([]);
+    const [nonBlockEvent, setNonBlockEvent] = useState<MatchEvent>();
 
     const addEvent = useCallback((event: MatchEvent) => {
-        setEventQueue(prev => [...prev, event]);
+        if (eventCategoryMap[event.name] === EventCategory.NON_BLOCK) {
+            setNonBlockEvent(event);
+        } else {
+            setEventQueue(prev => [...prev, event]);
+        }
     }, []);
 
     const removeEvent = useCallback((eventId: string) => {
@@ -76,6 +84,7 @@ export const EventProvider: React.FC<EventProviderProps> = ({ children }) => {
 
     const value: EventContextType = {
         eventQueue,
+        nonBlockEvent,
         addEvent,
         removeEvent
     };
