@@ -44,25 +44,27 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
         const scene = new THREE.Scene();
         sceneRef.current = scene;
 
-        // 使用透视相机看到Z轴深度效果
+        // 使用透视相机，调整FOV让Z=0的物体看起来和原始一样大
         const aspect = boardDimension.width / boardDimension.height;
+        const fov = 30; // 降低FOV，减少透视变形
 
         const camera = new THREE.PerspectiveCamera(
-            45,      // FOV
+            fov,     // FOV（更小=透视效果更弱）
             aspect,  // aspect ratio
             0.1,     // near
             3000     // far
         );
 
-        // 相机从后方观察（Z=1200），卡牌从Z=-800向前飞到Z=500左右
-        camera.position.set(0, 0, 1200);
+        // 相机距离要根据FOV计算，让Z=0的平面填满视口
+        const distance = (boardDimension.height / 2) / Math.tan((fov / 2) * Math.PI / 180);
+        camera.position.set(0, 0, distance);
         camera.lookAt(0, 0, 0);
         cameraRef.current = camera as any;
 
         console.log('Camera setup (perspective):', {
             position: camera.position.toArray(),
-            fov: 45,
-            aspect
+            fov,
+            distance: distance.toFixed(0)
         });
 
         // 创建渲染器（透明背景，关闭抗锯齿提升性能）
@@ -177,8 +179,11 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
         mesh.position.y += velocity.y * deltaTime;
         mesh.position.z += velocity.z * deltaTime;
 
-        // 创建轨迹（整个过程都创建，不限制数量）
-        if (shouldCreateTrail && trail.length < 200) {
+        // 保持原始尺寸1:1
+        mesh.scale.set(1.0, 1.0, 1);
+
+        // 创建轨迹（整个过程都创建，无数量限制）
+        if (shouldCreateTrail) {
             createTrailMesh(bounceCard);
         }
 
@@ -187,16 +192,14 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
         if (mesh.position.y <= groundY && velocity.y < 0) {
             mesh.position.y = groundY;
             const prevVelY = velocity.y;
-            velocity.y *= -0.7; // 弹跳衰减（反转方向）
-            velocity.x *= 0.95; // X轴轻微衰减
-            velocity.z *= 0.95;
+            velocity.y *= -0.8; // 弹跳衰减提高到80%（进一步减慢衰减）
+            velocity.x *= 0.98; // X轴几乎不衰减
+            velocity.z *= 0.98; // Z轴几乎不衰减
             bounceCard.bounceCount++;
 
             console.log(`🏀 Bounce ${bounceCard.bounceCount}/${maxBounces}`, {
                 pos: mesh.position.toArray(),
-                velX: velocity.x.toFixed(0),
-                velYBefore: prevVelY.toFixed(0),
-                velYAfter: velocity.y.toFixed(0)
+                vel: [velocity.x.toFixed(0), velocity.y.toFixed(0), velocity.z.toFixed(0)]
             });
 
             // 达到最大弹跳次数，停止
@@ -209,9 +212,12 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
         // 检查是否超出屏幕（只检查Y轴，允许X轴自由移动）
         const hh = boardDimension.height / 2;
 
-        // 只有掉到屏幕底部很远才移除
-        if (mesh.position.y < -hh - 300) {
-            console.log('❌ Card removed (fell too far):', mesh.position.toArray());
+        // 只有掉到屏幕底部很远或超出前方才移除
+        if (mesh.position.y < -hh - 500 || mesh.position.z > 1000) {
+            console.log('❌ Card removed (out of view):', {
+                pos: mesh.position.toArray(),
+                reason: mesh.position.z > 1000 ? 'z too far' : 'y too low'
+            });
             return false;
         }
 
@@ -225,7 +231,12 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
 
         const { mesh, trail } = bounceCard;
 
-        console.log(`Cleaning up card, had ${trail.length} trail meshes`);
+        console.log(`✅ Animation complete! Created ${trail.length} trail meshes (kept in scene)`);
+
+        // 恢复原始DOM卡牌
+        if (bounceCard.card.ele) {
+            gsap.set(bounceCard.card.ele, { opacity: 1 });
+        }
 
         // 清理主mesh
         scene.remove(mesh);
@@ -256,7 +267,7 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
         trailMesh.position.copy(mesh.position);
         trailMesh.rotation.copy(mesh.rotation);
 
-        // 根据高度调整透明度和缩放（Three.js坐标：Y越大越高）
+        // 根据高度调整透明度
         const groundY = -boardDimension.height / 2 + 100;
         const topY = boardDimension.height / 2;
         const normalizedY = Math.max(0, Math.min(1, (trailMesh.position.y - groundY) / (topY - groundY)));
@@ -264,15 +275,13 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
         // 统一透明度，不要太透明
         const alpha = 0.8;
 
-        // 统一尺寸，高处稍大
-        const scale = 0.85 + normalizedY * 0.15; // 0.85到1.0
-
+        // 保持和主卡牌一样的尺寸
         (trailMesh.material as THREE.MeshBasicMaterial).opacity = alpha;
         (trailMesh.material as THREE.MeshBasicMaterial).transparent = true;
-        trailMesh.scale.set(scale, scale, 1);
+        trailMesh.scale.set(1.0, 1.0, 1);
 
-        if (trail.length % 20 === 0) {
-            console.log(`Trail #${trail.length}: y=${trailMesh.position.y.toFixed(0)}, z=${trailMesh.position.z.toFixed(0)}, alpha=${alpha}, scale=${scale.toFixed(2)}`);
+        if (trail.length % 50 === 0) {
+            console.log(`Trail #${trail.length}: y=${trailMesh.position.y.toFixed(0)}, z=${trailMesh.position.z.toFixed(0)}`);
         }
 
         scene.add(trailMesh);
@@ -311,36 +320,91 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
             const containerRect = card.ele.parentElement?.getBoundingClientRect();
             if (!containerRect) return;
 
-            console.log('Creating 3D card mesh...', { rect, containerRect });
+            console.log('Creating 3D card mesh...', {
+                cardRect: rect,
+                containerRect: containerRect,
+                cardSize: [boardDimension.cardWidth, boardDimension.cardHeight]
+            });
 
-            // 创建卡牌几何体（放大2倍更明显）
+            // 创建卡牌几何体（保持原始大小，不放大）
             const geometry = new THREE.PlaneGeometry(
-                boardDimension.cardWidth * 2,
-                boardDimension.cardHeight * 2
+                boardDimension.cardWidth,
+                boardDimension.cardHeight
             );
 
-            // 创建高对比度纹理
+            // 绘制真实卡牌外观
             const canvas = document.createElement('canvas');
             canvas.width = 256;
             canvas.height = 384;
             const ctx = canvas.getContext('2d');
+
             if (ctx) {
-                // 亮黄色背景（最明显）
-                ctx.fillStyle = '#ffff00';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                if (card.isRevealed && card.rank && card.suit) {
+                    // 正面：白色背景
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // 黑色粗边框
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 8;
-                ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+                    // 灰色边框
+                    ctx.strokeStyle = '#333333';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
 
-                // 大号黑色文字
-                ctx.fillStyle = '#000000';
-                ctx.font = 'bold 64px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('BOUNCE', canvas.width / 2, canvas.height / 2 - 30);
-                ctx.fillText('3D', canvas.width / 2, canvas.height / 2 + 40);
+                    // 卡牌颜色（红色或黑色）
+                    const cardColor = (card.suit === 'hearts' || card.suit === 'diamonds') ? '#dc2626' : '#000000';
+
+                    // 左上角：牌面
+                    ctx.fillStyle = cardColor;
+                    ctx.font = 'bold 48px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(card.rank, 20, 50);
+
+                    // 左上角：花色
+                    ctx.font = 'bold 40px Arial';
+                    const suitSymbol = card.suit === 'hearts' ? '♥' :
+                        card.suit === 'diamonds' ? '♦' :
+                            card.suit === 'clubs' ? '♣' : '♠';
+                    ctx.fillText(suitSymbol, 20, 95);
+
+                    // 中心：大号花色
+                    ctx.font = 'bold 120px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(suitSymbol, canvas.width / 2, canvas.height / 2);
+
+                    // 右下角（旋转180度）
+                    ctx.save();
+                    ctx.translate(canvas.width - 20, canvas.height - 50);
+                    ctx.rotate(Math.PI);
+                    ctx.font = 'bold 48px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(card.rank, 0, 0);
+                    ctx.restore();
+
+                    ctx.save();
+                    ctx.translate(canvas.width - 20, canvas.height - 95);
+                    ctx.rotate(Math.PI);
+                    ctx.font = 'bold 40px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(suitSymbol, 0, 0);
+                    ctx.restore();
+                } else {
+                    // 背面：深绿色带图案
+                    ctx.fillStyle = '#1a3c34';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    ctx.strokeStyle = '#555555';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+
+                    // 对角线图案
+                    ctx.strokeStyle = '#5a8a82';
+                    ctx.lineWidth = 3;
+                    for (let i = 0; i < 20; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(i * 20, 0);
+                        ctx.lineTo(i * 20 + canvas.height, canvas.height);
+                        ctx.stroke();
+                    }
+                }
             }
 
             const texture = new THREE.CanvasTexture(canvas);
@@ -352,37 +416,44 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
 
             const mesh = new THREE.Mesh(geometry, material);
 
-            // 转换CSS坐标到Three.js坐标（中心在0,0）
-            const cssX = rect.left - containerRect.left + boardDimension.cardWidth / 2;
-            const cssY = rect.top - containerRect.top + boardDimension.cardHeight / 2;
+            // 获取卡牌相对于容器的位置（CSS坐标）
+            const relativeLeft = rect.left - containerRect.left;
+            const relativeTop = rect.top - containerRect.top;
 
-            // Three.js坐标：中心(0,0)，Y向上
-            const threeX = cssX - boardDimension.width / 2;
-            const threeY = boardDimension.height / 2 - cssY; // Y轴翻转
-            const threeZ = -800; // 初始Z位置（远离观众）
+            // 计算卡牌中心点（CSS坐标）
+            const centerX = relativeLeft + boardDimension.cardWidth / 2;
+            const centerY = relativeTop + boardDimension.cardHeight / 2;
 
-            console.log('Position conversion:', {
-                css: [cssX, cssY],
-                three: [threeX, threeY, threeZ],
-                groundY: -boardDimension.height / 2 + 100
+            // 转换到Three.js坐标系（中心在0,0，Y向上）
+            const threeX = centerX - boardDimension.width / 2;
+            const threeY = boardDimension.height / 2 - centerY; // Y轴翻转
+            const threeZ = 0; // 初始Z=0（和游戏平面一致）
+
+            console.log('📍 Position sync:', {
+                domRelative: { left: relativeLeft, top: relativeTop },
+                domCenter: { x: centerX, y: centerY },
+                threeJS: { x: threeX, y: threeY, z: threeZ },
+                boardCenter: { x: boardDimension.width / 2, y: boardDimension.height / 2 }
             });
 
-            // 如果初始位置低于地面，提升到地面上方
-            const groundY = -boardDimension.height / 2 + 100;
-            const startY = Math.max(threeY, groundY + 10);
+            // 设置精确位置
+            mesh.position.set(threeX, threeY, threeZ);
 
-            mesh.position.set(threeX, startY, threeZ); // 从远处开始
+            console.log('✅ Mesh positioned at:', mesh.position.toArray());
 
-            console.log('Adjusted start position:', [threeX, startY, threeZ]);
-
-            // 设置初始速度（直接下落，不向上弹）
+            // 设置初始速度（从Z=0开始，弹跳时向前）
             const velocity = new THREE.Vector3(
                 80,     // X: 轻微向右移动
                 0,      // Y: 不向上，直接受重力下落
-                300     // Z: 向前（朝向观众）
+                100     // Z: 向前速度减半，避免太快超出视野
             );
 
             console.log('Initial velocity (drop down):', velocity.toArray());
+
+            // 隐藏原始DOM卡牌
+            if (card.ele) {
+                gsap.set(card.ele, { opacity: 0 });
+            }
 
             scene.add(mesh);
 
@@ -390,9 +461,9 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
                 card,
                 mesh,
                 velocity,
-                gravity: -1000, // 降低重力，让弹跳更高
+                gravity: -600, // 更低重力，让弹跳更温和
                 bounceCount: 0,
-                maxBounces: 4,
+                maxBounces: 6, // 增加到6次
                 trail: []
             });
 
