@@ -1,4 +1,4 @@
-import { ActionStatus, Card, SoloActionData, SoloCard, SoloZone, ZoneType } from "component/solitaireSolo";
+import { ActionStatus, ActMode, Card, SoloActionData, SoloCard, SoloGameStatus, SoloZone, ZoneType } from "component/solitaireSolo";
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { dealEffect } from "../../animation/effects/dealEffect";
@@ -9,7 +9,6 @@ import { SoloGameEngine } from "../SoloGameEngine";
 const useActHandler = () => {
     const convex = useConvex();
     const { ruleManager, gameState, boardDimension } = useSoloGameManager();
-    console.log("useActHandler", ruleManager, gameState, boardDimension);
     const onUpdate = useCallback((result: Card[]) => {
         if (!gameState) return;
         result.forEach((r: SoloCard) => {
@@ -26,44 +25,40 @@ const useActHandler = () => {
     }, [gameState]);
 
     const onDrop = useCallback(async (data: SoloActionData) => {
-
-        if (!gameState) return;
-        gameState.actionStatus = ActionStatus.DROPPING;
-        const { dropTarget, card, cards } = data;
-        if (!dropTarget || card?.zoneId === dropTarget.zoneId) {
-            cancelDrag(data);
+        if (!gameState || !ruleManager) return;
+        const { dropTarget, card, actModes } = data;
+        if (!card || !actModes?.includes(ActMode.DRAG)) {
+            gameState.actionStatus = ActionStatus.IDLE;
             return;
         }
-        const zone = gameState.zones.find(z => z.id === dropTarget.zoneId);
-        if (zone?.type === ZoneType.TABLEAU) {
-            console.log('moveCard', data);
+
+        gameState.actionStatus = ActionStatus.DROPPING;
+        console.log("onDrop", data);
+        if (dropTarget && ruleManager.canMoveToZone(card as Card, dropTarget.zoneId)) {
             moveCard(data);
             return;
         }
-        if (zone?.type === ZoneType.FOUNDATION) {
-            const suit = card?.zoneId.split('-')[1];
-            if (card && card.suit !== suit) {
-                const zoneId = `foundation-${card.suit}`;
-                moveCard({ ...data, dropTarget: { ...dropTarget, zoneId } });
-            } else
-                moveCard(data);
-            return;
-        }
+        cancelDrag(data);
 
     }, [gameState, boardDimension]);
     const onClickOrTouch = useCallback((data: SoloActionData) => {
-        if (!gameState) return;
+        if (!ruleManager || !gameState) return;
         const { card } = data;
-        if (card?.zone === ZoneType.TABLEAU) {
-            const zoneId = `foundation-${card.suit}`;
-            const targetZone = gameState.zones.find(z => z.type === ZoneType.TABLEAU && z.id !== card.zoneId);
-            if (targetZone) {
-                moveCard({ card, cards: [], dropTarget: { zoneId } });
-            }
+        if (!card) {
+            gameState.actionStatus = ActionStatus.IDLE;
             return;
-        } else if (card?.zone === ZoneType.TALON) {
-            drawCard({ card });
         }
+        const target = ruleManager?.findTarget(card as Card);
+        if (target) {
+            if (card.zoneId === ZoneType.TALON) {
+                drawCard(data);
+            } else {
+                moveCard({ ...data, dropTarget: target });
+            }
+        } else {
+            gameState.actionStatus = ActionStatus.IDLE;
+        }
+        return
     }, [gameState, boardDimension]);
 
     const recycle = useCallback(() => {
@@ -96,6 +91,7 @@ const useActHandler = () => {
             data: { cards: dealedCards, gameState, boardDimension },
             onComplete: () => {
                 onUpdate(dealedCards);
+                gameState.status = SoloGameStatus.START;
                 gameState.actionStatus = ActionStatus.IDLE;
             }
         });
@@ -112,9 +108,12 @@ const useActHandler = () => {
         });
     }, [gameState, boardDimension]);
     const drawCard = useCallback((data: SoloActionData) => {
+        if (!gameState || !ruleManager) return;
         const { card } = data;
-        if (!gameState || !card) return;
-        console.log("drawCard", card);
+        if (!card || !ruleManager.canDraw(card as Card)) {
+            gameState.actionStatus = ActionStatus.IDLE;
+            return;
+        }
         const wasteCards = gameState.cards.filter((c: SoloCard) => c.zoneId === 'waste').sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
         const wasteIndex = wasteCards.length === 0 ? 0 : wasteCards[wasteCards.length - 1].zoneIndex + 1;
         PlayEffects.hideCard({ data: { card } });
@@ -122,7 +121,6 @@ const useActHandler = () => {
             PlayEffects.popCard({ data: { card } });
         }, 400)
         const drawedCard: SoloCard = { ...card, isRevealed: true, zone: ZoneType.WASTE, zoneId: 'waste', zoneIndex: wasteIndex };
-        console.log("drawedCard", drawedCard);
         PlayEffects.drawCard({
             data: { card: drawedCard, boardDimension, gameState }, onComplete: () => {
                 onUpdate([drawedCard]);
@@ -132,44 +130,13 @@ const useActHandler = () => {
 
     }, [gameState, boardDimension]);
 
-    const checkGameOver = useCallback((effectType: 'default' | 'simple' | 'bounce' | 'fountain' | 'firework' | 'classic' | 'classicSimple' | 'singleCard' = 'singleCard') => {
-        console.log("checkGameOver called", {
-            hasGameState: !!gameState,
-            hasRuleManager: !!ruleManager,
-            hasBoardDimension: !!boardDimension
-        });
-
-        if (!gameState || !ruleManager || !boardDimension) {
-            console.warn('Missing dependencies for game over check');
-            return;
-        }
-
-        const isWon = ruleManager.isGameWon();
-        console.log('Game won status:', isWon);
-
-        if (isWon) {
-            const foundationCards = gameState.cards.filter(c => c.zone === ZoneType.FOUNDATION);
-            console.log('🎉 Game Won! Foundation cards:', foundationCards.length);
-            console.log('Foundation cards with elements:', foundationCards.filter(c => c.ele).length);
-
-            // 触发胜利动画
-            setTimeout(() => {
-                console.log('Triggering victory animation with effect:', effectType);
-                PlayEffects.gameOver({
-                    effectType: effectType,
-                    data: { cards: gameState.cards, boardDimension },
-                    onComplete: () => {
-                        console.log('🎊 Victory animation complete!');
-                        // 这里可以触发其他胜利后的逻辑，比如显示胜利界面、保存分数等
-                    }
-                });
-            }, 500); // 延迟500ms让最后的移牌动画完成
-        }
-    }, [gameState, ruleManager, boardDimension]);
-
     const moveCard = useCallback(async (data: SoloActionData) => {
         const { card, cards, dropTarget } = data;
-        if (!gameState || !card || !dropTarget) return;
+        if (!gameState || !ruleManager) return;
+        if (!card || !dropTarget || !ruleManager.canMoveToZone(card as Card, dropTarget.zoneId)) {
+            gameState.actionStatus = ActionStatus.IDLE;
+            return;
+        }
         const flipCards: SoloCard[] = [];
         const dropCards: SoloCard[] = [];
         if (dropTarget.zoneId && card && dropTarget.zoneId !== card.zoneId) {
@@ -225,14 +192,10 @@ const useActHandler = () => {
         await Promise.all([queryPromise, animationPromise]);
         onUpdate([...flipCards, ...dropCards]);
         gameState.actionStatus = ActionStatus.IDLE;
-
-        // 检查游戏是否胜利
-        checkGameOver('singleCard'); // 测试单卡效果，确认后改为 'classic'
-
-    }, [gameState, boardDimension, checkGameOver]);
+    }, [gameState, boardDimension]);
 
 
-    return { onClickOrTouch, onDrop, recycle, deal, checkGameOver };
+    return { onClickOrTouch, onDrop, recycle, deal };
 };
 
 export default useActHandler;

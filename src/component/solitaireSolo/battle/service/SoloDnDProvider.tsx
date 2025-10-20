@@ -103,7 +103,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
     // 开始拖拽
     const onDragStart = useCallback((card: SoloCard, event: React.MouseEvent | React.TouchEvent) => {
         const actModes = ruleManager?.getActModes(card) || [];
-        console.log('actModes', actModes);
+        console.log("onDragStart", card, actModes);
         if (!ruleManager || !card.ele || !gameState || actModes.length === 0) return;
         gameState.actionStatus = ActionStatus.ACTING;
         event.preventDefault();

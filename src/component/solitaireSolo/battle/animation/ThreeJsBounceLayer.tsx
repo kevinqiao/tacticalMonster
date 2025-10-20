@@ -495,11 +495,11 @@ export const ThreeJsBounceLayer: React.FC<ThreeJsBounceLayerProps> = ({
     // }, [boardDimension]);
     useEffect(() => {
         console.log('nonBlockEvent', nonBlockEvent);
-        // if (nonBlockEvent && nonBlockEvent.name === 'gameOver' && nonBlockEvent.data && nonBlockEvent.data.cards) {
-        //     const cards = nonBlockEvent.data.cards;
-        //     const heartsCards = cards.filter((card: SoloCard) => card.suit === 'hearts');
-        //     startBounceAnimation(heartsCards);
-        // }
+        if (nonBlockEvent && nonBlockEvent.name === 'gameOver' && nonBlockEvent.data && nonBlockEvent.data.cards) {
+            const cards = nonBlockEvent.data.cards;
+            const heartsCards = cards.filter((card: SoloCard) => card.suit === 'hearts');
+            startBounceAnimation(heartsCards);
+        }
     }, [nonBlockEvent]);
 
     return (

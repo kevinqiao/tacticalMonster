@@ -18,17 +18,17 @@ export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => v
         console.log('drawCard cards', cards);
         const coord = getCoord(card, cards, boardDimension);
         tl.to(card.ele, {
-            x: coord.x + 120,
-            y: coord.y,
+            x: coord.x + 40,
+            y: coord.y - 40,
             rotateY: -180,
             rotateZ: 20,
-            duration: 0.8,
+            duration: 0.5,
             ease: "ease.out"
         }).to(card.ele, {
-            x: coord.x + 80,
-            y: coord.y + 40,
+            x: coord.x,
+            y: coord.y,
             rotateZ: 0,
-            duration: 0.7,
+            duration: 0.4,
             ease: "ease.in"
         });
 
@@ -36,10 +36,10 @@ export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => v
             const coord = getCoord(c, cards, boardDimension);
             if (c.ele) {
                 tl.to(c.ele, {
-                    x: coord.x + 80,
-                    y: coord.y + 40,
+                    x: coord.x,
+                    y: coord.y,
                     rotateZ: 0,
-                    duration: 0.7,
+                    duration: 0.4,
                     ease: "ease.in"
                 }, "<");
             }

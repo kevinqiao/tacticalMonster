@@ -4,11 +4,10 @@
  */
 
 export enum SoloGameStatus {
-    SHUFFLE = -1,
     OPEN = 0,
-    DEAL = 1,
-    PLAYING = 2,
-    CLOSED = 3
+    START = 1,
+    COMPLETED = 2,
+    CANCELLED = 3
 }
 export enum ActionStatus {
     IDLE = 'idle',
@@ -150,7 +149,11 @@ export interface SoloAnimationConfig {
 
 // 游戏规则相关
 export interface SolitaireRule {
+    canDraw: (card: Card) => boolean;
     getActModes: (card: Card) => ActMode[];
+    findTarget: (card: Card) => { zoneId: string, zoneType: ZoneType } | null;
+    findMoveableTargets: (card: Card) => { zoneId: string, zoneType: ZoneType }[];
+    canMoveToZone: (card: Card, zoneId: string) => boolean;
     isGameWon: () => boolean;
 }
 

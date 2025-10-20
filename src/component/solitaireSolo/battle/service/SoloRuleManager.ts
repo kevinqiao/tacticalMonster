@@ -11,6 +11,7 @@ import {
     SolitaireRule,
     SoloCard,
     SoloGameState,
+    SoloGameStatus,
     SoloHint,
     SoloMove,
     ZoneType
@@ -22,10 +23,13 @@ export class SoloRuleManager implements SolitaireRule {
     constructor(gameState: SoloGameState) {
         this.gameState = gameState;
     }
+
+
+
     getActModes(card: Card): ActMode[] {
         const modes: ActMode[] = [];
 
-        if (this.gameState.actionStatus !== ActionStatus.IDLE) {
+        if (this.gameState.actionStatus !== ActionStatus.IDLE || this.gameState.status !== SoloGameStatus.START) {
             return modes;
         }
         if (!card.isRevealed && card.zone !== ZoneType.TALON) {
@@ -35,6 +39,7 @@ export class SoloRuleManager implements SolitaireRule {
             modes.push(ActMode.CLICK);
             return modes;
         }
+        const zoneCards = this.gameState.cards.filter(c => c.zoneId === card.zoneId);
         if (card.zone === ZoneType.FOUNDATION) {
             // modes.push(ActMode.CLICK);
             modes.push(ActMode.DRAG);
@@ -47,8 +52,11 @@ export class SoloRuleManager implements SolitaireRule {
             return modes;
         }
         if (card.zone === ZoneType.WASTE) {
-            modes.push(ActMode.CLICK);
-            modes.push(ActMode.DRAG);
+            zoneCards.sort((a, b) => b.zoneIndex - a.zoneIndex);
+            if ((zoneCards.length > 0 && zoneCards[0].id === card.id) || zoneCards.length === 0) {
+                modes.push(ActMode.CLICK);
+                modes.push(ActMode.DRAG);
+            }
             return modes;
         }
         return modes;
@@ -82,9 +90,11 @@ export class SoloRuleManager implements SolitaireRule {
      * 检查是否可以移动卡牌到牌桌
      */
     canMoveToTableau(card: Card, zoneId: string): boolean {
-        if (!card.isRevealed || !card.rank) return false;
+        if (!card.isRevealed || !card.rank || card?.zone === ZoneType.TALON) return false;
+
         const zoneCards = this.gameState.cards.filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === zoneId).sort((a, b) => b.zoneIndex - a.zoneIndex);
-        const targetCard = zoneCards.length > 0 ? zoneCards[zoneCards.length - 1] : null;
+        const targetCard = zoneCards.length > 0 ? zoneCards[0] : null;
+        console.log("targetCard", targetCard, zoneCards);
         if (targetCard === null)
             return card.rank !== 'K' ? false : true
 
@@ -189,13 +199,6 @@ export class SoloRuleManager implements SolitaireRule {
         return false;
     }
 
-    /**
-     * 检查是否可以抽牌
-     */
-    canDrawCard(): boolean {
-        const talonCards = this.gameState.cards.filter(c => c.zone === ZoneType.TALON);
-        return talonCards.length > 0;
-    }
 
 
 
@@ -390,26 +393,87 @@ export class SoloRuleManager implements SolitaireRule {
 
         return score;
     }
+    /**
+     * 检查是否可以抽牌
+     */
+    canDraw(card: Card): boolean {
+        const zoneCards = this.gameState.cards.filter(c => c.zone === ZoneType.TALON);
+        zoneCards.sort((a, b) => b.zoneIndex - a.zoneIndex);
+        if ((zoneCards.length > 0 && zoneCards[0].id !== card.id) || zoneCards.length === 0) {
+            return false;
+        }
+        return true;
+    }
 
     /**
      * 验证移动是否合法
      */
     canMoveToZone(card: Card, zoneId: string): boolean {
-        const moveType = zoneId === "talon" || zoneId === "waste" ? zoneId : zoneId.split('-')[0]
+        if (!card.isRevealed || card.zoneId === zoneId || zoneId === ZoneType.TALON || zoneId === ZoneType.WASTE) return false;
+        const zone = this.gameState.zones.find(z => z.id === card.zoneId);
+        if (!zone) return false;
 
-        switch (moveType) {
-            case 'foundation':
+        const zoneCards = this.gameState.cards.filter(c => c.zoneId === card.zoneId);
+        zoneCards.sort((a, b) => b.zoneIndex - a.zoneIndex);
+        if ((zone.type === ZoneType.FOUNDATION || zone.type === ZoneType.WASTE) && zoneCards.length > 0 && zoneCards[0].id !== card.id) {
+            return false;
+        }
+
+        const targetZoneType = zoneId.split('-')[0]
+
+        switch (targetZoneType) {
+            case ZoneType.FOUNDATION:
                 return this.canMoveToFoundation(card, zoneId);
-            case 'waste':
-                return this.canMoveToWaste(card);
-            case 'tableau':
+            case ZoneType.TABLEAU:
                 return this.canMoveToTableau(card, zoneId);
-
             default:
                 return false;
         }
     }
 
+    findMoveableTargets(card: Card): { zoneId: string, zoneType: ZoneType }[] {
+        const targets: { zoneId: string, zoneType: ZoneType }[] = [];
+
+        if (card.zone === ZoneType.TALON) {
+            targets.push({ zoneId: ZoneType.WASTE, zoneType: ZoneType.WASTE });
+        } else {
+            const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
+            for (const foundationZone of foundationZones) {
+                if (this.canMoveToFoundation(card, foundationZone.id)) {
+                    targets.push({ zoneId: foundationZone.id, zoneType: ZoneType.FOUNDATION });
+                }
+            }
+            const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+            for (const tableauZone of tableauZones) {
+                if (this.canMoveToTableau(card, tableauZone.id)) {
+                    targets.push({ zoneId: tableauZone.id, zoneType: ZoneType.TABLEAU });
+                }
+            }
+
+        }
+        return targets;
+    }
+    findTarget(card: Card): { zoneId: string, zoneType: ZoneType } | null {
+
+        if (card.zone === ZoneType.TALON) {
+            return { zoneId: ZoneType.WASTE, zoneType: ZoneType.WASTE };
+        } else {
+            const foundationZones = this.gameState.zones.filter(zone => zone.type === ZoneType.FOUNDATION);
+            for (const foundationZone of foundationZones) {
+                if (this.canMoveToFoundation(card, foundationZone.id)) {
+                    return { zoneId: foundationZone.id, zoneType: ZoneType.FOUNDATION };
+                }
+            }
+            const tableauZones = this.gameState.zones.filter(zone => zone.type === ZoneType.TABLEAU);
+            for (const tableauZone of tableauZones) {
+                if (this.canMoveToTableau(card, tableauZone.id)) {
+                    return { zoneId: tableauZone.id, zoneType: ZoneType.TABLEAU };
+                }
+            }
+
+        }
+        return null;
+    }
     /**
      * 检查游戏是否胜利
      * 胜利条件：所有4个 foundation 堆都装满了13张牌（每种花色从A到K）

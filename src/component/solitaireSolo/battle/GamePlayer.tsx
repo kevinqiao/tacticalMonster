@@ -9,19 +9,16 @@ import { ThreeJsBounceLayer } from './animation/ThreeJsBounceLayer';
 import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
+import { useSoloDnDManager } from './service/SoloDnDProvider';
 import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
 import { victoryDeck } from './testData/victoryDeck';
 import { ActionStatus, CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
 import { createZones } from './Utils';
 
-interface SoloPlayerProps {
-    onGameStart?: () => void;
-}
 
-const SoloPlayer: React.FC<SoloPlayerProps> = ({
-    onGameStart,
-}) => {
+
+const SoloPlayer: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const {
         ruleManager,
@@ -32,8 +29,9 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
     } = useSoloGameManager();
     const { cards } = gameState || {};
 
-    const { recycle, deal, checkGameOver } = useActHandler();
+    const { recycle, deal } = useActHandler();
     const { addEvent } = useEventManager();
+    const { actionData } = useSoloDnDManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
@@ -286,7 +284,17 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
         loadGame(gameState);
     }, [loadGame]);
 
-
+    const cleanup = useCallback((event: any) => {
+        if (!gameState || gameState.actionStatus !== ActionStatus.IDLE) return;
+        event.stopPropagation();
+        event.preventDefault();
+        console.log("cleanup", actionData);
+        if (actionData) {
+            actionData.card = undefined;
+            actionData.cards = undefined;
+        }
+        recycle();
+    }, [gameState, recycle]);
 
 
     // 渲染基础堆
@@ -345,6 +353,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     backgroundColor: 'rgba(0,0,0,0.1)',
                     cursor: 'pointer'
                 }}
+                onClick={cleanup}
             >
 
             </div>
@@ -459,7 +468,7 @@ const SoloPlayer: React.FC<SoloPlayerProps> = ({
                     Init Game
                 </button>
                 <button
-                    onClick={recycle}
+                    onClick={cleanup}
                     style={{
                         fontSize: isMobile ? '12px' : '14px',
                         padding: isMobile ? '6px 8px' : '8px 12px',

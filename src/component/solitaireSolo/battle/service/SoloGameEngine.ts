@@ -68,9 +68,9 @@ export class SoloGameEngine {
         const dealedCards: Card[] = [];
         deck.sort((a, b) => b.zoneIndex - a.zoneIndex);
         for (let col = 0; col < 7; col++) {
-            for (let row = 0; row <= 6; row++) {
+            for (let row = 0; row <= 5; row++) {
                 const dealedCard = { ...deck[cardIndex++] };
-                if (row === 6) {
+                if (row === 5) {
                     dealedCard.isRevealed = true; // 每列最后一张牌翻开
                 }
                 dealedCard.zone = ZoneType.TABLEAU;
