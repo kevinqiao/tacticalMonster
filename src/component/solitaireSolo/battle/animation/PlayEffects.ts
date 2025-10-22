@@ -8,6 +8,7 @@ import { initGame } from "./effects/initGame";
 import { moveCard } from "./effects/move";
 import { popCard } from "./effects/popCard";
 import { recycle } from "./effects/recycle";
+import { resetZone } from "./effects/resetZone";
 import { shuffle } from "./effects/shuffle";
 
 
@@ -54,6 +55,9 @@ export const PlayEffects: PlayEffects = {
     },
     recycle: ({ data, onComplete }) => {
         recycle({ data, onComplete });
+    },
+    resetZone: ({ data, onComplete }) => {
+        resetZone({ data, onComplete });
     },
 
     // 游戏胜利效果

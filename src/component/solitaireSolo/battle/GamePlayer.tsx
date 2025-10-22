@@ -3,8 +3,10 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 
+import { useConvex } from 'convex/react';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { SoloDnDCard } from '..';
+import { api } from '../../../convex/solitaireArena/convex/_generated/api';
 import { ThreeJsBounceLayer } from './animation/ThreeJsBounceLayer';
 import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
@@ -16,7 +18,7 @@ import { victoryDeck } from './testData/victoryDeck';
 import { ActionStatus, CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
 import { createZones } from './Utils';
 
-
+const convex_url = "https://artful-chipmunk-59.convex.cloud"
 
 const SoloPlayer: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +34,8 @@ const SoloPlayer: React.FC = () => {
     const { recycle, deal } = useActHandler();
     const { addEvent } = useEventManager();
     const { actionData } = useSoloDnDManager();
+
+    const convex = useConvex();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
@@ -264,6 +268,13 @@ const SoloPlayer: React.FC = () => {
         const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
         loadGame(gameState);
     }, [loadGame]);
+    const openGame = useCallback(async () => {
+        const result = await convex.mutation(api.service.game.createGame);
+        console.log("openGame", result);
+        if (result) {
+            loadGame(result);
+        }
+    }, [loadGame, convex]);
     const handleGameInit = useCallback(() => {
         console.log("handleGameInit");
         const game = SoloGameEngine.createGame();
@@ -446,7 +457,7 @@ const SoloPlayer: React.FC = () => {
                 }}
             >
                 <button
-                    onClick={handleGameOpen}
+                    onClick={openGame}
                     style={{
                         fontSize: isMobile ? '12px' : '14px',
                         padding: isMobile ? '6px 8px' : '8px 12px',

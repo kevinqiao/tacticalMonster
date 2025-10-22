@@ -1,4 +1,4 @@
-import { ActionStatus, ActMode, Card, SoloActionData, SoloCard, SoloGameStatus, SoloZone, ZoneType } from "component/solitaireSolo";
+import { ActionStatus, ActMode, Card, SoloActionData, SoloCard, SoloGameStatus, ZoneType } from "component/solitaireSolo";
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { dealEffect } from "../../animation/effects/dealEffect";
@@ -138,17 +138,24 @@ const useActHandler = () => {
             return;
         }
         const flipCards: SoloCard[] = [];
-        const dropCards: SoloCard[] = [];
-        if (dropTarget.zoneId && card && dropTarget.zoneId !== card.zoneId) {
-            const targetZone = gameState.zones.find((z: SoloZone) => z.id === dropTarget.zoneId);
-            if (!targetZone) return;
-            const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === dropTarget.zoneId).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
-            const zoneIndex = zoneCards.length === 0 ? 0 : zoneCards[zoneCards.length - 1].zoneIndex + 1;
-            dropCards.push({ ...card, zone: targetZone.type, zoneId: dropTarget.zoneId, zoneIndex: zoneIndex });
-            cards?.sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex).forEach((c: SoloCard, index: number) => {
-                dropCards.push({ ...c, zone: targetZone.type, zoneId: dropTarget.zoneId, zoneIndex: zoneIndex + index + 1 });
-            });
+        const result = SoloGameEngine.moveCard(gameState, card as Card, dropTarget.zoneId);
+        if (!result.ok) {
+            gameState.actionStatus = ActionStatus.IDLE;
+            return;
         }
+        const tasks: { task1: boolean, task2: boolean, task3: boolean } = { task1: true, task2: false, task3: false };
+
+        // const dropCards: SoloCard[] = [];
+        // if (dropTarget.zoneId && card && dropTarget.zoneId !== card.zoneId) {
+        //     const targetZone = gameState.zones.find((z: SoloZone) => z.id === dropTarget.zoneId);
+        //     if (!targetZone) return;
+        //     const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === dropTarget.zoneId).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
+        //     const zoneIndex = zoneCards.length === 0 ? 0 : zoneCards[zoneCards.length - 1].zoneIndex + 1;
+        //     dropCards.push({ ...card, zone: targetZone.type, zoneId: dropTarget.zoneId, zoneIndex: zoneIndex });
+        //     cards?.sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex).forEach((c: SoloCard, index: number) => {
+        //         dropCards.push({ ...c, zone: targetZone.type, zoneId: dropTarget.zoneId, zoneIndex: zoneIndex + index + 1 });
+        //     });
+        // }
         // 任务1: 手动控制 resolve 的查询 Promise
         const queryPromise = new Promise<void>((resolve) => {
             if (card.zone === ZoneType.TABLEAU) {
@@ -183,14 +190,22 @@ const useActHandler = () => {
         // 任务2: 手动控制 resolve 的动画 Promise
         const animationPromise = new Promise<void>((resolve) => {
             PlayEffects.moveCard({
-                data: { boardDimension, gameState, cards: dropCards },
-                onComplete: resolve // 动画完成时 resolve
+                data: { boardDimension, gameState, cards: result.data?.update || [] },
+                onComplete: () => { tasks.task2 = true; resolve(); } // 动画完成时 resolve
+            });
+        });
+        const resetCards = gameState.cards.filter((c: SoloCard) => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex);
+        const resetPromise = new Promise<void>((resolve) => {
+            PlayEffects.resetZone({
+                data: { cards: resetCards, boardDimension },
+                onComplete: () => { tasks.task3 = true; resolve(); }
             });
         });
 
         // 等待两个操作都完成
-        await Promise.all([queryPromise, animationPromise]);
-        onUpdate([...flipCards, ...dropCards]);
+        await Promise.all([queryPromise, animationPromise, resetPromise]);
+        console.log("tasks", tasks);
+        onUpdate([...flipCards, ...(result.data?.update || [])]);
         gameState.actionStatus = ActionStatus.IDLE;
     }, [gameState, boardDimension]);
 

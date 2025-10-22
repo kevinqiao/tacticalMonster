@@ -10,12 +10,14 @@ export interface Player {
 }
 
 export const SSA_URLS: { [k: string]: string } = {
+  "solitaireArena": "https://artful-chipmunk-59.convex.cloud",
   "tacticalMonster": "https://shocking-leopard-487.convex.cloud",
   "ludo": "https://famous-mule-757.convex.cloud",
   "solitaire": "https://limitless-platypus-124.convex.cloud",
   "tournament": "https://beloved-mouse-699.convex.cloud",
 };
 export const SSA_AUTH_URLS: { [k: string]: string } = {
+  "solitaireArena": "https://artful-chipmunk-59.convex.site",
   "tacticalMonster": "https://shocking-leopard-487.convex.site",
   "ludo": "https://famous-mule-757.convex.site",
   "solitaire": "https://limitless-platypus-124.convex.site",

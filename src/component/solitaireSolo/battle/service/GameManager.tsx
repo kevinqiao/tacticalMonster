@@ -83,7 +83,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     }, []);
 
     const loadGame = useCallback((game: SoloGameState) => {
-        console.log("loadGame", game);
+        // console.log("loadGame", game);
         setGameState(game);
     }, []);
 
@@ -97,7 +97,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     //         }
     //     }, 500);
     // }, [gameState]);
-    console.log("gameState", gameState);
+    // console.log("gameState", gameState);
 
 
     const value: ISoloGameContext = {

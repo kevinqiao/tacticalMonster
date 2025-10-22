@@ -62,7 +62,6 @@ export interface GameModel {
     score: number;
     moves: number;
     lastUpdate?: string;//event id
-    timeElapsed: number;
 }
 // 简化的游戏状态 - 只使用统一的 cards 数组
 export interface SoloGameState extends GameModel {
@@ -139,6 +138,12 @@ export interface SoloActionData {
     lastPosition?: { x: number; y: number }; // Add this line
     status?: 'acting' | 'dragging' | 'dropping' | 'cancelled' | 'finished';
 }
+export interface ActionResult {
+    ok: boolean;
+    code?: number;
+    message?: string;
+    data?: { update?: Card[], create?: Card[], delete?: Card[] };
+}
 
 export interface SoloAnimationConfig {
     duration: number;
@@ -146,7 +151,15 @@ export interface SoloAnimationConfig {
     delay?: number;
     onComplete?: () => void;
 }
-
+export enum ActionResultCode {
+    SUCCESS = 0,
+    FAIL = 1,
+    INVALID_OPERATION = 2,
+    NOT_FOUND = 3,
+    NOT_ENOUGH_CARDS = 4,
+    NOT_ENOUGH_SPACE = 5,
+    NOT_ENOUGH_TIME = 6,
+}
 // 游戏规则相关
 export interface SolitaireRule {
     canDraw: (card: Card) => boolean;

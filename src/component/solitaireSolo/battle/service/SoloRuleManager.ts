@@ -94,7 +94,7 @@ export class SoloRuleManager implements SolitaireRule {
 
         const zoneCards = this.gameState.cards.filter(c => c.zone === ZoneType.TABLEAU && c.zoneId === zoneId).sort((a, b) => b.zoneIndex - a.zoneIndex);
         const targetCard = zoneCards.length > 0 ? zoneCards[0] : null;
-        console.log("targetCard", targetCard, zoneCards);
+        // console.log("targetCard", targetCard, zoneCards);
         if (targetCard === null)
             return card.rank !== 'K' ? false : true
 
@@ -388,7 +388,7 @@ export class SoloRuleManager implements SolitaireRule {
         }
 
         // 时间奖励
-        const timeBonus = Math.max(0, 100 - this.gameState.timeElapsed);
+        const timeBonus = Math.max(0, 100 - this.gameState.moves * 10);
         score += Math.floor(timeBonus / 10);
 
         return score;
