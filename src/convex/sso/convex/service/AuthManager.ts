@@ -115,4 +115,18 @@ export const logout = action({
         }
         return false;
     }
-})  
+})
+export const updateData = action({
+    args: { uid: v.string(), token: v.string(), data: v.any() },
+    handler: async (ctx, { uid, token, data }): Promise<boolean> => {
+
+        const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
+        console.log("updateData", uid, token, user?.token, data);
+        if (user?.token === token) {
+            console.log("updateData start", uid, data);
+            await ctx.runMutation(internal.dao.userDao.update, { uid, data });
+            return true;
+        }
+        return false;
+    }
+})

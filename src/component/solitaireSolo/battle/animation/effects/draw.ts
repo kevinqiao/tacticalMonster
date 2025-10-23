@@ -17,7 +17,9 @@ export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => v
         const cards = [...wasteCards, card].sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
         console.log('drawCard cards', cards);
         const coord = getCoord(card, cards, boardDimension);
-        tl.to(card.ele, {
+        const ctl = gsap.timeline();
+        tl.add(ctl);
+        ctl.to(card.ele, {
             x: coord.x + 40,
             y: coord.y - 40,
             rotateY: -180,
@@ -31,11 +33,12 @@ export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => v
             duration: 0.4,
             ease: "ease.in"
         });
-
+        const wtl = gsap.timeline();
+        tl.add(wtl, ">=-0.25");
         wasteCards.forEach((c: SoloCard) => {
             const coord = getCoord(c, cards, boardDimension);
             if (c.ele) {
-                tl.to(c.ele, {
+                wtl.to(c.ele, {
                     x: coord.x,
                     y: coord.y,
                     rotateZ: 0,

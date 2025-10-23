@@ -65,11 +65,14 @@ export const update = internalMutation({
         data: v.any()
     },
     handler: async (ctx, { uid, data }) => {
+
         const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        console.log("update userDao", uid, user?.data, data);
         if (user) {
             if (user.data)
-                data.data = user.data ? Object.assign({}, user.data, data.data) : data.data;
-            await ctx.db.patch(user._id, { lastUpdate: Date.now(), ...data });
+                Object.assign(user.data, data);
+            console.log("update userDao", uid, user.data);
+            await ctx.db.patch(user._id, { lastUpdate: Date.now(), data: user.data });
             return true;
         }
         return false;

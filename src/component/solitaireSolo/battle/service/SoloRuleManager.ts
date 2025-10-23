@@ -396,10 +396,10 @@ export class SoloRuleManager implements SolitaireRule {
     /**
      * 检查是否可以抽牌
      */
-    canDraw(card: Card): boolean {
+    canDraw(cardId: string): boolean {
         const zoneCards = this.gameState.cards.filter(c => c.zone === ZoneType.TALON);
         zoneCards.sort((a, b) => b.zoneIndex - a.zoneIndex);
-        if ((zoneCards.length > 0 && zoneCards[0].id !== card.id) || zoneCards.length === 0) {
+        if ((zoneCards.length > 0 && zoneCards[0].id !== cardId) || zoneCards.length === 0) {
             return false;
         }
         return true;

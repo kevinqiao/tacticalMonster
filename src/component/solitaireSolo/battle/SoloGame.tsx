@@ -4,7 +4,7 @@
  */
 
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
-import React, { useState } from 'react';
+import React from 'react';
 import GamePlayer from './GamePlayer';
 import { EventProvider } from './service/EventProvider';
 import SoloGameProvider from './service/GameManager';
@@ -13,18 +13,20 @@ import './style.css';
 import { SoloGameConfig } from './types/SoloTypes';
 
 interface SoloGameProps {
+    gameId?: string;
     config?: Partial<SoloGameConfig>;
     className?: string;
     style?: React.CSSProperties;
 }
 const convex_url = "https://artful-chipmunk-59.convex.cloud"
 const SoloGame: React.FC<SoloGameProps> = ({
+    gameId,
     config,
     className = '',
     style
 }) => {
 
-    const [gameId, setGameId] = useState<string | undefined>(undefined);
+
 
     const client = React.useMemo(() => new ConvexReactClient(convex_url), [convex_url]);
     // 初始化游戏
@@ -55,27 +57,13 @@ const SoloGame: React.FC<SoloGameProps> = ({
                 <SoloGameProvider config={config} gameId={gameId}>
                     <EventProvider>
                         <SoloDnDProvider>
-                            <GamePlayer />
+                            <GamePlayer gameId={gameId} />
                         </SoloDnDProvider>
                     </EventProvider>
                 </SoloGameProvider>
             </ConvexProvider>
             {/* </SSAProvider> */}
 
-            <div style={{ position: 'absolute', top: 100, left: 0, zIndex: 2000 }}>
-                <button
-                    onClick={() => setGameId("game-open")}
-                    style={{
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        padding: '8px 12px',
-                        height: '36px', // 固定高度
-                        minHeight: '36px',
-                    }}
-                >
-                    Game Open
-                </button>
-            </div>
             {/* <div style={{ position: 'absolute', top: 150, left: 0, zIndex: 2000 }}>
                 <button
                     onClick={() => setGameId("game-deal")}

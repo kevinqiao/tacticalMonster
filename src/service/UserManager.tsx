@@ -44,6 +44,7 @@ interface IUserContext {
   // updateSession: (app: string, session: { token: string; status: number }) => void;
   authComplete: (user: any, persist: number) => void;
   logout: () => Promise<void>;
+  updateUserData: (data: any) => Promise<void>;
 }
 
 const UserContext = createContext<IUserContext>({
@@ -52,6 +53,7 @@ const UserContext = createContext<IUserContext>({
   ssaAuthComplete: () => null,
   logout: async () => { },
   authComplete: (user: any, persist: number) => null,
+  updateUserData: async () => { },
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
@@ -62,13 +64,19 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const convex = useConvex();
   // const userEvents: UserEvent[] | undefined = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastUpdate });
 
-
   const authComplete = useCallback((u: any, persist: number) => {
     console.log("authComplete", u);
     u.expire = u.expire + Date.now();
     setUser(u);
 
   }, []);
+  const updateUserData = useCallback(async (data: any) => {
+
+    if (user?.uid && user?.token) {
+      const result = await convex.action(api.service.AuthManager.updateData, { uid: user?.uid, token: user?.token, data })
+      // console.log("updateData result", result);
+    }
+  }, [user]);
 
   const logout = useCallback(async () => {
 
@@ -133,7 +141,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user])
 
-  const value = { user, authComplete, logout, sessions, ssaAuthComplete };
+  const value = { user, authComplete, logout, sessions, ssaAuthComplete, updateUserData };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

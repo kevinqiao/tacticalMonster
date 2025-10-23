@@ -18,9 +18,7 @@ import { victoryDeck } from './testData/victoryDeck';
 import { ActionStatus, CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
 import { createZones } from './Utils';
 
-const convex_url = "https://artful-chipmunk-59.convex.cloud"
-
-const SoloPlayer: React.FC = () => {
+const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const {
         ruleManager,
@@ -566,7 +564,21 @@ const SoloPlayer: React.FC = () => {
             </div>
         );
     }, [gameState, screenSize, handleDeal]);
-
+    useEffect(() => {
+        const load = async (gid: string) => {
+            if (gid) {
+                const game = await convex.query(api.service.game.getGame, { gameId: gid });
+                console.log("game", game);
+                if (game) {
+                    loadGame(game as SoloGameState);
+                }
+            }
+        }
+        if (gameId) {
+            console.log("load game", gameId);
+            load(gameId);
+        }
+    }, [gameId, loadGame]);
 
     return (
         <div

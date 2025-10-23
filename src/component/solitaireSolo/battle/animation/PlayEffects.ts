@@ -1,3 +1,4 @@
+import { SoloCard } from "../types/SoloTypes";
 import { dealEffect } from "./effects/dealEffect";
 import { dragCancel } from "./effects/dragCancel";
 import { drawCard } from "./effects/draw";
@@ -21,9 +22,11 @@ export const PlayEffects: PlayEffects = {
         initGame({ data, onComplete });
     },
     popCard: ({ data }) => {
-        const { card } = data;
-        if (card && card.ele) {
-            popCard(card);
+        const { card, gameState } = data;
+        if (!gameState || !card) return;
+        const pcard = gameState.cards.find((c: SoloCard) => c.id === card.id);
+        if (pcard && pcard.ele) {
+            popCard(pcard);
         }
     },
     hideCard: ({ data }) => {

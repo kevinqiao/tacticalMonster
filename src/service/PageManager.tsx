@@ -118,7 +118,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [user, authReq, pageContainers]);
-
+  console.log("PageProvider", user);
   const openPage = useCallback((page: PageItem) => {
 
     if (!pageContainers || page.uri === currentPageRef.current?.uri) {

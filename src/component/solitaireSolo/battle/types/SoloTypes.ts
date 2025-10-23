@@ -142,7 +142,7 @@ export interface ActionResult {
     ok: boolean;
     code?: number;
     message?: string;
-    data?: { update?: Card[], create?: Card[], delete?: Card[] };
+    data?: { draw?: Card[], move?: Card[], flip?: Card[], reset?: Card[], update?: Card[], create?: Card[], delete?: Card[] };
 }
 
 export interface SoloAnimationConfig {
@@ -162,7 +162,7 @@ export enum ActionResultCode {
 }
 // 游戏规则相关
 export interface SolitaireRule {
-    canDraw: (card: Card) => boolean;
+    canDraw: (cardId: string) => boolean;
     getActModes: (card: Card) => ActMode[];
     findTarget: (card: Card) => { zoneId: string, zoneType: ZoneType } | null;
     findMoveableTargets: (card: Card) => { zoneId: string, zoneType: ZoneType }[];

@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { SoloCard, ZoneType } from "../../../types/SoloTypes";
+import { SoloCard } from "../../../types/SoloTypes";
 import { getCoord } from "../../../Utils";
 import { popCard } from "../popCard";
 
@@ -7,7 +7,7 @@ import { popCard } from "../popCard";
  * 扇形展开发牌效果 - 魔术师风格
  */
 export const dealFan = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
-    const { cards, boardDimension } = data;
+    const { cards, gameState, boardDimension } = data;
     const tl = gsap.timeline({
         onComplete: () => {
             onComplete?.();
@@ -20,7 +20,11 @@ export const dealFan = ({ data, onComplete }: { data: any; onComplete?: () => vo
     const centerY = boardDimension.height / 2;
 
     // 第一阶段：所有牌扇形展开在中心
-    const tableauCards = cards.filter((c: SoloCard) => c.zone === ZoneType.TABLEAU);
+    // const tableauCards = gameState.cards.filter((c: SoloCard) => {return c.zone === ZoneType.TABLEAU && c.zoneId === 'talon'});
+    const tableauCards = cards;
+    tableauCards.forEach((card: SoloCard) => {
+        card.ele = gameState.cards.find((c: SoloCard) => c.id === card.id)?.ele;
+    });
     const totalCards = tableauCards.length;
 
     tableauCards.forEach((card: SoloCard, index: number) => {
