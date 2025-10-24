@@ -71,7 +71,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   }, []);
   const updateUserData = useCallback(async (data: any) => {
-
+    console.log("updateUserData", user?.uid, user?.token, data);
     if (user?.uid && user?.token) {
       const result = await convex.action(api.service.AuthManager.updateData, { uid: user?.uid, token: user?.token, data })
       // console.log("updateData result", result);
@@ -109,10 +109,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
       const u = await convex.action(api.service.AuthManager.authByToken, { uid, token });
       // console.log("UserProvider", "authByToken", u)
       if (u?.uid && u?.token) {
-        setTimeout(() => { authComplete(u, 1); }, 2500);
+        setTimeout(() => { authComplete(u, 1); }, 500);
       } else {
         localStorage.removeItem("user");
-        setTimeout(() => { setUser({}); }, 2500);
+        setTimeout(() => { setUser({}); }, 500);
       }
     }
     const userJSON = localStorage.getItem("user");
@@ -124,7 +124,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         authByToken(uid, token);
       }
     } else {
-      setTimeout(() => { setUser({}); }, 2500);
+      setTimeout(() => { setUser({}); }, 500);
     }
 
   }, []);

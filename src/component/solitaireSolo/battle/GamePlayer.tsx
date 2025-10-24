@@ -5,6 +5,7 @@
 
 import { useConvex } from 'convex/react';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useUserManager } from 'service/UserManager';
 import { SoloDnDCard } from '..';
 import { api } from '../../../convex/solitaireArena/convex/_generated/api';
 import { ThreeJsBounceLayer } from './animation/ThreeJsBounceLayer';
@@ -14,7 +15,6 @@ import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
 import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
-import { victoryDeck } from './testData/victoryDeck';
 import { ActionStatus, CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
 import { createZones } from './Utils';
 
@@ -32,7 +32,8 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
     const { recycle, deal } = useActHandler();
     const { addEvent } = useEventManager();
     const { actionData } = useSoloDnDManager();
-
+    const { user, updateUserData } = useUserManager();
+    console.log("SoloPlayer", user);
     const convex = useConvex();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -247,32 +248,20 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
             data: { cards: gameState.cards }
         });
     }, [gameState]);
-    const handleGameOver = useCallback(() => {
-        const game = SoloGameEngine.createGame();
-        const cards: SoloCard[] = victoryDeck
-        const zones = createZones();
-        const modelGameState: SoloGameState = { ...game, cards, zones, actionStatus: ActionStatus.IDLE };
-        loadGame(modelGameState);
-        // setTimeout(() => {
-        //     console.log("checkGameOver");
-        //     checkGameOver('fountain');
-        // }, 2000);
-    }, [loadGame, gameState, ruleManager]);
-    const handleGameOpen = useCallback(() => {
-        console.log("handleGameOpen");
-        const game = SoloGameEngine.createGame();
-        SoloGameEngine.shuffleDeck(game.cards);
-        const zones = createZones();
-        const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
-        loadGame(gameState);
-    }, [loadGame]);
-    const openGame = useCallback(async () => {
-        const result = await convex.mutation(api.service.game.createGame);
-        console.log("openGame", result);
+    const handleGameOver = useCallback(async () => {
+        if (!gameState?.gameId) return;
+        await convex.mutation(api.service.gameManager.gameOver, { gameId: gameState.gameId });
+        updateUserData({ game: {} });
+    }, [updateUserData, gameState]);
+
+    const handleGameOpen = useCallback(async () => {
+        console.log("openGame", user);
+        const result = await convex.mutation(api.service.gameManager.create);
         if (result) {
             loadGame(result);
+            await updateUserData({ game: { name: 'solitaire', gameId: result.gameId } });
         }
-    }, [loadGame, convex]);
+    }, [user, loadGame, convex, updateUserData]);
     const handleGameInit = useCallback(() => {
         console.log("handleGameInit");
         const game = SoloGameEngine.createGame();
@@ -455,7 +444,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                 }}
             >
                 <button
-                    onClick={openGame}
+                    onClick={handleGameOpen}
                     style={{
                         fontSize: isMobile ? '12px' : '14px',
                         padding: isMobile ? '6px 8px' : '8px 12px',
@@ -563,11 +552,11 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                 </button>
             </div>
         );
-    }, [gameState, screenSize, handleDeal]);
+    }, [user, gameState, screenSize, handleDeal]);
     useEffect(() => {
         const load = async (gid: string) => {
             if (gid) {
-                const game = await convex.query(api.service.game.getGame, { gameId: gid });
+                const game = await convex.query(api.service.gameManager.getGame, { gameId: gid });
                 console.log("game", game);
                 if (game) {
                     loadGame(game as SoloGameState);

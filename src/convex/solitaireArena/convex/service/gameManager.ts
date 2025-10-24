@@ -1,6 +1,8 @@
+import { v } from "convex/values";
 import { SoloGameEngine } from "../../../../component/solitaireSolo/battle/service/SoloGameEngine";
 import { ActionStatus, Card, SoloGameState, SoloGameStatus, ZoneType } from "../../../../component/solitaireSolo/battle/types/SoloTypes";
 import { createZones } from "../../../../component/solitaireSolo/battle/Utils";
+import { mutation, query } from "../_generated/server";
 export class GameManager {
     private dbCtx: any;
     private game: SoloGameState | null;
@@ -17,6 +19,7 @@ export class GameManager {
     async save(data: { cards?: Card[], status?: SoloGameStatus }) {
 
         if (!this.game) return;
+
         if (data.cards) {
             for (const c of data.cards) {
                 const card: Card | undefined = this.game.cards.find((cc: Card) => cc.id === c.id);
@@ -30,7 +33,7 @@ export class GameManager {
         }
         if (data.status)
             this.game.status = data.status;
-        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards });
+        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, status: this.game.status });
     }
     async createGame(): Promise<any> {
         const game = SoloGameEngine.createGame();
@@ -58,14 +61,14 @@ export class GameManager {
         return result;
     }
     async move(cardId: string, toZone: string): Promise<any> {
-        console.log("manager move", cardId, toZone);
+        // console.log("manager move", cardId, toZone);
         if (!this.game) return { ok: false };
         // console.log("manager move", this.game.cards);
         const card = this.game.cards.find((c: Card) => c.id === cardId);
         if (!card) return { ok: false };
-        console.log("manager move", card);
+        // console.log("manager move", card);
         const result = SoloGameEngine.moveCard(this.game, card, toZone);
-        console.log("manager move result", result);
+        // console.log("manager move result", result);
         if (!result.ok) return result;
         const updateCards = [...(result.data?.move || []), ...(result.data?.flip || [])];
         await this.save({ cards: updateCards });
@@ -81,14 +84,76 @@ export class GameManager {
         await this.dbCtx.db.patch(gameId, { cards: game.cards });
         return cards;
     }
+    async gameOver() {
+        if (!this.game) return { ok: false };
+        await this.save({ status: 3 });
+        return { ok: true };
+    }
 }
 // Convex 函数接口
-// export const createGame = (mutation as any)({
+export const create = mutation({
 
-//     handler: async (ctx: any) => {
-//         const gameManager = new GameManager(ctx);
-//         const result = await gameManager.createGame();
+    handler: async (ctx: any) => {
+        const gameManager = new GameManager(ctx);
+        const result = await gameManager.createGame();
 
-//         return result;
-//     },
-// });
+        return result;
+    },
+});
+export const getGame = query({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        return await gameManager.load(gameId);
+    },
+});
+export const getGameStatus = query({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        const game = await gameManager.load(gameId);
+        return { status: game?.status ?? -1 };
+    },
+});
+export const gameOver = mutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        return await gameManager.gameOver();
+    },
+});
+export const deal = mutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        return await gameManager.deal(gameId);
+    },
+});
+export const draw = mutation({
+    args: { gameId: v.string(), cardId: v.string() },
+    handler: async (ctx, { gameId, cardId }) => {
+        const gameManager = new GameManager(ctx);
+        await gameManager.load(gameId);
+        const result = await gameManager.draw(cardId);
+        return result;
+    },
+});
+export const move = mutation({
+    args: { gameId: v.string(), cardId: v.string(), toZone: v.string() },
+    handler: async (ctx, { gameId, cardId, toZone }) => {
+        console.log("move", gameId, cardId, toZone);
+        const gameManager = new GameManager(ctx);
+        await gameManager.load(gameId);
+        const result = await gameManager.move(cardId, toZone);
+        console.log("result", result);
+        return result;
+    },
+});
+export const recycle = mutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        return await gameManager.recycle(gameId);
+    },
+});
+export default GameManager;

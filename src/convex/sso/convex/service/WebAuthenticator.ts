@@ -29,7 +29,7 @@ export const authenticate = action({
             }
             if (user?.uid) {
                 const token = jwt.sign({ uid: user.uid, cid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
-                await ctx.runMutation(internal.dao.userDao.update, { uid: user.uid, data: { token, expire: REFRESH_TOKEN_EXPIRE + Date.now() } });
+                await ctx.runMutation(internal.dao.userDao.updateToken, { uid: user.uid, token });
                 return Object.assign({}, user, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
             }
         }

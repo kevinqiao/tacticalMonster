@@ -2,7 +2,7 @@
  * 单人纸牌游戏管理器
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 import { useUserManager } from 'service/UserManager';
 import {
     DEFAULT_GAME_CONFIG,
@@ -46,11 +46,11 @@ interface SoloGameProviderProps {
     config?: Partial<SoloGameConfig>;
 }
 
-export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig }) => {
+export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, config: customConfig }) => {
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
-    const { user, updateUserData } = useUserManager();
+    const { updateUserData } = useUserManager();
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
         return new SoloRuleManager(gameState)
@@ -61,18 +61,13 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     const updateBoardDimension = useCallback((dimension: SoloBoardDimension) => {
         setBoardDimension(dimension);
     }, []);
-    console.log("GameProvider", user);
+
     const loadGame = useCallback(async (game: SoloGameState) => {
         setGameState(game);
-    }, [user, updateUserData]);
+        // updateUserData({ game: { name: 'solitaire', gameId: game.gameId } });
+    }, []);
 
-    useEffect(() => {
 
-        if (user && gameState) {
-            console.log("GameProvider", user);
-            updateUserData({ gameId: gameState.gameId });
-        }
-    }, [user, gameState]);
 
     const value: ISoloGameContext = {
         gameState,

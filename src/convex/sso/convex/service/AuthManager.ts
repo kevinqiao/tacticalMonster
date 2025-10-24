@@ -30,7 +30,7 @@ export const authenticate = action({
             }
             if (user?.uid) {
                 const token = jwt.sign({ uid: user.uid, cid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
-                await ctx.runMutation(internal.dao.userDao.update, { uid: user.uid, data: { token, expire: REFRESH_TOKEN_EXPIRE + Date.now() } });
+                await ctx.runMutation(internal.dao.userDao.updateToken, { uid: user.uid, token });
                 return Object.assign({}, user, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
             }
         }
@@ -45,7 +45,7 @@ export const refreshToken = action({
         if (user?.token === token && user?.expire && user.expire > Date.now()) {
             const refreshToken = jwt.sign({ uid: user.uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
             if (refreshToken) {
-                await ctx.runMutation(internal.dao.userDao.update, { uid, data: { token: refreshToken, expire: REFRESH_TOKEN_EXPIRE + Date.now() } });
+                await ctx.runMutation(internal.dao.userDao.updateToken, { uid, token: refreshToken });
                 return Object.assign({}, user, { token: refreshToken, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined });
             }
         }
@@ -58,7 +58,7 @@ export const authByToken = action({
         const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
 
         if (user?.token === token) {
-            await ctx.runMutation(internal.dao.userDao.update, { uid, data: { lastUpdate: Date.now() } });
+            await ctx.runMutation(internal.dao.userDao.refreshExpire, { uid });
             return Object.assign({}, user, { _id: undefined, _creationTime: undefined });
         }
         return null;
@@ -110,7 +110,7 @@ export const logout = action({
     handler: async (ctx, { uid, token }): Promise<boolean> => {
         const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
         if (user?.token === token) {
-            await ctx.runMutation(internal.dao.userDao.update, { uid, data: { token: "", expire: 0 } });
+            await ctx.runMutation(internal.dao.userDao.logout, { uid });
             return true;
         }
         return false;
@@ -124,7 +124,7 @@ export const updateData = action({
         console.log("updateData", uid, token, user?.token, data);
         if (user?.token === token) {
             console.log("updateData start", uid, data);
-            await ctx.runMutation(internal.dao.userDao.update, { uid, data });
+            await ctx.runMutation(internal.dao.userDao.updateUserData, { uid, data });
             return true;
         }
         return false;

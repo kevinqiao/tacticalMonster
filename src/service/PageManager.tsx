@@ -121,11 +121,14 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   console.log("PageProvider", user);
   const openPage = useCallback((page: PageItem) => {
 
-    if (!pageContainers || page.uri === currentPageRef.current?.uri) {
+    if (!pageContainers) {
       console.log("openPage skipped:", { pageContainers: !!pageContainers, sameUri: page.uri === currentPageRef.current?.uri });
       return;
     }
-
+    if (page.uri === currentPageRef.current?.uri) {
+      setPageUpdated(page);
+      return;
+    }
     let newPage = page;
     // console.log("openPage", JSON.stringify(pageContainers))
     const container = findContainer(pageContainers, page.uri);

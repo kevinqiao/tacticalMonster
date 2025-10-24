@@ -86,7 +86,7 @@ const useActHandler = () => {
     const deal = useCallback(async (effectType: 'default' | 'fan' | 'spiral' | 'wave' | 'explosion' = 'default') => {
         if (!gameState) return;
         gameState.actionStatus = ActionStatus.ACTING;
-        const dealResult = await convex.mutation(api.service.game.deal, { gameId: gameState.gameId });
+        const dealResult = await convex.mutation(api.service.gameManager.deal, { gameId: gameState.gameId });
         // console.log("dealResult", dealResult);
         if (dealResult && dealResult.ok) {
             const dealedCards = dealResult.data?.update || [];
@@ -129,7 +129,7 @@ const useActHandler = () => {
         }
         // 任务1: 手动控制 resolve 的查询 Promise
         const queryPromise = new Promise<void>((resolve) => {
-            convex.mutation(api.service.game.draw, { gameId: gameState.gameId, cardId: card.id })
+            convex.mutation(api.service.gameManager.draw, { gameId: gameState.gameId, cardId: card.id })
                 .then((result: ActionResult) => {
                     if (result.ok && result.data?.draw && result.data.draw.length > 0) {
                         const drawedCard = result.data.draw[0] as SoloCard;
@@ -176,7 +176,7 @@ const useActHandler = () => {
         // 任务1: 手动控制 resolve 的查询 Promise
         const queryPromise = new Promise<void>((resolve) => {
 
-            convex.mutation(api.service.game.move, { gameId: gameState.gameId, cardId: card.id, toZone: dropTarget.zoneId })
+            convex.mutation(api.service.gameManager.move, { gameId: gameState.gameId, cardId: card.id, toZone: dropTarget.zoneId })
                 .then((result: ActionResult) => {
                     console.log("result", result);
                     tasks.task1 = true;
