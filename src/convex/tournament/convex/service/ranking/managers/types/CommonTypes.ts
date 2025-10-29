@@ -12,7 +12,7 @@ export interface HumanPlayer {
 
 export interface PlayerPerformanceProfile {
     uid: string;
-    segmentName: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
+    segmentName: 'bronze'; // 暂时固定为青铜段位
     averageScore: number;
     averageRank: number;
     winRate: number;
@@ -69,9 +69,15 @@ export interface MatchRankingResult {
     };
 }
 
-// 段位相关类型
+// 段位相关类型（暂时不使用）
+/**
+ * @deprecated 段位系统暂时不考虑
+ */
 export type SegmentName = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
 
+/**
+ * @deprecated 段位系统暂时不考虑
+ */
 export interface SegmentRule {
     minMatches: number;
     maxMatches: number;
@@ -82,7 +88,10 @@ export interface SegmentRule {
     adjustmentMultiplier: number;
 }
 
-// 技能评估相关类型
+// 技能评估相关类型（暂时不使用）
+/**
+ * @deprecated 技能评估系统暂时不考虑
+ */
 export interface SkillAssessmentResult {
     level: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
     factor: number;

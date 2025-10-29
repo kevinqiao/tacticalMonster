@@ -37,8 +37,6 @@ export async function customConfigExample(ctx: any) {
         growingThreshold: 40,       // 成长阈值提高到40场
         newbieScoreWeight: 0.95,    // 新手更重视当前表现
         newbieSkillWeight: 0.05,    // 新手不太重视历史表现
-        cacheEnabled: true,         // 启用缓存
-        cacheExpiration: 600000,    // 缓存10分钟
         maxAICount: 5,              // 最多5个AI
         maxParticipants: 15         // 最多15个参与者
     };
@@ -66,20 +64,11 @@ export async function configManagementExample(ctx: any) {
 
     // 更新配置
     rankingManager.updateConfig({
-        newbieThreshold: 20,
-        cacheEnabled: false
+        newbieThreshold: 20
     });
 
     const updatedConfig = rankingManager.getConfig();
     console.log('更新后配置:', updatedConfig);
-
-    // 清理缓存
-    rankingManager.clearCache();
-    console.log('缓存已清理');
-
-    // 获取缓存统计
-    const cacheStats = rankingManager.getCacheStats();
-    console.log('缓存统计:', cacheStats);
 }
 
 // 示例：性能测试
@@ -93,21 +82,12 @@ export async function performanceTestExample(ctx: any) {
 
     const aiCount = 3;
 
-    // 第一次调用（冷启动）
-    console.time('第一次调用');
+    // 第一次调用
+    console.time('比赛排名生成');
     const result1 = await rankingManager.generateMatchRankings(humanPlayers, aiCount);
-    console.timeEnd('第一次调用');
+    console.timeEnd('比赛排名生成');
 
-    // 第二次调用（应该使用缓存）
-    console.time('第二次调用');
-    const result2 = await rankingManager.generateMatchRankings(humanPlayers, aiCount);
-    console.timeEnd('第二次调用');
-
-    // 验证结果一致性
-    const isConsistent = JSON.stringify(result1) === JSON.stringify(result2);
-    console.log('结果一致性:', isConsistent);
-
-    return { result1, result2, isConsistent };
+    return result1;
 }
 
 // 示例：不同玩家类型的排名策略
@@ -136,6 +116,90 @@ export async function differentPlayerTypesExample(ctx: any) {
     return result;
 }
 
+// 示例：个性化策略
+export async function personalizedStrategyExample(ctx: any) {
+    // 启用个性化策略的配置
+    const personalizedConfig: Partial<RankingConfig> = {
+        personalizedStrategy: {
+            enabled: true,
+            minMatchesForPersonalization: 15,
+            profileUpdateInterval: 24,
+            maxAdjustmentRange: 0.3,
+            confidenceThreshold: 0.6,
+            fallbackToVeteran: true
+        }
+    };
+
+    const rankingManager = new RankingRecommendationManagerOptimized(ctx, personalizedConfig);
+
+    const humanPlayers: HumanPlayer[] = [
+        { uid: 'player1', score: 1500 },  // 假设满足个性化条件
+        { uid: 'player2', score: 1200 },  // 假设满足个性化条件
+        { uid: 'player3', score: 1800 }   // 假设满足个性化条件
+    ];
+
+    const result = await rankingManager.generateMatchRankings(humanPlayers, 3);
+
+    console.log('个性化策略结果:', result);
+    result.humanPlayerRankings.forEach(ranking => {
+        console.log(`玩家 ${ranking.uid}: 排名 ${ranking.recommendedRank}`);
+        console.log(`  推理: ${ranking.reasoning}`);
+        console.log(`  信心度: ${ranking.confidence.toFixed(2)}`);
+    });
+
+    return result;
+}
+
+// 示例：不同策略对比
+export async function strategyComparisonExample(ctx: any) {
+    const humanPlayers: HumanPlayer[] = [
+        { uid: 'player1', score: 1500 },
+        { uid: 'player2', score: 1200 }
+    ];
+
+    // 1. 默认策略
+    const defaultManager = new RankingRecommendationManagerOptimized(ctx);
+    const defaultResult = await defaultManager.generateMatchRankings(humanPlayers, 3);
+
+    // 2. 胜率控制策略
+    const winRateConfig: Partial<RankingConfig> = {
+        winRateControl: {
+            enabled: true,
+            targetWinRate: 0.33,
+            adjustmentSensitivity: 10,
+            minMatchesForControl: 5,
+            maxAdjustmentRange: 0.2
+        }
+    };
+    const winRateManager = new RankingRecommendationManagerOptimized(ctx, winRateConfig);
+    const winRateResult = await winRateManager.generateMatchRankings(humanPlayers, 3);
+
+    // 3. 个性化策略
+    const personalizedConfig: Partial<RankingConfig> = {
+        personalizedStrategy: {
+            enabled: true,
+            minMatchesForPersonalization: 15,
+            profileUpdateInterval: 24,
+            maxAdjustmentRange: 0.3,
+            confidenceThreshold: 0.6,
+            fallbackToVeteran: true
+        }
+    };
+    const personalizedManager = new RankingRecommendationManagerOptimized(ctx, personalizedConfig);
+    const personalizedResult = await personalizedManager.generateMatchRankings(humanPlayers, 3);
+
+    console.log('=== 策略对比结果 ===');
+    console.log('默认策略:', defaultResult.humanPlayerRankings.map(r => `${r.uid}:${r.recommendedRank}`));
+    console.log('胜率控制策略:', winRateResult.humanPlayerRankings.map(r => `${r.uid}:${r.recommendedRank}`));
+    console.log('个性化策略:', personalizedResult.humanPlayerRankings.map(r => `${r.uid}:${r.recommendedRank}`));
+
+    return {
+        default: defaultResult,
+        winRate: winRateResult,
+        personalized: personalizedResult
+    };
+}
+
 // 示例：错误处理
 export async function errorHandlingExample(ctx: any) {
     const rankingManager = new RankingRecommendationManagerOptimized(ctx);
@@ -144,7 +208,7 @@ export async function errorHandlingExample(ctx: any) {
         // 测试无效输入
         await rankingManager.generateMatchRankings([], 5); // 空玩家列表
     } catch (error) {
-        console.log('捕获到预期错误:', error.message);
+        console.log('捕获到预期错误:', error instanceof Error ? error.message : String(error));
     }
 
     try {
@@ -154,7 +218,7 @@ export async function errorHandlingExample(ctx: any) {
             15 // 超过最大AI数量
         );
     } catch (error) {
-        console.log('捕获到预期错误:', error.message);
+        console.log('捕获到预期错误:', error instanceof Error ? error.message : String(error));
     }
 
     // 正常情况
@@ -210,10 +274,16 @@ export async function runAllExamples(ctx: any) {
         console.log('\n5. 不同玩家类型示例');
         await differentPlayerTypesExample(ctx);
 
-        console.log('\n6. 错误处理示例');
+        console.log('\n6. 个性化策略示例');
+        await personalizedStrategyExample(ctx);
+
+        console.log('\n7. 策略对比示例');
+        await strategyComparisonExample(ctx);
+
+        console.log('\n8. 错误处理示例');
         await errorHandlingExample(ctx);
 
-        console.log('\n7. 批量处理示例');
+        console.log('\n9. 批量处理示例');
         await batchProcessingExample(ctx);
 
         console.log('\n=== 所有示例执行完成 ===');

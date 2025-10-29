@@ -28,16 +28,34 @@ export interface RankingConfig {
     // 段位配置
     supportedParticipantCounts: number[];   // 支持的参与者数量（默认[4,6,8]）
 
-    // 缓存配置
-    cacheEnabled: boolean;          // 是否启用缓存（默认true）
-    cacheExpiration: number;        // 缓存过期时间（毫秒，默认300000）
-
     // 信心度配置
     confidenceWeights: {
         matchCount: number;         // 比赛场次权重（默认0.2）
         consistency: number;        // 一致性权重（默认0.2）
         skillLevel: number;         // 技能水平权重（默认0.1）
         participantCount: number;   // 参与者数量权重（默认0.1）
+    };
+
+    // 胜率控制配置
+    winRateControl?: {
+        enabled: boolean;                      // 是否启用胜率控制（默认false）
+        targetWinRate: number;                 // 目标胜率（默认0.33）
+        adjustmentSensitivity: number;         // 调整敏感度（默认10）
+        minMatchesForControl: number;          // 至少需要多少场比赛才启用（默认5）
+        maxAdjustmentRange: number;            // 最大排名调整范围比例（默认0.2）
+    };
+
+    // 个性化策略配置
+    personalizedStrategy?: {
+        enabled: boolean;                      // 是否启用个性化策略（默认false）
+        minMatchesForPersonalization: number;  // 至少需要多少场比赛才启用个性化（默认15）
+        profileUpdateInterval: number;        // 玩家画像更新间隔（小时，默认24）
+        maxAdjustmentRange: number;            // 最大排名调整范围比例（默认0.3）
+        confidenceThreshold: number;          // 最低信心度阈值（默认0.6）
+        fallbackToVeteran: boolean;            // 是否回退到成熟策略（默认true）
+        combineWithWinRateControl?: boolean;   // 是否与胜率控制策略结合使用（默认false）
+        winRateControlPriority?: boolean;      // 当胜率严重偏离时，是否优先使用胜率控制（默认true）
+        winRateDeviationThreshold?: number;    // 胜率偏离阈值，超过此值优先使用胜率控制（默认0.15）
     };
 }
 
@@ -57,13 +75,33 @@ export const DEFAULT_RANKING_CONFIG: RankingConfig = {
     maxAICount: 10,
     maxParticipants: 20,
     supportedParticipantCounts: [4, 6, 8],
-    cacheEnabled: true,
-    cacheExpiration: 300000,
     confidenceWeights: {
         matchCount: 0.2,
         consistency: 0.2,
         skillLevel: 0.1,
         participantCount: 0.1
+    },
+
+    // 胜率控制配置（默认禁用）
+    winRateControl: {
+        enabled: false,
+        targetWinRate: 0.33,
+        adjustmentSensitivity: 10,
+        minMatchesForControl: 5,
+        maxAdjustmentRange: 0.2
+    },
+
+    // 个性化策略配置（默认禁用）
+    personalizedStrategy: {
+        enabled: false,
+        minMatchesForPersonalization: 15,
+        profileUpdateInterval: 24,
+        maxAdjustmentRange: 0.3,
+        confidenceThreshold: 0.6,
+        fallbackToVeteran: true,
+        combineWithWinRateControl: false,
+        winRateControlPriority: true,
+        winRateDeviationThreshold: 0.15
     }
 };
 

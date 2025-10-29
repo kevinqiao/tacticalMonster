@@ -2,17 +2,18 @@
  * 排名推荐管理器 - 优化版本
  * 核心功能：基于玩家历史数据和当前分数，智能推荐排名
  * 
- * 优化特性：
- * - 策略模式：不同经验水平的玩家使用不同的排名策略
- * - 缓存机制：避免重复计算，提升性能
- * - 配置驱动：通过配置调整行为，提高灵活性
- * - 模块化设计：职责清晰，易于维护和测试
+     * 优化特性：
+     * - 策略模式：不同经验水平的玩家使用不同的排名策略
+     * - 配置驱动：通过配置调整行为，提高灵活性
+     * - 模块化设计：职责清晰，易于维护和测试
  */
 
 // 导入新的类型和工具
 import { GrowingRankingStrategy } from './strategies/GrowingRankingStrategy';
 import { NewbieRankingStrategy } from './strategies/NewbieRankingStrategy';
+import { PersonalizedRankingStrategy } from './strategies/PersonalizedRankingStrategy';
 import { VeteranRankingStrategy } from './strategies/VeteranRankingStrategy';
+import { WinRateControlledStrategy } from './strategies/WinRateControlledStrategy';
 import {
     AIOpponent,
     HumanAnalysis,
@@ -22,19 +23,84 @@ import {
     PlayerRankingResult
 } from './types/CommonTypes';
 import { DEFAULT_RANKING_CONFIG, RankingConfig } from './types/RankingConfig';
-import { CacheManager } from './utils/CacheManager';
 import { RankingCalculator } from './utils/RankingCalculator';
 
+/**
+ * 排名推荐管理器 - 优化版本
+ * 
+ * @context 要求：
+ * 
+ * 必需的接口：
+ * - ctx.db: 数据库查询接口（必需，用于获取玩家历史数据）
+ * 
+ * 条件必需的接口（仅在启用个性化策略时）：
+ * - ctx.runQuery: 内部查询调用接口（当 config.personalizedStrategy.enabled = true 时必需）
+ *   用于个性化策略中查询玩家画像数据
+ * 
+ * 支持的 Context 类型：
+ * - QueryContext (internalQuery 的 handler) ✅
+ * - MutationContext (internalMutation 的 handler) ✅
+ * 
+ * 不支持：
+ * - ActionContext (需要使用 scheduler 等替代方案) ❌
+ * 
+ * 注意：
+ * - 如果不启用个性化策略，则只需要 ctx.db
+ * - 如果启用个性化策略，则需要同时提供 ctx.db 和 ctx.runQuery
+ * 
+ * @使用场景：
+ * 
+ * 场景 1: 创建比赛时生成排名
+ * ```typescript
+ * export const createMatch = internalMutation({
+ *     handler: async (ctx, args) => {
+ *         const manager = new RankingRecommendationManagerOptimized(ctx);
+ *         const result = await manager.generateMatchRankings(players, aiCount);
+ *         // 保存结果到数据库
+ *     }
+ * });
+ * ```
+ * 
+ * 场景 2: 匹配队列处理
+ * ```typescript
+ * export const processMatch = internalMutation({
+ *     handler: async (ctx, args) => {
+ *         const manager = new RankingRecommendationManagerOptimized(ctx, {
+ *             personalizedStrategy: { enabled: true }
+ *         });
+ *         const result = await manager.generateMatchRankings(players, aiCount);
+ *     }
+ * });
+ * ```
+ * 
+ * 场景 3: 排名预览（查询）
+ * ```typescript
+ * export const previewRanking = internalQuery({
+ *     handler: async (ctx, args) => {
+ *         const manager = new RankingRecommendationManagerOptimized(ctx);
+ *         return await manager.generateMatchRankings(players, aiCount);
+ *     }
+ * });
+ * ```
+ * 
+ * 更多场景示例请参考: docs/USAGE_SCENARIOS.md
+ * Context 要求详细说明: docs/CTX_REQUIREMENTS.md
+ */
 export class RankingRecommendationManagerOptimized {
     private ctx: any;
     private config: RankingConfig;
-    private cache: CacheManager;
     private static callCounter = 0;
 
+    /**
+     * 构造函数
+     * @param ctx - Convex context 对象
+     *   - 必须提供: ctx.db（用于数据库查询）
+     *   - 如果启用个性化策略: 还需要提供 ctx.runQuery（用于查询玩家画像）
+     * @param config - 可选的配置覆盖，未提供的项将使用默认值
+     */
     constructor(ctx: any, config?: Partial<RankingConfig>) {
         this.ctx = ctx;
         this.config = { ...DEFAULT_RANKING_CONFIG, ...config };
-        this.cache = new CacheManager(this.config);
     }
 
     /**
@@ -95,20 +161,13 @@ export class RankingRecommendationManagerOptimized {
     }
 
     /**
-     * 获取玩家档案（带缓存）
+     * 获取玩家档案
      */
     private async getPlayerProfiles(humanPlayers: HumanPlayer[]): Promise<Map<string, PlayerPerformanceProfile>> {
         const profiles = new Map<string, PlayerPerformanceProfile>();
 
         for (const player of humanPlayers) {
-            const cacheKey = `profile_${player.uid}`;
-            let profile = this.cache.get<PlayerPerformanceProfile>(cacheKey);
-
-            if (!profile) {
-                profile = await this.fetchPlayerProfile(player.uid);
-                this.cache.set(cacheKey, profile);
-            }
-
+            const profile = await this.fetchPlayerProfile(player.uid);
             profiles.set(player.uid, profile);
         }
 
@@ -213,8 +272,86 @@ export class RankingRecommendationManagerOptimized {
 
     /**
      * 选择排名策略
+     * 
+     * 平衡逻辑：
+     * 1. 如果个性化策略和胜率控制都启用：
+     *    - 如果配置了组合使用（combineWithWinRateControl=true），两者可以结合
+     *    - 如果胜率严重偏离且启用了优先级（winRateControlPriority=true），优先使用胜率控制
+     *    - 否则优先使用个性化策略
+     * 2. 如果只启用个性化策略，使用个性化策略
+     * 3. 如果只启用胜率控制，使用胜率控制策略
+     * 4. 否则使用传统策略（新手/成长/成熟）
      */
     private selectRankingStrategy(
+        profile: PlayerPerformanceProfile,
+        humanPlayerCount: number
+    ) {
+        const personalizedEnabled = this.config.personalizedStrategy?.enabled &&
+            profile.totalMatches >= (this.config.personalizedStrategy.minMatchesForPersonalization || 15);
+
+        const winRateControlEnabled = this.config.winRateControl?.enabled &&
+            profile.totalMatches >= (this.config.winRateControl.minMatchesForControl || 5);
+
+        // 情况1：两者都启用，需要平衡
+        if (personalizedEnabled && winRateControlEnabled) {
+            return this.selectStrategyWhenBothEnabled(profile);
+        }
+
+        // 情况2：只启用个性化策略
+        if (personalizedEnabled) {
+            return new PersonalizedRankingStrategy(this.config, this.ctx);
+        }
+
+        // 情况3：只启用胜率控制
+        if (winRateControlEnabled) {
+            return new WinRateControlledStrategy(this.config);
+        }
+
+        // 情况4：都未启用，使用传统策略
+        return this.selectTraditionalStrategy(profile, humanPlayerCount);
+    }
+
+    /**
+     * 当两个策略都启用时的选择逻辑
+     */
+    private selectStrategyWhenBothEnabled(profile: PlayerPerformanceProfile) {
+        const personalizedConfig = this.config.personalizedStrategy!;
+        const winRateConfig = this.config.winRateControl!;
+
+        // 检查是否配置了组合使用
+        if (personalizedConfig.combineWithWinRateControl) {
+            // 组合使用：个性化策略会考虑胜率控制
+            // 注意：这需要在 PersonalizedRankingStrategy 中实现
+            return new PersonalizedRankingStrategy(this.config, this.ctx);
+        }
+
+        // 检查是否应该优先使用胜率控制
+        if (personalizedConfig.winRateControlPriority !== false) {
+            const currentWinRate = profile.winRate;
+            const targetWinRate = winRateConfig.targetWinRate || 0.33;
+            const deviationThreshold = personalizedConfig.winRateDeviationThreshold || 0.15;
+            const winRateDeviation = Math.abs(currentWinRate - targetWinRate);
+
+            // 如果胜率严重偏离，优先使用胜率控制策略来快速纠正
+            if (winRateDeviation > deviationThreshold) {
+                console.log(
+                    `玩家 ${profile.uid} 胜率偏离 ${(winRateDeviation * 100).toFixed(1)}% ` +
+                    `(当前: ${(currentWinRate * 100).toFixed(1)}%, 目标: ${(targetWinRate * 100).toFixed(1)}%), ` +
+                    `优先使用胜率控制策略`
+                );
+                return new WinRateControlledStrategy(this.config);
+            }
+        }
+
+        // 胜率正常，使用个性化策略提供更精细的体验
+        console.log(`玩家 ${profile.uid} 胜率正常，使用个性化策略`);
+        return new PersonalizedRankingStrategy(this.config, this.ctx);
+    }
+
+    /**
+     * 选择传统策略（新手/成长/成熟）
+     */
+    private selectTraditionalStrategy(
         profile: PlayerPerformanceProfile,
         humanPlayerCount: number
     ) {
@@ -575,7 +712,6 @@ export class RankingRecommendationManagerOptimized {
      */
     updateConfig(newConfig: Partial<RankingConfig>): void {
         this.config = { ...this.config, ...newConfig };
-        this.cache.clear();
     }
 
     /**
@@ -583,19 +719,5 @@ export class RankingRecommendationManagerOptimized {
      */
     getConfig(): RankingConfig {
         return { ...this.config };
-    }
-
-    /**
-     * 清理缓存
-     */
-    clearCache(): void {
-        this.cache.clear();
-    }
-
-    /**
-     * 获取缓存统计
-     */
-    getCacheStats() {
-        return this.cache.getStats();
     }
 }

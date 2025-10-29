@@ -16,7 +16,7 @@ export class NewbieRankingStrategy extends BaseRankingStrategy {
     ): Promise<PlayerRankingResult> {
         // 新手保护逻辑
         const baseRank = this.calculateHumanRank(player, humanPlayers);
-        const protectionBoost = this.calculateProtectionBoost(player, humanPlayers, totalParticipants);
+        const protectionBoost = this.calculateProtectionBoost(baseRank, humanPlayers, totalParticipants);
         const adjustedRank = Math.max(1, baseRank - protectionBoost);
 
         // 计算AI数量
@@ -46,14 +46,16 @@ export class NewbieRankingStrategy extends BaseRankingStrategy {
 
     /**
      * 计算新手保护加成
+     * @param baseRank 基础排名（人类玩家中的排名）
+     * @param humanPlayers 人类玩家列表
+     * @param totalParticipants 总参与人数
      */
     private calculateProtectionBoost(
-        player: HumanPlayer,
+        baseRank: number,
         humanPlayers: HumanPlayer[],
         totalParticipants: number
     ): number {
-        const humanRank = this.calculateHumanRank(player, humanPlayers);
-        const percentile = humanRank / humanPlayers.length;
+        const percentile = baseRank / humanPlayers.length;
 
         if (percentile <= this.config.newbieProtectionThreshold) {
             return Math.floor(

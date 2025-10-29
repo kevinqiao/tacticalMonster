@@ -6,10 +6,7 @@
 // ==================== 简化的管理器 ====================
 // ScoreThresholdPlayerController removed - use managers directly
 
-/** @deprecated 已废弃，功能已整合到其他管理器 */
-export { PlayerHistoricalDataManager } from "./managers/PlayerHistoricalDataManager";
 
-export { RankingRecommendationManager } from "./managers/RankingRecommendationManager";
 /** @deprecated 已移除，功能未使用 */
 // export { SeedRecommendationManager } from "./managers/SeedRecommendationManager";
 

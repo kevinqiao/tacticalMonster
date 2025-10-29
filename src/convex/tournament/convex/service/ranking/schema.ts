@@ -134,5 +134,73 @@ export default {
         .index("by_uid", ["uid"])
         .index("by_seedId", ["seedId"])
         .index("by_createdAt", ["createdAt"])
-        .index("by_difficulty", ["feedback.difficulty"])
+        .index("by_difficulty", ["feedback.difficulty"]),
+
+    // 玩家画像表
+    player_profiles: defineTable({
+        uid: v.string(),
+        preferences: v.object({
+            challengeLevel: v.union(v.literal("easy"), v.literal("normal"), v.literal("hard"), v.literal("extreme")),
+            competitionStyle: v.union(v.literal("conservative"), v.literal("balanced"), v.literal("aggressive")),
+            focusArea: v.union(v.literal("ranking"), v.literal("score"), v.literal("improvement"), v.literal("fun")),
+            riskTolerance: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+            playTime: v.union(v.literal("morning"), v.literal("afternoon"), v.literal("evening"), v.literal("night")),
+            sessionLength: v.union(v.literal("short"), v.literal("medium"), v.literal("long"))
+        }),
+        behavioralPatterns: v.object({
+            playFrequency: v.union(v.literal("daily"), v.literal("weekly"), v.literal("casual")),
+            retryBehavior: v.union(v.literal("persistent"), v.literal("occasional"), v.literal("rare")),
+            goalOrientation: v.union(v.literal("competitive"), v.literal("casual"), v.literal("social")),
+            learningStyle: v.union(v.literal("explorer"), v.literal("achiever"), v.literal("socializer"), v.literal("killer")),
+            stressResponse: v.union(v.literal("calm"), v.literal("moderate"), v.literal("anxious"))
+        }),
+        performanceHistory: v.object({
+            bestRank: v.number(),
+            worstRank: v.number(),
+            averageRank: v.number(),
+            rankingTrend: v.union(v.literal("improving"), v.literal("declining"), v.literal("stable")),
+            consistency: v.number(),
+            riskTaking: v.number(),
+            comebackAbility: v.number()
+        }),
+        psychologicalProfile: v.object({
+            motivationType: v.union(v.literal("intrinsic"), v.literal("extrinsic"), v.literal("mixed")),
+            feedbackPreference: v.union(v.literal("immediate"), v.literal("delayed"), v.literal("detailed")),
+            socialInteraction: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
+            achievementOrientation: v.union(v.literal("high"), v.literal("medium"), v.literal("low"))
+        }),
+        dataQuality: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
+        confidence: v.number(),
+        updateCount: v.number(),
+        lastUpdated: v.string(),
+        createdAt: v.string()
+    })
+        .index("by_uid", ["uid"])
+        .index("by_dataQuality", ["dataQuality"])
+        .index("by_lastUpdated", ["lastUpdated"])
+        .index("by_confidence", ["confidence"]),
+
+    // 玩家行为事件表
+    player_behavior_events: defineTable({
+        uid: v.string(),
+        eventType: v.string(),
+        eventData: v.any(),
+        timestamp: v.string(),
+        sessionId: v.optional(v.string())
+    })
+        .index("by_uid", ["uid"])
+        .index("by_eventType", ["eventType"])
+        .index("by_timestamp", ["timestamp"])
+        .index("by_uid_timestamp", ["uid", "timestamp"]),
+
+    // 系统监控事件表
+    system_monitoring_events: defineTable({
+        eventType: v.string(),
+        eventData: v.any(),
+        timestamp: v.string(),
+        severity: v.union(v.literal("info"), v.literal("warning"), v.literal("error"), v.literal("critical"))
+    })
+        .index("by_eventType", ["eventType"])
+        .index("by_timestamp", ["timestamp"])
+        .index("by_severity", ["severity"])
 };

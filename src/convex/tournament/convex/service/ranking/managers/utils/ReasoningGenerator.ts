@@ -2,6 +2,7 @@
  * 推理说明生成器
  */
 
+import { PersonalizedWeights, PlayerProfile } from '../strategies/PersonalizedRankingStrategy';
 import { HumanPlayer, PlayerPerformanceProfile } from '../types/CommonTypes';
 
 export class ReasoningGenerator {
@@ -144,6 +145,107 @@ export class ReasoningGenerator {
         if (scoreImprovement > 0.1) return '表现良好';
         if (scoreImprovement > -0.1) return '表现一般';
         return '表现欠佳';
+    }
+
+    /**
+     * 生成胜率控制策略推理
+     */
+    static generateWinRateControlledReasoning(
+        player: HumanPlayer,
+        profile: PlayerPerformanceProfile,
+        recommendedRank: number,
+        totalParticipants: number,
+        currentWinRate: number,
+        targetWinRate: number,
+        winRateDiff: number
+    ): string {
+        const reasons: string[] = [];
+
+        reasons.push(`当前胜率 ${(currentWinRate * 100).toFixed(1)}%`);
+        reasons.push(`目标胜率 ${(targetWinRate * 100).toFixed(1)}%`);
+
+        if (winRateDiff > 0.1) {
+            reasons.push(`胜率偏高${(winRateDiff * 100).toFixed(1)}%，适当降低排名以获得更平衡的体验`);
+        } else if (winRateDiff < -0.1) {
+            reasons.push(`胜率偏低${(Math.abs(winRateDiff) * 100).toFixed(1)}%，适当提升排名以增加获胜机会`);
+        } else {
+            reasons.push(`胜率接近目标，保持当前排名`);
+        }
+
+        reasons.push(`推荐第${recommendedRank}名`);
+
+        return reasons.join('，');
+    }
+
+    /**
+     * 生成个性化策略推理
+     */
+    static generatePersonalizedReasoning(
+        player: HumanPlayer,
+        profile: PlayerPerformanceProfile,
+        recommendedRank: number,
+        totalParticipants: number,
+        playerProfile: PlayerProfile,
+        weights: PersonalizedWeights
+    ): string {
+        const reasons: string[] = [];
+
+        // 基于玩家偏好生成推理
+        const { challengeLevel, competitionStyle, focusArea } = playerProfile.preferences;
+
+        reasons.push(`根据您的${challengeLevel}挑战偏好`);
+        reasons.push(`${competitionStyle}竞争风格`);
+        reasons.push(`专注${focusArea}的游戏目标`);
+
+        // 基于行为模式生成推理
+        const { goalOrientation, learningStyle } = playerProfile.behavioralPatterns;
+
+        if (goalOrientation === 'competitive') {
+            reasons.push(`考虑到您的竞争导向`);
+        } else if (goalOrientation === 'casual') {
+            reasons.push(`考虑到您的休闲风格`);
+        }
+
+        if (learningStyle === 'explorer') {
+            reasons.push(`探索型学习风格，鼓励尝试新策略`);
+        } else if (learningStyle === 'achiever') {
+            reasons.push(`成就型学习风格，重视稳定进步`);
+        } else if (learningStyle === 'socializer') {
+            reasons.push(`社交型学习风格，注重团队合作`);
+        } else if (learningStyle === 'killer') {
+            reasons.push(`杀手型学习风格，追求极致表现`);
+        }
+
+        // 基于历史表现生成推理
+        const { consistency, rankingTrend } = playerProfile.performanceHistory;
+
+        if (consistency >= 0.8) {
+            reasons.push(`您表现稳定，排名可信度高`);
+        } else if (consistency < 0.5) {
+            reasons.push(`表现波动较大，调整幅度较小`);
+        }
+
+        if (rankingTrend === 'improving') {
+            reasons.push(`持续进步中，给予进步奖励`);
+        } else if (rankingTrend === 'declining') {
+            reasons.push(`表现下降，适度调整排名`);
+        }
+
+        // 基于心理特征生成推理
+        const { motivationType, achievementOrientation } = playerProfile.psychologicalProfile;
+
+        if (motivationType === 'intrinsic' && achievementOrientation === 'high') {
+            reasons.push(`内在动机强，高成就导向，给予适度奖励`);
+        } else if (motivationType === 'extrinsic') {
+            reasons.push(`外在动机型，重视即时反馈`);
+        }
+
+        // 显示个性化权重
+        reasons.push(`个性化权重：历史技能${(weights.skill * 100).toFixed(0)}%，当前表现${(weights.score * 100).toFixed(0)}%`);
+
+        reasons.push(`推荐第${recommendedRank}名`);
+
+        return reasons.join('，');
     }
 
     /**
