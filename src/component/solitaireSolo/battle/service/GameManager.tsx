@@ -2,8 +2,10 @@
  * 单人纸牌游戏管理器
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
-import React, { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
+import { useAction } from 'convex/react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useUserManager } from 'service/UserManager';
+import { api } from '../../../../convex/solitaireArena/convex/_generated/api';
 import {
     DEFAULT_GAME_CONFIG,
     SolitaireRule,
@@ -46,11 +48,12 @@ interface SoloGameProviderProps {
     config?: Partial<SoloGameConfig>;
 }
 
-export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, config: customConfig }) => {
+export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig }) => {
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const { updateUserData } = useUserManager();
+    const loadGameAction = useAction(api.proxy.controller.loadGame);
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
         return new SoloRuleManager(gameState)
@@ -66,6 +69,17 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, co
         setGameState(game);
         // updateUserData({ game: { name: 'solitaire', gameId: game.gameId } });
     }, []);
+    useEffect(() => {
+        if (gameId) {
+            loadGameAction({ gameId }).then((game) => {
+                if (game) {
+                    // loadGame(game);
+                    console.log("game", game);
+                }
+            });
+
+        }
+    }, [gameId]);
 
 
 

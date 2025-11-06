@@ -6,7 +6,7 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 
-export default {
+export const rankingSchema = {
     // 分数门槛配置表
     score_threshold_configs: defineTable({
         uid: v.string(),
@@ -60,24 +60,24 @@ export default {
 
 
     // 比赛结果表（统一存储所有比赛数据，包含种子信息）
-    match_results: defineTable({
-        matchId: v.string(),
-        seed: v.string(),          // 种子标识
-        uid: v.string(),           // 玩家用户ID
-        score: v.number(),         // 玩家得分
-        rank: v.number(),          // 玩家排名
-        segmentName: v.optional(v.string()), // 玩家当前段位（可选）
-        createdAt: v.string()      // 记录创建时间
-    })
-        .index("by_matchId", ["matchId"])
-        .index("by_seed", ["seed"])
-        .index("by_uid", ["uid"])
-        .index("by_createdAt", ["createdAt"])
-        .index("by_seed_created", ["seed", "createdAt"]) // 复合索引，用于增量查询
-        .index("by_score", ["score"])                    // 按得分查询
-        .index("by_rank", ["rank"])                      // 按排名查询
-        .index("by_segment", ["segmentName"])            // 按段位查询
-        .index("by_uid_created", ["uid", "createdAt"]),  // 复合索引，用于玩家历史查询
+    // match_results: defineTable({
+    //     matchId: v.string(),
+    //     seed: v.string(),          // 种子标识
+    //     uid: v.string(),           // 玩家用户ID
+    //     score: v.number(),         // 玩家得分
+    //     rank: v.number(),          // 玩家排名
+    //     segmentName: v.optional(v.string()), // 玩家当前段位（可选）
+    //     createdAt: v.string()      // 记录创建时间
+    // })
+    //     .index("by_matchId", ["matchId"])
+    //     .index("by_seed", ["seed"])
+    //     .index("by_uid", ["uid"])
+    //     .index("by_createdAt", ["createdAt"])
+    //     .index("by_seed_created", ["seed", "createdAt"]) // 复合索引，用于增量查询
+    //     .index("by_score", ["score"])                    // 按得分查询
+    //     .index("by_rank", ["rank"])                      // 按排名查询
+    //     .index("by_segment", ["segmentName"])            // 按段位查询
+    //     .index("by_uid_created", ["uid", "createdAt"]),  // 复合索引，用于玩家历史查询
 
     // 分数门槛比赛配置表
     score_threshold_match_configs: defineTable({

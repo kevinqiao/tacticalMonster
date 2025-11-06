@@ -3,7 +3,7 @@
  * 核心功能：根据玩家当前胜率与目标胜率的差异，动态调整排名推荐
  */
 
-import { HumanAnalysis, HumanPlayer, PlayerPerformanceProfile, PlayerRankingResult } from '../types/CommonTypes';
+import { HumanAnalysis, HumanPlayer, PlayerRankingProfile, PlayerRankingResult } from '../types/CommonTypes';
 import { ReasoningGenerator } from '../utils/ReasoningGenerator';
 import { BaseRankingStrategy } from './BaseRankingStrategy';
 
@@ -13,7 +13,7 @@ export class WinRateControlledStrategy extends BaseRankingStrategy {
      */
     async calculateRanking(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]
@@ -62,7 +62,7 @@ export class WinRateControlledStrategy extends BaseRankingStrategy {
      * 确定目标胜率
      * 策略：根据玩家比赛场次和经验水平调整目标胜率
      */
-    private determineTargetWinRate(player: HumanPlayer, profile: PlayerPerformanceProfile): number {
+    private determineTargetWinRate(player: HumanPlayer, profile: PlayerRankingProfile): number {
         // 基础目标胜率
         let baseTargetWinRate = 0.33; // 默认33%胜率
 
@@ -126,7 +126,7 @@ export class WinRateControlledStrategy extends BaseRankingStrategy {
      * 计算胜率控制策略的信心度
      * 基于胜率差异和历史表现的一致性
      */
-    protected calculateConfidence(profile: PlayerPerformanceProfile, humanAnalysis: HumanAnalysis): number {
+    protected calculateConfidence(profile: PlayerRankingProfile, humanAnalysis: HumanAnalysis): number {
         // 基础信心度
         let confidence = 0.7;
 
@@ -153,7 +153,7 @@ export class WinRateControlledStrategy extends BaseRankingStrategy {
      * 计算胜率稳定性
      * 基于最近比赛的胜率变化
      */
-    private calculateWinRateStability(profile: PlayerPerformanceProfile): number {
+    private calculateWinRateStability(profile: PlayerRankingProfile): number {
         const recentMatches = profile.recentPerformance.last10Matches;
         if (recentMatches.length < 5) return 0.5;
 

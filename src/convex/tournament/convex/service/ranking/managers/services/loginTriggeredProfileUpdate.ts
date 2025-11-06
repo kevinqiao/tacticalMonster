@@ -224,7 +224,7 @@ async function updatePlayerProfileOnLoginInternal(ctx: any, uid: string) {
         // 3. 根据变化程度决定更新策略
         if (changeSignificance > 0.3) {
             // 显著变化：完整更新
-            await generateAndStorePlayerProfile(ctx, { uid });
+            await generateAndStorePlayerPersonalizationProfile(ctx, { uid });
             console.log(`玩家 ${uid} 画像完整更新完成`);
         } else if (changeSignificance > 0.1) {
             // 轻微变化：增量更新
@@ -293,7 +293,7 @@ async function getPlayerHistoryForProfileInternal(ctx: any, uid: string) {
 /**
  * 生成并存储玩家画像（避免循环调用）
  */
-async function generateAndStorePlayerProfile(ctx: any, args: { uid: string }) {
+async function generateAndStorePlayerPersonalizationProfile(ctx: any, args: { uid: string }) {
     const { uid } = args;
 
     try {
@@ -392,7 +392,7 @@ async function incrementalProfileUpdate(ctx: any, uid: string, newHistory: any) 
 
     if (!profile) {
         // 如果没有画像，生成完整画像
-        return await generateAndStorePlayerProfile(ctx, { uid });
+        return await generateAndStorePlayerPersonalizationProfile(ctx, { uid });
     }
 
     // 只更新变化的部分

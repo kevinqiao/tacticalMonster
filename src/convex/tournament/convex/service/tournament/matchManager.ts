@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
-import { mutation, query } from "../../_generated/server";
+import { internalQuery, mutation, query } from "../../_generated/server";
 import { settleTournament, TournamentStatus } from "./common";
 // import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
@@ -63,18 +63,6 @@ export class MatchManager {
                     match: match
                 });
             }
-            // await ctx.db.insert("match_events", {
-            //     matchId,
-            //     tournamentId: params.tournamentId,
-            //     eventType: "match_created",
-            //     eventData: {
-            //         matchType: tournamentType.matchRules.matchType,
-            //         maxPlayers: tournamentType.matchRules.maxPlayers,
-            //         minPlayers: tournamentType.matchRules.minPlayers,
-            //     },
-            //     timestamp: now.iso,
-            //     createdAt: now.iso,
-            // });
             return match;
         } catch (error) {
             console.error("创建比赛失败:", error);
@@ -123,8 +111,10 @@ export class MatchManager {
                     uid: uid,
                     gameId: GAME_MODES[match.gameType] === "solo" ? `game_${match._id}_${uid}` : `game_${match._id}`,
                     gameType: match.gameType,
+                    seed: `game_${match._id}_${uid}`,
                     score: 0,
-                    completed: false,
+                    rank: -1,
+                    status: TournamentStatus.OPEN,
                     createdAt: nowISO,
                     updatedAt: nowISO,
                 });
@@ -380,21 +370,45 @@ export const joinMatch = (mutation as any)({
         return await MatchManager.joinMatch(ctx, args);
     },
 });
-
-export const submitScore = (mutation as any)({
+export const findMatch = query({
     args: {
-        scores: v.array(v.object({
-            uid: v.string(),
-            gameId: v.string(),
-            score: v.number(),
-            gameData: v.optional(v.string()),
-        })),
+        tournamentType: v.optional(v.string()),
+        uid: v.string(),
     },
-    handler: async (ctx: any, args: any): Promise<any> => {
-        return await MatchManager.submitScore(ctx, args);
+    handler: async (ctx: any, { tournamentType, uid }: { tournamentType: string, uid: string }): Promise<any> => {
+        if (!tournamentType) {
+            return { ok: false, match: null };
+        }
+        const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => tournamentType ? q.eq("tournamentType", tournamentType).eq("uid", uid).eq("status", TournamentStatus.OPEN) : q.eq("uid", uid).eq("status", TournamentStatus.OPEN)).order("desc").first();
+        if (match) {
+            console.log("match", match);
+            return { ok: true, match: { ...match, _id: undefined, _creationTime: undefined } };
+        }
+        return { ok: false, match: null };
     },
 });
+export const findMatchGame = internalQuery({
+    args: { gameId: v.string() },
+    handler: async (ctx: any, { gameId }: { gameId: string }): Promise<any> => {
+        const match = await ctx.db.query("player_matches").withIndex("by_gameId", (q: any) => q.eq("gameId", gameId)).unique();
+        if (match) {
+            return { ...match, _id: undefined, _creationTime: undefined };
+        }
+        return null;
+    },
+});
+export const findReport = query({
+    args: { matchId: v.string() },
+    handler: async (ctx: any, { matchId }: { matchId: string }): Promise<any> => {
 
+        const match = await ctx.db.query("matches").withIndex("by_matchId", (q: any) => q.eq("matchId", matchId)).unique();
+        if (match) {
+            return { ...match, matchId: match._id, _id: undefined, _creationTime: undefined };
+        }
+
+        return null;
+    },
+});
 export const getMatchDetails = (query as any)({
     args: { matchId: v.id("matches") },
     handler: async (ctx: any, args: any): Promise<any> => {

@@ -257,7 +257,7 @@ export class PointCalculationService {
         // 获取锦标赛类型配置（包含积分规则）
         const tournamentType = await ctx.db
             .query("tournament_types")
-            .withIndex("by_typeId", (q: any) => q.eq("typeId", tournament.tournamentType))
+            .withIndex("by_typeId", (q: any) => q.eq("typeId", tournament.type))
             .unique();
 
         if (!tournamentType) {

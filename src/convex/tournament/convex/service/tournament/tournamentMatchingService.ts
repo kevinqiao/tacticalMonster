@@ -24,18 +24,18 @@ export class TournamentMatchingService {
      * 集成段位系统，确保玩家段位已初始化
      */
     static async joinMatchingQueue(ctx: any, params: {
-        tournament: any; // 可选，独立模式下不需要     
-        tournamentType: any; // 新增：锦标赛类型，独立模式下需要
-        player: any;
+        tournamentId?: string; // 可选，独立模式下不需要     
+        typeId: string; // 新增：锦标赛类型，独立模式下需要
+        uid: string;
 
     }) {
         const nowISO = new Date().toISOString();
-        const { tournament, tournamentType, player } = params;
+        const { tournamentId, typeId, uid } = params;
         try {
-            const config = tournamentType.config;
+
 
             // 1. 检查是否已在队列中
-            const existingQueue = await ctx.db.query("matchingQueue").withIndex("by_uid", (q: any) => q.eq("uid", player.uid)).first();
+            const existingQueue = await ctx.db.query("matchingQueue").withIndex("by_uid", (q: any) => q.eq("uid", uid)).first();
 
             if (existingQueue) {
                 console.log("existingQueue", existingQueue)
@@ -78,22 +78,11 @@ export class TournamentMatchingService {
 
             // 5. 加入匹配队列
             const queueId = await ctx.db.insert("matchingQueue", {
-                uid: params.player.uid,
-                tournamentId: tournament?._id,
-                tournamentType: tournamentType.typeId,
-                playerInfo: {
-                    uid: player.uid,
-                    skill: player.eloScore || 1000, // 使用 eloScore 替代 totalPoints
-                    eloScore: player.eloScore,
-                    isSubscribed: player.isSubscribed
-                },
+                uid,
+                tournamentId,
+                tournamentType: typeId,
                 status: "waiting",
                 joinedAt: nowISO,
-                metadata: {
-                    config: config,
-                    playerLevel: player.level,
-                    playerRank: player.rank,
-                },
                 createdAt: nowISO,
                 updatedAt: nowISO
             });
@@ -220,8 +209,7 @@ export class TournamentMatchingService {
         if (!tournamentId) {
             console.log("createTournament players:", uids)
             tid = await createTournament(ctx, {
-                config,
-                uids
+                tournamentType: config,
             });
         } else {
             await joinTournament(ctx, { tournamentId, uids });
@@ -461,29 +449,18 @@ export class TournamentMatchingService {
 }
 
 // Convex 函数接口
-export const joinMatchingQueue = (mutation as any)({
+export const joinMatchingQueue = mutation({
     args: {
-        player: v.any(),
-        tournament: v.any(),
-        tournamentType: v.any(),
+        uid: v.string(),
+        tournamentId: v.optional(v.string()),
+        typeId: v.string(),
     },
     handler: async (ctx: any, args: any) => {
         // 获取玩家信息
-        const player = await ctx.db
-            .query("players")
-            .withIndex("by_uid", (q: any) => q.eq("uid", args.uid))
-            .first();
-        if (!player) {
-            throw new Error("玩家不存在");
-        }
-
-        // 获取锦标赛配置
-
-
         return await TournamentMatchingService.joinMatchingQueue(ctx, {
-            tournament: args.tournament,
-            tournamentType: args.tournamentType,
-            player,
+            tournamentId: args.tournamentId,
+            typeId: args.typeId,
+            uid: args.uid,
         });
     },
 });

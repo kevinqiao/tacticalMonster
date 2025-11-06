@@ -1,12 +1,12 @@
 import { defineSchema } from "convex/server";
 import { battlePassSchema } from "./schemas/battlePassSchema";
+import { rankingSchema } from "./schemas/rankingSchema";
 import { segmentSchema } from "./schemas/segmentSchema";
 import { taskSchema } from "./schemas/taskSchema";
 import { ticketSchema } from "./schemas/ticketSchema";
 import { tournamentRulesSchema } from "./schemas/tournamentRulesSchema";
 import { tournamentSchema } from "./schemas/tournamentSchema";
 import { userSchema } from "./schemas/userSchema";
-import rankingSchema from "./service/ranking/schema";
 
 // 合并所有模块的schema
 export default defineSchema({

@@ -17,27 +17,22 @@ export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
     uid: string;
     tournamentType: any;
 }) {
-
-    const nowISO = new Date().toISOString();
     let startTime: string;
-    // 根据时间范围确定开始时间
     switch (tournamentType.timeRange) {
         case "daily":
             startTime = TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto");
             break;
         case "weekly":
-            startTime = TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto");
+            const weekStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            weekStart.setHours(0, 0, 0, 0);
+            startTime = weekStart.toISOString();
             break;
-        case "seasonal":
-            // 获取当前赛季开始时间
-            const season = await ctx.db
-                .query("seasons")
-                .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-                .first();
-            startTime = season?.startDate;
-            break;
-        case "total":
-            startTime = "1970-01-01T00:00:00.000Z";
+        case "monthly":
+            const monthStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
+            monthStart.setDate(1);
+            monthStart.setHours(0, 0, 0, 0);
+            startTime = monthStart.toISOString();
             break;
         default:
             startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
@@ -62,79 +57,37 @@ export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
 /**
  * 检查锦标赛参赛资格
  */
-export async function checkTournamentEligibility(ctx: any, params: {
+export async function checkTournamentEligible(ctx: any, params: {
     tournamentType: any;
-    player: any;
-    inventory: any;
-    attempts: number;
+    uid: string;
 }) {
-    const { tournamentType, player, inventory, attempts } = params;
+    const { tournamentType, uid } = params;
+    if (['daily', 'weekly', 'monthly'].includes(tournamentType.timeRange)) {
+        const tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
+
+        if (!tournament) {
+            return false;
+        }
+    }
     const entryRequirements = tournamentType.entryRequirements;
     const matchRules = tournamentType.matchRules;
-    const reasons: string[] = [];
 
-    // 检查段位要求
-    if (entryRequirements?.minSegment) {
-        const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
-        const playerIndex = segments.indexOf(player.segmentName);
-        const minIndex = segments.indexOf(entryRequirements.minSegment);
-        if (playerIndex < minIndex) {
-            reasons.push(`需要至少 ${entryRequirements.minSegment} 段位`);
-        }
-    }
-
-    if (entryRequirements?.maxSegment) {
-        const segments = ["bronze", "silver", "gold", "platinum", "diamond"];
-        const playerIndex = segments.indexOf(player.segmentName);
-        const maxIndex = segments.indexOf(entryRequirements.maxSegment);
-        if (playerIndex > maxIndex) {
-            reasons.push(`段位不能超过 ${entryRequirements.maxSegment}`);
-        }
-    }
-
-    // 检查订阅要求
-    if (entryRequirements?.isSubscribedRequired && !player.isSubscribed) {
-        reasons.push("需要订阅会员");
-    }
 
     // 检查入场费
-    const entryFee = entryRequirements?.entryFee;
-    if (entryFee?.coins && (!inventory || inventory.coins < entryFee.coins)) {
-        reasons.push(`需要 ${entryFee.coins} 金币`);
-    }
+    // const entryFee = entryRequirements?.entryFee;
+    // if (entryFee) {
+    //     return false;
+    // }
+    // const maxAttempts = matchRules?.maxAttempts;
+    // if (maxAttempts) {
+    //     const attempts = await getPlayerAttempts(ctx, { uid, tournamentType });
+    //     if (attempts >= maxAttempts) {
+    //         return false;
+    //     }
+    // }
 
-    if (entryFee?.tickets) {
-        const ticket = inventory?.tickets?.find((t: any) =>
-            t.type === entryFee.tickets.type
-        );
-        if (!ticket || ticket.quantity < entryFee.tickets.quantity) {
-            reasons.push(`需要 ${entryFee.tickets.quantity} 张门票`);
-        }
-    }
-
-    // 检查参与次数限制
-    const timeRange = tournamentType.timeRange || "total";
-    // const attempts = await getPlayerAttempts(ctx, {
-    //     uid,
-    //     tournamentType
-    // });
-
-    const maxAttempts = matchRules?.maxAttempts;
-    if (maxAttempts && attempts >= maxAttempts) {
-        const timeRangeText = timeRange === 'daily' ? '今日' :
-            timeRange === 'weekly' ? '本周' :
-                timeRange === 'seasonal' ? '本赛季' : '';
-        reasons.push(`已达${timeRangeText}最大尝试次数 (${attempts}/${maxAttempts})`);
-    }
-
-    return {
-        eligible: reasons.length === 0,
-        reasons
-    };
+    return true;
 }
-
-
-
 
 
 // ==================== 类型定义 ====================
@@ -210,71 +163,48 @@ export interface SubmitScoreResult {
   * 创建锦标赛
   */
 export async function createTournament(ctx: any, params: {
-    config: any;
-    uids?: string[];
-    endTime?: string;
+    tournamentType: any;
 }) {
-
-    const { config, uids } = params;
-    const nowISO = new Date().toISOString();
-    const season = await ctx.db
-        .query("seasons")
-        .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-        .first();
-
-    // 计算结束时间
-    let endTime: string | null = null;
-    // if (config.matchRules.matchType !== 'single_match' && ['daily', 'weekly', 'monthly'].includes(config.timeRange)) {
-    //     if (config.schedule.end) {
-
-    //     } else {
-    //         switch (config.timeRange) {
-    //             case "daily":
-    //                 const dayStartISO = new Date(TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto"));
-    //                 endTime = new Date(new Date(dayStartISO).getTime() + 24 * 60 * 60 * 1000).toISOString();
-    //                 break;
-    //             case "weekly":
-    //                 const weekStartISO = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
-    //                 endTime = new Date(new Date(weekStartISO).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    //                 break;
-    //             case "monthly":
-    //                 const monthStartISO = new Date(TimeZoneUtils.getTimeZoneMonthStartISO("America/Toronto"));
-    //                 endTime = new Date(new Date(monthStartISO).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    //                 break;
-    //             default:
-    //                 break;
-    //         }
-    //     }
-    // }
-
-    // 创建锦标赛
-    const tournamentId = await ctx.db.insert("tournaments", {
-        seasonId: season._id,
-        gameType: config.gameType,
-        segmentName: "all", // 对所有段位开放
+    const tournament = {
+        gameType: params.tournamentType.gameType,
         status: TournamentStatus.OPEN,
-        tournamentType: config.typeId,
-        createdAt: nowISO,
-        updatedAt: nowISO,
-    });
-
-    if (uids) {
-        console.log("join player_tournaments", uids)
-        await Promise.all(uids.map(async (uid: string) => {
-            await ctx.db.insert("player_tournaments", {
-                uid,
-                tournamentId,
-                tournamentType: config.typeId,
-                gameType: config.gameType,
-                score: 0,
-                status: TournamentStatus.OPEN,
-                createdAt: nowISO,
-                updatedAt: nowISO,
-            });
-        }));
+        type: params.tournamentType.typeId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     }
-    console.log(`成功创建锦标赛 ${config.typeId}: ${tournamentId}`);
-    return tournamentId;
+    if (['daily', 'weekly', 'monthly'].includes(params.tournamentType.timeRange)) {
+        let startTime: string;
+        // 根据时间范围确定开始时间
+        switch (params.tournamentType.timeRange) {
+            case "daily":
+                startTime = TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto");
+                break;
+            case "weekly":
+                const weekStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                weekStart.setHours(0, 0, 0, 0);
+                startTime = weekStart.toISOString();
+                break;
+            case "monthly":
+                const monthStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
+                monthStart.setDate(1);
+                monthStart.setHours(0, 0, 0, 0);
+                startTime = monthStart.toISOString();
+                break;
+            default:
+                startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
+                break;
+        }
+        const existingTournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("type", params.tournamentType.typeId).eq("status", TournamentStatus.OPEN).gte("createdAt", startTime)).first();
+        if (!existingTournament) {
+            const tournamentId = await ctx.db.insert("tournaments", tournament);
+            return { ...tournament, id: tournamentId };
+        }
+        return { ...existingTournament, id: existingTournament._id, _id: undefined };
+    } else {
+        const tournamentId = await ctx.db.insert("tournaments", tournament);
+        return { ...tournament, id: tournamentId };
+    }
 }
 /**
   * 加入锦标赛
@@ -291,24 +221,21 @@ export async function joinTournament(ctx: any, params: {
     if (!tournament) {
         throw new Error("锦标赛不存在");
     }
-
     const nowISO = new Date().toISOString();
-    await Promise.all(uids.map(async (uid: string) => {
+    for (const uid of uids) {
         const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid)).unique();
         if (!playerTournament) {
             await ctx.db.insert("player_tournaments", {
                 uid,
-                tournamentId,
-                tournamentType: tournament.tournamentType,
-                gameType: tournament.gameType,
                 score: 0,
                 status: TournamentStatus.OPEN,
+                tournamentId,
+                tournamentType: tournament.type,
                 createdAt: nowISO,
                 updatedAt: nowISO,
             });
         }
-    }));
-
+    }
 }
 export async function joinMatch(ctx: any, params: {
     matchId: string;
@@ -360,7 +287,6 @@ export async function getCommonData(ctx: any, params: {
     if (!player) {
         throw new Error("玩家不存在");
     }
-
     // 获取玩家库存
     let inventory = null;
     if (requireInventory) {
@@ -482,7 +408,7 @@ export async function deductEntryFee(ctx: any, params: {
 
 }
 export async function findTournamentByType(ctx: any, params: { tournamentType: any }) {
-    const nowISO = new Date().toISOString();
+
     let startTime: string;
     // 根据时间范围确定开始时间
 
@@ -497,52 +423,48 @@ export async function findTournamentByType(ctx: any, params: { tournamentType: a
             startTime = weekStart.toISOString();
             break;
         case "monthly":
-            // 获取当前赛季开始时间
-            const season = await ctx.db
-                .query("seasons")
-                .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-                .first();
-            startTime = season?.startDate || TimeZoneUtils.getTimeZoneMonthStartISO("America/Toronto");
-            break;
-        case "total":
-            startTime = "1970-01-01T00:00:00.000Z";
+            const monthStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
+            monthStart.setDate(1);
+            monthStart.setHours(0, 0, 0, 0);
+            startTime = monthStart.toISOString();
             break;
         default:
             startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
             break;
     }
-    const tournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("tournamentType", params.tournamentType.typeId).eq("status", TournamentStatus.OPEN).gte("createdAt", startTime)).first();
+    const tournament = await ctx.db.query("tournaments").withIndex("by_type_status_createdAt", (q: any) => q.eq("type", params.tournamentType.typeId).eq("status", TournamentStatus.OPEN).gte("createdAt", startTime)).first();
     return tournament;
 }
-export async function findPlayerRank(ctx: any, params: { uid: string; tournamentId: string }) {
-    const { uid, tournamentId } = params;
-    const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid)).unique();
-    if (!playerTournament) {
-        return -1
-    }
-    const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", playerTournament.tournamentType)).unique();
-    // const playerScore = tournamentType.matchRules.pointsMatch ? playerTournament.gamePoint : playerTournament.score;
-
+export async function findPlayerRank(ctx: any, params: { uid: string; tournament: any }) {
+    const { uid, tournament } = params;
     const batchSize = 1000; // 每批加载 1000 条记录
     let currentRank = 0; // 当前累计排名
     let currentScore = 1000000; // 当前分数，用于处理并列
     let rank = null;
     let tournaments: any[] = [];
-    const playerScore = playerTournament.score;
+    const playerScore = tournament.score ?? 0;
+    const tournamentId = tournament._id;
+    let count = 0;
     while (true) {
+        count++;
+        if (count > 6) {
+            break;
+        }
+
         // 按 score 降序获取一批数据
         tournaments = await ctx.db
             .query("player_tournaments")
             .withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId).lte("score", currentScore))
             .order("desc")
             .take(batchSize)
-
+        // console.log("tournaments", count, tournaments.length)
         // 如果本批次为空，说明已遍历完所有数据
         if (tournaments.length === 0) {
             break;
         }
 
         currentScore = tournaments[tournaments.length - 1].score;
+        console.log("rank:", playerScore, currentScore, count)
         if (playerScore >= currentScore) {
             const aboveTournaments = tournaments.filter((t: any) => t.score > playerScore);
             const sameScoreTournaments = await ctx.db
@@ -555,7 +477,7 @@ export async function findPlayerRank(ctx: any, params: { uid: string; tournament
         }
         currentRank += tournaments.length;
     }
-    return rank;
+    return { rank, tournamentId };
 }
 export async function settleTournament(ctx: any, tournamentId: string) {
     const tournament = await ctx.db.get(tournamentId as Id<"tournaments">);
@@ -563,7 +485,7 @@ export async function settleTournament(ctx: any, tournamentId: string) {
         throw new Error("锦标赛不存在");
     }
 
-    const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", tournament.tournamentType)).unique();
+    const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", tournament.type)).unique();
     if (!tournamentType) {
         throw new Error("锦标赛类型不存在");
     }
@@ -831,6 +753,7 @@ export async function scheduleIsOpen(ctx: any,
     tournamentType: any
 ) {
     const schedule = tournamentType.schedule;
+    console.log("schedule", schedule)
     if (schedule) {
         switch (tournamentType.timeRange) {
             case "daily":

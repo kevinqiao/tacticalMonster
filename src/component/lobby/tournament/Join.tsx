@@ -38,28 +38,7 @@ const JoinMatch: React.FC<{ data: { token?: string; matchId?: string } | undefin
     }
   }, [data, player]);
 
-  useEffect(() => {
-    const load = async (matchId: string) => {
-      const matchObj = await convex.query(api.dao.matchDao.findMatch, { mid: matchId });
-      if (matchObj) {
-        console.log("result", matchObj);
-        const tl = gsap.timeline({
-          onComplete: () => {
-            openPage({
-              uri: "/play/lobby/battle",
-              data: {
-                matchId
-              }
-            })
-          }
-        });
-        tl.to(joinRef.current, { autoAlpha: 0, duration: 1 }).to(matchRef.current, { autoAlpha: 1, duration: 1 }, "<");
-        tl.play();
-      }
-    }
-    if (data?.matchId)
-      load(data.matchId);
-  }, [data, player]);
+
 
 
   return (

@@ -18,7 +18,7 @@ export const roll = internalMutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
         try {
-            const gameService = new GameManager(ctx, gameId);
+            // const gameService = new GameManager(ctx, gameId);
             // await gameService.initGame(gameId);
         } catch (error) {
             console.log("roll error", error);

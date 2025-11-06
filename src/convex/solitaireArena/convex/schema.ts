@@ -24,6 +24,6 @@ export default defineSchema({
         score: v.number(),
         moves: v.number(),
         lastUpdate: v.optional(v.string()),
-    }).index("by_game_id", ["gameId"]),
+    }).index("by_gameId", ["gameId"]),
 
 });

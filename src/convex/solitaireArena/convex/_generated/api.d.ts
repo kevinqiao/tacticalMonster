@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as proxy_controller from "../proxy/controller.js";
 import type * as service_gameManager from "../service/gameManager.js";
 
 import type {
@@ -25,6 +26,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "proxy/controller": typeof proxy_controller;
   "service/gameManager": typeof service_gameManager;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

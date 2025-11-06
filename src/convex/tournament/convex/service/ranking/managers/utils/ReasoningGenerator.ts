@@ -2,8 +2,8 @@
  * 推理说明生成器
  */
 
-import { PersonalizedWeights, PlayerProfile } from '../strategies/PersonalizedRankingStrategy';
-import { HumanPlayer, PlayerPerformanceProfile } from '../types/CommonTypes';
+import { PersonalizedWeights, PlayerPersonalizationProfile } from '../strategies/PersonalizedRankingStrategy';
+import { HumanPlayer, PlayerRankingProfile } from '../types/CommonTypes';
 
 export class ReasoningGenerator {
     /**
@@ -11,7 +11,7 @@ export class ReasoningGenerator {
      */
     static generateNewbieReasoning(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         recommendedRank: number,
         totalParticipants: number,
         aiCount: number,
@@ -47,7 +47,7 @@ export class ReasoningGenerator {
      */
     static generateGrowingReasoning(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         recommendedRank: number,
         totalParticipants: number,
         aiCount: number
@@ -79,7 +79,7 @@ export class ReasoningGenerator {
      */
     static generateVeteranReasoning(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         recommendedRank: number,
         totalParticipants: number,
         aiCount: number,
@@ -120,7 +120,7 @@ export class ReasoningGenerator {
      */
     static generateSegmentReasoning(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         recommendedRank: number,
         totalParticipants: number
     ): string {
@@ -138,7 +138,7 @@ export class ReasoningGenerator {
     /**
      * 获取表现描述
      */
-    private static getPerformanceDescription(player: HumanPlayer, profile: PlayerPerformanceProfile): string {
+    private static getPerformanceDescription(player: HumanPlayer, profile: PlayerRankingProfile): string {
         const scoreImprovement = (player.score - profile.averageScore) / profile.averageScore;
 
         if (scoreImprovement > 0.2) return '表现优异';
@@ -152,7 +152,7 @@ export class ReasoningGenerator {
      */
     static generateWinRateControlledReasoning(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         recommendedRank: number,
         totalParticipants: number,
         currentWinRate: number,
@@ -182,10 +182,10 @@ export class ReasoningGenerator {
      */
     static generatePersonalizedReasoning(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         recommendedRank: number,
         totalParticipants: number,
-        playerProfile: PlayerProfile,
+        playerProfile: PlayerPersonalizationProfile,
         weights: PersonalizedWeights
     ): string {
         const reasons: string[] = [];

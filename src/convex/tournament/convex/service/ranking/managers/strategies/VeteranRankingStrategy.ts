@@ -2,7 +2,7 @@
  * 成熟阶段排名策略
  */
 
-import { HumanAnalysis, HumanPlayer, PlayerPerformanceProfile, PlayerRankingResult } from '../types/CommonTypes';
+import { HumanAnalysis, HumanPlayer, PlayerRankingProfile, PlayerRankingResult } from '../types/CommonTypes';
 import { ReasoningGenerator } from '../utils/ReasoningGenerator';
 import { BaseRankingStrategy } from './BaseRankingStrategy';
 
@@ -16,7 +16,7 @@ export class VeteranRankingStrategy extends BaseRankingStrategy {
 
     async calculateRanking(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]
@@ -75,7 +75,7 @@ export class VeteranRankingStrategy extends BaseRankingStrategy {
      */
     private calculateSegmentAdjustedRank(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         totalParticipants: number
     ): number {
         // 这里应该调用段位概率计算，暂时返回模拟值
@@ -89,7 +89,7 @@ export class VeteranRankingStrategy extends BaseRankingStrategy {
      */
     private calculateTraditionalRank(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]

@@ -9,7 +9,7 @@ import { PlayerProfileGenerator } from '../utils/PlayerProfileGenerator';
 /**
  * 获取玩家画像
  */
-export const getPlayerProfile = internalQuery({
+export const getPlayerPersonalizationProfile = internalQuery({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
         const profile = await ctx.db
@@ -24,7 +24,7 @@ export const getPlayerProfile = internalQuery({
 /**
  * 创建或更新玩家画像
  */
-export const upsertPlayerProfile = internalMutation({
+export const upsertPlayerPersonalizationProfile = internalMutation({
     args: {
         uid: v.string(),
         profile: v.object({
@@ -141,7 +141,7 @@ export const getPlayerHistoryForProfile = internalQuery({
     handler: async (ctx, args) => {
         // 获取最近50场比赛结果
         const matchHistory = await ctx.db
-            .query("match_results")
+            .query("player_matches")
             .withIndex("by_uid_created", (q) => q.eq("uid", args.uid))
             .order("desc")
             .take(50);
@@ -172,12 +172,12 @@ export const getPlayerHistoryForProfile = internalQuery({
 /**
  * 生成并存储玩家画像
  */
-export const generateAndStorePlayerProfile = internalMutation({
+export const generateAndStorePlayerPersonalizationProfile = internalMutation({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
         // 1. 获取历史数据
         const matchHistory = await ctx.db
-            .query("match_results")
+            .query("player_matches")
             .withIndex("by_uid_created", (q) => q.eq("uid", args.uid))
             .order("desc")
             .take(50);
@@ -249,7 +249,7 @@ export const generateAndStorePlayerProfile = internalMutation({
 /**
  * 检查画像是否需要更新
  */
-export const shouldUpdateProfile = internalQuery({
+export const shouldUpdatePersonalizationProfile = internalQuery({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
         const profile = await ctx.db
@@ -277,13 +277,14 @@ export const shouldUpdateProfile = internalQuery({
 /**
  * 批量更新过期的玩家画像
  */
-export const updateExpiredProfiles = internalMutation({
-    args: {},
-    handler: async (ctx) => {
+export const updateExpiredPersonalizationProfiles = internalMutation({
+    args: { maxUpdates: v.optional(v.number()) },
+    handler: async (ctx, args) => {
+        const { maxUpdates } = args;
         const now = new Date();
         const profiles = await ctx.db.query("player_profiles").collect();
 
-        const expiredProfiles = profiles.filter(profile => {
+        let expiredProfiles = profiles.filter(profile => {
             const lastUpdated = new Date(profile.lastUpdated);
             const hoursSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
 
@@ -296,12 +297,19 @@ export const updateExpiredProfiles = internalMutation({
             return hoursSinceUpdate >= updateInterval[profile.dataQuality];
         });
 
+        // 限制更新数量
+        if (maxUpdates !== undefined && maxUpdates > 0) {
+            expiredProfiles = expiredProfiles.slice(0, maxUpdates);
+        }
+
+        const updated: string[] = [];
+
         // 直接调用函数，避免循环调用
         for (const profile of expiredProfiles) {
             try {
                 // 直接调用内部逻辑，避免循环调用
                 const matchHistory = await ctx.db
-                    .query("match_results")
+                    .query("player_matches")
                     .withIndex("by_uid_created", (q) => q.eq("uid", profile.uid))
                     .order("desc")
                     .take(50);
@@ -337,12 +345,16 @@ export const updateExpiredProfiles = internalMutation({
                     lastUpdated: new Date().toISOString(),
                     updateCount: profile.updateCount + 1
                 });
+                updated.push(profile.uid);
             } catch (error) {
                 console.error(`更新画像失败 (${profile.uid}):`, error);
             }
         }
 
-        return expiredProfiles.length;
+        return {
+            updated: updated.length,
+            processed: updated
+        };
     }
 });
 
@@ -385,3 +397,183 @@ function calculateConfidence(matchHistory: any[], behaviorEvents: any[]): number
 
     return Math.max(0.1, Math.min(0.95, confidence));
 }
+
+// ========== PlayerRankingProfile 缓存机制 ==========
+
+/**
+ * 获取玩家性能指标缓存（用于 PlayerRankingProfile）
+ */
+export const getPlayerPerformanceMetrics = internalQuery({
+    args: { uid: v.string(), gameType: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        if (args.gameType) {
+            // 查询指定游戏类型的缓存
+            return await ctx.db
+                .query("player_performance_metrics")
+                .withIndex("by_uid_gameType", (q) => q.eq("uid", args.uid).eq("gameType", args.gameType))
+                .first();
+        } else {
+            // 查询所有游戏类型的缓存（取第一个）
+            return await ctx.db
+                .query("player_performance_metrics")
+                .withIndex("by_uid", (q) => q.eq("uid", args.uid))
+                .first();
+        }
+    }
+});
+
+/**
+ * 更新或创建玩家性能指标缓存
+ */
+export const upsertPlayerPerformanceMetrics = internalMutation({
+    args: {
+        uid: v.string(),
+        gameType: v.optional(v.string()),
+        metrics: v.object({
+            totalMatches: v.number(),
+            totalWins: v.number(),
+            totalLosses: v.number(),
+            averageScore: v.number(),
+            averageRank: v.number(),
+            currentWinStreak: v.number(),
+            currentLoseStreak: v.number(),
+            bestScore: v.number(),
+            worstScore: v.number(),
+            bestRank: v.number(),
+            worstRank: v.number(),
+            consistency: v.number(),
+            trendDirection: v.union(v.literal("improving"), v.literal("declining"), v.literal("stable"))
+        })
+    },
+    handler: async (ctx, args) => {
+        const { uid, gameType, metrics } = args;
+
+        // 查找现有缓存
+        const existing = gameType
+            ? await ctx.db
+                .query("player_performance_metrics")
+                .withIndex("by_uid_gameType", (q) => q.eq("uid", uid).eq("gameType", gameType))
+                .first()
+            : await ctx.db
+                .query("player_performance_metrics")
+                .withIndex("by_uid", (q) => q.eq("uid", uid))
+                .first();
+
+        const now = new Date().toISOString();
+
+        if (existing) {
+            // 更新现有缓存
+            await ctx.db.patch(existing._id, {
+                ...metrics,
+                gameType,
+                lastUpdated: now
+            });
+            return existing._id;
+        } else {
+            // 创建新缓存
+            const id = await ctx.db.insert("player_performance_metrics", {
+                uid,
+                gameType,
+                ...metrics,
+                lastUpdated: now
+            });
+            return id;
+        }
+    }
+});
+
+/**
+ * 增量更新玩家性能指标缓存（在比赛结束时调用）
+ * 用于实时更新缓存，无需重新计算全部历史数据
+ */
+export const incrementPlayerPerformanceMetrics = internalMutation({
+    args: {
+        uid: v.string(),
+        gameType: v.optional(v.string()),
+        score: v.number(),
+        rank: v.number()
+    },
+    handler: async (ctx, args) => {
+        const { uid, gameType, score, rank } = args;
+
+        // 查找现有缓存
+        const existing = gameType
+            ? await ctx.db
+                .query("player_performance_metrics")
+                .withIndex("by_uid_gameType", (q) => q.eq("uid", uid).eq("gameType", gameType))
+                .first()
+            : await ctx.db
+                .query("player_performance_metrics")
+                .withIndex("by_uid", (q) => q.eq("uid", uid))
+                .first();
+
+        const now = new Date().toISOString();
+
+        if (existing) {
+            // 增量更新
+            const newTotalMatches = existing.totalMatches + 1;
+            const newTotalWins = rank === 1 ? existing.totalWins + 1 : existing.totalWins;
+            const newTotalLosses = rank === 1 ? existing.totalLosses : existing.totalLosses + 1;
+
+            // 更新平均值（使用移动平均算法，更重视最新数据）
+            const weight = 0.3; // 新数据权重30%
+            const newAverageScore = existing.averageScore * (1 - weight) + score * weight;
+            const newAverageRank = existing.averageRank * (1 - weight) + rank * weight;
+
+            // 更新连胜/连败
+            let newWinStreak = existing.currentWinStreak;
+            let newLoseStreak = existing.currentLoseStreak;
+            if (rank === 1) {
+                newWinStreak = existing.currentWinStreak + 1;
+                newLoseStreak = 0;
+            } else {
+                newWinStreak = 0;
+                newLoseStreak = existing.currentLoseStreak + 1;
+            }
+
+            // 更新最佳/最差
+            const newBestScore = Math.max(existing.bestScore, score);
+            const newWorstScore = Math.min(existing.worstScore, score);
+            const newBestRank = Math.min(existing.bestRank, rank);
+            const newWorstRank = Math.max(existing.worstRank, rank);
+
+            await ctx.db.patch(existing._id, {
+                totalMatches: newTotalMatches,
+                totalWins: newTotalWins,
+                totalLosses: newTotalLosses,
+                averageScore: newAverageScore,
+                averageRank: newAverageRank,
+                currentWinStreak: newWinStreak,
+                currentLoseStreak: newLoseStreak,
+                bestScore: newBestScore,
+                worstScore: newWorstScore,
+                bestRank: newBestRank,
+                worstRank: newWorstRank,
+                lastUpdated: now
+            });
+
+            return existing._id;
+        } else {
+            // 创建初始缓存
+            const id = await ctx.db.insert("player_performance_metrics", {
+                uid,
+                gameType,
+                totalMatches: 1,
+                totalWins: rank === 1 ? 1 : 0,
+                totalLosses: rank === 1 ? 0 : 1,
+                averageScore: score,
+                averageRank: rank,
+                currentWinStreak: rank === 1 ? 1 : 0,
+                currentLoseStreak: rank === 1 ? 0 : 1,
+                bestScore: score,
+                worstScore: score,
+                bestRank: rank,
+                worstRank: rank,
+                consistency: 0.5, // 初始一致性
+                trendDirection: 'stable' as const,
+                lastUpdated: now
+            });
+            return id;
+        }
+    }
+});

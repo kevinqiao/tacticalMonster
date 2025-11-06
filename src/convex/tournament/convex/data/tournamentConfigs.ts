@@ -370,9 +370,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 maxAttempts: 15
             }
         },
-
-        createdAt: "2025-08-01T00:00:00.000Z",
-        updatedAt: "2025-08-01T00:00:00.000Z"
     },
 
     // 快速对局配置 - 门票模式
@@ -444,8 +441,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                 maxAttempts: 8
             }
         },
-        createdAt: "2025-08-01T00:00:00.000Z",
-        updatedAt: "2025-08-01T00:00:00.000Z"
     },
 
     // 每日特殊锦标赛
@@ -472,8 +467,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         matchRules: {
             matchType: "single_match",
-            minPlayers: 2,
-            maxPlayers: 2,
+            minPlayers: 1,
+            maxPlayers: 1,
             rankingMethod: "highest_score",
             timeLimit: {
                 perMatch: 300, // 5分钟
@@ -538,10 +533,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         //     }
         // },
 
-
-
-        createdAt: "2025-08-01T00:00:00.000Z",
-        updatedAt: "2025-08-01T00:00:00.000Z"
     }
 ];
 

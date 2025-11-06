@@ -2,8 +2,8 @@
 import { v } from "convex/values";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { internalAction } from "../_generated/server";
 
 const REFRESH_TOKEN_EXPIRE = 600 * 1000;
 const ACCESS_TOKEN_SECRET = "12222222";

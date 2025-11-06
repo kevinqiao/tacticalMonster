@@ -2,7 +2,7 @@
  * 排名计算工具类
  */
 
-import { HumanAnalysis, HumanPlayer, PlayerPerformanceProfile } from '../types/CommonTypes';
+import { HumanAnalysis, HumanPlayer, PlayerRankingProfile } from '../types/CommonTypes';
 
 export class RankingCalculator {
     /**
@@ -30,7 +30,7 @@ export class RankingCalculator {
     /**
      * 计算技能因子
      */
-    static calculateSkillFactor(profile: PlayerPerformanceProfile): number {
+    static calculateSkillFactor(profile: PlayerRankingProfile): number {
         // 基于历史数据的技能因子计算
         const { averageScore, averageRank, winRate, recentPerformance } = profile;
 
@@ -45,7 +45,7 @@ export class RankingCalculator {
     /**
      * 计算信心度
      */
-    static calculateConfidence(profile: PlayerPerformanceProfile, humanAnalysis: HumanAnalysis): number {
+    static calculateConfidence(profile: PlayerRankingProfile, humanAnalysis: HumanAnalysis): number {
         let confidence = 0.5;
 
         // 比赛场次影响
@@ -68,7 +68,7 @@ export class RankingCalculator {
      */
     static analyzePlayerRelativePerformance(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanAnalysis: HumanAnalysis
     ): 'excellent' | 'good' | 'average' | 'poor' {
         const scoreImprovement = (player.score - profile.averageScore) / profile.averageScore;

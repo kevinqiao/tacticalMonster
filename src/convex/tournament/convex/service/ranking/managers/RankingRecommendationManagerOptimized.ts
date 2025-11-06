@@ -9,6 +9,7 @@
  */
 
 // 导入新的类型和工具
+import { internal } from '../../../_generated/api';
 import { GrowingRankingStrategy } from './strategies/GrowingRankingStrategy';
 import { NewbieRankingStrategy } from './strategies/NewbieRankingStrategy';
 import { PersonalizedRankingStrategy } from './strategies/PersonalizedRankingStrategy';
@@ -19,11 +20,14 @@ import {
     HumanAnalysis,
     HumanPlayer,
     MatchRankingResult,
-    PlayerPerformanceProfile,
+    PlayerRankingProfile,
     PlayerRankingResult
 } from './types/CommonTypes';
 import { DEFAULT_RANKING_CONFIG, RankingConfig } from './types/RankingConfig';
 import { RankingCalculator } from './utils/RankingCalculator';
+
+// 获取 DB API 的辅助函数
+const getDbApi = () => ((internal as any)['service']['ranking']['managers']['database']['playerProfileDB']);
 
 /**
  * 排名推荐管理器 - 优化版本
@@ -105,17 +109,23 @@ export class RankingRecommendationManagerOptimized {
 
     /**
      * 核心方法：生成完整的比赛排名结果
+     * @param humanPlayers - 人类玩家列表
+     * @param aiCount - AI对手数量
+     * @param gameType - 游戏类型（可选，如果提供则只查询该游戏的历史记录）
      */
     async generateMatchRankings(
         humanPlayers: HumanPlayer[],
-        aiCount: number
+        aiCount: number,
+        gameType?: string
     ): Promise<MatchRankingResult> {
         try {
+            console.log('generateMatchRankings', humanPlayers, aiCount, gameType);
             // 输入验证
             this.validateInputs(humanPlayers, aiCount);
 
             // 获取玩家档案（带缓存）
-            const playerProfiles = await this.getPlayerProfiles(humanPlayers);
+            const playerProfiles = await this.getPlayerProfiles(humanPlayers, gameType);
+            console.log('playerProfiles', playerProfiles);
 
             // 分析人类玩家
             const humanAnalysis = this.analyzeHumanPlayers(humanPlayers, playerProfiles);
@@ -135,11 +145,11 @@ export class RankingRecommendationManagerOptimized {
                 aiOpponents, humanRankings, humanPlayers
             );
 
-            return this.buildMatchResult(finalRankings, humanAnalysis, humanPlayers, aiCount);
+            return this.buildMatchResult(finalRankings, humanAnalysis, humanPlayers, aiCount, gameType);
 
         } catch (error) {
             console.error('生成比赛排名失败:', error);
-            return this.getDefaultMatchResult(humanPlayers, aiCount);
+            return this.getDefaultMatchResult(humanPlayers, aiCount, gameType);
         }
     }
 
@@ -163,11 +173,11 @@ export class RankingRecommendationManagerOptimized {
     /**
      * 获取玩家档案
      */
-    private async getPlayerProfiles(humanPlayers: HumanPlayer[]): Promise<Map<string, PlayerPerformanceProfile>> {
-        const profiles = new Map<string, PlayerPerformanceProfile>();
+    private async getPlayerProfiles(humanPlayers: HumanPlayer[], gameType?: string): Promise<Map<string, PlayerRankingProfile>> {
+        const profiles = new Map<string, PlayerRankingProfile>();
 
         for (const player of humanPlayers) {
-            const profile = await this.fetchPlayerProfile(player.uid);
+            const profile = await this.fetchPlayerProfile(player.uid, gameType);
             profiles.set(player.uid, profile);
         }
 
@@ -176,13 +186,58 @@ export class RankingRecommendationManagerOptimized {
 
     /**
      * 获取单个玩家档案
+     * @param uid - 玩家ID
+     * @param gameType - 游戏类型（可选，如果提供则只查询该游戏的历史记录）
      */
-    private async fetchPlayerProfile(uid: string): Promise<PlayerPerformanceProfile> {
-        const recentMatches = await this.ctx.db
-            .query("match_results")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-            .order("desc")
-            .take(50);
+    private async fetchPlayerProfile(uid: string, gameType?: string): Promise<PlayerRankingProfile> {
+        // 首先尝试从缓存获取
+        if (this.ctx.runQuery) {
+            try {
+                const cachedMetrics = await this.ctx.runQuery(getDbApi().getPlayerPerformanceMetrics, { uid, gameType });
+
+                // 如果缓存存在且相对新鲜（24小时内），直接使用
+                if (cachedMetrics) {
+                    const hoursSinceUpdate = (Date.now() - new Date(cachedMetrics.lastUpdated).getTime()) / (1000 * 60 * 60);
+                    if (hoursSinceUpdate < 24) {
+                        console.log(`使用缓存数据 for ${uid} (${gameType || 'all'}): ${cachedMetrics.totalMatches} matches`);
+                        return {
+                            uid,
+                            segmentName: 'bronze' as const,
+                            averageScore: cachedMetrics.averageScore,
+                            averageRank: cachedMetrics.averageRank,
+                            winRate: cachedMetrics.totalMatches > 0 ? cachedMetrics.totalWins / cachedMetrics.totalMatches : 0.25,
+                            totalMatches: cachedMetrics.totalMatches,
+                            recentPerformance: {
+                                last10Matches: [], // 缓存中不保存最近10场详情，需要时从数据库补充
+                                trendDirection: cachedMetrics.trendDirection,
+                                consistency: cachedMetrics.consistency
+                            }
+                        };
+                    }
+                }
+            } catch (error) {
+                console.warn(`无法从缓存获取数据 for ${uid}, 回退到实时计算:`, error);
+            }
+        }
+
+        // 缓存不存在或过期，从数据库实时计算
+        let recentMatches;
+
+        if (gameType) {
+            // 如果指定了游戏类型，使用复合索引查询
+            recentMatches = await this.ctx.db
+                .query("player_matches")
+                .withIndex("by_uid_gameType_created", (q: any) => q.eq("uid", uid).eq("gameType", gameType))
+                .order("desc")
+                .take(50);
+        } else {
+            // 否则查询所有游戏类型的记录
+            recentMatches = await this.ctx.db
+                .query("player_matches")
+                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .order("desc")
+                .take(50);
+        }
 
         if (recentMatches.length < 3) {
             return this.getDefaultPlayerProfile(uid);
@@ -199,6 +254,8 @@ export class RankingRecommendationManagerOptimized {
         const last10Matches = recentMatches.slice(0, 10);
         const trendDirection = this.analyzeTrend(last10Matches);
         const consistency = this.calculateConsistency(scores);
+
+        console.log(`实时计算数据 for ${uid} (${gameType || 'all'}): ${recentMatches.length} matches`);
 
         return {
             uid,
@@ -220,7 +277,7 @@ export class RankingRecommendationManagerOptimized {
      */
     private analyzeHumanPlayers(
         humanPlayers: HumanPlayer[],
-        playerProfiles: Map<string, PlayerPerformanceProfile>
+        playerProfiles: Map<string, PlayerRankingProfile>
     ): HumanAnalysis {
         const scores = humanPlayers.map(p => p.score);
         const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
@@ -249,7 +306,7 @@ export class RankingRecommendationManagerOptimized {
      */
     private async generateHumanPlayerRankings(
         humanPlayers: HumanPlayer[],
-        playerProfiles: Map<string, PlayerPerformanceProfile>,
+        playerProfiles: Map<string, PlayerRankingProfile>,
         humanAnalysis: HumanAnalysis,
         aiCount: number
     ): Promise<PlayerRankingResult[]> {
@@ -283,7 +340,7 @@ export class RankingRecommendationManagerOptimized {
      * 4. 否则使用传统策略（新手/成长/成熟）
      */
     private selectRankingStrategy(
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanPlayerCount: number
     ) {
         const personalizedEnabled = this.config.personalizedStrategy?.enabled &&
@@ -314,7 +371,7 @@ export class RankingRecommendationManagerOptimized {
     /**
      * 当两个策略都启用时的选择逻辑
      */
-    private selectStrategyWhenBothEnabled(profile: PlayerPerformanceProfile) {
+    private selectStrategyWhenBothEnabled(profile: PlayerRankingProfile) {
         const personalizedConfig = this.config.personalizedStrategy!;
         const winRateConfig = this.config.winRateControl!;
 
@@ -352,7 +409,7 @@ export class RankingRecommendationManagerOptimized {
      * 选择传统策略（新手/成长/成熟）
      */
     private selectTraditionalStrategy(
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanPlayerCount: number
     ) {
         if (profile.totalMatches < this.config.newbieThreshold) {
@@ -469,12 +526,14 @@ export class RankingRecommendationManagerOptimized {
         finalRankings: { aiOpponents: AIOpponent[], humanRankings: PlayerRankingResult[] },
         humanAnalysis: HumanAnalysis,
         humanPlayers: HumanPlayer[],
-        aiCount: number
+        aiCount: number,
+        gameType?: string
     ): MatchRankingResult {
         return {
             humanPlayerRankings: finalRankings.humanRankings,
             aiOpponents: finalRankings.aiOpponents,
             matchContext: {
+                gameType: gameType || "unknown",
                 totalParticipants: humanPlayers.length + aiCount,
                 humanPlayerCount: humanPlayers.length,
                 aiCount,
@@ -492,7 +551,7 @@ export class RankingRecommendationManagerOptimized {
 
     // ==================== 辅助方法 ====================
 
-    private getDefaultPlayerProfile(uid: string): PlayerPerformanceProfile {
+    private getDefaultPlayerProfile(uid: string): PlayerRankingProfile {
         return {
             uid,
             segmentName: 'bronze',
@@ -508,7 +567,7 @@ export class RankingRecommendationManagerOptimized {
         };
     }
 
-    private getDefaultMatchResult(humanPlayers: HumanPlayer[], aiCount: number): MatchRankingResult {
+    private getDefaultMatchResult(humanPlayers: HumanPlayer[], aiCount: number, gameType?: string): MatchRankingResult {
         const humanRankings = humanPlayers.map((player, index) => ({
             uid: player.uid,
             recommendedRank: index + 1,
@@ -521,6 +580,7 @@ export class RankingRecommendationManagerOptimized {
             humanPlayerRankings: humanRankings,
             aiOpponents: [],
             matchContext: {
+                gameType: gameType || "unknown",
                 totalParticipants: humanPlayers.length + aiCount,
                 humanPlayerCount: humanPlayers.length,
                 aiCount,
@@ -623,7 +683,7 @@ export class RankingRecommendationManagerOptimized {
         return squaredDiffs.reduce((sum, diff) => sum + diff, 0) / scores.length;
     }
 
-    private calculateSkillDistribution(playerProfiles: Map<string, PlayerPerformanceProfile>) {
+    private calculateSkillDistribution(playerProfiles: Map<string, PlayerRankingProfile>) {
         const distribution = { beginner: 0, intermediate: 0, advanced: 0 };
 
         for (const profile of playerProfiles.values()) {

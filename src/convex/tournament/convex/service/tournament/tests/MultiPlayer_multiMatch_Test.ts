@@ -20,7 +20,7 @@ export const testJoin = (mutation as any)({
             if (!player) {
                 throw new Error("玩家不存在");
             }
-            const result = await TournamentService.join(ctx, { player, typeId });
+            const result = await TournamentService.join(ctx, { uid: args.uid, typeId });
             return result;
         } catch (error: any) {
             return { error: error.message };
@@ -35,7 +35,7 @@ export const testBatchJoin = (mutation as any)({
             const typeId = "jackpot_solitaire_free";
             const players = await ctx.db.query("players").collect();
             players.forEach(async (player: any) => {
-                const result = await TournamentService.join(ctx, { player, typeId });
+                const result = await TournamentService.join(ctx, { uid: args.uid, typeId });
                 return result;
             });
             return { success: true };

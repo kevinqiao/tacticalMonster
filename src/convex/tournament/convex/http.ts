@@ -68,10 +68,13 @@ http.route({
   }),
 });
 http.route({
-  path: "/test",
-  method: "GET",
-  handler: httpAction(async (_, request) => {
-    return new Response(JSON.stringify({ ok: true }), {
+  path: "/findMatchGame",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body: { gameId: string } = await request.json();
+    const match = await ctx.runQuery(internal.service.tournament.matchManager.findMatchGame, { gameId: body.gameId });
+    const result = { ok: match ? true : false, match };
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: new Headers({
         "Access-Control-Allow-Origin": "*",

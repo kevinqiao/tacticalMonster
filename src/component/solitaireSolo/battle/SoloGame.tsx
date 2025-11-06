@@ -26,7 +26,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
     style
 }) => {
 
-
+    console.log("gameId", gameId);
 
     const client = React.useMemo(() => new ConvexReactClient(convex_url), [convex_url]);
     // 初始化游戏

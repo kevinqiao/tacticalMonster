@@ -2,14 +2,14 @@
  * 新手排名策略
  */
 
-import { HumanAnalysis, HumanPlayer, PlayerPerformanceProfile, PlayerRankingResult } from '../types/CommonTypes';
+import { HumanAnalysis, HumanPlayer, PlayerRankingProfile, PlayerRankingResult } from '../types/CommonTypes';
 import { ReasoningGenerator } from '../utils/ReasoningGenerator';
 import { BaseRankingStrategy } from './BaseRankingStrategy';
 
 export class NewbieRankingStrategy extends BaseRankingStrategy {
     async calculateRanking(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]

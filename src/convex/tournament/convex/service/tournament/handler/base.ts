@@ -6,7 +6,6 @@ import {
   validateEntryFee
 } from "../common";
 import { MatchManager } from "../matchManager";
-import { TournamentMatchingService } from "../tournamentMatchingService";
 
 
 
@@ -65,8 +64,8 @@ export const baseHandler: TournamentHandler = {
           await joinTournament(ctx, { tournamentId, uids: [player.uid] });
         }
       } else {
-        const tournamentObj = await createTournament(ctx, { config: tournamentType, uids: [player.uid] });
-        tournamentId = tournamentObj._id;
+        const tournamentObj = await createTournament(ctx, { tournamentType });
+        // tournamentId = tournamentObj._id;
       }
       const matchId = await MatchManager.createMatch(ctx, {
         tournamentId,
@@ -78,13 +77,6 @@ export const baseHandler: TournamentHandler = {
         matchId
       }
     }
-
-    await TournamentMatchingService.joinMatchingQueue(ctx, {
-      tournament,
-      tournamentType,
-      player
-    });
-
     return;
   },
 

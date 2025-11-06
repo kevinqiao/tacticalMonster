@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { SoloGameEngine } from "../../../../component/solitaireSolo/battle/service/SoloGameEngine";
 import { ActionStatus, Card, SoloGameState, SoloGameStatus, ZoneType } from "../../../../component/solitaireSolo/battle/types/SoloTypes";
 import { createZones } from "../../../../component/solitaireSolo/battle/Utils";
-import { mutation, query } from "../_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
 export class GameManager {
     private dbCtx: any;
     private game: SoloGameState | null;
@@ -11,7 +11,8 @@ export class GameManager {
         this.game = null;
     }
     async load(gameId: string) {
-        const game = await this.dbCtx.db.get(gameId);
+        console.log("load game", gameId);
+        const game = await this.dbCtx.db.query("game").withIndex("by_gameId", (q: any) => q.eq("gameId", gameId)).unique();
         if (!game) return;
         this.game = { ...game, _id: undefined, _creationTime: undefined } as SoloGameState;
         return this.game;
@@ -91,13 +92,34 @@ export class GameManager {
     }
 }
 // Convex 函数接口
-export const create = mutation({
+export const create = internalMutation({
 
     handler: async (ctx: any) => {
         const gameManager = new GameManager(ctx);
         const result = await gameManager.createGame();
 
         return result;
+    },
+});
+export const loadGame = query({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        try {
+            const game = await gameManager.load(gameId);
+            return { ok: true, data: game };
+        } catch (error) {
+
+            return { ok: false };
+        }
+    },
+});
+export const findGame = internalQuery({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        const game = await gameManager.load(gameId);
+        return game
     },
 });
 export const getGame = query({
@@ -156,4 +178,5 @@ export const recycle = mutation({
         return await gameManager.recycle(gameId);
     },
 });
+
 export default GameManager;

@@ -1,5 +1,5 @@
-import { getValidatedPlayerProfileInternal } from '../services/playerProfileService';
-import { HumanAnalysis, HumanPlayer, PlayerPerformanceProfile, PlayerRankingResult } from '../types/CommonTypes';
+import { getValidatedPersonalizationProfileInternal } from '../services/playerPersonalizationProfileService';
+import { HumanAnalysis, HumanPlayer, PlayerRankingProfile, PlayerRankingResult } from '../types/CommonTypes';
 import { RankingConfig } from '../types/RankingConfig';
 import { ReasoningGenerator } from '../utils/ReasoningGenerator';
 import { BaseRankingStrategy } from './BaseRankingStrategy';
@@ -7,7 +7,7 @@ import { BaseRankingStrategy } from './BaseRankingStrategy';
 /**
  * 玩家画像接口
  */
-export interface PlayerProfile {
+export interface PlayerPersonalizationProfile {
     uid: string;
 
     // 偏好设置
@@ -71,13 +71,13 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
 
     async calculateRanking(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]
     ): Promise<PlayerRankingResult> {
         // 1. 获取玩家画像
-        const playerProfile = await this.getPlayerProfile(player.uid);
+        const playerProfile = await this.getPlayerPersonalizationProfile(player.uid);
 
         // 2. 计算个性化权重
         const weights = this.calculatePersonalizedWeights(playerProfile);
@@ -126,11 +126,11 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
      * 获取玩家画像
      * 通过服务层获取并验证玩家画像，如果不存在或数据质量不足则生成默认画像
      */
-    private async getPlayerProfile(uid: string): Promise<PlayerProfile> {
+    private async getPlayerPersonalizationProfile(uid: string): Promise<PlayerPersonalizationProfile> {
         const minConfidenceThreshold = this.config.personalizedStrategy?.confidenceThreshold || 0.6;
 
         // 通过服务层获取并验证玩家画像
-        const validatedProfile = await getValidatedPlayerProfileInternal(
+        const validatedProfile = await getValidatedPersonalizationProfileInternal(
             this.ctx,
             uid,
             minConfidenceThreshold
@@ -149,7 +149,7 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
     /**
      * 生成默认玩家画像
      */
-    private generateDefaultProfile(uid: string): PlayerProfile {
+    private generateDefaultProfile(uid: string): PlayerPersonalizationProfile {
         // 基于玩家ID的哈希值生成一致的画像
         const hash = this.simpleHash(uid);
 
@@ -204,7 +204,7 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
     /**
      * 计算个性化权重
      */
-    private calculatePersonalizedWeights(playerProfile: PlayerProfile): PersonalizedWeights {
+    private calculatePersonalizedWeights(playerProfile: PlayerPersonalizationProfile): PersonalizedWeights {
         let skillWeight = 0.5;
         let scoreWeight = 0.5;
 
@@ -289,9 +289,9 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
      * 计算组合因子（使用个性化权重）
      */
     private calculateCombinedFactor(
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         weights: PersonalizedWeights,
-        playerProfile: PlayerProfile
+        playerProfile: PlayerPersonalizationProfile
     ): number {
         const skillFactor = this.calculateSkillFactor(profile);
         const scoreFactor = this.calculateScoreFactor(profile.averageScore, {
@@ -323,9 +323,9 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
      * 计算个性化调整
      */
     private calculatePersonalizedAdjustment(
-        playerProfile: PlayerProfile,
+        playerProfile: PlayerPersonalizationProfile,
         combinedFactor: number,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         totalParticipants: number
     ): number {
         let adjustment = (combinedFactor - 0.5) * this.config.veteranAdjustmentMultiplier;
@@ -375,7 +375,7 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
     /**
      * 计算信心度（个性化版本）
      */
-    protected calculateConfidence(profile: PlayerPerformanceProfile, humanAnalysis: HumanAnalysis): number {
+    protected calculateConfidence(profile: PlayerRankingProfile, humanAnalysis: HumanAnalysis): number {
         let confidence = 0.6; // 个性化策略基础信心度较低
 
         // 比赛场次影响

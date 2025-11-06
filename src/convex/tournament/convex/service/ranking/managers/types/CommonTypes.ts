@@ -2,6 +2,17 @@
  * 排名推荐相关通用类型定义
  */
 
+// 游戏类型定义
+export type GameType =
+    | "solitaire"       // 单人纸牌
+    | "rummy"           // 拉米纸牌
+    | "uno"             // UNO
+    | "ludo"            // 飞行棋
+    | "chess"           // 国际象棋
+    | "checkers"        // 跳棋
+    | "puzzle"          // 益智游戏
+    | "arcade";         // 街机游戏
+
 // 玩家相关类型
 export interface HumanPlayer {
     uid: string;
@@ -10,7 +21,7 @@ export interface HumanPlayer {
     name?: string;
 }
 
-export interface PlayerPerformanceProfile {
+export interface PlayerRankingProfile {
     uid: string;
     segmentName: 'bronze'; // 暂时固定为青铜段位
     averageScore: number;
@@ -47,6 +58,7 @@ export interface MatchRankingResult {
     humanPlayerRankings: PlayerRankingResult[];
     aiOpponents: AIOpponent[];
     matchContext: {
+        gameType: string;              // 游戏类型
         totalParticipants: number;
         humanPlayerCount: number;
         aiCount: number;
@@ -129,7 +141,7 @@ export interface HumanAnalysis {
 export interface RankingStrategy {
     calculateRanking(
         player: HumanPlayer,
-        profile: PlayerPerformanceProfile,
+        profile: PlayerRankingProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]

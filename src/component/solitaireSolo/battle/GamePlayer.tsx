@@ -256,11 +256,11 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
 
     const handleGameOpen = useCallback(async () => {
         console.log("openGame", user);
-        const result = await convex.mutation(api.service.gameManager.create);
-        if (result) {
-            loadGame(result);
-            await updateUserData({ game: { name: 'solitaire', gameId: result.gameId } });
-        }
+        // const result = await convex.mutation(api.service.gameManager.create);
+        // if (result) {
+        //     loadGame(result);
+        //     await updateUserData({ game: { name: 'solitaire', gameId: result.gameId } });
+        // }
     }, [user, loadGame, convex, updateUserData]);
     const handleGameInit = useCallback(() => {
         console.log("handleGameInit");
@@ -554,19 +554,19 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         );
     }, [user, gameState, screenSize, handleDeal]);
     useEffect(() => {
-        const load = async (gid: string) => {
-            if (gid) {
-                const game = await convex.query(api.service.gameManager.getGame, { gameId: gid });
-                console.log("game", game);
-                if (game) {
-                    loadGame(game as SoloGameState);
-                }
-            }
-        }
-        if (gameId) {
-            console.log("load game", gameId);
-            load(gameId);
-        }
+        // const load = async (gid: string) => {
+        //     if (gid) {
+        //         const game = await convex.query(api.service.gameManager.getGame, { gameId: gid });
+        //         console.log("game", game);
+        //         if (game) {
+        //             loadGame(game as SoloGameState);
+        //         }
+        //     }
+        // }
+        // if (gameId) {
+        //     console.log("load game", gameId);
+        //     load(gameId);
+        // }
     }, [gameId, loadGame]);
 
     return (

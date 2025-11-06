@@ -44,7 +44,7 @@ export class PlayerManager {
 }
 
 // Convex 函数接口
-export const authenticate = (internalMutation as any)({
+export const authenticate = internalMutation({
     args: {
         uid: v.string(),
         token: v.string(),

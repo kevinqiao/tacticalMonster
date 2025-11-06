@@ -13,7 +13,7 @@ export interface PlayerHistory {
     worstRank: number;
 }
 
-export interface PlayerProfile {
+export interface PlayerPersonalizationProfile {
     uid: string;
     preferences: {
         challengeLevel: 'easy' | 'normal' | 'hard' | 'extreme';
@@ -53,7 +53,7 @@ export class PlayerProfileGenerator {
     /**
      * 生成玩家画像
      */
-    static generateProfile(uid: string, history: PlayerHistory): PlayerProfile {
+    static generateProfile(uid: string, history: PlayerHistory): PlayerPersonalizationProfile {
         return {
             uid,
             preferences: this.generatePreferences(history),
@@ -68,7 +68,7 @@ export class PlayerProfileGenerator {
     /**
      * 生成偏好设置
      */
-    private static generatePreferences(history: PlayerHistory): PlayerProfile['preferences'] {
+    private static generatePreferences(history: PlayerHistory): PlayerPersonalizationProfile['preferences'] {
         const { averageScore, averageRank, totalMatches } = history;
 
         // 基于平均分数和排名推断挑战偏好
@@ -130,7 +130,7 @@ export class PlayerProfileGenerator {
     /**
      * 生成行为模式
      */
-    private static generateBehavioralPatterns(history: PlayerHistory): PlayerProfile['behavioralPatterns'] {
+    private static generateBehavioralPatterns(history: PlayerHistory): PlayerPersonalizationProfile['behavioralPatterns'] {
         return {
             playFrequency: this.calculatePlayFrequency(history),
             retryBehavior: this.calculateRetryBehavior(history),
@@ -143,7 +143,7 @@ export class PlayerProfileGenerator {
     /**
      * 生成历史表现
      */
-    private static generatePerformanceHistory(history: PlayerHistory): PlayerProfile['performanceHistory'] {
+    private static generatePerformanceHistory(history: PlayerHistory): PlayerPersonalizationProfile['performanceHistory'] {
         const { bestRank, worstRank, averageRank, totalMatches } = history;
 
         return {
@@ -160,7 +160,7 @@ export class PlayerProfileGenerator {
     /**
      * 生成心理特征
      */
-    private static generatePsychologicalProfile(history: PlayerHistory): PlayerProfile['psychologicalProfile'] {
+    private static generatePsychologicalProfile(history: PlayerHistory): PlayerPersonalizationProfile['psychologicalProfile'] {
         return {
             motivationType: this.calculateMotivationType(history),
             feedbackPreference: this.calculateFeedbackPreference(history),
