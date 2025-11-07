@@ -16,7 +16,12 @@ export const loadGame = action({
             const res = await response.json();
             if (res.ok) {
                 const data = res.match;
-                game = await ctx.runMutation(internal.service.gameManager.create);
+                const rawSeed = data?.seed ?? data?.gameId;
+                const createArgs: { seed?: string } = {};
+                if (typeof rawSeed === "string") {
+                    createArgs.seed = rawSeed;
+                }
+                game = await ctx.runMutation(internal.service.gameManager.create, createArgs);
             }
         }
         return { ok: game ? true : false, game };

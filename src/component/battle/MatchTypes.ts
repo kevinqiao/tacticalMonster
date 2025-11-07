@@ -28,6 +28,7 @@ export interface GamePlayerProps {
     gameId: string;
     gameType: string;
     config?: Partial<SoloGameConfig>;
+    onGameLoadComplete?: () => void;
 }
 export enum MatchStatus {
     SEARCHING = 0,

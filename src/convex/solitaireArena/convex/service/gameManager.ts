@@ -36,15 +36,18 @@ export class GameManager {
             this.game.status = data.status;
         await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, status: this.game.status });
     }
-    async createGame(): Promise<any> {
-        const game = SoloGameEngine.createGame();
-        SoloGameEngine.shuffleDeck(game.cards);
+    async createGame(seed?: string | number): Promise<any> {
+        const game = SoloGameEngine.createGame(seed);
         const zones = createZones();
         const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
         const gameId = await this.dbCtx.db.insert("game", gameState);
         if (gameId) {
-            await this.dbCtx.db.patch(gameId, { gameId });
-            return { ...gameState, gameId };
+            const patchData: Record<string, any> = { gameId };
+            if (gameState.seed) {
+                patchData.seed = gameState.seed;
+            }
+            await this.dbCtx.db.patch(gameId, patchData);
+            return { ...gameState, ...patchData };
         }
     }
     async deal(gameId: string) {
@@ -93,10 +96,12 @@ export class GameManager {
 }
 // Convex 函数接口
 export const create = internalMutation({
-
-    handler: async (ctx: any) => {
+    args: {
+        seed: v.optional(v.union(v.string(), v.number()))
+    },
+    handler: async (ctx: any, { seed }) => {
         const gameManager = new GameManager(ctx);
-        const result = await gameManager.createGame();
+        const result = await gameManager.createGame(seed);
 
         return result;
     },

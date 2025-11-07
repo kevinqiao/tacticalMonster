@@ -61,6 +61,7 @@ export interface GameModel {
     status: SoloGameStatus;
     score: number;
     moves: number;
+    seed?: string;
     lastUpdate?: string;//event id
 }
 // 简化的游戏状态 - 只使用统一的 cards 数组

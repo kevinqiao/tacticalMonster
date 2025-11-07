@@ -46,9 +46,10 @@ interface SoloGameProviderProps {
     children: ReactNode;
     gameId?: string;
     config?: Partial<SoloGameConfig>;
+    onGameLoadComplete?: () => void;
 }
 
-export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig }) => {
+export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig, onGameLoadComplete }) => {
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
@@ -68,13 +69,14 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     const loadGame = useCallback(async (game: SoloGameState) => {
         setGameState(game);
         // updateUserData({ game: { name: 'solitaire', gameId: game.gameId } });
+        onGameLoadComplete?.();
     }, []);
     useEffect(() => {
         if (gameId) {
-            loadGameAction({ gameId }).then((game) => {
-                if (game) {
-                    // loadGame(game);
-                    console.log("game", game);
+            loadGameAction({ gameId }).then((res) => {
+                if (res.ok) {
+                    loadGame(res.game);
+                    console.log("game", res.game);
                 }
             });
 

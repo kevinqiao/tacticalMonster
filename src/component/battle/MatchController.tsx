@@ -1,8 +1,8 @@
-import React, { lazy, useEffect, useMemo } from "react";
+import React, { lazy, useMemo } from "react";
 import MatchProvider, { useMatchManager } from "./MatchManager";
 import { GamePlayerProps, PlayerMatch } from "./MatchTypes";
 import "./style.css";
-const http_url = "https://beloved-mouse-699.convex.site"
+// const http_url = "https://beloved-mouse-699.convex.site"
 
 const GamePlayerCache = new Map<string, React.ComponentType<GamePlayerProps>>();
 const gamePlayerMap: Record<string, () => Promise<any>> = {
@@ -54,39 +54,39 @@ const getGamePlayerComponent = (gameType: string): React.ComponentType<GamePlaye
   }
   return GamePlayerCache.get(gameType)!;
 };
-const MatchPlayer: React.FC = (props) => {
+const MatchPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
   const { matchState, reportView } = useMatchManager();
   const GamePlayerComponent = useMemo(() => getGamePlayerComponent(matchState?.gameType ?? 'solitaireArena'), [matchState]);
 
   return (
     <>
       <div ref={reportView} id="match-report" className="match-report-container" >Report</div>
-      <GamePlayerComponent gameId={matchState?.gameId ?? ''} gameType={matchState?.gameType ?? 'solitaireArena'} />
+      <GamePlayerComponent gameId={matchState?.gameId ?? ''} gameType={matchState?.gameType ?? 'solitaireArena'} onGameLoadComplete={onGameLoadComplete} />
     </>
   );
 };
 const MatchController: React.FC<{ match: PlayerMatch, onGameLoadComplete: () => void }> = (props) => {
   // const [match, setMatch] = useState<PlayerMatch | null>(null);
   // const client = React.useMemo(() => new ConvexReactClient(convex_url), [convex_url]);
-  useEffect(() => {
-    const loadGame = async () => {
-      const url = `${http_url}/findMatchGame`;
-      const res = await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify({ gameId: props.match.gameId }),
-      });
-      const data = await res.json();
-      setTimeout(() => props.onGameLoadComplete(), 4000);
-      console.log("data", data);
-    };
-    if (props.match?.gameId) {
-      loadGame();
-    }
-  }, [props.match]);
+  // useEffect(() => {
+  //   const loadGame = async () => {
+  //     const url = `${http_url}/findMatchGame`;
+  //     const res = await fetch(url, {
+  //       method: 'POST',
+  //       body: JSON.stringify({ gameId: props.match.gameId }),
+  //     });
+  //     const data = await res.json();
+  //     setTimeout(() => props.onGameLoadComplete(), 4000);
+  //     console.log("data", data);
+  //   };
+  //   if (props.match?.gameId) {
+  //     loadGame();
+  //   }
+  // }, [props.match]);
   return (
     // <ConvexProvider client={client}>
     <MatchProvider match={props.match}>
-      <MatchPlayer />
+      <MatchPlayer onGameLoadComplete={props.onGameLoadComplete} />
     </MatchProvider>
     // </ConvexProvider>
   );

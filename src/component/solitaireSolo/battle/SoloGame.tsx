@@ -17,13 +17,15 @@ interface SoloGameProps {
     config?: Partial<SoloGameConfig>;
     className?: string;
     style?: React.CSSProperties;
+    onGameLoadComplete?: () => void;
 }
 const convex_url = "https://artful-chipmunk-59.convex.cloud"
 const SoloGame: React.FC<SoloGameProps> = ({
     gameId,
     config,
     className = '',
-    style
+    style,
+    onGameLoadComplete
 }) => {
 
     console.log("gameId", gameId);
@@ -54,7 +56,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
         <div className={`solo-game-container ${className}`} style={style}>
             {/* <SSAProvider app="solitaireArena"> */}
             <ConvexProvider client={client}>
-                <SoloGameProvider config={config} gameId={gameId}>
+                <SoloGameProvider config={config} gameId={gameId} onGameLoadComplete={onGameLoadComplete}>
                     <EventProvider>
                         <SoloDnDProvider>
                             <GamePlayer gameId={gameId} />

@@ -23,6 +23,7 @@ export default defineSchema({
         status: v.number(),
         score: v.number(),
         moves: v.number(),
+        seed: v.optional(v.string()),
         lastUpdate: v.optional(v.string()),
     }).index("by_gameId", ["gameId"]),
 
