@@ -1,10 +1,11 @@
 import { SoloCard } from "../../types/SoloTypes";
 
 export const hideCard = (card: SoloCard) => {
-
+    console.log('hideCard', card);
     if (card.ele) {
         const frontSvg = card.ele.querySelector('.front'); // 选择 .front SVG
         if (frontSvg) {
+
             // 获取顶部 rank 和 suit 的 <text> 元素
             const topRankText = frontSvg.querySelector('text[x="10"][y="25"]');
             const topSuitText = frontSvg.querySelector('text[x="10"][y="45"]');
@@ -15,7 +16,10 @@ export const hideCard = (card: SoloCard) => {
 
             // 获取中央 suit 的 <text> 元素
             const centerSuitText = frontSvg.querySelector('text[x="50"][y="90"]');
-            if (topRankText && topSuitText && bottomRankText && bottomSuitText && centerSuitText) {
+            const canHide = topRankText !== null && topSuitText !== null && bottomRankText !== null && bottomSuitText !== null && centerSuitText !== null;
+            console.log('canHide', canHide);
+            if (canHide) {
+                console.log('hideCard', card);
                 topRankText.textContent = '';
                 topSuitText.textContent = '';
                 bottomRankText.textContent = '';

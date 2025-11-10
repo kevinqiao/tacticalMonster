@@ -224,7 +224,24 @@ export class TournamentMatchingService {
         }));
         return;
     }
-
+    private static async getPlayers(ctx: any, tournamentType: any, group: any[]): Promise<string[]> {
+        const player = group[0].playerInfo;
+        return [];
+    }
+    private static async processMatching(ctx: any, typeId: string) {
+        const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).first();
+        const group = await ctx.db.query("matchingQueue").withIndex("by_tournament_type", (q: any) => q.eq("tournamentType", typeId)).collect();
+        if (group.length > 0) {
+            const players = await this.getPlayers(ctx, tournamentType, group);
+            if (players.length > 0) {
+                await MatchManager.createMatch(ctx, {
+                    uids: players,
+                    tournamentId: tournamentType._id,
+                    typeId: tournamentType.typeId,
+                });
+            }
+        }
+    }
 
     /**
      * 按类型分组队列
@@ -466,7 +483,7 @@ export const joinMatchingQueue = mutation({
 });
 
 
-export const cancelMatching = (mutation as any)({
+export const cancelMatching = mutation({
     args: {
         uid: v.string(),
         tournamentId: v.optional(v.id("tournaments")),
@@ -480,14 +497,14 @@ export const cancelMatching = (mutation as any)({
     },
 });
 
-export const cleanupExpiredQueue = (mutation as any)({
+export const cleanupExpiredQueue = mutation({
     args: {},
     handler: async (ctx: any, args: any) => {
         return await TournamentMatchingService.cleanupExpiredQueue(ctx);
     },
 });
 
-export const getQueueStats = (query as any)({
+export const getQueueStats = query({
     args: {
         tournamentId: v.optional(v.id("tournaments")),
         gameType: v.optional(v.string()),
@@ -500,12 +517,19 @@ export const getQueueStats = (query as any)({
 });
 
 // 后台任务接口
-export const executeMatchingTask = (internalMutation as any)({
-    args: {
-        batchSize: v.optional(v.number()),
-        maxProcessingTime: v.optional(v.number())
+export const executeMatchingTask = internalMutation({
+    args: {},
+    handler: async (ctx: any) => {
+        const tournamentTypes = await ctx.db.query("tournament_types").collect();
+        for (const tournamentType of tournamentTypes) {
+            ctx.scheduler.runAfter(0, "processMatching", { typeId: tournamentType.typeId });
+        }
+
     },
-    handler: async (ctx: any, args: any) => {
-        return await TournamentMatchingService.executeMatchingTask(ctx, args);
+});
+export const processMatching = internalMutation({
+    args: { typeId: v.string() },
+    handler: async (ctx: any, { typeId }) => {
+
     },
-}); 
+});

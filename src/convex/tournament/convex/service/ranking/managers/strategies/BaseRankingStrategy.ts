@@ -2,7 +2,7 @@
  * 基础排名策略抽象类
  */
 
-import { HumanAnalysis, HumanPlayer, PlayerRankingProfile, PlayerRankingResult, RankingStrategy } from '../types/CommonTypes';
+import { HumanAnalysis, HumanPlayer, PlayerPerformanceProfile, PlayerRankingResult, RankingStrategy } from '../types/CommonTypes';
 import { RankingConfig } from '../types/RankingConfig';
 import { RankingCalculator } from '../utils/RankingCalculator';
 
@@ -15,7 +15,7 @@ export abstract class BaseRankingStrategy implements RankingStrategy {
 
     abstract calculateRanking(
         player: HumanPlayer,
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]
@@ -38,14 +38,14 @@ export abstract class BaseRankingStrategy implements RankingStrategy {
     /**
      * 计算技能因子
      */
-    protected calculateSkillFactor(profile: PlayerRankingProfile): number {
+    protected calculateSkillFactor(profile: PlayerPerformanceProfile): number {
         return RankingCalculator.calculateSkillFactor(profile);
     }
 
     /**
      * 计算信心度
      */
-    protected calculateConfidence(profile: PlayerRankingProfile, humanAnalysis: HumanAnalysis): number {
+    protected calculateConfidence(profile: PlayerPerformanceProfile, humanAnalysis: HumanAnalysis): number {
         return RankingCalculator.calculateConfidence(profile, humanAnalysis);
     }
 
@@ -54,7 +54,7 @@ export abstract class BaseRankingStrategy implements RankingStrategy {
      */
     protected analyzePlayerRelativePerformance(
         player: HumanPlayer,
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         humanAnalysis: HumanAnalysis
     ): 'excellent' | 'good' | 'average' | 'poor' {
         return RankingCalculator.analyzePlayerRelativePerformance(player, profile, humanAnalysis);
@@ -65,7 +65,7 @@ export abstract class BaseRankingStrategy implements RankingStrategy {
      */
     protected buildRankingResult(
         player: HumanPlayer,
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         recommendedRank: number,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,

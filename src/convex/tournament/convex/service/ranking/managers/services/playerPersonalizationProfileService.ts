@@ -145,7 +145,7 @@ export const updateExpiredPersonalizationProfiles = updateExpiredPersonalization
 export const getProfileStats = internalQuery({
     args: {},
     handler: async (ctx) => {
-        const profiles = await ctx.db.query("player_profiles").collect();
+        const profiles = await ctx.db.query("player_personalization_profiles").collect();
 
         const now = new Date();
         const stats = {

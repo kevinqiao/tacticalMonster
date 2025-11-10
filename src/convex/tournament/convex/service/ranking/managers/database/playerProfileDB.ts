@@ -13,7 +13,7 @@ export const getPlayerPersonalizationProfile = internalQuery({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
         const profile = await ctx.db
-            .query("player_profiles")
+            .query("player_personalization_profiles")
             .withIndex("by_uid", (q) => q.eq("uid", args.uid))
             .first();
 
@@ -64,7 +64,7 @@ export const upsertPlayerPersonalizationProfile = internalMutation({
     },
     handler: async (ctx, args) => {
         const existingProfile = await ctx.db
-            .query("player_profiles")
+            .query("player_personalization_profiles")
             .withIndex("by_uid", (q) => q.eq("uid", args.uid))
             .first();
 
@@ -83,7 +83,7 @@ export const upsertPlayerPersonalizationProfile = internalMutation({
             return existingProfile._id;
         } else {
             // 创建新画像
-            const profileId = await ctx.db.insert("player_profiles", {
+            const profileId = await ctx.db.insert("player_personalization_profiles", {
                 uid: args.uid,
                 ...args.profile,
                 confidence: args.confidence,
@@ -143,6 +143,7 @@ export const getPlayerHistoryForProfile = internalQuery({
         const matchHistory = await ctx.db
             .query("player_matches")
             .withIndex("by_uid_created", (q) => q.eq("uid", args.uid))
+            .filter((q) => q.gt(q.field("opponentQuantity"), 0))
             .order("desc")
             .take(50);
 
@@ -179,6 +180,7 @@ export const generateAndStorePlayerPersonalizationProfile = internalMutation({
         const matchHistory = await ctx.db
             .query("player_matches")
             .withIndex("by_uid_created", (q) => q.eq("uid", args.uid))
+            .filter((q) => q.gt(q.field("opponentQuantity"), 0))
             .order("desc")
             .take(50);
 
@@ -214,7 +216,7 @@ export const generateAndStorePlayerPersonalizationProfile = internalMutation({
 
         // 4. 存储画像
         const existingProfile = await ctx.db
-            .query("player_profiles")
+            .query("player_personalization_profiles")
             .withIndex("by_uid", (q) => q.eq("uid", args.uid))
             .first();
 
@@ -232,7 +234,7 @@ export const generateAndStorePlayerPersonalizationProfile = internalMutation({
             return existingProfile._id;
         } else {
             // 创建新画像
-            const profileId = await ctx.db.insert("player_profiles", {
+            const profileId = await ctx.db.insert("player_personalization_profiles", {
                 ...profile,
                 uid: args.uid,
                 confidence,
@@ -253,7 +255,7 @@ export const shouldUpdatePersonalizationProfile = internalQuery({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
         const profile = await ctx.db
-            .query("player_profiles")
+            .query("player_personalization_profiles")
             .withIndex("by_uid", (q) => q.eq("uid", args.uid))
             .first();
 
@@ -282,7 +284,7 @@ export const updateExpiredPersonalizationProfiles = internalMutation({
     handler: async (ctx, args) => {
         const { maxUpdates } = args;
         const now = new Date();
-        const profiles = await ctx.db.query("player_profiles").collect();
+        const profiles = await ctx.db.query("player_personalization_profiles").collect();
 
         let expiredProfiles = profiles.filter(profile => {
             const lastUpdated = new Date(profile.lastUpdated);
@@ -311,6 +313,7 @@ export const updateExpiredPersonalizationProfiles = internalMutation({
                 const matchHistory = await ctx.db
                     .query("player_matches")
                     .withIndex("by_uid_created", (q) => q.eq("uid", profile.uid))
+                    .filter((q) => q.gt(q.field("opponentQuantity"), 0))
                     .order("desc")
                     .take(50);
 
@@ -398,10 +401,10 @@ function calculateConfidence(matchHistory: any[], behaviorEvents: any[]): number
     return Math.max(0.1, Math.min(0.95, confidence));
 }
 
-// ========== PlayerRankingProfile 缓存机制 ==========
+// ========== PlayerPerformanceProfile 缓存机制 ==========
 
 /**
- * 获取玩家性能指标缓存（用于 PlayerRankingProfile）
+ * 获取玩家性能指标缓存（用于 PlayerPerformanceProfile）
  */
 export const getPlayerPerformanceMetrics = internalQuery({
     args: { uid: v.string(), gameType: v.optional(v.string()) },

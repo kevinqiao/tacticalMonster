@@ -1,4 +1,4 @@
-import MatchController from "component/battle/MatchController";
+import MatchHome from "component/battle/MatchHome";
 import { useQuery } from "convex/react";
 import { api } from "convex/tournament/convex/_generated/api";
 import gsap from "gsap";
@@ -61,7 +61,7 @@ const TournamentPlay: React.FC<{ tournament: any }> = (props) => {
                 <span>Matching Complete</span>
             </div>
             <div ref={matchPlayRef} className="match-play">
-                {matchReady && <MatchController match={matchingResult?.match} onGameLoadComplete={onGameLoadComplete} />}
+                {matchReady && <MatchHome match={matchingResult?.match} onGameLoadComplete={onGameLoadComplete} />}
             </div>
         </>
     );

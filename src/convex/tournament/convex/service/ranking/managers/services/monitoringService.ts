@@ -51,7 +51,7 @@ async function getProfileUpdateStatsInternal(ctx: any, args: any) {
     const { timeRange } = args;
 
     // 获取所有玩家画像
-    const profiles = await ctx.db.query("player_profiles").collect();
+    const profiles = await ctx.db.query("player_personalization_profiles").collect();
 
     // 获取最近的更新事件
     let updateEvents = await ctx.db.query("player_behavior_events")
@@ -328,7 +328,7 @@ async function getActiveUserCount(ctx: any): Promise<number> {
  * 获取画像完整性
  */
 async function getProfileCompleteness(ctx: any): Promise<number> {
-    const profiles = await ctx.db.query("player_profiles").collect();
+    const profiles = await ctx.db.query("player_personalization_profiles").collect();
 
     if (profiles.length === 0) return 0;
 
@@ -346,7 +346,7 @@ async function getProfileCompleteness(ctx: any): Promise<number> {
  * 获取数据新鲜度
  */
 async function getDataFreshness(ctx: any): Promise<number> {
-    const profiles = await ctx.db.query("player_profiles").collect();
+    const profiles = await ctx.db.query("player_personalization_profiles").collect();
 
     if (profiles.length === 0) return 0;
 

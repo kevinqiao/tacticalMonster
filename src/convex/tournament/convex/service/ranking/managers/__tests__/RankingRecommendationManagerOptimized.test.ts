@@ -11,7 +11,7 @@
  */
 
 import { RankingRecommendationManagerOptimized } from '../RankingRecommendationManagerOptimized';
-import { HumanPlayer, PlayerRankingProfile } from '../types/CommonTypes';
+import { HumanPlayer, PlayerPerformanceProfile } from '../types/CommonTypes';
 import { RankingConfig } from '../types/RankingConfig';
 
 /**
@@ -21,39 +21,43 @@ function createMockContext() {
     const mockMatches: any[] = [];
     const mockProfiles: any = {};
 
+    const buildQuery = (tableName: string) => ({
+        withIndex: (indexName: string, callback: (q: any) => any) => {
+            const q = {
+                eq: (field: string, value: any) => ({
+                    ...createFilterApi(mockMatches.filter((m: any) => m[field] === value))
+                })
+            };
+            return callback(q);
+        }
+    });
+
+    const createFilterApi = (rows: any[]) => ({
+        filter: (fn: (q: any) => any) => {
+            const filtered = rows.filter((row) => {
+                const fakeQuery = {
+                    gt: (field: string, value: any) => {
+                        const fieldValue = row[field];
+                        return fieldValue !== undefined && fieldValue > value;
+                    }
+                };
+                return fn(fakeQuery);
+            });
+            return {
+                order: (direction: string) => ({
+                    take: (count: number) =>
+                        direction === 'desc' ? filtered.slice(0, count) : filtered.slice(-count)
+                })
+            };
+        },
+        order: (direction: string) => ({
+            take: (count: number) => (direction === 'desc' ? rows.slice(0, count) : rows.slice(-count))
+        })
+    });
+
     return {
         db: {
-            query: (tableName: string) => {
-                if (tableName === 'match_results') {
-                    return {
-                        withIndex: (indexName: string, callback: (q: any) => any) => {
-                            const q = {
-                                eq: (field: string, value: any) => {
-                                    // 过滤匹配的数据
-                                    const filtered = mockMatches.filter((m: any) => m[field] === value);
-                                    return {
-                                        order: (direction: string) => ({
-                                            take: (count: number) => {
-                                                return direction === 'desc'
-                                                    ? filtered.slice(0, count)
-                                                    : filtered.slice(-count);
-                                            }
-                                        })
-                                    };
-                                }
-                            };
-                            return callback(q);
-                        }
-                    };
-                }
-                return {
-                    withIndex: () => ({
-                        order: () => ({
-                            take: () => []
-                        })
-                    })
-                };
-            }
+            query: (tableName: string) => buildQuery(tableName)
         },
         runQuery: async (queryFunc: any, args: any) => {
             // 模拟查询玩家画像
@@ -64,7 +68,13 @@ function createMockContext() {
         },
         // 测试辅助方法：设置模拟数据
         _setMockMatches: (uid: string, matches: any[]) => {
-            mockMatches.push(...matches.map((m: any) => ({ ...m, uid })));
+            mockMatches.push(
+                ...matches.map((m: any) => ({
+                    ...m,
+                    uid,
+                    opponentQuantity: m.opponentQuantity ?? 1
+                }))
+            );
         },
         _setMockProfile: (uid: string, profile: any) => {
             mockProfiles[uid] = profile;
@@ -98,7 +108,7 @@ function createTestProfile(
     averageRank: number = 3,
     winRate: number = 0.33,
     consistency: number = 0.7
-): PlayerRankingProfile {
+): PlayerPerformanceProfile {
     const last10Matches = Array.from({ length: Math.min(totalMatches, 10) }, (_, i) => ({
         score: averageScore + (Math.random() - 0.5) * 200,
         rank: averageRank + Math.floor((Math.random() - 0.5) * 2),
@@ -563,9 +573,14 @@ describe('RankingRecommendationManagerOptimized 集成测试', () => {
 
         // 设置模拟的历史比赛数据
         mockCtx._setMockMatches('player1', [
-            { uid: 'player1', score: 1500, rank: 1, matchId: 'm1', seed: 's1', createdAt: '2024-01-01' },
-            { uid: 'player1', score: 1600, rank: 2, matchId: 'm2', seed: 's1', createdAt: '2024-01-02' },
-            { uid: 'player1', score: 1400, rank: 3, matchId: 'm3', seed: 's1', createdAt: '2024-01-03' },
+            { uid: 'player1', score: 1500, rank: 1, matchId: 'm1', seed: 's1', createdAt: '2024-01-01', opponentQuantity: 2 },
+            { uid: 'player1', score: 1600, rank: 2, matchId: 'm2', seed: 's1', createdAt: '2024-01-02', opponentQuantity: 3 },
+            { uid: 'player1', score: 1400, rank: 3, matchId: 'm3', seed: 's1', createdAt: '2024-01-03', opponentQuantity: 4 },
+        ]);
+
+        // Solo match should be ignored
+        mockCtx._setMockMatches('player1', [
+            { uid: 'player1', score: 2000, rank: 1, matchId: 'solo', seed: 'solo_seed', createdAt: '2024-01-04', opponentQuantity: 0 },
         ]);
 
         const players = [createTestPlayer('player1', 1550)];

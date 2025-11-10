@@ -7,7 +7,8 @@ import { popCard } from "../popCard";
  * 波浪式发牌效果 - 多米诺效果
  */
 export const dealWave = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
-    const { cards, boardDimension } = data;
+    const { cards, gameState, boardDimension } = data;
+    console.log("dealWave", cards, gameState.cards);
     const tl = gsap.timeline({
         onComplete: () => {
             onComplete?.();
@@ -24,11 +25,12 @@ export const dealWave = ({ data, onComplete }: { data: any; onComplete?: () => v
             c.zoneId === `tableau-${col}`
         ).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
 
-        columnCards.forEach((card: SoloCard, rowIndex: number) => {
-            if (!card.ele) return;
+        columnCards.forEach((c: SoloCard, rowIndex: number) => {
+            const card = gameState.cards.find((gc: SoloCard) => gc.id === c.id);
+            if (!card) return;
 
-            const { x, y } = getCoord(card, columnCards, boardDimension);
-
+            const { x, y } = getCoord(c, columnCards, boardDimension);
+            console.log("card", card, x, y);
             gsap.set(card.ele, { x: deckX, y: deckY - 200 }); // 从上方落下
 
             // 波浪效果：每列比前一列稍晚，每行比前一行稍晚
@@ -61,8 +63,9 @@ export const dealWave = ({ data, onComplete }: { data: any; onComplete?: () => v
 
     tl.add("reveal", "+=0.2");
 
-    revealCards.forEach((card: SoloCard, index: number) => {
-        if (!card.ele) return;
+    revealCards.forEach((c: SoloCard, index: number) => {
+        const card = gameState.cards.find((gc: SoloCard) => gc.id === c.id);
+        if (!card || !card.ele) return;
         popCard(card);
         tl.to(card.ele, {
             rotateY: 180,

@@ -1,29 +1,30 @@
 import { v } from "convex/values";
 import { SoloGameEngine } from "../../../../component/solitaireSolo/battle/service/SoloGameEngine";
-import { ActionStatus, Card, SoloGameState, SoloGameStatus, ZoneType } from "../../../../component/solitaireSolo/battle/types/SoloTypes";
+import { ActionStatus, Card, SoloGameState, SoloGameStatus } from "../../../../component/solitaireSolo/battle/types/SoloTypes";
 import { createZones } from "../../../../component/solitaireSolo/battle/Utils";
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
 export class GameManager {
     private dbCtx: any;
-    private game: SoloGameState | null;
+    private game: any | null;
     constructor(dbCtx: any) {
         this.dbCtx = dbCtx;
         this.game = null;
     }
     async load(gameId: string) {
-        console.log("load game", gameId);
+
         const game = await this.dbCtx.db.query("game").withIndex("by_gameId", (q: any) => q.eq("gameId", gameId)).unique();
         if (!game) return;
-        this.game = { ...game, _id: undefined, _creationTime: undefined } as SoloGameState;
+
+        this.game = { ...game, _creationTime: undefined } as SoloGameState;
         return this.game;
     }
     async save(data: { cards?: Card[], status?: SoloGameStatus }) {
 
         if (!this.game) return;
-
         if (data.cards) {
             for (const c of data.cards) {
                 const card: Card | undefined = this.game.cards.find((cc: Card) => cc.id === c.id);
+
                 if (card) {
                     card.isRevealed = c.isRevealed;
                     card.zone = c.zone;
@@ -34,10 +35,12 @@ export class GameManager {
         }
         if (data.status)
             this.game.status = data.status;
-        await this.dbCtx.db.patch(this.game.gameId, { cards: this.game.cards, status: this.game.status });
+        const wasteCards = this.game.cards.filter((c: Card) => c.zoneId === 'waste').sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
+        await this.dbCtx.db.patch(this.game._id, { cards: this.game.cards, status: this.game.status });
     }
     async createGame(seed?: string | number): Promise<any> {
         const game = SoloGameEngine.createGame(seed);
+        console.log("createGame", game, seed);
         const zones = createZones();
         const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
         const gameId = await this.dbCtx.db.insert("game", gameState);
@@ -47,14 +50,16 @@ export class GameManager {
                 patchData.seed = gameState.seed;
             }
             await this.dbCtx.db.patch(gameId, patchData);
-            return { ...gameState, ...patchData };
+            this.game = { ...gameState, ...patchData, _id: gameId, _creationTime: undefined } as any;
+            return this.game
         }
     }
     async deal(gameId: string) {
         const game = await this.load(gameId);
         if (!game) return;
         const cards = SoloGameEngine.deal(game.cards);
-        await this.save({ cards, status: SoloGameStatus.START });
+        console.log('deal cards', cards);
+        await this.save({ cards, status: SoloGameStatus.DEALED });
         return { ok: true, data: { update: cards } };
     }
     async draw(cardId: string): Promise<any> {
@@ -79,14 +84,12 @@ export class GameManager {
         // await this.dbCtx.db.patch(this.game.id, { cards: this.game.cards });
         return result;
     }
-    async recycle(gameId: string) {
-        const game = await this.dbCtx.db.get(gameId);
-        if (!game) return;
-        const cards = game.cards.filter((c: Card) => c.zone === ZoneType.TALON);
-        if (cards.length === 0) return;
-        game.cards = cards;
-        await this.dbCtx.db.patch(gameId, { cards: game.cards });
-        return cards;
+    async recycle() {
+        const result = SoloGameEngine.recycle(this.game);
+        if (!result.ok) return result;
+        const cards = result.data?.update || [];
+        await this.save({ cards });
+        return result;
     }
     async gameOver() {
         if (!this.game) return { ok: false };
@@ -95,20 +98,28 @@ export class GameManager {
     }
 }
 // Convex 函数接口
-export const create = internalMutation({
+export const createGame = internalMutation({
     args: {
-        seed: v.optional(v.union(v.string(), v.number()))
+        seed: v.optional(v.string())
     },
-    handler: async (ctx: any, { seed }) => {
-        const gameManager = new GameManager(ctx);
-        const result = await gameManager.createGame(seed);
+    handler: async (ctx, args) => {
 
-        return result;
+        const gameManager = new GameManager(ctx);
+        const game = await gameManager.createGame(args.seed);
+        if (game) {
+            const initialGame = JSON.parse(JSON.stringify(game));
+            const dealedCards = SoloGameEngine.deal(game.cards);
+            await gameManager.save({ cards: dealedCards, status: SoloGameStatus.DEALED });
+            return { ok: true, data: initialGame, events: [{ name: "deal", cards: dealedCards }] };
+        }
+        return { ok: false };
+
     },
 });
 export const loadGame = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
+        console.log("loading game", gameId);
         const gameManager = new GameManager(ctx);
         try {
             const game = await gameManager.load(gameId);
@@ -119,9 +130,11 @@ export const loadGame = query({
         }
     },
 });
+
 export const findGame = internalQuery({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
+        console.log("finding game", gameId);
         const gameManager = new GameManager(ctx);
         const game = await gameManager.load(gameId);
         return game
@@ -180,7 +193,9 @@ export const recycle = mutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
         const gameManager = new GameManager(ctx);
-        return await gameManager.recycle(gameId);
+        await gameManager.load(gameId);
+        const result = await gameManager.recycle();
+        return { ok: result.ok };
     },
 });
 

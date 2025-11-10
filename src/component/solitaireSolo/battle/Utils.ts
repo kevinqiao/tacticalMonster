@@ -1,7 +1,7 @@
 import { CARD_SUITS, SoloBoardDimension, SoloCard, ZoneType } from "./types/SoloTypes";
 
 export const getCoord = (card: SoloCard, cards: SoloCard[], boardDimension: SoloBoardDimension) => {
-    if (!boardDimension || !card.ele) return { x: 0, y: 0 };
+    if (!boardDimension) return { x: 0, y: 0 };
     // const zoneCards = cards.filter(c => c.zoneId === card.zoneId)
     switch (card.zone) {
         case ZoneType.TALON: {

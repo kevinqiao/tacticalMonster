@@ -85,6 +85,23 @@ http.route({
   }),
 });
 http.route({
+  path: "/submitGameScore",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body: { gameId: string, score: number } = await request.json();
+    const res = await ctx.runMutation(internal.service.tournament.matchManager.submitGameScore, { gameId: body.gameId, score: body.score });
+
+    return new Response(JSON.stringify(res), {
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+
+      }),
+    });
+  }),
+});
+http.route({
   path: "/test",
   method: "POST",
   handler: httpAction(async (_, request) => {

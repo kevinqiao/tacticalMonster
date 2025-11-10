@@ -116,7 +116,7 @@ export const recordLoginEvent = internalMutation({
  */
 async function checkProfileUpdateNeededInternal(ctx: any, uid: string): Promise<boolean> {
     // 1. 检查是否有画像
-    const profile = await ctx.db.query("player_profiles")
+    const profile = await ctx.db.query("player_personalization_profiles")
         .withIndex("by_uid", (q: any) => q.eq("uid", uid))
         .first();
 
@@ -304,7 +304,7 @@ async function generateAndStorePlayerPersonalizationProfile(ctx: any, args: { ui
         const profile = PlayerProfileGenerator.generateProfile(uid, history);
 
         // 存储画像
-        const profileId = await ctx.db.insert("player_profiles", {
+        const profileId = await ctx.db.insert("player_personalization_profiles", {
             ...profile,
             createdAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
@@ -322,7 +322,7 @@ async function generateAndStorePlayerPersonalizationProfile(ctx: any, args: { ui
  * 计算数据变化程度
  */
 async function calculateChangeSignificance(ctx: any, uid: string, newHistory: any): Promise<number> {
-    const profile = await ctx.db.query("player_profiles")
+    const profile = await ctx.db.query("player_personalization_profiles")
         .withIndex("by_uid", (q: any) => q.eq("uid", uid))
         .first();
 
@@ -386,7 +386,7 @@ function calculateBehaviorChange(oldPatterns: any, newHistory: any): number {
  * 增量更新玩家画像
  */
 async function incrementalProfileUpdate(ctx: any, uid: string, newHistory: any) {
-    const profile = await ctx.db.query("player_profiles")
+    const profile = await ctx.db.query("player_personalization_profiles")
         .withIndex("by_uid", (q: any) => q.eq("uid", uid))
         .first();
 
@@ -456,7 +456,7 @@ function calculateUpdatedConfidence(profile: any, newHistory: any): number {
  * 更新时间戳
  */
 async function updateProfileTimestamp(ctx: any, uid: string) {
-    const profile = await ctx.db.query("player_profiles")
+    const profile = await ctx.db.query("player_personalization_profiles")
         .withIndex("by_uid", (q: any) => q.eq("uid", uid))
         .first();
 

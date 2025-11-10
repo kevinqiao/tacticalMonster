@@ -1,22 +1,24 @@
 import gsap from "gsap";
-import { SoloCard } from "../../types/SoloTypes";
+import { SoloCard, ZoneType } from "../../types/SoloTypes";
 import { getCoord } from "../../Utils";
 
 export const drawCard = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
     const { card, boardDimension, gameState } = data;
     const tl = gsap.timeline({
         onComplete: () => {
-            if (card.ele)
+            if (card.ele) {
                 gsap.set(card.ele, { zIndex: card.zoneIndex + 10 });
+            }
             onComplete?.();
         }
     });
     if (card.ele) {
         // popCard(card);
         const wasteCards = gameState.cards.filter((c: SoloCard) => c.zoneId === 'waste');
-        const cards = [...wasteCards, card].sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
+        const drawedCard = { ...card, zoneId: 'waste', zone: ZoneType.WASTE, zoneIndex: wasteCards.length };
+        const cards = [...wasteCards, drawedCard].sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
         console.log('drawCard cards', cards);
-        const coord = getCoord(card, cards, boardDimension);
+        const coord = getCoord(drawedCard, cards, boardDimension);
         const ctl = gsap.timeline();
         tl.add(ctl);
         ctl.to(card.ele, {

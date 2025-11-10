@@ -59,7 +59,7 @@ export const testSubmitScore = (mutation as any)({
     },
     handler: async (ctx: any, args: { uid: string, gameId: string, score: number }) => {
         const scores = [{ uid: args.uid, gameId: args.gameId, score: args.score, gameData: {} }]
-        const result = await MatchManager.submitScore(ctx, { scores });
+        const result = await MatchManager.submitGameScore(ctx, scores);
         return result;
     },
 });
@@ -70,7 +70,7 @@ export const testBatchSubmitScore = (mutation as any)({
         matches.filter((match: any) => !match.completed).forEach(async (match: any, index: number) => {
             const score = Math.floor(Math.random() * 1000);
             const scores = [{ uid: match.uid, gameId: match.gameId, score, gameData: {} }]
-            await MatchManager.submitScore(ctx, { scores });
+            await MatchManager.submitGameScore(ctx, scores);
         });
     },
 });

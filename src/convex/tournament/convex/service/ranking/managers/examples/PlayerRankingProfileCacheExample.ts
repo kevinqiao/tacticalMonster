@@ -1,5 +1,5 @@
 /**
- * PlayerRankingProfile 缓存更新示例
+ * PlayerPerformanceProfile 缓存更新示例
  * 演示如何在比赛结束时更新性能指标缓存
  */
 

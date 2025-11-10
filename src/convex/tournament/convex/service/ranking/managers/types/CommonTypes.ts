@@ -21,7 +21,7 @@ export interface HumanPlayer {
     name?: string;
 }
 
-export interface PlayerRankingProfile {
+export interface PlayerPerformanceProfile {
     uid: string;
     segmentName: 'bronze'; // 暂时固定为青铜段位
     averageScore: number;
@@ -141,7 +141,7 @@ export interface HumanAnalysis {
 export interface RankingStrategy {
     calculateRanking(
         player: HumanPlayer,
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]

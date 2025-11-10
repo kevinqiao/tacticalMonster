@@ -25,7 +25,8 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         gameState,
         boardDimension,
         updateBoardDimension,
-        loadGame
+        loadGame,
+        submitScore
     } = useSoloGameManager();
     const { cards } = gameState || {};
 
@@ -539,7 +540,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                     GameOver
                 </button>
                 <button
-                    onClick={createGameOverEvent}
+                    onClick={() => submitScore(100)}
                     style={{
                         fontSize: isTablet ? '12px' : '14px',
                         padding: isTablet ? '6px 8px' : '8px 12px',
@@ -548,7 +549,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                         flex: 'none'
                     }}
                 >
-                    Play Over
+                    Submit Score
                 </button>
             </div>
         );

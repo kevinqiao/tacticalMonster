@@ -5,9 +5,10 @@
 
 export enum SoloGameStatus {
     OPEN = 0,
-    START = 1,
-    COMPLETED = 2,
-    CANCELLED = 3
+    DEALED = 1,
+    PLAYING = 2,
+    COMPLETED = 3,
+    CANCELLED = 4
 }
 export enum ActionStatus {
     IDLE = 'idle',

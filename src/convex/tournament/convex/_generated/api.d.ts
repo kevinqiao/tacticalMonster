@@ -104,6 +104,7 @@ import type * as service_tournament_matchManager from "../service/tournament/mat
 import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
 import type * as service_tournament_pointCalculationExample from "../service/tournament/pointCalculationExample.js";
 import type * as service_tournament_pointCalculationService from "../service/tournament/pointCalculationService.js";
+import type * as service_tournament_seedRandom from "../service/tournament/seedRandom.js";
 import type * as service_tournament_tests_General_Test from "../service/tournament/tests/General_Test.js";
 import type * as service_tournament_tests_MultiPlayer_multiMatch_Test from "../service/tournament/tests/MultiPlayer_multiMatch_Test.js";
 import type * as service_tournament_tests_MultiPlayer_singleMatch_Test from "../service/tournament/tests/MultiPlayer_singleMatch_Test.js";
@@ -219,6 +220,7 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;
   "service/tournament/pointCalculationExample": typeof service_tournament_pointCalculationExample;
   "service/tournament/pointCalculationService": typeof service_tournament_pointCalculationService;
+  "service/tournament/seedRandom": typeof service_tournament_seedRandom;
   "service/tournament/tests/General_Test": typeof service_tournament_tests_General_Test;
   "service/tournament/tests/MultiPlayer_multiMatch_Test": typeof service_tournament_tests_MultiPlayer_multiMatch_Test;
   "service/tournament/tests/MultiPlayer_singleMatch_Test": typeof service_tournament_tests_MultiPlayer_singleMatch_Test;

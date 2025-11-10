@@ -29,7 +29,7 @@ export class SoloRuleManager implements SolitaireRule {
     getActModes(card: Card): ActMode[] {
         const modes: ActMode[] = [];
 
-        if (this.gameState.actionStatus !== ActionStatus.IDLE || this.gameState.status !== SoloGameStatus.START) {
+        if (this.gameState.actionStatus !== ActionStatus.IDLE || this.gameState.status !== SoloGameStatus.DEALED) {
             return modes;
         }
         if (!card.isRevealed && card.zone !== ZoneType.TALON) {
@@ -397,14 +397,23 @@ export class SoloRuleManager implements SolitaireRule {
      * 检查是否可以抽牌
      */
     canDraw(cardId: string): boolean {
+
         const zoneCards = this.gameState.cards.filter(c => c.zone === ZoneType.TALON);
         zoneCards.sort((a, b) => b.zoneIndex - a.zoneIndex);
+        console.log('zoneCards', zoneCards.length, zoneCards[0], cardId);
         if ((zoneCards.length > 0 && zoneCards[0].id !== cardId) || zoneCards.length === 0) {
             return false;
         }
         return true;
     }
-
+    /**
+       * 检查是否可以抽牌
+       */
+    canRecycle(): boolean {
+        const talonCards = this.gameState.cards.filter(c => c.zone === ZoneType.TALON);
+        if (talonCards.length > 0) return false;
+        return true;
+    }
     /**
      * 验证移动是否合法
      */

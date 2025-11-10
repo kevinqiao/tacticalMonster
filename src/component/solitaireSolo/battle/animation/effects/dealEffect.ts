@@ -12,6 +12,6 @@ export const dealEffect = ({ effectType, data, onComplete }: { effectType?: stri
         'wave': dealWave,
         'explosion': dealExplosion,
     };
-    const dealEffect = effectMap[effectType || 'default' as keyof typeof effectMap];
-    dealEffect({ data, onComplete });
+    const playDealEffect = effectMap[effectType || 'default' as keyof typeof effectMap];
+    playDealEffect({ data, onComplete });
 }

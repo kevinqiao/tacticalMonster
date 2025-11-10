@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
-import { internalQuery, mutation, query } from "../../_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
 import { settleTournament, TournamentStatus } from "./common";
+import { createSeededRandom } from "./seedRandom";
 // import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
 const GAME_MODES: Record<string, string> = {
@@ -104,6 +105,7 @@ export class MatchManager {
             }
             const playerMatch = await ctx.db.query("player_matches").withIndex("by_match_uid", (q: any) => q.eq("matchId", match._id).eq("uid", uid)).unique();
             if (!playerMatch) {
+                const seed = createSeededRandom(match._id + uid);
                 await ctx.db.insert("player_matches", {
                     matchId: match._id,
                     tournamentId: match.tournamentId,
@@ -133,35 +135,30 @@ export class MatchManager {
     /**
      * 结束比赛
      */
-    static async submitScore(ctx: any, params: {
+    static async submitGameScore(ctx: any,
         scores: {
-            uid: string;
             gameId: string;
             score: number;
             gameData: any;
-        }[];
-    }) {
-        console.log("submitScore", params)
+        }[]
+    ) {
+
         const nowISO = new Date().toISOString();
-        const scores = params.scores;
-        let matchId: string | null = null;
-        await Promise.all(scores.map(async (score: any) => {
-            const playerMatch = await ctx.db.query("player_matches").withIndex("by_player_game", (q: any) => q.eq("uid", score.uid).eq("gameId", score.gameId)).unique();
+
+
+        for (const gameScore of scores) {
+            const playerMatch = await ctx.db.query("player_matches").withIndex("by_game", (q: any) => q.eq("gameId", gameScore.gameId)).unique();
             if (!playerMatch) {
                 throw new Error("玩家比赛记录不存在");
             }
-            if (matchId === null) {
-                matchId = playerMatch.matchId;
-            }
             await ctx.db.patch(playerMatch._id, {
-                score: score.score,
-                completed: true,
+                score: gameScore.score,
+                status: TournamentStatus.COMPLETED,
                 updatedAt: nowISO
             });
-        }));
-        if (matchId) {
-            await this.settleMatch(ctx, { matchId });
         }
+        return true
+
     }
 
     /**
@@ -248,99 +245,10 @@ export class MatchManager {
             }
         }
     }
-    static async completeMatchAIs(ctx: any, match: any, playerMatches: any[]) {
-        const count = match.maxPlayers - playerMatches.length;
-        const playerScores = playerMatches.map((playerMatch: any) => ({
-            uid: playerMatch.uid,
-            segmentName: playerMatch.segmentName,
-            score: playerMatch.score,
-            seed: playerMatch.seed
-        }));
 
-    }
 
-    /**
-     * 获取比赛详情
-     */
-    static async getMatchDetails(ctx: any, matchId: string) {
-        const match = await ctx.db.get(matchId);
-        if (!match) {
-            throw new Error("比赛不存在");
-        }
 
-        const playerMatches = await ctx.db
-            .query("player_matches")
-            .withIndex("by_match", (q: any) => q.eq("matchId", matchId))
-            .collect();
 
-        const events = await ctx.db
-            .query("match_events")
-            .withIndex("by_match", (q: any) => q.eq("matchId", matchId))
-            .collect();
-
-        return {
-            match,
-            players: playerMatches,
-            events: events.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
-        };
-    }
-
-    /**
-     * 获取玩家比赛历史
-     */
-    static async getPlayerMatchHistory(ctx: any, uid: string, limit: number = 20) {
-        const playerMatches = await ctx.db
-            .query("player_matches")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-            .order("desc")
-            .take(limit);
-
-        const matchIds = [...new Set(playerMatches.map((pm: any) => pm.matchId))];
-        const matches = await Promise.all(matchIds.map((id: any) => ctx.db.get(id)));
-
-        return playerMatches.map((pm: any) => ({
-            ...pm,
-            match: matches.find((m: any) => m?._id === pm.matchId),
-        }));
-    }
-
-    /**
-     * 创建远程游戏 - 统一接口
-     */
-    static async createRemoteGame(ctx: any, params: {
-        gameType: string;
-        gameIds: string[];
-        seed?: string;
-    }) {
-        const nowISO = new Date().toISOString();
-
-        try {
-            const gameServerUrl = GAME_SERVER_CONFIG[params.gameType];
-            if (!gameServerUrl) {
-                throw new Error("游戏服务器配置不存在");
-            }
-            const response = await fetch(gameServerUrl, {
-                method: "POST",
-                body: JSON.stringify({
-                    gameIds: params.gameIds,
-                    seed: params.seed
-                })
-            });
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error("创建远程游戏失败:", error);
-
-            // 记录错误日志
-            await ctx.db.insert("error_logs", {
-                error: `创建远程游戏失败: ${error instanceof Error ? error.message : "未知错误"}`,
-                context: "createRemoteGame",
-                createdAt: nowISO
-            });
-
-            throw new Error(`创建远程游戏失败: ${error instanceof Error ? error.message : "未知错误"}`);
-        }
-    }
 }
 
 
@@ -370,6 +278,17 @@ export const joinMatch = (mutation as any)({
         return await MatchManager.joinMatch(ctx, args);
     },
 });
+export const submitGameScore = internalMutation({
+    args: {
+        gameId: v.string(),
+        score: v.optional(v.number()),
+    },
+    handler: async (ctx: any, args: any): Promise<any> => {
+        const scores = [{ gameId: args.gameId, score: args.score, gameData: {} }];
+        const ok = await MatchManager.submitGameScore(ctx, scores);
+        return { ok };
+    },
+});
 export const findMatch = query({
     args: {
         tournamentType: v.optional(v.string()),
@@ -381,7 +300,6 @@ export const findMatch = query({
         }
         const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => tournamentType ? q.eq("tournamentType", tournamentType).eq("uid", uid).eq("status", TournamentStatus.OPEN) : q.eq("uid", uid).eq("status", TournamentStatus.OPEN)).order("desc").first();
         if (match) {
-            console.log("match", match);
             return { ok: true, match: { ...match, _id: undefined, _creationTime: undefined } };
         }
         return { ok: false, match: null };
@@ -390,7 +308,7 @@ export const findMatch = query({
 export const findMatchGame = internalQuery({
     args: { gameId: v.string() },
     handler: async (ctx: any, { gameId }: { gameId: string }): Promise<any> => {
-        const match = await ctx.db.query("player_matches").withIndex("by_gameId", (q: any) => q.eq("gameId", gameId)).unique();
+        const match = await ctx.db.query("player_matches").withIndex("by_game", (q: any) => q.eq("gameId", gameId)).unique();
         if (match) {
             return { ...match, _id: undefined, _creationTime: undefined };
         }
@@ -407,21 +325,5 @@ export const findReport = query({
         }
 
         return null;
-    },
-});
-export const getMatchDetails = (query as any)({
-    args: { matchId: v.id("matches") },
-    handler: async (ctx: any, args: any): Promise<any> => {
-        return await MatchManager.getMatchDetails(ctx, args.matchId);
-    },
-});
-
-export const getPlayerMatchHistory = (query as any)({
-    args: {
-        uid: v.string(),
-        limit: v.optional(v.number()),
-    },
-    handler: async (ctx: any, args: any): Promise<any> => {
-        return await MatchManager.getPlayerMatchHistory(ctx, args.uid, args.limit);
     },
 });

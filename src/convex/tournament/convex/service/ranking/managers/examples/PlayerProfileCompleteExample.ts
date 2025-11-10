@@ -33,7 +33,7 @@ export const insertMatchResult = internalMutation({
 // 辅助：仅更新画像的 lastUpdated（演示用）
 export const patchProfileLastUpdated = internalMutation({
     args: {
-        id: v.id("player_profiles"),
+        id: v.id("player_personalization_profiles"),
         lastUpdated: v.string()
     },
     handler: async (ctx, args) => {
@@ -45,7 +45,7 @@ export const patchProfileLastUpdated = internalMutation({
 export const getProfilesStats = internalQuery({
     args: {},
     handler: async (ctx) => {
-        const allProfiles = await ctx.db.query("player_profiles").collect();
+        const allProfiles = await ctx.db.query("player_personalization_profiles").collect();
         const now = new Date();
         const recentlyUpdated = allProfiles.filter((p: any) => {
             const lu = new Date(p.lastUpdated);

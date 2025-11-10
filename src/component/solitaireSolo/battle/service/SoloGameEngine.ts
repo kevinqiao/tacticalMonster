@@ -11,36 +11,8 @@ import {
     ZoneType
 } from '../types/SoloTypes';
 import { SoloRuleManager } from './SoloRuleManager';
+import { createSeededRandom } from './seedRandom';
 export class SoloGameEngine {
-    private static xmur3(str: string): () => number {
-        let h = 1779033703 ^ str.length;
-        for (let i = 0; i < str.length; i++) {
-            h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
-            h = (h << 13) | (h >>> 19);
-        }
-        return function () {
-            h = Math.imul(h ^ (h >>> 16), 2246822507);
-            h = Math.imul(h ^ (h >>> 13), 3266489909);
-            return (h ^= h >>> 16) >>> 0;
-        };
-    }
-
-    private static mulberry32(a: number): () => number {
-        return function () {
-            let t = (a += 0x6d2b79f5);
-            t = Math.imul(t ^ (t >>> 15), t | 1);
-            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
-    }
-
-    private static getSeededRandom(seed: string | number): () => number {
-        if (typeof seed === 'number') {
-            return SoloGameEngine.mulberry32(seed);
-        }
-        const hash = SoloGameEngine.xmur3(seed)();
-        return SoloGameEngine.mulberry32(hash);
-    }
     // 创建一副完整的牌
     public static createDeck = (): Card[] => {
         const deck: Card[] = [];
@@ -71,7 +43,7 @@ export class SoloGameEngine {
 
     // 洗牌算法
     public static shuffleDeck = (deck: Card[], seed?: string | number) => {
-        const rng = seed === undefined ? Math.random : SoloGameEngine.getSeededRandom(seed);
+        const rng = seed === undefined ? Math.random : createSeededRandom(seed);
         for (let i = deck.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
             // console.log("shuffleDeck", deck[i], deck[j]);
@@ -115,6 +87,19 @@ export class SoloGameEngine {
         }
         return dealedCards;
     }
+    public static recycle(gameState: SoloGameState): ActionResult {
+        const result: ActionResult = { ok: false, data: {} };
+        if (!gameState) return result;
+        const ruleManager = new SoloRuleManager(gameState);
+        if (!ruleManager.canRecycle()) return result;
+        const wasteCards = gameState.cards.filter((c: Card) => c.zoneId === 'waste').sort((a: Card, b: Card) => b.zoneIndex - a.zoneIndex);
+        const cards = wasteCards.map((c: Card, index: number) => {
+            return { ...c, zoneIndex: wasteCards.length - index - 1, zoneId: 'talon', zone: ZoneType.TALON };
+        });
+        result.data!.update = cards;
+        result.ok = true;
+        return result;
+    }
     public static moveCard(gameState: SoloGameState, card: Card, toZoneId: string): ActionResult {
         const result: ActionResult = { ok: false, data: {} };
         if (!gameState || !card) return result;
@@ -150,11 +135,15 @@ export class SoloGameEngine {
         return result;
     }
     public static drawCard(gameState: SoloGameState, cardId: string): ActionResult {
+
         const result: ActionResult = { ok: false, data: {} };
         if (!gameState) return result;
         const ruleManager = new SoloRuleManager(gameState);
-        if (!ruleManager.canDraw(cardId)) return result;
+        const canDraw = ruleManager.canDraw(cardId);
+        console.log('canDraw', canDraw);
+        if (!canDraw) return result;
         const card = gameState.cards.find((c: Card) => c.id === cardId);
+        console.log('card', card);
         if (!card) return result;
         const wasteCards = gameState.cards.filter((c: Card) => c.zoneId === 'waste').sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
         const wasteIndex = wasteCards.length === 0 ? 0 : wasteCards[wasteCards.length - 1].zoneIndex + 1;

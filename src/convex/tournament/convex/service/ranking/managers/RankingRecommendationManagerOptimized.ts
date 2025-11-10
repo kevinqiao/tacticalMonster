@@ -20,7 +20,7 @@ import {
     HumanAnalysis,
     HumanPlayer,
     MatchRankingResult,
-    PlayerRankingProfile,
+    PlayerPerformanceProfile,
     PlayerRankingResult
 } from './types/CommonTypes';
 import { DEFAULT_RANKING_CONFIG, RankingConfig } from './types/RankingConfig';
@@ -173,8 +173,8 @@ export class RankingRecommendationManagerOptimized {
     /**
      * 获取玩家档案
      */
-    private async getPlayerProfiles(humanPlayers: HumanPlayer[], gameType?: string): Promise<Map<string, PlayerRankingProfile>> {
-        const profiles = new Map<string, PlayerRankingProfile>();
+    private async getPlayerProfiles(humanPlayers: HumanPlayer[], gameType?: string): Promise<Map<string, PlayerPerformanceProfile>> {
+        const profiles = new Map<string, PlayerPerformanceProfile>();
 
         for (const player of humanPlayers) {
             const profile = await this.fetchPlayerProfile(player.uid, gameType);
@@ -189,7 +189,7 @@ export class RankingRecommendationManagerOptimized {
      * @param uid - 玩家ID
      * @param gameType - 游戏类型（可选，如果提供则只查询该游戏的历史记录）
      */
-    private async fetchPlayerProfile(uid: string, gameType?: string): Promise<PlayerRankingProfile> {
+    private async fetchPlayerProfile(uid: string, gameType?: string): Promise<PlayerPerformanceProfile> {
         // 首先尝试从缓存获取
         if (this.ctx.runQuery) {
             try {
@@ -228,6 +228,7 @@ export class RankingRecommendationManagerOptimized {
             recentMatches = await this.ctx.db
                 .query("player_matches")
                 .withIndex("by_uid_gameType_created", (q: any) => q.eq("uid", uid).eq("gameType", gameType))
+                .filter((q: any) => q.gt(q.field("opponentQuantity"), 0))
                 .order("desc")
                 .take(50);
         } else {
@@ -235,6 +236,7 @@ export class RankingRecommendationManagerOptimized {
             recentMatches = await this.ctx.db
                 .query("player_matches")
                 .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                .filter((q: any) => q.gt(q.field("opponentQuantity"), 0))
                 .order("desc")
                 .take(50);
         }
@@ -277,7 +279,7 @@ export class RankingRecommendationManagerOptimized {
      */
     private analyzeHumanPlayers(
         humanPlayers: HumanPlayer[],
-        playerProfiles: Map<string, PlayerRankingProfile>
+        playerProfiles: Map<string, PlayerPerformanceProfile>
     ): HumanAnalysis {
         const scores = humanPlayers.map(p => p.score);
         const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
@@ -306,7 +308,7 @@ export class RankingRecommendationManagerOptimized {
      */
     private async generateHumanPlayerRankings(
         humanPlayers: HumanPlayer[],
-        playerProfiles: Map<string, PlayerRankingProfile>,
+        playerProfiles: Map<string, PlayerPerformanceProfile>,
         humanAnalysis: HumanAnalysis,
         aiCount: number
     ): Promise<PlayerRankingResult[]> {
@@ -340,7 +342,7 @@ export class RankingRecommendationManagerOptimized {
      * 4. 否则使用传统策略（新手/成长/成熟）
      */
     private selectRankingStrategy(
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         humanPlayerCount: number
     ) {
         const personalizedEnabled = this.config.personalizedStrategy?.enabled &&
@@ -371,7 +373,7 @@ export class RankingRecommendationManagerOptimized {
     /**
      * 当两个策略都启用时的选择逻辑
      */
-    private selectStrategyWhenBothEnabled(profile: PlayerRankingProfile) {
+    private selectStrategyWhenBothEnabled(profile: PlayerPerformanceProfile) {
         const personalizedConfig = this.config.personalizedStrategy!;
         const winRateConfig = this.config.winRateControl!;
 
@@ -409,7 +411,7 @@ export class RankingRecommendationManagerOptimized {
      * 选择传统策略（新手/成长/成熟）
      */
     private selectTraditionalStrategy(
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         humanPlayerCount: number
     ) {
         if (profile.totalMatches < this.config.newbieThreshold) {
@@ -551,7 +553,7 @@ export class RankingRecommendationManagerOptimized {
 
     // ==================== 辅助方法 ====================
 
-    private getDefaultPlayerProfile(uid: string): PlayerRankingProfile {
+    private getDefaultPlayerProfile(uid: string): PlayerPerformanceProfile {
         return {
             uid,
             segmentName: 'bronze',
@@ -683,7 +685,7 @@ export class RankingRecommendationManagerOptimized {
         return squaredDiffs.reduce((sum, diff) => sum + diff, 0) / scores.length;
     }
 
-    private calculateSkillDistribution(playerProfiles: Map<string, PlayerRankingProfile>) {
+    private calculateSkillDistribution(playerProfiles: Map<string, PlayerPerformanceProfile>) {
         const distribution = { beginner: 0, intermediate: 0, advanced: 0 };
 
         for (const profile of playerProfiles.values()) {

@@ -6,28 +6,9 @@ export const tournamentSchema = {
     matchingQueue: defineTable({
         // 基础信息
         uid: v.string(),
-        tournamentId: v.optional(v.id("tournaments")),
+        tournamentId: v.optional(v.string()),
         tournamentType: v.optional(v.string()),
 
-        // 玩家信息
-        playerInfo: v.object({
-            uid: v.string(),
-            skill: v.number(),
-            segmentName: v.optional(v.string()),
-            eloScore: v.optional(v.number()),
-            totalPoints: v.optional(v.number()),
-            isSubscribed: v.optional(v.boolean())
-        }),
-
-        // 匹配配置
-        matchingConfig: v.optional(v.object({
-            algorithm: v.string(), // "skill_based", "segment_based", "elo_based", "random"
-            maxWaitTime: v.number(),
-            skillRange: v.optional(v.number()),
-            eloRange: v.optional(v.number()),
-            segmentRange: v.optional(v.number()),
-            fallbackToAI: v.optional(v.boolean())
-        })),
         // 匹配状态
         status: v.union(
             v.literal("waiting"),
@@ -41,10 +22,6 @@ export const tournamentSchema = {
         matchedAt: v.optional(v.string()),
         expiredAt: v.optional(v.string()),
 
-        // 优先级和权重
-        priority: v.optional(v.number()),
-        weight: v.optional(v.number()),
-
         // 元数据
         metadata: v.optional(v.any()),
 
@@ -53,7 +30,6 @@ export const tournamentSchema = {
         updatedAt: v.string()
     }).index("by_tournament", ["tournamentId"]).index("by_tournament_type", ["tournamentType"])
         .index("by_uid", ["uid"])
-        .index("by_status_priority", ["status", "priority"])
         .index("by_joined_at", ["joinedAt"])
         .index("by_expired_at", ["expiredAt"]),
 
@@ -456,6 +432,7 @@ export const tournamentSchema = {
         score: v.number(),
         rank: v.number(),
         status: v.number(),
+        opponentQuantity: v.optional(v.number()),
         gameId: v.optional(v.string()),
         seed: v.optional(v.string()),
         joinTime: v.optional(v.string()),
@@ -467,7 +444,7 @@ export const tournamentSchema = {
         .index("by_match_uid", ["matchId", "uid"])
         .index("by_seed", ["seed"])
         .index("by_uid", ["uid"])
-        .index("by_gameId", ["gameId"])
+        .index("by_game", ["gameId"])
         .index("by_tournamentType_uid_status", ["tournamentType", "uid", "status"])
         .index("by_tournamentType_uid_createdAt", ["tournamentType", "uid", "createdAt"])
         .index("by_createdAt", ["createdAt"])

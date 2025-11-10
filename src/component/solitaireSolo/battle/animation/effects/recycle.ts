@@ -1,6 +1,5 @@
 import gsap from "gsap";
 import { SoloCard } from "../../types/SoloTypes";
-import { hideCard } from "./hideCard";
 
 export const recycle = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
 
@@ -44,10 +43,10 @@ export const recycle = ({ data, onComplete }: { data: any; onComplete?: () => vo
                 }
 
                 // 当旋转到侧面时隐藏正面内容（可选）
-                if (!contentHidden && Math.abs(Math.abs(currentRotateY) - 90) < 10) {
-                    hideCard(card); // 在侧面时隐藏内容，避免看到反向的内容
-                    contentHidden = true;
-                }
+                // if (!contentHidden && Math.abs(Math.abs(currentRotateY) - 90) < 10) {
+                //     hideCard(card); // 在侧面时隐藏内容，避免看到反向的内容
+                //     contentHidden = true;
+                // }
             }
         }, index * 0.1); // stagger 效果
     });

@@ -3,7 +3,7 @@ import { SoloCard } from "../../types/SoloTypes";
 import { getCoord } from "../../Utils";
 
 export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
-
+    console.log('moveCard', data);
     const { cards, gameState, boardDimension } = data;
     const tl = gsap.timeline({
         onComplete: () => {

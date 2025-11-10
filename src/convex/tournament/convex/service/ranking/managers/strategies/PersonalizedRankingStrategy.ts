@@ -1,5 +1,5 @@
 import { getValidatedPersonalizationProfileInternal } from '../services/playerPersonalizationProfileService';
-import { HumanAnalysis, HumanPlayer, PlayerRankingProfile, PlayerRankingResult } from '../types/CommonTypes';
+import { HumanAnalysis, HumanPlayer, PlayerPerformanceProfile, PlayerRankingResult } from '../types/CommonTypes';
 import { RankingConfig } from '../types/RankingConfig';
 import { ReasoningGenerator } from '../utils/ReasoningGenerator';
 import { BaseRankingStrategy } from './BaseRankingStrategy';
@@ -71,7 +71,7 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
 
     async calculateRanking(
         player: HumanPlayer,
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         humanAnalysis: HumanAnalysis,
         totalParticipants: number,
         humanPlayers: HumanPlayer[]
@@ -289,7 +289,7 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
      * 计算组合因子（使用个性化权重）
      */
     private calculateCombinedFactor(
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         weights: PersonalizedWeights,
         playerProfile: PlayerPersonalizationProfile
     ): number {
@@ -325,7 +325,7 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
     private calculatePersonalizedAdjustment(
         playerProfile: PlayerPersonalizationProfile,
         combinedFactor: number,
-        profile: PlayerRankingProfile,
+        profile: PlayerPerformanceProfile,
         totalParticipants: number
     ): number {
         let adjustment = (combinedFactor - 0.5) * this.config.veteranAdjustmentMultiplier;
@@ -375,7 +375,7 @@ export class PersonalizedRankingStrategy extends BaseRankingStrategy {
     /**
      * 计算信心度（个性化版本）
      */
-    protected calculateConfidence(profile: PlayerRankingProfile, humanAnalysis: HumanAnalysis): number {
+    protected calculateConfidence(profile: PlayerPerformanceProfile, humanAnalysis: HumanAnalysis): number {
         let confidence = 0.6; // 个性化策略基础信心度较低
 
         // 比赛场次影响

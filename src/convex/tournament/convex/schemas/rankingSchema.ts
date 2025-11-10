@@ -29,7 +29,7 @@ export const rankingSchema = {
         .index("by_segment", ["segmentName"])
         .index("by_adaptiveMode", ["adaptiveMode"]),
 
-    // 玩家性能指标表（用于缓存 PlayerRankingProfile，按游戏类型）
+    // 玩家性能指标表（用于缓存 PlayerPerformanceProfile，按游戏类型）
     player_performance_metrics: defineTable({
         uid: v.string(),
         gameType: v.optional(v.string()),  // 游戏类型（新增）
@@ -145,7 +145,7 @@ export const rankingSchema = {
         .index("by_difficulty", ["feedback.difficulty"]),
 
     // 玩家画像表
-    player_profiles: defineTable({
+    player_personalization_profiles: defineTable({
         uid: v.string(),
         preferences: v.object({
             challengeLevel: v.union(v.literal("easy"), v.literal("normal"), v.literal("hard"), v.literal("extreme")),
@@ -177,16 +177,15 @@ export const rankingSchema = {
             socialInteraction: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
             achievementOrientation: v.union(v.literal("high"), v.literal("medium"), v.literal("low"))
         }),
-        dataQuality: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
         confidence: v.number(),
-        updateCount: v.number(),
+        dataQuality: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
         lastUpdated: v.string(),
+        updateCount: v.number(),
         createdAt: v.string()
     })
         .index("by_uid", ["uid"])
-        .index("by_dataQuality", ["dataQuality"])
         .index("by_lastUpdated", ["lastUpdated"])
-        .index("by_confidence", ["confidence"]),
+        .index("by_updateCount", ["updateCount"]),
 
     // 玩家行为事件表
     player_behavior_events: defineTable({
