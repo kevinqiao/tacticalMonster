@@ -3,7 +3,7 @@ import { SoloCard, ZoneType } from "../../types/SoloTypes";
 import { getCoord } from "../../Utils";
 import { popCard } from "./popCard";
 
-export const initGame = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
+export const initGame = ({ timelines, data, onComplete }: { timelines: { [k: string]: GSAPTimeline }, data: any; onComplete?: () => void }) => {
 
     const { cards, boardDimension } = data;
     const tl = gsap.timeline({

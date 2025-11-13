@@ -21,6 +21,7 @@ export class GameManager {
     async save(data: { cards?: Card[], status?: SoloGameStatus }) {
 
         if (!this.game) return;
+        console.log("save game", data);
         if (data.cards) {
             for (const c of data.cards) {
                 const card: Card | undefined = this.game.cards.find((cc: Card) => cc.id === c.id);
@@ -35,7 +36,6 @@ export class GameManager {
         }
         if (data.status)
             this.game.status = data.status;
-        const wasteCards = this.game.cards.filter((c: Card) => c.zoneId === 'waste').sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
         await this.dbCtx.db.patch(this.game._id, { cards: this.game.cards, status: this.game.status });
     }
     async createGame(seed?: string | number): Promise<any> {
@@ -66,6 +66,7 @@ export class GameManager {
         if (!this.game) return { ok: false };
         const result = SoloGameEngine.drawCard(this.game, cardId);
         if (!result.ok) return result;
+        console.log("draw result", result);
         await this.save({ cards: result.data?.draw });
         return result;
     }

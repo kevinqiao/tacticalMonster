@@ -3,15 +3,15 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 import { gsap } from 'gsap';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSoloGameManager } from '../service/GameManager';
 import { useSoloDnDManager } from '../service/SoloDnDProvider';
 import { ActMode, SoloCard } from '../types/SoloTypes';
 import './card.css';
 
+import { popCard } from '../animation/effects/popCard';
 import { getCoord } from '../Utils';
 import CardSVG from './CardSVG';
-import { popCard } from '../animation/effects/popCard';
 interface SoloDnDCardProps {
     card: SoloCard;
     onClick?: (card: SoloCard) => void;
@@ -34,7 +34,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         // dragData,
         onDragStart,
     } = useSoloDnDManager();
-    const { ruleManager, gameState, boardDimension } = useSoloGameManager();
+    const { ruleManager, gameState, boardDimension, boardDimensionRef, isPlaying } = useSoloGameManager();
 
 
     // console.log("style", source, card, style);
@@ -200,20 +200,30 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
 
     // 更新卡牌元素引用
+    const initCard = useCallback(() => {
+        if (!boardDimension || !boardDimensionRef.current || !card.ele) return;
+        const width = boardDimension.cardWidth;
+        const height = boardDimension.cardHeight;
+        // console.log('load card:', card.id);
+        const zoneCards = gameState?.cards.filter((c: SoloCard) => c.zoneId === card.zoneId) || [];
+        // zoneCards.sort((a, b) => a.zoneIndex - b.zoneIndex);
+        const coord = getCoord(card, zoneCards, boardDimensionRef);
+        const rotateY = card.isRevealed ? 180 : 0;
+        const rotateZ = card.isRevealed && card.zone === "talon" ? 0 : -20;
+        popCard(card);
+        gsap.set(card.ele, { autoAlpha: 1, width, height, x: coord.x, y: coord.y, rotateZ: 0, rotateY, zIndex: card.zoneIndex + 10 });
 
+    }, [card, gameState, boardDimension, boardDimensionRef]);
     const load = useCallback((ele: HTMLDivElement | null) => {
-        if (!boardDimension) return;
         card.ele = ele;
-        if (ele) {
-            // console.log('load card:', card.id);
-            const zoneCards = gameState?.cards.filter((c: SoloCard) => c.zoneId === card.zoneId) || [];
-            const coord = getCoord(card, zoneCards, boardDimension);
-            const rotateY = card.isRevealed ? 180 : 0;
-            const rotateZ = card.isRevealed && card.zone === "talon" ? 0 : -20;
-            popCard(card);
-            gsap.set(ele, { autoAlpha: 1, x: coord.x, y: coord.y, rotateZ: 0, rotateY, zIndex: card.zoneIndex + 10 });
+    }, []);
+    useEffect(() => {
+        if (card.ele && boardDimension && !isPlaying(card)) {
+            if (card.zoneId === 'waste')
+                console.log("waste card", card);
+            initCard();
         }
-    }, [boardDimension, gameState]);
+    }, [card, gameState, boardDimension]);
 
     const render = useMemo(() => {
 
@@ -242,7 +252,7 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
 
             </div>
         );
-    }, [card, boardDimension]);
+    }, [card]);
     return render;
 };
 

@@ -6,18 +6,22 @@ import { popCard } from "../popCard";
 /**
  * 扇形展开发牌效果 - 魔术师风格
  */
-export const dealFan = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
-    const { cards, gameState, boardDimension } = data;
+export const dealFan = ({ timelines, data, onComplete }: { timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }, data: any; onComplete?: () => void }) => {
+    const { cards, gameState, boardDimensionRef } = data;
     const tl = gsap.timeline({
         onComplete: () => {
+            console.log("dealFan complete");
             onComplete?.();
         }
     });
+    timelines.dealFan = { timeline: tl, cards: cards };
+    const boardDimension = boardDimensionRef.current;
+    if (!boardDimension) return;
 
     const deckX = boardDimension.zones.talon.x;
     const deckY = boardDimension.zones.talon.y;
-    const centerX = boardDimension.width / 2;
-    const centerY = boardDimension.height / 2;
+    // const centerX = boardDimension.width / 2;
+    // const centerY = boardDimension.height / 2;
 
     // 第一阶段：所有牌扇形展开在中心
     // const tableauCards = gameState.cards.filter((c: SoloCard) => {return c.zone === ZoneType.TABLEAU && c.zoneId === 'talon'});
@@ -33,14 +37,20 @@ export const dealFan = ({ data, onComplete }: { data: any; onComplete?: () => vo
         // 计算扇形角度 (-60度到60度)
         const angle = (index / totalCards - 0.5) * 120;
         const radius = 150;
-        const fanX = centerX + Math.sin(angle * Math.PI / 180) * radius;
-        const fanY = centerY - Math.cos(angle * Math.PI / 180) * radius * 0.3;
 
         gsap.set(card.ele, { x: deckX, y: deckY, rotateZ: 0 });
 
         tl.to(card.ele, {
-            x: fanX,
-            y: fanY,
+            x: () => {
+                const bwidth = boardDimensionRef.current?.width;
+                const centerX = bwidth / 2;
+                return centerX + Math.sin(angle * Math.PI / 180) * radius;
+            },
+            y: () => {
+                const bheight = boardDimensionRef.current?.height;
+                const centerY = bheight / 2;
+                return centerY - Math.cos(angle * Math.PI / 180) * radius * 0.3;
+            },
             rotateZ: angle * 0.5,
             duration: 0.6,
             ease: "back.out(1.2)",
@@ -54,10 +64,16 @@ export const dealFan = ({ data, onComplete }: { data: any; onComplete?: () => vo
     tableauCards.forEach((card: SoloCard, index: number) => {
         if (!card.ele) return;
         const zoneCards = cards.filter((c: SoloCard) => c.zoneId === card.zoneId);
-        const { x, y } = getCoord(card, zoneCards, boardDimension);
 
         tl.to(card.ele, {
-            x, y,
+            x: () => {
+                const { x } = getCoord(card, zoneCards, boardDimensionRef);
+                return x;
+            },
+            y: () => {
+                const { y } = getCoord(card, zoneCards, boardDimensionRef);
+                return y;
+            },
             rotateZ: 0,
             duration: 0.5,
             ease: "power2.inOut",

@@ -74,9 +74,9 @@ export class SoloGameEngine {
         const dealedCards: Card[] = [];
         deck.sort((a, b) => b.zoneIndex - a.zoneIndex);
         for (let col = 0; col < 7; col++) {
-            for (let row = 0; row <= 5; row++) {
+            for (let row = 0; row <= 4; row++) {
                 const dealedCard = { ...deck[cardIndex++] };
-                if (row === 5) {
+                if (row === 4) {
                     dealedCard.isRevealed = true; // 每列最后一张牌翻开
                 }
                 dealedCard.zone = ZoneType.TABLEAU;
@@ -140,10 +140,9 @@ export class SoloGameEngine {
         if (!gameState) return result;
         const ruleManager = new SoloRuleManager(gameState);
         const canDraw = ruleManager.canDraw(cardId);
-        console.log('canDraw', canDraw);
         if (!canDraw) return result;
         const card = gameState.cards.find((c: Card) => c.id === cardId);
-        console.log('card', card);
+        // console.log('card', card);
         if (!card) return result;
         const wasteCards = gameState.cards.filter((c: Card) => c.zoneId === 'waste').sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
         const wasteIndex = wasteCards.length === 0 ? 0 : wasteCards[wasteCards.length - 1].zoneIndex + 1;

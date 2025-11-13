@@ -1,7 +1,10 @@
+import { RefObject } from "react";
 import { CARD_SUITS, SoloBoardDimension, SoloCard, ZoneType } from "./types/SoloTypes";
 
-export const getCoord = (card: SoloCard, cards: SoloCard[], boardDimension: SoloBoardDimension) => {
-    if (!boardDimension) return { x: 0, y: 0 };
+export const getCoord = (card: SoloCard, cards: SoloCard[], boardDimensionRef: RefObject<SoloBoardDimension | null>) => {
+    if (!boardDimensionRef.current) return { x: 0, y: 0 };
+    const boardDimension = boardDimensionRef.current;
+    cards.sort((a, b) => a.zoneIndex - b.zoneIndex);
     // const zoneCards = cards.filter(c => c.zoneId === card.zoneId)
     switch (card.zone) {
         case ZoneType.TALON: {
@@ -12,7 +15,6 @@ export const getCoord = (card: SoloCard, cards: SoloCard[], boardDimension: Solo
         case ZoneType.WASTE: {
             const openCards = cards.length <= 3 ? cards : cards.slice(cards.length - 3, cards.length);
             const index = openCards.findIndex(c => c.id === card.id)
-            console.log("index", index, openCards)
             const offsetY = index < 0 ? 0 : index;
             const x = boardDimension.zones.waste.x + 80
             const y = boardDimension.zones.waste.y + boardDimension.cardHeight * 0.15 * offsetY + 40

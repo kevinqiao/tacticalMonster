@@ -5,7 +5,7 @@ import { useSoloGameManager } from "../GameManager";
 
 const useEventHandler = () => {
 
-    const { gameState, boardDimension } = useSoloGameManager();
+    const { timelines, gameState, boardDimension } = useSoloGameManager();
 
     const handleEvent = useCallback((event: MatchEvent, onComplete?: (eventId: string) => void) => {
         // const { removeEvent } = useEventManager();       
@@ -15,15 +15,15 @@ const useEventHandler = () => {
         switch (name) {
             case "shuffle":
                 console.log("shuffle", event)
-                PlayEffects.shuffle({ data: { cards: gameState?.cards, boardDimension } });
+                PlayEffects.shuffle({ timelines, data: { cards: gameState?.cards, boardDimension } });
                 break;
             case "deal":
                 break;
             case "init":
-                PlayEffects.init({ data: { cards: gameState.cards, boardDimension } });
+                PlayEffects.init({ timelines, data: { cards: gameState.cards, boardDimension } });
                 break;
             case "dragCancel":
-                PlayEffects.dragCancel({ data: { cards: gameState.cards, gameState, boardDimension } });
+                PlayEffects.dragCancel({ timelines, data: { cards: gameState.cards, gameState, boardDimension } });
                 break;
             case "drop":
                 break;

@@ -1,7 +1,7 @@
 import gsap from "gsap";
 import { SoloCard } from "../../types/SoloTypes";
 
-export const recycle = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
+export const recycle = ({ timelines, data, onComplete }: { timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }, data: any; onComplete?: () => void }) => {
 
     const { cards, gameState, boardDimension } = data;
 
@@ -14,8 +14,7 @@ export const recycle = ({ data, onComplete }: { data: any; onComplete?: () => vo
             onComplete?.();
         }
     });
-
-    console.log("recycle:", cards);
+    timelines.recycle = { timeline: tl, cards: cards };
 
     // 为每张卡创建独立动画
     cards.forEach((card: SoloCard, index: number) => {

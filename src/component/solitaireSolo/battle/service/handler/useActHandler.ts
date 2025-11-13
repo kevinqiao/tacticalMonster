@@ -9,7 +9,7 @@ import { SoloGameEngine } from "../SoloGameEngine";
 
 const useActHandler = () => {
     const convex = useConvex();
-    const { ruleManager, gameState, boardDimension } = useSoloGameManager();
+    const { timelines, ruleManager, gameState, boardDimension, boardDimensionRef } = useSoloGameManager();
     const saveUpdate = useCallback((cards: Card[]) => {
         if (!gameState) return;
         cards.forEach((r: SoloCard) => {
@@ -41,7 +41,7 @@ const useActHandler = () => {
         }
         cancelDrag(data);
 
-    }, [gameState, boardDimension]);
+    }, [gameState]);
     const onClickOrTouch = useCallback((data: SoloActionData) => {
         if (!ruleManager || !gameState) return;
         const { card } = data;
@@ -60,7 +60,7 @@ const useActHandler = () => {
             gameState.actionStatus = ActionStatus.IDLE;
         }
         return
-    }, [gameState, boardDimension]);
+    }, [gameState]);
 
     const recycle = useCallback(async () => {
         if (!gameState) return;
@@ -87,7 +87,8 @@ const useActHandler = () => {
         });
         const playPromise = new Promise<void>((resolve) => {
             PlayEffects.recycle({
-                data: { gameState, boardDimension, cards },
+                timelines,
+                data: { gameState, boardDimensionRef, cards },
                 onComplete: () => {
                     saveUpdate(cards);
                     gameState.actionStatus = ActionStatus.IDLE;
@@ -107,6 +108,7 @@ const useActHandler = () => {
             const dealedCards = dealResult.data?.update || [];
             console.log("dealedCards", dealedCards, effectType);
             dealEffect({
+                timelines,
                 effectType: effectType,
                 data: { cards: dealedCards, gameState, boardDimension },
                 onComplete: () => {
@@ -121,8 +123,10 @@ const useActHandler = () => {
     }, [gameState, boardDimension]);
 
     const cancelDrag = useCallback((data: SoloActionData) => {
+        console.log("cancelDrag", data);
         if (!data || !data.card) return;
         PlayEffects.dragCancel({
+            timelines,
             data: { cards: [data.card, ...(data.cards || [])], gameState, boardDimension }, onComplete: () => {
                 if (gameState) {
                     gameState.actionStatus = ActionStatus.IDLE;
@@ -135,27 +139,25 @@ const useActHandler = () => {
         const { card } = data;
         if (!gameState || !ruleManager || !card) return;
         // const canDraw = ruleManager.canDraw(card.id);
-        const result = SoloGameEngine.drawCard(gameState, card.id);
-        if (!result.ok) {
-            gameState.actionStatus = ActionStatus.IDLE;
-            return;
-        }
-        let drawedCard = result.data?.draw?.[0];
-        if (!drawedCard) {
-            gameState.actionStatus = ActionStatus.IDLE;
-            return;
-        }
-
+        const drawResult = SoloGameEngine.drawCard(gameState, card.id);
+        const drawedCard = drawResult.data?.draw?.[0];
+        if (!drawedCard) return;
+        let updateCards: SoloCard[] = [];
         // 任务1: 手动控制 resolve 的查询 Promise
         const drawPromise = new Promise<void>((resolve) => {
-
             convex.mutation(api.service.gameManager.draw, { gameId: gameState.gameId, cardId: card.id })
                 .then((result: ActionResult) => {
+                    console.log("draw server result", result);
                     if (result.ok && result.data?.draw && result.data.draw.length > 0) {
-                        drawedCard = result.data.draw[0] as SoloCard;
-                        PlayEffects.popCard({ data: { card: drawedCard, gameState } })
-                    }
-                    resolve();
+                        const revealedCard = result.data.draw[0] as SoloCard;
+                        updateCards.push(...result.data.draw);
+                        PlayEffects.popCard({
+                            timelines,
+                            data: { card: revealedCard, gameState }, onComplete: () => {
+                                resolve();
+                            }
+                        })
+                    } resolve();
                 })
                 .catch((error) => {
                     console.error('move card failed:', error);
@@ -165,38 +167,38 @@ const useActHandler = () => {
         });
         const playPromise = new Promise<void>((resolve) => {
             PlayEffects.drawCard({
-                data: { card: drawedCard as SoloCard, boardDimension, gameState }, onComplete: () => {
+                timelines,
+                data: { card: drawedCard as SoloCard, boardDimensionRef, gameState }, onComplete: () => {
                     resolve();
                 }
             });
         })
-
         await Promise.all([drawPromise, playPromise]);
-        saveUpdate([drawedCard])
+        console.log("updateCards", updateCards);
+        saveUpdate(updateCards);
         gameState.actionStatus = ActionStatus.IDLE;
         return;
-    }, [ruleManager, gameState, boardDimension]);
+    }, [ruleManager, gameState, boardDimensionRef]);
 
     const moveCard = useCallback(async (data: SoloActionData) => {
         const { card, cards, dropTarget } = data;
         if (!gameState || !ruleManager || !card || !dropTarget) return;
 
-
         const result = SoloGameEngine.moveCard(gameState, card as Card, dropTarget.zoneId);
+        console.log("moveCard result", result);
         if (!result.ok) {
             gameState.actionStatus = ActionStatus.IDLE;
             return;
         }
         const movedCards = result.data?.move || [];
-        const tasks: { task1: boolean, task2: boolean, task3: boolean } = { task1: true, task2: false, task3: false };
+        // const tasks: { task1: boolean, task2: boolean, task3: boolean } = { task1: true, task2: false, task3: false };
 
         // 任务1: 手动控制 resolve 的查询 Promise
-        const queryPromise = new Promise<void>((resolve) => {
+        const movePromise = new Promise<void>((resolve) => {
 
             convex.mutation(api.service.gameManager.move, { gameId: gameState.gameId, cardId: card.id, toZone: dropTarget.zoneId })
                 .then((result: ActionResult) => {
                     console.log("result", result);
-                    tasks.task1 = true;
                     const flipCards: SoloCard[] = result.data?.flip || [];
                     if (flipCards.length > 0) {
                         const fcard = gameState.cards.find((c: SoloCard) => c.id === flipCards[0].id);
@@ -204,7 +206,8 @@ const useActHandler = () => {
                             flipCards[0].ele = fcard.ele;
                         }
                         PlayEffects.flipCard({
-                            data: { card: flipCards[0], boardDimension },
+                            timelines,
+                            data: { card: flipCards[0] },
                             onComplete: () => { saveUpdate(flipCards); resolve(); }
                         });
                     } else
@@ -217,10 +220,11 @@ const useActHandler = () => {
         });
 
         // 任务2: 手动控制 resolve 的动画 Promise
-        const animationPromise = new Promise<void>((resolve) => {
+        const playPromise = new Promise<void>((resolve) => {
             PlayEffects.moveCard({
-                data: { boardDimension, gameState, cards: movedCards },
-                onComplete: () => { tasks.task2 = true; saveUpdate(movedCards); resolve(); } // 动画完成时 resolve
+                timelines,
+                data: { boardDimensionRef, gameState, cards: movedCards },
+                onComplete: () => { saveUpdate(movedCards); resolve(); } // 动画完成时 resolve
             });
         });
         // 任务3: 手动控制 resolve 的 reset 动画 Promise
@@ -234,11 +238,11 @@ const useActHandler = () => {
         // });
 
         // 等待两个操作都完成
-        await Promise.all([queryPromise, animationPromise]);
+        await Promise.all([movePromise, playPromise]);
 
         // onUpdate([...flipCards, ...(result.data?.update || [])]);
         gameState.actionStatus = ActionStatus.IDLE;
-    }, [gameState, boardDimension]);
+    }, [gameState, boardDimensionRef]);
 
 
     return { onClickOrTouch, onDrop, recycle, deal };

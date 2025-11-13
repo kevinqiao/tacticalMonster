@@ -25,7 +25,6 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         gameState,
         boardDimension,
         updateBoardDimension,
-        loadGame,
         submitScore
     } = useSoloGameManager();
     const { cards } = gameState || {};
@@ -262,7 +261,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         //     loadGame(result);
         //     await updateUserData({ game: { name: 'solitaire', gameId: result.gameId } });
         // }
-    }, [user, loadGame, convex, updateUserData]);
+    }, [user, convex, updateUserData]);
     const handleGameInit = useCallback(() => {
         console.log("handleGameInit");
         const game = SoloGameEngine.createGame();
@@ -280,8 +279,8 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         });
         const zones = createZones();
         const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
-        loadGame(gameState);
-    }, [loadGame]);
+        // loadGame(gameState);
+    }, []);
 
     const cleanup = useCallback((event: any) => {
         if (!gameState || gameState.actionStatus !== ActionStatus.IDLE) return;
@@ -409,7 +408,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         });
     }, [gameState, boardDimension, getUnifiedCardStyle]);
     const renderCards = useMemo(() => {
-        if (!cards || !boardDimension) return null;
+        if (!cards) return null;
         return cards.sort((a, b) => (a.zoneIndex || 0) - (b.zoneIndex || 0)).map((card, cardIndex) => (
             <SoloDnDCard
                 key={card.id}
@@ -419,14 +418,14 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                     top: 0,
                     left: 0,
                     opacity: 0,
-                    width: boardDimension.cardWidth,
-                    height: boardDimension.cardHeight,
-                    zIndex: card.zoneIndex + 100
+                    // width: boardDimension.cardWidth,
+                    // height: boardDimension.cardHeight,
+                    zIndex: card.zoneIndex + 10
                 }}
             />
         ))
 
-    }, [cards, boardDimension]);
+    }, [cards]);
 
     // 渲染控制面板
     const renderControlPanel = useCallback(() => {
@@ -554,21 +553,6 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
             </div>
         );
     }, [user, gameState, screenSize, handleDeal]);
-    useEffect(() => {
-        // const load = async (gid: string) => {
-        //     if (gid) {
-        //         const game = await convex.query(api.service.gameManager.getGame, { gameId: gid });
-        //         console.log("game", game);
-        //         if (game) {
-        //             loadGame(game as SoloGameState);
-        //         }
-        //     }
-        // }
-        // if (gameId) {
-        //     console.log("load game", gameId);
-        //     load(gameId);
-        // }
-    }, [gameId, loadGame]);
 
     return (
         <div

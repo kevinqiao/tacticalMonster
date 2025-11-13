@@ -6,21 +6,21 @@ export const dragCancel = ({ data, onComplete }: { data: any; onComplete?: () =>
     const { cards, boardDimension, gameState } = data;
     const tl = gsap.timeline({
         onComplete: () => {
-            cards.forEach((c: SoloCard) => {
-                console.log("dragCancel", c);
-                if (c && c.ele)
-                    gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-            });
+            // cards.forEach((c: SoloCard) => {
+            //      if (c && c.ele)
+            //         gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
+            // });
             onComplete?.();
         }
     });
 
     if (cards) {
-        console.log("dragCancel", cards);
-        const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === cards[0].zoneId);
+        const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === cards[0].zoneId).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
+        console.log("dragCancel zoneCards", zoneCards, cards[0]);
         cards.forEach((c: SoloCard, index: number) => {
             const coord = getCoord(c, zoneCards, boardDimension);
             if (c.ele) {
+                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
                 tl.to(c.ele, {
                     x: coord.x,
                     y: coord.y,
