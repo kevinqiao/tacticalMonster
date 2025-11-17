@@ -118,7 +118,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
   }, [user, authReq, pageContainers]);
-  console.log("PageProvider", user);
+
   const openPage = useCallback((page: PageItem) => {
 
     if (!pageContainers) {
@@ -148,8 +148,8 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-    history.pushState({ index: 0 }, "", uri);
+    // const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
+    history.pushState({ index: 0 }, "", newPage.uri);
     historiesRef.current.push(newPage);
     if (historiesRef.current.length > 10) {
       historiesRef.current.shift();
@@ -158,7 +158,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     const prepage = currentPageRef.current;
     setChangeEvent({ prepage, page: newPage });
     currentPageRef.current = newPage;
-    console.log("openPage", currentPageRef.current);
+
     // setCurrentPage((pre) => pre ? Object.assign(pre, newPage) : newPage);
   }, [pageContainers, user]);
 

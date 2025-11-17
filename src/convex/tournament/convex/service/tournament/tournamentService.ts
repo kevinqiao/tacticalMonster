@@ -69,11 +69,12 @@ export class TournamentService {
                 typeId: tournamentType.typeId,
                 uids: [uid]
             });
+            const playerMatch = await MatchManager.joinMatch(ctx, { uid, match });
+
             return {
-                success: true,
+                ok: true,
                 message: "成功加入锦标赛",
-                tournamentId: tid,
-                matchId: match._id
+                playerMatch
             };
         }
     }

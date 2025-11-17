@@ -1,4 +1,5 @@
-import React, { lazy, useMemo } from "react";
+import React, { lazy, useEffect, useMemo } from "react";
+import { useUserManager } from "service/UserManager";
 import MatchProvider, { useMatchManager } from "./MatchProvider";
 import { GamePlayerProps, PlayerMatch } from "./MatchTypes";
 import "./style.css";
@@ -54,24 +55,34 @@ const getGamePlayerComponent = (gameType: string): React.ComponentType<GamePlaye
   }
   return GamePlayerCache.get(gameType)!;
 };
-const MatchPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
+export const MatchPlayer: React.FC<{ onGameLoadComplete?: () => void, onScoreSubmit?: () => void }> = ({ onGameLoadComplete, onScoreSubmit }) => {
   const { matchState, reportView } = useMatchManager();
   const GamePlayerComponent = useMemo(() => getGamePlayerComponent(matchState?.gameType ?? 'solitaire'), [matchState]);
+  const { updateUserData } = useUserManager();
+  useEffect(() => {
+    console.log("MatchPlayer matchState", matchState);
+    // if (matchState?.matchId) {
+    //   updateUserData({ game: { name: matchState.gameType, matchId: matchState.matchId, gameId: matchState.gameId } });
+    // }
 
+  }, [matchState])
   return (
     <>
       <div ref={reportView} id="match-report" className="match-report-container" >Report</div>
-      <GamePlayerComponent gameId={matchState?.gameId ?? ''} gameType={matchState?.gameType ?? 'solitaire'} onGameLoadComplete={onGameLoadComplete} />
+      {matchState?.gameId && <GamePlayerComponent gameId={matchState.gameId} gameType={matchState.gameType ?? 'solitaire'} onGameLoadComplete={onGameLoadComplete} onScoreSubmit={onScoreSubmit} />}
     </>
   );
 };
-const MatchHome: React.FC<{ match: PlayerMatch, onGameLoadComplete: () => void }> = (props) => {
+const MatchHome: React.FC<{ match: PlayerMatch | null, onGameLoadComplete: () => void, onScoreSubmit: () => void }> = (props) => {
 
-
+  console.log("MatchHome match", props.match);
+  if (!props.match) {
+    return null;
+  }
   return (
     // <ConvexProvider client={client}>
     <MatchProvider match={props.match}>
-      <MatchPlayer onGameLoadComplete={props.onGameLoadComplete} />
+      <MatchPlayer onGameLoadComplete={props.onGameLoadComplete} onScoreSubmit={props.onScoreSubmit} />
     </MatchProvider>
     // </ConvexProvider>
   );

@@ -11,7 +11,8 @@ const Child1: React.FC<PageProp> = ({ visible, data }) => {
       height: "100%",
       backgroundColor: "transparent",
     }}
-  ><TournamentHome /></div>);
+  >
+    {visible && <TournamentHome />}</div>);
 };
 
 export default Child1;

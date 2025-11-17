@@ -18,6 +18,7 @@ interface SoloGameProps {
     className?: string;
     style?: React.CSSProperties;
     onGameLoadComplete?: () => void;
+    onScoreSubmit?: () => void;
 }
 const convex_url = "https://artful-chipmunk-59.convex.cloud"
 const SoloGame: React.FC<SoloGameProps> = ({
@@ -25,38 +26,22 @@ const SoloGame: React.FC<SoloGameProps> = ({
     config,
     className = '',
     style,
-    onGameLoadComplete
+    onGameLoadComplete,
+    onScoreSubmit
 }) => {
 
-    console.log("gameId", gameId);
+
 
     const client = React.useMemo(() => new ConvexReactClient(convex_url), [convex_url]);
     // 初始化游戏
 
-    // if (!isInitialized) {
-    //     return (
-    //         <div className={`solo-game-loading ${className}`} style={style}>
-    //             <div style={{
-    //                 display: 'flex',
-    //                 alignItems: 'center',
-    //                 justifyContent: 'center',
-    //                 height: '100%',
-    //                 fontSize: '18px',
-    //                 color: '#666'
-    //             }}>
-    //                 Loading Solo Game...
-    //             </div>
-    //         </div>
-    //     );
-    // }
-
-    // console.log('SoloGame rendering, initialized:', isInitialized);
 
     return (
-        <div className={`solo-game-container ${className}`} style={style}>
+        // <div className={`solo-game-container ${className}`} style={style}>
+        <div className="solo-game-container" >
             {/* <SSAProvider app="solitaireArena"> */}
             <ConvexProvider client={client}>
-                <SoloGameProvider config={config} gameId={gameId} onGameLoadComplete={onGameLoadComplete}>
+                <SoloGameProvider config={config} gameId={gameId} onGameLoadComplete={onGameLoadComplete} onScoreSubmit={onScoreSubmit}>
                     <EventProvider>
                         <SoloDnDProvider>
                             <GamePlayer gameId={gameId} />
@@ -64,22 +49,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
                     </EventProvider>
                 </SoloGameProvider>
             </ConvexProvider>
-            {/* </SSAProvider> */}
 
-            {/* <div style={{ position: 'absolute', top: 150, left: 0, zIndex: 2000 }}>
-                <button
-                    onClick={() => setGameId("game-deal")}
-                    style={{
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        padding: '8px 12px',
-                        height: '36px', // 固定高度
-                        minHeight: '36px',
-                    }}
-                >
-                    Game Dealed
-                </button>
-            </div> */}
         </div>
     );
 };

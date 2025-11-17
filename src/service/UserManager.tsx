@@ -63,12 +63,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   // const [lastUpdate, setLastUpdate] = useState<number | undefined>(user?.lastUpdate);
   const convex = useConvex();
   // const userEvents: UserEvent[] | undefined = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastUpdate });
-
+  console.log("UserProvider:", user);
   const authComplete = useCallback((u: any, persist: number) => {
     console.log("authComplete", u);
     u.expire = u.expire + Date.now();
     setUser(u);
-
   }, []);
   const updateUserData = useCallback(async (data: any) => {
     console.log("updateUserData", user?.uid, user?.token, data);
@@ -82,7 +81,6 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (user?.uid && user?.token) {
       const result = await convex.action(api.service.AuthManager.logout, { uid: user?.uid, token: user?.token })
-      console.log("logout result", result);
       if (result) {
         localStorage.removeItem("user");
         setUser({});

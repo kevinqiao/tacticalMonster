@@ -1,7 +1,7 @@
 import { InitStyles } from "animate/effect/InitStyle";
 import { OpenEffects } from "animate/effect/OpenEffects";
 import { gsap } from "gsap";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 import { findContainer } from "util/PageUtils";
 import { EnterEffects } from "../../animate/effect/EnterEffects";
@@ -12,7 +12,7 @@ export interface LifeCycleEvent {
     precontainer?: PageContainer | null;
 }
 const PageHandler = ({ children }: { children: React.ReactNode }) => {
-
+    const timelineRef = useRef<gsap.core.Timeline | null>(null);
     const { loadingBG, pageContainers, changeEvent, containersLoaded, initCompleted, onInitCompleted } = usePageManager();
 
 
@@ -23,6 +23,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
                 tl.kill();
             }
         });
+        timelineRef.current = tl;
 
         if (loadingBG.ele && loadingBG.status === 1) {
             tl.to(loadingBG.ele, { autoAlpha: 0, duration: 0.5, ease: "power2.out" }, "<=-0.2")
@@ -80,6 +81,11 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         if (initCompleted && changeEvent) {
+            const tl = timelineRef.current;
+            if (tl?.isActive()) {
+                console.log("page change timeline is active, progress to 1");
+                tl.progress(1);
+            }
 
             const container = changeEvent.page?.uri ? findContainer(pageContainers, changeEvent.page?.uri) : null;
             const precontainer = changeEvent.prepage?.uri ? findContainer(pageContainers, changeEvent.prepage?.uri) : undefined;

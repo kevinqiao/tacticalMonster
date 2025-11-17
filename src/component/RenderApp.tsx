@@ -40,6 +40,8 @@ const ErrorComponent: React.FC<{ path: string; error?: Error }> = ({ path, error
 
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
+  './battle/BattlePlay': () => import('./battle/BattlePlay'),
+  './battle/TournamentPlay': () => import('./battle/TournamentPlay'),
   './kumu/battle/PlayMap': () => import('./kumu/battle/PlayMap'),
   './lobby/LobbyHome': () => import('./lobby/LobbyHome'),
   './lobby/LobbyControl': () => import('./kumu/lobby/LobbyControl'),

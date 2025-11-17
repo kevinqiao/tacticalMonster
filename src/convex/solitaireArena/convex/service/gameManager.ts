@@ -38,19 +38,23 @@ export class GameManager {
             this.game.status = data.status;
         await this.dbCtx.db.patch(this.game._id, { cards: this.game.cards, status: this.game.status });
     }
-    async createGame(seed?: string | number): Promise<any> {
+    async createGame(seed?: string | number, gameId?: string): Promise<any> {
         const game = SoloGameEngine.createGame(seed);
         console.log("createGame", game, seed);
         const zones = createZones();
-        const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
-        const gameId = await this.dbCtx.db.insert("game", gameState);
-        if (gameId) {
-            const patchData: Record<string, any> = { gameId };
+        const gameState: SoloGameState = {
+            ...game, gameId: gameId ?? "", zones, actionStatus: ActionStatus.IDLE
+        };
+        const gid = await this.dbCtx.db.insert("game", gameState);
+        if (gid) {
+            const patchData: Record<string, any> = {};
             if (gameState.seed) {
                 patchData.seed = gameState.seed;
             }
-            await this.dbCtx.db.patch(gameId, patchData);
-            this.game = { ...gameState, ...patchData, _id: gameId, _creationTime: undefined } as any;
+            console.log("documentId...", gid);
+            // if (patchData.length > 0)
+            //     await this.dbCtx.db.patch(gid, patchData);
+            this.game = { ...gameState, _id: gid, _creationTime: undefined } as any;
             return this.game
         }
     }
@@ -101,12 +105,13 @@ export class GameManager {
 // Convex 函数接口
 export const createGame = internalMutation({
     args: {
-        seed: v.optional(v.string())
+        seed: v.optional(v.string()),
+        gameId: v.string()
     },
-    handler: async (ctx, args) => {
-
+    handler: async (ctx, { seed, gameId }) => {
+        console.log("createGame...", seed, gameId);
         const gameManager = new GameManager(ctx);
-        const game = await gameManager.createGame(args.seed);
+        const game = await gameManager.createGame(seed, gameId);
         if (game) {
             const initialGame = JSON.parse(JSON.stringify(game));
             const dealedCards = SoloGameEngine.deal(game.cards);

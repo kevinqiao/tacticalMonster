@@ -7,26 +7,20 @@ export const PlayPlace =
     auth: 0,//0-public 1-consumer 2-worker 3-admin
     logout: "/play/lobby/c3",
     navs: [
-        // {
-        //     name: "main",
-        //     auth: 0,
-        //     path: "./kumu/PlayGround",
-        //     uri: "main",
-        //     class: "page_container",
-        //     enter: "fadeIn",
-        //     exit: "fadeOut",
-        //     control: "./kumu/battle/PlayControl",
-        //     children: [
-        //         { name: "child1", class: "pop-big", path: "./kumu/lobby/view/Child1", uri: "c1", auth: 0, close: "popOut", enter: "popIn" },
-        //         { name: "child2", class: "pop-medium", path: "./kumu/lobby/view/Child2", uri: "c2", auth: 0, close: "popOut", enter: "popIn" },
-        //         { name: "child3", class: "pop-small", path: "./kumu/lobby/view/Child3", uri: "c3", auth: 0, close: "popOut", enter: "popIn" },
-        //     ]
-        // },
         {
-            name: "map",
+            name: "tournament",
             auth: 0,
-            path: "./kumu/battle/PlayMap",
-            uri: "map",
+            path: "./battle/TournamentPlay",
+            uri: "tournament",
+            class: "page_container",
+            enter: "fadeIn",
+            exit: "fadeOut",
+        },
+        {
+            name: "battle",
+            auth: 0,
+            path: "./battle/BattlePlay",
+            uri: "battle",
             class: "page_container",
             enter: "fadeIn",
             exit: "fadeOut",
@@ -43,13 +37,12 @@ export const PlayPlace =
             control: "./lobby/LobbyControl",
             children: [
                 { name: "child1", class: "child_container", init: "slide", path: "./lobby/view/Child1", uri: "c1", auth: 1, open: "slideIn" },
-                { name: "child2", class: "child_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 1, open: "slideIn" },
-                { name: "child3", class: "child_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
-                { name: "child4", class: "pop-right", init: "pops1", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", close: { type: 2, effect: "popRightOut" } },
-                { name: "center", class: "pop-center-large", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
-                { name: "join", class: "pop-center-large", init: "center", path: "./lobby/tournament/Join", uri: "join", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
-                { name: "play", class: "pop-center-full", init: "NONE", path: "./lobby/tournament/PlayMatch", uri: "battle", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" }, preventNavigation: true },
-                { name: "topNav", class: "pop-right", init: "pops1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", close: { type: 1, effect: "popRightOut" } },
+                // { name: "child2", class: "child_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 1, open: "slideIn" },
+                // { name: "child3", class: "child_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
+                // { name: "child4", class: "pop-right", init: "pops1", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", close: { type: 2, effect: "popRightOut" } },
+                // { name: "center", class: "pop-center-large", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
+                // { name: "join", class: "pop-center-large", init: "center", path: "./lobby/tournament/Join", uri: "join", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
+                // { name: "topNav", class: "pop-right", init: "pops1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", close: { type: 1, effect: "popRightOut" } },
 
             ]
         }

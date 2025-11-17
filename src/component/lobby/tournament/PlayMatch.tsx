@@ -15,7 +15,7 @@ export interface BattleProp {
 }
 
 
-const PlayMatch: React.FC<PageProp> = ({ data, openFull, close }) => {
+const PlayMatch: React.FC<PageProp> = ({ visible, data, openFull, close }) => {
   const loadRef = useRef<HTMLDivElement>(null);
   const playRef = useRef<HTMLDivElement>(null);
   const [stageReady, setStageReady] = useState(false);
@@ -45,14 +45,16 @@ const PlayMatch: React.FC<PageProp> = ({ data, openFull, close }) => {
     tl.play();
   }, []);
   return (
-    <div style={{ width: "100%", height: "100%" }}>
-      <div id="game-load" ref={loadRef} className="game-loading">
-        Loading Game...
+    visible && (
+      <div style={{ width: "100%", height: "100%" }}>
+        <div id="game-load" ref={loadRef} className="game-loading">
+          Loading Game...
+        </div>
+        <div id="game-play" ref={playRef} className="game-play">
+          {data?.matchId && <BattlePlayer matchId={data.matchId} stageReady={stageReady} onLoadComplete={onLoadComplete} onRenderComplete={onRenderComplete} onComplete={onComplete} onGiveIn={onGiveIn} />}
+        </div>
       </div>
-      <div id="game-play" ref={playRef} className="game-play">
-        {data?.matchId && <BattlePlayer matchId={data.matchId} stageReady={stageReady} onLoadComplete={onLoadComplete} onRenderComplete={onRenderComplete} onComplete={onComplete} onGiveIn={onGiveIn} />}
-      </div>
-    </div>
+    )
   );
 };
 export default PlayMatch;

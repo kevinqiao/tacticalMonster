@@ -46,10 +46,8 @@ const EventHandle: React.FC<{
     useEffect(() => {
         if (eventQueue.length > 0) {
             const event = eventQueue[0];
-
             if (!event.status || event.status === 0) {
                 const category = eventCategoryMap[event.name];
-                console.log("event", event)
                 switch (category) {
                     case EventCategory.GAME:
                         eventHandler.handleEvent(event, onComplete);

@@ -55,7 +55,7 @@ const JoinMatch: React.FC<{ data: { token?: string; matchId?: string } | undefin
 
 
 const Join: React.FC<PageProp> = ({ data }) => {
-
+  console.log("join data", data);
   return (<div
     style={{
       display: "flex",

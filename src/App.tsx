@@ -1,4 +1,4 @@
-import GameLaunchControl from "component/control/GameLaunchControl";
+import MatchLaunchControl from "component/battle/MatchLaunchControl";
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
@@ -113,7 +113,8 @@ const App: React.FC = () => {
   return (
     <AppProviders>
       <MainApp />
-      <GameLaunchControl />
+
+      <MatchLaunchControl />
       {/* <UserEventHandler /> */}
     </AppProviders>
   );

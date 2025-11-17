@@ -1,17 +1,16 @@
-import { ConvexProvider, ConvexReactClient, useConvex, useQuery } from "convex/react";
-import React, { useCallback, useState } from "react";
+import { ConvexProvider, ConvexReactClient, useQuery } from "convex/react";
+import React, { useCallback } from "react";
+import { usePageManager } from "service/PageManager";
 import { api } from "../../../convex/tournament/convex/_generated/api";
-import { useSSAManager } from "../../../service/SSAManager";
 import "./style.css";
-import TournamentPlay from "./TournamentPlay";
 const convex_url = "https://beloved-mouse-699.convex.cloud";
 const TournamentItem: React.FC<{ item: any, onSelect: (item: any) => void }> = (props) => {
-    const convex = useConvex();
-    const joinTournament = useCallback(async () => {
-        console.log("joinTournament", props.item);
+
+    const joinTournament = useCallback(async (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+        event.preventDefault();
         props.onSelect(props.item);
-        const result = await convex.mutation(api.service.tournament.tournamentService.join, { uid: "kkk", tournamentId: props.item.tournamentId, typeId: props.item.typeId });
-        console.log("join result", result);
+
     }, [props]);
     return (
         <div className="tournament-list-item">
@@ -21,7 +20,6 @@ const TournamentItem: React.FC<{ item: any, onSelect: (item: any) => void }> = (
     );
 };
 const TournamentList: React.FC<{ onSelect: (item: any) => void }> = (props) => {
-    const { player } = useSSAManager();
     const result = useQuery(api.service.tournament.tournamentService.getAvailableTournaments, { uid: "kkk" });
     console.log("result", result);
     return (
@@ -38,14 +36,17 @@ const TournamentList: React.FC<{ onSelect: (item: any) => void }> = (props) => {
     );
 };
 const TournamentHome: React.FC = (props) => {
-    const [selectedItem, setSelectedItem] = useState<any>(null);
+    const { openPage } = usePageManager();
     const client = React.useMemo(() => new ConvexReactClient(convex_url), [convex_url]);
+    const play = useCallback((item: any) => {
 
+        openPage({ uri: "/play/tournament", data: JSON.parse(JSON.stringify(item)) });
+
+    }, [openPage]);
     return (
         // <SSAProvider app="tournament">
         <ConvexProvider client={client}>
-            <TournamentList onSelect={setSelectedItem} />
-            {selectedItem && <TournamentPlay tournament={selectedItem} />}
+            <TournamentList onSelect={play} />
         </ConvexProvider>
         // </SSAProvider>
     );

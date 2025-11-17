@@ -3,7 +3,8 @@ import { SoloCard } from "../../types/SoloTypes";
 
 export const recycle = ({ timelines, data, onComplete }: { timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }, data: any; onComplete?: () => void }) => {
 
-    const { cards, gameState, boardDimension } = data;
+    const { cards, gameState, boardDimensionRef } = data;
+
 
     const tl = gsap.timeline({
         onComplete: () => {
@@ -24,8 +25,12 @@ export const recycle = ({ timelines, data, onComplete }: { timelines: { [k: stri
         let contentHidden = false;
 
         tl.to(card.ele, {
-            x: boardDimension.zones.talon.x,
-            y: boardDimension.zones.talon.y,
+            x: () => {
+                return boardDimensionRef.current?.zones.talon.x;
+            },
+            y: () => {
+                return boardDimensionRef.current?.zones.talon.y;
+            },
             rotateZ: 0,
             rotateY: 0, // 从当前角度（可能是 180 或 -180）旋转到 0
             duration: 0.8,

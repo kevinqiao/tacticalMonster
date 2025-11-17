@@ -40,8 +40,7 @@ export class MatchManager {
             }
             const { uids, typeId, tournamentId } = params;
             const nowISO = new Date().toISOString();
-
-            const matchId = await ctx.db.insert("matches", {
+            const newMatch = {
                 tournamentId,
                 tournamentType: typeId,
                 gameType: tournamentType.gameType,
@@ -52,19 +51,20 @@ export class MatchManager {
                 endTime: undefined,
                 createdAt: nowISO,
                 updatedAt: nowISO,
-            });
-
-            // 记录比赛创建事件
-
-            const match = await ctx.db.get(matchId);
-
-            if (uids) {
-                await this.joinMatch(ctx, {
-                    uids,
-                    match: match
-                });
             }
-            return match;
+            const matchId = await ctx.db.insert("matches", newMatch);
+
+            // // 记录比赛创建事件
+
+            // const match = await ctx.db.get(matchId);
+
+            // if (uids) {
+            //     await this.joinMatch(ctx, {
+            //         uids,
+            //         match: match
+            //     });
+            // }
+            return { id: matchId, ...newMatch };
         } catch (error) {
             console.error("创建比赛失败:", error);
             throw error;
@@ -74,64 +74,57 @@ export class MatchManager {
      * 玩家加入比赛
      */
     static async joinMatch(ctx: any, params: {
-        uids: string[];
+        uid: string;
         match: any;
     }) {
         const nowISO = new Date().toISOString();
-        const { uids, match } = params;
-        if (uids.length === 0) {
-            throw new Error("玩家列表不能为空");
-        }
+        const { uid, match } = params;
+
 
         // 检查比赛人数限制
         const playerMatches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", match._id)).collect();
-        if ((playerMatches.length + uids.length) > match.maxPlayers) {
+        if ((playerMatches.length + 1) > match.maxPlayers) {
             throw new Error("比赛已满");
         }
 
-        uids.forEach(async (uid: string, index: number) => {
-            const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", match.tournamentId).eq("uid", uid)).unique();
-            if (!playerTournament) {
-                await ctx.db.insert("player_tournaments", {
-                    uid,
-                    tournamentId: match.tournamentId,
-                    tournamentType: match.tournamentType,
-                    gameType: match.gameType,
-                    score: 0,
-                    status: TournamentStatus.OPEN,
-                    createdAt: nowISO,
-                    updatedAt: nowISO,
-                });
-            }
+
+        const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", match.tournamentId).eq("uid", uid)).unique();
+        if (playerTournament) {
+            // await ctx.db.insert("player_tournaments", {
+            //     uid,
+            //     tournamentId: match.tournamentId,
+            //     tournamentType: match.tournamentType,
+            //     gameType: match.gameType,
+            //     score: 0,
+            //     status: TournamentStatus.OPEN,
+            //     createdAt: nowISO,
+            //     updatedAt: nowISO,
+            // });
+
             const playerMatch = await ctx.db.query("player_matches").withIndex("by_match_uid", (q: any) => q.eq("matchId", match._id).eq("uid", uid)).unique();
             if (!playerMatch) {
                 const seed = createSeededRandom(match._id + uid);
-                await ctx.db.insert("player_matches", {
-                    matchId: match._id,
+                const pmatch = {
+                    matchId: match.id,
                     tournamentId: match.tournamentId,
                     tournamentType: match.tournamentType,
                     uid: uid,
-                    gameId: GAME_MODES[match.gameType] === "solo" ? `game_${match._id}_${uid}` : `game_${match._id}`,
+                    gameId: GAME_MODES[match.gameType] === "solo" ? `game_${match.id}_${uid}` : `game_${match.id}`,
                     gameType: match.gameType,
-                    seed: `game_${match._id}_${uid}`,
+                    seed: `game_${match.id}_${uid}`,
                     score: 0,
                     rank: -1,
                     status: TournamentStatus.OPEN,
                     createdAt: nowISO,
                     updatedAt: nowISO,
-                });
-
+                }
+                await ctx.db.insert("player_matches", pmatch);
+                return { ...pmatch, _id: undefined, _creationTime: undefined };
+            } else {
+                return { ...playerMatch, _id: undefined, _creationTime: undefined };
             }
-        });
-        // await this.createRemoteGame(ctx, {
-        //     gameType: match.gameType,
-        //     gameIds: gameIds
-        // });
-
+        }
     }
-
-
-
     /**
      * 结束比赛
      */
@@ -289,20 +282,25 @@ export const submitGameScore = internalMutation({
         return { ok };
     },
 });
-export const findMatch = query({
+export const findTournamentMatch = query({
     args: {
-        tournamentType: v.optional(v.string()),
+        typeId: v.optional(v.string()),
         uid: v.string(),
     },
-    handler: async (ctx: any, { tournamentType, uid }: { tournamentType: string, uid: string }): Promise<any> => {
-        if (!tournamentType) {
+    handler: async (ctx: any, { typeId, uid }: { typeId: string, uid: string }): Promise<any> => {
+        if (!typeId) {
             return { ok: false, match: null };
         }
-        const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => tournamentType ? q.eq("tournamentType", tournamentType).eq("uid", uid).eq("status", TournamentStatus.OPEN) : q.eq("uid", uid).eq("status", TournamentStatus.OPEN)).order("desc").first();
+        const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).unique();
+        if (!tournamentType && tournamentType.matchRules.maxPlayers === 1) {
+            return { ok: false, match: null };
+        }
+        const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => q.eq("tournamentType", tournamentType._id).eq("uid", uid).eq("status", TournamentStatus.OPEN)).order("desc").first();
         if (match) {
             return { ok: true, match: { ...match, _id: undefined, _creationTime: undefined } };
+        } else {
+            return { ok: false, match: null };
         }
-        return { ok: false, match: null };
     },
 });
 export const findMatchGame = internalQuery({
@@ -325,5 +323,27 @@ export const findReport = query({
         }
 
         return null;
+    },
+});
+export const findMatchById = query({
+    args: { matchId: v.string(), uid: v.string() },
+    handler: async (ctx: any, { matchId, uid }: { matchId: string, uid: string }): Promise<any> => {
+
+        const match = await ctx.db.query("player_matches").withIndex("by_match_uid", (q: any) => q.eq("matchId", matchId).eq("uid", uid)).unique();
+        if (match) {
+            return { ...match, _id: undefined, _creationTime: undefined };
+        }
+        return null;
+    },
+});
+export const findGameMatch = query({
+    args: { gameId: v.string() },
+    handler: async (ctx: any, { gameId }: { gameId: string }): Promise<any> => {
+        const match = await ctx.db.query("player_matches").withIndex("by_game", (q: any) => q.eq("gameId", gameId)).unique();
+        if (match) {
+            return { ...match, _id: undefined, _creationTime: undefined };
+        } else {
+            return null;
+        }
     },
 });

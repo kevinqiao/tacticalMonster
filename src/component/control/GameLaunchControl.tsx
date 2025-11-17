@@ -16,6 +16,7 @@ const GameLaunchControl: React.FC = () => {
 
     if (user && user.data?.game?.gameId) {
       const name: string = user.data.game?.name?.toLowerCase() ?? 'solitaire';
+      console.log("GameLaunchControl:", name);
       if (GAME_PROVIDER[name.toUpperCase()]) {
         const path = `./provider/${GAME_PROVIDER[name.toUpperCase()]}`;
         return lazy(() => import(`${path}`));

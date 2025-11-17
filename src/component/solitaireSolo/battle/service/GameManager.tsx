@@ -4,7 +4,6 @@
  */
 import { useConvex } from 'convex/react';
 import React, { createContext, ReactNode, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useUserManager } from 'service/UserManager';
 import { api } from '../../../../convex/solitaireArena/convex/_generated/api';
 import { dealEffect } from '../animation/effects/dealEffect';
 import {
@@ -58,16 +57,16 @@ interface SoloGameProviderProps {
     gameId?: string;
     config?: Partial<SoloGameConfig>;
     onGameLoadComplete?: () => void;
+    onScoreSubmit?: () => void;
 }
 
-export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig, onGameLoadComplete }) => {
+export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig, onGameLoadComplete, onScoreSubmit }) => {
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
     const [dealEvent, setDealEvent] = useState<{ cards: Card[], name: string } | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const boardDimensionRef = useRef<SoloBoardDimension | null>(null);
     const timelinesRef = useRef<{ [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }>({});
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
-    const { updateUserData } = useUserManager();
     const convex = useConvex();
     // const fetchGame = useAction(api.proxy.controller.loadGame);
     const ruleManager = useMemo(() => {
@@ -94,10 +93,12 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
             convex.action(api.proxy.controller.submitScore, { gameId, score }).then((res) => {
                 if (res.ok) {
                     console.log("score", score);
+                    // openPage({ uri: "/play/lobby/c2" });
+                    onScoreSubmit?.();
                 }
             });
         }
-    }, [gameId, convex]);
+    }, [gameId, convex, onGameLoadComplete]);
     useEffect(() => {
 
         const load = async () => {
@@ -143,9 +144,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
                             }
                             // console.log('update card', card);
                         });
-
                         gameState.actionStatus = ActionStatus.IDLE;
-
                     }
                 });
             }

@@ -18,11 +18,13 @@ export const loadGame = action({
 
             if (matchGameResult.ok) {
                 const data = matchGameResult.match;
+
                 const rawSeed = data?.seed ?? data?.gameId;
-                const createArgs: { seed?: string } = {};
+                const createArgs: { seed?: string, gameId: string } = { gameId };
                 if (typeof rawSeed === "string") {
                     createArgs.seed = rawSeed;
                 }
+
                 const gameResult = await ctx.runMutation(internal.service.gameManager.createGame, createArgs);
 
                 if (gameResult && gameResult.ok) {

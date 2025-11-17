@@ -49,7 +49,6 @@ export default defineSchema({
         email: v.optional(v.string()),
         phone: v.optional(v.string()),
         data: v.optional(v.any()),
-        game: v.optional(v.object({ name: v.string(), id: v.string(), status: v.number() })),
     }).index("by_partner", ['partner', "cuid"]).index("by_platform", ['platform', 'cuid']).index("by_uid", ['uid']).index("by_cuid", ['cuid']),
     events: defineTable({
         name: v.string(),

@@ -8,7 +8,6 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useUserManager } from 'service/UserManager';
 import { SoloDnDCard } from '..';
 import { api } from '../../../convex/solitaireArena/convex/_generated/api';
-import { ThreeJsBounceLayer } from './animation/ThreeJsBounceLayer';
 import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
@@ -33,7 +32,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
     const { addEvent } = useEventManager();
     const { actionData } = useSoloDnDManager();
     const { user, updateUserData } = useUserManager();
-    console.log("SoloPlayer", user);
+    // console.log("SoloPlayer", user);
     const convex = useConvex();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -86,7 +85,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         } else if (containerWidth < 1024) {
             currentScreenSize = 'tablet';
         }
-        console.log('currentScreenSize', currentScreenSize);
+        // console.log('currentScreenSize', currentScreenSize);
         // 更新屏幕尺寸状态
         setScreenSize((prev) => prev !== currentScreenSize ? currentScreenSize : prev);
         // 根据屏幕尺寸调整参数
@@ -240,14 +239,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         });
 
     }, [addEvent, gameState]);
-    const createGameOverEvent = useCallback(() => {
-        if (!gameState) return;
-        addEvent({
-            id: Date.now().toString(),
-            name: "gameOver",
-            data: { cards: gameState.cards }
-        });
-    }, [gameState]);
+
     const handleGameOver = useCallback(async () => {
         if (!gameState?.gameId) return;
         await convex.mutation(api.service.gameManager.gameOver, { gameId: gameState.gameId });
@@ -576,17 +568,18 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
             {renderCards}
 
             {/* Three.js 3D弹跳图层 */}
-            {boardDimension && (
+            {/* {boardDimension && (
                 <ThreeJsBounceLayer
                     boardDimension={boardDimension}
                     onAnimationComplete={() => {
                         console.log('🎊 Three.js bounce animation completed');
                     }}
                 />
-            )}
+            )} */}
 
         </div>
     );
+    // return <div ref={containerRef} className="solo-player-container"></div>
 };
 
 export default SoloPlayer;

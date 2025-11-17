@@ -208,10 +208,10 @@ const SoloDnDCard: React.FC<SoloDnDCardProps> = ({
         const zoneCards = gameState?.cards.filter((c: SoloCard) => c.zoneId === card.zoneId) || [];
         // zoneCards.sort((a, b) => a.zoneIndex - b.zoneIndex);
         const coord = getCoord(card, zoneCards, boardDimensionRef);
-        const rotateY = card.isRevealed ? 180 : 0;
-        const rotateZ = card.isRevealed && card.zone === "talon" ? 0 : -20;
+        const rotateY = card.isRevealed && card.zone !== "talon" ? 180 : 0;
+        // const rotateZ = card.isRevealed && card.zone === "talon" ? 0 : -20;
         popCard(card);
-        gsap.set(card.ele, { autoAlpha: 1, width, height, x: coord.x, y: coord.y, rotateZ: 0, rotateY, zIndex: card.zoneIndex + 10 });
+        gsap.set(card.ele, { autoAlpha: 1, width, height, x: coord.x, y: coord.y, rotateY, zIndex: card.zoneIndex + 10 });
 
     }, [card, gameState, boardDimension, boardDimensionRef]);
     const load = useCallback((ele: HTMLDivElement | null) => {

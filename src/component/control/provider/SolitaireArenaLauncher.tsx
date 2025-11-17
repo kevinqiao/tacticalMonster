@@ -15,11 +15,12 @@ const SolitaireArenaCheck: React.FC<{ gameId: string }> = ({ gameId }) => {
   useEffect(() => {
     const fetchGame = async () => {
       const res = await convex.query(api.service.gameManager.getGameStatus, { gameId });
+      console.log("getGameStatus:", gameId, res);
       if (res.status >= 0 && res.status < 2)
         gsap.to(ref.current, { autoAlpha: 1, duration: 0.5, ease: "ease.out" });
       else {
         gsap.to(ref.current, { autoAlpha: 0, duration: 0.5, ease: "ease.out" });
-        updateUserData({ game: {} });
+        // updateUserData({ game: {} });
       }
     }
     if (gameId) {
@@ -30,10 +31,9 @@ const SolitaireArenaCheck: React.FC<{ gameId: string }> = ({ gameId }) => {
   const handlePlay = () => {
     // console.log("play");
     gsap.to(ref.current, { autoAlpha: 0, duration: 0.5, ease: "ease.out" });
-    openPage({ uri: "/play/lobby/c2", data: { gameId: gameId } });
+    openPage({ uri: "/play/battle", data: { gameId: gameId } });
   }
   const handleCancel = () => {
-    console.log("cancel");
     updateUserData({ game: {} });
     gsap.to(ref.current, { autoAlpha: 0, duration: 0.5, ease: "ease.out" });
   }
