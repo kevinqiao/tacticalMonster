@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useUserManager } from 'service/UserManager';
 import { SoloDnDCard } from '..';
 import { api } from '../../../convex/solitaireArena/convex/_generated/api';
+import { GameOverReport } from './GameOverReport';
 import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
@@ -24,7 +25,8 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         gameState,
         boardDimension,
         updateBoardDimension,
-        submitScore
+        submitScore,
+        onGameOver
     } = useSoloGameManager();
     const { cards } = gameState || {};
 
@@ -519,7 +521,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                     Deal(explosion)
                 </button>
                 <button
-                    onClick={handleGameOver}
+                    onClick={onGameOver}
                     style={{
                         fontSize: isTablet ? '12px' : '14px',
                         padding: isTablet ? '6px 8px' : '8px 12px',
@@ -566,6 +568,8 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
             {renderWaste()}
             {renderTableau()}
             {renderCards}
+            <GameOverReport />
+
 
             {/* Three.js 3D弹跳图层 */}
             {/* {boardDimension && (

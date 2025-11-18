@@ -11,6 +11,9 @@
 }
 
 .match-report-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 80%;
     height: 80%;
     visibility: hidden;
@@ -19,7 +22,9 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: #9c9595;
+    color: white;
+    background-color: #2164f5;
+    font-size: 20px;
 }
 
 .launcher_container {

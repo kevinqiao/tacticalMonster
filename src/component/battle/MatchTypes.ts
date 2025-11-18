@@ -29,7 +29,7 @@ export interface GamePlayerProps {
     gameType: string;
     config?: Partial<SoloGameConfig>;
     onGameLoadComplete?: () => void;
-    onScoreSubmit?: () => void;
+    onGameSubmit?: () => void;
 }
 export enum MatchStatus {
     SEARCHING = 0,

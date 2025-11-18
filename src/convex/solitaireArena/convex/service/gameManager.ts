@@ -146,6 +146,12 @@ export const findGame = internalQuery({
         return game
     },
 });
+export const findReport = query({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        return { ok: true, data: { baseScore: 100, timeBonus: 0, completeBonus: 0, totalScore: 100 } };
+    },
+});
 export const getGame = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {

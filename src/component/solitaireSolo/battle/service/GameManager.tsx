@@ -3,6 +3,7 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 import { useConvex } from 'convex/react';
+import gsap from 'gsap';
 import React, { createContext, ReactNode, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../convex/solitaireArena/convex/_generated/api';
 import { dealEffect } from '../animation/effects/dealEffect';
@@ -10,6 +11,7 @@ import {
     ActionStatus,
     Card,
     DEFAULT_GAME_CONFIG,
+    GameReport,
     SolitaireRule,
     SoloBoardDimension,
     SoloCard,
@@ -22,16 +24,19 @@ import SoloRuleManager from './SoloRuleManager';
 interface ISoloGameContext {
     timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } };
     gameState: SoloGameState | null;
+    gameReport: GameReport | null;
     boardDimension: SoloBoardDimension | null;
     boardDimensionRef: RefObject<SoloBoardDimension | null>;
     config: SoloGameConfig;
     ruleManager: SolitaireRule | null;
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
+    onGameOver: () => void;
     submitScore: (score: number) => void;
     isPlaying: (card: SoloCard) => boolean;
 }
 
 const SoloGameContext = createContext<ISoloGameContext>({
+    gameReport: null,
     timelines: {},
     gameState: null,
     boardDimension: null,
@@ -40,6 +45,7 @@ const SoloGameContext = createContext<ISoloGameContext>({
     ruleManager: null,
     updateBoardDimension: () => { },
     submitScore: () => { },
+    onGameOver: () => { },
     isPlaying: () => false
 
 });
@@ -57,11 +63,12 @@ interface SoloGameProviderProps {
     gameId?: string;
     config?: Partial<SoloGameConfig>;
     onGameLoadComplete?: () => void;
-    onScoreSubmit?: () => void;
+    onGameSubmit?: () => void;
 }
 
-export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig, onGameLoadComplete, onScoreSubmit }) => {
+export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig, onGameLoadComplete, onGameSubmit }) => {
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
+    const [gameReport, setGameReport] = useState<GameReport | null>(null);
     const [dealEvent, setDealEvent] = useState<{ cards: Card[], name: string } | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const boardDimensionRef = useRef<SoloBoardDimension | null>(null);
@@ -88,17 +95,39 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
 
 
 
+    const onGameOver = useCallback(async () => {
+        if (gameState?.reportElement && convex) {
+            gsap.to(gameState.reportElement, {
+                opacity: 1,
+                visibility: 'visible',
+                duration: 1,
+                ease: 'power2.inOut'
+            });
+            const res = await convex.query(api.service.gameManager.findReport, { gameId: gameState.gameId });
+            if (res.ok) {
+                setGameReport(res.data as GameReport);
+            }
+        }
+    }, [gameState, convex]);
     const submitScore = useCallback(async (score: number) => {
-        if (gameId && convex) {
-            convex.action(api.proxy.controller.submitScore, { gameId, score }).then((res) => {
-                if (res.ok) {
-                    console.log("score", score);
-                    // openPage({ uri: "/play/lobby/c2" });
-                    onScoreSubmit?.();
-                }
+        if (!gameState) return;
+        if (gameState.reportElement) {
+            gsap.to(gameState.reportElement, {
+                onComplete: () => {
+                    onGameSubmit?.();
+                },
+                opacity: 0,
+                visibility: 'hidden',
+                duration: 1,
+                ease: 'power2.inOut'
             });
         }
-    }, [gameId, convex, onGameLoadComplete]);
+        convex.action(api.proxy.controller.submitScore, { gameId: gameState.gameId, score }).then((res) => {
+            if (res.ok) {
+                console.log("score submitted", res);
+            }
+        });
+    }, [gameState, convex])
     useEffect(() => {
 
         const load = async () => {
@@ -121,7 +150,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         if (gameId && convex) {
             load();
         }
-    }, [gameId, convex]);
+    }, [convex, gameId]);
     useEffect(() => {
 
         if (dealEvent && gameState?.status === SoloGameStatus.OPEN && boardDimension) {
@@ -156,6 +185,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     }, []);
     const value: ISoloGameContext = {
         timelines: timelinesRef.current,
+        gameReport,
         gameState,
         boardDimension,
         boardDimensionRef,
@@ -163,6 +193,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         ruleManager,
         updateBoardDimension,
         submitScore,
+        onGameOver,
         isPlaying
     };
 

@@ -292,10 +292,12 @@ export const findTournamentMatch = query({
             return { ok: false, match: null };
         }
         const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).unique();
-        if (!tournamentType && tournamentType.matchRules.maxPlayers === 1) {
-            return { ok: false, match: null };
-        }
-        const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => q.eq("tournamentType", tournamentType._id).eq("uid", uid).eq("status", TournamentStatus.OPEN)).order("desc").first();
+
+        // if (!tournamentType && tournamentType.matchRules.maxPlayers === 1) {
+        //     return { ok: false, match: null };
+        // }
+        const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => q.eq("tournamentType", typeId).eq("uid", uid).eq("status", TournamentStatus.OPEN)).order("desc").first();
+
         if (match) {
             return { ok: true, match: { ...match, _id: undefined, _creationTime: undefined } };
         } else {

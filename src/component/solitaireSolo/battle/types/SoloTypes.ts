@@ -71,6 +71,7 @@ export interface SoloGameState extends GameModel {
     cards: SoloCard[];
     zones: SoloZone[];
     actionStatus: ActionStatus;
+    reportElement?: HTMLDivElement | null;
 }
 
 
@@ -129,6 +130,13 @@ export interface SoloDropTarget {
     priority?: number;
     count?: number;
     area?: number;
+}
+export interface GameReport {
+    gameId: string;
+    baseScore: number;
+    timeBonus?: number;
+    completeBonus?: number;
+    totalScore: number;
 }
 export interface SoloActionData {
     card?: SoloCard;          // 主要被拖拽的卡牌

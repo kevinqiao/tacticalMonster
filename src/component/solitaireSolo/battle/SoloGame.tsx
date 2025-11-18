@@ -18,7 +18,7 @@ interface SoloGameProps {
     className?: string;
     style?: React.CSSProperties;
     onGameLoadComplete?: () => void;
-    onScoreSubmit?: () => void;
+    onGameSubmit?: () => void;
 }
 const convex_url = "https://artful-chipmunk-59.convex.cloud"
 const SoloGame: React.FC<SoloGameProps> = ({
@@ -27,7 +27,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
     className = '',
     style,
     onGameLoadComplete,
-    onScoreSubmit
+    onGameSubmit
 }) => {
 
 
@@ -41,7 +41,7 @@ const SoloGame: React.FC<SoloGameProps> = ({
         <div className="solo-game-container" >
             {/* <SSAProvider app="solitaireArena"> */}
             <ConvexProvider client={client}>
-                <SoloGameProvider config={config} gameId={gameId} onGameLoadComplete={onGameLoadComplete} onScoreSubmit={onScoreSubmit}>
+                <SoloGameProvider config={config} gameId={gameId} onGameLoadComplete={onGameLoadComplete} onGameSubmit={onGameSubmit}>
                     <EventProvider>
                         <SoloDnDProvider>
                             <GamePlayer gameId={gameId} />

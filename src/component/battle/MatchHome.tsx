@@ -1,4 +1,4 @@
-import React, { lazy, useEffect, useMemo } from "react";
+import React, { lazy, useCallback, useEffect, useMemo, useRef } from "react";
 import { useUserManager } from "service/UserManager";
 import MatchProvider, { useMatchManager } from "./MatchProvider";
 import { GamePlayerProps, PlayerMatch } from "./MatchTypes";
@@ -55,8 +55,9 @@ const getGamePlayerComponent = (gameType: string): React.ComponentType<GamePlaye
   }
   return GamePlayerCache.get(gameType)!;
 };
-export const MatchPlayer: React.FC<{ onGameLoadComplete?: () => void, onScoreSubmit?: () => void }> = ({ onGameLoadComplete, onScoreSubmit }) => {
-  const { matchState, reportView } = useMatchManager();
+export const MatchPlayer: React.FC<{ onGameLoadComplete?: () => void, onMatchOver?: () => void }> = ({ onGameLoadComplete, onMatchOver }) => {
+  const { matchState } = useMatchManager();
+  const reportRef = useRef<HTMLDivElement>(null);
   const GamePlayerComponent = useMemo(() => getGamePlayerComponent(matchState?.gameType ?? 'solitaire'), [matchState]);
   const { updateUserData } = useUserManager();
   useEffect(() => {
@@ -66,14 +67,17 @@ export const MatchPlayer: React.FC<{ onGameLoadComplete?: () => void, onScoreSub
     // }
 
   }, [matchState])
+  const handleGameSubmit = useCallback(() => {
+    console.log("open match report")
+  }, [onMatchOver]);
   return (
     <>
-      <div ref={reportView} id="match-report" className="match-report-container" >Report</div>
-      {matchState?.gameId && <GamePlayerComponent gameId={matchState.gameId} gameType={matchState.gameType ?? 'solitaire'} onGameLoadComplete={onGameLoadComplete} onScoreSubmit={onScoreSubmit} />}
+      <div ref={reportRef} id="match-report" className="match-report-container" >Report</div>
+      {matchState?.gameId && <GamePlayerComponent gameId={matchState.gameId} gameType={matchState.gameType ?? 'solitaire'} onGameLoadComplete={onGameLoadComplete} onGameSubmit={handleGameSubmit} />}
     </>
   );
 };
-const MatchHome: React.FC<{ match: PlayerMatch | null, onGameLoadComplete: () => void, onScoreSubmit: () => void }> = (props) => {
+const MatchHome: React.FC<{ match: PlayerMatch | null, onGameLoadComplete: () => void, onMatchOver: () => void }> = (props) => {
 
   console.log("MatchHome match", props.match);
   if (!props.match) {
@@ -82,7 +86,7 @@ const MatchHome: React.FC<{ match: PlayerMatch | null, onGameLoadComplete: () =>
   return (
     // <ConvexProvider client={client}>
     <MatchProvider match={props.match}>
-      <MatchPlayer onGameLoadComplete={props.onGameLoadComplete} onScoreSubmit={props.onScoreSubmit} />
+      <MatchPlayer onGameLoadComplete={props.onGameLoadComplete} onMatchOver={props.onMatchOver} />
     </MatchProvider>
     // </ConvexProvider>
   );

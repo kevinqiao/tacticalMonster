@@ -1,5 +1,5 @@
 import { PageProp } from "component/RenderApp";
-import { ConvexProvider, ConvexReactClient, useConvex } from "convex/react";
+import { ConvexProvider, ConvexReactClient, useConvex, useQuery } from "convex/react";
 import { api } from "convex/tournament/convex/_generated/api";
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +8,7 @@ import { PlayerMatch } from "./MatchTypes";
 import "./style.css";
 const convex_url = "https://beloved-mouse-699.convex.cloud";
 const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
-
+    console.log("tournament play tournament", tournament);
     const loadingRef = useRef<HTMLDivElement | null>(null);
     const matchingRef = useRef<HTMLDivElement | null>(null);
     const matchingCompleteRef = useRef<HTMLDivElement | null>(null);
@@ -17,17 +17,20 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
     const [matchReady, setMatchReady] = useState(false);
     const [playerMatch, setPlayerMatch] = useState<PlayerMatch | null>(null);
     const convex = useConvex();
-    // const matchingResult = useQuery(api.service.tournament.matchManager.findTournamentMatch, { typeId: tournament?.typeId, uid: "kkk" });
+    const matchingResult = useQuery(api.service.tournament.matchManager.findTournamentMatch, { typeId: tournament?.typeId, uid: "kkk" });
     const onGameLoadComplete = useCallback(() => {
 
     }, []);
-    const onScoreSubmit = useCallback(() => {
+    const onMatchOver = useCallback(() => {
         setTimeout(() => {
             setMatchReady(false);
-            setPlayerMatch(null); ``
+            setPlayerMatch(null);
         }, 1000);
         history.back()
     }, []);
+    useEffect(() => {
+        console.log("tournament play matchingResult", matchingResult);
+    }, [matchingResult]);
     useEffect(() => {
 
         if (tournament?.config) {
@@ -98,7 +101,7 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
 
         return (
             <div className="match-play-container">
-                {matchReady ? <MatchHome match={playerMatch} onGameLoadComplete={onGameLoadComplete} onScoreSubmit={onScoreSubmit} /> : null}
+                {matchReady ? <MatchHome match={playerMatch} onGameLoadComplete={onGameLoadComplete} onMatchOver={onMatchOver} /> : null}
             </div>
 
         )

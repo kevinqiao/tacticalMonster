@@ -47,15 +47,16 @@ const EventHandle: React.FC<{
         if (eventQueue.length > 0) {
             const event = eventQueue[0];
             if (!event.status || event.status === 0) {
-                const category = eventCategoryMap[event.name];
-                switch (category) {
-                    case EventCategory.GAME:
-                        eventHandler.handleEvent(event, onComplete);
-                        break;
-                    default:
+                eventHandler.handleEvent(event, onComplete);
+                // const category = eventCategoryMap[event.name];
+                // switch (category) {
+                //     case EventCategory.GAME:
+                //         eventHandler.handleEvent(event, onComplete);
+                //         break;
+                //     default:
 
-                        break;
-                }
+                //         break;
+                // }
             }
         }
     }, [eventQueue, eventHandler, onComplete]);
