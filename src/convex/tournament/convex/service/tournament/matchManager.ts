@@ -293,9 +293,9 @@ export const findTournamentMatch = query({
         }
         const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).unique();
 
-        // if (!tournamentType && tournamentType.matchRules.maxPlayers === 1) {
-        //     return { ok: false, match: null };
-        // }
+        if (!tournamentType || tournamentType.matchRules.maxPlayers === 1) {
+            return { ok: false, match: null };
+        }
         const match = await ctx.db.query("player_matches").withIndex("by_tournamentType_uid_status", (q: any) => q.eq("tournamentType", typeId).eq("uid", uid).eq("status", TournamentStatus.OPEN)).order("desc").first();
 
         if (match) {
@@ -318,24 +318,9 @@ export const findMatchGame = internalQuery({
 export const findReport = query({
     args: { matchId: v.string() },
     handler: async (ctx: any, { matchId }: { matchId: string }): Promise<any> => {
-
-        const match = await ctx.db.query("matches").withIndex("by_matchId", (q: any) => q.eq("matchId", matchId)).unique();
-        if (match) {
-            return { ...match, matchId: match._id, _id: undefined, _creationTime: undefined };
-        }
-
-        return null;
-    },
-});
-export const findMatchById = query({
-    args: { matchId: v.string(), uid: v.string() },
-    handler: async (ctx: any, { matchId, uid }: { matchId: string, uid: string }): Promise<any> => {
-
-        const match = await ctx.db.query("player_matches").withIndex("by_match_uid", (q: any) => q.eq("matchId", matchId).eq("uid", uid)).unique();
-        if (match) {
-            return { ...match, _id: undefined, _creationTime: undefined };
-        }
-        return null;
+        const matches = await ctx.db.query("player_matches").withIndex("by_match", (q: any) => q.eq("matchId", matchId)).collect();
+        const scores = matches.map((match: any) => ({ uid: match.uid, score: match.score }));
+        return { matchId, playerScores: scores };
     },
 });
 export const findGameMatch = query({

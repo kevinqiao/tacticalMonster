@@ -1,0 +1,637 @@
+/**
+ * 单人纸牌游戏样式
+ * 基于 solitaire 的多人版本，简化为单人玩法
+ */
+
+.game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    opacity: 0;
+    visibility: hidden;
+    width: 70%;
+    height: 70%;
+    background-color: #32f119;
+    border-radius: 10px;
+    padding: 10px;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 1.5;
+    z-index: 1000;
+    transform: translate(-50%, -50%);
+}
+
+.game-over-submit-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100px;
+    background-color: #32f119;
+    border-radius: 10px;
+    padding: 0px;
+    color: #ffffff;
+    font-size: 20px;
+}
+
+.game-over-submit-btn {
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 120px;
+    height: 45px;
+    background-color: #1d19f1;
+    border-radius: 10px;
+    padding: 0px;
+    color: #ffffff;
+    font-size: 12px;
+}
+
+.solo-game-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    font-family: 'Arial', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    overflow: visible;
+}
+
+.solo-game-loading {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    font-family: 'Arial', sans-serif;
+}
+
+.solo-player-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    background-color: #e7570350;
+    /* background-color: #0d5f0d; */
+    font-family: 'Arial', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* 卡牌样式 */
+.solo-card {
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    position: relative;
+    box-sizing: border-box;
+    /* 确保边框包含在尺寸内 */
+    overflow: hidden;
+    /* 防止内容溢出 */
+    /* height: auto !important;
+    /* 让高度自适应内容 */
+    /* min-height: 84px !important; */
+
+    /* 但保证最小高度 */
+}
+
+.solo-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.solo-card.selected {
+    transform: translateY(-4px);
+    box-shadow: 0 0 10px #4CAF50;
+    border-color: #4CAF50;
+}
+
+.solo-card.hinted {
+    animation: hint-pulse 1s infinite;
+    box-shadow: 0 0 10px #FFC107;
+    border-color: #FFC107;
+}
+
+.solo-card.face-down {
+    background: linear-gradient(45deg, #1a4d80, #2c5aa0);
+    color: white;
+}
+
+.solo-card.face-down:hover {
+    background: linear-gradient(45deg, #2c5aa0, #3d6bb0);
+}
+
+/* 只对已翻开的牌强制白色背景 */
+.solo-card:not(.face-down) {
+    background: white !important;
+}
+
+/* 拖拽状态 - 隐藏原始位置 */
+.solo-card.dragging {
+    opacity: 0 !important;
+    pointer-events: none;
+    transition: all 0.2s ease !important;
+}
+
+/* 简单的取消反馈 */
+.solo-card.drag-cancelled {
+    animation: simple-cancel-feedback 0.6s ease-out !important;
+    z-index: 99999 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+@keyframes simple-cancel-feedback {
+    0% {
+        transform: scale(1);
+        background-color: white;
+    }
+
+    50% {
+        transform: scale(1.1);
+        background-color: #ffcdd2;
+        border-color: #f44336;
+    }
+
+    100% {
+        transform: scale(1);
+        background-color: white;
+        border-color: #333;
+    }
+}
+
+@keyframes simple-shake {
+    0% {
+        transform: scale(1) rotate(0deg);
+    }
+
+    25% {
+        transform: scale(1.2) rotate(-10deg);
+        background-color: #ffcdd2;
+    }
+
+    50% {
+        transform: scale(1.1) rotate(10deg);
+        background-color: #f44336;
+    }
+
+    75% {
+        transform: scale(1.15) rotate(-5deg);
+        background-color: #ff9800;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        background-color: white;
+    }
+}
+
+@keyframes drag-cancel-obvious {
+    0% {
+        transform: scale(1) rotate(0deg) !important;
+        background-color: white !important;
+        border-color: #333 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    15% {
+        transform: scale(1.4) rotate(-15deg) !important;
+        background-color: #ffebee !important;
+        border-color: #f44336 !important;
+        box-shadow: 0 0 25px rgba(244, 67, 54, 0.8) !important;
+    }
+
+    30% {
+        transform: scale(1.1) rotate(15deg) !important;
+        background-color: #f44336 !important;
+        border-color: #d32f2f !important;
+        box-shadow: 0 0 30px rgba(244, 67, 54, 1) !important;
+    }
+
+    50% {
+        transform: scale(1.3) rotate(-10deg) !important;
+        background-color: #ff5722 !important;
+        border-color: #d84315 !important;
+        box-shadow: 0 0 35px rgba(255, 87, 34, 0.9) !important;
+    }
+
+    70% {
+        transform: scale(0.9) rotate(8deg) !important;
+        background-color: #fff3e0 !important;
+        border-color: #ff9800 !important;
+        box-shadow: 0 0 20px rgba(255, 152, 0, 0.6) !important;
+    }
+
+    85% {
+        transform: scale(1.05) rotate(-5deg) !important;
+        background-color: #e8f5e8 !important;
+        border-color: #4caf50 !important;
+        box-shadow: 0 0 15px rgba(76, 175, 80, 0.5) !important;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg) !important;
+        background-color: white !important;
+        border-color: #333 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    }
+}
+
+@keyframes drag-cancel-slow {
+    0% {
+        transform: scale(0.95);
+        background-color: inherit;
+        border-color: #333;
+    }
+
+    25% {
+        transform: scale(1.2);
+        background-color: rgba(255, 100, 100, 0.8);
+        border-color: #ff6b6b;
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+    }
+
+    50% {
+        transform: scale(1.3);
+        background-color: rgba(255, 50, 50, 0.9);
+        border-color: #ff4757;
+        box-shadow: 0 0 30px rgba(255, 0, 0, 0.7);
+    }
+
+    75% {
+        transform: scale(1.1);
+        background-color: rgba(255, 150, 150, 0.6);
+        border-color: #ff6b6b;
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+    }
+
+    100% {
+        transform: scale(1);
+        background-color: inherit;
+        border-color: #333;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* 已移动到上面的新定义 */
+
+@keyframes drag-cancel {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* 悬停区域 */
+.foundation-zone,
+.talon-zone,
+.waste-zone,
+.tableau-column {
+    transition: all 0.2s ease;
+    z-index: 1;
+    /* 确保区域容器的z-index较低 */
+}
+
+.foundation-zone:hover,
+.talon-zone:hover,
+.waste-zone:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: #4CAF50;
+}
+
+/* .tableau-column:hover {
+    background-color: rgba(240, 237, 237, 0.966);
+} */
+
+/* 拖拽悬停效果 */
+.drag-over {
+    background-color: rgba(76, 175, 80, 0.2) !important;
+    border-color: #4CAF50 !important;
+    transform: scale(1.05);
+}
+
+/* 控制面板 */
+.control-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 移动端控制面板 - 底部定位 */
+.control-panel-mobile {
+    position: absolute !important;
+    bottom: 10px !important;
+    right: 10px !important;
+    top: unset !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    padding: 8px 12px !important;
+    border-radius: 20px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.control-panel-mobile button {
+    padding: 8px 16px;
+    margin: 0 2px;
+    border: none;
+    border-radius: 4px;
+    background: #2196F3;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.control-panel button {
+    padding: 8px 16px;
+    margin: 0 2px;
+    border: none;
+    border-radius: 4px;
+    background: #2196F3;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.control-panel button:hover:not(:disabled) {
+    background: #1976D2;
+    transform: translateY(-1px);
+}
+
+.control-panel button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 游戏信息 */
+.game-info {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    border-radius: 8px;
+    height: auto;
+    width: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    font-weight: bold;
+}
+
+/* 游戏状态 */
+.game-status {
+    animation: fadeIn 0.5s ease;
+}
+
+.game-status.won {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+}
+
+.game-status.lost {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+}
+
+.game-status.paused {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+}
+
+.game-status h2 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+}
+
+.game-status p {
+    margin: 5px 0;
+    font-size: 16px;
+}
+
+.game-status button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.game-status button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+/* 动画 */
+@keyframes hint-pulse {
+    0% {
+        box-shadow: 0 0 5px #FFC107;
+    }
+
+    50% {
+        box-shadow: 0 0 15px #FFC107, 0 0 25px #FFC107;
+    }
+
+    100% {
+        box-shadow: 0 0 5px #FFC107;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes cardMove {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.1) rotate(5deg);
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .solo-card {
+        width: 50px !important;
+        height: 70px !important;
+    }
+
+    .control-panel {
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        left: 10px !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+
+    .control-panel button {
+        flex: 1;
+        min-width: 80px;
+        margin: 2px;
+    }
+
+    /* .game-info {
+     
+        bottom: 0px !important;
+        left: 10px !important;
+        width: 50% !important;
+        height: 32px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-around !important;
+    } */
+}
+
+@media (max-width: 480px) {
+    .solo-card {
+        width: 40px !important;
+        height: 56px !important;
+    }
+
+    .control-panel button {
+        font-size: 10px;
+        padding: 6px 12px;
+    }
+
+    /* .game-info {
+        font-size: 12px;
+    } */
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    .solo-card:hover {
+        transform: none;
+    }
+
+    .solo-card:active {
+        transform: scale(1.05);
+    }
+
+    .control-panel button:hover {
+        transform: none;
+    }
+
+    .control-panel button:active {
+        transform: scale(0.95);
+    }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    .solo-card {
+        border-width: 3px;
+    }
+
+    .solo-card.selected {
+        border-width: 4px;
+    }
+
+    .foundation-zone,
+    .talon-zone,
+    .waste-zone {
+        border-width: 3px;
+    }
+}
+
+/* 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+
+    .solo-card,
+    .foundation-zone,
+    .talon-zone,
+    .waste-zone,
+    .tableau-column,
+    .control-panel button {
+        transition: none;
+    }
+
+    .solo-card.hinted {
+        animation: none;
+    }
+
+    .game-status {
+        animation: none;
+    }
+}
+
+/* 拖拽动画效果 */
+@keyframes dragPulse {
+    0% {
+        transform: rotate(5deg) scale(1.1);
+        filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+    }
+
+    100% {
+        transform: rotate(5deg) scale(1.15);
+        filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.4));
+    }
+}
+
+/* 拖拽悬停效果 */
+.drag-over {
+    background-color: rgba(76, 175, 80, 0.1) !important;
+    border: 2px dashed #4CAF50 !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+}
+
+/* 拖拽目标区域高亮 */
+.drag-target {
+    transition: all 0.2s ease;
+}
+
+.drag-target:hover {
+    background-color: rgba(76, 175, 80, 0.05);
+    border: 1px dashed #4CAF50;
+}
+
+/* 拖拽时的卡牌效果 - 与上面保持一致 */
+.solo-card.dragging {
+    opacity: 0 !important;
+    pointer-events: none;
+    transition: all 0.2s ease !important;
+}
+
+/* 拖拽副本卡牌样式 */
+.drag-copy {
+    border: 2px solid #4CAF50 !important;
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.5) !important;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: none !important;
+}

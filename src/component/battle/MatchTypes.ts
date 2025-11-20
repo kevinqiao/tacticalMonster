@@ -1,4 +1,4 @@
-import { SoloGameConfig } from "component/solitaireSolo/battle/types/SoloTypes";
+import { SoloGameConfig } from "component/battle/games/solitaireSolo/battle/types/SoloTypes";
 
 
 export interface PlayerMatch {

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { SoloGameEngine } from "../../../../component/solitaireSolo/battle/service/SoloGameEngine";
-import { ActionStatus, Card, SoloGameState, SoloGameStatus } from "../../../../component/solitaireSolo/battle/types/SoloTypes";
-import { createZones } from "../../../../component/solitaireSolo/battle/Utils";
+import { SoloGameEngine } from "../../../../component/battle/games/solitaireSolo/battle/service/SoloGameEngine";
+import { ActionStatus, Card, SoloGameState, SoloGameStatus } from "../../../../component/battle/games/solitaireSolo/battle/types/SoloTypes";
+import { createZones } from "../../../../component/battle/games/solitaireSolo/battle/Utils";
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
 export class GameManager {
     private dbCtx: any;

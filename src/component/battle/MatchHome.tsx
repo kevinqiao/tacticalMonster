@@ -1,13 +1,18 @@
-import React, { lazy, useCallback, useEffect, useMemo, useRef } from "react";
+import { useConvex } from "convex/react";
+import { api } from "convex/tournament/convex/_generated/api";
+import gsap from "gsap";
+import React, { lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUserManager } from "service/UserManager";
 import MatchProvider, { useMatchManager } from "./MatchProvider";
+import MatchReport from "./MatchReport";
 import { GamePlayerProps, PlayerMatch } from "./MatchTypes";
 import "./style.css";
+import { MatchReportModel } from "./types";
 // const http_url = "https://beloved-mouse-699.convex.site"
 
 const GamePlayerCache = new Map<string, React.ComponentType<GamePlayerProps>>();
 const gamePlayerMap: Record<string, () => Promise<any>> = {
-  'solitaire': () => import('../solitaireSolo/battle/SoloGame'),
+  'solitaire': () => import('./games/solitaireSolo/battle/SoloGame'),
 };
 const ErrorComponent: React.FC<{ gameType: string; error?: Error }> = ({ gameType, error }) => (
   <div style={{
@@ -58,8 +63,10 @@ const getGamePlayerComponent = (gameType: string): React.ComponentType<GamePlaye
 export const MatchPlayer: React.FC<{ onGameLoadComplete?: () => void, onMatchOver?: () => void }> = ({ onGameLoadComplete, onMatchOver }) => {
   const { matchState } = useMatchManager();
   const reportRef = useRef<HTMLDivElement>(null);
+  const [matchReport, setMatchReport] = useState<MatchReportModel | null>(null);
   const GamePlayerComponent = useMemo(() => getGamePlayerComponent(matchState?.gameType ?? 'solitaire'), [matchState]);
   const { updateUserData } = useUserManager();
+  const convex = useConvex();
   useEffect(() => {
     console.log("MatchPlayer matchState", matchState);
     // if (matchState?.matchId) {
@@ -68,12 +75,34 @@ export const MatchPlayer: React.FC<{ onGameLoadComplete?: () => void, onMatchOve
 
   }, [matchState])
   const handleGameSubmit = useCallback(() => {
-    console.log("open match report")
+    if (matchState?.matchId && convex) {
+      gsap.fromTo(reportRef.current, { autoAlpha: 1, scale: 0.5 }, {
+        autoAlpha: 1,
+        scale: 1,
+        duration: 0.5,
+        ease: 'power2.inOut'
+      });
+      convex.query(api.service.tournament.matchManager.findReport, { matchId: matchState.matchId }).then((res) => {
+        console.log("findReport result", res);
+        setMatchReport(res as MatchReportModel);
+      });
+    }
+
+  }, [matchState]);
+  const onOK = useCallback(() => {
+    gsap.to(reportRef.current, {
+      autoAlpha: 0,
+      scale: 0.5,
+      duration: 0.5,
+      ease: 'power2.inOut'
+    });
+    onMatchOver?.();
   }, [onMatchOver]);
   return (
     <>
-      <div ref={reportRef} id="match-report" className="match-report-container" >Report</div>
+
       {matchState?.gameId && <GamePlayerComponent gameId={matchState.gameId} gameType={matchState.gameType ?? 'solitaire'} onGameLoadComplete={onGameLoadComplete} onGameSubmit={handleGameSubmit} />}
+      <div ref={reportRef} id="match-report" className="match-report-container" ><MatchReport matchReport={matchReport} onOK={onOK} /></div>
     </>
   );
 };

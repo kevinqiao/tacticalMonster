@@ -1,5 +1,5 @@
 import { PageProp } from "component/RenderApp";
-import SoloGame from "component/solitaireSolo/battle/SoloGame";
+import SoloGame from "component/battle/games/solitaireSolo/battle/SoloGame";
 
 import React from "react";
 import { useUserManager } from "service/UserManager";

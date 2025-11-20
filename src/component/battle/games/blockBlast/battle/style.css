@@ -1,0 +1,94 @@
+/**
+ * Block Blast 游戏样式
+ * 基于 solitaireSolo 的样式设计
+ */
+
+.blockblast-game-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    font-family: 'Arial', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.blockblast-player-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.blockblast-loading {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.blockblast-grid {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.blockblast-grid-cell {
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.blockblast-grid-cell:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.blockblast-shape-preview {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.blockblast-shape {
+    position: relative;
+    padding: 10px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+}
+
+.blockblast-shape:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.blockblast-shape.dragging {
+    opacity: 0.8;
+    cursor: grabbing;
+    z-index: 99999;
+}
+
+.blockblast-info {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .blockblast-grid {
+        gap: 1px;
+    }
+
+    .blockblast-shape-preview {
+        padding: 5px;
+    }
+
+    .blockblast-shape {
+        padding: 5px;
+    }
+}
+

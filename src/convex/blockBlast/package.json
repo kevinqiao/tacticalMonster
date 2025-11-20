@@ -1,0 +1,17 @@
+{
+  "name": "block-blast",
+  "version": "1.0.0",
+  "description": "Block Blast Convex Backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "convex": "^1.24.8",
+    "convex-helpers": "^0.1.10-alpha.0"
+  }
+}
+
