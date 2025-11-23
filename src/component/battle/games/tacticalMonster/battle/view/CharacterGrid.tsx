@@ -15,10 +15,15 @@ import Character3D from "./Character3D";
 import CharacterSpine from "./CharacterSpine";
 
 
+import { ModelConfig } from "../config/modelConfig";
+
 export interface ICharacterProps {
     character: GameCharacter;
     width: number;
     height: number;
+    onAnimatorReady?: (animator: { move: () => void; stand: () => void; attack?: () => void }) => void;
+    overrideConfig?: Partial<ModelConfig>;  // 配置覆盖（用于编辑器实时预览）
+    onConfigReady?: (config: ModelConfig) => void;  // 当配置加载完成时回调
 }
 
 interface Props {

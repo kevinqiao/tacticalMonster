@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &100100000
+Prefab:
+  m_ObjectHideFlags: 1
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications: []
+    m_RemovedComponents: []
+  m_ParentPrefab: {fileID: 0}
+  m_RootGameObject: {fileID: 1792620510987660}
+  m_IsPrefabParent: 1
+--- !u!1 &1792620510987660
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 4963189427391238}
+  - component: {fileID: 114780849655832680}
+  m_Layer: 0
+  m_Name: puppetboxer_metal
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4963189427391238
+Transform:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1792620510987660}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &114780849655832680
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1792620510987660}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -492345632, guid: 7d288ca22eabb4502bfe50e461fcbace, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effectScriptableObjects:
+  - {fileID: 11400000, guid: 636427feb255e6c4eaf7697911f4d5cc, type: 2}
+  - {fileID: 11400000, guid: c1eb73d25b42903498fcb33d10b3880a, type: 2}
+  - {fileID: 11400000, guid: d91d9a95f6199e142b8579d4ba7d24c8, type: 2}
+  - {fileID: 11400000, guid: eb7eeddcba28523408aecf9dd475883f, type: 2}
+  - {fileID: 11400000, guid: acabc034cde0b76418590d6a9a45187d, type: 2}
+  - {fileID: 11400000, guid: e5837a6500115f74c8d1a6c3b18fcbe7, type: 2}
+  - {fileID: 11400000, guid: 60db2a6b2c30ed6428c21e8451498dc2, type: 2}
+  - {fileID: 11400000, guid: cf7038bb8473b3e4592df5c965ffe5e4, type: 2}
+  - {fileID: 11400000, guid: 3e73699c9e7a6a34ebc470949e4855b3, type: 2}
+  - {fileID: 11400000, guid: 07ca8fd60883fa545a9edbda76bd4e1a, type: 2}
+  - {fileID: 11400000, guid: ca215e39516c2e24094fc2b16634cb04, type: 2}
+  - {fileID: 11400000, guid: 18da1c0a4c574a64e82759075c2cfd2b, type: 2}
+  animationClips: []
+  shadowRenderer: {fileID: 0}

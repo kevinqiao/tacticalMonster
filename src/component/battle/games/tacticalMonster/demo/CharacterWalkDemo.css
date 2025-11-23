@@ -1,0 +1,276 @@
+/**
+ * CharacterWalkDemo 样式文件
+ */
+
+.character-walk-demo {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+    color: #ffffff;
+    overflow: hidden;
+}
+
+.demo-header {
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 2px solid rgba(74, 158, 255, 0.3);
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 100;
+}
+
+.demo-header h2 {
+    margin: 0;
+    font-size: 22px;
+    color: #4a9eff;
+    text-align: center;
+    flex: 1;
+}
+
+.editor-toggle-btn {
+    padding: 10px 20px;
+    background: rgba(74, 158, 255, 0.4);
+    border: 2px solid rgba(74, 158, 255, 0.6);
+    border-radius: 5px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    z-index: 10;
+    position: relative;
+}
+
+.editor-toggle-btn:hover {
+    background: rgba(74, 158, 255, 0.6);
+    border-color: rgba(74, 158, 255, 0.8);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
+}
+
+.editor-toggle-btn.active {
+    background: rgba(74, 158, 255, 0.7);
+    border-color: #4a9eff;
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.5);
+}
+
+/* 内容容器 - 添加透视视角 */
+.demo-content {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+    /* 透视设置 - 控制整体透视强度 */
+    perspective: 1600px;
+    perspective-origin: 50% 35%;
+}
+
+/* 地图容器 - 应用3D变换 */
+.demo-map-container {
+    position: absolute;
+    overflow: visible;
+    /* 保持3D变换 */
+    transform-style: preserve-3d;
+    /* 俯视角度：65度是策略游戏常用角度 */
+    transform: rotateX(65deg);
+    transform-origin: center center;
+    /* 轻微缩放，增强透视感 */
+    scale: 0.93;
+}
+
+/* 角色容器 - 也需要保持3D */
+.demo-character-container {
+    pointer-events: none;
+    transform-style: preserve-3d;
+    /* 移除flexbox，让Character3D组件使用absolute positioning自己控制位置 */
+    position: relative;
+    overflow: visible;
+    /* 添加transform-origin确保变换以中心为基准 */
+    transform-origin: center center;
+}
+
+/* 为地图容器中的SVG格子添加过渡效果（可选增强） */
+.demo-map-container svg {
+    transition: transform 0.2s ease;
+}
+
+/* 可移动的格子悬停时稍微抬起（可选增强） */
+.demo-map-container svg:hover {
+    transform: translateZ(5px);
+}
+
+/* 控制面板 */
+.demo-control-panel {
+    position: absolute;
+    right: 20px;
+    top: 80px;
+    width: 300px;
+    background: rgba(42, 42, 42, 0.9);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-y: auto;
+    border: 2px solid rgba(74, 158, 255, 0.3);
+    max-height: calc(100vh - 120px);
+    z-index: 10;
+}
+
+.control-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(74, 158, 255, 0.2);
+}
+
+.control-section:last-child {
+    border-bottom: none;
+}
+
+.control-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #4a9eff;
+}
+
+/* 角色选择器 */
+.character-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.char-btn {
+    padding: 10px 15px;
+    background: rgba(74, 158, 255, 0.1);
+    border: 2px solid rgba(74, 158, 255, 0.3);
+    color: #ffffff;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.char-btn:hover:not(:disabled) {
+    background: rgba(74, 158, 255, 0.2);
+    border-color: rgba(74, 158, 255, 0.5);
+}
+
+.char-btn.active {
+    background: rgba(74, 158, 255, 0.3);
+    border-color: #4a9eff;
+    color: #4a9eff;
+}
+
+.char-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 角色信息 */
+.character-info {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(74, 158, 255, 0.1);
+    font-size: 14px;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-item label {
+    color: #cccccc;
+    font-weight: normal;
+}
+
+.info-item span {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+/* 重置按钮 */
+.reset-btn {
+    width: 100%;
+    padding: 12px;
+    background: rgba(255, 77, 77, 0.2);
+    border: 2px solid rgba(255, 77, 77, 0.4);
+    color: #ff4d4d;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+    margin-bottom: 15px;
+}
+
+.reset-btn:hover:not(:disabled) {
+    background: rgba(255, 77, 77, 0.3);
+    border-color: rgba(255, 77, 77, 0.6);
+    transform: translateY(-2px);
+}
+
+.reset-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 提示文本 */
+.hint-text {
+    background: rgba(74, 158, 255, 0.1);
+    border: 1px solid rgba(74, 158, 255, 0.3);
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 13px;
+    color: #cccccc;
+    line-height: 1.5;
+}
+
+.hint-text p {
+    margin: 0;
+}
+
+/* 滚动条样式 */
+.demo-control-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.demo-control-panel::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.demo-control-panel::-webkit-scrollbar-thumb {
+    background: rgba(74, 158, 255, 0.3);
+    border-radius: 4px;
+}
+
+.demo-control-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 158, 255, 0.5);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+    .demo-control-panel {
+        position: relative;
+        width: 100%;
+        max-height: 300px;
+        right: 0;
+        top: 0;
+        margin: 10px;
+    }
+
+    .demo-content {
+        flex-direction: column;
+    }
+}

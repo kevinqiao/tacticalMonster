@@ -1,12 +1,10 @@
 import { PageProp } from "component/RenderApp";
-import SoloGame from "component/battle/games/solitaireSolo/battle/SoloGame";
 
+import CharacterWalkDemo from "component/battle/games/tacticalMonster/demo/CharacterWalkDemo";
 import React from "react";
-import { useUserManager } from "service/UserManager";
-
 
 const Child2: React.FC<PageProp> = ({ visible, data }) => {
-  const { user } = useUserManager();
+
   return (<div
     style={{
       width: "100%",
@@ -14,7 +12,8 @@ const Child2: React.FC<PageProp> = ({ visible, data }) => {
       backgroundColor: "transparent",
     }}
   >
-    <SoloGame gameId={data?.gameId || undefined} />
+    {/* <Character3DDemo /> */}
+    <CharacterWalkDemo />
   </div>
   )
 };

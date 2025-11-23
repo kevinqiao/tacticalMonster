@@ -52,12 +52,30 @@ export interface GameModel {
     gameId: string;
     map: MapModel;
     direction?: number;
-    challenger: string;
-    challengee: string;
-    players: Player[];
-    characters: GameCharacter[];
+    playerUid: string;  // 玩家 UID（替代 challenger）
+    characters: GameCharacter[];  // 包含玩家角色和 AI 控制的敌人
     currentRound?: CombatRound;
     timeClock?: number;
+    score?: number;  // 当前分数
+}
+
+export interface GameReport {
+    gameId: string;
+    baseScore: number;  // 基础分数（击败敌人、使用技能等）
+    timeBonus?: number;  // 时间奖励
+    completeBonus?: number;  // 完成奖励
+    totalScore: number;  // 总分数
+}
+
+export interface TacticalMonsterGameConfig {
+    scoring: {
+        killEnemy: number;  // 击败敌人得分
+        skillUse: number;   // 使用技能得分
+        roundBonus: number; // 回合奖励
+        timeBonus: number;  // 时间奖励
+    };
+    timeLimit?: number;  // 时间限制（秒）
+    hintsEnabled: boolean;  // 是否启用提示
 }
 
 export interface CombatAction {
@@ -148,6 +166,7 @@ export interface GameCharacter extends Character {
     animator?: ModelAnimator;
     skillCooldowns?: Record<string, number>;
     activeEffects?: Effect[];
+    canIgnoreObstacles?: boolean;  // 是否可以忽略障碍物（飞行单位特有，通常飞行单位可以忽略地形障碍）
 }
 
 export interface ModelAnimator {
@@ -172,6 +191,8 @@ export interface CombatRule {
     getWalkableTargets: (character: GameCharacter) => WalkableNode[];
     getAttackableTargets: (attacker: GameCharacter, skill?: Skill | null) => AttackableNode[];
     isGameOver: () => boolean;
+    calculateActionScore: (action: CombatAction, config: TacticalMonsterGameConfig) => number;
+    calculateFinalScore: (baseScore: number, timeElapsed: number, isWin: boolean, config: TacticalMonsterGameConfig) => number;
 }
 
 export interface ICombatContext {
@@ -182,14 +203,17 @@ export interface ICombatContext {
     gameId: string | null;
     map?: MapModel;
     gridCells: GridCell[][] | null;
-    challenger?: string;
-    challengee?: string;
-    players?: Player[];
+    playerUid?: string;  // 玩家 UID
     timeClock?: number;
     characters?: GameCharacter[];
     currentRound?: CombatRound;
     eventQueue: CombatEvent[];
     ruleManager: CombatRule | null;
+    gameReport: GameReport | null;  // 新增：游戏报告
+    score: number;  // 新增：当前分数
+    config: TacticalMonsterGameConfig;  // 新增：游戏配置
+    submitScore: (score: number) => void;  // 新增：提交分数
+    onGameOver: () => void;  // 新增：游戏结束回调
     resourceLoad: {
         character: number;
         gridContainer: number;
@@ -208,5 +232,15 @@ export interface ICombatContext {
     setActiveSkill: (skill: Skill | null) => void;
     changeCoordDirection: (direction: number) => void;
 }
+
+export const DEFAULT_GAME_CONFIG: TacticalMonsterGameConfig = {
+    scoring: {
+        killEnemy: 100,  // 击败敌人得分
+        skillUse: 20,    // 使用技能得分
+        roundBonus: 10,  // 回合奖励
+        timeBonus: 1,    // 时间奖励
+    },
+    hintsEnabled: true,
+};
 
 

@@ -3,15 +3,45 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useUserManager } from "service/UserManager";
+import { useCombatManager } from "./service/CombatManager";
 import useCombatActHandler from "./service/handler/useCombatActHandler";
 import useEventListener from "./service/useEventListener";
+import "./style.css";
 import { Skill } from "./types/CharacterTypes";
-import { useCombatManager } from "./service/CombatManager";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
-import "./style.css";
+
+const ScoreDisplay: React.FC = () => {
+    const { score, gameReport } = useCombatManager();
+
+    return (
+        <div style={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            padding: "10px 20px",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            color: "white",
+            borderRadius: "8px",
+            fontSize: "18px",
+            fontWeight: "bold",
+            zIndex: 1000
+        }}>
+            <div>Score: {score}</div>
+            {gameReport && (
+                <div style={{ marginTop: "10px", fontSize: "14px" }}>
+                    <div>Base: {gameReport.baseScore}</div>
+                    {gameReport.timeBonus && <div>Time Bonus: {gameReport.timeBonus}</div>}
+                    {gameReport.completeBonus && <div>Complete Bonus: {gameReport.completeBonus}</div>}
+                    <div style={{ marginTop: "5px", borderTop: "1px solid white", paddingTop: "5px" }}>
+                        Total: {gameReport.totalScore}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const CombatActPanel: React.FC = () => {
     const { activeSkill, currentRound, characters } = useCombatManager();
@@ -63,10 +93,8 @@ const CombatActPanel: React.FC = () => {
 };
 
 const CombatPlaza: React.FC<{ position: { top: number; left: number; width: number; height: number } }> = ({ position }) => {
-    const { user } = useUserManager();
-    const { challengee } = useCombatManager();
     return (
-        <div className="plaza-container" style={{ transform: `scaleX(${user && user.uid === challengee ? -1 : 1})` }}>
+        <div className="plaza-container">
             {position && (
                 <>
                     <div className="plaza-layer" style={{ top: 0, left: 0 }}>
@@ -163,6 +191,7 @@ const BattleVenue: React.FC = () => {
 
     return (
         <div className="battle-container">
+            <ScoreDisplay />
             <div
                 ref={containerRef}
                 style={{

@@ -3,16 +3,23 @@ import { internalMutation, internalQuery, mutation, query } from "../_generated/
 
 interface GameModel {
     gameId: string;
-    challenger: string;
-    challengee: string;
-    players: Array<{ uid: string; name?: string; avatar?: string }>;
+    playerUid: string;  // 玩家 UID（替代 challenger）
     map: any;
     round: number;
-    status: number;
+    status: number;  // 0: playing, 1: won, 2: lost, 3: game over
+    score: number;   // 游戏分数
     lastUpdate: number;
     seed?: string;
     characters?: any[];
     currentRound?: any;
+}
+
+interface GameReport {
+    gameId: string;
+    baseScore: number;
+    timeBonus?: number;
+    completeBonus?: number;
+    totalScore: number;
 }
 
 interface CombatTurn {
@@ -82,6 +89,7 @@ export class TacticalMonsterGameManager {
         characters?: any[];
         round?: number;
         status?: number;
+        score?: number;
         lastUpdate?: number;
     }): Promise<void> {
         if (!this.game) return;
@@ -112,6 +120,7 @@ export class TacticalMonsterGameManager {
         const updateData: any = {};
         if (data.status !== undefined) updateData.status = data.status;
         if (data.round !== undefined) updateData.round = data.round;
+        if (data.score !== undefined) updateData.score = data.score;
         if (data.lastUpdate !== undefined) updateData.lastUpdate = data.lastUpdate;
 
         if (Object.keys(updateData).length > 0) {
@@ -129,12 +138,10 @@ export class TacticalMonsterGameManager {
 
     async createGame(
         mapId: string,
-        players: Array<{ uid: string; name?: string; avatar?: string }>,
+        playerUid: string,
         gameId: string,
         seed?: string
     ): Promise<GameModel | null> {
-        if (players.length < 2) return null;
-
         const map = await this.dbCtx.db
             .query("tacticalMonster_map_data")
             .withIndex("by_map_id", (q: any) => q.eq("map_id", mapId))
@@ -144,12 +151,11 @@ export class TacticalMonsterGameManager {
 
         const gameObj: any = {
             gameId,
-            challenger: players[0].uid,
-            challengee: players[1].uid,
-            players: players.map((p) => ({ uid: p.uid, name: p.name, avatar: p.avatar })),
+            playerUid,
             map: mapId,
             round: 0,
             status: 0,
+            score: 0,
             lastUpdate: Date.now(),
         };
 
@@ -343,11 +349,49 @@ export class TacticalMonsterGameManager {
         return true;
     }
 
-    async gameOver(gameId: string): Promise<boolean> {
+    calculateScore(action: any, actionType: string): number {
+        // 基础计分逻辑
+        let score = 0;
+        
+        if (actionType === "attack" && action.data?.killed) {
+            score += 100; // 击败敌人得分
+        } else if (actionType === "attack") {
+            score += 10; // 攻击得分
+        } else if (actionType === "skill") {
+            score += 20; // 使用技能得分
+        }
+
+        return score;
+    }
+
+    async updateScore(gameId: string, scoreDelta: number): Promise<boolean> {
         await this.load(gameId);
         if (!this.game) return false;
 
-        await this.save({ status: 1, lastUpdate: Date.now() });
+        const newScore = (this.game.score || 0) + scoreDelta;
+        await this.save({ score: newScore, lastUpdate: Date.now() });
+
+        return true;
+    }
+
+    async gameOver(gameId: string): Promise<GameReport | null> {
+        await this.load(gameId);
+        if (!this.game) return null;
+
+        const baseScore = this.game.score || 0;
+        const startTime = this.game.lastUpdate || Date.now();
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        
+        // 时间奖励：越快完成奖励越高（简化计算）
+        const timeBonus = Math.max(0, Math.floor((1000 - duration / 1000) / 10));
+        
+        // 完成奖励：根据状态判断
+        const completeBonus = this.game.status === 1 ? 500 : 0; // 胜利奖励
+
+        const totalScore = baseScore + timeBonus + completeBonus;
+
+        await this.save({ status: 3, lastUpdate: Date.now() });
 
         const event: CombatEvent = {
             gameId,
@@ -360,7 +404,13 @@ export class TacticalMonsterGameManager {
 
         await this.dbCtx.db.insert("tacticalMonster_event", event);
 
-        return true;
+        return {
+            gameId,
+            baseScore,
+            timeBonus,
+            completeBonus,
+            totalScore,
+        };
     }
 }
 
@@ -368,20 +418,14 @@ export class TacticalMonsterGameManager {
 export const createGame = internalMutation({
     args: {
         mapId: v.string(),
-        players: v.array(
-            v.object({
-                uid: v.string(),
-                name: v.optional(v.string()),
-                avatar: v.optional(v.string()),
-            })
-        ),
+        playerUid: v.string(),
         gameId: v.string(),
         seed: v.optional(v.string()),
     },
-    handler: async (ctx, { mapId, players, gameId, seed }) => {
+    handler: async (ctx, { mapId, playerUid, gameId, seed }) => {
         console.log("createGame...", mapId, gameId, seed);
         const gameManager = new TacticalMonsterGameManager(ctx);
-        const game = await gameManager.createGame(mapId, players, gameId, seed);
+        const game = await gameManager.createGame(mapId, playerUid, gameId, seed);
         if (game) {
             return { ok: true, data: game };
         }
@@ -417,15 +461,40 @@ export const findGame = internalQuery({
 export const findReport = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
+        const gameManager = new TacticalMonsterGameManager(ctx);
+        await gameManager.load(gameId);
+        
+        if (!gameManager.game) {
+            return { ok: false };
+        }
+
+        const baseScore = gameManager.game.score || 0;
+        const timeBonus = 0; // 可以计算时间奖励
+        const completeBonus = gameManager.game.status === 1 ? 500 : 0;
+        const totalScore = baseScore + timeBonus + completeBonus;
+
         return {
             ok: true,
             data: {
-                baseScore: 100,
-                timeBonus: 0,
-                completeBonus: 0,
-                totalScore: 100,
+                gameId,
+                baseScore,
+                timeBonus,
+                completeBonus,
+                totalScore,
             },
         };
+    },
+});
+
+export const updateScore = mutation({
+    args: {
+        gameId: v.string(),
+        scoreDelta: v.number(),
+    },
+    handler: async (ctx, { gameId, scoreDelta }) => {
+        const gameManager = new TacticalMonsterGameManager(ctx);
+        const result = await gameManager.updateScore(gameId, scoreDelta);
+        return { ok: result };
     },
 });
 
@@ -450,7 +519,11 @@ export const gameOver = mutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
         const gameManager = new TacticalMonsterGameManager(ctx);
-        return await gameManager.gameOver(gameId);
+        const report = await gameManager.gameOver(gameId);
+        if (report) {
+            return { ok: true, data: report };
+        }
+        return { ok: false };
     },
 });
 

@@ -5,11 +5,71 @@
 import { Skill } from "../types/CharacterTypes";
 import { AttackableNode, HexNode, WalkableNode } from "../types/CombatTypes";
 
+// 计算六边形距离（用于飞行单位的直线路径）
+const calculateHexDistance = (from: HexNode, to: HexNode): number => {
+    const fromX = from.x - Math.floor(from.y / 2);
+    const fromZ = from.y;
+    const fromY = -fromX - fromZ;
+
+    const toX = to.x - Math.floor(to.y / 2);
+    const toZ = to.y;
+    const toY = -toX - toZ;
+
+    return Math.max(
+        Math.abs(fromX - toX),
+        Math.abs(fromY - toY),
+        Math.abs(fromZ - toZ)
+    );
+};
+
+// 飞行单位的直线路径（忽略障碍物）
+const findDirectPath = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNode[] => {
+    const path: HexNode[] = [start];
+    
+    // 如果起点和终点相同，直接返回
+    if (start.x === goal.x && start.y === goal.y) {
+        return path;
+    }
+    
+    const distance = calculateHexDistance(start, goal);
+    
+    // 如果距离为1，直接返回终点
+    if (distance <= 1) {
+        return [start, goal];
+    }
+    
+    // 计算直线路径上的所有中间点
+    const steps = distance;
+    for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const q = Math.round(start.x + (goal.x - start.x) * t);
+        const r = Math.round(start.y + (goal.y - start.y) * t);
+        
+        // 检查是否在网格范围内
+        if (r >= 0 && r < grid.length && q >= 0 && q < grid[0].length) {
+            const node = { x: q, y: r };
+            // 避免重复添加
+            const lastNode = path[path.length - 1];
+            if (lastNode.x !== node.x || lastNode.y !== node.y) {
+                path.push(node);
+            }
+        }
+    }
+    
+    return path;
+};
+
 export const findPath = (
     grid: HexNode[][],
     start: HexNode,
-    goal: HexNode
+    goal: HexNode,
+    canIgnoreObstacles?: boolean  // 是否可以忽略障碍物（飞行单位）
 ): HexNode[] => {
+    // 飞行单位：使用直线路径（忽略障碍物）
+    if (canIgnoreObstacles) {
+        return findDirectPath(start, goal, grid);
+    }
+    
     const isWalkable = (x: number, y: number): boolean => {
         if (y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) return false;
         return grid[y][x].walkable ?? false;
@@ -103,8 +163,32 @@ export const findPath = (
 export const getWalkableNodes = (
     gridCells: HexNode[][],
     start: { x: number, y: number },
-    moveRange: number
+    moveRange: number,
+    canIgnoreObstacles?: boolean  // 是否可以忽略障碍物（飞行单位）
 ): WalkableNode[] => {
+    // 飞行单位：计算范围内的所有格子（忽略障碍物）
+    if (canIgnoreObstacles) {
+        const movableNodes: WalkableNode[] = [];
+        const rows = gridCells.length;
+        const cols = gridCells[0]?.length || 0;
+        
+        for (let r = 0; r < rows; r++) {
+            for (let q = 0; q < cols; q++) {
+                const distance = calculateHexDistance(
+                    { x: start.x, y: start.y },
+                    { x: q, y: r }
+                );
+                
+                if (distance > 0 && distance <= moveRange) {
+                    movableNodes.push({ x: q, y: r, distance, walkable: true });
+                }
+            }
+        }
+        
+        return movableNodes;
+    }
+    
+    // 非飞行单位：使用BFS算法（考虑障碍物）
     const movableNodes: WalkableNode[] = [];
     const visited = new Set<string>();
     const queue: { node: HexNode, distance: number }[] = [];

@@ -7,6 +7,7 @@ import { TopLevelCondition } from "json-rules-engine";
 export enum ASSET_TYPE {
     SPINE = 0,
     FBX = 1,
+    GLTF = 2,  // GLTF格式支持
 }
 
 export interface TriggerCondition {
@@ -84,6 +85,8 @@ export interface Character {
     stats?: Stats;
     unlockSkills?: string[];
     asset?: { type: ASSET_TYPE; resource: { [key: string]: string } };
+    isFlying?: boolean;  // 是否为飞行单位
+    flightHeight?: number;  // 飞行高度（用于3D渲染，单位：米或单位长度，建议默认值 1.0-2.0）
 }
 
 export enum CharacterAnimState {
@@ -124,6 +127,7 @@ export interface Effect {
     area_type?: 'single' | 'circle' | 'line';
     area_size?: number;
     damage_type?: 'physical' | 'magical';
+    target_attribute?: string;  // 目标属性（如 "attack", "defense", "hp", "mp"）
 }
 
 

@@ -26,10 +26,14 @@ const usePlayPhase = () => {
             }
         }))
 
+        // 飞行单位可以忽略障碍物
+        const isFlying = character.isFlying ?? false;
+        const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
         const walkableNodes = getWalkableNodes(
             grid,
             { x: character.q ?? 0, y: character.r ?? 0 },
-            moveRange
+            moveRange,
+            canIgnoreObstacles  // 传递飞行标志
         );
         character.walkables = walkableNodes;
         const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)

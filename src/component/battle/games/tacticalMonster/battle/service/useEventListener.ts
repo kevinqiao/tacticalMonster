@@ -1,16 +1,14 @@
 /**
  * Tactical Monster 事件监听器
+ * 重构为单人 PVE 模式：只处理阶段事件（gameInit, roundStart 等），不再处理玩家操作事件
  */
 
 import { useCallback, useEffect } from "react";
-import { useUserManager } from "service/UserManager";
 import { CombatEvent } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";
-import useActionProcessor from "./processor/useActionProcessor";
 import usePhaseProcessor from "./processor/usePhaseProcessor";
 
 const useEventListener = () => {
-    const { user } = useUserManager();
     const {
         eventQueue,
         characters,
@@ -18,15 +16,6 @@ const useEventListener = () => {
         hexCell,
         resourceLoad
     } = useCombatManager();
-
-    const {
-        processWalk,
-        processAttack,
-        processSkill,
-        processDefend,
-        processStandby,
-        processSkillSelect
-    } = useActionProcessor();
 
     const {
         processGameInit,
@@ -55,23 +44,7 @@ const useEventListener = () => {
 
         if (!status) {
             switch (name) {
-                case "attack":
-                    event.status = 1;
-                    console.log("attack", data);
-                    if (event.uid !== user.uid) {
-                        processAttack({ data, onComplete });
-                    } else {
-                        onComplete();
-                    }
-                    break;
-                case "walk":
-                    event.status = 1;
-                    if (event.uid !== user.uid) {
-                        processWalk({ data, onComplete });
-                    } else {
-                        onComplete();
-                    }
-                    break;
+                // 只处理阶段事件，玩家操作事件已在 useCombatActHandler 中直接处理
                 case "gameInit":
                     event.status = 1;
                     processGameInit({ data, onComplete });
@@ -98,13 +71,14 @@ const useEventListener = () => {
                     event.status = 1;
                     processRoundEnd({ data, onComplete });
                     break;
+                // 玩家操作事件（attack, walk, skillSelect）不再通过事件队列处理
+                // 它们已在 useCombatActHandler 中直接执行
+                case "attack":
+                case "walk":
                 case "skillSelect":
+                    // 这些事件可能来自后端同步，直接跳过（前端已直接处理）
                     event.status = 1;
-                    if (event.uid !== user.uid) {
-                        processSkillSelect({ data, onComplete });
-                    } else {
-                        onComplete();
-                    }
+                    onComplete();
                     break;
                 default:
                     console.log("unknown event", event);
@@ -112,7 +86,7 @@ const useEventListener = () => {
                     break;
             }
         }
-    }, [user, eventQueue, processRoundStart, processTurnStart, processTurnSecond, processWalk, resourceLoad, processAttack, processGameInit, processRoundEnd, processTurnEnd, processSkillSelect]);
+    }, [eventQueue, processRoundStart, processTurnStart, processTurnSecond, resourceLoad, processGameInit, processRoundEnd, processTurnEnd]);
 
     useEffect(() => {
         if (!characters || !gridCells || !hexCell || Object.values(resourceLoad).some(v => v === 0)) return;
@@ -122,7 +96,7 @@ const useEventListener = () => {
         }, 100);
 
         return () => clearInterval(intervalId);
-    }, [user, characters, gridCells, hexCell, resourceLoad, processEvent]);
+    }, [characters, gridCells, hexCell, resourceLoad, processEvent]);
 };
 
 export default useEventListener;

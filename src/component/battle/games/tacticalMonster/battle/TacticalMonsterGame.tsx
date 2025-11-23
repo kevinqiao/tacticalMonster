@@ -8,11 +8,12 @@ import React from 'react';
 import BattlePlayer from './BattlePlayer';
 import CombatManager from './service/CombatManager';
 import { EventProvider } from './service/EventProvider';
+import { TacticalMonsterGameConfig } from './types/CombatTypes';
 import './style.css';
 
 interface TacticalMonsterGameProps {
     gameId?: string;
-    config?: any;
+    config?: Partial<TacticalMonsterGameConfig>;
     className?: string;
     style?: React.CSSProperties;
     onGameLoadComplete?: () => void;

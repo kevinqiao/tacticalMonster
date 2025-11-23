@@ -1,0 +1,245 @@
+/**
+ * ModelConfigEditor 样式文件
+ */
+
+.model-config-editor {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 350px;
+    height: 100vh;
+    background: rgba(26, 26, 46, 0.95);
+    border-left: 2px solid rgba(74, 158, 255, 0.3);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.editor-header {
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 2px solid rgba(74, 158, 255, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.editor-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #4a9eff;
+}
+
+.close-button {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    transition: background 0.2s;
+}
+
+.close-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.editor-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.editor-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.editor-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.editor-content::-webkit-scrollbar-thumb {
+    background: rgba(74, 158, 255, 0.3);
+    border-radius: 4px;
+}
+
+.editor-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 158, 255, 0.5);
+}
+
+.config-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(74, 158, 255, 0.2);
+}
+
+.config-section:last-child {
+    border-bottom: none;
+}
+
+.config-section h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #4a9eff;
+    font-weight: 600;
+}
+
+.config-item {
+    margin-bottom: 15px;
+}
+
+.config-item label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #e0e0e0;
+}
+
+.config-item label span:first-child {
+    flex: 1;
+}
+
+.value-display {
+    color: #4a9eff;
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 80px;
+    text-align: right;
+    margin-left: 10px;
+}
+
+.config-item input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.config-item input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #4a9eff;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.config-item input[type="range"]::-webkit-slider-thumb:hover {
+    background: #6bb5ff;
+}
+
+.config-item input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #4a9eff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+
+.config-item input[type="range"]::-moz-range-thumb:hover {
+    background: #6bb5ff;
+}
+
+.config-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    cursor: pointer;
+    accent-color: #4a9eff;
+}
+
+.config-item select {
+    width: 100%;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(74, 158, 255, 0.3);
+    border-radius: 5px;
+    color: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+}
+
+.config-item select:hover {
+    border-color: rgba(74, 158, 255, 0.5);
+}
+
+.config-item select:focus {
+    border-color: #4a9eff;
+}
+
+.rotation-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.editor-footer {
+    padding: 15px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 2px solid rgba(74, 158, 255, 0.3);
+    display: flex;
+    gap: 10px;
+}
+
+.editor-footer button {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid rgba(74, 158, 255, 0.3);
+    border-radius: 5px;
+    background: rgba(74, 158, 255, 0.1);
+    color: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.editor-footer button:hover {
+    background: rgba(74, 158, 255, 0.3);
+    border-color: rgba(74, 158, 255, 0.5);
+}
+
+.reset-button {
+    background: rgba(255, 152, 0, 0.1) !important;
+    border-color: rgba(255, 152, 0, 0.3) !important;
+}
+
+.reset-button:hover {
+    background: rgba(255, 152, 0, 0.3) !important;
+}
+
+.copy-button.success {
+    background: rgba(76, 175, 80, 0.3) !important;
+    border-color: rgba(76, 175, 80, 0.5) !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .model-config-editor {
+        width: 100%;
+        height: 50vh;
+        bottom: 0;
+        top: auto;
+        border-left: none;
+        border-top: 2px solid rgba(74, 158, 255, 0.3);
+    }
+}
+

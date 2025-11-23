@@ -5,38 +5,61 @@ import { action } from "../_generated/server";
 const tournament_url = "https://beloved-mouse-699.convex.site";
 
 export const loadGame = action({
-    args: { gameId: v.string() },
-    handler: async (ctx, { gameId }): Promise<any> => {
+    args: { 
+        gameId: v.string(),
+        mapId: v.optional(v.string()),
+        playerUid: v.optional(v.string()),
+    },
+    handler: async (ctx, { gameId, mapId, playerUid }): Promise<any> => {
         const res: { ok: boolean; game?: any; events?: any } = { ok: false };
         let game = await ctx.runQuery(internal.service.gameManager.findGame, { gameId });
 
         if (!game) {
-            const matchURL = `${tournament_url}/findMatchGame`;
-            const response = await fetch(matchURL, {
-                method: "POST",
-                body: JSON.stringify({ gameId }),
-            });
-            const matchGameResult = await response.json();
+            // 尝试从 tournament 获取 match 信息
+            let createArgs: {
+                mapId: string;
+                playerUid: string;
+                gameId: string;
+                seed?: string;
+            } | null = null;
 
-            if (matchGameResult.ok) {
-                const data = matchGameResult.match;
-
-                const rawSeed = data?.seed ?? data?.gameId;
-                const createArgs: {
-                    mapId: string;
-                    players: Array<{ uid: string; name?: string; avatar?: string }>;
-                    gameId: string;
-                    seed?: string;
-                } = {
-                    mapId: data?.mapId ?? "1",
-                    players: data?.players ?? [],
+            if (mapId && playerUid) {
+                // 直接创建单人游戏
+                createArgs = {
+                    mapId,
+                    playerUid,
                     gameId,
                 };
+            } else {
+                // 从 tournament 获取 match 信息
+                const matchURL = `${tournament_url}/findMatchGame`;
+                const response = await fetch(matchURL, {
+                    method: "POST",
+                    body: JSON.stringify({ gameId }),
+                });
+                const matchGameResult = await response.json();
 
-                if (typeof rawSeed === "string") {
-                    createArgs.seed = rawSeed;
+                if (matchGameResult.ok) {
+                    const data = matchGameResult.match;
+                    const rawSeed = data?.seed ?? data?.gameId;
+                    
+                    // 假设第一个玩家是玩家，其他是 AI 控制
+                    const player = data?.players?.[0];
+                    if (player) {
+                        createArgs = {
+                            mapId: data?.mapId ?? "1",
+                            playerUid: player.uid,
+                            gameId,
+                        };
+
+                        if (typeof rawSeed === "string") {
+                            createArgs.seed = rawSeed;
+                        }
+                    }
                 }
+            }
 
+            if (createArgs) {
                 const gameResult = await ctx.runMutation(
                     internal.service.gameManager.createGame,
                     createArgs

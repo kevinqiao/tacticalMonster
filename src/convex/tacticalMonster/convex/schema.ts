@@ -4,21 +4,15 @@ import { v } from "convex/values";
 export default defineSchema({
     tacticalMonster_game: defineTable({
         gameId: v.string(),
-        challenger: v.string(),
-        challengee: v.string(),
-        players: v.array(v.object({
-            uid: v.string(),
-            name: v.optional(v.string()),
-            avatar: v.optional(v.string()),
-        })),
+        playerUid: v.string(),              // 玩家 UID（替代 challenger）
         map: v.string(),
         round: v.number(),
-        status: v.number(),
+        status: v.number(),                 // 0: playing, 1: won, 2: lost, 3: game over
+        score: v.number(),                  // 游戏分数
         lastUpdate: v.number(),
         seed: v.optional(v.string()),
     }).index("by_gameId", ["gameId"])
-        .index("by_challenger", ["challenger"])
-        .index("by_challengee", ["challengee"]),
+        .index("by_player", ["playerUid"]),
 
     tacticalMonster_game_character: defineTable({
         gameId: v.string(),

@@ -13,11 +13,14 @@ import { Skill } from "../types/CharacterTypes";
 import {
     CombatEvent,
     CombatRound,
+    DEFAULT_GAME_CONFIG,
     GameCharacter,
     GameModel,
+    GameReport,
     GridCell,
     ICombatContext,
-    MapModel
+    MapModel,
+    TacticalMonsterGameConfig
 } from "../types/CombatTypes";
 import CombatRuleManager from "./CombatRuleManager";
 
@@ -43,6 +46,11 @@ export const CombatContext = createContext<ICombatContext>({
     timeClock: 0,
     eventQueue: [],
     ruleManager: null,
+    gameReport: null,
+    score: 0,
+    config: DEFAULT_GAME_CONFIG,
+    submitScore: () => null,
+    onGameOver: () => null,
     setResourceLoad: () => null,
     changeCell: () => null,
     changeCoordDirection: () => null,
@@ -60,7 +68,7 @@ export const useCombatManager = () => {
 interface CombatManagerProps {
     children: ReactNode;
     gameId?: string;
-    config?: any;
+    config?: Partial<TacticalMonsterGameConfig>;
     onGameLoadComplete?: () => void;
     onGameSubmit?: () => void;
 }
@@ -68,7 +76,7 @@ interface CombatManagerProps {
 const CombatManager: React.FC<CombatManagerProps> = ({
     children,
     gameId,
-    config,
+    config: customConfig,
     onGameLoadComplete,
     onGameSubmit
 }) => {
@@ -85,6 +93,10 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         gridWalk: number;
     }>({ character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 });
     const [game, setGame] = useState<GameModel | null>(null);
+    const [gameReport, setGameReport] = useState<GameReport | null>(null);
+    const [score, setScore] = useState<number>(0);
+
+    const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
 
     const convex = useConvex();
     const { user } = useUserManager();
@@ -93,6 +105,12 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     const events: any = useQuery(
         api.service.gameManager.findEvents,
         gameId ? { gameId, lastTime } : "skip"
+    );
+
+    // 查询游戏报告
+    const report: any = useQuery(
+        api.service.gameManager.findReport,
+        gameId ? { gameId } : "skip"
     );
 
     // 加载游戏
@@ -105,10 +123,10 @@ const CombatManager: React.FC<CombatManagerProps> = ({
                 const gameObj = await convex.query(api.service.gameManager.loadGame, { gameId });
                 if (gameObj?.ok && gameObj.data) {
                     const gameData = gameObj.data;
-                    // 设置角色翻转方向
+                    // 设置角色翻转方向：玩家角色 scaleX = 1，AI 敌人 scaleX = -1
                     gameData.characters?.forEach((character: any) => {
                         const c = character as GameCharacter;
-                        if (c.uid === gameData.challenger) {
+                        if (c.uid === gameData.playerUid) {
                             c.scaleX = 1;
                         } else {
                             c.scaleX = -1;
@@ -118,14 +136,14 @@ const CombatManager: React.FC<CombatManagerProps> = ({
                     setGame({
                         gameId: gameData.gameId,
                         map: gameData.map as MapModel,
-                        challenger: gameData.challenger,
-                        challengee: gameData.challengee,
-                        players: gameData.players,
+                        playerUid: gameData.playerUid,
                         characters: gameData.characters || [],
                         currentRound: gameData.currentRound || defaultRound,
-                        timeClock: 0
+                        timeClock: 0,
+                        score: gameData.score || 0
                     });
 
+                    setScore(gameData.score || 0);
                     setLastTime(gameData.lastUpdate);
                     eventQueueRef.current.push({
                         name: "gameInit",
@@ -153,6 +171,34 @@ const CombatManager: React.FC<CombatManagerProps> = ({
             setLastTime(lastEvent.time);
         }
     }, [events]);
+
+    // 处理游戏报告更新
+    useEffect(() => {
+        if (report?.ok && report.data) {
+            setGameReport(report.data);
+            if (report.data.totalScore) {
+                setScore(report.data.totalScore);
+            }
+        }
+    }, [report]);
+
+    // 提交分数
+    const submitScore = useCallback(async (finalScore: number) => {
+        if (!gameId) return;
+        try {
+            await convex.action(api.proxy.controller.submitScore, { gameId, score: finalScore });
+            onGameSubmit?.();
+        } catch (error) {
+            console.error("Failed to submit score", error);
+        }
+    }, [gameId, convex, onGameSubmit]);
+
+    // 游戏结束回调
+    const onGameOver = useCallback(() => {
+        if (gameReport) {
+            submitScore(gameReport.totalScore);
+        }
+    }, [gameReport, submitScore]);
 
     // 初始化网格
     useEffect(() => {
@@ -206,7 +252,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         }
     }, [game]);
 
-    const { map, challenger, challengee, characters, currentRound, timeClock } = game || {};
+    const { map, playerUid, characters, currentRound, timeClock, score: gameScore } = game || {};
 
     // 创建规则管理器
     const ruleManager = useMemo(() => {
@@ -223,13 +269,17 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         hexCell,
         map: map || { rows: 7, cols: 8 },
         gridCells,
-        challenger: challenger || "",
-        challengee: challengee || "",
+        playerUid: playerUid || user?.uid || "",
         currentRound: currentRound || defaultRound,
         characters: characters || [],
         timeClock: timeClock || 0,
         eventQueue: eventQueueRef.current,
         ruleManager,
+        gameReport,
+        score: gameScore || score,
+        config,
+        submitScore,
+        onGameOver,
         resourceLoad,
         setResourceLoad,
         changeCell: setHexCell,
