@@ -1329,10 +1329,10 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                     // 重新应用位置偏移
                     // 检查 currentOverrideConfig 中是否包含 positionOffset 的变化
                     // 需要检查 positionOffset 是否真的改变了，而不是仅仅存在
-                    const hasPositionOffsetChange = currentOverrideConfig && 
+                    const hasPositionOffsetChange = currentOverrideConfig &&
                         currentOverrideConfig.positionOffset !== undefined &&
-                        (currentOverrideConfig.positionOffset.horizontal !== undefined || 
-                         currentOverrideConfig.positionOffset.vertical !== undefined);
+                        (currentOverrideConfig.positionOffset.horizontal !== undefined ||
+                            currentOverrideConfig.positionOffset.vertical !== undefined);
                     const hasScaleChangeInOverride = currentOverrideConfig && currentOverrideConfig.scale !== undefined;
 
                     console.log("位置偏移检查:", {
@@ -1416,13 +1416,38 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
 
                         console.log(`✓ 重新应用位置偏移: horizontal=${positionOffset.horizontal}, vertical=${positionOffset.vertical}`);
                         console.log(`  模型位置: x=${modelX.toFixed(3)}, y=${modelY.toFixed(3)}, z=${modelZ.toFixed(3)}`);
+
+                        // 位置偏移改变后，需要更新相机的 lookAt 目标，确保相机仍然看向模型
+                        if (cameraRef.current) {
+                            const cameraConfig = mergedConfig.camera || modelConfigRef.current?.camera || {
+                                lookAtHeight: 0.25,
+                                baseDistanceMultiplier: 2.0
+                            };
+                            const modelHeight = model.userData.lastCalculatedSize?.y || 12.7;
+                            const lookAtHeight = modelHeight * (cameraConfig.lookAtHeight || 0.25);
+
+                            if (character.isFlying) {
+                                const flightHeight = character.flightHeight ?? 0.5;
+                                const baseYWithoutOffset = model.position.y - flightHeight - verticalOffset;
+                                const referenceTargetY = baseYWithoutOffset + flightHeight + lookAtHeight;
+                                cameraRef.current.lookAt(model.position.x, referenceTargetY, model.position.z);
+                            } else {
+                                const baseY = model.position.y - verticalOffset;
+                                const targetY = baseY + lookAtHeight;
+                                cameraRef.current.lookAt(model.position.x, targetY, model.position.z);
+                            }
+                            cameraRef.current.updateProjectionMatrix();
+                            console.log(`✓ 相机 lookAt 已更新以跟随模型新位置`);
+                        }
                     } else if (hasPositionOffsetChange && hasScaleChangeInOverride) {
                         // 如果同时调整了 scale 和 positionOffset，位置偏移会在 scale 调整的部分应用
                         console.log("位置偏移将在缩放调整时一起应用");
+                    } else if (!hasPositionOffsetChange) {
+                        console.log("位置偏移未改变，跳过位置偏移应用");
                     }
 
-                    // 重新调整相机位置
-                    if (mergedConfig.camera && cameraRef.current && !mergedConfig.scale) {
+                    // 重新调整相机位置（仅相机配置改变时）
+                    if (mergedConfig.camera && cameraRef.current && !mergedConfig.scale && !hasPositionOffsetChange) {
                         // 如果已经因为缩放重新计算过相机，就不需要再次重新计算包围盒
                         // 只有在单独调整相机配置时才需要重新计算
                         const cameraConfig = mergedConfig.camera;
