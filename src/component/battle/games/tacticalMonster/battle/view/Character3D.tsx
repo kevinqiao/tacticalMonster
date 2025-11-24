@@ -879,7 +879,9 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
     const originalBoundingBoxSizeRef = useRef<THREE.Vector3 | null>(null); // 存储原始包围盒尺寸（缩放前）
     const originalConfigScaleRef = useRef<number | null>(null); // 存储原始配置中的 scale（用于绝对缩放计算）
     const originalCameraDistanceRef = useRef<number | null>(null); // 存储初始加载时的相机距离（用于还原）
+    const originalCameraDirectionRef = useRef<THREE.Vector3 | null>(null); // 存储初始加载时相机相对于 lookAt 目标的方向向量（用于保持相对位置）
     const lastAppliedConfigRef = useRef<string>(''); // 存储上次应用的配置，用于避免重复应用
+    const lastAppliedPositionOffsetRef = useRef<{ horizontal?: number; vertical?: number } | null>(null); // 存储上次实际应用的位置偏移（用于增量计算）
 
     useEffect(() => {
         overrideConfigRef.current = overrideConfig;
@@ -960,8 +962,22 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                     console.log("模型配置是否已加载:", !!modelConfigRef.current);
                     console.log("模型路径:", modelPath);
 
-                    // 重新应用缩放 - 使用更简单的直接缩放方法
-                    if (mergedConfig.scale !== undefined && mergedConfig.scale !== null) {
+                    // 检查 overrideConfig 中是否真的改变了 scale（值比较）
+                    // 只有当 overrideConfig 明确包含 scale 且值真正改变时才重新应用
+                    const overrideScaleValue = currentOverrideConfig?.scale;
+                    const currentAppliedScaleForCheck = modelConfigRef.current?.scale ?? (baseConfig?.scale ?? 1.0);
+                    const scaleActuallyChangedInOverride = overrideScaleValue !== undefined &&
+                        Math.abs(overrideScaleValue - currentAppliedScaleForCheck) > 0.001;
+
+                    console.log("Scale 检查（是否应该重新应用）:", {
+                        overrideScaleValue,
+                        currentAppliedScaleForCheck,
+                        scaleActuallyChangedInOverride,
+                        "说明": scaleActuallyChangedInOverride ? "Scale 值改变了，将重新应用" : "Scale 值未改变，跳过重新应用"
+                    });
+
+                    // 重新应用缩放 - 只有 scale 真正改变时才应用
+                    if (scaleActuallyChangedInOverride && mergedConfig.scale !== undefined && mergedConfig.scale !== null) {
                         // 获取当前保存的 scale（从 modelConfigRef 中获取，这是上次应用后的值）
                         // 优先从 modelConfigRef 获取，因为它保存的是上次应用后的值
                         // 如果没有保存的值，从当前模型的 scale 推导出来
@@ -985,11 +1001,14 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         console.log("新的 scale:", newModelScale);
                         console.log("当前模型 scale:", model.scale);
                         console.log("baseScaleRef.current:", baseScaleRef.current);
+                        console.log("overrideConfig 中的 scale 是否真正改变:", scaleActuallyChangedInOverride);
 
-                        // 如果 scale 没有变化，不需要重新应用
-                        if (Math.abs(currentModelScale - newModelScale) < 0.001) {
+                        // 如果 scale 没有变化，不需要重新应用缩放
+                        const scaleChanged = Math.abs(currentModelScale - newModelScale) >= 0.001;
+                        if (!scaleChanged) {
                             console.log(`缩放值未变化，跳过重新应用: ${currentModelScale}`);
                             console.log("=====================================");
+                            // 如果 scale 没有改变，但需要继续处理位置偏移，不能直接 return
                         } else {
                             // 简化：直接计算缩放比例
                             // 由于配置中的 scale 是相对于 baseScale 的倍数
@@ -1183,6 +1202,13 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                                 model.position.set(modelX, modelY, modelZ);
                                 model.userData.verticalOffset = verticalOffset;
 
+                                // 保存本次实际应用的位置偏移，供下次增量计算使用（确保回调时计算正确）
+                                lastAppliedPositionOffsetRef.current = {
+                                    horizontal: positionOffset.horizontal || 0.2,
+                                    vertical: verticalOffset
+                                };
+                                console.log(`✓ 保存本次应用的位置偏移到 ref: horizontal=${positionOffset.horizontal || 0.2}, vertical=${verticalOffset}`);
+
                                 console.log(`✓ 位置重新计算完成: x=${modelX.toFixed(3)}, y=${modelY.toFixed(3)}, z=${modelZ.toFixed(3)}`);
                                 console.log("位置偏移详情:", {
                                     水平偏移百分比: positionOffset.horizontal,
@@ -1327,13 +1353,49 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                     }
 
                     // 重新应用位置偏移
-                    // 检查 currentOverrideConfig 中是否包含 positionOffset 的变化
-                    // 需要检查 positionOffset 是否真的改变了，而不是仅仅存在
-                    const hasPositionOffsetChange = currentOverrideConfig &&
-                        currentOverrideConfig.positionOffset !== undefined &&
-                        (currentOverrideConfig.positionOffset.horizontal !== undefined ||
-                            currentOverrideConfig.positionOffset.vertical !== undefined);
-                    const hasScaleChangeInOverride = currentOverrideConfig && currentOverrideConfig.scale !== undefined;
+                    // 检查 positionOffset 是否真的改变了（值比较），而不是仅仅存在
+                    const basePositionOffset = baseConfig?.positionOffset || modelConfigRef.current?.positionOffset || {
+                        horizontal: 0.2,
+                        vertical: -5.0
+                    };
+                    const overridePositionOffset = currentOverrideConfig?.positionOffset;
+
+                    // 检查 positionOffset 的值是否真的改变了
+                    const horizontalChanged = overridePositionOffset?.horizontal !== undefined &&
+                        Math.abs((overridePositionOffset.horizontal ?? 0.2) - (basePositionOffset.horizontal ?? 0.2)) > 0.001;
+                    const verticalChanged = overridePositionOffset?.vertical !== undefined &&
+                        Math.abs((overridePositionOffset.vertical ?? -5.0) - (basePositionOffset.vertical ?? -5.0)) > 0.001;
+                    const hasPositionOffsetChange = horizontalChanged || verticalChanged;
+
+                    // 检查 scale 是否真的改变了（相对于当前已应用的 scale），而不仅仅是在 overrideConfig 中存在
+                    // 使用 modelConfigRef.current?.scale 作为当前 scale，而不是 baseConfig 的 scale
+                    const currentAppliedScaleForOffset = modelConfigRef.current?.scale ?? (baseConfig?.scale ?? 1.0);
+                    const overrideScaleForOffset = currentOverrideConfig?.scale;
+                    // 只有当 overrideScale 存在且与当前已应用的 scale 不同时，才认为 scale 改变了
+                    const hasScaleChangeInOverride = overrideScaleForOffset !== undefined &&
+                        Math.abs(overrideScaleForOffset - currentAppliedScaleForOffset) > 0.001;
+
+                    console.log("位置偏移和缩放检查:", {
+                        hasPositionOffsetChange,
+                        hasScaleChangeInOverride,
+                        horizontalChanged,
+                        verticalChanged,
+                        currentAppliedScaleForOffset,
+                        overrideScaleForOffset,
+                        basePositionOffset: {
+                            horizontal: basePositionOffset.horizontal,
+                            vertical: basePositionOffset.vertical
+                        },
+                        overridePositionOffset: overridePositionOffset ? {
+                            horizontal: overridePositionOffset.horizontal,
+                            vertical: overridePositionOffset.vertical
+                        } : undefined,
+                        "scale是否改变": overrideScaleForOffset !== undefined
+                            ? (hasScaleChangeInOverride ? "是" : "否（与当前值相同）")
+                            : "未指定",
+                        "positionOffset是否改变": hasPositionOffsetChange ? "是" : "否",
+                        currentOverrideConfig: currentOverrideConfig
+                    });
 
                     console.log("位置偏移检查:", {
                         hasPositionOffsetChange,
@@ -1353,71 +1415,151 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         // 使用 mergedConfig 中的 positionOffset，因为它包含了完整的配置（合并了基础配置和覆盖配置）
                         const positionOffset = mergedConfig.positionOffset!;
 
-                        // 尝试使用之前保存的尺寸和中心，如果没有则重新计算
-                        let center: THREE.Vector3;
-                        if (originalBoundingBoxCenterRef.current) {
-                            // 使用原始包围盒中心（缩放前的）
-                            center = originalBoundingBoxCenterRef.current.clone();
-                            console.log("使用原始包围盒中心（缩放前的）");
-                        } else if (model.userData.lastCalculatedCenter) {
-                            center = model.userData.lastCalculatedCenter.clone();
-                            console.log("使用之前计算的包围盒中心（避免重新计算）");
-                        } else {
-                            // 重新计算包围盒和中心（只计算网格对象）
-                            const currentPos = model.position.clone();
-                            model.position.set(0, 0, 0);
-                            const box = getMeshBoundingBox(model);
-                            center = box.getCenter(new THREE.Vector3());
-                            model.position.copy(currentPos);
-                            console.log("重新计算包围盒中心");
+                        // 保存应用位置偏移之前的模型位置（用于相机跟随）
+                        const oldModelPositionBeforeOffset = model.position.clone();
+
+                        // 获取当前模型位置作为基准（初始加载时的位置，已经包含了基础的中心对齐）
+                        // 我们需要从当前位置中减去旧的位置偏移，然后应用新的位置偏移
+                        const currentPosition = model.position.clone();
+
+                        // 获取旧的 positionOffset（优先使用上次实际应用的值，确保回调时计算正确）
+                        // 如果没有上次应用的值，则使用配置中的值
+                        const oldPositionOffset = lastAppliedPositionOffsetRef.current || modelConfigRef.current?.positionOffset || {
+                            horizontal: 0.2,
+                            vertical: -5.0
+                        };
+
+                        // 使用模型的包围盒尺寸而不是格子的 width/height
+                        // 因为 positionOffset.horizontal 是基于模型宽度的百分比
+                        const modelSize = model.userData.lastCalculatedSize;
+                        const modelWidth = modelSize?.x || (width || 100);
+
+                        console.log("位置偏移计算 - 使用模型尺寸:", {
+                            "格子尺寸 (width, height)": { width, height },
+                            "模型尺寸 (lastCalculatedSize)": modelSize,
+                            "使用宽度 (modelWidth)": modelWidth,
+                            "说明": "positionOffset.horizontal 是基于模型宽度的百分比"
+                        });
+
+                        // 计算旧的水平偏移（需要反向计算，从当前位置中减去）
+                        let oldHorizontalOffset = 0;
+                        if (oldPositionOffset.horizontal !== undefined) {
+                            oldHorizontalOffset = -(modelWidth * oldPositionOffset.horizontal);
                         }
 
-                        // 计算基础位置（居中）
-                        let modelX = -center.x;
-                        let modelY = -center.y;
-                        let modelZ = -center.z;
+                        // 计算新的水平偏移
+                        const horizontalOffsetPercent = positionOffset.horizontal ?? 0.2;
+                        let newHorizontalOffset = 0;
+                        newHorizontalOffset = -(modelWidth * horizontalOffsetPercent);
 
-                        // 应用水平偏移
-                        if (width && height) {
-                            const horizontalOffsetPercent = positionOffset.horizontal ?? 0.2;
-                            const horizontalOffset = -(width * horizontalOffsetPercent);
-                            modelX += horizontalOffset;
-                            console.log("水平偏移应用:", {
-                                horizontalOffsetPercent,
-                                width,
-                                height,
-                                horizontalOffset,
-                                "说明": `水平偏移 = -(width × ${horizontalOffsetPercent}) = ${horizontalOffset}`,
-                                "模型X变化": `从 ${(modelX - horizontalOffset).toFixed(3)} 到 ${modelX.toFixed(3)}`
-                            });
-                        } else {
-                            console.warn("⚠ 无法应用水平偏移：width 或 height 未定义", { width, height });
-                        }
+                        // 计算水平偏移的变化量
+                        const horizontalOffsetDelta = newHorizontalOffset - oldHorizontalOffset;
 
-                        // 应用垂直偏移
-                        const verticalOffset = positionOffset.vertical ?? -5.0;
-                        const originalModelY = modelY;
-                        modelY += verticalOffset;
+                        // 计算新的垂直偏移变化量
+                        const oldVerticalOffset = oldPositionOffset.vertical ?? -5.0;
+                        const newVerticalOffset = positionOffset.vertical ?? -5.0;
+                        const verticalOffsetDelta = newVerticalOffset - oldVerticalOffset;
 
-                        // 如果是飞行单位，加上飞行高度
+                        // 应用偏移变化量到当前位置
+                        let modelX = currentPosition.x + horizontalOffsetDelta;
+                        let modelY = currentPosition.y + verticalOffsetDelta;
+                        let modelZ = currentPosition.z;
+
+                        // 如果是飞行单位，需要加上飞行高度
+                        // 注意：当前的 modelY 已经包含了旧的垂直偏移和飞行高度
+                        // 我们只需要确保新的垂直偏移也包含飞行高度
                         if (character.isFlying) {
                             const flightHeight = character.flightHeight ?? 0.5;
-                            modelY += flightHeight;
-                            console.log("飞行单位高度:", {
-                                verticalOffset,
-                                flightHeight,
-                                最终modelY: modelY,
-                                "说明": `最终Y = ${originalModelY} + ${verticalOffset} + ${flightHeight} = ${modelY}`
-                            });
+                            // 检查当前 modelY 是否已经包含飞行高度
+                            // 如果 oldVerticalOffset 已经应用，那么 modelY 应该已经包含了 flightHeight
+                            // 但由于我们只应用了变化量，需要确保 flightHeight 仍然存在
+                            // 实际上，由于 oldVerticalOffset 和 newVerticalOffset 都包含在变化量中
+                            // 我们需要检查 baseY（不包含 verticalOffset 和 flightHeight 的位置）
+                            // 但这样会很复杂，所以我们直接使用当前位置加上飞行高度
+                            // 注意：这个逻辑可能有问题，让我重新思考
+
+                            // 更简单的方法：计算不包含飞行高度的基准 Y
+                            // 当前 modelY = baseY + oldVerticalOffset + flightHeight
+                            // 新 modelY = baseY + newVerticalOffset + flightHeight
+                            // 所以变化量 = newVerticalOffset - oldVerticalOffset
+                            // 这已经在 verticalOffsetDelta 中计算了
+                            // 所以我们只需要确保飞行高度仍然存在
+                            // 但实际上，由于我们是从 currentPosition.y 开始的，如果 currentPosition.y 已经包含 flightHeight
+                            // 那么应用 verticalOffsetDelta 后，flightHeight 仍然存在
+                            // 所以我们不需要额外处理
                         }
 
+                        console.log("位置偏移增量应用:", {
+                            "当前模型位置": {
+                                x: currentPosition.x.toFixed(3),
+                                y: currentPosition.y.toFixed(3),
+                                z: currentPosition.z.toFixed(3)
+                            },
+                            "旧位置偏移": {
+                                horizontal: oldPositionOffset.horizontal,
+                                vertical: oldVerticalOffset,
+                                horizontalOffset: oldHorizontalOffset.toFixed(3)
+                            },
+                            "新位置偏移": {
+                                horizontal: horizontalOffsetPercent,
+                                vertical: newVerticalOffset,
+                                horizontalOffset: newHorizontalOffset.toFixed(3)
+                            },
+                            "偏移变化量": {
+                                horizontal: horizontalOffsetDelta.toFixed(3),
+                                vertical: verticalOffsetDelta.toFixed(3)
+                            },
+                            "新模型位置（应用变化量后）": {
+                                x: modelX.toFixed(3),
+                                y: modelY.toFixed(3),
+                                z: modelZ.toFixed(3)
+                            },
+                            "说明": "基于当前位置应用偏移变化量，而不是重新计算"
+                        });
+
+                        // 保存应用前的旧位置，用于验证
+                        const oldPosition = model.position.clone();
                         model.position.set(modelX, modelY, modelZ);
-                        model.userData.verticalOffset = verticalOffset;
+                        model.userData.verticalOffset = newVerticalOffset;
+
+                        // 保存本次实际应用的位置偏移，供下次增量计算使用（确保回调时计算正确）
+                        lastAppliedPositionOffsetRef.current = {
+                            horizontal: horizontalOffsetPercent,
+                            vertical: newVerticalOffset
+                        };
+                        console.log(`✓ 保存本次应用的位置偏移: horizontal=${horizontalOffsetPercent}, vertical=${newVerticalOffset}`);
+
+                        // 验证位置是否真的改变了
+                        const positionChanged = !model.position.equals(oldPosition);
+                        const positionDiff = {
+                            x: (model.position.x - oldPosition.x).toFixed(3),
+                            y: (model.position.y - oldPosition.y).toFixed(3),
+                            z: (model.position.z - oldPosition.z).toFixed(3)
+                        };
 
                         console.log(`✓ 重新应用位置偏移: horizontal=${positionOffset.horizontal}, vertical=${positionOffset.vertical}`);
-                        console.log(`  模型位置: x=${modelX.toFixed(3)}, y=${modelY.toFixed(3)}, z=${modelZ.toFixed(3)}`);
+                        console.log(`  旧位置: x=${oldPosition.x.toFixed(3)}, y=${oldPosition.y.toFixed(3)}, z=${oldPosition.z.toFixed(3)}`);
+                        console.log(`  新位置: x=${model.position.x.toFixed(3)}, y=${model.position.y.toFixed(3)}, z=${model.position.z.toFixed(3)}`);
+                        console.log(`  位置变化: x=${positionDiff.x}, y=${positionDiff.y}, z=${positionDiff.z}`);
+                        console.log(`  位置是否改变: ${positionChanged ? '✓ 是' : '✗ 否'}`);
 
-                        // 位置偏移改变后，需要更新相机的 lookAt 目标，确保相机仍然看向模型
+                        // 记录模型的 scale 和尺寸，用于调试"尺寸变化"问题
+                        // 注意：使用 getMeshBoundingBox 而不是 setFromObject，避免包含辅助对象
+                        console.log(`  模型 scale (不应改变): x=${model.scale.x.toFixed(3)}, y=${model.scale.y.toFixed(3)}, z=${model.scale.z.toFixed(3)}`);
+                        const currentBox = getMeshBoundingBox(model);
+                        const currentSize = currentBox.getSize(new THREE.Vector3());
+                        const savedSize = model.userData.lastCalculatedSize;
+                        console.log(`  模型包围盒尺寸 (仅网格): x=${currentSize.x.toFixed(3)}, y=${currentSize.y.toFixed(3)}, z=${currentSize.z.toFixed(3)}`);
+                        console.log(`  保存的模型尺寸 (lastCalculatedSize):`, savedSize ? `x=${savedSize.x.toFixed(3)}, y=${savedSize.y.toFixed(3)}, z=${savedSize.z.toFixed(3)}` : '未保存');
+                        // 注意：不在这里检查相机距离，因为此时相机位置还没有更新
+                        // 相机距离的检查会在相机位置更新后进行（在相机跟随逻辑中）
+
+                        // 强制更新场景（确保渲染器知道位置改变了）
+                        if (rendererRef.current) {
+                            rendererRef.current.render(sceneRef.current!, cameraRef.current!);
+                        }
+
+                        // 位置偏移改变后，需要更新相机位置和 lookAt，确保相机跟随模型移动，保持距离不变
                         if (cameraRef.current) {
                             const cameraConfig = mergedConfig.camera || modelConfigRef.current?.camera || {
                                 lookAtHeight: 0.25,
@@ -1426,31 +1568,233 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                             const modelHeight = model.userData.lastCalculatedSize?.y || 12.7;
                             const lookAtHeight = modelHeight * (cameraConfig.lookAtHeight || 0.25);
 
+                            // 计算 lookAt 目标位置
+                            let lookAtTargetY: number;
                             if (character.isFlying) {
                                 const flightHeight = character.flightHeight ?? 0.5;
-                                const baseYWithoutOffset = model.position.y - flightHeight - verticalOffset;
-                                const referenceTargetY = baseYWithoutOffset + flightHeight + lookAtHeight;
-                                cameraRef.current.lookAt(model.position.x, referenceTargetY, model.position.z);
+                                const baseYWithoutOffset = model.position.y - flightHeight - newVerticalOffset;
+                                lookAtTargetY = baseYWithoutOffset + flightHeight + lookAtHeight;
                             } else {
-                                const baseY = model.position.y - verticalOffset;
-                                const targetY = baseY + lookAtHeight;
-                                cameraRef.current.lookAt(model.position.x, targetY, model.position.z);
+                                const baseY = model.position.y - newVerticalOffset;
+                                lookAtTargetY = baseY + lookAtHeight;
                             }
+
+                            // 保存当前相机位置
+                            const oldCameraPos = cameraRef.current.position.clone();
+
+                            // 计算模型位置的变化量
+                            const modelPosDelta = new THREE.Vector3().subVectors(model.position, oldModelPositionBeforeOffset);
+
+                            console.log("模型位置变化量计算:", {
+                                "旧模型位置": oldModelPositionBeforeOffset,
+                                "新模型位置": model.position,
+                                "位置变化量": modelPosDelta,
+                                "说明": "模型位置的X/Y/Z变化量，用于相机跟随"
+                            });
+
+                            // 计算相机相对于模型 lookAt 目标的方向向量（保持相对位置不变）
+                            // 首先计算旧的 lookAt 目标位置
+                            let oldLookAtTargetY: number;
+                            if (character.isFlying) {
+                                const flightHeight = character.flightHeight ?? 0.5;
+                                const oldBaseYWithoutOffset = oldModelPositionBeforeOffset.y - flightHeight - (modelConfigRef.current?.positionOffset?.vertical ?? -15);
+                                oldLookAtTargetY = oldBaseYWithoutOffset + flightHeight + lookAtHeight;
+                            } else {
+                                const oldBaseY = oldModelPositionBeforeOffset.y - (modelConfigRef.current?.positionOffset?.vertical ?? -15);
+                                oldLookAtTargetY = oldBaseY + lookAtHeight;
+                            }
+                            const oldLookAtTarget = new THREE.Vector3(oldModelPositionBeforeOffset.x, oldLookAtTargetY, oldModelPositionBeforeOffset.z);
+
+                            // 优先使用保存的初始相机方向向量（从 lookAt 到相机的向量）
+                            // 这样可以确保相机到 lookAt 目标的距离始终保持不变
+                            let cameraDirection: THREE.Vector3;
+                            if (originalCameraDirectionRef.current) {
+                                cameraDirection = originalCameraDirectionRef.current.clone();
+                                console.log("使用保存的初始相机方向向量:", {
+                                    "方向向量": cameraDirection,
+                                    "距离": cameraDirection.length().toFixed(3),
+                                    "说明": "使用初始保存的方向向量，确保相机距离保持不变"
+                                });
+                            } else {
+                                // 如果没有保存的初始方向向量，使用固定的 lookAt 目标 (0, lookAtTargetY, 0) 计算方向向量
+                                // 这样可以确保相机不跟随模型的水平移动
+                                const fixedLookAtTarget = new THREE.Vector3(0, lookAtTargetY, 0);
+                                const oldLookAtToCamera = new THREE.Vector3().subVectors(oldCameraPos, fixedLookAtTarget);
+                                cameraDirection = oldLookAtToCamera;
+                                console.warn("⚠ 未找到保存的初始相机方向向量，使用固定lookAt目标(0, targetY, 0)计算");
+                                console.log("相机相对位置计算:", {
+                                    "旧相机位置": oldCameraPos,
+                                    "固定lookAt目标": fixedLookAtTarget,
+                                    "lookAt到相机的向量": cameraDirection,
+                                    "距离": cameraDirection.length().toFixed(3),
+                                    "说明": "使用固定lookAt目标，确保horizontal偏移时相机不跟随模型"
+                                });
+                            }
+
+                            // 新的 lookAt 目标位置
+                            // 关键修复：对于 horizontal 偏移，相机的 lookAt 目标应该保持 X 坐标为 0（固定）
+                            // 这样相机不会跟随模型的水平移动，模型会在相机视野内移动
+                            // 对于 vertical 偏移，lookAt 目标的 Y 坐标跟随模型移动（视觉上能看到变化）
+                            const newLookAtTarget = new THREE.Vector3(0, lookAtTargetY, 0);  // X 和 Z 保持为 0，固定相机视野中心
+
+                            // 保持相机到 lookAt 目标的相对方向不变，只移动位置
+                            // 相机的新位置 = 新的 lookAt 目标 + 保存的方向向量（从lookAt到相机的向量）
+                            const newCameraPos = new THREE.Vector3().addVectors(newLookAtTarget, cameraDirection);
+
+                            console.log("新相机位置计算:", {
+                                "新lookAt目标": newLookAtTarget,
+                                "lookAt到相机的向量": cameraDirection,
+                                "新相机位置": newCameraPos,
+                                "说明": "使用保存的初始方向向量，确保相机到lookAt目标的距离保持不变"
+                            });
+
+                            // 更新相机位置和 lookAt
+                            cameraRef.current.position.copy(newCameraPos);
+                            cameraRef.current.lookAt(newLookAtTarget);
                             cameraRef.current.updateProjectionMatrix();
-                            console.log(`✓ 相机 lookAt 已更新以跟随模型新位置`);
+
+                            const cameraToLookAtDistance = cameraRef.current.position.distanceTo(newLookAtTarget);
+                            const savedDirectionDistance = cameraDirection.length();
+
+                            console.log(`✓ 相机已跟随模型位置更新（保持相对方向）`);
+                            console.log(`  相机位置变化: x=${oldCameraPos.x.toFixed(3)} -> ${newCameraPos.x.toFixed(3)}, y=${oldCameraPos.y.toFixed(3)} -> ${newCameraPos.y.toFixed(3)}, z=${oldCameraPos.z.toFixed(3)} -> ${newCameraPos.z.toFixed(3)}`);
+                            console.log(`  相机到lookAt目标距离: ${cameraToLookAtDistance.toFixed(3)} (保存的方向向量距离: ${savedDirectionDistance.toFixed(3)})`);
+                            console.log(`  说明: 相机到lookAt目标的距离保持不变，确保视觉视角稳定。模型到相机的直接距离会随模型位置变化，这是正常的。`);
+                            if (Math.abs(cameraToLookAtDistance - savedDirectionDistance) > 0.5) {
+                                console.warn(`  ⚠ 警告：相机到lookAt目标距离已改变！保存的距离=${savedDirectionDistance.toFixed(3)}, 当前距离=${cameraToLookAtDistance.toFixed(3)}`);
+                            } else {
+                                console.log(`  ✓ 相机距离保持稳定（差异 < 0.5单位）`);
+                            }
                         }
                     } else if (hasPositionOffsetChange && hasScaleChangeInOverride) {
                         // 如果同时调整了 scale 和 positionOffset，位置偏移会在 scale 调整的部分应用
-                        console.log("位置偏移将在缩放调整时一起应用");
+                        // 但是，如果 scale 实际上没有改变（被跳过了），我们仍然需要应用位置偏移
+                        // 检查 scale 是否真的改变了（通过检查 currentModelScale 和 newModelScale）
+                        const currentModelScale = modelConfigRef.current?.scale;
+                        const newModelScale = mergedConfig.scale;
+                        const scaleActuallyChanged = currentModelScale !== undefined &&
+                            newModelScale !== undefined &&
+                            Math.abs(currentModelScale - newModelScale) >= 0.001;
+
+                        if (!scaleActuallyChanged) {
+                            // Scale 实际上没有改变，单独应用位置偏移
+                            console.log("Scale 实际上没有改变，单独应用位置偏移");
+                            // 复用位置偏移应用代码
+                            const positionOffset = mergedConfig.positionOffset!;
+                            const currentPosition = model.position.clone();
+                            // 获取旧的 positionOffset（优先使用上次实际应用的值，确保回调时计算正确）
+                            const oldPositionOffset = lastAppliedPositionOffsetRef.current || modelConfigRef.current?.positionOffset || baseConfig?.positionOffset || {
+                                horizontal: 0.2,
+                                vertical: -5.0
+                            };
+
+                            let oldHorizontalOffset = 0;
+                            if (width && height && oldPositionOffset.horizontal !== undefined) {
+                                oldHorizontalOffset = -(width * oldPositionOffset.horizontal);
+                            }
+
+                            const horizontalOffsetPercent = positionOffset.horizontal ?? 0.2;
+                            let newHorizontalOffset = 0;
+                            if (width && height) {
+                                newHorizontalOffset = -(width * horizontalOffsetPercent);
+                            }
+
+                            const horizontalOffsetDelta = newHorizontalOffset - oldHorizontalOffset;
+                            const oldVerticalOffset = oldPositionOffset.vertical ?? -5.0;
+                            const newVerticalOffset = positionOffset.vertical ?? -5.0;
+                            const verticalOffsetDelta = newVerticalOffset - oldVerticalOffset;
+
+                            let modelX = currentPosition.x + horizontalOffsetDelta;
+                            let modelY = currentPosition.y + verticalOffsetDelta;
+                            let modelZ = currentPosition.z;
+
+                            // 如果是飞行单位，需要处理飞行高度
+                            if (character.isFlying) {
+                                const flightHeight = character.flightHeight ?? 0.5;
+                                // 当前 modelY 已经包含了垂直偏移和飞行高度，所以只需要应用变化量即可
+                            }
+
+                            const oldPosition = model.position.clone();
+                            model.position.set(modelX, modelY, modelZ);
+                            model.userData.verticalOffset = newVerticalOffset;
+
+                            // 保存本次实际应用的位置偏移，供下次增量计算使用（确保回调时计算正确）
+                            lastAppliedPositionOffsetRef.current = {
+                                horizontal: horizontalOffsetPercent,
+                                vertical: newVerticalOffset
+                            };
+
+                            console.log(`✓ 重新应用位置偏移（scale未改变）: horizontal=${horizontalOffsetPercent}, vertical=${newVerticalOffset}`);
+                            console.log(`  旧位置: x=${oldPosition.x.toFixed(3)}, y=${oldPosition.y.toFixed(3)}`);
+                            console.log(`  新位置: x=${model.position.x.toFixed(3)}, y=${model.position.y.toFixed(3)}`);
+                            console.log(`  位置变化: x=${(modelX - oldPosition.x).toFixed(3)}, y=${(modelY - oldPosition.y).toFixed(3)}`);
+
+                            // 强制更新场景
+                            if (rendererRef.current && sceneRef.current && cameraRef.current) {
+                                rendererRef.current.render(sceneRef.current, cameraRef.current);
+                            }
+
+                            // 更新相机 lookAt
+                            if (cameraRef.current) {
+                                const cameraConfig = mergedConfig.camera || modelConfigRef.current?.camera || {
+                                    lookAtHeight: 0.25,
+                                    baseDistanceMultiplier: 2.0
+                                };
+                                const modelHeight = model.userData.lastCalculatedSize?.y || 12.7;
+                                const lookAtHeight = modelHeight * (cameraConfig.lookAtHeight || 0.25);
+
+                                if (character.isFlying) {
+                                    const flightHeight = character.flightHeight ?? 0.5;
+                                    const baseYWithoutOffset = model.position.y - flightHeight - newVerticalOffset;
+                                    const referenceTargetY = baseYWithoutOffset + flightHeight + lookAtHeight;
+                                    cameraRef.current.lookAt(model.position.x, referenceTargetY, model.position.z);
+                                } else {
+                                    const baseY = model.position.y - newVerticalOffset;
+                                    const targetY = baseY + lookAtHeight;
+                                    cameraRef.current.lookAt(model.position.x, targetY, model.position.z);
+                                }
+                                cameraRef.current.updateProjectionMatrix();
+                            }
+                        } else {
+                            console.log("位置偏移将在缩放调整时一起应用（scale确实改变了）");
+                        }
                     } else if (!hasPositionOffsetChange) {
                         console.log("位置偏移未改变，跳过位置偏移应用");
+                    } else {
+                        console.log("位置偏移检查完成，但没有满足应用条件");
                     }
 
-                    // 重新调整相机位置（仅相机配置改变时）
-                    if (mergedConfig.camera && cameraRef.current && !mergedConfig.scale && !hasPositionOffsetChange) {
-                        // 如果已经因为缩放重新计算过相机，就不需要再次重新计算包围盒
-                        // 只有在单独调整相机配置时才需要重新计算
-                        const cameraConfig = mergedConfig.camera;
+                    // 检测相机配置是否真的改变了
+                    const baseCameraConfig = baseConfig?.camera || modelConfigRef.current?.camera || {
+                        lookAtHeight: 0.25,
+                        baseDistanceMultiplier: 2.0
+                    };
+                    const overrideCameraConfig = currentOverrideConfig?.camera;
+
+                    const lookAtHeightChanged = overrideCameraConfig?.lookAtHeight !== undefined &&
+                        Math.abs((overrideCameraConfig.lookAtHeight ?? 0.25) - (baseCameraConfig.lookAtHeight ?? 0.25)) > 0.001;
+                    const baseDistanceMultiplierChanged = overrideCameraConfig?.baseDistanceMultiplier !== undefined &&
+                        Math.abs((overrideCameraConfig.baseDistanceMultiplier ?? 2.0) - (baseCameraConfig.baseDistanceMultiplier ?? 2.0)) > 0.001;
+                    const hasCameraChange = lookAtHeightChanged || baseDistanceMultiplierChanged;
+
+                    console.log("相机配置检查:", {
+                        hasCameraChange,
+                        lookAtHeightChanged,
+                        baseDistanceMultiplierChanged,
+                        baseCameraConfig: {
+                            lookAtHeight: baseCameraConfig.lookAtHeight,
+                            baseDistanceMultiplier: baseCameraConfig.baseDistanceMultiplier
+                        },
+                        overrideCameraConfig: overrideCameraConfig ? {
+                            lookAtHeight: overrideCameraConfig.lookAtHeight,
+                            baseDistanceMultiplier: overrideCameraConfig.baseDistanceMultiplier
+                        } : undefined
+                    });
+
+                    // 重新调整相机位置（相机配置改变时）
+                    if (hasCameraChange && cameraRef.current) {
+                        // 使用合并后的相机配置
+                        const cameraConfig = mergedConfig.camera || baseCameraConfig;
 
                         // 尝试使用之前保存的尺寸，如果没有则重新计算
                         let size: THREE.Vector3;
@@ -1476,13 +1820,34 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                             return; // 跳过相机调整，避免模型消失
                         }
 
+                        // 计算基础相机距离（优先使用 baseDistanceMultiplier）
                         let baseDistance = 6;
+                        const multiplier = cameraConfig.baseDistanceMultiplier || 2.0;
+
                         if (width && height) {
                             const cellSize = Math.min(width, height);
-                            const multiplier = cameraConfig.baseDistanceMultiplier || 2.0;
-                            baseDistance = Math.max(modelHeight * multiplier, modelWidth * 1.5, cellSize * 0.8);
+                            // 让 multiplier 同时影响所有距离计算，确保变化明显
+                            // 这样无论哪个值更大，multiplier 的变化都能体现出来
+                            const distanceFromHeight = modelHeight * multiplier;
+                            const distanceFromWidth = modelWidth * multiplier * 0.75;  // 宽度也受 multiplier 影响，但系数较小
+                            const distanceFromCell = cellSize * multiplier * 0.4;     // 格子大小也受 multiplier 影响
+
+                            // 取最大值，确保能看到完整模型
+                            baseDistance = Math.max(distanceFromHeight, distanceFromWidth, distanceFromCell);
+
+                            console.log("相机距离计算（baseDistanceMultiplier变化）:", {
+                                multiplier: multiplier,
+                                modelHeight: modelHeight.toFixed(3),
+                                modelWidth: modelWidth.toFixed(3),
+                                cellSize: cellSize.toFixed(3),
+                                distanceFromHeight: distanceFromHeight.toFixed(3),
+                                distanceFromWidth: distanceFromWidth.toFixed(3),
+                                distanceFromCell: distanceFromCell.toFixed(3),
+                                finalBaseDistance: baseDistance.toFixed(3),
+                                "说明": "所有距离计算都受 multiplier 影响，确保变化明显"
+                            });
                         } else {
-                            baseDistance = Math.max(modelHeight * 3.5, modelWidth * 3, 6);
+                            baseDistance = Math.max(modelHeight * multiplier * 1.75, modelWidth * multiplier * 1.5, 6);
                         }
 
                         // 限制相机距离的最大值，避免异常大的距离
@@ -1493,8 +1858,8 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         }
 
                         const lookAtHeight = modelHeight * (cameraConfig.lookAtHeight || 0.25);
-                        const targetY = model.position.y + lookAtHeight;
 
+                        let finalTargetY: number;
                         if (character.isFlying) {
                             const flightHeight = character.flightHeight ?? 0.5;
                             const verticalOffset = model.userData.verticalOffset || 0;
@@ -1504,6 +1869,7 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
 
                             cameraRef.current.position.set(0, cameraY, baseDistance);
                             cameraRef.current.lookAt(0, referenceTargetY, 0);
+                            finalTargetY = referenceTargetY;
                         } else {
                             const verticalOffset = model.userData.verticalOffset || 0;
                             const baseY = model.position.y - verticalOffset;
@@ -1512,10 +1878,26 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
 
                             cameraRef.current.position.set(0, cameraY, baseDistance);
                             cameraRef.current.lookAt(model.position.x, targetY, model.position.z);
+                            finalTargetY = targetY;
                         }
 
                         cameraRef.current.updateProjectionMatrix();
-                        console.log(`✓ 重新应用相机配置`);
+
+                        // 更新 modelConfigRef 中的相机配置，供下次比较使用
+                        if (!modelConfigRef.current) {
+                            modelConfigRef.current = {} as ModelConfig;
+                        }
+                        modelConfigRef.current.camera = {
+                            ...modelConfigRef.current.camera,
+                            ...cameraConfig
+                        };
+
+                        console.log(`✓ 重新应用相机配置:`, {
+                            lookAtHeight: cameraConfig.lookAtHeight,
+                            baseDistanceMultiplier: cameraConfig.baseDistanceMultiplier,
+                            baseDistance: baseDistance.toFixed(3),
+                            targetY: finalTargetY.toFixed(3)
+                        });
                     }
 
                     console.log("==========================================");
@@ -1566,6 +1948,7 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
 
             // 重置所有 ref，确保每次加载新模型时都会重新保存初始值
             originalCameraDistanceRef.current = null;
+            originalCameraDirectionRef.current = null; // 重置相机方向向量
             originalConfigScaleRef.current = null;
             originalBoundingBoxSizeRef.current = null;
             originalBoundingBoxCenterRef.current = null;
@@ -2529,6 +2912,13 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
             // 保存 verticalOffset 到模型 userData，供飞行单位代码使用
             model.userData.verticalOffset = verticalOffset;
 
+            // 保存初始位置偏移到 ref，供后续增量计算使用（确保回调时计算正确）
+            lastAppliedPositionOffsetRef.current = {
+                horizontal: positionOffset.horizontal,
+                vertical: positionOffset.vertical
+            };
+            console.log(`✓ 保存初始位置偏移到 ref: horizontal=${positionOffset.horizontal}, vertical=${positionOffset.vertical}`);
+
             // 验证：重新计算，确认中心在原点附近
             box = new THREE.Box3().setFromObject(model);
             const finalCenter = box.getCenter(new THREE.Vector3());
@@ -2579,6 +2969,9 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                 originalCameraDistanceRef.current = cameraDistance;
                 console.log(`✓ 保存初始相机距离: ${cameraDistance.toFixed(3)} (scale: ${config.scale ?? 1.0})`);
             }
+
+            // 保存相机相对于 lookAt 目标的初始方向向量（用于位置偏移时保持相机距离）
+            // 注意：这个保存需要在相机位置和 lookAt 都设置完成后进行
 
             // 看向模型中心偏上一点（能看到头部）
             const lookAtHeight = modelHeight * (cameraConfig.lookAtHeight || 0.25);
@@ -2710,8 +3103,9 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         );
                     } else {
                         // 使用自动计算的位置（基于基准位置，不包含垂直偏移）
+                        // 重要：lookAt 目标固定为 (0, targetY, 0)，不跟随模型位置，这样 horizontal 偏移时相机不会移动
                         cameraRef.current.position.set(0, cameraY, cameraDistance);
-                        cameraRef.current.lookAt(model.position.x, targetY, model.position.z);  // lookAt使用基准位置
+                        cameraRef.current.lookAt(0, targetY, 0);  // lookAt固定为(0, targetY, 0)
                     }
                     console.log("非飞行单位相机位置:", {
                         cameraPosition: cameraRef.current.position,
@@ -2721,6 +3115,21 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         modelY: model.position.y,
                         "说明": "相机基于基准位置（不包含垂直偏移），这样垂直偏移改变时视觉上能看到明显变化"
                     });
+
+                    // 保存相机相对于 lookAt 目标的初始方向向量（用于位置偏移时保持相机距离）
+                    // 重要：lookAt 目标应该固定为 (0, targetY, 0)，这样相机不会跟随模型的水平移动
+                    if (originalCameraDirectionRef.current === null) {
+                        const lookAtTarget = new THREE.Vector3(0, targetY, 0);  // 固定为 (0, targetY, 0)，不跟随模型位置
+                        const cameraDirection = new THREE.Vector3().subVectors(cameraRef.current.position, lookAtTarget);
+                        originalCameraDirectionRef.current = cameraDirection.clone();
+                        console.log(`✓ 保存初始相机方向向量:`, {
+                            "相机位置": cameraRef.current.position,
+                            "lookAt目标（固定）": lookAtTarget,
+                            "方向向量": cameraDirection,
+                            "距离": cameraDirection.length().toFixed(3),
+                            "说明": "lookAt目标固定为(0, targetY, 0)，确保horizontal偏移时相机不跟随模型"
+                        });
+                    }
                 }
             }
 

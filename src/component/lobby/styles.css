@@ -183,6 +183,7 @@
   background-color: rgba(250, 19, 85);
   color: white
 }
+
 .nav-control {
   position: absolute;
   top: 0px;
@@ -192,6 +193,7 @@
   justify-content: space-around;
   align-items: center;
 }
+
 .action-control {
   position: absolute;
   bottom: 0px;
@@ -212,6 +214,7 @@
   color: white;
   font-size: 12px;
   margin: 2px;
+  pointer-events: auto;
 }
 
 .plaza-container {

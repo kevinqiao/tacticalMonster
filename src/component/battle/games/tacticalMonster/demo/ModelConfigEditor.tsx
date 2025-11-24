@@ -95,33 +95,12 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
         });
     }, []);
 
-    // 重置为默认值
+    // 重置为默认值（重置为空配置，让模型使用配置文件中的默认值）
     const handleReset = useCallback(() => {
-        const defaultConfig: Partial<ModelConfig> = {
-            scale: 1.0,
-            mirror: false,
-            rotation: {
-                x: 0,
-                y: Math.PI,
-                z: 0
-            },
-            positionOffset: {
-                horizontal: 0.2,
-                vertical: -5.0
-            },
-            camera: {
-                lookAtHeight: 0.25,
-                baseDistanceMultiplier: 2.0
-            },
-            animationExtraction: {
-                strategy: "auto",
-                useFullClip: false,
-                useCachedSegments: true,
-                fps: 30
-            }
-        };
-        setConfig(defaultConfig);
-        onConfigChange(defaultConfig);
+        console.log('重置按钮被点击，重置配置为空对象');
+        const emptyConfig: Partial<ModelConfig> = {};
+        setConfig(emptyConfig);
+        onConfigChange(emptyConfig);
     }, [onConfigChange]);
 
     // 构建配置JSON
@@ -200,28 +179,71 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
     const handleCopyToClipboard = useCallback(async () => {
         try {
             const jsonString = buildConfigJSON();
-            await navigator.clipboard.writeText(jsonString);
-            setCopySuccess(true);
-            setTimeout(() => setCopySuccess(false), 2000);
+            console.log('准备复制JSON:', jsonString);
+
+            // 尝试使用 Clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(jsonString);
+                console.log('✓ JSON已复制到剪贴板');
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 2000);
+            } else {
+                // 降级方案：使用传统方法
+                const textArea = document.createElement('textarea');
+                textArea.value = jsonString;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        console.log('✓ JSON已复制到剪贴板（降级方案）');
+                        setCopySuccess(true);
+                        setTimeout(() => setCopySuccess(false), 2000);
+                    } else {
+                        throw new Error('execCommand failed');
+                    }
+                } catch (err) {
+                    console.error('复制失败:', err);
+                    alert('复制失败，JSON内容已输出到控制台');
+                    console.log('JSON内容:', jsonString);
+                }
+                document.body.removeChild(textArea);
+            }
         } catch (error) {
             console.error('复制失败:', error);
-            alert('复制失败，请手动选择并复制');
+            alert('复制失败，JSON内容已输出到控制台，请手动复制');
+            const jsonString = buildConfigJSON();
+            console.log('JSON内容:', jsonString);
         }
     }, [buildConfigJSON]);
 
     // 下载JSON文件
     const handleDownloadJSON = useCallback(() => {
-        const jsonString = buildConfigJSON();
-        const modelName = modelPath.split('/').pop()?.replace(/\.(glb|gltf|fbx)$/i, '') || 'model';
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `model_config_${modelName}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        try {
+            const jsonString = buildConfigJSON();
+            console.log('准备下载JSON:', jsonString);
+            const modelName = modelPath.split('/').pop()?.replace(/\.(glb|gltf|fbx)$/i, '') || 'model';
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `model_config_${modelName}.json`;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                console.log('✓ JSON文件下载完成');
+            }, 100);
+        } catch (error) {
+            console.error('下载失败:', error);
+            alert('下载失败: ' + (error instanceof Error ? error.message : String(error)));
+        }
     }, [buildConfigJSON, modelPath]);
 
     // 弧度转角度
@@ -229,8 +251,95 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
     // 角度转弧度
     const degreesToRadians = (deg: number) => deg * Math.PI / 180;
 
+    // 使用 ref 直接绑定原生事件
+    const resetButtonRef = useRef<HTMLButtonElement>(null);
+    const copyButtonRef = useRef<HTMLButtonElement>(null);
+    const downloadButtonRef = useRef<HTMLButtonElement>(null);
+
+    // 使用 useEffect 直接绑定原生事件监听器
+    useEffect(() => {
+        const resetBtn = resetButtonRef.current;
+        const copyBtn = copyButtonRef.current;
+        const downloadBtn = downloadButtonRef.current;
+
+        const handlers: Array<() => void> = [];
+
+        if (resetBtn) {
+            const handleResetClick = (e: MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('🟢 原生事件：重置按钮被点击', e);
+                handleReset();
+            };
+            const handleResetMouseDown = (e: MouseEvent) => {
+                e.stopPropagation();
+                console.log('🟢 原生事件：重置按钮 mousedown');
+            };
+            resetBtn.addEventListener('click', handleResetClick, true); // 使用捕获阶段
+            resetBtn.addEventListener('mousedown', handleResetMouseDown, true);
+            handlers.push(() => {
+                resetBtn.removeEventListener('click', handleResetClick, true);
+                resetBtn.removeEventListener('mousedown', handleResetMouseDown, true);
+            });
+        }
+
+        if (copyBtn) {
+            const handleCopyClick = (e: MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('🟢 原生事件：复制按钮被点击', e);
+                handleCopyToClipboard();
+            };
+            const handleCopyMouseDown = (e: MouseEvent) => {
+                e.stopPropagation();
+                console.log('🟢 原生事件：复制按钮 mousedown');
+            };
+            copyBtn.addEventListener('click', handleCopyClick, true);
+            copyBtn.addEventListener('mousedown', handleCopyMouseDown, true);
+            handlers.push(() => {
+                copyBtn.removeEventListener('click', handleCopyClick, true);
+                copyBtn.removeEventListener('mousedown', handleCopyMouseDown, true);
+            });
+        }
+
+        if (downloadBtn) {
+            const handleDownloadClick = (e: MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('🟢 原生事件：下载按钮被点击', e);
+                handleDownloadJSON();
+            };
+            const handleDownloadMouseDown = (e: MouseEvent) => {
+                e.stopPropagation();
+                console.log('🟢 原生事件：下载按钮 mousedown');
+            };
+            downloadBtn.addEventListener('click', handleDownloadClick, true);
+            downloadBtn.addEventListener('mousedown', handleDownloadMouseDown, true);
+            handlers.push(() => {
+                downloadBtn.removeEventListener('click', handleDownloadClick, true);
+                downloadBtn.removeEventListener('mousedown', handleDownloadMouseDown, true);
+            });
+        }
+
+        return () => {
+            handlers.forEach(cleanup => cleanup());
+        };
+    }, [handleReset, handleCopyToClipboard, handleDownloadJSON]);
+
     return (
-        <div className="model-config-editor">
+        <div
+            className="model-config-editor"
+            onClick={(e) => {
+                // 确保编辑器容器不阻止按钮点击
+                e.stopPropagation();
+            }}
+            onMouseDown={(e) => {
+                e.stopPropagation();
+            }}
+        >
             <div className="editor-header">
                 <h3>模型配置编辑器</h3>
                 {onClose && (
@@ -492,14 +601,58 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
             </div>
 
             <div className="editor-footer">
-                <button className="reset-button" onClick={handleReset}>重置</button>
+
                 <button
+                    // ref={resetButtonRef}
+                    // type="button"
+                    className="reset-button"
+                    onClick={(e) => {
+                        // e.preventDefault();
+                        // e.stopPropagation();
+                        console.log('🔵 React事件：重置按钮被点击', e);
+                        try {
+                            handleReset();
+                        } catch (error) {
+                            console.error('重置失败:', error);
+                        }
+                    }}
+
+                >
+                    重置
+                </button>
+                <button
+                    type="button"
                     className={`copy-button ${copySuccess ? 'success' : ''}`}
-                    onClick={handleCopyToClipboard}
+                    onClick={(e) => {
+                        console.log('🔵 React事件：复制JSON按钮被点击', e);
+                        try {
+                            handleCopyToClipboard();
+                        } catch (error) {
+                            console.error('复制失败:', error);
+                        }
+                    }}
+
                 >
                     {copySuccess ? '✓ 已复制' : '复制JSON'}
                 </button>
-                <button className="download-button" onClick={handleDownloadJSON}>下载JSON</button>
+                <button
+
+                    type="button"
+                    className="download-button"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('🔵 React事件：下载JSON按钮被点击', e);
+                        try {
+                            handleDownloadJSON();
+                        } catch (error) {
+                            console.error('下载失败:', error);
+                        }
+                    }}
+
+                >
+                    下载JSON
+                </button>
             </div>
         </div>
     );
