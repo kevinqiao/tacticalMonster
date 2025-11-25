@@ -194,106 +194,86 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
         console.log('✓ 重置完成，配置已恢复到初始值');
     }, [onConfigChange, initialConfig, config]);
 
-    // 构建配置JSON
+    // 构建配置JSON（导出完整的配置，包括所有配置项）
     const buildConfigJSON = useCallback(() => {
         const modelName = modelPath.split('/').pop()?.replace(/\.(glb|gltf|fbx)$/i, '') || 'model';
 
-        // 构建只包含非默认值的配置
+        // 构建完整的配置对象（包含所有配置项，不仅是非默认值）
         const configToExport: Partial<ModelConfig> = {};
 
-        if (config.scale !== undefined && config.scale !== 1.0) {
+        // 导出所有配置项，不管是否是默认值
+        if (config.scale !== undefined) {
             configToExport.scale = config.scale;
         }
-        if (config.mirror !== undefined && config.mirror !== false) {
+        if (config.mirror !== undefined) {
             configToExport.mirror = config.mirror;
         }
         if (config.rotation) {
             const rotation = config.rotation;
             if (rotation.x !== undefined || rotation.y !== undefined || rotation.z !== undefined) {
                 configToExport.rotation = {};
-                if (rotation.x !== undefined && rotation.x !== 0) configToExport.rotation.x = rotation.x;
-                if (rotation.y !== undefined && rotation.y !== Math.PI) configToExport.rotation.y = rotation.y;
-                if (rotation.z !== undefined && rotation.z !== 0) configToExport.rotation.z = rotation.z;
-                if (Object.keys(configToExport.rotation).length === 0) delete configToExport.rotation;
+                if (rotation.x !== undefined) configToExport.rotation.x = rotation.x;
+                if (rotation.y !== undefined) configToExport.rotation.y = rotation.y;
+                if (rotation.z !== undefined) configToExport.rotation.z = rotation.z;
             }
         }
         if (config.positionOffset) {
             const pos = config.positionOffset;
-            const hasCustomHorizontal = pos.horizontal !== undefined && pos.horizontal !== 0.2;
-            const hasCustomVertical = pos.vertical !== undefined && pos.vertical !== -5.0;
-
-            if (hasCustomHorizontal || hasCustomVertical) {
-                const positionOffset: Partial<PositionOffsetConfig> = {};
-                if (hasCustomHorizontal) positionOffset.horizontal = pos.horizontal;
-                if (hasCustomVertical) positionOffset.vertical = pos.vertical;
-                // 只有当至少有一个值不是默认值时才添加
-                if (hasCustomHorizontal || hasCustomVertical) {
-                    configToExport.positionOffset = positionOffset as PositionOffsetConfig;
-                }
+            if (pos.horizontal !== undefined || pos.vertical !== undefined) {
+                configToExport.positionOffset = {};
+                if (pos.horizontal !== undefined) configToExport.positionOffset.horizontal = pos.horizontal;
+                if (pos.vertical !== undefined) configToExport.positionOffset.vertical = pos.vertical;
             }
         }
         if (config.camera) {
             const cam = config.camera;
-            if (cam.lookAtHeight !== undefined && cam.lookAtHeight !== 0.25 || cam.baseDistanceMultiplier !== undefined && cam.baseDistanceMultiplier !== 2.0) {
+            if (cam.lookAtHeight !== undefined || cam.baseDistanceMultiplier !== undefined) {
                 configToExport.camera = {};
-                if (cam.lookAtHeight !== undefined && cam.lookAtHeight !== 0.25) configToExport.camera.lookAtHeight = cam.lookAtHeight;
-                if (cam.baseDistanceMultiplier !== undefined && cam.baseDistanceMultiplier !== 2.0) configToExport.camera.baseDistanceMultiplier = cam.baseDistanceMultiplier;
-                if (Object.keys(configToExport.camera).length === 0) delete configToExport.camera;
+                if (cam.lookAtHeight !== undefined) configToExport.camera.lookAtHeight = cam.lookAtHeight;
+                if (cam.baseDistanceMultiplier !== undefined) configToExport.camera.baseDistanceMultiplier = cam.baseDistanceMultiplier;
             }
         }
         if (config.animationExtraction) {
             const anim = config.animationExtraction;
-            const hasCustomStrategy = anim.strategy !== undefined && anim.strategy !== "auto";
-            const hasCustomUseFullClip = anim.useFullClip !== undefined && anim.useFullClip !== false;
-            const hasCustomUseCachedSegments = anim.useCachedSegments !== undefined && anim.useCachedSegments !== true;
-            const hasCustomFps = anim.fps !== undefined && anim.fps !== 30;
+            const animationExtraction: Partial<AnimationExtractionConfig> = {};
             
-            // 检查是否有自定义的阈值参数
-            const thresholds = anim.autoExtractionThresholds;
-            const hasCustomThresholds = thresholds && (
-                (thresholds.minDuration !== undefined && thresholds.minDuration !== 5.0) ||
-                (thresholds.minTracks !== undefined && thresholds.minTracks !== 50) ||
-                (thresholds.defaultStandEnd !== undefined && thresholds.defaultStandEnd !== 2.0) ||
-                (thresholds.defaultStandEndPercent !== undefined && thresholds.defaultStandEndPercent !== 0.1) ||
-                (thresholds.minFrameCount !== undefined && thresholds.minFrameCount !== 10)
-            );
-
-            if (hasCustomStrategy || hasCustomUseFullClip || hasCustomUseCachedSegments || hasCustomFps || hasCustomThresholds) {
-                const animationExtraction: Partial<AnimationExtractionConfig> = {};
-                if (hasCustomStrategy && anim.strategy !== undefined) animationExtraction.strategy = anim.strategy;
-                if (hasCustomUseFullClip && anim.useFullClip !== undefined) animationExtraction.useFullClip = anim.useFullClip;
-                if (hasCustomUseCachedSegments && anim.useCachedSegments !== undefined) animationExtraction.useCachedSegments = anim.useCachedSegments;
-                if (hasCustomFps && anim.fps !== undefined) animationExtraction.fps = anim.fps;
-                
-                // 添加阈值参数（如果有自定义值）
-                if (hasCustomThresholds && thresholds) {
-                    animationExtraction.autoExtractionThresholds = {};
-                    if (thresholds.minDuration !== undefined && thresholds.minDuration !== 5.0) {
-                        animationExtraction.autoExtractionThresholds.minDuration = thresholds.minDuration;
-                    }
-                    if (thresholds.minTracks !== undefined && thresholds.minTracks !== 50) {
-                        animationExtraction.autoExtractionThresholds.minTracks = thresholds.minTracks;
-                    }
-                    if (thresholds.defaultStandEnd !== undefined && thresholds.defaultStandEnd !== 2.0) {
-                        animationExtraction.autoExtractionThresholds.defaultStandEnd = thresholds.defaultStandEnd;
-                    }
-                    if (thresholds.defaultStandEndPercent !== undefined && thresholds.defaultStandEndPercent !== 0.1) {
-                        animationExtraction.autoExtractionThresholds.defaultStandEndPercent = thresholds.defaultStandEndPercent;
-                    }
-                    if (thresholds.minFrameCount !== undefined && thresholds.minFrameCount !== 10) {
-                        animationExtraction.autoExtractionThresholds.minFrameCount = thresholds.minFrameCount;
-                    }
-                    
-                    // 如果阈值对象为空，删除它
-                    if (Object.keys(animationExtraction.autoExtractionThresholds).length === 0) {
-                        delete animationExtraction.autoExtractionThresholds;
-                    }
+            if (anim.strategy !== undefined) {
+                animationExtraction.strategy = anim.strategy;
+            }
+            if (anim.useFullClip !== undefined) {
+                animationExtraction.useFullClip = anim.useFullClip;
+            }
+            if (anim.useCachedSegments !== undefined) {
+                animationExtraction.useCachedSegments = anim.useCachedSegments;
+            }
+            if (anim.fps !== undefined) {
+                animationExtraction.fps = anim.fps;
+            }
+            
+            // 添加阈值参数（如果存在）
+            if (anim.autoExtractionThresholds) {
+                const thresholds = anim.autoExtractionThresholds;
+                animationExtraction.autoExtractionThresholds = {};
+                if (thresholds.minDuration !== undefined) {
+                    animationExtraction.autoExtractionThresholds.minDuration = thresholds.minDuration;
                 }
-                
-                // 只有当至少有一个值不是默认值时才添加
-                if (hasCustomStrategy || hasCustomUseFullClip || hasCustomUseCachedSegments || hasCustomFps || hasCustomThresholds) {
-                    configToExport.animationExtraction = animationExtraction as any;
+                if (thresholds.minTracks !== undefined) {
+                    animationExtraction.autoExtractionThresholds.minTracks = thresholds.minTracks;
                 }
+                if (thresholds.defaultStandEnd !== undefined) {
+                    animationExtraction.autoExtractionThresholds.defaultStandEnd = thresholds.defaultStandEnd;
+                }
+                if (thresholds.defaultStandEndPercent !== undefined) {
+                    animationExtraction.autoExtractionThresholds.defaultStandEndPercent = thresholds.defaultStandEndPercent;
+                }
+                if (thresholds.minFrameCount !== undefined) {
+                    animationExtraction.autoExtractionThresholds.minFrameCount = thresholds.minFrameCount;
+                }
+            }
+            
+            // 如果至少有一个字段，就添加到配置中
+            if (Object.keys(animationExtraction).length > 0) {
+                configToExport.animationExtraction = animationExtraction as any;
             }
         }
         

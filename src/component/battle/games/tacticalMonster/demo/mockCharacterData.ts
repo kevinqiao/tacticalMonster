@@ -300,8 +300,8 @@ export const mockCharacters: GameCharacter[] = [
         asset: {
             type: ASSET_TYPE.FBX,
             resource: {
-                fbx: "/assets/3d/characters/wukong.fbx",
-                glb: "/assets/3d/characters/akedia/model/akedia.glb"
+                fbx: "/assets/3d/characters/wukong/model/wukong.fbx",
+                glb: "/assets/3d/characters/wukong/model/wukong.glb"
             }
         }
     },
@@ -339,86 +339,8 @@ export const mockCharacters: GameCharacter[] = [
         asset: {
             type: ASSET_TYPE.FBX,
             resource: {
-                fbx: "/assets/3d/characters/yeti.fbx",
-                glb: "/assets/3d/characters/yeti/model/yeti.glb"
-            }
-        }
-    },
-    {
-        character_id: "char_demo_3",
-        uid: "demo",
-        name: "Akedia",
-        class: "战士",
-        race: "人类",
-        level: 12,
-        experience: 800,
-        q: 0,
-        r: 0,
-        scaleX: 1.2,
-        attributes: {
-            strength: 16,
-            dexterity: 14,
-            constitution: 15,
-            intelligence: 10,
-            wisdom: 11,
-            charisma: 13
-        },
-        stats: {
-            hp: { current: 120, max: 120 },
-            mp: { current: 60, max: 60 },
-            stamina: 90,
-            attack: 22,
-            defense: 14,
-            speed: 16,
-            crit_rate: 0.18,
-            evasion: 0.12
-        },
-        move_range: 3,
-        attack_range: { min: 1, max: 2 },
-        asset: {
-            type: ASSET_TYPE.GLTF,
-            resource: {
-                glb: "/assets/3d/characters/akedia/model/akedia.glb",
-                fbx: "/assets/3d/characters/akedia/model/akedia.FBX"
-            }
-        }
-    },
-    {
-        character_id: "char_demo_4",
-        uid: "demo",
-        name: "Yeti",
-        class: "坦克",
-        race: "雪人",
-        level: 15,
-        experience: 1200,
-        q: 0,
-        r: 0,
-        scaleX: 1.5,
-        attributes: {
-            strength: 20,
-            dexterity: 8,
-            constitution: 18,
-            intelligence: 6,
-            wisdom: 8,
-            charisma: 7
-        },
-        stats: {
-            hp: { current: 150, max: 150 },
-            mp: { current: 40, max: 40 },
-            stamina: 70,
-            attack: 25,
-            defense: 18,
-            speed: 8,
-            crit_rate: 0.1,
-            evasion: 0.05
-        },
-        move_range: 2,
-        attack_range: { min: 1, max: 1 },
-        asset: {
-            type: ASSET_TYPE.FBX,
-            resource: {
                 glb: "/assets/3d/characters/yeti/model/yeti.glb",
-                fbx: "/assets/3d/characters/yeti/model/yeti.FBX"
+                fbx: "/assets/3d/characters/yeti/model/yeti.fbx"
             }
         }
     },
