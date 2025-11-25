@@ -662,31 +662,106 @@ function analyzeAnimationSegments(clip: THREE.AnimationClip): AnimationSegment[]
     }
 
     // 5.2 找到move片段（速度高且持续向前）
-    // move通常从stand结束后开始
+    // move通常从stand结束后开始，并且是循环的
     const standEndTime = standEnd > 0 ? standEnd : segmentSize;
     let moveStart = standEndTime;
     let moveEnd = moveStart;
+    let moveSegmentsFound: Array<{ startTime: number; endTime: number; isCyclic: boolean; avgSpeed: number }> = [];
+    
+    // 查找所有可能的move片段（高速度的连续片段）
     for (const seg of segmentData) {
-        if (seg.startTime < moveStart) continue;
-        if (seg.avgSpeed > 1.0 && !seg.isCyclic) {
-            // 高速度且不循环，可能是move
-            if (moveStart === standEndTime) {
-                moveStart = seg.startTime;
-            }
-            moveEnd = seg.endTime;
-        } else if (seg.avgSpeed < 0.3 && seg.isCyclic) {
-            // 如果速度降低且循环，可能是move结束了
-            break;
+        if (seg.startTime < standEndTime) continue;
+        // move的特征：速度较高（> 0.8），且有明显位移
+        if (seg.avgSpeed > 0.8 && seg.maxDisplacement > 0.3) {
+            moveSegmentsFound.push(seg);
         }
     }
-
-    if (moveEnd > moveStart) {
-        segments.push({
-            name: 'move',
-            start: moveStart,
-            end: moveEnd,
-            confidence: 0.7
-        });
+    
+    // 如果找到了move片段
+    if (moveSegmentsFound.length > 0) {
+        moveStart = moveSegmentsFound[0].startTime;
+        
+        // 查找第一个循环周期
+        // move动画通常是循环的，我们需要找到第一个完整的循环
+        // 方法：查找位置回到起点的第一个片段，或者找到速度模式重复的点
+        
+        // 策略1：查找循环点（位置回到起点附近）
+        let firstCycleEnd = moveStart;
+        const startPos = positions.find(p => Math.abs(p.time - moveStart) < 0.1);
+        
+        if (startPos) {
+            // 查找后续片段中位置接近起点的第一个点（完成一个循环）
+            for (let i = 1; i < moveSegmentsFound.length; i++) {
+                const seg = moveSegmentsFound[i];
+                const segmentPositions = positions.filter(p => p.time >= seg.startTime && p.time < seg.endTime);
+                if (segmentPositions.length > 0) {
+                    const lastPos = segmentPositions[segmentPositions.length - 1];
+                    const distanceToStart = Math.sqrt(
+                        Math.pow(lastPos.x - startPos.x, 2) +
+                        Math.pow(lastPos.y - startPos.y, 2) +
+                        Math.pow(lastPos.z - startPos.z, 2)
+                    );
+                    
+                    // 如果位置接近起点（< 0.2），说明完成了一个循环
+                    if (distanceToStart < 0.2 && seg.endTime - moveStart >= 0.8) {
+                        firstCycleEnd = seg.endTime;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // 如果没找到循环点，使用策略2：基于速度模式
+        if (firstCycleEnd === moveStart) {
+            // 查找速度模式的重复（前几个片段的速度序列）
+            // 简化：如果move是循环的，通常前几个片段的速度会有周期性
+            // 但为了简单，我们限制move片段的最大长度为3秒（一个合理的循环长度）
+            let maxMoveDuration = 3.0; // 最大3秒
+            
+            // 如果片段是循环的，限制为2秒（一个循环周期）
+            for (const seg of moveSegmentsFound) {
+                if (seg.isCyclic && seg.startTime >= moveStart) {
+                    if (seg.endTime - moveStart <= maxMoveDuration) {
+                        firstCycleEnd = seg.endTime;
+                    } else {
+                        // 如果超过了最大长度，使用前maxMoveDuration秒
+                        firstCycleEnd = Math.min(moveStart + maxMoveDuration, seg.endTime);
+                        break;
+                    }
+                } else if (seg.endTime - moveStart <= maxMoveDuration) {
+                    firstCycleEnd = seg.endTime;
+                } else {
+                    // 如果超过了最大长度，使用前maxMoveDuration秒
+                    firstCycleEnd = moveStart + maxMoveDuration;
+                    break;
+                }
+            }
+        }
+        
+        // 确保move片段有合理的长度
+        const moveDuration = firstCycleEnd - moveStart;
+        if (moveDuration >= 0.8 && moveDuration <= 5.0) { // 0.8-5秒是合理的move片段长度
+            moveEnd = firstCycleEnd;
+        } else if (moveDuration > 5.0) {
+            // 如果识别出的move片段太长，可能是识别错误，限制为3秒
+            moveEnd = moveStart + 3.0;
+            console.warn(`⚠ Move片段识别过长 (${moveDuration.toFixed(2)}s)，限制为3秒`);
+        } else {
+            // 如果太短，尝试延长到至少1秒
+            const extendedEnd = Math.min(moveStart + 1.0, duration);
+            if (extendedEnd - moveStart >= 0.8) {
+                moveEnd = extendedEnd;
+            }
+        }
+        
+        if (moveEnd > moveStart && moveEnd <= duration) {
+            segments.push({
+                name: 'move',
+                start: moveStart,
+                end: moveEnd,
+                confidence: 0.7
+            });
+        }
     }
 
     // 5.3 找到attack片段（速度中等，短暂前冲后回到原点）
@@ -715,17 +790,233 @@ function analyzeAnimationSegments(clip: THREE.AnimationClip): AnimationSegment[]
         });
     }
 
+    // 5.4 识别其他动作类型
+    // 分析剩余的时间段，识别更多动作类型
+    
+    // 已识别的时间段
+    const identifiedRanges: Array<{ start: number; end: number }> = [];
+    segments.forEach(seg => {
+        identifiedRanges.push({ start: seg.start, end: seg.end });
+    });
+    
+    // 按开始时间排序
+    identifiedRanges.sort((a, b) => a.start - b.start);
+    
+    // 查找未识别的时间段
+    const findUnidentifiedSegments = (startTime: number, endTime: number): Array<{ start: number; end: number; type: string; confidence: number }> => {
+        const results: Array<{ start: number; end: number; type: string; confidence: number }> = [];
+        
+        // 获取该时间段内的segment数据
+        const relevantSegments = segmentData.filter(seg => 
+            seg.startTime >= startTime && seg.endTime <= endTime
+        );
+        
+        if (relevantSegments.length === 0) return results;
+        
+        // 计算该时间段的特征
+        const avgSpeed = relevantSegments.reduce((sum, seg) => sum + seg.avgSpeed, 0) / relevantSegments.length;
+        const maxDisplacement = Math.max(...relevantSegments.map(seg => seg.maxDisplacement));
+        const cyclicCount = relevantSegments.filter(seg => seg.isCyclic).length;
+        const cyclicRatio = cyclicCount / relevantSegments.length;
+        const segmentDuration = endTime - startTime;
+        
+        // 识别动作类型
+        // 1. Skill/Cast（技能/施法）：速度低，有循环，持续时间中等（1-3秒）
+        if (avgSpeed < 0.3 && cyclicRatio > 0.5 && segmentDuration >= 1.0 && segmentDuration <= 3.5) {
+            results.push({
+                start: startTime,
+                end: endTime,
+                type: 'skill',
+                confidence: 0.7
+            });
+        }
+        // 2. Die（死亡）：速度逐渐降低到0，不循环，持续时间较长（2-5秒）
+        else if (avgSpeed < 0.2 && cyclicRatio < 0.3 && segmentDuration >= 2.0 && segmentDuration <= 5.0) {
+            // 检查速度是否逐渐降低
+            const speeds = relevantSegments.map(seg => seg.avgSpeed);
+            let isDecreasing = true;
+            for (let i = 1; i < speeds.length; i++) {
+                if (speeds[i] > speeds[i-1] + 0.1) {
+                    isDecreasing = false;
+                    break;
+                }
+            }
+            if (isDecreasing) {
+                results.push({
+                    start: startTime,
+                    end: endTime,
+                    type: 'die',
+                    confidence: 0.65
+                });
+            }
+        }
+        // 3. Hurt（受伤）：短暂快速后退，然后恢复，持续时间短（0.5-1.5秒）
+        else if (avgSpeed > 1.5 && segmentDuration >= 0.5 && segmentDuration <= 1.5 && maxDisplacement > 0.3) {
+            results.push({
+                start: startTime,
+                end: endTime,
+                type: 'hurt',
+                confidence: 0.6
+            });
+        }
+        // 4. Defend（防御）：速度低，循环，持续时间中等（1-2秒）
+        else if (avgSpeed < 0.4 && cyclicRatio > 0.6 && segmentDuration >= 1.0 && segmentDuration <= 2.5) {
+            results.push({
+                start: startTime,
+                end: endTime,
+                type: 'defend',
+                confidence: 0.65
+            });
+        }
+        // 5. Victory（胜利）：速度低，循环，持续时间较长（2-4秒）
+        else if (avgSpeed < 0.3 && cyclicRatio > 0.7 && segmentDuration >= 2.0 && segmentDuration <= 4.0) {
+            results.push({
+                start: startTime,
+                end: endTime,
+                type: 'victory',
+                confidence: 0.7
+            });
+        }
+        // 6. Cast（施法）：速度很低，有轻微位移，持续时间中等（1.5-3秒）
+        else if (avgSpeed < 0.2 && maxDisplacement > 0.1 && maxDisplacement < 0.5 && segmentDuration >= 1.5 && segmentDuration <= 3.0) {
+            results.push({
+                start: startTime,
+                end: endTime,
+                type: 'cast',
+                confidence: 0.6
+            });
+        }
+        // 7. Jump（跳跃）：速度突然增加然后降低，有明显Y轴位移
+        else if (avgSpeed > 1.0 && maxDisplacement > 0.5 && segmentDuration >= 0.8 && segmentDuration <= 2.0) {
+            // 检查是否有明显的Y轴变化（跳跃特征）
+            const startPos = positions.find(p => Math.abs(p.time - startTime) < 0.1);
+            const endPos = positions.find(p => Math.abs(p.time - endTime) < 0.1);
+            if (startPos && endPos) {
+                const yChange = Math.abs(endPos.y - startPos.y);
+                if (yChange > 0.2) {
+                    results.push({
+                        start: startTime,
+                        end: endTime,
+                        type: 'jump',
+                        confidence: 0.65
+                    });
+                }
+            }
+        }
+        
+        return results;
+    };
+    
+    // 查找所有未识别的时间段
+    let lastEnd = 0;
+    for (const range of identifiedRanges) {
+        if (range.start > lastEnd) {
+            // 找到未识别的时间段
+            const unidentified = findUnidentifiedSegments(lastEnd, range.start);
+            unidentified.forEach(seg => {
+                segments.push({
+                    name: seg.type,
+                    start: seg.start,
+                    end: seg.end,
+                    confidence: seg.confidence
+                });
+            });
+        }
+        lastEnd = Math.max(lastEnd, range.end);
+    }
+    
+    // 检查最后一段（从最后一个已识别片段到clip结束）
+    if (lastEnd < duration) {
+        const unidentified = findUnidentifiedSegments(lastEnd, duration);
+        unidentified.forEach(seg => {
+            segments.push({
+                name: seg.type,
+                start: seg.start,
+                end: seg.end,
+                confidence: seg.confidence
+            });
+        });
+    }
+    
+    // 按开始时间排序segments
+    segments.sort((a, b) => a.start - b.start);
+
+    // 确保始终包含4个核心动作：stand, move, attack, die
+    // 如果某个动作没有被识别，添加一个默认的时间范围以便手工调整
+    const requiredActions = ['stand', 'move', 'attack', 'die'];
+    const identifiedActionNames = segments.map(s => s.name);
+    
+    requiredActions.forEach(actionName => {
+        if (!identifiedActionNames.includes(actionName)) {
+            // 为未识别的动作添加默认时间范围
+            let defaultStart = 0;
+            let defaultEnd = 0;
+            let defaultConfidence = 0.1; // 低置信度，表示这是默认值
+            
+            switch (actionName) {
+                case 'stand':
+                    // stand 默认在开头（0-2秒）
+                    defaultStart = 0;
+                    defaultEnd = Math.min(2.0, duration * 0.1);
+                    break;
+                case 'move':
+                    // move 默认在 stand 之后（2-4秒）
+                    const standEnd = segments.find(s => s.name === 'stand')?.end || 2.0;
+                    defaultStart = standEnd;
+                    defaultEnd = Math.min(standEnd + 2.0, duration * 0.4);
+                    break;
+                case 'attack':
+                    // attack 默认在 move 之后（4-6秒）
+                    const moveEnd = segments.find(s => s.name === 'move')?.end || duration * 0.4;
+                    defaultStart = moveEnd;
+                    defaultEnd = Math.min(moveEnd + 2.0, duration * 0.7);
+                    break;
+                case 'die':
+                    // die 默认在最后（80%-100%）
+                    defaultStart = duration * 0.8;
+                    defaultEnd = duration;
+                    break;
+            }
+            
+            // 确保时间范围有效
+            if (defaultEnd > defaultStart && defaultEnd <= duration) {
+                segments.push({
+                    name: actionName,
+                    start: defaultStart,
+                    end: defaultEnd,
+                    confidence: defaultConfidence
+                });
+                console.log(`⚠ 未识别到 ${actionName} 动作，添加默认时间范围: ${defaultStart.toFixed(2)}s - ${defaultEnd.toFixed(2)}s (置信度: ${defaultConfidence.toFixed(2)})`);
+            }
+        }
+    });
+    
+    // 再次按开始时间排序
+    segments.sort((a, b) => a.start - b.start);
+
     // 输出分析结果
     console.log('========== 动画片段分析结果 ==========');
     console.log(`总时长: ${duration.toFixed(2)}s, 分析片段数: ${segmentData.length}`);
-    if (segments.length > 0) {
-        console.log('识别到的动画片段:');
-        segments.forEach(seg => {
+    console.log('核心动作列表（始终包含4个动作）:');
+    requiredActions.forEach(actionName => {
+        const seg = segments.find(s => s.name === actionName);
+        if (seg) {
+            const status = seg.confidence > 0.5 ? '✓' : '⚠';
+            console.log(`  ${status} ${seg.name}: ${seg.start.toFixed(2)}s - ${seg.end.toFixed(2)}s (置信度: ${seg.confidence.toFixed(2)})`);
+        } else {
+            console.log(`  ✗ ${actionName}: 未找到`);
+        }
+    });
+    
+    // 如果还有其他识别到的动作，也显示出来
+    const otherSegments = segments.filter(s => !requiredActions.includes(s.name));
+    if (otherSegments.length > 0) {
+        console.log('其他识别到的动作:');
+        otherSegments.forEach(seg => {
             console.log(`  - ${seg.name}: ${seg.start.toFixed(2)}s - ${seg.end.toFixed(2)}s (置信度: ${seg.confidence.toFixed(2)})`);
         });
-    } else {
-        console.log('未识别到动画片段');
     }
+    
     console.log('片段数据详情（前10个）:', segmentData.slice(0, 10));
     console.log('=====================================');
 
@@ -733,7 +1024,7 @@ function analyzeAnimationSegments(clip: THREE.AnimationClip): AnimationSegment[]
 }
 
 
-const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig, onConfigReady }: ICharacterProps) => {
+const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig, onConfigReady, onPreviewSegment }: ICharacterProps) => {
     const mountRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<THREE.Scene>();
     const cameraRef = useRef<THREE.PerspectiveCamera>();
@@ -882,6 +1173,8 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
     const originalCameraDirectionRef = useRef<THREE.Vector3 | null>(null); // 存储初始加载时相机相对于 lookAt 目标的方向向量（用于保持相对位置）
     const lastAppliedConfigRef = useRef<string>(''); // 存储上次应用的配置，用于避免重复应用
     const lastAppliedPositionOffsetRef = useRef<{ horizontal?: number; vertical?: number } | null>(null); // 存储上次实际应用的位置偏移（用于增量计算）
+    const analyzedClipRef = useRef<THREE.AnimationClip | null>(null); // 存储分析过的动画clip，用于预览
+    const previewActionRef = useRef<THREE.AnimationAction | null>(null); // 存储预览动画action
 
     useEffect(() => {
         overrideConfigRef.current = overrideConfig;
@@ -890,17 +1183,25 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
     // 当 overrideConfig 改变时，重新应用配置到已加载的模型
     useEffect(() => {
         // 只在模型已加载且配置真的改变时才重新应用
-        // 如果 overrideConfig 为空对象，说明是重置配置，不需要重新应用
+        // 如果 overrideConfig 为空对象，说明是重置配置，需要重新应用基础配置
         if (!modelRef.current || !modelConfigRef.current) return;
-        if (!overrideConfig || Object.keys(overrideConfig).length === 0) {
-            lastAppliedConfigRef.current = '';
+        
+        // 处理空配置的情况：重置时应该重新应用基础配置
+        const isEmptyConfig = !overrideConfig || Object.keys(overrideConfig).length === 0;
+        const configString = isEmptyConfig ? '{}' : JSON.stringify(overrideConfig);
+        
+        // 如果配置没有变化，跳过
+        if (configString === lastAppliedConfigRef.current) {
             return;
         }
-
-        // 使用 JSON.stringify 比较配置是否真的改变
-        const configString = JSON.stringify(overrideConfig);
-        if (configString === lastAppliedConfigRef.current) {
-            // 配置没有变化，跳过
+        
+        // 如果是空配置，需要重新应用基础配置
+        if (isEmptyConfig) {
+            lastAppliedConfigRef.current = '{}';
+            // 空配置意味着使用基础配置，不合并任何覆盖
+            // 这里我们需要重新应用基础配置，但逻辑较复杂
+            // 暂时跳过，因为重置时应该传递初始配置而不是空对象
+            console.log("⚠ 收到空配置，但应该传递初始配置进行重置");
             return;
         }
 
@@ -908,11 +1209,18 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
         const timeoutId = setTimeout(() => {
             // 再次检查配置是否改变（防抖期间可能又变了）
             const currentConfigString = JSON.stringify(overrideConfig);
+            
+            // 如果配置字符串相同，通常跳过重新应用
+            // 但是，为了支持重置功能（用户修改后又改回初始值），我们需要检查：
+            // 1. 如果当前配置和已应用的配置在值上确实相同，可以跳过
+            // 2. 但如果用户期望重置（比如从修改后的配置改回初始配置），应该重新应用
+            // 为了简化，我们总是重新应用（因为重新应用的逻辑会检查值是否真的改变）
             if (currentConfigString === lastAppliedConfigRef.current) {
-                return; // 配置又变回去了，不需要应用
+                console.log("⚠ 配置字符串相同，但为了确保重置功能正常，仍然重新应用以检查值是否真的改变");
+                // 不 return，继续执行重新应用（applyOverrideConfig 内部会检查值是否真的改变）
             }
 
-            // 记录即将应用的配置
+            // 记录即将应用的配置（在重新应用之前记录，避免重复应用）
             lastAppliedConfigRef.current = currentConfigString;
 
             // 加载当前配置和覆盖配置，合并后重新应用
@@ -942,6 +1250,16 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                     // 重新加载基础配置
                     const baseConfig = await loadModelConfig(modelPath, false);
                     const currentOverrideConfig = overrideConfigRef.current || overrideConfig;
+                    
+                    // 检查是否是重置操作（通过检查是否有 __resetTrigger 属性）
+                    const isResetOperation = (currentOverrideConfig as any)?.__resetTrigger !== undefined;
+                    
+                    // 如果是重置操作，移除临时标记
+                    let cleanOverrideConfig = currentOverrideConfig;
+                    if (isResetOperation && cleanOverrideConfig) {
+                        const { __resetTrigger, ...rest } = cleanOverrideConfig as any;
+                        cleanOverrideConfig = rest;
+                    }
 
                     // 合并配置
                     if (!modelConfigRef.current) {
@@ -949,14 +1267,16 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         return;
                     }
 
-                    const mergedConfig: ModelConfig = currentOverrideConfig
-                        ? deepMerge(baseConfig || modelConfigRef.current, currentOverrideConfig)
+                    const mergedConfig: ModelConfig = cleanOverrideConfig
+                        ? deepMerge(baseConfig || modelConfigRef.current, cleanOverrideConfig)
                         : (baseConfig || modelConfigRef.current);
 
                     const model = modelRef.current!;
 
                     console.log("========== 重新应用配置（overrideConfig变化） ==========");
                     console.log("overrideConfig:", overrideConfig);
+                    console.log("cleanOverrideConfig:", cleanOverrideConfig);
+                    console.log("isResetOperation:", isResetOperation);
                     console.log("合并后的配置:", mergedConfig);
                     console.log("模型是否已加载:", !!modelRef.current);
                     console.log("模型配置是否已加载:", !!modelConfigRef.current);
@@ -964,7 +1284,7 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
 
                     // 检查 overrideConfig 中是否真的改变了 scale（值比较）
                     // 只有当 overrideConfig 明确包含 scale 且值真正改变时才重新应用
-                    const overrideScaleValue = currentOverrideConfig?.scale;
+                    const overrideScaleValue = cleanOverrideConfig?.scale;
                     const currentAppliedScaleForCheck = modelConfigRef.current?.scale ?? (baseConfig?.scale ?? 1.0);
                     const scaleActuallyChangedInOverride = overrideScaleValue !== undefined &&
                         Math.abs(overrideScaleValue - currentAppliedScaleForCheck) > 0.001;
@@ -973,11 +1293,15 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         overrideScaleValue,
                         currentAppliedScaleForCheck,
                         scaleActuallyChangedInOverride,
-                        "说明": scaleActuallyChangedInOverride ? "Scale 值改变了，将重新应用" : "Scale 值未改变，跳过重新应用"
+                        isResetOperation,
+                        "说明": scaleActuallyChangedInOverride || isResetOperation 
+                            ? "Scale 值改变了或是重置操作，将重新应用" 
+                            : "Scale 值未改变，跳过重新应用"
                     });
 
-                    // 重新应用缩放 - 只有 scale 真正改变时才应用
-                    if (scaleActuallyChangedInOverride && mergedConfig.scale !== undefined && mergedConfig.scale !== null) {
+                    // 重新应用缩放 - 只有 scale 真正改变时或重置操作时才应用
+                    // 如果是重置操作，即使值相同也重新应用（确保模型恢复到初始状态）
+                    if ((scaleActuallyChangedInOverride || isResetOperation) && mergedConfig.scale !== undefined && mergedConfig.scale !== null) {
                         // 获取当前保存的 scale（从 modelConfigRef 中获取，这是上次应用后的值）
                         // 优先从 modelConfigRef 获取，因为它保存的是上次应用后的值
                         // 如果没有保存的值，从当前模型的 scale 推导出来
@@ -1003,13 +1327,17 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         console.log("baseScaleRef.current:", baseScaleRef.current);
                         console.log("overrideConfig 中的 scale 是否真正改变:", scaleActuallyChangedInOverride);
 
-                        // 如果 scale 没有变化，不需要重新应用缩放
+                        // 如果 scale 没有变化，不需要重新应用缩放（除非是重置操作）
                         const scaleChanged = Math.abs(currentModelScale - newModelScale) >= 0.001;
-                        if (!scaleChanged) {
+                        if (!scaleChanged && !isResetOperation) {
                             console.log(`缩放值未变化，跳过重新应用: ${currentModelScale}`);
                             console.log("=====================================");
                             // 如果 scale 没有改变，但需要继续处理位置偏移，不能直接 return
                         } else {
+                            // 如果是重置操作，即使值相同也重新应用
+                            if (isResetOperation && !scaleChanged) {
+                                console.log(`🔄 重置操作：即使缩放值相同，也重新应用以确保模型恢复到初始状态`);
+                            }
                             // 简化：直接计算缩放比例
                             // 由于配置中的 scale 是相对于 baseScale 的倍数
                             // 我们直接用 newModelScale / currentModelScale 计算比例
@@ -1358,19 +1686,20 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         horizontal: 0.2,
                         vertical: -5.0
                     };
-                    const overridePositionOffset = currentOverrideConfig?.positionOffset;
+                    const overridePositionOffset = cleanOverrideConfig?.positionOffset;
 
                     // 检查 positionOffset 的值是否真的改变了
                     const horizontalChanged = overridePositionOffset?.horizontal !== undefined &&
                         Math.abs((overridePositionOffset.horizontal ?? 0.2) - (basePositionOffset.horizontal ?? 0.2)) > 0.001;
                     const verticalChanged = overridePositionOffset?.vertical !== undefined &&
                         Math.abs((overridePositionOffset.vertical ?? -5.0) - (basePositionOffset.vertical ?? -5.0)) > 0.001;
-                    const hasPositionOffsetChange = horizontalChanged || verticalChanged;
+                    // 如果是重置操作，即使值相同也认为需要重新应用位置偏移
+                    const hasPositionOffsetChange = horizontalChanged || verticalChanged || isResetOperation;
 
                     // 检查 scale 是否真的改变了（相对于当前已应用的 scale），而不仅仅是在 overrideConfig 中存在
                     // 使用 modelConfigRef.current?.scale 作为当前 scale，而不是 baseConfig 的 scale
                     const currentAppliedScaleForOffset = modelConfigRef.current?.scale ?? (baseConfig?.scale ?? 1.0);
-                    const overrideScaleForOffset = currentOverrideConfig?.scale;
+                    const overrideScaleForOffset = cleanOverrideConfig?.scale;
                     // 只有当 overrideScale 存在且与当前已应用的 scale 不同时，才认为 scale 改变了
                     const hasScaleChangeInOverride = overrideScaleForOffset !== undefined &&
                         Math.abs(overrideScaleForOffset - currentAppliedScaleForOffset) > 0.001;
@@ -1406,6 +1735,320 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         "currentOverrideConfig.positionOffset": currentOverrideConfig?.positionOffset,
                         mergedConfigPositionOffset: mergedConfig.positionOffset
                     });
+
+                    // 检查 animationSegments 是否改变，如果改变则重新提取动画片段
+                    const overrideAnimationSegments = cleanOverrideConfig?.animationSegments;
+                    
+                    // 使用 mergedConfig 中的 animationSegments（因为它是合并后的最终配置）
+                    const mergedAnimationSegments = mergedConfig.animationSegments;
+                    
+                    // 获取当前已应用的 segments（用于比较）
+                    // 重要：如果 overrideConfig 中有 animationSegments，说明用户主动修改了配置
+                    // 我们应该使用 overrideAnimationSegments 来重新提取，因为它包含用户的最新修改
+                    const hasOverrideSegments = !!overrideAnimationSegments;
+                    const currentAppliedSegments = modelConfigRef.current?.animationSegments;
+                    
+                    // 确定要使用的 segments：如果有 override，使用 override；否则使用 merged
+                    const segmentsToUse = overrideAnimationSegments || mergedAnimationSegments;
+                    
+                    // 详细比较 segments 的内容，输出详细的比较信息
+                    // 关键：如果有 overrideAnimationSegments，说明用户主动修改了配置，应该总是重新提取
+                    let segmentsChanged = false;
+                    let changedSegments: Array<{ clipName: string; segmentName: string; reason: string }> = [];
+                    
+                    // 如果 overrideConfig 中有 animationSegments，总是重新提取（用户主动修改了）
+                    if (hasOverrideSegments) {
+                        segmentsChanged = true;
+                        changedSegments.push({ 
+                            clipName: 'all', 
+                            segmentName: 'all', 
+                            reason: '用户主动修改了动画片段配置（overrideAnimationSegments存在）' 
+                        });
+                        console.log("✓ 检测到 overrideAnimationSegments，将重新提取所有动画片段");
+                    } else if (segmentsToUse && currentAppliedSegments) {
+                        // 比较每个 clip 的每个 segment 的 start 和 end
+                        const mergedKeys = Object.keys(segmentsToUse);
+                        const currentKeys = Object.keys(currentAppliedSegments);
+                        
+                        if (mergedKeys.length !== currentKeys.length) {
+                            segmentsChanged = true;
+                            changedSegments.push({ 
+                                clipName: 'all', 
+                                segmentName: 'all', 
+                                reason: `clip数量不同: ${mergedKeys.length} vs ${currentKeys.length}` 
+                            });
+                        } else {
+                            for (const clipName of mergedKeys) {
+                                const mergedClip = segmentsToUse[clipName];
+                                const currentClip = currentAppliedSegments[clipName];
+                                
+                                if (!currentClip || !mergedClip.segments || !currentClip.segments) {
+                                    segmentsChanged = true;
+                                    changedSegments.push({ clipName, segmentName: 'all', reason: 'clip结构不同' });
+                                    break;
+                                }
+                                
+                                if (mergedClip.segments.length !== currentClip.segments.length) {
+                                    segmentsChanged = true;
+                                    changedSegments.push({ 
+                                        clipName, 
+                                        segmentName: 'all', 
+                                        reason: `segment数量不同: ${mergedClip.segments.length} vs ${currentClip.segments.length}` 
+                                    });
+                                    break;
+                                }
+                                
+                                for (let i = 0; i < mergedClip.segments.length; i++) {
+                                    const mergedSeg = mergedClip.segments[i];
+                                    const currentSeg = currentClip.segments[i];
+                                    
+                                    if (!currentSeg) {
+                                        segmentsChanged = true;
+                                        changedSegments.push({ clipName, segmentName: mergedSeg.name, reason: 'segment不存在' });
+                                        break;
+                                    }
+                                    
+                                    if (mergedSeg.name !== currentSeg.name) {
+                                        segmentsChanged = true;
+                                        changedSegments.push({ 
+                                            clipName, 
+                                            segmentName: mergedSeg.name, 
+                                            reason: `名称不同: ${mergedSeg.name} vs ${currentSeg.name}` 
+                                        });
+                                        break;
+                                    }
+                                    
+                                    const startDiff = Math.abs(mergedSeg.start - currentSeg.start);
+                                    const endDiff = Math.abs(mergedSeg.end - currentSeg.end);
+                                    
+                                    if (startDiff > 0.01) {
+                                        segmentsChanged = true;
+                                        changedSegments.push({ 
+                                            clipName, 
+                                            segmentName: mergedSeg.name, 
+                                            reason: `start不同: ${mergedSeg.start.toFixed(3)} vs ${currentSeg.start.toFixed(3)} (差${startDiff.toFixed(3)})` 
+                                        });
+                                    }
+                                    
+                                    if (endDiff > 0.01) {
+                                        segmentsChanged = true;
+                                        changedSegments.push({ 
+                                            clipName, 
+                                            segmentName: mergedSeg.name, 
+                                            reason: `end不同: ${mergedSeg.end.toFixed(3)} vs ${currentSeg.end.toFixed(3)} (差${endDiff.toFixed(3)})` 
+                                        });
+                                    }
+                                }
+                                
+                                if (segmentsChanged) break;
+                            }
+                        }
+                    } else if (segmentsToUse && !currentAppliedSegments) {
+                        segmentsChanged = true;
+                        console.log("⚠ currentAppliedSegments 不存在，将重新提取");
+                    }
+                    
+                    console.log("========== 动画片段配置检查 ==========");
+                    console.log("overrideAnimationSegments:", JSON.parse(JSON.stringify(overrideAnimationSegments || {})));
+                    console.log("mergedAnimationSegments:", JSON.parse(JSON.stringify(mergedAnimationSegments || {})));
+                    console.log("segmentsToUse:", JSON.parse(JSON.stringify(segmentsToUse || {})));
+                    console.log("currentAppliedSegments:", JSON.parse(JSON.stringify(currentAppliedSegments || {})));
+                    console.log("hasOverrideSegments:", hasOverrideSegments);
+                    console.log("segmentsChanged:", segmentsChanged);
+                    if (changedSegments.length > 0) {
+                        console.log("变化的segments:", changedSegments);
+                    } else if (hasOverrideSegments && !segmentsChanged) {
+                        console.log("⚠ 警告：hasOverrideSegments=true 但 segmentsChanged=false，这不应该发生！");
+                        // 输出详细比较
+                        if (segmentsToUse && currentAppliedSegments) {
+                            Object.keys(segmentsToUse).forEach(clipName => {
+                                const merged = segmentsToUse[clipName];
+                                const current = currentAppliedSegments[clipName];
+                                if (merged && current && merged.segments && current.segments) {
+                                    merged.segments.forEach((seg: AnimationSegment, idx: number) => {
+                                        const currentSeg = current.segments?.[idx];
+                                        if (currentSeg) {
+                                            console.log(`  ${clipName}.${seg.name}: toUse(${seg.start.toFixed(3)}-${seg.end.toFixed(3)}) vs current(${currentSeg.start.toFixed(3)}-${currentSeg.end.toFixed(3)})`);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    }
+                    console.log("mixerRef.current:", !!mixerRef.current);
+                    console.log("analyzedClipRef.current:", !!analyzedClipRef.current);
+                    console.log("=====================================");
+                    
+                    // 强制：如果 hasOverrideSegments 为 true，总是重新提取（用户主动修改了配置）
+                    // 优先处理：如果有 overrideAnimationSegments，直接重新提取，不依赖 segmentsChanged
+                    if (hasOverrideSegments && mixerRef.current && analyzedClipRef.current && overrideAnimationSegments) {
+                        console.log("🔧 强制重新提取：hasOverrideSegments=true，用户主动修改了动画片段配置");
+                        console.log("✓ 检测到 animationSegments 配置改变，重新提取动画片段...");
+                        console.log("使用的 animationSegments (override):", overrideAnimationSegments);
+                        
+                        // 重新提取动画片段
+                        const fps = mergedConfig.animationExtraction?.fps || 30;
+                        const thresholds = mergedConfig.animationExtraction?.autoExtractionThresholds || {
+                            minDuration: 5.0,
+                            minTracks: 50,
+                            defaultStandEnd: 2.0,
+                            defaultStandEndPercent: 0.1,
+                            minFrameCount: 10
+                        };
+                        
+                        // 遍历所有 clip 的 segments（使用 overrideAnimationSegments）
+                        Object.entries(overrideAnimationSegments).forEach(([clipName, clipConfig]) => {
+                            if (clipConfig.segments && clipConfig.segments.length > 0) {
+                                clipConfig.segments.forEach((segment: AnimationSegment) => {
+                                    if (segment.name && segment.start !== undefined && segment.end !== undefined) {
+                                        try {
+                                            const startFrame = Math.floor(segment.start * fps);
+                                            const endFrame = Math.floor(segment.end * fps);
+                                            
+                                            if (endFrame > startFrame && endFrame - startFrame >= thresholds.minFrameCount) {
+                                                const segmentClip = THREE.AnimationUtils.subclip(
+                                                    analyzedClipRef.current!,
+                                                    `${segment.name}_${clipName}`,
+                                                    startFrame,
+                                                    endFrame,
+                                                    fps
+                                                );
+                                                
+                                                if (segmentClip.tracks.length > 0) {
+                                                    // 停止并删除旧的 action
+                                                    const oldAction = actionsRef.current[segment.name];
+                                                    if (oldAction) {
+                                                        oldAction.stop();
+                                                        oldAction.reset();
+                                                    }
+                                                    
+                                                    // 创建新的 action
+                                                    const newAction = mixerRef.current!.clipAction(segmentClip);
+                                                    newAction.stop();
+                                                    newAction.reset();
+                                                    newAction.setEffectiveWeight(0);
+                                                    newAction.enabled = false;
+                                                    
+                                                    actionsRef.current[segment.name] = newAction;
+                                                    console.log(`✓ 重新提取动画片段: ${segment.name} (${segment.start.toFixed(2)}s - ${segment.end.toFixed(2)}s, ${startFrame}-${endFrame}帧)`);
+                                                } else {
+                                                    console.warn(`提取的动画片段 ${segment.name} 没有轨道`);
+                                                }
+                                            } else {
+                                                console.warn(`动画片段 ${segment.name} 范围不合理: ${startFrame}-${endFrame}帧`);
+                                            }
+                                        } catch (error) {
+                                            console.warn(`提取动画片段 ${segment.name} 失败:`, error);
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // 更新 modelConfigRef 中的 animationSegments，供下次比较使用
+                        if (!modelConfigRef.current) {
+                            modelConfigRef.current = {} as ModelConfig;
+                        }
+                        modelConfigRef.current.animationSegments = overrideAnimationSegments;
+                        
+                        // 更新 animator（如果已创建）
+                        if (onAnimatorReady && Object.keys(actionsRef.current).length > 0) {
+                            const animator = new ThreeDModelAnimator(
+                                mixerRef.current!,
+                                actionsRef.current
+                            );
+                            onAnimatorReady(animator);
+                            console.log("✓ 已更新 animator，新的 actions:", Object.keys(actionsRef.current));
+                        }
+                    } else if (segmentsChanged && mixerRef.current && analyzedClipRef.current && segmentsToUse) {
+                        console.log("✓ 检测到 animationSegments 配置改变，重新提取动画片段...");
+                        console.log("使用的 animationSegments:", segmentsToUse);
+                        
+                        // 重新提取动画片段
+                        const fps = mergedConfig.animationExtraction?.fps || 30;
+                        const thresholds = mergedConfig.animationExtraction?.autoExtractionThresholds || {
+                            minDuration: 5.0,
+                            minTracks: 50,
+                            defaultStandEnd: 2.0,
+                            defaultStandEndPercent: 0.1,
+                            minFrameCount: 10
+                        };
+                        
+                        // 遍历所有 clip 的 segments（使用 finalSegmentsToUse，优先使用 override）
+                        Object.entries(finalSegmentsToUse).forEach(([clipName, clipConfig]) => {
+                            if (clipConfig.segments && clipConfig.segments.length > 0) {
+                                clipConfig.segments.forEach((segment: AnimationSegment) => {
+                                    if (segment.name && segment.start !== undefined && segment.end !== undefined) {
+                                        try {
+                                            const startFrame = Math.floor(segment.start * fps);
+                                            const endFrame = Math.floor(segment.end * fps);
+                                            
+                                            if (endFrame > startFrame && endFrame - startFrame >= thresholds.minFrameCount) {
+                                                const segmentClip = THREE.AnimationUtils.subclip(
+                                                    analyzedClipRef.current!,
+                                                    `${segment.name}_${clipName}`,
+                                                    startFrame,
+                                                    endFrame,
+                                                    fps
+                                                );
+                                                
+                                                if (segmentClip.tracks.length > 0) {
+                                                    // 停止并删除旧的 action
+                                                    const oldAction = actionsRef.current[segment.name];
+                                                    if (oldAction) {
+                                                        oldAction.stop();
+                                                        oldAction.reset();
+                                                    }
+                                                    
+                                                    // 创建新的 action
+                                                    const newAction = mixerRef.current!.clipAction(segmentClip);
+                                                    newAction.stop();
+                                                    newAction.reset();
+                                                    newAction.setEffectiveWeight(0);
+                                                    newAction.enabled = false;
+                                                    
+                                                    actionsRef.current[segment.name] = newAction;
+                                                    console.log(`✓ 重新提取动画片段: ${segment.name} (${segment.start.toFixed(2)}s - ${segment.end.toFixed(2)}s, ${startFrame}-${endFrame}帧)`);
+                                                } else {
+                                                    console.warn(`提取的动画片段 ${segment.name} 没有轨道`);
+                                                }
+                                            } else {
+                                                console.warn(`动画片段 ${segment.name} 范围不合理: ${startFrame}-${endFrame}帧`);
+                                            }
+                                        } catch (error) {
+                                            console.warn(`提取动画片段 ${segment.name} 失败:`, error);
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // 更新 modelConfigRef 中的 animationSegments，供下次比较使用
+                        if (!modelConfigRef.current) {
+                            modelConfigRef.current = {} as ModelConfig;
+                        }
+                        modelConfigRef.current.animationSegments = finalSegmentsToUse;
+                        
+                        // 更新 animator（如果已创建）
+                        if (onAnimatorReady && Object.keys(actionsRef.current).length > 0) {
+                            const animator = new ThreeDModelAnimator(
+                                mixerRef.current!,
+                                actionsRef.current
+                            );
+                            onAnimatorReady(animator);
+                            console.log("✓ 已更新 animator，新的 actions:", Object.keys(actionsRef.current));
+                        }
+                    } else {
+                        if (!segmentsChanged) {
+                            console.log("⚠ animationSegments 未改变，跳过重新提取");
+                        }
+                        if (!mixerRef.current) {
+                            console.warn("⚠ mixerRef.current 不可用，无法重新提取动画片段");
+                        }
+                        if (!analyzedClipRef.current) {
+                            console.warn("⚠ analyzedClipRef.current 不可用，无法重新提取动画片段");
+                        }
+                    }
 
                     // 如果只调整了位置偏移（没有同时调整 scale），才单独处理位置偏移
                     // 如果同时调整了 scale，位置偏移会在缩放调整的部分一起应用
@@ -1769,13 +2412,14 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                         lookAtHeight: 0.25,
                         baseDistanceMultiplier: 2.0
                     };
-                    const overrideCameraConfig = currentOverrideConfig?.camera;
+                    const overrideCameraConfig = cleanOverrideConfig?.camera;
 
                     const lookAtHeightChanged = overrideCameraConfig?.lookAtHeight !== undefined &&
                         Math.abs((overrideCameraConfig.lookAtHeight ?? 0.25) - (baseCameraConfig.lookAtHeight ?? 0.25)) > 0.001;
                     const baseDistanceMultiplierChanged = overrideCameraConfig?.baseDistanceMultiplier !== undefined &&
                         Math.abs((overrideCameraConfig.baseDistanceMultiplier ?? 2.0) - (baseCameraConfig.baseDistanceMultiplier ?? 2.0)) > 0.001;
-                    const hasCameraChange = lookAtHeightChanged || baseDistanceMultiplierChanged;
+                    // 如果是重置操作，即使值相同也认为需要重新应用相机配置
+                    const hasCameraChange = lookAtHeightChanged || baseDistanceMultiplierChanged || isResetOperation;
 
                     console.log("相机配置检查:", {
                         hasCameraChange,
@@ -1792,7 +2436,11 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                     });
 
                     // 重新调整相机位置（相机配置改变时）
-                    if (hasCameraChange && cameraRef.current) {
+                    // 如果是重置操作，即使相机配置值相同也重新应用
+                    if ((hasCameraChange || isResetOperation) && cameraRef.current) {
+                        if (isResetOperation && !hasCameraChange) {
+                            console.log("🔄 重置操作：即使相机配置值相同，也重新应用以确保模型恢复到初始状态");
+                        }
                         // 使用合并后的相机配置
                         const cameraConfig = mergedConfig.camera || baseCameraConfig;
 
@@ -2083,7 +2731,14 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                 const animationNameMap: { [key: string]: string[] } = {
                     'move': ['move', 'walk', 'run', 'running', 'move_forward', 'locomotion', 'walking', 'run_forward', '前进', '移动'],
                     'stand': ['stand', 'idle', 'Idle', 'IDLE', 'idle_loop', 'stand_idle', 'wait', 'waiting', '待机', '静止'],
-                    'attack': ['attack', 'Attack', 'ATTACK', 'attack1', 'attack_01', 'combat', 'hit', 'strike', '攻击', '打击']
+                    'attack': ['attack', 'Attack', 'ATTACK', 'attack1', 'attack_01', 'combat', 'hit', 'strike', '攻击', '打击'],
+                    'die': ['die', 'Die', 'DIE', 'death', 'Death', 'DEATH', 'dying', 'dead', '死亡', '倒下'],
+                    'skill': ['skill', 'Skill', 'SKILL', 'skill1', 'skill_01', 'ability', 'spell', 'magic', '技能', '法术'],
+                    'hurt': ['hurt', 'Hurt', 'HURT', 'damage', 'Damage', 'hit', 'Hit', '受伤', '受击'],
+                    'defend': ['defend', 'Defend', 'DEFEND', 'block', 'Block', 'shield', 'Shield', '防御', '格挡'],
+                    'victory': ['victory', 'Victory', 'VICTORY', 'win', 'Win', 'celebrate', 'Celebrate', '胜利', '庆祝'],
+                    'cast': ['cast', 'Cast', 'CAST', 'casting', 'Casting', '施法', '吟唱'],
+                    'jump': ['jump', 'Jump', 'JUMP', 'jumping', 'Jumping', '跳跃', '跳起']
                 };
 
                 // 存储所有动画，并使用标准名称
@@ -2215,12 +2870,90 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                                 // 使用缓存的片段
                                 analyzedSegments = cachedSegments;
                                 analyzedClip = standClip;
+                                analyzedClipRef.current = standClip; // 保存到ref用于预览
                                 console.log(`✓ 使用缓存的动画片段分析结果 (${analyzedSegments.length}个片段)`);
+                                
+                                // 重要：确保缓存的片段包含4个核心动作
+                                // 如果缓存只有部分动作（旧版本缓存），需要补充缺少的动作
+                                const requiredActions = ['stand', 'move', 'attack', 'die'];
+                                const cachedActionNames = analyzedSegments.map(s => s.name);
+                                const missingActions = requiredActions.filter(name => !cachedActionNames.includes(name));
+                                
+                                if (missingActions.length > 0) {
+                                    console.log(`⚠ 缓存的片段缺少动作: ${missingActions.join(', ')}, 将补充默认值`);
+                                    
+                                    // 为缺少的动作添加默认时间范围
+                                    missingActions.forEach(actionName => {
+                                        let defaultStart = 0;
+                                        let defaultEnd = 0;
+                                        
+                                        switch (actionName) {
+                                            case 'stand':
+                                                defaultStart = 0;
+                                                defaultEnd = Math.min(2.0, standClip.duration * 0.1);
+                                                break;
+                                            case 'move':
+                                                const standEnd = analyzedSegments.find(s => s.name === 'stand')?.end || 2.0;
+                                                defaultStart = standEnd;
+                                                defaultEnd = Math.min(standEnd + 2.0, standClip.duration * 0.4);
+                                                break;
+                                            case 'attack':
+                                                const moveEnd = analyzedSegments.find(s => s.name === 'move')?.end || standClip.duration * 0.4;
+                                                defaultStart = moveEnd;
+                                                defaultEnd = Math.min(moveEnd + 2.0, standClip.duration * 0.7);
+                                                break;
+                                            case 'die':
+                                                defaultStart = standClip.duration * 0.8;
+                                                defaultEnd = standClip.duration;
+                                                break;
+                                        }
+                                        
+                                        if (defaultEnd > defaultStart && defaultEnd <= standClip.duration) {
+                                            analyzedSegments.push({
+                                                name: actionName,
+                                                start: defaultStart,
+                                                end: defaultEnd,
+                                                confidence: 0.1 // 低置信度，表示这是默认值
+                                            });
+                                            console.log(`  ✓ 添加默认 ${actionName} 动作: ${defaultStart.toFixed(2)}s - ${defaultEnd.toFixed(2)}s`);
+                                        }
+                                    });
+                                    
+                                    // 按开始时间排序
+                                    analyzedSegments.sort((a, b) => a.start - b.start);
+                                    
+                                    // 更新缓存（使用补充后的片段）
+                                    saveAnimationSegments(modelPath, standClip.name, standClip.duration, analyzedSegments);
+                                    console.log(`✓ 已更新缓存，包含 ${analyzedSegments.length} 个片段`);
+                                }
+                                
+                                // 确保配置对象包含动画片段（无论是否补充了默认动作）
+                                if (!config.animationSegments) {
+                                    config.animationSegments = {};
+                                }
+                                config.animationSegments[standClip.name] = {
+                                    duration: standClip.duration,
+                                    segments: analyzedSegments
+                                };
+                                
+                                // 更新 modelConfigRef
+                                if (!modelConfigRef.current) {
+                                    modelConfigRef.current = {} as ModelConfig;
+                                }
+                                modelConfigRef.current.animationSegments = config.animationSegments;
+                                
+                                // 通知父组件配置已更新（包含动画片段）
+                                if (onConfigReady) {
+                                    onConfigReady({ ...config });
+                                }
+                                console.log(`✓ 已更新配置对象的 animationSegments（从缓存），包含 ${analyzedSegments.length} 个片段: ${analyzedSegments.map(s => s.name).join(', ')}`);
                             } else {
                                 // 缓存不存在或无效，重新分析
                                 console.log(`开始分析动画片段: ${standClip.name}, 时长: ${standClip.duration.toFixed(2)}s, 轨道数: ${standClip.tracks.length}`);
                                 analyzedSegments = analyzeAnimationSegments(standClip);
                                 analyzedClip = standClip;
+                                analyzedClipRef.current = standClip; // 保存到ref用于预览
+                                analyzedClipRef.current = standClip; // 保存到ref用于预览
 
                                 // 保存分析结果到缓存
                                 if (analyzedSegments.length > 0) {
@@ -2243,6 +2976,27 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                                     // 同时在全局对象中暴露，方便手动复制
                                     (window as any).__akedia_animation_segments__ = configFormat;
                                     console.log(`✓ 动画片段配置已保存到 window.__akedia_animation_segments__，可在控制台查看`);
+                                    
+                                    // 重要：将分析结果添加到config对象，以便传递给编辑器
+                                    if (!config.animationSegments) {
+                                        config.animationSegments = {};
+                                    }
+                                    config.animationSegments[standClip.name] = {
+                                        duration: standClip.duration,
+                                        segments: analyzedSegments
+                                    };
+                                    
+                                    // 更新 modelConfigRef
+                                    if (!modelConfigRef.current) {
+                                        modelConfigRef.current = {} as ModelConfig;
+                                    }
+                                    modelConfigRef.current.animationSegments = config.animationSegments;
+                                    
+                                    // 通知父组件配置已更新（包含动画片段）
+                                    if (onConfigReady) {
+                                        onConfigReady({ ...config });
+                                    }
+                                    console.log(`✓ 已更新配置对象的 animationSegments，包含 ${analyzedSegments.length} 个片段`);
                                 } else {
                                     console.warn(`⚠ 动画片段分析未识别到任何片段，将使用完整clip或经验值`);
                                 }
@@ -2420,10 +3174,87 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                             console.log('查找move片段:', moveSegment);
 
                             if (moveSegment && moveSegment.confidence > 0.5) {
+                                // 验证move片段的合理性
+                                const moveDuration = moveSegment.end - moveSegment.start;
+                                let validMoveStart = moveSegment.start;
+                                let validMoveEnd = moveSegment.end;
+                                
+                                // 如果move片段太长（> 4秒），可能是识别错误，限制为合理的长度
+                                if (moveDuration > 4.0) {
+                                    console.warn(`⚠ Move片段识别过长 (${moveDuration.toFixed(2)}s)，尝试限制为合理的循环长度`);
+                                    
+                                    // 从 analyzedClip 中重新分析位置数据来查找循环周期
+                                    try {
+                                        // 找到位置轨道
+                                        const positionTrack = analyzedClip.tracks.find((track: THREE.KeyframeTrack) => {
+                                            const name = track.name.toLowerCase();
+                                            return name.includes('position') && (
+                                                name.includes('root') || name.endsWith('.position')
+                                            );
+                                        }) as any;
+                                        
+                                        if (positionTrack && positionTrack.times && positionTrack.values) {
+                                            const times = positionTrack.times;
+                                            const values = positionTrack.values;
+                                            const stride = positionTrack.getValueSize?.() || 3;
+                                            
+                                            // 找到move开始时的位置
+                                            let startPos: { x: number; y: number; z: number } | null = null;
+                                            let startIndex = -1;
+                                            for (let i = 0; i < times.length; i++) {
+                                                if (Math.abs(times[i] - moveSegment.start) < 0.1) {
+                                                    const idx = i * stride;
+                                                    startPos = {
+                                                        x: values[idx] || 0,
+                                                        y: values[idx + 1] || 0,
+                                                        z: values[idx + 2] || 0
+                                                    };
+                                                    startIndex = i;
+                                                    break;
+                                                }
+                                            }
+                                            
+                                            // 如果找到了起始位置，查找循环周期
+                                            if (startPos && startIndex >= 0) {
+                                                for (let i = startIndex + 1; i < times.length && times[i] <= moveSegment.start + 4.0; i++) {
+                                                    const time = times[i];
+                                                    const idx = i * stride;
+                                                    const pos = {
+                                                        x: values[idx] || 0,
+                                                        y: values[idx + 1] || 0,
+                                                        z: values[idx + 2] || 0
+                                                    };
+                                                    
+                                                    const distance = Math.sqrt(
+                                                        Math.pow(pos.x - startPos.x, 2) +
+                                                        Math.pow(pos.y - startPos.y, 2) +
+                                                        Math.pow(pos.z - startPos.z, 2)
+                                                    );
+                                                    
+                                                    // 如果位置接近起点（< 0.15），且已经移动了至少0.8秒
+                                                    if (distance < 0.15 && time - moveSegment.start >= 0.8) {
+                                                        validMoveEnd = time;
+                                                        console.log(`✓ 找到move循环周期: ${validMoveStart.toFixed(2)}s - ${validMoveEnd.toFixed(2)}s (距离: ${distance.toFixed(3)})`);
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.warn('分析move循环周期时出错:', error);
+                                    }
+                                    
+                                    // 如果还是太长，限制为3秒
+                                    if (validMoveEnd - validMoveStart > 4.0) {
+                                        validMoveEnd = validMoveStart + 3.0;
+                                        console.warn(`⚠ 无法找到循环周期，限制move片段为3秒: ${validMoveStart.toFixed(2)}s - ${validMoveEnd.toFixed(2)}s`);
+                                    }
+                                }
+                                
                                 // 使用subclip提取move动画片段
                                 try {
-                                    const startFrame = Math.floor(moveSegment.start * fps);
-                                    const endFrame = Math.floor(moveSegment.end * fps);
+                                    const startFrame = Math.floor(validMoveStart * fps);
+                                    const endFrame = Math.floor(validMoveEnd * fps);
 
                                     if (endFrame > startFrame && endFrame - startFrame >= thresholds.minFrameCount) {
                                         const moveClip = THREE.AnimationUtils.subclip(
@@ -2442,7 +3273,7 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                                             moveAction.setEffectiveWeight(0);
                                             moveAction.enabled = false;
                                             actionsRef.current['move'] = moveAction;
-                                            console.log(`✓ 通过轨道分析提取move片段: ${moveSegment.start.toFixed(2)}s-${moveSegment.end.toFixed(2)}s (${startFrame}-${endFrame}帧, ${moveClip.duration.toFixed(2)}s, ${moveClip.tracks.length}个轨道, 置信度: ${moveSegment.confidence.toFixed(2)})`);
+                                            console.log(`✓ 通过轨道分析提取move片段: ${validMoveStart.toFixed(2)}s-${validMoveEnd.toFixed(2)}s (${startFrame}-${endFrame}帧, ${moveClip.duration.toFixed(2)}s, ${moveClip.tracks.length}个轨道, 置信度: ${moveSegment.confidence.toFixed(2)})`);
                                         } else {
                                             console.warn('提取的move clip没有轨道，跳过');
                                         }
@@ -2490,6 +3321,42 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                             }
                         }
 
+                        // 提取其他动作类型（skill, death, hurt, defend, victory, cast, jump等）
+                        const otherActionTypes = ['skill', 'death', 'hurt', 'defend', 'victory', 'cast', 'jump'];
+                        for (const actionType of otherActionTypes) {
+                            if (!actionsRef.current[actionType] && analyzedClip && analyzedSegments.length > 0) {
+                                const segment = analyzedSegments.find(s => s.name === actionType);
+                                if (segment && segment.confidence > 0.5) {
+                                    try {
+                                        const startFrame = Math.floor(segment.start * fps);
+                                        const endFrame = Math.floor(segment.end * fps);
+
+                                        if (endFrame > startFrame && endFrame - startFrame >= thresholds.minFrameCount) {
+                                            const actionClip = THREE.AnimationUtils.subclip(
+                                                analyzedClip,
+                                                actionType,
+                                                startFrame,
+                                                endFrame,
+                                                fps
+                                            );
+
+                                            if (actionClip.tracks.length > 0) {
+                                                const action = mixer.clipAction(actionClip);
+                                                action.stop();
+                                                action.reset();
+                                                action.setEffectiveWeight(0);
+                                                action.enabled = false;
+                                                actionsRef.current[actionType] = action;
+                                                console.log(`✓ 通过轨道分析提取${actionType}片段: ${segment.start.toFixed(2)}s-${segment.end.toFixed(2)}s (${startFrame}-${endFrame}帧, ${actionClip.duration.toFixed(2)}s, ${actionClip.tracks.length}个轨道, 置信度: ${segment.confidence.toFixed(2)})`);
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.warn(`subclip提取${actionType}片段失败:`, error);
+                                    }
+                                }
+                            }
+                        }
+
                         // 如果分析完成且有结果，导出为 model_config.json 格式
                         if (analyzedClip && analyzedSegments.length > 0 && !useFullClip) {
                             const configFormat = exportAnimationSegmentsToModelConfig(
@@ -2515,6 +3382,27 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                             console.log(`  - window.__animation_segments_modelPath__ (模型路径)`);
                             console.log(`  - window.__animation_segments_clipName__ (clip名称)`);
                             console.log(`  可在控制台使用 copy(JSON.stringify(window.__animation_segments_config__, null, 2)) 复制`);
+                            
+                            // 重要：将分析结果添加到config对象，以便传递给编辑器
+                            if (!config.animationSegments) {
+                                config.animationSegments = {};
+                            }
+                            config.animationSegments[analyzedClip.name] = {
+                                duration: analyzedClip.duration,
+                                segments: analyzedSegments
+                            };
+                            
+                            // 更新 modelConfigRef
+                            if (!modelConfigRef.current) {
+                                modelConfigRef.current = {} as ModelConfig;
+                            }
+                            modelConfigRef.current.animationSegments = config.animationSegments;
+                            
+                            // 通知父组件配置已更新（包含动画片段）
+                            if (onConfigReady) {
+                                onConfigReady({ ...config });
+                            }
+                            console.log(`✓ 已更新配置对象的 animationSegments，包含 ${analyzedSegments.length} 个片段`);
                         } else if (!actionsRef.current['move'] && animations.length > 0) {
                             // 如果只有一个动画clip，且已经映射到stand了，就不应该再映射到move
                             // 因为同一个clip的多个action实例在Three.js中可能会互相影响
@@ -2562,8 +3450,12 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                 // 关键修复：只传递标准名称的actions给animator，不包括原始名称的actions
                 // 这样可以避免原始名称的action（如'Take 001'）干扰标准名称的action（如'stand'）
                 // 原始名称的action只用于查找和映射，不应该传递给animator
+                // 支持所有识别的动作类型
+                // 核心动作类型：stand, move, attack, die
+                // 扩展动作类型：skill, hurt, defend, victory, cast, jump
+                const supportedActionTypes = ['stand', 'move', 'attack', 'die', 'skill', 'hurt', 'defend', 'victory', 'cast', 'jump'];
                 const standardActions: { [key: string]: THREE.AnimationAction } = {};
-                ['stand', 'move', 'attack'].forEach(name => {
+                supportedActionTypes.forEach(name => {
                     if (actionsRef.current[name]) {
                         standardActions[name] = actionsRef.current[name];
                     }
@@ -2571,7 +3463,7 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
 
                 // 确保原始名称的actions也被停止（虽然不传递给animator，但它们可能仍在运行）
                 Object.keys(actionsRef.current).forEach(key => {
-                    if (!['stand', 'move', 'attack'].includes(key)) {
+                    if (!supportedActionTypes.includes(key)) {
                         const originalAction = actionsRef.current[key];
                         if (originalAction) {
                             originalAction.stop();
@@ -2670,15 +3562,15 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                 }, 100);
 
                 // 输出最终的动画映射结果
-                console.log("最终动画映射:", {
-                    stand: actionsRef.current['stand'] ? actionsRef.current['stand'].getClip().name : "未找到",
-                    move: actionsRef.current['move'] ? actionsRef.current['move'].getClip().name : "未找到",
-                    attack: actionsRef.current['attack'] ? actionsRef.current['attack'].getClip().name : "未找到"
+                const animationMapping: { [key: string]: string } = {};
+                supportedActionTypes.forEach(name => {
+                    animationMapping[name] = actionsRef.current[name] ? actionsRef.current[name].getClip().name : "未找到";
                 });
+                console.log("最终动画映射:", animationMapping);
 
                 // 检查是否有重复映射（多个标准名称指向同一个action）
                 const actionMap = new Map();
-                ['stand', 'move', 'attack'].forEach(name => {
+                supportedActionTypes.forEach(name => {
                     const action = actionsRef.current[name];
                     if (action) {
                         const clipName = action.getClip().name;
@@ -3629,6 +4521,95 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
     const handleMouseUp = useCallback(() => {
         isDraggingRef.current = false;
     }, []);
+
+    // 预览特定时间范围的动画片段
+    useEffect(() => {
+        if (!onPreviewSegment) return;
+
+        const handlePreview = (event: CustomEvent<{ clipName: string; segmentName: string; start: number; end: number }>) => {
+            const { clipName, segmentName, start, end } = event.detail;
+            
+            if (!mixerRef.current || !analyzedClipRef.current || !modelRef.current) {
+                console.warn('无法预览：mixer、analyzedClip 或 model 不可用', {
+                    hasMixer: !!mixerRef.current,
+                    hasAnalyzedClip: !!analyzedClipRef.current,
+                    hasModel: !!modelRef.current
+                });
+                return;
+            }
+
+            const clip = analyzedClipRef.current;
+            const fps = modelConfigRef.current?.animationExtraction?.fps || 30;
+
+            console.log(`🎬 预览动画片段: ${segmentName} (${start.toFixed(2)}s - ${end.toFixed(2)}s)`);
+
+            // 停止之前的预览动画
+            if (previewActionRef.current) {
+                previewActionRef.current.stop();
+                previewActionRef.current.reset();
+            }
+
+            // 停止所有其他动画
+            mixerRef.current.stopAllAction();
+            Object.values(actionsRef.current).forEach(action => {
+                if (action) {
+                    action.stop();
+                    action.reset();
+                    action.setEffectiveWeight(0);
+                    action.enabled = false;
+                }
+            });
+
+            try {
+                const startFrame = Math.floor(start * fps);
+                const endFrame = Math.floor(end * fps);
+
+                if (endFrame > startFrame && endFrame - startFrame >= 10) {
+                    const previewClip = THREE.AnimationUtils.subclip(
+                        clip,
+                        `${segmentName}_preview`,
+                        startFrame,
+                        endFrame,
+                        fps
+                    );
+
+                    if (previewClip.tracks.length > 0) {
+                        const previewAction = mixerRef.current.clipAction(previewClip);
+                        previewAction.stop();
+                        previewAction.reset();
+                        previewAction.setLoop(THREE.LoopRepeat);
+                        previewAction.setEffectiveWeight(1);
+                        previewAction.enabled = true;
+                        previewAction.play();
+
+                        previewActionRef.current = previewAction;
+                        console.log(`✓ 预览片段播放成功: ${segmentName} (${start.toFixed(2)}s - ${end.toFixed(2)}s, ${startFrame}-${endFrame}帧)`);
+                    } else {
+                        console.warn('预览片段没有轨道');
+                    }
+                } else {
+                    console.warn(`预览片段范围不合理 (${startFrame}-${endFrame}帧)`);
+                }
+            } catch (error) {
+                console.error('创建预览片段失败:', error);
+            }
+        };
+
+        // 使用自定义事件来触发预览
+        const previewHandler = (event: Event) => {
+            handlePreview(event as CustomEvent<{ clipName: string; segmentName: string; start: number; end: number }>);
+        };
+
+        window.addEventListener('previewAnimationSegment', previewHandler);
+
+        return () => {
+            window.removeEventListener('previewAnimationSegment', previewHandler);
+            if (previewActionRef.current) {
+                previewActionRef.current.stop();
+                previewActionRef.current.reset();
+            }
+        };
+    }, [onPreviewSegment]);
 
     return (
         <div

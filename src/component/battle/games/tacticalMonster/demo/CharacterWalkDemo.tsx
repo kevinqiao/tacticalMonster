@@ -60,11 +60,12 @@ const CharacterWalkDemo: React.FC = () => {
     const [hoveredCell, setHoveredCell] = useState<{ q: number; r: number } | null>(null);
     const [showEditor, setShowEditor] = useState<boolean>(false);
     const [editorConfig, setEditorConfig] = useState<Partial<ModelConfig>>({});
+    const initialConfigRef = useRef<Partial<ModelConfig>>({}); // 保存初始配置
 
     const containerRef = useRef<HTMLDivElement>(null);
     const characterContainerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<HTMLDivElement>(null);
-    const animatorRef = useRef<{ move: () => void; stand: () => void } | null>(null);
+    const animatorRef = useRef<{ move: () => void; stand: () => void; attack?: () => void; playAnimation?: (name: string) => boolean; [key: string]: any } | null>(null);
 
     // 计算地图尺寸和位置
     useEffect(() => {
@@ -432,6 +433,8 @@ const CharacterWalkDemo: React.FC = () => {
 
     // 当模型配置加载完成时，更新编辑器配置
     const handleConfigReady = useCallback((config: ModelConfig) => {
+        // 保存初始配置（用于重置）
+        initialConfigRef.current = { ...config };
         // 更新编辑器配置，无论编辑器是否打开，这样打开编辑器时就能看到正确的初始值
         console.log("✓ 模型配置已加载，更新编辑器配置:", config);
         setEditorConfig({ ...config });
@@ -552,6 +555,33 @@ const CharacterWalkDemo: React.FC = () => {
                     currentConfig={editorConfig}
                     onConfigChange={setEditorConfig}
                     onClose={() => setShowEditor(false)}
+                    initialConfig={initialConfigRef.current}
+                    onPlayAnimation={(animationName: string) => {
+                        const animator = animatorRef.current;
+                        if (animator) {
+                            // 优先使用通用的 playAnimation 方法
+                            if (typeof animator.playAnimation === 'function') {
+                                animator.playAnimation(animationName);
+                            } 
+                            // 如果没有通用方法，尝试调用对应的方法（如 stand, move, attack 等）
+                            else if (typeof animator[animationName] === 'function') {
+                                animator[animationName]();
+                                console.log(`播放动画: ${animationName}`);
+                            } else {
+                                console.warn(`动画 ${animationName} 不可用，animator 中没有对应的方法`);
+                            }
+                        } else {
+                            console.warn('Animator 不可用，无法播放动画');
+                        }
+                    }}
+                    onPreviewSegment={(clipName: string, segmentName: string, start: number, end: number) => {
+                        // 通过自定义事件触发预览
+                        const event = new CustomEvent('previewAnimationSegment', {
+                            detail: { clipName, segmentName, start, end }
+                        });
+                        window.dispatchEvent(event);
+                        console.log(`预览片段: ${segmentName} (${start.toFixed(2)}s - ${end.toFixed(2)}s) 来自 clip: ${clipName}`);
+                    }}
                 />
             )}
         </div>

@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AnimationExtractionConfig, ModelConfig, PositionOffsetConfig } from "../battle/config/modelConfig";
+import { AnimationExtractionConfig, AnimationSegment, ModelConfig, PositionOffsetConfig } from "../battle/config/modelConfig";
 import "./ModelConfigEditor.css";
 
 interface ModelConfigEditorProps {
@@ -12,13 +12,19 @@ interface ModelConfigEditorProps {
     currentConfig: Partial<ModelConfig>;
     onConfigChange: (config: Partial<ModelConfig>) => void;
     onClose?: () => void;
+    initialConfig?: Partial<ModelConfig>;
+    onPlayAnimation?: (animationName: string) => void;
+    onPreviewSegment?: (clipName: string, segmentName: string, start: number, end: number) => void;
 }
 
 const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
     modelPath,
     currentConfig,
     onConfigChange,
-    onClose
+    onClose,
+    initialConfig,
+    onPlayAnimation,
+    onPreviewSegment
 }) => {
     const [config, setConfig] = useState<Partial<ModelConfig>>(currentConfig);
     const [copySuccess, setCopySuccess] = useState(false);
@@ -95,13 +101,98 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
         });
     }, []);
 
-    // 重置为默认值（重置为空配置，让模型使用配置文件中的默认值）
+    // 更新动画片段的时间范围
+    const updateSegmentTime = useCallback((
+        clipName: string,
+        segmentIndex: number,
+        field: 'start' | 'end',
+        value: number
+    ) => {
+        setConfig(prevConfig => {
+            const newConfig = { ...prevConfig };
+            if (!newConfig.animationSegments) {
+                newConfig.animationSegments = {};
+            }
+            if (!newConfig.animationSegments![clipName]) {
+                return newConfig;
+            }
+            
+            const clipConfig = { ...newConfig.animationSegments![clipName] };
+            const segments = [...(clipConfig.segments || [])];
+            
+            if (segments[segmentIndex]) {
+                segments[segmentIndex] = {
+                    ...segments[segmentIndex],
+                    [field]: Math.max(0, Math.min(value, clipConfig.duration))
+                };
+                
+                // 确保 start < end
+                if (field === 'start' && segments[segmentIndex].start >= segments[segmentIndex].end) {
+                    segments[segmentIndex].start = Math.max(0, segments[segmentIndex].end - 0.1);
+                } else if (field === 'end' && segments[segmentIndex].end <= segments[segmentIndex].start) {
+                    segments[segmentIndex].end = Math.min(clipConfig.duration, segments[segmentIndex].start + 0.1);
+                }
+                
+                clipConfig.segments = segments;
+                newConfig.animationSegments![clipName] = clipConfig;
+            }
+            
+            return newConfig;
+        });
+    }, []);
+
+    // 重置为初始配置值
     const handleReset = useCallback(() => {
-        console.log('重置按钮被点击，重置配置为空对象');
-        const emptyConfig: Partial<ModelConfig> = {};
-        setConfig(emptyConfig);
-        onConfigChange(emptyConfig);
-    }, [onConfigChange]);
+        console.log('🔄 重置按钮被点击，重置配置为初始值');
+        
+        // 如果有初始配置，使用初始配置；否则使用空配置（让模型使用配置文件中的默认值）
+        const resetConfig: Partial<ModelConfig> = initialConfig ? { ...initialConfig } : {};
+        
+        console.log('重置目标配置:', resetConfig);
+        console.log('当前配置:', config);
+        
+        // 立即清除防抖定时器
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+        
+        // 更新内部状态
+        setConfig(resetConfig);
+        
+        // 立即更新 refs，避免被 useEffect 覆盖
+        const resetConfigString = JSON.stringify(resetConfig);
+        lastNotifiedConfigRef.current = resetConfigString;
+        lastExternalConfigRef.current = resetConfigString;
+        
+        // 设置标志，防止 useEffect 覆盖
+        isUpdatingFromExternalRef.current = true;
+        
+        // 为了强制触发 Character3D 重新应用配置，即使配置字符串相同
+        // 我们先传递一个临时值（带时间戳），然后再传递真正的配置
+        // 这样可以确保 Character3D 检测到配置变化并重新应用
+        const tempConfig: Partial<ModelConfig> = { 
+            ...resetConfig,
+            // 添加一个临时属性，确保配置字符串不同，触发重新应用
+            __resetTrigger: Date.now()
+        } as any;
+        
+        // 先传递临时配置（带时间戳），触发重新应用
+        onConfigChange(tempConfig);
+        
+        // 然后立即传递真正的配置（不带时间戳）
+        // 使用 setTimeout 确保临时配置先被处理
+        setTimeout(() => {
+            onConfigChange(resetConfig);
+            
+            // 重置标志
+            setTimeout(() => {
+                isUpdatingFromExternalRef.current = false;
+            }, 0);
+        }, 100); // 100ms 延迟，确保临时配置先被处理
+        
+        console.log('✓ 重置完成，配置已恢复到初始值');
+    }, [onConfigChange, initialConfig, config]);
 
     // 构建配置JSON
     const buildConfigJSON = useCallback(() => {
@@ -154,18 +245,61 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
             const anim = config.animationExtraction;
             const hasCustomStrategy = anim.strategy !== undefined && anim.strategy !== "auto";
             const hasCustomUseFullClip = anim.useFullClip !== undefined && anim.useFullClip !== false;
+            const hasCustomUseCachedSegments = anim.useCachedSegments !== undefined && anim.useCachedSegments !== true;
             const hasCustomFps = anim.fps !== undefined && anim.fps !== 30;
+            
+            // 检查是否有自定义的阈值参数
+            const thresholds = anim.autoExtractionThresholds;
+            const hasCustomThresholds = thresholds && (
+                (thresholds.minDuration !== undefined && thresholds.minDuration !== 5.0) ||
+                (thresholds.minTracks !== undefined && thresholds.minTracks !== 50) ||
+                (thresholds.defaultStandEnd !== undefined && thresholds.defaultStandEnd !== 2.0) ||
+                (thresholds.defaultStandEndPercent !== undefined && thresholds.defaultStandEndPercent !== 0.1) ||
+                (thresholds.minFrameCount !== undefined && thresholds.minFrameCount !== 10)
+            );
 
-            if (hasCustomStrategy || hasCustomUseFullClip || hasCustomFps) {
+            if (hasCustomStrategy || hasCustomUseFullClip || hasCustomUseCachedSegments || hasCustomFps || hasCustomThresholds) {
                 const animationExtraction: Partial<AnimationExtractionConfig> = {};
                 if (hasCustomStrategy && anim.strategy !== undefined) animationExtraction.strategy = anim.strategy;
                 if (hasCustomUseFullClip && anim.useFullClip !== undefined) animationExtraction.useFullClip = anim.useFullClip;
+                if (hasCustomUseCachedSegments && anim.useCachedSegments !== undefined) animationExtraction.useCachedSegments = anim.useCachedSegments;
                 if (hasCustomFps && anim.fps !== undefined) animationExtraction.fps = anim.fps;
+                
+                // 添加阈值参数（如果有自定义值）
+                if (hasCustomThresholds && thresholds) {
+                    animationExtraction.autoExtractionThresholds = {};
+                    if (thresholds.minDuration !== undefined && thresholds.minDuration !== 5.0) {
+                        animationExtraction.autoExtractionThresholds.minDuration = thresholds.minDuration;
+                    }
+                    if (thresholds.minTracks !== undefined && thresholds.minTracks !== 50) {
+                        animationExtraction.autoExtractionThresholds.minTracks = thresholds.minTracks;
+                    }
+                    if (thresholds.defaultStandEnd !== undefined && thresholds.defaultStandEnd !== 2.0) {
+                        animationExtraction.autoExtractionThresholds.defaultStandEnd = thresholds.defaultStandEnd;
+                    }
+                    if (thresholds.defaultStandEndPercent !== undefined && thresholds.defaultStandEndPercent !== 0.1) {
+                        animationExtraction.autoExtractionThresholds.defaultStandEndPercent = thresholds.defaultStandEndPercent;
+                    }
+                    if (thresholds.minFrameCount !== undefined && thresholds.minFrameCount !== 10) {
+                        animationExtraction.autoExtractionThresholds.minFrameCount = thresholds.minFrameCount;
+                    }
+                    
+                    // 如果阈值对象为空，删除它
+                    if (Object.keys(animationExtraction.autoExtractionThresholds).length === 0) {
+                        delete animationExtraction.autoExtractionThresholds;
+                    }
+                }
+                
                 // 只有当至少有一个值不是默认值时才添加
-                if (hasCustomStrategy || hasCustomUseFullClip || hasCustomFps) {
+                if (hasCustomStrategy || hasCustomUseFullClip || hasCustomUseCachedSegments || hasCustomFps || hasCustomThresholds) {
                     configToExport.animationExtraction = animationExtraction as any;
                 }
             }
+        }
+        
+        // 添加动画片段配置（如果存在）
+        if (config.animationSegments && Object.keys(config.animationSegments).length > 0) {
+            configToExport.animationSegments = config.animationSegments;
         }
 
         const configBlock = {
@@ -251,83 +385,7 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
     // 角度转弧度
     const degreesToRadians = (deg: number) => deg * Math.PI / 180;
 
-    // 使用 ref 直接绑定原生事件
-    const resetButtonRef = useRef<HTMLButtonElement>(null);
-    const copyButtonRef = useRef<HTMLButtonElement>(null);
-    const downloadButtonRef = useRef<HTMLButtonElement>(null);
 
-    // 使用 useEffect 直接绑定原生事件监听器
-    useEffect(() => {
-        const resetBtn = resetButtonRef.current;
-        const copyBtn = copyButtonRef.current;
-        const downloadBtn = downloadButtonRef.current;
-
-        const handlers: Array<() => void> = [];
-
-        if (resetBtn) {
-            const handleResetClick = (e: MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                console.log('🟢 原生事件：重置按钮被点击', e);
-                handleReset();
-            };
-            const handleResetMouseDown = (e: MouseEvent) => {
-                e.stopPropagation();
-                console.log('🟢 原生事件：重置按钮 mousedown');
-            };
-            resetBtn.addEventListener('click', handleResetClick, true); // 使用捕获阶段
-            resetBtn.addEventListener('mousedown', handleResetMouseDown, true);
-            handlers.push(() => {
-                resetBtn.removeEventListener('click', handleResetClick, true);
-                resetBtn.removeEventListener('mousedown', handleResetMouseDown, true);
-            });
-        }
-
-        if (copyBtn) {
-            const handleCopyClick = (e: MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                console.log('🟢 原生事件：复制按钮被点击', e);
-                handleCopyToClipboard();
-            };
-            const handleCopyMouseDown = (e: MouseEvent) => {
-                e.stopPropagation();
-                console.log('🟢 原生事件：复制按钮 mousedown');
-            };
-            copyBtn.addEventListener('click', handleCopyClick, true);
-            copyBtn.addEventListener('mousedown', handleCopyMouseDown, true);
-            handlers.push(() => {
-                copyBtn.removeEventListener('click', handleCopyClick, true);
-                copyBtn.removeEventListener('mousedown', handleCopyMouseDown, true);
-            });
-        }
-
-        if (downloadBtn) {
-            const handleDownloadClick = (e: MouseEvent) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                console.log('🟢 原生事件：下载按钮被点击', e);
-                handleDownloadJSON();
-            };
-            const handleDownloadMouseDown = (e: MouseEvent) => {
-                e.stopPropagation();
-                console.log('🟢 原生事件：下载按钮 mousedown');
-            };
-            downloadBtn.addEventListener('click', handleDownloadClick, true);
-            downloadBtn.addEventListener('mousedown', handleDownloadMouseDown, true);
-            handlers.push(() => {
-                downloadBtn.removeEventListener('click', handleDownloadClick, true);
-                downloadBtn.removeEventListener('mousedown', handleDownloadMouseDown, true);
-            });
-        }
-
-        return () => {
-            handlers.forEach(cleanup => cleanup());
-        };
-    }, [handleReset, handleCopyToClipboard, handleDownloadJSON]);
 
     return (
         <div
@@ -568,7 +626,8 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
                                         strategy: config.animationExtraction?.strategy ?? "auto",
                                         useFullClip: e.target.checked,
                                         useCachedSegments: config.animationExtraction?.useCachedSegments ?? true,
-                                        fps: config.animationExtraction?.fps
+                                        fps: config.animationExtraction?.fps,
+                                        autoExtractionThresholds: config.animationExtraction?.autoExtractionThresholds
                                     }
                                 })}
                             />
@@ -592,11 +651,293 @@ const ModelConfigEditor: React.FC<ModelConfigEditorProps> = ({
                                     strategy: config.animationExtraction?.strategy ?? "auto",
                                     useFullClip: config.animationExtraction?.useFullClip ?? false,
                                     useCachedSegments: config.animationExtraction?.useCachedSegments ?? true,
-                                    fps: parseInt(e.target.value)
+                                    fps: parseInt(e.target.value),
+                                    autoExtractionThresholds: config.animationExtraction?.autoExtractionThresholds
                                 }
                             })}
                         />
                     </div>
+
+                    <div className="config-item">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={config.animationExtraction?.useCachedSegments ?? true}
+                                onChange={(e) => updateConfig({
+                                    animationExtraction: {
+                                        strategy: config.animationExtraction?.strategy ?? "auto",
+                                        useFullClip: config.animationExtraction?.useFullClip ?? false,
+                                        useCachedSegments: e.target.checked,
+                                        fps: config.animationExtraction?.fps,
+                                        autoExtractionThresholds: config.animationExtraction?.autoExtractionThresholds
+                                    }
+                                })}
+                            />
+                            <span>Use Cached Segments</span>
+                        </label>
+                    </div>
+
+                    {/* 自动提取阈值参数 */}
+                    <div className="config-subsection">
+                        <h5>自动提取阈值参数</h5>
+                        
+                        <div className="config-item">
+                            <label>
+                                <span>Min Duration (秒)</span>
+                                <span className="value-display">{(config.animationExtraction?.autoExtractionThresholds?.minDuration || 5.0).toFixed(1)}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="1.0"
+                                max="20.0"
+                                step="0.1"
+                                value={config.animationExtraction?.autoExtractionThresholds?.minDuration || 5.0}
+                                onChange={(e) => updateConfig({
+                                    animationExtraction: {
+                                        strategy: config.animationExtraction?.strategy ?? "auto",
+                                        useFullClip: config.animationExtraction?.useFullClip ?? false,
+                                        useCachedSegments: config.animationExtraction?.useCachedSegments ?? true,
+                                        fps: config.animationExtraction?.fps,
+                                        autoExtractionThresholds: {
+                                            minDuration: parseFloat(e.target.value),
+                                            minTracks: config.animationExtraction?.autoExtractionThresholds?.minTracks || 50,
+                                            defaultStandEnd: config.animationExtraction?.autoExtractionThresholds?.defaultStandEnd || 2.0,
+                                            defaultStandEndPercent: config.animationExtraction?.autoExtractionThresholds?.defaultStandEndPercent || 0.1,
+                                            minFrameCount: config.animationExtraction?.autoExtractionThresholds?.minFrameCount || 10
+                                        }
+                                    }
+                                })}
+                            />
+                        </div>
+
+                        <div className="config-item">
+                            <label>
+                                <span>Min Tracks</span>
+                                <span className="value-display">{config.animationExtraction?.autoExtractionThresholds?.minTracks || 50}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="10"
+                                max="200"
+                                step="1"
+                                value={config.animationExtraction?.autoExtractionThresholds?.minTracks || 50}
+                                onChange={(e) => updateConfig({
+                                    animationExtraction: {
+                                        strategy: config.animationExtraction?.strategy ?? "auto",
+                                        useFullClip: config.animationExtraction?.useFullClip ?? false,
+                                        useCachedSegments: config.animationExtraction?.useCachedSegments ?? true,
+                                        fps: config.animationExtraction?.fps,
+                                        autoExtractionThresholds: {
+                                            minDuration: config.animationExtraction?.autoExtractionThresholds?.minDuration || 5.0,
+                                            minTracks: parseInt(e.target.value),
+                                            defaultStandEnd: config.animationExtraction?.autoExtractionThresholds?.defaultStandEnd || 2.0,
+                                            defaultStandEndPercent: config.animationExtraction?.autoExtractionThresholds?.defaultStandEndPercent || 0.1,
+                                            minFrameCount: config.animationExtraction?.autoExtractionThresholds?.minFrameCount || 10
+                                        }
+                                    }
+                                })}
+                            />
+                        </div>
+
+                        <div className="config-item">
+                            <label>
+                                <span>Default Stand End (秒)</span>
+                                <span className="value-display">{(config.animationExtraction?.autoExtractionThresholds?.defaultStandEnd || 2.0).toFixed(1)}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="0.5"
+                                max="10.0"
+                                step="0.1"
+                                value={config.animationExtraction?.autoExtractionThresholds?.defaultStandEnd || 2.0}
+                                onChange={(e) => updateConfig({
+                                    animationExtraction: {
+                                        strategy: config.animationExtraction?.strategy ?? "auto",
+                                        useFullClip: config.animationExtraction?.useFullClip ?? false,
+                                        useCachedSegments: config.animationExtraction?.useCachedSegments ?? true,
+                                        fps: config.animationExtraction?.fps,
+                                        autoExtractionThresholds: {
+                                            minDuration: config.animationExtraction?.autoExtractionThresholds?.minDuration || 5.0,
+                                            minTracks: config.animationExtraction?.autoExtractionThresholds?.minTracks || 50,
+                                            defaultStandEnd: parseFloat(e.target.value),
+                                            defaultStandEndPercent: config.animationExtraction?.autoExtractionThresholds?.defaultStandEndPercent || 0.1,
+                                            minFrameCount: config.animationExtraction?.autoExtractionThresholds?.minFrameCount || 10
+                                        }
+                                    }
+                                })}
+                            />
+                        </div>
+
+                        <div className="config-item">
+                            <label>
+                                <span>Default Stand End Percent</span>
+                                <span className="value-display">{((config.animationExtraction?.autoExtractionThresholds?.defaultStandEndPercent || 0.1) * 100).toFixed(1)}%</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="0.05"
+                                max="0.5"
+                                step="0.01"
+                                value={config.animationExtraction?.autoExtractionThresholds?.defaultStandEndPercent || 0.1}
+                                onChange={(e) => updateConfig({
+                                    animationExtraction: {
+                                        strategy: config.animationExtraction?.strategy ?? "auto",
+                                        useFullClip: config.animationExtraction?.useFullClip ?? false,
+                                        useCachedSegments: config.animationExtraction?.useCachedSegments ?? true,
+                                        fps: config.animationExtraction?.fps,
+                                        autoExtractionThresholds: {
+                                            minDuration: config.animationExtraction?.autoExtractionThresholds?.minDuration || 5.0,
+                                            minTracks: config.animationExtraction?.autoExtractionThresholds?.minTracks || 50,
+                                            defaultStandEnd: config.animationExtraction?.autoExtractionThresholds?.defaultStandEnd || 2.0,
+                                            defaultStandEndPercent: parseFloat(e.target.value),
+                                            minFrameCount: config.animationExtraction?.autoExtractionThresholds?.minFrameCount || 10
+                                        }
+                                    }
+                                })}
+                            />
+                        </div>
+
+                        <div className="config-item">
+                            <label>
+                                <span>Min Frame Count</span>
+                                <span className="value-display">{config.animationExtraction?.autoExtractionThresholds?.minFrameCount || 10}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="5"
+                                max="100"
+                                step="1"
+                                value={config.animationExtraction?.autoExtractionThresholds?.minFrameCount || 10}
+                                onChange={(e) => updateConfig({
+                                    animationExtraction: {
+                                        strategy: config.animationExtraction?.strategy ?? "auto",
+                                        useFullClip: config.animationExtraction?.useFullClip ?? false,
+                                        useCachedSegments: config.animationExtraction?.useCachedSegments ?? true,
+                                        fps: config.animationExtraction?.fps,
+                                        autoExtractionThresholds: {
+                                            minDuration: config.animationExtraction?.autoExtractionThresholds?.minDuration || 5.0,
+                                            minTracks: config.animationExtraction?.autoExtractionThresholds?.minTracks || 50,
+                                            defaultStandEnd: config.animationExtraction?.autoExtractionThresholds?.defaultStandEnd || 2.0,
+                                            defaultStandEndPercent: config.animationExtraction?.autoExtractionThresholds?.defaultStandEndPercent || 0.1,
+                                            minFrameCount: parseInt(e.target.value)
+                                        }
+                                    }
+                                })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 显示已识别的动画片段 */}
+                    {config.animationSegments && Object.keys(config.animationSegments).length > 0 && (
+                        <div className="config-subsection">
+                            <h5>已识别的动画片段</h5>
+                            {Object.entries(config.animationSegments).map(([clipName, clipConfig]) => (
+                                <div key={clipName} className="animation-segments-display">
+                                    <div className="clip-name">{clipName}</div>
+                                    <div className="clip-duration">时长: {clipConfig.duration.toFixed(2)}s</div>
+                                    {clipConfig.segments && clipConfig.segments.length > 0 ? (
+                                        <div className="segments-list">
+                                            {clipConfig.segments.map((segment: AnimationSegment, idx: number) => (
+                                                <div key={idx} className="segment-item-editable">
+                                                    <div className="segment-header">
+                                                        <span className="segment-name">{segment.name}</span>
+                                                        <div className="segment-actions">
+                                                            {onPreviewSegment && (() => {
+                                                                // 从当前配置中获取最新的 segment 数据，避免闭包问题
+                                                                const currentSegment = config.animationSegments?.[clipName]?.segments?.[idx];
+                                                                const currentStart = currentSegment?.start ?? segment.start;
+                                                                const currentEnd = currentSegment?.end ?? segment.end;
+                                                                return (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="preview-segment-button"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            // 从当前配置中读取最新值
+                                                                            const latestConfig = config;
+                                                                            const latestSegment = latestConfig.animationSegments?.[clipName]?.segments?.[idx];
+                                                                            if (latestSegment) {
+                                                                                onPreviewSegment(clipName, latestSegment.name, latestSegment.start, latestSegment.end);
+                                                                            } else {
+                                                                                onPreviewSegment(clipName, segment.name, currentStart, currentEnd);
+                                                                            }
+                                                                        }}
+                                                                        title={`预览 ${segment.name} 动画 (${currentStart.toFixed(2)}s - ${currentEnd.toFixed(2)}s)`}
+                                                                    >
+                                                                        👁️
+                                                                    </button>
+                                                                );
+                                                            })()}
+                                                            {onPlayAnimation && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="play-animation-button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        onPlayAnimation(segment.name);
+                                                                    }}
+                                                                    title={`播放 ${segment.name} 动画`}
+                                                                >
+                                                                    ▶
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="segment-time-editor">
+                                                        <div className="time-input-group">
+                                                            <label>开始时间 (s)</label>
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                min="0"
+                                                                max={clipConfig.duration}
+                                                                value={segment.start.toFixed(2)}
+                                                                onChange={(e) => {
+                                                                    const newStart = parseFloat(e.target.value);
+                                                                    if (!isNaN(newStart) && newStart >= 0 && newStart < segment.end) {
+                                                                        updateSegmentTime(clipName, idx, 'start', newStart);
+                                                                    }
+                                                                }}
+                                                                className="time-input"
+                                                            />
+                                                        </div>
+                                                        <div className="time-separator">-</div>
+                                                        <div className="time-input-group">
+                                                            <label>结束时间 (s)</label>
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                min={segment.start}
+                                                                max={clipConfig.duration}
+                                                                value={segment.end.toFixed(2)}
+                                                                onChange={(e) => {
+                                                                    const newEnd = parseFloat(e.target.value);
+                                                                    if (!isNaN(newEnd) && newEnd > segment.start && newEnd <= clipConfig.duration) {
+                                                                        updateSegmentTime(clipName, idx, 'end', newEnd);
+                                                                    }
+                                                                }}
+                                                                className="time-input"
+                                                            />
+                                                        </div>
+                                                        <div className="segment-duration">
+                                                            时长: {(segment.end - segment.start).toFixed(2)}s
+                                                        </div>
+                                                    </div>
+                                                    <div className="segment-confidence">
+                                                        置信度: {(segment.confidence * 100).toFixed(0)}%
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="no-segments">未识别到片段</div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 

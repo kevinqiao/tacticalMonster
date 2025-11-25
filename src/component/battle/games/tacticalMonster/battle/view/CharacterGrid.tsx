@@ -24,6 +24,7 @@ export interface ICharacterProps {
     onAnimatorReady?: (animator: { move: () => void; stand: () => void; attack?: () => void }) => void;
     overrideConfig?: Partial<ModelConfig>;  // 配置覆盖（用于编辑器实时预览）
     onConfigReady?: (config: ModelConfig) => void;  // 当配置加载完成时回调
+    onPreviewSegment?: (clipName: string, segmentName: string, start: number, end: number) => void;  // 预览特定时间范围的动画片段
 }
 
 interface Props {

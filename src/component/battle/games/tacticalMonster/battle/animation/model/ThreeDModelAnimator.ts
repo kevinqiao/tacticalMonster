@@ -12,6 +12,53 @@ export class ThreeDModelAnimator implements ModelAnimator {
         this.mixer = mixer;
         this.actions = actions;
     }
+    
+    // 通用的动画播放方法，支持所有动作类型
+    playAnimation(animationName: string): boolean {
+        console.log(`ThreeDModelAnimator.playAnimation(${animationName}) 被调用`);
+        console.log('可用动作:', Object.keys(this.actions));
+        
+        // 停止所有正在播放的动画
+        this.mixer.stopAllAction();
+        
+        // 停止所有actions
+        Object.entries(this.actions).forEach(([name, action]) => {
+            if (action && name !== animationName) {
+                action.stop();
+                action.reset();
+                action.setEffectiveWeight(0);
+                action.enabled = false;
+            }
+        });
+        
+        // 再次确保停止所有action
+        this.mixer.stopAllAction();
+        
+        // 查找对应的action
+        const action = this.actions[animationName];
+        if (!action) {
+            console.warn(`动画 ${animationName} 不存在，可用动作:`, Object.keys(this.actions));
+            return false;
+        }
+        
+        // 停止并重置action
+        if (action.isRunning()) {
+            action.stop();
+        }
+        action.reset();
+        
+        // 最后一次确保mixer中所有action都被停止
+        this.mixer.stopAllAction();
+        
+        // 启用并播放action
+        action.enabled = true;
+        action.setEffectiveWeight(1);
+        action.setLoop(THREE.LoopRepeat);
+        action.play();
+        
+        console.log(`✓ 播放动画: ${animationName}`);
+        return true;
+    }
     move() {
         console.log('ThreeDModelAnimator.move() 被调用');
         console.log('尝试播放移动动画，可用动作:', Object.keys(this.actions));
