@@ -1,0 +1,334 @@
+/**
+ * 宝箱服务
+ * 处理宝箱生成和管理（游戏特定的逻辑）
+ */
+export class ChestService {
+    /**
+     * 处理宝箱奖励（游戏特定的逻辑）
+     */
+    static async processChestRewards(ctx: any, params: {
+        gameId: string;
+        tier: string;
+        players: Array<{ uid: string; rank: number; score: number }>;
+        chestTriggered: Record<string, boolean>;  // 从 Tournament 传入的触发决策
+    }) {
+        const results: Record<string, any> = {};
+
+        for (const player of params.players) {
+            if (!params.chestTriggered[player.uid]) {
+                continue;  // 没有触发宝箱，跳过
+            }
+
+            // 1. 根据 Tier 和排名选择宝箱类型（游戏特定逻辑）
+            const chestType = this.selectChestType(params.tier, player.rank);
+
+            // 2. 检查玩家宝箱槽位（3槽系统）
+            const availableSlot = await this.findAvailableSlot(ctx, player.uid);
+
+            if (!availableSlot) {
+                // 3. 槽位已满，处理智能覆盖（游戏特定逻辑）
+                const overrideResult = await this.handleChestOverride(ctx, {
+                    uid: player.uid,
+                    newChestType: chestType,
+                    gameId: params.gameId,
+                    tier: params.tier,
+                });
+                results[player.uid] = overrideResult;
+            } else {
+                // 4. 生成宝箱实例（游戏特定逻辑）
+                const chest = await this.generateChest(ctx, {
+                    uid: player.uid,
+                    chestType: chestType,
+                    slotNumber: availableSlot,
+                    tier: params.tier,
+                    gameId: params.gameId,
+                });
+                results[player.uid] = {
+                    success: true,
+                    chestId: chest.chestId,
+                    chestType: chestType,
+                    slotNumber: availableSlot,
+                };
+            }
+        }
+
+        return results;
+    }
+
+    /**
+     * 根据 Tier 和排名选择宝箱类型
+     */
+    private static selectChestType(tier: string, rank: number): string {
+        // 游戏特定的宝箱类型选择逻辑
+        // 高排名更容易获得高级宝箱
+        const tierWeights: Record<string, Record<string, number>> = {
+            bronze: { silver: 0.8, gold: 0.2 },
+            silver: { silver: 0.6, gold: 0.35, purple: 0.05 },
+            gold: { gold: 0.5, purple: 0.4, orange: 0.1 },
+            platinum: { purple: 0.5, orange: 0.5 },
+        };
+
+        // 根据排名调整权重
+        const rankBonus = rank === 1 ? 0.2 : rank <= 3 ? 0.1 : 0;
+
+        // 选择宝箱类型（简化实现）
+        const weights = tierWeights[tier] || tierWeights.bronze;
+        const random = Math.random();
+        let cumulative = 0;
+
+        for (const [chestType, weight] of Object.entries(weights)) {
+            cumulative += weight + (rank === 1 && chestType !== "silver" ? rankBonus : 0);
+            if (random < cumulative) {
+                return chestType;
+            }
+        }
+
+        return "silver";  // 默认
+    }
+
+    /**
+     * 查找可用槽位（3槽系统）
+     */
+    private static async findAvailableSlot(ctx: any, uid: string): Promise<number | null> {
+        // 查询等待中和开启中的宝箱（分别查询然后合并）
+        const waitingChests = await ctx.db
+            .query("mr_player_chests")
+            .withIndex("by_uid_status", (q: any) => q.eq("uid", uid).eq("status", "waiting"))
+            .collect();
+
+        const openingChests = await ctx.db
+            .query("mr_player_chests")
+            .withIndex("by_uid_status", (q: any) => q.eq("uid", uid).eq("status", "opening"))
+            .collect();
+
+        const playerChests = [...waitingChests, ...openingChests];
+        const usedSlots = new Set(playerChests.map(c => c.slotNumber));
+
+        // 查找 1-3 槽中第一个可用槽位
+        for (let i = 1; i <= 3; i++) {
+            if (!usedSlots.has(i)) {
+                return i;
+            }
+        }
+
+        return null;  // 所有槽位都被占用
+    }
+
+    /**
+     * 智能覆盖逻辑（槽位已满时）
+     */
+    private static async handleChestOverride(ctx: any, params: {
+        uid: string;
+        newChestType: string;
+        gameId: string;
+        tier: string;
+    }) {
+        // 1. 获取当前所有宝箱（查询等待中和开启中的宝箱）
+        const waitingChests = await ctx.db
+            .query("mr_player_chests")
+            .withIndex("by_uid_status", (q: any) => q.eq("uid", params.uid).eq("status", "waiting"))
+            .collect();
+
+        const openingChests = await ctx.db
+            .query("mr_player_chests")
+            .withIndex("by_uid_status", (q: any) => q.eq("uid", params.uid).eq("status", "opening"))
+            .collect();
+
+        const playerChests = [...waitingChests, ...openingChests];
+
+        // 2. 找到价值最低的宝箱（用于覆盖）
+        const chestValues: Record<string, number> = { silver: 1, gold: 2, purple: 3, orange: 4 };
+        const lowestChest = playerChests.reduce((min, chest) => {
+            const currentValue = chestValues[chest.chestType as keyof typeof chestValues] || 0;
+            const minValue = chestValues[min.chestType as keyof typeof chestValues] || 0;
+            return currentValue < minValue ? chest : min;
+        });
+
+        // 3. 如果新宝箱价值更高，进行覆盖
+        const newValue = chestValues[params.newChestType as keyof typeof chestValues] || 0;
+        const oldValue = chestValues[lowestChest.chestType as keyof typeof chestValues] || 0;
+
+        if (newValue > oldValue) {
+            // 退还旧宝箱（TODO: 实现退款逻辑）
+            // await this.refundChest(ctx, lowestChest);
+
+            // 生成新宝箱
+            const newChest = await this.generateChest(ctx, {
+                uid: params.uid,
+                chestType: params.newChestType,
+                slotNumber: lowestChest.slotNumber,
+                tier: params.tier,
+                gameId: params.gameId,
+            });
+
+            return {
+                success: true,
+                chestId: newChest.chestId,
+                chestType: params.newChestType,
+                slotNumber: lowestChest.slotNumber,
+                overridden: true,
+            };
+        }
+
+        return {
+            success: false,
+            reason: "新宝箱价值不高于现有宝箱",
+        };
+    }
+
+    /**
+     * 生成宝箱实例
+     */
+    private static async generateChest(ctx: any, params: {
+        uid: string;
+        chestType: string;
+        slotNumber: number;
+        tier: string;
+        gameId: string;
+    }) {
+        // 获取宝箱配置
+        const chestConfig = await ctx.db
+            .query("mr_chest_configs")
+            .withIndex("by_chestType", (q: any) => q.eq("chestType", params.chestType))
+            .first();
+
+        if (!chestConfig) {
+            throw new Error(`宝箱配置不存在: ${params.chestType}`);
+        }
+
+        // 预生成奖励（基于概率表）
+        const rewards = this.generateRewards(chestConfig.rewardsConfig);
+
+        // 计算开启时间
+        const startedAt = new Date().toISOString();
+        const readyAt = new Date(
+            Date.now() + chestConfig.unlockTimeSeconds * 1000
+        ).toISOString();
+
+        // 创建宝箱实例
+        const chestId = crypto.randomUUID();
+        await ctx.db.insert("mr_player_chests", {
+            chestId: chestId,
+            uid: params.uid,
+            chestType: params.chestType,
+            slotNumber: params.slotNumber,
+            status: "waiting",
+            rewards: rewards,  // 预生成的奖励
+            startedAt: startedAt,
+            readyAt: readyAt,
+            createdAt: startedAt,
+        });
+
+        return {
+            chestId: chestId,
+            chestType: params.chestType,
+            slotNumber: params.slotNumber,
+        };
+    }
+
+    /**
+     * 生成奖励内容（基于概率表）
+     */
+    private static generateRewards(rewardsConfig: any): any {
+        // 根据概率表生成奖励
+        // 例如：{common: 0.6, rare: 0.3, epic: 0.1}
+        return {
+            shards: [
+                { monsterId: "monster1", quantity: 5 },
+                { monsterId: "monster2", quantity: 3 },
+            ],
+            coins: 100,
+        };
+    }
+
+    /**
+     * 领取宝箱奖励
+     */
+    static async claimChest(ctx: any, params: {
+        uid: string;
+        chestId: string;
+    }) {
+        // 1. 获取宝箱
+        const chest = await ctx.db
+            .query("mr_player_chests")
+            .withIndex("by_uid_status", (q: any) => q.eq("uid", params.uid))
+            .filter((q: any) => q.eq(q.field("chestId"), params.chestId))
+            .first();
+
+        if (!chest) {
+            throw new Error("宝箱不存在");
+        }
+
+        // 2. 检查宝箱状态
+        if (chest.status === "claimed") {
+            throw new Error("宝箱已经领取过了");
+        }
+
+        const now = new Date().toISOString();
+        const readyTime = new Date(chest.readyAt).getTime();
+        const currentTime = Date.now();
+
+        if (currentTime < readyTime && chest.status !== "ready") {
+            throw new Error("宝箱尚未准备好");
+        }
+
+        // 3. 发放奖励
+        const rewards = chest.rewards;
+
+        // 发放碎片（如果有）
+        if (rewards.shards) {
+            const { ShardService } = await import("../monster/shardService");
+            for (const shard of rewards.shards) {
+                await ShardService.addShards(ctx, {
+                    uid: params.uid,
+                    monsterId: shard.monsterId,
+                    quantity: shard.quantity,
+                    source: "chest",
+                    sourceId: params.chestId,
+                });
+            }
+        }
+
+        // 发放金币（如果有，使用统一奖励服务）
+        if (rewards.coins) {
+            const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
+            await TournamentProxyService.grantRewards({
+                uid: params.uid,
+                rewards: {
+                    coins: rewards.coins,
+                },
+                source: "chest",
+                sourceId: params.chestId,
+            });
+        }
+
+        // 4. 更新宝箱状态
+        await ctx.db.patch(chest._id, {
+            status: "claimed",
+            claimedAt: now,
+        });
+
+        // 5. 添加 Battle Pass 积分
+        const { BattlePassIntegration } = await import("../battlePass/battlePassIntegration");
+        const { calculateChestPoints } = await import("../battlePass/battlePassPoints");
+
+        const chestPoints = calculateChestPoints(chest.chestType);
+        BattlePassIntegration.addGameSeasonPoints(ctx, {
+            uid: params.uid,
+            amount: chestPoints,
+            source: "tacticalMonster:chest_open",
+            sourceDetails: {
+                chestId: params.chestId,
+                chestType: chest.chestType,
+            },
+        }).catch((error) => {
+            console.error(`为玩家 ${params.uid} 添加宝箱积分失败:`, error);
+        });
+
+        return {
+            ok: true,
+            rewards: rewards,
+        };
+    }
+}
+

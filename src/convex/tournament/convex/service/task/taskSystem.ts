@@ -1,6 +1,6 @@
 import { internalMutation } from "../../_generated/server";
 import { TASK_TEMPLATES } from "../../data/taskTemplate";
-import { TicketSystem } from "../ticket/ticketSystem";
+import { RewardService } from "../reward/rewardService";
 
 // ============================================================================
 // 任务系统核心服务 - 基于三表设计
@@ -48,6 +48,17 @@ export interface TaskRewards {
     props?: TaskProp[];
     tickets?: Ticket[];
     seasonPoints?: number;
+    // 游戏特定奖励（TacticalMonster）
+    monsters?: Array<{
+        monsterId: string;
+        level?: number;
+        stars?: number;
+    }>;
+    monsterShards?: Array<{
+        monsterId: string;
+        quantity: number;
+    }>;
+    energy?: number;
     // gamePoints: {
     //     general: number;
     //     specific?: {
@@ -776,6 +787,15 @@ export class TaskSystem {
             });
         }
 
+        // 同步活动系统进度
+        try {
+            const { ActivityIntegrationService } = await import("../activity/activityIntegrationService");
+            await ActivityIntegrationService.syncWithTaskSystem(ctx, uid, action, actionData);
+        } catch (error: any) {
+            // 活动系统同步失败不影响任务处理
+            console.error("活动系统同步失败:", error);
+        }
+
         return {
             success: true,
             message: `处理了 ${updatedTasks.length} 个任务`,
@@ -810,8 +830,8 @@ export class TaskSystem {
             return { success: false, message: "奖励已领取" };
         }
 
-        // 发放奖励
-        const rewardResult = await this.grantRewards(ctx, uid, completedTask.rewards);
+        // 发放奖励（使用统一奖励服务）
+        const rewardResult = await this.grantRewards(ctx, uid, completedTask.rewards, completedTask.taskId);
 
         // 更新任务状态
         await ctx.db.patch(completedTask._id, {
@@ -1195,64 +1215,132 @@ export class TaskSystem {
     }
 
     /**
-     * 发放奖励
+     * 发放奖励（使用统一奖励服务）
      */
-    private static async grantRewards(ctx: any, uid: string, rewards: TaskRewards): Promise<{ success: boolean; message: string }> {
-        const nowISO = new Date().toISOString();
-
-        // 发放金币
-        if (rewards.coins && rewards.coins > 0) {
-            const player = await ctx.db.query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .unique();
-
-            if (player) {
-                await ctx.db.patch(player._id, {
-                    coins: player.coins + rewards.coins
-                });
-            }
-        }
-
-        // 发放道具
-        if (rewards.props && rewards.props.length > 0) {
-            for (const prop of rewards.props) {
-                // 这里应该调用道具系统的发放接口
-                console.log(`发放道具: ${prop.propType} x${prop.quantity}`);
-            }
-        }
-
-        // 发放门票
-        if (rewards.tickets && rewards.tickets.length > 0) {
-            for (const ticket of rewards.tickets) {
+    private static async grantRewards(ctx: any, uid: string, rewards: TaskRewards, taskId?: string): Promise<{ success: boolean; message: string }> {
+        try {
+            // 计算经验值（如果任务ID存在）
+            let expReward = 0;
+            if (taskId) {
                 try {
-                    await TicketSystem.grantTicketReward(ctx, {
-                        uid,
-                        type: ticket.type,
-                        quantity: ticket.quantity
-                    });
-                    console.log(`成功发放门票: ${ticket.type} x${ticket.quantity}`);
-                } catch (error) {
-                    console.error(`发放门票失败: ${ticket.type}`, error);
+                    const { PlayerExpRewardHandler } = await import("../reward/rewardHandlers/playerExpRewardHandler");
+                    
+                    // 尝试从活跃任务中查找
+                    let task = await ctx.db.query("player_tasks")
+                        .withIndex("by_uid_taskId", (q: any) => q.eq("uid", uid).eq("taskId", taskId))
+                        .unique();
+                    
+                    // 如果找不到活跃任务，尝试从已完成任务中查找
+                    if (!task) {
+                        const completedTask = await ctx.db.query("task_completed")
+                            .withIndex("by_uid_taskId", (q: any) => q.eq("uid", uid).eq("taskId", taskId))
+                            .unique();
+                        if (completedTask) {
+                            task = completedTask as any;
+                        }
+                    }
+                    
+                    if (task) {
+                        // 从任务类型映射到计算函数需要的类型
+                        let taskType: "daily" | "weekly" | "achievement" | null = null;
+                        let taskDifficulty: "easy" | "medium" | "hard" = "medium";
+                        
+                        if (task.type === "daily") {
+                            taskType = "daily";
+                        } else if (task.type === "weekly") {
+                            taskType = "weekly";
+                        } else if (task.type === "one_time" || task.category === "achievement") {
+                            taskType = "achievement";
+                        }
+                        
+                        // 如果找到了任务类型，计算经验值
+                        if (taskType) {
+                            expReward = await PlayerExpRewardHandler.calculateTaskExp(
+                                taskType,
+                                taskDifficulty,
+                                rewards.coins || 0
+                            );
+                        }
+                    }
+                } catch (error: any) {
+                    console.error("计算任务经验值失败:", error);
+                    // 计算失败不影响其他奖励发放
                 }
             }
+
+            // 转换 TaskRewards 为 UnifiedRewards
+            const unifiedRewards: any = {
+                coins: rewards.coins,
+                seasonPoints: rewards.seasonPoints,
+                exp: expReward, // 添加计算得到的经验值
+                props: rewards.props,
+                monsters: rewards.monsters,
+                monsterShards: rewards.monsterShards,
+                energy: rewards.energy,
+            };
+
+            // 调用统一奖励服务
+            const result = await RewardService.grantRewards(ctx, {
+                uid,
+                rewards: unifiedRewards,
+                source: {
+                    source: "task",
+                    sourceId: taskId,
+                },
+                gameType: rewards.monsters || rewards.monsterShards || rewards.energy ? "tacticalMonster" : undefined,
+            });
+
+            // 构建返回消息
+            const grantedRewards: string[] = [];
+            if (result.grantedRewards) {
+                if (result.grantedRewards.coins) {
+                    grantedRewards.push(`金币 x${result.grantedRewards.coins}`);
+                }
+                if (result.grantedRewards.seasonPoints) {
+                    grantedRewards.push(`赛季积分 x${result.grantedRewards.seasonPoints}`);
+                }
+                if (expReward > 0 && result.grantedRewards.exp) {
+                    grantedRewards.push(`经验值 x${result.grantedRewards.exp}`);
+                }
+                if (result.grantedRewards.props && result.grantedRewards.props.length > 0) {
+                    result.grantedRewards.props.forEach((prop: any) => {
+                        grantedRewards.push(`道具 ${prop.propType} x${prop.quantity}`);
+                    });
+                }
+                if (result.grantedRewards.monsters && result.grantedRewards.monsters.length > 0) {
+                    result.grantedRewards.monsters.forEach((monster: any) => {
+                        grantedRewards.push(`怪物 ${monster.monsterId} x1`);
+                    });
+                }
+                if (result.grantedRewards.monsterShards && result.grantedRewards.monsterShards.length > 0) {
+                    result.grantedRewards.monsterShards.forEach((shard: any) => {
+                        grantedRewards.push(`碎片 ${shard.monsterId} x${shard.quantity}`);
+                    });
+                }
+                if (result.grantedRewards.energy) {
+                    grantedRewards.push(`能量 x${result.grantedRewards.energy}`);
+                }
+            }
+
+            // 处理失败奖励
+            if (result.failedRewards && result.failedRewards.length > 0) {
+                const failedMessages = result.failedRewards.map(f => `${f.type}: ${f.reason}`).join(", ");
+                console.error(`部分奖励发放失败: ${failedMessages}`);
+            }
+
+            return {
+                success: result.success,
+                message: result.success
+                    ? `奖励发放成功: ${grantedRewards.join(", ")}`
+                    : result.message,
+            };
+        } catch (error: any) {
+            console.error("调用统一奖励服务失败:", error);
+            return {
+                success: false,
+                message: `奖励发放失败: ${error.message}`,
+            };
         }
-
-        // 发放赛季点
-        if (rewards.seasonPoints && rewards.seasonPoints > 0) {
-            // 这里应该调用赛季系统的发放接口
-            console.log(`发放赛季点: ${rewards.seasonPoints}`);
-        }
-
-        // 发放游戏积分
-        // if (rewards.gamePoints) {
-        //     // 这里应该调用积分系统的发放接口
-        //     console.log(`发放游戏积分: ${rewards.gamePoints.general}`);
-        // }
-
-        return {
-            success: true,
-            message: "奖励发放成功"
-        };
     }
     static async loadConfig(ctx: any) {
         const preconfigs = await ctx.db.query("task_templates").collect();

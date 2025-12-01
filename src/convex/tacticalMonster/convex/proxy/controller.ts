@@ -5,14 +5,15 @@ import { action } from "../_generated/server";
 const tournament_url = "https://beloved-mouse-699.convex.site";
 
 export const loadGame = action({
-    args: { 
+    args: {
         gameId: v.string(),
         mapId: v.optional(v.string()),
         playerUid: v.optional(v.string()),
     },
     handler: async (ctx, { gameId, mapId, playerUid }): Promise<any> => {
         const res: { ok: boolean; game?: any; events?: any } = { ok: false };
-        let game = await ctx.runQuery(internal.service.gameManager.findGame, { gameId });
+        // 类型断言：类型文件会在 convex dev 重新生成后自动更新
+        let game = await ctx.runQuery((internal as any).service.game.gameService.findGame, { gameId });
 
         if (!game) {
             // 尝试从 tournament 获取 match 信息
@@ -42,7 +43,7 @@ export const loadGame = action({
                 if (matchGameResult.ok) {
                     const data = matchGameResult.match;
                     const rawSeed = data?.seed ?? data?.gameId;
-                    
+
                     // 假设第一个玩家是玩家，其他是 AI 控制
                     const player = data?.players?.[0];
                     if (player) {
@@ -61,7 +62,7 @@ export const loadGame = action({
 
             if (createArgs) {
                 const gameResult = await ctx.runMutation(
-                    internal.service.gameManager.createGame,
+                    (internal as any).service.game.gameService.createGame,
                     createArgs
                 );
 

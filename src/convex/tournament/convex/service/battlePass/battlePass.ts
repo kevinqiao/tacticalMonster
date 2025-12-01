@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "../../_generated/server";
+import { internalMutation, mutation, query } from "../../_generated/server";
 import { BattlePassSystem } from "./battlePassSystem";
 
 
@@ -21,10 +21,13 @@ export const getCurrentBattlePassConfig = query({
 
 /**
  * 获取玩家Battle Pass信息
+ * 如果赛季已切换，会自动重置为新赛季
  */
 export const getPlayerBattlePass = query({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
+        // 检查并重置（如果赛季已切换）
+        await BattlePassSystem.checkAndResetPlayerBattlePassIfNeeded(ctx, args.uid);
         return await BattlePassSystem.getPlayerBattlePass(ctx, args.uid);
     },
 });
@@ -88,14 +91,13 @@ export const addBattlePassSeasonPoints = mutation({
     args: {
         uid: v.string(),
         seasonPointsAmount: v.number(),
-        source: v.string(), // "tournament", "quick_match", "prop_match", "task", "social", "achievement", "segment_upgrade"
+        source: v.string(), // "tournament", "quick_match", "prop_match", "task", "social", "achievement"
         sourceDetails: v.optional(v.object({
             gameType: v.optional(v.string()),
             tournamentId: v.optional(v.string()),
             matchId: v.optional(v.string()),
             taskId: v.optional(v.string()),
-            achievementId: v.optional(v.string()),
-            segmentUpgradeId: v.optional(v.string())
+            achievementId: v.optional(v.string())
         }))
     },
     handler: async (ctx, args) => {
@@ -300,23 +302,6 @@ export const addAchievementSeasonPoints = mutation({
     },
 });
 
-/**
- * 段位升级时自动添加赛季积分
- */
-export const addSegmentUpgradeSeasonPoints = mutation({
-    args: {
-        uid: v.string(),
-        fromSegment: v.string(),
-        toSegment: v.string(),
-        seasonPointsAmount: v.number()
-    },
-    handler: async (ctx, args) => {
-        const { uid, fromSegment, toSegment, seasonPointsAmount } = args;
-
-        return await BattlePassSystem.addSeasonPoints(ctx, uid, seasonPointsAmount, "segment_upgrade");
-    },
-});
-
 // ============================================================================
 // 批量操作接口
 // ============================================================================
@@ -335,8 +320,7 @@ export const batchAddBattlePassSeasonPoints = mutation({
                 tournamentId: v.optional(v.string()),
                 matchId: v.optional(v.string()),
                 taskId: v.optional(v.string()),
-                achievementId: v.optional(v.string()),
-                segmentUpgradeId: v.optional(v.string())
+                achievementId: v.optional(v.string())
             }))
         }))
     },
@@ -392,6 +376,17 @@ export const resetPlayerBattlePass = mutation({
             message: "Battle Pass重置成功",
             battlePass: newBattlePass
         };
+    },
+});
+
+/**
+ * 自动重置所有玩家的Battle Pass为新赛季（定时任务用）
+ * 每月1日自动执行
+ */
+export const resetAllPlayersBattlePassForNewSeason = internalMutation({
+    args: {},
+    handler: async (ctx) => {
+        return await BattlePassSystem.resetAllPlayersBattlePassForNewSeason(ctx);
     },
 });
 

@@ -419,7 +419,7 @@ export const getAvailableTournaments = query({
     },
 });
 
-export const loadTournamentConfig = (internalMutation as any)({
+export const loadTournamentConfig = internalMutation({
     args: {},
     handler: async (ctx: any, args: any) => {
         const result = await TournamentService.loadTournamentConfig(ctx);

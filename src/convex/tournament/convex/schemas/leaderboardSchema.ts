@@ -55,11 +55,37 @@ export const leaderboardSchema = {
         .index("by_uid_week_game", ["uid", "weekStart", "gameType"])
         .index("by_week_game_score", ["weekStart", "gameType", "totalScore"]),
 
+    // 赛季综合排行榜积分累积（所有游戏）
+    seasonal_leaderboard_points: defineTable({
+        seasonId: v.string(), // 赛季ID（与Battle Pass一致）
+        uid: v.string(),
+        totalScore: v.number(), // 累积的总积分（所有游戏）
+        matchesPlayed: v.number(), // 参与的对局数（所有游戏）
+        createdAt: v.string(),
+        updatedAt: v.string(),
+    }).index("by_season", ["seasonId"])
+        .index("by_uid_season", ["uid", "seasonId"])
+        .index("by_season_score", ["seasonId", "totalScore"]),
+
+    // 赛季游戏特定排行榜积分累积
+    seasonal_leaderboard_points_by_game: defineTable({
+        seasonId: v.string(), // 赛季ID（与Battle Pass一致）
+        uid: v.string(),
+        gameType: v.string(), // "solitaire", "chess", etc.
+        totalScore: v.number(), // 累积的总积分（特定游戏）
+        matchesPlayed: v.number(), // 参与的对局数（特定游戏）
+        createdAt: v.string(),
+        updatedAt: v.string(),
+    }).index("by_season_game", ["seasonId", "gameType"])
+        .index("by_uid_season_game", ["uid", "seasonId", "gameType"])
+        .index("by_season_game_score", ["seasonId", "gameType", "totalScore"]),
+
     // 排行榜结算记录
     leaderboard_settlements: defineTable({
-        leaderboardType: v.string(), // "daily" 或 "weekly"
-        date: v.string(), // 日期或周开始日期
+        leaderboardType: v.string(), // "daily", "weekly" 或 "seasonal"
+        date: v.string(), // 日期、周开始日期或赛季ID
         gameType: v.string(),
+        seasonId: v.optional(v.string()), // 赛季ID（仅seasonal类型使用）
         uid: v.string(),
         rank: v.number(),
         totalScore: v.number(),
@@ -71,7 +97,8 @@ export const leaderboardSchema = {
         createdAt: v.string(),
     }).index("by_type_date_game", ["leaderboardType", "date", "gameType"])
         .index("by_uid_type_date", ["uid", "leaderboardType", "date"])
-        .index("by_uid_claimed", ["uid", "claimed"]),
+        .index("by_uid_claimed", ["uid", "claimed"])
+        .index("by_season", ["seasonId"]),
 
     // 玩家排行榜统计
     player_leaderboard_stats: defineTable({
@@ -92,11 +119,12 @@ export const leaderboardSchema = {
 
     // 排行榜配置
     leaderboard_configs: defineTable({
-        leaderboardType: v.string(), // "daily" 或 "weekly"
+        leaderboardType: v.string(), // "daily", "weekly" 或 "seasonal"
         gameType: v.string(),
         isActive: v.boolean(),
         resetTime: v.string(), // "00:00" 格式
         resetDay: v.optional(v.number()), // 周排行榜重置日 (0=周日, 1=周一)
+        seasonId: v.optional(v.string()), // 赛季ID（仅seasonal类型使用）
         rewards: v.array(v.object({
             rankRange: v.array(v.number()), // [minRank, maxRank]
             rankPoints: v.number(),
@@ -105,16 +133,19 @@ export const leaderboardSchema = {
         })),
         createdAt: v.string(),
         updatedAt: v.string(),
-    }).index("by_type_game", ["leaderboardType", "gameType"]),
+    }).index("by_type_game", ["leaderboardType", "gameType"])
+        .index("by_season", ["seasonId"]),
 
     // 排行榜重置记录
     leaderboard_resets: defineTable({
-        leaderboardType: v.string(), // "daily" 或 "weekly"
-        date: v.string(), // 重置日期
+        leaderboardType: v.string(), // "daily", "weekly" 或 "seasonal"
+        date: v.string(), // 重置日期或赛季ID
         gameType: v.string(),
+        seasonId: v.optional(v.string()), // 赛季ID（仅seasonal类型使用）
         totalPlayers: v.number(), // 参与玩家数
         totalRewards: v.number(), // 发放奖励数
         resetAt: v.string(),
         createdAt: v.string(),
     }).index("by_type_date_game", ["leaderboardType", "date", "gameType"])
+        .index("by_season", ["seasonId"])
 }; 

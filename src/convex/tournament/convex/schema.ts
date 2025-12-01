@@ -1,9 +1,9 @@
 import { defineSchema } from "convex/server";
+import { activitySchema } from "./schemas/activitySchema";
 import { battlePassSchema } from "./schemas/battlePassSchema";
 import { rankingSchema } from "./schemas/rankingSchema";
-import { segmentSchema } from "./schemas/segmentSchema";
+import { rewardSchema } from "./schemas/rewardSchema";
 import { taskSchema } from "./schemas/taskSchema";
-import { ticketSchema } from "./schemas/ticketSchema";
 import { tournamentRulesSchema } from "./schemas/tournamentRulesSchema";
 import { tournamentSchema } from "./schemas/tournamentSchema";
 import { userSchema } from "./schemas/userSchema";
@@ -16,14 +16,8 @@ export default defineSchema({
   // 锦标赛系统
   ...tournamentSchema,
 
-  // 段位系统
-  ...segmentSchema,
-
   // 道具系统
   // ...propSchema,
-
-  // 门票系统
-  ...ticketSchema,
 
   // 任务系统
   ...taskSchema,
@@ -36,5 +30,11 @@ export default defineSchema({
 
   // 锦标赛规则系统
   ...tournamentRulesSchema,
+
+  // 统一奖励系统
+  ...rewardSchema,
+
+  // 活动系统
+  ...activitySchema,
 
 });

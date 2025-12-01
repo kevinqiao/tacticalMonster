@@ -1,6 +1,5 @@
 import { Id } from "../../_generated/dataModel";
 import { TimeZoneUtils } from "../../util/TimeZoneUtils";
-import { TicketSystem } from "../ticket/ticketSystem";
 import { PointCalculationService } from "./pointCalculationService";
 
 /**
@@ -352,18 +351,10 @@ export async function validateEntryFee(ctx: any, params: {
 
     const entryFee = tournamentType.entryRequirements.entryFee;
 
-    // 检查门票入场费
+    // 门票系统已移除，不再检查门票入场费
     if (entryFee.tickets && entryFee.tickets.length > 0) {
-        const tickets = await TicketSystem.getPlayerTickets(ctx, uid);
-
-        for (const requiredTicket of entryFee.tickets) {
-            const hasTicket = tickets.some((ticket: any) =>
-                ticket.id === requiredTicket.id || ticket.name === requiredTicket.name
-            );
-            if (!hasTicket) {
-                throw new Error(`缺少必需门票: ${requiredTicket.name || requiredTicket.id}`);
-            }
-        }
+        // 门票系统已移除，暂时跳过门票检查
+        console.warn("门票系统已移除，跳过门票入场费检查");
     }
 }
 
@@ -390,19 +381,10 @@ export async function deductEntryFee(ctx: any, params: {
         throw new Error(`金币不足: ${entryFee.coins - player.coins}`);
     }
 
-    // 扣除门票入场费
-
+    // 门票系统已移除，不再扣除门票入场费
     if (entryFee.tickets && entryFee.tickets.length > 0) {
-        const tickets = await TicketSystem.getPlayerTickets(ctx, player.uid);
-
-        for (const requiredTicket of entryFee.tickets) {
-            const hasTicket = tickets.some((ticket: any) =>
-                ticket.id === requiredTicket.id || ticket.name === requiredTicket.name
-            );
-            if (!hasTicket) {
-                throw new Error(`缺少必需门票: ${requiredTicket.name || requiredTicket.id}`);
-            }
-        }
+        // 门票系统已移除，暂时跳过门票扣除
+        console.warn("门票系统已移除，跳过门票入场费扣除");
     }
 
 
@@ -534,31 +516,7 @@ export async function settleTournament(ctx: any, tournamentId: string) {
                 // 立即更新玩家积分统计
                 await updatePlayerPointStats(ctx, playerTournament.uid, tournamentId, tournamentPoints.points);
 
-                // 🆕 处理段位变化
-                if (tournamentPoints.points.rankPoints > 0) {
-                    try {
-                        const { TournamentSegmentIntegration } = await import("../segment/tournamentIntegration");
-                        const segmentIntegration = new TournamentSegmentIntegration(ctx);
-
-                        // 检查段位变化
-                        const segmentChange = await segmentIntegration.handleTournamentCompletion(
-                            tournamentId,
-                            [{
-                                uid: playerTournament.uid,
-                                matchRank: rank,
-                                score: playerTournament.score || 0,
-                                segmentName: playerTournament.segment || "bronze"
-                            }]
-                        );
-
-                        if (segmentChange.segmentChanges.length > 0) {
-                            console.log(`玩家 ${playerTournament.uid} 段位变化:`, segmentChange.segmentChanges[0].message);
-                        }
-                    } catch (segmentError) {
-                        console.error(`处理玩家 ${playerTournament.uid} 段位变化失败:`, segmentError);
-                        // 段位处理失败不影响锦标赛结算
-                    }
-                }
+                // 段位系统已移除，不再处理段位变化
 
             } else {
                 throw new Error(tournamentPoints.message || "积分计算失败");
@@ -600,6 +558,36 @@ export async function collectRewards(ctx: any, playerTournament: any) {
 
     if (!player) {
         throw new Error("玩家不存在");
+    }
+
+    // 计算并发放经验值
+    try {
+        const tournament = await ctx.db.get(playerTournament.tournamentId as Id<"tournaments">);
+        if (tournament) {
+            const { PlayerExpRewardHandler } = await import("../reward/rewardHandlers/playerExpRewardHandler");
+            const { RewardService } = await import("../reward/rewardService");
+            
+            const expReward = await PlayerExpRewardHandler.calculateTournamentExp(
+                playerTournament.rank || 1,
+                tournament.participantCount || playerTournament.totalParticipants || 1,
+                tournament.tier || playerTournament.segment || "bronze"
+            );
+
+            // 发放经验值
+            if (expReward > 0) {
+                await RewardService.grantRewards(ctx, {
+                    uid: playerTournament.uid,
+                    rewards: { exp: expReward },
+                    source: {
+                        source: "tournament",
+                        sourceId: playerTournament.tournamentId,
+                    },
+                });
+            }
+        }
+    } catch (error: any) {
+        console.error("计算或发放锦标赛经验值失败:", error);
+        // 经验值发放失败不影响其他奖励收集
     }
 
     // 收集新积分类型

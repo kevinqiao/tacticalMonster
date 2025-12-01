@@ -13,6 +13,7 @@ function createCharacterFromModel(
     id: string,
     name: string,
     modelPath: string,
+    modelType: ASSET_TYPE = ASSET_TYPE.GLTF,
     overrides: Partial<GameCharacter> = {}
 ): GameCharacter {
     // 根据名称判断角色类型和属性
@@ -301,49 +302,10 @@ export const mockCharacters: GameCharacter[] = [
             type: ASSET_TYPE.FBX,
             resource: {
                 fbx: "/assets/3d/characters/wukong/model/wukong.fbx",
-                glb: "/assets/3d/characters/wukong/model/wukong.glb"
             }
         }
     },
-    {
-        character_id: "char_demo_2",
-        uid: "demo",
-        name: "法师",
-        class: "魔法师",
-        race: "人族",
-        level: 8,
-        experience: 300,
-        q: 0,
-        r: 0,
-        scaleX: 1.5,
-        attributes: {
-            strength: 5,
-            dexterity: 8,
-            constitution: 6,
-            intelligence: 18,
-            wisdom: 15,
-            charisma: 12
-        },
-        stats: {
-            hp: { current: 60, max: 60 },
-            mp: { current: 120, max: 120 },
-            stamina: 50,
-            attack: 25,
-            defense: 5,
-            speed: 10,
-            crit_rate: 0.2,
-            evasion: 0.05
-        },
-        move_range: 2,
-        attack_range: { min: 2, max: 5 },
-        asset: {
-            type: ASSET_TYPE.FBX,
-            resource: {
-                glb: "/assets/3d/characters/yeti/model/yeti.glb",
-                fbx: "/assets/3d/characters/yeti/model/yeti.fbx"
-            }
-        }
-    },
+    
     // 自动生成所有其他模型
     ...ALL_MODELS.map((model, index) =>
         createCharacterFromModel(

@@ -103,13 +103,13 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 
     // 查询事件
     const events: any = useQuery(
-        api.service.gameManager.findEvents,
+        (api as any).service.game.gameService.findEvents,
         gameId ? { gameId, lastTime } : "skip"
     );
 
     // 查询游戏报告
     const report: any = useQuery(
-        api.service.gameManager.findReport,
+        (api as any).service.game.gameService.findReport,
         gameId ? { gameId } : "skip"
     );
 
@@ -120,7 +120,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         const fetchGame = async (gameId: string) => {
             console.log("loading game", gameId);
             try {
-                const gameObj = await convex.query(api.service.gameManager.loadGame, { gameId });
+                const gameObj = await convex.query((api as any).service.game.gameService.loadGame, { gameId });
                 if (gameObj?.ok && gameObj.data) {
                     const gameData = gameObj.data;
                     // 设置角色翻转方向：玩家角色 scaleX = 1，AI 敌人 scaleX = -1

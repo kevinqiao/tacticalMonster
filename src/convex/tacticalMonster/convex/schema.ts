@@ -1,18 +1,55 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { bossSchema } from "./schemas/bossSchema";
+import { chestSchema } from "./schemas/chestSchema";
+import { energySchema } from "./schemas/energySchema";
+import { levelSchema } from "./schemas/levelSchema";
+import { monsterRumbleSchema } from "./schemas/monsterRumbleSchema";
+import { monsterSchema } from "./schemas/monsterSchema";
+import { tierSchema } from "./schemas/tierSchema";
 
 export default defineSchema({
+    // ============================================
+    // 统一的游戏主表（支持单玩家和 Monster Rumble 模式）
+    // ============================================
     tacticalMonster_game: defineTable({
+        // 公共字段
         gameId: v.string(),
-        playerUid: v.string(),              // 玩家 UID（替代 challenger）
-        map: v.string(),
-        round: v.number(),
-        status: v.number(),                 // 0: playing, 1: won, 2: lost, 3: game over
-        score: v.number(),                  // 游戏分数
-        lastUpdate: v.number(),
-        seed: v.optional(v.string()),
-    }).index("by_gameId", ["gameId"])
-        .index("by_player", ["playerUid"]),
+
+        // 状态字段（统一为字符串）
+        status: v.string(),  // "waiting", "playing", "settling", "ended", "won", "lost"
+
+        // 游戏核心字段（公共）
+        round: v.optional(v.number()),           // 回合数
+        score: v.optional(v.number()),           // 游戏分数
+        map: v.optional(v.string()),             // 地图ID
+        lastUpdate: v.optional(v.number()),      // 最后更新时间
+
+        // 单玩家模式字段
+        playerUid: v.optional(v.string()),       // 单玩家模式的玩家UID
+
+        // Monster Rumble Tournament 模式字段
+        // 注意：如果有 matchId，说明是 Tournament 模式；否则是单玩家模式
+        matchId: v.optional(v.string()),         // Tournament 匹配 ID（用于区分模式）
+        tier: v.optional(v.string()),            // "bronze", "silver", "gold", "platinum"
+        bossId: v.optional(v.string()),          // Boss ID
+        maxPlayers: v.optional(v.number()),      // 最大玩家数
+        currentPlayers: v.optional(v.number()),  // 当前玩家数
+        startedAt: v.optional(v.string()),       // 开始时间
+        endedAt: v.optional(v.string()),         // 结束时间
+        timeoutAt: v.optional(v.string()),       // 超时时间
+
+        // 其他字段
+        seed: v.optional(v.string()),            // 随机种子
+        config: v.optional(v.any()),             // 游戏配置
+        createdAt: v.optional(v.string()),       // 创建时间
+    })
+        .index("by_gameId", ["gameId"])
+        .index("by_matchId", ["matchId"])              // Tournament 模式索引
+        .index("by_playerUid", ["playerUid"])          // 单玩家模式索引
+        .index("by_tier_status", ["tier", "status"])   // Tournament 模式索引
+        .index("by_status_timeoutAt", ["status", "timeoutAt"]) // Tournament 模式索引
+        .index("by_createdAt", ["createdAt"]),
 
     tacticalMonster_game_character: defineTable({
         gameId: v.string(),
@@ -83,6 +120,18 @@ export default defineSchema({
             r: v.number(),
         })),
     }).index("by_map_id", ["map_id"]),
+
+    // ============================================
+    // Monster Rumble Tournament 相关表
+    // 注意：游戏主表（mr_games）已合并到 tacticalMonster_game
+    // ============================================
+    ...monsterRumbleSchema,  // 只包含 mr_game_participants
+    ...chestSchema,
+    ...energySchema,
+    ...monsterSchema,
+    ...tierSchema,
+    ...levelSchema,
+    ...bossSchema,
 });
 
 

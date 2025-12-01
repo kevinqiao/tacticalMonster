@@ -1,7 +1,7 @@
-// import { cronJobs } from "convex/server";
-// import { internal } from "./_generated/api";
+import { cronJobs } from "convex/server";
+import { internal } from "./_generated/api";
 
-// const crons = cronJobs();
+const crons = cronJobs();
 
 // // ===== 锦标赛预创建调度 =====
 
@@ -100,4 +100,59 @@
 //     internal.service.tournament.tournamentScheduler.cleanupAllExpiredTournaments
 // );
 
-// export default crons;
+// ===== Battle Pass 自动重置 =====
+
+// 每月第一天凌晨 00:05 自动重置所有玩家的Battle Pass为新赛季
+crons.monthly(
+    "reset battle pass for new season",
+    { day: 1, hourUTC: 0, minuteUTC: 5 },
+    internal.service.battlePass.battlePass.resetAllPlayersBattlePassForNewSeason
+);
+
+// ===== 排行榜自动重置 =====
+
+// 每日凌晨 00:10 自动重置每日排行榜（结算昨日并清除数据）
+crons.daily(
+    "reset daily leaderboard",
+    { hourUTC: 0, minuteUTC: 10 },
+    internal.service.leaderboard.leaderboards.resetDailyLeaderboard
+);
+
+// 每周一凌晨 00:10 自动重置每周排行榜（结算上周并清除数据）
+crons.weekly(
+    "reset weekly leaderboard",
+    { dayOfWeek: "monday", hourUTC: 0, minuteUTC: 10 },
+    internal.service.leaderboard.leaderboards.resetWeeklyLeaderboard
+);
+
+// 每月第一天凌晨 00:10 自动重置赛季排行榜（结算上赛季并清除数据）
+crons.monthly(
+    "reset seasonal leaderboard",
+    { day: 1, hourUTC: 0, minuteUTC: 10 },
+    internal.service.leaderboard.leaderboards.resetSeasonalLeaderboard
+);
+
+// ===== 商店自动刷新 =====
+
+// 每日凌晨 00:00 自动刷新每日商店
+crons.daily(
+    "refresh daily shops",
+    { hourUTC: 0, minuteUTC: 0 },
+    internal.shops.refreshDailyShops
+);
+
+// 每周一凌晨 00:00 自动刷新每周商店
+crons.weekly(
+    "refresh weekly shops",
+    { dayOfWeek: "monday", hourUTC: 0, minuteUTC: 0 },
+    internal.shops.refreshWeeklyShops
+);
+
+// 每月第一天凌晨 00:00 自动刷新赛季商店
+crons.monthly(
+    "refresh seasonal shops",
+    { day: 1, hourUTC: 0, minuteUTC: 0 },
+    internal.shops.refreshSeasonalShops
+);
+
+export default crons;

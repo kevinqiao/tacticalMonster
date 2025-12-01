@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { TimeZoneUtils } from "../../util/TimeZoneUtils";
+import { RewardService } from "../reward/rewardService";
 
 export interface BattlePassConfig {
     seasonId: string;
@@ -89,7 +90,8 @@ export interface BattlePassProgress {
     taskSeasonPoints: number;
     socialSeasonPoints: number;
     achievementSeasonPoints: number;
-    segmentUpgradeSeasonPoints: number;
+    // 游戏特定积分统计（多游戏支持）
+    gameSpecificPoints?: { [gameType: string]: { [source: string]: number } };
     // 每日统计
     dailySeasonPoints: { [date: string]: number };
     // 每周统计
@@ -377,7 +379,7 @@ export class BattlePassSystem {
             taskSeasonPoints: 0,
             socialSeasonPoints: 0,
             achievementSeasonPoints: 0,
-            segmentUpgradeSeasonPoints: 0,
+            gameSpecificPoints: {},
             dailySeasonPoints: {},
             weeklySeasonPoints: {},
             monthlySeasonPoints: {}
@@ -511,28 +513,42 @@ export class BattlePassSystem {
             const progress = { ...playerBattlePass.progress };
 
             // 根据来源更新对应的赛季积分
-            switch (source) {
-                case "tournament":
-                    progress.tournamentSeasonPoints += seasonPointsAmount;
-                    break;
-                case "quick_match":
-                    progress.quickMatchSeasonPoints += seasonPointsAmount;
-                    break;
-                case "prop_match":
-                    progress.propMatchSeasonPoints += seasonPointsAmount;
-                    break;
-                case "task":
-                    progress.taskSeasonPoints += seasonPointsAmount;
-                    break;
-                case "social":
-                    progress.socialSeasonPoints += seasonPointsAmount;
-                    break;
-                case "achievement":
-                    progress.achievementSeasonPoints += seasonPointsAmount;
-                    break;
-                case "segment_upgrade":
-                    progress.segmentUpgradeSeasonPoints += seasonPointsAmount;
-                    break;
+            // 支持游戏特定来源格式：gameType:source
+            if (source.includes(":")) {
+                const [gameType, sourceAction] = source.split(":");
+                // 游戏特定积分统计（预留，未来可以扩展）
+                if (!progress.gameSpecificPoints) {
+                    progress.gameSpecificPoints = {};
+                }
+                if (!progress.gameSpecificPoints[gameType]) {
+                    progress.gameSpecificPoints[gameType] = {};
+                }
+                if (!progress.gameSpecificPoints[gameType][sourceAction]) {
+                    progress.gameSpecificPoints[gameType][sourceAction] = 0;
+                }
+                progress.gameSpecificPoints[gameType][sourceAction] += seasonPointsAmount;
+            } else {
+                // 通用来源
+                switch (source) {
+                    case "tournament":
+                        progress.tournamentSeasonPoints += seasonPointsAmount;
+                        break;
+                    case "quick_match":
+                        progress.quickMatchSeasonPoints += seasonPointsAmount;
+                        break;
+                    case "prop_match":
+                        progress.propMatchSeasonPoints += seasonPointsAmount;
+                        break;
+                    case "task":
+                        progress.taskSeasonPoints += seasonPointsAmount;
+                        break;
+                    case "social":
+                        progress.socialSeasonPoints += seasonPointsAmount;
+                        break;
+                    case "achievement":
+                        progress.achievementSeasonPoints += seasonPointsAmount;
+                        break;
+                }
             }
 
             // 更新每日统计
@@ -637,9 +653,9 @@ export class BattlePassSystem {
         }
 
         try {
-            // 发放奖励
+            // 发放奖励（使用统一奖励服务）
             const rewards = levelConfig.rewards;
-            const rewardResults = await this.grantBattlePassRewards(ctx, uid, rewards);
+            const rewardResults = await this.grantBattlePassRewards(ctx, uid, rewards, level, config.seasonId);
 
             // 更新已领取等级
             const battlePassRecord = await ctx.db.query("player_battle_pass")
@@ -677,77 +693,49 @@ export class BattlePassSystem {
     }
 
     /**
-     * 发放Battle Pass奖励的具体实现
+     * 发放Battle Pass奖励的具体实现（使用统一奖励服务）
      */
-    private static async grantBattlePassRewards(ctx: any, uid: string, rewards: BattlePassRewards): Promise<{ success: boolean; message: string }> {
-        const nowISO = new Date().toISOString();
-
+    private static async grantBattlePassRewards(ctx: any, uid: string, rewards: BattlePassRewards, level?: number, seasonId?: string): Promise<{ success: boolean; message: string }> {
         try {
-            // 发放金币
-            if (rewards.coins && rewards.coins > 0) {
-                const player = await ctx.db.query("players")
-                    .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                    .unique();
+            // 转换 BattlePassRewards 为 UnifiedRewards
+            const unifiedRewards: any = {
+                coins: rewards.coins,
+                seasonPoints: rewards.seasonPoints,
+                props: rewards.props,
+                exclusiveItems: rewards.exclusiveItems?.map(item => ({
+                    itemId: item.itemId,
+                    itemType: item.itemType,
+                    quantity: 1, // ExclusiveItem 没有 quantity 字段，默认为 1
+                })),
+            };
 
-                if (player) {
-                    await ctx.db.patch(player._id, {
-                        coins: player.coins + rewards.coins
-                    });
-                }
+            // 调用统一奖励服务
+            const result = await RewardService.grantRewards(ctx, {
+                uid,
+                rewards: unifiedRewards,
+                source: {
+                    source: "battle_pass",
+                    sourceId: level !== undefined ? `level_${level}` : undefined,
+                    metadata: {
+                        level,
+                        seasonId,
+                    },
+                },
+            });
+
+            // 处理失败奖励
+            if (result.failedRewards && result.failedRewards.length > 0) {
+                const failedMessages = result.failedRewards.map(f => `${f.type}: ${f.reason}`).join(", ");
+                console.error(`部分奖励发放失败: ${failedMessages}`);
             }
 
-            // 发放门票
-            if (rewards.tickets && rewards.tickets.length > 0) {
-                for (const ticket of rewards.tickets) {
-                    // 这里应该调用门票系统的发放接口
-                    // await TicketSystem.grantTicketReward(ctx, {
-                    //     uid,
-                    //     type: ticket.type,
-                    //     quantity: ticket.quantity
-                    // });
-                    console.log(`发放门票: ${ticket.type} x${ticket.quantity}`);
-                }
-            }
-
-            // 发放道具
-            if (rewards.props && rewards.props.length > 0) {
-                for (const prop of rewards.props) {
-                    // 这里应该调用道具系统的发放接口
-                    // await PropSystem.grantProp(ctx, {
-                    //     uid,
-                    //     gameType: prop.gameType,
-                    //     propType: prop.propType,
-                    //     quantity: prop.quantity
-                    // });
-                    console.log(`发放道具: ${prop.propType} x${prop.quantity}`);
-                }
-            }
-
-            // 发放赛季积分
-            if (rewards.seasonPoints && rewards.seasonPoints > 0) {
-                // 这里应该调用赛季积分系统的发放接口
-                console.log(`发放赛季积分: ${rewards.seasonPoints}`);
-            }
-
-            // 发放段位积分
-            if (rewards.rankPoints && rewards.rankPoints > 0) {
-                // 这里应该调用段位系统的发放接口
-                // await SegmentSystem.addRankPoints(ctx, uid, rewards.rankPoints, "battle_pass");
-                console.log(`发放段位积分: ${rewards.rankPoints}`);
-            }
-
-            // 发放专属物品
-            if (rewards.exclusiveItems && rewards.exclusiveItems.length > 0) {
-                for (const item of rewards.exclusiveItems) {
-                    // 这里应该调用物品系统的发放接口
-                    console.log(`发放专属物品: ${item.name}`);
-                }
-            }
-
-            return { success: true, message: "奖励发放成功" };
-        } catch (error) {
+            return {
+                success: result.success,
+                message: result.success ? "奖励发放成功" : result.message,
+            };
+        } catch (error: any) {
             console.error("发放Battle Pass奖励失败:", error);
-            return { success: false, message: "奖励发放失败" };
+            return { success: false, message: `奖励发放失败: ${error.message}` };
         }
     }
 
@@ -864,7 +852,6 @@ export class BattlePassSystem {
                 stats.sourceDistribution.task += progress.taskSeasonPoints;
                 stats.sourceDistribution.social += progress.socialSeasonPoints;
                 stats.sourceDistribution.achievement += progress.achievementSeasonPoints;
-                stats.sourceDistribution.segmentUpgrade += progress.segmentUpgradeSeasonPoints;
             }
 
             stats.averageLevel = totalLevel / allBattlePass.length;
@@ -904,5 +891,144 @@ export class BattlePassSystem {
         const weekStart = new Date(date);
         weekStart.setDate(diff);
         return weekStart.toISOString().split('T')[0];
+    }
+
+    // ============================================================================
+    // 赛季重置
+    // ============================================================================
+
+    /**
+     * 为新赛季重置所有玩家的Battle Pass
+     * 这个方法会在每月1日自动执行，将所有玩家的Battle Pass重置为新赛季
+     * 
+     * 注意：由于Battle Pass采用延迟初始化策略，这个方法主要做以下事情：
+     * 1. 检测当前赛季ID
+     * 2. 查找所有旧赛季的Battle Pass记录（可选：保留历史记录）
+     * 3. 新赛季的Battle Pass会在玩家首次访问时自动创建
+     * 
+     * 如果需要强制为所有玩家创建新赛季记录，可以取消注释相关代码
+     */
+    static async resetAllPlayersBattlePassForNewSeason(ctx: any): Promise<{
+        success: boolean;
+        message: string;
+        currentSeasonId: string;
+        oldSeasonRecords?: number;
+        resetCount?: number;
+    }> {
+        const nowISO = new Date().toISOString();
+        const currentConfig = this.getCurrentBattlePassConfig();
+        const currentSeasonId = currentConfig.seasonId;
+
+        console.log(`[Battle Pass Reset] 开始新赛季重置 - 当前赛季: ${currentSeasonId}`);
+
+        try {
+            // 查找所有旧赛季的Battle Pass记录
+            const allBattlePassRecords = await ctx.db
+                .query("player_battle_pass")
+                .collect();
+
+            // 过滤出非当前赛季的记录
+            const oldSeasonRecords = allBattlePassRecords.filter(
+                (record: any) => record.seasonId !== currentSeasonId
+            );
+
+            console.log(`[Battle Pass Reset] 找到 ${oldSeasonRecords.length} 条旧赛季记录`);
+
+            // 可选：删除旧赛季记录（如果需要保留历史，可以注释掉这部分）
+            // 注意：删除旧记录可以节省存储空间，但会丢失历史数据
+            // 如果将来需要历史数据分析，建议保留记录或迁移到历史表
+            let deletedCount = 0;
+            for (const oldRecord of oldSeasonRecords) {
+                // 只删除非当前赛季的记录
+                if (oldRecord.seasonId !== currentSeasonId) {
+                    await ctx.db.delete(oldRecord._id);
+                    deletedCount++;
+                }
+            }
+
+            // 可选：为新赛季预创建所有玩家的Battle Pass记录
+            // 注意：这会为所有玩家创建记录，即使他们可能不活跃
+            // 由于采用延迟初始化策略，建议不预创建，让玩家在首次访问时自动创建
+            // 
+            // 如果需要预创建，可以取消注释以下代码：
+            /*
+            const allPlayers = await ctx.db.query("players").collect();
+            let createdCount = 0;
+            for (const player of allPlayers) {
+                // 检查是否已有当前赛季的记录
+                const existing = await ctx.db.query("player_battle_pass")
+                    .withIndex("by_uid_season", (q: any) => 
+                        q.eq("uid", player.uid).eq("seasonId", currentSeasonId)
+                    )
+                    .unique();
+                
+                if (!existing) {
+                    await this.initializePlayerBattlePass(ctx, player.uid);
+                    createdCount++;
+                }
+            }
+            console.log(`[Battle Pass Reset] 为新赛季预创建了 ${createdCount} 条记录`);
+            */
+
+            console.log(`[Battle Pass Reset] 重置完成 - 删除了 ${deletedCount} 条旧记录`);
+
+            return {
+                success: true,
+                message: `Battle Pass新赛季重置完成 - ${currentSeasonId}`,
+                currentSeasonId,
+                oldSeasonRecords: oldSeasonRecords.length,
+                resetCount: deletedCount
+            };
+
+        } catch (error) {
+            console.error("[Battle Pass Reset] 重置失败:", error);
+            return {
+                success: false,
+                message: `Battle Pass重置失败: ${error}`,
+                currentSeasonId
+            };
+        }
+    }
+
+    /**
+     * 检查并重置单个玩家的Battle Pass（如果赛季已切换）
+     * 这个方法在玩家访问Battle Pass时自动调用
+     */
+    static async checkAndResetPlayerBattlePassIfNeeded(ctx: any, uid: string): Promise<{
+        reset: boolean;
+        newSeasonId?: string;
+    }> {
+        const currentConfig = this.getCurrentBattlePassConfig();
+        const currentSeasonId = currentConfig.seasonId;
+
+        // 获取玩家当前Battle Pass记录
+        const playerBattlePass = await ctx.db.query("player_battle_pass")
+            .withIndex("by_uid_season", (q: any) => q.eq("uid", uid).eq("seasonId", currentSeasonId))
+            .unique();
+
+        // 如果已有当前赛季的记录，不需要重置
+        if (playerBattlePass) {
+            return { reset: false };
+        }
+
+        // 检查是否有旧赛季的记录
+        const allPlayerRecords = await ctx.db.query("player_battle_pass")
+            .withIndex("by_uid_season", (q: any) => q.eq("uid", uid))
+            .collect();
+
+        // 删除所有旧赛季的记录
+        for (const oldRecord of allPlayerRecords) {
+            if (oldRecord.seasonId !== currentSeasonId) {
+                await ctx.db.delete(oldRecord._id);
+            }
+        }
+
+        // 为新赛季初始化（延迟初始化）
+        await this.initializePlayerBattlePass(ctx, uid);
+
+        return {
+            reset: true,
+            newSeasonId: currentSeasonId
+        };
     }
 } 

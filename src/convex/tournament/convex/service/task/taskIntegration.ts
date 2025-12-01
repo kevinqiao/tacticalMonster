@@ -1,4 +1,5 @@
 import { TaskSystem } from "./taskSystem";
+import { RewardService } from "../reward/rewardService";
 
 // ============================================================================
 // 任务系统集成服务 - 基于三表设计
@@ -280,68 +281,59 @@ export class TaskIntegration {
     // ============================================================================
 
     /**
-     * 发放综合任务奖励
+     * 发放综合任务奖励（使用统一奖励服务）
      */
-    static async grantComprehensiveRewards(ctx: any, uid: string, rewards: any): Promise<{ success: boolean; message: string; grantedRewards?: any }> {
-        const results: any = {
-            coins: 0,
-            props: [],
-            tickets: [],
-            seasonPoints: 0,
-            gamePoints: null
-        };
+    static async grantComprehensiveRewards(ctx: any, uid: string, rewards: any, sourceId?: string): Promise<{ success: boolean; message: string; grantedRewards?: any }> {
+        try {
+            // 转换奖励格式为 UnifiedRewards
+            const unifiedRewards: any = {
+                coins: rewards.coins || 0,
+                seasonPoints: rewards.seasonPoints || 0,
+                props: rewards.props || [],
+                monsters: rewards.monsters || [],
+                monsterShards: rewards.monsterShards || [],
+                energy: rewards.energy || 0,
+            };
 
-        // 发放金币
-        if (rewards.coins > 0) {
-            const player = await ctx.db.query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .unique();
+            // 调用统一奖励服务
+            const result = await RewardService.grantRewards(ctx, {
+                uid,
+                rewards: unifiedRewards,
+                source: {
+                    source: "task",
+                    sourceId: sourceId,
+                },
+                gameType: (rewards.monsters || rewards.monsterShards || rewards.energy) ? "tacticalMonster" : undefined,
+            });
 
-            if (player) {
-                await ctx.db.patch(player._id, {
-                    coins: player.coins + rewards.coins
-                });
-                results.coins = rewards.coins;
+            // 构建返回结果
+            const grantedRewards: any = {
+                coins: result.grantedRewards?.coins || 0,
+                props: result.grantedRewards?.props || [],
+                seasonPoints: result.grantedRewards?.seasonPoints || 0,
+                monsters: result.grantedRewards?.monsters || [],
+                monsterShards: result.grantedRewards?.monsterShards || [],
+                energy: result.grantedRewards?.energy || 0,
+            };
+
+            // 处理失败奖励
+            if (result.failedRewards && result.failedRewards.length > 0) {
+                const failedMessages = result.failedRewards.map(f => `${f.type}: ${f.reason}`).join(", ");
+                console.error(`部分奖励发放失败: ${failedMessages}`);
             }
-        }
 
-        // 发放道具
-        if (rewards.props && rewards.props.length > 0) {
-            const propResult = await this.grantPropRewards(ctx, uid, rewards.props);
-            if (propResult.success) {
-                results.props = propResult.grantedProps || [];
-            }
+            return {
+                success: result.success,
+                message: result.success ? "综合奖励发放完成" : result.message,
+                grantedRewards: result.success ? grantedRewards : undefined,
+            };
+        } catch (error: any) {
+            console.error("调用统一奖励服务失败:", error);
+            return {
+                success: false,
+                message: `综合奖励发放失败: ${error.message}`,
+            };
         }
-
-        // 发放门票
-        if (rewards.tickets && rewards.tickets.length > 0) {
-            const ticketResult = await this.grantTicketRewards(ctx, uid, rewards.tickets);
-            if (ticketResult.success) {
-                results.tickets = ticketResult.grantedTickets || [];
-            }
-        }
-
-        // 发放赛季点
-        if (rewards.seasonPoints > 0) {
-            const seasonResult = await this.grantSeasonPoints(ctx, uid, rewards.seasonPoints);
-            if (seasonResult.success) {
-                results.seasonPoints = seasonResult.grantedPoints || 0;
-            }
-        }
-
-        // 发放游戏积分
-        if (rewards.gamePoints) {
-            const gamePointsResult = await this.grantGamePoints(ctx, uid, rewards.gamePoints);
-            if (gamePointsResult.success) {
-                results.gamePoints = gamePointsResult.grantedPoints;
-            }
-        }
-
-        return {
-            success: true,
-            message: "综合奖励发放完成",
-            grantedRewards: results
-        };
     }
 
     // ============================================================================

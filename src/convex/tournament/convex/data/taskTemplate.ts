@@ -138,6 +138,143 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     },
 
     // ============================================================================
+    // TacticalMonster 特定任务
+    // ============================================================================
+    {
+        templateId: "daily_tactical_monster_3_matches",
+        name: "Monster Rumble 3局",
+        description: "在 Monster Rumble 中完成3局游戏",
+        type: "daily",
+        category: "gameplay",
+        gameType: "tacticalMonster",
+        condition: {
+            type: "simple",
+            action: "complete_match",
+            targetValue: 3,
+            gameType: "tacticalMonster"
+        },
+        rewards: {
+            coins: 20,
+            props: [],
+            tickets: [],
+            seasonPoints: 75,
+        },
+        resetInterval: "daily",
+        isActive: true,
+        version: "1.0.0",
+        lastUpdated: "2025-01-11T00:00:00.000Z"
+    },
+    {
+        templateId: "daily_tactical_monster_win",
+        name: "Monster Rumble 胜利",
+        description: "在 Monster Rumble 中获得1次胜利",
+        type: "daily",
+        category: "gameplay",
+        gameType: "tacticalMonster",
+        condition: {
+            type: "simple",
+            action: "win_match",
+            targetValue: 1,
+            gameType: "tacticalMonster"
+        },
+        rewards: {
+            coins: 30,
+            props: [],
+            tickets: [],
+            seasonPoints: 100,
+            monsterShards: [
+                { monsterId: "monster_001", quantity: 5 }
+            ],
+        },
+        resetInterval: "daily",
+        isActive: true,
+        version: "1.0.0",
+        lastUpdated: "2025-01-11T00:00:00.000Z"
+    },
+    {
+        templateId: "weekly_tactical_monster_10_matches",
+        name: "Monster Rumble 大师",
+        description: "在 Monster Rumble 中完成10局游戏",
+        type: "weekly",
+        category: "gameplay",
+        gameType: "tacticalMonster",
+        condition: {
+            type: "simple",
+            action: "complete_match",
+            targetValue: 10,
+            gameType: "tacticalMonster"
+        },
+        rewards: {
+            coins: 200,
+            props: [],
+            tickets: [],
+            seasonPoints: 300,
+            monsterShards: [
+                { monsterId: "monster_001", quantity: 20 }
+            ],
+        },
+        resetInterval: "weekly",
+        isActive: true,
+        version: "1.0.0",
+        lastUpdated: "2025-01-11T00:00:00.000Z"
+    },
+    {
+        templateId: "weekly_tactical_monster_5_wins",
+        name: "Monster Rumble 连胜",
+        description: "在 Monster Rumble 中获得5次胜利",
+        type: "weekly",
+        category: "gameplay",
+        gameType: "tacticalMonster",
+        condition: {
+            type: "simple",
+            action: "win_match",
+            targetValue: 5,
+            gameType: "tacticalMonster"
+        },
+        rewards: {
+            coins: 300,
+            props: [],
+            tickets: [],
+            seasonPoints: 400,
+            monsters: [
+                { monsterId: "monster_001", level: 1, stars: 1 }
+            ],
+            energy: 50,
+        },
+        resetInterval: "weekly",
+        isActive: true,
+        version: "1.0.0",
+        lastUpdated: "2025-01-11T00:00:00.000Z"
+    },
+    {
+        templateId: "one_time_tactical_monster_first_win",
+        name: "首次胜利",
+        description: "在 Monster Rumble 中获得首次胜利",
+        type: "one_time",
+        category: "achievement",
+        gameType: "tacticalMonster",
+        condition: {
+            type: "simple",
+            action: "win_match",
+            targetValue: 1,
+            gameType: "tacticalMonster"
+        },
+        rewards: {
+            coins: 100,
+            props: [],
+            tickets: [],
+            seasonPoints: 200,
+            monsters: [
+                { monsterId: "monster_001", level: 1, stars: 1 }
+            ],
+            energy: 100,
+        },
+        isActive: true,
+        version: "1.0.0",
+        lastUpdated: "2025-01-11T00:00:00.000Z"
+    },
+
+    // ============================================================================
     // 每周任务
     // ============================================================================
     {

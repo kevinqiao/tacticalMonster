@@ -20,7 +20,6 @@ export const battlePassSchema = {
             taskSeasonPoints: v.number(),
             socialSeasonPoints: v.number(),
             achievementSeasonPoints: v.number(),
-            segmentUpgradeSeasonPoints: v.number(),
             dailySeasonPoints: v.any(), // { [date: string]: number }
             weeklySeasonPoints: v.any(), // { [week: string]: number }
             monthlySeasonPoints: v.any(), // { [month: string]: number }
@@ -38,7 +37,7 @@ export const battlePassSchema = {
     battle_pass_season_points_logs: defineTable({
         uid: v.string(),
         seasonPointsAmount: v.number(),
-        source: v.string(), // "tournament", "quick_match", "task", "social", "achievement", "segment_upgrade"
+        source: v.string(), // "tournament", "quick_match", "task", "social", "achievement"
         currentLevel: v.number(),
         totalSeasonPoints: v.number(),
         createdAt: v.string(),
@@ -249,8 +248,7 @@ export const battlePassSchema = {
             propMatch: v.number(),
             task: v.number(),
             social: v.number(),
-            achievement: v.number(),
-            segmentUpgrade: v.number()
+            achievement: v.number()
         }),
         completionRate: v.number(),
         premiumConversionRate: v.number(),
@@ -297,7 +295,6 @@ export const battlePassSchema = {
             taskSeasonPoints: v.number(),
             socialSeasonPoints: v.number(),
             achievementSeasonPoints: v.number(),
-            segmentUpgradeSeasonPoints: v.number(),
             dailySeasonPoints: v.any(),
             weeklySeasonPoints: v.any(),
             monthlySeasonPoints: v.any(),
