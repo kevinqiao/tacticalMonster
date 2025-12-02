@@ -76,7 +76,7 @@ export async function endGameLogic(ctx: any, gameId: string) {
         });
     }
 
-    // 7. 调用 Tournament 模块分配奖励
+    // 7. 调用 Tournament 模块处理奖励（包括金币发放和宝箱触发判断）
     const rewardDecision = await TournamentProxyService.processGameRewards({
         tier: game.tier,
         rankings: finalRankings,
@@ -87,19 +87,12 @@ export async function endGameLogic(ctx: any, gameId: string) {
         throw new Error(rewardDecision.error || "处理奖励失败");
     }
 
-    // 8. 发放金币奖励（使用统一奖励服务）
-    const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
-    for (const [uid, coins] of Object.entries(rewardDecision.coinRewards || {})) {
-        if (coins > 0) {
-            // 通过 Tournament 模块的统一奖励服务发放
-            await TournamentProxyService.grantRewards({
-                uid,
-                rewards: {
-                    coins: coins as number,
-                },
-                source: "tier_reward",
-                sourceId: gameId,
-            });
+    // 注意：金币奖励已在 processGameRewards 中直接发放，无需再次发放
+    // 检查是否有发放失败的情况（可选：记录日志或告警）
+    if (rewardDecision.grantResults) {
+        const failedGrants = rewardDecision.grantResults.filter(r => !r.success);
+        if (failedGrants.length > 0) {
+            console.warn(`部分金币奖励发放失败:`, failedGrants);
         }
     }
 

@@ -3,17 +3,21 @@
  * 展示如何使用 Context 管理锦标赛通知
  */
 
-import { useMutation, useQuery } from "convex/react";
+import { ConvexReactClient, useQuery } from "convex/react";
 import React, { useEffect, useState } from "react";
-import { api } from "../../../convex/tournament/convex/_generated/api";
+import { api as tacticalMonsterApi } from "../../../convex/tacticalMonster/convex/_generated/api";
+import { api as tournamentApi } from "../../../convex/tournament/convex/_generated/api";
 import { useNotificationActions } from "./NotificationContext";
+
+// TacticalMonster Convex 客户端 URL
+const TACTICAL_MONSTER_CONVEX_URL = "https://shocking-leopard-487.convex.cloud";
 
 /**
  * 锦标赛通知监听器 Hook
  */
 export function useTournamentNotifications(uid: string) {
-    // 监听锦标赛相关通知
-    const notifications = useQuery(api.service.tournament.tournamentService.getPlayerTournamentStatus, {
+    // 监听锦标赛相关通知（使用 getAvailableTournaments 作为替代）
+    const notifications = useQuery(tournamentApi.service.tournament.tournamentService.getAvailableTournaments, {
         uid
     });
 
@@ -78,18 +82,21 @@ export function useTournamentNotifications(uid: string) {
  * 锦标赛状态管理 Hook
  */
 export function useTournamentStatus(uid: string, gameType?: string, category?: string) {
-    // 实时查询锦标赛状态
-    const tournamentStatus = useQuery(api.service.tournament.tournamentService.getPlayerTournamentStatus, {
-        uid,
-        gameType,
-        category
+    // 实时查询锦标赛状态（使用 Tournament 模块）
+    // 注意：如果 getPlayerTournamentStatus 不可用，使用 getAvailableTournaments
+    const tournamentStatus = useQuery(tournamentApi.service.tournament.tournamentService.getAvailableTournaments, {
+        uid
     });
 
-    // 加入锦标赛
-    const joinTournament = useMutation(api.service.tournament.tournamentService.joinTournament);
+    // 创建 TacticalMonster 客户端实例（用于调用加入锦标赛接口）
+    const tacticalMonsterClient = React.useMemo(
+        () => new ConvexReactClient(TACTICAL_MONSTER_CONVEX_URL),
+        []
+    );
 
-    // 提交分数
-    const submitScore = useMutation(api.service.tournament.tournamentService.submitScore);
+    // 提交分数（使用 Tournament 模块的 matchManager）
+    // 注意：submitScore 可能需要通过 HTTP 端点调用，这里先注释掉
+    // const submitScore = useMutation(tournamentApi.service.tournament.matchManager.submitGameScore);
 
     // 乐观更新状态
     const [optimisticUpdates, setOptimisticUpdates] = useState<any>({});
@@ -122,11 +129,19 @@ export function useTournamentStatus(uid: string, gameType?: string, category?: s
         }));
 
         try {
-            // 2. 执行加入操作
-            const result = await joinTournament(params);
+            // 2. 执行加入操作（调用 TacticalMonster 模块）
+            const result = await tacticalMonsterClient.mutation(
+                tacticalMonsterApi.service.game.gameMatchingService.joinTournamentMatching,
+                {
+                    uid: uid,
+                    tournamentType: tournamentType,
+                    tournamentId: undefined,
+                    tier: undefined, // 可选，会被后端验证覆盖
+                }
+            );
 
-            // 3. 成功处理 - 使用服务器返回的更新数据
-            if (result.updatedAvailableTournaments) {
+            // 3. 成功处理 - TacticalMonster 返回 { ok, gameId, matchId, inQueue, error }
+            if (result.ok) {
                 // 清除乐观更新，使用真实数据
                 setOptimisticUpdates((prev: any) => {
                     const newUpdates = { ...prev };
@@ -138,8 +153,14 @@ export function useTournamentStatus(uid: string, gameType?: string, category?: s
                 handleTournamentChange("participation_update", {
                     name: tournamentType,
                     action: "joined",
-                    success: true
+                    success: true,
+                    gameId: result.gameId,
+                    matchId: result.matchId,
+                    inQueue: result.inQueue,
                 });
+            } else {
+                // 处理错误情况
+                throw new Error(result.error || "加入锦标赛失败");
             }
 
             return result;
@@ -189,8 +210,14 @@ export function useTournamentStatus(uid: string, gameType?: string, category?: s
 
         try {
             // 2. 执行提交操作
-            const result = await submitScore(params);
+            // TODO: 实现分数提交逻辑（可能需要通过 HTTP 端点）
+            // 暂时抛出错误，提示功能未实现
+            throw new Error("分数提交功能暂未实现，需要通过 HTTP 端点调用 Tournament 模块的 submitGameScore");
 
+            // 以下代码在实现后取消注释
+            /*
+            const result = await submitScore(params);
+            
             // 3. 成功处理
             if (result.updatedAvailableTournaments) {
                 // 清除乐观更新
@@ -210,6 +237,7 @@ export function useTournamentStatus(uid: string, gameType?: string, category?: s
             }
 
             return result;
+            */
         } catch (error) {
             // 4. 错误处理 - 恢复乐观更新
             setOptimisticUpdates((prev: any) => {
@@ -250,7 +278,8 @@ export function useTournamentStatus(uid: string, gameType?: string, category?: s
     return {
         tournamentStatus,
         joinTournament: joinTournamentWithOptimisticUpdate,
-        submitScore: submitScoreWithOptimisticUpdate,
+        // submitScore: submitScoreWithOptimisticUpdate, // 暂时禁用，需要实现
+        submitScore: async () => { throw new Error("分数提交功能暂未实现"); },
         getMergedTournamentData,
         isLoading: tournamentStatus === undefined,
         error: tournamentStatus === null
@@ -272,7 +301,9 @@ export function TournamentList({ uid, gameType }: { uid: string; gameType?: stri
     const [selectedTournament, setSelectedTournament] = useState<any>(null);
 
     const mergedTournamentData = getMergedTournamentData();
-    const { player, inventory } = tournamentStatus || {};
+    // 注意：getAvailableTournaments 返回的数据结构可能不同，需要适配
+    const player = (tournamentStatus as any)?.player || null;
+    const inventory = (tournamentStatus as any)?.inventory || null;
 
     if (error) {
         return <div>加载失败 </div>;
@@ -402,18 +433,18 @@ export function TournamentList({ uid, gameType }: { uid: string; gameType?: stri
  * 实时更新监听器 Hook
  */
 export function useTournamentRealtimeUpdates(uid: string) {
-    // 监听锦标赛状态变化
-    const tournamentStatus = useQuery(api.service.tournament.tournamentService.getPlayerTournamentStatus, {
+    // 监听锦标赛状态变化（使用 getAvailableTournaments）
+    const tournamentStatus = useQuery(tournamentApi.service.tournament.tournamentService.getAvailableTournaments, {
         uid
     });
 
-    // 监听库存变化
-    const inventory = useQuery(api.service.tournament.tournamentService.getPlayerTournamentStatus, {
+    // 监听库存变化（使用 getAvailableTournaments）
+    const inventory = useQuery(tournamentApi.service.tournament.tournamentService.getAvailableTournaments, {
         uid
     });
 
-    // 监听通知
-    const notificationsData = useQuery(api.service.tournament.tournamentService.getPlayerTournamentStatus, {
+    // 监听通知（使用 getAvailableTournaments）
+    const notificationsData = useQuery(tournamentApi.service.tournament.tournamentService.getAvailableTournaments, {
         uid
     });
 

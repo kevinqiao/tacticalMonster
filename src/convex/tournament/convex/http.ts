@@ -226,11 +226,12 @@ http.route({
         gameId,
       });
 
-      // 5. 返回奖励决策（包含宝箱触发决策）
+      // 5. 返回奖励决策（包含发放结果和宝箱触发决策）
       return new Response(
         JSON.stringify({
           ok: true,
           coinRewards: rewardDecision.coinRewards,
+          grantResults: rewardDecision.grantResults,  // 金币发放结果
           chestTriggered: rewardDecision.chestTriggered,  // 宝箱触发决策
           rewardType: rewardDecision.rewardType,
         }),
@@ -844,8 +845,19 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     try {
       const body = await request.json();
-      const result = await ctx.runMutation(internal.service.reward.rewards.grantRewards, body);
-      
+      // 直接导入并使用 RewardService，避免 internal API 类型问题
+      const { RewardService } = await import("./service/reward/rewardService");
+      const result = await RewardService.grantRewards(ctx, {
+        uid: body.uid,
+        rewards: body.rewards,
+        source: {
+          source: body.source,
+          sourceId: body.sourceId,
+          metadata: body.metadata,
+        },
+        gameType: body.gameType,
+      });
+
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: new Headers({
@@ -980,6 +992,174 @@ http.route({
         JSON.stringify({
           success: false,
           message: error.message || "处理活动事件失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+// ============================================================================
+// Tournament Type Config HTTP API 端点
+// ============================================================================
+
+http.route({
+  path: "/getTournamentTypeConfig",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { typeId } = body;
+
+      // 参数验证
+      if (!typeId) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: "缺少必要参数: typeId"
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      // 查询 tournament_types 表（通过 runQuery 调用 internal query）
+      const tournamentType = await ctx.runQuery(
+        internal.dao.tournamentDao.findTypeById,
+        { typeId }
+      );
+
+      if (!tournamentType) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: `锦标赛类型不存在: ${typeId}`
+          }),
+          {
+            status: 404,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      // 返回配置（只返回 entryRequirements 部分）
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          config: {
+            typeId: tournamentType.typeId,
+            entryRequirements: tournamentType.entryRequirements || {},
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("获取锦标赛类型配置失败:", error);
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: error.message || "获取配置失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+// ============================================================================
+// Tournament Matching HTTP API 端点
+// ============================================================================
+
+http.route({
+  path: "/joinMatchingQueue",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { uid, tournamentId, typeId, gameType, metadata } = body;
+
+      // 参数验证
+      if (!uid || !typeId) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            success: false,
+            error: "缺少必要参数: uid, typeId"
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      // 导入匹配服务
+      const { TournamentMatchingService } = await import("./service/tournament/tournamentMatchingService");
+
+      // 调用匹配服务
+      const result = await TournamentMatchingService.joinMatchingQueue(ctx, {
+        uid,
+        tournamentId: tournamentId || undefined,
+        typeId,
+        gameType: gameType || undefined,
+        metadata: metadata || undefined,
+      });
+
+      // 返回结果
+      return new Response(
+        JSON.stringify({
+          ok: result.success !== false,
+          success: result.success,
+          queueId: result.queueId,
+          status: result.status,
+          message: result.message,
+          inQueue: result.status === "already_in_queue" || result.status === "joined",
+          error: result.error,
+        }),
+        {
+          status: result.success !== false ? 200 : 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("加入匹配队列失败:", error);
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          success: false,
+          error: error.message || "加入匹配队列失败",
         }),
         {
           status: 500,

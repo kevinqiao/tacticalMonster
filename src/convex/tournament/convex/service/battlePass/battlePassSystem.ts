@@ -154,6 +154,7 @@ export class BattlePassSystem {
 
     /**
      * 获取免费轨道配置
+     * 混合设计：每级都有基础奖励，特殊等级有额外奖励
      */
     private static getFreeTrack(): BattlePassTrack {
         const levels: BattlePassLevel[] = [];
@@ -166,38 +167,58 @@ export class BattlePassSystem {
             const seasonPointsRequired = level * 100;
             let rewards: BattlePassRewards = {};
 
-            // 免费轨道奖励配置
+            // 1. 每级都有基础奖励（20 coins）
+            rewards.coins = 20;
+            totalCoins += 20;
+
+            // 2. 特殊等级额外奖励（里程碑奖励）
             if (level === 1) {
-                rewards = { coins: 50 };
-                totalCoins += 50;
+                // 第1级：欢迎奖励
+                rewards.coins += 80; // 总计100
+                rewards.tickets = [{ type: "bronze", quantity: 1 }];
+                totalCoins += 80;
+                totalBronzeTickets += 1;
             } else if (level === 5) {
-                rewards = { coins: 100, tickets: [{ type: "bronze", quantity: 1 }] };
-                totalCoins += 100;
+                // 第5级：第一个里程碑
+                rewards.coins += 80; // 总计100
+                rewards.tickets = [{ type: "bronze", quantity: 1 }];
+                totalCoins += 80;
                 totalBronzeTickets += 1;
             } else if (level === 10) {
-                rewards = { coins: 200, tickets: [{ type: "bronze", quantity: 2 }] };
-                totalCoins += 200;
+                // 第10级：中期里程碑
+                rewards.coins += 180; // 总计200
+                rewards.tickets = [{ type: "bronze", quantity: 2 }];
+                totalCoins += 180;
                 totalBronzeTickets += 2;
             } else if (level === 15) {
-                rewards = { coins: 300, tickets: [{ type: "silver", quantity: 1 }] };
-                totalCoins += 300;
+                // 第15级：高级里程碑
+                rewards.coins += 280; // 总计300
+                rewards.tickets = [{ type: "silver", quantity: 1 }];
+                totalCoins += 280;
                 totalSilverTickets += 1;
             } else if (level === 20) {
-                rewards = { coins: 500, tickets: [{ type: "silver", quantity: 2 }] };
-                totalCoins += 500;
+                // 第20级：接近完成
+                rewards.coins += 480; // 总计500
+                rewards.tickets = [{ type: "silver", quantity: 2 }];
+                totalCoins += 480;
                 totalSilverTickets += 2;
             } else if (level === 25) {
-                rewards = { coins: 1000, tickets: [{ type: "gold", quantity: 1 }] };
-                totalCoins += 1000;
+                // 第25级：最终奖励
+                rewards.coins += 980; // 总计1000
+                rewards.tickets = [{ type: "gold", quantity: 1 }];
+                totalCoins += 980;
                 totalGoldTickets += 1;
-            } else if (level % 3 === 0) {
-                // 每3级给金币
-                rewards = { coins: 50 };
-                totalCoins += 50;
-            } else if (level % 5 === 0) {
-                // 每5级给青铜门票
-                rewards = { tickets: [{ type: "bronze", quantity: 1 }] };
-                totalBronzeTickets += 1;
+            } else {
+                // 3. 非特殊等级的额外奖励
+                if (level % 3 === 0) {
+                    // 每3级额外金币奖励
+                    rewards.coins += 30; // 总计50
+                    totalCoins += 30;
+                } else if (level % 5 === 0) {
+                    // 每5级额外门票奖励（但5, 10, 15, 20, 25已被特殊等级覆盖）
+                    rewards.tickets = [{ type: "bronze", quantity: 1 }];
+                    totalBronzeTickets += 1;
+                }
             }
 
             levels.push({
@@ -213,7 +234,7 @@ export class BattlePassSystem {
         return {
             trackType: "free",
             levels,
-            description: "免费轨道，基础奖励等你来拿",
+            description: "免费轨道，每级都有奖励，特殊等级更有惊喜！",
             totalRewards: {
                 coins: totalCoins,
                 tickets: [
@@ -227,6 +248,7 @@ export class BattlePassSystem {
 
     /**
      * 获取付费轨道配置
+     * 混合设计：每级都有基础奖励（比免费轨道更多），特殊等级有额外奖励
      */
     private static getPremiumTrack(): BattlePassTrack {
         const levels: BattlePassLevel[] = [];
@@ -239,59 +261,82 @@ export class BattlePassSystem {
             const seasonPointsRequired = level * 100;
             let rewards: BattlePassRewards = {};
 
-            // 付费轨道奖励配置
+            // 1. 每级都有基础奖励（50 coins，比免费轨道多）
+            rewards.coins = 50;
+            totalCoins += 50;
+
+            // 2. 特殊等级额外奖励（里程碑奖励）
             if (level === 1) {
-                rewards = { coins: 100, tickets: [{ type: "bronze", quantity: 2 }] };
-                totalCoins += 100;
+                // 第1级：欢迎奖励
+                rewards.coins += 50; // 总计100
+                rewards.tickets = [{ type: "bronze", quantity: 2 }];
+                totalCoins += 50;
                 totalBronzeTickets += 2;
             } else if (level === 5) {
-                rewards = { coins: 200, tickets: [{ type: "bronze", quantity: 3 }, { type: "silver", quantity: 1 }] };
-                totalCoins += 200;
+                // 第5级：第一个里程碑
+                rewards.coins += 150; // 总计200
+                rewards.tickets = [
+                    { type: "bronze", quantity: 3 },
+                    { type: "silver", quantity: 1 }
+                ];
+                totalCoins += 150;
                 totalBronzeTickets += 3;
                 totalSilverTickets += 1;
             } else if (level === 10) {
-                rewards = { coins: 400, tickets: [{ type: "silver", quantity: 2 }] };
-                totalCoins += 400;
+                // 第10级：中期里程碑
+                rewards.coins += 350; // 总计400
+                rewards.tickets = [{ type: "silver", quantity: 2 }];
+                totalCoins += 350;
                 totalSilverTickets += 2;
             } else if (level === 15) {
-                rewards = { coins: 600, tickets: [{ type: "silver", quantity: 3 }, { type: "gold", quantity: 1 }] };
-                totalCoins += 600;
+                // 第15级：高级里程碑
+                rewards.coins += 550; // 总计600
+                rewards.tickets = [
+                    { type: "silver", quantity: 3 },
+                    { type: "gold", quantity: 1 }
+                ];
+                totalCoins += 550;
                 totalSilverTickets += 3;
                 totalGoldTickets += 1;
             } else if (level === 20) {
-                rewards = { coins: 1000, tickets: [{ type: "gold", quantity: 2 }] };
-                totalCoins += 1000;
+                // 第20级：接近完成
+                rewards.coins += 950; // 总计1000
+                rewards.tickets = [{ type: "gold", quantity: 2 }];
+                totalCoins += 950;
                 totalGoldTickets += 2;
             } else if (level === 25) {
-                rewards = {
-                    coins: 2000,
-                    tickets: [{ type: "gold", quantity: 3 }],
-                    exclusiveItems: [
-                        {
-                            itemId: "premium_avatar_25",
-                            itemType: "avatar",
-                            name: "宗师头像",
-                            description: "25级付费轨道专属头像",
-                            rarity: "legendary",
-                            previewUrl: "/assets/avatars/premium_25.png"
-                        }
-                    ]
-                };
-                totalCoins += 2000;
+                // 第25级：最终奖励 + 专属物品
+                rewards.coins += 1950; // 总计2000
+                rewards.tickets = [{ type: "gold", quantity: 3 }];
+                rewards.exclusiveItems = [
+                    {
+                        itemId: "premium_avatar_25",
+                        itemType: "avatar",
+                        name: "宗师头像",
+                        description: "25级付费轨道专属头像",
+                        rarity: "legendary",
+                        previewUrl: "/assets/avatars/premium_25.png"
+                    }
+                ];
+                totalCoins += 1950;
                 totalGoldTickets += 3;
-            } else if (level % 2 === 0) {
-                // 每2级给金币和门票
-                rewards = { coins: 100, tickets: [{ type: "bronze", quantity: 1 }] };
-                totalCoins += 100;
-                totalBronzeTickets += 1;
-            } else if (level % 3 === 0) {
-                // 每3级给更多金币
-                rewards = { coins: 150 };
-                totalCoins += 150;
-            } else if (level % 5 === 0) {
-                // 每5级给银门票
-                rewards = { tickets: [{ type: "silver", quantity: 1 }] };
-                totalSilverTickets += 1;
+            } else {
+                // 3. 非特殊等级的额外奖励
+                if (level % 2 === 0) {
+                    // 每2级额外奖励（金币 + 门票）
+                    rewards.coins += 50; // 总计100
+                    rewards.tickets = [{ type: "bronze", quantity: 1 }];
+                    totalCoins += 50;
+                    totalBronzeTickets += 1;
+                } else if (level % 3 === 0) {
+                    // 每3级额外金币奖励
+                    rewards.coins += 100; // 总计150
+                    totalCoins += 100;
+                } else if (level % 5 === 0) {
+                    // 每5级额外门票奖励（但5, 10, 15, 20, 25已被特殊等级覆盖）
+                    rewards.tickets = [{ type: "silver", quantity: 1 }];
+                    totalSilverTickets += 1;
+                }
             }
 
             levels.push({
@@ -307,7 +352,7 @@ export class BattlePassSystem {
         return {
             trackType: "premium",
             levels,
-            description: "付费轨道，专属奖励等你来拿",
+            description: "付费轨道，每级奖励更丰厚，专属物品等你来拿！",
             totalRewards: {
                 coins: totalCoins,
                 tickets: [

@@ -1,6 +1,6 @@
 import React from "react";
-import { NotificationProvider, useNotificationState, useNotificationActions } from "./NotificationContext";
 import { useTournamentStatus } from "./frontendIntegration";
+import { NotificationProvider, useNotificationActions, useNotificationState } from "./NotificationContext";
 import { NotificationPanel } from "./NotificationPanel";
 
 interface TournamentWithContextProps {
@@ -23,7 +23,9 @@ function TournamentContent({ uid, gameType }: TournamentWithContextProps) {
     const { addNotification } = useNotificationActions();
 
     const mergedTournamentData = getMergedTournamentData();
-    const { player, inventory } = tournamentStatus || {};
+    // 注意：getAvailableTournaments 返回的数据结构可能不同，需要适配
+    const player = (tournamentStatus as any)?.player || null;
+    const inventory = (tournamentStatus as any)?.inventory || null;
 
     if (error) {
         return <div>加载失败</div>;
@@ -41,10 +43,10 @@ function TournamentContent({ uid, gameType }: TournamentWithContextProps) {
             </div>
 
             {/* 通知统计 */}
-            <div style={{ 
-                position: "fixed", 
-                top: "20px", 
-                left: "20px", 
+            <div style={{
+                position: "fixed",
+                top: "20px",
+                left: "20px",
                 zIndex: 1000,
                 backgroundColor: "#f0f0f0",
                 padding: "8px 12px",
@@ -66,8 +68,8 @@ function TournamentContent({ uid, gameType }: TournamentWithContextProps) {
             <div>
                 <h3>可参与的锦标赛</h3>
                 {mergedTournamentData.map((tournament: any) => (
-                    <div 
-                        key={tournament.typeId} 
+                    <div
+                        key={tournament.typeId}
                         style={{
                             border: "1px solid #ddd",
                             borderRadius: "8px",
@@ -78,7 +80,7 @@ function TournamentContent({ uid, gameType }: TournamentWithContextProps) {
                     >
                         <h4>{tournament.name}</h4>
                         <p>{tournament.description}</p>
-                        
+
                         {/* 资格状态 */}
                         <div style={{ marginBottom: "12px" }}>
                             {tournament.eligibility.eligible ? (
@@ -148,17 +150,13 @@ function TournamentContent({ uid, gameType }: TournamentWithContextProps) {
                             {tournament.currentParticipations.length > 0 && (
                                 <button
                                     onClick={() => {
-                                        const participation = tournament.currentParticipations[0];
-                                        submitScore({
-                                            tournamentId: participation.tournamentId,
-                                            gameType: tournament.gameType,
-                                            score: Math.floor(Math.random() * 1000) + 100,
-                                            gameData: { demo: true },
-                                            propsUsed: []
-                                        }).then(() => {
-                                            console.log("分数提交成功");
-                                        }).catch(error => {
-                                            console.error("分数提交失败:", error);
+                                        // 注意：submitScore 功能暂未实现
+                                        console.warn("分数提交功能暂未实现");
+                                        addNotification({
+                                            type: "participation_update",
+                                            title: "功能未实现",
+                                            message: "分数提交功能暂未实现，需要通过 HTTP 端点调用 Tournament 模块的 submitGameScore",
+                                            data: { tournamentId: tournament.currentParticipations[0].tournamentId }
                                         });
                                     }}
                                     style={{

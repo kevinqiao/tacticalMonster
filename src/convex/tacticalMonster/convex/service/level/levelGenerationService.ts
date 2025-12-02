@@ -3,11 +3,11 @@
  * 核心关卡生成逻辑（地图+障碍物+Boss位置）
  */
 
-import { LevelConfigService } from "./levelConfigService";
-import { BossConfigService } from "../boss/bossConfigService";
+import { hasOverlap, HexCoord, isInRegion, selectMinionPosition, selectRandomPositionInZone } from "../../utils/hexUtils";
 import { SeededRandom } from "../../utils/seededRandom";
-import { HexCoord, selectRandomPositionInZone, selectMinionPosition, isInRegion, hasOverlap } from "../../utils/hexUtils";
+import { BossConfigService } from "../boss/bossConfigService";
 import { BossPositions } from "../boss/bossInstanceService";
+import { LevelConfigService } from "./levelConfigService";
 
 export interface GeneratedLevel {
     levelId: string;
@@ -160,7 +160,7 @@ export class LevelGenerationService {
             const preserveCore = mapGeneration.templateAdjustment.preserveCoreObstacles !== false;
 
             // 决定哪些可选障碍物保留
-            const optionalToKeep = template.optionalObstacles.filter(() => 
+            const optionalToKeep = template.optionalObstacles.filter(() =>
                 rng.random() > adjustmentRatio
             );
 
@@ -193,13 +193,13 @@ export class LevelGenerationService {
     ): any[] {
         const { obstacleRules } = mapGeneration;
         const { mapSize } = mapGeneration;
-        
+
         const obstacles: any[] = [];
         const excludeRegions: any[] = [];
 
         // 添加玩家区域和Boss区域到排除列表
         excludeRegions.push(positionConfig.playerZone.region);
-        
+
         if (obstacleRules.spawnZones) {
             obstacleRules.spawnZones
                 .filter((zone: any) => zone.type === "exclude")
@@ -214,7 +214,7 @@ export class LevelGenerationService {
 
         // 生成障碍物位置
         const usedPositions: HexCoord[] = [];
-        const obstacleTypes = obstacleRules.obstacleTypes || ["rock"];
+        const obstacleTypes: string[] = obstacleRules.obstacleTypes || ["rock"];
 
         for (let i = 0; i < obstacleCount; i++) {
             const position = this.findAvailableObstaclePosition(
@@ -268,7 +268,8 @@ export class LevelGenerationService {
             );
 
             if (position) {
-                const obstacleType = rng.choice(obstacleRules.obstacleTypes || ["rock"]);
+                const obstacleTypes: string[] = obstacleRules.obstacleTypes || ["rock"];
+                const obstacleType = rng.choice(obstacleTypes);
                 obstacles.push({
                     q: position.q,
                     r: position.r,
@@ -292,14 +293,14 @@ export class LevelGenerationService {
         rng: SeededRandom
     ): HexCoord | null {
         const maxAttempts = 100;
-        
+
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             const q = rng.randomInt(0, mapSize.cols);
             const r = rng.randomInt(0, mapSize.rows);
             const position: HexCoord = { q, r };
 
             // 检查是否在排除区域内
-            const inExcludeRegion = excludeRegions.some(region => 
+            const inExcludeRegion = excludeRegions.some(region =>
                 isInRegion(position, region)
             );
 

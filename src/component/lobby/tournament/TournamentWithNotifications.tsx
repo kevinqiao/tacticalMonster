@@ -18,7 +18,9 @@ export function TournamentWithNotifications({ uid, gameType }: TournamentWithNot
     } = useTournamentStatus(uid, gameType);
 
     const mergedTournamentData = getMergedTournamentData();
-    const { player, inventory } = tournamentStatus || {};
+    // 注意：getAvailableTournaments 返回的数据结构可能不同，需要适配
+    const player = (tournamentStatus as any)?.player || null;
+    const inventory = (tournamentStatus as any)?.inventory || null;
 
     if (error) {
         return <div>加载失败</div>;
@@ -129,18 +131,9 @@ export function TournamentWithNotifications({ uid, gameType }: TournamentWithNot
                         {tournament.currentParticipations.length > 0 && (
                             <button
                                 onClick={() => {
-                                    const participation = tournament.currentParticipations[0];
-                                    submitScore({
-                                        tournamentId: participation.tournamentId,
-                                        gameType: tournament.gameType,
-                                        score: Math.floor(Math.random() * 1000) + 100,
-                                        gameData: { demo: true },
-                                        propsUsed: []
-                                    }).then(() => {
-                                        console.log("分数提交成功");
-                                    }).catch(error => {
-                                        console.error("分数提交失败:", error);
-                                    });
+                                    // 注意：submitScore 功能暂未实现
+                                    console.warn("分数提交功能暂未实现");
+                                    // 可以显示通知提示用户
                                 }}
                                 style={{
                                     backgroundColor: "#4CAF50",

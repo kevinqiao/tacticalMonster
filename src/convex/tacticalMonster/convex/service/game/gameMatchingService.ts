@@ -1,11 +1,10 @@
-import { mutation } from "../../_generated/server";
 import { v } from "convex/values";
-import { TierMappingService } from "../tier/tierMappingService";
-import { MonsterRumbleTierService } from "../tier/monsterRumbleTierService";
+import { mutation } from "../../_generated/server";
+import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
 import { TIER_CONFIGS } from "../../data/tierConfigs";
-import { getTournamentUrl } from "../../config/tournamentConfig";
-import { TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
-import { internal } from "../../_generated/api";
+import { TeamService } from "../team/teamService";
+import { MonsterRumbleTierService } from "../tier/monsterRumbleTierService";
+import { TierMappingService } from "../tier/tierMappingService";
 
 /**
  * 匹配服务
@@ -19,32 +18,40 @@ export const joinTournamentMatching = mutation({
         tier: v.optional(v.string()),  // 前端可能传入，但会被后端验证覆盖
     },
     handler: async (ctx, args) => {
-        // 1. 从 tournamentType 推导权威 Tier
+        // 1. 验证队伍是否有效（最多4个怪物）
+        const teamValidation = await TeamService.validateTeam(ctx, args.uid);
+        if (!teamValidation.valid) {
+            throw new Error(`队伍验证失败: ${teamValidation.reason}`);
+        }
+
+        // 2. 从 tournamentType 推导权威 Tier
         const authoritativeTier = TierMappingService.getTierFromTournamentType(args.tournamentType);
         if (!authoritativeTier) {
             throw new Error(`无法从 tournamentType 推导 Tier: ${args.tournamentType}`);
         }
-        
-        // 2. 验证前端传入的 Tier（如果存在）
+
+        // 3. 验证前端传入的 Tier（如果存在）
         if (args.tier && args.tier !== authoritativeTier) {
             throw new Error(`Tier 不一致: 前端传入 ${args.tier}，实际应为 ${authoritativeTier}`);
         }
-        
-        // 3. 验证 Tier 访问权限
+
+        // 4. 验证 Tier 访问权限
+        // 注意：Power 基于上场队伍（teamPosition 不为 null 的怪物，最多4个）计算
+        // 玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛
         const validation = await MonsterRumbleTierService.validateTierAccess(
             ctx,
             args.uid,
             authoritativeTier
         );
-        
+
         if (!validation.valid) {
             throw new Error(`Tier 访问验证失败: ${validation.reason}`);
         }
-        
+
         // 4. 验证入场费用（简化：假设费用验证通过）
         const tierConfig = TIER_CONFIGS[authoritativeTier as keyof typeof TIER_CONFIGS];
         // TODO: 实现费用扣除逻辑
-        
+
         // 5. 调用 Tournament 匹配服务（HTTP 调用）
         try {
             const response = await fetch(
@@ -66,9 +73,9 @@ export const joinTournamentMatching = mutation({
                     }),
                 }
             );
-            
+
             const matchResult = await response.json();
-            
+
             if (!response.ok || !matchResult.ok) {
                 return {
                     ok: false,
@@ -76,10 +83,10 @@ export const joinTournamentMatching = mutation({
                     error: matchResult.error || "匹配失败",
                 };
             }
-            
+
             // 6. 如果匹配成功，创建游戏实例（这里简化处理，实际应在游戏开始回调中创建）
             // 注意：游戏实例的创建应该在匹配成功后由 Tournament 回调或定时任务触发
-            
+
             return {
                 ok: true,
                 gameId: matchResult.gameId,

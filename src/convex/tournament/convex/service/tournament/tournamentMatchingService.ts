@@ -27,7 +27,8 @@ export class TournamentMatchingService {
         tournamentId?: string; // 可选，独立模式下不需要     
         typeId: string; // 新增：锦标赛类型，独立模式下需要
         uid: string;
-
+        gameType?: string; // 游戏类型（用于判断是否需要 tier/power 匹配）
+        metadata?: any; // 元数据（包含 tier, teamPower 等）
     }) {
         const nowISO = new Date().toISOString();
         const { tournamentId, typeId, uid } = params;
@@ -76,7 +77,7 @@ export class TournamentMatchingService {
             //     fallbackToAI: config.advanced?.matching?.fallbackToAI || false
             // };
 
-            // 5. 加入匹配队列
+            // 5. 加入匹配队列（保存 metadata，包含 tier 和 teamPower）
             const queueId = await ctx.db.insert("matchingQueue", {
                 uid,
                 tournamentId,
@@ -84,7 +85,8 @@ export class TournamentMatchingService {
                 status: "waiting",
                 joinedAt: nowISO,
                 createdAt: nowISO,
-                updatedAt: nowISO
+                updatedAt: nowISO,
+                metadata: params.metadata || undefined, // 保存 tier 和 teamPower 信息
             });
 
             // 6. 记录匹配事件
@@ -195,15 +197,27 @@ export class TournamentMatchingService {
 
     /**
      * 处理队列组
+     * 对于 TacticalMonster 游戏，在 tier 内按 power 范围（动态范围）匹配
+     * 
+     * 优化：
+     * - 支持动态匹配范围（根据等待时间扩大）
+     * - 使用匹配度评分系统
+     * - 优先匹配等待时间长的玩家
      */
     private static async processQueueGroup(ctx: any, queueGroup: any[], now: any) {
         const { tournamentId, tournamentType } = queueGroup[0];
         const config = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", tournamentType)).first();
 
-        if (config.matchRules.minPlayers > queueGroup.length) {
+        // 如果是 TacticalMonster 游戏且有 metadata（包含 tier 和 teamPower），进行 power 范围匹配
+        let matchedGroup = queueGroup;
+        if (config.gameType === "tacticalMonster" && queueGroup[0].metadata?.tier && queueGroup[0].metadata?.teamPower) {
+            matchedGroup = this.matchByPowerRange(queueGroup, config.matchRules.maxPlayers);
+        }
+
+        if (config.matchRules.minPlayers > matchedGroup.length) {
             return;
         }
-        const group = queueGroup.length < config.matchRules.maxPlayers ? queueGroup : queueGroup.slice(0, config.matchRules.maxPlayers);
+        const group = matchedGroup.length < config.matchRules.maxPlayers ? matchedGroup : matchedGroup.slice(0, config.matchRules.maxPlayers);
         const uids = group.map((player: any) => player.uid);
         let tid;
         if (!tournamentId) {
@@ -224,6 +238,127 @@ export class TournamentMatchingService {
         }));
         return;
     }
+    /**
+     * 按 Power 范围匹配（动态范围，参考 Clash Royale）
+     * 用于 TacticalMonster 游戏的 tier 内匹配
+     * 
+     * 优化策略：
+     * 1. 基础匹配范围：±10%
+     * 2. 动态扩大范围：根据等待时间扩大匹配范围
+     *    - 等待 30 秒：扩大到 ±15%
+     *    - 等待 60 秒：扩大到 ±20%
+     *    - 等待 90 秒：扩大到 ±30%
+     * 3. 匹配度评分：综合考虑 Power 差异和等待时间
+     * 4. 优先匹配等待时间长的玩家
+     */
+    private static matchByPowerRange(queues: any[], maxPlayers: number): any[] {
+        if (queues.length === 0) return [];
+
+        const now = Date.now();
+
+        // 按加入时间排序（先加入的优先匹配）
+        const sortedQueues = [...queues].sort((a, b) =>
+            new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime()
+        );
+
+        // 以第一个玩家（等待时间最长）为中心进行匹配
+        const firstPlayer = sortedQueues[0];
+        const teamPower = firstPlayer.metadata?.teamPower || 0;
+
+        if (teamPower === 0) {
+            // 如果没有 power 信息，返回所有玩家（降级处理）
+            return sortedQueues.slice(0, maxPlayers);
+        }
+
+        // 计算第一个玩家的等待时间（毫秒）
+        const firstPlayerWaitTime = now - new Date(firstPlayer.joinedAt).getTime();
+
+        // 动态计算 power 匹配范围
+        let powerRangePercent = 0.1; // 基础 ±10%
+
+        if (firstPlayerWaitTime > 90000) { // 等待超过 90 秒
+            powerRangePercent = 0.3; // ±30%
+        } else if (firstPlayerWaitTime > 60000) { // 等待超过 60 秒
+            powerRangePercent = 0.2; // ±20%
+        } else if (firstPlayerWaitTime > 30000) { // 等待超过 30 秒
+            powerRangePercent = 0.15; // ±15%
+        }
+
+        const powerRange = {
+            min: Math.floor(teamPower * (1 - powerRangePercent)),
+            max: Math.ceil(teamPower * (1 + powerRangePercent)),
+        };
+
+        // 计算所有候选玩家的匹配度分数
+        const candidates: Array<{ queue: any; score: number }> = [];
+
+        for (let i = 1; i < sortedQueues.length; i++) {
+            const other = sortedQueues[i];
+            const otherPower = other.metadata?.teamPower || 0;
+
+            // 如果 power 在范围内，计算匹配度分数
+            if (otherPower >= powerRange.min && otherPower <= powerRange.max) {
+                const score = this.calculateMatchScore(
+                    firstPlayer,
+                    other,
+                    teamPower,
+                    otherPower,
+                    now
+                );
+                candidates.push({ queue: other, score });
+            }
+        }
+
+        // 按匹配度分数排序（分数越高越好）
+        candidates.sort((a, b) => b.score - a.score);
+
+        // 构建匹配组
+        const matchedGroup = [firstPlayer];
+        for (const candidate of candidates) {
+            if (matchedGroup.length >= maxPlayers) break;
+            matchedGroup.push(candidate.queue);
+        }
+
+        return matchedGroup;
+    }
+
+    /**
+     * 计算匹配度分数
+     * 综合考虑 Power 差异和等待时间
+     * 
+     * @param firstPlayer 第一个玩家（等待时间最长）
+     * @param candidate 候选玩家
+     * @param firstPower 第一个玩家的 Power
+     * @param candidatePower 候选玩家的 Power
+     * @param now 当前时间戳
+     * @returns 匹配度分数（越高越好）
+     */
+    private static calculateMatchScore(
+        firstPlayer: any,
+        candidate: any,
+        firstPower: number,
+        candidatePower: number,
+        now: number
+    ): number {
+        let score = 100;
+
+        // 1. Power 差异（越小越好）
+        const powerDiff = Math.abs(firstPower - candidatePower);
+        const powerDiffPercent = powerDiff / Math.max(firstPower, candidatePower);
+        score -= powerDiffPercent * 50; // 每 1% 差异扣 0.5 分
+
+        // 2. 等待时间奖励（优先匹配等待时间长的玩家）
+        const candidateWaitTime = now - new Date(candidate.joinedAt).getTime();
+        const waitTimeBonus = Math.min(candidateWaitTime / 1000, 30); // 最多加 30 分
+        score += waitTimeBonus;
+
+        // 3. Power 接近度奖励（Power 越接近，分数越高）
+        const powerRatio = Math.min(firstPower, candidatePower) / Math.max(firstPower, candidatePower);
+        score += powerRatio * 20; // 最多加 20 分
+
+        return Math.max(0, score);
+    }
+
     private static async getPlayers(ctx: any, tournamentType: any, group: any[]): Promise<string[]> {
         const player = group[0].playerInfo;
         return [];
@@ -245,12 +380,19 @@ export class TournamentMatchingService {
 
     /**
      * 按类型分组队列
+     * 对于 TacticalMonster 游戏，同时按 tier 分组
      */
     private static groupQueuesByType(queues: any[]) {
         const groups = new Map();
 
         for (const queue of queues) {
-            const key = `${queue.tournamentId ?? queue.tournamentType}`;
+            // 基础分组键：tournamentType
+            let key = `${queue.tournamentId ?? queue.tournamentType}`;
+
+            // 对于 TacticalMonster 游戏，同时按 tier 分组
+            if (queue.metadata?.tier) {
+                key = `${key}_tier_${queue.metadata.tier}`;
+            }
 
             if (!groups.has(key)) {
                 groups.set(key, []);
@@ -471,6 +613,8 @@ export const joinMatchingQueue = mutation({
         uid: v.string(),
         tournamentId: v.optional(v.string()),
         typeId: v.string(),
+        gameType: v.optional(v.string()),
+        metadata: v.optional(v.any()), // 包含 tier, teamPower 等
     },
     handler: async (ctx: any, args: any) => {
         // 获取玩家信息
@@ -478,6 +622,8 @@ export const joinMatchingQueue = mutation({
             tournamentId: args.tournamentId,
             typeId: args.typeId,
             uid: args.uid,
+            gameType: args.gameType,
+            metadata: args.metadata,
         });
     },
 });

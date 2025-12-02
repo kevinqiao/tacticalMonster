@@ -1,12 +1,14 @@
 import { PageProp } from "component/RenderApp";
 import { ConvexProvider, ConvexReactClient, useConvex, useQuery } from "convex/react";
-import { api } from "convex/tournament/convex/_generated/api";
+import { api as tacticalMonsterApi } from "convex/tacticalMonster/convex/_generated/api";
+import { api as tournamentApi } from "convex/tournament/convex/_generated/api";
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MatchHome from "./MatchHome";
 import { PlayerMatch } from "./MatchTypes";
 import "./style.css";
-const convex_url = "https://beloved-mouse-699.convex.cloud";
+const tournament_convex_url = "https://beloved-mouse-699.convex.cloud";
+const tacticalMonster_convex_url = "https://shocking-leopard-487.convex.cloud";
 const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
     console.log("tournament play tournament", tournament);
     const loadingRef = useRef<HTMLDivElement | null>(null);
@@ -16,8 +18,8 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
     const [progress, setProgress] = useState(0);
     const [matchReady, setMatchReady] = useState(false);
     const [playerMatch, setPlayerMatch] = useState<PlayerMatch | null>(null);
-    const convex = useConvex();
-    const matchingResult = useQuery(api.service.tournament.matchManager.findTournamentMatch, { typeId: tournament?.typeId, uid: "kkk" });
+    const tournamentConvex = useConvex();
+    const matchingResult = useQuery(tournamentApi.service.tournament.matchManager.findTournamentMatch, { typeId: tournament?.typeId, uid: "kkk" });
     const onGameLoadComplete = useCallback(() => {
 
     }, []);
@@ -81,11 +83,38 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
     useEffect(() => {
         const joinTournament = async () => {
             try {
-                if (tournament && convex) {
-                    const result = await convex.mutation(api.service.tournament.tournamentService.join, { uid: "kkk", tournamentId: tournament.tournamentId, typeId: tournament.typeId });
+                if (tournament) {
+                    // 使用 TacticalMonster 模块的客户端来加入锦标赛
+                    const tacticalMonsterClient = new ConvexReactClient(tacticalMonster_convex_url);
+                    const result = await tacticalMonsterClient.mutation(
+                        tacticalMonsterApi.service.game.gameMatchingService.joinTournamentMatching,
+                        {
+                            uid: "kkk", // TODO: 从用户上下文获取真实 uid
+                            tournamentType: tournament.typeId,
+                            tournamentId: tournament.tournamentId,
+                            tier: undefined, // 可选，会被后端验证覆盖
+                        }
+                    );
                     console.log("tournament play join result", result);
-                    if (result.ok && result.playerMatch) {
-                        setPlayerMatch(result.playerMatch);
+                    if (result.ok) {
+                        // TacticalMonster 返回 { ok, gameId, matchId, inQueue }
+                        // 如果需要 playerMatch，从 Tournament 模块查询
+                        if (result.gameId) {
+                            try {
+                                const matchResult = await tournamentConvex.query(
+                                    tournamentApi.service.tournament.matchManager.findGameMatch,
+                                    { gameId: result.gameId }
+                                );
+                                if (matchResult) {
+                                    setPlayerMatch(matchResult as any);
+                                }
+                            } catch (queryError) {
+                                console.warn("查询 match 详情失败，使用基本匹配信息:", queryError);
+                                // 即使查询失败，也可以继续使用基本匹配信息
+                            }
+                        }
+                    } else {
+                        console.error("加入锦标赛失败:", result.error);
                     }
                 }
             } catch (error) {
@@ -95,7 +124,7 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
         if (tournament) {
             joinTournament();
         }
-    }, [tournament]);
+    }, [tournament, tournamentConvex]);
 
     const renderContent = useMemo(() => {
 
@@ -122,12 +151,13 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
 
 };
 const TournamentPlay: React.FC<PageProp> = ({ visible, data }) => {
-
-    const client = React.useMemo(() => new ConvexReactClient(convex_url), [convex_url]);
+    // Tournament 模块客户端（用于查询状态和匹配信息）
+    const tournamentClient = React.useMemo(() => new ConvexReactClient(tournament_convex_url), []);
 
     return (
         <>
-            <ConvexProvider client={client}>
+            {/* 使用 Tournament 客户端作为主 Provider（用于查询） */}
+            <ConvexProvider client={tournamentClient}>
                 <div className="tournament-play-container">
                     {data ? <TournamentMain tournament={data} /> : null}
                 </div>

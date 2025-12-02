@@ -45,6 +45,7 @@ import type * as service_activity_activityTemplateService from "../service/activ
 import type * as service_auth from "../service/auth.js";
 import type * as service_battlePass_battlePass from "../service/battlePass/battlePass.js";
 import type * as service_battlePass_battlePassSystem from "../service/battlePass/battlePassSystem.js";
+import type * as service_battlePass_tests_testData from "../service/battlePass/tests/testData.js";
 import type * as service_join from "../service/join.js";
 import type * as service_leaderboard_leaderboardSystem from "../service/leaderboard/leaderboardSystem.js";
 import type * as service_leaderboard_leaderboards from "../service/leaderboard/leaderboards.js";
@@ -170,6 +171,7 @@ declare const fullApi: ApiFromModules<{
   "service/auth": typeof service_auth;
   "service/battlePass/battlePass": typeof service_battlePass_battlePass;
   "service/battlePass/battlePassSystem": typeof service_battlePass_battlePassSystem;
+  "service/battlePass/tests/testData": typeof service_battlePass_tests_testData;
   "service/join": typeof service_join;
   "service/leaderboard/leaderboardSystem": typeof service_leaderboard_leaderboardSystem;
   "service/leaderboard/leaderboards": typeof service_leaderboard_leaderboards;

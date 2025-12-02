@@ -5,7 +5,7 @@ export const monsterSchema = {
     // ============================================
     // 怪物系统相关表
     // ============================================
-    
+
     mr_monster_configs: defineTable({
         monsterId: v.string(),
         name: v.string(),
@@ -21,8 +21,8 @@ export const monsterSchema = {
         assetPath: v.string(),                   // 3D模型路径
         configVersion: v.number(),
     })
-    .index("by_monsterId", ["monsterId"])
-    .index("by_rarity", ["rarity"]),
+        .index("by_monsterId", ["monsterId"])
+        .index("by_rarity", ["rarity"]),
 
     mr_player_monsters: defineTable({
         uid: v.string(),
@@ -32,13 +32,15 @@ export const monsterSchema = {
         experience: v.number(),
         shards: v.number(),                      // 当前碎片数量
         unlockedSkills: v.any(),
-        inTeam: v.optional(v.boolean()),         // 是否在队伍中
+        inTeam: v.optional(v.boolean()),         // 是否在队伍中（保留兼容性）
+        teamPosition: v.optional(v.number()),    // 队伍位置：0-3（新增，用于上场队伍管理）
         obtainedAt: v.string(),
         updatedAt: v.string(),
     })
-    .index("by_uid", ["uid"])
-    .index("by_uid_monsterId", ["uid", "monsterId"])
-    .index("by_uid_inTeam", ["uid", "inTeam"]),
+        .index("by_uid", ["uid"])
+        .index("by_uid_monsterId", ["uid", "monsterId"])
+        .index("by_uid_inTeam", ["uid", "inTeam"])
+        .index("by_uid_teamPosition", ["uid", "teamPosition"]), // 新增：用于查询上场队伍
 
     mr_monster_shards: defineTable({
         uid: v.string(),
@@ -46,7 +48,7 @@ export const monsterSchema = {
         quantity: v.number(),
         updatedAt: v.string(),
     })
-    .index("by_uid", ["uid"])
-    .index("by_uid_monsterId", ["uid", "monsterId"]),
+        .index("by_uid", ["uid"])
+        .index("by_uid_monsterId", ["uid", "monsterId"]),
 };
 

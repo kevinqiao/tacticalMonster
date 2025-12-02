@@ -1,5 +1,11 @@
 /**
  * 锦标赛配置类型定义 - 基于 tournament_types schema
+ * 
+ * 重要说明：
+ * - Tier（竞技场）：TacticalMonster 特定，基于 Power 匹配，与 Boss 难度关联
+ * - 对于 TacticalMonster 游戏，应使用 Tier 限制
+ * - Power 基于当前队伍（inTeam: true 的怪物）计算
+ * - 玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛，实现自然降级
  */
 export interface TournamentConfig {
     // 基础信息
@@ -11,8 +17,6 @@ export interface TournamentConfig {
     // 游戏配置
     gameType: GameType;
     isActive: boolean;
-    priority: number;
-
     // 参赛条件
     entryRequirements?: EntryRequirements;
 
@@ -28,13 +32,6 @@ export interface TournamentConfig {
     // 限制配置
     limits?: LimitConfig;
 
-    // 积分规则配置已移至段位系统，不再在此配置
-
-    // 高级配置
-    advanced?: AdvancedConfig;
-
-    // 兼容性字段
-    handlerModule?: string;
 
     // 时间戳
     createdAt?: string;
@@ -52,47 +49,38 @@ export type GameType =
     | "chess"           // 国际象棋
     | "checkers"        // 跳棋
     | "puzzle"          // 益智游戏
-    | "arcade";         // 街机游戏
+    | "arcade"          // 街机游戏
+    | "tacticalMonster"; // 战术怪物（Monster Rumble）
 
 /**
  * 参赛条件
  */
 export interface EntryRequirements {
-    // 段位要求
-    minSegment?: "bronze" | "silver" | "gold" | "platinum" | "diamond";
-    maxSegment?: "bronze" | "silver" | "gold" | "platinum" | "diamond";
 
+
+    // Power 要求（仅适用于 TacticalMonster，用于 Tier 匹配）
+    minPower?: number;
+    maxPower?: number;
+
+    // ============================================
+    // 通用要求
+    // ============================================
     // 订阅要求
     isSubscribedRequired: boolean;
 
     // 等级要求
-    minLevel?: number;
-    maxLevel?: number;
+    tier?: "bronze" | "silver" | "gold" | "platinum";
 
-    // 积分要求
-    minPoints?: number;
-    maxPoints?: number;
-
+    // ============================================
     // 入场费
+    // ============================================
     entryFee: {
         coins?: number;
-        tickets?: {
-            type: string;
-            quantity: number;
-        };
-        props?: Array<{
-            gameType: string;
-            propType: string;
-            quantity: number;
-        }>;
+        gems?: number;
+        // TacticalMonster 特定：能量消耗
+        energy?: number;
     };
 
-    // 特殊条件
-    specialConditions?: Array<{
-        type: string;
-        value: any;
-        description: string;
-    }>;
 }
 
 /**
@@ -125,7 +113,9 @@ export interface MatchRules {
  * 奖励配置 - 专注于传统游戏奖励，积分通过 pointRules 配置
  */
 export interface RewardConfig {
+    // ============================================
     // 基础奖励 - 参与即可获得
+    // ============================================
     baseRewards: {
         coins?: number;
         tickets?: Array<{
@@ -137,9 +127,22 @@ export interface RewardConfig {
             propId: string;
             quantity: number;
         }>;
+        // TacticalMonster 特定奖励
+        monsters?: Array<{
+            monsterId: string;
+            level?: number;
+            stars?: number;
+        }>;
+        monsterShards?: Array<{
+            monsterId: string;
+            quantity: number;
+        }>;
+        energy?: number;
     };
 
+    // ============================================
     // 排名奖励 - 基于排名范围
+    // ============================================
     rankRewards: Array<{
         rankRange: number[]; // [minRank, maxRank]
         multiplier: number;
@@ -155,52 +158,69 @@ export interface RewardConfig {
             propId: string;
             quantity: number;
         }>;
+        // TacticalMonster 特定奖励
+        monsters?: Array<{
+            monsterId: string;
+            level?: number;
+            stars?: number;
+        }>;
+        monsterShards?: Array<{
+            monsterId: string;
+            quantity: number;
+        }>;
+        energy?: number;
     }>;
 
-    // 段位加成 - 传统奖励的段位加成
-    segmentBonus?: {
-        bronze: {
+    // ============================================
+    // Tier 加成 - TacticalMonster 特定（基于 Tier 的奖励加成）
+    // ============================================
+    tierBonus?: {
+        bronze?: {
             coins?: number;
-            tickets?: Array<{ type: string; quantity: number; }>;
-            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
+            energy?: number;
         };
-        silver: {
+        silver?: {
             coins?: number;
-            tickets?: Array<{ type: string; quantity: number; }>;
-            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
+            energy?: number;
         };
-        gold: {
+        gold?: {
             coins?: number;
-            tickets?: Array<{ type: string; quantity: number; }>;
-            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
+            energy?: number;
         };
-        platinum: {
+        platinum?: {
             coins?: number;
-            tickets?: Array<{ type: string; quantity: number; }>;
-            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
-        };
-        diamond: {
-            coins?: number;
-            tickets?: Array<{ type: string; quantity: number; }>;
-            props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
+            energy?: number;
         };
     };
 
+    // ============================================
     // 订阅加成 - 传统奖励的订阅加成
+    // ============================================
     subscriptionBonus?: {
         coins?: number;
         tickets?: Array<{ type: string; quantity: number; }>;
         props?: Array<{ gameType: string; propId: string; quantity: number; }>;
     };
 
+    // ============================================
     // 参与奖励 - 参与即可获得
+    // ============================================
     participationReward?: {
         coins?: number;
         tickets?: Array<{ type: string; quantity: number; }>;
         props?: Array<{ gameType: string; propId: string; quantity: number; }>;
+        // TacticalMonster 特定奖励
+        energy?: number;
+        monsterShards?: Array<{ monsterId: string; quantity: number; }>;
     };
 
+    // ============================================
     // 连胜奖励 - 传统奖励的连胜加成
+    // ============================================
     streakBonus?: {
         minStreak: number;
         bonusMultiplier: number;
@@ -256,8 +276,9 @@ export interface LimitConfig {
 export interface AdvancedConfig {
     // 匹配算法
     matching: {
-        algorithm: "skill_based" | "random" | "segment_based" | "elo_based";
+        algorithm: "skill_based" | "random" | "tier_based" | "elo_based" | "power_based";
         skillRange?: number;
+        powerRange?: number; // TacticalMonster 特定：Power 匹配范围（百分比，如 10 表示 ±10%）
         maxWaitTime: number; // 秒
         fallbackToAI: boolean;
     };
@@ -299,7 +320,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         description: "Solitaire锦标赛，免费模式，积分累积用于排行榜",
         gameType: "solitaire",
         isActive: true,
-        priority: 1,
         timeRange: "daily",
 
         entryRequirements: {
@@ -379,17 +399,13 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         description: "2-4人Solitaire快速对局，门票模式2",
         gameType: "solitaire",
         isActive: true,
-        priority: 2,
         timeRange: "daily",
 
         entryRequirements: {
             isSubscribedRequired: false,
+            tier: "bronze", // Tier 要求（仅适用于 TacticalMonster）
             entryFee: {
                 coins: 10, // 门票费用
-                tickets: {
-                    type: "bronze",
-                    quantity: 1
-                }
             }
         },
 
@@ -398,10 +414,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             minPlayers: 2,
             maxPlayers: 4,
             rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 300, // 5分钟
-                total: 300
-            }
         },
 
         rewards: {
@@ -450,18 +462,13 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         description: "2人Solitaire快速对局，门票模式1",
         gameType: "solitaire",
         isActive: true,
-        priority: 3,
         timeRange: "daily",
 
         entryRequirements: {
-            minSegment: "bronze",
             isSubscribedRequired: false,
+            tier: "silver",
             entryFee: {
                 coins: 50,
-                tickets: {
-                    type: "silver",
-                    quantity: 1
-                }
             }
         },
 
@@ -470,23 +477,11 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             minPlayers: 1,
             maxPlayers: 1,
             rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 300, // 5分钟
-                total: 900     // 15分钟
-            }
         },
 
         rewards: {
             baseRewards: {
                 coins: 100,
-                props: [
-                    {
-                        gameType: "solitaire",
-                        propId: "hint",
-                        quantity: 2,
-                    }
-                ],
-                tickets: []
             },
             rankRewards: [
                 {
@@ -533,7 +528,204 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         //     }
         // },
 
-    }
+    },
+
+    // ============================================
+    // TacticalMonster (Monster Rumble) 配置示例
+    // ============================================
+    {
+        typeId: "monster_rumble_bronze_daily",
+        name: "Monster Rumble - Bronze Tier",
+        description: "Monster Rumble 青铜竞技场，每日锦标赛",
+        gameType: "tacticalMonster",
+        isActive: true,
+        timeRange: "daily",
+
+        entryRequirements: {
+            isSubscribedRequired: false,
+            tier: "bronze",
+            // 注意：玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛
+            // Power 基于当前队伍（inTeam: true 的怪物）计算
+            // 入场费（包含能量消耗）
+            entryFee: {
+                coins: 0,
+                energy: 6, // TacticalMonster 特定：能量消耗
+            },
+        },
+
+        matchRules: {
+            matchType: "multi_match",
+            minPlayers: 4,
+            maxPlayers: 8,
+            rankingMethod: "highest_score",
+        },
+
+        rewards: {
+            baseRewards: {
+                coins: 50,
+                energy: 10, // TacticalMonster 特定：能量奖励
+            },
+            rankRewards: [
+                {
+                    rankRange: [1, 1],
+                    multiplier: 1.0,
+                    coins: 300,
+                    monsterShards: [
+                        { monsterId: "monster_001", quantity: 10 },
+                    ],
+                },
+                {
+                    rankRange: [2, 3],
+                    multiplier: 0.6,
+                    coins: 180,
+                    monsterShards: [
+                        { monsterId: "monster_001", quantity: 5 },
+                    ],
+                },
+                {
+                    rankRange: [4, 10],
+                    multiplier: 0.3,
+                    coins: 90,
+                },
+            ],
+            // Tier 加成（TacticalMonster 特定）
+            tierBonus: {
+                bronze: {
+                    coins: 50,
+                    monsterShards: [
+                        { monsterId: "monster_001", quantity: 5 },
+                    ],
+                },
+            },
+            participationReward: {
+                coins: 20,
+                energy: 5,
+            },
+        },
+
+        schedule: {
+            timeZone: "UTC",
+            open: {
+                time: "00:00:00",
+            },
+            start: {
+                time: "00:00:00",
+            },
+            end: {
+                time: "23:59:59",
+            },
+            duration: 86400, // 24小时
+        },
+
+        limits: {
+            maxParticipations: 10,
+            maxTournaments: 1,
+            maxAttempts: 10,
+            subscribed: {
+                maxParticipations: 15,
+                maxTournaments: 1,
+                maxAttempts: 15,
+            },
+        },
+    },
+
+    // ============================================
+    // 允许降级的锦标赛配置示例
+    // ============================================
+    {
+        typeId: "monster_rumble_bronze_open",
+        name: "Monster Rumble - Bronze Tier (开放)",
+        description: "Monster Rumble 青铜竞技场（允许高等级玩家降级加入）",
+        gameType: "tacticalMonster",
+        isActive: true,
+        timeRange: "daily",
+
+        entryRequirements: {
+            isSubscribedRequired: false,
+            tier: "bronze",
+            // 注意：玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛
+            // Power 基于当前队伍（inTeam: true 的怪物）计算
+            // 匹配基于 Power ±10%，确保公平匹配
+            entryFee: {
+                coins: 0,
+                energy: 6,
+            },
+        },
+
+        matchRules: {
+            matchType: "multi_match",
+            minPlayers: 4,
+            maxPlayers: 8,
+            rankingMethod: "highest_score",
+        },
+
+        rewards: {
+            baseRewards: {
+                coins: 50,
+                energy: 10,
+            },
+            rankRewards: [
+                {
+                    rankRange: [1, 1],
+                    multiplier: 1.0,
+                    coins: 300,
+                    monsterShards: [
+                        { monsterId: "monster_001", quantity: 10 },
+                    ],
+                },
+                {
+                    rankRange: [2, 3],
+                    multiplier: 0.6,
+                    coins: 180,
+                    monsterShards: [
+                        { monsterId: "monster_001", quantity: 5 },
+                    ],
+                },
+                {
+                    rankRange: [4, 10],
+                    multiplier: 0.3,
+                    coins: 90,
+                },
+            ],
+            tierBonus: {
+                bronze: {
+                    coins: 50,
+                    monsterShards: [
+                        { monsterId: "monster_001", quantity: 5 },
+                    ],
+                },
+            },
+            participationReward: {
+                coins: 20,
+                energy: 5,
+            },
+        },
+
+        schedule: {
+            timeZone: "UTC",
+            open: {
+                time: "00:00:00",
+            },
+            start: {
+                time: "00:00:00",
+            },
+            end: {
+                time: "23:59:59",
+            },
+            duration: 86400,
+        },
+
+        limits: {
+            maxParticipations: 10,
+            maxTournaments: 1,
+            maxAttempts: 10,
+            subscribed: {
+                maxParticipations: 15,
+                maxTournaments: 1,
+                maxAttempts: 15,
+            },
+        },
+    },
 ];
 
 /**
@@ -569,6 +761,41 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
     if (!config.description) errors.push("description 是必需的");
     if (!config.gameType) errors.push("gameType 是必需的");
 
+    // 参赛条件验证
+    if (config.entryRequirements) {
+        // Tier 限制仅用于 TacticalMonster
+        if (config.gameType === "tacticalMonster") {
+            const tierOrder = ["bronze", "silver", "gold", "platinum"];
+            if (config.entryRequirements.tier && !tierOrder.includes(config.entryRequirements.tier)) {
+                errors.push("tier 必须是bronze, silver, gold, platinum中的一个");
+            }
+            // Power 范围验证
+            if (config.entryRequirements.minPower !== undefined &&
+                config.entryRequirements.maxPower !== undefined) {
+                if (config.entryRequirements.minPower > config.entryRequirements.maxPower) {
+                    errors.push("minPower 必须小于等于 maxPower");
+                }
+                if (config.entryRequirements.minPower < 0) {
+                    errors.push("minPower 不能为负数");
+                }
+            }
+        } else {
+
+            if (config.entryRequirements.minPower !== undefined ||
+                config.entryRequirements.maxPower !== undefined) {
+                errors.push(`Power 限制仅适用于 TacticalMonster 游戏，当前游戏类型: ${config.gameType}`);
+            }
+        }
+
+        // 入场费验证
+        if (config.entryRequirements.entryFee) {
+            // TacticalMonster 游戏可以包含能量消耗
+            if (config.gameType !== "tacticalMonster" && config.entryRequirements.entryFee.energy) {
+                errors.push(`能量消耗仅适用于 TacticalMonster 游戏，当前游戏类型: ${config.gameType}`);
+            }
+        }
+    }
+
     // 比赛规则验证
     if (!config.matchRules) {
         errors.push("matchRules 是必需的");
@@ -587,6 +814,10 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
         if (!config.rewards.baseRewards) errors.push("baseRewards 是必需的");
         if (!config.rewards.rankRewards || config.rewards.rankRewards.length === 0) {
             errors.push("rankRewards 是必需的且不能为空");
+        }
+        // Tier 加成仅适用于 TacticalMonster
+        if (config.rewards.tierBonus && config.gameType !== "tacticalMonster") {
+            errors.push(`tierBonus 仅适用于 TacticalMonster 游戏，当前游戏类型: ${config.gameType}`);
         }
     }
 

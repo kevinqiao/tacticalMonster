@@ -1,5 +1,4 @@
-import { getTournamentUrl } from "../../config/tournamentConfig";
-import { TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
+import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
 
 /**
  * Tournament 模块代理服务
@@ -12,11 +11,12 @@ export class TournamentProxyService {
      */
     static async processGameRewards(params: {
         tier: string;
-        rankings: Array<{uid: string; rank: number; score: number}>;
+        rankings: Array<{ uid: string; rank: number; score: number }>;
         gameId: string;
     }): Promise<{
         ok: boolean;
         coinRewards?: Record<string, number>;
+        grantResults?: Array<{ uid: string; success: boolean; coins?: number }>;  // 金币发放结果
         chestTriggered?: Record<string, boolean>;  // 宝箱触发决策
         rewardType?: string;
         error?: string;
@@ -37,19 +37,20 @@ export class TournamentProxyService {
                     }),
                 }
             );
-            
+
             // 2. 解析响应
             const result = await response.json();
-            
+
             if (!response.ok || !result.ok) {
                 throw new Error(result.error || "处理奖励失败");
             }
-            
-            // 3. 返回奖励决策（包含宝箱触发决策）
+
+            // 3. 返回奖励决策（包含发放结果和宝箱触发决策）
             return {
                 ok: true,
                 coinRewards: result.coinRewards,
-                chestTriggered: result.chestTriggered,  // 宝箱触发决策在这里
+                grantResults: result.grantResults,  // 金币发放结果
+                chestTriggered: result.chestTriggered,  // 宝箱触发决策
                 rewardType: result.rewardType,
             };
         } catch (error: any) {
@@ -117,13 +118,13 @@ export class TournamentProxyService {
                     }),
                 }
             );
-            
+
             const result = await response.json();
-            
+
             if (!response.ok) {
                 throw new Error(result.error || "发放奖励失败");
             }
-            
+
             return result;
         } catch (error: any) {
             console.error("调用统一奖励服务失败:", error);

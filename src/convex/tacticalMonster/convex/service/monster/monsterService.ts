@@ -56,13 +56,20 @@ export class MonsterService {
     }
 
     /**
-     * 获取玩家的队伍怪物（inTeam === true）
+     * 获取玩家的队伍怪物（上场队伍，teamPosition 不为 null）
+     * 注意：此方法返回上场队伍（最多4个），按位置排序
      */
     static async getPlayerTeamMonsters(ctx: any, uid: string) {
-        const teamMonsters = await ctx.db
+        const allMonsters = await ctx.db
             .query("mr_player_monsters")
-            .withIndex("by_uid_inTeam", (q: any) => q.eq("uid", uid).eq("inTeam", true))
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .collect();
+
+        // 获取上场队伍（teamPosition 不为 null，按位置排序，最多4个）
+        const teamMonsters = allMonsters
+            .filter((m: any) => m.teamPosition !== null && m.teamPosition !== undefined)
+            .sort((a: any, b: any) => (a.teamPosition || 0) - (b.teamPosition || 0))
+            .slice(0, 4);
 
         // 关联怪物配置信息
         const monstersWithConfig = await Promise.all(
