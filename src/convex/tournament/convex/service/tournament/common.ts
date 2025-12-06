@@ -371,14 +371,26 @@ export async function deductEntryFee(ctx: any, params: {
 
     const entryFee = tournamentType.entryRequirements.entryFee;
 
-    // 扣除金币入场费
-    if (!entryFee.coins || player.coins >= entryFee.coins) {
-        player.coins = player.coins - entryFee.coins;
-        await ctx.db.patch(player._id, {
-            coins: player.coins
+    // 扣除金币入场费（从 player_inventory 扣除）
+    if (entryFee.coins && entryFee.coins > 0) {
+        const inventory = await ctx.db
+            .query("player_inventory")
+            .withIndex("by_uid", (q: any) => q.eq("uid", player.uid))
+            .first();
+        
+        if (!inventory) {
+            throw new Error("玩家库存不存在");
+        }
+        
+        const currentCoins = inventory.coins || 0;
+        if (currentCoins < entryFee.coins) {
+            throw new Error(`金币不足: ${entryFee.coins}，当前只有 ${currentCoins}`);
+        }
+        
+        await ctx.db.patch(inventory._id, {
+            coins: currentCoins - entryFee.coins,
+            updatedAt: new Date().toISOString(),
         });
-    } else {
-        throw new Error(`金币不足: ${entryFee.coins - player.coins}`);
     }
 
     // 门票系统已移除，不再扣除门票入场费

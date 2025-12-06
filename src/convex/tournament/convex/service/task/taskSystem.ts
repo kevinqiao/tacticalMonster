@@ -856,16 +856,19 @@ export class TaskSystem {
     private static checkAllocationRules(rules: TaskAllocationRules | undefined, player: any): boolean {
         if (!rules) return true;
 
-        // 检查玩家等级
+        // 检查玩家等级（从游戏模块获取，如果规则要求等级检查）
+        // 注意：玩家等级由游戏模块管理，Tournament 模块不存储等级信息
+        // 如果需要等级检查，应该通过 HTTP 调用游戏模块获取
         if (rules.playerLevel) {
-            const playerLevel = player.level || 1;
-            if (rules.playerLevel.min && playerLevel < rules.playerLevel.min) return false;
-            if (rules.playerLevel.max && playerLevel > rules.playerLevel.max) return false;
+            // TODO: 如果需要严格的等级检查，应该通过 HTTP 调用游戏模块获取玩家等级
+            // 目前暂时跳过等级检查，因为 Tournament 模块不应该直接访问游戏特定数据
+            console.warn("任务分配规则包含玩家等级检查，但 Tournament 模块不存储玩家等级，跳过检查");
         }
 
-        // 检查段位
+        // 段位系统已移除，不再检查段位
         if (rules.segmentName && rules.segmentName.length > 0) {
-            if (!rules.segmentName.includes(player.segmentName || "bronze")) return false;
+            // 段位系统已移除，跳过段位检查
+            console.warn("任务分配规则包含段位检查，但段位系统已移除，跳过检查");
         }
 
         // 检查订阅要求

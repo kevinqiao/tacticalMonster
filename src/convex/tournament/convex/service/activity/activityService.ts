@@ -552,22 +552,16 @@ export class ActivityService {
     static async checkRequirements(ctx: any, uid: string, requirements: any): Promise<boolean> {
         // 检查玩家等级
         if (requirements.playerLevel) {
-            const player = await ctx.db
-                .query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .unique();
-            const playerLevel = player?.level || 1;
-            if (requirements.playerLevel.min && playerLevel < requirements.playerLevel.min) return false;
-            if (requirements.playerLevel.max && playerLevel > requirements.playerLevel.max) return false;
+            // 玩家等级由游戏模块管理，Tournament 模块不存储等级信息
+            // TODO: 如果需要严格的等级检查，应该通过 HTTP 调用游戏模块获取玩家等级
+            // 目前暂时跳过等级检查
+            console.warn("活动要求包含玩家等级检查，但 Tournament 模块不存储玩家等级，跳过检查");
         }
 
-        // 检查段位
+        // 段位系统已移除，不再检查段位
         if (requirements.segmentName) {
-            const player = await ctx.db
-                .query("players")
-                .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-                .unique();
-            if (!requirements.segmentName.includes(player?.segmentName || "bronze")) return false;
+            // 段位系统已移除，跳过段位检查
+            console.warn("活动要求包含段位检查，但段位系统已移除，跳过检查");
         }
 
         return true;

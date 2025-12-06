@@ -65,6 +65,7 @@ export class TeamService {
             .query("mr_player_monsters")
             .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .collect();
+        console.log("allMonsters:", allMonsters);
 
         const monsterMap = new Map<string, any>(allMonsters.map((m: any) => [m.monsterId, m]));
 

@@ -25,19 +25,49 @@ import { TournamentMatchingService } from "./tournamentMatchingService";
  * 周期性的锦标赛(周期性的类型：daily、weekly、seasonal):可以包含(single_match、multi_match,best_of_series,elimination)
  */
 export class TournamentService {
-    static async loadTournamentConfig(ctx: any) {
-        const preconfigs = await ctx.db.query("tournament_types").collect();
+    static async loadTournamentConfig(ctx: any, options?: {
+        generateDynamicLevels?: boolean;  // 是否生成动态关卡
+        replaceExisting?: boolean;        // 是否替换已存在的配置
+    }) {
+        const { generateDynamicLevels = false, replaceExisting = false } = options || {};
 
-        preconfigs.forEach(async (preconfig: any) => {
-            await ctx.db.delete(preconfig._id);
-        });
+        // 1. 如果需要生成动态关卡，先生成
+        if (generateDynamicLevels) {
+            // 动态导入避免循环依赖
+            const levelGenerationModule = await import("../../api/levelGeneration");
+            if (levelGenerationModule.generateAllActiveLevels) {
+                await levelGenerationModule.generateAllActiveLevels(ctx, { replaceExisting });
+            }
+        }
 
+        // 2. 清理现有配置（如果替换）
+        if (replaceExisting) {
+            const preconfigs = await ctx.db.query("tournament_types").collect();
+            for (const preconfig of preconfigs) {
+                await ctx.db.delete(preconfig._id);
+            }
+        }
 
-        TOURNAMENT_CONFIGS.forEach(async (tournamentConfig) => {
+        // 3. 加载静态配置
+        for (const tournamentConfig of TOURNAMENT_CONFIGS) {
+            // 检查是否已存在
+            if (!replaceExisting) {
+                const existing = await ctx.db
+                    .query("tournament_types")
+                    .withIndex("by_typeId", (q: any) => q.eq("typeId", tournamentConfig.typeId))
+                    .first();
 
-            await ctx.db.insert("tournament_types", tournamentConfig);
-        });
+                if (existing) {
+                    continue;  // 跳过已存在的配置
+                }
+            }
 
+            await ctx.db.insert("tournament_types", {
+                ...tournamentConfig,
+                createdAt: tournamentConfig.createdAt || new Date().toISOString(),
+                updatedAt: tournamentConfig.updatedAt || new Date().toISOString(),
+            });
+        }
     }
     /**
      * 加入锦标赛
@@ -420,9 +450,15 @@ export const getAvailableTournaments = query({
 });
 
 export const loadTournamentConfig = internalMutation({
-    args: {},
+    args: {
+        generateDynamicLevels: v.optional(v.boolean()),  // 是否生成动态关卡
+        replaceExisting: v.optional(v.boolean()),        // 是否替换已存在的配置
+    },
     handler: async (ctx: any, args: any) => {
-        const result = await TournamentService.loadTournamentConfig(ctx);
+        const result = await TournamentService.loadTournamentConfig(ctx, {
+            generateDynamicLevels: args.generateDynamicLevels || false,
+            replaceExisting: args.replaceExisting || false,
+        });
         return result;
     },
 });

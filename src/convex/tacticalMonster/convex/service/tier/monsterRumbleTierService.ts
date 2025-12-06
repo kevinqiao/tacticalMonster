@@ -1,4 +1,5 @@
 import { TIER_CONFIGS } from "../../data/tierConfigs";
+import { PlayerLevelService } from "../player/playerLevelService";
 
 /**
  * Monster Rumble Tier 服务
@@ -58,23 +59,21 @@ export class MonsterRumbleTierService {
             return { valid: false, reason: `Tier 配置不存在: ${tier}` };
         }
 
-        // 2. 获取玩家信息（从 tournament 模块获取，这里简化处理）
-        // 注意：实际实现中需要从 tournament 模块查询玩家等级
-        // 这里假设玩家等级已传入或通过其他方式获取
-        // const player = await getPlayerFromTournament(uid);
-        // if (!player) {
-        //     return { valid: false, reason: "玩家不存在" };
-        // }
+        // 2. 获取玩家等级信息
+        const playerLevelInfo = await PlayerLevelService.getPlayerLevelInfo(ctx, uid);
+        if (!playerLevelInfo) {
+            return { valid: false, reason: "玩家不存在" };
+        }
 
-        // 3. 验证解锁等级（简化：假设等级验证通过）
-        // if (player.level < tierConfig.unlockLevel) {
-        //     return {
-        //         valid: false,
-        //         reason: `需要玩家等级 ${tierConfig.unlockLevel}，当前 ${player.level}`,
-        //     };
-        // }
+        // 3. 验证解锁等级
+        if (playerLevelInfo.level < tierConfig.unlockLevel) {
+            return {
+                valid: false,
+                reason: `需要玩家等级 ${tierConfig.unlockLevel}，当前 ${playerLevelInfo.level}`,
+            };
+        }
 
-        // 4. 计算当前队伍的 Power（基于 inTeam: true 的怪物）
+        // 4. 计算当前队伍的 Power（基于 teamPosition 不为 null 的怪物）
         const teamPower = await this.calculateTeamPower(ctx, uid);
 
         // 5. 验证 Power 是否在 Tier 范围内

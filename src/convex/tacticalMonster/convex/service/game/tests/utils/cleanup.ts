@@ -10,11 +10,13 @@ import { internalMutation } from "../../../../_generated/server";
  * 清理测试玩家数据
  */
 export async function cleanupTestPlayers(ctx: any, uids: string[]): Promise<{ deleted: number; errors: string[] }> {
+    console.log(`[cleanupTestPlayers] 开始清理 ${uids.length} 个测试玩家的数据`);
     const errors: string[] = [];
     let deleted = 0;
 
     for (const uid of uids) {
         try {
+            console.log(`[cleanupTestPlayers] 清理玩家: ${uid}`);
             // 清理玩家记录
             const player = await ctx.db
                 .query("players")
@@ -23,6 +25,7 @@ export async function cleanupTestPlayers(ctx: any, uids: string[]): Promise<{ de
             if (player) {
                 await ctx.db.delete(player._id);
                 deleted++;
+                console.log(`[cleanupTestPlayers] ✓ 删除玩家记录: ${uid}`);
             }
 
             // 清理库存
@@ -32,6 +35,7 @@ export async function cleanupTestPlayers(ctx: any, uids: string[]): Promise<{ de
                 .first();
             if (inventory) {
                 await ctx.db.delete(inventory._id);
+                console.log(`[cleanupTestPlayers] ✓ 删除库存记录: ${uid}`);
             }
 
             // 清理怪物
@@ -42,6 +46,9 @@ export async function cleanupTestPlayers(ctx: any, uids: string[]): Promise<{ de
             for (const monster of monsters) {
                 await ctx.db.delete(monster._id);
             }
+            if (monsters.length > 0) {
+                console.log(`[cleanupTestPlayers] ✓ 删除 ${monsters.length} 个怪物记录: ${uid}`);
+            }
 
             // 清理能量
             const energy = await ctx.db
@@ -50,12 +57,15 @@ export async function cleanupTestPlayers(ctx: any, uids: string[]): Promise<{ de
                 .first();
             if (energy) {
                 await ctx.db.delete(energy._id);
+                console.log(`[cleanupTestPlayers] ✓ 删除能量记录: ${uid}`);
             }
         } catch (error: any) {
+            console.error(`[cleanupTestPlayers] ❌ 清理玩家 ${uid} 失败:`, error.message);
             errors.push(`清理玩家 ${uid} 失败: ${error.message}`);
         }
     }
 
+    console.log(`[cleanupTestPlayers] 完成清理，删除了 ${deleted} 个玩家记录，${errors.length} 个错误`);
     return { deleted, errors };
 }
 
@@ -116,11 +126,13 @@ export async function cleanupTestGames(ctx: any, gameIds: string[]): Promise<{ d
  * 清理测试 Battle Pass 数据
  */
 export async function cleanupTestBattlePass(ctx: any, uids: string[]): Promise<{ deleted: number; errors: string[] }> {
+    console.log(`[cleanupTestBattlePass] 开始清理 ${uids.length} 个玩家的 Battle Pass 数据`);
     const errors: string[] = [];
     let deleted = 0;
 
     for (const uid of uids) {
         try {
+            console.log(`[cleanupTestBattlePass] 清理玩家: ${uid}`);
             // 清理 Battle Pass 记录（需要知道 seasonId）
             const battlePasses = await ctx.db
                 .query("player_battle_pass")
@@ -129,6 +141,9 @@ export async function cleanupTestBattlePass(ctx: any, uids: string[]): Promise<{
             for (const bp of battlePasses) {
                 await ctx.db.delete(bp._id);
                 deleted++;
+            }
+            if (battlePasses.length > 0) {
+                console.log(`[cleanupTestBattlePass] ✓ 删除 ${battlePasses.length} 个 Battle Pass 记录: ${uid}`);
             }
 
             // 清理积分日志
@@ -139,6 +154,9 @@ export async function cleanupTestBattlePass(ctx: any, uids: string[]): Promise<{
             for (const log of logs) {
                 await ctx.db.delete(log._id);
             }
+            if (logs.length > 0) {
+                console.log(`[cleanupTestBattlePass] ✓ 删除 ${logs.length} 个积分日志: ${uid}`);
+            }
 
             // 清理奖励领取日志
             const claims = await ctx.db
@@ -148,11 +166,16 @@ export async function cleanupTestBattlePass(ctx: any, uids: string[]): Promise<{
             for (const claim of claims) {
                 await ctx.db.delete(claim._id);
             }
+            if (claims.length > 0) {
+                console.log(`[cleanupTestBattlePass] ✓ 删除 ${claims.length} 个奖励领取日志: ${uid}`);
+            }
         } catch (error: any) {
+            console.error(`[cleanupTestBattlePass] ❌ 清理 Battle Pass ${uid} 失败:`, error.message);
             errors.push(`清理 Battle Pass ${uid} 失败: ${error.message}`);
         }
     }
 
+    console.log(`[cleanupTestBattlePass] 完成清理，删除了 ${deleted} 个 Battle Pass 记录，${errors.length} 个错误`);
     return { deleted, errors };
 }
 

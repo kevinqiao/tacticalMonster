@@ -189,6 +189,89 @@ http.route({
     });
   }),
 });
+
+// ============================================================================
+// Player Authentication HTTP API 端点
+// ============================================================================
+
+http.route({
+  path: "/authenticate",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { uid, token } = body;
+
+      // 参数验证
+      if (!uid || !token) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: "缺少必要参数: uid, token"
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      // 调用 PlayerManager.authenticate
+      const player = await ctx.runMutation(internal.service.playerManager.authenticate, {
+        uid,
+        token,
+      });
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          player: player || null,
+          message: player ? "玩家已存在" : "玩家创建成功",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("authenticate 失败:", error);
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: error.message || "authenticate 失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+http.route({
+  path: "/authenticate",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, {
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      }),
+    });
+  }),
+});
 // 添加游戏奖励处理端点
 http.route({
   path: "/processGameRewards",
@@ -1171,6 +1254,92 @@ http.route({
       );
     }
   }),
+});
+
+// ============================================================================
+// 测试工具 Actions（用于在 Dashboard 中测试 HTTP 端点）
+// ============================================================================
+
+import { v } from "convex/values";
+import { action } from "./_generated/server";
+
+/**
+ * 测试 /authenticate 端点
+ * 用于在 Convex Dashboard 中测试玩家创建功能
+ */
+export const testAuthenticate = action({
+  args: {
+    uid: v.string(),
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const tournamentUrl = process.env.TOURNAMENT_URL || "https://beloved-mouse-699.convex.site";
+
+    console.log(`[testAuthenticate] 测试 /authenticate 端点`);
+    console.log(`UID: ${args.uid}`);
+    console.log(`Token: ${args.token}`);
+
+    try {
+      const response = await fetch(`${tournamentUrl}/authenticate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: args.uid,
+          token: args.token,
+        }),
+      });
+
+      const result = await response.json();
+
+      console.log(`响应状态: ${response.status}`);
+      console.log(`响应数据:`, JSON.stringify(result, null, 2));
+
+      return {
+        success: response.ok,
+        status: response.status,
+        result,
+      };
+    } catch (error: any) {
+      console.error(`请求失败:`, error.message);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  },
+});
+
+/**
+ * 验证玩家和库存是否创建成功
+ * 用于在 Convex Dashboard 中验证测试结果
+ */
+export const verifyPlayerCreated = action({
+  args: { uid: v.string() },
+  handler: async (ctx, args) => {
+    const tournamentUrl = process.env.TOURNAMENT_URL || "https://beloved-mouse-699.convex.site";
+
+    console.log(`[verifyPlayerCreated] 验证玩家: ${args.uid}`);
+
+    try {
+      const response = await fetch(`${tournamentUrl}/getPlayerInventory?uid=${args.uid}`);
+      const data = await response.json();
+
+      console.log(`库存查询结果:`, JSON.stringify(data, null, 2));
+
+      return {
+        success: response.ok,
+        inventoryExists: !!data.inventory,
+        coins: data.inventory?.coins,
+        data,
+      };
+    } catch (error: any) {
+      console.error(`验证失败:`, error.message);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  },
 });
 
 // Convex expects the router to be the default export of `convex/http.js`.

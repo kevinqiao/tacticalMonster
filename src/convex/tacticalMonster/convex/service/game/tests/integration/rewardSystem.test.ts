@@ -4,13 +4,13 @@
  */
 
 import { v } from "convex/values";
-import { internalMutation } from "../../../../_generated/server";
+import { mutation } from "../../../../_generated/server";
 import { TEST_GAME_SCENARIOS } from "../testData";
 
 /**
  * 测试：验证游戏奖励发放
  */
-export const testGameRewards = internalMutation({
+export const testGameRewards = mutation({
     args: {
         gameId: v.string(),
         playerRankings: v.array(v.object({
@@ -21,6 +21,13 @@ export const testGameRewards = internalMutation({
         tier: v.string(),
     },
     handler: async (ctx, args) => {
+        console.log("==========================================");
+        console.log(`[testGameRewards] 开始测试游戏奖励发放`);
+        console.log(`游戏 ID: ${args.gameId}`);
+        console.log(`Tier: ${args.tier}`);
+        console.log(`玩家数量: ${args.playerRankings.length}`);
+        console.log("==========================================");
+
         const { gameId, playerRankings, tier } = args;
         const errors: string[] = [];
         const steps: string[] = [];
@@ -28,6 +35,7 @@ export const testGameRewards = internalMutation({
 
         try {
             // 步骤1: 记录测试前的库存状态（通过 HTTP API）
+            console.log("\n[步骤1] 记录测试前的库存状态...");
             steps.push("步骤1: 记录测试前的库存状态");
             const beforeInventories: Record<string, number> = {};
             for (const { uid } of playerRankings) {
@@ -46,10 +54,13 @@ export const testGameRewards = internalMutation({
                 }
             }
             steps.push("✓ 库存状态记录完成");
+            console.log(`✓ 记录了 ${Object.keys(beforeInventories).length} 个玩家的库存状态`);
 
             // 步骤2: 验证 Top3 玩家获得金币奖励（通过 HTTP API）
+            console.log("\n[步骤2] 验证 Top3 玩家获得金币奖励...");
             steps.push("步骤2: 验证 Top3 玩家获得金币奖励");
             const top3Players = playerRankings.slice(0, 3);
+            console.log(`验证 ${top3Players.length} 个 Top3 玩家的奖励`);
             for (const player of top3Players) {
                 let afterCoins = 0;
                 try {
@@ -80,11 +91,13 @@ export const testGameRewards = internalMutation({
                 }
 
                 if (coinIncrease < expectedCoins) {
+                    console.error(`❌ 玩家 ${player.uid} (排名 ${player.rank}) 金币奖励不足，期望至少 ${expectedCoins}，实际增加 ${coinIncrease}`);
                     errors.push(
                         `玩家 ${player.uid} (排名 ${player.rank}) 金币奖励不足，期望至少 ${expectedCoins}，实际增加 ${coinIncrease}`
                     );
                 } else {
                     steps.push(`✓ 玩家 ${player.uid} (排名 ${player.rank}) 获得 ${coinIncrease} 金币`);
+                    console.log(`✓ 玩家 ${player.uid} (排名 ${player.rank}) 获得 ${coinIncrease} 金币 (期望至少 ${expectedCoins})`);
                 }
 
                 rewardResults.push({
@@ -146,6 +159,13 @@ export const testGameRewards = internalMutation({
                 }
             }
 
+            console.log("\n==========================================");
+            console.log(`[testGameRewards] 测试完成`);
+            console.log(`成功: ${errors.length === 0 ? "✅" : "❌"}`);
+            console.log(`错误数量: ${errors.length}`);
+            console.log(`奖励验证结果: ${rewardResults.length} 个玩家`);
+            console.log("==========================================\n");
+
             return {
                 success: errors.length === 0,
                 errors,
@@ -156,6 +176,10 @@ export const testGameRewards = internalMutation({
                 },
             };
         } catch (error: any) {
+            console.error("\n==========================================");
+            console.error(`[testGameRewards] 测试执行失败`);
+            console.error(`错误: ${error.message}`);
+            console.error("==========================================\n");
             errors.push(`测试执行失败: ${error.message}`);
             return {
                 success: false,
@@ -169,7 +193,7 @@ export const testGameRewards = internalMutation({
 /**
  * 测试：完整游戏流程 + 奖励验证
  */
-export const testCompleteGameWithRewards = internalMutation({
+export const testCompleteGameWithRewards = mutation({
     args: {
         scenarioIndex: v.optional(v.number()),
     },

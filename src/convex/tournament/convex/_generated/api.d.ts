@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as activities from "../activities.js";
+import type * as api_levelGeneration from "../api/levelGeneration.js";
 import type * as crons from "../crons.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_notificationDao from "../dao/notificationDao.js";
@@ -21,6 +22,7 @@ import type * as dao_playerDao from "../dao/playerDao.js";
 import type * as dao_playerTaskDao from "../dao/playerTaskDao.js";
 import type * as dao_taskEventDao from "../dao/taskEventDao.js";
 import type * as dao_tournamentDao from "../dao/tournamentDao.js";
+import type * as data_levelGenerationRules from "../data/levelGenerationRules.js";
 import type * as data_taskTemplate from "../data/taskTemplate.js";
 import type * as data_tournamentConfigs from "../data/tournamentConfigs.js";
 import type * as data_tournamentConfigs_all from "../data/tournamentConfigs_all.js";
@@ -45,6 +47,7 @@ import type * as service_activity_activityTemplateService from "../service/activ
 import type * as service_auth from "../service/auth.js";
 import type * as service_battlePass_battlePass from "../service/battlePass/battlePass.js";
 import type * as service_battlePass_battlePassSystem from "../service/battlePass/battlePassSystem.js";
+import type * as service_battlePass_tests_index from "../service/battlePass/tests/index.js";
 import type * as service_battlePass_tests_testData from "../service/battlePass/tests/testData.js";
 import type * as service_join from "../service/join.js";
 import type * as service_leaderboard_leaderboardSystem from "../service/leaderboard/leaderboardSystem.js";
@@ -101,6 +104,7 @@ import type * as service_task_tests_ConditionalTest from "../service/task/tests/
 import type * as service_task_tests_LoginTest from "../service/task/tests/LoginTest.js";
 import type * as service_task_tests_MultiStageTest from "../service/task/tests/MultiStageTest.js";
 import type * as service_task_tests_TimeBasedTest from "../service/task/tests/TimeBasedTest.js";
+import type * as service_tournament_SoloChallengeLevelService from "../service/tournament/SoloChallengeLevelService.js";
 import type * as service_tournament_common from "../service/tournament/common.js";
 import type * as service_tournament_errorCodes from "../service/tournament/errorCodes.js";
 import type * as service_tournament_errorHandler from "../service/tournament/errorHandler.js";
@@ -119,6 +123,9 @@ import type * as service_tournament_tests_MultiPlayer_singleMatch_Test from "../
 import type * as service_tournament_tests_SinglePlayer_multiMatch_Test from "../service/tournament/tests/SinglePlayer_multiMatch_Test.js";
 import type * as service_tournament_tests_SinglePlayer_singleMatch_Test from "../service/tournament/tests/SinglePlayer_singleMatch_Test.js";
 import type * as service_tournament_tests_TimeZoneTest from "../service/tournament/tests/TimeZoneTest.js";
+import type * as service_tournament_tests_levelGeneration_index from "../service/tournament/tests/levelGeneration/index.js";
+import type * as service_tournament_tests_levelGeneration_testData from "../service/tournament/tests/levelGeneration/testData.js";
+import type * as service_tournament_tests_levelGeneration_testUtils from "../service/tournament/tests/levelGeneration/testUtils.js";
 import type * as service_tournament_tierRewardService from "../service/tournament/tierRewardService.js";
 import type * as service_tournament_tournamentMatchingService from "../service/tournament/tournamentMatchingService.js";
 import type * as service_tournament_tournamentScheduler from "../service/tournament/tournamentScheduler.js";
@@ -140,6 +147,7 @@ import type * as util_TimeZoneUtilsExamples from "../util/TimeZoneUtilsExamples.
  */
 declare const fullApi: ApiFromModules<{
   activities: typeof activities;
+  "api/levelGeneration": typeof api_levelGeneration;
   crons: typeof crons;
   "custom/session": typeof custom_session;
   "dao/notificationDao": typeof dao_notificationDao;
@@ -147,6 +155,7 @@ declare const fullApi: ApiFromModules<{
   "dao/playerTaskDao": typeof dao_playerTaskDao;
   "dao/taskEventDao": typeof dao_taskEventDao;
   "dao/tournamentDao": typeof dao_tournamentDao;
+  "data/levelGenerationRules": typeof data_levelGenerationRules;
   "data/taskTemplate": typeof data_taskTemplate;
   "data/tournamentConfigs": typeof data_tournamentConfigs;
   "data/tournamentConfigs_all": typeof data_tournamentConfigs_all;
@@ -171,6 +180,7 @@ declare const fullApi: ApiFromModules<{
   "service/auth": typeof service_auth;
   "service/battlePass/battlePass": typeof service_battlePass_battlePass;
   "service/battlePass/battlePassSystem": typeof service_battlePass_battlePassSystem;
+  "service/battlePass/tests/index": typeof service_battlePass_tests_index;
   "service/battlePass/tests/testData": typeof service_battlePass_tests_testData;
   "service/join": typeof service_join;
   "service/leaderboard/leaderboardSystem": typeof service_leaderboard_leaderboardSystem;
@@ -227,6 +237,7 @@ declare const fullApi: ApiFromModules<{
   "service/task/tests/LoginTest": typeof service_task_tests_LoginTest;
   "service/task/tests/MultiStageTest": typeof service_task_tests_MultiStageTest;
   "service/task/tests/TimeBasedTest": typeof service_task_tests_TimeBasedTest;
+  "service/tournament/SoloChallengeLevelService": typeof service_tournament_SoloChallengeLevelService;
   "service/tournament/common": typeof service_tournament_common;
   "service/tournament/errorCodes": typeof service_tournament_errorCodes;
   "service/tournament/errorHandler": typeof service_tournament_errorHandler;
@@ -245,6 +256,9 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/tests/SinglePlayer_multiMatch_Test": typeof service_tournament_tests_SinglePlayer_multiMatch_Test;
   "service/tournament/tests/SinglePlayer_singleMatch_Test": typeof service_tournament_tests_SinglePlayer_singleMatch_Test;
   "service/tournament/tests/TimeZoneTest": typeof service_tournament_tests_TimeZoneTest;
+  "service/tournament/tests/levelGeneration/index": typeof service_tournament_tests_levelGeneration_index;
+  "service/tournament/tests/levelGeneration/testData": typeof service_tournament_tests_levelGeneration_testData;
+  "service/tournament/tests/levelGeneration/testUtils": typeof service_tournament_tests_levelGeneration_testUtils;
   "service/tournament/tierRewardService": typeof service_tournament_tierRewardService;
   "service/tournament/tournamentMatchingService": typeof service_tournament_tournamentMatchingService;
   "service/tournament/tournamentScheduler": typeof service_tournament_tournamentScheduler;

@@ -3,27 +3,22 @@ import { v } from "convex/values";
 
 // 用户系统相关表
 export const userSchema = {
-    // 玩家表 - 合并了用户信息和游戏相关功能
+    // 玩家表 - 用户基础信息和认证信息
+    // 注意：金币存储在 player_inventory 表中，等级和经验值由游戏模块管理
     players: defineTable({
         uid: v.string(),
-        coins: v.optional(v.number()),
         token: v.optional(v.string()),
         email: v.optional(v.string()),
         displayName: v.optional(v.string()),
         avatar: v.optional(v.string()),
-        segmentName: v.optional(v.string()), // "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"
         isActive: v.optional(v.boolean()),
         isSubscribed: v.optional(v.boolean()),
-        eloScore: v.optional(v.number()),
         subscriptionExpiry: v.optional(v.string()),
         lastActive: v.optional(v.string()),
-        totalPoints: v.optional(v.number()),
         expire: v.optional(v.number()),
-        level: v.optional(v.number()),
-        exp: v.optional(v.number()),
         createdAt: v.optional(v.string()),
         updatedAt: v.optional(v.string()),
-    }).index("by_uid", ["uid"]).index("by_email", ["email"]).index("by_segment", ["segmentName"]),
+    }).index("by_uid", ["uid"]).index("by_email", ["email"]),
 
     // 玩家活动表 - 用于跟踪玩家活跃度
     player_activities: defineTable({

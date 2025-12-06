@@ -465,7 +465,7 @@ export class BattlePassSystem {
         const config = this.getCurrentBattlePassConfig();
         const nowISO = new Date().toISOString();
 
-        // 检查玩家金币
+        // 检查玩家是否存在
         const player = await ctx.db.query("players")
             .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .unique();
@@ -474,8 +474,19 @@ export class BattlePassSystem {
             return { success: false, message: "玩家不存在" };
         }
 
-        if (player.coins < config.price) {
-            return { success: false, message: `金币不足，需要 ${config.price} 金币，当前只有 ${player.coins} 金币` };
+        // 检查玩家金币（从 player_inventory 检查）
+        const inventory = await ctx.db
+            .query("player_inventory")
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .first();
+
+        if (!inventory) {
+            return { success: false, message: "玩家库存不存在" };
+        }
+
+        const currentCoins = inventory.coins || 0;
+        if (currentCoins < config.price) {
+            return { success: false, message: `金币不足，需要 ${config.price} 金币，当前只有 ${currentCoins} 金币` };
         }
 
         // 获取或创建玩家Battle Pass
@@ -489,9 +500,10 @@ export class BattlePassSystem {
         }
 
         try {
-            // 扣除金币
-            await ctx.db.patch(player._id, {
-                coins: player.coins - config.price
+            // 扣除金币（从 player_inventory 扣除）
+            await ctx.db.patch(inventory._id, {
+                coins: currentCoins - config.price,
+                updatedAt: new Date().toISOString(),
             });
 
             // 更新Battle Pass状态

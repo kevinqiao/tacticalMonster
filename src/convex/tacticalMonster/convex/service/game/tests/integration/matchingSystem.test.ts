@@ -4,29 +4,39 @@
  */
 
 import { v } from "convex/values";
-import { internalMutation } from "../../../../_generated/server";
+import { action } from "../../../../_generated/server";
 import { TEST_PLAYERS, TEST_TOURNAMENT_TYPES } from "../testData";
 
 /**
  * 测试：单个玩家加入匹配队列
+ * 使用 action 因为需要调用 HTTP API (fetch)
  */
-export const testJoinMatchingQueue = internalMutation({
+export const testJoinMatchingQueue = action({
     args: {
         uid: v.string(),
         tournamentType: v.string(),
         tier: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
+        console.log("==========================================");
+        console.log(`[testJoinMatchingQueue] 开始测试加入匹配队列`);
+        console.log(`玩家 UID: ${args.uid}`);
+        console.log(`锦标赛类型: ${args.tournamentType}`);
+        console.log(`Tier: ${args.tier || "bronze"}`);
+        console.log("==========================================");
+
         const { uid, tournamentType, tier } = args;
         const errors: string[] = [];
         const steps: string[] = [];
 
         try {
             // 步骤1: 加入匹配队列（通过 HTTP API）
+            console.log("\n[步骤1] 加入匹配队列...");
             steps.push("步骤1: 加入匹配队列");
             let result: any;
             try {
                 const tournamentUrl = process.env.TOURNAMENT_URL || "https://beloved-mouse-699.convex.site";
+                console.log(`调用 Tournament API: ${tournamentUrl}/joinMatchingQueue`);
                 const response = await fetch(`${tournamentUrl}/joinMatchingQueue`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -37,8 +47,11 @@ export const testJoinMatchingQueue = internalMutation({
                         metadata: { tier: tier || "bronze", teamPower: 200 },
                     }),
                 });
+                console.log(`响应状态: ${response.status}`);
                 result = await response.json();
+                console.log(`响应数据:`, JSON.stringify(result));
                 if (!response.ok || !result.ok) {
+                    console.error(`❌ 加入匹配队列失败: ${result.error || "未知错误"}`);
                     errors.push(`加入匹配队列失败: ${result.error || "未知错误"}`);
                     return {
                         success: false,
@@ -47,7 +60,9 @@ export const testJoinMatchingQueue = internalMutation({
                     };
                 }
                 steps.push(`✓ 成功加入匹配队列，状态: ${result.inQueue ? "已在队列中" : "新加入"}`);
+                console.log(`✓ 成功加入匹配队列，状态: ${result.inQueue ? "已在队列中" : "新加入"}`);
             } catch (error: any) {
+                console.error(`❌ 加入匹配队列异常:`, error.message);
                 errors.push(`加入匹配队列异常: ${error.message}`);
                 return {
                     success: false,
@@ -57,8 +72,16 @@ export const testJoinMatchingQueue = internalMutation({
             }
 
             // 步骤2: 验证队列记录（通过 HTTP API 或跳过）
+            console.log("\n[步骤2] 验证队列记录...");
             steps.push("步骤2: 验证队列记录");
             steps.push("✓ 队列记录验证跳过（需要 Tournament 模块访问）");
+            console.log("✓ 队列记录验证跳过（需要 Tournament 模块访问）");
+
+            console.log("\n==========================================");
+            console.log(`[testJoinMatchingQueue] 测试完成`);
+            console.log(`成功: ${errors.length === 0 ? "✅" : "❌"}`);
+            console.log(`错误数量: ${errors.length}`);
+            console.log("==========================================\n");
 
             return {
                 success: errors.length === 0,
@@ -70,6 +93,10 @@ export const testJoinMatchingQueue = internalMutation({
                 },
             };
         } catch (error: any) {
+            console.error("\n==========================================");
+            console.error(`[testJoinMatchingQueue] 测试执行失败`);
+            console.error(`错误: ${error.message}`);
+            console.error("==========================================\n");
             errors.push(`测试执行失败: ${error.message}`);
             return {
                 success: false,
@@ -82,8 +109,9 @@ export const testJoinMatchingQueue = internalMutation({
 
 /**
  * 测试：多个玩家加入匹配队列并执行匹配
+ * 使用 action 因为需要调用 HTTP API (fetch)
  */
-export const testMatchingFlow = internalMutation({
+export const testMatchingFlow = action({
     args: {
         playerCount: v.optional(v.number()),
         tier: v.optional(v.string()),

@@ -566,9 +566,9 @@ export class TournamentMatchingService {
                     const algorithm = player.matchingConfig.algorithm;
                     stats.algorithmDistribution[algorithm] = (stats.algorithmDistribution[algorithm] || 0) + 1;
 
-                    // 段位分布
-                    const segment = player.playerInfo.segmentName;
-                    stats.segmentDistribution[segment] = (stats.segmentDistribution[segment] || 0) + 1;
+                    // 段位系统已移除，不再统计段位分布
+                    // const segment = player.playerInfo.segmentName;
+                    // stats.segmentDistribution[segment] = (stats.segmentDistribution[segment] || 0) + 1;
 
                     // 优先级分布
                     if (player.priority >= 150) {

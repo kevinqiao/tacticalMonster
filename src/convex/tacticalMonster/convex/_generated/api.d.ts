@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as api_mapTemplate from "../api/mapTemplate.js";
 import type * as config_tournamentConfig from "../config/tournamentConfig.js";
 import type * as crons from "../crons.js";
 import type * as dao_gameDao from "../dao/gameDao.js";
@@ -65,12 +66,15 @@ import type * as service_game_gameMatchingService from "../service/game/gameMatc
 import type * as service_game_gameService from "../service/game/gameService.js";
 import type * as service_game_gameTimeoutService from "../service/game/gameTimeoutService.js";
 import type * as service_game_playerFinishService from "../service/game/playerFinishService.js";
+import type * as service_game_tests_index from "../service/game/tests/index.js";
+import type * as service_game_tests_integration_index from "../service/game/tests/integration/index.js";
 import type * as service_game_tests_testData from "../service/game/tests/testData.js";
 import type * as service_game_tests_utils_assertions from "../service/game/tests/utils/assertions.js";
 import type * as service_game_tests_utils_cleanup from "../service/game/tests/utils/cleanup.js";
 import type * as service_game_tests_utils_simulators from "../service/game/tests/utils/simulators.js";
 import type * as service_level_levelConfigService from "../service/level/levelConfigService.js";
 import type * as service_level_levelGenerationService from "../service/level/levelGenerationService.js";
+import type * as service_level_mapTemplateService from "../service/level/mapTemplateService.js";
 import type * as service_monster_monsterDataSeeder from "../service/monster/monsterDataSeeder.js";
 import type * as service_monster_monsterService from "../service/monster/monsterService.js";
 import type * as service_monster_monsterUpgradeService from "../service/monster/monsterUpgradeService.js";
@@ -84,6 +88,7 @@ import type * as service_team_teamService from "../service/team/teamService.js";
 import type * as service_tier_monsterRumbleTierService from "../service/tier/monsterRumbleTierService.js";
 import type * as service_tier_tierMappingService from "../service/tier/tierMappingService.js";
 import type * as service_tournament_tournamentProxyService from "../service/tournament/tournamentProxyService.js";
+import type * as tests from "../tests.js";
 import type * as utils_hexUtils from "../utils/hexUtils.js";
 import type * as utils_seededRandom from "../utils/seededRandom.js";
 
@@ -94,6 +99,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "api/mapTemplate": typeof api_mapTemplate;
   "config/tournamentConfig": typeof config_tournamentConfig;
   crons: typeof crons;
   "dao/gameDao": typeof dao_gameDao;
@@ -151,12 +157,15 @@ declare const fullApi: ApiFromModules<{
   "service/game/gameService": typeof service_game_gameService;
   "service/game/gameTimeoutService": typeof service_game_gameTimeoutService;
   "service/game/playerFinishService": typeof service_game_playerFinishService;
+  "service/game/tests/index": typeof service_game_tests_index;
+  "service/game/tests/integration/index": typeof service_game_tests_integration_index;
   "service/game/tests/testData": typeof service_game_tests_testData;
   "service/game/tests/utils/assertions": typeof service_game_tests_utils_assertions;
   "service/game/tests/utils/cleanup": typeof service_game_tests_utils_cleanup;
   "service/game/tests/utils/simulators": typeof service_game_tests_utils_simulators;
   "service/level/levelConfigService": typeof service_level_levelConfigService;
   "service/level/levelGenerationService": typeof service_level_levelGenerationService;
+  "service/level/mapTemplateService": typeof service_level_mapTemplateService;
   "service/monster/monsterDataSeeder": typeof service_monster_monsterDataSeeder;
   "service/monster/monsterService": typeof service_monster_monsterService;
   "service/monster/monsterUpgradeService": typeof service_monster_monsterUpgradeService;
@@ -170,6 +179,7 @@ declare const fullApi: ApiFromModules<{
   "service/tier/monsterRumbleTierService": typeof service_tier_monsterRumbleTierService;
   "service/tier/tierMappingService": typeof service_tier_tierMappingService;
   "service/tournament/tournamentProxyService": typeof service_tournament_tournamentProxyService;
+  tests: typeof tests;
   "utils/hexUtils": typeof utils_hexUtils;
   "utils/seededRandom": typeof utils_seededRandom;
 }>;

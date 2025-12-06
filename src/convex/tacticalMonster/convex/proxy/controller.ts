@@ -16,7 +16,8 @@ export const loadGame = action({
         let game = await ctx.runQuery((internal as any).service.game.gameService.findGame, { gameId });
 
         if (!game) {
-            // 尝试从 tournament 获取 match 信息
+            // 延迟创建策略：游戏实例不存在时，按需创建
+            // 从 tournament 获取 match 信息
             let createArgs: {
                 mapId: string;
                 playerUid: string;

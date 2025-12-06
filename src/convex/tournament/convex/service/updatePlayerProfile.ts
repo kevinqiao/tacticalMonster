@@ -7,8 +7,9 @@ import { mutation } from "../_generated/server";
 export const updatePlayerProfile = mutation({
   args: {
     uid: v.string(), // 玩家 ID
-    segmentName: v.optional(v.string()), // 新段位，如 "bronze", "silver"
-    gamePreferences: v.optional(v.array(v.string())), // 新游戏偏好，如 ["solitaire", "rummy"]
+    displayName: v.optional(v.string()), // 显示名称
+    avatar: v.optional(v.string()), // 头像
+    email: v.optional(v.string()), // 邮箱
   },
   handler: async (ctx, args) => {
     try {
@@ -16,10 +17,11 @@ export const updatePlayerProfile = mutation({
       const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", args.uid)).first();
       if (!player) throw new Error("玩家不存在");
 
-      // 准备更新数据
+      // 准备更新数据（段位系统已移除）
       const updateData: any = { updatedAt: new Date().toISOString() };
-      if (args.segmentName) updateData.segmentName = args.segmentName;
-      if (args.gamePreferences) updateData.gamePreferences = args.gamePreferences;
+      if (args.displayName) updateData.displayName = args.displayName;
+      if (args.avatar) updateData.avatar = args.avatar;
+      if (args.email) updateData.email = args.email;
 
       // 更新玩家资料
       await ctx.db.patch(player._id, updateData);

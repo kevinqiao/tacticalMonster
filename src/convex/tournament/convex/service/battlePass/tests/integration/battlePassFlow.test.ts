@@ -16,33 +16,59 @@ export const testInitializeBattlePass = internalMutation({
         uid: v.string(),
     },
     handler: async (ctx, args) => {
+        console.log("==========================================");
+        console.log(`[testInitializeBattlePass] 开始测试 Battle Pass 初始化`);
+        console.log(`玩家 UID: ${args.uid}`);
+        console.log("==========================================");
+
         const { uid } = args;
         const errors: string[] = [];
         const steps: string[] = [];
 
         try {
             // 步骤1: 初始化 Battle Pass
+            console.log("\n[步骤1] 初始化 Battle Pass...");
             steps.push("步骤1: 初始化 Battle Pass");
             const battlePass = await BattlePassSystem.initializePlayerBattlePass(ctx, uid);
             steps.push(`✓ Battle Pass 初始化成功，等级: ${battlePass.currentLevel}`);
+            console.log(`✓ Battle Pass 初始化成功，等级: ${battlePass.currentLevel}`);
 
             // 步骤2: 验证 Battle Pass 记录
+            console.log("\n[步骤2] 验证 Battle Pass 记录...");
             steps.push("步骤2: 验证 Battle Pass 记录");
             const record = await BattlePassSystem.getPlayerBattlePass(ctx, uid);
             if (!record) {
+                console.error("❌ Battle Pass 记录不存在");
                 errors.push("Battle Pass 记录不存在");
             } else {
+                console.log(`Battle Pass 记录:`, {
+                    level: record.currentLevel,
+                    points: record.currentSeasonPoints,
+                    isPremium: record.isPremium,
+                });
                 if (record.currentLevel !== 1) {
+                    console.error(`❌ 初始等级不正确，期望 1，实际 ${record.currentLevel}`);
                     errors.push(`初始等级不正确，期望 1，实际 ${record.currentLevel}`);
                 }
                 if (record.currentSeasonPoints !== 0) {
+                    console.error(`❌ 初始积分不正确，期望 0，实际 ${record.currentSeasonPoints}`);
                     errors.push(`初始积分不正确，期望 0，实际 ${record.currentSeasonPoints}`);
                 }
                 if (record.isPremium !== false) {
+                    console.error(`❌ 初始 Premium 状态不正确，期望 false，实际 ${record.isPremium}`);
                     errors.push(`初始 Premium 状态不正确，期望 false，实际 ${record.isPremium}`);
                 }
-                steps.push("✓ Battle Pass 记录验证成功");
+                if (errors.length === 0) {
+                    steps.push("✓ Battle Pass 记录验证成功");
+                    console.log("✓ Battle Pass 记录验证成功");
+                }
             }
+
+            console.log("\n==========================================");
+            console.log(`[testInitializeBattlePass] 测试完成`);
+            console.log(`成功: ${errors.length === 0 ? "✅" : "❌"}`);
+            console.log(`错误数量: ${errors.length}`);
+            console.log("==========================================\n");
 
             return {
                 success: errors.length === 0,
@@ -51,6 +77,10 @@ export const testInitializeBattlePass = internalMutation({
                 data: record,
             };
         } catch (error: any) {
+            console.error("\n==========================================");
+            console.error(`[testInitializeBattlePass] 测试执行失败`);
+            console.error(`错误: ${error.message}`);
+            console.error("==========================================\n");
             errors.push(`测试执行失败: ${error.message}`);
             return {
                 success: false,
@@ -72,26 +102,40 @@ export const testAddSeasonPoints = internalMutation({
         expectedLevel: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
+        console.log("==========================================");
+        console.log(`[testAddSeasonPoints] 开始测试添加赛季积分`);
+        console.log(`玩家 UID: ${args.uid}`);
+        console.log(`积分数量: ${args.seasonPointsAmount}`);
+        console.log(`积分来源: ${args.source}`);
+        console.log(`期望等级: ${args.expectedLevel || "未指定"}`);
+        console.log("==========================================");
+
         const { uid, seasonPointsAmount, source, expectedLevel } = args;
         const errors: string[] = [];
         const steps: string[] = [];
 
         try {
             // 步骤1: 获取当前等级
+            console.log("\n[步骤1] 获取当前等级...");
             steps.push("步骤1: 获取当前等级");
             let battlePass = await BattlePassSystem.getPlayerBattlePass(ctx, uid);
             if (!battlePass) {
+                console.log("Battle Pass 不存在，正在初始化...");
                 battlePass = await BattlePassSystem.initializePlayerBattlePass(ctx, uid);
             }
             const oldLevel = battlePass.currentLevel;
             const oldPoints = battlePass.currentSeasonPoints;
             steps.push(`当前等级: ${oldLevel}, 当前积分: ${oldPoints}`);
+            console.log(`当前等级: ${oldLevel}, 当前积分: ${oldPoints}`);
 
             // 步骤2: 添加赛季积分
+            console.log("\n[步骤2] 添加赛季积分...");
             steps.push("步骤2: 添加赛季积分");
+            console.log(`添加 ${seasonPointsAmount} 积分，来源: ${source}`);
             const result = await BattlePassSystem.addSeasonPoints(ctx, uid, seasonPointsAmount, source);
 
             if (!result.success) {
+                console.error(`❌ 添加积分失败: ${result.message}`);
                 errors.push(`添加积分失败: ${result.message}`);
                 return {
                     success: false,
@@ -101,6 +145,10 @@ export const testAddSeasonPoints = internalMutation({
             }
 
             steps.push(`✓ 成功添加 ${seasonPointsAmount} 积分`);
+            console.log(`✓ 成功添加 ${seasonPointsAmount} 积分`);
+            if (result.rewards && result.rewards.length > 0) {
+                console.log(`解锁了 ${result.rewards.length} 个等级的奖励`);
+            }
 
             // 步骤3: 验证等级升级
             steps.push("步骤3: 验证等级升级");
@@ -116,26 +164,38 @@ export const testAddSeasonPoints = internalMutation({
                 const calculatedLevel = Math.min(Math.floor(totalPoints / 100) + 1, 25);
 
                 if (newLevel !== calculatedLevel) {
+                    console.error(`❌ 等级升级不正确，期望 ${calculatedLevel}，实际 ${newLevel}`);
                     errors.push(`等级升级不正确，期望 ${calculatedLevel}，实际 ${newLevel}`);
                 } else {
                     steps.push(`✓ 等级升级成功: ${oldLevel} → ${newLevel}`);
+                    console.log(`✓ 等级升级成功: ${oldLevel} → ${newLevel}`);
                 }
 
                 if (expectedLevel && newLevel !== expectedLevel) {
+                    console.error(`❌ 等级不符合预期，期望 ${expectedLevel}，实际 ${newLevel}`);
                     errors.push(`等级不符合预期，期望 ${expectedLevel}，实际 ${newLevel}`);
                 }
 
                 // 验证积分
                 if (newPoints !== totalPoints) {
+                    console.error(`❌ 积分不正确，期望 ${totalPoints}，实际 ${newPoints}`);
                     errors.push(`积分不正确，期望 ${totalPoints}，实际 ${newPoints}`);
                 } else {
                     steps.push(`✓ 积分更新成功: ${oldPoints} → ${newPoints}`);
+                    console.log(`✓ 积分更新成功: ${oldPoints} → ${newPoints}`);
                 }
 
                 // 验证解锁的奖励
                 if (result.rewards && result.rewards.length > 0) {
                     steps.push(`✓ 解锁了 ${result.rewards.length} 个等级的奖励`);
+                    console.log(`✓ 解锁了 ${result.rewards.length} 个等级的奖励`);
                 }
+
+                console.log("\n==========================================");
+                console.log(`[testAddSeasonPoints] 测试完成`);
+                console.log(`成功: ${errors.length === 0 ? "✅" : "❌"}`);
+                console.log(`错误数量: ${errors.length}`);
+                console.log("==========================================\n");
 
                 return {
                     success: errors.length === 0,
@@ -150,6 +210,12 @@ export const testAddSeasonPoints = internalMutation({
                     },
                 };
             }
+
+            console.log("\n==========================================");
+            console.log(`[testAddSeasonPoints] 测试完成（无法获取 Battle Pass）`);
+            console.log(`成功: ${errors.length === 0 ? "✅" : "❌"}`);
+            console.log(`错误数量: ${errors.length}`);
+            console.log("==========================================\n");
 
             return {
                 success: errors.length === 0,

@@ -4,7 +4,7 @@
  */
 
 import { v } from "convex/values";
-import { internalMutation } from "../../../../_generated/server";
+import { mutation } from "../../../../_generated/server";
 import { GameInstanceService } from "../../gameInstanceService";
 import { TEST_GAME_SCENARIOS } from "../testData";
 import { assertGameRankings } from "../utils/assertions";
@@ -13,7 +13,7 @@ import { simulateGameEnd, simulateMultiplePlayersFinish } from "../utils/simulat
 /**
  * 测试：创建游戏实例
  */
-export const testCreateGameInstance = internalMutation({
+export const testCreateGameInstance = mutation({
     args: {
         matchId: v.string(),
         tier: v.string(),
@@ -21,12 +21,21 @@ export const testCreateGameInstance = internalMutation({
         maxPlayers: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
+        console.log("==========================================");
+        console.log(`[testCreateGameInstance] 开始测试创建游戏实例`);
+        console.log(`Match ID: ${args.matchId}`);
+        console.log(`Tier: ${args.tier}`);
+        console.log(`Boss ID: ${args.bossId || "未指定"}`);
+        console.log(`最大玩家数: ${args.maxPlayers || 10}`);
+        console.log("==========================================");
+
         const { matchId, tier, bossId, maxPlayers = 10 } = args;
         const errors: string[] = [];
         const steps: string[] = [];
 
         try {
             // 步骤1: 创建游戏实例
+            console.log("\n[步骤1] 创建游戏实例...");
             steps.push("步骤1: 创建游戏实例");
             const result = await GameInstanceService.createMonsterRumbleGame(ctx, {
                 matchId,
@@ -36,8 +45,10 @@ export const testCreateGameInstance = internalMutation({
             });
 
             steps.push(`✓ 游戏实例创建成功，gameId: ${result.gameId}`);
+            console.log(`✓ 游戏实例创建成功，gameId: ${result.gameId}`);
 
             // 步骤2: 验证游戏记录
+            console.log("\n[步骤2] 验证游戏记录...");
             steps.push("步骤2: 验证游戏记录");
             const game = await ctx.db
                 .query("tacticalMonster_game")
@@ -45,19 +56,38 @@ export const testCreateGameInstance = internalMutation({
                 .first();
 
             if (!game) {
+                console.error("❌ 游戏记录不存在");
                 errors.push("游戏记录不存在");
             } else {
+                console.log(`游戏记录找到:`, {
+                    gameId: game.gameId,
+                    tier: game.tier,
+                    maxPlayers: game.maxPlayers,
+                    status: game.status,
+                });
                 if (game.tier !== tier) {
+                    console.error(`❌ Tier 不正确，期望 ${tier}，实际 ${game.tier}`);
                     errors.push(`Tier 不正确，期望 ${tier}，实际 ${game.tier}`);
                 }
                 if (game.maxPlayers !== maxPlayers) {
+                    console.error(`❌ 最大玩家数不正确，期望 ${maxPlayers}，实际 ${game.maxPlayers}`);
                     errors.push(`最大玩家数不正确，期望 ${maxPlayers}，实际 ${game.maxPlayers}`);
                 }
                 if (game.status !== "waiting") {
+                    console.error(`❌ 游戏状态不正确，期望 waiting，实际 ${game.status}`);
                     errors.push(`游戏状态不正确，期望 waiting，实际 ${game.status}`);
                 }
-                steps.push("✓ 游戏记录验证成功");
+                if (errors.length === 0) {
+                    steps.push("✓ 游戏记录验证成功");
+                    console.log("✓ 游戏记录验证成功");
+                }
             }
+
+            console.log("\n==========================================");
+            console.log(`[testCreateGameInstance] 测试完成`);
+            console.log(`成功: ${errors.length === 0 ? "✅" : "❌"}`);
+            console.log(`错误数量: ${errors.length}`);
+            console.log("==========================================\n");
 
             return {
                 success: errors.length === 0,
@@ -70,6 +100,10 @@ export const testCreateGameInstance = internalMutation({
                 },
             };
         } catch (error: any) {
+            console.error("\n==========================================");
+            console.error(`[testCreateGameInstance] 测试执行失败`);
+            console.error(`错误: ${error.message}`);
+            console.error("==========================================\n");
             errors.push(`测试执行失败: ${error.message}`);
             return {
                 success: false,
@@ -83,7 +117,7 @@ export const testCreateGameInstance = internalMutation({
 /**
  * 测试：完整的游戏流程（创建游戏、玩家完成、游戏结束）
  */
-export const testCompleteGameFlow = internalMutation({
+export const testCompleteGameFlow = mutation({
     args: {
         matchId: v.string(),
         tier: v.string(),
@@ -251,7 +285,7 @@ export const testCompleteGameFlow = internalMutation({
 /**
  * 测试：使用测试场景进行游戏流程测试
  */
-export const testGameFlowWithScenario = internalMutation({
+export const testGameFlowWithScenario = mutation({
     args: {
         scenarioIndex: v.optional(v.number()),
     },
