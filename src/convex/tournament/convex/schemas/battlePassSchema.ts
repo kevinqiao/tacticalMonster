@@ -58,6 +58,59 @@ export const battlePassSchema = {
         .index("by_purchased_at", ["purchasedAt"])
         .index("by_uid_season", ["uid", "seasonId"]),
 
+    // Battle Pass奖励解锁记录表（预先结算）
+    // 当玩家升级时，预先计算并保存奖励内容
+    // 玩家 claim 时从此表读取奖励并发放
+    player_battle_pass_rewards: defineTable({
+        uid: v.string(),
+        seasonId: v.string(),
+        level: v.number(),
+        trackType: v.string(), // "free" | "premium"
+        rewards: v.object({
+            coins: v.optional(v.number()),
+            tickets: v.optional(v.array(v.object({
+                type: v.string(),
+                quantity: v.number()
+            }))),
+            props: v.optional(v.array(v.object({
+                gameType: v.string(),
+                propType: v.string(),
+                quantity: v.number(),
+                rarity: v.string()
+            }))),
+            seasonPoints: v.optional(v.number()),
+            prestige: v.optional(v.number()),
+            rankPoints: v.optional(v.number()),
+            exclusiveItems: v.optional(v.array(v.object({
+                itemId: v.string(),
+                itemType: v.string(),
+                name: v.string(),
+                description: v.string(),
+                rarity: v.string(),
+                previewUrl: v.optional(v.string())
+            }))),
+            // 游戏特有奖励
+            monsters: v.optional(v.array(v.object({
+                monsterId: v.string(),
+                level: v.optional(v.number()),
+                stars: v.optional(v.number())
+            }))),
+            monsterShards: v.optional(v.array(v.object({
+                monsterId: v.string(),
+                quantity: v.number()
+            }))),
+            energy: v.optional(v.number())
+        }),
+        status: v.string(), // "UNLOCKED" | "CLAIMED"
+        unlockedAt: v.string(), // 解锁时间（升级时）
+        claimedAt: v.optional(v.string()), // 领取时间
+        createdAt: v.string(),
+        updatedAt: v.string(),
+    }).index("by_uid_season", ["uid", "seasonId"])
+        .index("by_uid_season_level", ["uid", "seasonId", "level"])
+        .index("by_uid_season_status", ["uid", "seasonId", "status"])
+        .index("by_season_level", ["seasonId", "level"]),
+
     // Battle Pass奖励领取日志表
     battle_pass_reward_claims: defineTable({
         uid: v.string(),

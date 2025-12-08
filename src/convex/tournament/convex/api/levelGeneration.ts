@@ -193,61 +193,62 @@ export const getGenerationRules = action({
 });
 
 /**
+ * 生成所有活跃规则的关卡处理函数
+ * 导出以便其他模块可以直接调用
+ */
+export async function generateAllActiveLevelsHandler(
+    ctx: any,
+    { replaceExisting = false }: { replaceExisting?: boolean }
+) {
+    const activeRules = LEVEL_GENERATION_RULES.filter(rule => rule.isActive);
+    const ruleIds = activeRules.map(rule => rule.ruleId);
+
+    const results: Array<{
+        ruleId: string;
+        success: boolean;
+        generatedCount?: number;
+        savedCount?: number;
+        error?: string;
+    }> = [];
+
+    for (const ruleId of ruleIds) {
+        try {
+            const result = await generateAndRegisterLevelsHandler(ctx, {
+                ruleId,
+                replaceExisting,
+            });
+
+            results.push({
+                ruleId,
+                success: result.success,
+                generatedCount: result.generatedCount,
+                savedCount: result.savedCount,
+                error: result.error,
+            });
+        } catch (error: any) {
+            results.push({
+                ruleId,
+                success: false,
+                error: error.message,
+            });
+        }
+    }
+
+    return {
+        success: true,
+        results,
+        totalGenerated: results.reduce((sum, r) => sum + (r.generatedCount || 0), 0),
+        totalSaved: results.reduce((sum, r) => sum + (r.savedCount || 0), 0),
+    };
+}
+
+/**
  * 一键生成所有活跃规则的关卡
  */
 export const generateAllActiveLevels = internalMutation({
     args: {
         replaceExisting: v.optional(v.boolean()),
     },
-    handler: async (ctx, { replaceExisting = false }) => {
-        const activeRules = LEVEL_GENERATION_RULES.filter(rule => rule.isActive);
-        const ruleIds = activeRules.map(rule => rule.ruleId);
-
-        // Call the handler function directly
-        const generateMultipleRuleLevelsHandler = async (ctx: any, args: { ruleIds: string[]; replaceExisting?: boolean }) => {
-            const results: Array<{
-                ruleId: string;
-                success: boolean;
-                generatedCount?: number;
-                savedCount?: number;
-                error?: string;
-            }> = [];
-
-            for (const ruleId of args.ruleIds) {
-                try {
-                    const result = await generateAndRegisterLevelsHandler(ctx, {
-                        ruleId,
-                        replaceExisting: args.replaceExisting,
-                    });
-
-                    results.push({
-                        ruleId,
-                        success: result.success,
-                        generatedCount: result.generatedCount,
-                        savedCount: result.savedCount,
-                        error: result.error,
-                    });
-                } catch (error: any) {
-                    results.push({
-                        ruleId,
-                        success: false,
-                        error: error.message,
-                    });
-                }
-            }
-
-            return {
-                success: true,
-                results,
-                totalGenerated: results.reduce((sum, r) => sum + (r.generatedCount || 0), 0),
-                totalSaved: results.reduce((sum, r) => sum + (r.savedCount || 0), 0),
-            };
-        };
-
-        return await generateMultipleRuleLevelsHandler(ctx, {
-            ruleIds,
-            replaceExisting,
-        });
-    },
+    handler: generateAllActiveLevelsHandler,
 });
 

@@ -1,5 +1,5 @@
 import { internalMutation } from "../../_generated/server";
-import { endGameLogic } from "./gameEndLogic";
+import { notifyGameEnd } from "./gameService";
 
 /**
  * 游戏超时服务
@@ -30,7 +30,7 @@ export const checkAndEndTimeoutGames = internalMutation({
 
         // 结束所有超时游戏（使用共享逻辑）
         for (const game of timeoutGames) {
-            await endGameLogic(ctx, game.gameId);
+            await notifyGameEnd(ctx, game.gameId);
         }
 
         return {

@@ -155,6 +155,70 @@ export class MatchManager {
     }
 
     /**
+     * 通知游戏结束
+     * 更新 player_matches 状态，检查并结算 match（如果所有游戏都结束）
+     */
+    static async notifyGameEnd(ctx: any, params: {
+        gameId: string;
+        matchId: string;
+        finalScore: number;
+    }): Promise<{
+        ok: boolean;
+        matchCompleted: boolean;
+        error?: string;
+    }> {
+        const nowISO = new Date().toISOString();
+
+        // 1. 更新 player_matches 状态为 COMPLETED
+        const playerMatch = await ctx.db
+            .query("player_matches")
+            .withIndex("by_game", (q: any) => q.eq("gameId", params.gameId))
+            .first();
+
+        if (!playerMatch) {
+            throw new Error("玩家比赛记录不存在");
+        }
+
+        await ctx.db.patch(playerMatch._id, {
+            score: params.finalScore || playerMatch.score || 0,
+            status: TournamentStatus.COMPLETED,
+            updatedAt: nowISO,
+        });
+
+        // 2. 检查 match 中所有游戏是否都结束
+        const match = await ctx.db.get(params.matchId as Id<"matches">);
+        if (!match) {
+            throw new Error("比赛不存在");
+        }
+
+        const allPlayerMatches = await ctx.db
+            .query("player_matches")
+            .withIndex("by_match", (q: any) => q.eq("matchId", params.matchId))
+            .collect();
+
+        const allCompleted = allPlayerMatches.every(
+            (pm: any) => pm.status === TournamentStatus.COMPLETED
+        ) && allPlayerMatches.length === match.maxPlayers;
+
+        // 3. 如果所有游戏都结束，结算 match
+        if (allCompleted && !match.completed) {
+            await this.settleMatch(ctx, {
+                matchId: params.matchId as Id<"matches">,
+            });
+
+            return {
+                ok: true,
+                matchCompleted: true,
+            };
+        }
+
+        return {
+            ok: true,
+            matchCompleted: false,
+        };
+    }
+
+    /**
      * 结算比赛
      */
     static async settleMatch(ctx: any, params: {
@@ -282,6 +346,18 @@ export const submitGameScore = internalMutation({
         return { ok };
     },
 });
+
+export const notifyGameEnd = internalMutation({
+    args: {
+        gameId: v.string(),
+        matchId: v.string(),
+        finalScore: v.number(),
+    },
+    handler: async (ctx: any, args: any): Promise<any> => {
+        return await MatchManager.notifyGameEnd(ctx, args);
+    },
+});
+
 export const findTournamentMatch = query({
     args: {
         typeId: v.optional(v.string()),

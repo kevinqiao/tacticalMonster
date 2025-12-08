@@ -28,20 +28,10 @@ export const addGameSeasonPoints = mutation({
 });
 
 /**
- * 领取 Battle Pass 奖励
+ * 注意：Battle Pass 奖励领取已移除
+ * 前端应直接调用 Tournament 模块的 /claimBattlePassReward 接口
+ * 如果奖励中包含游戏特有资源，Tournament 模块会调用 TacticalMonster 的 /grantGameSpecificRewards 端点
  */
-export const claimGameRewards = mutation({
-    args: {
-        uid: v.string(),
-        level: v.number(),
-    },
-    handler: async (ctx, args) => {
-        return await BattlePassIntegration.claimGameRewards(ctx, {
-            uid: args.uid,
-            level: args.level,
-        });
-    },
-});
 
 /**
  * 购买 Premium Battle Pass
@@ -88,11 +78,11 @@ export const getCurrentBattlePassConfig = query({
                     },
                 }
             );
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const result = await response.json();
             return result.config || null;
         } catch (error: any) {

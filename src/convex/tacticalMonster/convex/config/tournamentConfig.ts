@@ -6,6 +6,8 @@ export const TOURNAMENT_CONFIG = {
     BASE_URL: process.env.TOURNAMENT_URL || "https://beloved-mouse-699.convex.site",
     ENDPOINTS: {
         PROCESS_GAME_REWARDS: "/processGameRewards",
+        NOTIFY_GAME_END: "/notifyGameEnd", // 通知游戏结束（新接口）
+        CLAIM_TOURNAMENT_REWARDS: "/claimTournamentRewards", // 领取锦标赛奖励（新接口）
         ADD_RESOURCES: "/addResources",
         DEDUCT_RESOURCES: "/deductResources",
         JOIN_MATCHING_QUEUE: "/joinMatchingQueue",

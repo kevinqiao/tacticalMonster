@@ -345,6 +345,69 @@ http.route({
   }),
 });
 
+http.route({
+  path: "/notifyGameEnd",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      // 1. 解析请求体
+      const body = await request.json();
+      const { gameId, matchId, finalScore } = body;
+
+      // 2. 参数验证
+      if (!gameId || !matchId) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: "缺少必要参数: gameId, matchId",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      // 3. 调用内部 mutation 处理游戏结束通知
+      const result = await ctx.runMutation(internal.service.tournament.matchManager.notifyGameEnd, {
+        gameId,
+        matchId,
+        finalScore: finalScore || 0,
+      });
+
+      // 4. 返回结果
+      return new Response(
+        JSON.stringify(result),
+        {
+          status: result.ok ? 200 : 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("处理游戏结束通知失败:", error);
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: error.message || "处理失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
 // ============================================================================
 // Task System HTTP API 端点
 // ============================================================================
@@ -660,8 +723,8 @@ http.route({
           ok: result.success,
           success: result.success,
           newLevel: result.newLevel,
+          levelIncreased: result.levelIncreased,
           message: result.message,
-          rewards: result.rewards,
         }),
         {
           status: 200,
@@ -677,6 +740,69 @@ http.route({
         JSON.stringify({
           ok: false,
           error: error.message || "添加积分失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+http.route({
+  path: "/getBattlePassClaimableLevels",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { uid } = body;
+
+      // 参数验证
+      if (!uid) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: "缺少必要参数: uid",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      // 导入 Battle Pass 系统
+      const { BattlePassSystem } = await import("./service/battlePass/battlePassSystem");
+
+      // 获取可领取的等级列表
+      const claimableLevels = await BattlePassSystem.getClaimableLevels(ctx, uid);
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          claimableLevels,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("获取可领取等级失败:", error);
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: error.message || "获取可领取等级失败",
         }),
         {
           status: 500,
@@ -718,7 +844,7 @@ http.route({
       // 导入 Battle Pass 系统
       const { BattlePassSystem } = await import("./service/battlePass/battlePassSystem");
 
-      // 调用 Battle Pass 系统领取奖励
+      // 调用 Battle Pass 系统领取奖励（玩家主动发起）
       const result = await BattlePassSystem.claimBattlePassRewards(ctx, uid, level);
 
       return new Response(

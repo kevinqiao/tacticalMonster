@@ -1,7 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { GameSpecificRewardService } from "./service/reward/gameSpecificRewardService";
 import { PlayerLevelService } from "./service/player/playerLevelService";
+import { RewardService } from "./service/reward/rewardService";
 
 const http = httpRouter();
 
@@ -35,7 +35,7 @@ http.route({
             }
 
             // 调用游戏特定奖励服务
-            const result = await GameSpecificRewardService.grantRewards(ctx, {
+            const result = await RewardService.grantRewards(ctx, {
                 uid,
                 rewards,
                 source: source || "reward",
@@ -162,7 +162,7 @@ http.route({
 
             // 导入计算函数
             const { calculateTaskExp } = await import("./service/player/playerExpCalculation");
-            
+
             const exp = calculateTaskExp(
                 taskType as "daily" | "weekly" | "achievement",
                 (taskDifficulty as "easy" | "medium" | "hard") || "medium",
@@ -233,7 +233,7 @@ http.route({
 
             // 导入计算函数
             const { calculateTournamentExp } = await import("./service/player/playerExpCalculation");
-            
+
             const exp = calculateTournamentExp(
                 rank,
                 totalParticipants,
@@ -287,7 +287,7 @@ http.route({
 
             // 导入计算函数
             const { calculateActivityExp } = await import("./service/player/playerExpCalculation");
-            
+
             const exp = calculateActivityExp(activityMultiplier || 1.0);
 
             return new Response(
@@ -354,7 +354,7 @@ http.route({
 
             // 导入计算函数
             const { calculateMonsterRumblePoints } = await import("./service/calculation/seasonPoints");
-            
+
             const points = calculateMonsterRumblePoints(
                 rank,
                 score || 0,
@@ -424,7 +424,7 @@ http.route({
 
             // 导入计算函数
             const { calculateUpgradePoints } = await import("./service/calculation/seasonPoints");
-            
+
             const points = calculateUpgradePoints(
                 rarity,
                 level,
@@ -494,7 +494,7 @@ http.route({
 
             // 导入计算函数
             const { calculateStarUpPoints } = await import("./service/calculation/seasonPoints");
-            
+
             const points = calculateStarUpPoints(rarity, stars);
 
             return new Response(
@@ -560,7 +560,7 @@ http.route({
 
             // 导入计算函数
             const { calculateChestPoints } = await import("./service/calculation/seasonPoints");
-            
+
             const points = calculateChestPoints(chestType);
 
             return new Response(
@@ -626,7 +626,7 @@ http.route({
 
             // 导入计算函数
             const { calculateBossDefeatPoints } = await import("./service/calculation/seasonPoints");
-            
+
             const points = calculateBossDefeatPoints(bossDifficulty);
 
             return new Response(

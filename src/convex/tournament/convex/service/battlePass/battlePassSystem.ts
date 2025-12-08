@@ -45,6 +45,10 @@ export interface BattlePassRewards {
     prestige?: number; // 声望
     exclusiveItems?: ExclusiveItem[];
     rankPoints?: number; // 段位积分
+    // 游戏特有奖励（如果包含这些字段，说明是游戏特定奖励）
+    monsters?: Array<{ monsterId: string; level?: number; stars?: number }>;
+    monsterShards?: Array<{ monsterId: string; quantity: number }>;
+    energy?: number;
 }
 
 export interface Ticket {
@@ -549,8 +553,10 @@ export class BattlePassSystem {
 
     /**
      * 添加赛季积分到玩家Battle Pass
+     * 职责：只更新积分和等级，不处理奖励发放
+     * 奖励需要玩家主动通过 claimBattlePassRewards 领取
      */
-    static async addSeasonPoints(ctx: any, uid: string, seasonPointsAmount: number, source: string): Promise<{ success: boolean; message: string; newLevel?: number; rewards?: BattlePassRewards[] }> {
+    static async addSeasonPoints(ctx: any, uid: string, seasonPointsAmount: number, source: string): Promise<{ success: boolean; message: string; newLevel?: number; levelIncreased?: boolean }> {
         const nowISO = new Date().toISOString();
         const config = this.getCurrentBattlePassConfig();
 
@@ -646,23 +652,51 @@ export class BattlePassSystem {
                 createdAt: nowISO
             });
 
-            // 检查是否有新等级解锁的奖励
-            const unlockedRewards: BattlePassRewards[] = [];
-            if (newLevel > oldLevel) {
+            // 预先结算：如果等级提升，计算并保存新解锁等级的奖励
+            const levelIncreased = newLevel > oldLevel;
+            if (levelIncreased) {
+                // 为新解锁的每个等级计算并保存奖励
                 for (let level = oldLevel + 1; level <= newLevel; level++) {
+                    // 获取该等级的奖励配置
                     const track = playerBattlePass.isPremium ? config.premiumTrack : config.freeTrack;
                     const levelConfig = track.levels.find(l => l.level === level);
+
                     if (levelConfig && levelConfig.rewards) {
-                        unlockedRewards.push(levelConfig.rewards);
+                        // 检查是否已存在该等级的奖励记录（防止重复）
+                        const existingReward = await ctx.db
+                            .query("player_battle_pass_rewards")
+                            .withIndex("by_uid_season_level", (q: any) =>
+                                q.eq("uid", uid)
+                                    .eq("seasonId", config.seasonId)
+                                    .eq("level", level)
+                            )
+                            .first();
+
+                        if (!existingReward) {
+                            // 保存解锁的奖励（预先结算）
+                            await ctx.db.insert("player_battle_pass_rewards", {
+                                uid,
+                                seasonId: config.seasonId,
+                                level,
+                                trackType: playerBattlePass.isPremium ? "premium" : "free",
+                                rewards: levelConfig.rewards,
+                                status: "UNLOCKED",
+                                unlockedAt: nowISO,
+                                createdAt: nowISO,
+                                updatedAt: nowISO,
+                            });
+                        }
                     }
                 }
             }
 
             return {
                 success: true,
-                message: `成功添加 ${seasonPointsAmount} 赛季积分，当前等级 ${newLevel}`,
+                message: levelIncreased
+                    ? `成功添加 ${seasonPointsAmount} 赛季积分，等级提升至 ${newLevel}，请前往 Battle Pass 领取奖励`
+                    : `成功添加 ${seasonPointsAmount} 赛季积分，当前等级 ${newLevel}`,
                 newLevel,
-                rewards: unlockedRewards.length > 0 ? unlockedRewards : undefined
+                levelIncreased
             };
 
         } catch (error) {
@@ -679,13 +713,36 @@ export class BattlePassSystem {
     // ============================================================================
 
     /**
-     * 发放Battle Pass奖励
+     * 获取玩家可领取的Battle Pass等级列表
+     * 返回所有已解锁但未领取的等级（从 player_battle_pass_rewards 表查询）
+     */
+    static async getClaimableLevels(ctx: any, uid: string): Promise<number[]> {
+        const config = this.getCurrentBattlePassConfig();
+
+        // 从 player_battle_pass_rewards 表查询状态为 UNLOCKED 的记录
+        const unlockedRewards = await ctx.db
+            .query("player_battle_pass_rewards")
+            .withIndex("by_uid_season_status", (q: any) =>
+                q.eq("uid", uid)
+                    .eq("seasonId", config.seasonId)
+                    .eq("status", "UNLOCKED")
+            )
+            .collect();
+
+        return unlockedRewards.map((reward: any) => reward.level).sort((a: number, b: number) => a - b);
+    }
+
+    /**
+     * 领取Battle Pass奖励（玩家主动发起）
+     * 类似于锦标赛的奖励领取方式：玩家主动 claim
+     * 
+     * 从预先结算的 player_battle_pass_rewards 表中读取奖励并发放
      */
     static async claimBattlePassRewards(ctx: any, uid: string, level: number): Promise<{ success: boolean; message: string; rewards?: BattlePassRewards }> {
         const config = this.getCurrentBattlePassConfig();
         const nowISO = new Date().toISOString();
 
-        // 获取玩家Battle Pass
+        // 获取玩家Battle Pass（用于验证等级）
         const playerBattlePass = await this.getPlayerBattlePass(ctx, uid);
         if (!playerBattlePass) {
             return { success: false, message: "Battle Pass不存在" };
@@ -696,31 +753,119 @@ export class BattlePassSystem {
             return { success: false, message: `等级不足，当前等级 ${playerBattlePass.currentLevel}，需要等级 ${level}` };
         }
 
-        // 检查是否已经领取
-        if (playerBattlePass.claimedLevels.includes(level)) {
-            return { success: false, message: `等级 ${level} 的奖励已经领取过了` };
-        }
+        // 从预先结算的奖励表中获取奖励记录
+        const rewardRecord = await ctx.db
+            .query("player_battle_pass_rewards")
+            .withIndex("by_uid_season_level", (q: any) =>
+                q.eq("uid", uid)
+                    .eq("seasonId", config.seasonId)
+                    .eq("level", level)
+            )
+            .first();
 
-        // 获取奖励配置
-        const track = playerBattlePass.isPremium ? config.premiumTrack : config.freeTrack;
-        const levelConfig = track.levels.find(l => l.level === level);
+        if (!rewardRecord) {
+            // 如果没有预先结算的记录，可能是旧数据或升级时未正确结算
+            // 尝试从配置中读取并创建记录（向后兼容）
+            const track = playerBattlePass.isPremium ? config.premiumTrack : config.freeTrack;
+            const levelConfig = track.levels.find(l => l.level === level);
 
-        if (!levelConfig) {
-            return { success: false, message: "等级配置不存在" };
-        }
+            if (!levelConfig || !levelConfig.rewards) {
+                return { success: false, message: `等级 ${level} 的奖励配置不存在` };
+            }
 
-        try {
-            // 发放奖励（使用统一奖励服务）
-            const rewards = levelConfig.rewards;
+            // 创建奖励记录（向后兼容）
+            const createdRewardId = await ctx.db.insert("player_battle_pass_rewards", {
+                uid,
+                seasonId: config.seasonId,
+                level,
+                trackType: playerBattlePass.isPremium ? "premium" : "free",
+                rewards: levelConfig.rewards,
+                status: "UNLOCKED",
+                unlockedAt: nowISO,
+                createdAt: nowISO,
+                updatedAt: nowISO,
+            });
+
+            // 重新查询
+            const newRewardRecord = await ctx.db.get(createdRewardId);
+            if (!newRewardRecord) {
+                return { success: false, message: "创建奖励记录失败" };
+            }
+
+            // 继续正常的领取流程（使用新创建的记录）
+            const rewards = newRewardRecord.rewards as BattlePassRewards;
             const rewardResults = await this.grantBattlePassRewards(ctx, uid, rewards, level, config.seasonId);
 
-            // 更新已领取等级
+            if (!rewardResults.success) {
+                return { success: false, message: rewardResults.message || "发放奖励失败" };
+            }
+
+            // 更新奖励记录状态为已领取
+            await ctx.db.patch(newRewardRecord._id, {
+                status: "CLAIMED",
+                claimedAt: nowISO,
+                updatedAt: nowISO,
+            });
+
+            // 更新 player_battle_pass 的 claimedLevels（保持兼容）
             const battlePassRecord = await ctx.db.query("player_battle_pass")
                 .withIndex("by_uid_season", (q: any) => q.eq("uid", uid).eq("seasonId", config.seasonId))
                 .unique();
 
             if (battlePassRecord) {
-                const updatedClaimedLevels = [...playerBattlePass.claimedLevels, level];
+                const updatedClaimedLevels = [...(playerBattlePass.claimedLevels || []), level];
+                await ctx.db.patch(battlePassRecord._id, {
+                    claimedLevels: updatedClaimedLevels,
+                    lastUpdated: nowISO,
+                    updatedAt: nowISO
+                });
+            }
+
+            // 记录奖励领取日志
+            await ctx.db.insert("battle_pass_reward_claims", {
+                uid,
+                seasonId: config.seasonId,
+                level,
+                rewards,
+                claimedAt: nowISO,
+                createdAt: nowISO
+            });
+
+            return {
+                success: true,
+                message: `成功领取 ${level} 级奖励`,
+                rewards
+            };
+        }
+
+        // 检查是否已经领取
+        if (rewardRecord.status === "CLAIMED") {
+            return { success: false, message: `等级 ${level} 的奖励已经领取过了` };
+        }
+
+        try {
+            // 发放奖励（从预先结算的记录中读取）
+            const rewards = rewardRecord.rewards as BattlePassRewards;
+            const rewardResults = await this.grantBattlePassRewards(ctx, uid, rewards, level, config.seasonId);
+
+            if (!rewardResults.success) {
+                return { success: false, message: rewardResults.message || "发放奖励失败" };
+            }
+
+            // 更新奖励记录状态为已领取
+            await ctx.db.patch(rewardRecord._id, {
+                status: "CLAIMED",
+                claimedAt: nowISO,
+                updatedAt: nowISO,
+            });
+
+            // 更新 player_battle_pass 的 claimedLevels（保持兼容）
+            const battlePassRecord = await ctx.db.query("player_battle_pass")
+                .withIndex("by_uid_season", (q: any) => q.eq("uid", uid).eq("seasonId", config.seasonId))
+                .unique();
+
+            if (battlePassRecord) {
+                const updatedClaimedLevels = [...(playerBattlePass.claimedLevels || []), level];
                 await ctx.db.patch(battlePassRecord._id, {
                     claimedLevels: updatedClaimedLevels,
                     lastUpdated: nowISO,
@@ -751,6 +896,7 @@ export class BattlePassSystem {
 
     /**
      * 发放Battle Pass奖励的具体实现（使用统一奖励服务）
+     * 支持通用奖励和游戏特有奖励
      */
     private static async grantBattlePassRewards(ctx: any, uid: string, rewards: BattlePassRewards, level?: number, seasonId?: string): Promise<{ success: boolean; message: string }> {
         try {
@@ -764,9 +910,20 @@ export class BattlePassSystem {
                     itemType: item.itemType,
                     quantity: 1, // ExclusiveItem 没有 quantity 字段，默认为 1
                 })),
+                // 游戏特有奖励（如果有）
+                monsters: rewards.monsters,
+                monsterShards: rewards.monsterShards,
+                energy: rewards.energy,
             };
 
+            // 判断游戏类型：如果包含游戏特有奖励，推断为 tacticalMonster
+            const gameType = (rewards.monsters || rewards.monsterShards || rewards.energy)
+                ? "tacticalMonster"
+                : undefined;
+
             // 调用统一奖励服务
+            // 如果包含游戏特有奖励，RewardService 会通过 GameSpecificRewardHandler 
+            // 调用 TacticalMonster 模块的 /grantGameSpecificRewards 端点
             const result = await RewardService.grantRewards(ctx, {
                 uid,
                 rewards: unifiedRewards,
@@ -778,6 +935,7 @@ export class BattlePassSystem {
                         seasonId,
                     },
                 },
+                gameType, // 传递游戏类型，用于游戏特有奖励处理
             });
 
             // 处理失败奖励

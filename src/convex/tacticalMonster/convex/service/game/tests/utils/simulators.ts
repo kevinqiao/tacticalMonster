@@ -3,7 +3,7 @@
  * 用于模拟游戏流程
  */
 
-import { endGameLogic } from "../../gameEndLogic";
+import { notifyGameEnd } from "../../gameService";
 
 /**
  * 模拟玩家完成游戏
@@ -103,7 +103,7 @@ export async function simulateGameEnd(
     data?: any;
 }> {
     try {
-        const result = await endGameLogic(ctx, gameId);
+        const result = await notifyGameEnd(ctx, gameId);
         return {
             success: result.ok === true,
             data: result,

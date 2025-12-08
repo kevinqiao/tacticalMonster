@@ -377,16 +377,16 @@ export async function deductEntryFee(ctx: any, params: {
             .query("player_inventory")
             .withIndex("by_uid", (q: any) => q.eq("uid", player.uid))
             .first();
-        
+
         if (!inventory) {
             throw new Error("玩家库存不存在");
         }
-        
+
         const currentCoins = inventory.coins || 0;
         if (currentCoins < entryFee.coins) {
             throw new Error(`金币不足: ${entryFee.coins}，当前只有 ${currentCoins}`);
         }
-        
+
         await ctx.db.patch(inventory._id, {
             coins: currentCoins - entryFee.coins,
             updatedAt: new Date().toISOString(),
@@ -514,7 +514,8 @@ export async function settleTournament(ctx: any, tournamentId: string) {
             });
 
             if (tournamentPoints.success) {
-                // 更新玩家锦标赛记录
+                // 更新玩家锦标赛记录：只保存结算结果，不发放奖励
+                // 奖励将在玩家主动 claim 时通过 collectRewards 发放
                 await ctx.db.patch(playerTournament._id, {
                     rank,
                     status: TournamentStatus.SETTLED,
@@ -523,12 +524,8 @@ export async function settleTournament(ctx: any, tournamentId: string) {
                 });
 
                 // 记录积分计算日志
-                console.log(`玩家 ${playerTournament.uid} 排名 ${rank}，积分计算完成:`, tournamentPoints.points);
-
-                // 立即更新玩家积分统计
-                await updatePlayerPointStats(ctx, playerTournament.uid, tournamentId, tournamentPoints.points);
-
-                // 段位系统已移除，不再处理段位变化
+                console.log(`玩家 ${playerTournament.uid} 排名 ${rank}，积分计算完成并已保存到 player_tournaments:`, tournamentPoints.points);
+                // 注意：不在这里更新玩家积分统计，等待玩家主动 claim 时才发放
 
             } else {
                 throw new Error(tournamentPoints.message || "积分计算失败");
@@ -578,7 +575,7 @@ export async function collectRewards(ctx: any, playerTournament: any) {
         if (tournament) {
             const { PlayerExpRewardHandler } = await import("../reward/rewardHandlers/playerExpRewardHandler");
             const { RewardService } = await import("../reward/rewardService");
-            
+
             const expReward = await PlayerExpRewardHandler.calculateTournamentExp(
                 playerTournament.rank || 1,
                 tournament.participantCount || playerTournament.totalParticipants || 1,
@@ -618,6 +615,11 @@ export async function collectRewards(ctx: any, playerTournament: any) {
         tournamentPoints,
         lastUpdated: new Date().toISOString()
     });
+
+    // 更新玩家积分统计（实际发放积分）
+    if (playerTournament.rewards) {
+        await updatePlayerPointStats(ctx, playerTournament.uid, playerTournament.tournamentId, playerTournament.rewards);
+    }
 
     // 记录积分收集日志
     console.log(`玩家 ${playerTournament.uid} 收集奖励完成:`, {
@@ -684,8 +686,8 @@ async function updatePlayerPointStats(ctx: any, uid: string, tournamentId: strin
             });
         }
 
-        // 记录积分历史
-        await recordPointHistory(ctx, uid, tournamentId, `tournament_${tournamentId}`, points, "tournament_settlement");
+        // 记录积分历史（在玩家 claim 时记录）
+        await recordPointHistory(ctx, uid, tournamentId, `tournament_${tournamentId}`, points, "tournament_claim");
 
         console.log(`玩家 ${uid} 积分统计更新完成:`, points);
 

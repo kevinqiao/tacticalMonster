@@ -59,13 +59,10 @@ import type * as service_calculation_seasonPoints_upgradeExpCalculation from "..
 import type * as service_chest_chest from "../service/chest/chest.js";
 import type * as service_chest_chestService from "../service/chest/chestService.js";
 import type * as service_energy_energyService from "../service/energy/energyService.js";
-import type * as service_game_gameEndLogic from "../service/game/gameEndLogic.js";
-import type * as service_game_gameEndService from "../service/game/gameEndService.js";
 import type * as service_game_gameInstanceService from "../service/game/gameInstanceService.js";
 import type * as service_game_gameMatchingService from "../service/game/gameMatchingService.js";
 import type * as service_game_gameService from "../service/game/gameService.js";
 import type * as service_game_gameTimeoutService from "../service/game/gameTimeoutService.js";
-import type * as service_game_playerFinishService from "../service/game/playerFinishService.js";
 import type * as service_game_tests_index from "../service/game/tests/index.js";
 import type * as service_game_tests_integration_index from "../service/game/tests/integration/index.js";
 import type * as service_game_tests_testData from "../service/game/tests/testData.js";
@@ -82,7 +79,7 @@ import type * as service_monster_shardService from "../service/monster/shardServ
 import type * as service_player_playerExpCalculation from "../service/player/playerExpCalculation.js";
 import type * as service_player_playerLevelService from "../service/player/playerLevelService.js";
 import type * as service_resource_resourceProxyService from "../service/resource/resourceProxyService.js";
-import type * as service_reward_gameSpecificRewardService from "../service/reward/gameSpecificRewardService.js";
+import type * as service_reward_rewardService from "../service/reward/rewardService.js";
 import type * as service_task_taskIntegration from "../service/task/taskIntegration.js";
 import type * as service_team_teamService from "../service/team/teamService.js";
 import type * as service_tier_monsterRumbleTierService from "../service/tier/monsterRumbleTierService.js";
@@ -150,13 +147,10 @@ declare const fullApi: ApiFromModules<{
   "service/chest/chest": typeof service_chest_chest;
   "service/chest/chestService": typeof service_chest_chestService;
   "service/energy/energyService": typeof service_energy_energyService;
-  "service/game/gameEndLogic": typeof service_game_gameEndLogic;
-  "service/game/gameEndService": typeof service_game_gameEndService;
   "service/game/gameInstanceService": typeof service_game_gameInstanceService;
   "service/game/gameMatchingService": typeof service_game_gameMatchingService;
   "service/game/gameService": typeof service_game_gameService;
   "service/game/gameTimeoutService": typeof service_game_gameTimeoutService;
-  "service/game/playerFinishService": typeof service_game_playerFinishService;
   "service/game/tests/index": typeof service_game_tests_index;
   "service/game/tests/integration/index": typeof service_game_tests_integration_index;
   "service/game/tests/testData": typeof service_game_tests_testData;
@@ -173,7 +167,7 @@ declare const fullApi: ApiFromModules<{
   "service/player/playerExpCalculation": typeof service_player_playerExpCalculation;
   "service/player/playerLevelService": typeof service_player_playerLevelService;
   "service/resource/resourceProxyService": typeof service_resource_resourceProxyService;
-  "service/reward/gameSpecificRewardService": typeof service_reward_gameSpecificRewardService;
+  "service/reward/rewardService": typeof service_reward_rewardService;
   "service/task/taskIntegration": typeof service_task_taskIntegration;
   "service/team/teamService": typeof service_team_teamService;
   "service/tier/monsterRumbleTierService": typeof service_tier_monsterRumbleTierService;

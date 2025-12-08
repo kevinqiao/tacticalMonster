@@ -3,11 +3,7 @@
  * 负责与 Tournament 模块的 Battle Pass 系统交互
  */
 
-import { getTournamentUrl } from "../../config/tournamentConfig";
-import { TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
-import { ShardService } from "../monster/shardService";
-import { MonsterService } from "../monster/monsterService";
-import { EnergyService } from "../energy/energyService";
+import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
 
 /**
  * Battle Pass 集成服务
@@ -47,21 +43,21 @@ export class BattlePassIntegration {
                     }),
                 }
             );
-            
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-            
+
             const result = await response.json();
-            
+
             if (!result.ok && !result.success) {
                 return {
                     success: false,
                     message: result.message || result.error || "添加积分失败",
                 };
             }
-            
+
             return {
                 success: result.success || result.ok,
                 newLevel: result.newLevel,
@@ -76,109 +72,20 @@ export class BattlePassIntegration {
             };
         }
     }
-    
+
     /**
-     * 领取 Battle Pass 奖励
+     * 注意：Battle Pass 奖励领取方法已移除
+     * 
+     * 设计变更：
+     * - 前端直接调用 Tournament 模块的 /claimBattlePassReward 接口
+     * - Tournament 模块处理通用奖励（金币、门票等）
+     * - 如果奖励中包含游戏特有资源（怪物碎片、怪物、能量等），
+     *   Tournament 模块会调用 TacticalMonster 的 /grantGameSpecificRewards 端点
+     * 
+     * 这种方式与锦标赛奖励领取保持一致：
+     * - 前端 → Tournament 模块 → TacticalMonster 模块（如果需要）
      */
-    static async claimGameRewards(
-        ctx: any,
-        params: {
-            uid: string;
-            level: number;
-        }
-    ): Promise<{
-        success: boolean;
-        message: string;
-        rewards?: any;
-    }> {
-        try {
-            // 1. 调用 Tournament API 领取奖励
-            const response = await fetch(
-                getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.CLAIM_BATTLE_PASS_REWARD),
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        uid: params.uid,
-                        level: params.level,
-                    }),
-                }
-            );
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            
-            if (!result.ok || !result.success) {
-                return {
-                    success: false,
-                    message: result.message || result.error || "领取奖励失败",
-                };
-            }
-            
-            // 2. 处理游戏特有奖励
-            if (result.rewards) {
-                // 注意：当前 Tournament 模块的奖励配置可能不包含 gameSpecificRewards
-                // 这里预留接口，未来可以扩展
-                const gameRewards = result.rewards.gameSpecificRewards?.tacticalMonster;
-                
-                if (gameRewards) {
-                    // 发放怪物碎片
-                    if (gameRewards.monsterShards) {
-                        for (const shard of gameRewards.monsterShards) {
-                            await ShardService.addShards(ctx, {
-                                uid: params.uid,
-                                monsterId: shard.monsterId,
-                                quantity: shard.quantity,
-                                source: "battle_pass",
-                                sourceId: `level_${params.level}`,
-                            });
-                        }
-                    }
-                    
-                    // 发放完整怪物
-                    if (gameRewards.monsters) {
-                        for (const monster of gameRewards.monsters) {
-                            await MonsterService.addMonsterToPlayer(ctx, {
-                                uid: params.uid,
-                                monsterId: monster.monsterId,
-                                level: monster.level || 1,
-                                stars: monster.stars || 1,
-                            });
-                        }
-                    }
-                    
-                    // 发放能量
-                    if (gameRewards.energy) {
-                        await EnergyService.addEnergy(ctx, {
-                            uid: params.uid,
-                            amount: gameRewards.energy,
-                            source: "battle_pass",
-                            sourceId: `level_${params.level}`,
-                        });
-                    }
-                }
-            }
-            
-            return {
-                success: true,
-                message: result.message || "成功领取奖励",
-                rewards: result.rewards,
-            };
-        } catch (error: any) {
-            console.error("领取 Battle Pass 奖励失败:", error);
-            return {
-                success: false,
-                message: error.message || "领取奖励失败，请稍后重试",
-            };
-        }
-    }
-    
+
     /**
      * 购买 Premium Battle Pass
      */
@@ -205,14 +112,14 @@ export class BattlePassIntegration {
                     }),
                 }
             );
-            
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-            
+
             const result = await response.json();
-            
+
             return {
                 success: result.success || result.ok,
                 message: result.message || (result.success ? "购买成功" : "购买失败"),
@@ -226,7 +133,7 @@ export class BattlePassIntegration {
             };
         }
     }
-    
+
     /**
      * 获取 Battle Pass 进度（带游戏数据）
      */
@@ -251,26 +158,26 @@ export class BattlePassIntegration {
                     },
                 }
             );
-            
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
-            
+
             const result = await response.json();
-            
+
             if (!result.ok || !result.battlePass) {
                 return {
                     success: false,
                 };
             }
-            
+
             // 2. 补充游戏特定数据
             const gameData = {
                 // 可以添加游戏特定的统计信息
                 tacticalMonsterPoints: result.battlePass.progress?.gameSpecificPoints?.tacticalMonster || {},
             };
-            
+
             return {
                 success: true,
                 battlePass: result.battlePass,
