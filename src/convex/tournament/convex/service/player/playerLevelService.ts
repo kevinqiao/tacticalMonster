@@ -1,49 +1,51 @@
 /**
  * 玩家等级服务
- * 处理玩家经验值和等级升级（TacticalMonster 游戏特定）
+ * 处理玩家经验值和等级升级（跨游戏通用）
  */
+
+import { PlayerLevelConfig, DEFAULT_PLAYER_LEVEL_CONFIG } from "./playerLevelConfig";
 
 export class PlayerLevelService {
     /**
      * 计算升级所需经验值
      * 公式：每级所需经验 = 基础经验 * (等级 ^ 1.5)
      */
-    private static getRequiredExpForLevel(level: number): number {
-        const baseExp = 100; // 基础经验值
-        return Math.floor(baseExp * Math.pow(level, 1.5));
+    private static getRequiredExpForLevel(level: number, config: PlayerLevelConfig = DEFAULT_PLAYER_LEVEL_CONFIG): number {
+        const baseExp = config.baseExp;
+        return Math.floor(baseExp * Math.pow(level, config.expGrowthFactor));
     }
 
     /**
      * 根据经验值计算等级
      */
-    static calculateLevelFromExp(totalExp: number): number {
+    static calculateLevelFromExp(totalExp: number, config: PlayerLevelConfig = DEFAULT_PLAYER_LEVEL_CONFIG): number {
         let level = 1;
         let requiredExp = 0;
 
         while (requiredExp <= totalExp) {
             level++;
-            requiredExp += this.getRequiredExpForLevel(level);
-            if (level >= 100) break; // 最大等级100
+            requiredExp += this.getRequiredExpForLevel(level, config);
+            if (level >= config.maxLevel) break;
         }
 
-        return Math.min(level - 1, 100);
+        return Math.min(level - 1, config.maxLevel);
     }
 
     /**
      * 获取当前等级到下一级所需经验值
      */
-    static getExpToNextLevel(currentLevel: number, currentExp: number): number {
-        if (currentLevel >= 100) {
+    static getExpToNextLevel(currentLevel: number, currentExp: number, config: PlayerLevelConfig = DEFAULT_PLAYER_LEVEL_CONFIG): number {
+        if (currentLevel >= config.maxLevel) {
             return 0; // 已满级
         }
 
         const nextLevel = currentLevel + 1;
-        const expForNextLevel = this.getRequiredExpForLevel(nextLevel);
+        const expForNextLevel = this.getRequiredExpForLevel(nextLevel, config);
         
         // 计算当前等级已获得的经验值
         let expForCurrentLevel = 0;
         for (let i = 1; i < currentLevel; i++) {
-            expForCurrentLevel += this.getRequiredExpForLevel(i);
+            expForCurrentLevel += this.getRequiredExpForLevel(i, config);
         }
 
         const totalExpNeeded = expForCurrentLevel + expForNextLevel;
@@ -73,11 +75,7 @@ export class PlayerLevelService {
         try {
             const { uid, exp, source, sourceId } = params;
 
-            // 获取玩家信息（从 Tournament 模块的 players 表）
-            // 架构说明：
-            // - 如果 Tournament 和 TacticalMonster 在同一个 Convex 项目中，可以直接访问 players 表
-            // - 如果是独立部署，需要通过 HTTP 调用 Tournament 模块的更新端点
-            // 当前实现假设两个模块在同一个项目中，共享 players 表
+            // 获取玩家信息
             const player = await ctx.db
                 .query("players")
                 .withIndex("by_uid", (q: any) => q.eq("uid", uid))

@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { PlayerLevelService } from "./service/player/playerLevelService";
+import { getTournamentUrl } from "./config/tournamentConfig";
 import { RewardService } from "./service/reward/rewardService";
 
 const http = httpRouter();
@@ -72,64 +72,8 @@ http.route({
  * 玩家经验值奖励发放端点
  * 供 Tournament 模块调用
  */
-http.route({
-    path: "/grantPlayerExperience",
-    method: "POST",
-    handler: httpAction(async (ctx, request) => {
-        try {
-            const body = await request.json();
-            const { uid, exp, source, sourceId } = body;
-
-            // 参数验证
-            if (!uid || !exp || exp <= 0) {
-                return new Response(
-                    JSON.stringify({
-                        success: false,
-                        message: "缺少必要参数: uid, exp (必须大于0)",
-                    }),
-                    {
-                        status: 400,
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Access-Control-Allow-Origin": "*",
-                        },
-                    }
-                );
-            }
-
-            // 调用玩家等级服务
-            const result = await PlayerLevelService.addExperience(ctx, {
-                uid,
-                exp,
-                source: source || "reward",
-                sourceId,
-            });
-
-            return new Response(JSON.stringify(result), {
-                status: result.success ? 200 : 500,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-            });
-        } catch (error: any) {
-            console.error("发放玩家经验值失败:", error);
-            return new Response(
-                JSON.stringify({
-                    success: false,
-                    message: error.message || "发放经验值失败",
-                }),
-                {
-                    status: 500,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                }
-            );
-        }
-    }),
-});
+// 注意：玩家经验值相关端点已迁移到 Tournament 模块
+// /grantPlayerExperience 端点已删除，现在 Tournament 模块内部直接处理
 
 /**
  * 计算任务经验值端点
@@ -160,14 +104,22 @@ http.route({
                 );
             }
 
-            // 导入计算函数
-            const { calculateTaskExp } = await import("./service/player/playerExpCalculation");
+            // 注意：经验值计算已迁移到 Tournament 模块
+            // 通过 HTTP 调用 Tournament 模块的计算端点
+            const tournamentUrl = getTournamentUrl("/calculateTaskExp");
+            const response = await fetch(tournamentUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ taskType, taskDifficulty, taskRewardValue }),
+            });
 
-            const exp = calculateTaskExp(
-                taskType as "daily" | "weekly" | "achievement",
-                (taskDifficulty as "easy" | "medium" | "hard") || "medium",
-                taskRewardValue || 0
-            );
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const responseData = await response.json();
+            const exp = responseData.exp || 0;
 
             return new Response(
                 JSON.stringify({
@@ -231,14 +183,22 @@ http.route({
                 );
             }
 
-            // 导入计算函数
-            const { calculateTournamentExp } = await import("./service/player/playerExpCalculation");
+            // 注意：经验值计算已迁移到 Tournament 模块
+            // 通过 HTTP 调用 Tournament 模块的计算端点
+            const tournamentUrl = getTournamentUrl("/calculateTournamentExp");
+            const response = await fetch(tournamentUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rank, totalParticipants, tier }),
+            });
 
-            const exp = calculateTournamentExp(
-                rank,
-                totalParticipants,
-                tier || "bronze"
-            );
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const responseData = await response.json();
+            const exp = responseData.exp || 0;
 
             return new Response(
                 JSON.stringify({
@@ -285,10 +245,22 @@ http.route({
             const body = await request.json();
             const { activityMultiplier } = body;
 
-            // 导入计算函数
-            const { calculateActivityExp } = await import("./service/player/playerExpCalculation");
+            // 注意：经验值计算已迁移到 Tournament 模块
+            // 通过 HTTP 调用 Tournament 模块的计算端点
+            const tournamentUrl = getTournamentUrl("/calculateActivityExp");
+            const response = await fetch(tournamentUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ activityMultiplier }),
+            });
 
-            const exp = calculateActivityExp(activityMultiplier || 1.0);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const responseData = await response.json();
+            const exp = responseData.exp || 0;
 
             return new Response(
                 JSON.stringify({

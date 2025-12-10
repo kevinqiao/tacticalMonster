@@ -314,7 +314,6 @@ http.route({
         JSON.stringify({
           ok: true,
           coinRewards: rewardDecision.coinRewards,
-          grantResults: rewardDecision.grantResults,  // 金币发放结果
           chestTriggered: rewardDecision.chestTriggered,  // 宝箱触发决策
           rewardType: rewardDecision.rewardType,
         }),
@@ -1466,6 +1465,791 @@ export const verifyPlayerCreated = action({
       };
     }
   },
+});
+
+/**
+ * 计算宝箱类型预览（基于 Tier 和排名）
+ * 注意：这是预览值，实际宝箱类型在 Claim 时可能因槽位情况而不同
+ */
+function calculateChestTypePreview(tier: string, rank: number): string {
+  // 使用与 ChestService.selectChestType 相同的逻辑（简化版）
+  // 但使用预期值而非随机值，以便前端显示一致
+  if (rank === 1) {
+    // 第一名：返回最高概率的高级宝箱
+    if (tier === "platinum") return "orange";
+    if (tier === "gold") return "orange";
+    if (tier === "silver") return "purple";
+    return "gold";
+  } else if (rank <= 3) {
+    // Top3：返回中等概率的高级宝箱
+    if (tier === "platinum") return "purple";
+    if (tier === "gold") return "purple";
+    if (tier === "silver") return "gold";
+    return "gold";
+  } else {
+    // 其他排名：返回基础类型
+    if (tier === "platinum") return "purple";
+    if (tier === "gold") return "gold";
+    if (tier === "silver") return "silver";
+    return "silver";
+  }
+}
+
+/**
+ * 获取玩家锦标赛结算结果（用于前端显示）
+ * 返回结算后的奖励预览信息
+ */
+http.route({
+  path: "/getTournamentResult",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const url = new URL(request.url);
+      const uid = url.searchParams.get("uid");
+      const tournamentId = url.searchParams.get("tournamentId");
+
+      if (!uid || !tournamentId) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "缺少必要参数: uid, tournamentId"
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      }
+
+      // 1. 获取玩家锦标赛记录
+      const playerTournament = await ctx.runQuery(
+        internal.dao.tournamentDao.getPlayerTournament,
+        { uid, tournamentId }
+      );
+
+      if (!playerTournament) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "锦标赛记录不存在"
+        }), {
+          status: 404,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      }
+
+      // 2. 获取锦标赛信息
+      const tournament = await ctx.runQuery(
+        internal.dao.tournamentDao.getTournament,
+        { tournamentId }
+      );
+
+      // 导入 TournamentStatus
+      const { TournamentStatus } = await import("./service/tournament/common");
+
+      // 3. 构建响应数据
+      const rewards = playerTournament.rewards || {};
+      const chestInfo = rewards.chestInfo || {};
+
+      // 4. 计算宝箱类型预览（基于 Tier 和排名）
+      // 注意：这是预览，实际宝箱类型在 Claim 时根据槽位情况可能不同
+      let chestTypePreview: string | null = null;
+      if (chestInfo.chestTriggered) {
+        chestTypePreview = calculateChestTypePreview(chestInfo.tier, chestInfo.rank);
+      }
+
+      return new Response(JSON.stringify({
+        ok: true,
+        tournament: {
+          tournamentId: tournamentId,
+          name: (tournament as any)?.name || "锦标赛",
+          status: tournament?.status || "unknown",
+        },
+        playerResult: {
+          rank: playerTournament.rank || null,
+          score: playerTournament.score || 0,
+          status: playerTournament.status,  // SETTLED(2) | COLLECTED(3)
+          settledAt: (playerTournament as any).settledAt || null,
+          collectedAt: (playerTournament as any).collectedAt || null,
+        },
+        rewards: {
+          // 积分奖励（已计算，待领取）
+          rankPoints: rewards.rankPoints || 0,
+          seasonPoints: rewards.seasonPoints || 0,
+          prestigePoints: rewards.prestigePoints || 0,
+          achievementPoints: rewards.achievementPoints || 0,
+          tournamentPoints: rewards.tournamentPoints || 0,
+          // 金币奖励（待领取）
+          coins: rewards.coins || 0,
+          // 宝箱信息
+          chest: chestInfo.chestTriggered ? {
+            triggered: true,
+            tier: chestInfo.tier,
+            rank: chestInfo.rank,
+            chestTypePreview: chestTypePreview,  // 预览类型（可能与实际不同）
+            note: "宝箱类型预览，实际类型在领取时根据槽位情况确定"
+          } : {
+            triggered: false,
+          },
+        },
+        canClaim: playerTournament.status === TournamentStatus.SETTLED,  // 是否可以领取
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    } catch (error: any) {
+      console.error("获取锦标赛结果失败:", error);
+      return new Response(JSON.stringify({
+        ok: false,
+        error: error.message || "获取锦标赛结果失败"
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+  }),
+});
+
+/**
+ * 领取锦标赛奖励
+ * 玩家主动触发，发放金币和积分奖励，返回宝箱信息供游戏模块生成宝箱
+ */
+http.route({
+  path: "/claimTournamentRewards",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { uid, tournamentId } = body;
+
+      if (!uid || !tournamentId) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "缺少必要参数: uid, tournamentId"
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      }
+
+      // 1. 获取玩家锦标赛记录
+      const playerTournament = await ctx.runQuery(
+        internal.dao.tournamentDao.getPlayerTournament,
+        { uid, tournamentId }
+      );
+
+      if (!playerTournament) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "锦标赛记录不存在"
+        }), {
+          status: 404,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      }
+
+      // 导入 TournamentStatus
+      const { TournamentStatus } = await import("./service/tournament/common");
+
+      // 2. 检查状态
+      if (playerTournament.status !== TournamentStatus.SETTLED) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: playerTournament.status === TournamentStatus.COLLECTED
+            ? "奖励已领取"
+            : "奖励尚未结算"
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      }
+
+      // 3. 发放积分奖励（通过 collectRewards）
+      const { collectRewards } = await import("./service/tournament/common");
+      await collectRewards(ctx, playerTournament); // This now only grants points
+
+      // 4. 发放金币奖励（如果存在）
+      const rewards = playerTournament.rewards || {};
+      const coins = rewards.coins || 0;
+
+      if (coins > 0) {
+        const { RewardService } = await import("./service/reward/rewardService");
+        await RewardService.grantRewards(ctx, {
+          uid: uid,
+          rewards: {
+            coins: coins,
+          },
+          source: {
+            source: "tournament_reward",
+            sourceId: tournamentId,
+          },
+        });
+      }
+
+      // 5. 更新状态为已领取
+      await ctx.runMutation(
+        internal.dao.tournamentDao.markRewardsCollected,
+        { playerTournamentId: playerTournament._id }
+      );
+
+      // 6. 返回奖励信息（包括金币和宝箱触发决策）
+      const chestInfo = rewards.chestInfo || {};
+
+      return new Response(JSON.stringify({
+        ok: true,
+        rewards: {
+          coins: coins,
+          gems: 0,
+        },
+        chestTriggered: chestInfo.chestTriggered || false,
+        chestInfo: chestInfo.chestTriggered ? {
+          chestTriggered: true,
+          tier: chestInfo.tier,
+          rank: chestInfo.rank,
+          gameId: chestInfo.gameId,
+          matchId: chestInfo.matchId,
+        } : null,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    } catch (error: any) {
+      console.error("领取锦标赛奖励失败:", error);
+      return new Response(JSON.stringify({
+        ok: false,
+        error: error.message || "领取奖励失败"
+      }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+  }),
+});
+
+/**
+ * 玩家经验值奖励发放端点
+ * 供游戏模块调用
+ */
+http.route({
+  path: "/grantPlayerExperience",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { uid, exp, source, sourceId } = body;
+
+      // 参数验证
+      if (!uid || !exp || exp <= 0) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "缺少必要参数: uid, exp (必须大于0)",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      // 调用玩家等级服务
+      const { PlayerLevelService } = await import("./service/player/playerLevelService");
+      const result = await PlayerLevelService.addExperience(ctx, {
+        uid,
+        exp,
+        source: source || "reward",
+        sourceId,
+      });
+
+      return new Response(JSON.stringify(result), {
+        status: result.success ? 200 : 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch (error: any) {
+      console.error("发放玩家经验值失败:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: error.message || "发放经验值失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+/**
+ * 获取玩家等级信息端点
+ */
+http.route({
+  path: "/getPlayerLevelInfo",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const url = new URL(request.url);
+      const uid = url.searchParams.get("uid");
+
+      if (!uid) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "缺少必要参数: uid",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      const { PlayerLevelService } = await import("./service/player/playerLevelService");
+      const levelInfo = await PlayerLevelService.getPlayerLevelInfo(ctx, uid);
+
+      if (!levelInfo) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "玩家不存在",
+          }),
+          {
+            status: 404,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          ...levelInfo,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("获取玩家等级信息失败:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message || "获取等级信息失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+/**
+ * 计算任务经验值端点
+ */
+http.route({
+  path: "/calculateTaskExp",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { taskType, taskDifficulty, taskRewardValue } = body;
+
+      if (!taskType) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "缺少必要参数: taskType",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      const { calculateTaskExp } = await import("./service/player/calculation/taskExpCalculation");
+      const exp = calculateTaskExp(
+        taskType as "daily" | "weekly" | "achievement",
+        (taskDifficulty as "easy" | "medium" | "hard") || "medium",
+        taskRewardValue || 0
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          exp,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("计算任务经验值失败:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: error.message || "计算经验值失败",
+          exp: 0,
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+/**
+ * 计算锦标赛经验值端点
+ */
+http.route({
+  path: "/calculateTournamentExp",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { rank, totalParticipants, tier } = body;
+
+      if (!rank || !totalParticipants) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "缺少必要参数: rank, totalParticipants",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      const { calculateTournamentExp } = await import("./service/player/calculation/tournamentExpCalculation");
+      const exp = calculateTournamentExp(rank, totalParticipants, tier || "bronze");
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          exp,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("计算锦标赛经验值失败:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: error.message || "计算经验值失败",
+          exp: 0,
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+/**
+ * 计算活动经验值端点
+ */
+http.route({
+  path: "/calculateActivityExp",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { activityMultiplier } = body;
+
+      const { calculateActivityExp } = await import("./service/player/calculation/activityExpCalculation");
+      const exp = calculateActivityExp(activityMultiplier || 1.0);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          exp,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("计算活动经验值失败:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: error.message || "计算经验值失败",
+          exp: 0,
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+/**
+ * 获取玩家能量端点
+ */
+http.route({
+  path: "/getPlayerEnergy",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const url = new URL(request.url);
+      const uid = url.searchParams.get("uid");
+
+      if (!uid) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "缺少必要参数: uid",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      const { EnergyService } = await import("./service/resource/energyService");
+      const energy = await EnergyService.getPlayerEnergy(ctx, uid);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          energy: {
+            current: energy.current,
+            max: energy.max,
+            lastRegenAt: energy.lastRegenAt,
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("获取玩家能量失败:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message || "获取能量失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+/**
+ * 消耗能量端点
+ */
+http.route({
+  path: "/consumeEnergy",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { uid, amount } = body;
+
+      if (!uid || !amount || amount <= 0) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "缺少必要参数: uid, amount (必须大于0)",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      const { EnergyService } = await import("./service/resource/energyService");
+      const success = await EnergyService.consumeEnergy(ctx, uid, amount);
+
+      if (!success) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "能量不足",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `成功消耗 ${amount} 能量`,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("消耗能量失败:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message || "消耗能量失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
+});
+
+/**
+ * 添加能量端点（通过奖励系统）
+ */
+http.route({
+  path: "/addEnergy",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    try {
+      const body = await request.json();
+      const { uid, amount, source, sourceId } = body;
+
+      if (!uid || !amount || amount <= 0) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "缺少必要参数: uid, amount (必须大于0)",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      const { EnergyService } = await import("./service/resource/energyService");
+      const result = await EnergyService.addEnergy(ctx, {
+        uid,
+        amount,
+        source: source || "reward",
+        sourceId,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: result.ok,
+          message: result.ok ? `成功添加 ${amount} 能量` : "添加能量失败",
+        }),
+        {
+          status: result.ok ? 200 : 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error: any) {
+      console.error("添加能量失败:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: error.message || "添加能量失败",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }),
 });
 
 // Convex expects the router to be the default export of `convex/http.js`.

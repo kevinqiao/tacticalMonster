@@ -546,8 +546,8 @@ export class TacticalMonsterGameManager {
 
         // 异步处理 Battle Pass 和任务事件（不阻塞游戏结束流程）
         if (participants.length > 0) {
-            const { BattlePassIntegration } = await import("../battlePass/battlePassIntegration");
-            const { calculateMonsterRumblePoints } = await import("../battlePass/battlePassPoints");
+            // 注意：Battle Pass 积分现在通过 Tournament 模块在结算时统一处理
+            // 这里只处理任务事件
             const { TaskIntegration } = await import("../task/taskIntegration");
 
             // 异步处理，不阻塞

@@ -3,8 +3,8 @@
  * 管理关卡配置的查询和创建
  */
 
-import { getBossConfig } from "../../data/bossConfigs";
 import { generateDefaultLevelConfig, toDatabaseLevelConfig } from "../../data/levelConfigs";
+import { BossConfigService } from "../boss/bossConfigService";
 
 export class LevelConfigService {
     /**
@@ -29,7 +29,8 @@ export class LevelConfigService {
         }
 
         // 生成新配置（基于Tier和Boss难度）
-        const bossConfig = getBossConfig(bossId);
+        // 使用合并后的配置获取难度信息
+        const bossConfig = BossConfigService.getMergedBossConfig(bossId);
         if (!bossConfig) {
             throw new Error(`Boss配置不存在: ${bossId}`);
         }

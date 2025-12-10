@@ -2,11 +2,10 @@
  * Tier 奖励服务
  * 处理游戏奖励分配和宝箱触发判断
  */
-import { RewardService } from "../reward/rewardService";
-
 export class TierRewardService {
     /**
-     * 处理游戏奖励（包括金币发放和宝箱触发判断）
+     * 处理游戏奖励（只计算，不发放）
+     * 奖励将在玩家主动 claim 时发放
      */
     static async processGameRewards(ctx: any, params: {
         tier: string;
@@ -25,41 +24,15 @@ export class TierRewardService {
             tierConfig = this.getDefaultTierConfig(params.tier);
         }
 
-        // 2. 分配并发放 Top3 金币奖励（直接更新数据库）
+        // 2. 计算 Top3 金币奖励（不发放，只返回计算结果）
         const top3Rewards = tierConfig.top3Rewards || {};
         const coinRewards: Record<string, number> = {};
-        const grantResults: Array<{ uid: string; success: boolean; coins?: number }> = [];
 
         for (const player of params.rankings) {
             if (player.rank <= 3 && top3Rewards[player.rank]) {
                 const coins = top3Rewards[player.rank];
                 coinRewards[player.uid] = coins;
-
-                // 直接发放金币奖励
-                try {
-                    const result = await RewardService.grantRewards(ctx, {
-                        uid: player.uid,
-                        rewards: {
-                            coins: coins,
-                        },
-                        source: {
-                            source: "tier_reward",
-                            sourceId: params.gameId,
-                        },
-                    });
-
-                    grantResults.push({
-                        uid: player.uid,
-                        success: result.success,
-                        coins: result.grantedRewards?.coins,
-                    });
-                } catch (error: any) {
-                    console.error(`发放金币奖励失败 [uid: ${player.uid}, coins: ${coins}]:`, error);
-                    grantResults.push({
-                        uid: player.uid,
-                        success: false,
-                    });
-                }
+                // ❌ 移除立即发放的逻辑
             }
         }
 
@@ -73,12 +46,12 @@ export class TierRewardService {
             chestTriggered[player.uid] = shouldTrigger;
         });
 
-        // 4. 返回奖励决策（包含发放结果和宝箱触发决策）
+        // 4. 返回奖励决策（只计算，不发放）
         return {
-            coinRewards: coinRewards,  // 保留用于日志和返回信息
-            grantResults: grantResults,  // 发放结果详情
-            chestTriggered: chestTriggered,  // 宝箱触发决策：只告诉"是否触发"，不告诉"触发什么"
+            coinRewards: coinRewards,
+            chestTriggered: chestTriggered,
             rewardType: Object.values(chestTriggered).some(v => v) ? "both" : "coins",
+            // ❌ 移除 grantResults
         };
     }
 

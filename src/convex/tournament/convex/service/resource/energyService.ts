@@ -1,29 +1,32 @@
 /**
  * 能量服务
- * 负责能量管理（游戏特定资源）
+ * 负责能量管理（跨游戏通用资源）
  */
 export class EnergyService {
+    private static readonly DEFAULT_MAX_ENERGY = 130;
+    private static readonly REGEN_INTERVAL_MINUTES = 3; // 每3分钟恢复1点
+
     /**
-     * 获取玩家能量
+     * 获取玩家能量（包含自动恢复计算）
      */
     static async getPlayerEnergy(ctx: any, uid: string) {
         let energy = await ctx.db
-            .query("mr_player_energy")
+            .query("player_energy")
             .withIndex("by_uid", (q: any) => q.eq("uid", uid))
             .first();
 
         if (!energy) {
             // 创建默认能量记录
             const now = new Date().toISOString();
-            await ctx.db.insert("mr_player_energy", {
+            await ctx.db.insert("player_energy", {
                 uid,
-                current: 130,  // 默认能量上限
-                max: 130,
+                current: this.DEFAULT_MAX_ENERGY,  // 默认能量上限
+                max: this.DEFAULT_MAX_ENERGY,
                 lastRegenAt: now,
                 updatedAt: now,
             });
             energy = await ctx.db
-                .query("mr_player_energy")
+                .query("player_energy")
                 .withIndex("by_uid", (q: any) => q.eq("uid", uid))
                 .first();
         }
@@ -32,7 +35,7 @@ export class EnergyService {
         const lastRegenTime = new Date(energy.lastRegenAt).getTime();
         const now = Date.now();
         const elapsedMinutes = Math.floor((now - lastRegenTime) / (1000 * 60));
-        const regenAmount = Math.floor(elapsedMinutes / 3);  // 每3分钟恢复1点
+        const regenAmount = Math.floor(elapsedMinutes / this.REGEN_INTERVAL_MINUTES);  // 每3分钟恢复1点
 
         if (regenAmount > 0 && energy.current < energy.max) {
             const newCurrent = Math.min(energy.current + regenAmount, energy.max);
@@ -92,6 +95,14 @@ export class EnergyService {
         });
 
         return { ok: true };
+    }
+
+    /**
+     * 检查是否有足够能量
+     */
+    static async canAffordEnergy(ctx: any, uid: string, amount: number): Promise<boolean> {
+        const energy = await this.getPlayerEnergy(ctx, uid);
+        return energy.current >= amount;
     }
 }
 

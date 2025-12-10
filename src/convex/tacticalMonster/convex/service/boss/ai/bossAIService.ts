@@ -3,14 +3,14 @@
  * 主AI决策服务，整合所有AI组件
  */
 
-import { PhaseManager } from "./phaseManager";
-import { BehaviorTreeExecutor, ExecutionContext } from "./behaviorTreeExecutor";
-import { TargetSelector, TargetCharacter } from "./targetSelector";
-import { ConditionEvaluator, GameState, BossState } from "./conditionEvaluator";
-import { SeededRandom } from "../../../utils/seededRandom";
 import { hexDistance } from "../../../utils/hexUtils";
+import { SeededRandom } from "../../../utils/seededRandom";
 import { BossConfigService } from "../bossConfigService";
 import { BossInstanceService } from "../bossInstanceService";
+import { BehaviorTreeExecutor, ExecutionContext } from "./behaviorTreeExecutor";
+import { BossState, GameState } from "./conditionEvaluator";
+import { PhaseManager } from "./phaseManager";
+import { TargetCharacter, TargetSelector } from "./targetSelector";
 
 export interface BossAction {
     type: "use_skill" | "attack" | "move" | "standby";
@@ -52,7 +52,8 @@ export class BossAIService {
             throw new Error(`Boss实例不存在: ${params.bossInstanceId}`);
         }
 
-        const bossConfig = BossConfigService.getBossConfig(bossInstance.bossId);
+        // 使用合并后的配置（包含从 characterId 继承的属性）
+        const bossConfig = BossConfigService.getMergedBossConfig(bossInstance.bossId);
         if (!bossConfig) {
             throw new Error(`Boss配置不存在: ${bossInstance.bossId}`);
         }

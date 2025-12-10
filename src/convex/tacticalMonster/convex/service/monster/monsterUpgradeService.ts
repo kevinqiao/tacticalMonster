@@ -5,7 +5,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
-import { ResourceProxyService } from "../resource/resourceProxyService";
+import { TournamentProxyService } from "../tournament/tournamentProxyService";
 import { MonsterService } from "./monsterService";
 import { ShardService } from "./shardService";
 
@@ -150,8 +150,8 @@ export class MonsterUpgradeService {
         // 4. 计算升级费用
         const cost = this.calculateLevelUpCost(monster.level, targetLevel);
 
-        // 5. 扣除金币（通过 ResourceProxyService）
-        await ResourceProxyService.deductCoins(ctx, {
+        // 5. 扣除金币（通过 TournamentProxyService）
+        await TournamentProxyService.deductCoins(ctx, {
             uid,
             coins: cost,
             source: "monster_level_up",
@@ -165,19 +165,27 @@ export class MonsterUpgradeService {
             level: targetLevel,
         });
 
-        // 7. 添加 Battle Pass 积分
-        const { BattlePassIntegration } = await import("../battlePass/battlePassIntegration");
+        // 7. 添加 Battle Pass 积分（通过统一奖励服务）
+        const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
         const { calculateUpgradePoints } = await import("../battlePass/battlePassPoints");
 
         const upgradePoints = calculateUpgradePoints(config.rarity, targetLevel);
-        BattlePassIntegration.addGameSeasonPoints(ctx, {
+        TournamentProxyService.grantRewards({
             uid,
-            amount: upgradePoints,
+            rewards: {
+                seasonPoints: upgradePoints,
+            },
             source: "tacticalMonster:monster_upgrade",
-            sourceDetails: {
-                monsterId: monsterId,
+            sourceId: monsterId,
+            gameType: "tacticalMonster",
+            metadata: {
                 oldLevel: monster.level,
                 newLevel: targetLevel,
+                sourceDetails: {
+                    monsterId: monsterId,
+                    oldLevel: monster.level,
+                    newLevel: targetLevel,
+                },
             },
         }).catch((error) => {
             console.error(`为玩家 ${uid} 添加升级积分失败:`, error);
@@ -231,7 +239,7 @@ export class MonsterUpgradeService {
         }
 
         // 6. 扣除金币
-        await ResourceProxyService.deductCoins(ctx, {
+        await TournamentProxyService.deductCoins(ctx, {
             uid,
             coins: coinCost,
             source: "monster_star_up",
@@ -254,19 +262,27 @@ export class MonsterUpgradeService {
             shards: monster.shards - shardRequirement,
         });
 
-        // 9. 添加 Battle Pass 积分
-        const { BattlePassIntegration } = await import("../battlePass/battlePassIntegration");
+        // 9. 添加 Battle Pass 积分（通过统一奖励服务）
+        const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
         const { calculateStarUpPoints } = await import("../battlePass/battlePassPoints");
 
         const starUpPoints = calculateStarUpPoints(config.rarity, targetStar);
-        BattlePassIntegration.addGameSeasonPoints(ctx, {
+        TournamentProxyService.grantRewards({
             uid,
-            amount: starUpPoints,
+            rewards: {
+                seasonPoints: starUpPoints,
+            },
             source: "tacticalMonster:monster_star_up",
-            sourceDetails: {
-                monsterId: monsterId,
+            sourceId: monsterId,
+            gameType: "tacticalMonster",
+            metadata: {
                 oldStars: monster.stars,
                 newStars: targetStar,
+                sourceDetails: {
+                    monsterId: monsterId,
+                    oldStars: monster.stars,
+                    newStars: targetStar,
+                },
             },
         }).catch((error) => {
             console.error(`为玩家 ${uid} 添加升星积分失败:`, error);

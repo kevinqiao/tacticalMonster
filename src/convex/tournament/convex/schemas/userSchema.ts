@@ -4,7 +4,7 @@ import { v } from "convex/values";
 // 用户系统相关表
 export const userSchema = {
     // 玩家表 - 用户基础信息和认证信息
-    // 注意：金币存储在 player_inventory 表中，等级和经验值由游戏模块管理
+    // 注意：金币存储在 player_inventory 表中，等级和经验值由 Tournament 模块统一管理
     players: defineTable({
         uid: v.string(),
         token: v.optional(v.string()),
@@ -16,6 +16,9 @@ export const userSchema = {
         subscriptionExpiry: v.optional(v.string()),
         lastActive: v.optional(v.string()),
         expire: v.optional(v.number()),
+        // 玩家等级系统（跨游戏通用）
+        level: v.optional(v.number()), // 玩家等级（默认1）
+        exp: v.optional(v.number()), // 玩家总经验值（默认0）
         createdAt: v.optional(v.string()),
         updatedAt: v.optional(v.string()),
     }).index("by_uid", ["uid"]).index("by_email", ["email"]),
@@ -105,6 +108,15 @@ export const userSchema = {
             quantity: v.number(),
         }))),
         createdAt: v.string(),
+        updatedAt: v.string(),
+    }).index("by_uid", ["uid"]),
+
+    // 玩家能量表 - 存储玩家的能量信息（独立表，因为有恢复逻辑）
+    player_energy: defineTable({
+        uid: v.string(),
+        current: v.number(), // 当前能量值
+        max: v.number(), // 最大能量值（默认130）
+        lastRegenAt: v.string(), // 上次恢复时间
         updatedAt: v.string(),
     }).index("by_uid", ["uid"]),
 }; 

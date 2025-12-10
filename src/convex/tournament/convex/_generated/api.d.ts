@@ -14,7 +14,6 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as activities from "../activities.js";
-import type * as api_levelGeneration from "../api/levelGeneration.js";
 import type * as crons from "../crons.js";
 import type * as custom_session from "../custom/session.js";
 import type * as dao_notificationDao from "../dao/notificationDao.js";
@@ -59,6 +58,16 @@ import type * as service_localization_localizationManager from "../service/local
 import type * as service_localization_messageCodes from "../service/localization/messageCodes.js";
 import type * as service_localization_messageHandler from "../service/localization/messageHandler.js";
 import type * as service_match from "../service/match.js";
+import type * as service_player_calculation_activityExpCalculation from "../service/player/calculation/activityExpCalculation.js";
+import type * as service_player_calculation_dailyLimitConfig from "../service/player/calculation/dailyLimitConfig.js";
+import type * as service_player_calculation_dailyLimitService from "../service/player/calculation/dailyLimitService.js";
+import type * as service_player_calculation_expRewardConfig from "../service/player/calculation/expRewardConfig.js";
+import type * as service_player_calculation_index from "../service/player/calculation/index.js";
+import type * as service_player_calculation_taskExpCalculation from "../service/player/calculation/taskExpCalculation.js";
+import type * as service_player_calculation_tournamentExpCalculation from "../service/player/calculation/tournamentExpCalculation.js";
+import type * as service_player_playerLevel from "../service/player/playerLevel.js";
+import type * as service_player_playerLevelConfig from "../service/player/playerLevelConfig.js";
+import type * as service_player_playerLevelService from "../service/player/playerLevelService.js";
 import type * as service_playerManager from "../service/playerManager.js";
 import type * as service_ranking_index from "../service/ranking/index.js";
 import type * as service_ranking_managers_RankingRecommendationManagerOptimized from "../service/ranking/managers/RankingRecommendationManagerOptimized.js";
@@ -86,7 +95,9 @@ import type * as service_ranking_managers_utils_PlayerProfileGenerator from "../
 import type * as service_ranking_managers_utils_RankingCalculator from "../service/ranking/managers/utils/RankingCalculator.js";
 import type * as service_ranking_managers_utils_ReasoningGenerator from "../service/ranking/managers/utils/ReasoningGenerator.js";
 import type * as service_recordLogin from "../service/recordLogin.js";
+import type * as service_resource_energyService from "../service/resource/energyService.js";
 import type * as service_reward_rewardHandlers_coinRewardHandler from "../service/reward/rewardHandlers/coinRewardHandler.js";
+import type * as service_reward_rewardHandlers_energyRewardHandler from "../service/reward/rewardHandlers/energyRewardHandler.js";
 import type * as service_reward_rewardHandlers_gameSpecificRewardHandler from "../service/reward/rewardHandlers/gameSpecificRewardHandler.js";
 import type * as service_reward_rewardHandlers_gemRewardHandler from "../service/reward/rewardHandlers/gemRewardHandler.js";
 import type * as service_reward_rewardHandlers_playerExpRewardHandler from "../service/reward/rewardHandlers/playerExpRewardHandler.js";
@@ -110,7 +121,6 @@ import type * as service_tournament_errorCodes from "../service/tournament/error
 import type * as service_tournament_errorHandler from "../service/tournament/errorHandler.js";
 import type * as service_tournament_handler_base from "../service/tournament/handler/base.js";
 import type * as service_tournament_handler_index from "../service/tournament/handler/index.js";
-import type * as service_tournament_handler_singlePlayerIndependentTournamentHandler from "../service/tournament/handler/singlePlayerIndependentTournamentHandler.js";
 import type * as service_tournament_handler_validator from "../service/tournament/handler/validator.js";
 import type * as service_tournament_matchManager from "../service/tournament/matchManager.js";
 import type * as service_tournament_playerTournamentStatusManager from "../service/tournament/playerTournamentStatusManager.js";
@@ -147,7 +157,6 @@ import type * as util_TimeZoneUtilsExamples from "../util/TimeZoneUtilsExamples.
  */
 declare const fullApi: ApiFromModules<{
   activities: typeof activities;
-  "api/levelGeneration": typeof api_levelGeneration;
   crons: typeof crons;
   "custom/session": typeof custom_session;
   "dao/notificationDao": typeof dao_notificationDao;
@@ -192,6 +201,16 @@ declare const fullApi: ApiFromModules<{
   "service/localization/messageCodes": typeof service_localization_messageCodes;
   "service/localization/messageHandler": typeof service_localization_messageHandler;
   "service/match": typeof service_match;
+  "service/player/calculation/activityExpCalculation": typeof service_player_calculation_activityExpCalculation;
+  "service/player/calculation/dailyLimitConfig": typeof service_player_calculation_dailyLimitConfig;
+  "service/player/calculation/dailyLimitService": typeof service_player_calculation_dailyLimitService;
+  "service/player/calculation/expRewardConfig": typeof service_player_calculation_expRewardConfig;
+  "service/player/calculation/index": typeof service_player_calculation_index;
+  "service/player/calculation/taskExpCalculation": typeof service_player_calculation_taskExpCalculation;
+  "service/player/calculation/tournamentExpCalculation": typeof service_player_calculation_tournamentExpCalculation;
+  "service/player/playerLevel": typeof service_player_playerLevel;
+  "service/player/playerLevelConfig": typeof service_player_playerLevelConfig;
+  "service/player/playerLevelService": typeof service_player_playerLevelService;
   "service/playerManager": typeof service_playerManager;
   "service/ranking/index": typeof service_ranking_index;
   "service/ranking/managers/RankingRecommendationManagerOptimized": typeof service_ranking_managers_RankingRecommendationManagerOptimized;
@@ -219,7 +238,9 @@ declare const fullApi: ApiFromModules<{
   "service/ranking/managers/utils/RankingCalculator": typeof service_ranking_managers_utils_RankingCalculator;
   "service/ranking/managers/utils/ReasoningGenerator": typeof service_ranking_managers_utils_ReasoningGenerator;
   "service/recordLogin": typeof service_recordLogin;
+  "service/resource/energyService": typeof service_resource_energyService;
   "service/reward/rewardHandlers/coinRewardHandler": typeof service_reward_rewardHandlers_coinRewardHandler;
+  "service/reward/rewardHandlers/energyRewardHandler": typeof service_reward_rewardHandlers_energyRewardHandler;
   "service/reward/rewardHandlers/gameSpecificRewardHandler": typeof service_reward_rewardHandlers_gameSpecificRewardHandler;
   "service/reward/rewardHandlers/gemRewardHandler": typeof service_reward_rewardHandlers_gemRewardHandler;
   "service/reward/rewardHandlers/playerExpRewardHandler": typeof service_reward_rewardHandlers_playerExpRewardHandler;
@@ -243,7 +264,6 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/errorHandler": typeof service_tournament_errorHandler;
   "service/tournament/handler/base": typeof service_tournament_handler_base;
   "service/tournament/handler/index": typeof service_tournament_handler_index;
-  "service/tournament/handler/singlePlayerIndependentTournamentHandler": typeof service_tournament_handler_singlePlayerIndependentTournamentHandler;
   "service/tournament/handler/validator": typeof service_tournament_handler_validator;
   "service/tournament/matchManager": typeof service_tournament_matchManager;
   "service/tournament/playerTournamentStatusManager": typeof service_tournament_playerTournamentStatusManager;

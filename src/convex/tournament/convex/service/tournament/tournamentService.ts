@@ -33,12 +33,9 @@ export class TournamentService {
 
         // 1. 如果需要生成动态关卡，先生成
         if (generateDynamicLevels) {
-            // 动态导入并直接调用 handler 函数
-            const levelGenerationModule = await import("../../api/levelGeneration");
-            if (levelGenerationModule.generateAllActiveLevelsHandler) {
-                // 直接调用 handler 函数，避免通过 mutation 调用
-                await levelGenerationModule.generateAllActiveLevelsHandler(ctx, { replaceExisting });
-            }
+            // 直接调用 Service 层方法
+            const { SoloChallengeLevelService } = await import("./SoloChallengeLevelService");
+            await SoloChallengeLevelService.generateAllActiveLevels(ctx, replaceExisting);
         }
 
         // 2. 清理现有配置（如果替换）

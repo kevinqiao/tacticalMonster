@@ -27,7 +27,7 @@ export class GameSpecificRewardHandler {
         rewards: {
             monsters?: Array<{ monsterId: string; level?: number; stars?: number }>;
             monsterShards?: Array<{ monsterId: string; quantity: number }>;
-            energy?: number;
+            // 注意：energy 已移除，现在由 EnergyRewardHandler 统一处理
         };
         source: string;
         sourceId?: string;
@@ -36,7 +36,7 @@ export class GameSpecificRewardHandler {
             // 如果游戏类型是 TacticalMonster，需要通过 HTTP 调用
             if (params.gameType === "tacticalMonster") {
                 const tacticalMonsterUrl = this.getTacticalMonsterUrl();
-                
+
                 // 通过 HTTP 调用 TacticalMonster 模块
                 const response = await fetch(
                     `${tacticalMonsterUrl}/grantGameSpecificRewards`,
@@ -60,7 +60,7 @@ export class GameSpecificRewardHandler {
                 }
 
                 const result = await response.json();
-                
+
                 if (!result.success) {
                     return {
                         success: false,

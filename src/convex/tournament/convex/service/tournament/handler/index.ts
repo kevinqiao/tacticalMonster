@@ -1,6 +1,5 @@
 
 import { baseHandler } from "./base";
-import { singlePlayerIndependentTournamentHandler } from "./singlePlayerIndependentTournamentHandler";
 
 /**
  * 锦标赛处理器映射
@@ -9,10 +8,11 @@ import { singlePlayerIndependentTournamentHandler } from "./singlePlayerIndepend
 const HANDLER_MAP: Record<string, any> = {
   // Best of Series 锦标赛
 
-  // 独立锦标赛 - 统一使用independentTournamentHandler
-  "single_player_tournament": singlePlayerIndependentTournamentHandler,
-  "independent_tournament": singlePlayerIndependentTournamentHandler,
-  "single_player_threshold_tournament": singlePlayerIndependentTournamentHandler,
+  // 独立锦标赛 - 统一使用 baseHandler
+  // 注意：单人独立锦标赛目前使用 baseHandler，未来如需特殊逻辑可创建专门的 handler
+  "single_player_tournament": baseHandler,
+  "independent_tournament": baseHandler,
+  "single_player_threshold_tournament": baseHandler,
 };
 
 /**
@@ -24,8 +24,7 @@ export function getHandler(tournamentType: string): any {
   const handler = HANDLER_MAP[tournamentType];
   if (!handler) {
     console.warn(`未找到锦标赛类型 ${tournamentType} 的处理器，使用默认处理器`);
-    return baseHandler
-    // return singlePlayerIndependentTournamentHandler; // 默认使用独立锦标赛处理器
+    return baseHandler;
   }
   return handler;
 }
@@ -114,6 +113,6 @@ export function getHandlerCategories(): Record<string, string[]> {
 
 // 导出所有处理器
 export {
-  singlePlayerIndependentTournamentHandler
+  baseHandler
 };
 

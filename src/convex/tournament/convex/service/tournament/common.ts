@@ -497,10 +497,29 @@ export async function settleTournament(ctx: any, tournamentId: string) {
 
     console.log(`开始结算锦标赛 ${tournamentId}，共 ${playerTournaments.length} 名参与者`);
 
+    // 获取 Tier 配置（用于计算奖励）
+    const tier = tournament.tier || tournament.segment || "bronze";
+    const { TierRewardService } = await import("./tierRewardService");
+
+    // 准备排名数据
+    const rankings = playerTournaments.map((pt: any, index: number) => ({
+        uid: pt.uid,
+        rank: index + 1,
+        score: pt.score || 0,
+    }));
+
+    // 计算奖励决策（不发放）
+    const rewardDecision = await TierRewardService.processGameRewards(ctx, {
+        tier: tier,
+        rankings: rankings,
+        gameId: `tournament_${tournamentId}`,
+    });
+
     // 计算排名并分配积分
     for (let i = 0; i < playerTournaments.length; i++) {
         const playerTournament = playerTournaments[i];
         const rank = i + 1;
+        const uid = playerTournament.uid;
 
         try {
             // 使用新的积分系统计算各类积分
@@ -514,18 +533,27 @@ export async function settleTournament(ctx: any, tournamentId: string) {
             });
 
             if (tournamentPoints.success) {
-                // 更新玩家锦标赛记录：只保存结算结果，不发放奖励
-                // 奖励将在玩家主动 claim 时通过 collectRewards 发放
+                // 保存所有奖励信息（包括金币和宝箱）
                 await ctx.db.patch(playerTournament._id, {
                     rank,
                     status: TournamentStatus.SETTLED,
-                    rewards: tournamentPoints.points,
+                    rewards: {
+                        ...tournamentPoints.points,
+                        coins: rewardDecision.coinRewards[uid] || 0, // 待发放的金币数量
+                        chestInfo: {
+                            chestTriggered: rewardDecision.chestTriggered[uid] || false,
+                            tier: tier,
+                            rank: rank,
+                            gameId: `tournament_${tournamentId}`,
+                            matchId: tournament.matchId || null,
+                        }
+                    },
                     settledAt: new Date().toISOString()
                 });
 
-                // 记录积分计算日志
-                console.log(`玩家 ${playerTournament.uid} 排名 ${rank}，积分计算完成并已保存到 player_tournaments:`, tournamentPoints.points);
-                // 注意：不在这里更新玩家积分统计，等待玩家主动 claim 时才发放
+                // 记录奖励计算日志
+                console.log(`玩家 ${playerTournament.uid} 排名 ${rank}，奖励计算完成并已保存到 player_tournaments`);
+                // 注意：不在这里发放奖励，等待玩家主动 claim 时才发放
 
             } else {
                 throw new Error(tournamentPoints.message || "积分计算失败");
@@ -543,7 +571,15 @@ export async function settleTournament(ctx: any, tournamentId: string) {
                     seasonPoints: 0,
                     prestigePoints: 0,
                     achievementPoints: 0,
-                    tournamentPoints: 0
+                    tournamentPoints: 0,
+                    coins: rewardDecision.coinRewards[uid] || 0,
+                    chestInfo: {
+                        chestTriggered: rewardDecision.chestTriggered[uid] || false,
+                        tier: tier,
+                        rank: rank,
+                        gameId: `tournament_${tournamentId}`,
+                        matchId: tournament.matchId || null,
+                    }
                 },
                 settledAt: new Date().toISOString(),
                 error: error instanceof Error ? error.message : "未知错误"

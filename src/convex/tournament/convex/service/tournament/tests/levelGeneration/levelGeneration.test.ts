@@ -292,7 +292,7 @@ export const testRegisterLevels = internalMutation({
             // 步骤3: 注册关卡到数据库
             console.log("\n[步骤3] 注册关卡到数据库...");
             steps.push("步骤3: 注册关卡到数据库");
-            const result = await ctx.runMutation(internal.api.levelGeneration.generateAndRegisterLevels, {
+            const result = await ctx.runMutation(internal.service.tournament.SoloChallengeLevelService.generateAndRegisterLevels, {
                 ruleId,
                 replaceExisting,
             }) as {
@@ -475,7 +475,7 @@ export const testBatchGeneration = internalMutation({
                     allGeneratedTypeIds.push(...typeIds);
 
                     // 注册关卡
-                    const result = await ctx.runMutation(internal.api.levelGeneration.generateAndRegisterLevels, {
+                    const result = await ctx.runMutation(internal.service.tournament.SoloChallengeLevelService.generateAndRegisterLevels, {
                         ruleId,
                         replaceExisting,
                     });
@@ -604,7 +604,7 @@ export const testFullIntegration = internalMutation({
             // 步骤4: 注册到数据库
             console.log("\n[步骤4] 注册到数据库...");
             steps.push("步骤4: 注册到数据库");
-            const registerResult = await ctx.runMutation(internal.api.levelGeneration.generateAndRegisterLevels, {
+            const registerResult = await ctx.runMutation(internal.service.tournament.SoloChallengeLevelService.generateAndRegisterLevels, {
                 ruleId,
                 replaceExisting: false,
             });

@@ -36,7 +36,8 @@ export class LevelGenerationService {
     ): Promise<GeneratedLevel> {
         // 1. 确定Boss
         const selectedBossId = bossId || this.selectRandomBossByTier(tier, seed);
-        const bossConfig = BossConfigService.getBossConfig(selectedBossId);
+        // 使用合并后的配置（包含从 characterId 继承的属性）
+        const bossConfig = BossConfigService.getMergedBossConfig(selectedBossId);
         if (!bossConfig) {
             throw new Error(`Boss配置不存在: ${selectedBossId}`);
         }
@@ -53,7 +54,12 @@ export class LevelGenerationService {
         const mapData = await this.generateMap(ctx, levelConfig, seed);
 
         // 4. 确定Boss组合初始位置
-        const bossPositions = this.generateBossPositions(levelConfig, bossConfig, seed);
+        // 注意：这里使用原始BossConfig即可，因为只需要minions信息
+        const rawBossConfig = BossConfigService.getBossConfig(selectedBossId);
+        if (!rawBossConfig) {
+            throw new Error(`Boss配置不存在: ${selectedBossId}`);
+        }
+        const bossPositions = this.generateBossPositions(levelConfig, rawBossConfig, seed);
 
         // 5. 返回完整关卡数据
         return {

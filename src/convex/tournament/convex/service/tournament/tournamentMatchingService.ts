@@ -34,8 +34,46 @@ export class TournamentMatchingService {
         const { tournamentId, typeId, uid } = params;
         try {
 
+            // 1. 查询锦标赛类型配置
+            const tournamentType = await ctx.db.query("tournament_types")
+                .withIndex("by_typeId", (q: any) => q.eq("typeId", typeId))
+                .first();
 
-            // 1. 检查是否已在队列中
+            if (!tournamentType) {
+                return {
+                    success: false,
+                    error: "锦标赛类型不存在",
+                    message: `锦标赛类型不存在: ${typeId}`
+                };
+            }
+
+            // 2. 验证玩家等级（Tournament 模块直接访问 players 表）
+            if (tournamentType.entryRequirements?.minLevel !== undefined) {
+                const player = await ctx.db.query("players")
+                    .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+                    .first();
+
+                if (!player) {
+                    return {
+                        success: false,
+                        error: "玩家不存在",
+                        message: "玩家不存在或获取等级信息失败"
+                    };
+                }
+
+                const playerLevel = player.level || 1;
+                const minLevel = tournamentType.entryRequirements.minLevel;
+
+                if (playerLevel < minLevel) {
+                    return {
+                        success: false,
+                        error: "等级不足",
+                        message: `需要玩家等级 ${minLevel}，当前 ${playerLevel}`
+                    };
+                }
+            }
+
+            // 3. 检查是否已在队列中
             const existingQueue = await ctx.db.query("matchingQueue").withIndex("by_uid", (q: any) => q.eq("uid", uid)).first();
 
             if (existingQueue) {

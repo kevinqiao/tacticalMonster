@@ -33,6 +33,8 @@ export interface ExpectedLevelConfig {
 
 /**
  * Bronze Tier 预期的关卡配置
+ * Boss 分配：round_robin 模式，bossPool = ["boss_bronze_1", "boss_bronze_2"]
+ * 难度倍数：[1.0, 1.1, 1.2, 1.3, 1.5]
  */
 export const EXPECTED_BRONZE_LEVELS: ExpectedLevelConfig[] = [
     {
@@ -89,6 +91,195 @@ export const EXPECTED_BRONZE_LEVELS: ExpectedLevelConfig[] = [
         hasRankRewards: false,
         previousLevels: ["monster_rumble_challenge_bronze_boss_4"],
         nextLevels: ["monster_rumble_challenge_silver_boss_1"],
+    },
+];
+
+/**
+ * Silver Tier 预期的关卡配置
+ * Boss 分配：round_robin 模式，bossPool = ["boss_silver_1", "boss_silver_2"]
+ * 难度倍数：[1.1, 1.2, 1.3, 1.4, 1.6]
+ */
+export const EXPECTED_SILVER_LEVELS: ExpectedLevelConfig[] = [
+    {
+        typeId: "monster_rumble_challenge_silver_boss_1",
+        name: "白银挑战 - Boss 1",
+        levelNumber: 1,
+        bossId: "boss_silver_1",
+        difficultyMultiplier: 1.1,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_bronze_boss_5"],
+        nextLevels: ["monster_rumble_challenge_silver_boss_2"],
+    },
+    {
+        typeId: "monster_rumble_challenge_silver_boss_2",
+        name: "白银挑战 - Boss 2",
+        levelNumber: 2,
+        bossId: "boss_silver_2",
+        difficultyMultiplier: 1.2,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_silver_boss_1"],
+        nextLevels: ["monster_rumble_challenge_silver_boss_3"],
+    },
+    {
+        typeId: "monster_rumble_challenge_silver_boss_3",
+        name: "白银挑战 - Boss 3",
+        levelNumber: 3,
+        bossId: "boss_silver_1",
+        difficultyMultiplier: 1.3,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_silver_boss_2"],
+        nextLevels: ["monster_rumble_challenge_silver_boss_4"],
+    },
+    {
+        typeId: "monster_rumble_challenge_silver_boss_4",
+        name: "白银挑战 - Boss 4",
+        levelNumber: 4,
+        bossId: "boss_silver_2",
+        difficultyMultiplier: 1.4,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_silver_boss_3"],
+        nextLevels: ["monster_rumble_challenge_silver_boss_5"],
+    },
+    {
+        typeId: "monster_rumble_challenge_silver_boss_5",
+        name: "白银挑战 - Boss 5",
+        levelNumber: 5,
+        bossId: "boss_silver_1",
+        difficultyMultiplier: 1.6,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_silver_boss_4"],
+        nextLevels: ["monster_rumble_challenge_gold_boss_1"],
+    },
+];
+
+/**
+ * Gold Tier 预期的关卡配置
+ * Boss 分配：round_robin 模式，bossPool = ["boss_gold_1", "boss_gold_2"]
+ * 难度倍数：[1.2, 1.3, 1.4, 1.5, 1.7]
+ */
+export const EXPECTED_GOLD_LEVELS: ExpectedLevelConfig[] = [
+    {
+        typeId: "monster_rumble_challenge_gold_boss_1",
+        name: "黄金挑战 - Boss 1",
+        levelNumber: 1,
+        bossId: "boss_gold_1",
+        difficultyMultiplier: 1.2,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_silver_boss_5"],
+        nextLevels: ["monster_rumble_challenge_gold_boss_2"],
+    },
+    {
+        typeId: "monster_rumble_challenge_gold_boss_2",
+        name: "黄金挑战 - Boss 2",
+        levelNumber: 2,
+        bossId: "boss_gold_2",
+        difficultyMultiplier: 1.3,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_gold_boss_1"],
+        nextLevels: ["monster_rumble_challenge_gold_boss_3"],
+    },
+    {
+        typeId: "monster_rumble_challenge_gold_boss_3",
+        name: "黄金挑战 - Boss 3",
+        levelNumber: 3,
+        bossId: "boss_gold_1",
+        difficultyMultiplier: 1.4,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_gold_boss_2"],
+        nextLevels: ["monster_rumble_challenge_gold_boss_4"],
+    },
+    {
+        typeId: "monster_rumble_challenge_gold_boss_4",
+        name: "黄金挑战 - Boss 4",
+        levelNumber: 4,
+        bossId: "boss_gold_2",
+        difficultyMultiplier: 1.5,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_gold_boss_3"],
+        nextLevels: ["monster_rumble_challenge_gold_boss_5"],
+    },
+    {
+        typeId: "monster_rumble_challenge_gold_boss_5",
+        name: "黄金挑战 - Boss 5",
+        levelNumber: 5,
+        bossId: "boss_gold_1",
+        difficultyMultiplier: 1.7,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_gold_boss_4"],
+        nextLevels: ["monster_rumble_challenge_platinum_boss_1"],
+    },
+];
+
+/**
+ * Platinum Tier 预期的关卡配置
+ * Boss 分配：round_robin 模式，bossPool = ["boss_platinum_1", "boss_platinum_2"]
+ * 难度倍数：[1.3, 1.4, 1.5, 1.6, 2.0]
+ */
+export const EXPECTED_PLATINUM_LEVELS: ExpectedLevelConfig[] = [
+    {
+        typeId: "monster_rumble_challenge_platinum_boss_1",
+        name: "白金挑战 - Boss 1",
+        levelNumber: 1,
+        bossId: "boss_platinum_1",
+        difficultyMultiplier: 1.3,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_gold_boss_5"],
+        nextLevels: ["monster_rumble_challenge_platinum_boss_2"],
+    },
+    {
+        typeId: "monster_rumble_challenge_platinum_boss_2",
+        name: "白金挑战 - Boss 2",
+        levelNumber: 2,
+        bossId: "boss_platinum_2",
+        difficultyMultiplier: 1.4,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_platinum_boss_1"],
+        nextLevels: ["monster_rumble_challenge_platinum_boss_3"],
+    },
+    {
+        typeId: "monster_rumble_challenge_platinum_boss_3",
+        name: "白金挑战 - Boss 3",
+        levelNumber: 3,
+        bossId: "boss_platinum_1",
+        difficultyMultiplier: 1.5,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_platinum_boss_2"],
+        nextLevels: ["monster_rumble_challenge_platinum_boss_4"],
+    },
+    {
+        typeId: "monster_rumble_challenge_platinum_boss_4",
+        name: "白金挑战 - Boss 4",
+        levelNumber: 4,
+        bossId: "boss_platinum_2",
+        difficultyMultiplier: 1.6,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_platinum_boss_3"],
+        nextLevels: ["monster_rumble_challenge_platinum_boss_5"],
+    },
+    {
+        typeId: "monster_rumble_challenge_platinum_boss_5",
+        name: "白金挑战 - Boss 5",
+        levelNumber: 5,
+        bossId: "boss_platinum_1",
+        difficultyMultiplier: 2.0,
+        hasPerformanceRewards: true,
+        hasRankRewards: false,
+        previousLevels: ["monster_rumble_challenge_platinum_boss_4"],
+        nextLevels: [],
     },
 ];
 

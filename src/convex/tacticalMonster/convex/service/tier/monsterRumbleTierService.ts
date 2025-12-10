@@ -1,5 +1,4 @@
 import { TIER_CONFIGS } from "../../data/tierConfigs";
-import { PlayerLevelService } from "../player/playerLevelService";
 
 /**
  * Monster Rumble Tier 服务
@@ -39,12 +38,14 @@ export class MonsterRumbleTierService {
     }
 
     /**
-     * 验证 Tier 访问权限
+     * 验证 Power 范围（只验证Power，不验证等级）
      * 
-     * 注意：Power 基于上场队伍（teamPosition 不为 null 的怪物，最多4个）计算
-     * 玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛
+     * 注意：
+     * - Power 基于上场队伍（teamPosition 不为 null 的怪物，最多4个）计算
+     * - 玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛
+     * - 等级验证已移至 Tournament 模块，此方法不再验证等级
      */
-    static async validateTierAccess(
+    static async validatePowerRange(
         ctx: any,
         uid: string,
         tier: string
@@ -59,24 +60,10 @@ export class MonsterRumbleTierService {
             return { valid: false, reason: `Tier 配置不存在: ${tier}` };
         }
 
-        // 2. 获取玩家等级信息
-        const playerLevelInfo = await PlayerLevelService.getPlayerLevelInfo(ctx, uid);
-        if (!playerLevelInfo) {
-            return { valid: false, reason: "玩家不存在" };
-        }
-
-        // 3. 验证解锁等级
-        if (playerLevelInfo.level < tierConfig.unlockLevel) {
-            return {
-                valid: false,
-                reason: `需要玩家等级 ${tierConfig.unlockLevel}，当前 ${playerLevelInfo.level}`,
-            };
-        }
-
-        // 4. 计算当前队伍的 Power（基于 teamPosition 不为 null 的怪物）
+        // 2. 计算当前队伍的 Power（基于 teamPosition 不为 null 的怪物）
         const teamPower = await this.calculateTeamPower(ctx, uid);
 
-        // 5. 验证 Power 是否在 Tier 范围内
+        // 3. 验证 Power 是否在 Tier 范围内
         if (teamPower < tierConfig.powerMin) {
             return {
                 valid: false,
@@ -93,11 +80,33 @@ export class MonsterRumbleTierService {
             };
         }
 
-        // 6. 验证通过
+        // 4. 验证通过
         return {
             valid: true,
             teamPower,
         };
+    }
+
+    /**
+     * 验证 Tier 访问权限
+     * 
+     * @deprecated 使用 validatePowerRange 替代。等级验证已移至 Tournament 模块。
+     * 
+     * 注意：Power 基于上场队伍（teamPosition 不为 null 的怪物，最多4个）计算
+     * 玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛
+     */
+    static async validateTierAccess(
+        ctx: any,
+        uid: string,
+        tier: string
+    ): Promise<{
+        valid: boolean;
+        reason?: string;
+        teamPower?: number;
+    }> {
+        // 向后兼容：调用新的 validatePowerRange 方法
+        // 等级验证现在在 Tournament 模块进行
+        return this.validatePowerRange(ctx, uid, tier);
     }
 
     /**

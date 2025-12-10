@@ -289,40 +289,40 @@ export class ChestService {
             }
         }
 
-        // 发放金币（如果有，使用统一奖励服务）
-        if (rewards.coins) {
-            const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
-            await TournamentProxyService.grantRewards({
-                uid: params.uid,
-                rewards: {
-                    coins: rewards.coins,
+        // 3. 计算 Battle Pass 积分
+        const { calculateChestPoints } = await import("../battlePass/battlePassPoints");
+        const chestPoints = calculateChestPoints(chest.chestType);
+
+        // 4. 统一发放奖励（金币和赛季积分）
+        // 注意：source 使用 "tacticalMonster:chest_open" 格式，以便 Battle Pass 系统正确识别游戏特定积分
+        const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
+        const grantResult = await TournamentProxyService.grantRewards({
+            uid: params.uid,
+            rewards: {
+                coins: rewards.coins,
+                seasonPoints: chestPoints,
+            },
+            source: "tacticalMonster:chest_open",  // 游戏特定格式，用于 Battle Pass 积分识别
+            sourceId: params.chestId,
+            gameType: "tacticalMonster",  // 指定游戏类型
+            metadata: {
+                chestType: chest.chestType,
+                sourceDetails: {
+                    chestId: params.chestId,
+                    chestType: chest.chestType,
                 },
-                source: "chest",
-                sourceId: params.chestId,
-            });
+            },
+        });
+
+        // 如果发放失败，记录错误但不阻塞流程
+        if (!grantResult.success) {
+            console.error(`为玩家 ${params.uid} 发放宝箱奖励失败:`, grantResult.message);
         }
 
-        // 4. 更新宝箱状态
+        // 5. 更新宝箱状态
         await ctx.db.patch(chest._id, {
             status: "claimed",
             claimedAt: now,
-        });
-
-        // 5. 添加 Battle Pass 积分
-        const { BattlePassIntegration } = await import("../battlePass/battlePassIntegration");
-        const { calculateChestPoints } = await import("../battlePass/battlePassPoints");
-
-        const chestPoints = calculateChestPoints(chest.chestType);
-        BattlePassIntegration.addGameSeasonPoints(ctx, {
-            uid: params.uid,
-            amount: chestPoints,
-            source: "tacticalMonster:chest_open",
-            sourceDetails: {
-                chestId: params.chestId,
-                chestType: chest.chestType,
-            },
-        }).catch((error) => {
-            console.error(`为玩家 ${params.uid} 添加宝箱积分失败:`, error);
         });
 
         return {

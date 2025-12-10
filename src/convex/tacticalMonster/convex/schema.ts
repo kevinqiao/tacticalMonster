@@ -2,7 +2,6 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { bossSchema } from "./schemas/bossSchema";
 import { chestSchema } from "./schemas/chestSchema";
-import { energySchema } from "./schemas/energySchema";
 import { levelSchema } from "./schemas/levelSchema";
 import { monsterRumbleSchema } from "./schemas/monsterRumbleSchema";
 import { monsterSchema } from "./schemas/monsterSchema";
@@ -127,7 +126,6 @@ export default defineSchema({
     // ============================================
     ...monsterRumbleSchema,  // 只包含 mr_game_participants
     ...chestSchema,
-    ...energySchema,
     ...monsterSchema,
     ...tierSchema,
     ...levelSchema,

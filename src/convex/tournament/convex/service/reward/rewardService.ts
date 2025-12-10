@@ -1,4 +1,5 @@
 import { CoinRewardHandler } from "./rewardHandlers/coinRewardHandler";
+import { EnergyRewardHandler } from "./rewardHandlers/energyRewardHandler";
 import { GameSpecificRewardHandler } from "./rewardHandlers/gameSpecificRewardHandler";
 import { GemRewardHandler } from "./rewardHandlers/gemRewardHandler";
 import { PlayerExpRewardHandler } from "./rewardHandlers/playerExpRewardHandler";
@@ -82,7 +83,7 @@ export class RewardService {
             failedRewards.push({ type: "prestige", reason: "声望奖励处理器尚未实现" });
         }
 
-        // 5. 发放经验值（通过游戏模块）
+        // 5. 发放经验值（直接调用 Tournament 模块服务）
         if (rewards.exp && rewards.exp > 0) {
             const result = await PlayerExpRewardHandler.grant(ctx, {
                 uid,
@@ -98,7 +99,23 @@ export class RewardService {
             }
         }
 
-        // 6. 发放道具
+        // 6. 发放能量（与 coins/gems 并列的通用资源）
+        if (rewards.energy && rewards.energy > 0) {
+            const result = await EnergyRewardHandler.grant(ctx, {
+                uid,
+                energy: rewards.energy,
+                source: source.source,
+                sourceId: source.sourceId,
+            });
+
+            if (result.success) {
+                grantedRewards.energy = result.grantedEnergy;
+            } else {
+                failedRewards.push({ type: "energy", reason: result.message });
+            }
+        }
+
+        // 7. 发放道具
         if (rewards.props && rewards.props.length > 0) {
             const result = await PropRewardHandler.grant(ctx, {
                 uid,
@@ -114,21 +131,20 @@ export class RewardService {
             }
         }
 
-        // 7. 发放门票
+        // 8. 发放门票
         if (rewards.tickets && rewards.tickets.length > 0) {
             // 门票系统已移除，但保留接口以便未来扩展
             console.log("门票系统已移除，跳过发放门票");
         }
 
-        // 8. 发放游戏特定奖励
-        if (gameType && (rewards.monsters || rewards.monsterShards || rewards.energy)) {
+        // 9. 发放游戏特定奖励（不再包含 energy，energy 已作为通用资源处理）
+        if (gameType && (rewards.monsters || rewards.monsterShards)) {
             const result = await GameSpecificRewardHandler.grant(ctx, {
                 uid,
                 gameType,
                 rewards: {
                     monsters: rewards.monsters,
                     monsterShards: rewards.monsterShards,
-                    energy: rewards.energy,
                 },
                 source: source.source,
                 sourceId: source.sourceId,
@@ -137,7 +153,6 @@ export class RewardService {
             if (result.success) {
                 grantedRewards.monsters = rewards.monsters;
                 grantedRewards.monsterShards = rewards.monsterShards;
-                grantedRewards.energy = rewards.energy;
             } else {
                 if (rewards.monsters) {
                     failedRewards.push({ type: "monsters", reason: result.message });
@@ -145,19 +160,16 @@ export class RewardService {
                 if (rewards.monsterShards) {
                     failedRewards.push({ type: "monsterShards", reason: result.message });
                 }
-                if (rewards.energy) {
-                    failedRewards.push({ type: "energy", reason: result.message });
-                }
             }
         }
 
-        // 9. 发放专属物品
+        // 10. 发放专属物品
         if (rewards.exclusiveItems && rewards.exclusiveItems.length > 0) {
             // TODO: 实现专属物品奖励处理器
             failedRewards.push({ type: "exclusiveItems", reason: "专属物品奖励处理器尚未实现" });
         }
 
-        // 10. 记录奖励发放
+        // 11. 记录奖励发放
         const status = failedRewards.length === 0
             ? "granted"
             : (Object.keys(grantedRewards).length > 0 ? "partial" : "failed");
@@ -176,7 +188,7 @@ export class RewardService {
             createdAt: nowISO,
         });
 
-        // 11. 返回结果
+        // 12. 返回结果
         const success = Object.keys(grantedRewards).length > 0;
         const message = failedRewards.length === 0
             ? "所有奖励发放成功"

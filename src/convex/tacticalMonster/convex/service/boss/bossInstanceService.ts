@@ -3,9 +3,10 @@
  * 管理Boss组合的游戏实例创建（创建多个角色）
  */
 
-import { BossConfigService } from "./bossConfigService";
 import { BossConfig } from "../../data/bossConfigs";
 import { HexCoord } from "../../utils/hexUtils";
+import { BossConfigService } from "./bossConfigService";
+import { BossScalingConfig, BossScalingService } from "./bossScalingService";
 
 export interface BossPositions {
     bossMain: HexCoord;
@@ -16,6 +17,16 @@ export class BossInstanceService {
     /**
      * 创建Boss组合实例（Boss本体 + 所有小怪）
      * 会在tacticalMonster_game_character中创建多个角色
+     * 
+     * @param ctx Convex上下文
+     * @param params 创建参数
+     * @param params.scalingConfig 缩放配置（可选）
+     *   - 单人挑战关卡：需要 difficultyMultiplier、playerPower、baseBossPower
+     *     计算流程：目标Boss Power = 玩家Power × difficultyMultiplier
+     *             缩放比例 = 目标Boss Power / 基础Boss Power
+     *   - 多人PVE锦标赛：需要 avgTierPower 和 playerPower
+     *     使用公式：scale = K × (Avg_Tier_Power / Player_Power)
+     *   - 如果不提供：不缩放，使用基础属性
      */
     static async createBossInstance(
         ctx: any,
@@ -25,6 +36,7 @@ export class BossInstanceService {
             levelId: string;
             positions: BossPositions;
             behaviorSeed: string;
+            scalingConfig?: BossScalingConfig;  // 新增：缩放配置
         }
     ): Promise<{
         bossInstanceId: string;
@@ -32,18 +44,39 @@ export class BossInstanceService {
             bossMain: string;
             minions: string[];
         };
+        appliedScale?: number;  // 应用的缩放倍数
     }> {
         const bossConfig = BossConfigService.getBossConfig(params.bossId);
         if (!bossConfig) {
             throw new Error(`Boss配置不存在: ${params.bossId}`);
         }
 
-        // 1. 创建Boss本体角色
+        // 计算缩放倍数
+        let scale = 1.0;
+        if (params.scalingConfig) {
+            // 如果是单人挑战关卡自适应模式，但baseBossPower还未计算，则在这里计算
+            // （这种情况应该很少，因为gameInstanceService应该在创建Boss前就计算好了）
+            if (params.scalingConfig.difficultyMultiplier !== undefined &&
+                params.scalingConfig.playerPower !== undefined &&
+                params.scalingConfig.baseBossPower === undefined) {
+                // 获取合并后的Boss配置并计算基础Power
+                const mergedConfig = BossConfigService.getMergedBossConfig(bossConfig.bossId);
+                if (mergedConfig) {
+                    params.scalingConfig.baseBossPower = BossScalingService.calculateBossPower(mergedConfig);
+                }
+            }
+
+            // 计算缩放倍数（基于配置的difficultyMultiplier和玩家Power）
+            scale = BossScalingService.calculateBossScale(params.scalingConfig);
+        }
+
+        // 1. 创建Boss本体角色（应用缩放）
         const bossMainCharacterId = await this.createBossMainCharacter(
             ctx,
             params.gameId,
             bossConfig,
-            params.positions.bossMain
+            params.positions.bossMain,
+            scale  // 传递缩放倍数
         );
 
         // 2. 创建小怪角色
@@ -88,42 +121,55 @@ export class BossInstanceService {
                 bossMain: bossMainCharacterId,
                 minions: minionCharacterIds,
             },
+            appliedScale: scale,  // 返回应用的缩放倍数
         };
     }
 
     /**
      * 创建Boss本体角色
+     * 
+     * @param scale 缩放倍数（默认1.0，不缩放）
      */
     private static async createBossMainCharacter(
         ctx: any,
         gameId: string,
         bossConfig: BossConfig,
-        position: HexCoord
+        position: HexCoord,
+        scale: number = 1.0  // 新增：缩放倍数参数
     ): Promise<string> {
+        // 获取合并后的配置（包含从 characterId 继承的属性）
+        const mergedConfig = BossConfigService.getMergedBossConfig(bossConfig.bossId);
+        if (!mergedConfig) {
+            throw new Error(`无法获取合并后的Boss配置: ${bossConfig.bossId}`);
+        }
+
         const characterId = `boss_main_${gameId}_${Date.now()}`;
 
-        // 计算Boss属性（可根据level/scale调整）
+        // 应用缩放到Boss属性
+        const scaledStats = BossScalingService.applyBossScale(mergedConfig, scale);
+
+        // 计算Boss属性（应用缩放后的值）
         const stats = {
-            hp: { current: bossConfig.baseHp, max: bossConfig.baseHp },
+            hp: { current: scaledStats.hp, max: scaledStats.hp },
             mp: { current: 100, max: 100 },
             stamina: { current: 100, max: 100 },
-            attack: bossConfig.baseDamage,
-            defense: bossConfig.baseDefense,
-            speed: bossConfig.baseSpeed || 10,
+            attack: scaledStats.attack,
+            defense: scaledStats.defense,
+            speed: scaledStats.speed,
         };
 
         await ctx.db.insert("tacticalMonster_game_character", {
             gameId,
             character_id: characterId,
             uid: "boss",  // 使用"boss"作为uid标识
-            name: bossConfig.name,
+            name: mergedConfig.name,
             level: 1,  // Boss等级可以根据Tier调整
             stats,
             q: position.q,
             r: position.r,
             facing: 0,
-            skills: bossConfig.skills || [],
-            asset: bossConfig.assetPath,  // 简化：直接使用路径字符串
+            skills: mergedConfig.skills || [],
+            asset: mergedConfig.assetPath,
             class: "boss",
             move_range: 2,
             attack_range: { min: 1, max: 3 },
@@ -143,27 +189,44 @@ export class BossInstanceService {
     ): Promise<string> {
         const characterId = `minion_${minionConfig.minionId}_${gameId}_${Date.now()}`;
 
+        // 获取小怪的角色配置（从 characterId 引用）
+        const { MONSTER_CONFIGS } = await import("../../data/monsterConfigs");
+        const characterConfig = MONSTER_CONFIGS[minionConfig.characterId];
+
+        if (!characterConfig) {
+            throw new Error(`小怪角色配置不存在: ${minionConfig.characterId}`);
+        }
+
+        // 合并配置（MinionConfig 的覆盖属性优先）
+        const mergedName = minionConfig.name || characterConfig.name;
+        const mergedHp = minionConfig.baseHp ?? characterConfig.baseHp;
+        const mergedDamage = minionConfig.baseDamage ?? characterConfig.baseDamage;
+        const mergedDefense = minionConfig.baseDefense ?? characterConfig.baseDefense;
+        const mergedSpeed = minionConfig.baseSpeed ?? characterConfig.baseSpeed;
+        const mergedSkills = minionConfig.skills || characterConfig.skills || [];
+        const mergedAssetPath = minionConfig.assetPath || characterConfig.assetPath;
+
         const stats = {
-            hp: { current: minionConfig.baseHp, max: minionConfig.baseHp },
+            hp: { current: mergedHp, max: mergedHp },
             mp: { current: 50, max: 50 },
             stamina: { current: 50, max: 50 },
-            attack: minionConfig.baseDamage,
-            defense: minionConfig.baseDefense,
-            speed: minionConfig.baseSpeed,
+            attack: mergedDamage,
+            defense: mergedDefense,
+            speed: mergedSpeed,
         };
 
         await ctx.db.insert("tacticalMonster_game_character", {
             gameId,
             character_id: characterId,
             uid: "boss",  // 小怪也使用"boss"作为uid
-            name: minionConfig.name,
+            name: mergedName,
             level: 1,
             stats,
             q: position.q,
             r: position.r,
             facing: 0,
-            skills: minionConfig.skills || [],
-            asset: minionConfig.assetPath,  // 简化：直接使用路径字符串
+            skills: mergedSkills,
+            asset: mergedAssetPath,
             class: "minion",
             move_range: 2,
             attack_range: { min: 1, max: 2 },

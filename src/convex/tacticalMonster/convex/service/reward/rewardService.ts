@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
-import { EnergyService } from "../energy/energyService";
 import { MonsterService } from "../monster/monsterService";
 import { ShardService } from "../monster/shardService";
 
@@ -67,66 +66,27 @@ export class RewardService {
             };
 
             // 2. 处理宝箱生成（如果触发）
-            if (tournamentResult.chestTriggered) {
-                // 需要获取游戏信息来确定 tier
-                // 从 participant 中找到该 tournamentId 对应的游戏
-                // 通过查询 participant 表找到玩家在该 tournament 中的游戏
-                const participant = await ctx.db
-                    .query("mr_game_participants")
-                    .withIndex("by_uid", (q: any) => q.eq("uid", params.uid))
-                    .filter((q: any) =>
-                        q.and(
-                            q.eq(q.field("status"), "finished"),
-                            q.neq(q.field("gameId"), null)
-                        )
-                    )
-                    .first();
+            if (tournamentResult.chestTriggered && tournamentResult.chestInfo) {
+                try {
+                    const chestInfo = tournamentResult.chestInfo;
+                    const chestResults = await ChestService.processChestRewards(ctx, {
+                        gameId: chestInfo.gameId || `tournament_${params.tournamentId}`,
+                        tier: chestInfo.tier,
+                        players: [{
+                            uid: params.uid,
+                            rank: chestInfo.rank,
+                            score: 0, // 分数信息可能不在 chestInfo 中
+                        }],
+                        chestTriggered: { [params.uid]: true },
+                    });
 
-                let playerGames = null;
-                if (participant) {
-                    playerGames = await ctx.db
-                        .query("tacticalMonster_game")
-                        .withIndex("by_gameId", (q: any) => q.eq("gameId", participant.gameId))
-                        .filter((q: any) =>
-                            q.and(
-                                q.eq(q.field("tournamentId"), params.tournamentId),
-                                q.eq(q.field("status"), "ended")
-                            )
-                        )
-                        .first();
-                }
-
-                if (playerGames) {
-                    try {
-                        // 获取玩家在该游戏中的参与记录
-                        const participant = await ctx.db
-                            .query("mr_game_participants")
-                            .withIndex("by_gameId_uid", (q: any) =>
-                                q.eq("gameId", playerGames.gameId).eq("uid", params.uid)
-                            )
-                            .first();
-
-                        if (participant) {
-                            const chestResults = await ChestService.processChestRewards(ctx, {
-                                gameId: playerGames.gameId,
-                                tier: playerGames.tier || "bronze",
-                                players: [{
-                                    uid: params.uid,
-                                    rank: participant.rank || 1,
-                                    score: participant.finalScore || 0,
-                                }],
-                                chestTriggered: { [params.uid]: true },
-                            });
-
-                            // processChestRewards 返回 Record<string, any>，转换为数组
-                            if (chestResults && Object.keys(chestResults).length > 0) {
-                                result.chests = Object.values(chestResults);
-                            }
-                        }
-                    } catch (error: any) {
-                        console.error("处理宝箱生成失败:", error);
-                        // 宝箱生成失败不影响奖励领取
+                    // processChestRewards 返回 Record<string, any>，转换为数组
+                    if (chestResults && Object.keys(chestResults).length > 0) {
+                        result.chests = Object.values(chestResults);
                     }
+                } catch (error: any) {
+                    console.error("处理宝箱生成失败:", error);
+                    // 宝箱生成失败不影响奖励领取
                 }
             }
 
@@ -233,15 +193,19 @@ export class RewardService {
                 }
             }
 
-            // 处理能量奖励
+            // 处理能量奖励（通过 Tournament 模块）
             if (params.rewards.energy && params.rewards.energy > 0) {
                 try {
-                    await EnergyService.addEnergy(ctx, {
+                    const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
+                    const result = await TournamentProxyService.addEnergy(ctx, {
                         uid: params.uid,
                         amount: params.rewards.energy,
                         source: params.source,
                         sourceId: params.sourceId || "reward",
                     });
+                    if (!result.success) {
+                        throw new Error(result.error || "发放能量失败");
+                    }
                     grantedRewards.energy = params.rewards.energy;
                 } catch (error: any) {
                     console.error("发放能量失败", error);

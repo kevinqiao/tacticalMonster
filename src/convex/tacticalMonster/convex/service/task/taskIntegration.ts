@@ -4,7 +4,6 @@
  */
 
 import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
-import { EnergyService } from "../energy/energyService";
 import { MonsterService } from "../monster/monsterService";
 import { ShardService } from "../monster/shardService";
 
@@ -262,16 +261,19 @@ export class TaskIntegration {
             }
         }
 
-        // 处理能量奖励
+        // 处理能量奖励（通过 Tournament 模块）
         if (rewards.energy && rewards.energy > 0) {
             try {
-                await EnergyService.addEnergy(ctx, {
+                const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
+                const result = await TournamentProxyService.addEnergy(ctx, {
                     uid,
                     amount: rewards.energy,
                     source: "task",
                     sourceId: "task_reward",
                 });
-                gameSpecificRewards.energy = rewards.energy;
+                if (result.success) {
+                    gameSpecificRewards.energy = rewards.energy;
+                }
             } catch (error) {
                 console.error("发放能量失败", error);
             }

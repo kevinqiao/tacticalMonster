@@ -5,7 +5,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
-import { BattlePassIntegration } from "./battlePassIntegration";
+import { TournamentProxyService } from "../tournament/tournamentProxyService";
 
 /**
  * 添加游戏赛季积分（内部调用）
@@ -18,7 +18,7 @@ export const addGameSeasonPoints = mutation({
         sourceDetails: v.optional(v.any()),
     },
     handler: async (ctx, args) => {
-        return await BattlePassIntegration.addGameSeasonPoints(ctx, {
+        return await TournamentProxyService.addGameSeasonPoints({
             uid: args.uid,
             amount: args.amount,
             source: args.source,
@@ -41,7 +41,7 @@ export const purchasePremiumPass = mutation({
         uid: v.string(),
     },
     handler: async (ctx, args) => {
-        return await BattlePassIntegration.purchasePremiumPass(ctx, {
+        return await TournamentProxyService.purchasePremiumPass({
             uid: args.uid,
         });
     },
@@ -55,7 +55,7 @@ export const getBattlePassWithGameData = query({
         uid: v.string(),
     },
     handler: async (ctx, args) => {
-        return await BattlePassIntegration.getBattlePassWithGameData(ctx, {
+        return await TournamentProxyService.getBattlePassWithGameData({
             uid: args.uid,
         });
     },
