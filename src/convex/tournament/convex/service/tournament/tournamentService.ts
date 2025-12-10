@@ -3,7 +3,6 @@ import { Id } from "../../_generated/dataModel";
 import { internalMutation, mutation, query } from "../../_generated/server";
 import { TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import {
-    checkTournamentEligible,
     collectRewards,
     createTournament,
     findPlayerRank,
@@ -306,60 +305,77 @@ export class TournamentService {
         gameType?: string; // 可选，过滤特定游戏类型
     }) {
         const { uid, gameType } = params;
-        // 获取所有活跃的锦标赛类型
-        let tournamentTypes = await ctx.db
-            .query("tournament_types")
-            .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
-            .collect();
 
-        // 应用过滤条件
+        // 根据是否有 gameType 参数选择不同的查询方式
+        let tournamentTypes: any[];
+
+
         if (gameType) {
-            tournamentTypes = tournamentTypes.filter((tt: any) =>
-                tt.gameType === gameType
-            );
+            // 如果指定了 gameType，使用 by_gameType 索引，然后过滤 isActive
+            console.log("[getAvailableTournaments] 使用 gameType 过滤:", gameType);
+            tournamentTypes = await ctx.db
+                .query("tournament_types")
+                .withIndex("by_gameType", (q: any) => q.eq("gameType", gameType))
+                .collect();
+            console.log("[getAvailableTournaments] 按 gameType 查询到的记录数:", tournamentTypes.length);
+            // 过滤出活跃的锦标赛（兼容布尔值和字符串）
+            tournamentTypes = tournamentTypes.filter((tt: any) => {
+                const isActive = tt.isActive;
+                return isActive === true || isActive === "true" || isActive === 1;
+            });
+            console.log("[getAvailableTournaments] 过滤 isActive=true 后的记录数:", tournamentTypes.length);
+        } else {
+            // 如果没有指定 gameType，先查询所有，然后过滤 isActive
+            console.log("[getAvailableTournaments] 未指定 gameType，查询所有记录");
+            tournamentTypes = await ctx.db
+                .query("tournament_types").withIndex("by_isActive", (q: any) => q.eq("isActive", true))
+                .collect();
+            console.log("[getAvailableTournaments] 查询到的总记录数:", tournamentTypes.length);
+            // 过滤出活跃的锦标赛（兼容布尔值和字符串）
+            tournamentTypes = tournamentTypes.filter((tt: any) => {
+                const isActive = tt.isActive;
+                return isActive === true || isActive === "true" || isActive === 1;
+            });
+            console.log("[getAvailableTournaments] 过滤 isActive=true 后的记录数:", tournamentTypes.length);
         }
-        console.log("tournamentTypes", tournamentTypes.length)
         const availableTournaments: any[] = [];
         for (const tournamentType of tournamentTypes) {
             try {
                 const participation = { rank: -1, attempts: 0 };
-                const eligible = await checkTournamentEligible(ctx, { uid, tournamentType });
-                console.log("eligible", eligible)
-                if (eligible) {
-                    if (tournamentType.limits) {
-                        const attempts = await getPlayerAttempts(ctx, { uid, tournamentType });
-                        if (attempts >= tournamentType.limits.maxAttempts) {
-                            continue;
-                        }
-                        participation.attempts = attempts.length;
+                if (tournamentType.limits) {
+                    const attempts = await getPlayerAttempts(ctx, { uid, tournamentType });
+                    if (attempts >= tournamentType.limits.maxAttempts) {
+                        continue;
                     }
-                    let tournamentId = null;
-                    if (['daily', 'weekly', 'monthly'].includes(tournamentType.timeRange)) {
-                        const tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
-                        const playerRank = await findPlayerRank(ctx, { uid, tournament });
-                        participation.rank = playerRank.rank ?? -1;
-                        // tournamentId = playerRank.tournamentId;
-                        tournamentId = tournament._id
-                    }
-                    // console.log("participation", participation)
-                    availableTournaments.push({
-                        tournamentId,
-                        typeId: tournamentType.typeId,
-                        name: tournamentType.name,
-                        description: tournamentType.description,
-                        timeRange: tournamentType.timeRange,
-                        gameType: tournamentType.gameType,
-                        config: {
-                            entryRequirements: tournamentType.entryRequirements,
-                            matchRules: tournamentType.matchRules,
-                            rewards: tournamentType.rewards,
-                            schedule: tournamentType.schedule,
-                            limits: tournamentType.limits,
-                        },
-                        // eligibility,
-                        participation,
-                    });
+                    participation.attempts = attempts.length;
                 }
+                let tournamentId = null;
+                if (['daily', 'weekly', 'monthly'].includes(tournamentType.timeRange)) {
+                    const tournament = await findTournamentByType(ctx, { tournamentType: tournamentType });
+                    const playerRank = await findPlayerRank(ctx, { uid, tournament });
+                    participation.rank = playerRank.rank ?? -1;
+                    // tournamentId = playerRank.tournamentId;
+                    tournamentId = tournament._id
+                }
+                // console.log("participation", participation)
+                availableTournaments.push({
+                    tournamentId,
+                    typeId: tournamentType.typeId,
+                    name: tournamentType.name,
+                    description: tournamentType.description,
+                    timeRange: tournamentType.timeRange,
+                    gameType: tournamentType.gameType,
+                    config: {
+                        entryRequirements: tournamentType.entryRequirements,
+                        matchRules: tournamentType.matchRules,
+                        rewards: tournamentType.rewards,
+                        schedule: tournamentType.schedule,
+                        limits: tournamentType.limits,
+                    },
+                    // eligibility,
+                    participation,
+                });
+
             } catch (error) {
                 console.error(`检查锦标赛资格失败 (${tournamentType.typeId}):`, error);
                 // 继续检查其他锦标赛，不中断整个流程
@@ -434,11 +450,12 @@ export const collect = mutation({
 export const getAvailableTournaments = query({
     args: {
         uid: v.string(),
+        gameType: v.optional(v.string()), // 可选，过滤特定游戏类型
     },
-    handler: async (ctx: any, { uid }: { uid: string }) => {
+    handler: async (ctx: any, { uid, gameType }: { uid: string; gameType?: string }) => {
         try {
-            console.log("getAvailableTournaments", uid)
-            const result = await TournamentService.getAvailableTournaments(ctx, { uid, gameType: 'solitaire' });
+            console.log("getAvailableTournaments", uid, "gameType:", gameType)
+            const result = await TournamentService.getAvailableTournaments(ctx, { uid, gameType });
             return result;
         } catch (error) {
             console.error("获取可参与的锦标赛失败:", error);

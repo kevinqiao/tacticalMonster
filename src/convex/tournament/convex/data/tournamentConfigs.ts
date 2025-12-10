@@ -61,21 +61,21 @@ export type GameType =
 
 /**
  * 参赛条件
+ * 
+ * 注意：
+ * - minPower 和 maxPower 不应该在此接口中定义
+ * - 这些值应该从 tier 配置（TIER_CONFIGS）中获取
+ * - tier 字段用于标识所属的 Tier，Power 范围由 TacticalMonster 模块的 tier 配置决定
  */
 export interface EntryRequirements {
-
-
-    // Power 要求（仅适用于 TacticalMonster，用于 Tier 匹配）
-    minPower?: number;
-    maxPower?: number;
-
     // ============================================
     // 通用要求
     // ============================================
     // 订阅要求
     isSubscribedRequired: boolean;
 
-    // 等级要求
+    // Tier 要求（TacticalMonster 特定）
+    // Power 范围由对应 tier 的配置决定，不在此处定义
     tier?: "bronze" | "silver" | "gold" | "platinum";
 
     // ============================================
@@ -209,16 +209,6 @@ export interface RewardConfig {
         monsterShards?: Array<{ monsterId: string; quantity: number; }>;
     };
 
-    // ============================================
-    // 连胜奖励 - TacticalMonster 特定
-    // ============================================
-    streakBonus?: {
-        minStreak: number;
-        bonusMultiplier: number;
-        coins?: number;
-        monsterShards?: Array<{ monsterId: string; quantity: number; }>;
-        energy?: number;
-    };
 
     // ============================================
     // 表现奖励 - 仅用于单人关卡（soloChallenge，minPlayers === 1 && maxPlayers === 1）
@@ -1044,8 +1034,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "bronze",
             entryFee: { coins: 0, energy: 6 },
-            minPower: 0,
-            maxPower: 2000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1107,8 +1095,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "bronze",
             entryFee: { coins: 0, energy: 6 },
-            minPower: 0,
-            maxPower: 2000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1171,8 +1157,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "bronze",
             entryFee: { coins: 0, energy: 6 },
-            minPower: 0,
-            maxPower: 2000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1235,8 +1219,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "bronze",
             entryFee: { coins: 0, energy: 6 },
-            minPower: 0,
-            maxPower: 2000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1299,8 +1281,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "bronze",
             entryFee: { coins: 0, energy: 6 },
-            minPower: 0,
-            maxPower: 2000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1363,8 +1343,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "silver",
             entryFee: { coins: 0, energy: 7 },
-            minPower: 2000,
-            maxPower: 5000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1427,8 +1405,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "silver",
             entryFee: { coins: 0, energy: 7 },
-            minPower: 2000,
-            maxPower: 5000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1491,8 +1467,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "silver",
             entryFee: { coins: 0, energy: 7 },
-            minPower: 2000,
-            maxPower: 5000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1555,8 +1529,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "silver",
             entryFee: { coins: 0, energy: 7 },
-            minPower: 2000,
-            maxPower: 5000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1619,8 +1591,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "silver",
             entryFee: { coins: 0, energy: 7 },
-            minPower: 2000,
-            maxPower: 5000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1683,8 +1653,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "gold",
             entryFee: { coins: 0, energy: 8 },
-            minPower: 5000,
-            maxPower: 10000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1747,8 +1715,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "gold",
             entryFee: { coins: 0, energy: 8 },
-            minPower: 5000,
-            maxPower: 10000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1811,8 +1777,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "gold",
             entryFee: { coins: 0, energy: 8 },
-            minPower: 5000,
-            maxPower: 10000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1875,8 +1839,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "gold",
             entryFee: { coins: 0, energy: 8 },
-            minPower: 5000,
-            maxPower: 10000,
         },
         matchRules: {
             matchType: "single_match",
@@ -1939,8 +1901,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "gold",
             entryFee: { coins: 0, energy: 8 },
-            minPower: 5000,
-            maxPower: 10000,
         },
         matchRules: {
             matchType: "single_match",
@@ -2003,8 +1963,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "platinum",
             entryFee: { coins: 0, energy: 10 },
-            minPower: 10000,
-            maxPower: Infinity,
         },
         matchRules: {
             matchType: "single_match",
@@ -2067,8 +2025,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "platinum",
             entryFee: { coins: 0, energy: 10 },
-            minPower: 10000,
-            maxPower: Infinity,
         },
         matchRules: {
             matchType: "single_match",
@@ -2131,8 +2087,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "platinum",
             entryFee: { coins: 0, energy: 10 },
-            minPower: 10000,
-            maxPower: Infinity,
         },
         matchRules: {
             matchType: "single_match",
@@ -2195,8 +2149,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "platinum",
             entryFee: { coins: 0, energy: 10 },
-            minPower: 10000,
-            maxPower: Infinity,
         },
         matchRules: {
             matchType: "single_match",
@@ -2259,8 +2211,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             isSubscribedRequired: false,
             tier: "platinum",
             entryFee: { coins: 0, energy: 10 },
-            minPower: 10000,
-            maxPower: Infinity,
         },
         matchRules: {
             matchType: "single_match",
@@ -2838,21 +2788,11 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
             if (config.entryRequirements.tier && !tierOrder.includes(config.entryRequirements.tier)) {
                 errors.push("tier 必须是bronze, silver, gold, platinum中的一个");
             }
-            // Power 范围验证
-            if (config.entryRequirements.minPower !== undefined &&
-                config.entryRequirements.maxPower !== undefined) {
-                if (config.entryRequirements.minPower > config.entryRequirements.maxPower) {
-                    errors.push("minPower 必须小于等于 maxPower");
-                }
-                if (config.entryRequirements.minPower < 0) {
-                    errors.push("minPower 不能为负数");
-                }
-            }
+            // 注意：Power 范围（minPower/maxPower）应该从 tier 配置中获取，不在此处验证
         } else {
-
-            if (config.entryRequirements.minPower !== undefined ||
-                config.entryRequirements.maxPower !== undefined) {
-                errors.push(`Power 限制仅适用于 TacticalMonster 游戏，当前游戏类型: ${config.gameType}`);
+            // 非 TacticalMonster 游戏不应配置 tier
+            if (config.entryRequirements.tier) {
+                errors.push(`tier 限制仅适用于 TacticalMonster 游戏，当前游戏类型: ${config.gameType}`);
             }
         }
 

@@ -3,7 +3,6 @@ import { activitySchema } from "./schemas/activitySchema";
 import { battlePassSchema } from "./schemas/battlePassSchema";
 import { rankingSchema } from "./schemas/rankingSchema";
 import { rewardSchema } from "./schemas/rewardSchema";
-import { taskSchema } from "./schemas/taskSchema";
 import { tournamentRulesSchema } from "./schemas/tournamentRulesSchema";
 import { tournamentSchema } from "./schemas/tournamentSchema";
 import { userSchema } from "./schemas/userSchema";
@@ -19,8 +18,8 @@ export default defineSchema({
   // 道具系统
   // ...propSchema,
 
-  // 任务系统
-  ...taskSchema,
+  // // 任务系统
+  // ...taskSchema,
 
   // 战斗通行证系统
   ...battlePassSchema,

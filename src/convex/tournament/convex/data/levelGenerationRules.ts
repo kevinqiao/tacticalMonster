@@ -140,8 +140,6 @@ export const LEVEL_GENERATION_RULES: LevelGenerationRule[] = [
                         coins: 0,
                         energy: 6,
                     },
-                    minPower: 0,
-                    maxPower: 2000,
                 },
                 matchRules: {
                     matchType: "single_match",
@@ -263,8 +261,6 @@ export const LEVEL_GENERATION_RULES: LevelGenerationRule[] = [
                         coins: 0,
                         energy: 7,
                     },
-                    minPower: 2000,
-                    maxPower: 5000,
                 },
                 matchRules: {
                     matchType: "single_match",
@@ -382,8 +378,6 @@ export const LEVEL_GENERATION_RULES: LevelGenerationRule[] = [
                         coins: 0,
                         energy: 8,
                     },
-                    minPower: 5000,
-                    maxPower: 10000,
                 },
                 matchRules: {
                     matchType: "single_match",
@@ -501,8 +495,6 @@ export const LEVEL_GENERATION_RULES: LevelGenerationRule[] = [
                         coins: 0,
                         energy: 10,
                     },
-                    minPower: 10000,
-                    maxPower: Infinity,
                 },
                 matchRules: {
                     matchType: "single_match",

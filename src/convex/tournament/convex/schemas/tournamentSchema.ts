@@ -78,17 +78,9 @@ export const tournamentSchema = {
 
         // 参赛条件
         entryRequirements: v.optional(v.object({
-            minSegment: v.optional(v.string()), // "bronze", "silver", "gold", "platinum", "diamond"
-            maxSegment: v.optional(v.string()),
             isSubscribedRequired: v.boolean(),
-            minLevel: v.optional(v.number()),
-            maxLevel: v.optional(v.number()),
-            minPoints: v.optional(v.number()),
-            maxPoints: v.optional(v.number()),
-            // TacticalMonster 特定：Power 范围（基于队伍 Power）
-            minPower: v.optional(v.number()),
-            maxPower: v.optional(v.number()),
             // TacticalMonster 特定：Tier 要求
+            // 注意：Power 范围（minPower/maxPower）应该从 tier 配置中获取，不在此处定义
             tier: v.optional(v.union(
                 v.literal("bronze"),
                 v.literal("silver"),
@@ -97,13 +89,9 @@ export const tournamentSchema = {
             )),
             entryFee: v.object({
                 coins: v.optional(v.number()),
+                gems: v.optional(v.number()),
                 energy: v.optional(v.number()),  // TacticalMonster 特定：能量消耗
             }),
-            specialConditions: v.optional(v.array(v.object({
-                type: v.string(),
-                value: v.any(),
-                description: v.string()
-            })))
         })),
 
         // 比赛规则
@@ -117,7 +105,6 @@ export const tournamentSchema = {
                 perTurn: v.optional(v.number()),
                 total: v.optional(v.number())
             })),
-            matchPoints: v.optional(v.any()),
         }),
 
         // 奖励配置
@@ -141,54 +128,7 @@ export const tournamentSchema = {
                     prestigePoints: v.optional(v.number()),
                     achievementPoints: v.optional(v.number()),
                     tournamentPoints: v.optional(v.number())
-                })),
-                bonusProps: v.optional(v.array(v.object({
-                    gameType: v.string(),
-                    propId: v.string(),
-                    quantity: v.number()
-                }))),
-                bonusTickets: v.optional(v.array(v.object({
-                    gameType: v.string(),
-                    tournamentType: v.string(),
-                    quantity: v.number()
-                })))
-            })),
-            segmentBonus: v.optional(v.object({
-                bronze: v.object({
-                    rankPoints: v.optional(v.number()),
-                    seasonPoints: v.optional(v.number()),
-                    prestigePoints: v.optional(v.number()),
-                    achievementPoints: v.optional(v.number()),
-                    tournamentPoints: v.optional(v.number())
-                }),
-                silver: v.object({
-                    rankPoints: v.optional(v.number()),
-                    seasonPoints: v.optional(v.number()),
-                    prestigePoints: v.optional(v.number()),
-                    achievementPoints: v.optional(v.number()),
-                    tournamentPoints: v.optional(v.number())
-                }),
-                gold: v.object({
-                    rankPoints: v.optional(v.number()),
-                    seasonPoints: v.optional(v.number()),
-                    prestigePoints: v.optional(v.number()),
-                    achievementPoints: v.optional(v.number()),
-                    tournamentPoints: v.optional(v.number())
-                }),
-                platinum: v.object({
-                    rankPoints: v.optional(v.number()),
-                    seasonPoints: v.optional(v.number()),
-                    prestigePoints: v.optional(v.number()),
-                    achievementPoints: v.optional(v.number()),
-                    tournamentPoints: v.optional(v.number())
-                }),
-                diamond: v.object({
-                    rankPoints: v.optional(v.number()),
-                    seasonPoints: v.optional(v.number()),
-                    prestigePoints: v.optional(v.number()),
-                    achievementPoints: v.optional(v.number()),
-                    tournamentPoints: v.optional(v.number())
-                })
+                }))
             })),
             // Tier 加成 - TacticalMonster 特定（基于 Tier 的奖励加成）
             tierBonus: v.optional(v.object({
@@ -435,9 +375,6 @@ export const tournamentSchema = {
             // 全局积分倍数
             pointMultiplier: v.number(),
 
-            // 段位相关规则
-            segmentBasedScoring: v.boolean(),
-            segmentBonusMultiplier: v.number(),
 
             // 排名积分配置
             rankPointConfigs: v.array(v.object({
@@ -473,107 +410,6 @@ export const tournamentSchema = {
                     minPoints: v.number()
                 })
             })),
-
-            // 段位积分规则
-            segmentPointRules: v.object({
-                bronze: v.object({
-                    baseMultiplier: v.number(),
-                    bonusMultiplier: v.number(),
-                    rankPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    }),
-                    seasonPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    })
-                }),
-                silver: v.object({
-                    baseMultiplier: v.number(),
-                    bonusMultiplier: v.number(),
-                    rankPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    }),
-                    seasonPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    })
-                }),
-                gold: v.object({
-                    baseMultiplier: v.number(),
-                    bonusMultiplier: v.number(),
-                    rankPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    }),
-                    seasonPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    })
-                }),
-                platinum: v.object({
-                    baseMultiplier: v.number(),
-                    bonusMultiplier: v.number(),
-                    rankPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    }),
-                    seasonPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    })
-                }),
-                diamond: v.object({
-                    baseMultiplier: v.number(),
-                    bonusMultiplier: v.number(),
-                    rankPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    }),
-                    seasonPointsConfig: v.object({
-                        basePoints: v.number(),
-                        bonusMultiplier: v.number(),
-                        maxPoints: v.number()
-                    })
-                })
-            })
-        })),
-
-        // 高级配置
-        advanced: v.optional(v.object({
-            matching: v.object({
-                algorithm: v.string(), // "skill_based", "random", "segment_based", "elo_based"
-                skillRange: v.optional(v.number()),
-                maxWaitTime: v.number(),
-                fallbackToAI: v.boolean()
-            }),
-            settlement: v.object({
-                autoSettle: v.boolean(),
-                settleDelay: v.number(),
-                requireMinimumPlayers: v.boolean(),
-                minimumPlayers: v.number()
-            }),
-            notifications: v.object({
-                enabled: v.boolean(),
-                types: v.array(v.string()),
-                channels: v.array(v.string())
-            }),
-            monitoring: v.object({
-                enabled: v.boolean(),
-                metrics: v.array(v.string()),
-                alerts: v.array(v.string())
-            }),
-            custom: v.optional(v.any())
         })),
         // 时间戳
         createdAt: v.optional(v.string()),
@@ -581,6 +417,7 @@ export const tournamentSchema = {
     }).index("by_typeId", ["typeId"])
         .index("by_isActive", ["isActive"])
         .index("by_gameType", ["gameType"])
+        .index("by_gameType_isActive", ["gameType", "isActive"])
         .index("by_priority", ["priority"]),
 
     // 比赛基础信息表 - 存储比赛的核心信息
@@ -661,8 +498,6 @@ export const tournamentSchema = {
     })
         .index("by_uid", ["uid"])
         .index("by_tournamentId", ["tournamentId"]),
-
-
 
     seasons: defineTable({
         name: v.string(),

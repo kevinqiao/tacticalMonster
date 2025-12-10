@@ -9,7 +9,6 @@ import { internalMutation } from "../../../../_generated/server";
 import { SoloChallengeLevelService } from "../../SoloChallengeLevelService";
 import { EXPECTED_BRONZE_LEVELS, TEST_RULE_IDS, validateLevelConfig } from "./testData";
 import {
-    cleanupTestLevels,
     getLevelSummary,
     validateDifficultyProgression,
     validateLevelChain,
@@ -249,9 +248,8 @@ export const testRegisterLevels = internalMutation({
     args: {
         ruleId: v.string(),
         replaceExisting: v.optional(v.boolean()),
-        cleanupAfter: v.optional(v.boolean()),  // 测试后是否清理
     },
-    handler: async (ctx, { ruleId, replaceExisting = false, cleanupAfter = true }): Promise<{
+    handler: async (ctx, { ruleId, replaceExisting = false }): Promise<{
         success: boolean;
         errors: string[];
         steps: string[];
@@ -268,7 +266,6 @@ export const testRegisterLevels = internalMutation({
         console.log(`[testRegisterLevels] 开始测试数据库注册`);
         console.log(`规则ID: ${ruleId}`);
         console.log(`替换已存在: ${replaceExisting}`);
-        console.log(`测试后清理: ${cleanupAfter}`);
         console.log("==========================================");
 
         const errors: string[] = [];
@@ -329,17 +326,6 @@ export const testRegisterLevels = internalMutation({
                 }
             }
 
-            // 步骤5: 清理测试数据（如果需要）
-            if (cleanupAfter) {
-                console.log("\n[步骤5] 清理测试数据...");
-                steps.push("步骤5: 清理测试数据");
-                const cleanupResult = await cleanupTestLevels(ctx, generatedTypeIds);
-                console.log(`✓ 清理完成: 删除 ${cleanupResult.deleted} 个关卡`);
-                if (cleanupResult.errors.length > 0) {
-                    console.warn(`⚠ 清理警告: ${cleanupResult.errors.join(", ")}`);
-                }
-            }
-
             console.log("\n==========================================");
             console.log(`[testRegisterLevels] 测试完成`);
             console.log(`成功: ${errors.length === 0 ? "✅" : "❌"}`);
@@ -367,11 +353,6 @@ export const testRegisterLevels = internalMutation({
                 },
             };
         } catch (error: any) {
-            // 确保清理测试数据
-            if (cleanupAfter && generatedTypeIds.length > 0) {
-                await cleanupTestLevels(ctx, generatedTypeIds);
-            }
-
             console.error("❌ 测试异常:", error);
             return {
                 success: false,
@@ -451,9 +432,8 @@ export const testBatchGeneration = internalMutation({
     args: {
         ruleIds: v.array(v.string()),
         replaceExisting: v.optional(v.boolean()),
-        cleanupAfter: v.optional(v.boolean()),
     },
-    handler: async (ctx, { ruleIds, replaceExisting = false, cleanupAfter = true }) => {
+    handler: async (ctx, { ruleIds, replaceExisting = false }) => {
         console.log("==========================================");
         console.log(`[testBatchGeneration] 开始测试批量生成`);
         console.log(`规则ID列表: ${ruleIds.join(", ")}`);
@@ -504,13 +484,6 @@ export const testBatchGeneration = internalMutation({
                 }
             }
 
-            // 清理测试数据（如果需要）
-            if (cleanupAfter && allGeneratedTypeIds.length > 0) {
-                console.log("\n清理测试数据...");
-                const cleanupResult = await cleanupTestLevels(ctx, allGeneratedTypeIds);
-                console.log(`✓ 清理完成: 删除 ${cleanupResult.deleted} 个关卡`);
-            }
-
             const successCount = results.filter(r => r.success).length;
             const totalGenerated = results.reduce((sum, r) => sum + (r.count || 0), 0);
 
@@ -529,11 +502,6 @@ export const testBatchGeneration = internalMutation({
                 totalGenerated,
             };
         } catch (error: any) {
-            // 确保清理测试数据
-            if (cleanupAfter && allGeneratedTypeIds.length > 0) {
-                await cleanupTestLevels(ctx, allGeneratedTypeIds);
-            }
-
             console.error("❌ 测试异常:", error);
             return {
                 success: false,
@@ -552,9 +520,8 @@ export const testBatchGeneration = internalMutation({
 export const testFullIntegration = internalMutation({
     args: {
         ruleId: v.string(),
-        cleanupAfter: v.optional(v.boolean()),
     },
-    handler: async (ctx, { ruleId, cleanupAfter = true }): Promise<{
+    handler: async (ctx, { ruleId }): Promise<{
         success: boolean;
         errors: string[];
         steps: string[];
@@ -628,14 +595,6 @@ export const testFullIntegration = internalMutation({
                 console.log("✓ 所有关卡已正确保存到数据库");
             }
 
-            // 步骤6: 清理测试数据
-            if (cleanupAfter) {
-                console.log("\n[步骤6] 清理测试数据...");
-                steps.push("步骤6: 清理测试数据");
-                const cleanupResult = await cleanupTestLevels(ctx, generatedTypeIds);
-                console.log(`✓ 清理完成: 删除 ${cleanupResult.deleted} 个关卡`);
-            }
-
             console.log("\n==========================================");
             console.log(`[testFullIntegration] 测试完成`);
             console.log(`成功: ${errors.length === 0 ? "✅" : "❌"}`);
@@ -650,10 +609,6 @@ export const testFullIntegration = internalMutation({
                 savedCount: registerResult.success ? (registerResult.savedCount || 0) : 0,
             };
         } catch (error: any) {
-            if (cleanupAfter && generatedTypeIds.length > 0) {
-                await cleanupTestLevels(ctx, generatedTypeIds);
-            }
-
             console.error("❌ 测试异常:", error);
             return {
                 success: false,
