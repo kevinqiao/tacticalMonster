@@ -221,5 +221,3 @@ export class MapTemplateService {
         }
     }
 }
-
-

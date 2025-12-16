@@ -6,9 +6,9 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import { BossConfigService } from "../boss/bossConfigService";
-import { BossInstanceService } from "../boss/bossInstanceService";
+import { BossInstanceService, BossPositions } from "../boss/bossInstanceService";
 import { BossScalingConfig, BossScalingService } from "../boss/bossScalingService";
-import { LevelGenerationService } from "../level/levelGenerationService";
+import { StageManagerService } from "../stage/stageManagerService";
 import { MonsterRumbleTierService } from "../tier/monsterRumbleTierService";
 
 export class GameInstanceService {
@@ -32,35 +32,118 @@ export class GameInstanceService {
             playerUid?: string;  // 玩家UID（用于计算玩家Power，用于自适应缩放）
             playerPowers?: Array<{ uid: string; power: number }>;  // 所有玩家的Power（多人PVE锦标赛）
             scalingConfig?: BossScalingConfig;  // 直接提供的缩放配置（优先级最高）
+            ruleId?: string;  // 新增：StageRuleConfig ruleId，如果提供则使用 StageManagerService 创建 stage
         }
-    ): Promise<{ gameId: string; level: any; appliedScale?: number }> {
-        const { matchId, tier, bossId, maxPlayers = 20, seed, typeId, playerUid, playerPowers, scalingConfig } = params;
+    ): Promise<{ gameId: string; appliedScale?: number; stageId?: string }> {
+        const { matchId, tier, bossId, maxPlayers = 20, seed, typeId, playerUid, playerPowers, scalingConfig, ruleId } = params;
+
+        let stageId: string | undefined;
 
         // 1. 生成关卡（包含Boss组合和地图障碍物）
-        const level = await LevelGenerationService.generateLevel(
-            ctx,
-            tier,
-            bossId,
-            seed
-        );
+        // 要求必须提供 ruleId，所有配置必须在 StageRuleConfig.stageContent.mapConfig 中手动配置
+        if (!ruleId) {
+            throw new Error(
+                `ruleId 是必需的。请使用 StageManagerService.createStage(ruleId) 并确保 StageRuleConfig.stageContent.mapConfig 已配置。`
+            );
+        }
 
-        // 2. 创建游戏主记录
+        // 1.1 获取 stage 配置
+        const stageConfig = StageManagerService.getStageConfig(ruleId);
+        const bossIdFromConfig = stageConfig.stageContent?.bossConfig?.bossId ||
+            (stageConfig.stageContent?.bossConfig?.bossPool &&
+                stageConfig.stageContent.bossConfig.bossPool[0]);
+        if (!bossIdFromConfig) {
+            throw new Error(`无法确定 Boss ID：stageConfig.bossConfig 配置无效`);
+        }
+
+        // 1.2 从 BossConfig 获取 bossPositions（Boss定义中包含位置信息）
+        const bossConfig = BossConfigService.getBossConfig(bossIdFromConfig);
+        if (!bossConfig) {
+            throw new Error(`Boss配置不存在: ${bossIdFromConfig}`);
+        }
+
+        // 从BossConfig中获取位置信息（Boss定义中包含position包括小怪）
+        // 如果BossConfig中没有位置信息，使用默认位置
+        const bossPositions: BossPositions = {
+            bossMain: (bossConfig as any).position || { q: 0, r: 0 }, // 如果BossConfig中有position则使用
+            minions: (bossConfig.minions || []).flatMap((minion: any) => {
+                const positions = minion.positions || []; // 如果minion配置中有positions则使用
+                return Array.from({ length: minion.quantity }, (_, i) => ({
+                    minionId: `${minion.minionId}_${i}`,
+                    position: positions[i] || { q: 0, r: 0 }, // 默认位置
+                }));
+            }),
+        };
+
+        // 1.3 为玩家提供4个空位（玩家手动部署，只保留区域定义）
+        const { mapConfig } = stageConfig;
+        const { rows, cols } = mapConfig.mapSize;
+
+
+        // 1.4 计算 difficulty（Boss Power / Player Team Power 比率）
+        // 先获取缩放配置来计算 difficulty
+        let calculatedDifficulty = 1.0; // 默认值
+        if (typeId) {
+            const tempScalingConfig = await this.getScalingConfigFromTournament(
+                ctx,
+                typeId,
+                playerUid,
+                playerPowers,
+                tier
+            );
+            if (tempScalingConfig?.difficultyMultiplier !== undefined) {
+                calculatedDifficulty = tempScalingConfig.difficultyMultiplier;
+            }
+        } else if (scalingConfig?.difficultyMultiplier !== undefined) {
+            calculatedDifficulty = scalingConfig.difficultyMultiplier;
+        }
+
+        // 1.5 使用 StageManagerService 创建 stage
+        const stage = await StageManagerService.createStage(ctx, {
+            ruleId,
+            seed,
+            difficulty: calculatedDifficulty,
+        });
+        stageId = stage.stageId;
+
+        // 1.6 获取地图数据（从 mr_map 表）
+        const mapData = await ctx.db
+            .query("mr_map")
+            .withIndex("by_mapId", (q: any) => q.eq("mapId", stage.mapId))
+            .first();
+
+        if (!mapData) {
+            throw new Error(`地图数据不存在: ${stage.mapId}`);
+        }
+
+        // 2. 创建游戏主记录（按照 mr_games 表结构）
         const gameId = `mr_game_${matchId}_${Date.now()}`;
-        const timeoutAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5分钟超时
         const gameSeed = seed || `game_${Date.now()}_${Math.random()}`;
+        const now = new Date().toISOString();
 
-        await ctx.db.insert("tacticalMonster_game", {
-            gameId,
+        // 构建符合 mr_games 表结构的数据
+        await ctx.db.insert("mr_games", {
+            uid: "",  // 创建时为空，玩家加入时更新
+            teamPower: 0,  // 创建时为0，玩家加入时更新
+            team: [],  // 创建时为空数组，玩家加入时更新
+            boss: [],  // Boss数据将在创建Boss实例后更新
+            map: {
+                rows: mapData.rows,
+                cols: mapData.cols,
+                obstacles: mapData.obstacles.map((obs: any) => ({
+                    q: obs.q,
+                    r: obs.r,
+                    // mr_map 表的 obstacles 包含 type 和 asset，但 mr_games.map.obstacles 只需要 q 和 r
+                })),
+                disables: mapData.disables || [],
+            },
+            stageId,
             matchId,
-            tier,
-            bossId: level.bossId,
-            maxPlayers,
-            currentPlayers: 0,
-            status: "waiting",
-            map: level.mapId,  // 使用动态生成的地图ID
-            timeoutAt,
-            seed: gameSeed,
-            createdAt: new Date().toISOString(),
+            gameId,
+            status: 0,  // 0: waiting
+            score: 0,
+            lastUpdate: now,
+            createdAt: now,
         });
 
         // 3. 计算缩放配置
@@ -89,14 +172,14 @@ export class GameInstanceService {
         }
 
         // 4. 如果是单人挑战关卡自适应模式，需要在创建Boss前计算baseBossPower
-        // （因为此时已经知道level.bossId）
+        // （因为此时已经知道stage.bossId）
         if (finalScalingConfig &&
             finalScalingConfig.difficultyMultiplier !== undefined &&
             finalScalingConfig.playerPower !== undefined &&
             finalScalingConfig.baseBossPower === undefined &&
-            level.bossId) {
+            stage.bossId) {
             // 获取合并后的Boss配置并计算基础Power
-            const mergedConfig = BossConfigService.getMergedBossConfig(level.bossId);
+            const mergedConfig = BossConfigService.getMergedBossConfig(stage.bossId);
             if (mergedConfig) {
                 finalScalingConfig.baseBossPower = BossScalingService.calculateBossPower(mergedConfig);
             }
@@ -107,18 +190,71 @@ export class GameInstanceService {
             ctx,
             {
                 gameId,
-                bossId: level.bossId,
-                levelId: level.levelId,
-                positions: level.bossPositions,
+                bossId: stage.bossId,
+                levelId: `level_${stage.bossId}`,
+                positions: bossPositions,
                 behaviorSeed: gameSeed,
                 scalingConfig: finalScalingConfig,  // 传递缩放配置（包含完整的缩放参数）
             }
         );
 
+        // 6. 更新 mr_games.boss 字段（从 tacticalMonster_game_character 获取Boss数据）
+        const bossCharacters = await ctx.db
+            .query("tacticalMonster_game_character")
+            .filter((q: any) =>
+                q.and(
+                    q.eq(q.field("gameId"), gameId),
+                    q.or(
+                        q.eq(q.field("character_id"), bossInstanceResult.characterIds.bossMain),
+                        q.eq(q.field("character_id"), bossInstanceResult.characterIds.minions[0])
+                    )
+                )
+            )
+            .collect();
+
+        // 构建 boss 数组（符合 mr_games.boss 结构）
+        const bossMainChar = bossCharacters.find((c: any) => c.character_id === bossInstanceResult.characterIds.bossMain);
+        const minionChars = bossCharacters.filter((c: any) =>
+            bossInstanceResult.characterIds.minions.includes(c.character_id)
+        );
+
+        const bossData = [];
+        if (bossMainChar) {
+            bossData.push({
+                monsterId: bossMainChar.monsterId || stage.bossId,
+                hp: bossMainChar.stats?.hp?.current || bossMainChar.stats?.hp?.max || 0,
+                damage: bossMainChar.stats?.damage || 0,
+                defense: bossMainChar.stats?.defense || 0,
+                speed: bossMainChar.stats?.speed || 0,
+                position: bossMainChar.position || { q: 0, r: 0 },
+                minions: minionChars.map((minion: any) => ({
+                    monsterId: minion.monsterId || "",
+                    hp: minion.stats?.hp?.current || minion.stats?.hp?.max || 0,
+                    damage: minion.stats?.damage || 0,
+                    defense: minion.stats?.defense || 0,
+                    speed: minion.stats?.speed || 0,
+                    position: minion.position || { q: 0, r: 0 },
+                })),
+            });
+        }
+
+        // 更新 mr_games 表的 boss 字段
+        const mrGame = await ctx.db
+            .query("mr_games")
+            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+            .first();
+
+        if (mrGame) {
+            await ctx.db.patch(mrGame._id, {
+                boss: bossData,
+                lastUpdate: new Date().toISOString(),
+            });
+        }
+
         return {
             gameId,
-            level,
             appliedScale: bossInstanceResult.appliedScale,
+            stageId,  // 返回 stageId（如果使用 StageManagerService 创建）
         };
     }
 
@@ -198,7 +334,7 @@ export class GameInstanceService {
 
         // 5. 自适应缩放模式（多人PVE锦标赛）
         if (isPowerBasedScaling && playerPowers && playerPowers.length > 0) {
-            // 计算房间平均Power（异步查询EMA）
+            // 计算房间平均Power（直接使用房间均值，不考虑EMA）
             const avgTierPower = await BossScalingService.calculateAvgTierPower(
                 ctx,
                 playerPowers.map(p => p.power),
@@ -251,6 +387,7 @@ export const createMonsterRumbleGameInstance = internalMutation({
             uid: v.string(),
             power: v.number(),
         }))),  // 所有玩家Power（多人PVE锦标赛）
+        ruleId: v.string(),  // 必需：StageRuleConfig ruleId
     },
     handler: async (ctx, args) => {
         const result = await GameInstanceService.createMonsterRumbleGame(
@@ -264,6 +401,7 @@ export const createMonsterRumbleGameInstance = internalMutation({
                 typeId: args.typeId,
                 playerUid: args.playerUid,
                 playerPowers: args.playerPowers,
+                ruleId: args.ruleId,  // 传递 ruleId
             }
         );
 

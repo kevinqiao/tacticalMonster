@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
 import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
-import { settleTournament, TournamentStatus } from "./common";
+import { settleTournament, TournamentStatus, incrementPlayerAttempts } from "./common";
 import { createSeededRandom } from "./seedRandom";
 // import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
@@ -103,6 +103,15 @@ export class MatchManager {
 
             const playerMatch = await ctx.db.query("player_matches").withIndex("by_match_uid", (q: any) => q.eq("matchId", match._id).eq("uid", uid)).unique();
             if (!playerMatch) {
+                // 获取 tournamentType 配置（用于增量统计）
+                let tournamentType: any = null;
+                if (match.tournamentType) {
+                    tournamentType = await ctx.db
+                        .query("tournament_types")
+                        .withIndex("by_typeId", (q: any) => q.eq("typeId", match.tournamentType))
+                        .unique();
+                }
+
                 const seed = createSeededRandom(match._id + uid);
                 const pmatch = {
                     matchId: match.id,
@@ -119,6 +128,21 @@ export class MatchManager {
                     updatedAt: nowISO,
                 }
                 await ctx.db.insert("player_matches", pmatch);
+
+                // 增量更新尝试次数统计
+                if (tournamentType) {
+                    try {
+                        await incrementPlayerAttempts(ctx, {
+                            uid,
+                            tournamentType,
+                            createdAt: nowISO,
+                        });
+                    } catch (error) {
+                        // 统计更新失败不应影响主要流程
+                        console.error(`增量更新尝试次数统计失败 (uid: ${uid}, matchId: ${match._id}):`, error);
+                    }
+                }
+
                 return { ...pmatch, _id: undefined, _creationTime: undefined };
             } else {
                 return { ...playerMatch, _id: undefined, _creationTime: undefined };

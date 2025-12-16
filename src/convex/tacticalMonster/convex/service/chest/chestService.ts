@@ -2,6 +2,8 @@
  * 宝箱服务
  * 处理宝箱生成和管理（游戏特定的逻辑）
  */
+import { GameRuleConfigService } from "../game/gameRuleConfigService"; // 注意：服务类名保持不变，但实际处理的是 StageRuleConfig
+
 export class ChestService {
     /**
      * 处理宝箱奖励（游戏特定的逻辑）
@@ -11,6 +13,7 @@ export class ChestService {
         tier: string;
         players: Array<{ uid: string; rank: number; score: number }>;
         chestTriggered: Record<string, boolean>;  // 从 Tournament 传入的触发决策
+        ruleId?: string;  // 可选：游戏规则ID，用于获取宝箱权重配置
     }) {
         const results: Record<string, any> = {};
 
@@ -20,7 +23,8 @@ export class ChestService {
             }
 
             // 1. 根据 Tier 和排名选择宝箱类型（游戏特定逻辑）
-            const chestType = this.selectChestType(params.tier, player.rank);
+            // 如果提供了 ruleId，使用配置的权重；否则使用默认权重
+            const chestType = await this.selectChestType(ctx, params.tier, player.rank, params.ruleId);
 
             // 2. 检查玩家宝箱槽位（3槽系统）
             const availableSlot = await this.findAvailableSlot(ctx, player.uid);
@@ -57,33 +61,45 @@ export class ChestService {
 
     /**
      * 根据 Tier 和排名选择宝箱类型
+     * @param tier Tier（用于后备默认配置）
+     * @param rank 排名
+     * @param ruleId 规则ID（可选，用于获取配置的权重）
+     * @returns 宝箱类型
      */
-    private static selectChestType(tier: string, rank: number): string {
-        // 游戏特定的宝箱类型选择逻辑
-        // 高排名更容易获得高级宝箱
-        const tierWeights: Record<string, Record<string, number>> = {
-            bronze: { silver: 0.8, gold: 0.2 },
-            silver: { silver: 0.6, gold: 0.35, purple: 0.05 },
-            gold: { gold: 0.5, purple: 0.4, orange: 0.1 },
-            platinum: { purple: 0.5, orange: 0.5 },
-        };
+    private static async selectChestType(
+        ctx: any,
+        tier: string,
+        rank: number,
+        ruleId?: string
+    ): Promise<string> {
+        // 1. 获取宝箱类型权重配置
+        // 优先使用 ruleId 的配置，否则使用基于 tier 的默认配置
+        const weights = GameRuleConfigService.getChestTypeWeights(ruleId || "", tier);
 
-        // 根据排名调整权重
+        // 2. 根据排名调整权重（逻辑保持不变）
         const rankBonus = rank === 1 ? 0.2 : rank <= 3 ? 0.1 : 0;
 
-        // 选择宝箱类型（简化实现）
-        const weights = tierWeights[tier] || tierWeights.bronze;
+        // 3. 选择宝箱类型
         const random = Math.random();
         let cumulative = 0;
 
-        for (const [chestType, weight] of Object.entries(weights)) {
-            cumulative += weight + (rank === 1 && chestType !== "silver" ? rankBonus : 0);
+        // 将 weights 对象转换为数组，按权重排序（高权重优先）
+        const weightEntries = Object.entries(weights)
+            .filter(([_, weight]) => weight && weight > 0)
+            .sort(([_, a], [__, b]) => (b || 0) - (a || 0));  // 降序排列
+
+        for (const [chestType, weight] of weightEntries) {
+            // 计算调整后的权重（排名加成）
+            const adjustedWeight = (weight || 0) + (rank === 1 && chestType !== "silver" ? rankBonus : 0);
+            cumulative += adjustedWeight;
+
             if (random < cumulative) {
                 return chestType;
             }
         }
 
-        return "silver";  // 默认
+        // 如果权重配置有问题，返回默认值
+        return "silver";
     }
 
     /**

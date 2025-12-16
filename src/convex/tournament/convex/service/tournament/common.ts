@@ -9,47 +9,170 @@ import { PointCalculationService } from "./pointCalculationService";
 
 
 /**
- * 获取玩家尝试次数
- * 统计玩家在指定时间范围内参与特定类型锦标赛的次数
+ * 增量更新玩家尝试次数统计
+ * 在创建 player_match 记录时调用，用于维护增量统计缓存
  */
-export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
-    uid: string;
-    tournamentType: any;
-}) {
-    let startTime: string;
-    switch (tournamentType.timeRange) {
+export async function incrementPlayerAttempts(
+    ctx: any,
+    params: {
+        uid: string;
+        tournamentType: any;
+        createdAt?: string; // player_match 的创建时间
+    }
+): Promise<number> {
+    const { uid, tournamentType, createdAt } = params;
+    const nowISO = createdAt || new Date().toISOString();
+
+    // 计算时间段标识（与 getPlayerAttempts 保持完全一致）
+    let periodStart: string;
+    const timeRange = tournamentType.timeRange || "permanent";
+
+    switch (timeRange) {
         case "daily":
-            startTime = TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto");
+            periodStart = TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto");
             break;
         case "weekly":
             const weekStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
             weekStart.setDate(weekStart.getDate() - weekStart.getDay());
             weekStart.setHours(0, 0, 0, 0);
-            startTime = weekStart.toISOString();
+            periodStart = weekStart.toISOString();
             break;
         case "monthly":
             const monthStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
             monthStart.setDate(1);
             monthStart.setHours(0, 0, 0, 0);
-            startTime = monthStart.toISOString();
+            periodStart = monthStart.toISOString();
             break;
         default:
-            startTime = "1970-01-01T00:00:00.000Z"; // 从1970年开始
+            periodStart = "1970-01-01T00:00:00.000Z"; // permanent
             break;
     }
 
-    // 优化：直接使用新的索引查询，避免关联查询
-    const playerMatches = await ctx.db
-        .query("player_matches")
-        .withIndex("by_tournamentType_uid_createdAt", (q: any) =>
-            q.eq("uid", uid)
-                .eq("tournamentType", tournamentType.typeId)
-                .gte("createdAt", startTime)
-        )
-        .collect();
+    try {
+        // 查找现有统计记录
+        const existing = await ctx.db
+            .query("player_attempt_stats")
+            .withIndex("by_uid_tournamentType_period", (q: any) =>
+                q
+                    .eq("uid", uid)
+                    .eq("tournamentType", tournamentType.typeId)
+                    .eq("timeRange", timeRange)
+                    .eq("periodStart", periodStart)
+            )
+            .unique();
 
-    return playerMatches
+        if (existing) {
+            // 增量更新
+            await ctx.db.patch(existing._id, {
+                attemptCount: existing.attemptCount + 1,
+                lastUpdated: nowISO,
+            });
+            return existing.attemptCount + 1;
+        } else {
+            // 创建新记录
+            await ctx.db.insert("player_attempt_stats", {
+                uid,
+                tournamentType: tournamentType.typeId,
+                timeRange,
+                periodStart,
+                attemptCount: 1,
+                lastUpdated: nowISO,
+                createdAt: nowISO,
+            });
+            return 1;
+        }
+    } catch (error) {
+        // 统计更新失败不应影响主要流程，记录错误并返回当前计数
+        console.error(`增量更新玩家尝试次数统计失败 (uid: ${uid}, tournamentType: ${tournamentType.typeId}):`, error);
+        // 降级到查询实际记录数（作为后备方案）
+        const playerMatches = await ctx.db
+            .query("player_matches")
+            .withIndex("by_tournamentType_uid_createdAt", (q: any) =>
+                q.eq("uid", uid)
+                    .eq("tournamentType", tournamentType.typeId)
+                    .gte("createdAt", periodStart)
+            )
+            .collect();
+        return playerMatches.length;
+    }
+}
 
+/**
+ * 获取玩家尝试次数（使用增量统计）
+ * 从缓存表读取，性能优于查询所有记录
+ * 
+ * @returns 尝试次数（数字）
+ */
+export async function getPlayerAttempts(ctx: any, { uid, tournamentType }: {
+    uid: string;
+    tournamentType: any;
+}): Promise<number> {
+    const timeRange = tournamentType.timeRange || "permanent";
+
+    // 计算时间段标识（与 incrementPlayerAttempts 保持完全一致）
+    let periodStart: string;
+    switch (timeRange) {
+        case "daily":
+            periodStart = TimeZoneUtils.getTimeZoneDayStartISO("America/Toronto");
+            break;
+        case "weekly":
+            const weekStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            weekStart.setHours(0, 0, 0, 0);
+            periodStart = weekStart.toISOString();
+            break;
+        case "monthly":
+            const monthStart = new Date(TimeZoneUtils.getTimeZoneWeekStartISO("America/Toronto"));
+            monthStart.setDate(1);
+            monthStart.setHours(0, 0, 0, 0);
+            periodStart = monthStart.toISOString();
+            break;
+        default:
+            periodStart = "1970-01-01T00:00:00.000Z";
+            break;
+    }
+
+    try {
+        // 从缓存表读取
+        const stats = await ctx.db
+            .query("player_attempt_stats")
+            .withIndex("by_uid_tournamentType_period", (q: any) =>
+                q
+                    .eq("uid", uid)
+                    .eq("tournamentType", tournamentType.typeId)
+                    .eq("timeRange", timeRange)
+                    .eq("periodStart", periodStart)
+            )
+            .unique();
+
+        if (stats) {
+            return stats.attemptCount;
+        }
+
+        // 如果没有缓存记录，降级到查询实际记录（用于历史数据或迁移期间）
+        const playerMatches = await ctx.db
+            .query("player_matches")
+            .withIndex("by_tournamentType_uid_createdAt", (q: any) =>
+                q.eq("uid", uid)
+                    .eq("tournamentType", tournamentType.typeId)
+                    .gte("createdAt", periodStart)
+            )
+            .collect();
+
+        return playerMatches.length;
+    } catch (error) {
+        // 查询失败时降级到直接查询 player_matches
+        console.error(`获取玩家尝试次数统计失败 (uid: ${uid}, tournamentType: ${tournamentType.typeId}):`, error);
+        const playerMatches = await ctx.db
+            .query("player_matches")
+            .withIndex("by_tournamentType_uid_createdAt", (q: any) =>
+                q.eq("uid", uid)
+                    .eq("tournamentType", tournamentType.typeId)
+                    .gte("createdAt", periodStart)
+            )
+            .collect();
+        return playerMatches.length;
+    }
 }
 
 
@@ -254,15 +377,41 @@ export async function joinMatch(ctx: any, params: {
         throw new Error("比赛已满");
     }
     const nowISO = new Date().toISOString();
+
+    // 获取 tournamentType 配置（用于增量统计）
+    let tournamentType: any = null;
+    if (match.tournamentType) {
+        tournamentType = await ctx.db
+            .query("tournament_types")
+            .withIndex("by_typeId", (q: any) => q.eq("typeId", match.tournamentType))
+            .unique();
+    }
+
     await Promise.all(uids.map(async (uid: string) => {
         const playerMatch = await ctx.db.query("player_matches").withIndex("by_match_uid", (q: any) => q.eq("matchId", matchId).eq("uid", uid)).unique();
         if (!playerMatch) {
+            // 创建 player_match 记录
             await ctx.db.insert("player_matches", {
                 matchId,
                 uid,
+                tournamentType: match.tournamentType,
                 createdAt: nowISO,
                 updatedAt: nowISO,
             });
+
+            // 增量更新尝试次数统计
+            if (tournamentType) {
+                try {
+                    await incrementPlayerAttempts(ctx, {
+                        uid,
+                        tournamentType,
+                        createdAt: nowISO,
+                    });
+                } catch (error) {
+                    // 统计更新失败不应影响主要流程
+                    console.error(`增量更新尝试次数统计失败 (uid: ${uid}, matchId: ${matchId}):`, error);
+                }
+            }
         }
     }));
 

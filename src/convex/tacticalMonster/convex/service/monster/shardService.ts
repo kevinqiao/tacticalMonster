@@ -221,7 +221,6 @@ export class ShardService {
             stars: 1,
             experience: 0,
             shards: 0,
-            inTeam: false,
         });
 
         return {

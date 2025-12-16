@@ -85,8 +85,9 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
             try {
                 if (tournament) {
                     // 使用 TacticalMonster 模块的客户端来加入锦标赛
+                    // 注意：joinTournamentMatching 是 action，需要使用 action 调用
                     const tacticalMonsterClient = new ConvexReactClient(tacticalMonster_convex_url);
-                    const result = await tacticalMonsterClient.mutation(
+                    const result = await tacticalMonsterClient.action(
                         tacticalMonsterApi.service.game.gameMatchingService.joinTournamentMatching,
                         {
                             uid: "kkk", // TODO: 从用户上下文获取真实 uid

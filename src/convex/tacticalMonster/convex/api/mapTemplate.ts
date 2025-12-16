@@ -3,9 +3,9 @@
  * 提供地图模板的创建、查询、更新、删除接口
  */
 
-import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
-import { MapTemplateService } from "../service/level/mapTemplateService";
+import { mutation, query } from "../_generated/server";
+import { MapTemplateService } from "../service/stage/mapTemplateService";
 
 /**
  * 创建地图模板
@@ -151,5 +151,7 @@ export const deleteMapTemplate = mutation({
         return await MapTemplateService.deleteMapTemplate(ctx, args.templateId);
     },
 });
+
+
 
 

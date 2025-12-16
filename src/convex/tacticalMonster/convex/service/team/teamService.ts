@@ -12,22 +12,26 @@ export class TeamService {
     /**
      * 获取玩家的上场队伍
      * 返回按位置排序的队伍（position 0-3）
+     * 使用 by_uid_teamPosition 索引和 gte(0) 优化查询
      */
     static async getPlayerTeam(ctx: any, uid: string) {
-        const allMonsters = await ctx.db
+        // 使用索引范围查询，只查询 teamPosition >= 0 的记录（即所有在队伍中的怪物）
+        const teamMonsters = await ctx.db
             .query("mr_player_monsters")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .withIndex("by_uid_teamPosition", (q: any) => 
+                q.eq("uid", uid)
+                 .gte("teamPosition", 0)
+            )
             .collect();
 
-        // 获取所有在队伍中的怪物（teamPosition 不为 null）
-        const teamMonsters = allMonsters
-            .filter((m: any) => m.teamPosition !== null && m.teamPosition !== undefined)
+        // 按位置排序并限制最多4个
+        const sortedTeam = teamMonsters
             .sort((a: any, b: any) => (a.teamPosition || 0) - (b.teamPosition || 0))
-            .slice(0, this.MAX_TEAM_SIZE); // 最多4个
+            .slice(0, this.MAX_TEAM_SIZE);
 
         // 关联怪物配置信息
         const monstersWithConfig = await Promise.all(
-            teamMonsters.map(async (monster: any) => {
+            sortedTeam.map(async (monster: any) => {
                 const config = await ctx.db
                     .query("mr_monster_configs")
                     .withIndex("by_monsterId", (q: any) => q.eq("monsterId", monster.monsterId))
@@ -80,7 +84,6 @@ export class TeamService {
             if (monster.teamPosition !== null && monster.teamPosition !== undefined) {
                 await ctx.db.patch(monster._id, {
                     teamPosition: undefined,
-                    inTeam: false,
                     updatedAt: new Date().toISOString(),
                 });
             }
@@ -95,7 +98,6 @@ export class TeamService {
             }
             await ctx.db.patch(monster._id, {
                 teamPosition: i,
-                inTeam: true,
                 updatedAt: new Date().toISOString(),
             });
         }
@@ -171,7 +173,6 @@ export class TeamService {
         // 5. 更新怪物
         await ctx.db.patch(monster._id, {
             teamPosition: targetPosition,
-            inTeam: true,
             updatedAt: new Date().toISOString(),
         });
 
@@ -209,7 +210,6 @@ export class TeamService {
 
         await ctx.db.patch(monster._id, {
             teamPosition: undefined,
-            inTeam: false,
             updatedAt: new Date().toISOString(),
         });
 

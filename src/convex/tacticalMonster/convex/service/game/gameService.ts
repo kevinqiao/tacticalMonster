@@ -784,7 +784,7 @@ export const findEvents = query({
     args: { gameId: v.string(), lastTime: v.optional(v.number()) },
     handler: async (ctx, { gameId, lastTime }) => {
         let query = ctx.db
-            .query("tacticalMonster_event")
+            .query("mr_game_event")
             .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
             .filter((q: any) => q.eq(q.field("isSynced"), false));
 

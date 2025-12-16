@@ -25,19 +25,11 @@ import { TournamentMatchingService } from "./tournamentMatchingService";
  */
 export class TournamentService {
     static async loadTournamentConfig(ctx: any, options?: {
-        generateDynamicLevels?: boolean;  // 是否生成动态关卡
         replaceExisting?: boolean;        // 是否替换已存在的配置
     }) {
-        const { generateDynamicLevels = false, replaceExisting = false } = options || {};
+        const { replaceExisting = false } = options || {};
 
-        // 1. 如果需要生成动态关卡，先生成
-        if (generateDynamicLevels) {
-            // 直接调用 Service 层方法
-            const { SoloChallengeLevelService } = await import("./SoloChallengeLevelService");
-            await SoloChallengeLevelService.generateAllActiveLevels(ctx, replaceExisting);
-        }
-
-        // 2. 清理现有配置（如果替换）
+        // 1. 清理现有配置（如果替换）
         if (replaceExisting) {
             const preconfigs = await ctx.db.query("tournament_types").collect();
             for (const preconfig of preconfigs) {
@@ -45,7 +37,8 @@ export class TournamentService {
             }
         }
 
-        // 3. 加载静态配置
+        // 2. 加载静态配置
+        // 注意：TournamentConfig 现在需要手动配置，不再自动生成
         for (const tournamentConfig of TOURNAMENT_CONFIGS) {
             // 检查是否已存在
             if (!replaceExisting) {
@@ -347,7 +340,7 @@ export class TournamentService {
                     if (attempts >= tournamentType.limits.maxAttempts) {
                         continue;
                     }
-                    participation.attempts = attempts.length;
+                    participation.attempts = attempts; // getPlayerAttempts 现在返回数字而非数组
                 }
                 let tournamentId = null;
                 if (['daily', 'weekly', 'monthly'].includes(tournamentType.timeRange)) {
@@ -466,12 +459,10 @@ export const getAvailableTournaments = query({
 
 export const loadTournamentConfig = internalMutation({
     args: {
-        generateDynamicLevels: v.optional(v.boolean()),  // 是否生成动态关卡
         replaceExisting: v.optional(v.boolean()),        // 是否替换已存在的配置
     },
     handler: async (ctx: any, args: any) => {
         const result = await TournamentService.loadTournamentConfig(ctx, {
-            generateDynamicLevels: args.generateDynamicLevels || false,
             replaceExisting: args.replaceExisting || false,
         });
         return result;

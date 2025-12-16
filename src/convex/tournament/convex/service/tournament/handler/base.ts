@@ -27,7 +27,7 @@ export const baseHandler: TournamentHandler = {
 
     const playedMatches = await getPlayerAttempts(ctx, { uid: player.uid, tournamentType });
     const maxAttempts = tournamentType.matchRules?.maxAttempts || 1;
-    if (playedMatches.length >= maxAttempts) {
+    if (playedMatches >= maxAttempts) { // getPlayerAttempts 现在返回数字而非数组
       throw new Error(`已达到最大尝试次数: ${maxAttempts}`);
     }
 

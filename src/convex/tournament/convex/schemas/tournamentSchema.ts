@@ -79,14 +79,9 @@ export const tournamentSchema = {
         // 参赛条件
         entryRequirements: v.optional(v.object({
             isSubscribedRequired: v.boolean(),
-            // TacticalMonster 特定：Tier 要求
-            // 注意：Power 范围（minPower/maxPower）应该从 tier 配置中获取，不在此处定义
-            tier: v.optional(v.union(
-                v.literal("bronze"),
-                v.literal("silver"),
-                v.literal("gold"),
-                v.literal("platinum")
-            )),
+            // 玩家等级要求（TacticalMonster 游戏使用）
+            playerLevel: v.optional(v.number()),
+            // 注意：Power 范围（minTeamPower/maxTeamPower）在 GameRuleConfig.unlockConditions 中配置
             entryFee: v.object({
                 coins: v.optional(v.number()),
                 gems: v.optional(v.number()),
@@ -447,9 +442,9 @@ export const tournamentSchema = {
         score: v.number(),
         rank: v.number(),
         status: v.number(),
-        opponentQuantity: v.optional(v.number()),
         gameId: v.optional(v.string()),
-        seed: v.optional(v.string()),
+        teamPower: v.optional(v.number()),
+        stageId: v.optional(v.string()),
         joinTime: v.optional(v.string()),
         leaveTime: v.optional(v.string()),
         createdAt: v.string(),
@@ -457,18 +452,15 @@ export const tournamentSchema = {
     }).index("by_uid_status", ["uid", "status"])
         .index("by_match", ["matchId"])
         .index("by_match_uid", ["matchId", "uid"])
-        .index("by_seed", ["seed"])
         .index("by_uid", ["uid"])
         .index("by_game", ["gameId"])
         .index("by_tournamentType_uid_status", ["tournamentType", "uid", "status"])
         .index("by_tournamentType_uid_createdAt", ["tournamentType", "uid", "createdAt"])
         .index("by_createdAt", ["createdAt"])
-        .index("by_seed_created", ["seed", "createdAt"]) // 复合索引，用于增量查询
         .index("by_score", ["score"])                    // 按得分查询
         .index("by_rank", ["rank"])                      // 按排名查询
         .index("by_uid_created", ["uid", "createdAt"])  // 复合索引，用于玩家历史查询
-        .index("by_segment", ["segmentName"])            // 按段位查询
-        .index("by_gameType", ["gameType"])              // 按游戏类型查询
+        .index("by_team_stage", ["teamPower", "stageId"])// 按游戏类型和玩家查询        
         .index("by_uid_gameType", ["uid", "gameType"])   // 复合索引，用于按游戏类型查询玩家历史
         .index("by_uid_gameType_created", ["uid", "gameType", "createdAt"]), // 复合索引，用于按游戏类型查询玩家历史（排序）
 
@@ -507,4 +499,18 @@ export const tournamentSchema = {
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_isActive", ["isActive"]),
+
+    // 玩家尝试次数统计表（增量缓存）
+    // 用于高效统计玩家在特定时间范围内参与特定类型锦标赛的次数
+    player_attempt_stats: defineTable({
+        uid: v.string(),
+        tournamentType: v.string(),
+        timeRange: v.string(), // "daily" | "weekly" | "monthly" | "permanent"
+        periodStart: v.string(), // 时间段开始时间（ISO字符串，用于 daily/weekly/monthly）
+        attemptCount: v.number(), // 尝试次数
+        lastUpdated: v.string(), // 最后更新时间
+        createdAt: v.string(),
+    }).index("by_uid_tournamentType", ["uid", "tournamentType"])
+        .index("by_uid_tournamentType_period", ["uid", "tournamentType", "timeRange", "periodStart"])
+        .index("by_tournamentType_period", ["tournamentType", "timeRange", "periodStart"]),
 }; 

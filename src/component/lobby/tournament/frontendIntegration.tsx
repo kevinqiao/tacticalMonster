@@ -130,7 +130,8 @@ export function useTournamentStatus(uid: string, gameType?: string, category?: s
 
         try {
             // 2. 执行加入操作（调用 TacticalMonster 模块）
-            const result = await tacticalMonsterClient.mutation(
+            // 注意：joinTournamentMatching 是 action，需要使用 action 调用
+            const result = await tacticalMonsterClient.action(
                 tacticalMonsterApi.service.game.gameMatchingService.joinTournamentMatching,
                 {
                     uid: uid,

@@ -1,3 +1,5 @@
+import { v } from "convex/values";
+import { query } from "../../_generated/server";
 import { TIER_CONFIGS } from "../../data/tierConfigs";
 
 /**
@@ -7,20 +9,23 @@ import { TIER_CONFIGS } from "../../data/tierConfigs";
 export class MonsterRumbleTierService {
     /**
      * 计算队伍 Power
-     * 只计算上场队伍（teamPosition 不为 null 的怪物，最多4个）
+     * 只计算上场队伍（teamPosition >= 0 的怪物，最多4个）
+     * 使用 by_uid_teamPosition 索引和 gte(0) 优化查询
      */
     static async calculateTeamPower(ctx: any, uid: string): Promise<number> {
-        // 1. 获取玩家的所有怪物
-        const allMonsters = await ctx.db
+        // 1. 使用索引范围查询，只查询 teamPosition >= 0 的记录（即所有在队伍中的怪物）
+        const teamMonsters = await ctx.db
             .query("mr_player_monsters")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .withIndex("by_uid_teamPosition", (q: any) =>
+                q.eq("uid", uid)
+                    .gte("teamPosition", 0)
+            )
             .collect();
 
-        // 2. 获取上场队伍（teamPosition 不为 null，按位置排序，最多4个）
-        const team = allMonsters
-            .filter((m: any) => m.teamPosition !== null && m.teamPosition !== undefined)
+        // 2. 按位置排序并限制最多4个
+        const team = teamMonsters
             .sort((a: any, b: any) => (a.teamPosition || 0) - (b.teamPosition || 0))
-            .slice(0, 4); // 最多4个
+            .slice(0, 4);
 
         // 3. 验证队伍有效性
         if (team.length === 0) {
@@ -30,7 +35,7 @@ export class MonsterRumbleTierService {
         // 4. 计算每个怪物的 Power
         let totalPower = 0;
         for (const monster of team) {
-            const power = this.calculateMonsterPower(monster);
+            const power = await this.calculateMonsterPower(ctx, monster);
             totalPower += power;
         }
 
@@ -126,23 +131,62 @@ export class MonsterRumbleTierService {
     }
 
     /**
-     * 计算怪物 Power（简化示例）
-     * Power = (HP + Attack * 2 + Defense * 1.5) * LevelMultiplier * StarMultiplier
+     * 计算怪物 Power
+     * Power = (HP + Attack * 2 + Defense * 1.5) * StarMultiplier
+     * HP/Attack/Defense 根据等级增长：每级增长15%基础HP，10%基础伤害，12%基础防御
      */
-    private static calculateMonsterPower(monster: any): number {
-        // 获取怪物基础属性（从配置中）
-        // 这里简化处理，假设 monster 对象包含必要信息
-        // 实际实现需要查询 mr_monster_configs 表获取基础属性
+    private static async calculateMonsterPower(ctx: any, monster: any): Promise<number> {
+        // 从数据库获取怪物配置
+        const config = await ctx.db
+            .query("mr_monster_configs")
+            .withIndex("by_monsterId", (q: any) => q.eq("monsterId", monster.monsterId))
+            .first();
 
-        const baseHp = 1000;  // 简化：实际应从配置获取
-        const baseAttack = 100;  // 简化：实际应从配置获取
-        const baseDefense = 50;  // 简化：实际应从配置获取
+        if (!config) {
+            throw new Error(`怪物配置不存在: ${monster.monsterId}`);
+        }
 
-        const basePower = baseHp + baseAttack * 2 + baseDefense * 1.5;
-        const levelMultiplier = 1 + (monster.level - 1) * 0.05;
+        // 计算等级加成的实际属性
+        // 每级增长15%基础HP，10%基础伤害，12%基础防御
+        const hpGrowthRate = 0.15;
+        const damageGrowthRate = 0.10;
+        const defenseGrowthRate = 0.12;
+
+        const actualHp = config.baseHp * (1 + (monster.level - 1) * hpGrowthRate);
+        const actualAttack = config.baseDamage * (1 + (monster.level - 1) * damageGrowthRate);
+        const actualDefense = config.baseDefense * (1 + (monster.level - 1) * defenseGrowthRate);
+
+        // 基础Power计算
+        const basePower = actualHp + actualAttack * 2 + actualDefense * 1.5;
+
+        // 星级倍数（每星增加10%）
         const starMultiplier = 1 + (monster.stars - 1) * 0.1;
 
-        return Math.floor(basePower * levelMultiplier * starMultiplier);
+        return Math.floor(basePower * starMultiplier);
     }
 }
 
+/**
+ * 计算队伍 Power (Query)
+ * 用于在 action 中通过 runQuery 调用
+ */
+export const calculateTeamPower = query({
+    args: { uid: v.string() },
+    handler: async (ctx, args) => {
+        return await MonsterRumbleTierService.calculateTeamPower(ctx, args.uid);
+    },
+});
+
+/**
+ * 验证 Power 范围 (Query)
+ * 用于在 action 中通过 runQuery 调用
+ */
+export const validatePowerRange = query({
+    args: {
+        uid: v.string(),
+        tier: v.string(),
+    },
+    handler: async (ctx, args) => {
+        return await MonsterRumbleTierService.validatePowerRange(ctx, args.uid, args.tier);
+    },
+});

@@ -58,22 +58,26 @@ export class MonsterService {
     /**
      * 获取玩家的队伍怪物（上场队伍，teamPosition 不为 null）
      * 注意：此方法返回上场队伍（最多4个），按位置排序
+     * 使用 by_uid_teamPosition 索引和 gte(0) 优化查询
      */
     static async getPlayerTeamMonsters(ctx: any, uid: string) {
-        const allMonsters = await ctx.db
+        // 使用索引范围查询，只查询 teamPosition >= 0 的记录（即所有在队伍中的怪物）
+        const teamMonsters = await ctx.db
             .query("mr_player_monsters")
-            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .withIndex("by_uid_teamPosition", (q: any) => 
+                q.eq("uid", uid)
+                 .gte("teamPosition", 0)
+            )
             .collect();
 
-        // 获取上场队伍（teamPosition 不为 null，按位置排序，最多4个）
-        const teamMonsters = allMonsters
-            .filter((m: any) => m.teamPosition !== null && m.teamPosition !== undefined)
+        // 按位置排序并限制最多4个
+        const sortedTeam = teamMonsters
             .sort((a: any, b: any) => (a.teamPosition || 0) - (b.teamPosition || 0))
             .slice(0, 4);
 
         // 关联怪物配置信息
         const monstersWithConfig = await Promise.all(
-            teamMonsters.map(async (monster: any) => {
+            sortedTeam.map(async (monster: any) => {
                 const config = await this.getMonsterConfig(ctx, monster.monsterId);
                 return {
                     ...monster,
@@ -120,10 +124,9 @@ export class MonsterService {
             stars?: number;
             experience?: number;
             shards?: number;
-            inTeam?: boolean;
         }
     ) {
-        const { uid, monsterId, level = 1, stars = 1, experience = 0, shards = 0, inTeam = false } = params;
+        const { uid, monsterId, level = 1, stars = 1, experience = 0, shards = 0 } = params;
 
         // 检查怪物配置是否存在
         const config = await this.getMonsterConfig(ctx, monsterId);
@@ -141,7 +144,7 @@ export class MonsterService {
             throw new Error(`玩家已拥有该怪物: ${monsterId}`);
         }
 
-        // 创建玩家怪物记录
+        // 创建玩家怪物记录（不在队伍中，teamPosition 为 undefined）
         const now = new Date().toISOString();
         const monsterId_record = await ctx.db.insert("mr_player_monsters", {
             uid,
@@ -151,7 +154,6 @@ export class MonsterService {
             experience,
             shards,
             unlockedSkills: [],
-            inTeam,
             obtainedAt: now,
             updatedAt: now,
         });
@@ -171,7 +173,6 @@ export class MonsterService {
             stars?: number;
             experience?: number;
             shards?: number;
-            inTeam?: boolean;
             unlockedSkills?: any[];
         }
     ) {
@@ -196,7 +197,6 @@ export class MonsterService {
         if (updates.stars !== undefined) updateData.stars = updates.stars;
         if (updates.experience !== undefined) updateData.experience = updates.experience;
         if (updates.shards !== undefined) updateData.shards = updates.shards;
-        if (updates.inTeam !== undefined) updateData.inTeam = updates.inTeam;
         if (updates.unlockedSkills !== undefined) updateData.unlockedSkills = updates.unlockedSkills;
 
         await ctx.db.patch(monster._id, updateData);
@@ -275,7 +275,6 @@ export const addMonsterToPlayer = mutation({
         stars: v.optional(v.number()),
         experience: v.optional(v.number()),
         shards: v.optional(v.number()),
-        inTeam: v.optional(v.boolean()),
     },
     handler: async (ctx, args) => {
         const result = await MonsterService.addMonsterToPlayer(ctx, args);
@@ -294,7 +293,6 @@ export const updateMonster = mutation({
         stars: v.optional(v.number()),
         experience: v.optional(v.number()),
         shards: v.optional(v.number()),
-        inTeam: v.optional(v.boolean()),
         unlockedSkills: v.optional(v.any()),
     },
     handler: async (ctx, args) => {

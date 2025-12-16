@@ -8,11 +8,11 @@
  *    - 计算流程：目标Boss Power = 玩家Power × difficultyMultiplier
  *               缩放比例 = 目标Boss Power / 基础Boss Power
  * 2. 多人PVE锦标赛自适应缩放：基于房间平均Power和玩家Power计算
- *    - 使用公式：scale = K × (Avg_Tier_Power / Player_Power)
+ *    - 使用公式：scale = K × (房间均值 / Player_Power)
+ *    - Avg_Tier_Power = 房间均值（所有玩家Power的平均值，不考虑EMA）
  */
 
 import { MergedBossConfig } from "./bossConfigService";
-import { EMAService } from "./emaService";
 
 /**
  * Boss缩放配置
@@ -22,7 +22,7 @@ export interface BossScalingConfig {
     difficultyMultiplier?: number;  // 难度倍数（Boss Power / Player Team Power 的比率）
     playerPower?: number;           // 玩家Power（单人关卡需要）
     baseBossPower?: number;         // 基础Boss Power（用于计算缩放比例）
-    
+
     // 多人PVE锦标赛自适应模式
     baseK?: number;            // 基础缩放系数（默认1.2）
     minScale?: number;         // 最小缩放（默认0.95）
@@ -70,10 +70,10 @@ export class BossScalingService {
         if (config.difficultyMultiplier !== undefined && config.playerPower !== undefined && config.baseBossPower !== undefined) {
             // 计算目标Boss Power = 玩家Power × 难度倍数
             const targetBossPower = config.playerPower * config.difficultyMultiplier;
-            
+
             // 计算缩放比例 = 目标Boss Power / 基础Boss Power
             const scale = targetBossPower / config.baseBossPower;
-            
+
             // 限制在合理范围（0.1 - 10.0）
             return Math.max(0.1, Math.min(10.0, scale));
         }
@@ -119,13 +119,13 @@ export class BossScalingService {
 
     /**
      * 计算房间平均Tier Power
-     * 使用加权平均：0.8×房间均值 + 0.2×EMA
+     * 直接使用房间均值，不考虑EMA
      * 
-     * @param ctx Convex上下文（可选，用于查询EMA）
+     * @param ctx Convex上下文（保留参数以保持兼容性，但不再使用）
      * @param playerPowers 所有玩家的Power列表
-     * @param tier Tier名称（可选，用于查询EMA）
-     * @param emaPower EMA平滑值（可选，如果没有则查询或使用房间均值）
-     * @returns 平均Tier Power
+     * @param tier Tier名称（保留参数以保持兼容性，但不再使用）
+     * @param emaPower EMA平滑值（保留参数以保持兼容性，但不再使用）
+     * @returns 房间平均Power（房间均值）
      */
     static async calculateAvgTierPower(
         ctx: any,
@@ -137,30 +137,18 @@ export class BossScalingService {
             return 0;
         }
 
-        // 计算房间均值
+        // 直接返回房间均值，不使用EMA加权平均
         const roomMean = playerPowers.reduce((sum, p) => sum + p, 0) / playerPowers.length;
-
-        // 如果没有提供EMA值，尝试从数据库查询
-        let finalEMAPower = emaPower;
-        if (finalEMAPower === undefined && tier && ctx) {
-            const today = EMAService.getTodayDateString();
-            finalEMAPower = await EMAService.getEMAForDate(ctx, tier, today);
-        }
-
-        // 如果没有EMA值，直接使用房间均值
-        if (finalEMAPower === undefined) {
-            return roomMean;
-        }
-
-        // 加权平均：0.8×房间均值 + 0.2×EMA
-        const avgTierPower = 0.8 * roomMean + 0.2 * finalEMAPower;
-
-        return avgTierPower;
+        return roomMean;
     }
 
     /**
-     * 同步版本：计算房间平均Tier Power（不使用EMA查询）
-     * 用于不需要EMA的场景或测试
+     * 同步版本：计算房间平均Tier Power
+     * 直接使用房间均值，不考虑EMA
+     * 
+     * @param playerPowers 所有玩家的Power列表
+     * @param emaPower EMA平滑值（保留参数以保持兼容性，但不再使用）
+     * @returns 房间平均Power（房间均值）
      */
     static calculateAvgTierPowerSync(
         playerPowers: number[],
@@ -170,18 +158,9 @@ export class BossScalingService {
             return 0;
         }
 
-        // 计算房间均值
+        // 直接返回房间均值，不使用EMA加权平均
         const roomMean = playerPowers.reduce((sum, p) => sum + p, 0) / playerPowers.length;
-
-        // 如果没有EMA值，直接使用房间均值
-        if (emaPower === undefined) {
-            return roomMean;
-        }
-
-        // 加权平均：0.8×房间均值 + 0.2×EMA
-        const avgTierPower = 0.8 * roomMean + 0.2 * emaPower;
-
-        return avgTierPower;
+        return roomMean;
     }
 
     /**

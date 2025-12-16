@@ -2,10 +2,9 @@
  * 锦标赛配置类型定义 - 基于 tournament_types schema
  * 
  * 重要说明：
- * - Tier（竞技场）：TacticalMonster 特定，基于 Power 匹配，与 Boss 难度关联
- * - 对于 TacticalMonster 游戏，应使用 Tier 限制
- * - Power 基于当前队伍（inTeam: true 的怪物）计算
- * - 玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛，实现自然降级
+ * - playerLevel: 玩家等级要求，在 EntryRequirements 中配置
+ * - Power 范围（minTeamPower/maxTeamPower）在 GameRuleConfig.unlockConditions 中配置
+ * - 通过 gameRule.ruleId 关联到 TacticalMonster 模块的 GameRuleConfig
  * - 单人关卡：当 matchRules.minPlayers === 1 && maxPlayers === 1 时，表示单人关卡
  *   单人关卡可以配置关卡进度、解锁条件、首次通关奖励等特殊属性
  */
@@ -15,9 +14,10 @@ export interface TournamentConfig {
     name: string;
     description: string;
     timeRange?: string;
-
+    pointsType?: "by_match_points_total" | "by_match_points_average" | "by_match_points_highest";  // 可选：向后兼容
     // 游戏配置
-    gameType: GameType;
+    gameType?: string;  // 向后兼容：旧配置使用 gameType，新配置使用 gameRule
+    gameRule?: GameRule;  // 新配置使用此字段，包含 ruleId
     isActive: boolean;
     // 参赛条件
     entryRequirements?: EntryRequirements;
@@ -35,20 +35,28 @@ export interface TournamentConfig {
     limits?: LimitConfig;
 
     // ============================================
-    // 单人挑战配置（当 matchRules.minPlayers === 1 && maxPlayers === 1 时使用）
-    // 注意：此配置定义关卡的挑战内容，与玩家等级（player level）无关
+    // 注意：单人挑战配置（GameRuleConfig）已移至 TacticalMonster 模块
+    // 通过 gameRule.ruleId 关联到 GameRuleConfig
+    // 以下字段已废弃，保留仅为向后兼容
     // ============================================
-    soloChallenge?: SoloChallengeConfig;
+    /** @deprecated 使用 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig */
+    soloChallenge?: any;
 
     // 时间戳
     createdAt?: string;
     updatedAt?: string;
 }
 
+export interface GameRule {
+    name: GameName;
+    mode: "challenge" | "pvp" | "story";
+    ruleId: string;  // 必填：关联到 TacticalMonster 模块的 GameRuleConfig
+}
+
 /**
  * 游戏类型
  */
-export type GameType =
+export type GameName =
     | "solitaire"       // 单人纸牌
     | "rummy"           // 拉米纸牌
     | "uno"             // UNO
@@ -63,9 +71,9 @@ export type GameType =
  * 参赛条件
  * 
  * 注意：
- * - minPower 和 maxPower 不应该在此接口中定义
- * - 这些值应该从 tier 配置（TIER_CONFIGS）中获取
- * - tier 字段用于标识所属的 Tier，Power 范围由 TacticalMonster 模块的 tier 配置决定
+ * - playerLevel: 玩家等级要求（TacticalMonster 游戏使用）
+ * - Power 范围（minTeamPower/maxTeamPower）在 GameRuleConfig.unlockConditions 中配置
+ * - 通过 gameRule.ruleId 关联到 TacticalMonster 模块的 GameRuleConfig 获取 Power 范围
  */
 export interface EntryRequirements {
     // ============================================
@@ -74,9 +82,8 @@ export interface EntryRequirements {
     // 订阅要求
     isSubscribedRequired: boolean;
 
-    // Tier 要求（TacticalMonster 特定）
-    // Power 范围由对应 tier 的配置决定，不在此处定义
-    tier?: "bronze" | "silver" | "gold" | "platinum";
+    // 玩家等级要求（TacticalMonster 游戏使用）
+    playerLevel?: number;
 
     // ============================================
     // 入场费
@@ -94,18 +101,19 @@ export interface EntryRequirements {
  * 比赛规则
  */
 export interface MatchRules {
-    // 比赛类型
-    matchType: "single_match" | "multi_match" | "best_of_series" | "elimination" | "round_robin";
+    // 比赛类型（向后兼容）
+    matchType?: string;  // "single_match", "multi_match", "best_of_series", "elimination", "round_robin"
+    attempts?: number;  // 可选：向后兼容
 
     // 玩家数量
     minPlayers: number;
     maxPlayers: number;
     // 排名规则
-    rankingMethod: "highest_score" | "total_score" | "average_score" | "threshold";
-    matchPoints?: { [k: string]: number };
-    // 分数阈值（用于threshold排名）
-    scoreThreshold?: number;
-    // maxAttempts?: number;
+    rankingMethod?: string;  // 向后兼容：旧配置使用此字段
+    matchPointsType?: "by_score" | "by_rank" | "by_performance";
+    rankPoints?: { [k: string]: number };
+    performancePoints?: { [k: string]: number };
+
     // 时间限制
     timeLimit?: {
         perMatch: number; // 秒
@@ -125,43 +133,40 @@ export interface MatchRules {
  * - 不包含 props 和 tickets（这些是传统游戏的奖励类型）
  */
 export interface RewardConfig {
+    rewardType?: "by_points" | "by_rank";  // 可选：向后兼容
+
     // ============================================
     // 基础奖励 - 参与即可获得
     // ============================================
     baseRewards: {
-        coins?: number;
-        // TacticalMonster 特定奖励
-        monsters?: Array<{
-            monsterId: string;
-            level?: number;
-            stars?: number;
-        }>;
-        monsterShards?: Array<{
-            monsterId: string;
-            quantity: number;
-        }>;
+        coins?: number;        // TacticalMonster 特定奖励
         energy?: number;
+        chestDropRate?: number;  // 可选：向后兼容，如果没有配置则使用默认值
     };
 
+    pointsRewards?: Array<{
+        pointsRange: number[]; // [minPoints, maxPoints]
+        multiplier: number;
+
+        // TacticalMonster 特定奖励
+        coins?: number;
+        energy?: number;
+        chestDropRate?: number;
+    }>;
     // ============================================
     // 排名奖励 - 仅用于多人比赛（minPlayers > 1 或 maxPlayers > 1）
     // ============================================
     rankRewards?: Array<{
         rankRange: number[]; // [minRank, maxRank]
         multiplier: number;
-
         // TacticalMonster 特定奖励
         coins?: number;
-        monsters?: Array<{
-            monsterId: string;
-            level?: number;
-            stars?: number;
-        }>;
         monsterShards?: Array<{
             monsterId: string;
             quantity: number;
         }>;
         energy?: number;
+        chestDropRate?: number;
     }>;
 
     // ============================================
@@ -269,16 +274,18 @@ export interface LimitConfig {
 }
 
 /**
- * 单人挑战配置
- * 当 matchRules.minPlayers === 1 && maxPlayers === 1 时，可以使用此配置
+ * 注意：GameRuleConfig 已移至 TacticalMonster 模块
+ * 请使用 TacticalMonster 模块的 GameRuleConfig 接口
+ * 此接口定义已废弃，仅保留用于参考
  * 
- * 注意：此配置定义关卡的挑战内容（Boss、难度、奖励等），
- * 与玩家等级（player level）无关。玩家等级在 unlockConditions.minPlayerLevel 中定义。
+ * @deprecated 使用 TacticalMonster 模块的 GameRuleConfig
  */
-export interface SoloChallengeConfig {
+export interface GameRuleConfig_Deprecated {
     // ============================================
     // 关卡类型和进度
     // ============================================
+    gameName: GameName;
+    ruleId: string;
     levelType: "story" | "challenge" | "boss_rush" | "endless";  // 关卡类型
     chapter?: number;                    // 章节编号（故事模式使用）
     levelNumber?: number;                 // 章节内关卡编号
@@ -320,10 +327,8 @@ export interface SoloChallengeConfig {
         requiredTypeIds?: string[];
 
         // 玩家等级要求
-        minPlayerLevel?: number;
-
-        // Tier 要求（与 entryRequirements.tier 一致）
-        // 注意：如果设置了 entryRequirements.tier，则自动应用
+        // 注意：玩家等级要求在 TournamentConfig.entryRequirements.playerLevel 中配置
+        // 这里不再需要 minPlayerLevel，因为已经在 EntryRequirements 中配置
 
         // 自定义解锁条件
         customConditions?: Array<{
@@ -565,7 +570,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze", // Tier 要求（仅适用于 TacticalMonster）
             entryFee: {
                 coins: 10, // 门票费用
             }
@@ -628,7 +632,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "silver",
             entryFee: {
                 coins: 50,
             }
@@ -689,10 +692,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
-            // 注意：玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛
-            // Power 基于当前队伍（inTeam: true 的怪物）计算
-            // 入场费（包含能量消耗）
+            playerLevel: 1, // 玩家等级要求
             entryFee: {
                 coins: 0,
                 energy: 6, // TacticalMonster 特定：能量消耗
@@ -788,10 +788,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
-            // 注意：玩家可以通过选择低 Power 的队伍来加入低 Tier 锦标赛
-            // Power 基于当前队伍（inTeam: true 的怪物）计算
-            // 匹配基于 Power ±10%，确保公平匹配
+            playerLevel: 1, // 玩家等级要求
             entryFee: {
                 coins: 0,
                 energy: 6,
@@ -888,7 +885,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求
             entryFee: {
                 energy: 5,  // 故事模式消耗较少能量
             },
@@ -1032,7 +1029,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
@@ -1093,7 +1090,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
@@ -1155,7 +1152,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
@@ -1217,7 +1214,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
@@ -1279,7 +1276,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
@@ -1341,7 +1338,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "silver",
+            playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
@@ -1403,7 +1400,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "silver",
+            playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
@@ -1465,7 +1462,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "silver",
+            playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
@@ -1527,7 +1524,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "silver",
+            playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
@@ -1589,7 +1586,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "silver",
+            playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
@@ -1651,7 +1648,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "gold",
+            playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
@@ -1713,7 +1710,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "gold",
+            playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
@@ -1775,7 +1772,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "gold",
+            playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
@@ -1837,7 +1834,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "gold",
+            playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
@@ -1899,7 +1896,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "gold",
+            playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
@@ -1961,7 +1958,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "platinum",
+            playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
@@ -2023,7 +2020,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "platinum",
+            playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
@@ -2085,7 +2082,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "platinum",
+            playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
@@ -2147,7 +2144,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "platinum",
+            playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
@@ -2209,7 +2206,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         timeRange: "permanent",
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "platinum",
+            playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
@@ -2271,7 +2268,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: {
                 coins: 100,
                 energy: 10,
@@ -2371,7 +2368,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: {
                 energy: 5,
             },
@@ -2494,7 +2491,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: {
                 energy: 5,
             },
@@ -2577,7 +2574,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: {
                 energy: 5,
             },
@@ -2661,7 +2658,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         entryRequirements: {
             isSubscribedRequired: false,
-            tier: "bronze",
+            playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: {
                 energy: 6,
             },
@@ -2764,8 +2761,10 @@ export function getActiveTournamentConfigs(): TournamentConfig[] {
 /**
  * 按游戏类型获取锦标赛配置
  */
-export function getTournamentConfigsByGameType(gameType: GameType): TournamentConfig[] {
-    return TOURNAMENT_CONFIGS.filter(config => config.gameType === gameType && config.isActive);
+export function getTournamentConfigsByGameType(gameType: string): TournamentConfig[] {
+    return TOURNAMENT_CONFIGS.filter(config =>
+        (config.gameType === gameType || config.gameRule?.name === gameType) && config.isActive
+    );
 }
 
 /**
@@ -2782,20 +2781,6 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
 
     // 参赛条件验证
     if (config.entryRequirements) {
-        // Tier 限制仅用于 TacticalMonster
-        if (config.gameType === "tacticalMonster") {
-            const tierOrder = ["bronze", "silver", "gold", "platinum"];
-            if (config.entryRequirements.tier && !tierOrder.includes(config.entryRequirements.tier)) {
-                errors.push("tier 必须是bronze, silver, gold, platinum中的一个");
-            }
-            // 注意：Power 范围（minPower/maxPower）应该从 tier 配置中获取，不在此处验证
-        } else {
-            // 非 TacticalMonster 游戏不应配置 tier
-            if (config.entryRequirements.tier) {
-                errors.push(`tier 限制仅适用于 TacticalMonster 游戏，当前游戏类型: ${config.gameType}`);
-            }
-        }
-
         // 入场费验证
         if (config.entryRequirements.entryFee) {
             // TacticalMonster 游戏可以包含能量消耗
@@ -2803,13 +2788,15 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
                 errors.push(`能量消耗仅适用于 TacticalMonster 游戏，当前游戏类型: ${config.gameType}`);
             }
         }
+        // 注意：Power 范围（minTeamPower/maxTeamPower）从 GameRuleConfig.unlockConditions 获取，不在此处验证
     }
 
     // 比赛规则验证
     if (!config.matchRules) {
         errors.push("matchRules 是必需的");
     } else {
-        if (!config.matchRules.matchType) errors.push("matchRules.matchType 是必需的");
+        // matchType 是可选的（向后兼容），但如果存在则验证
+        // if (!config.matchRules.matchType) errors.push("matchRules.matchType 是必需的");
         if (config.matchRules.minPlayers < 1) errors.push("minPlayers 必须大于等于 1");
         if (config.matchRules.maxPlayers < config.matchRules.minPlayers) {
             errors.push("maxPlayers 必须大于等于 minPlayers");
@@ -2818,20 +2805,14 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
         // 单人挑战验证
         const isSinglePlayer = config.matchRules.minPlayers === 1 && config.matchRules.maxPlayers === 1;
         if (isSinglePlayer) {
-            // 单人挑战必须使用 single_match
-            if (config.matchRules.matchType !== "single_match") {
+            // 单人挑战必须使用 single_match（如果有 matchType）
+            if (config.matchRules.matchType && config.matchRules.matchType !== "single_match") {
                 errors.push("单人挑战（minPlayers=1, maxPlayers=1）必须使用 matchType='single_match'");
             }
-            // 单人挑战可以配置 soloChallenge
-            if (config.soloChallenge) {
-                if (!config.soloChallenge.levelType) {
-                    errors.push("soloChallenge.levelType 是必需的");
-                }
-            }
-        } else {
-            // 多人锦标赛不应配置 soloChallenge
-            if (config.soloChallenge) {
-                errors.push("多人锦标赛（minPlayers>1 或 maxPlayers>1）不应配置 soloChallenge");
+            // 注意：soloChallenge 已废弃，应该通过 gameRule.ruleId 查询 GameRuleConfig
+            // 但为了向后兼容，暂时保留验证逻辑
+            if (config.soloChallenge && !config.gameRule?.ruleId) {
+                console.warn(`配置 ${config.typeId} 使用了已废弃的 soloChallenge，建议迁移到 gameRule.ruleId`);
             }
         }
     }
@@ -2846,12 +2827,9 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
         const isSinglePlayer = config.matchRules.minPlayers === 1 && config.matchRules.maxPlayers === 1;
 
         if (isSinglePlayer) {
-            // 单人挑战必须使用 performanceRewards，不能使用 rankRewards
-            if (!config.rewards.performanceRewards) {
-                errors.push("单人挑战（minPlayers=1, maxPlayers=1）必须配置 performanceRewards");
-            }
-            if (config.rewards.rankRewards && config.rewards.rankRewards.length > 0) {
-                errors.push("单人挑战（minPlayers=1, maxPlayers=1）不应配置 rankRewards，应使用 performanceRewards");
+            // 单人挑战推荐使用 performanceRewards，但不强制（向后兼容）
+            if (!config.rewards.performanceRewards && (!config.rewards.rankRewards || config.rewards.rankRewards.length === 0)) {
+                errors.push("单人挑战（minPlayers=1, maxPlayers=1）建议配置 performanceRewards");
             }
         } else {
             // 多人比赛必须使用 rankRewards，不能使用 performanceRewards
@@ -2864,8 +2842,9 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
         }
 
         // Tier 加成仅适用于 TacticalMonster
-        if (config.rewards.tierBonus && config.gameType !== "tacticalMonster") {
-            errors.push(`tierBonus 仅适用于 TacticalMonster 游戏，当前游戏类型: ${config.gameType}`);
+        const gameType = config.gameType || config.gameRule?.name;
+        if (config.rewards.tierBonus && gameType !== "tacticalMonster") {
+            errors.push(`tierBonus 仅适用于 TacticalMonster 游戏，当前游戏类型: ${gameType}`);
         }
     }
 
@@ -2924,14 +2903,17 @@ export function getPreviousLevels(typeId: string): string[] {
 
 /**
  * 获取关卡链中的所有关卡（按顺序）
+ * @deprecated 应该通过 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig
  */
 export function getLevelChain(chainId: string): TournamentConfig[] {
     return TOURNAMENT_CONFIGS
-        .filter(config =>
-            config.soloChallenge?.levelChain?.chainId === chainId &&
-            config.isActive
-        )
-        .sort((a, b) => {
+        .filter((config: TournamentConfig) => {
+            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
+            // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
+            return config.soloChallenge?.levelChain?.chainId === chainId &&
+                config.isActive;
+        })
+        .sort((a: TournamentConfig, b: TournamentConfig) => {
             const orderA = a.soloChallenge?.levelChain?.chainOrder || 0;
             const orderB = b.soloChallenge?.levelChain?.chainOrder || 0;
             return orderA - orderB;
@@ -2950,11 +2932,21 @@ export function isLevelUnlocked(
     }
 ): { unlocked: boolean; reason?: string } {
     const config = getTournamentConfig(typeId);
-    if (!config || !config.soloChallenge) {
+    if (!config) {
+        return { unlocked: false, reason: "关卡配置不存在" };
+    }
+
+    // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
+    if (!config.soloChallenge && !config.gameRule?.ruleId) {
         return { unlocked: false, reason: "关卡配置不存在或不是单人挑战" };
     }
 
-    const { soloChallenge } = config;
+    // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
+    const soloChallenge = config.soloChallenge;
+    if (!soloChallenge) {
+        return { unlocked: false, reason: "无法获取关卡配置（需要通过 ruleId 查询）" };
+    }
+
     const { levelChain, unlockConditions } = soloChallenge;
 
     // 1. 检查玩家等级
@@ -2976,11 +2968,11 @@ export function isLevelUnlocked(
         if (unlockMode === "sequential") {
             // 顺序解锁：必须完成所有前置关卡
             const allCompleted = requiredTypeIds.every(
-                id => params.completedTypeIds.includes(id)
+                (id: string) => params.completedTypeIds.includes(id)
             );
             if (!allCompleted) {
                 const missing = requiredTypeIds.filter(
-                    id => !params.completedTypeIds.includes(id)
+                    (id: string) => !params.completedTypeIds.includes(id)
                 );
                 return {
                     unlocked: false,
@@ -2990,7 +2982,7 @@ export function isLevelUnlocked(
         } else if (unlockMode === "parallel" || unlockMode === "any") {
             // 并行/任意解锁：完成任意一个前置关卡即可
             const anyCompleted = requiredTypeIds.some(
-                id => params.completedTypeIds.includes(id)
+                (id: string) => params.completedTypeIds.includes(id)
             );
             if (!anyCompleted) {
                 return {
@@ -3016,15 +3008,20 @@ export function getUnlockableNextLevels(
     }
 ): TournamentConfig[] {
     const config = getTournamentConfig(completedTypeId);
-    if (!config || !config.soloChallenge?.levelChain) {
+    if (!config) {
         return [];
     }
 
-    const nextLevelIds = config.soloChallenge.levelChain.nextLevels || [];
+    // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
+    // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
+    const nextLevelIds = config.soloChallenge?.levelChain?.nextLevels || [];
+    if (!nextLevelIds || nextLevelIds.length === 0) {
+        return [];
+    }
 
     return nextLevelIds
-        .map(typeId => getTournamentConfig(typeId))
-        .filter((config): config is TournamentConfig => {
+        .map((typeId: string) => getTournamentConfig(typeId))
+        .filter((config: TournamentConfig | undefined): config is TournamentConfig => {
             if (!config || !config.isActive) {
                 return false;
             }
@@ -3040,12 +3037,15 @@ export function getUnlockableNextLevels(
  */
 export function getLevelsByChapter(
     chapter: number,
-    gameType?: GameType
+    gameType?: string
 ): TournamentConfig[] {
     return TOURNAMENT_CONFIGS
         .filter(config => {
             if (!config.isActive) return false;
-            if (gameType && config.gameType !== gameType) return false;
+            const configGameType = config.gameType || config.gameRule?.name;
+            if (gameType && configGameType !== gameType) return false;
+            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
+            // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
             if (!config.soloChallenge) return false;
             return config.soloChallenge.chapter === chapter;
         })
@@ -3063,10 +3063,12 @@ export function getLevelsByGroup(
     levelGroup: string
 ): TournamentConfig[] {
     return TOURNAMENT_CONFIGS
-        .filter(config =>
-            config.soloChallenge?.levelChain?.levelGroup === levelGroup &&
-            config.isActive
-        )
+        .filter(config => {
+            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
+            // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
+            return config.soloChallenge?.levelChain?.levelGroup === levelGroup &&
+                config.isActive;
+        })
         .sort((a, b) => {
             const orderA = a.soloChallenge?.levelChain?.chainOrder || 0;
             const orderB = b.soloChallenge?.levelChain?.chainOrder || 0;
@@ -3128,21 +3130,23 @@ export async function getAllLevelsWithGeneration(
     // 2. 根据参数过滤
     if (params.chapter !== undefined) {
         levels = levels.filter(config =>
+            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
             config.soloChallenge?.chapter === params.chapter
         );
     }
 
     if (params.levelType) {
         levels = levels.filter(config =>
+            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
             config.soloChallenge?.levelType === params.levelType
         );
     }
 
-    if (params.tier) {
-        levels = levels.filter(config =>
-            config.entryRequirements?.tier === params.tier
-        );
-    }
+    // 注意：tier 字段已移除，如果需要在按 tier 过滤，应该通过其他方式（如从 GameRuleConfig 获取）
+    // 暂时保留此参数但不进行过滤，或可以通过 gameRule.ruleId 查询 GameRuleConfig 来判断
+    // if (params.tier) {
+    //     // tier 过滤需要从 GameRuleConfig 获取，暂不支持
+    // }
 
     // 3. 检查是否需要动态生成
     // 例如：如果请求 chapter 1，但只有 level 1-3，可以动态生成 level 4-10
