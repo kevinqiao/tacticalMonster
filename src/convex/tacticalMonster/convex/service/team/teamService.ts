@@ -10,23 +10,39 @@ export class TeamService {
     private static readonly MAX_TEAM_SIZE = 4;
 
     /**
+     * 标准的队伍初始位置（Hex 坐标）
+     * 用于战棋游戏中玩家队伍的初始站位
+     */
+    private static readonly DEFAULT_TEAM_POSITIONS: Array<{ q: number; r: number }> = [
+        { q: 0, r: 0 },  // 位置 0
+        { q: 1, r: 0 },  // 位置 1
+        { q: 0, r: 1 },  // 位置 2
+        { q: 1, r: 1 },  // 位置 3
+    ];
+
+    /**
      * 获取玩家的上场队伍
-     * 返回按位置排序的队伍（position 0-3）
-     * 使用 by_uid_teamPosition 索引和 gte(0) 优化查询
+     * 返回按位置排序的队伍（teamPosition 为 Hex 坐标 {q, r}）
+     * 使用 inTeam 字段判断是否在队伍中
      */
     static async getPlayerTeam(ctx: any, uid: string) {
-        // 使用索引范围查询，只查询 teamPosition >= 0 的记录（即所有在队伍中的怪物）
+        // 查询所有在队伍中的怪物（inTeam === 1）
         const teamMonsters = await ctx.db
             .query("mr_player_monsters")
-            .withIndex("by_uid_teamPosition", (q: any) => 
-                q.eq("uid", uid)
-                 .gte("teamPosition", 0)
-            )
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .filter((q: any) => q.eq(q.field("inTeam"), 1))
             .collect();
 
-        // 按位置排序并限制最多4个
+        // 按位置排序（先按 q 再按 r）
         const sortedTeam = teamMonsters
-            .sort((a: any, b: any) => (a.teamPosition || 0) - (b.teamPosition || 0))
+            .sort((a: any, b: any) => {
+                const posA = a.teamPosition || { q: 0, r: 0 };
+                const posB = b.teamPosition || { q: 0, r: 0 };
+                if (posA.q !== posB.q) {
+                    return posA.q - posB.q;
+                }
+                return posA.r - posB.r;
+            })
             .slice(0, this.MAX_TEAM_SIZE);
 
         // 关联怪物配置信息
@@ -89,15 +105,20 @@ export class TeamService {
             }
         }
 
-        // 4. 设置新的队伍位置
+        // 4. 设置新的队伍位置（使用标准的 Hex 坐标）
         for (let i = 0; i < monsterIds.length; i++) {
             const monsterId = monsterIds[i];
             const monster = monsterMap.get(monsterId);
             if (!monster || !monster._id) {
                 throw new Error(`怪物不存在或无效: ${monsterId}`);
             }
+            const position = this.DEFAULT_TEAM_POSITIONS[i];
+            if (!position) {
+                throw new Error(`位置索引超出范围: ${i}`);
+            }
             await ctx.db.patch(monster._id, {
-                teamPosition: i,
+                teamPosition: position,
+                inTeam: 1,
                 updatedAt: new Date().toISOString(),
             });
         }
@@ -118,7 +139,7 @@ export class TeamService {
         params: {
             uid: string;
             monsterId: string;
-            position?: number; // 可选，指定位置（0-3），如果不指定则自动找到空位
+            position?: { q: number; r: number }; // 可选，指定 Hex 坐标位置，如果不指定则自动找到空位
         }
     ) {
         const { uid, monsterId, position } = params;
@@ -142,25 +163,30 @@ export class TeamService {
         }
 
         // 4. 确定位置
-        let targetPosition: number;
+        let targetPosition: { q: number; r: number };
         if (position !== undefined) {
-            // 检查位置是否有效
-            if (position < 0 || position >= this.MAX_TEAM_SIZE) {
-                throw new Error(`位置必须在 0-${this.MAX_TEAM_SIZE - 1} 之间`);
-            }
             // 检查位置是否已被占用
-            const existingAtPosition = currentTeam.find((m: any) => m.teamPosition === position);
+            const existingAtPosition = currentTeam.find((m: any) =>
+                m.teamPosition &&
+                m.teamPosition.q === position.q &&
+                m.teamPosition.r === position.r
+            );
             if (existingAtPosition) {
-                throw new Error(`位置 ${position} 已被占用`);
+                throw new Error(`位置 (${position.q}, ${position.r}) 已被占用`);
             }
             targetPosition = position;
         } else {
-            // 自动找到第一个空位
-            const usedPositions = new Set(currentTeam.map((m: any) => m.teamPosition));
-            let foundPosition: number | undefined = undefined;
-            for (let i = 0; i < this.MAX_TEAM_SIZE; i++) {
-                if (!usedPositions.has(i)) {
-                    foundPosition = i;
+            // 自动找到第一个空位（使用标准位置）
+            const usedPositions = new Set(
+                currentTeam.map((m: any) =>
+                    m.teamPosition ? `${m.teamPosition.q},${m.teamPosition.r}` : null
+                ).filter(Boolean)
+            );
+            let foundPosition: { q: number; r: number } | undefined = undefined;
+            for (const defaultPos of this.DEFAULT_TEAM_POSITIONS) {
+                const posKey = `${defaultPos.q},${defaultPos.r}`;
+                if (!usedPositions.has(posKey)) {
+                    foundPosition = defaultPos;
                     break;
                 }
             }
@@ -173,13 +199,14 @@ export class TeamService {
         // 5. 更新怪物
         await ctx.db.patch(monster._id, {
             teamPosition: targetPosition,
+            inTeam: 1,
             updatedAt: new Date().toISOString(),
         });
 
         return {
             ok: true,
             position: targetPosition,
-            message: `怪物已添加到队伍位置 ${targetPosition}`,
+            message: `怪物已添加到队伍位置 (${targetPosition.q}, ${targetPosition.r})`,
         };
     }
 
@@ -291,14 +318,8 @@ export class TeamService {
             };
         }
 
-        // 检查位置是否连续（可选，根据需求决定）
-        const positions = team.map((m: any) => m.teamPosition).sort((a: any, b: any) => a - b);
-        for (let i = 0; i < positions.length; i++) {
-            if (positions[i] !== i) {
-                // 位置不连续，但不影响功能，只是警告
-                console.warn(`队伍位置不连续: ${positions.join(", ")}`);
-            }
-        }
+        // 检查位置是否有效（可选，根据需求决定）
+        // 注意：对于 Hex 坐标，不需要检查连续性，只需要确保位置有效即可
 
         return {
             valid: true,
@@ -341,7 +362,10 @@ export const addMonsterToTeam = mutation({
     args: {
         uid: v.string(),
         monsterId: v.string(),
-        position: v.optional(v.number()),
+        position: v.optional(v.object({
+            q: v.number(),
+            r: v.number(),
+        })),
     },
     handler: async (ctx, args) => {
         return await TeamService.addMonsterToTeam(ctx, args);

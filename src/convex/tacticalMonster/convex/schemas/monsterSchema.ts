@@ -32,7 +32,11 @@ export const monsterSchema = {
         experience: v.number(),
         shards: v.number(),                      // 当前碎片数量
         unlockedSkills: v.any(),
-        teamPosition: v.optional(v.number()),    // 队伍位置：0-3（用于上场队伍管理，null表示不在队伍中）
+        inTeam: v.number(),                       // 0: 不在队伍中，1: 在队伍中
+        teamPosition: v.optional(v.object({
+            q: v.number(),
+            r: v.number(),
+        })),
         obtainedAt: v.string(),
         updatedAt: v.string(),
     })
@@ -40,13 +44,13 @@ export const monsterSchema = {
         .index("by_uid_monsterId", ["uid", "monsterId"])
         .index("by_uid_teamPosition", ["uid", "teamPosition"]), // 用于查询上场队伍（使用 gte(0) 查询）
 
-    mr_monster_shards: defineTable({
-        uid: v.string(),
-        monsterId: v.string(),
-        quantity: v.number(),
-        updatedAt: v.string(),
-    })
-        .index("by_uid", ["uid"])
-        .index("by_uid_monsterId", ["uid", "monsterId"]),
+    // mr_monster_shards: defineTable({
+    //     uid: v.string(),
+    //     monsterId: v.string(),
+    //     quantity: v.number(),
+    //     updatedAt: v.string(),
+    // })
+    //     .index("by_uid", ["uid"])
+    //     .index("by_uid_monsterId", ["uid", "monsterId"]),
 };
 

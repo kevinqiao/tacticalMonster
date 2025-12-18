@@ -3,10 +3,9 @@
  * 管理Boss组合的游戏实例创建（创建多个角色）
  */
 
-import { BossConfig } from "../../data/bossConfigs";
+import { applyBossScale, BossConfig, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
+import { MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs.js";
 import { HexCoord } from "../../utils/hexUtils";
-import { BossConfigService } from "./bossConfigService";
-import { BossScalingConfig, BossScalingService } from "./bossScalingService";
 
 export interface BossPositions {
     bossMain: HexCoord;
@@ -36,7 +35,6 @@ export class BossInstanceService {
             levelId: string;
             positions: BossPositions;
             behaviorSeed: string;
-            scalingConfig?: BossScalingConfig;  // 新增：缩放配置
         }
     ): Promise<{
         bossInstanceId: string;
@@ -46,30 +44,13 @@ export class BossInstanceService {
         };
         appliedScale?: number;  // 应用的缩放倍数
     }> {
-        const bossConfig = BossConfigService.getBossConfig(params.bossId);
+        const bossConfig = getBossConfig(params.bossId);
         if (!bossConfig) {
             throw new Error(`Boss配置不存在: ${params.bossId}`);
         }
 
         // 计算缩放倍数
         let scale = 1.0;
-        if (params.scalingConfig) {
-            // 如果是单人挑战关卡自适应模式，但baseBossPower还未计算，则在这里计算
-            // （这种情况应该很少，因为gameInstanceService应该在创建Boss前就计算好了）
-            if (params.scalingConfig.difficultyMultiplier !== undefined &&
-                params.scalingConfig.playerPower !== undefined &&
-                params.scalingConfig.baseBossPower === undefined) {
-                // 获取合并后的Boss配置并计算基础Power
-                const mergedConfig = BossConfigService.getMergedBossConfig(bossConfig.bossId);
-                if (mergedConfig) {
-                    params.scalingConfig.baseBossPower = BossScalingService.calculateBossPower(mergedConfig);
-                }
-            }
-
-            // 计算缩放倍数（基于配置的difficultyMultiplier和玩家Power）
-            scale = BossScalingService.calculateBossScale(params.scalingConfig);
-        }
-
         // 1. 创建Boss本体角色（应用缩放）
         const bossMainCharacterId = await this.createBossMainCharacter(
             ctx,
@@ -138,7 +119,7 @@ export class BossInstanceService {
         scale: number = 1.0  // 新增：缩放倍数参数
     ): Promise<string> {
         // 获取合并后的配置（包含从 characterId 继承的属性）
-        const mergedConfig = BossConfigService.getMergedBossConfig(bossConfig.bossId);
+        const mergedConfig = getMergedBossConfig(bossConfig.bossId);
         if (!mergedConfig) {
             throw new Error(`无法获取合并后的Boss配置: ${bossConfig.bossId}`);
         }
@@ -146,7 +127,7 @@ export class BossInstanceService {
         const characterId = `boss_main_${gameId}_${Date.now()}`;
 
         // 应用缩放到Boss属性
-        const scaledStats = BossScalingService.applyBossScale(mergedConfig, scale);
+        const scaledStats = applyBossScale(mergedConfig, scale);
 
         // 计算Boss属性（应用缩放后的值）
         const stats = {
@@ -189,9 +170,8 @@ export class BossInstanceService {
     ): Promise<string> {
         const characterId = `minion_${minionConfig.minionId}_${gameId}_${Date.now()}`;
 
-        // 获取小怪的角色配置（从 characterId 引用）
-        const { MONSTER_CONFIGS } = await import("../../data/monsterConfigs");
-        const characterConfig = MONSTER_CONFIGS[minionConfig.characterId];
+        // 获取小怪的角色配置（从 monsterId 引用）
+        const characterConfig = MONSTER_CONFIGS_MAP[minionConfig.monsterId];
 
         if (!characterConfig) {
             throw new Error(`小怪角色配置不存在: ${minionConfig.characterId}`);

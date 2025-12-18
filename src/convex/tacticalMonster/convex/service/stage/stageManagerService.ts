@@ -4,31 +4,139 @@
  * 整合了原有的 LevelGenerationService 功能
  */
 
+import { v } from "convex/values";
+import { Stage } from "../../../../../component/battle/games/tacticalMonster/battle/types/StageTypes";
+import { mutation } from "../../_generated/server";
+import { getBossConfig } from "../../data/bossConfigs";
 import { getMapTemplateConfig } from "../../data/mapTemplateConfigs";
 import { hasOverlap, HexCoord, isInRegion } from "../../utils/hexUtils";
 import { SeededRandom } from "../../utils/seededRandom";
-import { BossConfigService } from "../boss/bossConfigService";
 import { BossPositions } from "../boss/bossInstanceService";
 import { GameRuleConfigService } from "../game/gameRuleConfigService";
+import { TeamService } from "../team/teamService";
 
 /**
  * Stage 接口
  * 与数据库 mr_stage 表保持一致
  */
-export interface Stage {
-    stageId: string;                    // 唯一标识
-    bossId: string;                     // 选定的 Boss ID
-    mapId: string;                      // 生成的地图 ID
-    difficulty: number;                 // Boss Power / Player Team Power 比率（缩放后）
-    seed: string;                       // 随机种子
-    attempts: number;                   // 尝试次数
-    createdAt: string;                  // 创建时间
-}
+// export interface Stage {
+//     stageId: string;                    // 唯一标识
+//     bossId: string;                     // 选定的 Boss ID
+//     map: {
+//         rows: number;
+//         cols: number;
+//         obstacles: Array<{
+//             type: number;
+//             asset: string;
+//             q: number;
+//             r: number;
+//         }>;
+//         disables: Array<{
+//             q: number;
+//             r: number;
+//         }>;
+//     };                    // 生成的地图 ID
+//     difficulty: number;                 // Boss Power / Player Team Power 比率（缩放后）
+//     seed: string;                       // 随机种子
+//     attempts?: number;                   // 尝试次数
+//     createdAt?: string;                  // 创建时间
+// }
+
 
 /**
  * Stage 管理服务
  */
 export class StageManagerService {
+    static async openStage(ctx: any, params: {
+        uid: string;
+        typeId: string;
+    }): Promise<Stage | null> {
+        const { uid, typeId } = params;
+        const ruleConfig = GameRuleConfigService.getGameRuleConfig(typeId);
+        if (!ruleConfig) {
+            throw new Error(`关卡规则配置不存在: ${typeId}`);
+        }
+        // 验证玩家是否有配置队伍
+        const team = await TeamService.getPlayerTeam(ctx, uid);
+        if (!team || team.length === 0) {
+            throw new Error(`队伍不存在: ${uid}`);
+        }
+        if (ruleConfig.stageType === "challenge") {
+            const playerStage = await ctx.db.query("mr_player_stages").withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", typeId)).order("desc").first();
+            if (playerStage) {
+                const stageDoc = await ctx.db.query("mr_stage").withIndex("by_stageId", (q: any) => q.eq("stageId", playerStage.stageId)).first();
+                if (stageDoc) {
+                    // map 数据直接保存在 stage 中，直接返回
+                    const stage: Stage = {
+                        stageId: stageDoc.stageId,
+                        bossId: stageDoc.bossId,
+                        map: stageDoc.map,
+                        difficulty: stageDoc.difficulty,
+                        seed: stageDoc.seed,
+                        attempts: stageDoc.attempts,
+                        createdAt: stageDoc.createdAt,
+                    };
+                    return stage;
+                }
+            } else {
+                console.log("新建 stage", typeId);
+                // 新建 stage，使用 ruleConfig 中的默认难度配置
+                const difficulty = ruleConfig.stageContent?.difficultyAdjustment?.difficultyMultiplier || 1.0;
+                const stage = await this.createStage(ctx, {
+                    ruleId: typeId,
+                    difficulty,
+                });
+                if (stage) {
+                    console.log("stage", stage);
+                    await ctx.db.insert("mr_player_stages", {
+                        uid,
+                        ruleId: typeId,
+                        stageId: stage.stageId,
+                        createdAt: new Date().toISOString(),
+                    });
+                }
+                return stage;
+            }
+
+        } else if (ruleConfig.stageType === "arena") {
+            const arenaStage = await ctx.db.query("mr_arena_stage").withIndex("by_ruleId", (q: any) => q.eq("ruleId", typeId)).order("desc").first();
+            console.log("arenaStage", arenaStage);
+            if (arenaStage) {
+                const stageDoc = await ctx.db.query("mr_stage").withIndex("by_stageId", (q: any) => q.eq("stageId", arenaStage.stageId)).first();
+                if (stageDoc) {
+                    // map 数据直接保存在 stage 中，直接返回
+                    const stage: Stage = {
+                        stageId: stageDoc.stageId,
+                        bossId: stageDoc.bossId,
+                        map: stageDoc.map,
+                        difficulty: stageDoc.difficulty,
+                        seed: stageDoc.seed,
+                        attempts: stageDoc.attempts,
+                        createdAt: stageDoc.createdAt,
+                    };
+                    return stage;
+                }
+            } else {
+                // 新建 stage，使用 ruleConfig 中的默认难度配置
+                const difficulty = ruleConfig.stageContent?.difficultyAdjustment?.difficultyMultiplier || 1.0;
+                const stage = await this.createStage(ctx, {
+                    ruleId: typeId,
+                    difficulty,
+                });
+
+                if (stage) {
+                    await ctx.db.insert("mr_arena_stage", {
+                        ruleId: typeId,
+                        stageId: stage.stageId,
+                        createdAt: new Date().toISOString(),
+                    });
+                }
+                return stage;
+            }
+
+        }
+        return null;
+    }
     /**
      * 创建 Stage
      * 基于 StageRuleConfig.stageContent 生成完整的 stage
@@ -37,38 +145,41 @@ export class StageManagerService {
         ctx: any,
         params: {
             ruleId: string;
-            seed?: string;
+
             difficulty: number;         // Boss Power / Player Team Power 比率（缩放后）
         }
     ): Promise<Stage> {
-        const { ruleId, seed, difficulty } = params;
+        const { ruleId, difficulty } = params;
 
-        // 1. 获取 StageRuleConfig
+        // 1. 生成 seed（在方法内部生成，确保每次创建都有唯一的 seed）
+        const seed = `stage_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+        // 2. 获取 StageRuleConfig
         const stageRuleConfig = GameRuleConfigService.getGameRuleConfig(ruleId);
         if (!stageRuleConfig) {
             throw new Error(`StageRuleConfig 不存在: ${ruleId}`);
         }
 
-        // 2. 验证 stageContent 存在
+        // 3. 验证 stageContent 存在
         if (!stageRuleConfig.stageContent) {
             throw new Error(`StageRuleConfig ${ruleId} 缺少 stageContent 配置`);
         }
 
         const { stageContent } = stageRuleConfig;
 
-        // 3. 确定 Boss ID（依据 stageContent.bossConfig）
+        // 4. 确定 Boss ID（依据 stageContent.bossConfig）
         const bossId = this.selectBossFromConfig(stageContent.bossConfig, seed);
         if (!bossId) {
             throw new Error(`无法确定 Boss ID：stageContent.bossConfig 配置无效`);
         }
 
-        // 4. 获取Boss配置（用于获取位置信息）
-        const bossConfig = BossConfigService.getBossConfig(bossId);
+        // 5. 获取Boss配置（用于获取位置信息）
+        const bossConfig = getBossConfig(bossId);
         if (!bossConfig) {
             throw new Error(`Boss配置不存在: ${bossId}`);
         }
 
-        // 5. 生成地图（依据 mapConfig.templateId 或随机生成）
+        // 6. 生成地图（依据 mapConfig.templateId 或随机生成）
         const mapData = await this.generateMapWithBossValidation(
             ctx,
             {
@@ -79,21 +190,25 @@ export class StageManagerService {
             }
         );
 
-        // 6. 生成 stageId
+        // 验证地图数据是否生成成功
+        if (!mapData) {
+            throw new Error(`无法生成地图数据：StageRuleConfig ${ruleId} 缺少 mapConfig 配置或 mapConfig.mapSize 未定义`);
+        }
+
+        // 7. 生成 stageId（使用 seed 确保一致性）
         const stageId = this.generateStageId(ruleId, seed);
 
-        // 7. 确定 seed（必需字段）
-        const resolvedSeed = seed || `stage_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-        // 8. 构建 Stage 对象
-        const stage: Stage = {
-            stageId,
-            bossId,
-            mapId: mapData.map_id,
-            difficulty,
-            seed: resolvedSeed,
-            attempts: 1,  // 初始尝试次数为 1
-            createdAt: new Date().toISOString(),
+        // 8. 构建 map 对象（直接保存到 mr_stage 表中）
+        const mapForStage = {
+            rows: mapData.rows,
+            cols: mapData.cols,
+            obstacles: mapData.obstacles.map((obs: any) => ({
+                q: obs.q,
+                r: obs.r,
+                type: obs.type,
+                asset: obs.asset,
+            })),
+            disables: mapData.disables || [],
         };
 
         // 9. 存储到数据库 mr_stage 表
@@ -104,19 +219,39 @@ export class StageManagerService {
             .first();
 
         if (existingStage) {
-            // 如果已存在，返回数据库中的实际值（不自动增加 attempts）
-            return {
+            // 如果已存在，直接返回数据库中的数据（map 已包含在 stage 中）
+            const stage: Stage = {
                 stageId: existingStage.stageId,
                 bossId: existingStage.bossId,
-                mapId: existingStage.mapId,
+                map: existingStage.map,
                 difficulty: existingStage.difficulty,
                 seed: existingStage.seed,
                 attempts: existingStage.attempts,
                 createdAt: existingStage.createdAt,
             };
+            return stage;
         } else {
-            // 如果不存在，插入新记录
-            await ctx.db.insert("mr_stage", stage);
+            // 如果不存在，插入新记录（map 直接保存在 stage 中）
+            await ctx.db.insert("mr_stage", {
+                stageId,
+                bossId,
+                map: mapForStage,
+                difficulty,
+                seed,
+                attempts: 1,
+                createdAt: new Date().toISOString(),
+            });
+
+            // 构建符合 Stage 接口的对象用于返回
+            const stage: Stage = {
+                stageId,
+                bossId,
+                map: mapForStage,
+                difficulty,
+                seed,
+                attempts: 1,
+                createdAt: new Date().toISOString(),
+            };
             return stage;
         }
     }
@@ -203,9 +338,11 @@ export class StageManagerService {
             bossPositions.bossMain,
             ...bossPositions.minions.map(m => m.position),
         ];
-
+        if (!mapConfig?.mapSize) {
+            return null;
+        }
         // 2. 确定地图大小（优先使用mapConfig，否则根据Boss难度）
-        let mapSize: { rows: number; cols: number } = mapConfig?.mapSize || this.determineMapSizeFromBoss(bossConfig);
+        let mapSize: { rows: number; cols: number } = mapConfig?.mapSize
 
         // 3. 尝试使用模板生成地图
         let obstacles: any[] = [];
@@ -252,19 +389,8 @@ export class StageManagerService {
             );
         }
 
-        // 4. 创建地图数据并存储到数据库
-        const mapId = `map_${bossId}_${Date.now()}_${seed ? this.hashSeed(seed) : rng.randomInt(0, 1000000)}`;
-        const mapData = {
-            mapId,  // mr_map 表使用 mapId 字段
-            rows: mapSize.rows,
-            cols: mapSize.cols,
-            obstacles,
-            disables: [],
-        };
-
-        await ctx.db.insert("mr_map", mapData);
+        // 4. 返回地图数据（不再存储到 mr_map，直接保存在 mr_stage 中）
         return {
-            map_id: mapId,  // 返回时保持 map_id 字段名以兼容现有代码
             rows: mapSize.rows,
             cols: mapSize.cols,
             obstacles,
@@ -823,60 +949,6 @@ export class StageManagerService {
         return assetMap[type] || "/assets/obstacles/rock.glb";
     }
 
-    /**
-     * 将 StageRuleConfig.mapConfig 转换为 levelConfig 格式
-     */
-    private static convertMapConfigToLevelConfig(
-        mapConfig: {
-            mapSize: { rows: number; cols: number };
-            generationType: "template" | "procedural" | "random";
-            templateId?: string;
-        },
-        bossId: string
-    ): any {
-        const { rows, cols } = mapConfig.mapSize;
-
-        // 生成默认的玩家区域和 Boss 区域
-        const playerZone = {
-            region: {
-                minQ: 0,
-                maxQ: Math.floor(cols * 0.4),
-                minR: Math.floor(rows * 0.6),
-                maxR: rows - 1,
-            },
-        };
-
-        const bossZone = {
-            center: {
-                q: Math.floor(cols * 0.7),
-                r: Math.floor(rows * 0.3),
-            },
-            radius: 2,
-            positions: [],
-        };
-
-        // 生成 mapGeneration 配置
-        const mapGeneration = {
-            mapSize: mapConfig.mapSize,
-            generationType: mapConfig.generationType || "procedural",
-            templateId: mapConfig.templateId,
-            obstacleRules: {
-                minObstacles: Math.floor(rows * cols * 0.1),
-                maxObstacles: Math.floor(rows * cols * 0.2),
-                obstacleTypes: ["rock", "tree"],
-                spawnZones: [],
-            },
-        };
-
-        return {
-            bossId,
-            mapGeneration,
-            positionConfig: {
-                bossZone,
-                playerZone,
-            },
-        };
-    }
 
     /**
      * 获取 Stage 配置
@@ -915,10 +987,10 @@ export class StageManagerService {
     /**
      * 生成唯一的 stageId
      */
-    private static generateStageId(ruleId: string, seed?: string): string {
-        const timestamp = Date.now();
-        const seedHash = seed ? this.hashSeed(seed) : Math.random().toString(36).substring(7);
-        return `stage_${ruleId}_${timestamp}_${seedHash}`;
+    private static generateStageId(ruleId: string, seed: string): string {
+        // 使用 seed 的哈希值生成 stageId，确保相同 seed 生成相同的 stageId
+        const seedHash = this.hashSeed(seed);
+        return `stage_${ruleId}_${seedHash}`;
     }
 
     /**
@@ -934,3 +1006,18 @@ export class StageManagerService {
         return Math.abs(hash).toString(36);
     }
 }
+export const openStage = mutation({
+    args: {
+        uid: v.string(),
+        typeId: v.string(),
+    },
+    handler: async (ctx: any, args: any) => {
+        const stage = await StageManagerService.openStage(ctx, args);
+        if (!stage) {
+            return { ok: false, error: "无法获取关卡" };
+        }
+        return { ok: true, stage };
+
+    },
+});
+

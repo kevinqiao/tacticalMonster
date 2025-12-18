@@ -200,6 +200,9 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             bossConfig: {
                 bossId: "boss_bronze_1",
             },
+            mapConfig: {
+                mapSize: { rows: 10, cols: 10 },
+            },
             difficultyAdjustment: {
                 powerBasedScaling: true,
                 difficultyMultiplier: 1.0,
@@ -429,6 +432,9 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         stageContent: {
             bossConfig: {
                 bossId: "boss_bronze_1",
+            },
+            mapConfig: {
+                mapSize: { rows: 10, cols: 10 },
             },
             difficultyAdjustment: {
                 powerBasedScaling: true,

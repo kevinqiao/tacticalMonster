@@ -3,9 +3,7 @@
  * 基于 Camex Games Tactical Monster 的怪物设计
  * 包含90个怪物的基础属性配置
  */
-export const calculatePower = (damage: number, defense: number, hp: number): number => {
-    return damage * 2 + defense * 1.5 + hp;
-}
+
 export interface Monster {
     monsterId: string;
     name: string;

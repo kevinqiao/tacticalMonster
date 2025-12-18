@@ -3,9 +3,9 @@
  * 主AI决策服务，整合所有AI组件
  */
 
+import { getMergedBossConfig } from "../../../data/bossConfigs";
 import { hexDistance } from "../../../utils/hexUtils";
 import { SeededRandom } from "../../../utils/seededRandom";
-import { BossConfigService } from "../bossConfigService";
 import { BossInstanceService } from "../bossInstanceService";
 import { BehaviorTreeExecutor, ExecutionContext } from "./behaviorTreeExecutor";
 import { BossState, GameState } from "./conditionEvaluator";
@@ -53,7 +53,7 @@ export class BossAIService {
         }
 
         // 使用合并后的配置（包含从 characterId 继承的属性）
-        const bossConfig = BossConfigService.getMergedBossConfig(bossInstance.bossId);
+        const bossConfig = getMergedBossConfig(bossInstance.bossId);
         if (!bossConfig) {
             throw new Error(`Boss配置不存在: ${bossInstance.bossId}`);
         }

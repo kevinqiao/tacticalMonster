@@ -1,5 +1,4 @@
 import { httpRouter } from "convex/server";
-import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { getTournamentUrl } from "./config/tournamentConfig";
 import { RewardService } from "./service/reward/rewardService";
@@ -635,76 +634,7 @@ http.route({
     }),
 });
 
-/**
- * 设置游戏测试数据端点
- * 供 Tournament 模块调用
- */
-http.route({
-    path: "/setupGameTestData",
-    method: "POST",
-    handler: httpAction(async (ctx, request) => {
-        try {
-            const body = await request.json();
-            const { playerIds, tier, bossId } = body;
 
-            // 参数验证
-            if (!playerIds || !Array.isArray(playerIds) || playerIds.length === 0) {
-                return new Response(
-                    JSON.stringify({
-                        success: false,
-                        message: "缺少必要参数: playerIds (必须是非空数组)",
-                    }),
-                    {
-                        status: 400,
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Access-Control-Allow-Origin": "*",
-                        },
-                    }
-                );
-            }
-
-            // 调用内部mutation创建测试数据（使用静态导入）
-            const result = await ctx.runMutation(
-                internal.service.game.tests.challengeLevel.setupTestData.setupGameTestData,
-                {
-                    playerIds,
-                    tier: tier || "bronze",
-                    bossId: bossId || "boss_bronze_1",
-                }
-            );
-
-            return new Response(
-                JSON.stringify({
-                    success: true,
-                    data: result,
-                }),
-                {
-                    status: 200,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                }
-            );
-        } catch (error: any) {
-            console.error("设置游戏测试数据失败:", error);
-            return new Response(
-                JSON.stringify({
-                    success: false,
-                    message: error.message || "设置游戏测试数据失败",
-                }),
-                {
-                    status: 500,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                }
-            );
-        }
-    }),
-});
 
 // Convex expects the router to be the default export of `convex/http.js`.
 /**

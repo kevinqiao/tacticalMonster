@@ -1,4 +1,4 @@
-import { calculatePower, MONSTER_CONFIGS, MONSTER_CONFIGS_MAP } from "./monsterConfigs";
+import { MONSTER_CONFIGS } from "./monsterConfigs";
 
 /**
  * Boss 配置数据
@@ -325,8 +325,7 @@ export const calculateScaleBoss = (bossId: string, power: number, difficulty: nu
     if (!bossConfig || !bossConfig.baseHp || !bossConfig.baseDamage || !bossConfig.baseDefense || !bossConfig.baseSpeed || !bossConfig.name || !bossConfig.skills || !bossConfig.assetPath || !bossConfig.position || !bossConfig.minions) {
         throw new Error(`Boss配置不存在: ${bossId}`);
     }
-    // const baseBossPower = bossConfig.baseHp + bossConfig.baseDamage * 2 + bossConfig.baseDefense * 1.5;
-    const baseBossPower = calculatePower(bossConfig.baseDamage, bossConfig.baseDefense, bossConfig.baseHp);
+    const baseBossPower = bossConfig.baseHp + bossConfig.baseDamage * 2 + bossConfig.baseDefense * 1.5;
     // 计算缩放倍数：scale = (playerPower * difficulty) / baseBossPower
     const targetBossPower = power * difficulty;
     const scale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
@@ -392,113 +391,4 @@ export const calculateScaleBoss = (bossId: string, power: number, difficulty: nu
     powerBoss["minions"] = minionsData;
 
     return powerBoss;
-}
-
-/**
- * Boss缩放配置
- */
-// export interface BossScalingConfig {
-//     // 单人挑战关卡自适应模式
-//     difficultyMultiplier?: number;  // 难度倍数（Boss Power / Player Team Power 的比率）
-//     playerPower?: number;           // 玩家Power（单人关卡需要）
-//     baseBossPower?: number;         // 基础Boss Power（用于计算缩放比例）
-
-//     // 多人PVE锦标赛自适应模式
-//     baseK?: number;            // 基础缩放系数（默认1.2）
-//     minScale?: number;         // 最小缩放（默认0.95）
-//     maxScale?: number;         // 最大缩放（默认1.05）
-//     avgTierPower?: number;     // 房间平均Tier Power
-// }
-
-/**
- * 缩放后的Boss属性
- */
-export interface ScaledBossStats {
-    hp: number;
-    attack: number;
-    defense: number;
-    speed: number;
-}
-
-/**
- * 计算Boss基础Power（用于单人关卡的自适应缩放）
- * 包含Boss本体和小怪的总Power
- * 使用与玩家Power相同的公式：HP + Attack * 2 + Defense * 1.5
- * 
- * @param bossConfig Boss合并后的配置
- * @returns Boss总Power（Boss本体 + 所有小怪）
- */
-export function calculateBossPower(bossConfig: BossConfig): number {
-    // 1. 计算 Boss 本体 Power
-    // const bossPower = (bossConfig.baseHp ?? 0) + (bossConfig.baseDamage ?? 0) * 2 + (bossConfig.baseDefense ?? 0) * 1.5;
-    const bossPower = calculatePower(bossConfig.baseDamage ?? 0, bossConfig.baseDefense ?? 0, bossConfig.baseHp ?? 0);
-    // 2. 计算所有小怪的 Power
-    let minionsPower = 0;
-    if (bossConfig.minions && bossConfig.minions.length > 0) {
-        for (const minion of bossConfig.minions) {
-            // 获取小怪的基础属性（优先使用覆盖值，否则从 monsterId 获取）
-            let minionHp: number;
-            let minionDamage: number;
-            let minionDefense: number;
-
-            // 尝试从 MONSTER_CONFIGS_MAP 获取小怪配置
-            const minionMonsterConfig = MONSTER_CONFIGS_MAP[minion.monsterId];
-
-            if (minionMonsterConfig) {
-                // 使用角色配置的基础值，minion 的覆盖值优先
-                minionHp = minion.baseHp ?? minionMonsterConfig.baseHp;
-                minionDamage = minion.baseDamage ?? minionMonsterConfig.baseDamage;
-                minionDefense = minion.baseDefense ?? minionMonsterConfig.baseDefense;
-            } else {
-                // 如果没有角色配置，使用 minion 的覆盖值或默认值
-                minionHp = minion.baseHp ?? 100;
-                minionDamage = minion.baseDamage ?? 10;
-                minionDefense = minion.baseDefense ?? 5;
-            }
-
-            // 计算小怪 Power（使用与玩家Power相同的公式）
-            const minionPower = minionHp + minionDamage * 2 + minionDefense * 1.5;
-            minionsPower += minionPower;
-        }
-    }
-
-    // 3. 返回 Boss + 小怪的总 Power
-    return Math.floor(bossPower + minionsPower);
-}
-
-
-/**
- * 应用缩放到Boss属性
- * 
- * @param baseConfig Boss基础配置（合并后）
- * @param scale 缩放倍数
- * @returns 缩放后的属性
- */
-export function applyBossScale(
-    baseConfig: BossConfig,
-    scale: number
-): ScaledBossStats {
-    return {
-        hp: Math.floor((baseConfig.baseHp ?? 0) * scale),
-        attack: Math.floor((baseConfig.baseDamage ?? 0) * scale),
-        defense: Math.floor((baseConfig.baseDefense ?? 0) * scale),
-        speed: Math.floor((baseConfig.baseSpeed ?? 0) * scale),
-    };
-}
-
-/**
- * 计算房间平均Tier Power
- * 直接使用房间均值，不考虑EMA
- * 
- * @param playerPowers 所有玩家的Power列表
- * @returns 房间平均Power（房间均值）
- */
-export function calculateAvgTierPower(playerPowers: number[]): number {
-    if (playerPowers.length === 0) {
-        return 0;
-    }
-
-    // 直接返回房间均值，不使用EMA加权平均
-    const roomMean = playerPowers.reduce((sum, p) => sum + p, 0) / playerPowers.length;
-    return roomMean;
 }

@@ -5,6 +5,19 @@ export const tacticalMonsterSchema = {
     // ============================================
     // tacticalMonster  相关表
     // ============================================
+    // mr_player_teams: defineTable({
+    //     uid: v.string(),
+    //     teamPower: v.number(),
+    //     team: v.array(v.object({             // 玩家选择的4个怪物
+    //         monsterId: v.string(),
+    //         level: v.number(),
+    //         stars: v.number(),
+    //         position: v.object({                 // Hex位置
+    //             q: v.number(),
+    //             r: v.number()
+    //         })
+    //     })),
+    // }),
     mr_games: defineTable({
         uid: v.string(),
         teamPower: v.number(),
@@ -54,7 +67,7 @@ export const tacticalMonsterSchema = {
         }),
         stageId: v.string(),
         ruleId: v.string(),
-        matchId: v.string(),
+        matchId: v.optional(v.string()),
         gameId: v.string(),
         status: v.number(),
         score: v.number(),
@@ -68,15 +81,28 @@ export const tacticalMonsterSchema = {
     mr_arena_stage: defineTable({
         ruleId: v.string(),
         stageId: v.string(),
-        openAt: v.string(),
+        createdAt: v.string(),
     })
         .index("by_ruleId", ["ruleId"])
         .index("by_stageId", ["stageId"])
-        .index("by_openAt", ["openAt"]),
+        .index("by_createdAt", ["createdAt"]),
     mr_stage: defineTable({
         stageId: v.string(),
         bossId: v.string(),
-        mapId: v.string(),
+        map: v.object({
+            rows: v.number(),
+            cols: v.number(),
+            obstacles: v.array(v.object({
+                q: v.number(),
+                r: v.number(),
+                type: v.number(),
+                asset: v.string(),
+            })),
+            disables: v.array(v.object({
+                q: v.number(),
+                r: v.number(),
+            })),
+        }),
         difficulty: v.number(),//boss power/player team power ratio(after scaling)
         seed: v.string(),
         attempts: v.number(),
@@ -84,63 +110,73 @@ export const tacticalMonsterSchema = {
     })
         .index("by_stageId", ["stageId"])
         .index("by_bossId", ["bossId"])
-        .index("by_mapId", ["mapId"])
         .index("by_createdAt", ["createdAt"]),
-    mr_map: defineTable({
-        mapId: v.string(),
-        rows: v.number(),
-        cols: v.number(),
-        obstacles: v.array(v.object({
-            q: v.number(),
-            r: v.number(),
-            type: v.number(),
-            asset: v.string(),
-        })),
-        disables: v.array(v.object({
-            q: v.number(),
-            r: v.number(),
-        })),
-    }).index("by_mapId", ["mapId"]),
-    mr_map_templates: defineTable({
-        templateId: v.string(),
-        name: v.string(),
-        tier: v.string(),  // 适用的Tier列表（逗号分隔或单个）
-        mapSize: v.object({
-            rows: v.number(),
-            cols: v.number(),
-        }),
-
-        // 核心障碍物（不可调整的关键地形）
-        coreObstacles: v.array(v.object({
-            q: v.number(),
-            r: v.number(),
-            type: v.number(),
-            asset: v.string(),
-        })),
-
-        // 可选障碍物（可随机调整的障碍物）
-        optionalObstacles: v.array(v.object({
-            q: v.number(),
-            r: v.number(),
-            type: v.number(),
-            asset: v.string(),
-        })),
-
-        // 障碍物禁区（玩家区域、Boss区域、关键路径）
-        restrictedZones: v.array(v.object({
-            type: v.string(),  // "player" | "boss" | "path"
-            region: v.object({
-                minQ: v.number(),
-                maxQ: v.number(),
-                minR: v.number(),
-                maxR: v.number(),
-            }),
-        })),
-
-        configVersion: v.number(),
+    mr_player_stages: defineTable({
+        uid: v.string(),
+        ruleId: v.string(),
+        stageId: v.string(),
+        lastUpdate: v.optional(v.string()),
+        createdAt: v.string(),
     })
-        .index("by_templateId", ["templateId"])
-        .index("by_tier", ["tier"]),
+        .index("by_uid", ["uid"])
+        .index("by_uid_ruleId", ["uid", "ruleId"])
+        .index("by_stageId", ["stageId"]),
+
+    // mr_map: defineTable({
+    //     mapId: v.string(),
+    //     rows: v.number(),
+    //     cols: v.number(),
+    //     obstacles: v.array(v.object({
+    //         q: v.number(),
+    //         r: v.number(),
+    //         type: v.number(),
+    //         asset: v.string(),
+    //     })),
+    //     disables: v.array(v.object({
+    //         q: v.number(),
+    //         r: v.number(),
+    //     })),
+    // }).index("by_mapId", ["mapId"]),
+    // mr_map_templates: defineTable({
+    //     templateId: v.string(),
+    //     name: v.string(),
+    //     tier: v.string(),  // 适用的Tier列表（逗号分隔或单个）
+    //     mapSize: v.object({
+    //         rows: v.number(),
+    //         cols: v.number(),
+    //     }),
+
+    //     // 核心障碍物（不可调整的关键地形）
+    //     coreObstacles: v.array(v.object({
+    //         q: v.number(),
+    //         r: v.number(),
+    //         type: v.number(),
+    //         asset: v.string(),
+    //     })),
+
+    //     // 可选障碍物（可随机调整的障碍物）
+    //     optionalObstacles: v.array(v.object({
+    //         q: v.number(),
+    //         r: v.number(),
+    //         type: v.number(),
+    //         asset: v.string(),
+    //     })),
+
+    //     // 障碍物禁区（玩家区域、Boss区域、关键路径）
+    //     restrictedZones: v.array(v.object({
+    //         type: v.string(),  // "player" | "boss" | "path"
+    //         region: v.object({
+    //             minQ: v.number(),
+    //             maxQ: v.number(),
+    //             minR: v.number(),
+    //             maxR: v.number(),
+    //         }),
+    //     })),
+
+    //     configVersion: v.number(),
+    // })
+    //     .index("by_templateId", ["templateId"])
+    //     .index("by_tier", ["tier"]),
     mr_game_event: defineTable({
         uid: v.optional(v.string()),
         gameId: v.string(),

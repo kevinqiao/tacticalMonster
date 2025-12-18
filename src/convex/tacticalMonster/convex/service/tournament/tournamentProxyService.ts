@@ -662,5 +662,52 @@ export class TournamentProxyService {
             };
         }
     }
+    /**
+    * 调用 Tournament 模块的统一奖励服务发放奖励
+    */
+    static async join(params: {
+        uid: string;
+        typeId: string;
+        tournamentId?: string;
+    }): Promise<{
+        ok: boolean;
+        data?: {
+            matchId?: string;
+            gameId: string;
+            stageId: string;
+        };
+        error?: string;
+    }> {
+        try {
+            const response = await fetch(
+                getTournamentUrl("/join"),
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        uid: params.uid,
+                        typeId: params.typeId,
+                        tournamentId: params.tournamentId || undefined,
+                    }),
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "加入失败");
+            }
+
+            return result;
+        } catch (error: any) {
+            console.error("调用加入锦标赛服务失败:", error);
+            return {
+                ok: false,
+                error: error.message || "网络错误",
+            };
+        }
+    }
 }
 

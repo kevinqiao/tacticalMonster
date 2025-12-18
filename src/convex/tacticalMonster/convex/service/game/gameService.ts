@@ -1,17 +1,66 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
+import { calculateBossPower, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
+import { TeamService } from "../team/teamService";
 
 interface GameModel {
+    // mr_games 表字段
     gameId: string;
-    playerUid: string;  // 玩家 UID（替代 challenger）
-    map: any;
-    round: number;
-    status: number;  // 0: playing, 1: won, 2: lost, 3: game over
-    score: number;   // 游戏分数
-    lastUpdate: number;
-    seed?: string;
-    characters?: any[];
-    currentRound?: any;
+    matchId?: string;
+    stageId: string;
+    uid: string;  // 玩家 UID
+    teamPower: number;
+    team: Array<{  // 玩家选择的4个怪物
+        monsterId: string;
+        level: number;
+        stars: number;
+        hp: number;
+        position: {
+            q: number;
+            r: number;
+        };
+    }>;
+    boss: Array<{  // Boss数据
+        monsterId: string;
+        hp: number;
+        damage: number;
+        defense: number;
+        speed: number;
+        position: {
+            q: number;
+            r: number;
+        };
+        minions: Array<{  // 小怪数据
+            monsterId: string;
+            hp: number;
+            damage: number;
+            defense: number;
+            speed: number;
+            position: {
+                q: number;
+                r: number;
+            };
+        }>;
+    }>;
+    map: {
+        rows: number;
+        cols: number;
+        obstacles: Array<{
+            q: number;
+            r: number;
+        }>;
+        disables: Array<{
+            q: number;
+            r: number;
+        }>;
+    };
+    status: number;  // 0: waiting, 1: won, 2: lost, 3: game over
+    score: number;
+    lastUpdate: string;  // ISO 字符串格式
+    createdAt: string;  // ISO 字符串格式
+
+    // 运行时字段（不在数据库中，但用于代码逻辑）
+    round?: number;  // 当前回合数
 }
 
 interface GameReport {
@@ -24,7 +73,7 @@ interface GameReport {
 
 interface CombatTurn {
     uid: string;
-    character_id: string;
+    monsterId: string;
     skills?: string[];
     skillSelect?: string;
     status: number;
@@ -38,7 +87,6 @@ interface CombatEvent {
     name: string;
     type?: number;
     data?: any;
-    isSynced: boolean;
     time: number;
 }
 
@@ -52,194 +100,330 @@ export class TacticalMonsterGameManager {
     }
 
     async load(gameId: string): Promise<GameModel | null> {
-        // 查询统一的游戏主表（支持单玩家和 Monster Rumble 模式）
+        // 查询 mr_games 表
         const game = await this.dbCtx.db
-            .query("tacticalMonster_game")
+            .query("mr_games")
             .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-            .unique();
+            .first();
 
         if (!game) return null;
 
-        // 以下表在两个系统中完全复用
-        const characters = await this.dbCtx.db
-            .query("tacticalMonster_game_character")
-            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
-            .collect();
+        // 获取当前回合数
+        const roundNumber = (game as any).round || 0;
 
-        // 获取当前回合（如果存在）
-        const roundNumber = game.round || 0;
-        const currentRound = roundNumber > 0 ? await this.dbCtx.db
-            .query("tacticalMonster_game_round")
-            .withIndex("by_game_round", (q: any) => q.eq("gameId", gameId).eq("no", roundNumber))
-            .unique() : null;
-
-        // 获取地图数据
-        const mapId = game.map || (game as any).config?.mapId;
-        const map = mapId ? await this.dbCtx.db
-            .query("tacticalMonster_map_data")
-            .withIndex("by_map_id", (q: any) => q.eq("map_id", mapId))
-            .unique() : null;
-
-        // 状态转换（兼容旧系统的数字状态）
-        let gameStatus: number;
-        if (typeof game.status === 'number') {
-            gameStatus = game.status; // 旧系统数字状态
-        } else {
-            // 新系统字符串状态转换为数字
-            const statusMap: Record<string, number> = {
-                'waiting': 0,
-                'playing': 0,
-                'settling': 3,
-                'ended': 3,
-                'won': 1,
-                'lost': 2,
-            };
-            gameStatus = statusMap[game.status] || 0;
-        }
-
-        // 统一为 GameModel 格式
+        // 构建 GameModel（符合 mr_games 表结构）
         this.game = {
-            ...game,
             gameId: game.gameId,
-            playerUid: game.playerUid || '', // Monster Rumble 模式可能为空
-            map: map ? { ...map, _creationTime: undefined } : mapId || '',
+            matchId: game.matchId,
+            stageId: game.stageId,
+            uid: game.uid,
+            teamPower: game.teamPower,
+            team: game.team || [],
+            boss: game.boss || [],
+            map: game.map,
+            status: game.status,
+            score: game.score,
+            lastUpdate: game.lastUpdate,
+            createdAt: game.createdAt,
             round: roundNumber,
-            status: gameStatus,
-            score: game.score || 0,
-            lastUpdate: game.lastUpdate || Date.now(),
-            seed: game.seed,
-            characters: characters.map((c: any) => ({ ...c, _creationTime: undefined })),
-            currentRound: currentRound ? { ...currentRound, _creationTime: undefined } : undefined,
-            _creationTime: undefined,
-        } as any;
+        };
 
         return this.game;
     }
 
     async save(data: {
-        characters?: any[];
         round?: number;
         status?: number;
         score?: number;
-        lastUpdate?: number;
+        lastUpdate?: number | string;
     }): Promise<void> {
         if (!this.game) return;
-
-        if (data.characters) {
-            for (const char of data.characters) {
-                await this.dbCtx.db
-                    .query("tacticalMonster_game_character")
-                    .withIndex("by_game_character", (q: any) =>
-                        q.eq("gameId", this.game!.gameId)
-                            .eq("uid", char.uid)
-                            .eq("character_id", char.character_id)
-                    )
-                    .unique()
-                    .then((existing: any) => {
-                        if (existing) {
-                            return this.dbCtx.db.patch(existing._id, char);
-                        } else {
-                            return this.dbCtx.db.insert("tacticalMonster_game_character", {
-                                ...char,
-                                gameId: this.game!.gameId,
-                            });
-                        }
-                    });
-            }
-        }
 
         const updateData: any = {};
         if (data.status !== undefined) updateData.status = data.status;
         if (data.round !== undefined) updateData.round = data.round;
         if (data.score !== undefined) updateData.score = data.score;
-        if (data.lastUpdate !== undefined) updateData.lastUpdate = data.lastUpdate;
+        if (data.lastUpdate !== undefined) {
+            updateData.lastUpdate = typeof data.lastUpdate === 'string'
+                ? data.lastUpdate
+                : new Date(data.lastUpdate).toISOString();
+        }
 
         if (Object.keys(updateData).length > 0) {
+            // 更新 mr_games 表
             const gameDoc = await this.dbCtx.db
-                .query("tacticalMonster_game")
+                .query("mr_games")
                 .withIndex("by_gameId", (q: any) => q.eq("gameId", this.game!.gameId))
-                .unique();
+                .first();
 
-            if (gameDoc) {
-                await this.dbCtx.db.patch(gameDoc._id, updateData);
-                this.game = { ...this.game, ...updateData };
+            if (!gameDoc) {
+                throw new Error(`游戏不存在: ${this.game!.gameId}`);
             }
+
+            await this.dbCtx.db.patch(gameDoc._id, updateData);
+            this.game = { ...this.game, ...updateData };
         }
     }
 
     async createGame(
-        mapId: string,
-        playerUid: string,
+        uid: string,
         gameId: string,
-        seed?: string
+        ruleId: string,
+        stageId: string
     ): Promise<GameModel | null> {
-        const map = await this.dbCtx.db
-            .query("tacticalMonster_map_data")
-            .withIndex("by_map_id", (q: any) => q.eq("map_id", mapId))
-            .unique();
+        // 1. 根据 uid 获取玩家队伍（从 mr_player_monsters 表）
+        const playerTeamMonsters = await TeamService.getPlayerTeam(this.dbCtx, uid);
 
-        if (!map) return null;
+        if (!playerTeamMonsters || playerTeamMonsters.length === 0) {
+            throw new Error(`玩家 ${uid} 没有配置队伍`);
+        }
 
-        const gameObj: any = {
+        // 转换为 gameService 需要的格式
+        const playerTeam = {
+            team: playerTeamMonsters.map((monster: any) => ({
+                monsterId: monster.monsterId,
+                level: monster.level,
+                stars: monster.stars,
+                position: monster.teamPosition || { q: 0, r: 0 },
+            })),
+        };
+
+        // 2. 根据 stageId 获取数据库 mr_stage 的 stage 数据
+        const stage = await this.dbCtx.db
+            .query("mr_stage")
+            .withIndex("by_stageId", (q: any) => q.eq("stageId", stageId))
+            .first();
+
+        if (!stage) {
+            throw new Error(`Stage 不存在: ${stageId}`);
+        }
+
+        // 3. 地图数据直接保存在 stage.map 中，不需要单独查询
+
+        // 4. 计算每个 monster 的满血 HP 值和 teamPower
+        let totalTeamPower = 0;
+        const teamWithHp = await Promise.all(
+            playerTeam.team.map(async (monster: any) => {
+                // 获取怪物配置
+                const monsterConfig = await this.dbCtx.db
+                    .query("mr_monster_configs")
+                    .withIndex("by_monsterId", (q: any) => q.eq("monsterId", monster.monsterId))
+                    .first();
+
+                if (!monsterConfig) {
+                    throw new Error(`怪物配置不存在: ${monster.monsterId}`);
+                }
+
+                // 计算等级加成的实际 HP
+                // 每级增长15%基础HP
+                const hpGrowthRate = 0.15;
+                const damageGrowthRate = 0.10;
+                const defenseGrowthRate = 0.12;
+
+                const actualHp = monsterConfig.baseHp * (1 + (monster.level - 1) * hpGrowthRate);
+                const actualAttack = monsterConfig.baseDamage * (1 + (monster.level - 1) * damageGrowthRate);
+                const actualDefense = monsterConfig.baseDefense * (1 + (monster.level - 1) * defenseGrowthRate);
+
+                // 星级倍数（每星增加10%）
+                const starMultiplier = 1 + (monster.stars - 1) * 0.1;
+
+                // 满血 HP = 实际HP × 星级倍数
+                const maxHp = Math.floor(actualHp * starMultiplier);
+
+                // 计算 Power: (HP + Attack * 2 + Defense * 1.5) * StarMultiplier
+                const basePower = actualHp + actualAttack * 2 + actualDefense * 1.5;
+                const monsterPower = Math.floor(basePower * starMultiplier);
+                totalTeamPower += monsterPower;
+
+                return {
+                    monsterId: monster.monsterId,
+                    level: monster.level,
+                    stars: monster.stars,
+                    hp: maxHp,  // 满血值
+                    position: monster.position,
+                };
+            })
+        );
+
+        // 5. 获取 Boss 配置
+        const bossConfig = getBossConfig(stage.bossId);
+        if (!bossConfig) {
+            throw new Error(`Boss配置不存在: ${stage.bossId}`);
+        }
+
+        // 6. 使用计算出的 teamPower（用于 Boss 缩放）
+        const teamPower = totalTeamPower;
+
+        // 7. 根据 stage.difficulty 自适应 Boss 的属性
+        // difficulty 表示 "Boss Power / Player Team Power" 的比率
+        const mergedBossConfig = getMergedBossConfig(stage.bossId);
+        if (!mergedBossConfig) {
+            throw new Error(`无法获取合并后的Boss配置: ${stage.bossId}`);
+        }
+
+        // 计算基础 Boss Power
+        const baseBossPower = calculateBossPower(mergedBossConfig);
+
+        // 计算缩放倍数：scale = (playerPower * difficulty) / baseBossPower
+        const targetBossPower = teamPower * stage.difficulty;
+        const bossScale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
+
+        // 应用缩放到 Boss 属性
+        const scaledBossStats = {
+            hp: Math.floor((mergedBossConfig.baseHp ?? 0) * bossScale),
+            attack: Math.floor((mergedBossConfig.baseDamage ?? 0) * bossScale),
+            defense: Math.floor((mergedBossConfig.baseDefense ?? 0) * bossScale),
+            speed: Math.floor((mergedBossConfig.baseSpeed ?? 0) * bossScale),
+        };
+
+        // 8. 构建 Boss 数据（包括小怪）
+        const bossMainPosition = (bossConfig as any).position || { q: 0, r: 0 };
+
+        // 处理小怪数据（异步）
+        const minionsData = await Promise.all(
+            (bossConfig.minions || []).flatMap((minion: any) => {
+                const positions = minion.positions || [];
+                return Array.from({ length: minion.quantity }, async (_, i) => {
+                    // 小怪也需要缩放（使用相同的缩放倍数）
+                    // 小怪配置使用 monsterId 引用角色配置
+                    let minionScaledStats;
+                    try {
+                        // 从角色配置获取基础属性
+                        const minionMonsterConfig = await this.dbCtx.db
+                            .query("mr_monster_configs")
+                            .withIndex("by_monsterId", (q: any) => q.eq("monsterId", minion.monsterId))
+                            .first();
+
+                        if (minionMonsterConfig) {
+                            // 使用角色配置的基础值，minion 的覆盖值优先
+                            const baseHp = minion.baseHp ?? minionMonsterConfig.baseHp;
+                            const baseDamage = minion.baseDamage ?? minionMonsterConfig.baseDamage;
+                            const baseDefense = minion.baseDefense ?? minionMonsterConfig.baseDefense;
+                            const baseSpeed = minion.baseSpeed ?? minionMonsterConfig.baseSpeed;
+
+                            // 应用缩放
+                            minionScaledStats = {
+                                hp: Math.floor(baseHp * bossScale),
+                                attack: Math.floor(baseDamage * bossScale),
+                                defense: Math.floor(baseDefense * bossScale),
+                                speed: Math.floor(baseSpeed * bossScale),
+                            };
+                        } else {
+                            // 如果没有角色配置，使用 minion 的基础值或默认值
+                            minionScaledStats = {
+                                hp: Math.floor((minion.baseHp || 100) * bossScale),
+                                attack: Math.floor((minion.baseDamage || 10) * bossScale),
+                                defense: Math.floor((minion.baseDefense || 5) * bossScale),
+                                speed: Math.floor((minion.baseSpeed || 10) * bossScale),
+                            };
+                        }
+                    } catch (error) {
+                        // 如果获取小怪配置失败，使用默认值并应用缩放
+                        minionScaledStats = {
+                            hp: Math.floor((minion.baseHp || 100) * bossScale),
+                            attack: Math.floor((minion.baseDamage || 10) * bossScale),
+                            defense: Math.floor((minion.baseDefense || 5) * bossScale),
+                            speed: Math.floor((minion.baseSpeed || 10) * bossScale),
+                        };
+                    }
+
+                    return {
+                        monsterId: minion.minionId,
+                        hp: minionScaledStats.hp,
+                        damage: minionScaledStats.attack,
+                        defense: minionScaledStats.defense,
+                        speed: minionScaledStats.speed,
+                        position: positions[i] || { q: 0, r: 0 },
+                    };
+                });
+            })
+        );
+
+        const bossData = [{
+            monsterId: stage.bossId,
+            hp: scaledBossStats.hp,
+            damage: scaledBossStats.attack,
+            defense: scaledBossStats.defense,
+            speed: scaledBossStats.speed,
+            position: bossMainPosition,
+            minions: minionsData,
+        }];
+
+        // 9. 构建地图数据（符合 mr_games.map 结构，从 stage.map 获取）
+        const mapForGame = {
+            rows: stage.map.rows,
+            cols: stage.map.cols,
+            obstacles: stage.map.obstacles.map((obs: any) => ({
+                q: obs.q,
+                r: obs.r,
+            })),
+            disables: stage.map.disables || [],
+        };
+
+        // 10. 创建 mr_games 记录
+        const now = new Date().toISOString();
+        await this.dbCtx.db.insert("mr_games", {
+            uid,
+            teamPower,
+            team: teamWithHp,
+            boss: bossData,
+            map: mapForGame,
+            stageId,
+            ruleId,
             gameId,
-            playerUid,
-            map: mapId,
-            round: 0,
+            status: 0,  // 0: waiting
+            score: 0,
+            lastUpdate: now,
+            createdAt: now,
+        });
+
+        // 11. 构建并返回 GameModel
+        this.game = {
+            gameId,
+            stageId,
+            uid,
+            teamPower,
+            team: teamWithHp,
+            boss: bossData,
+            map: mapForGame,
             status: 0,
             score: 0,
-            lastUpdate: Date.now(),
+            lastUpdate: now,
+            createdAt: now,
+            round: 0,
         };
 
-        if (seed) {
-            gameObj.seed = seed;
-        }
-
-        // 转换状态格式（如果传入的是数字状态）
-        const statusString = typeof gameObj.status === 'number'
-            ? (gameObj.status === 0 ? 'playing' : gameObj.status === 1 ? 'won' : gameObj.status === 2 ? 'lost' : 'ended')
-            : gameObj.status || 'playing';
-
-        const gameObjWithStatus = {
-            ...gameObj,
-            status: statusString,
-        };
-
-        const gid = await this.dbCtx.db.insert("tacticalMonster_game", gameObjWithStatus);
-
-        if (gid) {
-            this.game = { ...gameObj, _id: gid, _creationTime: undefined } as any;
-            return this.game;
-        }
-
-        return null;
+        return this.game;
     }
 
     async walk(
         gameId: string,
         uid: string,
-        characterId: string,
+        monsterId: string,
         to: { q: number; r: number }
     ): Promise<boolean> {
         await this.load(gameId);
         if (!this.game) return false;
 
-        const character = this.game.characters?.find(
-            (c: any) => c.character_id === characterId && c.uid === uid
-        );
-
-        if (!character) return false;
-
-        // Update character position
+        // 从数据库查询角色（使用 filter 查询，因为索引可能使用 character_id）
         const charDoc = await this.dbCtx.db
             .query("tacticalMonster_game_character")
-            .withIndex("by_game_character", (q: any) =>
-                q.eq("gameId", gameId).eq("uid", uid).eq("character_id", characterId)
+            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+            .filter((q: any) =>
+                q.and(
+                    q.eq(q.field("uid"), uid),
+                    q.or(
+                        q.eq(q.field("monsterId"), monsterId),
+                        q.eq(q.field("character_id"), monsterId)  // 向后兼容
+                    )
+                )
             )
-            .unique();
+            .first();
 
-        if (charDoc) {
-            await this.dbCtx.db.patch(charDoc._id, { q: to.q, r: to.r });
-        }
+        if (!charDoc) return false;
+
+        // Update character position
+        await this.dbCtx.db.patch(charDoc._id, { q: to.q, r: to.r });
 
         // Create event
         const event: CombatEvent = {
@@ -247,13 +431,12 @@ export class TacticalMonsterGameManager {
             uid,
             name: "walk",
             type: 1,
-            data: { uid, character_id: characterId, to },
-            isSynced: false,
+            data: { uid, monsterId, to },
             time: Date.now(),
         };
 
         await this.dbCtx.db.insert("tacticalMonster_event", event);
-        await this.save({ lastUpdate: Date.now() });
+        await this.save({ lastUpdate: new Date().toISOString() });
 
         return true;
     }
@@ -261,8 +444,8 @@ export class TacticalMonsterGameManager {
     async attack(
         gameId: string,
         data: {
-            attacker: { uid: string; character_id: string; skillSelect: string };
-            target: { uid: string; character_id: string };
+            attacker: { uid: string; monsterId: string; skillSelect: string };
+            target: { uid: string; monsterId: string };
         }
     ): Promise<CombatEvent | null> {
         await this.load(gameId);
@@ -270,14 +453,36 @@ export class TacticalMonsterGameManager {
 
         const { attacker, target } = data;
 
-        const attackerCharacter = this.game.characters?.find(
-            (c: any) => c.uid === attacker.uid && c.character_id === attacker.character_id
-        );
-        const targetCharacter = this.game.characters?.find(
-            (c: any) => c.uid === target.uid && c.character_id === target.character_id
-        );
+        // 从数据库查询角色（使用 filter 查询，因为索引可能使用 character_id）
+        const attackerChar = await this.dbCtx.db
+            .query("tacticalMonster_game_character")
+            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+            .filter((q: any) =>
+                q.and(
+                    q.eq(q.field("uid"), attacker.uid),
+                    q.or(
+                        q.eq(q.field("monsterId"), attacker.monsterId),
+                        q.eq(q.field("character_id"), attacker.monsterId)  // 向后兼容
+                    )
+                )
+            )
+            .first();
 
-        if (!attackerCharacter || !targetCharacter) return null;
+        const targetChar = await this.dbCtx.db
+            .query("tacticalMonster_game_character")
+            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+            .filter((q: any) =>
+                q.and(
+                    q.eq(q.field("uid"), target.uid),
+                    q.or(
+                        q.eq(q.field("monsterId"), target.monsterId),
+                        q.eq(q.field("character_id"), target.monsterId)  // 向后兼容
+                    )
+                )
+            )
+            .first();
+
+        if (!attackerChar || !targetChar) return null;
 
         const event: CombatEvent = {
             gameId,
@@ -285,33 +490,23 @@ export class TacticalMonsterGameManager {
             name: "attack",
             type: 2,
             data,
-            isSynced: false,
             time: Date.now(),
         };
 
         await this.dbCtx.db.insert("tacticalMonster_event", event);
-        await this.save({ lastUpdate: Date.now() });
+        await this.save({ lastUpdate: new Date().toISOString() });
 
         return event;
     }
 
     async selectSkill(gameId: string, data: { skillId: string }): Promise<boolean> {
         await this.load(gameId);
-        if (!this.game?.currentRound) return false;
-        if (this.game.round === undefined) return false;
+        if (!this.game || this.game.round === undefined) return false;
 
         const { skillId } = data;
-        const currentRound = this.game.currentRound;
         const roundNumber = this.game.round;
 
-        const currentTurn = currentRound.turns?.find(
-            (turn: CombatTurn) => turn.status === 1 || turn.status === 2
-        );
-
-        if (!currentTurn) return false;
-
-        currentTurn.skillSelect = skillId;
-
+        // 从数据库查询当前回合
         const roundDoc = await this.dbCtx.db
             .query("tacticalMonster_game_round")
             .withIndex("by_game_round", (q: any) =>
@@ -319,13 +514,21 @@ export class TacticalMonsterGameManager {
             )
             .unique();
 
-        if (roundDoc) {
-            await this.dbCtx.db.patch(roundDoc._id, {
-                turns: currentRound.turns,
-            });
-        }
+        if (!roundDoc) return false;
 
-        await this.save({ lastUpdate: Date.now() });
+        const currentTurn = roundDoc.turns?.find(
+            (turn: CombatTurn) => turn.status === 1 || turn.status === 2
+        );
+
+        if (!currentTurn) return false;
+
+        currentTurn.skillSelect = skillId;
+
+        await this.dbCtx.db.patch(roundDoc._id, {
+            turns: roundDoc.turns,
+        });
+
+        await this.save({ lastUpdate: new Date().toISOString() });
 
         return true;
     }
@@ -334,7 +537,7 @@ export class TacticalMonsterGameManager {
         await this.load(gameId);
         if (!this.game) return false;
 
-        const newRoundNo = this.game.round + 1;
+        const newRoundNo = (this.game.round || 0) + 1;
 
         // Create new round
         const roundObj = {
@@ -351,12 +554,11 @@ export class TacticalMonsterGameManager {
             name: "new_round",
             type: 0,
             data: { round: newRoundNo },
-            isSynced: false,
             time: Date.now(),
         };
 
         await this.dbCtx.db.insert("tacticalMonster_event", event);
-        await this.save({ round: newRoundNo, lastUpdate: Date.now() });
+        await this.save({ round: newRoundNo, lastUpdate: new Date().toISOString() });
 
         return true;
     }
@@ -386,12 +588,11 @@ export class TacticalMonsterGameManager {
             name: "end_round",
             type: 0,
             data: { round: this.game.round },
-            isSynced: false,
             time: Date.now(),
         };
 
         await this.dbCtx.db.insert("tacticalMonster_event", event);
-        await this.save({ lastUpdate: Date.now() });
+        await this.save({ lastUpdate: new Date().toISOString() });
 
         return true;
     }
@@ -416,7 +617,7 @@ export class TacticalMonsterGameManager {
         if (!this.game) return false;
 
         const newScore = (this.game.score || 0) + scoreDelta;
-        await this.save({ score: newScore, lastUpdate: Date.now() });
+        await this.save({ score: newScore, lastUpdate: new Date().toISOString() });
 
         return true;
     }
@@ -426,7 +627,9 @@ export class TacticalMonsterGameManager {
         if (!this.game) return null;
 
         const baseScore = this.game.score || 0;
-        const startTime = this.game.lastUpdate || Date.now();
+        const startTime = this.game.lastUpdate
+            ? new Date(this.game.lastUpdate).getTime()
+            : Date.now();
         const endTime = Date.now();
         const duration = endTime - startTime;
 
@@ -438,14 +641,13 @@ export class TacticalMonsterGameManager {
 
         const totalScore = baseScore + timeBonus + completeBonus;
 
-        await this.save({ status: 3, lastUpdate: Date.now() });
+        await this.save({ status: 3, lastUpdate: new Date().toISOString() });
 
         const event: CombatEvent = {
             gameId,
             name: "game_end",
             type: 0,
             data: { gameId },
-            isSynced: false,
             time: Date.now(),
         };
 
@@ -489,7 +691,7 @@ export class TacticalMonsterGameManager {
 
         // 获取数据库中的游戏记录（用于状态检查和更新）
         const gameDoc = await this.dbCtx.db
-            .query("tacticalMonster_game")
+            .query("mr_games")
             .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
             .first();
 
@@ -497,19 +699,19 @@ export class TacticalMonsterGameManager {
             throw new Error("游戏不存在");
         }
 
-        if (gameDoc.status === "ended") {
+        if (gameDoc.status === 3) {  // 3: game over
             // 游戏已经结束，避免重复处理
             return { ok: true, alreadyEnded: true };
         }
 
-        // 2. 更新游戏状态为 "ended"（TacticalMonster 本地状态）
+        // 2. 更新游戏状态为 3 (game over)
         await this.dbCtx.db.patch(gameDoc._id, {
-            status: "ended",
-            endedAt: new Date().toISOString(),
+            status: 3,
+            lastUpdate: new Date().toISOString(),
         });
 
         // 3. 判断是否为 Tournament 模式
-        const isTournamentMode = !!(gameDoc as any).matchId;
+        const isTournamentMode = !!(gameDoc.matchId && gameDoc.matchId !== "");
 
         if (!isTournamentMode) {
             // 单玩家模式：直接返回，不处理奖励
@@ -597,15 +799,15 @@ export class TacticalMonsterGameManager {
 // Convex 函数接口
 export const createGame = internalMutation({
     args: {
-        mapId: v.string(),
-        playerUid: v.string(),
+        uid: v.string(),
         gameId: v.string(),
-        seed: v.optional(v.string()),
+        ruleId: v.string(),
+        stageId: v.string(),
     },
-    handler: async (ctx, { mapId, playerUid, gameId, seed }) => {
-        console.log("createGame...", mapId, gameId, seed);
+    handler: async (ctx, { uid, gameId, ruleId, stageId }) => {
+        console.log("createGame...", uid, gameId, ruleId, stageId);
         const gameManager = new TacticalMonsterGameManager(ctx);
-        const game = await gameManager.createGame(mapId, playerUid, gameId, seed);
+        const game = await gameManager.createGame(uid, gameId, ruleId, stageId);
         if (game) {
             return { ok: true, data: game };
         }
@@ -711,14 +913,14 @@ export const walk = mutation({
     args: {
         gameId: v.string(),
         uid: v.string(),
-        characterId: v.string(),
+        monsterId: v.string(),
         to: v.object({ q: v.number(), r: v.number() }),
     },
-    handler: async (ctx, { gameId, uid, characterId, to }) => {
-        console.log("walk", gameId, uid, characterId, to);
+    handler: async (ctx, { gameId, uid, monsterId, to }) => {
+        console.log("walk", gameId, uid, monsterId, to);
         const gameManager = new TacticalMonsterGameManager(ctx);
         await gameManager.load(gameId);
-        const result = await gameManager.walk(gameId, uid, characterId, to);
+        const result = await gameManager.walk(gameId, uid, monsterId, to);
         console.log("walk result", result);
         return { ok: result };
     },
@@ -730,12 +932,12 @@ export const attack = mutation({
         data: v.object({
             attacker: v.object({
                 uid: v.string(),
-                character_id: v.string(),
+                monsterId: v.string(),
                 skillSelect: v.string(),
             }),
             target: v.object({
                 uid: v.string(),
-                character_id: v.string(),
+                monsterId: v.string(),
             }),
         }),
     },
@@ -785,8 +987,7 @@ export const findEvents = query({
     handler: async (ctx, { gameId, lastTime }) => {
         let query = ctx.db
             .query("mr_game_event")
-            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
-            .filter((q: any) => q.eq(q.field("isSynced"), false));
+            .withIndex("by_game", (q: any) => q.eq("gameId", gameId));
 
         if (lastTime) {
             query = query.filter((q: any) => q.gt(q.field("time"), lastTime));
