@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
 import { MonsterService } from "../monster/monsterService";
-import { ShardService } from "../monster/shardService";
 
 /**
  * 奖励服务
@@ -175,7 +174,7 @@ export class RewardService {
                 const grantedShards: any[] = [];
                 for (const shard of params.rewards.monsterShards) {
                     try {
-                        await ShardService.addShards(ctx, {
+                        await MonsterService.addShards(ctx, {
                             uid: params.uid,
                             monsterId: shard.monsterId,
                             quantity: shard.quantity,

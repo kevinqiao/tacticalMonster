@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { ShopConfigService } from "./service/shop/shopConfigService";
+import { ShopRefreshService } from "./service/shop/shopRefreshService";
 import { ShopService } from "./service/shop/shopService";
 
 // ============================================================================
@@ -38,7 +39,7 @@ export const getPlayerShops = query({
     },
     handler: async (ctx, args) => {
         const shopsResult = await ShopConfigService.getAllShops(ctx, args.filters);
-        
+
         if (!shopsResult.success) {
             return shopsResult;
         }
@@ -269,7 +270,6 @@ export const refreshShop = mutation({
 export const refreshDailyShops = internalMutation({
     args: {},
     handler: async (ctx) => {
-        const { ShopRefreshService } = await import("./service/shop/shopRefreshService");
         return await ShopRefreshService.refreshDailyShops(ctx);
     },
 });
@@ -280,7 +280,6 @@ export const refreshDailyShops = internalMutation({
 export const refreshWeeklyShops = internalMutation({
     args: {},
     handler: async (ctx) => {
-        const { ShopRefreshService } = await import("./service/shop/shopRefreshService");
         return await ShopRefreshService.refreshWeeklyShops(ctx);
     },
 });
@@ -291,7 +290,6 @@ export const refreshWeeklyShops = internalMutation({
 export const refreshSeasonalShops = internalMutation({
     args: {},
     handler: async (ctx) => {
-        const { ShopRefreshService } = await import("./service/shop/shopRefreshService");
         return await ShopRefreshService.refreshSeasonalShops(ctx);
     },
 });

@@ -3,7 +3,9 @@
  * 基于 Camex Games Tactical Monster 的怪物设计
  * 包含90个怪物的基础属性配置
  */
-
+export const calculatePower = (damage: number, defense: number, hp: number, multiplier: number = 1): number => {
+    return (damage * 2 + defense * 1.5 + hp) * multiplier;
+}
 export interface Monster {
     monsterId: string;
     name: string;
@@ -14,13 +16,25 @@ export interface Monster {
     baseDamage: number;
     baseDefense: number;
     baseSpeed: number;
-    skills?: any[];
+
+    // 技能配置：使用 skillIds 引用技能配置（方案二：完全独立）
+    skillIds?: string[];              // 技能ID列表（引用 skillConfigs.ts 中的技能）
+
     growthRates?: {
         hp: number;
         damage: number;
         defense: number;
         speed: number;
+        starMultiplierPerStar?: number;  // 每星增加的属性倍率（可选，默认使用 GROWTH_STRATEGY 的值）
     };
+
+    // 移动和战斗范围配置
+    moveRange?: number;               // 移动范围（Hex格子数），默认值：3
+    attackRange?: {                   // 攻击范围（Hex格子数），默认值：{ min: 1, max: 2 }
+        min: number;
+        max: number;
+    };
+
     assetPath: string;
 }
 
@@ -33,6 +47,163 @@ const RARITY_MULTIPLIERS = {
     Epic: 1.35,
     Legendary: 1.60,
 };
+
+/**
+ * 根据稀有度获取星级倍率
+ * 稀有度越高，每星增加的属性倍率越高
+ */
+function getStarMultiplierByRarity(rarity?: string): number {
+    switch (rarity) {
+        case "Legendary":
+            return 0.12;  // 每星增加12%
+        case "Epic":
+            return 0.11;  // 每星增加11%
+        case "Rare":
+            return 0.10;  // 每星增加10%（默认值）
+        case "Common":
+            return 0.09;  // 每星增加9%
+        default:
+            return 0.10;  // 默认值
+    }
+}
+
+/**
+ * 根据职业分配技能
+ */
+function getSkillsByClass(monsterClass?: string): string[] {
+    const baseSkills: string[] = ["basic_attack"]; // 所有怪物都有基础攻击
+    
+    if (!monsterClass) {
+        return baseSkills;
+    }
+    
+    switch (monsterClass) {
+        case "Warrior":
+            return [
+                ...baseSkills,
+                "attack_boost",      // 7级解锁
+                "combat_reflexes",   // 被动技能
+            ];
+        
+        case "Tank":
+            return [
+                ...baseSkills,
+                "shield",            // 5级解锁
+                "defense_boost",     // 7级解锁
+                "regeneration",      // 被动技能
+            ];
+        
+        case "Mage":
+            return [
+                "ranged_attack",     // 远程攻击
+                "weaken",            // 7级解锁
+                "combat_reflexes",   // 被动技能
+            ];
+        
+        case "Assassin":
+            return [
+                ...baseSkills,
+                "combat_reflexes",   // 被动技能
+                "attack_boost",      // 7级解锁
+            ];
+        
+        case "Support":
+            return [
+                ...baseSkills,
+                "heal",              // 3级解锁
+                "group_heal",        // 10级解锁
+                "attack_boost",      // 7级解锁
+                "defense_boost",     // 7级解锁
+            ];
+        
+        case "Archer":
+            return [
+                "ranged_attack",
+                "attack_boost",      // 7级解锁
+                "combat_reflexes",   // 被动技能
+            ];
+        
+        default:
+            return baseSkills;
+    }
+}
+
+/**
+ * 根据职业和稀有度分配成长率（包括星级倍率）
+ * 如果不指定，则使用 GROWTH_STRATEGY 的默认值
+ */
+function getGrowthRatesByClass(monsterClass?: string, rarity?: string): {
+    hp: number;
+    damage: number;
+    defense: number;
+    speed: number;
+    starMultiplierPerStar?: number;
+} | undefined {
+    if (!monsterClass) {
+        // 如果没有职业，返回 undefined，使用全局默认值
+        return undefined;
+    }
+    
+    switch (monsterClass) {
+        case "Warrior":
+            return {
+                hp: 0.12,      // 12% HP成长
+                damage: 0.12,  // 12% 攻击成长
+                defense: 0.10, // 10% 防御成长
+                speed: 0.05,   // 5% 速度成长
+                starMultiplierPerStar: getStarMultiplierByRarity(rarity),
+            };
+        
+        case "Tank":
+            return {
+                hp: 0.18,      // 18% HP成长
+                damage: 0.08,  // 8% 攻击成长
+                defense: 0.15, // 15% 防御成长
+                speed: 0.03,   // 3% 速度成长
+                starMultiplierPerStar: getStarMultiplierByRarity(rarity),
+            };
+        
+        case "Mage":
+            return {
+                hp: 0.10,      // 10% HP成长
+                damage: 0.15,  // 15% 攻击成长
+                defense: 0.08, // 8% 防御成长
+                speed: 0.08,   // 8% 速度成长
+                starMultiplierPerStar: getStarMultiplierByRarity(rarity),
+            };
+        
+        case "Assassin":
+            return {
+                hp: 0.10,      // 10% HP成长
+                damage: 0.12,  // 12% 攻击成长
+                defense: 0.08, // 8% 防御成长
+                speed: 0.12,   // 12% 速度成长
+                starMultiplierPerStar: getStarMultiplierByRarity(rarity),
+            };
+        
+        case "Support":
+            return {
+                hp: 0.13,      // 13% HP成长
+                damage: 0.09,  // 9% 攻击成长
+                defense: 0.11, // 11% 防御成长
+                speed: 0.07,   // 7% 速度成长
+                starMultiplierPerStar: getStarMultiplierByRarity(rarity),
+            };
+        
+        case "Archer":
+            return {
+                hp: 0.12,      // 12% HP成长
+                damage: 0.11,  // 11% 攻击成长
+                defense: 0.10, // 10% 防御成长
+                speed: 0.08,   // 8% 速度成长
+                starMultiplierPerStar: getStarMultiplierByRarity(rarity),
+            };
+        
+        default:
+            // 未知职业，返回 undefined，使用全局默认值
+            return undefined;
+    }
+}
 
 /**
  * Camex Games Tactical Monster 怪物配置
@@ -52,6 +223,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 150,
         baseDefense: 100,
         baseSpeed: 80,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Legendary"),
+        moveRange: 4,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/griffin/model/griffin.glb",
     },
     {
@@ -64,6 +239,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 180,
         baseDefense: 120,
         baseSpeed: 70,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Legendary"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/firedragon/model/firedragon.glb",
     },
     {
@@ -76,6 +255,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 200,
         baseDefense: 80,
         baseSpeed: 100,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Legendary"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/death/model/death.glb",
     },
     {
@@ -88,6 +271,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 120,
         baseDefense: 150,
         baseSpeed: 60,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Legendary"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/valkyrie/model/valkyrie.glb",
     },
 
@@ -104,6 +291,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 200,
         baseDefense: 60,
         baseSpeed: 90,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Epic"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/medusa/model/medusa.glb",
     },
     {
@@ -116,6 +307,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 160,
         baseDefense: 100,
         baseSpeed: 75,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Epic"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/firedragon/model/firedragon.glb",
     },
     {
@@ -128,6 +323,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 190,
         baseDefense: 70,
         baseSpeed: 85,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Epic"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/hellboy/model/hellboy.glb",
     },
     {
@@ -140,6 +339,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 140,
         baseDefense: 90,
         baseSpeed: 95,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Epic"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/athena/model/athena.glb",
     },
     {
@@ -152,6 +355,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 130,
         baseDefense: 130,
         baseSpeed: 55,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Epic"),
+        moveRange: 2,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/thor/model/thor.glb",
     },
     {
@@ -164,6 +371,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 180,
         baseDefense: 65,
         baseSpeed: 100,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Epic"),
+        moveRange: 4,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/faeriedragon/model/faeriedragon.glb",
     },
     {
@@ -176,6 +387,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 150,
         baseDefense: 110,
         baseSpeed: 65,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Epic"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/lavadolphin/model/lavadolphin.glb",
     },
     {
@@ -188,6 +403,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 170,
         baseDefense: 95,
         baseSpeed: 70,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Epic"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/yeti/model/yeti.glb",
     },
     {
@@ -200,6 +419,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 210,
         baseDefense: 55,
         baseSpeed: 95,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Epic"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/timemaster/model/timemaster.glb",
     },
 
@@ -216,6 +439,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 180,
         baseDefense: 50,
         baseSpeed: 100,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/werewolf/model/werewolf.glb",
     },
     {
@@ -228,6 +455,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 130,
         baseDefense: 90,
         baseSpeed: 75,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/knight/model/knight.glb",
     },
     {
@@ -240,6 +471,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 160,
         baseDefense: 60,
         baseSpeed: 110,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/archer/model/archer.glb",
     },
     {
@@ -252,6 +487,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 120,
         baseDefense: 100,
         baseSpeed: 70,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/paladin/model/paladin.glb",
     },
     {
@@ -264,6 +503,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 110,
         baseDefense: 75,
         baseSpeed: 85,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/ent/model/ent.glb",
     },
     {
@@ -276,6 +519,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 150,
         baseDefense: 65,
         baseSpeed: 105,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/archer/model/archer.glb",
     },
     {
@@ -288,6 +535,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 170,
         baseDefense: 70,
         baseSpeed: 80,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/orcwarrior/model/orcwarrior.glb",
     },
     {
@@ -300,6 +551,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 130,
         baseDefense: 68,
         baseSpeed: 88,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/shaman/model/shaman.glb",
     },
     {
@@ -312,6 +567,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 175,
         baseDefense: 55,
         baseSpeed: 90,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/frankenstein/model/frankenstein.glb",
     },
     {
@@ -324,6 +583,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 100,
         baseDefense: 80,
         baseSpeed: 82,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/pastor/model/pastor.glb",
     },
     {
@@ -336,6 +599,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 140,
         baseDefense: 85,
         baseSpeed: 72,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/ares/model/ares.glb",
     },
     {
@@ -348,6 +615,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 145,
         baseDefense: 70,
         baseSpeed: 95,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Rare"),
+        moveRange: 4,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/griffin/model/griffin.glb",
     },
     {
@@ -360,6 +631,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 165,
         baseDefense: 60,
         baseSpeed: 98,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/death/model/death.glb",
     },
     {
@@ -372,6 +647,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 180,
         baseDefense: 65,
         baseSpeed: 85,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/frankenstein/model/frankenstein.glb",
     },
     {
@@ -384,6 +663,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 155,
         baseDefense: 75,
         baseSpeed: 78,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/hellboy/model/hellboy.glb",
     },
     {
@@ -396,6 +679,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 135,
         baseDefense: 95,
         baseSpeed: 80,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/apollo/model/apollo.glb",
     },
     {
@@ -408,6 +695,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 150,
         baseDefense: 72,
         baseSpeed: 92,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/centaur/model/centaur.glb",
     },
     {
@@ -420,6 +711,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 125,
         baseDefense: 105,
         baseSpeed: 65,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/tauren/model/tauren.glb",
     },
     {
@@ -432,6 +727,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 155,
         baseDefense: 58,
         baseSpeed: 108,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Rare"),
+        moveRange: 4,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/harpy/model/harpy.glb",
     },
     {
@@ -444,6 +743,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 170,
         baseDefense: 62,
         baseSpeed: 88,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/earthelement/model/earthelement.glb",
     },
     {
@@ -456,6 +759,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 115,
         baseDefense: 85,
         baseSpeed: 75,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/mechadoctor/model/mechadoctor.glb",
     },
     {
@@ -468,6 +775,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 140,
         baseDefense: 88,
         baseSpeed: 78,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/panda/model/panda.glb",
     },
     {
@@ -480,6 +791,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 165,
         baseDefense: 68,
         baseSpeed: 90,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Rare"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/snowmaiden/model/snowmaiden.glb",
     },
 
@@ -496,6 +811,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 100,
         baseDefense: 80,
         baseSpeed: 60,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/frankenstein/model/frankenstein.glb",
     },
     {
@@ -508,6 +827,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 95,
         baseDefense: 75,
         baseSpeed: 65,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/goblingamer/model/goblingamer.glb",
     },
     {
@@ -520,6 +843,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 105,
         baseDefense: 78,
         baseSpeed: 62,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/orc/model/orc.glb",
     },
     {
@@ -532,6 +859,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 110,
         baseDefense: 60,
         baseSpeed: 85,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/archer/model/archer.glb",
     },
     {
@@ -544,6 +875,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 120,
         baseDefense: 50,
         baseSpeed: 95,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/assassin/model/assassin.glb",
     },
     {
@@ -556,6 +891,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 98,
         baseDefense: 82,
         baseSpeed: 58,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/infantry/model/infantry.glb",
     },
     {
@@ -568,6 +907,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 102,
         baseDefense: 76,
         baseSpeed: 64,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/infantry/model/infantry.glb",
     },
     {
@@ -580,6 +923,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 108,
         baseDefense: 80,
         baseSpeed: 66,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/knight/model/knight.glb",
     },
     {
@@ -592,6 +939,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 115,
         baseDefense: 58,
         baseSpeed: 82,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/sharpshooter/model/sharpshooter.glb",
     },
     {
@@ -604,6 +955,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 92,
         baseDefense: 74,
         baseSpeed: 68,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/knight/model/knight.glb",
     },
     {
@@ -616,6 +971,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 85,
         baseDefense: 90,
         baseSpeed: 55,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Common"),
+        moveRange: 2,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/paladin/model/paladin.glb",
     },
     {
@@ -628,6 +987,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 90,
         baseDefense: 70,
         baseSpeed: 70,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/infantry/model/infantry.glb",
     },
     {
@@ -640,6 +1003,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 95,
         baseDefense: 85,
         baseSpeed: 50,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 2,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/death/model/death.glb",
     },
     {
@@ -652,6 +1019,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 110,
         baseDefense: 65,
         baseSpeed: 75,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/shadowminion/model/shadowminion.glb",
     },
     {
@@ -664,6 +1035,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 125,
         baseDefense: 45,
         baseSpeed: 88,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/lamp/model/lamp.glb",
     },
     {
@@ -676,6 +1051,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 130,
         baseDefense: 42,
         baseSpeed: 90,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/harpy/model/harpy.glb",
     },
     {
@@ -688,6 +1067,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 120,
         baseDefense: 50,
         baseSpeed: 80,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/firedragon/model/firedragon.glb",
     },
     {
@@ -700,6 +1083,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 100,
         baseDefense: 68,
         baseSpeed: 75,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/lavadolphin/model/lavadolphin.glb",
     },
     {
@@ -712,6 +1099,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 88,
         baseDefense: 95,
         baseSpeed: 52,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Common"),
+        moveRange: 2,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/earthelement/model/earthelement.glb",
     },
     {
@@ -724,6 +1115,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 115,
         baseDefense: 55,
         baseSpeed: 92,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/faeriedragon/model/faeriedragon.glb",
     },
     {
@@ -736,6 +1131,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 118,
         baseDefense: 58,
         baseSpeed: 78,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/icesucker/model/icesucker.glb",
     },
     {
@@ -748,6 +1147,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 122,
         baseDefense: 52,
         baseSpeed: 85,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/thor/model/thor.glb",
     },
     {
@@ -760,6 +1163,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 105,
         baseDefense: 48,
         baseSpeed: 100,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/jackmouse/model/jackmouse.glb",
     },
     {
@@ -772,6 +1179,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 110,
         baseDefense: 70,
         baseSpeed: 85,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/werewolf/model/werewolf.glb",
     },
     {
@@ -784,6 +1195,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 115,
         baseDefense: 60,
         baseSpeed: 88,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/longicorn/model/longicorn.glb",
     },
     {
@@ -796,6 +1211,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 108,
         baseDefense: 45,
         baseSpeed: 95,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 4,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/karasu/model/karasu.glb",
     },
     {
@@ -808,6 +1227,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 98,
         baseDefense: 78,
         baseSpeed: 70,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/boar/model/boar.glb",
     },
     {
@@ -820,6 +1243,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 92,
         baseDefense: 88,
         baseSpeed: 58,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Common"),
+        moveRange: 2,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/bearwarrior/model/bearwarrior.glb",
     },
     {
@@ -832,6 +1259,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 118,
         baseDefense: 50,
         baseSpeed: 92,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/goblingamer/model/goblingamer.glb",
     },
     {
@@ -844,6 +1275,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 75,
         baseDefense: 82,
         baseSpeed: 55,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Common"),
+        moveRange: 2,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/egg/model/egg.glb",
     },
     {
@@ -856,6 +1291,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 102,
         baseDefense: 42,
         baseSpeed: 98,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 4,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/karasu/model/karasu.glb",
     },
     {
@@ -868,6 +1307,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 100,
         baseDefense: 85,
         baseSpeed: 60,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/bearwarrior/model/bearwarrior.glb",
     },
     {
@@ -880,6 +1323,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 95,
         baseDefense: 55,
         baseSpeed: 90,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/cervitaur/model/cervitaur.glb",
     },
     {
@@ -892,6 +1339,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 105,
         baseDefense: 40,
         baseSpeed: 105,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/bunny/model/bunny.glb",
     },
     {
@@ -904,6 +1355,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 110,
         baseDefense: 48,
         baseSpeed: 96,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/jackal/model/jackal.glb",
     },
     {
@@ -916,6 +1371,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 112,
         baseDefense: 46,
         baseSpeed: 100,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 4,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/griffin/model/griffin.glb",
     },
     {
@@ -928,6 +1387,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 108,
         baseDefense: 62,
         baseSpeed: 88,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/sharpshooter/model/sharpshooter.glb",
     },
     {
@@ -940,6 +1403,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 112,
         baseDefense: 64,
         baseSpeed: 85,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 3,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/archer/model/archer.glb",
     },
     {
@@ -952,6 +1419,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 80,
         baseDefense: 60,
         baseSpeed: 72,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/marmotminer/model/marmotminer.glb",
     },
     {
@@ -964,6 +1435,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 104,
         baseDefense: 76,
         baseSpeed: 68,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/infantry/model/infantry.glb",
     },
     {
@@ -976,6 +1451,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 115,
         baseDefense: 55,
         baseSpeed: 93,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/assassin/model/assassin.glb",
     },
     {
@@ -988,6 +1467,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 106,
         baseDefense: 74,
         baseSpeed: 66,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/orc/model/orc.glb",
     },
     {
@@ -1000,6 +1483,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 108,
         baseDefense: 80,
         baseSpeed: 82,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/centaur/model/centaur.glb",
     },
     {
@@ -1012,6 +1499,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 95,
         baseDefense: 58,
         baseSpeed: 86,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/fairy/model/fairy.glb",
     },
     {
@@ -1024,6 +1515,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 88,
         baseDefense: 90,
         baseSpeed: 50,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Common"),
+        moveRange: 2,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/ent/model/ent.glb",
     },
     {
@@ -1036,6 +1531,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 102,
         baseDefense: 85,
         baseSpeed: 62,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/madrobot/model/madrobot.glb",
     },
     {
@@ -1048,6 +1547,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 90,
         baseDefense: 92,
         baseSpeed: 56,
+        skillIds: getSkillsByClass("Tank"),
+        growthRates: getGrowthRatesByClass("Tank", "Common"),
+        moveRange: 2,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/madrobot/model/madrobot.glb",
     },
     {
@@ -1060,6 +1563,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 98,
         baseDefense: 70,
         baseSpeed: 78,
+        skillIds: getSkillsByClass("Support"),
+        growthRates: getGrowthRatesByClass("Support", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/lavadolphin/model/lavadolphin.glb",
     },
     {
@@ -1072,6 +1579,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 100,
         baseDefense: 75,
         baseSpeed: 72,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/turtulecaptain/model/turtulecaptain.glb",
     },
     {
@@ -1084,6 +1595,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 108,
         baseDefense: 68,
         baseSpeed: 88,
+        skillIds: getSkillsByClass("Archer"),
+        growthRates: getGrowthRatesByClass("Archer", "Common"),
+        moveRange: 4,
+        attackRange: { min: 2, max: 5 },
         assetPath: "/assets/3d/characters/griffin/model/griffin.glb",
     },
     {
@@ -1096,6 +1611,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 115,
         baseDefense: 72,
         baseSpeed: 80,
+        skillIds: getSkillsByClass("Mage"),
+        growthRates: getGrowthRatesByClass("Mage", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 3 },
         assetPath: "/assets/3d/characters/firedragon/model/firedragon.glb",
     },
     {
@@ -1108,6 +1627,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 105,
         baseDefense: 78,
         baseSpeed: 75,
+        skillIds: getSkillsByClass("Warrior"),
+        growthRates: getGrowthRatesByClass("Warrior", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/lion/model/lion.glb",
     },
     {
@@ -1120,6 +1643,10 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 112,
         baseDefense: 70,
         baseSpeed: 85,
+        skillIds: getSkillsByClass("Assassin"),
+        growthRates: getGrowthRatesByClass("Assassin", "Common"),
+        moveRange: 3,
+        attackRange: { min: 1, max: 2 },
         assetPath: "/assets/3d/characters/tiger/model/tiger.glb",
     },
 ];

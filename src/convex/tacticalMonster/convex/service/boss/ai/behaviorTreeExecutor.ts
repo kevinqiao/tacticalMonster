@@ -3,9 +3,9 @@
  * 解析和执行行为树配置
  */
 
-import { ConditionEvaluator, Condition, BossState, GameState } from "./conditionEvaluator";
-import { TargetSelector, TargetCharacter } from "./targetSelector";
 import { SeededRandom } from "../../../utils/seededRandom";
+import { BossState, Condition, ConditionEvaluator, GameState } from "./conditionEvaluator";
+import { TargetCharacter, TargetSelector } from "./targetSelector";
 
 export interface BehaviorTreeNode {
     type: "selector" | "sequence" | "condition" | "action";
@@ -203,7 +203,7 @@ export class BehaviorTreeExecutor {
 
                 return {
                     action: "move",
-                    position: bestPosition,
+                    position: bestPosition ?? undefined,  // 将 null 转换为 undefined
                     success: !!bestPosition,
                 };
             }

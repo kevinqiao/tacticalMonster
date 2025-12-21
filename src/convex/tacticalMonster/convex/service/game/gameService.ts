@@ -1,47 +1,39 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
 import { calculateBossPower, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
+import { MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { getSkillConfig, skillExists } from "../../data/skillConfigs";
+import { calculateGameMonster, GameBoss, GameMinion, GameMonster, PlayerMonster } from "../../types/monsterTypes";
+import { HexCoord, hexDistance } from "../../utils/hexUtils";
+import { SkillManager } from "../skill/skillManager";
 import { TeamService } from "../team/teamService";
 
-interface GameModel {
-    // mr_games 表字段
+/**
+ * 游戏状态枚举
+ * 0: waiting - 等待中
+ * 1: won - 胜利
+ * 2: lost - 失败
+ * 3: game over - 游戏结束
+ */
+export type GameStatus = 0 | 1 | 2 | 3;
+
+/**
+ * GameModel - 游戏模型（运行时数据结构）
+ * 对应数据库表 mr_games，包含完整的游戏状态信息
+ */
+export interface GameModel {
+    // ========== 基础标识 ==========
     gameId: string;
     matchId?: string;
     stageId: string;
     uid: string;  // 玩家 UID
+
+    // ========== 队伍和Boss数据 ==========
     teamPower: number;
-    team: Array<{  // 玩家选择的4个怪物
-        monsterId: string;
-        level: number;
-        stars: number;
-        hp: number;
-        position: {
-            q: number;
-            r: number;
-        };
-    }>;
-    boss: Array<{  // Boss数据
-        monsterId: string;
-        hp: number;
-        damage: number;
-        defense: number;
-        speed: number;
-        position: {
-            q: number;
-            r: number;
-        };
-        minions: Array<{  // 小怪数据
-            monsterId: string;
-            hp: number;
-            damage: number;
-            defense: number;
-            speed: number;
-            position: {
-                q: number;
-                r: number;
-            };
-        }>;
-    }>;
+    team: GameMonster[];  // 玩家队伍（使用 GameMonster 类型）
+    boss: GameBoss;  // Boss数据（使用 GameBoss 类型）
+
+    // ========== 地图数据 ==========
     map: {
         rows: number;
         cols: number;
@@ -54,16 +46,22 @@ interface GameModel {
             r: number;
         }>;
     };
-    status: number;  // 0: waiting, 1: won, 2: lost, 3: game over
+
+    // ========== 游戏状态和分数 ==========
+    status: GameStatus;  // 游戏状态：0: waiting, 1: won, 2: lost, 3: game over
     score: number;
     lastUpdate: string;  // ISO 字符串格式
     createdAt: string;  // ISO 字符串格式
 
-    // 运行时字段（不在数据库中，但用于代码逻辑）
+    // ========== 运行时字段（不在数据库中，但用于代码逻辑）==========
     round?: number;  // 当前回合数
 }
 
-interface GameReport {
+/**
+ * GameReport - 游戏报告
+ * 包含游戏结束后的分数统计信息
+ */
+export interface GameReport {
     gameId: string;
     baseScore: number;
     timeBonus?: number;
@@ -71,25 +69,47 @@ interface GameReport {
     totalScore: number;
 }
 
-interface CombatTurn {
+/**
+ * CombatTurn - 战斗回合
+ * 表示一个战斗回合中的行动信息
+ */
+export interface CombatTurn {
     uid: string;
     monsterId: string;
     skills?: string[];
     skillSelect?: string;
-    status: number;
+    status: number;  // 回合状态：0: pending, 1: in_progress, 2: completed
     startTime?: number;
     endTime?: number;
 }
 
-interface CombatEvent {
+/**
+ * CharacterIdentifier - 角色标识符
+ * 用于唯一标识一个角色，三个字段中只有一个存在
+ */
+export interface CharacterIdentifier {
+    monsterId?: string;  // 玩家角色的monsterId
+    bossId?: string;     // Boss主体的bossId
+    minionId?: string;   // 小怪的minionId
+}
+
+/**
+ * CombatEvent - 战斗事件
+ * 记录战斗过程中发生的各种事件
+ */
+export interface CombatEvent {
     uid?: string;
     gameId: string;
     name: string;
-    type?: number;
+    type?: number;  // 事件类型：0: round, 1: movement, 2: attack, etc.
     data?: any;
     time: number;
 }
 
+/**
+ * TacticalMonsterGameManager - 战术怪物游戏管理器
+ * 负责游戏的创建、加载、保存和状态管理
+ */
 export class TacticalMonsterGameManager {
     private dbCtx: any;
     private game: GameModel | null;
@@ -99,6 +119,477 @@ export class TacticalMonsterGameManager {
         this.game = null;
     }
 
+    /**
+     * 辅助方法：完善 Boss 的 GameMonster 字段（填充缺失的配置字段）
+     * 由于 GameBoss 继承 GameMonster，只需要填充缺失的字段即可
+     * @param boss Boss 数据
+     * @returns 完整的 GameMonster 或 null
+     */
+    private enrichBossAsGameMonster(boss: GameBoss): GameMonster | null {
+        if (!boss || !boss.monsterId) return null;
+
+        // 如果已经包含所有必需字段，直接返回
+        if (boss.name && boss.rarity && boss.assetPath) {
+            return boss as GameMonster;
+        }
+
+        // 否则从配置填充缺失字段
+        const monsterConfig = MONSTER_CONFIGS_MAP[boss.monsterId];
+        if (!monsterConfig) {
+            // 如果没有配置，使用默认值
+            return {
+                ...boss,
+                uid: boss.uid || "boss",
+                name: boss.monsterId,
+                rarity: "Common" as const,
+                level: boss.level ?? 1,
+                stars: boss.stars ?? 1,
+                assetPath: "",
+                status: boss.status || "normal",
+            } as GameMonster;
+        }
+
+        return {
+            ...boss,
+            uid: boss.uid || "boss",
+            name: monsterConfig.name,
+            rarity: monsterConfig.rarity,
+            class: monsterConfig.class,
+            race: monsterConfig.race,
+            assetPath: monsterConfig.assetPath,
+            level: boss.level ?? 1,
+            stars: boss.stars ?? 1,
+            move_range: boss.move_range ?? monsterConfig.moveRange,
+            attack_range: boss.attack_range ?? monsterConfig.attackRange,
+            isFlying: boss.isFlying ?? (monsterConfig.race === "Flying"),
+            flightHeight: boss.flightHeight ?? (monsterConfig.race === "Flying" ? 1.5 : undefined),
+            canIgnoreObstacles: boss.canIgnoreObstacles ?? (monsterConfig.race === "Flying"),
+            status: boss.status || "normal",
+        } as GameMonster;
+    }
+
+    /**
+     * 辅助方法：完善小怪的 GameMonster 字段（填充缺失的配置字段）
+     * 由于 GameMinion 继承 GameMonster，只需要填充缺失的字段即可
+     * @param minion 小怪数据
+     * @returns 完整的 GameMonster 或 null
+     */
+    private enrichMinionAsGameMonster(minion: GameMinion): GameMonster | null {
+        if (!minion || !minion.monsterId) return null;
+
+        // 如果已经包含所有必需字段，直接返回
+        if (minion.name && minion.rarity && minion.assetPath && minion.stats) {
+            return minion as GameMonster;
+        }
+
+        // 否则从配置填充缺失字段
+        const monsterConfig = MONSTER_CONFIGS_MAP[minion.monsterId];
+        if (!monsterConfig) {
+            // 如果没有配置，使用默认值
+            return {
+                ...minion,
+                uid: minion.uid || "boss",
+                name: minion.monsterId,
+                rarity: "Common" as const,
+                level: minion.level ?? 1,
+                stars: minion.stars ?? 1,
+                assetPath: "",
+                stats: minion.stats || {
+                    hp: { current: 0, max: 0 },
+                    attack: 0,
+                    defense: 0,
+                    speed: 0,
+                },
+                status: minion.status || "normal",
+            } as GameMonster;
+        }
+
+        return {
+            ...minion,
+            uid: minion.uid || "boss",
+            name: monsterConfig.name,
+            rarity: monsterConfig.rarity,
+            class: monsterConfig.class,
+            race: monsterConfig.race,
+            assetPath: monsterConfig.assetPath,
+            level: minion.level ?? 1,
+            stars: minion.stars ?? 1,
+            stats: minion.stats || {
+                hp: { current: 0, max: 0 },
+                attack: 0,
+                defense: 0,
+                speed: 0,
+            },
+            move_range: minion.move_range ?? monsterConfig.moveRange,
+            attack_range: minion.attack_range ?? monsterConfig.attackRange,
+            isFlying: minion.isFlying ?? (monsterConfig.race === "Flying"),
+            flightHeight: minion.flightHeight ?? (monsterConfig.race === "Flying" ? 1.5 : undefined),
+            canIgnoreObstacles: minion.canIgnoreObstacles ?? (monsterConfig.race === "Flying"),
+            status: minion.status || "normal",
+        } as GameMonster;
+    }
+
+    /**
+     * 辅助方法：根据标识符获取 GameMonster
+     * 
+     * 查找规则：
+     * - 如果提供了 monsterId：查找玩家角色（玩家队伍中的monster不会重复）
+     * - 如果提供了 bossId：查找Boss主体
+     * - 如果提供了 minionId：查找小怪（小怪的monsterId可能重复，必须使用minionId）
+     * 
+     * 注意：三个参数每次只有一个存在，用来区分角色类型
+     * 
+     * @param monsterId 玩家角色的monsterId（可选）
+     * @param bossId Boss的bossId（可选）
+     * @param minionId 小怪的minionId（可选）
+     * @returns GameMonster 或 null
+     */
+    private getCharacter(
+        monsterId?: string,
+        bossId?: string,
+        minionId?: string
+    ): GameMonster | null {
+        if (!this.game) return null;
+
+        // 检查参数：应该只有一个存在
+        const paramCount = [monsterId, bossId, minionId].filter(Boolean).length;
+        if (paramCount !== 1) {
+            return null;  // 参数错误：应该只有一个标识符
+        }
+
+        if (bossId) {
+            // Boss主体：使用 bossId 定位
+            if (bossId === this.game.boss.bossId) {
+                return this.enrichBossAsGameMonster(this.game.boss);
+            }
+            return null;
+        } else if (minionId) {
+            // 小怪：使用 minionId 定位（小怪的monsterId可能重复）
+            const minion = this.game.boss.minions.find((m) => m.minionId === minionId);
+            return minion ? this.enrichMinionAsGameMonster(minion) : null;
+        } else if (monsterId) {
+            // 玩家角色：使用 monsterId 定位（玩家队伍中的monster不会重复）
+            return this.game.team.find((m) => m.monsterId === monsterId) || null;
+        }
+
+        return null;
+    }
+
+    /**
+     * 辅助方法：从 { uid, monsterId } 格式转换为 getCharacter 的参数
+     * 用于兼容现有的接口格式
+     * 
+     * 转换规则：
+     * - uid !== "boss": monsterId（玩家角色）
+     * - uid === "boss": 根据 monsterId 是否等于 boss.bossId 判断是Boss主体还是小怪
+     *   - 如果等于 boss.bossId: bossId
+     *   - 否则: minionId
+     * 
+     * @param uid 角色UID（玩家UID或"boss"）
+     * @param monsterId 标识符（根据uid不同，实际含义不同）
+     * @returns getCharacter 的参数对象
+     */
+    private getCharacterParams(uid: string, monsterId: string): {
+        monsterId?: string;
+        bossId?: string;
+        minionId?: string;
+    } {
+        if (uid === "boss") {
+            // 判断是Boss主体还是小怪
+            // 优先检查是否匹配Boss的bossId
+            if (this.game && this.game.boss && monsterId === this.game.boss.bossId) {
+                return { bossId: monsterId };
+            } else {
+                // 否则认为是小怪的minionId
+                return { minionId: monsterId };
+            }
+        } else {
+            // 玩家角色：使用monsterId
+            return { monsterId };
+        }
+    }
+
+    /**
+     * 辅助方法：获取所有可攻击的角色（玩家队伍 + Boss + 小怪）
+     * @returns 所有角色的数组
+     */
+    private getAllCharacters(): GameMonster[] {
+        if (!this.game) return [];
+
+        const allCharacters: GameMonster[] = [];
+
+        // 添加玩家队伍
+        allCharacters.push(...this.game.team);
+
+        // 添加Boss本体
+        const bossMonster = this.enrichBossAsGameMonster(this.game.boss);
+        if (bossMonster) {
+            allCharacters.push(bossMonster);
+        }
+
+        // 添加小怪
+        for (const minion of this.game.boss.minions) {
+            const minionMonster = this.enrichMinionAsGameMonster(minion);
+            if (minionMonster) {
+                allCharacters.push(minionMonster);
+            }
+        }
+
+        return allCharacters;
+    }
+
+    /**
+     * 辅助方法：根据技能范围和类型自动计算目标
+     * @param caster 施法者
+     * @param skillId 技能ID
+     * @param primaryTarget 主要目标（可选，用于 single 和 line 类型）
+     * @returns 目标角色数组
+     */
+    private calculateTargetsBySkillRange(
+        caster: GameMonster,
+        skillId: string,
+        primaryTarget?: { uid: string; monsterId: string }
+    ): Array<{ uid: string; monsterId: string }> {
+        if (!this.game) return [];
+
+        // 获取技能配置
+        if (!skillExists(skillId)) {
+            return primaryTarget ? [primaryTarget] : [];
+        }
+
+        const skill = getSkillConfig(skillId);
+        if (!skill || !skill.range) {
+            // 如果没有范围配置，返回主要目标或空数组
+            return primaryTarget ? [primaryTarget] : [];
+        }
+
+        const range = skill.range;
+        const casterPos: HexCoord = {
+            q: caster.q ?? 0,
+            r: caster.r ?? 0,
+        };
+
+        // 获取所有可攻击的角色
+        const allCharacters = this.getAllCharacters();
+        const targets: Array<{ uid: string; monsterId: string }> = [];
+
+        // 辅助函数：获取角色的标识符（用于targets数组）
+        const getCharacterIdentifier = (char: GameMonster): string => {
+            if (char.uid === "boss") {
+                // Boss主体：返回bossId
+                if ((char as GameBoss).bossId) {
+                    return (char as GameBoss).bossId;
+                }
+                // 小怪：返回minionId
+                if ((char as GameMinion).minionId) {
+                    return (char as GameMinion).minionId;
+                }
+            }
+            // 玩家角色：返回monsterId
+            return char.monsterId;
+        };
+
+        // 辅助函数：检查是否是同一个角色
+        const isSameCharacter = (char1: GameMonster, char2: GameMonster): boolean => {
+            if (char1.uid !== char2.uid) return false;
+
+            if (char1.uid === "boss") {
+                // Boss主体：比较bossId
+                const char1BossId = (char1 as GameBoss).bossId;
+                const char2BossId = (char2 as GameBoss).bossId;
+                if (char1BossId && char2BossId) {
+                    return char1BossId === char2BossId;
+                }
+                // 小怪：比较minionId（小怪的monsterId可能重复，必须使用minionId）
+                const char1MinionId = (char1 as GameMinion).minionId;
+                const char2MinionId = (char2 as GameMinion).minionId;
+                if (char1MinionId && char2MinionId) {
+                    return char1MinionId === char2MinionId;
+                }
+                // 如果一个是Boss主体一个是小怪，它们肯定不同
+                if ((char1BossId && char2MinionId) || (char1MinionId && char2BossId)) {
+                    return false;
+                }
+                // 向后兼容：如果都没有bossId/minionId，回退到monsterId比较
+                return char1.monsterId === char2.monsterId;
+            }
+
+            // 玩家角色：比较monsterId（玩家队伍中的monster不会重复）
+            return char1.monsterId === char2.monsterId;
+        };
+
+        switch (range.area_type) {
+            case "single":
+                // 单体目标：需要提供主要目标
+                if (primaryTarget) {
+                    const distance = range.distance ?? 999;
+                    const targetParams = this.getCharacterParams(primaryTarget.uid, primaryTarget.monsterId);
+                    const targetChar = this.getCharacter(targetParams.monsterId, targetParams.bossId, targetParams.minionId);
+                    if (targetChar) {
+                        const targetPos: HexCoord = {
+                            q: targetChar.q ?? 0,
+                            r: targetChar.r ?? 0,
+                        };
+                        if (hexDistance(casterPos, targetPos) <= distance) {
+                            targets.push(primaryTarget);
+                        }
+                    }
+                }
+                break;
+
+            case "circle":
+                // 圆形范围：以施法者为中心
+                const circleRadius = range.max_distance ?? range.distance ?? 1;
+                for (const char of allCharacters) {
+                    // 排除自己（除非是BUFF技能）
+                    if (isSameCharacter(char, caster)) {
+                        continue;
+                    }
+
+                    const charPos: HexCoord = {
+                        q: char.q ?? 0,
+                        r: char.r ?? 0,
+                    };
+                    if (hexDistance(casterPos, charPos) <= circleRadius) {
+                        targets.push({
+                            uid: char.uid,
+                            monsterId: getCharacterIdentifier(char),  // 使用正确的标识符
+                        });
+                    }
+                }
+                break;
+
+            case "line":
+                // 直线范围：需要提供主要目标来确定方向
+                if (primaryTarget) {
+                    const lineDistance = range.distance ?? range.max_distance ?? 999;
+                    const primaryTargetParams = this.getCharacterParams(primaryTarget.uid, primaryTarget.monsterId);
+                    const primaryTargetChar = this.getCharacter(primaryTargetParams.monsterId, primaryTargetParams.bossId, primaryTargetParams.minionId);
+                    if (!primaryTargetChar) break;
+
+                    const primaryTargetPos: HexCoord = {
+                        q: primaryTargetChar.q ?? 0,
+                        r: primaryTargetChar.r ?? 0,
+                    };
+
+                    // 计算方向向量（简化实现：获取从施法者到主要目标方向上的所有角色）
+                    for (const char of allCharacters) {
+                        const charPos: HexCoord = {
+                            q: char.q ?? 0,
+                            r: char.r ?? 0,
+                        };
+
+                        // 检查是否在直线上（简化：检查是否在从施法者到主要目标的路径上）
+                        const distToCaster = hexDistance(casterPos, charPos);
+                        const distToPrimary = hexDistance(primaryTargetPos, charPos);
+                        const distCasterToPrimary = hexDistance(casterPos, primaryTargetPos);
+
+                        // 如果角色在从施法者到主要目标的路径上，且在范围内
+                        if (distToCaster <= lineDistance && distToCaster + distToPrimary <= distCasterToPrimary + 1) {
+                            targets.push({
+                                uid: char.uid,
+                                monsterId: getCharacterIdentifier(char),  // 使用正确的标识符
+                            });
+                        }
+                    }
+                }
+                break;
+
+            default:
+                // 默认：返回主要目标
+                if (primaryTarget) {
+                    targets.push(primaryTarget);
+                }
+                break;
+        }
+
+        return targets;
+    }
+
+    /**
+     * 辅助方法：更新数据库中的角色状态
+     * @param gameId 游戏ID
+     * @param character 角色数据
+     * @returns 是否成功
+     */
+    private async updateCharacterInDatabase(gameId: string, character: GameMonster): Promise<boolean> {
+        if (!this.game) return false;
+
+        const gameDoc = await this.dbCtx.db
+            .query("mr_games")
+            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+            .first();
+
+        if (!gameDoc) return false;
+
+        if (character.uid === "boss") {
+            // Boss主体：使用 bossId 定位
+            const characterBossId = (character as GameBoss).bossId;
+            if (characterBossId && characterBossId === this.game.boss.bossId) {
+                // 更新 Boss
+                await this.dbCtx.db.patch(gameDoc._id, {
+                    "boss.stats": character.stats,
+                    "boss.q": character.q,
+                    "boss.r": character.r,
+                    "boss.skillCooldowns": character.skillCooldowns || {},
+                    "boss.statusEffects": character.statusEffects || [],
+                    lastUpdate: new Date().toISOString(),
+                });
+            } else {
+                // 小怪：使用 minionId 定位（小怪的monsterId可能重复）
+                const characterMinionId = (character as GameMinion).minionId;
+                if (!characterMinionId) {
+                    return false;  // 如果没有minionId，无法定位小怪
+                }
+                const minionIndex = this.game.boss.minions.findIndex((m) => m.minionId === characterMinionId);
+                if (minionIndex >= 0) {
+                    const updatedMinions = [...(gameDoc.boss.minions || [])];
+                    updatedMinions[minionIndex] = {
+                        ...updatedMinions[minionIndex],
+                        q: character.q,
+                        r: character.r,
+                        stats: character.stats,
+                        statusEffects: character.statusEffects || [],
+                        skillCooldowns: character.skillCooldowns || {},
+                    };
+
+                    await this.dbCtx.db.patch(gameDoc._id, {
+                        "boss.minions": updatedMinions,
+                        lastUpdate: new Date().toISOString(),
+                    });
+                }
+            }
+        } else {
+            // 更新玩家角色
+            const teamIndex = (gameDoc.team || []).findIndex(
+                (m: any) => m.uid === character.uid && m.monsterId === character.monsterId
+            );
+            if (teamIndex >= 0) {
+                const updatedTeam = [...(gameDoc.team || [])];
+                updatedTeam[teamIndex] = {
+                    ...updatedTeam[teamIndex],
+                    stats: character.stats,
+                    skillCooldowns: character.skillCooldowns || {},
+                    statusEffects: character.statusEffects || [],
+                    status: character.status || "normal",
+                };
+
+                await this.dbCtx.db.patch(gameDoc._id, {
+                    team: updatedTeam,
+                    lastUpdate: new Date().toISOString(),
+                });
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 加载游戏数据
+     * 从数据库读取游戏记录并转换为 GameModel
+     * @param gameId 游戏ID
+     * @returns GameModel 或 null（如果游戏不存在）
+     */
     async load(gameId: string): Promise<GameModel | null> {
         // 查询 mr_games 表
         const game = await this.dbCtx.db
@@ -111,6 +602,164 @@ export class TacticalMonsterGameManager {
         // 获取当前回合数
         const roundNumber = (game as any).round || 0;
 
+        // 从数据库读取 GameMonster 数组（统一使用stats，与GameBoss保持一致）
+        const team: GameMonster[] = await Promise.all(
+            (game.team || []).map(async (teamMember: any) => {
+                // 获取怪物配置（用于补充配置字段）
+                const monsterConfig = MONSTER_CONFIGS_MAP[teamMember.monsterId];
+                if (!monsterConfig) {
+                    throw new Error(`怪物配置不存在: ${teamMember.monsterId}`);
+                }
+
+                // 如果数据库中有完整的 stats 数据，直接使用
+                if (teamMember.stats) {
+                    // 确保 attack_range 类型正确（应该是 { min: number; max: number }）
+                    let attackRange: { min: number; max: number } | undefined;
+                    if (teamMember.attack_range) {
+                        if (typeof teamMember.attack_range === 'object' && 'min' in teamMember.attack_range && 'max' in teamMember.attack_range) {
+                            attackRange = teamMember.attack_range;
+                        } else {
+                            // 向后兼容：如果是数字，转换为对象
+                            const range = typeof teamMember.attack_range === 'number' ? teamMember.attack_range : 2;
+                            attackRange = { min: 1, max: range };
+                        }
+                    } else {
+                        // 使用配置中的默认值
+                        attackRange = monsterConfig.attackRange ?? { min: 1, max: 2 };
+                    }
+
+                    return {
+                        // 基础标识
+                        uid: teamMember.uid || game.uid,
+                        monsterId: teamMember.monsterId,
+                        // 从 Monster 配置组合的字段（从配置文件读取）
+                        name: monsterConfig.name,
+                        rarity: monsterConfig.rarity,
+                        class: monsterConfig.class,
+                        race: monsterConfig.race,
+                        assetPath: monsterConfig.assetPath,
+                        // 从数据库读取的字段
+                        level: teamMember.level,
+                        stars: teamMember.stars,
+                        // 位置信息
+                        q: teamMember.q,
+                        r: teamMember.r,
+                        // 运行时状态（从数据库读取）
+                        stats: teamMember.stats,
+                        statusEffects: teamMember.statusEffects || [],
+                        skillCooldowns: teamMember.skillCooldowns || {},
+                        status: teamMember.status || 'normal',  // 确保类型正确：'normal' | 'stunned' | 'dead'
+                        move_range: teamMember.move_range ?? monsterConfig.moveRange ?? 3,
+                        attack_range: attackRange,
+                        // 特殊属性（从配置推断）
+                        isFlying: monsterConfig.race === "Flying",
+                        flightHeight: monsterConfig.race === "Flying" ? 1.5 : undefined,
+                        canIgnoreObstacles: monsterConfig.race === "Flying",
+                    } as GameMonster;
+                }
+
+                // 向后兼容：如果没有 stats，从简化数据重建
+                const playerMonster: PlayerMonster = {
+                    uid: game.uid,
+                    monsterId: teamMember.monsterId,
+                    level: teamMember.level,
+                    stars: teamMember.stars,
+                    experience: 0,
+                    shards: 0,
+                    isUnlocked: true,
+                    unlockedSkills: [],
+                    inTeam: 1,
+                    teamPosition: { q: teamMember.q ?? 0, r: teamMember.r ?? 0 },
+                    obtainedAt: "",
+                    updatedAt: "",
+                };
+
+                const gameMonster = calculateGameMonster(
+                    playerMonster,
+                    monsterConfig,
+                    { q: teamMember.q ?? 0, r: teamMember.r ?? 0 }
+                );
+
+                // 恢复当前 HP（从数据库读取的值）
+                if (teamMember.hp !== undefined && gameMonster.stats.hp) {
+                    gameMonster.stats.hp.current = teamMember.hp;
+                }
+
+                return gameMonster;
+            })
+        );
+
+        // 从数据库读取 GameBoss 对象（统一使用stats）
+        // 注意：GameBoss 继承 GameMonster，需要包含所有必需字段
+        const bossMonsterConfig = game.boss?.monsterId ? MONSTER_CONFIGS_MAP[game.boss.monsterId] : null;
+        const bossQ = game.boss?.q ?? game.boss?.position?.q ?? 0;
+        const bossR = game.boss?.r ?? game.boss?.position?.r ?? 0;
+
+        const bossData: GameBoss = game.boss ? {
+            bossId: game.boss.bossId || game.boss.monsterId || "",  // 向后兼容：如果没有bossId，使用monsterId
+            monsterId: game.boss.monsterId || "",
+            uid: "boss",
+            name: bossMonsterConfig?.name || game.boss.monsterId || "",
+            rarity: bossMonsterConfig?.rarity || "Common",
+            assetPath: bossMonsterConfig?.assetPath || "",
+            level: 1,
+            stars: 1,
+            q: bossQ,
+            r: bossR,
+            minions: (game.boss.minions || []).map((minion: any): GameMinion => {
+                const minionStats = minion.stats || {
+                    hp: { current: 0, max: 0 },
+                    attack: 0,
+                    defense: 0,
+                    speed: 0,
+                };
+                const minionConfig = minion.monsterId ? MONSTER_CONFIGS_MAP[minion.monsterId] : null;
+                const minionQ = minion.q ?? minion.position?.q ?? 0;
+                const minionR = minion.r ?? minion.position?.r ?? 0;
+                return {
+                    minionId: minion.minionId || minion.monsterId || "",  // 向后兼容：如果没有minionId，使用monsterId
+                    monsterId: minion.monsterId,
+                    uid: "boss",
+                    name: minionConfig?.name || minion.monsterId || "",
+                    rarity: minionConfig?.rarity || "Common",
+                    assetPath: minionConfig?.assetPath || "",
+                    level: 1,
+                    stars: 1,
+                    q: minionQ,
+                    r: minionR,
+                    stats: minionStats,
+                    statusEffects: minion.statusEffects || [],
+                    skillCooldowns: minion.skillCooldowns || minion.cooldowns || {},
+                };
+            }),
+            // 运行时字段（必需：统一使用stats）
+            stats: game.boss.stats,
+            statusEffects: game.boss.statusEffects || [],
+            skillCooldowns: game.boss.skillCooldowns || game.boss.cooldowns || {},
+            skills: game.boss.skills || [],
+            currentPhase: game.boss.currentPhase || "phase1",
+            behaviorSeed: game.boss.behaviorSeed,
+        } : {
+            bossId: "",
+            monsterId: "",
+            uid: "boss",
+            name: "",
+            rarity: "Common",
+            assetPath: "",
+            level: 1,
+            stars: 1,
+            q: 0,
+            r: 0,
+            minions: [],
+            // 必需：stats字段用于计算血量百分比
+            stats: {
+                hp: { current: 0, max: 0 },
+                attack: 0,
+                defense: 0,
+                speed: 0,
+            },
+        };
+
         // 构建 GameModel（符合 mr_games 表结构）
         this.game = {
             gameId: game.gameId,
@@ -118,8 +767,8 @@ export class TacticalMonsterGameManager {
             stageId: game.stageId,
             uid: game.uid,
             teamPower: game.teamPower,
-            team: game.team || [],
-            boss: game.boss || [],
+            team: team,  // 使用重建的 GameMonster 数组
+            boss: bossData,  // 使用重建的 GameBoss 对象
             map: game.map,
             status: game.status,
             score: game.score,
@@ -131,9 +780,14 @@ export class TacticalMonsterGameManager {
         return this.game;
     }
 
+    /**
+     * 保存游戏数据
+     * 更新游戏的部分字段到数据库
+     * @param data 要更新的字段
+     */
     async save(data: {
         round?: number;
-        status?: number;
+        status?: GameStatus;
         score?: number;
         lastUpdate?: number | string;
     }): Promise<void> {
@@ -165,6 +819,15 @@ export class TacticalMonsterGameManager {
         }
     }
 
+    /**
+     * 创建新游戏
+     * 根据玩家队伍和关卡配置创建完整的游戏实例
+     * @param uid 玩家UID
+     * @param gameId 游戏ID
+     * @param ruleId 规则ID
+     * @param stageId 关卡ID
+     * @returns GameModel 或 null（如果创建失败）
+     */
     async createGame(
         uid: string,
         gameId: string,
@@ -178,16 +841,6 @@ export class TacticalMonsterGameManager {
             throw new Error(`玩家 ${uid} 没有配置队伍`);
         }
 
-        // 转换为 gameService 需要的格式
-        const playerTeam = {
-            team: playerTeamMonsters.map((monster: any) => ({
-                monsterId: monster.monsterId,
-                level: monster.level,
-                stars: monster.stars,
-                position: monster.teamPosition || { q: 0, r: 0 },
-            })),
-        };
-
         // 2. 根据 stageId 获取数据库 mr_stage 的 stage 数据
         const stage = await this.dbCtx.db
             .query("mr_stage")
@@ -198,63 +851,45 @@ export class TacticalMonsterGameManager {
             throw new Error(`Stage 不存在: ${stageId}`);
         }
 
-        // 3. 地图数据直接保存在 stage.map 中，不需要单独查询
-
-        // 4. 计算每个 monster 的满血 HP 值和 teamPower
+        // 3. 计算每个 monster 的完整 GameMonster 数据和 teamPower
         let totalTeamPower = 0;
-        const teamWithHp = await Promise.all(
-            playerTeam.team.map(async (monster: any) => {
-                // 获取怪物配置
-                const monsterConfig = await this.dbCtx.db
-                    .query("mr_monster_configs")
-                    .withIndex("by_monsterId", (q: any) => q.eq("monsterId", monster.monsterId))
-                    .first();
+        const team: GameMonster[] = await Promise.all(
+            playerTeamMonsters.map(async (playerMonster: any) => {
+                // 获取怪物配置（从配置文件读取）
+                const monsterConfig = MONSTER_CONFIGS_MAP[playerMonster.monsterId];
 
                 if (!monsterConfig) {
-                    throw new Error(`怪物配置不存在: ${monster.monsterId}`);
+                    throw new Error(`怪物配置不存在: ${playerMonster.monsterId}`);
                 }
 
-                // 计算等级加成的实际 HP
-                // 每级增长15%基础HP
-                const hpGrowthRate = 0.15;
-                const damageGrowthRate = 0.10;
-                const defenseGrowthRate = 0.12;
-
-                const actualHp = monsterConfig.baseHp * (1 + (monster.level - 1) * hpGrowthRate);
-                const actualAttack = monsterConfig.baseDamage * (1 + (monster.level - 1) * damageGrowthRate);
-                const actualDefense = monsterConfig.baseDefense * (1 + (monster.level - 1) * defenseGrowthRate);
-
-                // 星级倍数（每星增加10%）
-                const starMultiplier = 1 + (monster.stars - 1) * 0.1;
-
-                // 满血 HP = 实际HP × 星级倍数
-                const maxHp = Math.floor(actualHp * starMultiplier);
+                // 使用 calculateGameMonster 构建完整的 GameMonster
+                const gameMonster = calculateGameMonster(
+                    playerMonster as PlayerMonster,
+                    monsterConfig,
+                    playerMonster.teamPosition || { q: 0, r: 0 }
+                );
 
                 // 计算 Power: (HP + Attack * 2 + Defense * 1.5) * StarMultiplier
-                const basePower = actualHp + actualAttack * 2 + actualDefense * 1.5;
-                const monsterPower = Math.floor(basePower * starMultiplier);
+                const basePower = gameMonster.stats.hp.max +
+                    gameMonster.stats.attack * 2 +
+                    gameMonster.stats.defense * 1.5;
+                const monsterPower = Math.floor(basePower);
                 totalTeamPower += monsterPower;
 
-                return {
-                    monsterId: monster.monsterId,
-                    level: monster.level,
-                    stars: monster.stars,
-                    hp: maxHp,  // 满血值
-                    position: monster.position,
-                };
+                return gameMonster;
             })
         );
 
-        // 5. 获取 Boss 配置
+        // 4. 获取 Boss 配置
         const bossConfig = getBossConfig(stage.bossId);
         if (!bossConfig) {
             throw new Error(`Boss配置不存在: ${stage.bossId}`);
         }
 
-        // 6. 使用计算出的 teamPower（用于 Boss 缩放）
+        // 5. 使用计算出的 teamPower（用于 Boss 缩放）
         const teamPower = totalTeamPower;
 
-        // 7. 根据 stage.difficulty 自适应 Boss 的属性
+        // 6. 根据 stage.difficulty 自适应 Boss 的属性
         // difficulty 表示 "Boss Power / Player Team Power" 的比率
         const mergedBossConfig = getMergedBossConfig(stage.bossId);
         if (!mergedBossConfig) {
@@ -288,11 +923,8 @@ export class TacticalMonsterGameManager {
                     // 小怪配置使用 monsterId 引用角色配置
                     let minionScaledStats;
                     try {
-                        // 从角色配置获取基础属性
-                        const minionMonsterConfig = await this.dbCtx.db
-                            .query("mr_monster_configs")
-                            .withIndex("by_monsterId", (q: any) => q.eq("monsterId", minion.monsterId))
-                            .first();
+                        // 从配置文件获取基础属性
+                        const minionMonsterConfig = MONSTER_CONFIGS_MAP[minion.monsterId];
 
                         if (minionMonsterConfig) {
                             // 使用角色配置的基础值，minion 的覆盖值优先
@@ -327,27 +959,71 @@ export class TacticalMonsterGameManager {
                         };
                     }
 
-                    return {
-                        monsterId: minion.minionId,
-                        hp: minionScaledStats.hp,
-                        damage: minionScaledStats.attack,
-                        defense: minionScaledStats.defense,
-                        speed: minionScaledStats.speed,
-                        position: positions[i] || { q: 0, r: 0 },
+                    const minionPosition = positions[i] || { q: 0, r: 0 };
+                    const minionMonsterConfig = MONSTER_CONFIGS_MAP[minion.monsterId];
+                    const minionData: GameMinion = {
+                        minionId: minion.minionId,  // 小怪配置ID
+                        monsterId: minion.monsterId,  // 角色配置ID（引用 monsterConfigs.ts）
+                        uid: "boss",
+                        name: minionMonsterConfig?.name || minion.monsterId || "",
+                        rarity: minionMonsterConfig?.rarity || "Common",
+                        assetPath: minionMonsterConfig?.assetPath || "",
+                        level: 1,
+                        stars: 1,
+                        q: minionPosition.q,
+                        r: minionPosition.r,
+                        // 必需：stats 字段（统一使用stats）
+                        stats: {
+                            hp: {
+                                current: minionScaledStats.hp,
+                                max: minionScaledStats.hp,
+                            },
+                            attack: minionScaledStats.attack,
+                            defense: minionScaledStats.defense,
+                            speed: minionScaledStats.speed,
+                        },
                     };
+                    return minionData;
                 });
             })
         );
 
-        const bossData = [{
-            monsterId: stage.bossId,
-            hp: scaledBossStats.hp,
-            damage: scaledBossStats.attack,
-            defense: scaledBossStats.defense,
-            speed: scaledBossStats.speed,
-            position: bossMainPosition,
+        // 获取Boss技能列表（从mergedBossConfig）
+        const bossSkills = mergedBossConfig.skills?.map((s: any) => s.skillId || s.id) || [];
+
+        // 获取Boss配置（用于填充GameMonster必需字段）
+        // bossConfig.monsterId 是角色配置ID（引用 monsterConfigs.ts）
+        const bossMonsterConfigForCreate = MONSTER_CONFIGS_MAP[bossConfig.monsterId];
+
+        // 构建完整的Boss数据（统一使用stats）
+        const bossData: GameBoss = {
+            bossId: stage.bossId,  // Boss配置ID（如 "boss_bronze_1"）
+            monsterId: bossConfig.monsterId,  // 角色配置ID（引用 monsterConfigs.ts）
+            uid: "boss",
+            name: bossMonsterConfigForCreate?.name || bossConfig.monsterId || "",
+            rarity: bossMonsterConfigForCreate?.rarity || "Common",
+            assetPath: bossMonsterConfigForCreate?.assetPath || "",
+            level: 1,
+            stars: 1,
+            q: bossMainPosition.q,
+            r: bossMainPosition.r,
             minions: minionsData,
-        }];
+            // 实时战斗状态（统一使用stats）
+            stats: {
+                hp: {
+                    current: scaledBossStats.hp,
+                    max: scaledBossStats.hp,
+                },
+                attack: scaledBossStats.attack,
+                defense: scaledBossStats.defense,
+                speed: scaledBossStats.speed,
+            },
+            statusEffects: [],
+            skillCooldowns: {},
+            skills: bossSkills,
+            currentPhase: "phase1",  // 默认第一阶段
+            behaviorSeed: stage.seed || `game_${gameId}`,
+        };
 
         // 9. 构建地图数据（符合 mr_games.map 结构，从 stage.map 获取）
         const mapForGame = {
@@ -360,13 +1036,51 @@ export class TacticalMonsterGameManager {
             disables: stage.map.disables || [],
         };
 
-        // 10. 创建 mr_games 记录
+        // 10. 创建 mr_games 记录（兼容现有 schema：从stats提取基础字段）
         const now = new Date().toISOString();
         await this.dbCtx.db.insert("mr_games", {
             uid,
             teamPower,
-            team: teamWithHp,
-            boss: bossData,
+            team: team.map((gm: GameMonster) => ({
+                // 基础标识
+                uid: gm.uid,
+                monsterId: gm.monsterId,
+                // 从 PlayerMonster 组合的字段
+                level: gm.level,
+                stars: gm.stars,
+                // 位置信息
+                q: gm.q,
+                r: gm.r,
+                // 运行时状态（统一使用stats）
+                stats: gm.stats,
+                statusEffects: gm.statusEffects || [],
+                skillCooldowns: gm.skillCooldowns || {},
+                status: gm.status || 'normal',
+                move_range: gm.move_range,
+                attack_range: gm.attack_range,
+            })),
+            boss: {
+                // 统一使用stats和GameMonster格式
+                bossId: bossData.bossId,  // Boss配置ID
+                monsterId: bossData.monsterId,  // 角色配置ID
+                q: bossData.q,
+                r: bossData.r,
+                minions: bossData.minions.map((minion: GameMinion) => ({
+                    minionId: minion.minionId,  // 小怪配置ID
+                    monsterId: minion.monsterId,  // 角色配置ID
+                    q: minion.q,
+                    r: minion.r,
+                    stats: minion.stats,
+                    statusEffects: minion.statusEffects || [],
+                    skillCooldowns: minion.skillCooldowns || {},
+                })),
+                stats: bossData.stats,
+                statusEffects: bossData.statusEffects || [],
+                skillCooldowns: bossData.skillCooldowns || {},
+                skills: bossData.skills || [],
+                currentPhase: bossData.currentPhase || "phase1",
+                behaviorSeed: bossData.behaviorSeed,
+            },
             map: mapForGame,
             stageId,
             ruleId,
@@ -375,15 +1089,16 @@ export class TacticalMonsterGameManager {
             score: 0,
             lastUpdate: now,
             createdAt: now,
+            bossCurrentPhase: "phase1",
         });
 
-        // 11. 构建并返回 GameModel
+        // 11. 构建并返回 GameModel（包含完整的 GameMonster 数组）
         this.game = {
             gameId,
             stageId,
             uid,
             teamPower,
-            team: teamWithHp,
+            team: team,  // 完整的 GameMonster 数组
             boss: bossData,
             map: mapForGame,
             status: 0,
@@ -396,34 +1111,104 @@ export class TacticalMonsterGameManager {
         return this.game;
     }
 
+    /**
+     * 移动角色
+     * 更新角色在战场上的位置
+     * 
+     * 定位规则：
+     * - 如果 identifier.monsterId 存在：移动玩家角色
+     * - 如果 identifier.bossId 存在：移动Boss主体
+     * - 如果 identifier.minionId 存在：移动小怪
+     * 
+     * 注意：identifier 中的三个字段只有一个存在，用来区分角色类型
+     * 
+     * @param gameId 游戏ID
+     * @param to 目标位置（Hex坐标）
+     * @param identifier 角色标识符（monsterId/bossId/minionId 三选一）
+     * @returns 是否成功
+     */
     async walk(
         gameId: string,
-        uid: string,
-        monsterId: string,
-        to: { q: number; r: number }
+        to: { q: number; r: number },
+        identifier: CharacterIdentifier
     ): Promise<boolean> {
         await this.load(gameId);
         if (!this.game) return false;
 
-        // 从数据库查询角色（使用 filter 查询，因为索引可能使用 character_id）
-        const charDoc = await this.dbCtx.db
-            .query("tacticalMonster_game_character")
-            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
-            .filter((q: any) =>
-                q.and(
-                    q.eq(q.field("uid"), uid),
+        const { monsterId, bossId, minionId } = identifier;
+
+        // 检查参数：应该只有一个存在
+        const paramCount = [monsterId, bossId, minionId].filter(Boolean).length;
+        if (paramCount !== 1) {
+            return false;  // 参数错误：应该只有一个标识符
+        }
+
+        // 获取角色以确定uid（用于事件记录）
+        const character = this.getCharacter(monsterId, bossId, minionId);
+        if (!character) return false;
+
+        const uid = character.uid;
+
+        if (bossId) {
+            // Boss主体：更新Boss位置
+            if (!this.game.boss) return false;
+
+            const gameDoc = await this.dbCtx.db
+                .query("mr_games")
+                .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+                .first();
+
+            if (!gameDoc) return false;
+
+            await this.dbCtx.db.patch(gameDoc._id, {
+                "boss.q": to.q,
+                "boss.r": to.r,
+                lastUpdate: new Date().toISOString(),
+            });
+        } else if (minionId) {
+            // 小怪：使用 minionId 定位并更新位置
+            if (!this.game.boss) return false;
+
+            const gameDoc = await this.dbCtx.db
+                .query("mr_games")
+                .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+                .first();
+
+            if (!gameDoc) return false;
+
+            const minionIndex = this.game.boss.minions.findIndex((m) => m.minionId === minionId);
+            if (minionIndex >= 0) {
+                const updatedMinions = [...(gameDoc.boss.minions || [])];
+                updatedMinions[minionIndex] = {
+                    ...updatedMinions[minionIndex],
+                    q: to.q,
+                    r: to.r,
+                };
+                await this.dbCtx.db.patch(gameDoc._id, {
+                    "boss.minions": updatedMinions,
+                    lastUpdate: new Date().toISOString(),
+                });
+            } else {
+                return false;  // 小怪不存在
+            }
+        } else if (monsterId) {
+            // 玩家角色从 tacticalMonster_game_character 查询
+            const charDoc = await this.dbCtx.db
+                .query("tacticalMonster_game_character")
+                .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+                .filter((q: any) =>
                     q.or(
                         q.eq(q.field("monsterId"), monsterId),
                         q.eq(q.field("character_id"), monsterId)  // 向后兼容
                     )
                 )
-            )
-            .first();
+                .first();
 
-        if (!charDoc) return false;
+            if (!charDoc) return false;
 
-        // Update character position
-        await this.dbCtx.db.patch(charDoc._id, { q: to.q, r: to.r });
+            // Update character position
+            await this.dbCtx.db.patch(charDoc._id, { q: to.q, r: to.r });
+        }
 
         // Create event
         const event: CombatEvent = {
@@ -431,7 +1216,7 @@ export class TacticalMonsterGameManager {
             uid,
             name: "walk",
             type: 1,
-            data: { uid, monsterId, to },
+            data: { identifier, to },
             time: Date.now(),
         };
 
@@ -441,55 +1226,82 @@ export class TacticalMonsterGameManager {
         return true;
     }
 
+    /**
+     * 执行攻击
+     * 
+     * 设计说明：
+     * 由于普通攻击已经统一为 basic_attack 技能，attack 方法现在只是一个便捷包装：
+     * - 如果没有指定技能，自动使用 basic_attack
+     * - 统一通过 useSkill 方法处理
+     * - 创建 attack 事件（用于统一的事件接口）
+     * 
+     * 注意：
+     * - 普通攻击（basic_attack）：单体攻击，只攻击第一个目标
+     * - 技能攻击：根据技能类型（单体/群体）自动处理
+     * 
+     * 标识符说明：
+     * - attacker: 攻击者标识符（monsterId/bossId/minionId 三选一）
+     * - targets: 目标列表，每个目标包含 monsterId/bossId/minionId 三选一
+     * 
+     * 如果不需要 attack 事件的特殊处理，可以直接调用 useSkill("basic_attack", targets)
+     * 
+     * @param gameId 游戏ID
+     * @param data 攻击数据
+     *   - attacker: 攻击者标识符（CharacterIdentifier）
+     *   - skillSelect: 技能ID（可选，如果不提供则使用 basic_attack）
+     *   - targets: 目标列表，每个目标为 CharacterIdentifier
+     * @returns CombatEvent 或 null（如果失败）
+     */
     async attack(
         gameId: string,
         data: {
-            attacker: { uid: string; monsterId: string; skillSelect: string };
-            target: { uid: string; monsterId: string };
+            attacker: CharacterIdentifier;
+            skillSelect?: string;
+            targets: CharacterIdentifier[];
         }
     ): Promise<CombatEvent | null> {
-        await this.load(gameId);
-        if (!this.game) return null;
+        // 如果没有指定技能，使用基础攻击技能
+        const skillId = data.skillSelect && data.skillSelect !== ""
+            ? data.skillSelect
+            : "basic_attack";
 
-        const { attacker, target } = data;
+        // 直接调用 useSkill 方法（统一通过技能系统处理）
+        const skillResult = await this.useSkill(gameId, {
+            ...data.attacker,
+            skillId: skillId,
+            targets: data.targets,
+        });
 
-        // 从数据库查询角色（使用 filter 查询，因为索引可能使用 character_id）
-        const attackerChar = await this.dbCtx.db
-            .query("tacticalMonster_game_character")
-            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
-            .filter((q: any) =>
-                q.and(
-                    q.eq(q.field("uid"), attacker.uid),
-                    q.or(
-                        q.eq(q.field("monsterId"), attacker.monsterId),
-                        q.eq(q.field("character_id"), attacker.monsterId)  // 向后兼容
-                    )
-                )
-            )
-            .first();
+        if (!skillResult.success) {
+            return null;
+        }
 
-        const targetChar = await this.dbCtx.db
-            .query("tacticalMonster_game_character")
-            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
-            .filter((q: any) =>
-                q.and(
-                    q.eq(q.field("uid"), target.uid),
-                    q.or(
-                        q.eq(q.field("monsterId"), target.monsterId),
-                        q.eq(q.field("character_id"), target.monsterId)  // 向后兼容
-                    )
-                )
-            )
-            .first();
+        // 获取攻击者角色以确定uid（用于事件记录）
+        const attacker = this.getCharacter(
+            data.attacker.monsterId,
+            data.attacker.bossId,
+            data.attacker.minionId
+        );
+        if (!attacker) return null;
 
-        if (!attackerChar || !targetChar) return null;
-
+        // 创建 attack 事件（作为统一的事件接口）
+        // 注意：useSkill 已经创建了 use_skill 事件
+        // attack 事件用于：
+        // 1. 统一的事件接口（前端可以统一监听 attack 事件）
+        // 2. 语义清晰（attack 表示攻击行为，use_skill 表示技能使用）
+        // 3. 可能的统计或回放需求
         const event: CombatEvent = {
             gameId,
             uid: attacker.uid,
             name: "attack",
-            type: 2,
-            data,
+            type: 2, // 2: attack
+            data: {
+                attacker: data.attacker,
+                skillUsed: true,
+                skillId: skillId,
+                targets: data.targets,
+                skillResult,
+            },
             time: Date.now(),
         };
 
@@ -499,6 +1311,13 @@ export class TacticalMonsterGameManager {
         return event;
     }
 
+    /**
+     * 选择技能
+     * 为当前回合选择要使用的技能
+     * @param gameId 游戏ID
+     * @param data 技能数据
+     * @returns 是否成功
+     */
     async selectSkill(gameId: string, data: { skillId: string }): Promise<boolean> {
         await this.load(gameId);
         if (!this.game || this.game.round === undefined) return false;
@@ -533,18 +1352,249 @@ export class TacticalMonsterGameManager {
         return true;
     }
 
+    /**
+     * 使用技能
+     * 执行技能效果，包括资源消耗、冷却设置、效果应用等
+     * 
+     * 目标确定规则：
+     * 1. 如果提供了 targets 参数，则使用提供的目标
+     * 2. 如果没有提供 targets，则根据技能范围类型自动计算：
+     *    - single（单体）：需要提供至少一个主要目标，否则返回空数组
+     *    - circle（圆形）：以施法者为中心，自动选择范围内的所有角色
+     *    - line（直线）：需要提供主要目标来确定方向，自动选择路径上的所有角色
+     * 
+     * 标识符说明：
+     * - 施法者：通过 CharacterIdentifier 指定（monsterId/bossId/minionId 三选一）
+     * - 目标列表：每个目标为 CharacterIdentifier（monsterId/bossId/minionId 三选一）
+     * 
+     * @param gameId 游戏ID
+     * @param data 技能使用数据
+     *   - identifier: 施法者标识符（CharacterIdentifier，monsterId/bossId/minionId 三选一）
+     *   - skillId: 技能ID
+     *   - targets: 目标列表（可选，如果不提供则根据技能范围自动计算）
+     *     - 每个目标为 CharacterIdentifier
+     * @returns 技能使用结果
+     */
+    async useSkill(
+        gameId: string,
+        data: CharacterIdentifier & {
+            skillId: string;
+            targets?: CharacterIdentifier[];
+        }
+    ): Promise<{
+        success: boolean;
+        message?: string;
+        cooldownSet?: number;
+        resourcesConsumed?: {
+            mp?: number;
+            hp?: number;
+            stamina?: number;
+        };
+        effects?: Array<{
+            effect: any;
+            targetId?: string;
+            applied: boolean;
+        }>;
+    }> {
+        await this.load(gameId);
+        if (!this.game) {
+            return {
+                success: false,
+                message: "游戏不存在",
+            };
+        }
+
+        const { monsterId, bossId, minionId, skillId, targets } = data;
+
+        // 检查参数：应该只有一个存在
+        const paramCount = [monsterId, bossId, minionId].filter(Boolean).length;
+        if (paramCount !== 1) {
+            return {
+                success: false,
+                message: "参数错误：应该只提供一个标识符（monsterId/bossId/minionId）",
+            };
+        }
+
+        // 1. 获取使用者角色（使用辅助方法）
+        const caster = this.getCharacter(monsterId, bossId, minionId);
+        if (!caster) {
+            return {
+                success: false,
+                message: `角色不存在: monsterId=${monsterId}, bossId=${bossId}, minionId=${minionId}`,
+            };
+        }
+
+        // 2. 确定目标列表
+        // 如果提供了 targets，使用提供的；否则根据技能范围自动计算
+        let finalTargets: CharacterIdentifier[] = [];
+
+        if (targets && targets.length > 0) {
+            // 使用提供的目标
+            finalTargets = targets;
+        } else {
+            // 根据技能范围自动计算目标
+            // 注意：对于 single 和 line 类型，需要主要目标，这里返回空数组
+            // 调用方应该提供至少一个主要目标
+            const calculatedTargets = this.calculateTargetsBySkillRange(caster, skillId);
+            // 转换格式：从 { uid, monsterId } 转换为 CharacterIdentifier
+            finalTargets = calculatedTargets.map((t) => {
+                const params = this.getCharacterParams(t.uid, t.monsterId);
+                return {
+                    monsterId: params.monsterId,
+                    bossId: params.bossId,
+                    minionId: params.minionId,
+                } as CharacterIdentifier;
+            });
+        }
+
+        // 3. 获取目标角色列表（使用辅助方法）
+        const targetMonsters: GameMonster[] = [];
+        for (const target of finalTargets) {
+            const targetMonster = this.getCharacter(target.monsterId, target.bossId, target.minionId);
+            if (targetMonster) {
+                targetMonsters.push(targetMonster);
+            }
+        }
+
+        // 3. 使用技能（使用 SkillManager）
+        const skillResult = SkillManager.useSkill(
+            skillId,
+            caster,
+            targetMonsters.length > 0 ? targetMonsters : undefined
+        );
+
+        if (!skillResult.success) {
+            return skillResult;
+        }
+
+        // 4. 更新数据库中的角色状态（使用辅助方法）
+        // 更新使用者状态
+        await this.updateCharacterInDatabase(gameId, caster);
+
+        // 5. 更新目标状态（如果技能效果已应用）
+        if (skillResult.effects && targetMonsters.length > 0) {
+            for (const target of targetMonsters) {
+                await this.updateCharacterInDatabase(gameId, target);
+            }
+        }
+
+        // 6. 重新加载游戏状态（确保内存中的 game 对象与数据库同步）
+        await this.load(gameId);
+
+        // 7. 创建技能使用事件
+        const event: CombatEvent = {
+            gameId,
+            uid: caster.uid,
+            name: "use_skill",
+            type: 3, // 3: skill
+            data: {
+                identifier: { monsterId, bossId, minionId },
+                skillId,
+                targets: finalTargets,
+                result: skillResult,
+            },
+            time: Date.now(),
+        };
+
+        await this.dbCtx.db.insert("tacticalMonster_event", event);
+        await this.save({ lastUpdate: new Date().toISOString() });
+
+        return skillResult;
+    }
+
+    /**
+     * 开始新回合
+     * 创建新的战斗回合记录，使用完全速度排序
+     * 
+     * 排序规则：
+     * 1. 所有角色（玩家队伍 + Boss + 小怪）统一按速度排序
+     * 2. 速度相同时，玩家优先（PVE中玩家应该有一定优势）
+     * 3. 只包含存活的角色（HP > 0）
+     * 
+     * @param gameId 游戏ID
+     * @returns 是否成功
+     */
     async startNewRound(gameId: string): Promise<boolean> {
         await this.load(gameId);
         if (!this.game) return false;
 
         const newRoundNo = (this.game.round || 0) + 1;
 
-        // Create new round
+        // 收集所有角色（玩家队伍 + Boss + 小怪）
+        const allCharacters: Array<{
+            uid: string;
+            monsterId: string;
+            speed: number;
+            team: 'player' | 'boss';
+        }> = [];
+
+        // 1. 添加玩家队伍角色（过滤已死亡的）
+        this.game.team.forEach((monster) => {
+            const currentHp = monster.stats?.hp?.current ?? 0;
+            if (currentHp > 0) {
+                allCharacters.push({
+                    uid: monster.uid,
+                    monsterId: monster.monsterId,
+                    speed: monster.stats.speed,
+                    team: 'player',
+                });
+            }
+        });
+
+        // 2. 添加Boss本体（过滤已死亡的）
+        const bossHp = this.game.boss.stats?.hp?.current ?? 0;
+        if (bossHp > 0) {
+            allCharacters.push({
+                uid: 'boss',
+                monsterId: this.game.boss.monsterId,
+                speed: this.game.boss.stats.speed,
+                team: 'boss',
+            });
+        }
+
+        // 3. 添加小怪（过滤已死亡的）
+        this.game.boss.minions.forEach((minion) => {
+            const minionHp = minion.stats?.hp?.current ?? 0;
+            if (minionHp > 0) {
+                allCharacters.push({
+                    uid: 'boss',
+                    monsterId: minion.monsterId,
+                    speed: minion.stats.speed,
+                    team: 'boss',
+                });
+            }
+        });
+
+        // 4. 按速度排序，速度相同时玩家优先
+        allCharacters.sort((a, b) => {
+            // 先按速度降序排序
+            if (a.speed !== b.speed) {
+                return b.speed - a.speed;
+            }
+            // 速度相同时，玩家优先（PVE中玩家应该有一定优势）
+            if (a.team === 'player' && b.team === 'boss') {
+                return -1; // a（玩家）排在前面
+            }
+            if (a.team === 'boss' && b.team === 'player') {
+                return 1; // b（玩家）排在前面
+            }
+            // 同队内速度相同时，按monsterId排序（保证排序稳定性）
+            return a.monsterId.localeCompare(b.monsterId);
+        });
+
+        // 5. 转换为 CombatTurn 数组
+        const turns: CombatTurn[] = allCharacters.map((char) => ({
+            uid: char.uid,
+            monsterId: char.monsterId,
+            status: 0, // 0: pending
+        }));
+
+        // 6. 创建回合记录
         const roundObj = {
             gameId,
             no: newRoundNo,
             status: 0,
-            turns: [] as CombatTurn[],
+            turns,
         };
 
         await this.dbCtx.db.insert("tacticalMonster_game_round", roundObj);
@@ -563,6 +1613,12 @@ export class TacticalMonsterGameManager {
         return true;
     }
 
+    /**
+     * 结束回合
+     * 标记当前回合为已完成
+     * @param gameId 游戏ID
+     * @returns 是否成功
+     */
     async endRound(gameId: string): Promise<boolean> {
         await this.load(gameId);
         if (!this.game) return false;
@@ -597,6 +1653,13 @@ export class TacticalMonsterGameManager {
         return true;
     }
 
+    /**
+     * 计算分数
+     * 根据行动类型计算得分
+     * @param action 行动数据
+     * @param actionType 行动类型
+     * @returns 得分
+     */
     calculateScore(action: any, actionType: string): number {
         // 基础计分逻辑
         let score = 0;
@@ -612,6 +1675,13 @@ export class TacticalMonsterGameManager {
         return score;
     }
 
+    /**
+     * 更新分数
+     * 增加或减少游戏分数
+     * @param gameId 游戏ID
+     * @param scoreDelta 分数变化量
+     * @returns 是否成功
+     */
     async updateScore(gameId: string, scoreDelta: number): Promise<boolean> {
         await this.load(gameId);
         if (!this.game) return false;
@@ -622,6 +1692,12 @@ export class TacticalMonsterGameManager {
         return true;
     }
 
+    /**
+     * 游戏结束
+     * 计算最终分数并生成游戏报告
+     * @param gameId 游戏ID
+     * @returns GameReport 或 null（如果失败）
+     */
     async gameOver(gameId: string): Promise<GameReport | null> {
         await this.load(gameId);
         if (!this.game) return null;
@@ -912,15 +1988,18 @@ export const gameOver = mutation({
 export const walk = mutation({
     args: {
         gameId: v.string(),
-        uid: v.string(),
-        monsterId: v.string(),
         to: v.object({ q: v.number(), r: v.number() }),
+        identifier: v.object({
+            monsterId: v.optional(v.string()),
+            bossId: v.optional(v.string()),
+            minionId: v.optional(v.string()),
+        }),
     },
-    handler: async (ctx, { gameId, uid, monsterId, to }) => {
-        console.log("walk", gameId, uid, monsterId, to);
+    handler: async (ctx, { gameId, to, identifier }) => {
+        console.log("walk", gameId, identifier, to);
         const gameManager = new TacticalMonsterGameManager(ctx);
         await gameManager.load(gameId);
-        const result = await gameManager.walk(gameId, uid, monsterId, to);
+        const result = await gameManager.walk(gameId, to, identifier);
         console.log("walk result", result);
         return { ok: result };
     },
@@ -931,14 +2010,18 @@ export const attack = mutation({
         gameId: v.string(),
         data: v.object({
             attacker: v.object({
-                uid: v.string(),
-                monsterId: v.string(),
-                skillSelect: v.string(),
+                monsterId: v.optional(v.string()),
+                bossId: v.optional(v.string()),
+                minionId: v.optional(v.string()),
             }),
-            target: v.object({
-                uid: v.string(),
-                monsterId: v.string(),
-            }),
+            skillSelect: v.optional(v.string()),  // 技能ID（可选，如果提供则使用技能攻击）
+            targets: v.array(  // 支持多目标攻击
+                v.object({
+                    monsterId: v.optional(v.string()),
+                    bossId: v.optional(v.string()),
+                    minionId: v.optional(v.string()),
+                })
+            ),
         }),
     },
     handler: async (ctx, { gameId, data }) => {
@@ -961,6 +2044,37 @@ export const selectSkill = mutation({
         await gameManager.load(gameId);
         const result = await gameManager.selectSkill(gameId, data);
         return { ok: result };
+    },
+});
+
+export const useSkill = mutation({
+    args: {
+        gameId: v.string(),
+        data: v.object({
+            monsterId: v.optional(v.string()),
+            bossId: v.optional(v.string()),
+            minionId: v.optional(v.string()),
+            skillId: v.string(),
+            targets: v.optional(
+                v.array(
+                    v.object({
+                        monsterId: v.optional(v.string()),
+                        bossId: v.optional(v.string()),
+                        minionId: v.optional(v.string()),
+                    })
+                )
+            ),
+        }),
+    },
+    handler: async (ctx, { gameId, data }) => {
+        console.log("useSkill", gameId, data);
+        const gameManager = new TacticalMonsterGameManager(ctx);
+        const result = await gameManager.useSkill(gameId, data);
+        if (result.success) {
+            return { ok: true, data: result };
+        } else {
+            return { ok: false, error: result.message || "技能使用失败" };
+        }
     },
 });
 

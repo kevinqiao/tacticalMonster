@@ -6,41 +6,14 @@
 
 import { v } from "convex/values";
 import { Stage } from "../../../../../component/battle/games/tacticalMonster/battle/types/StageTypes";
-import { mutation } from "../../_generated/server";
-import { getBossConfig } from "../../data/bossConfigs";
+import { mutation, query } from "../../_generated/server";
+import { calculateScaleBoss, getBossConfig } from "../../data/bossConfigs";
 import { getMapTemplateConfig } from "../../data/mapTemplateConfigs";
 import { hasOverlap, HexCoord, isInRegion } from "../../utils/hexUtils";
 import { SeededRandom } from "../../utils/seededRandom";
-import { BossPositions } from "../boss/bossInstanceService";
 import { GameRuleConfigService } from "../game/gameRuleConfigService";
 import { TeamService } from "../team/teamService";
 
-/**
- * Stage 接口
- * 与数据库 mr_stage 表保持一致
- */
-// export interface Stage {
-//     stageId: string;                    // 唯一标识
-//     bossId: string;                     // 选定的 Boss ID
-//     map: {
-//         rows: number;
-//         cols: number;
-//         obstacles: Array<{
-//             type: number;
-//             asset: string;
-//             q: number;
-//             r: number;
-//         }>;
-//         disables: Array<{
-//             q: number;
-//             r: number;
-//         }>;
-//     };                    // 生成的地图 ID
-//     difficulty: number;                 // Boss Power / Player Team Power 比率（缩放后）
-//     seed: string;                       // 随机种子
-//     attempts?: number;                   // 尝试次数
-//     createdAt?: string;                  // 创建时间
-// }
 
 
 /**
@@ -332,23 +305,40 @@ export class StageManagerService {
         const { mapConfig, bossConfig, bossId, seed } = params;
         const rng = new SeededRandom(seed || `map_${Date.now()}`);
 
-        // 1. 从BossConfig获取Boss和小怪的位置信息
-        const bossPositions = this.getBossPositionsFromConfig(bossConfig);
-        const allBossPositions = [
-            bossPositions.bossMain,
-            ...bossPositions.minions.map(m => m.position),
-        ];
         if (!mapConfig?.mapSize) {
             return null;
         }
+
+        // 1. 提取所有 Boss 和小怪的位置
+        const allBossPositions: HexCoord[] = [];
+
+        // 添加 Boss 本体位置（如果配置中有）
+        if (bossConfig.position) {
+            allBossPositions.push({
+                q: bossConfig.position.q,
+                r: bossConfig.position.r,
+            });
+        }
+
+        // 添加所有小怪位置（如果配置中有）
+        if (bossConfig.minions && Array.isArray(bossConfig.minions)) {
+            for (const minion of bossConfig.minions) {
+                if (minion.position) {
+                    allBossPositions.push({
+                        q: minion.position.q,
+                        r: minion.position.r,
+                    });
+                }
+            }
+        }
+
         // 2. 确定地图大小（优先使用mapConfig，否则根据Boss难度）
-        let mapSize: { rows: number; cols: number } = mapConfig?.mapSize
+        let mapSize: { rows: number; cols: number } = mapConfig.mapSize;
 
         // 3. 尝试使用模板生成地图
         let obstacles: any[] = [];
         let mapGenerationSuccess = false;
-
-        if (mapConfig?.templateId) {
+        if (mapConfig.templateId) {
             const templateConfig = getMapTemplateConfig(mapConfig.templateId);
 
             if (templateConfig) {
@@ -389,7 +379,7 @@ export class StageManagerService {
             );
         }
 
-        // 4. 返回地图数据（不再存储到 mr_map，直接保存在 mr_stage 中）
+        // 5. 返回地图数据（不再存储到 mr_map，直接保存在 mr_stage 中）
         return {
             rows: mapSize.rows,
             cols: mapSize.cols,
@@ -398,81 +388,8 @@ export class StageManagerService {
         };
     }
 
-    /**
-     * 生成地图数据（包含障碍物布局）
-     * @deprecated 使用 generateMapWithBossValidation 替代
-     */
-    private static async generateMap(
-        ctx: any,
-        levelConfig: any,
-        seed?: string
-    ): Promise<any> {
-        const mapGeneration = levelConfig.mapGeneration;
-        const rng = new SeededRandom(seed || `map_${Date.now()}`);
 
-        let obstacles: any[] = [];
 
-        if (mapGeneration.generationType === "template") {
-            // 使用模板+随机方式
-            obstacles = await this.generateMapFromTemplate(
-                ctx,
-                mapGeneration,
-                levelConfig.positionConfig,
-                rng
-            );
-        } else {
-            // 使用程序化生成
-            obstacles = this.generateProceduralObstacles(
-                mapGeneration,
-                levelConfig.positionConfig,
-                rng
-            );
-        }
-
-        // 创建地图数据并存储
-        const mapId = `map_dynamic_${Date.now()}_${seed ? this.hashSeed(seed) : rng.randomInt(0, 1000000)}`;
-        const mapData = {
-            mapId,  // mr_map 表使用 mapId 字段
-            rows: mapGeneration.mapSize.rows,
-            cols: mapGeneration.mapSize.cols,
-            obstacles,
-            disables: [], // 可以根据需要生成禁用地块
-        };
-
-        await ctx.db.insert("mr_map", mapData);
-        return {
-            map_id: mapId,  // 返回时保持 map_id 字段名以兼容现有代码
-            rows: mapGeneration.mapSize.rows,
-            cols: mapGeneration.mapSize.cols,
-            obstacles,
-            disables: [],
-        };
-    }
-
-    /**
-     * 从BossConfig获取位置信息
-     * Boss定义中包含position（包括小怪的位置）
-     */
-    private static getBossPositionsFromConfig(bossConfig: any): BossPositions {
-        // Boss位置（从BossConfig中读取position字段）
-        const bossMain: HexCoord = (bossConfig as any).position || { q: 0, r: 0 };
-
-        // 小怪位置（从minions配置中读取positions数组）
-        const minions: Array<{ minionId: string; position: HexCoord }> = [];
-        if (bossConfig.minions) {
-            for (const minion of bossConfig.minions) {
-                const positions = (minion as any).positions || [];
-                for (let i = 0; i < minion.quantity; i++) {
-                    minions.push({
-                        minionId: `${minion.minionId}_${i}`,
-                        position: positions[i] || { q: 0, r: 0 },
-                    });
-                }
-            }
-        }
-
-        return { bossMain, minions };
-    }
 
     /**
      * 从模板配置生成地图（模板+随机混合方式）
@@ -565,19 +482,6 @@ export class StageManagerService {
         return false;  // 无冲突
     }
 
-    /**
-     * 根据Boss参数确定地图大小
-     */
-    private static determineMapSizeFromBoss(bossConfig: any): { rows: number; cols: number } {
-        const difficulty = bossConfig.difficulty || "easy";
-        const sizeMap: Record<string, { rows: number; cols: number }> = {
-            easy: { rows: 10, cols: 10 },
-            medium: { rows: 12, cols: 12 },
-            hard: { rows: 14, cols: 14 },
-            expert: { rows: 16, cols: 16 },
-        };
-        return sizeMap[difficulty] || { rows: 10, cols: 10 };
-    }
 
     /**
      * 随机生成地图（避开Boss位置）
@@ -722,71 +626,7 @@ export class StageManagerService {
         return newObstacles;
     }
 
-    /**
-     * 从模板生成地图（模板+随机调整）
-     * @deprecated 使用 generateMapFromTemplateConfig 替代
-     */
-    private static async generateMapFromTemplate(
-        ctx: any,
-        mapGeneration: any,
-        positionConfig: any,
-        rng: SeededRandom
-    ): Promise<any[]> {
-        // 如果没有指定模板ID，回退到程序化生成
-        if (!mapGeneration.templateId) {
-            return this.generateProceduralObstacles(
-                mapGeneration,
-                positionConfig,
-                rng
-            );
-        }
 
-        // 查询模板
-        const template = await ctx.db
-            .query("mr_map_templates")
-            .withIndex("by_templateId", (q: any) => q.eq("templateId", mapGeneration.templateId))
-            .first();
-
-        if (!template) {
-            // 如果模板不存在，回退到程序化生成
-            return this.generateProceduralObstacles(
-                mapGeneration,
-                positionConfig,
-                rng
-            );
-        }
-
-        // 合并核心障碍物和可选障碍物
-        let obstacles = [...template.coreObstacles];
-
-        // 随机调整可选障碍物
-        if (mapGeneration.templateAdjustment) {
-            const adjustmentRatio = mapGeneration.templateAdjustment.adjustmentRatio || 0.15;
-            const preserveCore = mapGeneration.templateAdjustment.preserveCoreObstacles !== false;
-
-            // 决定哪些可选障碍物保留
-            const optionalToKeep = template.optionalObstacles.filter(() =>
-                rng.random() > adjustmentRatio
-            );
-
-            obstacles = [...obstacles, ...optionalToKeep];
-
-            // 在允许区域添加新的随机障碍物
-            const newObstacles = this.generateRandomObstaclesInAllowedZones(
-                mapGeneration,
-                positionConfig,
-                template.restrictedZones,
-                obstacles.length,
-                rng
-            );
-
-            obstacles = [...obstacles, ...newObstacles];
-        } else {
-            obstacles = [...obstacles, ...template.optionalObstacles];
-        }
-
-        return obstacles;
-    }
 
     /**
      * 程序化生成障碍物
@@ -830,50 +670,6 @@ export class StageManagerService {
             );
 
             if (position) {
-                const obstacleType = rng.choice(obstacleTypes);
-                obstacles.push({
-                    q: position.q,
-                    r: position.r,
-                    type: this.getObstacleTypeCode(obstacleType),
-                    asset: this.getObstacleAsset(obstacleType),
-                });
-                usedPositions.push(position);
-            }
-        }
-
-        return obstacles;
-    }
-
-    /**
-     * 在允许区域生成随机障碍物
-     */
-    private static generateRandomObstaclesInAllowedZones(
-        mapGeneration: any,
-        positionConfig: any,
-        restrictedZones: any[],
-        currentCount: number,
-        rng: SeededRandom
-    ): any[] {
-        const { obstacleRules } = mapGeneration;
-        const targetCount = Math.floor(currentCount * (mapGeneration.templateAdjustment?.adjustmentRatio || 0.15));
-        const obstacles: any[] = [];
-        const usedPositions: HexCoord[] = [];
-
-        const excludeRegions: any[] = [
-            positionConfig.playerZone.region,
-            ...(restrictedZones || []).map((zone: any) => zone.region),
-        ];
-
-        for (let i = 0; i < targetCount; i++) {
-            const position = this.findAvailableObstaclePosition(
-                mapGeneration.mapSize,
-                excludeRegions,
-                usedPositions,
-                rng
-            );
-
-            if (position) {
-                const obstacleTypes: string[] = obstacleRules.obstacleTypes || ["rock"];
                 const obstacleType = rng.choice(obstacleTypes);
                 obstacles.push({
                     q: position.q,
@@ -1005,6 +801,44 @@ export class StageManagerService {
         }
         return Math.abs(hash).toString(36);
     }
+
+    /**
+     * 根据 stageId 查找 Stage
+     * @param ctx 数据库上下文
+     * @param params 查询参数
+     * @returns Stage 对象，如果不存在则返回 null
+     */
+    static async findStage(
+        ctx: any,
+        params: {
+            stageId: string;
+        }
+    ): Promise<Stage | null> {
+        const { stageId } = params;
+
+        const stageDoc = await ctx.db
+            .query("mr_stage")
+            .withIndex("by_stageId", (q: any) => q.eq("stageId", stageId))
+            .first();
+
+        if (!stageDoc) {
+            return null;
+        }
+
+
+        // 构建符合 Stage 接口的对象
+        const stage: Stage = {
+            stageId: stageDoc.stageId,
+            bossId: stageDoc.bossId,
+            map: stageDoc.map,
+            difficulty: stageDoc.difficulty,
+            seed: stageDoc.seed,
+            attempts: stageDoc.attempts,
+            createdAt: stageDoc.createdAt,
+        };
+
+        return stage;
+    }
 }
 export const openStage = mutation({
     args: {
@@ -1017,6 +851,43 @@ export const openStage = mutation({
             return { ok: false, error: "无法获取关卡" };
         }
         return { ok: true, stage };
+
+    },
+});
+export const findStage = query({
+    args: { stageId: v.string() },
+    handler: async (ctx: any, args: any) => {
+        return await StageManagerService.findStage(ctx, args);
+    },
+});
+export const findPowerStage = query({
+    args: { uid: v.string(), stageId: v.string() },
+    handler: async (ctx: any, args: any) => {
+        const { uid, stageId } = args;
+        const stage = await StageManagerService.findStage(ctx, { stageId });
+        if (!stage) {
+            return null;
+        }
+        const teamPower = await TeamService.getTeamPower(ctx, uid);
+        if (!teamPower) {
+            return null;
+        }
+        const scaleBoss = calculateScaleBoss(stage.bossId, teamPower, stage.difficulty);
+        if (!scaleBoss) {
+            return null;
+        }
+        return {
+            ok: true,
+            stage: {
+                stageId: stage.stageId,
+                boss: scaleBoss,
+                map: stage.map,
+                difficulty: stage.difficulty,
+                seed: stage.seed,
+                attempts: stage.attempts,
+                createdAt: stage.createdAt,
+            },
+        };
 
     },
 });

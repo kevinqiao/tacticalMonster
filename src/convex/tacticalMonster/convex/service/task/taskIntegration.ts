@@ -5,7 +5,6 @@
 
 import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
 import { MonsterService } from "../monster/monsterService";
-import { ShardService } from "../monster/shardService";
 
 /**
  * 任务系统集成服务
@@ -244,7 +243,7 @@ export class TaskIntegration {
             const grantedShards: any[] = [];
             for (const shard of rewards.monsterShards) {
                 try {
-                    await ShardService.addShards(ctx, {
+                    await MonsterService.addShards(ctx, {
                         uid,
                         monsterId: shard.monsterId,
                         quantity: shard.quantity,

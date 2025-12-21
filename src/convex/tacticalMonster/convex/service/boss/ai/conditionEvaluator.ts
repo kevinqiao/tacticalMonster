@@ -3,12 +3,13 @@
  * 评估各种条件是否满足
  */
 
+import { StatusEffect } from "../../../types/monsterTypes";
 import { SeededRandom } from "../../../utils/seededRandom";
 
 export interface Condition {
-    type: "hp_percentage" | "round_count" | "player_count" | "status_effect" | 
-          "random" | "enemy_count" | "cooldown" | "minion_count" | 
-          "distance_to_nearest" | "skill_available";
+    type: "hp_percentage" | "round_count" | "player_count" | "status_effect" |
+    "random" | "enemy_count" | "cooldown" | "minion_count" |
+    "distance_to_nearest" | "skill_available";
     value: any;
     operator?: "eq" | "gt" | "lt" | "gte" | "lte" | "in";
     probability?: number;
@@ -27,10 +28,23 @@ export interface BossState {
     currentHp: number;
     maxHp: number;
     skillCooldowns?: Record<string, number>;
-    statusEffects?: any[];
+    statusEffects?: StatusEffect[];
 }
 
 export class ConditionEvaluator {
+    /**
+     * 规范化操作符（将 "in" 转换为有效的比较操作符）
+     */
+    private static normalizeOperator(
+        operator: "eq" | "gt" | "lt" | "gte" | "lte" | "in" | undefined,
+        defaultOp: "eq" | "gt" | "lt" | "gte" | "lte"
+    ): "eq" | "gt" | "lt" | "gte" | "lte" {
+        if (!operator || operator === "in") {
+            return defaultOp;
+        }
+        return operator;
+    }
+
     /**
      * 评估单个条件
      */
@@ -43,13 +57,17 @@ export class ConditionEvaluator {
         switch (condition.type) {
             case "hp_percentage": {
                 const hpPercentage = bossState.currentHp / bossState.maxHp;
-                return this.compareValues(hpPercentage, condition.operator || "lt", condition.value);
+                return this.compareValues(
+                    hpPercentage,
+                    this.normalizeOperator(condition.operator, "lt"),
+                    condition.value
+                );
             }
 
             case "round_count": {
                 return this.compareValues(
                     gameState.round || 0,
-                    condition.operator || "gte",
+                    this.normalizeOperator(condition.operator, "gte"),
                     condition.value
                 );
             }
@@ -57,7 +75,7 @@ export class ConditionEvaluator {
             case "player_count": {
                 return this.compareValues(
                     gameState.playerCount || 0,
-                    condition.operator || "gt",
+                    this.normalizeOperator(condition.operator, "gt"),
                     condition.value
                 );
             }
@@ -65,7 +83,7 @@ export class ConditionEvaluator {
             case "enemy_count": {
                 return this.compareValues(
                     gameState.enemyCount || 0,
-                    condition.operator || "gt",
+                    this.normalizeOperator(condition.operator, "gt"),
                     condition.value
                 );
             }
@@ -73,7 +91,7 @@ export class ConditionEvaluator {
             case "minion_count": {
                 return this.compareValues(
                     gameState.minionCount || 0,
-                    condition.operator || "eq",
+                    this.normalizeOperator(condition.operator, "eq"),
                     condition.value
                 );
             }
@@ -81,7 +99,7 @@ export class ConditionEvaluator {
             case "distance_to_nearest": {
                 return this.compareValues(
                     gameState.distanceToNearest || 999,
-                    condition.operator || "lt",
+                    this.normalizeOperator(condition.operator, "lt"),
                     condition.value
                 );
             }
@@ -109,7 +127,7 @@ export class ConditionEvaluator {
             case "status_effect": {
                 const effectType = condition.value?.type || condition.value;
                 return bossState.statusEffects?.some(
-                    (effect: any) => effect.type === effectType
+                    (effect: StatusEffect) => effect.type === effectType
                 ) || false;
             }
 

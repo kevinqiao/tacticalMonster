@@ -3,8 +3,8 @@
  * 提供可调用的API接口，用于Boss AI决策和执行
  */
 
-import { internalMutation } from "../../../_generated/server";
 import { v } from "convex/values";
+import { internalMutation } from "../../../_generated/server";
 import { BossAIService } from "./bossAIService";
 
 /**
@@ -17,19 +17,9 @@ export const getBossAIDecision = internalMutation({
         round: v.number(),
     },
     handler: async (ctx, args) => {
-        // 获取Boss实例ID
-        const bossInstance = await ctx.db
-            .query("mr_boss_instances")
-            .withIndex("by_gameId", (q: any) => q.eq("gameId", args.gameId))
-            .first();
-
-        if (!bossInstance) {
-            throw new Error(`游戏 ${args.gameId} 没有Boss实例`);
-        }
-
+        // 直接调用BossAIService，它会从mr_games获取Boss数据
         const decision = await BossAIService.decideBossAction(ctx, {
             gameId: args.gameId,
-            bossInstanceId: bossInstance.bossInstanceId,
             round: args.round,
         });
 
@@ -40,6 +30,8 @@ export const getBossAIDecision = internalMutation({
 /**
  * 执行Boss AI动作
  * 根据AI决策执行Boss的动作（攻击、移动、技能等）
+ * 
+ * 支持执行Boss主体和小怪的动作，通过 CharacterIdentifier 区分
  */
 export const executeBossAction = internalMutation({
     args: {
@@ -52,19 +44,31 @@ export const executeBossAction = internalMutation({
                 v.literal("standby")
             ),
             skillId: v.optional(v.string()),
+            // 支持单个目标或多个目标（使用 CharacterIdentifier）
             target: v.optional(v.object({
-                uid: v.string(),
-                character_id: v.string(),
+                monsterId: v.optional(v.string()),
+                bossId: v.optional(v.string()),
+                minionId: v.optional(v.string()),
             })),
+            targets: v.optional(v.array(v.object({
+                monsterId: v.optional(v.string()),
+                bossId: v.optional(v.string()),
+                minionId: v.optional(v.string()),
+            }))),
             position: v.optional(v.object({
                 q: v.number(),
                 r: v.number(),
             })),
         }),
-        characterId: v.string(),  // Boss本体的character_id
+        // 执行者标识符（CharacterIdentifier，用于区分Boss主体和小怪）
+        identifier: v.object({
+            monsterId: v.optional(v.string()),
+            bossId: v.optional(v.string()),
+            minionId: v.optional(v.string()),
+        }),
     },
     handler: async (ctx, args) => {
-        const { gameId, action, characterId } = args;
+        const { gameId, action, identifier } = args;
 
         // 获取gameService服务
         const { TacticalMonsterGameManager } = await import("../../game/gameService");
@@ -73,33 +77,28 @@ export const executeBossAction = internalMutation({
 
         switch (action.type) {
             case "attack":
-                if (action.target) {
-                    // 执行攻击
+                // 确定目标列表：优先使用 targets，否则使用 target（包装成数组）
+                const attackTargets = action.targets || (action.target ? [action.target] : []);
+                if (attackTargets.length > 0) {
+                    // 执行普通攻击
                     await gameManager.attack(gameId, {
-                        attacker: {
-                            uid: "boss",
-                            character_id: characterId,
-                        },
-                        target: action.target,
+                        attacker: identifier,
+                        skillSelect: "", // 普通攻击不需要技能
+                        targets: attackTargets,
                     });
                 }
                 break;
 
             case "use_skill":
-                if (action.skillId && action.target) {
-                    // 先选择技能
-                    await gameManager.selectSkill(gameId, {
-                        skillId: action.skillId,
-                    });
+                if (action.skillId) {
+                    // 确定目标列表：优先使用 targets，否则使用 target（包装成数组）
+                    const skillTargets = action.targets || (action.target ? [action.target] : []);
 
-                    // 然后执行攻击（使用技能）
-                    await gameManager.attack(gameId, {
-                        attacker: {
-                            uid: "boss",
-                            character_id: characterId,
-                            skillSelect: action.skillId,
-                        },
-                        target: action.target,
+                    // 直接使用 useSkill 方法（更清晰，支持自动计算目标）
+                    await gameManager.useSkill(gameId, {
+                        ...identifier,
+                        skillId: action.skillId,
+                        targets: skillTargets.length > 0 ? skillTargets : undefined,  // 如果不提供目标，会根据技能范围自动计算
                     });
                 }
                 break;
@@ -109,9 +108,8 @@ export const executeBossAction = internalMutation({
                     // 执行移动
                     await gameManager.walk(
                         gameId,
-                        "boss",
-                        characterId,
-                        action.position
+                        action.position,
+                        identifier
                     );
                 }
                 break;

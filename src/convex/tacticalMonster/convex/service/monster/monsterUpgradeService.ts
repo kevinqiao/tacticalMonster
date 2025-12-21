@@ -6,63 +6,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import { TournamentProxyService } from "../tournament/tournamentProxyService";
+import {
+    LEVEL_UP_STRATEGY,
+    STAR_UP_STRATEGY
+} from "./config/upgradeStrategyConfig";
 import { MonsterService } from "./monsterService";
-import { ShardService } from "./shardService";
-
-/**
- * 升星碎片需求配置（根据稀有度）
- */
-const STAR_UP_SHARD_REQUIREMENTS: Record<string, Record<number, number>> = {
-    Common: {
-        1: 10,   // 1→2
-        2: 20,   // 2→3
-        3: 30,   // 3→4
-        4: 50,   // 4→5
-        5: 80,   // 5→6
-        6: 120,  // 6→7
-    },
-    Rare: {
-        1: 10,
-        2: 30,
-        3: 50,
-        4: 80,
-        5: 120,
-        6: 180,
-    },
-    Epic: {
-        1: 15,
-        2: 40,
-        3: 70,
-        4: 110,
-        5: 160,
-        6: 230,
-    },
-    Legendary: {
-        1: 20,
-        2: 50,
-        3: 90,
-        4: 140,
-        5: 200,
-        6: 300,
-    },
-};
-
-/**
- * 升级费用配置（每级）
- */
-const LEVEL_UP_COST_BASE = 100; // 基础费用
-const LEVEL_UP_COST_MULTIPLIER = 1.15; // 每级递增倍率
-
-/**
- * 升星费用配置（每次升星）
- */
-const STAR_UP_COST_BASE = 500; // 基础费用
-const STAR_UP_COST_MULTIPLIER: Record<string, number> = {
-    Common: 1.0,
-    Rare: 1.2,
-    Epic: 1.5,
-    Legendary: 2.0,
-};
 
 export class MonsterUpgradeService {
     /**
@@ -73,9 +21,10 @@ export class MonsterUpgradeService {
             return 0;
         }
 
+        const { baseCost, costMultiplier } = LEVEL_UP_STRATEGY;
         let totalCost = 0;
         for (let level = currentLevel; level < targetLevel; level++) {
-            const levelCost = Math.floor(LEVEL_UP_COST_BASE * Math.pow(LEVEL_UP_COST_MULTIPLIER, level - 1));
+            const levelCost = Math.floor(baseCost * Math.pow(costMultiplier, level - 1));
             totalCost += levelCost;
         }
 
@@ -86,26 +35,30 @@ export class MonsterUpgradeService {
      * 计算升星费用
      */
     static calculateStarUpCost(rarity: string, currentStar: number): number {
-        if (currentStar >= 7) {
+        const { maxStars, baseCost, rarityMultipliers, starCostMultiplier } = STAR_UP_STRATEGY;
+
+        if (currentStar >= maxStars) {
             return 0; // 已满星
         }
 
-        const multiplier = STAR_UP_COST_MULTIPLIER[rarity] || 1.0;
-        const baseCost = STAR_UP_COST_BASE * multiplier;
-        const starMultiplier = 1 + (currentStar - 1) * 0.2; // 星级越高费用越高
+        const rarityMultiplier = rarityMultipliers[rarity as keyof typeof rarityMultipliers] || 1.0;
+        const cost = baseCost * rarityMultiplier;
+        const starMultiplier = 1 + (currentStar - 1) * starCostMultiplier; // 星级越高费用越高
 
-        return Math.floor(baseCost * starMultiplier);
+        return Math.floor(cost * starMultiplier);
     }
 
     /**
      * 获取升星所需碎片
      */
     static getStarUpShardRequirement(rarity: string, currentStar: number): number {
-        if (currentStar >= 7) {
+        const { maxStars, shardRequirements } = STAR_UP_STRATEGY;
+
+        if (currentStar >= maxStars) {
             return 0; // 已满星
         }
 
-        const requirements = STAR_UP_SHARD_REQUIREMENTS[rarity];
+        const requirements = shardRequirements[rarity as keyof typeof shardRequirements];
         if (!requirements) {
             throw new Error(`未知的稀有度: ${rarity}`);
         }
@@ -132,8 +85,8 @@ export class MonsterUpgradeService {
             throw new Error(`玩家不拥有该怪物: ${monsterId}`);
         }
 
-        // 2. 获取怪物配置
-        const config = await MonsterService.getMonsterConfig(ctx, monsterId);
+        // 2. 获取怪物配置（从配置文件读取）
+        const config = MonsterService.getMonsterConfig(monsterId);
         if (!config) {
             throw new Error(`怪物配置不存在: ${monsterId}`);
         }
@@ -143,8 +96,9 @@ export class MonsterUpgradeService {
             throw new Error(`目标等级必须大于当前等级`);
         }
 
-        if (targetLevel > 60) {
-            throw new Error(`等级上限为60级`);
+        const { maxLevel } = LEVEL_UP_STRATEGY;
+        if (targetLevel > maxLevel) {
+            throw new Error(`等级上限为${maxLevel}级`);
         }
 
         // 4. 计算升级费用
@@ -166,8 +120,7 @@ export class MonsterUpgradeService {
         });
 
         // 7. 添加 Battle Pass 积分（通过统一奖励服务）
-        const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
-        const { calculateUpgradePoints } = await import("../battlePass/battlePassPoints");
+        const { calculateUpgradePoints } = await import("../calculation/seasonPoints/upgradeExpCalculation");
 
         const upgradePoints = calculateUpgradePoints(config.rarity, targetLevel);
         TournamentProxyService.grantRewards({
@@ -210,20 +163,26 @@ export class MonsterUpgradeService {
     ) {
         const { uid, monsterId } = params;
 
-        // 1. 获取玩家怪物
+        // 1. 获取玩家怪物（必须是已解锁的）
         const monster = await MonsterService.getPlayerMonster(ctx, uid, monsterId);
         if (!monster) {
             throw new Error(`玩家不拥有该怪物: ${monsterId}`);
         }
 
-        // 2. 获取怪物配置
-        const config = await MonsterService.getMonsterConfig(ctx, monsterId);
+        // 检查是否已解锁
+        if (!monster.isUnlocked) {
+            throw new Error(`怪物未解锁，无法升星`);
+        }
+
+        // 2. 获取怪物配置（从配置文件读取）
+        const config = MonsterService.getMonsterConfig(monsterId);
         if (!config) {
             throw new Error(`怪物配置不存在: ${monsterId}`);
         }
 
         // 3. 验证是否可以升星
-        if (monster.stars >= 7) {
+        const { maxStars } = STAR_UP_STRATEGY;
+        if (monster.stars >= maxStars) {
             throw new Error(`怪物已达到最大星级`);
         }
 
@@ -247,7 +206,7 @@ export class MonsterUpgradeService {
         });
 
         // 7. 扣除碎片
-        await ShardService.deductShards(ctx, {
+        await MonsterService.deductShards(ctx, {
             uid,
             monsterId,
             quantity: shardRequirement,
@@ -263,8 +222,7 @@ export class MonsterUpgradeService {
         });
 
         // 9. 添加 Battle Pass 积分（通过统一奖励服务）
-        const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
-        const { calculateStarUpPoints } = await import("../battlePass/battlePassPoints");
+        const { calculateStarUpPoints } = await import("../calculation/seasonPoints/upgradeExpCalculation");
 
         const starUpPoints = calculateStarUpPoints(config.rarity, targetStar);
         TournamentProxyService.grantRewards({
@@ -318,8 +276,9 @@ export class MonsterUpgradeService {
         // 2. 计算新经验值
         const newExperience = monster.experience + experience;
 
-        // 3. 计算经验值对应的等级（简化：每100经验升1级，最高60级）
-        const newLevel = Math.min(Math.floor(newExperience / 100) + 1, 60);
+        // 3. 计算经验值对应的等级
+        const { expPerLevel, maxLevel } = LEVEL_UP_STRATEGY;
+        const newLevel = Math.min(Math.floor(newExperience / expPerLevel) + 1, maxLevel);
 
         // 4. 更新怪物经验值和等级
         await MonsterService.updateMonster(ctx, {

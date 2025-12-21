@@ -6,7 +6,7 @@
 import { getMergedBossConfig } from "../../../data/bossConfigs";
 import { hexDistance } from "../../../utils/hexUtils";
 import { SeededRandom } from "../../../utils/seededRandom";
-import { BossInstanceService } from "../bossInstanceService";
+import { CharacterIdentifier } from "../../game/gameService";
 import { BehaviorTreeExecutor, ExecutionContext } from "./behaviorTreeExecutor";
 import { BossState, GameState } from "./conditionEvaluator";
 import { PhaseManager } from "./phaseManager";
@@ -15,10 +15,8 @@ import { TargetCharacter, TargetSelector } from "./targetSelector";
 export interface BossAction {
     type: "use_skill" | "attack" | "move" | "standby";
     skillId?: string;
-    target?: {
-        uid: string;
-        character_id: string;
-    };
+    target?: CharacterIdentifier;  // 使用 CharacterIdentifier 区分玩家角色、boss主体、小怪
+    targets?: CharacterIdentifier[];  // 支持多个目标
     position?: { q: number; r: number };
 }
 
@@ -36,103 +34,175 @@ export interface BossAIDecision {
 
 export class BossAIService {
     /**
+     * 辅助方法：将 TargetCharacter 转换为 CharacterIdentifier
+     * 由于 TargetCharacter 来自玩家队伍，所以都是玩家角色（使用 monsterId）
+     * @param target TargetCharacter 对象
+     * @returns CharacterIdentifier
+     */
+    private static convertTargetToIdentifier(target: TargetCharacter): CharacterIdentifier {
+        if (!target.character_id) {
+            throw new Error("TargetCharacter 缺少 character_id 字段");
+        }
+
+        // 玩家角色使用 monsterId（TargetCharacter 来自玩家队伍）
+        return {
+            monsterId: target.character_id,
+        };
+    }
+
+    /**
      * 决策Boss下一回合的行为
+     * @param ctx Convex context
+     * @param params 决策参数
+     * @returns Boss AI决策结果
      */
     static async decideBossAction(
         ctx: any,
         params: {
             gameId: string;
-            bossInstanceId: string;
             round: number;
         }
     ): Promise<BossAIDecision> {
-        // 1. 获取Boss实例和配置
-        const bossInstance = await BossInstanceService.getBossInstance(ctx, params.gameId);
-        if (!bossInstance) {
-            throw new Error(`Boss实例不存在: ${params.bossInstanceId}`);
-        }
-
-        // 使用合并后的配置（包含从 characterId 继承的属性）
-        const bossConfig = getMergedBossConfig(bossInstance.bossId);
-        if (!bossConfig) {
-            throw new Error(`Boss配置不存在: ${bossInstance.bossId}`);
-        }
-
-        // 2. 获取Boss本体角色状态
-        const bossMain = await ctx.db
-            .query("tacticalMonster_game_character")
-            .withIndex("by_game", (q: any) => q.eq("gameId", params.gameId))
-            .filter((q: any) => q.eq(q.field("character_id"), bossInstance.characterIds.bossMain))
+        // 1. 从 mr_games 获取游戏数据（包含 Boss 信息）
+        const game = await ctx.db
+            .query("mr_games")
+            .withIndex("by_gameId", (q: any) => q.eq("gameId", params.gameId))
             .first();
 
-        if (!bossMain || (bossMain.stats?.hp?.current || 0) <= 0) {
+        if (!game) {
+            throw new Error(`游戏不存在: ${params.gameId}`);
+        }
+
+        if (!game.boss) {
+            throw new Error(`游戏 ${params.gameId} 没有Boss数据`);
+        }
+
+        const bossMain = game.boss;
+
+        if (!bossMain.bossId) {
+            throw new Error(`Boss缺少bossId标识符`);
+        }
+
+        const bossId = bossMain.bossId;
+
+        // 2. 检查Boss是否存活
+        if (!bossMain.stats?.hp?.current) {
+            throw new Error(`Boss缺少stats.hp.current数据`);
+        }
+
+        const currentHp = bossMain.stats.hp.current;
+        if (currentHp <= 0) {
             return {
                 bossAction: { type: "standby" },
             };
         }
 
-        // 3. 获取玩家角色（敌人）
-        const playerCharacters = await ctx.db
-            .query("tacticalMonster_game_character")
-            .withIndex("by_game", (q: any) => q.eq("gameId", params.gameId))
-            .filter((q: any) => q.neq(q.field("uid"), "boss"))
-            .collect();
+        // 3. 获取Boss配置
+        const bossConfig = getMergedBossConfig(bossId);
+        if (!bossConfig) {
+            throw new Error(`Boss配置不存在: ${bossId}`);
+        }
 
-        const targets: TargetCharacter[] = playerCharacters
-            .filter((char: any) => (char.stats?.hp?.current || 0) > 0)
-            .map((char: any) => ({
-                uid: char.uid,
-                character_id: char.character_id,
-                q: char.q || 0,
-                r: char.r || 0,
-                currentHp: char.stats?.hp?.current || 0,
-                maxHp: char.stats?.hp?.max || 0,
-                totalDamage: 0,  // TODO: 从游戏记录中获取
-                threatValue: 0,
-            }));
+        // 4. 获取 behaviorSeed
+        if (!bossMain.behaviorSeed) {
+            throw new Error(`Boss缺少behaviorSeed`);
+        }
+        const behaviorSeed = bossMain.behaviorSeed;
 
-        // 4. 检查阶段转换
+        // 5. 获取玩家角色（敌人）- 从 mr_games.team 字段获取
+        if (!game.team || game.team.length === 0) {
+            throw new Error(`游戏 ${params.gameId} 没有玩家队伍数据`);
+        }
+
+        const targets: TargetCharacter[] = game.team
+            .filter((member: any) => {
+                if (!member.stats?.hp?.current) {
+                    return false;
+                }
+                return member.stats.hp.current > 0;  // 过滤掉已死亡的成员
+            })
+            .map((member: any) => {
+                if (!member.monsterId) {
+                    throw new Error(`队伍成员缺少monsterId`);
+                }
+                if (!member.stats?.hp) {
+                    throw new Error(`队伍成员 ${member.monsterId} 缺少stats.hp数据`);
+                }
+                if (member.q === undefined || member.r === undefined) {
+                    throw new Error(`队伍成员 ${member.monsterId} 缺少位置信息`);
+                }
+                if (!member.uid) {
+                    throw new Error(`队伍成员 ${member.monsterId} 缺少uid`);
+                }
+
+                return {
+                    uid: member.uid,
+                    character_id: member.monsterId,
+                    q: member.q,
+                    r: member.r,
+                    currentHp: member.stats.hp.current,
+                    maxHp: member.stats.hp.max,
+                    totalDamage: 0,  // TODO: 从游戏记录中获取
+                    threatValue: 0,
+                };
+            });
+
+        // 6. 构建Boss状态
+        if (!bossMain.stats?.hp?.max) {
+            throw new Error(`Boss缺少stats.hp.max数据`);
+        }
+
+        const maxHp = bossMain.stats.hp.max;
         const bossState: BossState = {
-            currentHp: bossMain.stats?.hp?.current || 0,
-            maxHp: bossMain.stats?.hp?.max || 0,
-            skillCooldowns: bossMain.cooldowns || {},
+            currentHp,
+            maxHp,
+            skillCooldowns: bossMain.skillCooldowns || {},
             statusEffects: bossMain.statusEffects || [],
         };
 
+        // 7. 检查阶段转换
+        if (!bossMain.currentPhase) {
+            throw new Error(`Boss缺少currentPhase数据`);
+        }
+        const currentPhase = bossMain.currentPhase;
         let phaseTransition = undefined;
         if (bossConfig.phases && bossConfig.phases.length > 0) {
             const phaseCheck = PhaseManager.checkPhaseTransition(
                 bossState.currentHp,
                 bossState.maxHp,
                 bossConfig.phases,
-                bossInstance.currentPhase
+                currentPhase
             );
 
             if (phaseCheck.shouldTransition && phaseCheck.newPhase) {
-                // 更新阶段
-                await ctx.db.patch(bossInstance._id, {
-                    currentPhase: phaseCheck.newPhase,
-                    updatedAt: new Date().toISOString(),
+                // 更新阶段（更新到 mr_games 表的 boss 字段）
+                await ctx.db.patch(game._id, {
+                    "boss.currentPhase": phaseCheck.newPhase,
+                    lastUpdate: new Date().toISOString(),
                 });
 
                 phaseTransition = {
-                    fromPhase: bossInstance.currentPhase || "phase1",
+                    fromPhase: currentPhase,
                     toPhase: phaseCheck.newPhase,
                 };
             }
         }
 
-        // 5. 获取当前阶段配置
-        const currentPhase = bossInstance.currentPhase || "phase1";
+        // 8. 获取当前阶段配置
         const phaseConfig = bossConfig.phases?.find(p => p.phaseName === currentPhase);
 
-        // 6. 准备执行上下文
+        // 9. 准备执行上下文
+        if (bossMain.q === undefined || bossMain.r === undefined) {
+            throw new Error(`Boss缺少位置信息`);
+        }
+        const bossPosition = { q: bossMain.q, r: bossMain.r };
+        const minionCount = game.boss.minions?.length || 0;
         const gameState: GameState = {
             round: params.round,
-            seed: bossInstance.behaviorSeed,
+            seed: behaviorSeed,
             playerCount: targets.length,
             enemyCount: targets.length,
-            minionCount: bossInstance.characterIds.minions.length,
+            minionCount: minionCount,
         };
 
         // 计算到最近敌人的距离
@@ -140,29 +210,29 @@ export class BossAIService {
             const nearest = TargetSelector.selectTarget(
                 "nearest",
                 targets,
-                { q: bossMain.q || 0, r: bossMain.r || 0 }
+                bossPosition
             );
             if (nearest) {
                 gameState.distanceToNearest = hexDistance(
-                    { q: bossMain.q || 0, r: bossMain.r || 0 },
+                    bossPosition,
                     { q: nearest.q, r: nearest.r }
                 );
             }
         }
 
         const rng = new SeededRandom(
-            `${bossInstance.behaviorSeed}_round_${params.round}`
+            `${behaviorSeed}_round_${params.round}`
         );
 
         const context: ExecutionContext = {
             bossState,
             gameState,
             targets,
-            bossPosition: { q: bossMain.q || 0, r: bossMain.r || 0 },
+            bossPosition,
             rng,
         };
 
-        // 7. 执行行为树或使用阶段配置
+        // 10. 执行行为树或使用阶段配置
         let bossAction: BossAction;
 
         if (bossConfig.behaviorTree && Object.keys(bossConfig.behaviorTree).length > 0) {
@@ -171,7 +241,6 @@ export class BossAIService {
                 bossConfig.behaviorTree as any,
                 context
             );
-
             bossAction = this.convertActionResultToAction(result);
         } else if (phaseConfig) {
             // 使用阶段配置的简化决策
@@ -181,16 +250,13 @@ export class BossAIService {
             const target = TargetSelector.selectTarget(
                 "nearest",
                 targets,
-                { q: bossMain.q || 0, r: bossMain.r || 0 },
+                bossPosition,
                 rng
             );
 
             bossAction = {
                 type: target ? "attack" : "standby",
-                target: target ? {
-                    uid: target.uid,
-                    character_id: target.character_id,
-                } : undefined,
+                target: target ? this.convertTargetToIdentifier(target) : undefined,
             };
         }
 
@@ -239,10 +305,7 @@ export class BossAIService {
                     return {
                         type: "use_skill",
                         skillId: selectedSkill.skillId,
-                        target: {
-                            uid: target.uid,
-                            character_id: target.character_id,
-                        },
+                        target: this.convertTargetToIdentifier(target),
                     };
                 }
             }
@@ -251,10 +314,7 @@ export class BossAIService {
         // 默认攻击
         return {
             type: "attack",
-            target: {
-                uid: target.uid,
-                character_id: target.character_id,
-            },
+            target: this.convertTargetToIdentifier(target),
         };
     }
 
@@ -296,19 +356,13 @@ export class BossAIService {
                 return {
                     type: "use_skill",
                     skillId: result.skillId,
-                    target: result.target ? {
-                        uid: result.target.uid,
-                        character_id: result.target.character_id,
-                    } : undefined,
+                    target: result.target ? this.convertTargetToIdentifier(result.target) : undefined,
                 };
 
             case "attack":
                 return {
                     type: "attack",
-                    target: result.target ? {
-                        uid: result.target.uid,
-                        character_id: result.target.character_id,
-                    } : undefined,
+                    target: result.target ? this.convertTargetToIdentifier(result.target) : undefined,
                 };
 
             case "move":

@@ -293,9 +293,9 @@ export class ChestService {
 
         // 发放碎片（如果有）
         if (rewards.shards) {
-            const { ShardService } = await import("../monster/shardService");
+            const { MonsterService } = await import("../monster/monsterService");
             for (const shard of rewards.shards) {
-                await ShardService.addShards(ctx, {
+                await MonsterService.addShards(ctx, {
                     uid: params.uid,
                     monsterId: shard.monsterId,
                     quantity: shard.quantity,

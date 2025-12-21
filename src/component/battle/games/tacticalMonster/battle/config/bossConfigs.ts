@@ -1,16 +1,18 @@
-import { MONSTER_CONFIGS } from "./monsterConfigs";
+import { calculatePower, MONSTER_CONFIGS, MONSTER_CONFIGS_MAP } from "./monsterConfigs";
 
 /**
  * Boss 配置数据
  * 支持Boss角色组合（Boss本体 + 小怪/护卫）
  * 
  * 设计说明：
- * - BossConfig 的主体通过 characterId 引用角色配置（monsterId）
+ * - BossConfig 的主体通过 monsterId 引用角色配置（从 monsterConfigs.ts 读取）
  * - 基础属性（HP、攻击、防御、速度、技能、资源路径等）从角色配置继承
  * - BossConfig 只定义 Boss 特有的属性（行为树、阶段、难度等）
  * - 可选覆盖属性可以覆盖继承的属性（提供时优先使用）
+ * - 注意：Monster 配置直接从配置文件读取，不存数据库
  */
 export interface Boss {
+    bossId: string;
     monsterId: string;
     name: string;
     hp: number;
@@ -41,8 +43,9 @@ export interface Boss {
 export interface BossConfig {
     bossId: string;
 
-    // 主体角色配置ID（引用 mr_monster_configs 或自定义角色配置）
+    // 主体角色配置ID（引用 monsterConfigs.ts 配置文件）
     // 基础属性（HP、攻击、防御、速度、技能等）从引用的角色配置继承
+    // 注意：Monster 配置直接从配置文件读取，不存数据库
     monsterId: string;
 
     // Boss 特有属性
@@ -51,7 +54,7 @@ export interface BossConfig {
     // Boss 专属配置
     behaviorTree: any;  // AI行为树配置
 
-    // 可选覆盖属性（如果提供，将覆盖从 characterId 继承的属性）
+    // 可选覆盖属性（如果提供，将覆盖从 monsterId 引用的配置继承的属性）
     name?: string;           // 如果提供，覆盖角色配置的 name
     baseHp?: number;         // 如果提供，覆盖角色配置的 baseHp
     baseDamage?: number;     // 如果提供，覆盖角色配置的 baseDamage
@@ -73,60 +76,21 @@ export interface BossConfig {
 
     configVersion: number;
 }
-// export interface MergedBossConfig {
-//     bossId: string;
-//     monsterId: string;
-//     difficulty?: "easy" | "medium" | "hard" | "expert";
-
-//     // 从角色配置继承或覆盖的属性
-//     name: string;
-//     baseHp: number;
-//     baseDamage: number;
-//     baseDefense: number;
-//     baseSpeed: number;
-//     skills: any[];
-//     assetPath: string;
-//     position?: {
-//         q: number;
-//         r: number;
-//     };
-//     // Boss 特有属性
-//     behaviorTree: any;
-//     minions?: Array<{
-//         minionId: string;
-//         monsterId: string;
-//         name?: string;
-//         baseHp?: number;
-//         baseDamage?: number;
-//         baseDefense?: number;
-//         baseSpeed?: number;
-//         skills?: any[];
-//         assetPath?: string;
-//     }>;
-//     phases?: Array<{
-//         phaseName: string;
-//         hpThreshold: number;
-//         behaviorPattern: any;
-//         skillPriorities: any[];
-//         minionBehavior?: any;
-//     }>;
-
-//     configVersion: number;
-// }
 
 /**
  * 小怪配置接口
  * 
  * 设计说明：
- * - characterId 引用角色配置（monsterId）
+ * - monsterId 引用角色配置（从 monsterConfigs.ts 读取）
  * - 基础属性从角色配置继承
  * - 可选覆盖属性可以覆盖继承的属性
+ * - 注意：Monster 配置直接从配置文件读取，不存数据库
  */
 export interface MinionConfig {
     minionId: string;          // 小怪唯一标识（如 "minion_guard_1"）
-    monsterId: string;       // 角色配置ID（引用mr_monster_configs或自定义）  
+    monsterId: string;       // 角色配置ID（引用 monsterConfigs.ts 配置文件）  
 
-    // 可选覆盖属性（如果提供，将覆盖从 characterId 继承的属性）
+    // 可选覆盖属性（如果提供，将覆盖从 monsterId 引用的配置继承的属性）
     name?: string;             // 如果提供，覆盖角色配置的 name
     baseHp?: number;           // 如果提供，覆盖角色配置的 baseHp
     baseDamage?: number;       // 如果提供，覆盖角色配置的 baseDamage
@@ -155,10 +119,11 @@ export interface BossPhase {
  * Boss 配置示例
  * 
  * 注意：
- * - characterId 引用 mr_monster_configs 中的怪物配置
+ * - monsterId 引用 monsterConfigs.ts 配置文件中的怪物配置
  * - 基础属性（HP、攻击、防御等）从角色配置继承
  * - 可选覆盖属性可以覆盖继承的属性
  * - Boss 特有属性（behaviorTree、phases）只在此定义
+ * - Monster 配置直接从配置文件读取，不存数据库
  */
 export const BOSS_CONFIGS: Record<string, BossConfig> = {
     boss_bronze_1: {
@@ -308,7 +273,7 @@ export const getMergedBossConfig = (bossId: string): BossConfig | null => {
         baseDamage: bossConfig.baseDamage ?? monsterConfig.baseDamage ?? 0,
         baseDefense: bossConfig.baseDefense ?? monsterConfig.baseDefense ?? 0,
         baseSpeed: bossConfig.baseSpeed ?? monsterConfig.baseSpeed ?? 0,
-        skills: bossConfig.skills || monsterConfig.skills || [],
+        skills: bossConfig.skills || [],
         assetPath: bossConfig.assetPath || monsterConfig.assetPath || "",
 
         // Boss 特有属性
@@ -322,14 +287,16 @@ export const getMergedBossConfig = (bossId: string): BossConfig | null => {
 }
 export const calculateScaleBoss = (bossId: string, power: number, difficulty: number): Boss | undefined => {
     const bossConfig = getMergedBossConfig(bossId);
-    if (!bossConfig || !bossConfig.baseHp || !bossConfig.baseDamage || !bossConfig.baseDefense || !bossConfig.baseSpeed || !bossConfig.name || !bossConfig.skills || !bossConfig.assetPath || !bossConfig.position || !bossConfig.minions) {
+    if (!bossConfig || !bossConfig.baseHp || !bossConfig.baseDamage || !bossConfig.baseDefense || !bossConfig.baseSpeed || !bossConfig.name || !bossConfig.assetPath || !bossConfig.position || !bossConfig.minions) {
         throw new Error(`Boss配置不存在: ${bossId}`);
     }
-    const baseBossPower = bossConfig.baseHp + bossConfig.baseDamage * 2 + bossConfig.baseDefense * 1.5;
+    // const baseBossPower = bossConfig.baseHp + bossConfig.baseDamage * 2 + bossConfig.baseDefense * 1.5;
+    const baseBossPower = calculatePower(bossConfig.baseDamage, bossConfig.baseDefense, bossConfig.baseHp);
     // 计算缩放倍数：scale = (playerPower * difficulty) / baseBossPower
     const targetBossPower = power * difficulty;
     const scale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
     const powerBoss: Boss = {
+        bossId: bossConfig.bossId,
         name: bossConfig.name || "",
         hp: Math.floor(bossConfig.baseHp * scale),
         defense: Math.floor(bossConfig.baseDefense * scale),
@@ -344,7 +311,7 @@ export const calculateScaleBoss = (bossId: string, power: number, difficulty: nu
     const minionsData =
         (bossConfig.minions || []).flatMap((minion: any) => {
             // 小怪也需要缩放（使用相同的缩放倍数）
-            // 小怪配置使用 characterId 引用角色配置
+            // 小怪配置使用 monsterId 引用角色配置（从 monsterConfigs.ts 读取）
             let minionScaledStats;
 
             // 从角色配置获取基础属性
@@ -392,3 +359,55 @@ export const calculateScaleBoss = (bossId: string, power: number, difficulty: nu
 
     return powerBoss;
 }
+
+
+
+/**
+ * 计算Boss基础Power（用于单人关卡的自适应缩放）
+ * 包含Boss本体和小怪的总Power
+ * 使用与玩家Power相同的公式：HP + Attack * 2 + Defense * 1.5
+ * 
+ * @param bossConfig Boss合并后的配置
+ * @returns Boss总Power（Boss本体 + 所有小怪）
+ */
+export function calculateBossPower(bossConfig: BossConfig): number {
+    // 1. 计算 Boss 本体 Power
+    // const bossPower = (bossConfig.baseHp ?? 0) + (bossConfig.baseDamage ?? 0) * 2 + (bossConfig.baseDefense ?? 0) * 1.5;
+    const bossPower = calculatePower(bossConfig.baseDamage ?? 0, bossConfig.baseDefense ?? 0, bossConfig.baseHp ?? 0);
+    // 2. 计算所有小怪的 Power
+    let minionsPower = 0;
+    if (bossConfig.minions && bossConfig.minions.length > 0) {
+        for (const minion of bossConfig.minions) {
+            // 获取小怪的基础属性（优先使用覆盖值，否则从 monsterId 获取）
+            let minionHp: number;
+            let minionDamage: number;
+            let minionDefense: number;
+
+            // 尝试从 MONSTER_CONFIGS_MAP 获取小怪配置
+            const minionMonsterConfig = MONSTER_CONFIGS_MAP[minion.monsterId];
+
+            if (minionMonsterConfig) {
+                // 使用角色配置的基础值，minion 的覆盖值优先
+                minionHp = minion.baseHp ?? minionMonsterConfig.baseHp;
+                minionDamage = minion.baseDamage ?? minionMonsterConfig.baseDamage;
+                minionDefense = minion.baseDefense ?? minionMonsterConfig.baseDefense;
+            } else {
+                // 如果没有角色配置，使用 minion 的覆盖值或默认值
+                minionHp = minion.baseHp ?? 100;
+                minionDamage = minion.baseDamage ?? 10;
+                minionDefense = minion.baseDefense ?? 5;
+            }
+
+            // 计算小怪 Power（使用与玩家Power相同的公式）
+            const minionPower = minionHp + minionDamage * 2 + minionDefense * 1.5;
+            minionsPower += minionPower;
+        }
+    }
+
+    // 3. 返回 Boss + 小怪的总 Power
+    return Math.floor(bossPower + minionsPower);
+}
+
+
+
+

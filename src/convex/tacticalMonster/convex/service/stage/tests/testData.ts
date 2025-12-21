@@ -1,75 +1,34 @@
 /**
  * Stage 测试数据准备函数
  * 用于 openStage Challenge 类型测试
+ * 
+ * 注意：Monster 配置直接从配置文件读取，不存数据库
  */
 
-import { MONSTER_CONFIGS } from "../../../data/monsterConfigs";
+import { MONSTER_CONFIGS_MAP } from "../../../data/monsterConfigs";
+import { TeamService } from "../../team/teamService";
 
 /**
- * 确保怪物配置存在于数据库中（如果不存在则创建）
+ * 检查怪物配置是否存在（从配置文件检查）
  */
-async function ensureMonsterConfigExists(ctx: any, monsterId: string): Promise<void> {
-    // 检查数据库中是否已存在
-    const existing = await ctx.db
-        .query("mr_monster_configs")
-        .withIndex("by_monsterId", (q: any) => q.eq("monsterId", monsterId))
-        .first();
-
-    if (existing) {
-        return; // 已存在，无需创建
-    }
-
-    // 从内存配置获取
-    const config = MONSTER_CONFIGS.find((config) => config.monsterId === monsterId);
+function checkMonsterConfigExists(monsterId: string): void {
+    const config = MONSTER_CONFIGS_MAP[monsterId];
     if (!config) {
-        throw new Error(`怪物配置不存在: ${monsterId}（内存和数据库中都不存在）`);
+        throw new Error(`怪物配置不存在: ${monsterId}（配置文件中不存在）`);
     }
-
-    // 计算成长率
-    const growthRates = {
-        hp: Math.floor(config.baseHp * 0.15),
-        damage: Math.floor(config.baseDamage * 0.10),
-        defense: Math.floor(config.baseDefense * 0.12),
-        speed: Math.floor(config.baseSpeed * 0.05),
-    };
-
-    // 插入数据库
-    await ctx.db.insert("mr_monster_configs", {
-        monsterId: config.monsterId,
-        name: config.name,
-        rarity: config.rarity,
-        class: config.class,
-        race: config.race,
-        baseHp: config.baseHp,
-        baseDamage: config.baseDamage,
-        baseDefense: config.baseDefense,
-        baseSpeed: config.baseSpeed,
-        skills: config.skills || [],
-        growthRates,
-        assetPath: config.assetPath,
-        configVersion: 1,
-    });
 }
 
 /**
- * 计算怪物Power（基于实际配置）
+ * 计算怪物Power（基于配置文件）
  * Power = (HP + Attack * 2 + Defense * 1.5) * StarMultiplier
  */
-async function calculateMonsterPowerFromConfig(
-    ctx: any,
+function calculateMonsterPowerFromConfig(
     monsterId: string,
     level: number,
     stars: number
-): Promise<number> {
-    // 确保配置存在
-    await ensureMonsterConfigExists(ctx, monsterId);
-
-    // 获取怪物配置
-    const config = await ctx.db
-        .query("mr_monster_configs")
-        .withIndex("by_monsterId", (q: any) => q.eq("monsterId", monsterId))
-        .first();
-
+): number {
+    // 从配置文件获取怪物配置
+    const config = MONSTER_CONFIGS_MAP[monsterId];
     if (!config) {
         throw new Error(`怪物配置不存在: ${monsterId}`);
     }
@@ -113,15 +72,8 @@ export async function setupChallengeStageTestData(
     } = {};
     const nowISO = new Date().toISOString();
 
-    // 标准的队伍初始位置（Hex 坐标）
-    const defaultTeamPositions = [
-        { q: 0, r: 0 },
-        { q: 1, r: 0 },
-        { q: 0, r: 1 },
-        { q: 1, r: 1 },
-    ];
-
     // 创建测试玩家队伍（通过创建 mr_player_monsters 并设置 teamPosition）
+    // teamPosition 现在是 Hex 坐标对象 { q: number, r: number }
     const testMonsters = [
         { monsterId: "monster_037", level: 1, stars: 1 },
         { monsterId: "monster_037", level: 1, stars: 1 },
@@ -129,9 +81,9 @@ export async function setupChallengeStageTestData(
         { monsterId: "monster_037", level: 1, stars: 1 },
     ];
 
-    // 确保怪物配置存在
+    // 检查怪物配置是否存在（从配置文件检查）
     for (const monster of testMonsters) {
-        await ensureMonsterConfigExists(ctx, monster.monsterId);
+        checkMonsterConfigExists(monster.monsterId);
     }
 
     // 检查是否已存在队伍（使用 inTeam 字段判断）
@@ -142,10 +94,10 @@ export async function setupChallengeStageTestData(
         .collect();
 
     if (existingTeamMonsters.length === 0) {
-        // 创建怪物并设置 teamPosition（使用 Hex 坐标）
+        // 创建怪物并设置 teamPosition（使用 Hex 坐标对象）
         for (let i = 0; i < testMonsters.length; i++) {
             const monster = testMonsters[i];
-            const teamPosition = defaultTeamPositions[i];
+            const position = TeamService.getDefaultPosition(i);
             await ctx.db.insert("mr_player_monsters", {
                 uid,
                 monsterId: monster.monsterId,
@@ -155,7 +107,7 @@ export async function setupChallengeStageTestData(
                 shards: 0,
                 unlockedSkills: [],
                 inTeam: 1,
-                teamPosition: teamPosition,  // 使用 Hex 坐标 {q, r}
+                teamPosition: position,  // 使用 Hex 坐标对象 { q, r }
                 obtainedAt: nowISO,
                 updatedAt: nowISO,
             });
@@ -268,15 +220,8 @@ export async function setupArenaStageTestData(
     } = {};
     const nowISO = new Date().toISOString();
 
-    // 标准的队伍初始位置（Hex 坐标）
-    const defaultTeamPositions = [
-        { q: 0, r: 0 },
-        { q: 1, r: 0 },
-        { q: 0, r: 1 },
-        { q: 1, r: 1 },
-    ];
-
     // 创建测试玩家队伍（通过创建 mr_player_monsters 并设置 teamPosition）
+    // teamPosition 现在是 Hex 坐标对象 { q: number, r: number }
     const testMonsters = [
         { monsterId: "monster_037", level: 1, stars: 1 },
         { monsterId: "monster_037", level: 1, stars: 1 },
@@ -284,9 +229,9 @@ export async function setupArenaStageTestData(
         { monsterId: "monster_037", level: 1, stars: 1 },
     ];
 
-    // 确保怪物配置存在
+    // 检查怪物配置是否存在（从配置文件检查）
     for (const monster of testMonsters) {
-        await ensureMonsterConfigExists(ctx, monster.monsterId);
+        checkMonsterConfigExists(monster.monsterId);
     }
 
     // 检查是否已存在队伍（使用 inTeam 字段判断）
@@ -297,10 +242,10 @@ export async function setupArenaStageTestData(
         .collect();
 
     if (existingTeamMonsters.length === 0) {
-        // 创建怪物并设置 teamPosition（使用 Hex 坐标）
+        // 创建怪物并设置 teamPosition（使用 Hex 坐标对象）
         for (let i = 0; i < testMonsters.length; i++) {
             const monster = testMonsters[i];
-            const teamPosition = defaultTeamPositions[i];
+            const position = TeamService.getDefaultPosition(i);
             await ctx.db.insert("mr_player_monsters", {
                 uid,
                 monsterId: monster.monsterId,
@@ -310,7 +255,7 @@ export async function setupArenaStageTestData(
                 shards: 0,
                 unlockedSkills: [],
                 inTeam: 1,
-                teamPosition: teamPosition,  // 使用 Hex 坐标 {q, r}
+                teamPosition: position,  // 使用 Hex 坐标对象 { q, r }
                 obtainedAt: nowISO,
                 updatedAt: nowISO,
             });
@@ -358,13 +303,10 @@ export async function cleanupArenaStageTestData(
                 .withIndex("by_uid", (q: any) => q.eq("uid", uid))
                 .collect();
 
-            const teamMonsters = allMonsters.filter((monster: any) =>
-                monster.teamPosition !== null &&
-                monster.teamPosition !== undefined &&
-                typeof monster.teamPosition === 'object' &&
-                monster.teamPosition.q !== undefined &&
-                monster.teamPosition.r !== undefined
-            );
+            // 过滤出在队伍中的怪物（inTeam === 1）
+            const teamMonsters = allMonsters.filter((monster: any) => {
+                return monster.inTeam === 1;
+            });
             for (const monster of teamMonsters) {
                 await ctx.db.patch(monster._id, {
                     teamPosition: undefined,
