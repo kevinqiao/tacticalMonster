@@ -3,15 +3,17 @@
  * 处理技能效果的应用、计算、移除和更新
  */
 
+import { SkillEffectType } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { Effect, EffectType, Stats } from "../types/CharacterTypes";
-import { GameCharacter } from "../types/CombatTypes";
+import { MonsterSprite } from "../types/CombatTypes";
+import { SeededRandom } from "./seededRandom";
 
 // 处理直接效果（生命值、魔法值的变化）
-const handleDirectEffect = (target: GameCharacter, effect: Effect) => {
+const handleDirectEffect = (target: MonsterSprite, effect: Effect) => {
     if (!target.stats) return;
 
     switch (effect.type) {
-        case EffectType.HOT:
+        case SkillEffectType.HOT:
             if (target.stats.hp) {
                 target.stats.hp.current = Math.min(
                     target.stats.hp.current + (effect.value || 0),
@@ -19,7 +21,7 @@ const handleDirectEffect = (target: GameCharacter, effect: Effect) => {
                 );
             }
             break;
-        case EffectType.MP_RESTORE:
+        case SkillEffectType.MP_RESTORE:
             if (target.stats.mp) {
                 target.stats.mp.current = Math.min(
                     target.stats.mp.current + (effect.value || 0),
@@ -27,7 +29,7 @@ const handleDirectEffect = (target: GameCharacter, effect: Effect) => {
                 );
             }
             break;
-        case EffectType.MP_DRAIN:
+        case SkillEffectType.MP_DRAIN:
             if (target.stats.mp) {
                 target.stats.mp.current = Math.max(
                     0,
@@ -39,15 +41,13 @@ const handleDirectEffect = (target: GameCharacter, effect: Effect) => {
 };
 
 // 处理状态效果
-const handleStatusEffect = (target: GameCharacter, effect: Effect) => {
+const handleStatusEffect = (target: MonsterSprite, effect: Effect) => {
     switch (effect.type) {
-        case EffectType.STUN:
+        case SkillEffectType.STUN:
             target.status = 'stunned';
             break;
-        case EffectType.SHIELD:
-            if (!target.stats) {
-                target.stats = {};
-            }
+        case SkillEffectType.SHIELD:
+            // GameMonsterWithUI 的 stats 是必需的，不需要创建新对象
             if (!target.stats.shield) {
                 target.stats.shield = { current: 0, max: 0 };
             }
@@ -61,7 +61,7 @@ const handleStatusEffect = (target: GameCharacter, effect: Effect) => {
 };
 
 // 处理属性修改
-const handleStatModifiers = (target: GameCharacter, effect: Effect) => {
+const handleStatModifiers = (target: MonsterSprite, effect: Effect) => {
     if (!effect.modifiers || !target.stats) return;
     const stats = target.stats;
 
@@ -73,9 +73,9 @@ const handleStatModifiers = (target: GameCharacter, effect: Effect) => {
             // 乘法修改器
             if (statValue) {
                 if (typeof statValue === 'number') {
-                    (stats[statKey] as number) = statValue * (effect.type === EffectType.DEBUFF ? (1 - value) : (1 + value));
+                    (stats[statKey] as number) = statValue * (effect.type === SkillEffectType.DEBUFF ? (1 - value) : (1 + value));
                 } else if ('current' in statValue && 'max' in statValue) {
-                    const multiplier = effect.type === EffectType.DEBUFF ? (1 - value) : (1 + value);
+                    const multiplier = effect.type === SkillEffectType.DEBUFF ? (1 - value) : (1 + value);
                     statValue.current = Math.round(statValue.current * multiplier);
                     statValue.max = Math.round(statValue.max * multiplier);
                 }
@@ -84,7 +84,7 @@ const handleStatModifiers = (target: GameCharacter, effect: Effect) => {
             // 加法修改器
             if (statValue) {
                 if (typeof statValue === 'number') {
-                    (stats[statKey] as number) = statValue + (effect.type === EffectType.DEBUFF ? -value : value);
+                    (stats[statKey] as number) = statValue + (effect.type === SkillEffectType.DEBUFF ? -value : value);
                 } else if ('current' in statValue && 'max' in statValue) {
                     const addValue = effect.type === EffectType.DEBUFF ? -value : value;
                     statValue.current = Math.max(0, statValue.current + addValue);
@@ -98,15 +98,15 @@ const handleStatModifiers = (target: GameCharacter, effect: Effect) => {
 /**
  * 应用效果到目标角色
  */
-export const applyEffect = (target: GameCharacter, effect: Effect): void => {
-    if (!target.activeEffects) {
-        target.activeEffects = [];
+export const applyEffect = (target: MonsterSprite, effect: Effect): void => {
+    if (!target.statusEffects) {
+        target.statusEffects = [];
     }
 
     // 检查并更新已存在的效果（相同ID的效果）
-    const existingEffect = target.activeEffects.find(e => e.id === effect.id);
+    const existingEffect = target.statusEffects.find(e => e.id === effect.id);
     if (existingEffect) {
-        existingEffect.remaining_duration = effect.duration;
+        existingEffect.remaining_duration = effect.remaining_duration ?? effect.duration ?? 0;
         // 更新效果值（如果是可叠加的效果）
         if (effect.value !== undefined) {
             existingEffect.value = effect.value;
@@ -115,25 +115,25 @@ export const applyEffect = (target: GameCharacter, effect: Effect): void => {
     }
 
     // 添加新效果
-    const newEffect = { ...effect, remaining_duration: effect.duration || effect.remaining_duration || 0 };
-    target.activeEffects.push(newEffect);
+    const newEffect = { ...effect, remaining_duration: effect.remaining_duration ?? effect.duration ?? 0 };
+    target.statusEffects.push(newEffect);
 
     // 应用效果
     switch (effect.type) {
-        case EffectType.BUFF:
-        case EffectType.DEBUFF:
+        case SkillEffectType.BUFF:
+        case SkillEffectType.DEBUFF:
             handleStatModifiers(target, newEffect);
             break;
-        case EffectType.DOT:
-        case EffectType.HOT:
+        case SkillEffectType.DOT:
+        case SkillEffectType.HOT:
             handleDirectEffect(target, newEffect);
             break;
-        case EffectType.STUN:
-        case EffectType.SHIELD:
+        case SkillEffectType.STUN:
+        case SkillEffectType.SHIELD:
             handleStatusEffect(target, newEffect);
             break;
-        case EffectType.MP_RESTORE:
-        case EffectType.MP_DRAIN:
+        case SkillEffectType.MP_RESTORE:
+        case SkillEffectType.MP_DRAIN:
             handleDirectEffect(target, newEffect);
             break;
     }
@@ -142,23 +142,23 @@ export const applyEffect = (target: GameCharacter, effect: Effect): void => {
 /**
  * 更新角色的持续效果（每回合结束时调用）
  */
-export const updateEffects = (character: GameCharacter): void => {
-    if (!character.activeEffects) return;
+export const updateEffects = (character: MonsterSprite): void => {
+    if (!character.statusEffects) return;
 
-    character.activeEffects = character.activeEffects.filter(effect => {
+    character.statusEffects = character.statusEffects.filter(effect => {
         if (!effect.remaining_duration || effect.remaining_duration <= 0) {
             removeEffect(character, effect);
             return false;
         }
 
         // 处理持续伤害/治疗（DOT/HOT）
-        if (effect.type === EffectType.DOT) {
+        if (effect.type === SkillEffectType.DOT) {
             // 每回合造成伤害
             if (character.stats?.hp && effect.value) {
                 const damage = Math.round(effect.value);
                 character.stats.hp.current = Math.max(0, character.stats.hp.current - damage);
             }
-        } else if (effect.type === EffectType.HOT) {
+        } else if (effect.type === SkillEffectType.HOT) {
             // 每回合恢复生命
             if (character.stats?.hp && effect.value) {
                 const heal = Math.round(effect.value);
@@ -170,7 +170,7 @@ export const updateEffects = (character: GameCharacter): void => {
         }
 
         // 护盾效果特殊处理
-        if (effect.type === EffectType.SHIELD && character.stats?.shield?.current === 0) {
+        if (effect.type === SkillEffectType.SHIELD && character.stats?.shield?.current === 0) {
             removeEffect(character, effect);
             return false;
         }
@@ -188,16 +188,16 @@ export const updateEffects = (character: GameCharacter): void => {
 /**
  * 移除效果
  */
-export const removeEffect = (target: GameCharacter, effect: Effect): void => {
-    if (!target.activeEffects) return;
+export const removeEffect = (target: MonsterSprite, effect: Effect): void => {
+    if (!target.statusEffects) return;
 
     // 移除效果
-    target.activeEffects = target.activeEffects.filter(e => e.id !== effect.id);
+    target.statusEffects = target.statusEffects.filter(e => e.id !== effect.id);
 
     // 清除效果影响（恢复属性）
     switch (effect.type) {
-        case EffectType.BUFF:
-        case EffectType.DEBUFF:
+        case SkillEffectType.BUFF:
+        case SkillEffectType.DEBUFF:
             // 恢复属性修改
             if (effect.modifiers) {
                 const reverseModifiers = Object.fromEntries(
@@ -210,13 +210,13 @@ export const removeEffect = (target: GameCharacter, effect: Effect): void => {
                 });
             }
             break;
-        case EffectType.SHIELD:
+        case SkillEffectType.SHIELD:
             if (target.stats?.shield) {
                 // 护盾移除时不清零，只移除效果标记
                 // 护盾值会在被攻击时自然消耗
             }
             break;
-        case EffectType.STUN:
+        case SkillEffectType.STUN:
             target.status = 'normal';
             break;
     }
@@ -242,12 +242,18 @@ export const calculateAttributeBonus = (attribute: number | undefined, type: 'in
 
 /**
  * 计算伤害
+ * @param rng 可选的确定性随机数生成器，用于乐观更新
  */
-export const calculateDamage = (attacker: GameCharacter, target: GameCharacter, effect: Effect): number => {
+export const calculateDamage = (
+    attacker: MonsterSprite,
+    target: MonsterSprite,
+    effect: Effect,
+    rng?: SeededRandom
+): number => {
     let damage = effect.value || 0;
 
     // DOT伤害直接使用效果值
-    if (effect.type === EffectType.DOT) {
+    if (effect.type === SkillEffectType.DOT) {
         return damage;
     }
 
@@ -265,10 +271,11 @@ export const calculateDamage = (attacker: GameCharacter, target: GameCharacter, 
         damage *= (1 - defenseReduction);
     }
 
-    // 暴击计算
+    // 暴击计算（使用 RNG 如果提供）
     if (attacker.stats?.crit_rate) {
         const critChance = Math.min(attacker.stats.crit_rate, 1);
-        if (Math.random() < critChance) {
+        const isCrit = rng ? rng.chance(critChance) : Math.random() < critChance;
+        if (isCrit) {
             damage *= 1.5;
         }
     }
@@ -291,12 +298,14 @@ export const calculateDamage = (attacker: GameCharacter, target: GameCharacter, 
 
 /**
  * 计算效果值（考虑距离衰减、属性加成等）
+ * @param rng 可选的确定性随机数生成器，用于乐观更新
  */
 export const calculateEffectValue = (
-    caster: GameCharacter,
-    target: GameCharacter,
+    caster: MonsterSprite,
+    target: MonsterSprite,
     effect: Effect,
-    distance?: number
+    distance?: number,
+    rng?: SeededRandom
 ): Effect => {
     let finalEffect = { ...effect };
 
@@ -310,30 +319,30 @@ export const calculateEffectValue = (
 
     // 根据效果类型计算最终值
     switch (effect.type) {
-        case EffectType.DOT:
-        case EffectType.DEBUFF:
+        case SkillEffectType.DOT:
+        case SkillEffectType.DEBUFF:
             if (effect.damage_type) {
-                // 伤害类效果，使用calculateDamage计算
-                const damage = calculateDamage(caster, target, finalEffect);
+                // 伤害类效果，使用calculateDamage计算（传入 RNG）
+                const damage = calculateDamage(caster, target, finalEffect, rng);
                 finalEffect.value = damage;
             }
             break;
 
-        case EffectType.HOT:
-        case EffectType.MP_RESTORE:
+        case SkillEffectType.HOT:
+        case SkillEffectType.MP_RESTORE:
             if (caster.stats?.intelligence) {
                 const intBonus = calculateAttributeBonus(caster.stats.intelligence, 'intelligence');
                 finalEffect.value = Math.round((finalEffect.value || 0) * intBonus);
             }
             break;
 
-        case EffectType.SHIELD:
+        case SkillEffectType.SHIELD:
             const intBonus = calculateAttributeBonus(caster.stats?.intelligence, 'intelligence');
             const defBonus = calculateAttributeBonus(caster.stats?.defense, 'defense');
             finalEffect.value = Math.round((finalEffect.value || 0) * intBonus * defBonus);
             break;
 
-        case EffectType.BUFF:
+        case SkillEffectType.BUFF:
             if (finalEffect.modifiers && caster.stats?.intelligence) {
                 const intelligenceBonus = calculateAttributeBonus(caster.stats.intelligence, 'intelligence');
                 finalEffect.modifiers = Object.fromEntries(
@@ -344,12 +353,12 @@ export const calculateEffectValue = (
     }
 
     // 处理效果持续时间修正
-    if (effect.type === EffectType.BUFF || effect.type === EffectType.HOT) {
+    if (effect.type === SkillEffectType.BUFF || effect.type === SkillEffectType.HOT) {
         if (caster.stats?.intelligence) {
             const durationBonus = 1 + caster.stats.intelligence * 0.005;
             finalEffect.duration = Math.round((finalEffect.duration || 0) * durationBonus);
         }
-    } else if (effect.type === EffectType.DEBUFF || effect.type === EffectType.DOT) {
+    } else if (effect.type === SkillEffectType.DEBUFF || effect.type === SkillEffectType.DOT) {
         if (target.stats?.status_resistance) {
             const resistanceReduction = 1 - target.stats.status_resistance * 0.01;
             finalEffect.duration = Math.round((finalEffect.duration || 0) * resistanceReduction);

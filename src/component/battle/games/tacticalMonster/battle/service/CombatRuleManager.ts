@@ -1,5 +1,6 @@
 /**
  * Tactical Monster 战斗规则管理器
+ * PVE模式：玩家 vs Boss（Boss本体 + 小怪，uid="boss"）
  * 基于 solitaireSolo 的 SoloRuleManager 设计模式
  */
 
@@ -10,9 +11,9 @@ import {
     CombatAction,
     CombatRound,
     CombatRule,
-    GameCharacter,
     GameModel,
     GridCell,
+    MonsterSprite,
     TacticalMonsterGameConfig,
     WalkableNode
 } from "../types/CombatTypes";
@@ -32,7 +33,7 @@ export class CombatRuleManager implements CombatRule {
     /**
      * 检查角色是否可以移动到指定位置
      */
-    canWalk(character: GameCharacter, to: { q: number; r: number }): boolean {
+    canWalk(character: MonsterSprite, to: { q: number; r: number }): boolean {
         if (!this.gridCells || !this.currentRound) return false;
 
         // 检查是否是当前回合的角色
@@ -92,8 +93,9 @@ export class CombatRuleManager implements CombatRule {
 
     /**
      * 检查是否可以攻击目标
+     * PVE模式：玩家只能攻击Boss（uid="boss"），Boss只能攻击玩家
      */
-    canAttack(attacker: GameCharacter, target: GameCharacter, skill?: Skill | null): boolean {
+    canAttack(attacker: MonsterSprite, target: MonsterSprite, skill?: Skill | null): boolean {
         if (!this.gridCells || !this.currentRound) return false;
 
         // 检查是否是当前回合的角色
@@ -106,7 +108,7 @@ export class CombatRuleManager implements CombatRule {
         if (attacker.status === 'stunned') return false;
         if (target.status === 'stunned') return true; // 可以攻击眩晕的目标
 
-        // 检查是否是敌人
+        // PVE模式：不能攻击同队角色
         if (attacker.uid === target.uid) return false;
 
         // 检查技能冷却
@@ -134,6 +136,7 @@ export class CombatRuleManager implements CombatRule {
         const attackRange = skill?.range?.max_distance ?? attacker.attack_range?.max ?? 1;
         const grid = this.gridCells.map((row) => row.map((cell) => ({ ...cell, walkable: true })));
 
+        // PVE模式：获取可攻击的目标（玩家攻击Boss，Boss攻击玩家）
         const enemies = this.gameState.characters
             .filter((c) => c.uid !== attacker.uid)
             .map((c) => ({
@@ -166,7 +169,7 @@ export class CombatRuleManager implements CombatRule {
     /**
      * 检查是否可以选择技能
      */
-    canSelectSkill(character: GameCharacter, skill: Skill): boolean {
+    canSelectSkill(character: MonsterSprite, skill: Skill): boolean {
         if (!this.currentRound) return false;
 
         // 检查是否是当前回合的角色
@@ -209,7 +212,7 @@ export class CombatRuleManager implements CombatRule {
     /**
      * 获取可移动的目标位置
      */
-    getWalkableTargets(character: GameCharacter): WalkableNode[] {
+    getWalkableTargets(character: MonsterSprite): WalkableNode[] {
         if (!this.gridCells || !this.currentRound) return [];
 
         const currentTurn = this.currentRound.turns.find(
@@ -240,8 +243,9 @@ export class CombatRuleManager implements CombatRule {
 
     /**
      * 获取可攻击的目标
+     * PVE模式：返回可攻击的目标（玩家攻击Boss，Boss攻击玩家）
      */
-    getAttackableTargets(attacker: GameCharacter, skill?: Skill | null): AttackableNode[] {
+    getAttackableTargets(attacker: MonsterSprite, skill?: Skill | null): AttackableNode[] {
         if (!this.gridCells || !this.currentRound) return [];
 
         const currentTurn = this.currentRound.turns.find(
@@ -255,6 +259,7 @@ export class CombatRuleManager implements CombatRule {
         const attackRange = skill?.range?.max_distance ?? attacker.attack_range?.max ?? 1;
         const grid = this.gridCells.map((row) => row.map((cell) => ({ ...cell, walkable: true })));
 
+        // PVE模式：获取可攻击的目标（玩家攻击Boss，Boss攻击玩家）
         const enemies = this.gameState.characters
             .filter((c) => c.uid !== attacker.uid)
             .map((c) => ({
@@ -281,8 +286,9 @@ export class CombatRuleManager implements CombatRule {
 
     /**
      * 检查游戏是否结束
-     * 玩家胜利：所有敌人角色被击败
-     * 玩家失败：玩家角色全灭
+     * PVE模式：
+     * - 玩家胜利：所有Boss角色被击败（Boss本体 + 小怪，uid="boss"）
+     * - 玩家失败：玩家角色全灭
      */
     isGameOver(): boolean {
         if (!this.gameState.characters || this.gameState.characters.length === 0) return false;
@@ -298,25 +304,26 @@ export class CombatRuleManager implements CombatRule {
             (c) => (c.stats?.hp?.current ?? 0) > 0
         );
 
-        // 检查敌人角色是否存活
-        const enemyChars = this.gameState.characters.filter(
-            (c) => c.uid !== playerUid
+        // 检查Boss角色是否存活（Boss本体 + 小怪，uid="boss"）
+        const bossChars = this.gameState.characters.filter(
+            (c) => c.uid === "boss"
         );
-        const enemyAlive = enemyChars.some(
+        const bossAlive = bossChars.some(
             (c) => (c.stats?.hp?.current ?? 0) > 0
         );
 
         // 玩家失败：玩家角色全灭
         if (!playerAlive) return true;
 
-        // 玩家胜利：所有敌人被击败
-        if (!enemyAlive) return true;
+        // 玩家胜利：所有Boss被击败
+        if (!bossAlive) return true;
 
         return false;
     }
 
     /**
      * 计算每次行动的得分
+     * PVE模式：击败Boss得分
      * 参考 solitaireSolo 的 calculateMoveScore
      */
     calculateActionScore(action: CombatAction, config: TacticalMonsterGameConfig): number {
@@ -324,9 +331,9 @@ export class CombatRuleManager implements CombatRule {
 
         switch (action.act) {
             case ACT_CODE.ATTACK:
-                // 击败敌人得分
+                // 击败Boss得分
                 if (action.data?.killed) {
-                    score += config.scoring.killEnemy;
+                    score += config.scoring.defeatBoss;
                 } else {
                     // 攻击得分（较小）
                     score += 10;

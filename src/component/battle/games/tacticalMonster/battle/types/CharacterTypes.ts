@@ -3,6 +3,8 @@
  */
 
 import { TopLevelCondition } from "json-rules-engine";
+import { SkillEffectType } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { StatusEffect } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
 
 export enum ASSET_TYPE {
     SPINE = 0,
@@ -22,11 +24,21 @@ export interface SkillRange {
     max_distance?: number;
 }
 
+/**
+ * 技能动画配置
+ */
+export interface SkillAnimation {
+    name?: string;        // 施法者动画名称（如 "melee", "cast", "cast_fire"）
+    target?: string;      // 目标动画名称（如 "hurt", "stand"），可选，通常可自动推断
+    type?: "attack" | "cast" | "special";  // 动画类型提示（可选，用于回退）
+}
+
 export interface Skill {
     id: string;
     name: string;
     type: "master" | "active" | "passive";
     description?: string;
+    animation?: SkillAnimation;  // 动画配置对象
     canTriggerCounter?: boolean;
     priority?: number;
     availabilityConditions?: TopLevelCondition;
@@ -100,34 +112,21 @@ export interface DamageFalloff {
     min_damage_percent: number;
 }
 
-export enum EffectType {
-    BUFF = 'buff',
-    DEBUFF = 'debuff',
-    DOT = 'dot',
-    HOT = 'hot',
-    STUN = 'stun',
-    SHIELD = 'shield',
-    MP_DRAIN = 'mp_drain',
-    MP_RESTORE = 'mp_restore'
-}
+// 使用后端的 SkillEffectType，为了向后兼容保留 EffectType 别名
+export { SkillEffectType as EffectType };
 
-export interface Effect {
-    id: string;
-    name: string;
-    type: EffectType;
-    duration: number;
-    remaining_duration?: number;
-    modifiers?: {
-        [key: string]: number;
-    };
-    modifier_type?: 'add' | 'multiply';
-    value?: number;
-    icon?: string;
-    damage_falloff?: DamageFalloff;
-    area_type?: 'single' | 'circle' | 'line';
-    area_size?: number;
-    damage_type?: 'physical' | 'magical';
-    target_attribute?: string;  // 目标属性（如 "attack", "defense", "hp", "mp"）
+/**
+ * Effect - 前端效果类型
+ * 直接继承后端的 StatusEffect，确保类型一致性
+ */
+export interface Effect extends StatusEffect {
+    // StatusEffect 已经包含了所有需要的字段：
+    // - id, name, type (SkillEffectType)
+    // - duration (可选), remaining_duration (必需)
+    // - modifiers, modifier_type, value
+    // - icon, damage_falloff, area_type, area_size
+    // - damage_type, target_attribute
+    // 如果需要前端特有字段，可以在这里添加
 }
 
 

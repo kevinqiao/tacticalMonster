@@ -4,7 +4,7 @@
 
 import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
-import usePlayAttack from "../../animation/usePlayAttack";
+import usePlaySkill from "../../animation/usePlaySkill";
 import usePlaySkillSelect from "../../animation/usePlaySkillSelect";
 import usePlayWalk from "../../animation/usePlayWalk";
 import { useCombatManager } from "../CombatManager";
@@ -21,7 +21,7 @@ const useActionProcessor = () => {
 
     const { playWalk } = usePlayWalk();
     const { playSkillSelect } = usePlaySkillSelect();
-    const { playAttack } = usePlayAttack();
+    const { playSkill } = usePlaySkill();
 
     const processSkillSelect = useCallback(({ data, onComplete }: { data: any, onComplete: () => void }) => {
         const { uid, character_id, skillId } = data;
@@ -48,9 +48,30 @@ const useActionProcessor = () => {
     }, [user, resourceLoad, characters, gridCells, hexCell, playWalk]);
 
     const processAttack = useCallback(({ data, onComplete }: { data: any, onComplete: () => void }) => {
-        const { attacker, target } = data;
-        playAttack(attacker, target, onComplete);
-    }, [characters, gridCells, hexCell, playAttack]);
+        if (!characters) {
+            onComplete();
+            return;
+        }
+        
+        const { attacker, target, skillId } = data;
+        const attackerChar = characters.find(
+            c => c.uid === attacker?.uid && c.character_id === attacker?.character_id
+        );
+        const targetChar = characters.find(
+            c => c.uid === target?.uid && c.character_id === target?.character_id
+        );
+        
+        if (attackerChar && targetChar) {
+            const skillIdToUse = skillId || attacker?.skillId || attackerChar.skills?.[0]?.id || "";
+            if (skillIdToUse) {
+                playSkill(attackerChar, skillIdToUse, [targetChar], onComplete);
+            } else {
+                onComplete();
+            }
+        } else {
+            onComplete();
+        }
+    }, [characters, gridCells, hexCell, playSkill]);
 
     const processSkill = useCallback((data: any) => {
         // TODO: 实现技能处理

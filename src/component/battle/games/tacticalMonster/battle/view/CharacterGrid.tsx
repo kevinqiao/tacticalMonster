@@ -9,7 +9,7 @@ import usePlayPhase from "../animation/usePlayPhase";
 import { useCombatManager } from "../service/CombatManager";
 import useCombatActHandler from "../service/handler/useCombatActHandler";
 import { ASSET_TYPE } from "../types/CharacterTypes";
-import { GameCharacter } from "../types/CombatTypes";
+import { MonsterSprite } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 import Character3D from "./Character3D";
 import CharacterSpine from "./CharacterSpine";
@@ -18,7 +18,7 @@ import CharacterSpine from "./CharacterSpine";
 import { ModelConfig } from "../config/modelConfig";
 
 export interface ICharacterProps {
-    character: GameCharacter;
+    character: MonsterSprite;
     width: number;
     height: number;
     onAnimatorReady?: (animator: { move: () => void; stand: () => void; attack?: () => void }) => void;
@@ -28,7 +28,7 @@ export interface ICharacterProps {
 }
 
 interface Props {
-    character: GameCharacter;
+    character: MonsterSprite;
 }
 
 const CharacterCell: React.FC<Props> = ({ character }) => {

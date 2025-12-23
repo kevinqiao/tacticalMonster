@@ -6,7 +6,7 @@ import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
 import { Skill } from "../types/CharacterTypes";
-import { CombatTurn, GameCharacter } from "../types/CombatTypes";
+import { CombatTurn, MonsterSprite } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 
 const usePlayPhase = () => {
@@ -36,6 +36,7 @@ const usePlayPhase = () => {
             canIgnoreObstacles  // 传递飞行标志
         );
         character.walkables = walkableNodes;
+        // PVE模式：获取可攻击的目标（玩家攻击Boss，Boss攻击玩家）
         const enemies = characters.filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
             .map(c => ({
                 uid: c.uid,
@@ -110,7 +111,7 @@ const usePlayPhase = () => {
 
     }, [characters, gridCells, hexCell, map, setActiveSkill]);
 
-    const playTurnStart = useCallback((character: GameCharacter, timeline: gsap.core.Timeline | null) => {
+    const playTurnStart = useCallback((character: MonsterSprite, timeline: gsap.core.Timeline | null) => {
         if (!map || !gridCells) return;
         const { cols, direction } = map;
         const tl = gsap.timeline();

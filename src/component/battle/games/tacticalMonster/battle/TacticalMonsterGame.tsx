@@ -7,9 +7,8 @@ import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import React from 'react';
 import BattlePlayer from './BattlePlayer';
 import CombatManager from './service/CombatManager';
-import { EventProvider } from './service/EventProvider';
-import { TacticalMonsterGameConfig } from './types/CombatTypes';
 import './style.css';
+import { TacticalMonsterGameConfig } from './types/CombatTypes';
 
 interface TacticalMonsterGameProps {
     gameId?: string;
@@ -36,9 +35,7 @@ const TacticalMonsterGame: React.FC<TacticalMonsterGameProps> = ({
         <div className="tactical-monster-game-container">
             <ConvexProvider client={client}>
                 <CombatManager gameId={gameId} config={config} onGameLoadComplete={onGameLoadComplete} onGameSubmit={onGameSubmit}>
-                    <EventProvider>
-                        <BattlePlayer gameId={gameId} />
-                    </EventProvider>
+                    <BattlePlayer gameId={gameId} />
                 </CombatManager>
             </ConvexProvider>
         </div>

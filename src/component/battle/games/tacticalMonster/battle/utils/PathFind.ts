@@ -25,26 +25,26 @@ const calculateHexDistance = (from: HexNode, to: HexNode): number => {
 // 飞行单位的直线路径（忽略障碍物）
 const findDirectPath = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNode[] => {
     const path: HexNode[] = [start];
-    
+
     // 如果起点和终点相同，直接返回
     if (start.x === goal.x && start.y === goal.y) {
         return path;
     }
-    
+
     const distance = calculateHexDistance(start, goal);
-    
+
     // 如果距离为1，直接返回终点
     if (distance <= 1) {
         return [start, goal];
     }
-    
+
     // 计算直线路径上的所有中间点
     const steps = distance;
     for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         const q = Math.round(start.x + (goal.x - start.x) * t);
         const r = Math.round(start.y + (goal.y - start.y) * t);
-        
+
         // 检查是否在网格范围内
         if (r >= 0 && r < grid.length && q >= 0 && q < grid[0].length) {
             const node = { x: q, y: r };
@@ -55,7 +55,7 @@ const findDirectPath = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNo
             }
         }
     }
-    
+
     return path;
 };
 
@@ -69,7 +69,7 @@ export const findPath = (
     if (canIgnoreObstacles) {
         return findDirectPath(start, goal, grid);
     }
-    
+
     const isWalkable = (x: number, y: number): boolean => {
         if (y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) return false;
         return grid[y][x].walkable ?? false;
@@ -171,23 +171,23 @@ export const getWalkableNodes = (
         const movableNodes: WalkableNode[] = [];
         const rows = gridCells.length;
         const cols = gridCells[0]?.length || 0;
-        
+
         for (let r = 0; r < rows; r++) {
             for (let q = 0; q < cols; q++) {
                 const distance = calculateHexDistance(
                     { x: start.x, y: start.y },
                     { x: q, y: r }
                 );
-                
+
                 if (distance > 0 && distance <= moveRange) {
                     movableNodes.push({ x: q, y: r, distance, walkable: true });
                 }
             }
         }
-        
+
         return movableNodes;
     }
-    
+
     // 非飞行单位：使用BFS算法（考虑障碍物）
     const movableNodes: WalkableNode[] = [];
     const visited = new Set<string>();
@@ -247,15 +247,20 @@ export const getWalkableNodes = (
     return movableNodes;
 };
 
+/**
+ * 获取可攻击的目标节点
+ * PVE模式：enemies参数包含Boss角色（Boss本体 + 小怪，uid="boss"）
+ */
 export const getAttackableNodes = (
     gridCells: HexNode[][],
     attacker: { q: number, r: number, uid: string, character_id: string, moveRange: number, attackRange: { min: number, max: number } },
-    enemies: { q: number, r: number, uid: string, character_id: string }[],
+    enemies: { q: number, r: number, uid: string, character_id: string }[],  // PVE模式：Boss角色列表
     skill: Skill | null
 ): AttackableNode[] => {
     const grid = gridCells.map(row => row.map(cell => ({ ...cell, walkable: true })));
     const attackableNodes: AttackableNode[] = [];
 
+    // PVE模式：遍历Boss角色（Boss本体 + 小怪）
     for (const enemy of enemies) {
         if (attacker.attackRange.max === 1) {
             gridCells[enemy.r][enemy.q].walkable = true;

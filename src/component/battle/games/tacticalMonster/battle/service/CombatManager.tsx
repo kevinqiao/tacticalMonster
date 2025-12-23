@@ -1,5 +1,6 @@
 /**
  * Tactical Monster 战斗管理器
+ * PVE模式：玩家 vs Boss（Boss本体 + 小怪，uid="boss"）
  * 基于 solitaireSolo 的架构模式实现
  */
 
@@ -9,19 +10,22 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../../../convex/tacticalMonster/convex/_generated/api";
+import type { GameBoss, GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
 import { Skill } from "../types/CharacterTypes";
 import {
     CombatEvent,
     CombatRound,
     DEFAULT_GAME_CONFIG,
-    GameCharacter,
+    GameMode,
     GameModel,
     GameReport,
     GridCell,
     ICombatContext,
     MapModel,
+    MonsterSprite,
     TacticalMonsterGameConfig
 } from "../types/CombatTypes";
+import { toMonsterSprite } from "../utils/typeAdapter";
 import CombatRuleManager from "./CombatRuleManager";
 
 // 注册 MotionPathPlugin
@@ -54,7 +58,9 @@ export const CombatContext = createContext<ICombatContext>({
     setResourceLoad: () => null,
     changeCell: () => null,
     changeCoordDirection: () => null,
-    setActiveSkill: () => null
+    setActiveSkill: () => null,
+    updateGame: () => null,
+    mode: 'play'
 });
 
 export const useCombatManager = () => {
@@ -69,6 +75,7 @@ interface CombatManagerProps {
     children: ReactNode;
     gameId?: string;
     config?: Partial<TacticalMonsterGameConfig>;
+    mode?: GameMode;  // 游戏模式
     onGameLoadComplete?: () => void;
     onGameSubmit?: () => void;
 }
@@ -77,6 +84,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     children,
     gameId,
     config: customConfig,
+    mode = 'play',
     onGameLoadComplete,
     onGameSubmit
 }) => {
@@ -96,14 +104,18 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     const [gameReport, setGameReport] = useState<GameReport | null>(null);
     const [score, setScore] = useState<number>(0);
 
-    const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
+    const config = {
+        ...DEFAULT_GAME_CONFIG,
+        ...customConfig,
+        mode: mode || customConfig?.mode || 'play'  // 合并模式配置
+    };
 
     const convex = useConvex();
     const { user } = useUserManager();
 
     // 查询事件
     const events: any = useQuery(
-        (api as any).service.game.gameService.findEvents,
+        api.service.game.gameService.findEvents,
         gameId ? { gameId, lastTime } : "skip"
     );
 
@@ -123,28 +135,78 @@ const CombatManager: React.FC<CombatManagerProps> = ({
                 const gameObj = await convex.query((api as any).service.game.gameService.loadGame, { gameId });
                 if (gameObj?.ok && gameObj.data) {
                     const gameData = gameObj.data;
-                    // 设置角色翻转方向：玩家角色 scaleX = 1，AI 敌人 scaleX = -1
-                    gameData.characters?.forEach((character: any) => {
-                        const c = character as GameCharacter;
-                        if (c.uid === gameData.playerUid) {
-                            c.scaleX = 1;
-                        } else {
-                            c.scaleX = -1;
+
+                    // 将后端Monster转换为前端MonsterSprite
+                    // 后端返回的是 GameModel，包含 team (GameMonster[]) 和 boss (GameBoss)
+                    const characters: MonsterSprite[] = [];
+                    const existingSpritesMap = new Map<string, MonsterSprite>();
+
+                    // 如果有现有的角色，保存它们的UI相关字段
+                    if (game?.characters) {
+                        game.characters.forEach(char => {
+                            existingSpritesMap.set(char.character_id, char);
+                        });
+                    }
+
+                    // PVE模式：处理玩家队伍
+                    if (gameData.team && Array.isArray(gameData.team)) {
+                        gameData.team.forEach((monster: GameMonster) => {
+                            const existingSprite = existingSpritesMap.get(monster.monsterId);
+                            const sprite = toMonsterSprite(monster, existingSprite);
+                            // 设置角色翻转方向：玩家角色 scaleX = 1
+                            sprite.scaleX = 1;
+                            characters.push(sprite);
+                        });
+                    }
+
+                    // PVE模式：处理Boss（包括Boss本体和小怪，uid="boss"）
+                    if (gameData.boss) {
+                        const boss = gameData.boss as GameBoss;
+                        // Boss本体
+                        const existingBossSprite = existingSpritesMap.get(boss.bossId || boss.monsterId);
+                        const bossSprite = toMonsterSprite(boss, existingBossSprite);
+                        bossSprite.scaleX = -1; // Boss角色 scaleX = -1（面向玩家）
+                        characters.push(bossSprite);
+
+                        // Boss的小怪
+                        if (boss.minions && Array.isArray(boss.minions)) {
+                            boss.minions.forEach((minion: GameMonster) => {
+                                const minionId = (minion as any).minionId || minion.monsterId;
+                                const existingMinionSprite = existingSpritesMap.get(minionId);
+                                const minionSprite = toMonsterSprite(minion, existingMinionSprite);
+                                minionSprite.scaleX = -1; // Boss小怪 scaleX = -1（面向玩家）
+                                characters.push(minionSprite);
+                            });
                         }
-                    });
+                    }
+
+                    // 转换地图数据
+                    const mapModel: MapModel = {
+                        rows: gameData.map?.rows || 7,
+                        cols: gameData.map?.cols || 8,
+                        direction: gameData.map?.direction,
+                        obstacles: gameData.map?.obstacles?.map((obs: { q: number; r: number }) => ({
+                            q: obs.q,
+                            r: obs.r,
+                            asset: "",
+                            walkable: false,
+                            type: 1
+                        })),
+                        disables: gameData.map?.disables || []
+                    };
 
                     setGame({
                         gameId: gameData.gameId,
-                        map: gameData.map as MapModel,
-                        playerUid: gameData.playerUid,
-                        characters: gameData.characters || [],
+                        map: mapModel,
+                        playerUid: gameData.uid || gameData.playerUid || user?.uid || "",
+                        characters,
                         currentRound: gameData.currentRound || defaultRound,
                         timeClock: 0,
                         score: gameData.score || 0
                     });
 
                     setScore(gameData.score || 0);
-                    setLastTime(gameData.lastUpdate);
+                    setLastTime(gameData.lastUpdate ? new Date(gameData.lastUpdate).getTime() : undefined);
                     eventQueueRef.current.push({
                         name: "gameInit",
                         data: gameData,
@@ -161,12 +223,24 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         };
 
         fetchGame(gameId);
-    }, [gameId, convex, onGameLoadComplete]);
+    }, [gameId, convex, onGameLoadComplete, user?.uid]);
 
-    // 处理事件更新
+    // 处理事件更新（区分乐观事件和真实事件）
     useEffect(() => {
         if (Array.isArray(events) && events.length > 0) {
-            eventQueueRef.current.push(...events);
+            events.forEach((backendEvent: any) => {
+                // 检查是否是乐观事件的确认
+                // 注意：这里需要从 useCombatActHandler 获取 optimisticEventManager
+                // 但由于架构限制，我们通过事件数据匹配
+                // 实际匹配逻辑在 useCombatActHandler 中处理
+
+                // 对于非乐观事件（阶段事件等），直接添加
+                if (!backendEvent.optimistic) {
+                    eventQueueRef.current.push(backendEvent);
+                }
+                // 乐观事件的确认由 useCombatActHandler 处理
+            });
+
             const lastEvent = events[events.length - 1];
             setLastTime(lastEvent.time);
         }
@@ -252,6 +326,24 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         }
     }, [game]);
 
+    /**
+     * 更新 GameModel（触发重新渲染）
+     * 用于延迟更新后通知 React 状态已改变
+     */
+    const updateGame = useCallback((updater: (game: GameModel) => void) => {
+        setGame(prevGame => {
+            if (!prevGame) return prevGame;
+
+            // 创建新对象引用，触发 React 重新渲染
+            const newGame = { ...prevGame };
+
+            // 执行更新逻辑
+            updater(newGame);
+
+            return newGame;
+        });
+    }, []);
+
     const { map, playerUid, characters, currentRound, timeClock, score: gameScore } = game || {};
 
     // 创建规则管理器
@@ -283,7 +375,9 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         resourceLoad,
         setResourceLoad,
         changeCell: setHexCell,
-        changeCoordDirection
+        changeCoordDirection,
+        updateGame,
+        mode: config.mode || 'play'
     };
 
     return <CombatContext.Provider value={value}>{children}</CombatContext.Provider>;

@@ -3,7 +3,8 @@
  */
 
 import { Spine } from "pixi-spine";
-import { Character, Effect, Skill } from "./CharacterTypes";
+import { GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
+import { Skill } from "./CharacterTypes";
 
 export enum ACT_CODE {
     WALK = 1,
@@ -46,14 +47,19 @@ export interface CombatEvent {
     initTime?: number;
     status?: number;
     data?: CombatAction | CombatRound | any;
+    // 乐观更新相关字段
+    optimistic?: boolean;           // 是否为乐观事件
+    optimisticId?: string;          // 乐观事件ID（前端生成）
+    rollback?: () => void;          // 回滚函数
+    snapshot?: any;                 // 状态快照
 }
 
 export interface GameModel {
     gameId: string;
     map: MapModel;
     direction?: number;
-    playerUid: string;  // 玩家 UID（替代 challenger）
-    characters: GameCharacter[];  // 包含玩家角色和 AI 控制的敌人
+    playerUid: string;  // 玩家 UID（PVE模式：玩家 vs Boss）
+    characters: MonsterSprite[];  // 包含玩家角色和 Boss（Boss本体+小怪，uid="boss"）
     currentRound?: CombatRound;
     timeClock?: number;
     score?: number;  // 当前分数
@@ -61,21 +67,24 @@ export interface GameModel {
 
 export interface GameReport {
     gameId: string;
-    baseScore: number;  // 基础分数（击败敌人、使用技能等）
+    baseScore: number;  // 基础分数（击败Boss、使用技能等）
     timeBonus?: number;  // 时间奖励
     completeBonus?: number;  // 完成奖励
     totalScore: number;  // 总分数
 }
 
+export type GameMode = 'play' | 'watch';  // 游戏模式：游玩 | 观看
+
 export interface TacticalMonsterGameConfig {
     scoring: {
-        killEnemy: number;  // 击败敌人得分
+        defeatBoss: number;  // 击败Boss得分（PVE模式）
         skillUse: number;   // 使用技能得分
         roundBonus: number; // 回合奖励
         timeBonus: number;  // 时间奖励
     };
     timeLimit?: number;  // 时间限制（秒）
     hintsEnabled: boolean;  // 是否启用提示
+    mode?: GameMode;  // 游戏模式
 }
 
 export interface CombatAction {
@@ -144,29 +153,27 @@ export interface AttackableNode extends HexNode {
     distance: number;
 }
 
-export interface PlayerCharacter extends Character {
-    uid: string;
-}
+/**
+ * MonsterSprite - 前端渲染用的Monster类型
+ * 基于GameMonster，添加UI渲染相关字段和前端需要的扩展字段
+ * 只需要 Omit 'skills'，statusEffects 直接继承自 GameMonster
+ */
+export interface MonsterSprite extends Omit<GameMonster, 'skills'> {
+    // ========== UI渲染相关字段 ==========
+    scaleX?: number;                    // 水平翻转（1: 向右, -1: 向左）
+    facing?: number;                     // 面向方向
+    walkables?: WalkableNode[];          // 可移动位置列表
+    attackables?: AttackableNode[];       // 可攻击目标列表
+    container?: HTMLDivElement;          // DOM容器元素
+    standEle?: HTMLDivElement;           // 站立状态元素
+    attackEle?: HTMLDivElement;          // 攻击状态元素
+    skeleton?: Spine;                    // Spine动画骨架
+    animator?: ModelAnimator;           // 动画控制器
 
-export interface GameCharacter extends Character {
-    uid: string;
-    character_id: string;
-    scaleX?: number;
-    q?: number;
-    r?: number;
-    skills?: Skill[];
-    status?: 'normal' | 'stunned';
-    facing?: number;
-    walkables?: WalkableNode[];
-    attackables?: AttackableNode[];
-    container?: HTMLDivElement;
-    standEle?: HTMLDivElement;
-    attackEle?: HTMLDivElement;
-    skeleton?: Spine;
-    animator?: ModelAnimator;
-    skillCooldowns?: Record<string, number>;
-    activeEffects?: Effect[];
-    canIgnoreObstacles?: boolean;  // 是否可以忽略障碍物（飞行单位特有，通常飞行单位可以忽略地形障碍）
+    // ========== 前端扩展字段 ==========
+    character_id: string;                // 角色唯一标识（从monsterId/bossId/minionId获取）
+    skills?: Skill[];                    // 技能列表（统一为Skill[]类型，前端使用）
+    // statusEffects 直接继承自 GameMonster，类型为 StatusEffect[]
 }
 
 export interface ModelAnimator {
@@ -185,11 +192,11 @@ export interface MapModel {
 
 // 游戏规则相关
 export interface CombatRule {
-    canWalk: (character: GameCharacter, to: { q: number; r: number }) => boolean;
-    canAttack: (attacker: GameCharacter, target: GameCharacter, skill?: Skill | null) => boolean;
-    canSelectSkill: (character: GameCharacter, skill: Skill) => boolean;
-    getWalkableTargets: (character: GameCharacter) => WalkableNode[];
-    getAttackableTargets: (attacker: GameCharacter, skill?: Skill | null) => AttackableNode[];
+    canWalk: (character: MonsterSprite, to: { q: number; r: number }) => boolean;
+    canAttack: (attacker: MonsterSprite, target: MonsterSprite, skill?: Skill | null) => boolean;
+    canSelectSkill: (character: MonsterSprite, skill: Skill) => boolean;
+    getWalkableTargets: (character: MonsterSprite) => WalkableNode[];
+    getAttackableTargets: (attacker: MonsterSprite, skill?: Skill | null) => AttackableNode[];
     isGameOver: () => boolean;
     calculateActionScore: (action: CombatAction, config: TacticalMonsterGameConfig) => number;
     calculateFinalScore: (baseScore: number, timeElapsed: number, isWin: boolean, config: TacticalMonsterGameConfig) => number;
@@ -205,7 +212,7 @@ export interface ICombatContext {
     gridCells: GridCell[][] | null;
     playerUid?: string;  // 玩家 UID
     timeClock?: number;
-    characters?: GameCharacter[];
+    characters?: MonsterSprite[];
     currentRound?: CombatRound;
     eventQueue: CombatEvent[];
     ruleManager: CombatRule | null;
@@ -231,11 +238,13 @@ export interface ICombatContext {
     changeCell: React.Dispatch<React.SetStateAction<{ width: number; height: number }>>;
     setActiveSkill: (skill: Skill | null) => void;
     changeCoordDirection: (direction: number) => void;
+    updateGame: (updater: (game: GameModel) => void) => void;  // 新增：更新 GameModel 的函数
+    mode?: GameMode;  // 游戏模式
 }
 
 export const DEFAULT_GAME_CONFIG: TacticalMonsterGameConfig = {
     scoring: {
-        killEnemy: 100,  // 击败敌人得分
+        defeatBoss: 100,  // 击败Boss得分（PVE模式）
         skillUse: 20,    // 使用技能得分
         roundBonus: 10,  // 回合奖励
         timeBonus: 1,    // 时间奖励

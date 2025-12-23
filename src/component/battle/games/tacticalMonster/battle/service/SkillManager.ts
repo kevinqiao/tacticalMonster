@@ -5,22 +5,23 @@
 
 import { Engine } from 'json-rules-engine';
 import { Effect, EffectType, Skill } from '../types/CharacterTypes';
-import { GameCharacter, GameModel } from '../types/CombatTypes';
+import { GameModel, MonsterSprite } from '../types/CombatTypes';
 import { applyEffect, calculateEffectValue } from '../utils/effectUtils';
 import { calculateHexDistance } from '../utils/hexUtil';
+import { SeededRandom } from '../utils/seededRandom';
 
 export class SkillManager {
-    private character: GameCharacter;
+    private character: MonsterSprite;
     private triggerEngine: Engine;  // 被动技能触发引擎
     private availabilityEngine: Engine;  // 技能可用性检查引擎
     private game: GameModel;
 
-    constructor(character: GameCharacter, game: GameModel) {
+    constructor(character: MonsterSprite, game: GameModel) {
         this.character = character;
         this.game = game;
         this.character.stats = this.character.stats || {};
         this.character.skillCooldowns = this.character.skillCooldowns || {};
-        this.character.activeEffects = this.character.activeEffects || [];
+        this.character.statusEffects = this.character.statusEffects || [];
         this.triggerEngine = new Engine();
         this.availabilityEngine = new Engine();
         this.initializeRules();
@@ -112,7 +113,7 @@ export class SkillManager {
     /**
      * 检查技能可用性（使用规则引擎）
      */
-    async checkSkillAvailability(skillId: string, target?: GameCharacter): Promise<boolean> {
+    async checkSkillAvailability(skillId: string, target?: MonsterSprite): Promise<boolean> {
         const skill = this.character.skills?.find(s => s.id === skillId);
         if (!skill) return false;
 
@@ -133,7 +134,7 @@ export class SkillManager {
     /**
      * 构建可用性检查的事实对象
      */
-    private buildFactsForAvailability(target?: GameCharacter): any {
+    private buildFactsForAvailability(target?: MonsterSprite): any {
         const facts: any = {
             characterHP: this.character.stats?.hp ?
                 this.character.stats.hp.current / this.character.stats.hp.max : 1,
@@ -153,7 +154,7 @@ export class SkillManager {
                 target.stats.hp.current / target.stats.hp.max : 1;
         }
 
-        // 计算附近敌人数量
+        // PVE模式：计算附近Boss角色数量（Boss本体 + 小怪，uid="boss"）
         const nearbyEnemies = this.game.characters.filter(c =>
             c.uid !== this.character.uid &&
             calculateHexDistance(
@@ -168,8 +169,9 @@ export class SkillManager {
 
     /**
      * 主动使用技能
+     * @param rng 可选的确定性随机数生成器，用于乐观更新
      */
-    async useSkill(skillId: string, target?: GameCharacter): Promise<void> {
+    async useSkill(skillId: string, target?: MonsterSprite, rng?: SeededRandom): Promise<void> {
         const skill = this.character.skills?.find(s => s.id === skillId);
         if (!skill) {
             console.error(`Skill with ID ${skillId} not found.`);
@@ -184,8 +186,8 @@ export class SkillManager {
         // 消耗资源
         this.applyResourceCost(skill);
 
-        // 执行技能效果
-        this.executeSkill(skill, target);
+        // 执行技能效果（传入 RNG）
+        this.executeSkill(skill, target, rng);
 
         // 设置冷却时间
         this.character.skillCooldowns = this.character.skillCooldowns || {};
@@ -199,8 +201,9 @@ export class SkillManager {
 
     /**
      * 执行技能效果（内部方法）
+     * @param rng 可选的确定性随机数生成器，用于乐观更新
      */
-    executeSkill(skill: Skill, target?: GameCharacter): void {
+    executeSkill(skill: Skill, target?: MonsterSprite, rng?: SeededRandom): void {
         console.log(`${this.character.name} 执行技能: ${skill.name}`);
 
         for (const effect of skill.effects) {
@@ -212,7 +215,7 @@ export class SkillManager {
                         { q: this.character.q ?? 0, r: this.character.r ?? 0 },
                         { q: t.q ?? 0, r: t.r ?? 0 }
                     );
-                    const finalEffect = calculateEffectValue(this.character, t, effect, distance);
+                    const finalEffect = calculateEffectValue(this.character, t, effect, distance, rng);
                     applyEffect(t, finalEffect);
                 });
             } else {
@@ -223,7 +226,7 @@ export class SkillManager {
                         { q: this.character.q ?? 0, r: this.character.r ?? 0 },
                         { q: recipient.q ?? 0, r: recipient.r ?? 0 }
                     );
-                    const finalEffect = calculateEffectValue(this.character, recipient, effect, distance);
+                    const finalEffect = calculateEffectValue(this.character, recipient, effect, distance, rng);
                     applyEffect(recipient, finalEffect);
                 }
             }
@@ -233,7 +236,7 @@ export class SkillManager {
     /**
      * 确定效果目标
      */
-    private determineEffectTarget(effect: Effect, target?: GameCharacter): GameCharacter | undefined {
+    private determineEffectTarget(effect: Effect, target?: MonsterSprite): MonsterSprite | undefined {
         // 如果是群体效果，返回undefined让外层处理
         if (effect.area_type && effect.area_type !== 'single') {
             return undefined;
@@ -264,8 +267,8 @@ export class SkillManager {
     /**
      * 获取范围内的目标（群体效果）
      */
-    private getTargetsInRange(effect: Effect, center: GameCharacter): GameCharacter[] {
-        const targets: GameCharacter[] = [];
+    private getTargetsInRange(effect: Effect, center: MonsterSprite): MonsterSprite[] {
+        const targets: MonsterSprite[] = [];
         const centerPos = { q: center.q ?? 0, r: center.r ?? 0 };
         const range = effect.area_size || effect.damage_falloff?.full_damage_range || 1;
 
@@ -296,7 +299,7 @@ export class SkillManager {
     /**
      * 检查被动技能触发条件
      */
-    async checkTriggerConditions(eventType: string, target?: GameCharacter): Promise<void> {
+    async checkTriggerConditions(eventType: string, target?: MonsterSprite): Promise<void> {
         if (!this.character.stats?.hp) return;
 
         const facts = {
@@ -304,7 +307,7 @@ export class SkillManager {
             characterHP: this.character.stats.hp.current / this.character.stats.hp.max,
             targetHP: target?.stats?.hp ? target.stats.hp.current / target.stats.hp.max : null,
             probability: Math.random(),
-            hasDefensiveStance: this.character.activeEffects?.some(e => e.name === '防御提升') || false,
+            hasDefensiveStance: this.character.statusEffects?.some(e => e.name === '防御提升') || false,
             ...this.character.stats
         };
 
@@ -325,7 +328,7 @@ export class SkillManager {
     /**
      * 检查反击
      */
-    private async checkCounterAttack(target: GameCharacter, attacker: GameCharacter, eventType: string): Promise<void> {
+    private async checkCounterAttack(target: MonsterSprite, attacker: MonsterSprite, eventType: string): Promise<void> {
         // 检查目标是否有反击被动技能
         const targetSkillManager = new SkillManager(target, this.game);
         await targetSkillManager.checkTriggerConditions(eventType, attacker);
@@ -347,7 +350,7 @@ export class SkillManager {
     /**
      * 获取可用技能列表
      */
-    async getAvailableSkills(target?: GameCharacter): Promise<Skill[]> {
+    async getAvailableSkills(target?: MonsterSprite): Promise<Skill[]> {
         const availableSkills: Skill[] = [];
 
         for (const skill of (this.character.skills || [])) {

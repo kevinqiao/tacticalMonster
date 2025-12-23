@@ -7,6 +7,12 @@ import { calculateGameMonster, GameBoss, GameMinion, GameMonster, PlayerMonster 
 import { HexCoord, hexDistance } from "../../utils/hexUtils";
 import { SkillManager } from "../skill/skillManager";
 import { TeamService } from "../team/teamService";
+import { CharacterEnricher } from "./characterEnricher";
+import { CharacterPositionService } from "./characterPositionService";
+import { CharacterUpdateService } from "./characterUpdateService";
+import { CharacterGetter, GameActionValidator } from "./gameActionValidator";
+import { GameEventService } from "./gameEventService";
+import { RoundService } from "./roundService";
 
 /**
  * 游戏状态枚举
@@ -98,7 +104,6 @@ export interface CharacterIdentifier {
  * 记录战斗过程中发生的各种事件
  */
 export interface CombatEvent {
-    uid?: string;
     gameId: string;
     name: string;
     type?: number;  // 事件类型：0: round, 1: movement, 2: attack, etc.
@@ -110,124 +115,37 @@ export interface CombatEvent {
  * TacticalMonsterGameManager - 战术怪物游戏管理器
  * 负责游戏的创建、加载、保存和状态管理
  */
-export class TacticalMonsterGameManager {
+export class TacticalMonsterGameManager implements CharacterGetter {
     private dbCtx: any;
     private game: GameModel | null;
+    private validator: GameActionValidator | null = null;
+    private eventService: GameEventService;
+    private positionService: CharacterPositionService;
+    private roundService: RoundService;
+    private characterUpdateService: CharacterUpdateService;
 
     constructor(dbCtx: any) {
         this.dbCtx = dbCtx;
         this.game = null;
+        this.eventService = new GameEventService(dbCtx);
+        this.positionService = new CharacterPositionService(dbCtx);
+        this.roundService = new RoundService(dbCtx);
+        this.characterUpdateService = new CharacterUpdateService(dbCtx);
     }
 
     /**
-     * 辅助方法：完善 Boss 的 GameMonster 字段（填充缺失的配置字段）
-     * 由于 GameBoss 继承 GameMonster，只需要填充缺失的字段即可
-     * @param boss Boss 数据
-     * @returns 完整的 GameMonster 或 null
+     * 获取验证器实例（延迟初始化）
      */
-    private enrichBossAsGameMonster(boss: GameBoss): GameMonster | null {
-        if (!boss || !boss.monsterId) return null;
-
-        // 如果已经包含所有必需字段，直接返回
-        if (boss.name && boss.rarity && boss.assetPath) {
-            return boss as GameMonster;
+    private getValidator(): GameActionValidator {
+        if (!this.validator) {
+            this.validator = new GameActionValidator(this.dbCtx, this.game, this);
+        } else {
+            // 更新游戏状态引用
+            (this.validator as any).game = this.game;
         }
-
-        // 否则从配置填充缺失字段
-        const monsterConfig = MONSTER_CONFIGS_MAP[boss.monsterId];
-        if (!monsterConfig) {
-            // 如果没有配置，使用默认值
-            return {
-                ...boss,
-                uid: boss.uid || "boss",
-                name: boss.monsterId,
-                rarity: "Common" as const,
-                level: boss.level ?? 1,
-                stars: boss.stars ?? 1,
-                assetPath: "",
-                status: boss.status || "normal",
-            } as GameMonster;
-        }
-
-        return {
-            ...boss,
-            uid: boss.uid || "boss",
-            name: monsterConfig.name,
-            rarity: monsterConfig.rarity,
-            class: monsterConfig.class,
-            race: monsterConfig.race,
-            assetPath: monsterConfig.assetPath,
-            level: boss.level ?? 1,
-            stars: boss.stars ?? 1,
-            move_range: boss.move_range ?? monsterConfig.moveRange,
-            attack_range: boss.attack_range ?? monsterConfig.attackRange,
-            isFlying: boss.isFlying ?? (monsterConfig.race === "Flying"),
-            flightHeight: boss.flightHeight ?? (monsterConfig.race === "Flying" ? 1.5 : undefined),
-            canIgnoreObstacles: boss.canIgnoreObstacles ?? (monsterConfig.race === "Flying"),
-            status: boss.status || "normal",
-        } as GameMonster;
+        return this.validator;
     }
 
-    /**
-     * 辅助方法：完善小怪的 GameMonster 字段（填充缺失的配置字段）
-     * 由于 GameMinion 继承 GameMonster，只需要填充缺失的字段即可
-     * @param minion 小怪数据
-     * @returns 完整的 GameMonster 或 null
-     */
-    private enrichMinionAsGameMonster(minion: GameMinion): GameMonster | null {
-        if (!minion || !minion.monsterId) return null;
-
-        // 如果已经包含所有必需字段，直接返回
-        if (minion.name && minion.rarity && minion.assetPath && minion.stats) {
-            return minion as GameMonster;
-        }
-
-        // 否则从配置填充缺失字段
-        const monsterConfig = MONSTER_CONFIGS_MAP[minion.monsterId];
-        if (!monsterConfig) {
-            // 如果没有配置，使用默认值
-            return {
-                ...minion,
-                uid: minion.uid || "boss",
-                name: minion.monsterId,
-                rarity: "Common" as const,
-                level: minion.level ?? 1,
-                stars: minion.stars ?? 1,
-                assetPath: "",
-                stats: minion.stats || {
-                    hp: { current: 0, max: 0 },
-                    attack: 0,
-                    defense: 0,
-                    speed: 0,
-                },
-                status: minion.status || "normal",
-            } as GameMonster;
-        }
-
-        return {
-            ...minion,
-            uid: minion.uid || "boss",
-            name: monsterConfig.name,
-            rarity: monsterConfig.rarity,
-            class: monsterConfig.class,
-            race: monsterConfig.race,
-            assetPath: monsterConfig.assetPath,
-            level: minion.level ?? 1,
-            stars: minion.stars ?? 1,
-            stats: minion.stats || {
-                hp: { current: 0, max: 0 },
-                attack: 0,
-                defense: 0,
-                speed: 0,
-            },
-            move_range: minion.move_range ?? monsterConfig.moveRange,
-            attack_range: minion.attack_range ?? monsterConfig.attackRange,
-            isFlying: minion.isFlying ?? (monsterConfig.race === "Flying"),
-            flightHeight: minion.flightHeight ?? (monsterConfig.race === "Flying" ? 1.5 : undefined),
-            canIgnoreObstacles: minion.canIgnoreObstacles ?? (monsterConfig.race === "Flying"),
-            status: minion.status || "normal",
-        } as GameMonster;
-    }
 
     /**
      * 辅助方法：根据标识符获取 GameMonster
@@ -244,7 +162,7 @@ export class TacticalMonsterGameManager {
      * @param minionId 小怪的minionId（可选）
      * @returns GameMonster 或 null
      */
-    private getCharacter(
+    getCharacter(
         monsterId?: string,
         bossId?: string,
         minionId?: string
@@ -260,13 +178,13 @@ export class TacticalMonsterGameManager {
         if (bossId) {
             // Boss主体：使用 bossId 定位
             if (bossId === this.game.boss.bossId) {
-                return this.enrichBossAsGameMonster(this.game.boss);
+                return CharacterEnricher.enrichBossAsGameMonster(this.game.boss);
             }
             return null;
         } else if (minionId) {
             // 小怪：使用 minionId 定位（小怪的monsterId可能重复）
             const minion = this.game.boss.minions.find((m) => m.minionId === minionId);
-            return minion ? this.enrichMinionAsGameMonster(minion) : null;
+            return minion ? CharacterEnricher.enrichMinionAsGameMonster(minion) : null;
         } else if (monsterId) {
             // 玩家角色：使用 monsterId 定位（玩家队伍中的monster不会重复）
             return this.game.team.find((m) => m.monsterId === monsterId) || null;
@@ -313,7 +231,7 @@ export class TacticalMonsterGameManager {
      * 辅助方法：获取所有可攻击的角色（玩家队伍 + Boss + 小怪）
      * @returns 所有角色的数组
      */
-    private getAllCharacters(): GameMonster[] {
+    getAllCharacters(): GameMonster[] {
         if (!this.game) return [];
 
         const allCharacters: GameMonster[] = [];
@@ -322,14 +240,14 @@ export class TacticalMonsterGameManager {
         allCharacters.push(...this.game.team);
 
         // 添加Boss本体
-        const bossMonster = this.enrichBossAsGameMonster(this.game.boss);
+        const bossMonster = CharacterEnricher.enrichBossAsGameMonster(this.game.boss);
         if (bossMonster) {
             allCharacters.push(bossMonster);
         }
 
         // 添加小怪
         for (const minion of this.game.boss.minions) {
-            const minionMonster = this.enrichMinionAsGameMonster(minion);
+            const minionMonster = CharacterEnricher.enrichMinionAsGameMonster(minion);
             if (minionMonster) {
                 allCharacters.push(minionMonster);
             }
@@ -506,83 +424,7 @@ export class TacticalMonsterGameManager {
         return targets;
     }
 
-    /**
-     * 辅助方法：更新数据库中的角色状态
-     * @param gameId 游戏ID
-     * @param character 角色数据
-     * @returns 是否成功
-     */
-    private async updateCharacterInDatabase(gameId: string, character: GameMonster): Promise<boolean> {
-        if (!this.game) return false;
 
-        const gameDoc = await this.dbCtx.db
-            .query("mr_games")
-            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-            .first();
-
-        if (!gameDoc) return false;
-
-        if (character.uid === "boss") {
-            // Boss主体：使用 bossId 定位
-            const characterBossId = (character as GameBoss).bossId;
-            if (characterBossId && characterBossId === this.game.boss.bossId) {
-                // 更新 Boss
-                await this.dbCtx.db.patch(gameDoc._id, {
-                    "boss.stats": character.stats,
-                    "boss.q": character.q,
-                    "boss.r": character.r,
-                    "boss.skillCooldowns": character.skillCooldowns || {},
-                    "boss.statusEffects": character.statusEffects || [],
-                    lastUpdate: new Date().toISOString(),
-                });
-            } else {
-                // 小怪：使用 minionId 定位（小怪的monsterId可能重复）
-                const characterMinionId = (character as GameMinion).minionId;
-                if (!characterMinionId) {
-                    return false;  // 如果没有minionId，无法定位小怪
-                }
-                const minionIndex = this.game.boss.minions.findIndex((m) => m.minionId === characterMinionId);
-                if (minionIndex >= 0) {
-                    const updatedMinions = [...(gameDoc.boss.minions || [])];
-                    updatedMinions[minionIndex] = {
-                        ...updatedMinions[minionIndex],
-                        q: character.q,
-                        r: character.r,
-                        stats: character.stats,
-                        statusEffects: character.statusEffects || [],
-                        skillCooldowns: character.skillCooldowns || {},
-                    };
-
-                    await this.dbCtx.db.patch(gameDoc._id, {
-                        "boss.minions": updatedMinions,
-                        lastUpdate: new Date().toISOString(),
-                    });
-                }
-            }
-        } else {
-            // 更新玩家角色
-            const teamIndex = (gameDoc.team || []).findIndex(
-                (m: any) => m.uid === character.uid && m.monsterId === character.monsterId
-            );
-            if (teamIndex >= 0) {
-                const updatedTeam = [...(gameDoc.team || [])];
-                updatedTeam[teamIndex] = {
-                    ...updatedTeam[teamIndex],
-                    stats: character.stats,
-                    skillCooldowns: character.skillCooldowns || {},
-                    statusEffects: character.statusEffects || [],
-                    status: character.status || "normal",
-                };
-
-                await this.dbCtx.db.patch(gameDoc._id, {
-                    team: updatedTeam,
-                    lastUpdate: new Date().toISOString(),
-                });
-            }
-        }
-
-        return true;
-    }
 
     /**
      * 加载游戏数据
@@ -776,6 +618,11 @@ export class TacticalMonsterGameManager {
             createdAt: game.createdAt,
             round: roundNumber,
         };
+
+        // 更新验证器的游戏状态引用
+        if (this.validator) {
+            (this.validator as any).game = this.game;
+        }
 
         return this.game;
     }
@@ -1143,84 +990,36 @@ export class TacticalMonsterGameManager {
             return false;  // 参数错误：应该只有一个标识符
         }
 
-        // 获取角色以确定uid（用于事件记录）
+        // === 验证层 ===
+        const validator = this.getValidator();
         const character = this.getCharacter(monsterId, bossId, minionId);
         if (!character) return false;
 
-        const uid = character.uid;
+        const from = { q: character.q ?? 0, r: character.r ?? 0 };
+        const validationResult = await validator.validateAction(identifier, {
+            validatePosition: { from, to }
+        });
 
-        if (bossId) {
-            // Boss主体：更新Boss位置
-            if (!this.game.boss) return false;
-
-            const gameDoc = await this.dbCtx.db
-                .query("mr_games")
-                .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-                .first();
-
-            if (!gameDoc) return false;
-
-            await this.dbCtx.db.patch(gameDoc._id, {
-                "boss.q": to.q,
-                "boss.r": to.r,
-                lastUpdate: new Date().toISOString(),
-            });
-        } else if (minionId) {
-            // 小怪：使用 minionId 定位并更新位置
-            if (!this.game.boss) return false;
-
-            const gameDoc = await this.dbCtx.db
-                .query("mr_games")
-                .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-                .first();
-
-            if (!gameDoc) return false;
-
-            const minionIndex = this.game.boss.minions.findIndex((m) => m.minionId === minionId);
-            if (minionIndex >= 0) {
-                const updatedMinions = [...(gameDoc.boss.minions || [])];
-                updatedMinions[minionIndex] = {
-                    ...updatedMinions[minionIndex],
-                    q: to.q,
-                    r: to.r,
-                };
-                await this.dbCtx.db.patch(gameDoc._id, {
-                    "boss.minions": updatedMinions,
-                    lastUpdate: new Date().toISOString(),
-                });
-            } else {
-                return false;  // 小怪不存在
-            }
-        } else if (monsterId) {
-            // 玩家角色从 tacticalMonster_game_character 查询
-            const charDoc = await this.dbCtx.db
-                .query("tacticalMonster_game_character")
-                .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
-                .filter((q: any) =>
-                    q.or(
-                        q.eq(q.field("monsterId"), monsterId),
-                        q.eq(q.field("character_id"), monsterId)  // 向后兼容
-                    )
-                )
-                .first();
-
-            if (!charDoc) return false;
-
-            // Update character position
-            await this.dbCtx.db.patch(charDoc._id, { q: to.q, r: to.r });
+        if (!validationResult.valid) {
+            console.error("Walk validation failed:", validationResult.message);
+            return false;
         }
 
-        // Create event
-        const event: CombatEvent = {
-            gameId,
-            uid,
-            name: "walk",
-            type: 1,
-            data: { identifier, to },
-            time: Date.now(),
-        };
+        const uid = character.uid;
 
-        await this.dbCtx.db.insert("tacticalMonster_event", event);
+        // 使用位置服务更新位置
+        const success = await this.positionService.updatePosition(
+            gameId,
+            identifier,
+            to,
+            this.game
+        );
+
+        if (!success) return false;
+
+        // 使用事件服务创建和插入事件
+        const event = this.eventService.createWalkEvent(gameId, identifier, to);
+        await this.eventService.createEvent(event);
         await this.save({ lastUpdate: new Date().toISOString() });
 
         return true;
@@ -1260,6 +1059,18 @@ export class TacticalMonsterGameManager {
             targets: CharacterIdentifier[];
         }
     ): Promise<CombatEvent | null> {
+        await this.load(gameId);
+        if (!this.game) return null;
+
+        // === 验证层 ===
+        const validator = this.getValidator();
+        const validationResult = await validator.validateAction(data.attacker);
+
+        if (!validationResult.valid) {
+            console.error("Attack validation failed:", validationResult.message);
+            return null;
+        }
+
         // 如果没有指定技能，使用基础攻击技能
         const skillId = data.skillSelect && data.skillSelect !== ""
             ? data.skillSelect
@@ -1290,22 +1101,15 @@ export class TacticalMonsterGameManager {
         // 1. 统一的事件接口（前端可以统一监听 attack 事件）
         // 2. 语义清晰（attack 表示攻击行为，use_skill 表示技能使用）
         // 3. 可能的统计或回放需求
-        const event: CombatEvent = {
-            gameId,
-            uid: attacker.uid,
-            name: "attack",
-            type: 2, // 2: attack
-            data: {
-                attacker: data.attacker,
-                skillUsed: true,
-                skillId: skillId,
-                targets: data.targets,
-                skillResult,
-            },
-            time: Date.now(),
-        };
+        const event = this.eventService.createAttackEvent(gameId, {
+            attacker: data.attacker,
+            skillUsed: true,
+            skillId: skillId,
+            targets: data.targets,
+            skillResult,
+        });
 
-        await this.dbCtx.db.insert("tacticalMonster_event", event);
+        await this.eventService.createEvent(event);
         await this.save({ lastUpdate: new Date().toISOString() });
 
         return event;
@@ -1415,6 +1219,19 @@ export class TacticalMonsterGameManager {
             };
         }
 
+        const characterIdentifier: CharacterIdentifier = { monsterId, bossId, minionId };
+
+        // === 验证层 ===
+        const validator = this.getValidator();
+        const validationResult = await validator.validateAction(characterIdentifier);
+
+        if (!validationResult.valid) {
+            return {
+                success: false,
+                message: validationResult.message || "验证失败",
+            };
+        }
+
         // 1. 获取使用者角色（使用辅助方法）
         const caster = this.getCharacter(monsterId, bossId, minionId);
         if (!caster) {
@@ -1456,6 +1273,14 @@ export class TacticalMonsterGameManager {
             }
         }
 
+        // 验证目标有效性（对于需要目标的技能）
+        if (targets && targets.length > 0 && targetMonsters.length === 0) {
+            return {
+                success: false,
+                message: "没有有效的目标",
+            };
+        }
+
         // 3. 使用技能（使用 SkillManager）
         const skillResult = SkillManager.useSkill(
             skillId,
@@ -1467,14 +1292,20 @@ export class TacticalMonsterGameManager {
             return skillResult;
         }
 
-        // 4. 更新数据库中的角色状态（使用辅助方法）
+        // 4. 更新数据库中的角色状态（使用角色更新服务）
         // 更新使用者状态
-        await this.updateCharacterInDatabase(gameId, caster);
+        if (!this.game) {
+            return {
+                success: false,
+                message: "游戏状态不存在",
+            };
+        }
+        await this.characterUpdateService.updateCharacterInDatabase(gameId, caster, this.game);
 
         // 5. 更新目标状态（如果技能效果已应用）
         if (skillResult.effects && targetMonsters.length > 0) {
             for (const target of targetMonsters) {
-                await this.updateCharacterInDatabase(gameId, target);
+                await this.characterUpdateService.updateCharacterInDatabase(gameId, target, this.game);
             }
         }
 
@@ -1482,21 +1313,14 @@ export class TacticalMonsterGameManager {
         await this.load(gameId);
 
         // 7. 创建技能使用事件
-        const event: CombatEvent = {
-            gameId,
-            uid: caster.uid,
-            name: "use_skill",
-            type: 3, // 3: skill
-            data: {
-                identifier: { monsterId, bossId, minionId },
-                skillId,
-                targets: finalTargets,
-                result: skillResult,
-            },
-            time: Date.now(),
-        };
+        const event = this.eventService.createUseSkillEvent(gameId, {
+            identifier: { monsterId, bossId, minionId },
+            skillId,
+            targets: finalTargets,
+            result: skillResult,
+        });
 
-        await this.dbCtx.db.insert("tacticalMonster_event", event);
+        await this.eventService.createEvent(event);
         await this.save({ lastUpdate: new Date().toISOString() });
 
         return skillResult;
@@ -1520,94 +1344,13 @@ export class TacticalMonsterGameManager {
 
         const newRoundNo = (this.game.round || 0) + 1;
 
-        // 收集所有角色（玩家队伍 + Boss + 小怪）
-        const allCharacters: Array<{
-            uid: string;
-            monsterId: string;
-            speed: number;
-            team: 'player' | 'boss';
-        }> = [];
+        // 使用回合服务创建新回合
+        const success = await this.roundService.createRound(gameId, newRoundNo, this.game);
+        if (!success) return false;
 
-        // 1. 添加玩家队伍角色（过滤已死亡的）
-        this.game.team.forEach((monster) => {
-            const currentHp = monster.stats?.hp?.current ?? 0;
-            if (currentHp > 0) {
-                allCharacters.push({
-                    uid: monster.uid,
-                    monsterId: monster.monsterId,
-                    speed: monster.stats.speed,
-                    team: 'player',
-                });
-            }
-        });
-
-        // 2. 添加Boss本体（过滤已死亡的）
-        const bossHp = this.game.boss.stats?.hp?.current ?? 0;
-        if (bossHp > 0) {
-            allCharacters.push({
-                uid: 'boss',
-                monsterId: this.game.boss.monsterId,
-                speed: this.game.boss.stats.speed,
-                team: 'boss',
-            });
-        }
-
-        // 3. 添加小怪（过滤已死亡的）
-        this.game.boss.minions.forEach((minion) => {
-            const minionHp = minion.stats?.hp?.current ?? 0;
-            if (minionHp > 0) {
-                allCharacters.push({
-                    uid: 'boss',
-                    monsterId: minion.monsterId,
-                    speed: minion.stats.speed,
-                    team: 'boss',
-                });
-            }
-        });
-
-        // 4. 按速度排序，速度相同时玩家优先
-        allCharacters.sort((a, b) => {
-            // 先按速度降序排序
-            if (a.speed !== b.speed) {
-                return b.speed - a.speed;
-            }
-            // 速度相同时，玩家优先（PVE中玩家应该有一定优势）
-            if (a.team === 'player' && b.team === 'boss') {
-                return -1; // a（玩家）排在前面
-            }
-            if (a.team === 'boss' && b.team === 'player') {
-                return 1; // b（玩家）排在前面
-            }
-            // 同队内速度相同时，按monsterId排序（保证排序稳定性）
-            return a.monsterId.localeCompare(b.monsterId);
-        });
-
-        // 5. 转换为 CombatTurn 数组
-        const turns: CombatTurn[] = allCharacters.map((char) => ({
-            uid: char.uid,
-            monsterId: char.monsterId,
-            status: 0, // 0: pending
-        }));
-
-        // 6. 创建回合记录
-        const roundObj = {
-            gameId,
-            no: newRoundNo,
-            status: 0,
-            turns,
-        };
-
-        await this.dbCtx.db.insert("tacticalMonster_game_round", roundObj);
-
-        const event: CombatEvent = {
-            gameId,
-            name: "new_round",
-            type: 0,
-            data: { round: newRoundNo },
-            time: Date.now(),
-        };
-
-        await this.dbCtx.db.insert("tacticalMonster_event", event);
+        // 创建新回合事件
+        const event = this.eventService.createNewRoundEvent(gameId, newRoundNo);
+        await this.eventService.createEvent(event);
         await this.save({ round: newRoundNo, lastUpdate: new Date().toISOString() });
 
         return true;
@@ -1625,29 +1368,14 @@ export class TacticalMonsterGameManager {
         if (this.game.round === undefined) return false;
 
         const roundNumber = this.game.round;
-        const roundDoc = await this.dbCtx.db
-            .query("tacticalMonster_game_round")
-            .withIndex("by_game_round", (q: any) =>
-                q.eq("gameId", gameId).eq("no", roundNumber)
-            )
-            .unique();
 
-        if (roundDoc) {
-            await this.dbCtx.db.patch(roundDoc._id, {
-                status: 2,
-                endTime: Date.now(),
-            });
-        }
+        // 使用回合服务结束回合
+        const success = await this.roundService.endRound(gameId, roundNumber);
+        if (!success) return false;
 
-        const event: CombatEvent = {
-            gameId,
-            name: "end_round",
-            type: 0,
-            data: { round: this.game.round },
-            time: Date.now(),
-        };
-
-        await this.dbCtx.db.insert("tacticalMonster_event", event);
+        // 创建结束回合事件
+        const event = this.eventService.createEndRoundEvent(gameId, roundNumber);
+        await this.eventService.createEvent(event);
         await this.save({ lastUpdate: new Date().toISOString() });
 
         return true;
@@ -1719,15 +1447,8 @@ export class TacticalMonsterGameManager {
 
         await this.save({ status: 3, lastUpdate: new Date().toISOString() });
 
-        const event: CombatEvent = {
-            gameId,
-            name: "game_end",
-            type: 0,
-            data: { gameId },
-            time: Date.now(),
-        };
-
-        await this.dbCtx.db.insert("tacticalMonster_event", event);
+        const event = this.eventService.createGameEndEvent(gameId);
+        await this.eventService.createEvent(event);
 
         return {
             gameId,

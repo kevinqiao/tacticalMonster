@@ -4,7 +4,7 @@
  */
 
 import { Skill } from "../types/CharacterTypes";
-import { GameCharacter } from "../types/CombatTypes";
+import { MonsterSprite } from "../types/CombatTypes";
 
 export interface SkillCombo {
     skillIds: string[];  // 组合中的技能ID列表
@@ -78,7 +78,7 @@ export const canTriggerCombo = (
  * 获取技能组合信息
  */
 export const getSkillComboInfo = (
-    character: GameCharacter,
+    character: MonsterSprite,
     skillId: string
 ): SkillCombo[] => {
     const combos: SkillCombo[] = [];

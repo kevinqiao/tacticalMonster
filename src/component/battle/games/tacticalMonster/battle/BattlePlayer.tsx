@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useCombatManager } from "./service/CombatManager";
 import useCombatActHandler from "./service/handler/useCombatActHandler";
-import useEventListener from "./service/useEventListener";
+import useEventHandler from "./service/handler/useEventHandler";
 import "./style.css";
 import { Skill } from "./types/CharacterTypes";
 import CharacterGrid from "./view/CharacterGrid";
@@ -134,7 +134,7 @@ const BattleVenue: React.FC = () => {
     } | null>(null);
 
     const { map, changeCell } = useCombatManager();
-    useEventListener();
+    useEventHandler();
 
     useEffect(() => {
         if (!map || map.cols === 0 || map.rows === 0) return;

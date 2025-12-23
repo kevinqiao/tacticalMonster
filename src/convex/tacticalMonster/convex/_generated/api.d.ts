@@ -52,6 +52,9 @@ import type * as service_calculation_seasonPoints_index from "../service/calcula
 import type * as service_calculation_seasonPoints_upgradeExpCalculation from "../service/calculation/seasonPoints/upgradeExpCalculation.js";
 import type * as service_chest_chest from "../service/chest/chest.js";
 import type * as service_chest_chestService from "../service/chest/chestService.js";
+import type * as service_game_characterPositionService from "../service/game/characterPositionService.js";
+import type * as service_game_gameActionValidator from "../service/game/gameActionValidator.js";
+import type * as service_game_gameEventService from "../service/game/gameEventService.js";
 import type * as service_game_gameRuleConfigService from "../service/game/gameRuleConfigService.js";
 import type * as service_game_gameService from "../service/game/gameService.js";
 import type * as service_monster_config_upgradeStrategyConfig from "../service/monster/config/upgradeStrategyConfig.js";
@@ -125,6 +128,9 @@ declare const fullApi: ApiFromModules<{
   "service/calculation/seasonPoints/upgradeExpCalculation": typeof service_calculation_seasonPoints_upgradeExpCalculation;
   "service/chest/chest": typeof service_chest_chest;
   "service/chest/chestService": typeof service_chest_chestService;
+  "service/game/characterPositionService": typeof service_game_characterPositionService;
+  "service/game/gameActionValidator": typeof service_game_gameActionValidator;
+  "service/game/gameEventService": typeof service_game_gameEventService;
   "service/game/gameRuleConfigService": typeof service_game_gameRuleConfigService;
   "service/game/gameService": typeof service_game_gameService;
   "service/monster/config/upgradeStrategyConfig": typeof service_monster_config_upgradeStrategyConfig;

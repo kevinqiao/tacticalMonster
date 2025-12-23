@@ -4,7 +4,7 @@
  */
 
 import { Effect, Skill } from "../types/CharacterTypes";
-import { GameCharacter } from "../types/CombatTypes";
+import { MonsterSprite } from "../types/CombatTypes";
 import { calculateHexDistance } from "./hexUtil";
 
 /**
@@ -13,11 +13,11 @@ import { calculateHexDistance } from "./hexUtil";
 export const getTargetsInCircle = (
     center: { q: number; r: number },
     range: number,
-    allCharacters: GameCharacter[],
+    allCharacters: MonsterSprite[],
     excludeSelf?: boolean,
     selfUid?: string
-): GameCharacter[] => {
-    const targets: GameCharacter[] = [];
+): MonsterSprite[] => {
+    const targets: MonsterSprite[] = [];
 
     allCharacters.forEach(char => {
         if (excludeSelf && char.uid === selfUid) return;
@@ -42,11 +42,11 @@ export const getTargetsInLine = (
     start: { q: number; r: number },
     end: { q: number; r: number },
     range: number,
-    allCharacters: GameCharacter[],
+    allCharacters: MonsterSprite[],
     excludeSelf?: boolean,
     selfUid?: string
-): GameCharacter[] => {
-    const targets: GameCharacter[] = [];
+): MonsterSprite[] => {
+    const targets: MonsterSprite[] = [];
     const startDistance = calculateHexDistance(start, end);
 
     if (startDistance > range) return targets;
@@ -84,10 +84,10 @@ export const getTargetsInLine = (
  */
 export const getTargetsInRange = (
     skill: Skill,
-    center: GameCharacter,
-    allCharacters: GameCharacter[],
-    target?: GameCharacter
-): GameCharacter[] => {
+    center: MonsterSprite,
+    allCharacters: MonsterSprite[],
+    target?: MonsterSprite
+): MonsterSprite[] => {
     const centerPos = { q: center.q ?? 0, r: center.r ?? 0 };
     const range = skill.range?.distance || skill.range?.max_distance || 1;
 
@@ -141,10 +141,10 @@ export const getTargetsInRange = (
  */
 export const getTargetsByEffectRange = (
     effect: Effect,
-    center: GameCharacter,
-    allCharacters: GameCharacter[],
-    target?: GameCharacter
-): GameCharacter[] => {
+    center: MonsterSprite,
+    allCharacters: MonsterSprite[],
+    target?: MonsterSprite
+): MonsterSprite[] => {
     const centerPos = { q: center.q ?? 0, r: center.r ?? 0 };
     const range = effect.area_size || effect.damage_falloff?.full_damage_range || 1;
 
@@ -191,8 +191,8 @@ export const getTargetsByEffectRange = (
  */
 export const isTargetInRange = (
     skill: Skill,
-    attacker: GameCharacter,
-    target: GameCharacter
+    attacker: MonsterSprite,
+    target: MonsterSprite
 ): boolean => {
     const attackerPos = { q: attacker.q ?? 0, r: attacker.r ?? 0 };
     const targetPos = { q: target.q ?? 0, r: target.r ?? 0 };

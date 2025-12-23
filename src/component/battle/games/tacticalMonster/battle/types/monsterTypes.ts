@@ -77,7 +77,7 @@ export interface GameMonster {
     skillCooldowns?: Record<string, number>;  // 技能冷却时间
 
     // ========== 状态效果（运行时数据）==========
-    activeEffects?: any[];          // 当前激活的效果列表
+    statusEffects?: any[];          // 当前激活的效果列表（统一命名：与后端保持一致）
     status?: 'normal' | 'stunned' | 'dead';  // 角色状态
 
     // ========== 移动和战斗 ==========
@@ -161,7 +161,7 @@ export function calculateGameMonster(
         skillCooldowns: {},
 
         // 状态效果
-        activeEffects: [],
+        statusEffects: [],
         status: "normal",
 
         // 移动和战斗（从配置读取，如果没有配置则使用默认值）

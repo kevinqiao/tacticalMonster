@@ -269,17 +269,13 @@ export const tacticalMonsterSchema = {
     //     .index("by_templateId", ["templateId"])
     //     .index("by_tier", ["tier"]),
     mr_game_event: defineTable({
-        uid: v.optional(v.string()),
         gameId: v.string(),
         name: v.string(),
         type: v.optional(v.number()),
         data: v.optional(v.any()),
-        isSynced: v.boolean(),
         time: v.number(),
     }).index("by_game", ["gameId"])
-        .index("by_player", ["uid"])
-        .index("by_sync", ["isSynced"])
-        .index("by_name", ["name", "isSynced"]),
+        .index("by_name", ["name"]),
 
 };
 

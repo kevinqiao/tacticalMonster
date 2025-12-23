@@ -12,7 +12,7 @@ const usePlaySkillSelect = () => {
     const { characters, gridCells, hexCell, currentRound, map } = useCombatManager();
 
 
-    const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; character_id: string }, onComplete: () => void) => {
+    const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; character_id: string }, onComplete: () => void | Promise<void>) => {
         if (!characters || !gridCells || !map || !currentRound) return;
         console.log("playSkillSelect", skillSelect)
         const { uid, character_id } = skillSelect;
@@ -64,7 +64,15 @@ const usePlaySkillSelect = () => {
         );
 
         character.attackables = attackableNodes;
-        const tl = gsap.timeline({ onComplete });
+        const tl = gsap.timeline({
+            onComplete: () => {
+                const result = onComplete();
+                // 如果返回 Promise，不等待但确保错误被捕获
+                if (result instanceof Promise) {
+                    result.catch(err => console.error("onComplete error:", err));
+                }
+            }
+        });
 
         if (character.standEle) {
             tl.to(character.standEle, {

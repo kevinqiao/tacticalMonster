@@ -4,38 +4,49 @@
  */
 
 import { useCallback, useRef, useState } from "react";
-import { GameCharacter } from "../../types/CombatTypes";
+import { GameModel, MonsterSprite } from "../../types/CombatTypes";
+import { OperationQueue } from "../optimistic/OperationQueue";
+import { OptimisticBossExecutor } from "../optimistic/OptimisticBossExecutor";
 import { BossAction, BossAIDecision, BossAILocal } from "./BossAILocal";
 
 export interface PredictedAction {
     decision: BossAIDecision;
     timestamp: number;
     round: number;
+    operationId?: string;  // 乐观执行的操作ID
 }
 
 /**
  * Boss AI预测执行Hook
  * 实现前端预测执行 + 后端验证的完整机制
  */
-export const useBossAIPredictor = () => {
+export const useBossAIPredictor = (
+    game: GameModel | null,
+    operationQueue: OperationQueue | null
+) => {
     const [predictedActions, setPredictedActions] = useState<Map<number, PredictedAction>>(new Map());
     const pendingPredictionsRef = useRef<Map<number, PredictedAction>>(new Map());
     const rollbackCallbacksRef = useRef<Map<number, () => void>>(new Map());
 
+    // 创建乐观执行器
+    const optimisticExecutor = game && operationQueue
+        ? new OptimisticBossExecutor(game, operationQueue)
+        : null;
+
     /**
      * 预测Boss AI决策
      */
-    const predictBossAction = useCallback((
+    const predictBossAction = useCallback(async (
         params: {
             behaviorSeed: string;
             round: number;
-            bossCharacter: GameCharacter;
-            targets: GameCharacter[];
+            bossCharacter: MonsterSprite;
+            targets: MonsterSprite[];
             gameState: any;
             phaseConfig?: any;
             bossConfig?: any;
         }
-    ): BossAIDecision | null => {
+    ): Promise<BossAIDecision | null> => {
         try {
             const { behaviorSeed, round, bossCharacter, targets, gameState, phaseConfig, bossConfig } = params;
 
@@ -44,15 +55,15 @@ export const useBossAIPredictor = () => {
                 currentHp: bossCharacter.stats?.hp?.current || 0,
                 maxHp: bossCharacter.stats?.hp?.max || 0,
                 skillCooldowns: bossCharacter.skillCooldowns || {},
-                statusEffects: bossCharacter.activeEffects || [],
+                statusEffects: bossCharacter.statusEffects || [],
             };
 
-            // 准备游戏状态
+            // 准备游戏状态（PVE模式：从Boss角度看，targets是玩家角色）
             const gameStateLocal = {
                 round,
                 seed: behaviorSeed,
-                playerCount: targets.length,
-                enemyCount: targets.length,
+                playerCount: targets.length,  // 玩家角色数量
+                enemyCount: targets.length,    // 从Boss角度看的目标数量（玩家角色）
                 minionCount: 0,
             };
 
@@ -82,11 +93,34 @@ export const useBossAIPredictor = () => {
                 bossConfig,
             });
 
+            // 乐观执行（如果执行器可用）
+            let operationId: string | undefined;
+            if (optimisticExecutor && game) {
+                try {
+                    const executionResult = await optimisticExecutor.executeOptimistically(
+                        decision,
+                        bossCharacter,
+                        behaviorSeed,
+                        round
+                    );
+                    operationId = executionResult.operationId;
+
+                    // 保存回滚回调
+                    const operation = optimisticExecutor.getOperation(operationId);
+                    if (operation) {
+                        rollbackCallbacksRef.current.set(round, operation.rollback);
+                    }
+                } catch (error) {
+                    console.error("Failed to execute Boss action optimistically:", error);
+                }
+            }
+
             // 保存预测结果
             const predicted: PredictedAction = {
                 decision,
                 timestamp: Date.now(),
                 round,
+                operationId,
             };
 
             pendingPredictionsRef.current.set(round, predicted);
@@ -97,7 +131,7 @@ export const useBossAIPredictor = () => {
             console.error("Boss AI预测失败:", error);
             return null;
         }
-    }, []);
+    }, [optimisticExecutor, game]);
 
     /**
      * 验证预测结果
@@ -126,6 +160,26 @@ export const useBossAIPredictor = () => {
             });
 
             // 触发回滚
+            const rollback = rollbackCallbacksRef.current.get(round);
+            if (rollback) {
+                try {
+                    rollback();
+                    console.log(`✅ 已回滚 Round ${round} 的Boss动作`);
+                } catch (error) {
+                    console.error(`❌ 回滚失败（Round ${round}）:`, error);
+                }
+                rollbackCallbacksRef.current.delete(round);
+            }
+
+            // 如果有操作ID，从操作队列中回滚
+            if (predicted.operationId && operationQueue) {
+                const rolledBack = operationQueue.rollbackOperation(predicted.operationId);
+                if (!rolledBack) {
+                    console.warn(`Failed to rollback operation ${predicted.operationId}`);
+                }
+            }
+
+            // 触发自定义回滚回调
             if (onRollback) {
                 onRollback(predicted.decision.bossAction, serverDecision.bossAction);
             }
@@ -137,13 +191,21 @@ export const useBossAIPredictor = () => {
             return false;
         }
 
-        // 预测正确，清理预测记录
+        // 预测正确，确认操作
         console.log(`✅ 预测正确（Round ${round}）`);
+
+        // 如果有操作ID，确认操作
+        if (predicted.operationId && operationQueue) {
+            operationQueue.confirmOperation(predicted.operationId);
+        }
+
+        // 清理预测记录和回滚回调
         pendingPredictionsRef.current.delete(round);
+        rollbackCallbacksRef.current.delete(round);
         setPredictedActions(new Map(pendingPredictionsRef.current));
 
         return true;
-    }, []);
+    }, [operationQueue]);
 
     /**
      * 清理预测记录

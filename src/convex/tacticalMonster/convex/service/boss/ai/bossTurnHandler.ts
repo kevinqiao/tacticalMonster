@@ -98,7 +98,6 @@ export const handleBossTurn = internalMutation({
                 phaseTransition: decision.phaseTransition,
                 timestamp: Date.now(),
             },
-            isSynced: false,
             time: Date.now(),
         });
 

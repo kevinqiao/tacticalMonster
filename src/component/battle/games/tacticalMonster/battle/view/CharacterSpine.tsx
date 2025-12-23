@@ -6,11 +6,11 @@ import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import React, { useEffect, useRef, useState } from "react";
 import { SpineModelAnimator } from "../animation/model/SpineModelAnimator";
-import { GameCharacter } from "../types/CombatTypes";
+import { MonsterSprite } from "../types/CombatTypes";
 
 
 interface ICharacterProps {
-    character: GameCharacter;
+    character: MonsterSprite;
     width: number;
     height: number;
 }

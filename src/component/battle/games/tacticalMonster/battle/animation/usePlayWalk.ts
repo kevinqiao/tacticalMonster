@@ -5,12 +5,12 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { useCombatManager } from "../service/CombatManager";
-import { GameCharacter } from "../types/CombatTypes";
+import { MonsterSprite } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 
 const usePlayWalk = () => {
     const { characters, gridCells, hexCell, currentRound, map } = useCombatManager();
-    const playWalk = useCallback((character: GameCharacter, path: { x: number; y: number }[], onComplete: () => void) => {
+    const playWalk = useCallback((character: MonsterSprite, path: { x: number; y: number }[], onComplete: () => void | Promise<void>) => {
 
         const container = character.container;
         if (!container || !gridCells || !hexCell || !map || !characters) return;
@@ -24,7 +24,11 @@ const usePlayWalk = () => {
             onComplete: () => {
                 character.animator?.stand();
                 console.log("onComplete")
-                onComplete();
+                const result = onComplete();
+                // 如果返回 Promise，不等待但确保错误被捕获
+                if (result instanceof Promise) {
+                    result.catch(err => console.error("onComplete error:", err));
+                }
             }
         });
 

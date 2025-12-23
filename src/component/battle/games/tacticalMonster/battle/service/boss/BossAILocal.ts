@@ -3,8 +3,8 @@
  * 与后端使用相同的决策逻辑，确保前后端决策一致
  */
 
-import { SeededRandom } from "../../utils/seededRandom";
 import { calculateHexDistance } from "../../utils/hexUtil";
+import { SeededRandom } from "../../utils/seededRandom";
 
 export interface BossAction {
     type: "use_skill" | "attack" | "move" | "standby";
@@ -26,9 +26,9 @@ export interface BossState {
 export interface GameState {
     round: number;
     seed?: string;
-    playerCount?: number;
-    enemyCount?: number;
-    minionCount?: number;
+    playerCount?: number;      // 玩家角色数量
+    enemyCount?: number;        // 从Boss角度看的目标数量（PVE模式：玩家角色）
+    minionCount?: number;       // 小怪数量
     distanceToNearest?: number;
 }
 
@@ -142,7 +142,7 @@ export class BossAILocal {
     }
 
     /**
-     * 选择最近的敌人
+     * 选择最近的目标（PVE模式：玩家角色）
      */
     private static selectNearestTarget(
         targets: TargetCharacter[],
@@ -150,7 +150,7 @@ export class BossAILocal {
     ): TargetCharacter | null {
         if (!targets || targets.length === 0) return null;
 
-        // 过滤掉已死亡的敌人
+        // 过滤掉已死亡的目标（PVE模式：玩家角色）
         const aliveTargets = targets.filter(t => t.currentHp > 0);
         if (aliveTargets.length === 0) return null;
 
