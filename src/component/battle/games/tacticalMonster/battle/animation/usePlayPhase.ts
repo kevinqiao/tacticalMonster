@@ -10,7 +10,7 @@ import { CombatTurn, MonsterSprite } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 
 const usePlayPhase = () => {
-    const { gridCells, characters, hexCell, map, setActiveSkill } = useCombatManager();
+    const { gridCells, characters, hexCell, map, setActiveSkill, playbackSpeed = 1.0 } = useCombatManager();
 
     const playTurnOn = useCallback(async (currentTurn: CombatTurn, onComplete: () => void) => {
         if (!characters || !gridCells || !map) return;
@@ -64,6 +64,7 @@ const usePlayPhase = () => {
 
         character.attackables = attackableNodes;
         const tl = gsap.timeline({
+            timeScale: playbackSpeed,  // ✅ 应用播放速度，同步动画速度
             onComplete: () => {
                 setActiveSkill(skill ?? null);
                 onComplete();
@@ -109,12 +110,14 @@ const usePlayPhase = () => {
         tl.play();
 
 
-    }, [characters, gridCells, hexCell, map, setActiveSkill]);
+    }, [characters, gridCells, hexCell, map, setActiveSkill, playbackSpeed]);
 
     const playTurnStart = useCallback((character: MonsterSprite, timeline: gsap.core.Timeline | null) => {
         if (!map || !gridCells) return;
         const { cols, direction } = map;
-        const tl = gsap.timeline();
+        const tl = gsap.timeline({
+            timeScale: playbackSpeed,  // ✅ 应用播放速度，同步动画速度
+        });
         if (character?.standEle) {
             tl.to(character.standEle, {
                 autoAlpha: 1,
@@ -138,7 +141,7 @@ const usePlayPhase = () => {
         if (timeline) timeline.add(tl, "<");
         else tl.play();
 
-    }, [gridCells, hexCell, map]);
+    }, [gridCells, hexCell, map, playbackSpeed]);
 
     const playTurnInit = useCallback(() => {
         if (!map || !gridCells) return;

@@ -9,7 +9,7 @@ import { MonsterSprite } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 
 const usePlayWalk = () => {
-    const { characters, gridCells, hexCell, currentRound, map } = useCombatManager();
+    const { characters, gridCells, hexCell, currentRound, map, playbackSpeed = 1.0 } = useCombatManager();
     const playWalk = useCallback((character: MonsterSprite, path: { x: number; y: number }[], onComplete: () => void | Promise<void>) => {
 
         const container = character.container;
@@ -18,6 +18,7 @@ const usePlayWalk = () => {
         // 记录初始朝向
         const initialScale = character.scaleX ?? 1;
         const tl = gsap.timeline({
+            timeScale: playbackSpeed,  // ✅ 应用播放速度，同步动画速度
             onStart: () => {
                 character.animator?.move();
             },
@@ -105,7 +106,7 @@ const usePlayWalk = () => {
         });
 
         return tl.play();
-    }, [characters, gridCells, hexCell, map]);
+    }, [characters, gridCells, hexCell, map, playbackSpeed]);
 
     return { playWalk }
 }

@@ -267,6 +267,7 @@ export interface ICombatContext {
     updateGame: (updater: (game: GameModel) => void) => void;  // 新增：更新 GameModel 的函数
     mode?: GameMode;  // 游戏模式
     replay?: ReplayControls;  // 重播控制（仅在 watch 模式）
+    playbackSpeed?: number;  // 回放速度（仅在 replay 模式，用于同步动画速度）
 }
 
 // export const DEFAULT_GAME_CONFIG: TacticalMonsterGameConfig = {

@@ -37,8 +37,7 @@ export class GameReplayManager {
      */
     async loadReplay(
         gameId: string,
-        loadEvents: (gameId: string) => Promise<CombatEvent[]>,
-        loadGame: (gameId: string) => Promise<GameModel | null>
+        loadEvents: (gameId: string) => Promise<CombatEvent[]>
     ): Promise<void> {
         try {
             // 1. 加载所有事件
@@ -51,20 +50,14 @@ export class GameReplayManager {
             // 2. 查找 gameInit 事件
             const gameInitEvent = sortedEvents.find(e => e.name === "gameInit");
 
-            if (gameInitEvent && gameInitEvent.data) {
-                // 从 gameInit 事件提取初始状态
-                this.initialState = this.extractInitialState(gameInitEvent.data);
-                // 排除 gameInit 事件
-                this.events = sortedEvents.filter(e => e.name !== "gameInit");
-            } else {
-                // 降级方案：从数据库加载
-                const gameData = await loadGame(gameId);
-                if (!gameData) {
-                    throw new Error("Failed to load game data");
-                }
-                this.initialState = gameData;
-                this.events = sortedEvents;
+            if (!gameInitEvent || !gameInitEvent.data) {
+                throw new Error(`GameInit event not found for gameId: ${gameId}. Replay requires gameInit event to restore initial state.`);
             }
+
+            // 从 gameInit 事件提取初始状态
+            this.initialState = this.extractInitialState(gameInitEvent.data);
+            // 排除 gameInit 事件
+            this.events = sortedEvents.filter(e => e.name !== "gameInit");
 
             // 重置状态
             this.currentIndex = 0;

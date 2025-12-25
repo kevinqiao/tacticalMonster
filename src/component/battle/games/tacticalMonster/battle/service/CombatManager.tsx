@@ -59,7 +59,8 @@ export const CombatContext = createContext<ICombatContext>({
     changeCoordDirection: () => null,
     setActiveSkill: () => null,
     updateGame: () => null,
-    mode: 'play'
+    mode: 'play',
+    playbackSpeed: 1.0
 });
 
 export const useCombatManager = () => {
@@ -424,7 +425,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     //     }
     // }, [gameState, finalMode, score, game, updateGame]);
 
-    const { map, playerUid, characters, currentRound, timeClock, score: gameScore } = game || {};
+    const { map, characters, currentRound, timeClock, score: gameScore } = game || {};
 
     // 创建规则管理器
     const ruleManager = useMemo(() => {
@@ -470,6 +471,8 @@ const CombatManager: React.FC<CombatManagerProps> = ({
             state: replay.replayState,   // 重播状态（isPlaying, currentIndex, totalEvents 等）
             getAllEvents: replay.getAllEvents,  // ✅ 获取所有事件（用于计分）
         } : undefined,
+        // ✅ 回放速度（用于同步动画速度）
+        playbackSpeed: mode === 'replay' ? (replay?.replayState?.playbackSpeed ?? 1.0) : 1.0,
     };
 
     return <CombatContext.Provider value={value}>{children}</CombatContext.Provider>;

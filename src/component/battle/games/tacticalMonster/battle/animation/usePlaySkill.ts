@@ -12,7 +12,7 @@ import { MonsterSprite } from "../types/CombatTypes";
 import { SkillAnimationSelector } from "./SkillAnimationSelector";
 
 const usePlaySkill = () => {
-    const { characters, gridCells, hexCell, map } = useCombatManager();
+    const { characters, gridCells, hexCell, map, playbackSpeed = 1.0 } = useCombatManager();
     const selector = useMemo(() => new SkillAnimationSelector(), []);
 
     // 技能特效播放函数（整合到 usePlaySkill 中）
@@ -38,11 +38,12 @@ const usePlaySkill = () => {
             opacity: 0,
             duration: 1,
             ease: "power2.out",
+            timeScale: playbackSpeed,  // ✅ 应用播放速度
             onComplete: () => {
                 container.removeChild(healText);
             }
         });
-    }, []);
+    }, [playbackSpeed]);
 
     const playBuffEffect = useCallback((target: MonsterSprite) => {
         const container = target.container;
@@ -64,11 +65,12 @@ const usePlaySkill = () => {
             scale: 1.5,
             duration: 0.5,
             ease: "power2.out",
+            timeScale: playbackSpeed,  // ✅ 应用播放速度
             onComplete: () => {
                 container.removeChild(buffGlow);
             }
         });
-    }, []);
+    }, [playbackSpeed]);
 
     const playDebuffEffect = useCallback((target: MonsterSprite) => {
         const container = target.container;
@@ -90,11 +92,12 @@ const usePlaySkill = () => {
             scale: 1.5,
             duration: 0.5,
             ease: "power2.out",
+            timeScale: playbackSpeed,  // ✅ 应用播放速度
             onComplete: () => {
                 container.removeChild(debuffGlow);
             }
         });
-    }, []);
+    }, [playbackSpeed]);
 
     const playSkillCastEffect = useCallback((caster: MonsterSprite, skillName: string) => {
         const container = caster.container;
@@ -119,11 +122,12 @@ const usePlaySkill = () => {
             opacity: 0,
             duration: 1,
             ease: "power2.out",
+            timeScale: playbackSpeed,  // ✅ 应用播放速度
             onComplete: () => {
                 container.removeChild(skillText);
             }
         });
-    }, []);
+    }, [playbackSpeed]);
 
     const playSkill = useCallback((
         caster: MonsterSprite,
@@ -168,6 +172,7 @@ const usePlaySkill = () => {
 
         // 创建动画序列
         const tl = gsap.timeline({
+            timeScale: playbackSpeed,  // ✅ 应用播放速度，同步动画速度
             onComplete: () => {
                 if (caster.container) {
                     gsap.set(caster.container, { scaleX: targetScale });
@@ -278,7 +283,7 @@ const usePlaySkill = () => {
         }
 
         tl.play();
-    }, [characters, gridCells, hexCell, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect]);
+    }, [characters, gridCells, hexCell, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect, playbackSpeed]);
 
     return { playSkill };
 };

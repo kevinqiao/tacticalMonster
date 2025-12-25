@@ -9,7 +9,7 @@ import { Skill } from "../types/CharacterTypes";
 import { getAttackableNodes } from "../utils/PathFind";
 
 const usePlaySkillSelect = () => {
-    const { characters, gridCells, hexCell, currentRound, map } = useCombatManager();
+    const { characters, gridCells, hexCell, currentRound, map, playbackSpeed = 1.0 } = useCombatManager();
 
 
     const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; character_id: string }, onComplete: () => void | Promise<void>) => {
@@ -65,6 +65,7 @@ const usePlaySkillSelect = () => {
 
         character.attackables = attackableNodes;
         const tl = gsap.timeline({
+            timeScale: playbackSpeed,  // ✅ 应用播放速度，同步动画速度
             onComplete: () => {
                 const result = onComplete();
                 // 如果返回 Promise，不等待但确保错误被捕获
@@ -99,7 +100,7 @@ const usePlaySkillSelect = () => {
 
         tl.play();
 
-    }, [characters, gridCells, hexCell, currentRound, map]);
+    }, [characters, gridCells, hexCell, currentRound, map, playbackSpeed]);
     return { playSkillSelect }
 }
 export default usePlaySkillSelect;

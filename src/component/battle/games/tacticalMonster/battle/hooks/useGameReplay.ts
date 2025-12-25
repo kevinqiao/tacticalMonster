@@ -67,14 +67,6 @@ export function useGameReplay(gameId: string | null, mode: 'play' | 'watch' | 'r
                         { gameId: id }
                     );
                     return events || [];
-                },
-                // 加载游戏（降级方案）
-                async (id: string) => {
-                    const result = await convex.query(
-                        (api as any).service.game.gameService.loadGame,
-                        { gameId: id }
-                    );
-                    return result?.ok ? result.data : null;
                 }
             );
 
