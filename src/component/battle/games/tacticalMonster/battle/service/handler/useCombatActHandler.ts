@@ -12,8 +12,9 @@ import { api } from "../../../../../../../convex/tacticalMonster/convex/_generat
 import usePlaySkill from "../../animation/usePlaySkill";
 import usePlaySkillSelect from "../../animation/usePlaySkillSelect";
 import usePlayWalk from "../../animation/usePlayWalk";
+import { useScoreCalculation } from "../../hooks/useScoreCalculation";
 import { Skill } from "../../types/CharacterTypes";
-import { ACT_CODE, CombatAction, MonsterSprite } from "../../types/CombatTypes";
+import { MonsterSprite } from "../../types/CombatTypes";
 import { findPath } from "../../utils/PathFind";
 import { toCharacterIdentifier } from "../../utils/characterIdentifierUtils";
 import type { CharacterIdentifier } from "../../utils/typeAdapter";
@@ -38,15 +39,22 @@ const useCombatActHandler = () => {
         gridCells,
         hexCell,
         currentRound,
-        playerUid,
         ruleManager,
-        config,
         submitScore,
         setActiveSkill,
         eventQueue,
-        updateGame
+        updateGame,
+        mode = 'play'
     } = useCombatManager();
     const convex = useConvex();
+
+    // ✅ 使用共享计分服务（play 模式）
+    const { calculateActionScore } = useScoreCalculation(
+        gameId || null,
+        game,
+        [],
+        mode
+    );
 
     // 乐观执行相关实例（基于快照管理）
     const operationQueue = useMemo(() => new OperationQueue(), []);
@@ -74,6 +82,8 @@ const useCombatActHandler = () => {
     }, [gameId, convex]);
 
     const walk = useCallback(async (to: { q: number; r: number }) => {
+        // watch/replay 模式：禁止操作
+        if (mode === 'watch' || mode === 'replay') return;
         if (!gameId || !characters || !gridCells || !currentRound || !map || !game) return;
 
         const currentTurn = currentRound.turns.find(
@@ -82,7 +92,7 @@ const useCombatActHandler = () => {
         if (!currentTurn) return;
 
         // PVE模式：如果是Boss回合（uid="boss"），不执行玩家操作
-        if (currentTurn.uid !== playerUid) return;
+        if (currentTurn.uid === "boss") return;
 
         const { uid, character_id } = currentTurn;
         const character = characters.find(
@@ -227,19 +237,6 @@ const useCombatActHandler = () => {
                     // 后端确认：确认操作
                     operationQueue.confirmOperation(operationId);
 
-                    // 计算得分
-                    if (ruleManager && config) {
-                        const action: CombatAction = {
-                            uid,
-                            character: character_id,
-                            act: ACT_CODE.WALK,
-                            data: { to }
-                        };
-                        const scoreDelta = ruleManager.calculateActionScore(action, config);
-                        if (scoreDelta > 0) {
-                            await updateScore(scoreDelta);
-                        }
-                    }
                 } else {
                     // 后端拒绝：回滚操作
                     operationQueue.rollbackOperation(operationId);
@@ -253,9 +250,11 @@ const useCombatActHandler = () => {
                 // TODO: 显示网络错误提示
             }
         });
-    }, [playerUid, map, gameId, characters, currentRound, gridCells, convex, ruleManager, config, updateScore, playWalk, game, operationQueue, updateGame]);
+    }, [map, gameId, characters, currentRound, gridCells, convex, ruleManager, updateScore, playWalk, game, operationQueue, updateGame]);
 
     const selectSkill = useCallback(async (skill: Skill) => {
+        // watch/replay 模式：禁止操作
+        if (mode === 'watch' || mode === 'replay') return;
         if (!currentRound || !gameId) return;
 
         const currentTurn = currentRound.turns.find(
@@ -264,7 +263,7 @@ const useCombatActHandler = () => {
         if (!currentTurn) return;
 
         // PVE模式：如果是Boss回合（uid="boss"），不执行玩家操作
-        if (currentTurn.uid !== playerUid) return;
+        if (currentTurn.uid === "boss") return;
 
         currentTurn.skillSelect = skill.id;
         setActiveSkill(skill);
@@ -286,33 +285,24 @@ const useCombatActHandler = () => {
                 }
             });
 
-            // 计算得分
-            if (ruleManager && config) {
-                const action: CombatAction = {
-                    uid: currentTurn.uid,
-                    character: currentTurn.character_id,
-                    act: ACT_CODE.STAND,
-                    data: { skill }
-                };
-                const scoreDelta = ruleManager.calculateActionScore(action, config);
-                if (scoreDelta > 0) {
-                    await updateScore(scoreDelta);
-                }
-            }
         } catch (error) {
             console.error("Select skill failed", error);
         }
-    }, [currentRound, gameId, playerUid, playSkillSelect, setActiveSkill, convex, ruleManager, config, updateScore]);
+    }, [currentRound, gameId, playSkillSelect, setActiveSkill, convex, ruleManager, updateScore]);
 
     const standBy = useCallback((character: MonsterSprite) => {
         console.log("standBy", character);
     }, []);
 
     const defend = useCallback(() => {
+        // watch/replay 模式：禁止操作
+        if (mode === 'watch' || mode === 'replay') return;
         console.log("defend");
-    }, []);
+    }, [mode]);
 
     const gameOver = useCallback(async () => {
+        // watch/replay 模式：禁止操作
+        if (mode === 'watch' || mode === 'replay') return;
         if (!gameId) return;
 
         try {
@@ -346,7 +336,7 @@ const useCombatActHandler = () => {
 
         // 获取玩家角色（目标）
         const targets = characters.filter(
-            (c) => c.uid === playerUid && (c.stats?.hp?.current || 0) > 0
+            (c) => (c.stats?.hp?.current || 0) > 0
         );
 
         // 获取Boss配置（可以从游戏状态或默认配置获取）
@@ -398,7 +388,7 @@ const useCombatActHandler = () => {
 
         // === 步骤3：等待后端确认 ===
         // 后端会通过事件系统发送确认，在下面的useEffect中处理
-    }, [gameId, game, currentRound, characters, playerUid, bossAIPredictor]);
+    }, [gameId, game, currentRound, characters, bossAIPredictor]);
 
     // AI 回合自动执行（修改为支持Boss预测）
     useEffect(() => {
@@ -421,7 +411,7 @@ const useCombatActHandler = () => {
             handleBossTurn(character);
         }
         // PVE模式：所有敌人都是Boss相关的，无需其他AI分支
-    }, [game, currentRound, characters, playerUid, handleBossTurn]);
+    }, [game, currentRound, characters, handleBossTurn]);
 
     /**
      * 使用技能（调用后端API）
@@ -430,6 +420,8 @@ const useCombatActHandler = () => {
      * @param target 目标角色（可选）
      */
     const useSkill = useCallback(async (skillId: string, target?: MonsterSprite) => {
+        // watch/replay 模式：禁止操作
+        if (mode === 'watch' || mode === 'replay') return;
         if (!gameId || !characters || !currentRound || !game || !optimisticExecutor) return;
 
         const currentTurn = currentRound.turns.find(
@@ -438,7 +430,7 @@ const useCombatActHandler = () => {
         if (!currentTurn) return;
 
         // PVE模式：如果是Boss回合（uid="boss"），不执行玩家操作
-        if (currentTurn.uid !== playerUid) return;
+        if (currentTurn.uid === "boss") return;
 
         const { uid, character_id } = currentTurn;
         const character = characters.find(
@@ -512,6 +504,13 @@ const useCombatActHandler = () => {
         };
 
         try {
+            // 3. ✅ 保存目标之前的HP（用于检测击败和计算得分）
+            const targetHpBefore = new Map<string, number>();
+            if (target) {
+                const key = target.character_id;
+                targetHpBefore.set(key, target.stats?.hp?.current || 0);
+            }
+
             // 4. 乐观执行（前端预先执行，但结果暂存）
             const optimisticResult = await optimisticExecutor.executeOptimistically(
                 skillId,
@@ -521,7 +520,53 @@ const useCombatActHandler = () => {
                 round
             );
 
-            // 5. 播放技能动画（使用统一的 playSkill）
+            // 5. ✅ 前端本地计算得分（乐观更新）
+            if (optimisticResult.result.success && target) {
+                const key = target.character_id;
+                const beforeHp = targetHpBefore.get(key) || 0;
+                const afterHp = target.stats?.hp?.current || 0;
+
+                // 检测是否击败目标
+                let killedBoss = false;
+                let killedMinion = false;
+
+                if (beforeHp > 0 && afterHp <= 0) {
+                    // 目标被击败
+                    if (target.uid === "boss") {
+                        // 判断是Boss本体还是小怪
+                        const bossCharacters = characters.filter(c => c.uid === "boss");
+                        if (bossCharacters.length > 0 && bossCharacters[0].character_id === target.character_id) {
+                            killedBoss = true;
+                        } else {
+                            killedMinion = true;
+                        }
+                    }
+                }
+
+                // ✅ 使用共享服务计算行动得分
+                const actionType = skillId === "basic_attack" ? 'attack' : 'skill';
+                const scoreDelta = calculateActionScore({
+                    actionType,
+                    killed: killedBoss || killedMinion,
+                    killedType: killedBoss ? 'boss' : (killedMinion ? 'minion' : undefined),
+                    skillId: skillId === "basic_attack" ? undefined : skillId
+                });
+
+                // ✅ 乐观更新得分（前端立即显示）
+                if (scoreDelta > 0 && game) {
+                    updateGame((prevGame) => {
+                        if (prevGame) {
+                            return {
+                                ...prevGame,
+                                score: (prevGame.score || 0) + scoreDelta
+                            };
+                        }
+                        return prevGame;
+                    });
+                }
+            }
+
+            // 6. 播放技能动画（使用统一的 playSkill）
             playSkill(
                 character,
                 skillId,
@@ -590,7 +635,7 @@ const useCombatActHandler = () => {
             // 网络错误等异常情况，回滚
             pendingUpdate.rollback();
         }
-    }, [gameId, characters, currentRound, playerUid, convex, game, optimisticExecutor, operationQueue, updateGame, playSkill]);
+    }, [gameId, characters, currentRound, convex, game, optimisticExecutor, operationQueue, updateGame, playSkill]);
 
     /**
      * 攻击方法（简化版：内部调用 useSkill）
@@ -598,6 +643,8 @@ const useCombatActHandler = () => {
      * 为了保持向后兼容和语义清晰，保留此方法作为 useSkill 的便捷包装
      */
     const attack = useCallback(async (character: MonsterSprite) => {
+        // watch/replay 模式：禁止操作
+        if (mode === 'watch' || mode === 'replay') return;
         if (!currentRound) return;
 
         const currentTurn = currentRound.turns.find(

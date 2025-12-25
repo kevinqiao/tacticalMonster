@@ -73,7 +73,34 @@ export interface GameReport {
     totalScore: number;  // 总分数
 }
 
-export type GameMode = 'play' | 'watch';  // 游戏模式：游玩 | 观看
+export type GameMode = 'play' | 'watch' | 'replay';  // 游戏模式：游玩 | 实时观看 | 重播
+
+/**
+ * 重播状态
+ */
+export interface ReplayState {
+    isPlaying: boolean;
+    isPaused: boolean;
+    currentIndex: number;
+    totalEvents: number;
+    currentTime: number;
+    totalTime: number;
+    playbackSpeed: number;
+}
+
+/**
+ * 重播控制接口
+ */
+export interface ReplayControls {
+    play: () => void;
+    pause: () => void;
+    stop: () => void;
+    seekTo: (time: number) => void;
+    seekToIndex: (index: number) => void;
+    setSpeed: (speed: number) => void;
+    state: ReplayState;
+    getAllEvents?: () => CombatEvent[];  // ✅ 获取所有事件（用于计分）
+}
 
 export interface TacticalMonsterGameConfig {
     scoring: {
@@ -210,15 +237,14 @@ export interface ICombatContext {
     gameId: string | null;
     map?: MapModel;
     gridCells: GridCell[][] | null;
-    playerUid?: string;  // 玩家 UID
     timeClock?: number;
     characters?: MonsterSprite[];
     currentRound?: CombatRound;
     eventQueue: CombatEvent[];
+    processedEvents?: CombatEvent[];  // ✅ Watch 模式：已处理的事件列表（用于实时计算分数）
     ruleManager: CombatRule | null;
     gameReport: GameReport | null;  // 新增：游戏报告
     score: number;  // 新增：当前分数
-    config: TacticalMonsterGameConfig;  // 新增：游戏配置
     submitScore: (score: number) => void;  // 新增：提交分数
     onGameOver: () => void;  // 新增：游戏结束回调
     resourceLoad: {
@@ -240,16 +266,17 @@ export interface ICombatContext {
     changeCoordDirection: (direction: number) => void;
     updateGame: (updater: (game: GameModel) => void) => void;  // 新增：更新 GameModel 的函数
     mode?: GameMode;  // 游戏模式
+    replay?: ReplayControls;  // 重播控制（仅在 watch 模式）
 }
 
-export const DEFAULT_GAME_CONFIG: TacticalMonsterGameConfig = {
-    scoring: {
-        defeatBoss: 100,  // 击败Boss得分（PVE模式）
-        skillUse: 20,    // 使用技能得分
-        roundBonus: 10,  // 回合奖励
-        timeBonus: 1,    // 时间奖励
-    },
-    hintsEnabled: true,
-};
+// export const DEFAULT_GAME_CONFIG: TacticalMonsterGameConfig = {
+//     scoring: {
+//         defeatBoss: 100,  // 击败Boss得分（PVE模式）
+//         skillUse: 20,    // 使用技能得分
+//         roundBonus: 10,  // 回合奖励
+//         timeBonus: 1,    // 时间奖励
+//     },
+//     hintsEnabled: true,
+// };
 
 

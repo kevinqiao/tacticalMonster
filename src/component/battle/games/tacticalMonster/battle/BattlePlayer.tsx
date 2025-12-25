@@ -3,6 +3,8 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ReplayScoreDisplay } from "./components/ReplayScoreDisplay";
+import { useScoreCalculation } from "./hooks/useScoreCalculation";
 import { useCombatManager } from "./service/CombatManager";
 import useCombatActHandler from "./service/handler/useCombatActHandler";
 import useEventHandler from "./service/handler/useEventHandler";
@@ -11,9 +13,77 @@ import { Skill } from "./types/CharacterTypes";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
+import { ReplayControls } from "./view/ReplayControls";
 
 const ScoreDisplay: React.FC = () => {
-    const { score, gameReport } = useCombatManager();
+    const { score, gameReport, game, gameId, mode, processedEvents } = useCombatManager();
+
+    // ✅ 使用共享计分服务（play/watch 模式）
+    const {
+        currentScore,
+        checkGameResult,
+        calculateFinalScore
+    } = useScoreCalculation(
+        gameId || null,
+        game ? {
+            team: game.characters?.filter(c => c.uid !== "boss").map(c => ({
+                stats: { hp: c.stats?.hp }
+            })) || [],
+            boss: {
+                stats: { hp: game.characters?.find(c => c.uid === "boss")?.stats?.hp },
+                minions: game.characters?.filter(c => c.uid === "boss").slice(1).map(c => ({
+                    stats: { hp: c.stats?.hp }
+                })) || []
+            },
+            createdAt: (game as any).createdAt || new Date().toISOString(),
+            scoringConfigVersion: (game as any).scoringConfigVersion
+        } : null,
+        (mode === 'watch' && processedEvents) ? processedEvents : [],  // ✅ Watch 模式：传递已处理的事件用于实时计算分数
+        (mode || 'play') as 'play' | 'watch' | 'replay'
+    );
+
+    // ✅ 检查游戏结果
+    const gameResult = game ? checkGameResult() : null;
+
+    // ✅ 计算最终得分（如果游戏结束）
+    const finalScore = (gameResult?.isGameOver && game) ? (() => {
+        const gameStartTime = (game as any).createdAt
+            ? new Date((game as any).createdAt).getTime()
+            : Date.now();
+        const timeElapsed = Date.now() - gameStartTime;
+        const roundsUsed = game.currentRound?.no || 0;
+
+        // 计算存活统计
+        const team = game.characters?.filter(c => c.uid !== "boss") || [];
+        const survivalStats = {
+            totalCharacters: team.length,
+            aliveCharacters: team.filter(c => (c.stats?.hp?.current || 0) > 0).length,
+            deadCharacters: team.filter(c => (c.stats?.hp?.current || 0) <= 0).length,
+            averageHpPercentage: team.length > 0
+                ? team.reduce((sum, c) => {
+                    const current = c.stats?.hp?.current || 0;
+                    const max = c.stats?.hp?.max || 1;
+                    return sum + (current / max);
+                }, 0) / team.length
+                : 0,
+            minHpPercentage: team.length > 0
+                ? Math.min(...team.map(c => {
+                    const current = c.stats?.hp?.current || 0;
+                    const max = c.stats?.hp?.max || 1;
+                    return max > 0 ? current / max : 0;
+                }))
+                : 1.0,
+            perfectSurvival: team.length > 0 && team.every(c => (c.stats?.hp?.current || 0) > 0)
+        };
+
+        return calculateFinalScore(
+            currentScore || score,
+            timeElapsed,
+            roundsUsed,
+            gameResult!.result,
+            survivalStats
+        );
+    })() : null;
 
     return (
         <div style={{
@@ -26,10 +96,38 @@ const ScoreDisplay: React.FC = () => {
             borderRadius: "8px",
             fontSize: "18px",
             fontWeight: "bold",
-            zIndex: 1000
+            zIndex: 1000,
+            minWidth: "200px"
         }}>
-            <div>Score: {score}</div>
-            {gameReport && (
+            <div style={{ marginBottom: "8px" }}>
+                <div>Score: <span style={{ color: "#4CAF50" }}>{currentScore || score}</span></div>
+                {gameResult && gameResult.isGameOver && (
+                    <div style={{ fontSize: "14px", marginTop: "5px", color: gameResult.result === 1 ? "#4CAF50" : "#f44336" }}>
+                        {gameResult.reason}
+                    </div>
+                )}
+            </div>
+
+            {/* ✅ 显示最终得分详情（游戏结束时） */}
+            {finalScore && gameResult && (
+                <div style={{ marginTop: "10px", fontSize: "14px", borderTop: "1px solid rgba(255,255,255,0.3)", paddingTop: "10px" }}>
+                    <div>Base: {finalScore.baseScore}</div>
+                    {finalScore.timeBonus > 0 && <div>Time Bonus: +{finalScore.timeBonus}</div>}
+                    {finalScore.roundBonus > 0 && <div>Round Bonus: +{finalScore.roundBonus}</div>}
+                    {finalScore.survivalBonus > 0 && <div>Survival Bonus: +{finalScore.survivalBonus}</div>}
+                    {finalScore.resultScore !== 0 && (
+                        <div style={{ color: finalScore.resultScore > 0 ? "#4CAF50" : "#f44336" }}>
+                            Result: {finalScore.resultScore > 0 ? '+' : ''}{finalScore.resultScore}
+                        </div>
+                    )}
+                    <div style={{ marginTop: "5px", borderTop: "1px solid rgba(255,255,255,0.3)", paddingTop: "5px", fontWeight: "bold" }}>
+                        Total: {finalScore.totalScore}
+                    </div>
+                </div>
+            )}
+
+            {/* ✅ 显示游戏报告（如果有） */}
+            {gameReport && !finalScore && (
                 <div style={{ marginTop: "10px", fontSize: "14px" }}>
                     <div>Base: {gameReport.baseScore}</div>
                     {gameReport.timeBonus && <div>Time Bonus: {gameReport.timeBonus}</div>}
@@ -212,12 +310,56 @@ const BattleVenue: React.FC = () => {
 
 interface BattlePlayerProps {
     gameId?: string;
+    mode?: 'play' | 'watch' | 'replay';
 }
 
-const BattlePlayer: React.FC<BattlePlayerProps> = ({ gameId }) => {
+const BattlePlayer: React.FC<BattlePlayerProps> = ({ gameId, mode = 'play' }) => {
+    const { game, replay } = useCombatManager();
+    const [currentEventIndex, setCurrentEventIndex] = useState(0);
+    const [allEvents, setAllEvents] = useState<any[]>([]);
+
+    // ✅ 监听重播状态变化，更新当前事件索引和事件列表
+    useEffect(() => {
+        if (mode === 'replay' && replay?.state) {
+            setCurrentEventIndex(replay.state.currentIndex || 0);
+            // ✅ 获取所有事件用于计分计算
+            if (replay && 'getAllEvents' in replay && typeof replay.getAllEvents === 'function') {
+                const events = replay.getAllEvents();
+                setAllEvents(events);
+            }
+        }
+    }, [mode, replay?.state?.currentIndex, replay]);
+
     if (!gameId) return null;
 
-    return <BattleVenue />;
+    return (
+        <>
+            <BattleVenue />
+            {/* ✅ 重播控制 UI（仅在 replay 模式显示） */}
+            {mode === 'replay' && <ReplayControls />}
+            {/* ✅ 重播计分显示（仅在 replay 模式显示） */}
+            {mode === 'replay' && game && allEvents.length > 0 && (
+                <ReplayScoreDisplay
+                    gameId={gameId}
+                    game={{
+                        team: game.characters?.filter(c => c.uid !== "boss").map(c => ({
+                            stats: { hp: c.stats?.hp }
+                        })) || [],
+                        boss: {
+                            stats: { hp: game.characters?.find(c => c.uid === "boss")?.stats?.hp },
+                            minions: game.characters?.filter(c => c.uid === "boss").slice(1).map(c => ({
+                                stats: { hp: c.stats?.hp }
+                            })) || []
+                        },
+                        createdAt: (game as any).createdAt || new Date().toISOString(),
+                        scoringConfigVersion: (game as any).scoringConfigVersion
+                    }}
+                    events={allEvents}
+                    currentEventIndex={currentEventIndex}
+                />
+            )}
+        </>
+    );
 };
 
 export default BattlePlayer;

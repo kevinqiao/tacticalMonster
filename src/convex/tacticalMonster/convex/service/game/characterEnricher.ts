@@ -3,8 +3,8 @@
  * 负责填充角色缺失的配置字段
  */
 
-import { MONSTER_CONFIGS_MAP } from "../../../data/monsterConfigs";
-import { GameBoss, GameMinion, GameMonster } from "../../../types/monsterTypes";
+import { MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { GameBoss, GameMinion, GameMonster } from "../../types/monsterTypes";
 
 export class CharacterEnricher {
     /**

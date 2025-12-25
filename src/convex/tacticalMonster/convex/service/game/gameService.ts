@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
 import { calculateBossPower, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
 import { MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { getSkillConfig, skillExists } from "../../data/skillConfigs";
 import { calculateGameMonster, GameBoss, GameMinion, GameMonster, PlayerMonster } from "../../types/monsterTypes";
 import { HexCoord, hexDistance } from "../../utils/hexUtils";
@@ -13,6 +14,7 @@ import { CharacterUpdateService } from "./characterUpdateService";
 import { CharacterGetter, GameActionValidator } from "./gameActionValidator";
 import { GameEventService } from "./gameEventService";
 import { RoundService } from "./roundService";
+import { GameResult, sharedScoreService } from "./sharedScoreService";
 
 /**
  * 游戏状态枚举
@@ -56,6 +58,7 @@ export interface GameModel {
     // ========== 游戏状态和分数 ==========
     status: GameStatus;  // 游戏状态：0: waiting, 1: won, 2: lost, 3: game over
     score: number;
+    scoringConfigVersion?: string;  // ✅ 计分配置版本号
     lastUpdate: string;  // ISO 字符串格式
     createdAt: string;  // ISO 字符串格式
 
@@ -614,6 +617,7 @@ export class TacticalMonsterGameManager implements CharacterGetter {
             map: game.map,
             status: game.status,
             score: game.score,
+            scoringConfigVersion: game.scoringConfigVersion,  // ✅ 加载配置版本
             lastUpdate: game.lastUpdate,
             createdAt: game.createdAt,
             round: roundNumber,
@@ -934,6 +938,7 @@ export class TacticalMonsterGameManager implements CharacterGetter {
             gameId,
             status: 0,  // 0: waiting
             score: 0,
+            scoringConfigVersion: DEFAULT_SCORING_CONFIG_VERSION,  // ✅ 记录配置版本
             lastUpdate: now,
             createdAt: now,
             bossCurrentPhase: "phase1",
@@ -945,6 +950,7 @@ export class TacticalMonsterGameManager implements CharacterGetter {
             stageId,
             uid,
             teamPower,
+            scoringConfigVersion: DEFAULT_SCORING_CONFIG_VERSION,  // ✅ 设置配置版本
             team: team,  // 完整的 GameMonster 数组
             boss: bossData,
             map: mapForGame,
@@ -954,6 +960,36 @@ export class TacticalMonsterGameManager implements CharacterGetter {
             createdAt: now,
             round: 0,
         };
+
+        // 12. 创建 gameInit 事件（包含完整初始状态，用于重播）
+        await this.eventService.createEvent({
+            gameId: this.game.gameId,
+            name: "gameInit",
+            type: 0,
+            data: {
+                // 包含完整的初始状态
+                gameId: this.game.gameId,
+                matchId: this.game.matchId,
+                stageId: this.game.stageId,
+                uid: this.game.uid,
+                teamPower: this.game.teamPower,
+                team: this.game.team.map(m => ({
+                    ...m,
+                    // 确保包含所有字段
+                })),
+                boss: {
+                    ...this.game.boss,
+                    // 确保包含所有字段
+                },
+                map: this.game.map,
+                status: 0,
+                score: 0,
+                lastUpdate: this.game.lastUpdate,
+                createdAt: this.game.createdAt,
+                round: 0,
+            },
+            time: Date.now(),
+        });
 
         return this.game;
     }
@@ -1281,7 +1317,14 @@ export class TacticalMonsterGameManager implements CharacterGetter {
             };
         }
 
-        // 3. 使用技能（使用 SkillManager）
+        // 3. ✅ 保存目标之前的HP（用于检测击败）
+        const targetHpBefore = new Map<string, number>();
+        targetMonsters.forEach(target => {
+            const key = target.monsterId;  // 使用 monsterId 作为唯一标识
+            targetHpBefore.set(key, target.stats?.hp?.current ?? 0);
+        });
+
+        // 4. 使用技能（使用 SkillManager）
         const skillResult = SkillManager.useSkill(
             skillId,
             caster,
@@ -1292,7 +1335,7 @@ export class TacticalMonsterGameManager implements CharacterGetter {
             return skillResult;
         }
 
-        // 4. 更新数据库中的角色状态（使用角色更新服务）
+        // 5. 更新数据库中的角色状态（使用角色更新服务）
         // 更新使用者状态
         if (!this.game) {
             return {
@@ -1302,17 +1345,63 @@ export class TacticalMonsterGameManager implements CharacterGetter {
         }
         await this.characterUpdateService.updateCharacterInDatabase(gameId, caster, this.game);
 
-        // 5. 更新目标状态（如果技能效果已应用）
+        // 6. ✅ 检测是否击败目标（在更新前检测）
+        let killedBoss = false;
+        let killedMinion = false;
+
         if (skillResult.effects && targetMonsters.length > 0) {
             for (const target of targetMonsters) {
+                const key = target.monsterId;
+                const beforeHp = targetHpBefore.get(key) || 0;
+
+                // 从技能效果中计算伤害后的HP
+                let totalDamage = 0;
+                skillResult.effects.forEach((effect: any) => {
+                    if (effect.effect?.type === 'damage' &&
+                        (effect.targetId === key || effect.targetId === target.monsterId)) {
+                        totalDamage += effect.effect.value || 0;
+                    }
+                });
+
+                const afterHp = Math.max(0, beforeHp - totalDamage);
+
+                // 检测是否击败（通过 uid 和 monsterId 判断）
+                if (beforeHp > 0 && afterHp <= 0) {
+                    if (target.uid === "boss") {
+                        // 检查是Boss本体还是小怪
+                        const boss = this.game?.boss;
+                        if (boss && boss.monsterId === target.monsterId) {
+                            killedBoss = true;
+                        } else if (boss?.minions?.some(m => m.monsterId === target.monsterId)) {
+                            killedMinion = true;
+                        }
+                    }
+                }
+
+                // 更新目标状态
                 await this.characterUpdateService.updateCharacterInDatabase(gameId, target, this.game);
             }
         }
 
-        // 6. 重新加载游戏状态（确保内存中的 game 对象与数据库同步）
+        // 7. 重新加载游戏状态（确保内存中的 game 对象与数据库同步）
         await this.load(gameId);
 
-        // 7. 创建技能使用事件
+        // 8. ✅ 使用共享服务计算行动得分
+        const configVersion = this.game?.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
+        const actionType = skillId === "basic_attack" ? 'attack' : 'skill';
+        const scoreDelta = sharedScoreService.calculateActionScore({
+            actionType,
+            killed: killedBoss || killedMinion,
+            killedType: killedBoss ? 'boss' : (killedMinion ? 'minion' : undefined),
+            skillId: skillId === "basic_attack" ? undefined : skillId
+        }, configVersion);
+
+        // 9. ✅ 更新 baseScore
+        if (scoreDelta > 0) {
+            await this.updateScore(gameId, scoreDelta);
+        }
+
+        // 10. 创建技能使用事件
         const event = this.eventService.createUseSkillEvent(gameId, {
             identifier: { monsterId, bossId, minionId },
             skillId,
@@ -1322,6 +1411,9 @@ export class TacticalMonsterGameManager implements CharacterGetter {
 
         await this.eventService.createEvent(event);
         await this.save({ lastUpdate: new Date().toISOString() });
+
+        // 11. ✅ 检查游戏是否结束
+        await this.checkAndUpdateGameStatus(gameId);
 
         return skillResult;
     }
@@ -1382,25 +1474,20 @@ export class TacticalMonsterGameManager implements CharacterGetter {
     }
 
     /**
-     * 计算分数
-     * 根据行动类型计算得分
-     * @param action 行动数据
-     * @param actionType 行动类型
-     * @returns 得分
+     * 计算分数（已废弃，使用 sharedScoreService）
+     * @deprecated 使用 sharedScoreService.calculateActionScore 代替
      */
     calculateScore(action: any, actionType: string): number {
-        // 基础计分逻辑
-        let score = 0;
-
-        if (actionType === "attack" && action.data?.killed) {
-            score += 100; // 击败敌人得分
-        } else if (actionType === "attack") {
-            score += 10; // 攻击得分
-        } else if (actionType === "skill") {
-            score += 20; // 使用技能得分
-        }
-
-        return score;
+        // 保持向后兼容，但实际使用 sharedScoreService
+        const actionData = {
+            actionType: actionType as 'attack' | 'skill' | 'walk',
+            killed: action.data?.killed,
+            killedType: action.data?.killedType as 'boss' | 'minion' | undefined
+        };
+        return sharedScoreService.calculateActionScore(
+            actionData,
+            this.game?.scoringConfigVersion
+        );
     }
 
     /**
@@ -1430,33 +1517,112 @@ export class TacticalMonsterGameManager implements CharacterGetter {
         await this.load(gameId);
         if (!this.game) return null;
 
+        // ✅ 获取游戏使用的配置版本
+        const configVersion = this.game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
+
+        // ✅ 判断游戏结果
+        const gameResult = sharedScoreService.determineGameResult(this.game, configVersion);
+
+        // 更新游戏状态
+        let newStatus: GameStatus;
+        switch (gameResult.result) {
+            case GameResult.WIN:
+                newStatus = 1;  // won
+                break;
+            case GameResult.LOSE:
+                newStatus = 2;  // lost
+                break;
+            case GameResult.DRAW:
+                newStatus = 3;  // draw（超时）
+                break;
+        }
+
+        // ✅ 获取基础得分
         const baseScore = this.game.score || 0;
-        const startTime = this.game.lastUpdate
-            ? new Date(this.game.lastUpdate).getTime()
+
+        // ✅ 计算游戏时长
+        const gameStartTime = this.game.createdAt
+            ? new Date(this.game.createdAt).getTime()
             : Date.now();
-        const endTime = Date.now();
-        const duration = endTime - startTime;
+        const timeElapsed = Date.now() - gameStartTime;
 
-        // 时间奖励：越快完成奖励越高（简化计算）
-        const timeBonus = Math.max(0, Math.floor((1000 - duration / 1000) / 10));
+        // ✅ 获取回合数
+        const roundsUsed = this.game.round || 0;
 
-        // 完成奖励：根据状态判断
-        const completeBonus = this.game.status === 1 ? 500 : 0; // 胜利奖励
+        // ✅ 计算角色存活统计
+        const survivalStats = sharedScoreService.calculateSurvivalStats(this.game.team || []);
 
-        const totalScore = baseScore + timeBonus + completeBonus;
+        // ✅ 使用共享服务计算完整得分
+        const scoreResult = sharedScoreService.calculateCompleteScore({
+            baseScore,
+            timeElapsed,
+            roundsUsed,
+            damageDealt: 0,  // 可选，可以从事件中统计
+            skillsUsed: 0,    // 可选，可以从事件中统计
+            gameResult: gameResult.result,
+            survivalStats
+        }, configVersion);
 
-        await this.save({ status: 3, lastUpdate: new Date().toISOString() });
+        // ✅ 保存游戏状态
+        await this.save({
+            status: newStatus,
+            lastUpdate: new Date().toISOString()
+        });
 
+        // ✅ 创建游戏结束事件
         const event = this.eventService.createGameEndEvent(gameId);
         await this.eventService.createEvent(event);
 
+        // ✅ 返回游戏报告
         return {
             gameId,
-            baseScore,
-            timeBonus,
-            completeBonus,
-            totalScore,
+            baseScore: scoreResult.baseScore,
+            timeBonus: scoreResult.timeBonus,
+            completeBonus: scoreResult.survivalBonus + scoreResult.resultScore,  // 兼容旧接口
+            totalScore: scoreResult.totalScore,
         };
+    }
+
+    /**
+     * ✅ 检查并更新游戏状态
+     */
+    async checkAndUpdateGameStatus(gameId: string): Promise<{
+        result: GameResult;
+        reason: string;
+        isGameOver: boolean;
+    } | null> {
+        await this.load(gameId);
+        if (!this.game) return null;
+
+        const configVersion = this.game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
+        const result = sharedScoreService.determineGameResult(this.game, configVersion);
+
+        // 如果游戏结束，更新状态
+        if (result.isGameOver) {
+            let newStatus: GameStatus;
+            switch (result.result) {
+                case GameResult.WIN:
+                    newStatus = 1;
+                    break;
+                case GameResult.LOSE:
+                    newStatus = 2;
+                    break;
+                case GameResult.DRAW:
+                    newStatus = 3;
+                    break;
+            }
+
+            await this.save({
+                status: newStatus,
+                lastUpdate: new Date().toISOString()
+            });
+
+            // 创建游戏结束事件
+            const event = this.eventService.createGameEndEvent(gameId);
+            await this.eventService.createEvent(event);
+        }
+
+        return result;
     }
 
     /**
@@ -1830,6 +1996,32 @@ export const findEvents = query({
 
         const events = await query.collect();
         return events.map((e: any) => ({ ...e, _creationTime: undefined }));
+    },
+});
+
+/**
+ * 查询所有事件（用于重播）
+ */
+export const findAllEvents = query({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const events = await ctx.db
+            .query("mr_game_event")
+            .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
+            .collect();
+
+        // 按时间排序
+        const sortedEvents = events.sort((a: any, b: any) => a.time - b.time);
+
+        return sortedEvents.map((e: any) => ({
+            gameId: e.gameId,
+            name: e.name,
+            type: e.type,
+            data: e.data,
+            time: e.time,
+            _id: e._id,
+            _creationTime: e._creationTime,
+        }));
     },
 });
 

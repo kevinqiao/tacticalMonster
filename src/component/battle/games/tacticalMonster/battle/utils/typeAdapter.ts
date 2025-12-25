@@ -35,6 +35,7 @@ export function convertMonsterSkillToSkill(monsterSkill: MonsterSkill): Skill {
         name: monsterSkill.name,
         type: monsterSkill.type,
         description: monsterSkill.description,
+        animation: monsterSkill.animation,  // 传递动画配置
         canTriggerCounter: monsterSkill.canTriggerCounter,
         priority: monsterSkill.priority,
         availabilityConditions: monsterSkill.availabilityConditions,

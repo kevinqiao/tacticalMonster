@@ -51,27 +51,27 @@ export interface SkillEffect {
     type: SkillEffectType;           // 效果类型
     duration?: number;               // 持续时间（回合数，0表示立即生效）
     remaining_duration?: number;     // 剩余持续时间（运行时使用）
-    
+
     // 数值修改
     modifiers?: {                   // 属性修改器
         [key: string]: number;      // 如 { "attack": 20, "defense": -10 }
     };
     modifier_type?: 'add' | 'multiply';  // 修改类型：加法或乘法
-    
+
     // 直接数值
     value?: number;                 // 直接数值（伤害值、治疗值等）
-    
+
     // UI相关
     icon?: string;                  // 效果图标路径
-    
+
     // 范围相关
     damage_falloff?: DamageFalloff; // 伤害衰减
     area_type?: 'single' | 'circle' | 'line';  // 作用范围类型
     area_size?: number;             // 作用范围大小
-    
+
     // 伤害类型
     damage_type?: 'physical' | 'magical';  // 伤害类型
-    
+
     // 目标属性
     target_attribute?: string;      // 目标属性（如 "attack", "defense", "hp", "mp"）
 }
@@ -103,6 +103,15 @@ export interface SkillTriggerCondition {
 }
 
 /**
+ * 技能动画配置
+ */
+export interface SkillAnimation {
+    name?: string;        // 施法者动画名称（如 "melee", "cast", "cast_fire"）
+    target?: string;      // 目标动画名称（如 "hurt", "stand"），可选，通常可自动推断
+    type?: "attack" | "cast" | "special";  // 动画类型提示（可选，用于回退）
+}
+
+/**
  * 怪物技能定义
  */
 export interface MonsterSkill {
@@ -110,29 +119,30 @@ export interface MonsterSkill {
     name: string;                    // 技能名称
     type: "master" | "active" | "passive";  // 技能类型
     description?: string;            // 技能描述
-    
+    animation?: SkillAnimation;      // 动画配置对象（可选）
+
     // 战斗相关
     canTriggerCounter?: boolean;     // 是否可以触发反击
     priority?: number;               // 技能优先级（数值越大优先级越高）
-    
+
     // 可用性条件（使用 json-rules-engine）
     availabilityConditions?: any;    // 技能可用条件（TopLevelCondition）
-    
+
     // 范围定义
     range?: SkillRange;              // 技能作用范围
-    
+
     // 解锁条件
     unlockConditions?: SkillUnlockConditions;  // 技能解锁条件
-    
+
     // 资源消耗
     resource_cost: SkillResourceCost;  // 技能资源消耗
-    
+
     // 冷却时间
     cooldown: number;                // 技能冷却时间（回合数）
-    
+
     // 效果列表（多个效果会同时生效）
     effects: SkillEffect[];          // 技能效果列表
-    
+
     // 触发条件（用于被动技能）
     triggerConditions?: SkillTriggerCondition[];  // 触发条件列表
 }
@@ -147,6 +157,11 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         name: "基础攻击",
         type: "active",
         description: "对目标造成物理伤害",
+        animation: {
+            name: "melee",
+            target: "hurt",
+            type: "attack"
+        },
         priority: 1,
         range: {
             area_type: "single",
@@ -165,12 +180,17 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     ranged_attack: {
         id: "ranged_attack",
         name: "远程攻击",
         type: "active",
         description: "对目标造成远程物理伤害",
+        animation: {
+            name: "ranged_attack",
+            target: "hurt",
+            type: "attack"
+        },
         priority: 1,
         range: {
             area_type: "single",
@@ -189,13 +209,17 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     // ========== 治疗技能 ==========
     heal: {
         id: "heal",
         name: "治疗",
         type: "active",
         description: "恢复目标生命值",
+        animation: {
+            name: "cast",
+            type: "cast"
+        },
         priority: 2,
         range: {
             area_type: "single",
@@ -216,7 +240,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     group_heal: {
         id: "group_heal",
         name: "群体治疗",
@@ -244,7 +268,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     // ========== 护盾技能 ==========
     shield: {
         id: "shield",
@@ -272,7 +296,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     // ========== Buff/Debuff 技能 ==========
     attack_boost: {
         id: "attack_boost",
@@ -302,7 +326,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     defense_boost: {
         id: "defense_boost",
         name: "防御强化",
@@ -331,7 +355,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     weaken: {
         id: "weaken",
         name: "虚弱",
@@ -360,7 +384,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     // ========== 被动技能 ==========
     combat_reflexes: {
         id: "combat_reflexes",
@@ -389,7 +413,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     regeneration: {
         id: "regeneration",
         name: "再生",
@@ -450,7 +474,7 @@ export const UNIQUE_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     griffin_flying_advantage: {
         id: "griffin_flying_advantage",
         name: "飞行优势",
@@ -480,7 +504,7 @@ export const UNIQUE_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     // ========== 原始巨龙专属技能 ==========
     dragon_breath: {
         id: "dragon_breath",
@@ -520,7 +544,7 @@ export const UNIQUE_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     dragon_scale_armor: {
         id: "dragon_scale_armor",
         name: "龙鳞护甲",
@@ -550,7 +574,7 @@ export const UNIQUE_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     // ========== 混沌领主专属技能 ==========
     chaos_strike: {
         id: "chaos_strike",
@@ -584,7 +608,7 @@ export const UNIQUE_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     // ========== 神圣守护者专属技能 ==========
     divine_protection: {
         id: "divine_protection",
@@ -614,7 +638,7 @@ export const UNIQUE_SKILLS: Record<string, MonsterSkill> = {
             },
         ],
     },
-    
+
     holy_light: {
         id: "holy_light",
         name: "圣光",

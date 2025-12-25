@@ -21,6 +21,7 @@ const useEventHandler = () => {
         mode = 'play'
     } = useCombatManager();
 
+    const isReplayMode = mode === 'replay';
     const isWatchMode = mode === 'watch';
     const { playWalk } = usePlayWalk();
     const { playSkill } = usePlaySkill();
@@ -190,8 +191,8 @@ const useEventHandler = () => {
                 case "walk":
                 case "skillSelect":
                 case "use_skill":
-                    if (isWatchMode) {
-                        // 观看模式：处理历史事件，统一在动画完成后更新
+                    if (isReplayMode || isWatchMode) {
+                        // 重播/观看模式：处理历史事件，统一在动画完成后更新
                         handleWatchModeActionEvent(event, onComplete);
                     } else {
                         // 游玩模式：乐观事件跳过（由 useCombatActHandler 处理验证）
@@ -215,9 +216,11 @@ const useEventHandler = () => {
             isProcessingRef.current = false;
             eventQueue.shift();
         }
-    }, [eventQueue, processRoundStart, processTurnStart, processTurnSecond, resourceLoad, processGameInit, processRoundEnd, processTurnEnd, isWatchMode, handleWatchModeActionEvent]);
+    }, [eventQueue, processRoundStart, processTurnStart, processTurnSecond, resourceLoad, processGameInit, processRoundEnd, processTurnEnd, isReplayMode, isWatchMode, handleWatchModeActionEvent]);
 
     useEffect(() => {
+        // 所有模式都需要轮询处理事件队列
+        // replay 模式下，事件由重播管理器通过回调注入到队列，但仍需要轮询来处理
         if (!characters || !gridCells || !hexCell || Object.values(resourceLoad).some(v => v === 0)) return;
 
         const intervalId = setInterval(() => {
@@ -225,7 +228,7 @@ const useEventHandler = () => {
         }, 100);
 
         return () => clearInterval(intervalId);
-    }, [characters, gridCells, hexCell, resourceLoad, processEvent]);
+    }, [characters, gridCells, hexCell, resourceLoad, processEvent, mode]);
 };
 
 export default useEventHandler;
