@@ -71,9 +71,9 @@ export const executeBossAction = internalMutation({
         const { gameId, action, identifier } = args;
 
         // 获取gameService服务
-        const { TacticalMonsterGameManager } = await import("../../game/gameService");
+        const { GameService } = await import("../../game/gameService");
 
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
 
         switch (action.type) {
             case "attack":

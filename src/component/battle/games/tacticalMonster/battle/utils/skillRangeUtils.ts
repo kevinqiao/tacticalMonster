@@ -3,7 +3,7 @@
  * 处理技能范围计算和目标获取
  */
 
-import { Effect, Skill } from "../types/CharacterTypes";
+import { MonsterSkill, SkillEffect } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { MonsterSprite } from "../types/CombatTypes";
 import { calculateHexDistance } from "./hexUtil";
 
@@ -83,7 +83,7 @@ export const getTargetsInLine = (
  * 根据技能范围获取目标
  */
 export const getTargetsInRange = (
-    skill: Skill,
+    skill: MonsterSkill,
     center: MonsterSprite,
     allCharacters: MonsterSprite[],
     target?: MonsterSprite
@@ -140,7 +140,7 @@ export const getTargetsInRange = (
  * 根据效果范围获取目标
  */
 export const getTargetsByEffectRange = (
-    effect: Effect,
+    effect: SkillEffect,
     center: MonsterSprite,
     allCharacters: MonsterSprite[],
     target?: MonsterSprite
@@ -190,7 +190,7 @@ export const getTargetsByEffectRange = (
  * 检查目标是否在技能范围内
  */
 export const isTargetInRange = (
-    skill: Skill,
+    skill: MonsterSkill,
     attacker: MonsterSprite,
     target: MonsterSprite
 ): boolean => {

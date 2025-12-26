@@ -3,7 +3,7 @@
  * 负责加载、管理和回放游戏事件
  */
 
-import { CombatEvent, GameModel } from "../types/CombatTypes";
+import { CombatEvent, GameModel, MapModel } from "../types/CombatTypes";
 
 export interface ReplayState {
     isPlaying: boolean;
@@ -77,22 +77,52 @@ export class GameReplayManager {
      */
     private extractInitialState(gameInitData: any): GameModel {
         // 转换后端 GameModel 格式到前端格式
-        const mapModel: any = {
+        const mapModel: MapModel = {
             rows: gameInitData.map?.rows || 7,
             cols: gameInitData.map?.cols || 8,
             direction: gameInitData.map?.direction,
-            obstacles: gameInitData.map?.obstacles || [],
+            obstacles: gameInitData.map?.obstacles?.map((obs: { q: number; r: number }) => ({
+                q: obs.q,
+                r: obs.r,
+                asset: "",
+                walkable: false,
+                type: 1
+            })),
             disables: gameInitData.map?.disables || [],
         };
 
         return {
+            // 后端 GameModel 字段
             gameId: gameInitData.gameId,
+            matchId: gameInitData.matchId,
+            stageId: gameInitData.stageId || "",
+            uid: gameInitData.uid || "",
+            teamPower: gameInitData.teamPower || 0,
+            team: gameInitData.team || [],
+            boss: gameInitData.boss || {
+                bossId: "",
+                monsterId: "",
+                uid: "boss",
+                name: "",
+                rarity: "Common",
+                assetPath: "",
+                level: 1,
+                stars: 1,
+                q: 0,
+                r: 0,
+                minions: [],
+                stats: { hp: { current: 0, max: 0 }, attack: 0, defense: 0, speed: 0 },
+            },
             map: mapModel,
-            playerUid: gameInitData.uid || "",
-            characters: [], // 将在 CombatManager 中转换
+            status: gameInitData.status || 0,
+            score: gameInitData.score || 0,
+            scoringConfigVersion: gameInitData.scoringConfigVersion,
+            lastUpdate: gameInitData.lastUpdate || new Date().toISOString(),
+            createdAt: gameInitData.createdAt || new Date().toISOString(),
+            round: gameInitData.round,
+            // 前端扩展字段
             currentRound: undefined,
             timeClock: 0,
-            score: 0,
         };
     }
 

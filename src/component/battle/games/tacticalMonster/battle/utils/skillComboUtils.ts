@@ -3,7 +3,7 @@
  * 处理技能组合效果检测和加成计算
  */
 
-import { Skill } from "../types/CharacterTypes";
+import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { MonsterSprite } from "../types/CombatTypes";
 
 export interface SkillCombo {
@@ -66,7 +66,7 @@ export const calculateComboBonus = (
  * 检查技能是否可以触发组合
  */
 export const canTriggerCombo = (
-    currentSkill: Skill,
+    currentSkill: MonsterSkill,
     previousSkills: string[],
     allCombos: SkillCombo[] = PREDEFINED_COMBOS
 ): SkillCombo | null => {

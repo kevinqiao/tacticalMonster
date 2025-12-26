@@ -14,10 +14,9 @@ export interface TournamentConfig {
     name: string;
     description: string;
     timeRange?: string;
-    pointsType?: "by_match_points_total" | "by_match_points_average" | "by_match_points_highest";  // 可选：向后兼容
     // 游戏配置
-    gameType?: string;  // 向后兼容：旧配置使用 gameType，新配置使用 gameRule
-    gameRule?: GameRule;  // 新配置使用此字段，包含 ruleId
+    gameType?: GameName;
+    stageRule?: StageRule;  // 新配置使用此字段，包含 ruleId
     isActive: boolean;
     // 参赛条件
     entryRequirements?: EntryRequirements;
@@ -28,27 +27,16 @@ export interface TournamentConfig {
     // 奖励配置
     rewards: RewardConfig;
 
-    // 时间配置
-    schedule?: ScheduleConfig;
-
     // 限制配置
     limits?: LimitConfig;
-
-    // ============================================
-    // 注意：单人挑战配置（GameRuleConfig）已移至 TacticalMonster 模块
-    // 通过 gameRule.ruleId 关联到 GameRuleConfig
-    // 以下字段已废弃，保留仅为向后兼容
-    // ============================================
-    /** @deprecated 使用 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig */
-    soloChallenge?: any;
 
     // 时间戳
     createdAt?: string;
     updatedAt?: string;
 }
 
-export interface GameRule {
-    name: GameName;
+export interface StageRule {
+    description: string;
     mode: "challenge" | "pvp" | "story";
     ruleId: string;  // 必填：关联到 TacticalMonster 模块的 GameRuleConfig
 }
@@ -108,19 +96,10 @@ export interface MatchRules {
     // 玩家数量
     minPlayers: number;
     maxPlayers: number;
-    // 排名规则
-    rankingMethod?: string;  // 向后兼容：旧配置使用此字段
+    // 排名规则 
     matchPointsType?: "by_score" | "by_rank" | "by_performance";
     rankPoints?: { [k: string]: number };
     performancePoints?: { [k: string]: number };
-
-    // 时间限制
-    timeLimit?: {
-        perMatch: number; // 秒
-        perTurn?: number; // 秒
-        total?: number;   // 秒
-    };
-
 
 }
 
@@ -128,7 +107,7 @@ export interface MatchRules {
  * 奖励配置 - TacticalMonster 专用
  * 
  * 注意：
- * - 单人关卡（soloChallenge）：使用 performanceRewards（基于分数阈值）
+ * - 单人关卡（minPlayers === 1 && maxPlayers === 1）：使用 performanceRewards（基于分数阈值）
  * - 多人比赛：使用 rankRewards（基于排名范围）
  * - 不包含 props 和 tickets（这些是传统游戏的奖励类型）
  */
@@ -144,15 +123,6 @@ export interface RewardConfig {
         chestDropRate?: number;  // 可选：向后兼容，如果没有配置则使用默认值
     };
 
-    pointsRewards?: Array<{
-        pointsRange: number[]; // [minPoints, maxPoints]
-        multiplier: number;
-
-        // TacticalMonster 特定奖励
-        coins?: number;
-        energy?: number;
-        chestDropRate?: number;
-    }>;
     // ============================================
     // 排名奖励 - 仅用于多人比赛（minPlayers > 1 或 maxPlayers > 1）
     // ============================================
@@ -169,31 +139,6 @@ export interface RewardConfig {
         chestDropRate?: number;
     }>;
 
-    // ============================================
-    // Tier 加成 - TacticalMonster 特定（基于 Tier 的奖励加成）
-    // ============================================
-    tierBonus?: {
-        bronze?: {
-            coins?: number;
-            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
-            energy?: number;
-        };
-        silver?: {
-            coins?: number;
-            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
-            energy?: number;
-        };
-        gold?: {
-            coins?: number;
-            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
-            energy?: number;
-        };
-        platinum?: {
-            coins?: number;
-            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
-            energy?: number;
-        };
-    };
 
     // ============================================
     // 订阅加成 - TacticalMonster 特定
@@ -204,19 +149,11 @@ export interface RewardConfig {
         energy?: number;
     };
 
-    // ============================================
-    // 参与奖励 - 参与即可获得
-    // ============================================
-    participationReward?: {
-        coins?: number;
-        // TacticalMonster 特定奖励
-        energy?: number;
-        monsterShards?: Array<{ monsterId: string; quantity: number; }>;
-    };
+
 
 
     // ============================================
-    // 表现奖励 - 仅用于单人关卡（soloChallenge，minPlayers === 1 && maxPlayers === 1）
+    // 表现奖励 - 仅用于单人关卡（minPlayers === 1 && maxPlayers === 1）
     // 基于分数阈值计算奖励，替代排名奖励
     // ============================================
     performanceRewards?: {
@@ -237,26 +174,6 @@ export interface RewardConfig {
 }
 
 /**
- * 时间配置
- */
-export interface ScheduleConfig {
-    timeZone: string;
-    open: {
-        day?: string;
-        time: string;
-    };
-    start: {
-        day?: string;
-        time: string;
-    };
-    end: {
-        day?: string;
-        time: string;
-    };
-    duration?: number;
-}
-
-/**
  * 限制配置
  */
 export interface LimitConfig {
@@ -273,411 +190,15 @@ export interface LimitConfig {
     };
 }
 
-/**
- * 注意：GameRuleConfig 已移至 TacticalMonster 模块
- * 请使用 TacticalMonster 模块的 GameRuleConfig 接口
- * 此接口定义已废弃，仅保留用于参考
- * 
- * @deprecated 使用 TacticalMonster 模块的 GameRuleConfig
- */
-export interface GameRuleConfig_Deprecated {
-    // ============================================
-    // 关卡类型和进度
-    // ============================================
-    gameName: GameName;
-    ruleId: string;
-    levelType: "story" | "challenge" | "boss_rush" | "endless";  // 关卡类型
-    chapter?: number;                    // 章节编号（故事模式使用）
-    levelNumber?: number;                 // 章节内关卡编号
-    worldId?: string;                     // 世界/区域ID（可选）
-
-    // ============================================
-    // 连续关卡配置（支持关卡链和关卡树）
-    // ============================================
-    levelChain?: {
-        // 下一关卡（线性关卡链）
-        nextLevels?: string[];           // 下一关卡的 typeId 列表（支持分支）
-
-        // 前置关卡（用于验证和自动解锁）
-        previousLevels?: string[];       // 前置关卡的 typeId 列表
-
-        // 关卡组（同一组内的关卡可以并行解锁）
-        levelGroup?: string;              // 关卡组ID（如 "chapter_1_group_1"）
-
-        // 解锁模式
-        unlockMode?: "sequential" | "parallel" | "any";  // 顺序解锁 | 并行解锁 | 任意完成即可
-        // sequential: 必须按顺序完成前置关卡
-        // parallel: 前置关卡可以并行完成
-        // any: 完成任意一个前置关卡即可解锁
-
-        // 自动解锁（完成当前关卡后自动解锁下一关卡）
-        autoUnlockNext?: boolean;        // 是否自动解锁下一关卡（默认 true）
-
-        // 关卡链元数据
-        chainId?: string;                 // 关卡链ID（用于标识整个关卡链）
-        chainOrder?: number;              // 在关卡链中的顺序（用于排序）
-    };
-
-    // ============================================
-    // 解锁条件（兼容旧配置，优先使用 levelChain）
-    // ============================================
-    unlockConditions?: {
-        // 前置关卡要求（需要完成的 typeId 列表）
-        // 注意：如果配置了 levelChain.previousLevels，则优先使用 levelChain
-        requiredTypeIds?: string[];
-
-        // 玩家等级要求
-        // 注意：玩家等级要求在 TournamentConfig.entryRequirements.playerLevel 中配置
-        // 这里不再需要 minPlayerLevel，因为已经在 EntryRequirements 中配置
-
-        // 自定义解锁条件
-        customConditions?: Array<{
-            type: string;                // 条件类型，如 "monster_collected", "achievement"
-            value: any;                  // 条件值
-        }>;
-    };
-
-    // ============================================
-    // 关卡内容配置（TacticalMonster 特定）
-    // ============================================
-    levelContent?: {
-        // Boss 配置
-        bossConfig?: {
-            bossId?: string;              // Boss ID（固定 Boss）
-            bossPool?: string[];          // Boss ID 列表（随机选择）
-            bossLevel?: number;           // Boss 等级（可选，用于难度调整）
-            bossDifficulty?: "easy" | "medium" | "hard" | "expert";  // Boss 难度
-        };
-
-        // 关卡配置引用（关联到 mr_level_configs）
-        levelConfigId?: string;          // 关联的关卡配置ID
-
-        // 地图配置（可选，如果不使用 levelConfigId）
-        mapConfig?: {
-            mapSize: { rows: number; cols: number };
-            generationType: "template" | "procedural" | "random";
-            templateId?: string;
-        };
-
-        // 难度调整
-        difficultyAdjustment?: {
-            powerBasedScaling?: boolean;   // 是否基于玩家 Power 调整难度
-            scalingFactor?: number;       // 难度调整系数（已废弃，使用difficultyMultiplier）
-            adaptiveDifficulty?: boolean;  // 是否启用自适应难度
-            // ✅ Boss难度倍数（手动配置参数）
-            // 表示Boss Power与玩家Team Power的目标比率
-            // 例如：1.0 表示Boss Power = Player Team Power（平衡）
-            //       1.2 表示Boss Power = 1.2 × Player Team Power（Boss更强）
-            difficultyMultiplier?: number;  // Boss Power / Player Team Power 的比率
-            minMultiplier?: number;        // 最低难度倍数
-            maxMultiplier?: number;        // 最高难度倍数
-        };
-    };
-
-    // ============================================
-    // 首次通关奖励（单人关卡特有）
-    // ============================================
-    firstClearRewards?: {
-        coins?: number;
-        energy?: number;
-        monsterShards?: Array<{ monsterId: string; quantity: number }>;
-        monsters?: Array<{
-            monsterId: string;
-            level?: number;
-            stars?: number;
-        }>;
-        // 解锁奖励（解锁其他 typeId）
-        unlocks?: Array<{
-            typeId: string;              // 解锁的锦标赛 typeId
-        }>;
-    };
-
-    // ============================================
-    // 星级评价系统（单人关卡特有）
-    // ============================================
-    starRating?: {
-        // 星级评价条件
-        criteria: Array<{
-            stars: number;               // 星级（1, 2, 3）
-            condition: {
-                type: "score" | "time" | "damage_taken" | "turns" | "combo";
-                operator: ">=" | "<=" | "==";
-                value: number;
-            };
-        }>;
-
-        // 星级奖励
-        starRewards?: {
-            [stars: number]: {
-                coins?: number;
-                monsterShards?: Array<{ monsterId: string; quantity: number }>;
-            };
-        };
-    };
-
-    // ============================================
-    // 重试配置（单人关卡特有）
-    // ============================================
-    retryConfig?: {
-        maxAttempts?: number;            // 最大尝试次数（覆盖 limits.maxAttempts）
-        retryCost?: {
-            coins?: number;
-            energy?: number;
-        };
-        unlimitedRetries?: boolean;      // 是否允许无限重试
-    };
-
-    // ============================================
-    // 显示和排序
-    // ============================================
-    isVisible?: boolean;                 // 是否在关卡列表中显示（默认 true）
-    sortOrder?: number;                  // 排序顺序
-}
-
 // 注意：积分规则配置已移至段位系统，不再在此定义
 // 使用段位系统的统一配置源
 
-/**
- * 高级配置
- */
-export interface AdvancedConfig {
-    // 匹配算法
-    matching: {
-        algorithm: "skill_based" | "random" | "tier_based" | "elo_based" | "power_based";
-        skillRange?: number;
-        powerRange?: number; // TacticalMonster 特定：Power 匹配范围（百分比，如 10 表示 ±10%）
-        maxWaitTime: number; // 秒
-        fallbackToAI: boolean;
-    };
-
-    // 结算配置
-    settlement: {
-        autoSettle: boolean;
-        settleDelay: number; // 秒
-        requireMinimumPlayers: boolean;
-        minimumPlayers: number;
-    };
-
-    // 通知配置
-    notifications: {
-        enabled: boolean;
-        types: string[];
-        channels: string[];
-    };
-
-    // 监控配置
-    monitoring: {
-        enabled: boolean;
-        metrics: string[];
-        alerts: string[];
-    };
-
-    // 自定义配置
-    custom?: any;
-}
 
 /**
  * 完整的锦标赛配置
  */
 export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
-    // 快速对局配置 - 免费模式
-    {
-        typeId: "jackpot_solitaire_free",
-        name: "Solitaire锦标赛(最好成绩)",
-        description: "Solitaire锦标赛，免费模式，积分累积用于排行榜",
-        gameType: "solitaire",
-        isActive: true,
-        timeRange: "daily",
 
-        entryRequirements: {
-            isSubscribedRequired: false,
-            entryFee: {
-                coins: 0 // 免费参与
-            }
-        },
-
-        matchRules: {
-            matchType: "multi_match",
-            minPlayers: 1,
-            maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 300, // 5分钟
-                total: 300
-            }
-        },
-
-        rewards: {
-            baseRewards: {
-                coins: 5 // 参与奖励
-            },
-            rankRewards: [
-                {
-                    rankRange: [1, 1],
-                    multiplier: 1.0,
-                    coins: 10
-                },
-                {
-                    rankRange: [2, 2],
-                    multiplier: 0.5,
-                    coins: 5
-                },
-                {
-                    rankRange: [3, 4],
-                    multiplier: 0.0,
-                    coins: 0
-                }
-            ],
-            participationReward: {
-                coins: 5
-            }
-        },
-
-        schedule: {
-            timeZone: "America/Toronto",
-            open: {
-                time: "00:00:00"
-            },
-            start: {
-                time: "00:30:00"
-            },
-            end: {
-                time: "23:59:59"
-            },
-            duration: 86400 * 365, // 一年
-        },
-
-        limits: {
-            maxParticipations: 10, // 每日10局免费
-            maxTournaments: 1,
-            maxAttempts: 10,
-            subscribed: {
-                maxParticipations: 15,
-                maxTournaments: 1,
-                maxAttempts: 15
-            }
-        },
-    },
-
-    // 快速对局配置 - 门票模式
-    {
-        typeId: "quick_match_solitaire_ticket2",
-        name: "Solitaire快速对局(门票2)",
-        description: "2-4人Solitaire快速对局，门票模式2",
-        gameType: "solitaire",
-        isActive: true,
-        timeRange: "daily",
-
-        entryRequirements: {
-            isSubscribedRequired: false,
-            entryFee: {
-                coins: 10, // 门票费用
-            }
-        },
-
-        matchRules: {
-            matchType: "single_match",
-            minPlayers: 2,
-            maxPlayers: 4,
-            rankingMethod: "highest_score",
-        },
-
-        rewards: {
-            baseRewards: {
-                coins: 10 // 参与奖励
-            },
-            rankRewards: [
-                {
-                    rankRange: [1, 1],
-                    multiplier: 1.0,
-                    coins: 20
-                },
-                {
-                    rankRange: [2, 2],
-                    multiplier: 0.5,
-                    coins: 10
-                },
-                {
-                    rankRange: [3, 4],
-                    multiplier: 0.1,
-                    coins: 2
-                }
-            ],
-            participationReward: {
-                coins: 10
-            }
-        },
-
-
-        limits: {
-            maxParticipations: 5, // 每日5局门票
-            maxTournaments: 1,
-            maxAttempts: 5,
-            subscribed: {
-                maxParticipations: 8,
-                maxTournaments: 1,
-                maxAttempts: 8
-            }
-        },
-    },
-
-    // 每日特殊锦标赛
-    {
-        typeId: "quick_match_solitaire_ticket1",
-        name: "Solitaire快速对局(门票1)",
-        description: "2人Solitaire快速对局，门票模式1",
-        gameType: "solitaire",
-        isActive: true,
-        timeRange: "daily",
-
-        entryRequirements: {
-            isSubscribedRequired: false,
-            entryFee: {
-                coins: 50,
-            }
-        },
-
-        matchRules: {
-            matchType: "single_match",
-            minPlayers: 1,
-            maxPlayers: 1,
-            rankingMethod: "highest_score",
-        },
-
-        rewards: {
-            baseRewards: {
-                coins: 100,
-            },
-            performanceRewards: {
-                baseReward: {
-                    coins: 300,
-                },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
-            },
-            subscriptionBonus: {
-                coins: 1.2,
-            },
-            participationReward: {
-                coins: 10
-            }
-        },
-
-        // limits: {
-        //     maxParticipations: 3,
-        //     maxTournaments: 1,
-        //     maxAttempts: 3,
-        //     subscribed: {
-        //         maxParticipations: 5,
-        //         maxTournaments: 2,
-        //         maxAttempts: 5
-        //     }
-        // },
-
-    },
 
     // ============================================
     // TacticalMonster (Monster Rumble) - 多人锦标赛配置示例
@@ -703,7 +224,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "multi_match",
             minPlayers: 4,
             maxPlayers: 8,
-            rankingMethod: "highest_score",
         },
 
         rewards: {
@@ -734,33 +254,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                     coins: 90,
                 },
             ],
-            // Tier 加成（TacticalMonster 特定）
-            tierBonus: {
-                bronze: {
-                    coins: 50,
-                    monsterShards: [
-                        { monsterId: "monster_001", quantity: 5 },
-                    ],
-                },
-            },
-            participationReward: {
-                coins: 20,
-                energy: 5,
-            },
-        },
-
-        schedule: {
-            timeZone: "UTC",
-            open: {
-                time: "00:00:00",
-            },
-            start: {
-                time: "00:00:00",
-            },
-            end: {
-                time: "23:59:59",
-            },
-            duration: 86400, // 24小时
         },
 
         limits: {
@@ -799,7 +292,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "multi_match",
             minPlayers: 4,
             maxPlayers: 8,
-            rankingMethod: "highest_score",
         },
 
         rewards: {
@@ -830,32 +322,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                     coins: 90,
                 },
             ],
-            tierBonus: {
-                bronze: {
-                    coins: 50,
-                    monsterShards: [
-                        { monsterId: "monster_001", quantity: 5 },
-                    ],
-                },
-            },
-            participationReward: {
-                coins: 20,
-                energy: 5,
-            },
-        },
-
-        schedule: {
-            timeZone: "UTC",
-            open: {
-                time: "00:00:00",
-            },
-            start: {
-                time: "00:00:00",
-            },
-            end: {
-                time: "23:59:59",
-            },
-            duration: 86400,
         },
 
         limits: {
@@ -895,20 +361,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,  // ✅ 单人关卡标识
             maxPlayers: 1,  // ✅ 单人关卡标识
-            rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 300,  // 5分钟
-            },
         },
 
         rewards: {
             baseRewards: {
                 coins: 50,
                 energy: 5,
-            },
-            participationReward: {
-                coins: 20,
-                energy: 3,
             },
             performanceRewards: {
                 baseReward: {
@@ -927,91 +385,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         limits: {
             maxAttempts: 999,  // 故事模式允许无限重试
-        },
-
-        // ✅ 单人挑战配置
-        soloChallenge: {
-            levelType: "story",
-            chapter: 1,
-            levelNumber: 1,
-
-            // ✅ 连续关卡配置
-            levelChain: {
-                nextLevels: ["monster_rumble_story_1_2"],  // 下一关卡
-                unlockMode: "sequential",                  // 顺序解锁
-                autoUnlockNext: true,                      // 自动解锁下一关
-                chainId: "story_chapter_1",                // 关卡链ID
-                chainOrder: 1,                             // 在链中的顺序
-            },
-
-            unlockConditions: {
-                minPlayerLevel: 1,
-            },
-
-            levelContent: {
-                bossConfig: {
-                    bossId: "boss_bronze_1",
-                    bossDifficulty: "easy",
-                },
-            },
-
-            firstClearRewards: {
-                coins: 200,
-                energy: 10,
-                monsterShards: [
-                    { monsterId: "monster_001", quantity: 10 },
-                ],
-                // 注意：如果配置了 levelChain.autoUnlockNext，则自动解锁 nextLevels
-                // 这里可以额外配置其他解锁
-            },
-
-            starRating: {
-                criteria: [
-                    {
-                        stars: 3,
-                        condition: {
-                            type: "score",
-                            operator: ">=",
-                            value: 10000,
-                        },
-                    },
-                    {
-                        stars: 2,
-                        condition: {
-                            type: "score",
-                            operator: ">=",
-                            value: 5000,
-                        },
-                    },
-                    {
-                        stars: 1,
-                        condition: {
-                            type: "score",
-                            operator: ">=",
-                            value: 1000,
-                        },
-                    },
-                ],
-                starRewards: {
-                    3: {
-                        coins: 50,
-                        monsterShards: [{ monsterId: "monster_001", quantity: 5 }],
-                    },
-                    2: {
-                        coins: 30,
-                    },
-                    1: {
-                        coins: 10,
-                    },
-                },
-            },
-
-            retryConfig: {
-                unlimitedRetries: true,  // 故事模式允许无限重试
-            },
-
-            isVisible: true,
-            sortOrder: 1,
         },
     },
 
@@ -1036,12 +409,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 50, energy: 10 },
-            tierBonus: { bronze: { coins: 50 } },
             performanceRewards: {
                 baseReward: { coins: 300 },
                 scoreThresholds: {
@@ -1052,32 +422,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 1,
-            levelChain: {
-                nextLevels: ["monster_rumble_challenge_bronze_boss_2"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_bronze",
-                chainOrder: 1,
-            },
-            unlockConditions: { minPlayerLevel: 1 },
-            levelContent: {
-                bossConfig: { bossId: "boss_bronze_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.0,
-                    minMultiplier: 0.5,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 3 },
-            },
-            sortOrder: 1,
-        },
     },
 
     // Bronze Tier - 关卡 2
@@ -1097,12 +441,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 60, energy: 11 },
-            tierBonus: { bronze: { coins: 50 } },
             performanceRewards: {
                 baseReward: { coins: 320 },
                 scoreThresholds: {
@@ -1113,33 +454,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 2,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_bronze_boss_1"],
-                nextLevels: ["monster_rumble_challenge_bronze_boss_3"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_bronze",
-                chainOrder: 2,
-            },
-            unlockConditions: { minPlayerLevel: 1 },
-            levelContent: {
-                bossConfig: { bossId: "boss_bronze_2" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.1,
-                    minMultiplier: 0.5,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 3 },
-            },
-            sortOrder: 2,
-        },
     },
 
     // Bronze Tier - 关卡 3
@@ -1159,12 +473,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 70, energy: 12 },
-            tierBonus: { bronze: { coins: 50 } },
             performanceRewards: {
                 baseReward: { coins: 340 },
                 scoreThresholds: {
@@ -1175,33 +486,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 3,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_bronze_boss_2"],
-                nextLevels: ["monster_rumble_challenge_bronze_boss_4"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_bronze",
-                chainOrder: 3,
-            },
-            unlockConditions: { minPlayerLevel: 1 },
-            levelContent: {
-                bossConfig: { bossId: "boss_bronze_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.2,
-                    minMultiplier: 0.5,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 3 },
-            },
-            sortOrder: 3,
-        },
     },
 
     // Bronze Tier - 关卡 4
@@ -1221,12 +505,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 80, energy: 13 },
-            tierBonus: { bronze: { coins: 50 } },
             performanceRewards: {
                 baseReward: { coins: 360 },
                 scoreThresholds: {
@@ -1237,33 +518,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 4,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_bronze_boss_3"],
-                nextLevels: ["monster_rumble_challenge_bronze_boss_5"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_bronze",
-                chainOrder: 4,
-            },
-            unlockConditions: { minPlayerLevel: 1 },
-            levelContent: {
-                bossConfig: { bossId: "boss_bronze_2" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.3,
-                    minMultiplier: 0.5,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 3 },
-            },
-            sortOrder: 4,
-        },
     },
 
     // Bronze Tier - 关卡 5
@@ -1283,12 +537,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 90, energy: 14 },
-            tierBonus: { bronze: { coins: 50 } },
             performanceRewards: {
                 baseReward: { coins: 380 },
                 scoreThresholds: {
@@ -1299,33 +550,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 5,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_bronze_boss_4"],
-                nextLevels: ["monster_rumble_challenge_silver_boss_1"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_bronze",
-                chainOrder: 5,
-            },
-            unlockConditions: { minPlayerLevel: 1 },
-            levelContent: {
-                bossConfig: { bossId: "boss_bronze_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.5,
-                    minMultiplier: 0.5,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 3 },
-            },
-            sortOrder: 5,
-        },
     },
 
     // Silver Tier - 关卡 1
@@ -1345,12 +569,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 100, energy: 15 },
-            tierBonus: { silver: { coins: 100 } },
             performanceRewards: {
                 baseReward: { coins: 600 },
                 scoreThresholds: {
@@ -1361,33 +582,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 1,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_bronze_boss_5"],
-                nextLevels: ["monster_rumble_challenge_silver_boss_2"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_silver",
-                chainOrder: 1,
-            },
-            unlockConditions: { minPlayerLevel: 11 },
-            levelContent: {
-                bossConfig: { bossId: "boss_silver_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.1,
-                    minMultiplier: 0.8,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 4 },
-            },
-            sortOrder: 1,
-        },
     },
 
     // Silver Tier - 关卡 2
@@ -1407,12 +601,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 120, energy: 17 },
-            tierBonus: { silver: { coins: 100 } },
             performanceRewards: {
                 baseReward: { coins: 640 },
                 scoreThresholds: {
@@ -1423,33 +614,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 2,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_silver_boss_1"],
-                nextLevels: ["monster_rumble_challenge_silver_boss_3"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_silver",
-                chainOrder: 2,
-            },
-            unlockConditions: { minPlayerLevel: 11 },
-            levelContent: {
-                bossConfig: { bossId: "boss_silver_2" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.2,
-                    minMultiplier: 0.8,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 4 },
-            },
-            sortOrder: 2,
-        },
     },
 
     // Silver Tier - 关卡 3
@@ -1469,12 +633,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 140, energy: 19 },
-            tierBonus: { silver: { coins: 100 } },
             performanceRewards: {
                 baseReward: { coins: 680 },
                 scoreThresholds: {
@@ -1485,33 +646,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 3,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_silver_boss_2"],
-                nextLevels: ["monster_rumble_challenge_silver_boss_4"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_silver",
-                chainOrder: 3,
-            },
-            unlockConditions: { minPlayerLevel: 11 },
-            levelContent: {
-                bossConfig: { bossId: "boss_silver_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.3,
-                    minMultiplier: 0.8,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 4 },
-            },
-            sortOrder: 3,
-        },
     },
 
     // Silver Tier - 关卡 4
@@ -1531,12 +665,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 160, energy: 21 },
-            tierBonus: { silver: { coins: 100 } },
             performanceRewards: {
                 baseReward: { coins: 720 },
                 scoreThresholds: {
@@ -1547,33 +678,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 4,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_silver_boss_3"],
-                nextLevels: ["monster_rumble_challenge_silver_boss_5"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_silver",
-                chainOrder: 4,
-            },
-            unlockConditions: { minPlayerLevel: 11 },
-            levelContent: {
-                bossConfig: { bossId: "boss_silver_2" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.4,
-                    minMultiplier: 0.8,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 4 },
-            },
-            sortOrder: 4,
-        },
     },
 
     // Silver Tier - 关卡 5
@@ -1593,12 +697,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 180, energy: 23 },
-            tierBonus: { silver: { coins: 100 } },
             performanceRewards: {
                 baseReward: { coins: 760 },
                 scoreThresholds: {
@@ -1609,33 +710,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 5,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_silver_boss_4"],
-                nextLevels: ["monster_rumble_challenge_gold_boss_1"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_silver",
-                chainOrder: 5,
-            },
-            unlockConditions: { minPlayerLevel: 11 },
-            levelContent: {
-                bossConfig: { bossId: "boss_silver_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.6,
-                    minMultiplier: 0.8,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 4 },
-            },
-            sortOrder: 5,
-        },
     },
 
     // Gold Tier - 关卡 1
@@ -1655,12 +729,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 200, energy: 20 },
-            tierBonus: { gold: { coins: 200 } },
             performanceRewards: {
                 baseReward: { coins: 1200 },
                 scoreThresholds: {
@@ -1671,33 +742,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 1,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_silver_boss_5"],
-                nextLevels: ["monster_rumble_challenge_gold_boss_2"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_gold",
-                chainOrder: 1,
-            },
-            unlockConditions: { minPlayerLevel: 31 },
-            levelContent: {
-                bossConfig: { bossId: "boss_gold_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.2,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 5 },
-            },
-            sortOrder: 1,
-        },
     },
 
     // Gold Tier - 关卡 2
@@ -1717,12 +761,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 240, energy: 23 },
-            tierBonus: { gold: { coins: 200 } },
             performanceRewards: {
                 baseReward: { coins: 1280 },
                 scoreThresholds: {
@@ -1733,33 +774,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 2,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_gold_boss_1"],
-                nextLevels: ["monster_rumble_challenge_gold_boss_3"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_gold",
-                chainOrder: 2,
-            },
-            unlockConditions: { minPlayerLevel: 31 },
-            levelContent: {
-                bossConfig: { bossId: "boss_gold_2" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.3,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 5 },
-            },
-            sortOrder: 2,
-        },
     },
 
     // Gold Tier - 关卡 3
@@ -1779,12 +793,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 280, energy: 26 },
-            tierBonus: { gold: { coins: 200 } },
             performanceRewards: {
                 baseReward: { coins: 1360 },
                 scoreThresholds: {
@@ -1795,33 +806,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 3,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_gold_boss_2"],
-                nextLevels: ["monster_rumble_challenge_gold_boss_4"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_gold",
-                chainOrder: 3,
-            },
-            unlockConditions: { minPlayerLevel: 31 },
-            levelContent: {
-                bossConfig: { bossId: "boss_gold_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.4,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 5 },
-            },
-            sortOrder: 3,
-        },
     },
 
     // Gold Tier - 关卡 4
@@ -1841,12 +825,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 320, energy: 29 },
-            tierBonus: { gold: { coins: 200 } },
             performanceRewards: {
                 baseReward: { coins: 1440 },
                 scoreThresholds: {
@@ -1857,33 +838,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 4,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_gold_boss_3"],
-                nextLevels: ["monster_rumble_challenge_gold_boss_5"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_gold",
-                chainOrder: 4,
-            },
-            unlockConditions: { minPlayerLevel: 31 },
-            levelContent: {
-                bossConfig: { bossId: "boss_gold_2" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.5,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 5 },
-            },
-            sortOrder: 4,
-        },
     },
 
     // Gold Tier - 关卡 5
@@ -1903,12 +857,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 360, energy: 32 },
-            tierBonus: { gold: { coins: 200 } },
             performanceRewards: {
                 baseReward: { coins: 1520 },
                 scoreThresholds: {
@@ -1919,33 +870,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 5,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_gold_boss_4"],
-                nextLevels: ["monster_rumble_challenge_platinum_boss_1"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_gold",
-                chainOrder: 5,
-            },
-            unlockConditions: { minPlayerLevel: 31 },
-            levelContent: {
-                bossConfig: { bossId: "boss_gold_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.7,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 5 },
-            },
-            sortOrder: 5,
-        },
     },
 
     // Platinum Tier - 关卡 1
@@ -1965,12 +889,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 500, energy: 30 },
-            tierBonus: { platinum: { coins: 500 } },
             performanceRewards: {
                 baseReward: { coins: 3000 },
                 scoreThresholds: {
@@ -1981,33 +902,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 1,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_gold_boss_5"],
-                nextLevels: ["monster_rumble_challenge_platinum_boss_2"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_platinum",
-                chainOrder: 1,
-            },
-            unlockConditions: { minPlayerLevel: 51 },
-            levelContent: {
-                bossConfig: { bossId: "boss_platinum_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.3,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 6 },
-            },
-            sortOrder: 1,
-        },
     },
 
     // Platinum Tier - 关卡 2
@@ -2027,12 +921,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 600, energy: 35 },
-            tierBonus: { platinum: { coins: 500 } },
             performanceRewards: {
                 baseReward: { coins: 3200 },
                 scoreThresholds: {
@@ -2043,33 +934,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 2,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_platinum_boss_1"],
-                nextLevels: ["monster_rumble_challenge_platinum_boss_3"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_platinum",
-                chainOrder: 2,
-            },
-            unlockConditions: { minPlayerLevel: 51 },
-            levelContent: {
-                bossConfig: { bossId: "boss_platinum_2" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.4,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 6 },
-            },
-            sortOrder: 2,
-        },
     },
 
     // Platinum Tier - 关卡 3
@@ -2089,12 +953,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 700, energy: 40 },
-            tierBonus: { platinum: { coins: 500 } },
             performanceRewards: {
                 baseReward: { coins: 3400 },
                 scoreThresholds: {
@@ -2105,33 +966,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 3,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_platinum_boss_2"],
-                nextLevels: ["monster_rumble_challenge_platinum_boss_4"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_platinum",
-                chainOrder: 3,
-            },
-            unlockConditions: { minPlayerLevel: 51 },
-            levelContent: {
-                bossConfig: { bossId: "boss_platinum_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.5,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 6 },
-            },
-            sortOrder: 3,
-        },
     },
 
     // Platinum Tier - 关卡 4
@@ -2151,12 +985,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 800, energy: 45 },
-            tierBonus: { platinum: { coins: 500 } },
             performanceRewards: {
                 baseReward: { coins: 3600 },
                 scoreThresholds: {
@@ -2167,33 +998,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 4,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_platinum_boss_3"],
-                nextLevels: ["monster_rumble_challenge_platinum_boss_5"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_platinum",
-                chainOrder: 4,
-            },
-            unlockConditions: { minPlayerLevel: 51 },
-            levelContent: {
-                bossConfig: { bossId: "boss_platinum_2" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 1.6,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 6 },
-            },
-            sortOrder: 4,
-        },
     },
 
     // Platinum Tier - 关卡 5
@@ -2213,12 +1017,9 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: { perMatch: 300 },
         },
         rewards: {
             baseRewards: { coins: 900, energy: 50 },
-            tierBonus: { platinum: { coins: 500 } },
             performanceRewards: {
                 baseReward: { coins: 3800 },
                 scoreThresholds: {
@@ -2229,32 +1030,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
         limits: { maxAttempts: 3 },
-        soloChallenge: {
-            levelType: "challenge",
-            levelNumber: 5,
-            levelChain: {
-                previousLevels: ["monster_rumble_challenge_platinum_boss_4"],
-                unlockMode: "sequential",
-                autoUnlockNext: true,
-                chainId: "challenge_platinum",
-                chainOrder: 5,
-            },
-            unlockConditions: { minPlayerLevel: 51 },
-            levelContent: {
-                bossConfig: { bossId: "boss_platinum_1" },
-                difficultyAdjustment: {
-                    powerBasedScaling: true,
-                    difficultyMultiplier: 2.0,
-                    minMultiplier: 1.0,
-                    maxMultiplier: 2.0,
-                },
-            },
-            retryConfig: {
-                maxAttempts: 3,
-                retryCost: { energy: 6 },
-            },
-            sortOrder: 5,
-        },
     },
 
     // 示例3：Boss Rush 模式
@@ -2279,10 +1054,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,  // ✅ 单人关卡标识
             maxPlayers: 1,  // ✅ 单人关卡标识
-            rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 600,  // 10分钟
-            },
         },
 
         rewards: {
@@ -2307,49 +1078,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         limits: {
             maxAttempts: 1,  // 每日只能挑战1次
-        },
-
-        // ✅ 单人挑战配置
-        soloChallenge: {
-            levelType: "boss_rush",
-            levelNumber: 1,
-
-            // ✅ 连续关卡配置（需要完成多个前置关卡）
-            levelChain: {
-                previousLevels: [
-                    "monster_rumble_challenge_bronze_boss_1",
-                    "monster_rumble_challenge_bronze_boss_2",
-                ],
-                unlockMode: "parallel",  // 并行解锁：完成任意一个前置关卡即可
-                chainId: "boss_rush_bronze",
-                chainOrder: 1,
-            },
-
-            unlockConditions: {
-                requiredTypeIds: [
-                    "monster_rumble_challenge_bronze_boss_1",
-                    "monster_rumble_challenge_bronze_boss_2",
-                ],
-            },
-
-            levelContent: {
-                bossConfig: {
-                    // Boss Rush 使用 Boss 池
-                    bossPool: ["boss_bronze_1", "boss_bronze_2"],
-                    bossDifficulty: "easy",
-                },
-            },
-
-            retryConfig: {
-                maxAttempts: 1,  // 每日只能挑战1次
-                retryCost: {
-                    coins: 200,
-                    energy: 10,
-                },
-            },
-
-            isVisible: true,
-            sortOrder: 100,
         },
     },
 
@@ -2378,10 +1106,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 300,
-            },
         },
 
         rewards: {
@@ -2402,81 +1126,10 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                     average: 1200,
                 },
             },
-            participationReward: {
-                coins: 25,
-                energy: 3,
-            },
         },
 
         limits: {
             maxAttempts: 999,
-        },
-
-        soloChallenge: {
-            levelType: "story",
-            chapter: 1,
-            levelNumber: 2,
-
-            // ✅ 连续关卡配置：线性链
-            levelChain: {
-                previousLevels: ["monster_rumble_story_1_1"],  // 前置关卡
-                nextLevels: ["monster_rumble_story_1_3"],      // 下一关卡
-                unlockMode: "sequential",                      // 顺序解锁
-                autoUnlockNext: true,                          // 自动解锁
-                chainId: "story_chapter_1",                    // 同一关卡链
-                chainOrder: 2,                                 // 链中顺序
-            },
-
-            levelContent: {
-                bossConfig: {
-                    bossId: "boss_bronze_2",
-                    bossDifficulty: "easy",
-                },
-            },
-
-            firstClearRewards: {
-                coins: 250,
-                energy: 10,
-                monsterShards: [
-                    { monsterId: "monster_001", quantity: 12 },
-                ],
-            },
-
-            starRating: {
-                criteria: [
-                    {
-                        stars: 3,
-                        condition: {
-                            type: "score",
-                            operator: ">=",
-                            value: 12000,
-                        },
-                    },
-                    {
-                        stars: 2,
-                        condition: {
-                            type: "score",
-                            operator: ">=",
-                            value: 6000,
-                        },
-                    },
-                    {
-                        stars: 1,
-                        condition: {
-                            type: "score",
-                            operator: ">=",
-                            value: 1200,
-                        },
-                    },
-                ],
-            },
-
-            retryConfig: {
-                unlimitedRetries: true,
-            },
-
-            isVisible: true,
-            sortOrder: 2,
         },
     },
 
@@ -2501,10 +1154,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 300,
-            },
         },
 
         rewards: {
@@ -2526,41 +1175,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         limits: {
             maxAttempts: 999,
-        },
-
-        soloChallenge: {
-            levelType: "story",
-            chapter: 1,
-            levelNumber: 2,
-
-            // ✅ 连续关卡配置：分支关卡
-            levelChain: {
-                previousLevels: ["monster_rumble_story_1_1"],  // 前置关卡
-                nextLevels: ["monster_rumble_story_1_3"],       // 下一关卡（与2B汇合）
-                unlockMode: "any",                              // 任意完成前置关卡即可
-                autoUnlockNext: true,
-                levelGroup: "chapter_1_branch_a",              // 关卡组（分支A）
-                chainId: "story_chapter_1",
-                chainOrder: 2,
-            },
-
-            levelContent: {
-                bossConfig: {
-                    bossId: "boss_bronze_agile",
-                    bossDifficulty: "easy",
-                },
-            },
-
-            firstClearRewards: {
-                coins: 250,
-            },
-
-            retryConfig: {
-                unlimitedRetries: true,
-            },
-
-            isVisible: true,
-            sortOrder: 3,
         },
     },
 
@@ -2584,10 +1198,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 300,
-            },
         },
 
         rewards: {
@@ -2609,41 +1219,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
 
         limits: {
             maxAttempts: 999,
-        },
-
-        soloChallenge: {
-            levelType: "story",
-            chapter: 1,
-            levelNumber: 2,
-
-            // ✅ 连续关卡配置：分支关卡（与2A并行）
-            levelChain: {
-                previousLevels: ["monster_rumble_story_1_1"],  // 前置关卡
-                nextLevels: ["monster_rumble_story_1_3"],       // 下一关卡（与2A汇合）
-                unlockMode: "any",                              // 任意完成前置关卡即可
-                autoUnlockNext: true,
-                levelGroup: "chapter_1_branch_b",              // 关卡组（分支B）
-                chainId: "story_chapter_1",
-                chainOrder: 2,
-            },
-
-            levelContent: {
-                bossConfig: {
-                    bossId: "boss_bronze_defense",
-                    bossDifficulty: "easy",
-                },
-            },
-
-            firstClearRewards: {
-                coins: 250,
-            },
-
-            retryConfig: {
-                unlimitedRetries: true,
-            },
-
-            isVisible: true,
-            sortOrder: 4,
         },
     },
 
@@ -2668,10 +1243,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
-            rankingMethod: "highest_score",
-            timeLimit: {
-                perMatch: 300,
-            },
         },
 
         rewards: {
@@ -2697,50 +1268,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         limits: {
             maxAttempts: 999,
         },
-
-        soloChallenge: {
-            levelType: "story",
-            chapter: 1,
-            levelNumber: 3,
-
-            // ✅ 连续关卡配置：汇合关卡（需要完成2A或2B）
-            levelChain: {
-                previousLevels: [
-                    "monster_rumble_story_1_2a",
-                    "monster_rumble_story_1_2b",
-                ],
-                nextLevels: ["monster_rumble_story_2_1"],      // 解锁下一章
-                unlockMode: "any",                              // 完成任意一个前置关卡即可
-                autoUnlockNext: true,
-                chainId: "story_chapter_1",
-                chainOrder: 3,
-            },
-
-            levelContent: {
-                bossConfig: {
-                    bossId: "boss_bronze_final",
-                    bossDifficulty: "medium",
-                },
-            },
-
-            firstClearRewards: {
-                coins: 500,
-                energy: 20,
-                monsterShards: [
-                    { monsterId: "monster_001", quantity: 20 },
-                ],
-                unlocks: [
-                    { typeId: "monster_rumble_story_2_1" },    // 解锁第二章
-                ],
-            },
-
-            retryConfig: {
-                unlimitedRetries: true,
-            },
-
-            isVisible: true,
-            sortOrder: 5,
-        },
     },
 ];
 
@@ -2763,7 +1290,7 @@ export function getActiveTournamentConfigs(): TournamentConfig[] {
  */
 export function getTournamentConfigsByGameType(gameType: string): TournamentConfig[] {
     return TOURNAMENT_CONFIGS.filter(config =>
-        (config.gameType === gameType || config.gameRule?.name === gameType) && config.isActive
+        (config.gameType === gameType) && config.isActive
     );
 }
 
@@ -2809,11 +1336,6 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
             if (config.matchRules.matchType && config.matchRules.matchType !== "single_match") {
                 errors.push("单人挑战（minPlayers=1, maxPlayers=1）必须使用 matchType='single_match'");
             }
-            // 注意：soloChallenge 已废弃，应该通过 gameRule.ruleId 查询 GameRuleConfig
-            // 但为了向后兼容，暂时保留验证逻辑
-            if (config.soloChallenge && !config.gameRule?.ruleId) {
-                console.warn(`配置 ${config.typeId} 使用了已废弃的 soloChallenge，建议迁移到 gameRule.ruleId`);
-            }
         }
     }
 
@@ -2841,25 +1363,6 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
             }
         }
 
-        // Tier 加成仅适用于 TacticalMonster
-        const gameType = config.gameType || config.gameRule?.name;
-        if (config.rewards.tierBonus && gameType !== "tacticalMonster") {
-            errors.push(`tierBonus 仅适用于 TacticalMonster 游戏，当前游戏类型: ${gameType}`);
-        }
-    }
-
-    // 时间配置验证
-    // 永久开放的单人关卡不需要 schedule
-    const isPermanentSinglePlayer = config.timeRange === "permanent" &&
-        config.matchRules?.minPlayers === 1 &&
-        config.matchRules?.maxPlayers === 1;
-
-    if (!isPermanentSinglePlayer && !config.schedule) {
-        errors.push("schedule 是必需的（永久开放的单人关卡除外）");
-    } else if (config.schedule) {
-        if (!config.schedule.duration || config.schedule.duration <= 0) {
-            errors.push("schedule.duration 是必需的且必须大于 0");
-        }
     }
 
     // 限制配置验证
@@ -2879,46 +1382,8 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
  * ============================================
  */
 
-/**
- * 获取关卡的下一个关卡列表
- */
-export function getNextLevels(typeId: string): string[] {
-    const config = getTournamentConfig(typeId);
-    if (!config || !config.soloChallenge?.levelChain) {
-        return [];
-    }
-    return config.soloChallenge.levelChain.nextLevels || [];
-}
 
-/**
- * 获取关卡的前置关卡列表
- */
-export function getPreviousLevels(typeId: string): string[] {
-    const config = getTournamentConfig(typeId);
-    if (!config || !config.soloChallenge?.levelChain) {
-        return [];
-    }
-    return config.soloChallenge.levelChain.previousLevels || [];
-}
 
-/**
- * 获取关卡链中的所有关卡（按顺序）
- * @deprecated 应该通过 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig
- */
-export function getLevelChain(chainId: string): TournamentConfig[] {
-    return TOURNAMENT_CONFIGS
-        .filter((config: TournamentConfig) => {
-            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
-            // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
-            return config.soloChallenge?.levelChain?.chainId === chainId &&
-                config.isActive;
-        })
-        .sort((a: TournamentConfig, b: TournamentConfig) => {
-            const orderA = a.soloChallenge?.levelChain?.chainOrder || 0;
-            const orderB = b.soloChallenge?.levelChain?.chainOrder || 0;
-            return orderA - orderB;
-        });
-}
 
 /**
  * 检查关卡是否已解锁
@@ -2936,34 +1401,33 @@ export function isLevelUnlocked(
         return { unlocked: false, reason: "关卡配置不存在" };
     }
 
-    // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
-    if (!config.soloChallenge && !config.gameRule?.ruleId) {
-        return { unlocked: false, reason: "关卡配置不存在或不是单人挑战" };
+    // 注意：soloChallenge 已移除，需要通过 gameRule.ruleId 查询 GameRuleConfig
+    if (!config.stageRule?.ruleId) {
+        return { unlocked: false, reason: "关卡配置不存在或不是单人挑战（需要通过 ruleId 查询）" };
     }
 
-    // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
-    const soloChallenge = config.soloChallenge;
-    if (!soloChallenge) {
-        return { unlocked: false, reason: "无法获取关卡配置（需要通过 ruleId 查询）" };
-    }
-
-    const { levelChain, unlockConditions } = soloChallenge;
+    // TODO: 通过 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig 获取解锁条件
+    // 暂时返回已解锁，需要实现通过 ruleId 查询的逻辑
+    const unlockConditions = null; // 需要通过 ruleId 查询获取
 
     // 1. 检查玩家等级
-    if (unlockConditions?.minPlayerLevel && params.playerLevel) {
-        if (params.playerLevel < unlockConditions.minPlayerLevel) {
-            return {
-                unlocked: false,
-                reason: `需要玩家等级 ${unlockConditions.minPlayerLevel}，当前 ${params.playerLevel}`,
-            };
-        }
-    }
+    // TODO: 从 GameRuleConfig 获取 minPlayerLevel
+    // if (unlockConditions?.minPlayerLevel && params.playerLevel) {
+    //     if (params.playerLevel < unlockConditions.minPlayerLevel) {
+    //         return {
+    //             unlocked: false,
+    //             reason: `需要玩家等级 ${unlockConditions.minPlayerLevel}，当前 ${params.playerLevel}`,
+    //         };
+    //     }
+    // }
 
-    // 2. 检查前置关卡（优先使用 levelChain）
-    const requiredTypeIds = levelChain?.previousLevels || unlockConditions?.requiredTypeIds || [];
+    // 2. 检查前置关卡
+    // TODO: 从 GameRuleConfig 获取前置关卡列表
+    const requiredTypeIds: string[] = []; // 需要通过 ruleId 查询获取
 
     if (requiredTypeIds.length > 0) {
-        const unlockMode = levelChain?.unlockMode || "sequential";
+        // TODO: 从 GameRuleConfig 获取解锁模式
+        const unlockMode = "sequential"; // 需要通过 ruleId 查询获取
 
         if (unlockMode === "sequential") {
             // 顺序解锁：必须完成所有前置关卡
@@ -3012,9 +1476,9 @@ export function getUnlockableNextLevels(
         return [];
     }
 
-    // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
-    // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
-    const nextLevelIds = config.soloChallenge?.levelChain?.nextLevels || [];
+    // 注意：soloChallenge 已移除，需要通过 gameRule.ruleId 查询 GameRuleConfig
+    // TODO: 通过 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig 获取下一关卡
+    const nextLevelIds: string[] = []; // 需要通过 ruleId 查询获取
     if (!nextLevelIds || nextLevelIds.length === 0) {
         return [];
     }
@@ -3042,17 +1506,17 @@ export function getLevelsByChapter(
     return TOURNAMENT_CONFIGS
         .filter(config => {
             if (!config.isActive) return false;
-            const configGameType = config.gameType || config.gameRule?.name;
+            const configGameType = config.gameType;
             if (gameType && configGameType !== gameType) return false;
-            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
-            // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
-            if (!config.soloChallenge) return false;
-            return config.soloChallenge.chapter === chapter;
+            // 注意：soloChallenge 已移除，需要通过 gameRule.ruleId 查询 GameRuleConfig
+            // TODO: 通过 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig 判断章节
+            if (!config.stageRule?.ruleId) return false;
+            // 暂时返回 true，需要实现通过 ruleId 查询的逻辑
+            return true;
         })
         .sort((a, b) => {
-            const numA = a.soloChallenge?.levelNumber || 0;
-            const numB = b.soloChallenge?.levelNumber || 0;
-            return numA - numB;
+            // TODO: 从 GameRuleConfig 获取 levelNumber 进行排序
+            return 0; // 暂时不排序，需要实现通过 ruleId 查询的逻辑
         });
 }
 
@@ -3064,15 +1528,15 @@ export function getLevelsByGroup(
 ): TournamentConfig[] {
     return TOURNAMENT_CONFIGS
         .filter(config => {
-            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
-            // TODO: 如果存在 gameRule.ruleId，应通过 HTTP 查询 TacticalMonster 模块的 GameRuleConfig
-            return config.soloChallenge?.levelChain?.levelGroup === levelGroup &&
-                config.isActive;
+            // 注意：soloChallenge 已移除，需要通过 gameRule.ruleId 查询 GameRuleConfig
+            // TODO: 通过 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig 判断 levelGroup
+            if (!config.stageRule?.ruleId || !config.isActive) return false;
+            // 暂时返回 false，需要实现通过 ruleId 查询的逻辑
+            return false;
         })
         .sort((a, b) => {
-            const orderA = a.soloChallenge?.levelChain?.chainOrder || 0;
-            const orderB = b.soloChallenge?.levelChain?.chainOrder || 0;
-            return orderA - orderB;
+            // TODO: 从 GameRuleConfig 获取 chainOrder 进行排序
+            return 0; // 暂时不排序，需要实现通过 ruleId 查询的逻辑
         });
 }
 
@@ -3130,15 +1594,17 @@ export async function getAllLevelsWithGeneration(
     // 2. 根据参数过滤
     if (params.chapter !== undefined) {
         levels = levels.filter(config =>
-            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
-            config.soloChallenge?.chapter === params.chapter
+            // 注意：soloChallenge 已移除，需要通过 gameRule.ruleId 查询 GameRuleConfig
+            // TODO: 通过 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig 判断章节
+            config.stageRule?.ruleId ? true : false // 暂时不过滤，需要实现通过 ruleId 查询的逻辑
         );
     }
 
     if (params.levelType) {
         levels = levels.filter(config =>
-            // 向后兼容：使用 soloChallenge，未来应通过 ruleId 查询
-            config.soloChallenge?.levelType === params.levelType
+            // 注意：soloChallenge 已移除，需要通过 gameRule.ruleId 查询 GameRuleConfig
+            // TODO: 通过 gameRule.ruleId 查询 TacticalMonster 模块的 GameRuleConfig 判断 levelType
+            config.stageRule?.ruleId ? true : false // 暂时不过滤，需要实现通过 ruleId 查询的逻辑
         );
     }
 

@@ -3,8 +3,9 @@
  */
 
 import { Spine } from "pixi-spine";
+import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { GameModel as BackendGameModel } from "../../../../../../convex/tacticalMonster/convex/service/game/gameService";
 import { GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
-import { Skill } from "./CharacterTypes";
 
 export enum ACT_CODE {
     WALK = 1,
@@ -54,15 +55,17 @@ export interface CombatEvent {
     snapshot?: any;                 // 状态快照
 }
 
-export interface GameModel {
-    gameId: string;
-    map: MapModel;
-    direction?: number;
-    playerUid: string;  // 玩家 UID（PVE模式：玩家 vs Boss）
-    characters: MonsterSprite[];  // 包含玩家角色和 Boss（Boss本体+小怪，uid="boss"）
-    currentRound?: CombatRound;
-    timeClock?: number;
-    score?: number;  // 当前分数
+/**
+ * 前端 GameModel - 扩展后端 GameModel，添加前端运行时需要的字段
+ * 使用 Omit 排除后端的 map 字段，然后添加前端的 MapModel
+ * 注意：不再包含 characters 字段，直接使用后端的 team 和 boss
+ */
+export interface GameModel extends Omit<BackendGameModel, 'map'> {
+    // 前端运行时字段
+    map: MapModel;  // 覆盖后端的 map 类型，使用前端的 MapModel（包含 direction 和 obstacles 的扩展格式）
+    currentRound?: CombatRound;  // 当前回合信息（前端运行时）
+    timeClock?: number;  // 时间时钟（前端运行时）
+   
 }
 
 export interface GameReport {
@@ -102,17 +105,7 @@ export interface ReplayControls {
     getAllEvents?: () => CombatEvent[];  // ✅ 获取所有事件（用于计分）
 }
 
-export interface TacticalMonsterGameConfig {
-    scoring: {
-        defeatBoss: number;  // 击败Boss得分（PVE模式）
-        skillUse: number;   // 使用技能得分
-        roundBonus: number; // 回合奖励
-        timeBonus: number;  // 时间奖励
-    };
-    timeLimit?: number;  // 时间限制（秒）
-    hintsEnabled: boolean;  // 是否启用提示
-    mode?: GameMode;  // 游戏模式
-}
+
 
 export interface CombatAction {
     uid: string;
@@ -183,9 +176,15 @@ export interface AttackableNode extends HexNode {
 /**
  * MonsterSprite - 前端渲染用的Monster类型
  * 基于GameMonster，添加UI渲染相关字段和前端需要的扩展字段
- * 只需要 Omit 'skills'，statusEffects 直接继承自 GameMonster
+ * 统一使用后端的 MonsterSkill[] 类型（不再转换）
  */
-export interface MonsterSprite extends Omit<GameMonster, 'skills'> {
+export interface MonsterSprite extends GameMonster {
+    // ========== 前端标识字段 ==========
+    character_id: string;                // 前端使用的角色ID（从 monsterId/bossId/minionId 转换而来）
+
+    // ========== 技能字段（统一使用后端类型）==========
+    skills: MonsterSkill[];              // 统一使用 MonsterSkill[]（不再转换为 Skill[]）
+
     // ========== UI渲染相关字段 ==========
     scaleX?: number;                    // 水平翻转（1: 向右, -1: 向左）
     facing?: number;                     // 面向方向
@@ -197,9 +196,6 @@ export interface MonsterSprite extends Omit<GameMonster, 'skills'> {
     skeleton?: Spine;                    // Spine动画骨架
     animator?: ModelAnimator;           // 动画控制器
 
-    // ========== 前端扩展字段 ==========
-    character_id: string;                // 角色唯一标识（从monsterId/bossId/minionId获取）
-    skills?: Skill[];                    // 技能列表（统一为Skill[]类型，前端使用）
     // statusEffects 直接继承自 GameMonster，类型为 StatusEffect[]
 }
 
@@ -217,21 +213,9 @@ export interface MapModel {
     disables?: { q: number; r: number }[];
 }
 
-// 游戏规则相关
-export interface CombatRule {
-    canWalk: (character: MonsterSprite, to: { q: number; r: number }) => boolean;
-    canAttack: (attacker: MonsterSprite, target: MonsterSprite, skill?: Skill | null) => boolean;
-    canSelectSkill: (character: MonsterSprite, skill: Skill) => boolean;
-    getWalkableTargets: (character: MonsterSprite) => WalkableNode[];
-    getAttackableTargets: (attacker: MonsterSprite, skill?: Skill | null) => AttackableNode[];
-    isGameOver: () => boolean;
-    calculateActionScore: (action: CombatAction, config: TacticalMonsterGameConfig) => number;
-    calculateFinalScore: (baseScore: number, timeElapsed: number, isWin: boolean, config: TacticalMonsterGameConfig) => number;
-}
-
 export interface ICombatContext {
     game: GameModel | null;
-    activeSkill: Skill | null;
+    activeSkill: MonsterSkill | null;
     coordDirection: number;
     hexCell: { width: number; height: number };
     gameId: string | null;
@@ -242,7 +226,6 @@ export interface ICombatContext {
     currentRound?: CombatRound;
     eventQueue: CombatEvent[];
     processedEvents?: CombatEvent[];  // ✅ Watch 模式：已处理的事件列表（用于实时计算分数）
-    ruleManager: CombatRule | null;
     gameReport: GameReport | null;  // 新增：游戏报告
     score: number;  // 新增：当前分数
     submitScore: (score: number) => void;  // 新增：提交分数
@@ -262,7 +245,7 @@ export interface ICombatContext {
         }>
     >;
     changeCell: React.Dispatch<React.SetStateAction<{ width: number; height: number }>>;
-    setActiveSkill: (skill: Skill | null) => void;
+    setActiveSkill: (skill: MonsterSkill | null) => void;
     changeCoordDirection: (direction: number) => void;
     updateGame: (updater: (game: GameModel) => void) => void;  // 新增：更新 GameModel 的函数
     mode?: GameMode;  // 游戏模式

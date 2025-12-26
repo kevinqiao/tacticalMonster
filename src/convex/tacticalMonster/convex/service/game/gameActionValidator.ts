@@ -3,8 +3,9 @@
  * 负责验证游戏操作的有效性（游戏状态、回合、权限、位置等）
  */
 
-import { GameModel, CharacterIdentifier, CombatTurn, GameMonster } from "./gameService";
+import { GameMonster } from "../../types/monsterTypes";
 import { hexDistance } from "../../utils/hexUtils";
+import { CharacterIdentifier, GameModel } from "./gameService";
 import { RoundService } from "./roundService";
 
 /**
@@ -75,7 +76,7 @@ export class GameActionValidator {
         const game = this.game; // 保存引用以避免重复检查
 
         // 使用回合服务获取当前回合
-        const roundInfo = await this.roundService.getCurrentRound(game.gameId, game.round);
+        const roundInfo = await this.roundService.getCurrentRound(game.gameId, game.round ?? 0);
         if (!roundInfo) {
             return { valid: false, message: "当前回合不存在" };
         }

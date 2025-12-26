@@ -10,9 +10,8 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../../../convex/tacticalMonster/convex/_generated/api";
-import type { GameBoss, GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
+import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { useGameReplay } from "../hooks/useGameReplay";
-import { Skill } from "../types/CharacterTypes";
 import {
     CombatEvent,
     CombatRound,
@@ -24,8 +23,7 @@ import {
     MapModel,
     MonsterSprite
 } from "../types/CombatTypes";
-import { toMonsterSprite } from "../utils/typeAdapter";
-import CombatRuleManager from "./CombatRuleManager";
+import { getCharactersFromGameModel } from "../utils/typeAdapter";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
@@ -48,7 +46,6 @@ export const CombatContext = createContext<ICombatContext>({
     gridCells: null,
     timeClock: 0,
     eventQueue: [],
-    ruleManager: null,
     gameReport: null,
     score: 0,
     // config: DEFAULT_GAME_CONFIG,
@@ -99,7 +96,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     onGameLoadComplete,
     onGameSubmit
 }) => {
-    const [activeSkill, setActiveSkill] = useState<Skill | null>(null);
+    const [activeSkill, setActiveSkill] = useState<MonsterSkill | null>(null);
     const [coordDirection, setCoordDirection] = useState<number>(0);
     const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
     const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -116,6 +113,8 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     const [score, setScore] = useState<number>(0);
     // ✅ Watch 模式：收集所有已处理的事件用于实时计算分数
     const [processedEvents, setProcessedEvents] = useState<any[]>([]);
+    // 用于保留角色的UI相关字段（container, skeleton, animator等）
+    const existingSpritesRef = useRef<Map<string, MonsterSprite>>(new Map());
 
 
 
@@ -176,55 +175,19 @@ const CombatManager: React.FC<CombatManagerProps> = ({
                 if (gameObj?.ok && gameObj.data) {
                     const gameData = gameObj.data;
 
-                    // 将后端Monster转换为前端MonsterSprite
-                    // 后端返回的是 GameModel，包含 team (GameMonster[]) 和 boss (GameBoss)
-                    const characters: MonsterSprite[] = [];
-                    const existingSpritesMap = new Map<string, MonsterSprite>();
-
-                    // 如果有现有的角色，保存它们的UI相关字段
-                    if (game?.characters) {
-                        game.characters.forEach(char => {
-                            existingSpritesMap.set(char.character_id, char);
+                    // 更新现有角色的UI相关字段映射（用于在重新加载时保留）
+                    if (game?.team && game?.boss) {
+                        const existingCharacters = getCharactersFromGameModel(game.team, game.boss, existingSpritesRef.current);
+                        existingCharacters.forEach(char => {
+                            existingSpritesRef.current.set(char.character_id, char);
                         });
-                    }
-
-                    // PVE模式：处理玩家队伍
-                    if (gameData.team && Array.isArray(gameData.team)) {
-                        gameData.team.forEach((monster: GameMonster) => {
-                            const existingSprite = existingSpritesMap.get(monster.monsterId);
-                            const sprite = toMonsterSprite(monster, existingSprite);
-                            // 设置角色翻转方向：玩家角色 scaleX = 1
-                            sprite.scaleX = 1;
-                            characters.push(sprite);
-                        });
-                    }
-
-                    // PVE模式：处理Boss（包括Boss本体和小怪，uid="boss"）
-                    if (gameData.boss) {
-                        const boss = gameData.boss as GameBoss;
-                        // Boss本体
-                        const existingBossSprite = existingSpritesMap.get(boss.bossId || boss.monsterId);
-                        const bossSprite = toMonsterSprite(boss, existingBossSprite);
-                        bossSprite.scaleX = -1; // Boss角色 scaleX = -1（面向玩家）
-                        characters.push(bossSprite);
-
-                        // Boss的小怪
-                        if (boss.minions && Array.isArray(boss.minions)) {
-                            boss.minions.forEach((minion: GameMonster) => {
-                                const minionId = (minion as any).minionId || minion.monsterId;
-                                const existingMinionSprite = existingSpritesMap.get(minionId);
-                                const minionSprite = toMonsterSprite(minion, existingMinionSprite);
-                                minionSprite.scaleX = -1; // Boss小怪 scaleX = -1（面向玩家）
-                                characters.push(minionSprite);
-                            });
-                        }
                     }
 
                     // 转换地图数据
                     const mapModel: MapModel = {
                         rows: gameData.map?.rows || 7,
                         cols: gameData.map?.cols || 8,
-                        direction: gameData.map?.direction,
+                        direction: (gameData.map as any)?.direction,
                         obstacles: gameData.map?.obstacles?.map((obs: { q: number; r: number }) => ({
                             q: obs.q,
                             r: obs.r,
@@ -235,14 +198,26 @@ const CombatManager: React.FC<CombatManagerProps> = ({
                         disables: gameData.map?.disables || []
                     };
 
+                    // 构建前端 GameModel（扩展后端 GameModel）
                     setGame({
+                        // 后端 GameModel 字段
                         gameId: gameData.gameId,
-                        map: mapModel,
-                        playerUid: gameData.uid || gameData.playerUid || user?.uid || "",
-                        characters,
+                        matchId: gameData.matchId,
+                        stageId: gameData.stageId,
+                        uid: gameData.uid,
+                        teamPower: gameData.teamPower,
+                        team: gameData.team,
+                        boss: gameData.boss,
+                        map: mapModel,  // 使用前端 MapModel 格式
+                        status: gameData.status,
+                        score: gameData.score || 0,
+                        scoringConfigVersion: gameData.scoringConfigVersion,
+                        lastUpdate: gameData.lastUpdate,
+                        createdAt: gameData.createdAt,
+                        round: gameData.round,
+                        // 前端扩展字段
                         currentRound: gameData.currentRound || defaultRound,
                         timeClock: 0,
-                        score: gameData.score || 0
                     });
 
                     setScore(gameData.score || 0);
@@ -403,35 +378,23 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         });
     }, []);
 
-    // ✅ Watch 模式：如果后端存储 score，可以取消注释下面的代码来实时同步游戏状态
-    // useEffect(() => {
-    //     if (finalMode !== 'watch' || !gameState) return;
-    //     if (gameState && gameState.score !== undefined) {
-    //         const gameData = gameState;
-    //         if (gameData.score !== undefined && gameData.score !== score) {
-    //             setScore(gameData.score);
-    //         }
-    //         if (game && gameData.score !== undefined && game.score !== gameData.score) {
-    //             updateGame((prevGame) => {
-    //                 if (prevGame) {
-    //                     return {
-    //                         ...prevGame,
-    //                         score: gameData.score || 0
-    //                     };
-    //                 }
-    //                 return prevGame;
-    //             });
-    //         }
-    //     }
-    // }, [gameState, finalMode, score, game, updateGame]);
 
-    const { map, characters, currentRound, timeClock, score: gameScore } = game || {};
 
-    // 创建规则管理器
-    const ruleManager = useMemo(() => {
-        if (!game || !gridCells) return null;
-        return new CombatRuleManager(game, gridCells, currentRound || null);
-    }, [game, gridCells, currentRound]);
+    const map = game?.map;
+    const currentRound = game?.currentRound;
+    const timeClock = game?.timeClock;
+    const gameScore = game?.score;
+
+    // 从 team 和 boss 计算 characters（使用 useMemo 缓存，保留UI状态）
+    const characters = useMemo(() => {
+        if (!game?.team || !game?.boss) return [];
+        const characters = getCharactersFromGameModel(game.team, game.boss, existingSpritesRef.current);
+        // 更新 ref 以保留UI状态
+        characters.forEach(char => {
+            existingSpritesRef.current.set(char.character_id, char);
+        });
+        return characters;
+    }, [game?.team, game?.boss]);
 
     const value: ICombatContext = {
         game,
@@ -440,14 +403,13 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         coordDirection,
         gameId: gameId || null,
         hexCell,
-        map: map || { rows: 7, cols: 8 },
+        map: map || { rows: 7, cols: 8, obstacles: [], disables: [] },
         gridCells,
         currentRound: currentRound || defaultRound,
         characters: characters || [],
         timeClock: timeClock || 0,
         eventQueue: eventQueueRef.current,
         processedEvents: mode === 'watch' ? processedEvents : undefined,  // ✅ Watch 模式：暴露已处理的事件
-        ruleManager,
         gameReport,
         score: gameScore || score,
         submitScore,

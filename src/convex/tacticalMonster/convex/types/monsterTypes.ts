@@ -199,7 +199,7 @@ export interface GameMinion extends GameMonster {
  * 通过 BossConfig + Monster 实时计算得出
  * 包含Boss本体和小怪（minions）的完整数据
  */
-export interface GameBoss extends Omit<GameMonster, 'skills'> {
+export interface GameBoss extends GameMonster {
     // ========== Boss 特有字段 ==========
     bossId: string;                // Boss运行时唯一标识（如 "boss_bronze_1"），用于在游戏中唯一标识Boss实例
     minions: GameMinion[];         // 小怪数组（Boss特有）

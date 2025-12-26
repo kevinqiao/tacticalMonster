@@ -5,7 +5,7 @@
 
 import { SeededRandom } from "../../utils/seededRandom";
 import { GameModel, MonsterSprite } from "../../types/CombatTypes";
-import { Skill } from "../../types/CharacterTypes";
+import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { SkillManager } from "../SkillManager";
 import { StateSnapshot, GameStateSnapshot } from "./StateSnapshot";
 import { OperationQueue, PendingOperation } from "./OperationQueue";
@@ -111,19 +111,12 @@ export class OptimisticSkillExecutor {
             };
         }
 
-        // 检查冷却和资源
-        const skillManager = new SkillManager(caster, this.game);
-        if (skillManager.isSkillOnCooldown(skillId)) {
+        // 检查冷却和资源（使用后端 SkillManager）
+        const availability = SkillManager.checkSkillAvailability(skillId, caster);
+        if (!availability.available) {
             return {
                 success: false,
-                message: `Skill ${skillId} is on cooldown`,
-            };
-        }
-
-        if (!skillManager.hasSufficientResources(skill)) {
-            return {
-                success: false,
-                message: `Insufficient resources for skill ${skillId}`,
+                message: availability.reason || `Skill ${skillId} is not available`,
             };
         }
 
@@ -134,8 +127,8 @@ export class OptimisticSkillExecutor {
             stamina: caster.stats?.stamina ?? 0,
         };
 
-        // 执行技能（传入 RNG）
-        await skillManager.useSkill(skillId, targets[0], rng);
+        // 执行技能（使用后端 SkillManager，传入 RNG）
+        SkillManager.useSkill(skillId, caster, targets, undefined, rng);
 
         // 计算资源消耗
         const resourcesAfter = {

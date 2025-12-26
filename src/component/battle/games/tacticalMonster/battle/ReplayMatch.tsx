@@ -8,11 +8,9 @@ import React from 'react';
 import BattlePlayer from './BattlePlayer';
 import CombatManager from './service/CombatManager';
 import './style.css';
-import { TacticalMonsterGameConfig } from './types/CombatTypes';
 
 interface TacticalMonsterGameProps {
     gameId?: string;
-    config?: Partial<TacticalMonsterGameConfig>;
     className?: string;
     style?: React.CSSProperties;
     mode?: 'play' | 'watch' | 'replay';  // 游戏模式：游玩 | 实时观看 | 重播
@@ -24,7 +22,7 @@ const convex_url = "https://artful-chipmunk-59.convex.cloud"; // TODO: 更新为
 
 const PlayGame: React.FC<TacticalMonsterGameProps> = ({
     gameId,
-    config,
+
     className = '',
     style,
     mode = 'play',  // ✅ 新增：默认 play 模式
@@ -33,11 +31,7 @@ const PlayGame: React.FC<TacticalMonsterGameProps> = ({
 }) => {
     const client = React.useMemo(() => new ConvexReactClient(convex_url), [convex_url]);
 
-    // 合并 mode 到 config
-    const mergedConfig = {
-        ...config,
-        mode: mode || config?.mode || 'play',
-    };
+
 
     return (
         <div className="tactical-monster-game-container">

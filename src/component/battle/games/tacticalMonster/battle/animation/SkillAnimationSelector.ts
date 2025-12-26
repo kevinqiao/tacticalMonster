@@ -3,8 +3,8 @@
  * 根据技能配置、映射表和效果类型选择适当的动画
  */
 
-import { Skill, SkillAnimation, Effect } from "../types/CharacterTypes";
-import { SkillEffectType } from "../config/skillConfigs";
+import { MonsterSkill, SkillEffect, SkillEffectType } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { SkillAnimation } from "../types/CharacterTypes";
 
 export class SkillAnimationSelector {
     // 技能ID到动画配置的映射（优先级2）
@@ -36,7 +36,7 @@ export class SkillAnimationSelector {
      * 获取施法者动画名称
      * 优先级：技能配置 > 映射表 > type提示 > 效果类型 > 默认
      */
-    getCasterAnimation(skill: Skill): string {
+    getCasterAnimation(skill: MonsterSkill): string {
         // 优先级1: 技能配置中的 animation.name
         if (skill.animation?.name) {
             return skill.animation.name;
@@ -75,7 +75,7 @@ export class SkillAnimationSelector {
      * 获取目标动画名称
      * 优先级：技能配置 > 映射表 > 效果类型推断 > null
      */
-    getTargetAnimation(skill: Skill): string | null {
+    getTargetAnimation(skill: MonsterSkill): string | null {
         // 优先级1: 技能配置中的 animation.target
         if (skill.animation?.target) {
             return skill.animation.target;
@@ -98,7 +98,7 @@ export class SkillAnimationSelector {
     /**
      * 获取主要效果（优先返回DAMAGE效果，否则返回第一个效果）
      */
-    private getPrimaryEffect(skill: Skill): Effect | null {
+    private getPrimaryEffect(skill: MonsterSkill): SkillEffect | null {
         // 优先返回DAMAGE效果
         const damageEffect = skill.effects.find(e => e.type === SkillEffectType.DAMAGE);
         if (damageEffect) {
@@ -112,7 +112,7 @@ export class SkillAnimationSelector {
     /**
      * 检查技能是否包含指定类型的效果
      */
-    private hasEffectType(skill: Skill, effectType: SkillEffectType): boolean {
+    private hasEffectType(skill: MonsterSkill, effectType: SkillEffectType): boolean {
         return skill.effects.some(e => e.type === effectType);
     }
 }

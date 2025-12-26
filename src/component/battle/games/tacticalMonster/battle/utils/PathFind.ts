@@ -2,7 +2,7 @@
  * Tactical Monster 路径查找工具
  */
 
-import { Skill } from "../types/CharacterTypes";
+import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { AttackableNode, HexNode, WalkableNode } from "../types/CombatTypes";
 
 // 计算六边形距离（用于飞行单位的直线路径）
@@ -255,7 +255,7 @@ export const getAttackableNodes = (
     gridCells: HexNode[][],
     attacker: { q: number, r: number, uid: string, character_id: string, moveRange: number, attackRange: { min: number, max: number } },
     enemies: { q: number, r: number, uid: string, character_id: string }[],  // PVE模式：Boss角色列表
-    skill: Skill | null
+    skill: MonsterSkill | null
 ): AttackableNode[] => {
     const grid = gridCells.map(row => row.map(cell => ({ ...cell, walkable: true })));
     const attackableNodes: AttackableNode[] = [];
@@ -287,7 +287,7 @@ export const isInAttackRange = (
         attackRange: { min: number, max: number }
     },
     target: { q: number, r: number },
-    skill: Skill | null
+    skill: MonsterSkill | null
 ): { ok: boolean, distance: number } => {
     const dx = attacker.q - target.q;
     const dy = attacker.r - target.r;

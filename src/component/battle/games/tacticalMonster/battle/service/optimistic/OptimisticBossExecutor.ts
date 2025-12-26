@@ -3,12 +3,13 @@
  * 在前端预先执行Boss AI动作，使用确定性随机数确保与后端结果一致
  */
 
-import { SeededRandom } from "../../utils/seededRandom";
 import { GameModel, MonsterSprite } from "../../types/CombatTypes";
+import { SeededRandom } from "../../utils/seededRandom";
+import { getCharactersFromGameModel } from "../../utils/typeAdapter";
 import { BossAction, BossAIDecision } from "../boss/BossAILocal";
-import { StateSnapshot, GameStateSnapshot } from "./StateSnapshot";
-import { OperationQueue, PendingOperation } from "./OperationQueue";
 import { SkillManager } from "../SkillManager";
+import { OperationQueue, PendingOperation } from "./OperationQueue";
+import { GameStateSnapshot, StateSnapshot } from "./StateSnapshot";
 
 export interface OptimisticBossExecutionResult {
     operationId: string;
@@ -108,8 +109,7 @@ export class OptimisticBossExecutor {
 
                     // 使用技能（传入 RNG）
                     if (targets.length > 0) {
-                        const skillManager = new SkillManager(bossCharacter, this.game);
-                        await skillManager.useSkill(action.skillId, targets[0], rng);
+                        SkillManager.useSkill(action.skillId, bossCharacter, targets, undefined, rng);
                     }
                 }
                 break;
@@ -124,7 +124,7 @@ export class OptimisticBossExecutor {
                         const attack = bossCharacter.stats.attack || 0;
                         const defense = target.stats.defense || 0;
                         const damage = Math.max(1, Math.floor(attack - defense * 0.3));
-                        
+
                         // 应用伤害
                         target.stats.hp.current = Math.max(0, target.stats.hp.current - damage);
                     }
@@ -149,11 +149,12 @@ export class OptimisticBossExecutor {
      * 根据 character_id 查找角色
      */
     private findCharacterByCharacterId(characterId: string): MonsterSprite | undefined {
-        if (!this.game.characters) {
+        if (!this.game.team || !this.game.boss) {
             return undefined;
         }
 
-        return this.game.characters.find(c => c.character_id === characterId);
+        const characters = getCharactersFromGameModel(this.game.team, this.game.boss);
+        return characters.find(c => c.character_id === characterId);
     }
 
     /**

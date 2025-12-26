@@ -115,10 +115,10 @@ export interface CombatEvent {
 }
 
 /**
- * TacticalMonsterGameManager - 战术怪物游戏管理器
+ * GameService - 战术怪物游戏服务
  * 负责游戏的创建、加载、保存和状态管理
  */
-export class TacticalMonsterGameManager implements CharacterGetter {
+export class GameService implements CharacterGetter {
     private dbCtx: any;
     private game: GameModel | null;
     private validator: GameActionValidator | null = null;
@@ -1769,7 +1769,7 @@ export const createGame = internalMutation({
     },
     handler: async (ctx, { uid, gameId, ruleId, stageId }) => {
         console.log("createGame...", uid, gameId, ruleId, stageId);
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         const game = await gameManager.createGame(uid, gameId, ruleId, stageId);
         if (game) {
             return { ok: true, data: game };
@@ -1782,7 +1782,7 @@ export const loadGame = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
         console.log("loading game", gameId);
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         try {
             const game = await gameManager.load(gameId);
             return { ok: true, data: game };
@@ -1797,7 +1797,7 @@ export const findGame = internalQuery({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
         console.log("finding game", gameId);
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         const game = await gameManager.load(gameId);
         return game;
     },
@@ -1806,7 +1806,7 @@ export const findGame = internalQuery({
 export const findReport = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         const game = await gameManager.load(gameId);
 
         if (!game) {
@@ -1837,7 +1837,7 @@ export const updateScore = mutation({
         scoreDelta: v.number(),
     },
     handler: async (ctx, { gameId, scoreDelta }) => {
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         const result = await gameManager.updateScore(gameId, scoreDelta);
         return { ok: result };
     },
@@ -1846,7 +1846,7 @@ export const updateScore = mutation({
 export const getGame = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         return await gameManager.load(gameId);
     },
 });
@@ -1854,7 +1854,7 @@ export const getGame = query({
 export const getGameStatus = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         const game = await gameManager.load(gameId);
         return { status: game?.status ?? -1 };
     },
@@ -1863,7 +1863,7 @@ export const getGameStatus = query({
 export const gameOver = mutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         const report = await gameManager.gameOver(gameId);
         if (report) {
             return { ok: true, data: report };
@@ -1884,7 +1884,7 @@ export const walk = mutation({
     },
     handler: async (ctx, { gameId, to, identifier }) => {
         console.log("walk", gameId, identifier, to);
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
         const result = await gameManager.walk(gameId, to, identifier);
         console.log("walk result", result);
@@ -1913,7 +1913,7 @@ export const attack = mutation({
     },
     handler: async (ctx, { gameId, data }) => {
         console.log("attack", gameId, data);
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
         const result = await gameManager.attack(gameId, data);
         return { ok: result !== null, data: result };
@@ -1927,7 +1927,7 @@ export const selectSkill = mutation({
     },
     handler: async (ctx, { gameId, data }) => {
         console.log("selectSkill", gameId, data);
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
         const result = await gameManager.selectSkill(gameId, data);
         return { ok: result };
@@ -1955,7 +1955,7 @@ export const useSkill = mutation({
     },
     handler: async (ctx, { gameId, data }) => {
         console.log("useSkill", gameId, data);
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         const result = await gameManager.useSkill(gameId, data);
         if (result.success) {
             return { ok: true, data: result };
@@ -1968,7 +1968,7 @@ export const useSkill = mutation({
 export const startNewRound = mutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
         return await gameManager.startNewRound(gameId);
     },
@@ -1977,7 +1977,7 @@ export const startNewRound = mutation({
 export const endRound = mutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
         return await gameManager.endRound(gameId);
     },
@@ -2034,14 +2034,14 @@ export const endGame = internalMutation({
         gameId: v.string(),
     },
     handler: async (ctx, args) => {
-        const gameManager = new TacticalMonsterGameManager(ctx);
+        const gameManager = new GameService(ctx);
         return await gameManager.notifyGameEnd(args.gameId);
     },
 });
 
 /**
  * 通知游戏结束（包装函数）
- * 供其他模块使用，使用 TacticalMonsterGameManager 类方法
+ * 供其他模块使用，使用 GameService 类方法
  */
 export async function notifyGameEnd(ctx: any, gameId: string): Promise<{
     ok: boolean;
@@ -2051,9 +2051,9 @@ export async function notifyGameEnd(ctx: any, gameId: string): Promise<{
     matchCompleted?: boolean;
     message?: string;
 }> {
-    const gameManager = new TacticalMonsterGameManager(ctx);
+    const gameManager = new GameService(ctx);
     return await gameManager.notifyGameEnd(gameId);
 }
 
-export default TacticalMonsterGameManager;
+export default GameService;
 

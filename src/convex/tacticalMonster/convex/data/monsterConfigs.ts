@@ -6,6 +6,12 @@
 export const calculatePower = (damage: number, defense: number, hp: number, multiplier: number = 1): number => {
     return (damage * 2 + defense * 1.5 + hp) * multiplier;
 }
+export enum ASSET_TYPE {
+    SPINE = 0,
+    FBX = 1,
+    GLTF = 2,  // GLTF格式支持
+    TXT = 3,
+}
 export interface Monster {
     monsterId: string;
     name: string;
@@ -36,6 +42,7 @@ export interface Monster {
     };
 
     assetPath: string;
+    asset?: { type: ASSET_TYPE; resource: { [key: string]: string } };
 }
 
 /**

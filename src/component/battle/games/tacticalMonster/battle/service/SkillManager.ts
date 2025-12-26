@@ -1,232 +1,148 @@
 /**
- * Tactical Monster 技能管理器
- * 负责技能的使用、执行、可用性检查和被动技能触发
+ * Tactical Monster 技能管理器（前端）
+ * 统一使用后端 SkillManager 的 static 方法
+ * 添加前端特有的功能：被动技能触发、乐观更新支持
  */
 
-import { Engine } from 'json-rules-engine';
-import { Effect, EffectType, Skill } from '../types/CharacterTypes';
+import { MonsterSkill, SkillEffect, SkillEffectType, getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { SkillManager as BackendSkillManager } from "../../../../../../convex/tacticalMonster/convex/service/skill/skillManager";
+import { GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
 import { GameModel, MonsterSprite } from '../types/CombatTypes';
 import { applyEffect, calculateEffectValue } from '../utils/effectUtils';
 import { calculateHexDistance } from '../utils/hexUtil';
 import { SeededRandom } from '../utils/seededRandom';
+import { getCharactersFromGameModel } from '../utils/typeAdapter';
 
+/**
+ * 前端 SkillManager - 统一使用后端 SkillManager
+ * 提供前端特有的功能：被动技能触发、乐观更新支持
+ */
 export class SkillManager {
-    private character: MonsterSprite;
-    private triggerEngine: Engine;  // 被动技能触发引擎
-    private availabilityEngine: Engine;  // 技能可用性检查引擎
-    private game: GameModel;
-
-    constructor(character: MonsterSprite, game: GameModel) {
-        this.character = character;
-        this.game = game;
-        this.character.stats = this.character.stats || {};
-        this.character.skillCooldowns = this.character.skillCooldowns || {};
-        this.character.statusEffects = this.character.statusEffects || [];
-        this.triggerEngine = new Engine();
-        this.availabilityEngine = new Engine();
-        this.initializeRules();
-    }
-
     /**
-     * 初始化规则引擎
+     * 检查技能是否在冷却中（使用后端方法）
      */
-    private initializeRules(): void {
-        // 初始化被动技能触发规则
-        this.character.skills?.forEach(skill => {
-            if (skill.type === 'passive' && skill.triggerConditions) {
-                skill.triggerConditions.forEach(condition => {
-                    this.triggerEngine.addRule({
-                        conditions: condition.conditions,
-                        event: {
-                            type: 'triggerSkill',
-                            params: {
-                                skillId: skill.id,
-                                triggerType: condition.trigger_type
-                            }
-                        }
-                    });
-                });
-            }
-        });
-
-        // 初始化主动技能可用性规则
-        this.character.skills?.forEach(skill => {
-            if (skill.type === 'active' && skill.availabilityConditions) {
-                this.availabilityEngine.addRule({
-                    conditions: skill.availabilityConditions,
-                    event: {
-                        type: 'skillAvailable',
-                        params: {
-                            skillId: skill.id,
-                        }
-                    },
-                    priority: skill.priority || 0
-                });
-            }
-        });
+    static isSkillOnCooldown(skillId: string, monster: GameMonster): boolean {
+        return BackendSkillManager.isSkillOnCooldown(skillId, monster);
     }
 
     /**
-     * 检查技能是否在冷却中
+     * 检查技能可用性（使用后端方法）
      */
-    isSkillOnCooldown(skillId: string): boolean {
-        const cooldown = this.character.skillCooldowns?.[skillId];
-        return cooldown !== undefined && cooldown > 0;
+    static checkSkillAvailability(
+        skillId: string,
+        monster: GameMonster,
+        context?: Record<string, any>
+    ): { available: boolean; reason?: string } {
+        return BackendSkillManager.checkSkillAvailability(skillId, monster, context);
     }
 
     /**
-     * 检查是否有足够的资源使用技能
-     */
-    hasSufficientResources(skill: Skill): boolean {
-        if (!skill.resource_cost) return true;
-
-        const stats = this.character.stats;
-        if (skill.resource_cost.mp && (stats?.mp?.current ?? 0) < skill.resource_cost.mp) {
-            return false;
-        }
-        if (skill.resource_cost.hp && (stats?.hp?.current ?? 0) < skill.resource_cost.hp) {
-            return false;
-        }
-        if (skill.resource_cost.stamina && (stats?.stamina ?? 0) < skill.resource_cost.stamina) {
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * 应用资源消耗
-     */
-    private applyResourceCost(skill: Skill): void {
-        if (!skill.resource_cost || !this.character.stats) return;
-
-        if (skill.resource_cost.mp && this.character.stats.mp) {
-            this.character.stats.mp.current = Math.max(0, this.character.stats.mp.current - skill.resource_cost.mp);
-        }
-        if (skill.resource_cost.hp && this.character.stats.hp) {
-            this.character.stats.hp.current = Math.max(0, this.character.stats.hp.current - skill.resource_cost.hp);
-        }
-        if (skill.resource_cost.stamina !== undefined && this.character.stats.stamina !== undefined) {
-            this.character.stats.stamina = Math.max(0, this.character.stats.stamina - skill.resource_cost.stamina);
-        }
-    }
-
-    /**
-     * 检查技能可用性（使用规则引擎）
-     */
-    async checkSkillAvailability(skillId: string, target?: MonsterSprite): Promise<boolean> {
-        const skill = this.character.skills?.find(s => s.id === skillId);
-        if (!skill) return false;
-
-        // 基础检查
-        if (this.isSkillOnCooldown(skillId)) return false;
-        if (!this.hasSufficientResources(skill)) return false;
-
-        // 如果有可用性条件，使用规则引擎检查
-        if (skill.availabilityConditions) {
-            const facts = this.buildFactsForAvailability(target);
-            const { events } = await this.availabilityEngine.run(facts);
-            return events.some(e => e.params?.skillId === skillId);
-        }
-
-        return true;
-    }
-
-    /**
-     * 构建可用性检查的事实对象
-     */
-    private buildFactsForAvailability(target?: MonsterSprite): any {
-        const facts: any = {
-            characterHP: this.character.stats?.hp ?
-                this.character.stats.hp.current / this.character.stats.hp.max : 1,
-            characterMP: this.character.stats?.mp?.current ?? 0,
-            characterStamina: this.character.stats?.stamina ?? 0,
-            probability: Math.random(),
-        };
-
-        if (target) {
-            const distance = calculateHexDistance(
-                { q: this.character.q ?? 0, r: this.character.r ?? 0 },
-                { q: target.q ?? 0, r: target.r ?? 0 }
-            );
-            facts.targetDistance = distance;
-            facts.isTargetAdjacent = distance === 1;
-            facts.targetHP = target.stats?.hp ?
-                target.stats.hp.current / target.stats.hp.max : 1;
-        }
-
-        // PVE模式：计算附近Boss角色数量（Boss本体 + 小怪，uid="boss"）
-        const nearbyEnemies = this.game.characters.filter(c =>
-            c.uid !== this.character.uid &&
-            calculateHexDistance(
-                { q: this.character.q ?? 0, r: this.character.r ?? 0 },
-                { q: c.q ?? 0, r: c.r ?? 0 }
-            ) <= 2
-        ).length;
-        facts.nearbyEnemies = nearbyEnemies;
-
-        return facts;
-    }
-
-    /**
-     * 主动使用技能
+     * 使用技能（使用后端方法，添加前端扩展）
+     * @param skillId 技能ID
+     * @param monster 怪物实例（会被修改）
+     * @param targets 目标列表（可选）
+     * @param context 上下文信息（可选）
      * @param rng 可选的确定性随机数生成器，用于乐观更新
+     * @returns 使用结果
      */
-    async useSkill(skillId: string, target?: MonsterSprite, rng?: SeededRandom): Promise<void> {
-        const skill = this.character.skills?.find(s => s.id === skillId);
-        if (!skill) {
-            console.error(`Skill with ID ${skillId} not found.`);
-            return;
+    static useSkill(
+        skillId: string,
+        monster: GameMonster,
+        targets?: GameMonster[],
+        context?: Record<string, any>,
+        rng?: SeededRandom
+    ): { success: boolean; message?: string; cooldownSet?: number; resourcesConsumed?: any; effects?: any[] } {
+        // 使用后端 SkillManager
+        const result = BackendSkillManager.useSkill(skillId, monster, targets, context);
+
+        // 如果成功，处理被动技能触发（前端特有）
+        if (result.success && targets && targets.length > 0) {
+            const skill = getSkillConfig(skillId);
+            if (skill?.canTriggerCounter) {
+                // 检查目标是否有被动技能需要触发（如反击）
+                for (const target of targets) {
+                    this.checkPassiveSkillTrigger(target, monster, 'on_skill_attacked', rng);
+                }
+            }
         }
 
-        // 检查冷却和资源
-        if (this.isSkillOnCooldown(skillId) || !this.hasSufficientResources(skill)) {
-            return;
-        }
+        return result;
+    }
 
-        // 消耗资源
-        this.applyResourceCost(skill);
+    /**
+     * 检查被动技能触发（前端特有功能）
+     * @param monster 检查被动技能的角色
+     * @param triggerTarget 触发目标（如攻击者）
+     * @param triggerType 触发类型（如 "on_hit", "on_skill_attacked"）
+     * @param rng 可选的确定性随机数生成器
+     */
+    static checkPassiveSkillTrigger(
+        monster: GameMonster,
+        triggerTarget: GameMonster,
+        triggerType: string,
+        rng?: SeededRandom
+    ): void {
+        if (!monster.skills || !Array.isArray(monster.skills)) return;
 
-        // 执行技能效果（传入 RNG）
-        this.executeSkill(skill, target, rng);
+        // 检查所有被动技能
+        for (const skillId of monster.skills) {
+            const skillIdStr = typeof skillId === 'string' ? skillId : skillId.id;
+            const skill = typeof skillId === 'string' ? getSkillConfig(skillId) : skillId;
 
-        // 设置冷却时间
-        this.character.skillCooldowns = this.character.skillCooldowns || {};
-        this.character.skillCooldowns[skill.id] = skill.cooldown;
+            if (!skill || skill.type !== 'passive') continue;
 
-        // 处理反击
-        if (skill.canTriggerCounter && target) {
-            await this.checkCounterAttack(target, this.character, 'onSkillAttacked');
+            // 检查是否应该触发（使用后端方法）
+            if (BackendSkillManager.shouldTriggerPassiveSkill(skillIdStr, monster, triggerType)) {
+                // 获取被动技能效果
+                const effects = BackendSkillManager.getPassiveSkillEffects(skillIdStr, triggerType);
+
+                // 应用效果到触发目标
+                for (const effect of effects) {
+                    // 使用后端方法应用效果
+                    BackendSkillManager.applyEffectToTarget(effect, triggerTarget, monster);
+                }
+            }
         }
     }
 
     /**
-     * 执行技能效果（内部方法）
-     * @param rng 可选的确定性随机数生成器，用于乐观更新
+     * 执行技能效果（前端特有：支持 RNG 和距离计算）
+     * @param skill 技能配置
+     * @param caster 施法者
+     * @param targets 目标列表
+     * @param game 游戏状态（用于计算距离、范围等）
+     * @param rng 可选的确定性随机数生成器
      */
-    executeSkill(skill: Skill, target?: MonsterSprite, rng?: SeededRandom): void {
-        console.log(`${this.character.name} 执行技能: ${skill.name}`);
+    static executeSkillWithRNG(
+        skill: MonsterSkill,
+        caster: MonsterSprite,
+        targets: MonsterSprite[],
+        game: GameModel,
+        rng?: SeededRandom
+    ): void {
+        console.log(`${caster.name} 执行技能: ${skill.name}`);
 
         for (const effect of skill.effects) {
             if (effect.area_type && effect.area_type !== 'single') {
                 // 处理群体效果
-                const targets = this.getTargetsInRange(effect, target || this.character);
-                targets.forEach(t => {
+                const areaTargets = this.getTargetsInRange(effect, targets[0] || caster, caster, game);
+                areaTargets.forEach(target => {
                     const distance = calculateHexDistance(
-                        { q: this.character.q ?? 0, r: this.character.r ?? 0 },
-                        { q: t.q ?? 0, r: t.r ?? 0 }
+                        { q: caster.q ?? 0, r: caster.r ?? 0 },
+                        { q: target.q ?? 0, r: target.r ?? 0 }
                     );
-                    const finalEffect = calculateEffectValue(this.character, t, effect, distance, rng);
-                    applyEffect(t, finalEffect);
+                    const finalEffect = calculateEffectValue(caster, target, effect, distance, rng);
+                    applyEffect(target, finalEffect);
                 });
             } else {
                 // 处理单体效果
-                const recipient = this.determineEffectTarget(effect, target);
+                const recipient = this.determineEffectTarget(effect, targets[0], caster);
                 if (recipient) {
                     const distance = calculateHexDistance(
-                        { q: this.character.q ?? 0, r: this.character.r ?? 0 },
+                        { q: caster.q ?? 0, r: caster.r ?? 0 },
                         { q: recipient.q ?? 0, r: recipient.r ?? 0 }
                     );
-                    const finalEffect = calculateEffectValue(this.character, recipient, effect, distance, rng);
+                    const finalEffect = calculateEffectValue(caster, recipient, effect, distance, rng);
                     applyEffect(recipient, finalEffect);
                 }
             }
@@ -236,44 +152,50 @@ export class SkillManager {
     /**
      * 确定效果目标
      */
-    private determineEffectTarget(effect: Effect, target?: MonsterSprite): MonsterSprite | undefined {
-        // 如果是群体效果，返回undefined让外层处理
+    private static determineEffectTarget(
+        effect: SkillEffect,
+        target: MonsterSprite | undefined,
+        caster: MonsterSprite
+    ): MonsterSprite | undefined {
         if (effect.area_type && effect.area_type !== 'single') {
             return undefined;
         }
 
         // 根据效果类型确定目标
         switch (effect.type) {
-            case EffectType.BUFF:
-            case EffectType.HOT:
-            case EffectType.MP_RESTORE:
-            case EffectType.SHIELD:
-                // 增益效果默认作用于自身
-                return this.character;
+            case SkillEffectType.BUFF:
+            case SkillEffectType.HOT:
+            case SkillEffectType.MP_RESTORE:
+            case SkillEffectType.SHIELD:
+                return caster;
 
-            case EffectType.DEBUFF:
-            case EffectType.DOT:
-            case EffectType.MP_DRAIN:
-            case EffectType.STUN:
-                // 减益效果作用于目标
+            case SkillEffectType.DEBUFF:
+            case SkillEffectType.DOT:
+            case SkillEffectType.MP_DRAIN:
+            case SkillEffectType.STUN:
                 return target;
 
             default:
-                // 伤害效果作用于目标
-                return target || this.character;
+                return target || caster;
         }
     }
 
     /**
      * 获取范围内的目标（群体效果）
      */
-    private getTargetsInRange(effect: Effect, center: MonsterSprite): MonsterSprite[] {
+    private static getTargetsInRange(
+        effect: SkillEffect,
+        center: MonsterSprite,
+        caster: MonsterSprite,
+        game: GameModel
+    ): MonsterSprite[] {
         const targets: MonsterSprite[] = [];
         const centerPos = { q: center.q ?? 0, r: center.r ?? 0 };
         const range = effect.area_size || effect.damage_falloff?.full_damage_range || 1;
 
-        this.game.characters.forEach(char => {
-            if (char.uid === this.character.uid && effect.type !== EffectType.BUFF) {
+        const characters = getCharactersFromGameModel(game.team, game.boss);
+        characters.forEach(char => {
+            if (char.uid === caster.uid && effect.type !== SkillEffectType.BUFF) {
                 return; // 跳过自己（除非是BUFF）
             }
 
@@ -285,7 +207,6 @@ export class SkillManager {
             if (effect.area_type === 'circle' && distance <= range) {
                 targets.push(char);
             } else if (effect.area_type === 'line') {
-                // 直线范围需要检查是否在同一直线上
                 // 简化实现：距离在范围内即可
                 if (distance <= range) {
                     targets.push(char);
@@ -297,66 +218,34 @@ export class SkillManager {
     }
 
     /**
-     * 检查被动技能触发条件
-     */
-    async checkTriggerConditions(eventType: string, target?: MonsterSprite): Promise<void> {
-        if (!this.character.stats?.hp) return;
-
-        const facts = {
-            eventType,
-            characterHP: this.character.stats.hp.current / this.character.stats.hp.max,
-            targetHP: target?.stats?.hp ? target.stats.hp.current / target.stats.hp.max : null,
-            probability: Math.random(),
-            hasDefensiveStance: this.character.statusEffects?.some(e => e.name === '防御提升') || false,
-            ...this.character.stats
-        };
-
-        const { events } = await this.triggerEngine.run(facts);
-
-        for (const event of events) {
-            if (event.type === 'triggerSkill' &&
-                event.params?.triggerType === eventType) {
-                const skill = this.character.skills?.find(s => s.id === event.params?.skillId);
-                if (skill) {
-                    // 被动技能直接执行，不消耗资源
-                    this.executeSkill(skill, target);
-                }
-            }
-        }
-    }
-
-    /**
-     * 检查反击
-     */
-    private async checkCounterAttack(target: MonsterSprite, attacker: MonsterSprite, eventType: string): Promise<void> {
-        // 检查目标是否有反击被动技能
-        const targetSkillManager = new SkillManager(target, this.game);
-        await targetSkillManager.checkTriggerConditions(eventType, attacker);
-    }
-
-    /**
      * 更新冷却时间（每回合结束时调用）
      */
-    updateCooldowns(): void {
-        if (!this.character.skillCooldowns) return;
-
-        Object.keys(this.character.skillCooldowns).forEach(skillId => {
-            if (this.character.skillCooldowns![skillId] > 0) {
-                this.character.skillCooldowns![skillId]--;
-            }
-        });
+    static reduceCooldowns(monster: GameMonster): void {
+        BackendSkillManager.reduceCooldowns(monster);
     }
 
     /**
      * 获取可用技能列表
      */
-    async getAvailableSkills(target?: MonsterSprite): Promise<Skill[]> {
-        const availableSkills: Skill[] = [];
+    static getAvailableSkills(
+        monster: GameMonster,
+        context?: Record<string, any>
+    ): MonsterSkill[] {
+        const availableSkills: MonsterSkill[] = [];
 
-        for (const skill of (this.character.skills || [])) {
+        if (!monster.skills || !Array.isArray(monster.skills)) {
+            return availableSkills;
+        }
+
+        for (const skillId of monster.skills) {
+            const skillIdStr = typeof skillId === 'string' ? skillId : skillId.id;
+            const skill = typeof skillId === 'string' ? getSkillConfig(skillId) : skillId;
+
+            if (!skill) continue;
+
             if (skill.type === 'active' || skill.type === 'master') {
-                const isAvailable = await this.checkSkillAvailability(skill.id, target);
-                if (isAvailable) {
+                const availability = this.checkSkillAvailability(skillIdStr, monster, context);
+                if (availability.available) {
                     availableSkills.push(skill);
                 }
             }
@@ -364,34 +253,4 @@ export class SkillManager {
 
         return availableSkills;
     }
-
-    /**
-     * 升级技能（阶段3：技能升级系统）
-     */
-    upgradeSkill(skillId: string, targetLevel: number): boolean {
-        const skill = this.character.skills?.find(s => s.id === skillId);
-        if (!skill) return false;
-
-        // 检查是否有升级路径
-        // 注意：这里假设技能数据中有upgrade_path字段
-        // 实际实现中需要从技能数据中读取升级信息
-        const currentLevel = (skill as any).level || 1;
-        if (targetLevel <= currentLevel) return false;
-
-        // 应用升级效果
-        // 这里需要根据实际的升级路径数据结构来实现
-        // 示例：增加效果值、减少冷却时间等
-        console.log(`升级技能 ${skill.name} 从 ${currentLevel} 到 ${targetLevel}`);
-
-        return true;
-    }
-
-    /**
-     * 获取技能当前等级
-     */
-    getSkillLevel(skillId: string): number {
-        const skill = this.character.skills?.find(s => s.id === skillId);
-        return (skill as any)?.level || 1;
-    }
 }
-

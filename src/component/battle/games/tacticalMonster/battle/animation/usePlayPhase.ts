@@ -4,8 +4,8 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
+import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { useCombatManager } from "../service/CombatManager";
-import { Skill } from "../types/CharacterTypes";
 import { CombatTurn, MonsterSprite } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 
@@ -46,7 +46,7 @@ const usePlayPhase = () => {
             }));
 
         const skillId = currentTurn.skillSelect || currentTurn.skills?.[0];
-        const skill: Skill | undefined = character.skills?.find((s) => skillId === s.id);
+        const skill: MonsterSkill | undefined = character.skills?.find((s) => skillId === s.id);
 
         const attackableNodes = getAttackableNodes(
             grid,

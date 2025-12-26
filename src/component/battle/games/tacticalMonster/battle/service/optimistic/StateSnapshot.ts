@@ -4,6 +4,7 @@
  */
 
 import { GameModel, MonsterSprite } from "../../types/CombatTypes";
+import { getCharactersFromGameModel } from "../../utils/typeAdapter";
 
 export interface GameStateSnapshot {
     characters: MonsterSprite[];    // 角色状态快照（深拷贝）
@@ -17,15 +18,16 @@ export class StateSnapshot {
      * 创建状态快照（深拷贝）
      */
     static createSnapshot(game: GameModel | null): GameStateSnapshot | null {
-        if (!game || !game.characters) {
+        if (!game || !game.team || !game.boss) {
             return null;
         }
 
-        // 深拷贝角色状态
-        const characters = game.characters.map(char => this.deepCloneCharacter(char));
+        // 从 team 和 boss 生成 characters，然后深拷贝
+        const characters = getCharactersFromGameModel(game.team, game.boss);
+        const clonedCharacters = characters.map(char => this.deepCloneCharacter(char));
 
         return {
-            characters,
+            characters: clonedCharacters,
             timestamp: Date.now(),
             round: game.currentRound?.no,
             score: game.score,
@@ -34,14 +36,59 @@ export class StateSnapshot {
 
     /**
      * 恢复状态快照
+     * 注意：由于 GameModel 不再包含 characters，我们需要将快照中的 characters 转换回 team 和 boss
+     * 这里我们直接更新 team 和 boss 的字段（stats, statusEffects等）
      */
     static restoreSnapshot(game: GameModel, snapshot: GameStateSnapshot): void {
         if (!game || !snapshot) {
             return;
         }
 
-        // 恢复角色状态
-        game.characters = snapshot.characters.map(char => this.deepCloneCharacter(char));
+        // 将快照中的 characters 转换回 team 和 boss
+        // 更新 team 中的角色状态
+        if (game.team && snapshot.characters) {
+            snapshot.characters.forEach(char => {
+                if (char.uid !== "boss") {
+                    const teamMember = game.team.find(m => m.monsterId === char.monsterId);
+                    if (teamMember) {
+                        // 更新状态
+                        teamMember.stats = char.stats;
+                        teamMember.statusEffects = char.statusEffects;
+                        teamMember.skillCooldowns = char.skillCooldowns;
+                        teamMember.q = char.q;
+                        teamMember.r = char.r;
+                    }
+                }
+            });
+        }
+
+        // 更新 boss 状态
+        if (game.boss && snapshot.characters) {
+            const bossChar = snapshot.characters.find(c => c.uid === "boss" && !('minionId' in c));
+            if (bossChar) {
+                game.boss.stats = bossChar.stats;
+                game.boss.statusEffects = bossChar.statusEffects;
+                game.boss.skillCooldowns = bossChar.skillCooldowns;
+                game.boss.q = bossChar.q;
+                game.boss.r = bossChar.r;
+            }
+
+            // 更新 minions
+            if (game.boss.minions) {
+                snapshot.characters.forEach(char => {
+                    if (char.uid === "boss" && 'minionId' in char) {
+                        const minion = game.boss.minions?.find(m => (m as any).minionId === (char as any).minionId);
+                        if (minion) {
+                            minion.stats = char.stats;
+                            minion.statusEffects = char.statusEffects;
+                            minion.skillCooldowns = char.skillCooldowns;
+                            minion.q = char.q;
+                            minion.r = char.r;
+                        }
+                    }
+                });
+            }
+        }
 
         // 恢复其他状态
         if (snapshot.score !== undefined) {
@@ -71,7 +118,7 @@ export class StateSnapshot {
             },
             skillCooldowns: char.skillCooldowns ? { ...char.skillCooldowns } : undefined,
             statusEffects: char.statusEffects ? char.statusEffects.map(effect => ({ ...effect })) : undefined,
-            skills: char.skills ? char.skills.map(skill => ({ ...skill })) : undefined,
+            skills: char.skills ? char.skills.map(skill => ({ ...skill })) : [],
             // UI相关字段不需要深拷贝（这些是引用）
             walkables: char.walkables,
             attackables: char.attackables,

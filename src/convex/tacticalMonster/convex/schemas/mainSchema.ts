@@ -206,68 +206,17 @@ export const tacticalMonsterSchema = {
         uid: v.string(),
         ruleId: v.string(),
         stageId: v.string(),
+        score: v.optional(v.number()),
+        result: v.optional(v.union(v.literal("win"), v.literal("lose"), v.literal("draw"))),
         lastUpdate: v.optional(v.string()),
         createdAt: v.string(),
     })
-        .index("by_uid", ["uid"])
-        .index("by_uid_ruleId", ["uid", "ruleId"])
-        .index("by_stageId", ["stageId"]),
+        .index("by_uid_rule", ["uid", "ruleId"])
+        .index("by_uid_rule_score", ["uid", "ruleId", "score"])
+        .index("by_uid_rule_result", ["uid", "ruleId", "result"])
+        .index("by_stage_result", ["stageId", "result"])
+        .index("by_stage_score", ["stageId", "score"]),
 
-    // mr_map: defineTable({
-    //     mapId: v.string(),
-    //     rows: v.number(),
-    //     cols: v.number(),
-    //     obstacles: v.array(v.object({
-    //         q: v.number(),
-    //         r: v.number(),
-    //         type: v.number(),
-    //         asset: v.string(),
-    //     })),
-    //     disables: v.array(v.object({
-    //         q: v.number(),
-    //         r: v.number(),
-    //     })),
-    // }).index("by_mapId", ["mapId"]),
-    // mr_map_templates: defineTable({
-    //     templateId: v.string(),
-    //     name: v.string(),
-    //     tier: v.string(),  // 适用的Tier列表（逗号分隔或单个）
-    //     mapSize: v.object({
-    //         rows: v.number(),
-    //         cols: v.number(),
-    //     }),
-
-    //     // 核心障碍物（不可调整的关键地形）
-    //     coreObstacles: v.array(v.object({
-    //         q: v.number(),
-    //         r: v.number(),
-    //         type: v.number(),
-    //         asset: v.string(),
-    //     })),
-
-    //     // 可选障碍物（可随机调整的障碍物）
-    //     optionalObstacles: v.array(v.object({
-    //         q: v.number(),
-    //         r: v.number(),
-    //         type: v.number(),
-    //         asset: v.string(),
-    //     })),
-
-    //     // 障碍物禁区（玩家区域、Boss区域、关键路径）
-    //     restrictedZones: v.array(v.object({
-    //         type: v.string(),  // "player" | "boss" | "path"
-    //         region: v.object({
-    //             minQ: v.number(),
-    //             maxQ: v.number(),
-    //             minR: v.number(),
-    //             maxR: v.number(),
-    //         }),
-    //     })),
-
-    //     configVersion: v.number(),
-    // })
-    //     .index("by_templateId", ["templateId"])
-    //     .index("by_tier", ["tier"]),
     mr_game_event: defineTable({
         gameId: v.string(),
         name: v.string(),

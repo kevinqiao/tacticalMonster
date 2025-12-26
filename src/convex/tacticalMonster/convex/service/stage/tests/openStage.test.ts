@@ -210,7 +210,7 @@ export const testOpenStageChallenge = mutation({
                 // 验证 mr_player_stages 中确实没有数据
                 const existingPlayerStage = await ctx.db
                     .query("mr_player_stages")
-                    .withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", typeId))
+                    .withIndex("by_uid_rule", (q: any) => q.eq("uid", uid).eq("ruleId", typeId))
                     .first();
 
                 if (existingPlayerStage) {
@@ -318,7 +318,7 @@ export const testOpenStageChallenge = mutation({
                 // 验证 mr_player_stages 中确实没有数据
                 const existingPlayerStage = await ctx.db
                     .query("mr_player_stages")
-                    .withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", typeId))
+                    .withIndex("by_uid_rule", (q: any) => q.eq("uid", uid).eq("ruleId", typeId))
                     .first();
 
                 if (existingPlayerStage) {

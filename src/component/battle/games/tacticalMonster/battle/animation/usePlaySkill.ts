@@ -5,9 +5,9 @@
 
 import gsap from "gsap";
 import { useCallback, useMemo } from "react";
+import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { SkillEffectType } from "../config/skillConfigs";
 import { useCombatManager } from "../service/CombatManager";
-import { Skill } from "../types/CharacterTypes";
 import { MonsterSprite } from "../types/CombatTypes";
 import { SkillAnimationSelector } from "./SkillAnimationSelector";
 
@@ -141,7 +141,7 @@ const usePlaySkill = () => {
         }
 
         // 获取技能配置
-        const skill: Skill | undefined = caster.skills?.find(s => s.id === skillId);
+        const skill: MonsterSkill | undefined = caster.skills?.find(s => s.id === skillId);
         if (!skill) {
             console.warn(`Skill ${skillId} not found for character ${caster.character_id}`);
             Promise.resolve(onComplete()).catch(console.error);

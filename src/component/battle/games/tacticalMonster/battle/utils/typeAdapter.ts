@@ -3,58 +3,19 @@
  * 用于前后端类型转换，统一数据格式
  */
 
-import { GameMonster, GameBoss, GameMinion, StatusEffect } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
-import { MonsterSkill, SkillEffect } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { CharacterIdentifier } from "../../../../../../convex/tacticalMonster/convex/service/game/gameService";
-import { Skill, Effect } from "../types/CharacterTypes";
+import { GameBoss, GameMinion, GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
 import { MonsterSprite } from "../types/CombatTypes";
 
 // 重新导出后端类型，方便使用
 export type { CharacterIdentifier };
 
-/**
- * 将后端的 SkillEffect 转换为前端的 Effect（StatusEffect）
- * 由于 Effect 继承 StatusEffect，而 StatusEffect 继承 SkillEffect，
- * 我们需要确保 remaining_duration 字段存在
- */
-export function convertSkillEffectToEffect(skillEffect: SkillEffect): Effect {
-    // 确保 remaining_duration 存在（StatusEffect 的必需字段）
-    return {
-        ...skillEffect,
-        remaining_duration: skillEffect.remaining_duration ?? skillEffect.duration ?? 0,
-    } as Effect;
-}
-
-/**
- * 将后端的 MonsterSkill 转换为前端的 Skill
- * effects 字段从 SkillEffect[] 转换为 Effect[]（StatusEffect[]）
- */
-export function convertMonsterSkillToSkill(monsterSkill: MonsterSkill): Skill {
-    return {
-        id: monsterSkill.id,
-        name: monsterSkill.name,
-        type: monsterSkill.type,
-        description: monsterSkill.description,
-        animation: monsterSkill.animation,  // 传递动画配置
-        canTriggerCounter: monsterSkill.canTriggerCounter,
-        priority: monsterSkill.priority,
-        availabilityConditions: monsterSkill.availabilityConditions,
-        range: monsterSkill.range,
-        unlockConditions: monsterSkill.unlockConditions,
-        resource_cost: monsterSkill.resource_cost,
-        cooldown: monsterSkill.cooldown,
-        // effects 从 SkillEffect[] 转换为 Effect[]（StatusEffect[]）
-        effects: monsterSkill.effects.map(convertSkillEffectToEffect),
-        triggerConditions: monsterSkill.triggerConditions?.map(tc => ({
-            trigger_type: tc.trigger_type,
-            conditions: tc.conditions,
-        })),
-    };
-}
+// 注意：不再需要转换函数，统一使用后端的 MonsterSkill 和 SkillEffect
 
 /**
  * 将后端Monster转换为前端MonsterSprite
- * 添加UI字段、character_id，并转换技能和效果列表
+ * 添加UI字段、character_id，统一使用后端的 MonsterSkill[]（不再转换）
  */
 export function toMonsterSprite(
     monster: GameMonster | GameBoss | GameMinion,
@@ -70,26 +31,26 @@ export function toMonsterSprite(
         character_id = monster.monsterId;
     }
 
-    // 转换技能列表（MonsterSkill[] -> Skill[]）
-    const skills: Skill[] = [];
+    // 统一使用后端的 MonsterSkill[]（不再转换）
+    // 如果 skills 是 string[]（Boss技能），需要从配置加载
+    let skills: MonsterSkill[] = [];
     if (monster.skills) {
         if (Array.isArray(monster.skills)) {
             if (monster.skills.length > 0 && typeof monster.skills[0] === 'string') {
                 // Boss技能：string[]，需要从配置加载（这里暂时留空，由调用方处理）
                 // skills 保持为空数组，后续通过技能配置加载
             } else {
-                // 玩家技能：MonsterSkill[]
-                skills.push(...(monster.skills as MonsterSkill[]).map(convertMonsterSkillToSkill));
+                // 玩家技能：MonsterSkill[]，直接使用
+                skills = monster.skills as MonsterSkill[];
             }
         }
     }
 
-    // statusEffects 直接继承自 GameMonster，不需要转换
     // 创建MonsterSprite（继承GameMonster的所有字段，包括statusEffects）
     const sprite: MonsterSprite = {
         ...monster,        // 继承所有GameMonster字段，包括statusEffects
         character_id,      // 添加character_id
-        skills,            // 添加转换后的skills
+        skills,            // 统一使用 MonsterSkill[]
         // statusEffects 已经通过 ...monster 继承，类型为 StatusEffect[]
         // 保留现有UI相关字段
         ...(existingSprite && {
@@ -115,7 +76,7 @@ export function convertMonsterToCharacterIdentifier(monster: MonsterSprite): Cha
     // 根据 character_id 判断类型
     // 注意：这里需要根据游戏状态判断，暂时使用简单规则
     // 实际使用时，需要传入游戏状态来判断是 bossId 还是 minionId
-    
+
     // 简单规则：如果 uid 是 "boss"，可能是 bossId 或 minionId
     // 这里返回一个通用的标识符，调用方需要根据实际情况设置正确的字段
     if (monster.uid === "boss") {
@@ -123,7 +84,7 @@ export function convertMonsterToCharacterIdentifier(monster: MonsterSprite): Cha
         // 调用方需要根据游戏状态设置正确的字段
         return {};
     }
-    
+
     // 玩家角色：使用 monsterId
     return {
         monsterId: monster.character_id,
@@ -154,7 +115,7 @@ export function determineCharacterIdentifier(
         // 无法确定，返回空（调用方需要处理）
         return {};
     }
-    
+
     // 玩家角色
     return { monsterId: characterId };
 }
@@ -164,5 +125,50 @@ export function determineCharacterIdentifier(
  */
 export function getCharacterIdFromIdentifier(identifier: CharacterIdentifier): string | null {
     return identifier.monsterId || identifier.bossId || identifier.minionId || null;
+}
+
+/**
+ * 从后端的 team 和 boss 生成前端的 characters 数组（MonsterSprite[]）
+ * 用于需要所有角色的场景（如渲染、查找等）
+ */
+export function getCharactersFromGameModel(
+    team: GameMonster[],
+    boss: GameBoss,
+    existingSpritesMap?: Map<string, MonsterSprite>
+): MonsterSprite[] {
+    const characters: MonsterSprite[] = [];
+
+    // 处理玩家队伍
+    if (team && Array.isArray(team)) {
+        team.forEach((monster: GameMonster) => {
+            const existingSprite = existingSpritesMap?.get(monster.monsterId);
+            const sprite = toMonsterSprite(monster, existingSprite);
+            // 设置角色翻转方向：玩家角色 scaleX = 1
+            sprite.scaleX = 1;
+            characters.push(sprite);
+        });
+    }
+
+    // 处理Boss（包括Boss本体和小怪，uid="boss"）
+    if (boss) {
+        // Boss本体
+        const existingBossSprite = existingSpritesMap?.get(boss.bossId || boss.monsterId);
+        const bossSprite = toMonsterSprite(boss, existingBossSprite);
+        bossSprite.scaleX = -1; // Boss角色 scaleX = -1（面向玩家）
+        characters.push(bossSprite);
+
+        // Boss的小怪
+        if (boss.minions && Array.isArray(boss.minions)) {
+            boss.minions.forEach((minion: GameMonster) => {
+                const minionId = (minion as any).minionId || minion.monsterId;
+                const existingMinionSprite = existingSpritesMap?.get(minionId);
+                const minionSprite = toMonsterSprite(minion, existingMinionSprite);
+                minionSprite.scaleX = -1; // Boss小怪 scaleX = -1（面向玩家）
+                characters.push(minionSprite);
+            });
+        }
+    }
+
+    return characters;
 }
 

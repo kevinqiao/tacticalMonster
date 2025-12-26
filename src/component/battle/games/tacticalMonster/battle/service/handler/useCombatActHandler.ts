@@ -9,11 +9,11 @@ import gsap from "gsap";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useUserManager } from "service/UserManager";
 import { api } from "../../../../../../../convex/tacticalMonster/convex/_generated/api";
+import { MonsterSkill } from "../../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import usePlaySkill from "../../animation/usePlaySkill";
 import usePlaySkillSelect from "../../animation/usePlaySkillSelect";
 import usePlayWalk from "../../animation/usePlayWalk";
 import { useScoreCalculation } from "../../hooks/useScoreCalculation";
-import { Skill } from "../../types/CharacterTypes";
 import { MonsterSprite } from "../../types/CombatTypes";
 import { findPath } from "../../utils/PathFind";
 import { toCharacterIdentifier } from "../../utils/characterIdentifierUtils";
@@ -39,7 +39,6 @@ const useCombatActHandler = () => {
         gridCells,
         hexCell,
         currentRound,
-        ruleManager,
         submitScore,
         setActiveSkill,
         eventQueue,
@@ -250,9 +249,9 @@ const useCombatActHandler = () => {
                 // TODO: 显示网络错误提示
             }
         });
-    }, [map, gameId, characters, currentRound, gridCells, convex, ruleManager, updateScore, playWalk, game, operationQueue, updateGame]);
+    }, [map, gameId, characters, currentRound, gridCells, convex, updateScore, playWalk, game, operationQueue, updateGame]);
 
-    const selectSkill = useCallback(async (skill: Skill) => {
+    const selectSkill = useCallback(async (skill: MonsterSkill) => {
         // watch/replay 模式：禁止操作
         if (mode === 'watch' || mode === 'replay') return;
         if (!currentRound || !gameId) return;
@@ -288,7 +287,7 @@ const useCombatActHandler = () => {
         } catch (error) {
             console.error("Select skill failed", error);
         }
-    }, [currentRound, gameId, playSkillSelect, setActiveSkill, convex, ruleManager, updateScore]);
+    }, [currentRound, gameId, playSkillSelect, setActiveSkill, convex, updateScore]);
 
     const standBy = useCallback((character: MonsterSprite) => {
         console.log("standBy", character);

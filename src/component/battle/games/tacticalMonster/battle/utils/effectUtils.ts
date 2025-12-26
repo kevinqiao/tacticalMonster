@@ -3,7 +3,7 @@
  * 处理技能效果的应用、计算、移除和更新
  */
 
-import { SkillEffectType } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { SkillEffect, SkillEffectType } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { Effect, EffectType, Stats } from "../types/CharacterTypes";
 import { MonsterSprite } from "../types/CombatTypes";
 import { SeededRandom } from "./seededRandom";
@@ -97,44 +97,49 @@ const handleStatModifiers = (target: MonsterSprite, effect: Effect) => {
 
 /**
  * 应用效果到目标角色
+ * 支持 SkillEffect（后端类型）和 Effect（前端类型）
  */
-export const applyEffect = (target: MonsterSprite, effect: Effect): void => {
+export const applyEffect = (target: MonsterSprite, effect: Effect | SkillEffect): void => {
+    // 确保 remaining_duration 存在（StatusEffect 的必需字段）
+    const effectWithDuration: Effect = {
+        ...effect,
+        remaining_duration: effect.remaining_duration ?? effect.duration ?? 0,
+    } as Effect;
     if (!target.statusEffects) {
         target.statusEffects = [];
     }
 
     // 检查并更新已存在的效果（相同ID的效果）
-    const existingEffect = target.statusEffects.find(e => e.id === effect.id);
+    const existingEffect = target.statusEffects.find(e => e.id === effectWithDuration.id);
     if (existingEffect) {
-        existingEffect.remaining_duration = effect.remaining_duration ?? effect.duration ?? 0;
+        existingEffect.remaining_duration = effectWithDuration.remaining_duration;
         // 更新效果值（如果是可叠加的效果）
-        if (effect.value !== undefined) {
-            existingEffect.value = effect.value;
+        if (effectWithDuration.value !== undefined) {
+            existingEffect.value = effectWithDuration.value;
         }
         return;
     }
 
     // 添加新效果
-    const newEffect = { ...effect, remaining_duration: effect.remaining_duration ?? effect.duration ?? 0 };
-    target.statusEffects.push(newEffect);
+    target.statusEffects.push(effectWithDuration);
 
     // 应用效果
-    switch (effect.type) {
+    switch (effectWithDuration.type) {
         case SkillEffectType.BUFF:
         case SkillEffectType.DEBUFF:
-            handleStatModifiers(target, newEffect);
+            handleStatModifiers(target, effectWithDuration);
             break;
         case SkillEffectType.DOT:
         case SkillEffectType.HOT:
-            handleDirectEffect(target, newEffect);
+            handleDirectEffect(target, effectWithDuration);
             break;
         case SkillEffectType.STUN:
         case SkillEffectType.SHIELD:
-            handleStatusEffect(target, newEffect);
+            handleStatusEffect(target, effectWithDuration);
             break;
         case SkillEffectType.MP_RESTORE:
         case SkillEffectType.MP_DRAIN:
-            handleDirectEffect(target, newEffect);
+            handleDirectEffect(target, effectWithDuration);
             break;
     }
 };
@@ -298,16 +303,21 @@ export const calculateDamage = (
 
 /**
  * 计算效果值（考虑距离衰减、属性加成等）
+ * 支持 SkillEffect（后端类型）和 Effect（前端类型）
  * @param rng 可选的确定性随机数生成器，用于乐观更新
  */
 export const calculateEffectValue = (
     caster: MonsterSprite,
     target: MonsterSprite,
-    effect: Effect,
+    effect: Effect | SkillEffect,
     distance?: number,
     rng?: SeededRandom
 ): Effect => {
-    let finalEffect = { ...effect };
+    // 确保 remaining_duration 存在（StatusEffect 的必需字段）
+    let finalEffect: Effect = {
+        ...effect,
+        remaining_duration: effect.remaining_duration ?? effect.duration ?? 0,
+    } as Effect;
 
     // 处理距离衰减
     if (effect.value && effect.damage_falloff && distance !== undefined) {

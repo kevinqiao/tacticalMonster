@@ -4,10 +4,10 @@
 
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import "../style.css";
 import usePlayPhase from "../animation/usePlayPhase";
 import { useCombatManager } from "../service/CombatManager";
 import useCombatActHandler from "../service/handler/useCombatActHandler";
+import "../style.css";
 import { ASSET_TYPE } from "../types/CharacterTypes";
 import { MonsterSprite } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
@@ -28,10 +28,11 @@ export interface ICharacterProps {
 }
 
 interface Props {
+    assetType?: ASSET_TYPE;
     character: MonsterSprite;
 }
 
-const CharacterCell: React.FC<Props> = ({ character }) => {
+const CharacterCell: React.FC<Props> = ({ character, assetType }) => {
     const { map, characters, hexCell, currentRound, gridCells, setResourceLoad } = useCombatManager();
     const { playTurnOn } = usePlayPhase();
     const { attack } = useCombatActHandler();
@@ -128,8 +129,8 @@ const CharacterCell: React.FC<Props> = ({ character }) => {
             >
                 <div ref={loadStand} className="character-stand" />
                 <div ref={loadAttack} className="character-attack" onClick={handleAttack} />
-                {character.asset?.type === ASSET_TYPE.SPINE && <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} />}
-                {character.asset?.type === ASSET_TYPE.FBX && <Character3D character={character} width={hexCell.width} height={hexCell.height} />}
+                {assetType === ASSET_TYPE.SPINE && <CharacterSpine character={character} width={hexCell.width} height={hexCell.height} />}
+                {assetType === ASSET_TYPE.FBX && <Character3D character={character} width={hexCell.width} height={hexCell.height} />}
             </div>
         </>
     );
@@ -142,7 +143,7 @@ const CharacterGrid: React.FC<{ position: { top: number, left: number, width: nu
         return (
             <div style={{ position: "absolute", top: position.top, left: position.left, width: position.width, height: position.height }}>
                 {characters?.map((c, index) => (
-                    <CharacterCell key={"character-" + c.character_id + "-" + index} character={c} />
+                    <CharacterCell key={"character-" + c.uid + "_" + c.monsterId} character={c} />
                 ))}
             </div>
         );

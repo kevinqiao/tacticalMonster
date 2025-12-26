@@ -3,6 +3,7 @@
  * 定义 Monster 相关的所有类型接口
  */
 
+import { ASSET_TYPE } from "convex/tacticalMonster/convex/data/monsterConfigs";
 import { Monster } from "../config/monsterConfigs";
 import { MonsterSkill } from "../config/skillConfigs";
 
@@ -44,7 +45,8 @@ export interface GameMonster {
     name: string;                  // 从 Monster.name
     rarity: "Common" | "Rare" | "Epic" | "Legendary";  // 从 Monster.rarity
     class?: string;                 // 从 Monster.class
-    race?: string;                  // 从 Monster.race
+    race?: string;
+    assetType?: ASSET_TYPE;          // 从 Monster.assetType
     assetPath: string;              // 从 Monster.assetPath
 
     // ========== 从 PlayerMonster 组合的字段 ==========

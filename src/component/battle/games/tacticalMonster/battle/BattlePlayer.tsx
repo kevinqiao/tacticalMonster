@@ -3,17 +3,17 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ReplayScoreDisplay } from "./components/ReplayScoreDisplay";
+import { MonsterSkill } from "../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { useScoreCalculation } from "./hooks/useScoreCalculation";
 import { useCombatManager } from "./service/CombatManager";
 import useCombatActHandler from "./service/handler/useCombatActHandler";
 import useEventHandler from "./service/handler/useEventHandler";
 import "./style.css";
-import { Skill } from "./types/CharacterTypes";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 import { ReplayControls } from "./view/ReplayControls";
+import { ReplayScoreDisplay } from "./view/ReplayScoreDisplay";
 
 const ScoreDisplay: React.FC = () => {
     const { score, gameReport, game, gameId, mode, processedEvents } = useCombatManager();
@@ -26,17 +26,17 @@ const ScoreDisplay: React.FC = () => {
     } = useScoreCalculation(
         gameId || null,
         game ? {
-            team: game.characters?.filter(c => c.uid !== "boss").map(c => ({
+            team: game.team?.map(c => ({
                 stats: { hp: c.stats?.hp }
             })) || [],
             boss: {
-                stats: { hp: game.characters?.find(c => c.uid === "boss")?.stats?.hp },
-                minions: game.characters?.filter(c => c.uid === "boss").slice(1).map(c => ({
+                stats: { hp: game.boss?.stats?.hp },
+                minions: game.boss?.minions?.map(c => ({
                     stats: { hp: c.stats?.hp }
                 })) || []
             },
-            createdAt: (game as any).createdAt || new Date().toISOString(),
-            scoringConfigVersion: (game as any).scoringConfigVersion
+            createdAt: game.createdAt || new Date().toISOString(),
+            scoringConfigVersion: game.scoringConfigVersion
         } : null,
         (mode === 'watch' && processedEvents) ? processedEvents : [],  // ✅ Watch 模式：传递已处理的事件用于实时计算分数
         (mode || 'play') as 'play' | 'watch' | 'replay'
@@ -54,7 +54,7 @@ const ScoreDisplay: React.FC = () => {
         const roundsUsed = game.currentRound?.no || 0;
 
         // 计算存活统计
-        const team = game.characters?.filter(c => c.uid !== "boss") || [];
+        const team = game.team || [];
         const survivalStats = {
             totalCharacters: team.length,
             aliveCharacters: team.filter(c => (c.stats?.hp?.current || 0) > 0).length,
@@ -144,10 +144,10 @@ const ScoreDisplay: React.FC = () => {
 const CombatActPanel: React.FC = () => {
     const { activeSkill, currentRound, characters } = useCombatManager();
     const [activeListOpen, setActiveListOpen] = useState(false);
-    const [activeSkills, setActiveSkills] = useState<Skill[] | null>(null);
+    const [activeSkills, setActiveSkills] = useState<MonsterSkill[] | null>(null);
     const { selectSkill, gameOver } = useCombatActHandler();
 
-    const handleSelectSkill = useCallback((skill: Skill) => {
+    const handleSelectSkill = useCallback((skill: MonsterSkill) => {
         setActiveListOpen(false);
         selectSkill(skill);
     }, [selectSkill]);
@@ -342,17 +342,17 @@ const BattlePlayer: React.FC<BattlePlayerProps> = ({ gameId, mode = 'play' }) =>
                 <ReplayScoreDisplay
                     gameId={gameId}
                     game={{
-                        team: game.characters?.filter(c => c.uid !== "boss").map(c => ({
+                        team: game.team?.map(c => ({
                             stats: { hp: c.stats?.hp }
                         })) || [],
                         boss: {
-                            stats: { hp: game.characters?.find(c => c.uid === "boss")?.stats?.hp },
-                            minions: game.characters?.filter(c => c.uid === "boss").slice(1).map(c => ({
+                            stats: { hp: game.boss?.stats?.hp },
+                            minions: game.boss?.minions?.map(c => ({
                                 stats: { hp: c.stats?.hp }
                             })) || []
                         },
-                        createdAt: (game as any).createdAt || new Date().toISOString(),
-                        scoringConfigVersion: (game as any).scoringConfigVersion
+                        createdAt: game.createdAt || new Date().toISOString(),
+                        scoringConfigVersion: game.scoringConfigVersion
                     }}
                     events={allEvents}
                     currentEventIndex={currentEventIndex}

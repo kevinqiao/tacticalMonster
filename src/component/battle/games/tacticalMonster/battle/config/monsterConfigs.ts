@@ -1,3 +1,5 @@
+import { ASSET_TYPE } from "../types/CharacterTypes";
+
 /**
  * 怪物配置数据
  * 基于 Camex Games Tactical Monster 的怪物设计
@@ -34,7 +36,7 @@ export interface Monster {
         min: number;
         max: number;
     };
-
+    assetType?: ASSET_TYPE;
     assetPath: string;
 }
 
@@ -72,11 +74,11 @@ function getStarMultiplierByRarity(rarity?: string): number {
  */
 function getSkillsByClass(monsterClass?: string): string[] {
     const baseSkills: string[] = ["basic_attack"]; // 所有怪物都有基础攻击
-    
+
     if (!monsterClass) {
         return baseSkills;
     }
-    
+
     switch (monsterClass) {
         case "Warrior":
             return [
@@ -84,7 +86,7 @@ function getSkillsByClass(monsterClass?: string): string[] {
                 "attack_boost",      // 7级解锁
                 "combat_reflexes",   // 被动技能
             ];
-        
+
         case "Tank":
             return [
                 ...baseSkills,
@@ -92,21 +94,21 @@ function getSkillsByClass(monsterClass?: string): string[] {
                 "defense_boost",     // 7级解锁
                 "regeneration",      // 被动技能
             ];
-        
+
         case "Mage":
             return [
                 "ranged_attack",     // 远程攻击
                 "weaken",            // 7级解锁
                 "combat_reflexes",   // 被动技能
             ];
-        
+
         case "Assassin":
             return [
                 ...baseSkills,
                 "combat_reflexes",   // 被动技能
                 "attack_boost",      // 7级解锁
             ];
-        
+
         case "Support":
             return [
                 ...baseSkills,
@@ -115,14 +117,14 @@ function getSkillsByClass(monsterClass?: string): string[] {
                 "attack_boost",      // 7级解锁
                 "defense_boost",     // 7级解锁
             ];
-        
+
         case "Archer":
             return [
                 "ranged_attack",
                 "attack_boost",      // 7级解锁
                 "combat_reflexes",   // 被动技能
             ];
-        
+
         default:
             return baseSkills;
     }
@@ -143,7 +145,7 @@ function getGrowthRatesByClass(monsterClass?: string, rarity?: string): {
         // 如果没有职业，返回 undefined，使用全局默认值
         return undefined;
     }
-    
+
     switch (monsterClass) {
         case "Warrior":
             return {
@@ -153,7 +155,7 @@ function getGrowthRatesByClass(monsterClass?: string, rarity?: string): {
                 speed: 0.05,   // 5% 速度成长
                 starMultiplierPerStar: getStarMultiplierByRarity(rarity),
             };
-        
+
         case "Tank":
             return {
                 hp: 0.18,      // 18% HP成长
@@ -162,7 +164,7 @@ function getGrowthRatesByClass(monsterClass?: string, rarity?: string): {
                 speed: 0.03,   // 3% 速度成长
                 starMultiplierPerStar: getStarMultiplierByRarity(rarity),
             };
-        
+
         case "Mage":
             return {
                 hp: 0.10,      // 10% HP成长
@@ -171,7 +173,7 @@ function getGrowthRatesByClass(monsterClass?: string, rarity?: string): {
                 speed: 0.08,   // 8% 速度成长
                 starMultiplierPerStar: getStarMultiplierByRarity(rarity),
             };
-        
+
         case "Assassin":
             return {
                 hp: 0.10,      // 10% HP成长
@@ -180,7 +182,7 @@ function getGrowthRatesByClass(monsterClass?: string, rarity?: string): {
                 speed: 0.12,   // 12% 速度成长
                 starMultiplierPerStar: getStarMultiplierByRarity(rarity),
             };
-        
+
         case "Support":
             return {
                 hp: 0.13,      // 13% HP成长
@@ -189,7 +191,7 @@ function getGrowthRatesByClass(monsterClass?: string, rarity?: string): {
                 speed: 0.07,   // 7% 速度成长
                 starMultiplierPerStar: getStarMultiplierByRarity(rarity),
             };
-        
+
         case "Archer":
             return {
                 hp: 0.12,      // 12% HP成长
@@ -198,7 +200,7 @@ function getGrowthRatesByClass(monsterClass?: string, rarity?: string): {
                 speed: 0.08,   // 8% 速度成长
                 starMultiplierPerStar: getStarMultiplierByRarity(rarity),
             };
-        
+
         default:
             // 未知职业，返回 undefined，使用全局默认值
             return undefined;

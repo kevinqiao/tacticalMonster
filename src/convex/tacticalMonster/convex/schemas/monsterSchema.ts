@@ -32,13 +32,5 @@ export const monsterSchema = {
         // 注意：teamPosition 是对象类型，索引主要用于精确匹配，查询队伍中的怪物应使用 inTeam 字段
         .index("by_uid_teamPosition", ["uid", "teamPosition"]),
 
-    // mr_monster_shards: defineTable({
-    //     uid: v.string(),
-    //     monsterId: v.string(),
-    //     quantity: v.number(),
-    //     updatedAt: v.string(),
-    // })
-    //     .index("by_uid", ["uid"])
-    //     .index("by_uid_monsterId", ["uid", "monsterId"]),
 };
 
