@@ -127,27 +127,7 @@ http.route({
       access_token: accessToken,
       expire: body.expire
     });
-
-    // 如果登录成功，处理任务管理（异步，不阻塞登录响应）
-    if (player && player.uid) {
-      try {
-        const { TaskSystem } = await import("./service/task/taskSystem");
-        // 异步处理任务事件和管理任务
-        TaskSystem.processTaskEvent(ctx, {
-          uid: player.uid,
-          action: "login",
-          actionData: { increment: 1 },
-        }).catch((error) => {
-          console.error(`为玩家 ${player.uid} 处理登录任务事件失败:`, error);
-        });
-
-        TaskSystem.managePlayerTasks(ctx, player.uid).catch((error) => {
-          console.error(`为玩家 ${player.uid} 管理任务失败:`, error);
-        });
-      } catch (error) {
-        console.error("处理任务系统失败:", error);
-      }
-    }
+    console.log("signin", player);
 
     return new Response(JSON.stringify({ ok: player !== null, player }), {
       status: 200,

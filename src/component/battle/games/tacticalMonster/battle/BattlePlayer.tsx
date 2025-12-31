@@ -9,6 +9,7 @@ import { useCombatManager } from "./service/CombatManager";
 import useCombatActHandler from "./service/handler/useCombatActHandler";
 import useEventHandler from "./service/handler/useEventHandler";
 import "./style.css";
+import { ASSET_TYPE } from "./types/CharacterTypes";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
@@ -190,7 +191,7 @@ const CombatActPanel: React.FC = () => {
     );
 };
 
-const CombatPlaza: React.FC<{ position: { top: number; left: number; width: number; height: number } }> = ({ position }) => {
+const CombatPlaza: React.FC<{ position: { top: number; left: number; width: number; height: number }, assetType?: ASSET_TYPE }> = ({ position, assetType }) => {
     return (
         <div className="plaza-container">
             {position && (
@@ -202,7 +203,7 @@ const CombatPlaza: React.FC<{ position: { top: number; left: number; width: numb
                         {position && <GridGround position={position} />}
                     </div>
                     <div className="plaza-layer" style={{ top: 0, left: 0, pointerEvents: "none" }}>
-                        {position && <CharacterGrid position={position} />}
+                        {position && <CharacterGrid position={position} assetType={assetType} />}
                     </div>
                 </>
             )}
@@ -210,7 +211,7 @@ const CombatPlaza: React.FC<{ position: { top: number; left: number; width: numb
     );
 };
 
-const BattleVenue: React.FC = () => {
+const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [placePosition, setPlacePosition] = useState<{
         top: number;
@@ -298,7 +299,7 @@ const BattleVenue: React.FC = () => {
                 }}
             >
                 <div style={{ position: "absolute", ...mapPosition }}>
-                    {gridPosition && <CombatPlaza position={gridPosition} />}
+                    {gridPosition && <CombatPlaza position={gridPosition} assetType={assetType} />}
                 </div>
                 <div style={{ position: "absolute", ...mapPosition, pointerEvents: "none" }}>
                     <CombatActPanel />
@@ -311,9 +312,10 @@ const BattleVenue: React.FC = () => {
 interface BattlePlayerProps {
     gameId?: string;
     mode?: 'play' | 'watch' | 'replay';
+    assetType?: ASSET_TYPE;
 }
 
-const BattlePlayer: React.FC<BattlePlayerProps> = ({ gameId, mode = 'play' }) => {
+const BattlePlayer: React.FC<BattlePlayerProps> = ({ gameId, mode = 'play', assetType }) => {
     const { game, replay } = useCombatManager();
     const [currentEventIndex, setCurrentEventIndex] = useState(0);
     const [allEvents, setAllEvents] = useState<any[]>([]);

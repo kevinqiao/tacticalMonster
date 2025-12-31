@@ -136,7 +136,7 @@ const CharacterCell: React.FC<Props> = ({ character, assetType }) => {
     );
 };
 
-const CharacterGrid: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
+const CharacterGrid: React.FC<{ position: { top: number, left: number, width: number, height: number }, assetType?: ASSET_TYPE }> = ({ position, assetType }) => {
     const { characters } = useCombatManager();
 
     const render = useMemo(() => {

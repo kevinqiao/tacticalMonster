@@ -4,7 +4,7 @@
  */
 
 import { ASSET_TYPE } from "../battle/types/CharacterTypes";
-import { GameCharacter } from "../battle/types/CombatTypes";
+import { MonsterSprite } from "../battle/types/CombatTypes";
 
 /**
  * 根据模型路径和名称生成角色配置的辅助函数
@@ -14,8 +14,8 @@ function createCharacterFromModel(
     name: string,
     modelPath: string,
     modelType: ASSET_TYPE = ASSET_TYPE.GLTF,
-    overrides: Partial<GameCharacter> = {}
-): GameCharacter {
+    overrides: Partial<MonsterSprite> = {}
+): MonsterSprite {
     // 根据名称判断角色类型和属性
     const nameLower = name.toLowerCase();
 
@@ -95,29 +95,33 @@ function createCharacterFromModel(
     };
 
     return {
-        character_id: id,
+        // GameMonster 基础字段
         uid: "demo",
+        monsterId: id,
         name: name,
+        rarity: "Common" as const,
         class: characterClass,
         race: race,
+        assetPath: modelPath,
         level: baseLevel,
+        stars: 1,
         experience: baseExp,
+        unlockSkills: [],
+        stats: baseStats,
         q: 0,
         r: 0,
-        scaleX: isMinion ? 1.2 : 1.5,
-        attributes: baseAttributes,
-        stats: baseStats,
+        skills: [],
+        skillCooldowns: {},
+        statusEffects: [],
+        status: "normal" as const,
         move_range: isFlying ? 4 : 3,
         attack_range: characterClass === "游侠" ? { min: 2, max: 5 } : { min: 1, max: 2 },
         isFlying: isFlying,
         flightHeight: isFlying ? 0.5 : undefined,
         canIgnoreObstacles: isFlying ? true : undefined,
-        asset: {
-            type: ASSET_TYPE.GLTF,
-            resource: {
-                glb: modelPath,
-            }
-        },
+        // MonsterSprite 扩展字段
+        character_id: id,
+        scaleX: isMinion ? 1.2 : 1.5,
         ...overrides
     };
 }
@@ -262,27 +266,21 @@ const ALL_MODELS: Array<{ name: string; path: string }> = [
 /**
  * 保留原有的详细配置角色（作为示例和测试）
  */
-export const mockCharacters: GameCharacter[] = [
+export const mockCharacters: MonsterSprite[] = [
     // 原有详细配置的角色
     {
-        character_id: "char_demo_1",
+        // GameMonster 基础字段
         uid: "demo",
+        monsterId: "char_demo_1",
         name: "孙悟空",
+        rarity: "Common" as const,
         class: "战士",
         race: "猴族",
+        assetPath: "/assets/3d/characters/wukong/model/wukong.fbx",
         level: 10,
+        stars: 1,
         experience: 500,
-        q: 0,
-        r: 0,
-        scaleX: 1.5,
-        attributes: {
-            strength: 15,
-            dexterity: 12,
-            constitution: 14,
-            intelligence: 8,
-            wisdom: 10,
-            charisma: 11
-        },
+        unlockSkills: [],
         stats: {
             hp: { current: 100, max: 100 },
             mp: { current: 50, max: 50 },
@@ -293,19 +291,22 @@ export const mockCharacters: GameCharacter[] = [
             crit_rate: 0.15,
             evasion: 0.1
         },
+        q: 0,
+        r: 0,
+        skills: [],
+        skillCooldowns: {},
+        statusEffects: [],
+        status: "normal" as const,
         move_range: 3,
         attack_range: { min: 1, max: 2 },
         isFlying: true,
         flightHeight: 0.5,
         canIgnoreObstacles: true,
-        asset: {
-            type: ASSET_TYPE.FBX,
-            resource: {
-                fbx: "/assets/3d/characters/wukong/model/wukong.fbx",
-            }
-        }
+        // MonsterSprite 扩展字段
+        character_id: "char_demo_1",
+        scaleX: 1.5,
     },
-    
+
     // 自动生成所有其他模型
     ...ALL_MODELS.map((model, index) =>
         createCharacterFromModel(
@@ -328,16 +329,13 @@ export const getAllCharacterNames = (): string[] => {
 /**
  * 根据名称查找角色
  */
-export const findCharacterByName = (name: string): GameCharacter | undefined => {
+export const findCharacterByName = (name: string): MonsterSprite | undefined => {
     return mockCharacters.find(char => char.name === name);
 };
 
 /**
  * 根据模型路径查找角色
  */
-export const findCharacterByModelPath = (path: string): GameCharacter | undefined => {
-    return mockCharacters.find(char =>
-        char.asset?.resource?.glb === path ||
-        char.asset?.resource?.fbx === path
-    );
+export const findCharacterByModelPath = (path: string): MonsterSprite | undefined => {
+    return mockCharacters.find(char => char.assetPath === path);
 };

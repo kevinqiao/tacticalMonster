@@ -5,17 +5,18 @@ const REFRESH_TOKEN_EXPIRE = 600 * 1000;
 export const create = internalMutation({
     args: {
         cuid: v.string(),
+        cid: v.number(),
         token: v.string(),
-        platform: v.number(),
-        partner: v.number(),
+        partner: v.optional(v.number()),
         data: v.any()
     },
-    handler: async (ctx, { cuid, partner, token, platform, data }) => {
-        const uid = platform + "-" + cuid;
+    handler: async (ctx, { cuid, cid, partner, token, data }) => {
+        console.log("create userDao", cuid, cid, partner, token, data);
+        const uid = cid + "_" + cuid;
         const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
         if (!user) {
-            await ctx.db.insert("user", { uid, cuid, partner, token, platform: platform, data });
-            return { uid, cuid, partner, token, data };
+            await ctx.db.insert("user", { uid, cuid, cid, partner, token, data });
+            return { uid, cuid, cid, partner, token, data };
         }
         return null;
     },
@@ -39,26 +40,8 @@ export const findUser = query({
         return user
     },
 })
-export const findByPartner = internalQuery({
-    args: {
-        cuid: v.string(),
-        partner: v.number(),
-    },
-    handler: async (ctx, { cuid, partner }) => {
-        const user = await ctx.db.query("user").withIndex("by_partner", (q) => q.eq("partner", partner).eq("cuid", cuid)).unique();
-        return user;
-    },
-})
-export const findByPlatform = internalQuery({
-    args: {
-        cuid: v.string(),
-        platformId: v.number(),
-    },
-    handler: async (ctx, { cuid, platformId }) => {
-        const user = await ctx.db.query("user").withIndex("by_platform", (q) => q.eq("platform", platformId).eq("cuid", cuid)).unique();
-        return user;
-    },
-})
+
+
 export const logout = internalMutation({
     args: {
         uid: v.string(),
@@ -67,7 +50,7 @@ export const logout = internalMutation({
 
         const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
         if (user) {
-            await ctx.db.patch(user._id, { lastUpdate: Date.now(), expire: Date.now() });
+            await ctx.db.patch(user._id, { lastUpdate: Date.now(), token: undefined, expire: Date.now() });
             return true;
         }
         return false;
@@ -161,15 +144,4 @@ export const cancelMatch = sessionMutation({
         return false;
     },
 })
-// export const updateLastUpdate = internalMutation({
-//     args: { uid: v.string(), lastEvent: v.string() },
-//     handler: async (ctx, { uid, lastEvent }) => {
-//         const user = await ctx.db.query("user").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
-//         if (user) {
-//             const data = user.data ? Object.assign({}, user.data, { lastMatch }) : { lastMatch };
-//             await ctx.db.patch(user._id, { data });
-//             return true;
-//         }
-//         return false;
-//     },
-// })    
+

@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as api_mapTemplate from "../api/mapTemplate.js";
 import type * as config_tournamentConfig from "../config/tournamentConfig.js";
 import type * as crons from "../crons.js";
 import type * as dao_gameDao from "../dao/gameDao.js";
@@ -17,6 +16,7 @@ import type * as data_bossConfigs from "../data/bossConfigs.js";
 import type * as data_mapTemplateConfigs from "../data/mapTemplateConfigs.js";
 import type * as data_monsterConfigs from "../data/monsterConfigs.js";
 import type * as data_monsterSkillHelper from "../data/monsterSkillHelper.js";
+import type * as data_scoringConfigs from "../data/scoringConfigs.js";
 import type * as data_skillConfigs from "../data/skillConfigs.js";
 import type * as data_stageRuleConfigs from "../data/stageRuleConfigs.js";
 import type * as http from "../http.js";
@@ -60,6 +60,7 @@ import type * as service_game_gameEventService from "../service/game/gameEventSe
 import type * as service_game_gameRuleConfigService from "../service/game/gameRuleConfigService.js";
 import type * as service_game_gameService from "../service/game/gameService.js";
 import type * as service_game_roundService from "../service/game/roundService.js";
+import type * as service_game_sharedScoreService from "../service/game/sharedScoreService.js";
 import type * as service_monster_config_upgradeStrategyConfig from "../service/monster/config/upgradeStrategyConfig.js";
 import type * as service_monster_monsterService from "../service/monster/monsterService.js";
 import type * as service_monster_monsterUpgradeService from "../service/monster/monsterUpgradeService.js";
@@ -87,7 +88,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  "api/mapTemplate": typeof api_mapTemplate;
   "config/tournamentConfig": typeof config_tournamentConfig;
   crons: typeof crons;
   "dao/gameDao": typeof dao_gameDao;
@@ -96,6 +96,7 @@ declare const fullApi: ApiFromModules<{
   "data/mapTemplateConfigs": typeof data_mapTemplateConfigs;
   "data/monsterConfigs": typeof data_monsterConfigs;
   "data/monsterSkillHelper": typeof data_monsterSkillHelper;
+  "data/scoringConfigs": typeof data_scoringConfigs;
   "data/skillConfigs": typeof data_skillConfigs;
   "data/stageRuleConfigs": typeof data_stageRuleConfigs;
   http: typeof http;
@@ -139,6 +140,7 @@ declare const fullApi: ApiFromModules<{
   "service/game/gameRuleConfigService": typeof service_game_gameRuleConfigService;
   "service/game/gameService": typeof service_game_gameService;
   "service/game/roundService": typeof service_game_roundService;
+  "service/game/sharedScoreService": typeof service_game_sharedScoreService;
   "service/monster/config/upgradeStrategyConfig": typeof service_monster_config_upgradeStrategyConfig;
   "service/monster/monsterService": typeof service_monster_monsterService;
   "service/monster/monsterUpgradeService": typeof service_monster_monsterUpgradeService;

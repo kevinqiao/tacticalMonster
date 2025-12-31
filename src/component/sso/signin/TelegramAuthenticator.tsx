@@ -44,10 +44,11 @@ const TelegramAuthenticator: React.FC<AuthProps> = ({ onLoad }) => {
     }, [authReq])
     useEffect(() => {
         const verifyTelegram = async () => {
-            if (isInTelegram && platform?.pid) {
+            if (isInTelegram && platform?.partner) {
                 const telegramSdk = sdk as TelegramWebApp;
                 console.log("TelegramAuthenticator", "telegramSdk", telegramSdk.initData);
-                const u = await convex.action(api.service.TelegramAuthenticator.authenticate, { platformId: platform.pid, initData: telegramSdk.initData });
+                const partner = platform.partner;
+                const u = await convex.action(api.service.TelegramAuthenticator.authenticate, { partner: String(partner), initData: telegramSdk.initData });
                 console.log("TelegramAuthenticator ", u);
                 if (u) {
                     authComplete(u, 1);

@@ -28,12 +28,8 @@ export const signin = internalAction({
       if (payload && typeof payload === 'object' && 'uid' in payload) {
         const uid = payload.uid;
         const token = generateRandomString(36); // 生成36位随机字符串
-        await ctx.runMutation(internal.service.playerManager.authenticate, { uid, token });
-        return {
-          uid,
-          token,
-          expire: Date.now() + expire
-        };
+        const player: any = await ctx.runMutation(internal.service.playerManager.authenticate, { uid, token });
+        return { ...player, expire: Date.now() + expire, _id: undefined, _creationTime: undefined };
       }
     } catch (error) {
       console.error("signin error", error);

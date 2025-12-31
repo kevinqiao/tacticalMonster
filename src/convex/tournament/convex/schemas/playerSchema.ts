@@ -2,7 +2,7 @@ import { defineTable } from "convex/server";
 import { v } from "convex/values";
 
 // 用户系统相关表
-export const userSchema = {
+export const playerSchema = {
     // 玩家表 - 用户基础信息和认证信息
     // 注意：金币存储在 player_inventory 表中，等级和经验值由 Tournament 模块统一管理
     players: defineTable({

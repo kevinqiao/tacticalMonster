@@ -175,7 +175,7 @@ async function loadModelConfigFromFile(forceReload: boolean = false): Promise<Mo
     }
 
     // 开始加载配置（添加时间戳防止浏览器缓存，开发环境或强制重新加载时总是重新加载）
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev = import.meta.env.DEV;
     const cacheBuster = (isDev || forceReload) ? `?t=${Date.now()}` : '';
     const configUrl = '/assets/3d/characters/model_config.json' + cacheBuster;
     console.log('开始加载模型配置文件:', configUrl, forceReload ? '(强制重新加载)' : '');

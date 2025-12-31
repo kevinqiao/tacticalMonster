@@ -1,20 +1,19 @@
-import MatchLaunchControl from "component/battle/MatchLaunchControl";
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import usePlatform, { PlatformProvider } from "service/PlatformManager";
+import PartnerProvider from "service/PartnerManager";
+import usePlatform from "service/PlatformManager";
 import "./App.css";
-import GameCenterProvider from "./service/GameCenterManager";
 import { PageProvider, usePageManager } from "./service/PageManager";
 import { UserProvider, useUserManager } from "./service/UserManager";
 
 // 环境配置管理
 const getConvexClient = (): ConvexReactClient => {
-  // 在浏览器环境中安全地获取环境变量
-  const convexUrl = (typeof process !== 'undefined' && process.env?.REACT_APP_CONVEX_URL)
-    ? process.env.REACT_APP_CONVEX_URL
-    : "https://cool-salamander-393.convex.cloud";
+  // Vite 使用 import.meta.env，同时支持 REACT_APP_ 前缀以保持兼容性
+  const convexUrl = import.meta.env.VITE_CONVEX_URL ||
+    import.meta.env.REACT_APP_CONVEX_URL ||
+    "https://cool-salamander-393.convex.cloud";
   return new ConvexReactClient(convexUrl);
 };
 
@@ -57,15 +56,17 @@ const useAppState = () => {
 const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <ConvexProvider client={master_client}>
-      <UserProvider>
-        <PageProvider>
-          <PlatformProvider>
-            <GameCenterProvider>
-              {children}
-            </GameCenterProvider>
-          </PlatformProvider>
-        </PageProvider>
-      </UserProvider>
+      <PartnerProvider>
+        <UserProvider>
+          <PageProvider>
+            {/* <PlatformProvider> */}
+            {/* <GameCenterProvider> */}
+            {children}
+            {/* </GameCenterProvider> */}
+            {/* </PlatformProvider> */}
+          </PageProvider>
+        </UserProvider>
+      </PartnerProvider>
     </ConvexProvider>
   );
 };
@@ -87,7 +88,7 @@ const usePerformanceMonitor = () => {
 
 // 优化的主应用组件
 const MainApp: React.FC = () => {
-  const { sso, isAppReady } = useAppState();
+
   const { user } = useUserManager();
   const { loadingBG, onLoad } = usePageManager();
   const load = useCallback(
@@ -101,7 +102,7 @@ const MainApp: React.FC = () => {
     <>
       <div ref={load} style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "black", color: "white", fontSize: 20 }}>Loading...</div>
       <RenderApp />
-      <SSOController onLoad={() => sso.setLoaded(true)} />
+      <SSOController />
     </>
   );
 };
@@ -113,8 +114,7 @@ const App: React.FC = () => {
   return (
     <AppProviders>
       <MainApp />
-
-      <MatchLaunchControl />
+      {/* <MatchLaunchControl /> */}
       {/* <UserEventHandler /> */}
     </AppProviders>
   );

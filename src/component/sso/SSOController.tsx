@@ -1,11 +1,7 @@
-import React, { lazy, Suspense, useMemo } from "react";
-
-import { PLATFORMS, usePlatform } from "service/PlatformManager";
-import { useUserManager } from "service/UserManager";
+import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { getURLParams } from "util/PageUtils";
+import { PANELS } from "./config";
 import "./signin.css";
-export interface AuthenticatorHandle extends HTMLDivElement {
-  someMethod(): void;
-}
 
 export interface AuthProvider {
   partnerId: number;
@@ -19,33 +15,39 @@ export interface AuthInit {
   // cancelPage: PageItem | null;
   cancel: () => void;
 }
+
 export interface AuthProps {
   onLoad: () => void;
 }
+
 // gsap.registerPlugin(MotionPathPlugin);
 // const sso_client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
 
-const SSOController: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
-  const { user } = useUserManager();
-  const { platform } = usePlatform();
-  // const { currentPage, authReq, cancelAuth } = usePageManager();
-  // const [authInit, setAuthInit] = useState<AuthInit | undefined>(undefined);
-
+const SSOController: React.FC = () => {
+  const [panelConfig, setPanelConfig] = useState<{ pid: string, name: string, path: string } | null>(null);
   const SelectedComponent = useMemo(() => {
-    if (platform?.pid && platform.pid > 0) {
-      const platformInfo = PLATFORMS[platform.type || 0];
-      return lazy(() => import(`./provider/${platformInfo.auth}`));
+    if (!panelConfig) return null;
+    return lazy(() => import(`./${panelConfig.path}`));
+  }, [panelConfig]);
+  useEffect(() => {
+    const params: { [k: string]: string } = getURLParams(window.location);
+    console.log("params", params);
+    const pid = params.t || "1";
+    const config = PANELS.find((p) => p.pid === pid);
+
+    if (config) {
+      setPanelConfig(config);
     }
-    return null;
-  }, [platform]);
+  }, []);
 
   return (
-    <>
-      {user && SelectedComponent && <Suspense fallback={<div />}>
-        <SelectedComponent onLoad={onLoad} />
+    <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2000, width: "100%", height: "100%", backgroundColor: "transparent", pointerEvents: "none", overflow: "hidden" }}>
+
+      {SelectedComponent && <Suspense fallback={<div />}>
+        <SelectedComponent />
       </Suspense>}
       {/* {platform?.pid === 0 && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>} */}
-    </>
+    </div>
   );
 };
 

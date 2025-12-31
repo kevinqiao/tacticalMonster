@@ -17,6 +17,7 @@
       "ES2021",
       "dom"
     ],
+    "types": ["node"],
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "isolatedModules": true,

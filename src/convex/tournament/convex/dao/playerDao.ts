@@ -26,6 +26,7 @@ export const find = internalQuery({
     },
     handler: async (ctx, { uid }) => {
         const player = await ctx.db.query("players").withIndex("by_uid", (q) => q.eq("uid", uid)).unique();
+        console.log("find", uid, player);
         return player;
     },
 })

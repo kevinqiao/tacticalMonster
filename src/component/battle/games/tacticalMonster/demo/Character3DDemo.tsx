@@ -5,7 +5,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ModelConfig } from "../battle/config/modelConfig";
-import { GameCharacter } from "../battle/types/CombatTypes";
+import { MonsterSprite } from "../battle/types/CombatTypes";
 import Character3D from "../battle/view/Character3D";
 import "./Character3DDemo.css";
 import { mockCharacters } from "./mockCharacterData";
@@ -14,7 +14,7 @@ import ModelConfigEditor from "./ModelConfigEditor";
 type AnimationType = 'stand' | 'move' | 'attack';
 
 const Character3DDemo: React.FC = () => {
-    const [selectedCharacter, setSelectedCharacter] = useState<GameCharacter>(mockCharacters[0]);
+    const [selectedCharacter, setSelectedCharacter] = useState<MonsterSprite>(mockCharacters[0]);
     const [currentAnimation, setCurrentAnimation] = useState<AnimationType>('stand');
     const [rotation, setRotation] = useState<number>(0);
     const [scale, setScale] = useState<number>(1);
@@ -25,7 +25,7 @@ const Character3DDemo: React.FC = () => {
     const [editorConfig, setEditorConfig] = useState<Partial<ModelConfig>>({});
 
     const view3DRef = useRef<HTMLDivElement>(null);
-    const characterRef = useRef<GameCharacter>(selectedCharacter);
+    const characterRef = useRef<MonsterSprite>(selectedCharacter);
     const animationIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const animatorRef = useRef<{ move: () => void; stand: () => void; attack?: () => void } | null>(null);
 
@@ -54,7 +54,7 @@ const Character3DDemo: React.FC = () => {
     }, [isAutoRotate]);
 
     // 切换角色
-    const handleCharacterChange = useCallback((character: GameCharacter) => {
+    const handleCharacterChange = useCallback((character: MonsterSprite) => {
         setIsLoading(true);
         animatorRef.current = null; // 清空animator引用，等待新模型加载
         setSelectedCharacter(character);
@@ -315,7 +315,7 @@ const Character3DDemo: React.FC = () => {
             {/* 配置编辑器面板 */}
             {showEditor && (
                 <ModelConfigEditor
-                    modelPath={selectedCharacter.asset?.resource?.glb || selectedCharacter.asset?.resource?.fbx || ''}
+                    modelPath={selectedCharacter.assetPath || ''}
                     currentConfig={editorConfig}
                     onConfigChange={setEditorConfig}
                     onClose={() => setShowEditor(false)}

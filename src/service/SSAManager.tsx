@@ -6,8 +6,14 @@ export interface Player {
   uid: string;
   token: string;
   expire: number;
+  name?: string;
+  avatar?: string;
+  exp?: number;
+  level?: number;
   data?: { [k: string]: any };
 }
+
+
 
 export const SSA_URLS: { [k: string]: string } = {
   "solitaireArena": "https://artful-chipmunk-59.convex.cloud",
@@ -50,7 +56,7 @@ export const SSAProvider = ({ app, children }: { app: string, children: React.Re
         }),
       })
       const data = await res.json();
-      // console.log("signin", app, data);
+      console.log("signin", app, data);
       if (data.ok) {
         ssaAuthComplete(app, data.player);
         setPlayer(data.player);

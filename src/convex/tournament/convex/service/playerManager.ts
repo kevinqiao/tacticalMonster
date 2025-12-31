@@ -11,6 +11,7 @@ export class PlayerManager {
         token: string;
     }) {
         const player: any = await ctx.runQuery(internal.dao.playerDao.find, { uid: params.uid });
+        console.log("authenticate", params.uid, player);
         // const token = generateRandomString(36);
         const nowISO = new Date().toISOString();
         if (!player) {

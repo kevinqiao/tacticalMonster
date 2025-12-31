@@ -76,7 +76,7 @@ const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
       // 如果没有静态映射，使用动态导入
       ComponentCache.set(path, lazy(() => {
         console.log(`Loading component dynamically: ${normalizedPath}`);
-        return import(/* webpackChunkName: "component" */ normalizedPath).catch((error) => {
+        return import(normalizedPath).catch((error) => {
           console.error(`Failed to load component: ${normalizedPath}`, error);
           return {
             default: (props: PageProp) => <ErrorComponent path={normalizedPath} error={error} />

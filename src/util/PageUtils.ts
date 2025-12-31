@@ -78,7 +78,7 @@ export const parseURL = (location: any): { navItem?: PageItem; ctx?: string; sta
     console.log(res)
     return res;
 };
-export const getURLParams = (location: any) => {
+export const getURLParams = (location: any): { [key: string]: string } => {
     const params: { [key: string]: string } = {};
     const searchParams = new URLSearchParams(location.search);
     for (const param of searchParams) {

@@ -6,8 +6,6 @@ import { usePageManager } from "service/PageManager";
 import LobbyNavControl from "./control/LobbyNavControl";
 import "./style.css";
 const LobbyHome: React.FC<PageProp> = ({ visible }) => {
-  const { openPage } = usePageManager();
-  const { activeGame } = useGameCenterManager();
   const headRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 

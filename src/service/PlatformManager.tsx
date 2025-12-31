@@ -1,7 +1,6 @@
 import { useConvex } from "convex/react";
-import React, { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useUrlParams } from "util/PageUtils";
-import { api } from "../convex/sso/convex/_generated/api";
 
 // 平台类型
 export const PLATFORM_TYPE = {
@@ -118,12 +117,12 @@ export const PLATFORMS: Record<
     initialize: async (configuration: any) => {
       try {
         const { DiscordSDK } = await import("@discord/embedded-app-sdk");
-        const discordSdk = new DiscordSDK(process.env.VITE_DISCORD_CLIENT_ID || "YOUR_DISCORD_CLIENT_ID");
+        const discordSdk = new DiscordSDK("YOUR_DISCORD_CLIENT_ID");
         await discordSdk.ready();
 
         // 授权
         const { code } = await discordSdk.commands.authorize({
-          client_id: process.env.VITE_DISCORD_CLIENT_ID || "YOUR_DISCORD_CLIENT_ID",
+          client_id: "YOUR_DISCORD_CLIENT_ID",
           response_type: "code",
           state: "",
           prompt: "none",
@@ -163,7 +162,7 @@ export const PLATFORMS: Record<
     initialize: async (configuration: any) => {
       if (window.FB) {
         window.FB.init({
-          appId: process.env.VITE_FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID",
+          appId: "YOUR_FACEBOOK_APP_ID",
           version: "v20.0",
           status: true, // 自动检查登录状态
           cookie: true,
@@ -352,26 +351,43 @@ export const PlatformProvider = ({ children }: { children: ReactNode }) => {
       initializePlatform();
     }
   }, [isLoaded]);
-  useEffect(() => {
-    const loadPlatform = async () => {
-      if (params) {
-        // const pt: Platform = await convex.query(api.service.PlatformManager.findPlatform, { partner: params.get("pid") || undefined, platform: params.get("p") || undefined });
-        // console.log("loadPlatform", pt);
-        const host = window.location.hostname;
-        const pt: Platform | null = await convex.query(api.dao.platformDao.findByHost, { host });
-        // console.log("loadPlatform", pt)
-        if (pt) {
-          setPlatform(pt)
-        } else {
-          setPlatform({ pid: 0 })
+  // 获取partner（从URL参数或默认值）
+  const getPartner = useCallback((): number => {
+    if (params) {
+      const partnerParam = params.get("partner") || params.get("pid");
+      if (partnerParam) {
+        const partner = parseInt(partnerParam);
+        if (!isNaN(partner)) {
+          return partner;
         }
-
       }
     }
-    if (!platform.pid) {
-      loadPlatform();
+    return 1; // 默认partner
+  }, [params]);
+
+  // 检测平台类型（前端检测，不需要查询数据库）
+  useEffect(() => {
+    if (platform.type) return; // 已经检测过，不再重复检测
+
+    // 检测Telegram
+    if (window.Telegram?.WebApp) {
+      const partner = getPartner();
+      setPlatform({
+        pid: 0, // pid不再使用，但保留以兼容现有代码
+        type: PLATFORM_TYPE.TELEGRAM,
+        partner
+      });
+      return;
     }
-  }, []);
+
+    // 默认Web平台
+    const partner = getPartner();
+    setPlatform({
+      pid: 0,
+      type: PLATFORM_TYPE.WEB,
+      partner
+    });
+  }, [getPartner, platform.type]);
   // 加载平台脚本
   useEffect(() => {
     const loadScripts = async () => {

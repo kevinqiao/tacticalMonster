@@ -49,7 +49,7 @@ const getGamePlayerComponent = (gameType: string): React.ComponentType<GamePlaye
       // 如果没有静态映射，使用动态导入
       GamePlayerCache.set(gameType, lazy(() => {
         console.log(`Loading component dynamically: ${gameType}`);
-        return import(/* webpackChunkName: "component" */ gameType).catch((error) => {
+        return import(gameType).catch((error) => {
           console.error(`Failed to load component: ${gameType}`, error);
           return {
             default: (props: GamePlayerProps) => <ErrorComponent gameType={gameType} error={error} />

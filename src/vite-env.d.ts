@@ -1,0 +1,12 @@
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_CONVEX_URL?: string;
+  readonly REACT_APP_CONVEX_URL?: string; // 向后兼容
+  // 可以添加更多环境变量类型
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+

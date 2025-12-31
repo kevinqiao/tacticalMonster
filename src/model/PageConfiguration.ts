@@ -17,15 +17,6 @@ export const PlayPlace =
             exit: "fadeOut",
         },
         {
-            name: "battle",
-            auth: 0,
-            path: "./battle/BattlePlay",
-            uri: "battle",
-            class: "page_container",
-            enter: "fadeIn",
-            exit: "fadeOut",
-        },
-        {
             name: "lobby",
             auth: 0,
             path: "./lobby/LobbyHome",

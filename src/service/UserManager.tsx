@@ -80,7 +80,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(async () => {
 
     if (user?.uid && user?.token) {
-      const result = await convex.action(api.service.AuthManager.logout, { uid: user?.uid, token: user?.token })
+      const result = await convex.action(api.service.AuthManager.signOut, { uid: user?.uid, token: user?.token })
       if (result) {
         localStorage.removeItem("user");
         setUser({});

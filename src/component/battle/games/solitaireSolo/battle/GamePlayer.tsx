@@ -213,7 +213,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
 
     // 调试信息 - 确保尺寸一致性
     useEffect(() => {
-        if (process.env.NODE_ENV === 'development' && boardDimension) {
+        if (import.meta.env.DEV && boardDimension) {
             console.log('SoloPlayer Debug - Card Dimensions:', {
                 cardWidth: boardDimension.cardWidth,
                 cardHeight: boardDimension.cardHeight,

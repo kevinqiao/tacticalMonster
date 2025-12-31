@@ -1,11 +1,10 @@
 import { PageProp } from "component/RenderApp";
 import React, { useCallback } from "react";
 import { PageItem, usePageManager } from "service/PageManager";
-import { PLATFORM_TYPE, usePlatform } from "service/PlatformManager";
 import { useUserManager } from "service/UserManager";
 import "./style.css";
 const NavControl: React.FC<PageProp> = ({ close }) => {
-  const { platform } = usePlatform();
+
   const { openPage, askAuth, changeEvent } = usePageManager();
   const { user, logout } = useUserManager();
 
@@ -47,13 +46,13 @@ const NavControl: React.FC<PageProp> = ({ close }) => {
         <div className="nav-panel-item" onClick={() => open({ uri: "/play/map" })}>
           Map
         </div>
-        {platform?.type === PLATFORM_TYPE.WEB ? <>
-          {user?.uid ? <div className="nav-panel-item" onClick={signOut}>
-            Logout
-          </div> : <div className="nav-panel-item" onClick={signIn}>
-            SignIn
-          </div>}
-        </> : null}
+
+        {user?.uid ? <div className="nav-panel-item" onClick={signOut}>
+          Logout
+        </div> : <div className="nav-panel-item" onClick={signIn}>
+          SignIn
+        </div>}
+
       </div>
     </>
   );
