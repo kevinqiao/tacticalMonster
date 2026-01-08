@@ -1,13 +1,18 @@
 import RenderApp from "component/RenderApp";
 import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect } from "react";
 import PartnerProvider from "service/PartnerManager";
-import usePlatform from "service/PlatformManager";
 import "./App.css";
 import { PageProvider, usePageManager } from "./service/PageManager";
-import { UserProvider, useUserManager } from "./service/UserManager";
+import TournamentProvider from "./service/TournamentManager";
+import { UserProvider } from "./service/UserManager";
 
+import { gsap } from "gsap";
+import { CSSPlugin } from "gsap/CSSPlugin";
+import RenderModal from "./component/RenderModal";
+import { ModalProvider } from "./service/ModalManager";
+gsap.registerPlugin(CSSPlugin);
 // 环境配置管理
 const getConvexClient = (): ConvexReactClient => {
   // Vite 使用 import.meta.env，同时支持 REACT_APP_ 前缀以保持兼容性
@@ -19,52 +24,23 @@ const getConvexClient = (): ConvexReactClient => {
 
 const master_client = getConvexClient();
 
-// 统一状态管理 Hook
-const useAppState = () => {
-  const [ssoLoaded, setSsoLoaded] = useState(false);
-  const [theme, setTheme] = useState({
-    primaryColor: "#4CAF50",
-    secondaryColor: "#45A049",
-    backgroundColor: "#F0F0F0",
-  });
-  const [loading, setLoading] = useState(true);
-
-  const { platform } = usePlatform();
-
-  const isAppReady = useMemo(() => {
-    return platform && ssoLoaded;
-  }, [platform, ssoLoaded]);
-
-  useEffect(() => {
-    // 模拟应用初始化
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  return {
-    sso: { loaded: ssoLoaded, setLoaded: setSsoLoaded },
-    platform: { ready: !!platform },
-    ui: { theme, setTheme, loading },
-    isAppReady
-  };
-};
-
 // 优化的 Provider 结构
 const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <ConvexProvider client={master_client}>
       <PartnerProvider>
         <UserProvider>
-          <PageProvider>
-            {/* <PlatformProvider> */}
-            {/* <GameCenterProvider> */}
-            {children}
-            {/* </GameCenterProvider> */}
-            {/* </PlatformProvider> */}
-          </PageProvider>
+          <TournamentProvider>
+            <PageProvider>
+              <ModalProvider>
+                {/* <PlatformProvider> */}
+                {/* <GameCenterProvider> */}
+                {children}
+                {/* </GameCenterProvider> */}
+                {/* </PlatformProvider> */}
+              </ModalProvider>
+            </PageProvider>
+          </TournamentProvider>
         </UserProvider>
       </PartnerProvider>
     </ConvexProvider>
@@ -88,8 +64,6 @@ const usePerformanceMonitor = () => {
 
 // 优化的主应用组件
 const MainApp: React.FC = () => {
-
-  const { user } = useUserManager();
   const { loadingBG, onLoad } = usePageManager();
   const load = useCallback(
     (ele: HTMLDivElement | null) => {
@@ -102,6 +76,7 @@ const MainApp: React.FC = () => {
     <>
       <div ref={load} style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "black", color: "white", fontSize: 20 }}>Loading...</div>
       <RenderApp />
+      <RenderModal />
       <SSOController />
     </>
   );

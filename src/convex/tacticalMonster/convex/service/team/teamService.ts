@@ -8,8 +8,8 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query } from "../../_generated/server";
-import { calculatePower } from "../../data/monsterConfigs";
+import { internalQuery, mutation, query } from "../../_generated/server";
+import { calculatePower, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 
 export class TeamService {
     private static readonly MAX_TEAM_SIZE = 4;
@@ -66,7 +66,7 @@ export class TeamService {
             .slice(0, this.MAX_TEAM_SIZE);
 
         // 关联怪物配置信息（从配置文件读取）
-        const { MONSTER_CONFIGS_MAP } = await import("../../data/monsterConfigs");
+
         const monstersWithConfig = sortedTeam.map((monster: any) => {
             const config = MONSTER_CONFIGS_MAP[monster.monsterId];
             return {
@@ -510,7 +510,7 @@ export const validateTeam = query({
 /**
  * 获取队伍总战力
  */
-export const getTeamPower = query({
+export const getTeamPower = internalQuery({
     args: { uid: v.string() },
     handler: async (ctx, args) => {
         return await TeamService.getTeamPower(ctx, args.uid);

@@ -6,10 +6,11 @@ export const create = internalMutation({
         uid: v.string(),
         token: v.optional(v.string()),
         expire: v.optional(v.number()),
-        data: v.optional(v.any()),
+        coins: v.optional(v.number()),
+        gems: v.optional(v.number()),
     },
-    handler: async (ctx, { uid, token, expire, data }) => {
-        const pid = await ctx.db.insert("players", { uid, token, expire, ...data });
+    handler: async (ctx, { uid, token, expire, coins, gems }) => {
+        const pid = await ctx.db.insert("players", { uid, token, expire, coins, gems });
         return pid;
     },
 })

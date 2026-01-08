@@ -1,7 +1,10 @@
 import { v } from "convex/values";
-import { action } from "../../_generated/server";
-import { GameRuleConfigService } from "../game/gameRuleConfigService";
-import { TournamentProxyService } from "./tournamentProxyService";
+import { internal } from "../../_generated/api";
+import { action, mutation } from "../../_generated/server";
+import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
+import { getStageRuleConfig, getStageRuleConfigs, STAGE_RULE_CONFIGS, StageRuleConfig } from "../../data/stageRuleConfigs";
+import { TacticalMonsterErrorCode } from "../errorCodes";
+import { StageManagerService } from "../stage/stageManagerService";
 
 
 
@@ -13,61 +16,164 @@ import { TournamentProxyService } from "./tournamentProxyService";
  */
 export class TournamentService {
 
+
+
     /**
      * 加入锦标赛
      */
     static async join(ctx: any, params: {
-        uid: string,
-        typeId: any,
-        tournamentId?: string
+        uid: string;
+        typeId: string;
+        stageId: string;
     }) {
-        const { uid, tournamentId, typeId } = params;
+        const { uid, typeId, stageId } = params;
+        const stageRule = getStageRuleConfig(typeId) as StageRuleConfig;
+        const isUnlocked = await ctx.runQuery(internal.service.stage.stageManagerService.isStageUnlocked, { uid, stageRule: { ruleId: stageRule.ruleId, stageType: stageRule.stageType } });
+        if (!isUnlocked) {
+            return { ok: false, errorCode: TacticalMonsterErrorCode.STAGE_NOT_UNLOCKED };
+        }
+        const currentStageId = await ctx.runQuery(internal.service.stage.stageManagerService.findCurrentStageId, { uid, stageRule: { ruleId: stageRule.ruleId, stageType: stageRule.stageType } });
+        if (!currentStageId) {
+            return { ok: false, errorCode: TacticalMonsterErrorCode.STAGE_NOT_FOUND };
+        }
+
+        try {
+            // 使用 internal API 调用 getTeamPower query
+            const teamPower = await ctx.runQuery(
+                (internal as any).service.team.teamService.getTeamPower,
+                { uid }
+            );
+
+            const response = await fetch(
+                getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.JOIN_TOURNAMENT),
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        uid,
+                        typeId,
+                        stageId,
+                        teamPower,
+                    }),
+                }
+            );
+            const result = await response.json();
+            if (result.ok) {
+                const { gameId, matchId, stageId, teamPower } = result.data;
+                const game = await ctx.runMutation((internal as any).service.game.gameService.createGame, {
+                    uid,
+                    gameId,
+                    ruleId: typeId,
+                    stageId,
+                });
+                if (game) {
+                    return { ok: true, game };
+                }
+
+            }
+            return { ok: false, errorCode: TacticalMonsterErrorCode.GAME_CREATE_FAILED };
+
+        } catch (error: any) {
+            console.error("调用加入锦标赛服务失败:", error);
+            return {
+                ok: false,
+                errorCode: TacticalMonsterErrorCode.NETWORK_ERROR,
+            };
+        }
 
     }
 
+    /**
+     * 获取所有关卡的状态
+     * 合并关卡规则配置和数据库中的玩家关卡数据
+     */
+    static async getRuleStatuses(ctx: any, params: {
+        uid: string;
+        ruleIds?: string[];
+    }): Promise<Array<{
+        ruleId: string;
+        unlocked: boolean;
+        stageId: string;
+    }>> {
+        const { uid, ruleIds = [] } = params;
+        const stageRules = ruleIds.length > 0 ? getStageRuleConfigs(ruleIds) : Object.values(STAGE_RULE_CONFIGS);
+
+
+        // 构建返回结果
+        const ruleStatuses: Array<{
+            ruleId: string;
+            unlocked: boolean;
+            stageId: string;
+        }> = [];
+
+        for (const stageRule of stageRules) {
+
+            let unlocked = false;
+            let stageId = "";
+            if (stageRule.stageType === "arena") {
+                // Arena 类型：只从 mr_arena_stage 获取最新的 stageId
+                const arenaStage = await ctx.db
+                    .query("mr_arena_stage")
+                    .withIndex("by_ruleId", (q: any) => q.eq("ruleId", stageRule.ruleId))
+                    .order("desc")
+                    .first();
+                stageId = arenaStage?.stageId ?? "";
+                // Arena 类型不需要检查 firstClearCompleted 和 isUnlocked，使用默认值
+            } else {
+
+                // 判断是否解锁
+                unlocked = await StageManagerService.isStageUnlocked(ctx, uid, stageRule);
+                // 只有解锁的关卡才获取 stageId
+                if (unlocked) {
+                    // 获取 stageId：从 mr_player_stages 中获取最新的 stageId（使用 by_lastPlayAt 索引）
+                    try {
+                        const stage = await StageManagerService.getOrCreateChallengeStage(ctx, uid, stageRule.ruleId, stageRule);
+                        if (stage) {
+                            stageId = stage.stageId;
+                        }
+                    } catch (error: any) {
+                        console.error("获取 stageId 失败:", error);
+                        stageId = "";
+                    }
+                }
+            }
+
+            ruleStatuses.push({
+                ruleId: stageRule.ruleId,
+                unlocked,
+                stageId,
+            });
+        }
+
+        return ruleStatuses;
+    }
 }
-
-
 
 export const join = action({
     args: {
         uid: v.string(),
-        tournamentId: v.optional(v.string()),
         typeId: v.string(),
+        stageId: v.string(),
     },
     handler: async (ctx: any, args: any) => {
-        const { uid, tournamentId, typeId } = args;
-        const gameRuleConfig = GameRuleConfigService.getGameRuleConfig(typeId);
-        if (!gameRuleConfig) {
-            return { ok: false, error: "关卡规则配置不存在" };
-        }
-        if (gameRuleConfig.stageType === "story") {
-            return { ok: false, error: "故事模式关卡不能加入锦标赛" };
-        }
-
-        const result = await TournamentProxyService.join({ uid, tournamentId, typeId });
-        if (result.ok && gameRuleConfig.stageType === "challenge") {
-            const { matchId, gameId, stageId } = result.data as { matchId?: string; gameId: string; stageId: string };
-
-        }
-
-        return { ok: true, message: "成功加入锦标赛" };
+        const result = await TournamentService.join(ctx, args);
+        return result;
     },
 });
-export const openTournament = action({
+
+
+/**
+ * 获取所有关卡的状态
+ */
+export const getAllRuleStatuses = mutation({
     args: {
         uid: v.string(),
-        typeId: v.string(),
     },
     handler: async (ctx: any, args: any) => {
-        const { uid, typeId } = args;
-        const ruleConfig = GameRuleConfigService.getGameRuleConfig(typeId);
-        if (!ruleConfig) {
-            return { ok: false, error: "关卡规则配置不存在" };
-        }
-        if (ruleConfig.stageType === "challenge") {
-
-        }
+        const { uid } = args;
+        return await TournamentService.getRuleStatuses(ctx, { uid });
     },
 });
 

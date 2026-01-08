@@ -19,6 +19,23 @@
     margin: 10px;
 }
 
+.tournament-join-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+    width: 100%;
+    height: 100%;
+    color: white;
+    visibility: hidden;
+    background-color: #343232;
+    opacity: 0;
+    transition: all 0.3s ease-in-out;
+}
+
 .match-loading {
     display: flex;
     justify-content: center;

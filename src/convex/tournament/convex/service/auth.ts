@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { internal } from "../_generated/api";
-import { internalAction } from "../_generated/server";
+import { action, internalAction } from "../_generated/server";
 
 const REFRESH_TOKEN_EXPIRE = 600 * 1000;
 const ACCESS_TOKEN_SECRET = "12222222";
@@ -30,6 +30,25 @@ export const signin = internalAction({
         const token = generateRandomString(36); // 生成36位随机字符串
         const player: any = await ctx.runMutation(internal.service.playerManager.authenticate, { uid, token });
         return { ...player, expire: Date.now() + expire, _id: undefined, _creationTime: undefined };
+      }
+    } catch (error) {
+      console.error("signin error", error);
+      return null;
+    }
+  }
+});
+export const authenticate = action({
+  args: { uid: v.string(), token: v.string() },
+  handler: async (ctx, { uid, token }) => {
+    // 验证 token 逻辑  
+
+    try {
+      const payload = jwt.verify(token, "12222222");
+      if (payload && typeof payload === 'object' && 'uid' in payload) {
+        const uid = payload.uid;
+        const token = generateRandomString(36); // 生成36位随机字符串
+        const player: any = await ctx.runMutation(internal.service.playerManager.authenticate, { uid, token });
+        return { ...player, _id: undefined, _creationTime: undefined };
       }
     } catch (error) {
       console.error("signin error", error);

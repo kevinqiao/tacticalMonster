@@ -89,18 +89,20 @@ export interface EntryRequirements {
  * 比赛规则
  */
 export interface MatchRules {
-    // 比赛类型（向后兼容）
-    matchType?: string;  // "single_match", "multi_match", "best_of_series", "elimination", "round_robin"
-    attempts?: number;  // 可选：向后兼容
-
     // 玩家数量
     minPlayers: number;
     maxPlayers: number;
-    // 排名规则 
-    matchPointsType?: "by_score" | "by_rank" | "by_performance";
-    rankPoints?: { [k: string]: number };
-    performancePoints?: { [k: string]: number };
+    type?: "by_rank" | "by_performance";
+}
 
+/**
+ * 宝箱类型权重配置
+ */
+export interface ChestTypeWeights {
+    silver?: number;
+    gold?: number;
+    purple?: number;
+    orange?: number;
 }
 
 /**
@@ -112,7 +114,7 @@ export interface MatchRules {
  * - 不包含 props 和 tickets（这些是传统游戏的奖励类型）
  */
 export interface RewardConfig {
-    rewardType?: "by_points" | "by_rank";  // 可选：向后兼容
+    type?: "by_performance" | "by_rank";  // 可选：向后兼容
 
     // ============================================
     // 基础奖励 - 参与即可获得
@@ -136,7 +138,8 @@ export interface RewardConfig {
             quantity: number;
         }>;
         energy?: number;
-        chestDropRate?: number;
+        chestDropRate?: number;  // 该排名范围的宝箱触发率
+        chestTypeWeights?: ChestTypeWeights;  // 该排名范围的宝箱类型权重（每个排名范围独立配置）
     }>;
 
 
@@ -150,8 +153,6 @@ export interface RewardConfig {
     };
 
 
-
-
     // ============================================
     // 表现奖励 - 仅用于单人关卡（minPlayers === 1 && maxPlayers === 1）
     // 基于分数阈值计算奖励，替代排名奖励
@@ -163,13 +164,30 @@ export interface RewardConfig {
             monsterShards?: Array<{ monsterId: string; quantity: number; }>;
             energy?: number;
         };
-        // 分数阈值配置
-        scoreThresholds: {
-            excellent: number;  // 优秀阈值（≥此分数获得100%奖励）
-            good: number;      // 良好阈值（≥此分数获得80%奖励）
-            average: number;   // 一般阈值（≥此分数获得50%奖励）
-            // 低于average：只有基础奖励，没有表现奖励
-        };
+        levelRewards?: Record<string, {
+            coins?: number;
+            monsterShards?: Array<{ monsterId: string; quantity: number; }>;
+            energy?: number;
+            chestDropRate?: number;  // 该表现等级的宝箱触发率（每个表现等级独立配置）
+            chestTypeWeights?: ChestTypeWeights;  // 该表现等级的宝箱类型权重（每个表现等级独立配置）
+        }>;
+
+    };
+
+    // ============================================
+    // 首次通关奖励 - 仅用于单人关卡（minPlayers === 1 && maxPlayers === 1）
+    // ============================================
+    firstClearRewards?: {
+        coins?: number;
+        energy?: number;
+        monsterShards?: Array<{ monsterId: string; quantity: number }>;
+        monsters?: Array<{
+            monsterId: string;
+            level?: number;
+            stars?: number;
+        }>;
+        chestDropRate?: number;  // 首次通关宝箱触发率
+        chestTypeWeights?: ChestTypeWeights;  // 首次通关宝箱类型权重
     };
 }
 
@@ -178,15 +196,22 @@ export interface RewardConfig {
  */
 export interface LimitConfig {
     // 最大参与次数
-    maxParticipations?: number;
-    maxTournaments?: number;
-    maxAttempts?: number;
-
+    pastHours?: number;
+    maxAttempts?: number;  // 通用（如果 retryConfig 不存在时使用）
     // 订阅用户限制
     subscribed?: {
-        maxParticipations?: number;
-        maxTournaments?: number;
         maxAttempts?: number;
+    };
+    // ============================================
+    // 重试配置 - 仅用于单人关卡（minPlayers === 1 && maxPlayers === 1）
+    // ============================================
+    retryConfig?: {
+        maxAttempts?: number;  // 覆盖 limits.maxAttempts（如果存在，优先使用此值）
+        retryCost?: {
+            coins?: number;
+            energy?: number;
+        };
+        unlimitedRetries?: boolean;  // 是否允许无限重试
     };
 }
 
@@ -223,7 +248,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -231,11 +255,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 50, energy: 10 },
             performanceRewards: {
                 baseReward: { coins: 300 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -256,7 +275,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -264,11 +282,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 60, energy: 11 },
             performanceRewards: {
                 baseReward: { coins: 320 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -289,7 +302,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -297,11 +309,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 70, energy: 12 },
             performanceRewards: {
                 baseReward: { coins: 340 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -322,7 +329,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -330,11 +336,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 80, energy: 13 },
             performanceRewards: {
                 baseReward: { coins: 360 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -355,7 +356,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 6 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -363,11 +363,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 90, energy: 14 },
             performanceRewards: {
                 baseReward: { coins: 380 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -388,7 +383,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -396,11 +390,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 100, energy: 15 },
             performanceRewards: {
                 baseReward: { coins: 600 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -421,7 +410,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -429,11 +417,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 120, energy: 17 },
             performanceRewards: {
                 baseReward: { coins: 640 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -454,7 +437,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -462,11 +444,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 140, energy: 19 },
             performanceRewards: {
                 baseReward: { coins: 680 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -487,7 +464,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -495,11 +471,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 160, energy: 21 },
             performanceRewards: {
                 baseReward: { coins: 720 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -520,7 +491,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 7 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -528,11 +498,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 180, energy: 23 },
             performanceRewards: {
                 baseReward: { coins: 760 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -553,7 +518,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -561,11 +525,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 200, energy: 20 },
             performanceRewards: {
                 baseReward: { coins: 1200 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -586,7 +545,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -594,11 +552,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 240, energy: 23 },
             performanceRewards: {
                 baseReward: { coins: 1280 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -619,7 +572,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -627,11 +579,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 280, energy: 26 },
             performanceRewards: {
                 baseReward: { coins: 1360 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -652,7 +599,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -660,11 +606,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 320, energy: 29 },
             performanceRewards: {
                 baseReward: { coins: 1440 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -685,7 +626,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 8 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -693,11 +633,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 360, energy: 32 },
             performanceRewards: {
                 baseReward: { coins: 1520 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -718,7 +653,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -726,11 +660,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 500, energy: 30 },
             performanceRewards: {
                 baseReward: { coins: 3000 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -751,7 +680,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -759,11 +687,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 600, energy: 35 },
             performanceRewards: {
                 baseReward: { coins: 3200 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -784,7 +707,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -792,11 +714,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 700, energy: 40 },
             performanceRewards: {
                 baseReward: { coins: 3400 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -817,7 +734,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -825,11 +741,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 800, energy: 45 },
             performanceRewards: {
                 baseReward: { coins: 3600 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -850,7 +761,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             entryFee: { coins: 0, energy: 10 },
         },
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -858,11 +768,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             baseRewards: { coins: 900, energy: 50 },
             performanceRewards: {
                 baseReward: { coins: 3800 },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
-                },
             },
         },
         limits: { maxAttempts: 3 },
@@ -888,7 +793,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         },
 
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,  // ✅ 单人关卡标识
             maxPlayers: 1,  // ✅ 单人关卡标识
         },
@@ -904,11 +808,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                     monsterShards: [
                         { monsterId: "monster_001", quantity: 20 },
                     ],
-                },
-                scoreThresholds: {
-                    excellent: 90000,
-                    good: 70000,
-                    average: 50000,
                 },
             },
         },
@@ -941,7 +840,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         },
 
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -957,11 +855,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                     monsterShards: [
                         { monsterId: "monster_001", quantity: 6 },
                     ],
-                },
-                scoreThresholds: {
-                    excellent: 12000,
-                    good: 6000,
-                    average: 1200,
                 },
             },
         },
@@ -990,7 +883,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         },
 
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -1003,11 +895,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             performanceRewards: {
                 baseReward: {
                     coins: 120,
-                },
-                scoreThresholds: {
-                    excellent: 12000,
-                    good: 6000,
-                    average: 1200,
                 },
             },
         },
@@ -1035,7 +922,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         },
 
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -1048,11 +934,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             performanceRewards: {
                 baseReward: {
                     coins: 120,
-                },
-                scoreThresholds: {
-                    excellent: 12000,
-                    good: 6000,
-                    average: 1200,
                 },
             },
         },
@@ -1081,7 +962,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         },
 
         matchRules: {
-            matchType: "single_match",
             minPlayers: 1,
             maxPlayers: 1,
         },
@@ -1097,11 +977,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
                     monsterShards: [
                         { monsterId: "monster_001", quantity: 15 },
                     ],
-                },
-                scoreThresholds: {
-                    excellent: 15000,
-                    good: 8000,
-                    average: 2000,
                 },
             },
         },
@@ -1163,20 +1038,9 @@ export function validateTournamentConfig(config: TournamentConfig): { valid: boo
     if (!config.matchRules) {
         errors.push("matchRules 是必需的");
     } else {
-        // matchType 是可选的（向后兼容），但如果存在则验证
-        // if (!config.matchRules.matchType) errors.push("matchRules.matchType 是必需的");
         if (config.matchRules.minPlayers < 1) errors.push("minPlayers 必须大于等于 1");
         if (config.matchRules.maxPlayers < config.matchRules.minPlayers) {
             errors.push("maxPlayers 必须大于等于 minPlayers");
-        }
-
-        // 单人挑战验证
-        const isSinglePlayer = config.matchRules.minPlayers === 1 && config.matchRules.maxPlayers === 1;
-        if (isSinglePlayer) {
-            // 单人挑战必须使用 single_match（如果有 matchType）
-            if (config.matchRules.matchType && config.matchRules.matchType !== "single_match") {
-                errors.push("单人挑战（minPlayers=1, maxPlayers=1）必须使用 matchType='single_match'");
-            }
         }
     }
 

@@ -40,7 +40,7 @@ const ErrorComponent: React.FC<{ path: string; error?: Error }> = ({ path, error
 
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
-  './battle/BattlePlay': () => import('./battle/BattlePlay'),
+  './battle/BattlePlay': () => import('./battle/games/tacticalMonster/PlayTacticalMonster'),
   './battle/TournamentPlay': () => import('./battle/TournamentPlay'),
   './kumu/battle/PlayMap': () => import('./kumu/battle/PlayMap'),
   './lobby/LobbyHome': () => import('./lobby/LobbyHome'),
@@ -104,20 +104,6 @@ const usePageVisibility = (container: PageContainer, changeEvent: any, pageConta
     const isVisible = (currentUri === containerUri || currentUri.startsWith(containerUri + '/')) ||
       currentUri === parentUri ||
       (containerParentUri && currentUri === containerParentUri);
-
-    // 特殊处理：如果是slide元素，需要检查父容器是否可见
-
-
-    // console.log(`PageVisibility check:`, {
-    //   currentUri,
-    //   containerUri,
-    //   parentUri,
-    //   containerParentUri,
-    //   isVisible,
-    //   changeEvent: changeEvent?.page,
-    //   windowPath: window.location.pathname
-    // });
-
     return isVisible ? 1 : 0;
   }, [changeEvent?.page?.uri, container.uri, container.parentURI, parent?.uri]);
 };
@@ -137,13 +123,6 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   // 优化的可见性计算
   const visible = usePageVisibility(container, changeEvent, pageContainers, parent);
 
-  // 调试信息
-  // console.log(`PageComponent ${container.name}:`, {
-  //   visible,
-  //   containerUri: container.uri,
-  //   currentUri: changeEvent?.page?.uri || window.location.pathname,
-  //   hasElement: !!container.ele
-  // });
 
   // 简化的关闭动画处理
   const close = useCallback(async (): Promise<void> => {

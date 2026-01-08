@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { internalQuery, internalMutation } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
+import { internalMutation, internalQuery } from "../_generated/server";
 
 export const findTypeById = internalQuery({
     args: {
@@ -26,7 +26,7 @@ export const getPlayerTournament = internalQuery({
     handler: async (ctx, { uid, tournamentId }) => {
         return await ctx.db
             .query("player_tournaments")
-            .withIndex("by_tournament_uid", (q: any) => 
+            .withIndex("by_tournament_uid", (q: any) =>
                 q.eq("tournamentId", tournamentId).eq("uid", uid)
             )
             .unique();
@@ -55,7 +55,7 @@ export const markRewardsCollected = internalMutation({
     handler: async (ctx, { playerTournamentId }) => {
         await ctx.db.patch(playerTournamentId, {
             status: 3, // COLLECTED
-            collectedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString()
         });
     },
 });

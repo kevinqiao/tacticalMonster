@@ -35,7 +35,7 @@ export class WebAuthenticator implements Authenticator {
         const uid = this.channel.cid + "_" + cuid;
         let user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
         if (user?.uid && user?.data?.password === password) {
-            const token = jwt.sign({ uid: user.uid, expire: REFRESH_TOKEN_EXPIRE }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
+            const token = jwt.sign({ uid: user.uid, expire: REFRESH_TOKEN_EXPIRE, access_token: generateRandomString(20) }, ACCESS_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRE });
             await ctx.runMutation(internal.dao.userDao.updateToken, { uid: user.uid, token });
             return Object.assign({}, user, { token, expire: REFRESH_TOKEN_EXPIRE, _id: undefined, _creationTime: undefined, cuid: undefined, cid: undefined });
         }

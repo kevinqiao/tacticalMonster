@@ -5,7 +5,6 @@
 
 /**
  * 游戏类型
- * 注意：此定义应该与 Tournament 模块的 GameName 保持一致
  */
 export type GameName =
     | "solitaire"       // 单人纸牌
@@ -28,14 +27,6 @@ export interface ChestTypeWeights {
     orange?: number;
 }
 
-/**
- * 宝箱奖励规则配置
- * 仅包含权重分配配置，掉落概率和排名调整逻辑在其他地方处理
- */
-export interface ChestRewardRules {
-    // 宝箱类型权重分布（总和应为 1.0）
-    chestTypeWeights: ChestTypeWeights;
-}
 
 /**
  * 关卡规则配置
@@ -46,19 +37,13 @@ export interface StageRuleConfig {
     // 基础信息
     // ============================================
     ruleId: string;
-    gameName: GameName;
-    // ============================================
-    // 解锁条件
-    // ============================================
-    minTeamPower?: number;
-    maxTeamPower?: number;
-
+    gameName?: GameName;
     // ============================================
     // 关卡类型和进度
     // ============================================
     stageType?: "story" | "challenge" | "boss_rush" | "endless" | "arena";  // 关卡类型
     chapter?: number;                    // 章节编号（故事模式使用）
-    stageNumber?: number;                 // 章节内关卡编号  
+    stageNumber?: number;                 // 章节内关卡编号
     // ============================================
     // 连续关卡配置（支持关卡链和关卡树）
     // ============================================
@@ -68,9 +53,6 @@ export interface StageRuleConfig {
 
         // 前置关卡（用于验证和自动解锁）
         previousLevels?: string[];       // 前置关卡的 typeId 列表
-
-        // 关卡组（同一组内的关卡可以并行解锁）
-        stageGroup?: string;              // 关卡组ID（如 "chapter_1_group_1"）
 
         // 解锁模式
         unlockMode?: "sequential" | "parallel" | "any";  // 顺序解锁 | 并行解锁 | 任意完成即可
@@ -112,40 +94,6 @@ export interface StageRuleConfig {
         };
     };
 
-    // ============================================
-    // 首次通关奖励（单人关卡特有）
-    // ============================================
-    firstClearRewards?: {
-        coins?: number;
-        energy?: number;
-        monsterShards?: Array<{ monsterId: string; quantity: number }>;
-        monsters?: Array<{
-            monsterId: string;
-            level?: number;
-            stars?: number;
-        }>;
-        // 解锁奖励（解锁其他 typeId）
-        unlocks?: Array<{
-            typeId: string;              // 解锁的锦标赛 typeId
-        }>;
-    };
-
-    // ============================================
-    // 重试配置（单人关卡特有）
-    // ============================================
-    retryConfig?: {
-        maxAttempts?: number;            // 最大尝试次数（覆盖 limits.maxAttempts）
-        retryCost?: {
-            coins?: number;
-            energy?: number;
-        };
-        unlimitedRetries?: boolean;      // 是否允许无限重试
-    };
-
-    // ============================================
-    // 宝箱奖励规则配置（仅权重分配）
-    // ============================================
-    chestRewardRules?: ChestRewardRules;
 
     // ============================================
     // 显示和排序
@@ -153,17 +101,6 @@ export interface StageRuleConfig {
     isVisible?: boolean;                 // 是否在关卡列表中显示（默认 true）
     sortOrder?: number;                  // 排序顺序
 }
-
-/**
- * 默认宝箱类型权重（按 Tier）
- * 用于当 ruleId 不存在时作为后备配置
- */
-const DEFAULT_CHEST_TYPE_WEIGHTS: Record<string, ChestTypeWeights> = {
-    bronze: { silver: 0.8, gold: 0.2 },
-    silver: { silver: 0.6, gold: 0.35, purple: 0.05 },
-    gold: { gold: 0.5, purple: 0.4, orange: 0.1 },
-    platinum: { purple: 0.5, orange: 0.5 },
-};
 
 /**
  * 关卡规则配置集合
@@ -179,19 +116,15 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
     // ============================================
 
     // 关卡 1
-    "challenge_bronze_boss_1": {
-        ruleId: "challenge_bronze_boss_1",
+    "monster_rumble_challenge_bronze_boss_1": {
+        ruleId: "monster_rumble_challenge_bronze_boss_1",
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 1,
-
-        minTeamPower: 0,
-        maxTeamPower: 2000,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 1,
-            nextLevels: ["challenge_bronze_boss_2"],
+            nextLevels: ["monster_rumble_challenge_bronze_boss_2"],
             unlockMode: "sequential",
             autoUnlockNext: true,
         },
@@ -202,6 +135,7 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             },
             mapConfig: {
                 mapSize: { rows: 10, cols: 10 },
+                templateId: "template_bronze_basic",
             },
             difficultyAdjustment: {
                 powerBasedScaling: true,
@@ -211,39 +145,22 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             },
         },
 
-        retryConfig: {
-            maxAttempts: 3,
-            retryCost: {
-                energy: 3,
-            },
-        },
-
-        chestRewardRules: {
-            chestTypeWeights: {
-                silver: 0.8,
-                gold: 0.2,
-            },
-        },
-
         isVisible: true,
         sortOrder: 1,
     },
 
     // 关卡 2
-    "challenge_bronze_boss_2": {
-        ruleId: "challenge_bronze_boss_2",
+    "monster_rumble_challenge_bronze_boss_2": {
+        ruleId: "monster_rumble_challenge_bronze_boss_2",
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 2,
 
-        minTeamPower: 400,
-        maxTeamPower: 2000,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 2,
-            previousLevels: ["challenge_bronze_boss_1"],
-            nextLevels: ["challenge_bronze_boss_3"],
+            previousLevels: ["monster_rumble_challenge_bronze_boss_1"],
+            nextLevels: ["monster_rumble_challenge_bronze_boss_3"],
             unlockMode: "sequential",
             autoUnlockNext: true,
         },
@@ -251,6 +168,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         stageContent: {
             bossConfig: {
                 bossId: "boss_bronze_2",
+            },
+            mapConfig: {
+                mapSize: { rows: 10, cols: 10 },
+                templateId: "template_bronze_basic",
             },
             difficultyAdjustment: {
                 powerBasedScaling: true,
@@ -260,39 +181,22 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             },
         },
 
-        retryConfig: {
-            maxAttempts: 3,
-            retryCost: {
-                energy: 3,
-            },
-        },
-
-        chestRewardRules: {
-            chestTypeWeights: {
-                silver: 0.8,
-                gold: 0.2,
-            },
-        },
-
         isVisible: true,
         sortOrder: 2,
     },
 
     // 关卡 3
-    "challenge_bronze_boss_3": {
-        ruleId: "challenge_bronze_boss_3",
+    "monster_rumble_challenge_bronze_boss_3": {
+        ruleId: "monster_rumble_challenge_bronze_boss_3",
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 3,
 
-        minTeamPower: 800,
-        maxTeamPower: 2000,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 3,
-            previousLevels: ["challenge_bronze_boss_2"],
-            nextLevels: ["challenge_bronze_boss_4"],
+            previousLevels: ["monster_rumble_challenge_bronze_boss_2"],
+            nextLevels: ["monster_rumble_challenge_bronze_boss_4"],
             unlockMode: "sequential",
             autoUnlockNext: true,
         },
@@ -300,6 +204,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         stageContent: {
             bossConfig: {
                 bossId: "boss_bronze_1",
+            },
+            mapConfig: {
+                mapSize: { rows: 10, cols: 10 },
+                templateId: "template_bronze_basic",
             },
             difficultyAdjustment: {
                 powerBasedScaling: true,
@@ -309,39 +217,22 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             },
         },
 
-        retryConfig: {
-            maxAttempts: 3,
-            retryCost: {
-                energy: 3,
-            },
-        },
-
-        chestRewardRules: {
-            chestTypeWeights: {
-                silver: 0.8,
-                gold: 0.2,
-            },
-        },
-
         isVisible: true,
         sortOrder: 3,
     },
 
     // 关卡 4
-    "challenge_bronze_boss_4": {
-        ruleId: "challenge_bronze_boss_4",
+    "monster_rumble_challenge_bronze_boss_4": {
+        ruleId: "monster_rumble_challenge_bronze_boss_4",
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 4,
 
-        minTeamPower: 1200,
-        maxTeamPower: 2000,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 4,
-            previousLevels: ["challenge_bronze_boss_3"],
-            nextLevels: ["challenge_bronze_boss_5"],
+            previousLevels: ["monster_rumble_challenge_bronze_boss_3"],
+            nextLevels: ["monster_rumble_challenge_bronze_boss_5"],
             unlockMode: "sequential",
             autoUnlockNext: true,
         },
@@ -349,6 +240,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         stageContent: {
             bossConfig: {
                 bossId: "boss_bronze_2",
+            },
+            mapConfig: {
+                mapSize: { rows: 10, cols: 10 },
+                templateId: "template_bronze_basic",
             },
             difficultyAdjustment: {
                 powerBasedScaling: true,
@@ -358,38 +253,21 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             },
         },
 
-        retryConfig: {
-            maxAttempts: 3,
-            retryCost: {
-                energy: 3,
-            },
-        },
-
-        chestRewardRules: {
-            chestTypeWeights: {
-                silver: 0.8,
-                gold: 0.2,
-            },
-        },
-
         isVisible: true,
         sortOrder: 4,
     },
 
     // 关卡 5（最后一关）
-    "challenge_bronze_boss_5": {
-        ruleId: "challenge_bronze_boss_5",
+    "monster_rumble_challenge_bronze_boss_5": {
+        ruleId: "monster_rumble_challenge_bronze_boss_5",
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 5,
 
-        minTeamPower: 1600,
-        maxTeamPower: 2000,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 5,
-            previousLevels: ["challenge_bronze_boss_4"],
+            previousLevels: ["monster_rumble_challenge_bronze_boss_4"],
             unlockMode: "sequential",
             autoUnlockNext: false,
         },
@@ -398,63 +276,38 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             bossConfig: {
                 bossId: "boss_bronze_1",
             },
+            mapConfig: {
+                mapSize: { rows: 10, cols: 10 },
+                templateId: "template_bronze_basic",
+            },
             difficultyAdjustment: {
                 powerBasedScaling: true,
                 difficultyMultiplier: 1.5,
                 minMultiplier: 0.5,
                 maxMultiplier: 2.0,
-            },
-        },
-
-        retryConfig: {
-            maxAttempts: 3,
-            retryCost: {
-                energy: 3,
-            },
-        },
-
-        chestRewardRules: {
-            chestTypeWeights: {
-                silver: 0.8,
-                gold: 0.2,
             },
         },
 
         isVisible: true,
         sortOrder: 5,
     },
-    "arena_bronze": {
-        ruleId: "arena_bronze",
+    "monster_rumble_arena_bronze": {
+        ruleId: "monster_rumble_arena_bronze",
         gameName: "tacticalMonster",
         stageType: "arena",
-        minTeamPower: 1600,
-        maxTeamPower: 2000,
         stageContent: {
             bossConfig: {
                 bossId: "boss_bronze_1",
             },
             mapConfig: {
                 mapSize: { rows: 10, cols: 10 },
+                templateId: "template_bronze_basic",
             },
             difficultyAdjustment: {
                 powerBasedScaling: true,
                 difficultyMultiplier: 1.5,
                 minMultiplier: 0.5,
                 maxMultiplier: 2.0,
-            },
-        },
-
-        retryConfig: {
-            maxAttempts: 3,
-            retryCost: {
-                energy: 3,
-            },
-        },
-
-        chestRewardRules: {
-            chestTypeWeights: {
-                silver: 0.8,
-                gold: 0.2,
             },
         },
 
@@ -480,7 +333,12 @@ export function registerStageRuleConfigs(configs: StageRuleConfig[]): void {
         STAGE_RULE_CONFIGS[config.ruleId] = config;
     }
 }
-
+/**
+ * 获取关卡规则配置
+ */
+export function getStageRuleConfigs(ruleIds: string[]): StageRuleConfig[] {
+    return ruleIds.map(ruleId => STAGE_RULE_CONFIGS[ruleId]);
+}
 /**
  * 获取关卡规则配置
  */
@@ -490,20 +348,26 @@ export function getStageRuleConfig(ruleId: string): StageRuleConfig | undefined 
 
 /**
  * 获取宝箱类型权重配置
- * 如果 ruleId 不存在，返回基于 tier 的默认权重
+ * 
+ * 注意：根据新设计，宝箱类型权重应该从 TournamentConfig.RewardConfig 中获取
+ * 此函数保留用于向后兼容，返回默认权重
+ * 
+ * @param ruleId 规则ID（当前未使用，保留用于向后兼容）
+ * @param tier Tier（已废弃，不再使用）
+ * @returns 宝箱类型权重配置（默认值）
  */
 export function getChestTypeWeights(ruleId: string, tier?: string): ChestTypeWeights {
-    const config = getStageRuleConfig(ruleId);
-    if (config?.chestRewardRules?.chestTypeWeights) {
-        return config.chestRewardRules.chestTypeWeights;
-    }
+    // 注意：根据新设计，宝箱类型权重应该从 TournamentConfig.RewardConfig 中获取
+    // 此函数返回默认权重以保持向后兼容
+    // 实际使用中，应该从 TournamentConfig 的 rankRewards 或 performanceRewards 中获取 chestTypeWeights
 
-    // 使用默认配置（基于 tier）
-    if (tier && DEFAULT_CHEST_TYPE_WEIGHTS[tier]) {
-        return DEFAULT_CHEST_TYPE_WEIGHTS[tier];
-    }
-
-    // 最后的后备：使用 bronze 的默认配置
-    return DEFAULT_CHEST_TYPE_WEIGHTS.bronze;
+    // 返回默认权重配置
+    return {
+        silver: 0.7,
+        gold: 0.25,
+        purple: 0.04,
+        orange: 0.01
+    };
 }
+
 

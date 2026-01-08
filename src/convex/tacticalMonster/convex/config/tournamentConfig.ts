@@ -11,6 +11,7 @@ export const TOURNAMENT_CONFIG = {
         ADD_RESOURCES: "/addResources",
         DEDUCT_RESOURCES: "/deductResources",
         JOIN_MATCHING_QUEUE: "/joinMatchingQueue",
+        JOIN_TOURNAMENT: "/joinTournament",
         GET_TOURNAMENT_TYPE_CONFIG: "/getTournamentTypeConfig", // 获取锦标赛类型配置
         // Battle Pass 端点
         ADD_SEASON_POINTS: "/addSeasonPoints",

@@ -1,6 +1,14 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 
+// 宝箱类型权重配置 Schema
+const ChestTypeWeightsSchema = v.object({
+    silver: v.optional(v.number()),
+    gold: v.optional(v.number()),
+    purple: v.optional(v.number()),
+    orange: v.optional(v.number()),
+});
+
 // 锦标赛系统相关表
 export const tournamentSchema = {
     matchingQueue: defineTable({
@@ -69,12 +77,19 @@ export const tournamentSchema = {
         name: v.string(), // 如 "每日特别锦标赛"
         description: v.string(),
         timeRange: v.optional(v.string()),
-        // category: v.string(), // "daily", "weekly", "seasonal", "special", "ranked", "casual", "championship", "tournament"
 
         // 游戏配置
-        gameType: v.string(), // "solitaire", "rummy", "uno", "ludo", "chess", "checkers", "puzzle", "arcade"
+        gameType: v.optional(v.string()), // "solitaire", "rummy", "uno", "ludo", "chess", "checkers", "puzzle", "arcade", "tacticalMonster"
+        gameRule: v.optional(v.object({
+            description: v.string(),
+            mode: v.union(
+                v.literal("challenge"),
+                v.literal("pvp"),
+                v.literal("story")
+            ),
+            ruleId: v.string(),  // 必填：关联到 TacticalMonster 模块的 GameRuleConfig
+        })),
         isActive: v.boolean(),
-        priority: v.number(),
 
         // 参赛条件
         entryRequirements: v.optional(v.object({
@@ -82,6 +97,7 @@ export const tournamentSchema = {
             // 玩家等级要求（TacticalMonster 游戏使用）
             playerLevel: v.optional(v.number()),
             // 注意：Power 范围（minTeamPower/maxTeamPower）在 GameRuleConfig.unlockConditions 中配置
+            // 通过 gameRule.ruleId 关联到 TacticalMonster 模块的 GameRuleConfig 获取 Power 范围
             entryFee: v.object({
                 coins: v.optional(v.number()),
                 gems: v.optional(v.number()),
@@ -91,222 +107,75 @@ export const tournamentSchema = {
 
         // 比赛规则
         matchRules: v.object({
-            matchType: v.string(), // "single_match", "multi_match", "best_of_series", "elimination", "round_robin"
+            // 玩家数量
             minPlayers: v.number(),
             maxPlayers: v.number(),
-            rankingMethod: v.string(), // "highest_score", "total_score", "average_score", "best_of_attempts", "threshold"
-            timeLimit: v.optional(v.object({
-                perMatch: v.number(),
-                perTurn: v.optional(v.number()),
-                total: v.optional(v.number())
-            })),
+
+            // 排名规则
+            matchPointsType: v.optional(v.union(
+                v.literal("by_score"),
+                v.literal("by_rank"),
+                v.literal("by_performance")
+            )),
+            rankPoints: v.optional(v.any()), // { [k: string]: number }
+            performancePoints: v.optional(v.any()), // { [k: string]: number }
         }),
 
-        // 奖励配置
         rewards: v.object({
+            rewardType: v.optional(v.union(
+                v.literal("by_points"),
+                v.literal("by_rank")
+            )),  // 可选：向后兼容
+
+            // 基础奖励 - 参与即可获得
             baseRewards: v.object({
-                coins: v.optional(v.number()),
-                energy: v.optional(v.number()),  // TacticalMonster 特定：能量奖励
-                rankPoints: v.optional(v.number()),      // 段位积分 - 用于段位升降级
-                seasonPoints: v.optional(v.number()),    // 赛季积分 - 用于Battle Pass升级
-                prestigePoints: v.optional(v.number()),  // 声望积分 - 用于特殊成就和奖励
-                achievementPoints: v.optional(v.number()), // 成就积分 - 用于成就系统
-                tournamentPoints: v.optional(v.number())   // 锦标赛积分 - 用于锦标赛排名
+                coins: v.optional(v.number()),        // TacticalMonster 特定奖励
+                energy: v.optional(v.number()),
+                chestDropRate: v.optional(v.number()),  // 可选：向后兼容，如果没有配置则使用默认值
             }),
-            rankRewards: v.array(v.object({
-                coins: v.optional(v.number()),
-                rankRange: v.array(v.number()),
+
+            // 排名奖励 - 仅用于多人比赛（minPlayers > 1 或 maxPlayers > 1）
+            rankRewards: v.optional(v.array(v.object({
+                rankRange: v.array(v.number()), // [minRank, maxRank]
                 multiplier: v.number(),
-                pointRewards: v.optional(v.object({
-                    rankPoints: v.optional(v.number()),
-                    seasonPoints: v.optional(v.number()),
-                    prestigePoints: v.optional(v.number()),
-                    achievementPoints: v.optional(v.number()),
-                    tournamentPoints: v.optional(v.number())
-                }))
-            })),
-            // Tier 加成 - TacticalMonster 特定（基于 Tier 的奖励加成）
-            tierBonus: v.optional(v.object({
-                bronze: v.optional(v.object({
-                    coins: v.optional(v.number()),
-                    energy: v.optional(v.number()),
-                    monsterShards: v.optional(v.array(v.object({
-                        monsterId: v.string(),
-                        quantity: v.number()
-                    })))
-                })),
-                silver: v.optional(v.object({
-                    coins: v.optional(v.number()),
-                    energy: v.optional(v.number()),
-                    monsterShards: v.optional(v.array(v.object({
-                        monsterId: v.string(),
-                        quantity: v.number()
-                    })))
-                })),
-                gold: v.optional(v.object({
-                    coins: v.optional(v.number()),
-                    energy: v.optional(v.number()),
-                    monsterShards: v.optional(v.array(v.object({
-                        monsterId: v.string(),
-                        quantity: v.number()
-                    })))
-                })),
-                platinum: v.optional(v.object({
-                    coins: v.optional(v.number()),
-                    energy: v.optional(v.number()),
-                    monsterShards: v.optional(v.array(v.object({
-                        monsterId: v.string(),
-                        quantity: v.number()
-                    })))
-                }))
-            })),
+                // TacticalMonster 特定奖励
+                coins: v.optional(v.number()),
+                monsterShards: v.optional(v.array(v.object({
+                    monsterId: v.string(),
+                    quantity: v.number()
+                }))),
+                energy: v.optional(v.number()),
+                chestDropRate: v.optional(v.number()),
+                chestTypeWeights: v.optional(ChestTypeWeightsSchema),
+            }))),
+
+            // 订阅加成 - TacticalMonster 特定
             subscriptionBonus: v.optional(v.object({
                 coins: v.optional(v.number()),
-                rankPoints: v.optional(v.number()),
-                seasonPoints: v.optional(v.number()),
-                prestigePoints: v.optional(v.number()),
-                achievementPoints: v.optional(v.number()),
-                tournamentPoints: v.optional(v.number())
+                monsterShards: v.optional(v.array(v.object({
+                    monsterId: v.string(),
+                    quantity: v.number()
+                }))),
+                energy: v.optional(v.number()),
             })),
-            participationReward: v.optional(v.object({
-                coins: v.optional(v.number()),
-                rankPoints: v.optional(v.number()),
-                seasonPoints: v.optional(v.number()),
-                prestigePoints: v.optional(v.number()),
-                achievementPoints: v.optional(v.number()),
-                tournamentPoints: v.optional(v.number())
-            })),
-            // 表现奖励 - 仅用于单人关卡（soloChallenge，minPlayers === 1 && maxPlayers === 1）
+
+            // 表现奖励 - 仅用于单人关卡（minPlayers === 1 && maxPlayers === 1）
             // 基于分数阈值计算奖励，替代排名奖励
             performanceRewards: v.optional(v.object({
                 // 基础表现奖励（用于计算各等级奖励）
                 baseReward: v.object({
                     coins: v.optional(v.number()),
-                    energy: v.optional(v.number()),  // TacticalMonster 特定：能量奖励
                     monsterShards: v.optional(v.array(v.object({
                         monsterId: v.string(),
                         quantity: v.number()
-                    })))
+                    }))),
+                    energy: v.optional(v.number()),
                 }),
-                // 分数阈值配置
-                scoreThresholds: v.object({
-                    excellent: v.number(),  // 优秀阈值（≥此分数获得100%奖励）
-                    good: v.number(),      // 良好阈值（≥此分数获得80%奖励）
-                    average: v.number()   // 一般阈值（≥此分数获得50%奖励）
-                })
+                // levelRewards 使用 v.any() 因为 Record 类型
+                // 每个表现等级可以包含：coins, monsterShards, energy, chestDropRate, chestTypeWeights
+                levelRewards: v.optional(v.any()),
             })),
-            streakBonus: v.optional(v.object({
-                minStreak: v.number(),
-                bonusMultiplier: v.number()
-            }))
-        }),
-
-        // 时间配置
-        schedule: v.optional(v.object({
-            open: v.object({
-                day: v.optional(v.string()),
-                time: v.string()
-            }),
-            start: v.object({
-                day: v.optional(v.string()),
-                time: v.string()
-            }),
-            end: v.object({
-                day: v.optional(v.string()),
-                time: v.string()
-            }),
-            duration: v.optional(v.number()),
-            timeZone: v.optional(v.string())
-        })),
-
-        // 限制配置
-        limits: v.optional(v.object({
-            maxParticipations: v.optional(v.number()),
-            maxTournaments: v.optional(v.number()),
-            maxAttempts: v.optional(v.number()),
-            subscribed: v.optional(v.object({
-                maxParticipations: v.number(),
-                maxTournaments: v.optional(v.number()),
-                maxAttempts: v.optional(v.number())
-            }))
-        })),
-
-        // 单人挑战配置（当 matchRules.minPlayers === 1 && maxPlayers === 1 时使用）
-        soloChallenge: v.optional(v.object({
-            // 关卡类型和进度
-            levelType: v.union(
-                v.literal("story"),
-                v.literal("challenge"),
-                v.literal("boss_rush"),
-                v.literal("endless")
-            ),
-            chapter: v.optional(v.number()),
-            levelNumber: v.optional(v.number()),
-            worldId: v.optional(v.string()),
-            sortOrder: v.optional(v.number()),
-
-            // 连续关卡配置
-            levelChain: v.optional(v.object({
-                nextLevels: v.optional(v.array(v.string())),
-                previousLevels: v.optional(v.array(v.string())),
-                levelGroup: v.optional(v.string()),
-                unlockMode: v.optional(v.union(
-                    v.literal("sequential"),
-                    v.literal("parallel"),
-                    v.literal("any")
-                )),
-                autoUnlockNext: v.optional(v.boolean()),
-                chainId: v.optional(v.string()),
-                chainOrder: v.optional(v.number())
-            })),
-
-            // 解锁条件
-            unlockConditions: v.optional(v.object({
-                requiredTypeIds: v.optional(v.array(v.string())),
-                minPlayerLevel: v.optional(v.number()),
-                customConditions: v.optional(v.array(v.object({
-                    type: v.string(),
-                    value: v.any()
-                })))
-            })),
-
-            // 关卡内容配置
-            levelContent: v.optional(v.object({
-                bossConfig: v.optional(v.object({
-                    bossId: v.optional(v.string()),
-                    bossPool: v.optional(v.array(v.string())),
-                    bossLevel: v.optional(v.number()),
-                    bossDifficulty: v.optional(v.union(
-                        v.literal("easy"),
-                        v.literal("medium"),
-                        v.literal("hard"),
-                        v.literal("expert")
-                    ))
-                })),
-                levelConfigId: v.optional(v.string()),
-                mapConfig: v.optional(v.object({
-                    mapSize: v.object({
-                        rows: v.number(),
-                        cols: v.number()
-                    }),
-                    generationType: v.union(
-                        v.literal("template"),
-                        v.literal("procedural"),
-                        v.literal("random")
-                    ),
-                    templateId: v.optional(v.string())
-                })),
-                difficultyAdjustment: v.optional(v.object({
-                    powerBasedScaling: v.optional(v.boolean()),
-                    scalingFactor: v.optional(v.number()),
-                    adaptiveDifficulty: v.optional(v.boolean()),
-                    difficultyMultiplier: v.optional(v.number()),
-                    minMultiplier: v.optional(v.number()),
-                    maxMultiplier: v.optional(v.number())
-                }))
-            })),
-
-            // 首次通关奖励
+            // 首次通关奖励 - 仅用于单人关卡（minPlayers === 1 && maxPlayers === 1）
             firstClearRewards: v.optional(v.object({
                 coins: v.optional(v.number()),
                 energy: v.optional(v.number()),
@@ -317,103 +186,38 @@ export const tournamentSchema = {
                 monsters: v.optional(v.array(v.object({
                     monsterId: v.string(),
                     level: v.optional(v.number()),
-                    stars: v.optional(v.number())
+                    stars: v.optional(v.number()),
                 }))),
-                unlocks: v.optional(v.array(v.object({
-                    typeId: v.string()
-                })))
+                chestDropRate: v.optional(v.number()),
+                chestTypeWeights: v.optional(ChestTypeWeightsSchema),
             })),
+        }),
 
-            // 星级评价系统
-            starRating: v.optional(v.object({
-                criteria: v.array(v.object({
-                    stars: v.number(),
-                    condition: v.object({
-                        type: v.union(
-                            v.literal("score"),
-                            v.literal("time"),
-                            v.literal("damage_taken"),
-                            v.literal("turns"),
-                            v.literal("combo")
-                        ),
-                        operator: v.union(
-                            v.literal(">="),
-                            v.literal("<="),
-                            v.literal("==")
-                        ),
-                        value: v.number()
-                    })
-                })),
-                starRewards: v.optional(v.any())
-            })),
-
-            // 重试配置
-            retryConfig: v.optional(v.object({
+        // 限制配置
+        limits: v.optional(v.object({
+            // 最大参与次数
+            intervalHours: v.optional(v.number()),
+            maxAttempts: v.optional(v.number()),  // 最大尝试次数
+            // 订阅用户限制
+            subscribed: v.optional(v.object({
                 maxAttempts: v.optional(v.number()),
-                retryCost: v.optional(v.object({
-                    coins: v.optional(v.number()),
-                    energy: v.optional(v.number())
-                })),
-                unlimitedRetries: v.optional(v.boolean())
-            }))
-        })),
-
-        // 积分规则配置
-        pointRules: v.optional(v.object({
-            // 积分开关
-            enableRankPoints: v.boolean(),
-            enableSeasonPoints: v.boolean(),
-            enablePrestigePoints: v.boolean(),
-            enableAchievementPoints: v.boolean(),
-            enableTournamentPoints: v.boolean(),
-
-            // 全局积分倍数
-            pointMultiplier: v.number(),
-
-
-            // 排名积分配置
-            rankPointConfigs: v.array(v.object({
-                rank: v.number(),
-                rankPoints: v.object({
-                    basePoints: v.number(),
-                    bonusMultiplier: v.number(),
-                    maxPoints: v.number(),
-                    minPoints: v.number()
-                }),
-                seasonPoints: v.object({
-                    basePoints: v.number(),
-                    bonusMultiplier: v.number(),
-                    maxPoints: v.number(),
-                    minPoints: v.number()
-                }),
-                prestigePoints: v.object({
-                    basePoints: v.number(),
-                    bonusMultiplier: v.number(),
-                    maxPoints: v.number(),
-                    minPoints: v.number()
-                }),
-                achievementPoints: v.object({
-                    basePoints: v.number(),
-                    bonusMultiplier: v.number(),
-                    maxPoints: v.number(),
-                    minPoints: v.number()
-                }),
-                tournamentPoints: v.object({
-                    basePoints: v.number(),
-                    bonusMultiplier: v.number(),
-                    maxPoints: v.number(),
-                    minPoints: v.number()
-                })
             })),
+            // 尝试成本
+            attemptCost: v.optional(v.object({
+                coins: v.optional(v.number()),
+                energy: v.optional(v.number()),
+            })),
+            // 是否允许无限尝试
+            unlimitedAttempts: v.optional(v.boolean()),
         })),
+
         // 时间戳
         createdAt: v.optional(v.string()),
         updatedAt: v.optional(v.string()),
     }).index("by_typeId", ["typeId"])
         .index("by_isActive", ["isActive"])
         .index("by_gameType", ["gameType"])
-        .index("by_gameType_isActive", ["gameType", "isActive"])
-        .index("by_priority", ["priority"]),
+        .index("by_gameType_isActive", ["gameType", "isActive"]),
 
     // 比赛基础信息表 - 存储比赛的核心信息
     matches: defineTable({
@@ -438,13 +242,24 @@ export const tournamentSchema = {
         tournamentType: v.optional(v.string()),
         gameType: v.optional(v.string()),
         uid: v.string(),
-        segmentName: v.optional(v.string()),
         score: v.number(),
         rank: v.number(),
         status: v.number(),
         gameId: v.optional(v.string()),
         teamPower: v.optional(v.number()),
         stageId: v.optional(v.string()),
+        seed: v.optional(v.string()),
+        // 比赛结果（主要用于单人关卡挑战）
+        // perfect: 完美通关（无伤、满分等）
+        // win: 通关成功
+        // lose: 失败
+        // draw: 平局（超时等情况）
+        performance: v.optional(v.union(
+            v.literal("perfect"),
+            v.literal("win"),
+            v.literal("lose"),
+            v.literal("draw")
+        )),
         joinTime: v.optional(v.string()),
         leaveTime: v.optional(v.string()),
         createdAt: v.string(),
@@ -462,7 +277,9 @@ export const tournamentSchema = {
         .index("by_uid_created", ["uid", "createdAt"])  // 复合索引，用于玩家历史查询
         .index("by_team_stage", ["teamPower", "stageId"])// 按游戏类型和玩家查询        
         .index("by_uid_gameType", ["uid", "gameType"])   // 复合索引，用于按游戏类型查询玩家历史
-        .index("by_uid_gameType_created", ["uid", "gameType", "createdAt"]), // 复合索引，用于按游戏类型查询玩家历史（排序）
+        .index("by_uid_gameType_created", ["uid", "gameType", "createdAt"]) // 复合索引，用于按游戏类型查询玩家历史（排序）
+        .index("by_uid_performance", ["uid", "performance"]) // 复合索引，用于查询玩家的 perfect/win/lose/draw 次数
+        .index("by_tournamentType_performance", ["tournamentType", "performance"]), // 复合索引，用于统计特定锦标赛类型的成绩分布
 
     // 比赛事件日志表 - 记录比赛过程中的重要事件
     match_events: defineTable({

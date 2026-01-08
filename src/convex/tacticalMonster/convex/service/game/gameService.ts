@@ -552,11 +552,15 @@ export class GameService implements CharacterGetter {
             q: bossQ,
             r: bossR,
             minions: (game.boss.minions || []).map((minion: any): GameMinion => {
+                // 优先使用 stats，如果没有则从向后兼容字段构建
                 const minionStats = minion.stats || {
-                    hp: { current: 0, max: 0 },
-                    attack: 0,
-                    defense: 0,
-                    speed: 0,
+                    hp: {
+                        current: minion.hp || 0,
+                        max: minion.hp || 0,
+                    },
+                    attack: minion.damage || 0,
+                    defense: minion.defense || 0,
+                    speed: minion.speed || 0,
                 };
                 const minionConfig = minion.monsterId ? MONSTER_CONFIGS_MAP[minion.monsterId] : null;
                 const minionQ = minion.q ?? minion.position?.q ?? 0;
@@ -912,22 +916,30 @@ export class GameService implements CharacterGetter {
             })),
             boss: {
                 // 统一使用stats和GameMonster格式
-                bossId: bossData.bossId,  // Boss配置ID
                 monsterId: bossData.monsterId,  // 角色配置ID
-                q: bossData.q,
-                r: bossData.r,
+                position: {  // 使用 position 对象（符合 schema）
+                    q: bossData.q,
+                    r: bossData.r,
+                },
                 minions: bossData.minions.map((minion: GameMinion) => ({
-                    minionId: minion.minionId,  // 小怪配置ID
                     monsterId: minion.monsterId,  // 角色配置ID
-                    q: minion.q,
-                    r: minion.r,
+                    position: {  // 使用 position 对象（符合 schema）
+                        q: minion.q,
+                        r: minion.r,
+                    },
+                    // 向后兼容字段（从 stats 提取）
+                    hp: minion.stats.hp.current,
+                    damage: minion.stats.attack,
+                    defense: minion.stats.defense,
+                    speed: minion.stats.speed,
+                    // 运行时状态（可选）
                     stats: minion.stats,
                     statusEffects: minion.statusEffects || [],
-                    skillCooldowns: minion.skillCooldowns || {},
+                    cooldowns: minion.skillCooldowns || {},  // schema 中使用 cooldowns
                 })),
                 stats: bossData.stats,
                 statusEffects: bossData.statusEffects || [],
-                skillCooldowns: bossData.skillCooldowns || {},
+                cooldowns: bossData.skillCooldowns || {},  // schema 中使用 cooldowns
                 skills: bossData.skills || [],
                 currentPhase: bossData.currentPhase || "phase1",
                 behaviorSeed: bossData.behaviorSeed,
@@ -1768,13 +1780,11 @@ export const createGame = internalMutation({
         stageId: v.string(),
     },
     handler: async (ctx, { uid, gameId, ruleId, stageId }) => {
-        console.log("createGame...", uid, gameId, ruleId, stageId);
+
         const gameManager = new GameService(ctx);
         const game = await gameManager.createGame(uid, gameId, ruleId, stageId);
-        if (game) {
-            return { ok: true, data: game };
-        }
-        return { ok: false };
+
+        return game;
     },
 });
 

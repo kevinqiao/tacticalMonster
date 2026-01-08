@@ -3,8 +3,8 @@
  * 负责更新角色在数据库中的状态（HP、MP、技能冷却等）
  */
 
+import { GameBoss, GameMinion, GameMonster } from "../../types/monsterTypes";
 import { GameModel } from "./gameService";
-import { GameMonster, GameBoss, GameMinion } from "../../../types/monsterTypes";
 
 export class CharacterUpdateService {
     private dbCtx: any;
@@ -32,12 +32,14 @@ export class CharacterUpdateService {
             // Boss主体：使用 bossId 定位
             const characterBossId = (character as GameBoss).bossId;
             if (characterBossId && characterBossId === game.boss.bossId) {
-                // 更新 Boss
+                // 更新 Boss（使用 position 对象符合 schema）
                 await this.dbCtx.db.patch(gameDoc._id, {
                     "boss.stats": character.stats,
-                    "boss.q": character.q,
-                    "boss.r": character.r,
-                    "boss.skillCooldowns": character.skillCooldowns || {},
+                    "boss.position": {
+                        q: character.q ?? 0,
+                        r: character.r ?? 0,
+                    },
+                    "boss.cooldowns": character.skillCooldowns || {},  // schema 中使用 cooldowns
                     "boss.statusEffects": character.statusEffects || [],
                     lastUpdate: new Date().toISOString(),
                 });
@@ -51,13 +53,21 @@ export class CharacterUpdateService {
                 const minionIndex = game.boss.minions.findIndex((m) => m.minionId === characterMinionId);
                 if (minionIndex >= 0) {
                     const updatedMinions = [...(gameDoc.boss.minions || [])];
+                    const existingMinion = updatedMinions[minionIndex];
                     updatedMinions[minionIndex] = {
-                        ...updatedMinions[minionIndex],
-                        q: character.q,
-                        r: character.r,
+                        ...existingMinion,
+                        position: {  // 使用 position 对象（符合 schema）
+                            q: character.q ?? 0,
+                            r: character.r ?? 0,
+                        },
+                        // 向后兼容字段（从 stats 提取）
+                        hp: character.stats.hp.current,
+                        damage: character.stats.attack,
+                        defense: character.stats.defense,
+                        speed: character.stats.speed,
                         stats: character.stats,
                         statusEffects: character.statusEffects || [],
-                        skillCooldowns: character.skillCooldowns || {},
+                        cooldowns: character.skillCooldowns || {},  // schema 中使用 cooldowns
                     };
 
                     await this.dbCtx.db.patch(gameDoc._id, {

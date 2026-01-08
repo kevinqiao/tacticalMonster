@@ -2,7 +2,6 @@
 import { useConvex } from "convex/react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "../convex/sso/convex/_generated/api";
-import { SSA_AUTH_URLS } from "./SSAManager";
 
 export interface User {
   uid?: string;
@@ -124,20 +123,21 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       setTimeout(() => { setUser({}); }, 500);
     }
+    console.log("UserProvider", "start");
 
   }, []);
 
-  useEffect(() => {
-    if (user?.uid && user?.token) {
-      setSessions(Object.keys(SSA_AUTH_URLS).map(key => {
-        return { app: key, status: AppSessionStatus.TO_BE_SIGNED_IN }
-      }))
-      localStorage.setItem("user", JSON.stringify(user));
-    } else {
-      setSessions([])
-      localStorage.removeItem("user");
-    }
-  }, [user])
+  // useEffect(() => {
+  //   if (user?.uid && user?.token) {
+  //     setSessions(Object.keys(SSA_AUTH_URLS).map(key => {
+  //       return { app: key, status: AppSessionStatus.TO_BE_SIGNED_IN }
+  //     }))
+  //     localStorage.setItem("user", JSON.stringify(user));
+  //   } else {
+  //     setSessions([])
+  //     localStorage.removeItem("user");
+  //   }
+  // }, [user])
 
   const value = { user, authComplete, logout, sessions, ssaAuthComplete, updateUserData };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);

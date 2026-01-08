@@ -19,17 +19,19 @@ export class PlayerManager {
             await ctx.runMutation(internal.dao.playerDao.create, {
                 uid: params.uid,
                 token: params.token,
+                coins: 1000,
+                gems: 100,
                 expire: Date.now() + 1000 * 60 * 60 * 24 * 30,
             });
 
-            await ctx.db.insert("player_inventory", {
-                uid: params.uid,
-                coins: 1000,
-                props: [],
-                tickets: [],
-                createdAt: nowISO,
-                updatedAt: nowISO
-            });
+            // await ctx.db.insert("player_inventory", {
+            //     uid: params.uid,
+            //     coins: 1000,
+            //     props: [],
+            //     tickets: [],
+            //     createdAt: nowISO,
+            //     updatedAt: nowISO
+            // });
 
         } else {
             await ctx.runMutation(internal.dao.playerDao.update, {

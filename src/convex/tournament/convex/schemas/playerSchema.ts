@@ -19,6 +19,8 @@ export const playerSchema = {
         // 玩家等级系统（跨游戏通用）
         level: v.optional(v.number()), // 玩家等级（默认1）
         exp: v.optional(v.number()), // 玩家总经验值（默认0）
+        coins: v.optional(v.number()),
+        gems: v.optional(v.number()),
         createdAt: v.optional(v.string()),
         updatedAt: v.optional(v.string()),
     }).index("by_uid", ["uid"]).index("by_email", ["email"]),
@@ -103,10 +105,7 @@ export const playerSchema = {
             propType: v.string(),
             quantity: v.number(),
         }))),
-        tickets: v.optional(v.array(v.object({
-            type: v.string(),
-            quantity: v.number(),
-        }))),
+
         createdAt: v.string(),
         updatedAt: v.string(),
     }).index("by_uid", ["uid"]),

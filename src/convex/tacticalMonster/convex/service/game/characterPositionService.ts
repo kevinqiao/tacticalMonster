@@ -4,7 +4,6 @@
  */
 
 import { CharacterIdentifier, GameModel } from "./gameService";
-import { GameMonster, GameBoss, GameMinion } from "../../../types/monsterTypes";
 
 export class CharacterPositionService {
     private dbCtx: any;
@@ -32,22 +31,27 @@ export class CharacterPositionService {
         if (!gameDoc) return false;
 
         if (bossId) {
-            // Boss主体：更新Boss位置
+            // Boss主体：更新Boss位置（使用 position 对象符合 schema）
             await this.dbCtx.db.patch(gameDoc._id, {
-                "boss.q": position.q,
-                "boss.r": position.r,
+                "boss.position": {
+                    q: position.q,
+                    r: position.r,
+                },
                 lastUpdate: new Date().toISOString(),
             });
             return true;
         } else if (minionId) {
-            // 小怪：使用 minionId 定位并更新位置
+            // 小怪：使用 minionId 定位并更新位置（使用 position 对象符合 schema）
             const minionIndex = game.boss.minions.findIndex((m) => m.minionId === minionId);
             if (minionIndex >= 0) {
                 const updatedMinions = [...(gameDoc.boss.minions || [])];
+                const existingMinion = updatedMinions[minionIndex];
                 updatedMinions[minionIndex] = {
-                    ...updatedMinions[minionIndex],
-                    q: position.q,
-                    r: position.r,
+                    ...existingMinion,
+                    position: {  // 使用 position 对象（符合 schema）
+                        q: position.q,
+                        r: position.r,
+                    },
                 };
                 await this.dbCtx.db.patch(gameDoc._id, {
                     "boss.minions": updatedMinions,

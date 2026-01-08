@@ -136,6 +136,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 100,
         baseDefense: 50,
         baseSpeed: 10,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
@@ -149,6 +150,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 120,
         baseDefense: 60,
         baseSpeed: 10,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
@@ -162,6 +164,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 200,
         baseDefense: 100,
         baseSpeed: 12,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
@@ -175,6 +178,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 240,
         baseDefense: 120,
         baseSpeed: 12,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
@@ -188,6 +192,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 400,
         baseDefense: 200,
         baseSpeed: 15,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
@@ -201,6 +206,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 480,
         baseDefense: 240,
         baseSpeed: 15,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
@@ -214,6 +220,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 800,
         baseDefense: 400,
         baseSpeed: 18,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
@@ -227,6 +234,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDamage: 960,
         baseDefense: 480,
         baseSpeed: 18,
+        position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
         configVersion: 1,
@@ -280,6 +288,7 @@ export const getMergedBossConfig = (bossId: string): BossConfig | null => {
         behaviorTree: bossConfig.behaviorTree,
         minions: bossConfig.minions,
         phases: bossConfig.phases,
+        position: bossConfig.position,
         configVersion: bossConfig.configVersion,
     };
 

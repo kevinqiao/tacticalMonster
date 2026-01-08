@@ -23,6 +23,7 @@ import type * as service_PartnerManager from "../service/PartnerManager.js";
 import type * as service_provider_AuthenticatorFactory from "../service/provider/AuthenticatorFactory.js";
 import type * as service_provider_TelegramAuthenticator from "../service/provider/TelegramAuthenticator.js";
 import type * as service_provider_WebAuthenticator from "../service/provider/WebAuthenticator.js";
+import type * as utils_hashUtils from "../utils/hashUtils.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   "service/provider/AuthenticatorFactory": typeof service_provider_AuthenticatorFactory;
   "service/provider/TelegramAuthenticator": typeof service_provider_TelegramAuthenticator;
   "service/provider/WebAuthenticator": typeof service_provider_WebAuthenticator;
+  "utils/hashUtils": typeof utils_hashUtils;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

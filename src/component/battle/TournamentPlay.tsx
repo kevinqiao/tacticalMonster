@@ -88,7 +88,7 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
                     // 注意：joinTournamentMatching 是 action，需要使用 action 调用
                     const tacticalMonsterClient = new ConvexReactClient(tacticalMonster_convex_url);
                     const result = await tacticalMonsterClient.action(
-                        tacticalMonsterApi.service.game.gameMatchingService.joinTournamentMatching,
+                        tacticalMonsterApi.service.tournament.tournamentService.join,
                         {
                             uid: "kkk", // TODO: 从用户上下文获取真实 uid
                             tournamentType: tournament.typeId,
@@ -100,22 +100,25 @@ const TournamentMain: React.FC<{ tournament: any }> = ({ tournament }) => {
                     if (result.ok) {
                         // TacticalMonster 返回 { ok, gameId, matchId, inQueue }
                         // 如果需要 playerMatch，从 Tournament 模块查询
-                        if (result.gameId) {
-                            try {
-                                const matchResult = await tournamentConvex.query(
-                                    tournamentApi.service.tournament.matchManager.findGameMatch,
-                                    { gameId: result.gameId }
-                                );
-                                if (matchResult) {
-                                    setPlayerMatch(matchResult as any);
+                        if ("gameId" in result) {
+                            const gameId = (result as any).gameId as string;
+                            if (typeof gameId === "string" && gameId) {
+                                try {
+                                    const matchResult = await tournamentConvex.query(
+                                        tournamentApi.service.tournament.matchManager.findGameMatch,
+                                        { gameId }
+                                    );
+                                    if (matchResult) {
+                                        setPlayerMatch(matchResult as any);
+                                    }
+                                } catch (queryError) {
+                                    console.warn("查询 match 详情失败，使用基本匹配信息:", queryError);
+                                    // 即使查询失败，也可以继续使用基本匹配信息
                                 }
-                            } catch (queryError) {
-                                console.warn("查询 match 详情失败，使用基本匹配信息:", queryError);
-                                // 即使查询失败，也可以继续使用基本匹配信息
                             }
                         }
                     } else {
-                        console.error("加入锦标赛失败:", result.error);
+                        console.error("加入锦标赛失败:", result.errorCode);
                     }
                 }
             } catch (error) {

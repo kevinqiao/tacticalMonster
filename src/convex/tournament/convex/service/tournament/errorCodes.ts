@@ -3,15 +3,18 @@
  */
 export enum TournamentErrorCode {
     // 参赛资格错误 (1000-1999)
+    INSUFFICIENT_ENERGY = 1000,
     INSUFFICIENT_COINS = 1001,
-    INSUFFICIENT_TICKETS = 1002,
-    SEGMENT_TOO_LOW = 1003,
-    SEGMENT_TOO_HIGH = 1004,
-    SUBSCRIPTION_REQUIRED = 1005,
-    MAX_ATTEMPTS_REACHED = 1006,
-    TOURNAMENT_NOT_FOUND = 1007,
-    PLAYER_NOT_FOUND = 1008,
-    SEASON_NOT_ACTIVE = 1009,
+    INSUFFICIENT_GEMS = 1002,
+    INSUFFICIENT_TICKETS = 1003,
+    SEGMENT_TOO_LOW = 1103,
+    SEGMENT_TOO_HIGH = 1104,
+    SUBSCRIPTION_REQUIRED = 1105,
+    MAX_ATTEMPTS_REACHED = 1106,
+    TOURNAMENT_NOT_FOUND = 11007,
+    PLAYER_NOT_FOUND = 11008,
+    SEASON_NOT_ACTIVE = 1109,
+    PLAYER_LEVEL_NOT_ENOUGH = 1110,
 
     // 比赛相关错误 (2000-2999)
     MATCH_NOT_FOUND = 2001,
@@ -45,6 +48,7 @@ export const ErrorMessages = {
         [TournamentErrorCode.TOURNAMENT_NOT_FOUND]: '锦标赛不存在 (ID: {tournamentId})',
         [TournamentErrorCode.PLAYER_NOT_FOUND]: '玩家不存在 (UID: {uid})',
         [TournamentErrorCode.SEASON_NOT_ACTIVE]: '当前无活跃赛季',
+        [TournamentErrorCode.PLAYER_LEVEL_NOT_ENOUGH]: '玩家等级不足，需要至少 {required} 级，当前为 {current} 级',
         [TournamentErrorCode.MATCH_NOT_FOUND]: '比赛不存在 (ID: {matchId})',
         [TournamentErrorCode.MATCH_ALREADY_COMPLETED]: '比赛已完成 (ID: {matchId})',
         [TournamentErrorCode.INVALID_SCORE]: '无效的分数 {score}，应在 {minScore}-{maxScore} 范围内',
@@ -68,6 +72,7 @@ export const ErrorMessages = {
         [TournamentErrorCode.TOURNAMENT_NOT_FOUND]: 'Tournament not found (ID: {tournamentId})',
         [TournamentErrorCode.PLAYER_NOT_FOUND]: 'Player not found (UID: {uid})',
         [TournamentErrorCode.SEASON_NOT_ACTIVE]: 'No active season',
+        [TournamentErrorCode.PLAYER_LEVEL_NOT_ENOUGH]: 'Player level not enough, need at least {required}, current: {current}',
         [TournamentErrorCode.MATCH_NOT_FOUND]: 'Match not found (ID: {matchId})',
         [TournamentErrorCode.MATCH_ALREADY_COMPLETED]: 'Match already completed (ID: {matchId})',
         [TournamentErrorCode.INVALID_SCORE]: 'Invalid score {score}, should be between {minScore}-{maxScore}',
@@ -106,10 +111,10 @@ export function getLocalizedErrorMessage(
 ): string {
     const messages = ErrorMessages[locale as keyof typeof ErrorMessages];
     if (!messages) {
-        return ErrorMessages['zh-CN'][code] || '未知错误';
+        return (ErrorMessages['zh-CN'] as Record<number, string>)[code] || '未知错误';
     }
 
-    let message = messages[code] || ErrorMessages['zh-CN'][code] || '未知错误';
+    let message = (messages as Record<number, string>)[code] || (ErrorMessages['zh-CN'] as Record<number, string>)[code] || '未知错误';
 
     // 替换参数占位符
     if (params) {

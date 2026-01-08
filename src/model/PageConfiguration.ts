@@ -56,6 +56,16 @@ export const W3Home =
         }
     ],
 }
+export const Modals: Record<string, ModalConfig> = {
+    "play_tournament": {
+        name: "play_tournament",
+        path: "./battle/PlayTournament",
+        auth: 0,
+        init: "fadeIn",
+        openEffect: "popCenterIn",
+        closeEffect: "popCenterOut",
+    }
+}
 export const animates: { [k: number]: any } = {
     1: { autoAlpha: 1, duration: 1.2 },
     2: { autoAlpha: 0, duration: 1.2 },
@@ -88,6 +98,15 @@ export interface PageConfig {
     open?: string;
     close?: { type?: number, effect: string };
 
+}
+export interface ModalConfig {
+    name: string;
+    data?: { [key: string]: any };
+    path: string;
+    auth?: number;
+    init?: string;
+    openEffect?: string;
+    closeEffect?: string;
 }
 export const AppsConfiguration: AppConfig[] = [PlayPlace];
 

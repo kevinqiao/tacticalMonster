@@ -37,7 +37,7 @@ const statusEffectSchema = v.object({
     target_attribute: v.optional(v.string()),  // 目标属性（如 "attack", "defense", "hp", "mp"）
 });
 
-export const tacticalMonsterSchema = {
+export const mainSchema = {
     // ============================================
     // tacticalMonster  相关表
     // ============================================
@@ -160,6 +160,7 @@ export const tacticalMonsterSchema = {
         gameId: v.string(),
         status: v.number(),
         score: v.number(),
+        scoringConfigVersion: v.optional(v.string()),
         lastUpdate: v.string(),
         createdAt: v.string(),
         // Boss阶段管理（可选，也可以存储在 boss.currentPhase 中）
@@ -173,10 +174,31 @@ export const tacticalMonsterSchema = {
         ruleId: v.string(),
         stageId: v.string(),
         createdAt: v.string(),
+        dueTimeAt: v.string(),
+        updatedAt: v.string(),
     })
         .index("by_ruleId", ["ruleId"])
         .index("by_stageId", ["stageId"])
-        .index("by_createdAt", ["createdAt"]),
+        .index("by_createdAt", ["createdAt"])
+        .index("by_updatedAt", ["ruleId", "updatedAt"]),
+    mr_stage_stats: defineTable({
+        ruleId: v.string(),
+        stageId: v.string(),
+        powerLevel: v.number(),//1-5
+        attempts: v.number(),
+    })
+        .index("by_power_attempts", ["powerLevel", "attempts"])
+        .index("by_stage", ["stageId"]),
+    mr_player_first_clear: defineTable({
+        uid: v.string(),
+        ruleId: v.string(),
+        stageId: v.string(),
+        score: v.number(),
+        performance: v.number(),//1-4
+        createdAt: v.string(),
+    })
+        .index("by_uid_ruleId", ["uid", "ruleId"])
+        .index("by_uid_ruleId_stageId", ["uid", "ruleId", "stageId"]),
     mr_stage: defineTable({
         stageId: v.string(),
         bossId: v.string(),
@@ -206,16 +228,17 @@ export const tacticalMonsterSchema = {
         uid: v.string(),
         ruleId: v.string(),
         stageId: v.string(),
-        score: v.optional(v.number()),
-        result: v.optional(v.union(v.literal("win"), v.literal("lose"), v.literal("draw"))),
-        lastUpdate: v.optional(v.string()),
+        best_score: v.optional(v.number()),
+        best_performance: v.optional(v.union(v.literal(4), v.literal(3), v.literal(2), v.literal(1))),
+        lastPlayAt: v.optional(v.string()),
+        attempts: v.optional(v.number()),
         createdAt: v.string(),
     })
-        .index("by_uid_rule", ["uid", "ruleId"])
-        .index("by_uid_rule_score", ["uid", "ruleId", "score"])
-        .index("by_uid_rule_result", ["uid", "ruleId", "result"])
-        .index("by_stage_result", ["stageId", "result"])
-        .index("by_stage_score", ["stageId", "score"]),
+        .index("by_best_score", ["uid", "ruleId", "best_score"])
+        .index("by_performance", ["uid", "ruleId", "best_performance"])
+        .index("by_lastPlayAt", ["uid", "ruleId", "lastPlayAt"])
+        .index("by_stage", ["uid", "ruleId", "stageId"])
+        .index("by_uid_ruleId", ["uid", "ruleId"]),
 
     mr_game_event: defineTable({
         gameId: v.string(),

@@ -7,25 +7,12 @@ import { httpAction } from "./_generated/server";
 const http = httpRouter();
 
 http.route({
-  path: "/match/check",
+  path: "/joinTournament",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    // const body = await request.json();
-    // console.log("check match", body);
-    // const mid = body.matchId;
-    // const match = await ctx.runQuery(internal.dao.matchDao.find, { mid });
-    // console.log("match", match);
-    // const status = match?.status ?? 0;
-    // const result = { ok: status < 2 };
-
-    // return new Response(JSON.stringify(result), {
-    //   status: 200,
-    //   headers: new Headers({
-    //     "Access-Control-Allow-Origin": "*",
-    //     "Content-Type": "application/json",
-    //   }),
-    // });
-    return new Response(JSON.stringify({ ok: true }), {
+    const body = await request.json();
+    const res = await ctx.runMutation(internal.service.tournament.tournamentService.join, { uid: body.uid, typeId: body.typeId, stageId: body.stageId, teamPower: body.teamPower });
+    return new Response(JSON.stringify(res), {
       status: 200,
       headers: new Headers({
         "Access-Control-Allow-Origin": "*",
@@ -34,9 +21,6 @@ http.route({
     });
   }),
 });
-
-
-
 
 // 添加 OPTIONS 处理
 http.route({
@@ -252,80 +236,8 @@ http.route({
     });
   }),
 });
-// 添加游戏奖励处理端点
 http.route({
-  path: "/processGameRewards",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    try {
-      // 1. 解析请求体
-      const body = await request.json();
-      const { tier, rankings, gameId } = body;
-
-      // 2. 参数验证
-      if (!tier || !rankings || !gameId) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            error: "缺少必要参数: tier, rankings, gameId"
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
-
-      // 3. 导入并使用 TierRewardService
-      const { TierRewardService } = await import("./service/tournament/tierRewardService");
-
-      // 4. 调用业务逻辑处理奖励
-      const rewardDecision = await TierRewardService.processGameRewards(ctx, {
-        tier,
-        rankings,
-        gameId,
-      });
-
-      // 5. 返回奖励决策（包含发放结果和宝箱触发决策）
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          coinRewards: rewardDecision.coinRewards,
-          chestTriggered: rewardDecision.chestTriggered,  // 宝箱触发决策
-          rewardType: rewardDecision.rewardType,
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    } catch (error: any) {
-      // 6. 错误处理
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          error: error.message || "处理奖励失败",
-        }),
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    }
-  }),
-});
-
-http.route({
-  path: "/notifyGameEnd",
+  path: "/completeGame",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     try {
@@ -449,201 +361,6 @@ http.route({
         JSON.stringify({
           ok: false,
           error: error.message || "处理任务事件失败",
-        }),
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    }
-  }),
-});
-
-http.route({
-  path: "/managePlayerTasks",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    try {
-      const body = await request.json();
-      const { uid } = body;
-
-      // 参数验证
-      if (!uid) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            error: "缺少必要参数: uid",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
-
-      // 导入任务系统
-      const { TaskSystem } = await import("./service/task/taskSystem");
-
-      // 调用任务系统管理任务
-      const result = await TaskSystem.managePlayerTasks(ctx, uid);
-
-      return new Response(
-        JSON.stringify({
-          ok: result.success,
-          success: result.success,
-          message: result.message,
-          allocatedTasks: result.allocatedTasks,
-          movedTasks: result.movedTasks,
-          totalExpired: result.totalExpired,
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    } catch (error: any) {
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          error: error.message || "管理玩家任务失败",
-        }),
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    }
-  }),
-});
-
-http.route({
-  path: "/getPlayerActiveTasks",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    try {
-      const body = await request.json();
-      const { uid } = body;
-
-      // 参数验证
-      if (!uid) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            error: "缺少必要参数: uid",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
-
-      // 导入任务系统
-      const { TaskSystem } = await import("./service/task/taskSystem");
-
-      // 获取玩家活跃任务
-      const tasks = await TaskSystem.getPlayerActiveTasks(ctx, uid);
-
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          tasks,
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    } catch (error: any) {
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          error: error.message || "获取玩家任务失败",
-        }),
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    }
-  }),
-});
-
-http.route({
-  path: "/claimTaskRewards",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    try {
-      const body = await request.json();
-      const { uid, taskId } = body;
-
-      // 参数验证
-      if (!uid || !taskId) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            error: "缺少必要参数: uid, taskId",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
-
-      // 导入任务系统
-      const { TaskSystem } = await import("./service/task/taskSystem");
-
-      // 领取任务奖励
-      const result = await TaskSystem.claimTaskRewards(ctx, {
-        uid,
-        taskId,
-      });
-
-      return new Response(
-        JSON.stringify({
-          ok: result.success,
-          success: result.success,
-          message: result.message,
-          rewards: result.rewards,
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      );
-    } catch (error: any) {
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          error: error.message || "领取任务奖励失败",
         }),
         {
           status: 500,
@@ -1527,11 +1244,17 @@ http.route({
       const rewards = playerTournament.rewards || {};
       const chestInfo = rewards.chestInfo || {};
 
-      // 4. 计算宝箱类型预览（基于 Tier 和排名）
-      // 注意：这是预览，实际宝箱类型在 Claim 时根据槽位情况可能不同
-      let chestTypePreview: string | null = null;
+      // 4. 使用已确定的宝箱类型（在 settle 时已计算）
+      // 如果存在 chestType，使用它；否则回退到预览（向后兼容）
+      let chestType: string | null = null;
       if (chestInfo.chestTriggered) {
-        chestTypePreview = calculateChestTypePreview(chestInfo.tier, chestInfo.rank);
+        if (chestInfo.chestType) {
+          // 使用 settle 时确定的宝箱类型
+          chestType = chestInfo.chestType;
+        } else if (chestInfo.tier) {
+          // 向后兼容：如果没有 chestType，使用预览
+          chestType = calculateChestTypePreview(chestInfo.tier, chestInfo.rank || 1);
+        }
       }
 
       return new Response(JSON.stringify({
@@ -1560,10 +1283,13 @@ http.route({
           // 宝箱信息
           chest: chestInfo.chestTriggered ? {
             triggered: true,
-            tier: chestInfo.tier,
+            tier: chestInfo.tier,  // 向后兼容
             rank: chestInfo.rank,
-            chestTypePreview: chestTypePreview,  // 预览类型（可能与实际不同）
-            note: "宝箱类型预览，实际类型在领取时根据槽位情况确定"
+            chestType: chestType,  // 确定的宝箱类型（在 settle 时计算）
+            chestTypePreview: chestType,  // 向后兼容（使用相同的值）
+            note: chestInfo.chestType
+              ? "宝箱类型已在结算时确定"
+              : "宝箱类型预览，实际类型在领取时根据槽位情况确定"
           } : {
             triggered: false,
           },
@@ -1680,8 +1406,9 @@ http.route({
         chestTriggered: chestInfo.chestTriggered || false,
         chestInfo: chestInfo.chestTriggered ? {
           chestTriggered: true,
-          tier: chestInfo.tier,
+          tier: chestInfo.tier,  // 向后兼容
           rank: chestInfo.rank,
+          chestType: chestInfo.chestType,  // 确定的宝箱类型（在 settle 时计算）
           gameId: chestInfo.gameId,
           matchId: chestInfo.matchId,
         } : null,

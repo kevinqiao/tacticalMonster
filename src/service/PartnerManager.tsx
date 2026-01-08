@@ -64,12 +64,10 @@ export const PartnerProvider = ({ children }: { children: React.ReactNode }) => 
   }
   useEffect(() => {
     const fetchPartner = async () => {
-
       const params: { [k: string]: string } = getURLParams(window.location);
       const pid = params["pid"] ?? "0";
-      console.log("fetchPartner:", pid);
       const partner = await convex.query(api.service.PartnerManager.find, { pid: +pid });
-      console.log("partner:", partner);
+
       if (partner) {
         setPartner(partner);
       }
