@@ -14,9 +14,10 @@ const GAME_PROVIDERS: Record<string, string> = {
 };
 
 export interface PlayTournamentProps {
-  gameType: string;
-  typeId: string;
-  stageId: string;
+  gameId?: string;
+  playMode: 'play' | 'watch' | 'replay';
+  typeId?: string;
+  stageId?: string;
 }
 
 // 错误边界组件
@@ -78,15 +79,13 @@ const PlayTournament: React.FC<ModalProp> = ({ visible, data }) => {
 
   const container = useRef<HTMLDivElement>(null);
   const SelectedComponent = useMemo(() => {
-    if (!data) return null;
-    const { gameType } = data;
-    const path = GAME_PROVIDERS[gameType] ?? '';
+    if (!data || !data.gameType) return null;
+    const path = GAME_PROVIDERS[data.gameType] ?? '';
     if (path === '') return null;
     return getCachedComponent(path);
   }, [data]);
   useEffect(() => {
     if (visible) {
-      console.log("play tournament container", visible);
       gsap.to(container.current, {
         autoAlpha: 1,
         duration: 0.5,
@@ -98,6 +97,7 @@ const PlayTournament: React.FC<ModalProp> = ({ visible, data }) => {
 
   return (
     <div ref={container} className="play-tournament-container">
+
       {SelectedComponent && <Suspense fallback={<div />}>
         <SelectedComponent {...(data as PlayTournamentProps)} />
       </Suspense>}

@@ -1,4 +1,7 @@
 .play-tactical-monster-container {
+    position: absolute;
+    top: 0;
+    left: 0;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -6,4 +9,48 @@
     height: 100%;
     color: white;
     background-color: rgb(42, 24, 211);
+    visibility: hidden;
+    opacity: 0;
+}
+
+.team-layout-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: white;
+    background-color: rgb(24, 240, 17);
+    visibility: hidden;
+    opacity: 0;
+}
+
+.team-layout-footer {
+    width: 100%;
+    height: 100px;
+    background-color: rgb(26, 24, 175);
+}
+
+.team-layout-button {
+    width: 200px;
+    height: 50px;
+    border-radius: 10px;
+    border: none;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    background-color: rgb(26, 24, 175);
+}
+
+.play-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
 }

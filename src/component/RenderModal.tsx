@@ -1,5 +1,5 @@
 import { ModalContainer, ModalProp, useModalManager } from "@/service/ModalManager";
-import React, { lazy, Suspense, useEffect, useMemo } from "react";
+import React, { lazy, Suspense, useMemo } from "react";
 import "./render.css";
 
 
@@ -68,10 +68,6 @@ const ModalComponent: React.FC<{ modalContainer: ModalContainer }> = ({ modalCon
   const SelectedComponent = useMemo(() => {
     return getCachedComponent(modalContainer.path);
   }, [modalContainer.path]);
-  useEffect(() => {
-    console.log("props", props);
-    const { visible, data } = props;
-  }, [props]);
 
   return <SelectedComponent {...props} />;
 };

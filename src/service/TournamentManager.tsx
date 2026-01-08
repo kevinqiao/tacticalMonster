@@ -24,12 +24,14 @@ export const URLS: { [k: string]: string } = {
 
 interface ITournamentContext {
   player: any;
+  monsters: any[] | null;
   activeTournaments?: any[];
   joinTournament: (typeId: string, stageId: string) => Promise<any>;
 }
 
 const TournamentContext = createContext<ITournamentContext>({
   player: null,
+  monsters: null,
   activeTournaments: [],
   joinTournament: async (typeId: string, stageId: string) => { },
 });
@@ -46,9 +48,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
   const [stageRules, setStageRules] = useState<any[] | null>(null);
   const { user } = useUserManager();
 
-  useEffect(() => {
-    console.log("TournamentProvider", "start");
-  }, []);
+
   useEffect(() => {
     if (!user || !user.token || !tournamentClient || !tacticalMonsterClient) return;
     const authenticate = async () => {
@@ -126,7 +126,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
   }, [user, tacticalMonsterClient]);
 
   return (
-    <TournamentContext.Provider value={{ player, activeTournaments, joinTournament }}>
+    <TournamentContext.Provider value={{ player, monsters, activeTournaments, joinTournament }}>
       {children}
     </TournamentContext.Provider>
   );
