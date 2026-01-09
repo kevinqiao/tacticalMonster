@@ -12,7 +12,6 @@ import {
 } from '../../../../../../convex/tacticalMonster/convex/service/game/sharedScoreService';
 
 export function useScoreCalculation(
-    gameId: string | null,
     game: any,  // GameModel
     events: any[],  // CombatEvent[]
     mode: 'play' | 'watch' | 'replay',

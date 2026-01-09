@@ -4,11 +4,11 @@
 
 import React, { useCallback, useMemo } from 'react';
 
-import '../style.css';
 import { HEX_RATIO, SCALE_FACTOR, STYLES } from '../constants/GridConstants';
 import { useGridElementLoader } from '../hooks/useGridElements';
 import { useCombatManager } from '../service/CombatManager';
 import useCombatActHandler from '../service/handler/useCombatActHandler';
+import '../style.css';
 import { GridCellProps } from '../types/GridTypes';
 import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils';
 
@@ -99,7 +99,7 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
 const GridContainer: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
     const { map, hexCell, gridCells } = useCombatManager();
     const { walk, attack } = useCombatActHandler();
-    console.log(gridCells);
+
     // 移动 useCallback 到顶部
     const rowStyle = useCallback((row: number) => {
         const isOdd = row % 2 !== 0;

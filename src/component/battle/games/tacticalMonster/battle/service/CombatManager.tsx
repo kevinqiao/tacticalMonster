@@ -20,7 +20,6 @@ import {
     GameReport,
     GridCell,
     ICombatContext,
-    MapModel,
     MonsterSprite
 } from "../types/CombatTypes";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
@@ -39,7 +38,6 @@ export const CombatContext = createContext<ICombatContext>({
     activeSkill: null,
     coordDirection: 0,
     currentRound: defaultRound,
-    gameId: null,
     hexCell: { width: 0, height: 0 },
     resourceLoad: { character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 },
     map: { rows: 7, cols: 8 },
@@ -53,9 +51,7 @@ export const CombatContext = createContext<ICombatContext>({
     onGameOver: () => null,
     setResourceLoad: () => null,
     changeCell: () => null,
-    changeCoordDirection: () => null,
     setActiveSkill: () => null,
-    updateGame: () => null,
     mode: 'play',
     playbackSpeed: 1.0
 });
@@ -83,17 +79,15 @@ export const useCombatManager = () => {
  */
 interface CombatManagerProps {
     children: ReactNode;
-    gameId?: string;
+    game: GameModel | null;
     mode?: GameMode;
-    onGameLoadComplete?: () => void;
     onGameSubmit?: () => void;
 }
 
 const CombatManager: React.FC<CombatManagerProps> = ({
     children,
-    gameId,
+    game = null,
     mode = 'play',
-    onGameLoadComplete,
     onGameSubmit
 }) => {
     const [activeSkill, setActiveSkill] = useState<MonsterSkill | null>(null);
@@ -108,7 +102,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         gridGround: number;
         gridWalk: number;
     }>({ character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 });
-    const [game, setGame] = useState<GameModel | null>(null);
     const [gameReport, setGameReport] = useState<GameReport | null>(null);
     const [score, setScore] = useState<number>(0);
     // ✅ Watch 模式：收集所有已处理的事件用于实时计算分数
@@ -126,7 +119,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     // 1. 加载所有历史事件（findAllEvents）
     // 2. 创建 GameReplayManager 实例
     // 3. 提供播放控制方法（play/pause/stop/seekTo/setSpeed）
-    const replay = useGameReplay(gameId || null, mode);
+    const replay = useGameReplay(game?.gameId || null, mode);
 
     // ✅ 设置重播事件处理回调：将重播事件注入到 eventQueue
     // 当 GameReplayManager 播放事件时，会调用此回调
@@ -148,13 +141,13 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     // - replay 模式：跳过查询（使用 findAllEvents 一次性加载）
     const events: any = useQuery(
         api.service.game.gameService.findEvents,
-        (gameId && (mode === 'play' || mode === 'watch')) ? { gameId, lastTime } : "skip"
+        (game?.gameId && (mode === 'play' || mode === 'watch')) ? { gameId: game.gameId, lastTime } : "skip"
     );
 
     // 查询游戏报告
     const report: any = useQuery(
         (api as any).service.game.gameService.findReport,
-        gameId ? { gameId } : "skip"
+        game?.gameId ? { gameId: game.gameId } : "skip"
     );
 
     // ✅ Watch 模式：如果后端不存储 score，则基于事件实时计算分数
@@ -164,80 +157,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     //     (gameId && finalMode === 'watch') ? { gameId } : "skip"
     // );
 
-    // 加载游戏
-    useEffect(() => {
-        if (!gameId) return;
 
-        const fetchGame = async (gameId: string) => {
-            console.log("loading game", gameId);
-            try {
-                const gameObj = await convex.query((api as any).service.game.gameService.loadGame, { gameId });
-                if (gameObj?.ok && gameObj.data) {
-                    const gameData = gameObj.data;
-
-                    // 更新现有角色的UI相关字段映射（用于在重新加载时保留）
-                    if (game?.team && game?.boss) {
-                        const existingCharacters = getCharactersFromGameModel(game.team, game.boss, existingSpritesRef.current);
-                        existingCharacters.forEach(char => {
-                            existingSpritesRef.current.set(char.character_id, char);
-                        });
-                    }
-
-                    // 转换地图数据
-                    const mapModel: MapModel = {
-                        rows: gameData.map?.rows || 7,
-                        cols: gameData.map?.cols || 8,
-                        direction: (gameData.map as any)?.direction,
-                        obstacles: gameData.map?.obstacles?.map((obs: { q: number; r: number }) => ({
-                            q: obs.q,
-                            r: obs.r,
-                            asset: "",
-                            walkable: false,
-                            type: 1
-                        })),
-                        disables: gameData.map?.disables || []
-                    };
-
-                    // 构建前端 GameModel（扩展后端 GameModel）
-                    setGame({
-                        // 后端 GameModel 字段
-                        gameId: gameData.gameId,
-                        matchId: gameData.matchId,
-                        stageId: gameData.stageId,
-                        uid: gameData.uid,
-                        teamPower: gameData.teamPower,
-                        team: gameData.team,
-                        boss: gameData.boss,
-                        map: mapModel,  // 使用前端 MapModel 格式
-                        status: gameData.status,
-                        score: gameData.score || 0,
-                        scoringConfigVersion: gameData.scoringConfigVersion,
-                        lastUpdate: gameData.lastUpdate,
-                        createdAt: gameData.createdAt,
-                        round: gameData.round,
-                        // 前端扩展字段
-                        currentRound: gameData.currentRound || defaultRound,
-                        timeClock: 0,
-                    });
-
-                    setScore(gameData.score || 0);
-                    setLastTime(gameData.lastUpdate ? new Date(gameData.lastUpdate).getTime() : undefined);
-                    eventQueueRef.current.push({
-                        name: "gameInit",
-                        data: gameData,
-                        status: 0,
-                        gameId,
-                        time: Date.now()
-                    });
-                    onGameLoadComplete?.();
-                }
-            } catch (error) {
-                console.error("Failed to load game", error);
-            }
-        };
-
-        fetchGame(gameId);
-    }, [gameId, convex, onGameLoadComplete, user?.uid]);
 
     // ✅ 处理事件更新（区分乐观事件和真实事件，play 和 watch 模式都需要）
     // 此 useEffect 监听 events 变化（来自 useQuery），将新事件推入 eventQueue
@@ -292,14 +212,14 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 
     // 提交分数
     const submitScore = useCallback(async (finalScore: number) => {
-        if (!gameId) return;
+        if (!game?.gameId) return;
         try {
-            await convex.action(api.proxy.controller.submitScore, { gameId, score: finalScore });
+            await convex.action(api.proxy.controller.submitScore, { gameId: game.gameId, score: finalScore });
             onGameSubmit?.();
         } catch (error) {
             console.error("Failed to submit score", error);
         }
-    }, [gameId, convex, onGameSubmit]);
+    }, [game, convex, onGameSubmit]);
 
     // 游戏结束回调
     const onGameOver = useCallback(() => {
@@ -345,40 +265,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         setGridCells(cells);
     }, [game?.map]);
 
-    const changeCoordDirection = useCallback((direction: number) => {
-        console.log("changeCoordDirection", direction);
-        if (game?.map) {
-            const updatedMap = { ...game.map, direction };
-            setGame({ ...game, map: updatedMap });
-            eventQueueRef.current.push({
-                name: "changeCoordDirection",
-                data: updatedMap,
-                status: 0,
-                gameId: game.gameId,
-                time: Date.now()
-            });
-        }
-    }, [game]);
-
-    /**
-     * 更新 GameModel（触发重新渲染）
-     * 用于延迟更新后通知 React 状态已改变
-     */
-    const updateGame = useCallback((updater: (game: GameModel) => void) => {
-        setGame(prevGame => {
-            if (!prevGame) return prevGame;
-
-            // 创建新对象引用，触发 React 重新渲染
-            const newGame = { ...prevGame };
-
-            // 执行更新逻辑
-            updater(newGame);
-
-            return newGame;
-        });
-    }, []);
-
-
 
     const map = game?.map;
     const currentRound = game?.currentRound;
@@ -401,7 +287,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         activeSkill,
         setActiveSkill,
         coordDirection,
-        gameId: gameId || null,
         hexCell,
         map: map || { rows: 7, cols: 8, obstacles: [], disables: [] },
         gridCells,
@@ -417,8 +302,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         resourceLoad,
         setResourceLoad,
         changeCell: setHexCell,
-        changeCoordDirection,
-        updateGame,
         mode: mode,
         // ✅ 重播控制（仅在 replay 模式）
         // 提供重播播放控制接口，子组件可通过 useCombatManager() 获取

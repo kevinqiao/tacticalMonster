@@ -17,7 +17,7 @@ import { ReplayControls } from "./view/ReplayControls";
 import { ReplayScoreDisplay } from "./view/ReplayScoreDisplay";
 
 const ScoreDisplay: React.FC = () => {
-    const { score, gameReport, game, gameId, mode, processedEvents } = useCombatManager();
+    const { score, gameReport, game, mode, processedEvents } = useCombatManager();
 
     // ✅ 使用共享计分服务（play/watch 模式）
     const {
@@ -25,7 +25,6 @@ const ScoreDisplay: React.FC = () => {
         checkGameResult,
         calculateFinalScore
     } = useScoreCalculation(
-        gameId || null,
         game ? {
             team: game.team?.map(c => ({
                 stats: { hp: c.stats?.hp }
@@ -310,12 +309,11 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
 };
 
 interface BattlePlayerProps {
-    gameId?: string;
     mode?: 'play' | 'watch' | 'replay';
     assetType?: ASSET_TYPE;
 }
 
-const BattlePlayer: React.FC<BattlePlayerProps> = ({ gameId, mode = 'play', assetType }) => {
+const BattlePlayer: React.FC<BattlePlayerProps> = ({ mode = 'play', assetType }) => {
     const { game, replay } = useCombatManager();
     const [currentEventIndex, setCurrentEventIndex] = useState(0);
     const [allEvents, setAllEvents] = useState<any[]>([]);
@@ -332,7 +330,7 @@ const BattlePlayer: React.FC<BattlePlayerProps> = ({ gameId, mode = 'play', asse
         }
     }, [mode, replay?.state?.currentIndex, replay]);
 
-    if (!gameId) return null;
+    if (!game) return null;
 
     return (
         <>
@@ -342,20 +340,7 @@ const BattlePlayer: React.FC<BattlePlayerProps> = ({ gameId, mode = 'play', asse
             {/* ✅ 重播计分显示（仅在 replay 模式显示） */}
             {mode === 'replay' && game && allEvents.length > 0 && (
                 <ReplayScoreDisplay
-                    gameId={gameId}
-                    game={{
-                        team: game.team?.map(c => ({
-                            stats: { hp: c.stats?.hp }
-                        })) || [],
-                        boss: {
-                            stats: { hp: game.boss?.stats?.hp },
-                            minions: game.boss?.minions?.map(c => ({
-                                stats: { hp: c.stats?.hp }
-                            })) || []
-                        },
-                        createdAt: game.createdAt || new Date().toISOString(),
-                        scoringConfigVersion: game.scoringConfigVersion
-                    }}
+                    game={game}
                     events={allEvents}
                     currentEventIndex={currentEventIndex}
                 />

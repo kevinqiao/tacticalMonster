@@ -65,7 +65,7 @@ export interface GameModel extends Omit<BackendGameModel, 'map'> {
     map: MapModel;  // 覆盖后端的 map 类型，使用前端的 MapModel（包含 direction 和 obstacles 的扩展格式）
     currentRound?: CombatRound;  // 当前回合信息（前端运行时）
     timeClock?: number;  // 时间时钟（前端运行时）
-   
+
 }
 
 export interface GameReport {
@@ -218,7 +218,6 @@ export interface ICombatContext {
     activeSkill: MonsterSkill | null;
     coordDirection: number;
     hexCell: { width: number; height: number };
-    gameId: string | null;
     map?: MapModel;
     gridCells: GridCell[][] | null;
     timeClock?: number;
@@ -246,8 +245,6 @@ export interface ICombatContext {
     >;
     changeCell: React.Dispatch<React.SetStateAction<{ width: number; height: number }>>;
     setActiveSkill: (skill: MonsterSkill | null) => void;
-    changeCoordDirection: (direction: number) => void;
-    updateGame: (updater: (game: GameModel) => void) => void;  // 新增：更新 GameModel 的函数
     mode?: GameMode;  // 游戏模式
     replay?: ReplayControls;  // 重播控制（仅在 watch 模式）
     playbackSpeed?: number;  // 回放速度（仅在 replay 模式，用于同步动画速度）

@@ -271,10 +271,9 @@ export const tournamentSchema = {
         .index("by_game", ["gameId"])
         .index("by_tournamentType_uid_status", ["tournamentType", "uid", "status"])
         .index("by_tournamentType_uid_createdAt", ["tournamentType", "uid", "createdAt"])
-        .index("by_createdAt", ["createdAt"])
+        .index("by_uid_createdAt", ["uid", "createdAt"])
         .index("by_score", ["score"])                    // 按得分查询
         .index("by_rank", ["rank"])                      // 按排名查询
-        .index("by_uid_created", ["uid", "createdAt"])  // 复合索引，用于玩家历史查询
         .index("by_team_stage", ["teamPower", "stageId"])// 按游戏类型和玩家查询        
         .index("by_uid_gameType", ["uid", "gameType"])   // 复合索引，用于按游戏类型查询玩家历史
         .index("by_uid_gameType_created", ["uid", "gameType", "createdAt"]) // 复合索引，用于按游戏类型查询玩家历史（排序）

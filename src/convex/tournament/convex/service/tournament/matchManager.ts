@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
 import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
-import { settleTournament, TournamentStatus, incrementPlayerAttempts } from "./common";
+import { incrementPlayerAttempts, settleTournament, TournamentStatus } from "./common";
 import { createSeededRandom } from "./seedRandom";
 // import { getTorontoMidnight } from "../simpleTimezoneUtils";
 
@@ -431,6 +431,26 @@ export const findGameMatch = query({
             return { ...match, _id: undefined, _creationTime: undefined };
         } else {
             return null;
+        }
+    },
+});
+export const findMatch = query({
+    args: { uid: v.string(), createdAt: v.optional(v.string()) },
+    handler: async (ctx: any, { uid, createdAt }: { uid: string, createdAt: string }): Promise<any> => {
+        if (createdAt) {
+            const match = await ctx.db.query("player_matches").withIndex("by_uid_createdAt", (q: any) => q.eq("uid", uid).gt("createdAt", createdAt)).order("desc").first();
+            if (match) {
+                return { ...match, _id: undefined, _creationTime: undefined };
+            } else {
+                return null;
+            }
+        } else {
+            const match = await ctx.db.query("player_matches").withIndex("by_uid", (q: any) => q.eq("uid", uid)).first();
+            if (match) {
+                return { ...match, _id: undefined, _creationTime: undefined };
+            } else {
+                return null;
+            }
         }
     },
 });

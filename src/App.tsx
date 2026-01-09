@@ -30,17 +30,19 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     <ConvexProvider client={master_client}>
       <PartnerProvider>
         <UserProvider>
-          <TournamentProvider>
-            <PageProvider>
-              <ModalProvider>
+
+          <PageProvider>
+            <ModalProvider>
+              <TournamentProvider>
                 {/* <PlatformProvider> */}
                 {/* <GameCenterProvider> */}
                 {children}
                 {/* </GameCenterProvider> */}
                 {/* </PlatformProvider> */}
-              </ModalProvider>
-            </PageProvider>
-          </TournamentProvider>
+              </TournamentProvider>
+            </ModalProvider>
+          </PageProvider>
+
         </UserProvider>
       </PartnerProvider>
     </ConvexProvider>

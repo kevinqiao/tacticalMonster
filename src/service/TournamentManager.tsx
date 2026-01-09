@@ -1,6 +1,6 @@
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { api as tournamentApi } from "@/convex/tournament/convex/_generated/api";
-import { ConvexHttpClient } from "convex/browser";
+import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useUserManager } from "./UserManager";
 
@@ -37,7 +37,7 @@ const TournamentContext = createContext<ITournamentContext>({
 });
 
 
-
+const client = new ConvexClient(URLS.tournament);
 export const TournamentProvider = ({ children }: { children: React.ReactNode }) => {
 
   const tournamentClient = React.useMemo(() => { return new ConvexHttpClient(URLS.tournament) }, []);
@@ -46,6 +46,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
   const [monsters, setMonsters] = useState<any[] | null>(null);
   const [tournaments, setTournaments] = useState<any[] | null>(null);
   const [stageRules, setStageRules] = useState<any[] | null>(null);
+  const [lastMatch, setLastMatch] = useState<any | null>(null);
   const { user } = useUserManager();
 
 
@@ -94,6 +95,29 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
       loadStageStatuses();
     }
   }, [user, monsters, tacticalMonsterClient]);
+  useEffect(() => {
+    // 使用 onUpdate 订阅数据更新
+    if (!user?.uid || !client) return;
+    const unsubscribe = client.onUpdate(
+      tournamentApi.service.tournament.matchManager.findMatch,
+      { uid: user?.uid, createdAt: lastMatch?.createdAt },
+
+      (messages) => {
+        console.log("收到新数据:", messages);
+        if (messages) {
+          setLastMatch(messages);
+        }
+      },
+      (error) => {
+        console.error("订阅错误:", error);
+      }
+    );
+
+    // 组件卸载时取消订阅
+    return () => unsubscribe();
+  }, [user, client, lastMatch]);
+
+
   const activeTournaments = useMemo(() => {
     if (!tournaments || !stageRules || !player) return;
 
