@@ -4,10 +4,10 @@ import { URLS, useTournamentManager } from "@/service/TournamentManager";
 import { useUserManager } from "@/service/UserManager";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import gsap from "gsap";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { MatchStatus } from "../../MatchTypes";
 import { PlayProps } from "../../PlayTournament";
+import usePreGameAnimate from "./animation/usePreGameAnimate";
 import BattlePlayer from "./battle/BattlePlayer";
 import CombatManager from "./battle/service/CombatManager";
 import { GameModel } from "./battle/types/CombatTypes";
@@ -39,7 +39,7 @@ const PlayGame: React.FC<Props> = ({
 };
 const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
 
-    const maskRef = useRef<HTMLDivElement>(null);
+    const loadingRef = useRef<HTMLDivElement>(null);
     const teamLayoutRef = useRef<HTMLDivElement>(null);
     const playGameRef = useRef<HTMLDivElement>(null);
     const [game, setGame] = useState<GameModel | null>(null);
@@ -47,43 +47,43 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     const { joinTournament } = useTournamentManager();
     const tournamentClient = React.useMemo(() => { return new ConvexClient(URLS.tournament) }, []);
     const tacticalMonsterClient = React.useMemo(() => { return new ConvexHttpClient(URLS.tacticalMonster) }, []);
+    const { playInit, openTeamLayout, playLoading, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
 
     const startJoin = useCallback(async () => {
         console.log("startJoin", props);
         if (props.mode === "join" && props.typeId && props.stageId) {
+            playLoading();
             const result = await joinTournament(props.typeId, props.stageId);
             if (result.ok && result.game) {
                 setGame(result.game);
+                openPlayGame();
             }
             console.log("join result", result);
         }
     }, [props]);
 
     useEffect(() => {
-        const tl = gsap.timeline();
-
-        if (!game) {
-            tl.to(teamLayoutRef.current, {
-                autoAlpha: 1,
-                duration: 0.5,
-                ease: "power2.inOut"
-            }, "<");
-        } else {
-
-            tl.to(teamLayoutRef.current, {
-                autoAlpha: 0,
-                duration: 1.5,
-                ease: "power2.inOut"
-            }, "<");
-            tl.to(playGameRef.current, {
-                autoAlpha: 1,
-                duration: 1.5,
-                ease: "power2.inOut",
-            }, "<");
-
+        if (!props.visible) {
+            setGame(null);
+            playInit();
+            return;
         }
-        tl.play();
-    }, [game]);
+        if (props.mode === "join") {
+            openTeamLayout();
+        } else {
+            if (props.gameId) {
+                playLoading();
+                tacticalMonsterClient.action(tacticalMonsterApi.service.tournament.tournamentService.loadGame, { uid: user?.uid, gameId: props.gameId }).then((res) => {
+                    console.log("loadGame result", res);
+                    if (res.ok) {
+                        setGame(res.game);
+                        openPlayGame();
+                    }
+                });
+            }
+        }
+
+    }, [props]);
     useEffect(() => {
         // 使用 onUpdate 订阅数据更新
         if (!user?.uid || !tournamentClient || !tacticalMonsterClient) return;
@@ -112,25 +112,16 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
         return () => unsubscribe();
 
     }, [user, tournamentClient, props, tacticalMonsterClient]);
-    useEffect(() => {
-        if (props.mode === "play" && props.gameId) {
-            tacticalMonsterClient.action(tacticalMonsterApi.service.tournament.tournamentService.loadGame, { uid: user?.uid, gameId: props.gameId }).then((res) => {
-                console.log("loadGame result", res);
-                if (res.ok) {
-                    setGame(res.game);
-                }
-            });
-        }
-    }, [props]);
+
 
     return <>
-        <div ref={maskRef} className="play-mask"></div>
         <div ref={teamLayoutRef} className="team-layout-container">
             {!game && props.stageId && <TeamLayout stageId={props.stageId} onComplete={startJoin} />}
         </div>
         <div ref={playGameRef} className="play-tactical-monster-container">
             {game && <PlayGame game={game} mode={props.mode} />}
         </div>
+        <div ref={loadingRef} className="play-tactical-monster-loading"><div className="play-tactical-monster-loading-text">Loading...</div></div>
     </>
 };
 export default PlayTacticalMonster;

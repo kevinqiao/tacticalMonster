@@ -13,8 +13,9 @@ const GAME_PROVIDERS: Record<string, string> = {
 };
 
 export interface PlayProps {
+  visible: boolean;
   gameId?: string;
-  gameType: string;
+  // gameType: string;
   matchType?: 'solo' | 'multi_player';
   mode: 'join' | 'watch' | 'replay' | 'play';
   typeId?: string;
@@ -85,6 +86,16 @@ const PlayTournament: React.FC<ModalProp> = ({ name, container, visible, data, c
     return getCachedComponent(path);
   }, [gameType]);
 
+  const playProps = useMemo(() => {
+    return {
+      visible: visible,
+      gameId: data?.gameId,
+      matchType: data?.matchType,
+      mode: data?.mode,
+      typeId: data?.typeId,
+      stageId: data?.stageId,
+    };
+  }, [data, visible]);
   useEffect(() => {
 
     if (data && data.gameType) {
@@ -93,11 +104,12 @@ const PlayTournament: React.FC<ModalProp> = ({ name, container, visible, data, c
   }, [data]);
 
 
+
   return (
     <div ref={(ele) => container.ele = ele} className="play-tournament-container">
       <div className="play-mask"></div>
       {SelectedComponent && <Suspense fallback={<div />}>
-        <SelectedComponent {...(data as PlayProps)} />
+        <SelectedComponent {...playProps} />
       </Suspense>}
       <div ref={(ele) => container.closeEle = ele ?? undefined} className="play-tournament-close" onClick={close}>
         X

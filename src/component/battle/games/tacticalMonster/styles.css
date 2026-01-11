@@ -13,6 +13,26 @@
     opacity: 0;
 }
 
+.play-tactical-monster-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50%;
+    height: 50%;
+    background-color: transparent;
+}
+
+.play-tactical-monster-loading-text {
+    font-size: 15px;
+    font-weight: bold;
+    color: white;
+    background-color: rgb(49, 47, 47);
+}
+
 .tactical-monster-over-container {
     display: flex;
     justify-content: center;
