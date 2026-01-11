@@ -6,19 +6,14 @@ import "./style.css";
 
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
-  './games/tacticalMonster/PlayTacticalMonster': () => import('./games/tacticalMonster/PlayTacticalMonster'),
+  './games/tacticalMonster/TacticalMonsterOver': () => import('./games/tacticalMonster/TacticalMonsterOver'),
 };
 const GAME_PROVIDERS: Record<string, string> = {
-  'tacticalMonster': './games/tacticalMonster/PlayTacticalMonster',
+  'tacticalMonster': './games/tacticalMonster/TacticalMonsterOver',
 };
 
-export interface PlayProps {
-  gameId?: string;
-  gameType: string;
-  matchType?: 'solo' | 'multi_player';
-  mode: 'join' | 'watch' | 'replay' | 'play';
-  typeId?: string;
-  stageId?: string;
+export interface GameOverProps {
+  gameId: string;
 }
 
 // 错误边界组件
@@ -39,8 +34,8 @@ const ErrorComponent: React.FC<{ path: string; error?: Error }> = ({ path, error
     <button onClick={() => window.location.reload()}>Reload Page</button>
   </div>
 );
-const ComponentCache = new Map<string, React.ComponentType<PlayProps>>();
-const getCachedComponent = (path: string): React.ComponentType<PlayProps> => {
+const ComponentCache = new Map<string, React.ComponentType<GameOverProps>>();
+const getCachedComponent = (path: string): React.ComponentType<GameOverProps> => {
   if (!ComponentCache.has(path)) {
     const normalizedPath = path.startsWith('./') ? path : `./${path}`;
 
@@ -53,7 +48,7 @@ const getCachedComponent = (path: string): React.ComponentType<PlayProps> => {
         } catch (error) {
           console.error(`Failed to load component: ${normalizedPath}`, error);
           return {
-            default: (props: PlayProps) => <ErrorComponent path={normalizedPath} error={error as Error} />
+            default: (props: GameOverProps) => <ErrorComponent path={normalizedPath} error={error as Error} />
           };
         }
       }));
@@ -66,7 +61,7 @@ const getCachedComponent = (path: string): React.ComponentType<PlayProps> => {
         } catch (error) {
           console.error(`Failed to load component: ${normalizedPath}`, error);
           return {
-            default: (props: PlayProps) => <ErrorComponent path={normalizedPath} error={error as Error} />
+            default: (props: GameOverProps) => <ErrorComponent path={normalizedPath} error={error as Error} />
           };
         }
       }));
@@ -76,7 +71,7 @@ const getCachedComponent = (path: string): React.ComponentType<PlayProps> => {
 };
 
 
-const PlayTournament: React.FC<ModalProp> = ({ name, container, visible, data, close }) => {
+const GameOver: React.FC<ModalProp> = ({ name, container, visible, data, close }) => {
   const [gameType, setGameType] = useState<string>("tacticalMonster");
   const SelectedComponent = useMemo(() => {
     if (!gameType) return null;
@@ -86,7 +81,7 @@ const PlayTournament: React.FC<ModalProp> = ({ name, container, visible, data, c
   }, [gameType]);
 
   useEffect(() => {
-
+    console.log("play game over data", data);
     if (data && data.gameType) {
       setGameType(data.gameType);
     }
@@ -94,10 +89,10 @@ const PlayTournament: React.FC<ModalProp> = ({ name, container, visible, data, c
 
 
   return (
-    <div ref={(ele) => container.ele = ele} className="play-tournament-container">
-      <div className="play-mask"></div>
+    <div ref={(ele) => container.ele = ele} className="game-over-container">
+      <div className="game-over-mask"></div>
       {SelectedComponent && <Suspense fallback={<div />}>
-        <SelectedComponent {...(data as PlayProps)} />
+        <SelectedComponent {...(data as GameOverProps)} />
       </Suspense>}
       <div ref={(ele) => container.closeEle = ele ?? undefined} className="play-tournament-close" onClick={close}>
         X
@@ -105,4 +100,4 @@ const PlayTournament: React.FC<ModalProp> = ({ name, container, visible, data, c
     </div>
   );
 };
-export default PlayTournament;
+export default GameOver;

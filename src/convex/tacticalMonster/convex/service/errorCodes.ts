@@ -4,6 +4,7 @@
 export enum TacticalMonsterErrorCode {
     // 参赛资格错误 (1000-1999)
     GAME_CREATE_FAILED = 4000,
+    GAME_SURRENDER_FAILED = 4001,
     STAGE_NOT_UNLOCKED = 3000,
     STAGE_NOT_FOUND = 3001,
     INSUFFICIENT_ENERGY = 1000,

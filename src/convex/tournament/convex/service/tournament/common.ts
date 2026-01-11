@@ -14,23 +14,23 @@ export async function validateJoinTournament(ctx: any, params: {
     const { uid, tournamentType } = params;
     const player = await ctx.db.query("players").withIndex("by_uid", (q: any) => q.eq("uid", uid)).first();
     if (!player) {
-        return { ok: false,errorCode: TournamentErrorCode.PLAYER_NOT_FOUND, message: "玩家不存在" };
+        return { ok: false, errorCode: TournamentErrorCode.PLAYER_NOT_FOUND, message: "玩家不存在" };
     }
     const entryRequirements = tournamentType.entryRequirements;
     if (entryRequirements) {
         const minLevel = entryRequirements.playerLevel;
         if (player.level < minLevel) {
-            return { ok: false,errorCode: TournamentErrorCode.PLAYER_LEVEL_NOT_ENOUGH, message: "玩家等级不足" };
+            return { ok: false, errorCode: TournamentErrorCode.PLAYER_LEVEL_NOT_ENOUGH, message: "玩家等级不足" };
         }
         if (entryRequirements.entryFee) {
             if (entryRequirements.entryFee.coins && entryRequirements.entryFee.coins > player.coins) {
-                return { ok: false,errorCode: TournamentErrorCode.INSUFFICIENT_COINS, message: "金币不足" };
+                return { ok: false, errorCode: TournamentErrorCode.INSUFFICIENT_COINS, message: "金币不足" };
             }
             if (entryRequirements.entryFee.gems && entryRequirements.entryFee.gems > player.gems) {
-                return { ok: false,errorCode: TournamentErrorCode.INSUFFICIENT_GEMS, message: "宝石不足" };
+                return { ok: false, errorCode: TournamentErrorCode.INSUFFICIENT_GEMS, message: "宝石不足" };
             }
             if (entryRequirements.entryFee.energy && entryRequirements.entryFee.energy > player.energy) {
-                return { ok: false,errorCode: TournamentErrorCode.INSUFFICIENT_ENERGY, message: "能量不足" };
+                return { ok: false, errorCode: TournamentErrorCode.INSUFFICIENT_ENERGY, message: "能量不足" };
             }
         }
     }
@@ -250,11 +250,9 @@ export enum TournamentStatus {
     CANCELLED = 4
 }
 export enum MatchStatus {
-    MATCHING = 0,
-    MATCHED = 1,
-    COMPLETED = 2,
-    SETTLED = 3,
-    CANCELLED = 4
+    OPEN = 0,
+    COMPLETED = 1,
+    CANCELLED = 2
 }
 export interface JoinResult {
     tournamentId: string;

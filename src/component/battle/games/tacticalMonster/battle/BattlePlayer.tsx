@@ -145,7 +145,7 @@ const CombatActPanel: React.FC = () => {
     const { activeSkill, currentRound, characters } = useCombatManager();
     const [activeListOpen, setActiveListOpen] = useState(false);
     const [activeSkills, setActiveSkills] = useState<MonsterSkill[] | null>(null);
-    const { selectSkill, gameOver } = useCombatActHandler();
+    const { selectSkill, surrender } = useCombatActHandler();
 
     const handleSelectSkill = useCallback((skill: MonsterSkill) => {
         setActiveListOpen(false);
@@ -185,7 +185,7 @@ const CombatActPanel: React.FC = () => {
                     ))}
                 </div>
             )}
-            <div className="action-panel-item" onClick={() => gameOver()}>GAME OVER</div>
+            <div className="action-panel-item" onClick={() => surrender()}>GAME OVER</div>
         </div>
     );
 };
@@ -309,7 +309,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
 };
 
 interface BattlePlayerProps {
-    mode?: 'play' | 'watch' | 'replay';
+    mode?: 'join' | 'play' | 'watch' | 'replay';
     assetType?: ASSET_TYPE;
 }
 

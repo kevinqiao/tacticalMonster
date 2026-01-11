@@ -15,8 +15,73 @@ import { StageManagerService } from "../stage/stageManagerService";
  * 周期性的锦标赛(周期性的类型：daily、weekly、seasonal):可以包含(single_match、multi_match,best_of_series,elimination)
  */
 export class TournamentService {
+    static async loadGame(ctx: any, params: {
+        uid: string;
+        gameId: string;
+    }) {
+        const { uid, gameId } = params;
+        const game = await ctx.runQuery((internal as any).service.game.gameService.findGame, { gameId });
+        if (game) {
+            return { ok: true, game };
+        }
+        const response = await fetch(
+            getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.FIND_MATCH_GAME),
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    gameId,
+                }),
+            }
+        );
+        const result = await response.json();
 
-
+        if (result.ok) {
+            const { typeId, stageId } = result.data;
+            const game = await ctx.runMutation((internal as any).service.game.gameService.createGame, {
+                uid,
+                gameId,
+                ruleId: typeId,
+                stageId,
+            });
+            if (game) {
+                return { ok: true, game };
+            }
+        }
+        return { ok: false, errorCode: TacticalMonsterErrorCode.MATCH_NOT_FOUND };
+    }
+    static async surrender(ctx: any, params: {
+        uid: string;
+        gameId: string;
+    }) {
+        console.log("surrender params", params);
+        const { uid, gameId } = params;
+        // const surResult = await ctx.runMutation((internal as any).service.game.gameService.surrender, { gameId });
+        // if (surResult.ok) {
+        const response = await fetch(
+            getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.SURRENDER),
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    uid,
+                    gameId,
+                    finalScore: 100,
+                }),
+            }
+        );
+        const result = await response.json();
+        console.log("surrender result", result);
+        if (result.ok) {
+            return { ok: true };
+        }
+        // }
+        return { ok: false, errorCode: TacticalMonsterErrorCode.GAME_SURRENDER_FAILED };
+    }
 
     /**
      * 加入锦标赛
@@ -150,7 +215,17 @@ export class TournamentService {
         return ruleStatuses;
     }
 }
-
+export const loadGame = action({
+    args: {
+        uid: v.string(),
+        gameId: v.string(),
+    },
+    handler: async (ctx: any, args: any) => {
+        // return { ok: true, args }
+        const result = await TournamentService.loadGame(ctx, args);
+        return result;
+    },
+});
 export const join = action({
     args: {
         uid: v.string(),
@@ -162,7 +237,17 @@ export const join = action({
         return result;
     },
 });
-
+export const surrender = action({
+    args: {
+        uid: v.optional(v.string()),
+        gameId: v.string(),
+    },
+    handler: async (ctx: any, args: any) => {
+        console.log("surrender args", args);
+        const result = await TournamentService.surrender(ctx, args);
+        return result;
+    },
+});
 
 /**
  * 获取所有关卡的状态

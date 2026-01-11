@@ -13,6 +13,20 @@
     opacity: 0;
 }
 
+.tactical-monster-over-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50%;
+    height: 50%;
+    color: white;
+    background-color: rgb(218, 15, 174);
+}
+
 .team-layout-container {
     display: flex;
     justify-content: center;
@@ -35,6 +49,9 @@
 }
 
 .team-layout-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 200px;
     height: 50px;
     border-radius: 10px;

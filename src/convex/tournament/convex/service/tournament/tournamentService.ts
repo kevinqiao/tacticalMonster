@@ -143,7 +143,7 @@ export class TournamentService {
                     typeId: tournamentType.typeId,
                     uids: [uid]
                 });
-                const playerMatch = await MatchManager.joinMatch(ctx, { uid, match });
+                const playerMatch = await MatchManager.joinMatch(ctx, { uid, match: { ...match, type: "solo" } });
                 console.log("playerMatch:", stageId, teamPower);
                 return {
                     ok: true,
@@ -255,7 +255,6 @@ export class TournamentService {
                     description: tournamentType.description,
                     timeRange: tournamentType.timeRange,
                     gameType: tournamentType.gameType,
-                    gameRule: tournamentType.gameRule,
                     config: {
                         entryRequirements: tournamentType.entryRequirements,
                         gameRule: tournamentType.gameRule,

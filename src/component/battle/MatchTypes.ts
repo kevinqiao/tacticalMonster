@@ -32,9 +32,7 @@ export interface GamePlayerProps {
     onGameSubmit?: () => void;
 }
 export enum MatchStatus {
-    SEARCHING = 0,
-    START = 1,
-    COMPLETED = 2,
-    SUBMITTED = 3,
-    CANCELLED = 4
+    OPEN = 0,
+    COMPLETED = 1,
+    CANCELLED = 2
 }

@@ -1,11 +1,14 @@
+import { CloseModalEffects } from "@/animate/effect/CloseModalEffects";
+import { OpenModalEffects } from "@/animate/effect/OpenModalEffects";
 import { ModalContainer, ModalProp, useModalManager } from "@/service/ModalManager";
-import React, { lazy, Suspense, useMemo } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
 import "./render.css";
 
 
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
   './battle/PlayTournament': () => import('./battle/PlayTournament'),
+  './battle/GameOver': () => import('./battle/GameOver'),
 };
 
 // 错误边界组件
@@ -59,17 +62,32 @@ const getCachedComponent = (path: string): React.ComponentType<ModalProp> => {
 };
 
 const ModalComponent: React.FC<{ modalContainer: ModalContainer }> = ({ modalContainer }) => {
-  const { openedModals } = useModalManager();
-  const props: ModalProp = useMemo(() => {
-    const modal = openedModals.find((modal) => modal.name === modalContainer.name);
-    return modal ? { visible: true, data: modal.data ?? modalContainer.data } : { visible: false, data: modalContainer.data };
-  }, [openedModals, modalContainer]);
+  const { openedModals, closeModal } = useModalManager();
+  const index = useMemo(() => {
+    return openedModals.findIndex((modal) => modal.name === modalContainer.name);
+  }, [openedModals]);
+
+  const close = useCallback(() => {
+    CloseModalEffects["fadeOut"]({
+      container: modalContainer, onComplete: () => {
+        console.log("close modal", modalContainer.name);
+        closeModal();
+      }
+    });
+  }, [modalContainer, closeModal]);
 
   const SelectedComponent = useMemo(() => {
     return getCachedComponent(modalContainer.path);
   }, [modalContainer.path]);
+  useEffect(() => {
+    if (index >= 0) {
+      OpenModalEffects["fadeIn"]({ container: modalContainer, index: index });
+    } else {
+      CloseModalEffects["fadeOut"]({ container: modalContainer });
+    }
+  }, [index]);
 
-  return <SelectedComponent {...props} />;
+  return <Suspense fallback={<div />}><SelectedComponent name={modalContainer.name as string} container={modalContainer} visible={index >= 0 ? true : false} data={openedModals[index]?.data} close={close} /></Suspense>;
 };
 
 

@@ -1,6 +1,8 @@
 import { ModalConfig, Modals } from "@/model/PageConfiguration";
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 export interface ModalProp {
+  name: string;
+  container: ModalContainer;
   visible: boolean;
   data?: { [key: string]: any };
   close?: () => void;
@@ -11,7 +13,7 @@ export interface ModalItem {
 }
 
 export interface ModalContainer extends ModalConfig {
-  ele?: HTMLDivElement;
+  ele?: HTMLDivElement | null;
   closeEle?: HTMLDivElement;
   mask?: HTMLDivElement;
   preventNavigation?: boolean;
@@ -22,12 +24,14 @@ interface IModalContext {
   modalContainers: { [key: string]: ModalContainer };
   openModal: (name: string, data?: { [key: string]: any } | undefined) => void;
   closeModal: () => void;
+  closeAll: () => void;
 }
 const ModalContext = createContext<IModalContext>({
   openedModals: [],
   modalContainers: {},
   openModal: () => { },
   closeModal: () => { },
+  closeAll: () => { },
 });
 
 export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
@@ -35,21 +39,28 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
   const modalContainers: { [key: string]: ModalContainer } = useMemo(() => {
     return Modals
   }, []);
+
   const value = {
     openedModals,
     modalContainers,
-    openModal: (name: string, data?: { [key: string]: any } | undefined) => {
-      const modal = Modals[name];
-      if (modal) {
-        setOpenedModals((prev) => [...prev, { name, data }]);
-        return;
-      }
-    },
-    closeModal: () => {
-      setOpenedModals((prev) => prev.slice(0, -1));
-    }
+    openModal: useCallback((name: string, data?: { [key: string]: any } | undefined) => {
+      setOpenedModals((prev) => {
+        return prev.find((modal) => modal.name === name) ? prev : [...prev, { name, data }];
+      });
+    }, [modalContainers]),
+    closeModal: useCallback(() => {
+      setOpenedModals((prev) => {
+        const newModals = prev.slice(0, -1)
+        console.log("close modal", newModals);
+        return newModals;
+      })
+    }, []),
+    closeAll: useCallback(() => {
+      setOpenedModals([]);
+    }, []),
   }
 
+  console.log("openedModals", openedModals);
   return (
     <ModalContext.Provider value={value}>
       {children}

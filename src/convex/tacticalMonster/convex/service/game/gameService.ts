@@ -1648,21 +1648,10 @@ export class GameService implements CharacterGetter {
      * - 不处理奖励分配（奖励在玩家 claim 时处理）
      * - 不处理排名和分数计算（由 Tournament 模块负责）
      */
-    async notifyGameEnd(gameId: string): Promise<{
+    async surrender(gameId: string): Promise<{
         ok: boolean;
-        alreadyEnded?: boolean;
-        isSinglePlayer?: boolean;
-        matchInProgress?: boolean;
-        matchCompleted?: boolean;
         message?: string;
     }> {
-        const { TournamentProxyService } = await import("../tournament/tournamentProxyService");
-
-        // 1. 获取游戏信息
-        await this.load(gameId);
-        if (!this.game) {
-            throw new Error("游戏不存在");
-        }
 
         // 获取数据库中的游戏记录（用于状态检查和更新）
         const gameDoc = await this.dbCtx.db
@@ -1673,101 +1662,13 @@ export class GameService implements CharacterGetter {
         if (!gameDoc) {
             throw new Error("游戏不存在");
         }
-
-        if (gameDoc.status === 3) {  // 3: game over
-            // 游戏已经结束，避免重复处理
-            return { ok: true, alreadyEnded: true };
-        }
-
         // 2. 更新游戏状态为 3 (game over)
         await this.dbCtx.db.patch(gameDoc._id, {
             status: 3,
             lastUpdate: new Date().toISOString(),
         });
 
-        // 3. 判断是否为 Tournament 模式
-        const isTournamentMode = !!(gameDoc.matchId && gameDoc.matchId !== "");
-
-        if (!isTournamentMode) {
-            // 单玩家模式：直接返回，不处理奖励
-            return {
-                ok: true,
-                isSinglePlayer: true,
-                message: "单玩家游戏已结束",
-            };
-        }
-
-        // 4. Tournament 模式：通知 Tournament 模块游戏结束
-        // Tournament 模块会：
-        // - 更新 player_matches 状态为 COMPLETED
-        // - 检查 match 中所有游戏是否都结束
-        // - 如果都结束，结算 tournament 并保存到 player_tournaments
-        const tournamentResult = await TournamentProxyService.notifyGameEnd({
-            gameId: gameId,
-            matchId: (gameDoc as any).matchId,
-            finalScore: this.game.score || 0,
-        });
-
-        if (!tournamentResult.ok) {
-            throw new Error(tournamentResult.error || "通知 Tournament 模块失败");
-        }
-
-        // 5. 处理 Battle Pass 积分和任务事件（异步，不阻塞）
-        // 注意：这里需要获取玩家的排名信息，但新设计中 Tournament 不返回奖励决策
-        // 所以我们需要从 participant 中获取信息，或者只处理基础的事件
-        // 为了不阻塞，这里先获取参与者信息
-        const participants = await this.dbCtx.db
-            .query("mr_game_participants")
-            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-            .collect();
-
-        // 异步处理 Battle Pass 和任务事件（不阻塞游戏结束流程）
-        if (participants.length > 0) {
-            // 注意：Battle Pass 积分现在通过 Tournament 模块在结算时统一处理
-            // 这里只处理任务事件
-            const { TaskIntegration } = await import("../task/taskIntegration");
-
-            // 异步处理，不阻塞
-            Promise.all(participants.map(async (participant: any) => {
-                if (participant.status === "finished") {
-                    try {
-                        // 计算 Battle Pass 积分（使用临时排名，实际排名由 Tournament 计算）
-                        // 这里先给一个基础积分，或者等到 claim 时再处理
-                        // 为了简化，这里只处理任务事件
-
-                        // 处理任务事件（游戏完成）
-                        // 注意：实际排名需要在 Tournament 结算后才知道，这里先标记为完成
-                        await TaskIntegration.onGameComplete({
-                            uid: participant.uid,
-                            gameType: "tacticalMonster",
-                            isWin: false, // 实际排名需要等 Tournament 结算
-                            matchId: (gameDoc as any).matchId,
-                            tournamentId: (gameDoc as any).tournamentId,
-                            score: participant.finalScore || 0,
-                        });
-                    } catch (error) {
-                        console.error(`为玩家 ${participant.uid} 处理任务事件失败:`, error);
-                    }
-                }
-            })).catch((error) => {
-                console.error("处理 Battle Pass 和任务事件失败:", error);
-            });
-        }
-
-        // 6. 返回结果
-        if (tournamentResult.matchCompleted) {
-            return {
-                ok: true,
-                matchCompleted: true,
-                message: "游戏已结束，match 已完成结算",
-            };
-        } else {
-            return {
-                ok: true,
-                matchInProgress: true,
-                message: "游戏已结束，等待其他玩家完成",
-            };
-        }
+        return { ok: true };
     }
 }
 
@@ -2039,31 +1940,33 @@ export const findAllEvents = query({
  * 游戏结束
  * 处理游戏结束流程（阶段2：所有玩家完成或超时后）
  */
-export const endGame = internalMutation({
+export const surrender = mutation({
     args: {
         gameId: v.string(),
     },
     handler: async (ctx, args) => {
-        const gameManager = new GameService(ctx);
-        return await gameManager.notifyGameEnd(args.gameId);
-    },
+        return { ok: true };
+        //     const gameManager = new GameService(ctx);
+        //     return await gameManager.surrender(args.gameId);
+        // },
+    }
 });
 
-/**
- * 通知游戏结束（包装函数）
- * 供其他模块使用，使用 GameService 类方法
- */
-export async function notifyGameEnd(ctx: any, gameId: string): Promise<{
-    ok: boolean;
-    alreadyEnded?: boolean;
-    isSinglePlayer?: boolean;
-    matchInProgress?: boolean;
-    matchCompleted?: boolean;
-    message?: string;
-}> {
-    const gameManager = new GameService(ctx);
-    return await gameManager.notifyGameEnd(gameId);
-}
+// /**
+//  * 通知游戏结束（包装函数）
+//  * 供其他模块使用，使用 GameService 类方法
+//  */
+// export async function notifyGameEnd(ctx: any, gameId: string): Promise<{
+//     ok: boolean;
+//     alreadyEnded?: boolean;
+//     isSinglePlayer?: boolean;
+//     matchInProgress?: boolean;
+//     matchCompleted?: boolean;
+//     message?: string;
+// }> {
+//     const gameManager = new GameService(ctx);
+//     return await gameManager.notifyGameEnd(gameId);
+// }
 
 export default GameService;
 

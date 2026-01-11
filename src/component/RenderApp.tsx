@@ -41,7 +41,6 @@ const ErrorComponent: React.FC<{ path: string; error?: Error }> = ({ path, error
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
   './battle/BattlePlay': () => import('./battle/games/tacticalMonster/PlayTacticalMonster'),
-  './battle/TournamentPlay': () => import('./battle/TournamentPlay'),
   './kumu/battle/PlayMap': () => import('./kumu/battle/PlayMap'),
   './lobby/LobbyHome': () => import('./lobby/LobbyHome'),
   './lobby/LobbyControl': () => import('./kumu/lobby/LobbyControl'),
@@ -50,7 +49,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/view/Child3': () => import('./lobby/view/Child3'),
   './lobby/view/Child4': () => import('./lobby/view/Child4'),
   './lobby/center/GameList': () => import('./lobby/center/GameList'),
-  './lobby/tournament/Join': () => import('./lobby/tournament/Join'),
   './lobby/tournament/PlayMatch': () => import('./lobby/tournament/PlayMatch'),
   './lobby/control/NavControl': () => import('./lobby/control/NavControl'),
   './www/W3Home': () => import('./www/W3Home'),

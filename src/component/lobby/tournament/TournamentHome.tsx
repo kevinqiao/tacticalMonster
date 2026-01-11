@@ -1,8 +1,8 @@
 import { useModalManager } from "@/service/ModalManager";
+import { useTournamentManager } from "@/service/TournamentManager";
 import React, { useCallback } from "react";
 import "./style.css";
-import { useTournamentManager } from "@/service/TournamentManager";
-const convex_url = "https://beloved-mouse-699.convex.cloud";
+
 const TournamentItem: React.FC<{ item: any, onJoin: (item: any) => void }> = (props) => {
 
     return (
@@ -17,10 +17,10 @@ const TournamentList: React.FC = () => {
     const { activeTournaments: tournaments } = useTournamentManager();
 
     const join = useCallback(async (item: any) => {
-
-        // const result = await joinTournament(item.typeId, item.stageId);
-        openModal("play_tournament", { gameType: item.gameType, typeId: item.typeId, stageId: item.stageId });
-
+        console.log("join tournament", item);
+        const matchType = item.config.matchRules.maxPlayers === 1 ? "solo" : "multi_player";
+        openModal("play_tournament", { mode: "join", gameType: item.gameType, typeId: item.typeId, stageId: item.stageId, matchType: matchType });
+        // openModal("game_over", { gameId: "11111" });
 
     }, [openModal]);
     return (

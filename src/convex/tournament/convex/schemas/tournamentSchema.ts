@@ -240,6 +240,10 @@ export const tournamentSchema = {
         matchId: v.string(),
         tournamentId: v.optional(v.id("tournaments")),
         tournamentType: v.optional(v.string()),
+        type: v.union(
+            v.literal("solo"),
+            v.literal("multiplayer")
+        ),
         gameType: v.optional(v.string()),
         uid: v.string(),
         score: v.number(),

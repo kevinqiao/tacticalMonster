@@ -1,7 +1,9 @@
+import { MatchStatus } from "@/component/battle/MatchTypes";
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { api as tournamentApi } from "@/convex/tournament/convex/_generated/api";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useModalManager } from "./ModalManager";
 import { useUserManager } from "./UserManager";
 
 export interface Player {
@@ -24,6 +26,7 @@ export const URLS: { [k: string]: string } = {
 
 interface ITournamentContext {
   player: any;
+  // lastMatch: any;
   monsters: any[] | null;
   activeTournaments?: any[];
   joinTournament: (typeId: string, stageId: string) => Promise<any>;
@@ -31,6 +34,7 @@ interface ITournamentContext {
 
 const TournamentContext = createContext<ITournamentContext>({
   player: null,
+  // lastMatch: null,
   monsters: null,
   activeTournaments: [],
   joinTournament: async (typeId: string, stageId: string) => { },
@@ -46,7 +50,8 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
   const [monsters, setMonsters] = useState<any[] | null>(null);
   const [tournaments, setTournaments] = useState<any[] | null>(null);
   const [stageRules, setStageRules] = useState<any[] | null>(null);
-  const [lastMatch, setLastMatch] = useState<any | null>(null);
+  // const [lastMatch, setLastMatch] = useState<any | null>(null);
+  const { openModal } = useModalManager();
   const { user } = useUserManager();
 
 
@@ -55,7 +60,6 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
     const authenticate = async () => {
       const result = await tournamentClient.action(tournamentApi.service.auth.authenticate, { uid: user.uid, token: user.token });
       if (result) {
-
         setPlayer(result);
       }
     }
@@ -76,7 +80,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
     if (!user?.uid || !player) return;
     const loadTournaments = async () => {
       const result = await tournamentClient.query(tournamentApi.service.tournament.tournamentService.getAvailableTournaments, { uid: user?.uid });
-
+      console.log("loadTournaments result", result);
       if (result?.success) {
         setTournaments(result?.tournaments || []);
       }
@@ -87,35 +91,25 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
 
     const loadStageStatuses = async () => {
       const result = await tacticalMonsterClient.mutation(tacticalMonsterApi.service.tournament.tournamentService.getAllRuleStatuses, { uid: user?.uid });
-
       setStageRules(result);
     }
     if (user?.uid && monsters && tacticalMonsterClient) {
-
       loadStageStatuses();
     }
   }, [user, monsters, tacticalMonsterClient]);
   useEffect(() => {
     // 使用 onUpdate 订阅数据更新
     if (!user?.uid || !client) return;
-    const unsubscribe = client.onUpdate(
-      tournamentApi.service.tournament.matchManager.findMatch,
-      { uid: user?.uid, createdAt: lastMatch?.createdAt },
-
-      (messages) => {
-        console.log("收到新数据:", messages);
-        if (messages) {
-          setLastMatch(messages);
-        }
-      },
-      (error) => {
-        console.error("订阅错误:", error);
+    client.query(tournamentApi.service.tournament.matchManager.findMatch, { uid: user?.uid }).then((result) => {
+      console.log("findMatch result", result);
+      if (result && result.status === MatchStatus.OPEN) {
+        openModal("play_tournament", { mode: "play", gameType: result.gameType, gameId: result.gameId, matchType: result.type });
       }
-    );
+    }).catch((error: any) => {
+      console.error("findMatch error", error);
+    });
 
-    // 组件卸载时取消订阅
-    return () => unsubscribe();
-  }, [user, client, lastMatch]);
+  }, [user, client, openModal]);
 
 
   const activeTournaments = useMemo(() => {
@@ -148,6 +142,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
     console.log("joinTournament result", result);
     return result;
   }, [user, tacticalMonsterClient]);
+
 
   return (
     <TournamentContext.Provider value={{ player, monsters, activeTournaments, joinTournament }}>

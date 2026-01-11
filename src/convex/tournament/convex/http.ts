@@ -5,7 +5,22 @@ import { httpAction } from "./_generated/server";
 
 
 const http = httpRouter();
-
+http.route({
+  path: "/surrender",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const body = await request.json();
+    console.log("surrender body", body);
+    const res = await ctx.runMutation(internal.service.tournament.matchManager.surrender, { uid: body.uid, gameId: body.gameId });
+    return new Response(JSON.stringify(res), {
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+      }),
+    });
+  }),
+});
 http.route({
   path: "/joinTournament",
   method: "POST",
@@ -68,23 +83,7 @@ http.route({
     });
   }),
 });
-http.route({
-  path: "/submitGameScore",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    const body: { gameId: string, score: number } = await request.json();
-    const res = await ctx.runMutation(internal.service.tournament.matchManager.submitGameScore, { gameId: body.gameId, score: body.score });
 
-    return new Response(JSON.stringify(res), {
-      status: 200,
-      headers: new Headers({
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json",
-
-      }),
-    });
-  }),
-});
 http.route({
   path: "/test",
   method: "POST",
@@ -237,35 +236,34 @@ http.route({
   }),
 });
 http.route({
-  path: "/completeGame",
+  path: "/submitScore",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     try {
       // 1. 解析请求体
       const body = await request.json();
-      const { gameId, matchId, finalScore } = body;
+      const { gameId, finalScore } = body;
 
-      // 2. 参数验证
-      if (!gameId || !matchId) {
-        return new Response(
-          JSON.stringify({
-            ok: false,
-            error: "缺少必要参数: gameId, matchId",
-          }),
-          {
-            status: 400,
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            },
-          }
-        );
-      }
+      // // 2. 参数验证
+      // if (!gameId || !matchId) {
+      //   return new Response(
+      //     JSON.stringify({
+      //       ok: false,
+      //       error: "缺少必要参数: gameId, matchId",
+      //     }),
+      //     {
+      //       status: 400,
+      //       headers: {
+      //         "Content-Type": "application/json",
+      //         "Access-Control-Allow-Origin": "*",
+      //       },
+      //     }
+      //   );
+      // }
 
       // 3. 调用内部 mutation 处理游戏结束通知
-      const result = await ctx.runMutation(internal.service.tournament.matchManager.notifyGameEnd, {
+      const result = await ctx.runMutation(internal.service.tournament.matchManager.submitScore, {
         gameId,
-        matchId,
         finalScore: finalScore || 0,
       });
 

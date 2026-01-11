@@ -4,6 +4,7 @@
  * 参考 solitaireSolo 的 useActHandler 模式
  */
 
+import { useModalManager } from "@/service/ModalManager";
 import { useConvex } from "convex/react";
 import gsap from "gsap";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -34,7 +35,6 @@ const useCombatActHandler = () => {
     const {
         game,
         map,
-        gameId,
         characters,
         gridCells,
         hexCell,
@@ -42,14 +42,12 @@ const useCombatActHandler = () => {
         submitScore,
         setActiveSkill,
         eventQueue,
-        updateGame,
         mode = 'play'
     } = useCombatManager();
     const convex = useConvex();
-
+    const { openModal } = useModalManager();
     // ✅ 使用共享计分服务（play 模式）
     const { calculateActionScore } = useScoreCalculation(
-        gameId || null,
         game,
         [],
         mode
@@ -69,21 +67,21 @@ const useCombatActHandler = () => {
 
     // 更新分数
     const updateScore = useCallback(async (scoreDelta: number) => {
-        if (!gameId) return;
+        if (!game) return;
         try {
             await convex.mutation((api as any).service.game.gameService.updateScore, {
-                gameId,
+                gameId: game.gameId,
                 scoreDelta
             });
         } catch (error) {
             console.error("Failed to update score", error);
         }
-    }, [gameId, convex]);
+    }, [game, convex]);
 
     const walk = useCallback(async (to: { q: number; r: number }) => {
         // watch/replay 模式：禁止操作
         if (mode === 'watch' || mode === 'replay') return;
-        if (!gameId || !characters || !gridCells || !currentRound || !map || !game) return;
+        if (!characters || !gridCells || !currentRound || !map || !game) return;
 
         const currentTurn = currentRound.turns.find(
             (t) => t.status === 1 || t.status === 2
@@ -156,12 +154,12 @@ const useCombatActHandler = () => {
         const rollback = () => {
             if (snapshot) {
                 StateSnapshot.restoreSnapshot(game, snapshot);
-                updateGame(() => { }); // 触发重新渲染
+                // updateGame(() => { }); // 触发重新渲染
             } else {
                 // 如果没有快照，至少恢复位置
                 character.q = originalQ;
                 character.r = originalR;
-                updateGame(() => { });
+                // updateGame(() => { });
             }
             console.log("Walk rolled back");
         };
@@ -204,7 +202,7 @@ const useCombatActHandler = () => {
             // 1. 应用状态更新（乐观执行）
             character.q = pendingUpdate.q;
             character.r = pendingUpdate.r;
-            updateGame(() => { }); // 触发重新渲染
+            // updateGame(() => { }); // 触发重新渲染
 
             // 2. 清除视觉反馈
             if (character.container) {
@@ -227,7 +225,7 @@ const useCombatActHandler = () => {
             // 3. 验证后端
             try {
                 const result = await convex.mutation((api as any).service.game.gameService.walk, {
-                    gameId,
+                    gameId: game.gameId,
                     to: { q: col, r: to.r },
                     identifier: characterIdentifier
                 });
@@ -249,12 +247,12 @@ const useCombatActHandler = () => {
                 // TODO: 显示网络错误提示
             }
         });
-    }, [map, gameId, characters, currentRound, gridCells, convex, updateScore, playWalk, game, operationQueue, updateGame]);
+    }, [map, game, characters, currentRound, gridCells, convex, updateScore, playWalk, game, operationQueue]);
 
     const selectSkill = useCallback(async (skill: MonsterSkill) => {
         // watch/replay 模式：禁止操作
         if (mode === 'watch' || mode === 'replay') return;
-        if (!currentRound || !gameId) return;
+        if (!currentRound || !game) return;
 
         const currentTurn = currentRound.turns.find(
             (t) => t.status === 1 || t.status === 2
@@ -278,7 +276,7 @@ const useCombatActHandler = () => {
 
         try {
             await convex.mutation((api as any).service.game.gameService.selectSkill, {
-                gameId,
+                gameId: game.gameId,
                 data: {
                     skillId: skill.id
                 }
@@ -287,7 +285,7 @@ const useCombatActHandler = () => {
         } catch (error) {
             console.error("Select skill failed", error);
         }
-    }, [currentRound, gameId, playSkillSelect, setActiveSkill, convex, updateScore]);
+    }, [currentRound, game, playSkillSelect, setActiveSkill, convex, updateScore]);
 
     const standBy = useCallback((character: MonsterSprite) => {
         console.log("standBy", character);
@@ -299,28 +297,28 @@ const useCombatActHandler = () => {
         console.log("defend");
     }, [mode]);
 
-    const gameOver = useCallback(async () => {
+    const surrender = useCallback(async () => {
         // watch/replay 模式：禁止操作
         if (mode === 'watch' || mode === 'replay') return;
-        if (!gameId) return;
+        if (!game || !user?.uid) return;
 
         try {
-            const result = await convex.mutation((api as any).service.game.gameService.gameOver, {
-                gameId
+            console.log("surrender user", user);
+            const result = await convex.action((api as any).service.tournament.tournamentService.surrender, {
+                uid: user.uid,
+                gameId: game.gameId,
             });
-
-            if (result.ok && result.data) {
-                // 提交最终分数
-                submitScore(result.data.totalScore);
-            }
+            console.log("surrender result", result);
+            if (result.ok)
+                openModal("game_over", { gameId: game.gameId });
         } catch (error) {
             console.error("Game over failed", error);
         }
-    }, [gameId, convex, submitScore]);
+    }, [user, game, convex, submitScore]);
 
     // 处理Boss回合（预测执行）
     const handleBossTurn = useCallback(async (bossCharacter: MonsterSprite) => {
-        if (!gameId || !game || !currentRound || !characters) return;
+        if (!game || !game || !currentRound || !characters) return;
 
         const round = currentRound.no || 0;
 
@@ -331,7 +329,7 @@ const useCombatActHandler = () => {
         bossTurnProcessedRef.current.add(round);
 
         // 获取seed（从boss.behaviorSeed获取）
-        const behaviorSeed = (game as any).boss?.behaviorSeed || (game as any).seed || `game_${gameId}`;
+        const behaviorSeed = (game as any).boss?.behaviorSeed || (game as any).seed || `game_${game.gameId}`;
 
         // 获取玩家角色（目标）
         const targets = characters.filter(
@@ -387,7 +385,7 @@ const useCombatActHandler = () => {
 
         // === 步骤3：等待后端确认 ===
         // 后端会通过事件系统发送确认，在下面的useEffect中处理
-    }, [gameId, game, currentRound, characters, bossAIPredictor]);
+    }, [game, currentRound, characters, bossAIPredictor]);
 
     // AI 回合自动执行（修改为支持Boss预测）
     useEffect(() => {
@@ -421,7 +419,7 @@ const useCombatActHandler = () => {
     const useSkill = useCallback(async (skillId: string, target?: MonsterSprite) => {
         // watch/replay 模式：禁止操作
         if (mode === 'watch' || mode === 'replay') return;
-        if (!gameId || !characters || !currentRound || !game || !optimisticExecutor) return;
+        if (!game || !characters || !currentRound || !game || !optimisticExecutor) return;
 
         const currentTurn = currentRound.turns.find(
             (t) => t.status === 1 || t.status === 2
@@ -461,7 +459,7 @@ const useCombatActHandler = () => {
         }
 
         // 获取游戏种子和回合号
-        const gameSeed = (game as any).boss?.behaviorSeed || `game_${gameId}`;
+        const gameSeed = (game as any).boss?.behaviorSeed || `game_${game.gameId}`;
         const round = currentRound.no || 0;
 
         // === 延迟更新：统一在动画完成后更新 ===
@@ -497,7 +495,7 @@ const useCombatActHandler = () => {
             rollback: () => {
                 if (snapshot) {
                     StateSnapshot.restoreSnapshot(game, snapshot);
-                    updateGame(() => { });
+                    // updateGame(() => { });
                 }
             }
         };
@@ -553,15 +551,15 @@ const useCombatActHandler = () => {
 
                 // ✅ 乐观更新得分（前端立即显示）
                 if (scoreDelta > 0 && game) {
-                    updateGame((prevGame) => {
-                        if (prevGame) {
-                            return {
-                                ...prevGame,
-                                score: (prevGame.score || 0) + scoreDelta
-                            };
-                        }
-                        return prevGame;
-                    });
+                    // updateGame((prevGame) => {
+                    //     if (prevGame) {
+                    //         return {
+                    //             ...prevGame,
+                    //             score: (prevGame.score || 0) + scoreDelta
+                    //         };
+                    //     }
+                    //     return prevGame;
+                    // });
                 }
             }
 
@@ -575,7 +573,7 @@ const useCombatActHandler = () => {
 
                     // 应用乐观执行的结果（已经在 executeOptimistically 中执行了）
                     // 这里只需要触发重新渲染
-                    updateGame(() => { });
+                    // updateGame(() => { });
 
                     // 清除视觉反馈
                     if (character.container) {
@@ -587,7 +585,7 @@ const useCombatActHandler = () => {
 
                     // 6. 发送请求到后端
                     const backendResponse = await convex.mutation((api as any).service.game.gameService.useSkill, {
-                        gameId,
+                        gameId: game.gameId,
                         data: {
                             ...casterIdentifier,
                             skillId,
@@ -634,7 +632,7 @@ const useCombatActHandler = () => {
             // 网络错误等异常情况，回滚
             pendingUpdate.rollback();
         }
-    }, [gameId, characters, currentRound, convex, game, optimisticExecutor, operationQueue, updateGame, playSkill]);
+    }, [game, characters, currentRound, convex, game, optimisticExecutor, operationQueue, playSkill]);
 
     /**
      * 攻击方法（简化版：内部调用 useSkill）
@@ -716,7 +714,7 @@ const useCombatActHandler = () => {
         standBy,
         selectSkill,
         useSkill,
-        gameOver
+        surrender
     };
 };
 

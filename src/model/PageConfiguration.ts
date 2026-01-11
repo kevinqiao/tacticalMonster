@@ -8,15 +8,6 @@ export const PlayPlace =
     logout: "/play/lobby/c3",
     navs: [
         {
-            name: "tournament",
-            auth: 0,
-            path: "./battle/TournamentPlay",
-            uri: "tournament",
-            class: "page_container",
-            enter: "fadeIn",
-            exit: "fadeOut",
-        },
-        {
             name: "lobby",
             auth: 0,
             path: "./lobby/LobbyHome",
@@ -32,7 +23,6 @@ export const PlayPlace =
                 { name: "child3", class: "child_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
                 { name: "child4", class: "pop-right", init: "pops1", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", close: { type: 2, effect: "popRightOut" } },
                 { name: "center", class: "pop-center-large", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
-                { name: "join", class: "pop-center-large", init: "center", path: "./lobby/tournament/Join", uri: "join", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
                 { name: "topNav", class: "pop-right", init: "pops1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", close: { type: 1, effect: "popRightOut" } },
 
             ]
@@ -60,6 +50,14 @@ export const Modals: Record<string, ModalConfig> = {
     "play_tournament": {
         name: "play_tournament",
         path: "./battle/PlayTournament",
+        auth: 0,
+        init: "fadeIn",
+        openEffect: "popCenterIn",
+        closeEffect: "popCenterOut",
+    },
+    "game_over": {
+        name: "game_over",
+        path: "./battle/GameOver",
         auth: 0,
         init: "fadeIn",
         openEffect: "popCenterIn",
