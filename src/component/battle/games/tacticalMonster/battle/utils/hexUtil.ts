@@ -2,7 +2,7 @@
  * Tactical Monster 六边形工具函数
  */
 
-import { MapModel } from "../types/CombatTypes";
+import { MapModel } from "../types/gameTypes";
 
 export const hexToPixel = (q: number, r: number, hexWidth: number, hexHeight: number): { q: number; r: number; x: number; y: number } => {
     const isOddRow = r % 2 !== 0;

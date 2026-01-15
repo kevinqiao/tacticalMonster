@@ -1,13 +1,17 @@
 /**
  * Tactical Monster 技能管理器（前端）
  * 统一使用后端 SkillManager 的 static 方法
- * 添加前端特有的功能：被动技能触发、乐观更新支持
+ * 提供前端特有的功能：乐观更新支持、UI显示
+ * 
+ * 注意：被动技能触发现在由后端统一处理，确保状态一致性
  */
 
-import { MonsterSkill, SkillEffect, SkillEffectType, getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { MonsterSkill, getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { SkillManager as BackendSkillManager } from "../../../../../../convex/tacticalMonster/convex/service/skill/skillManager";
 import { GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
-import { GameModel, MonsterSprite } from '../types/CombatTypes';
+import { MonsterSprite } from "../types/CombatTypes";
+import { GameModel } from '../types/gameTypes';
+import { SkillEffect, SkillEffectType } from "../types/skillTypes";
 import { applyEffect, calculateEffectValue } from '../utils/effectUtils';
 import { calculateHexDistance } from '../utils/hexUtil';
 import { SeededRandom } from '../utils/seededRandom';
@@ -15,7 +19,9 @@ import { getCharactersFromGameModel } from '../utils/typeAdapter';
 
 /**
  * 前端 SkillManager - 统一使用后端 SkillManager
- * 提供前端特有的功能：被动技能触发、乐观更新支持
+ * 提供前端特有的功能：乐观更新支持、UI显示
+ * 
+ * 注意：被动技能触发现在由后端统一处理，确保状态一致性
  */
 export class SkillManager {
     /**
@@ -53,24 +59,18 @@ export class SkillManager {
         rng?: SeededRandom
     ): { success: boolean; message?: string; cooldownSet?: number; resourcesConsumed?: any; effects?: any[] } {
         // 使用后端 SkillManager
+        // 注意：被动技能触发现在由后端统一处理，确保状态一致性
         const result = BackendSkillManager.useSkill(skillId, monster, targets, context);
-
-        // 如果成功，处理被动技能触发（前端特有）
-        if (result.success && targets && targets.length > 0) {
-            const skill = getSkillConfig(skillId);
-            if (skill?.canTriggerCounter) {
-                // 检查目标是否有被动技能需要触发（如反击）
-                for (const target of targets) {
-                    this.checkPassiveSkillTrigger(target, monster, 'on_skill_attacked', rng);
-                }
-            }
-        }
 
         return result;
     }
 
     /**
-     * 检查被动技能触发（前端特有功能）
+     * 检查被动技能触发（已废弃）
+     * 
+     * @deprecated 被动技能触发现在由后端统一处理，确保状态一致性
+     * 此方法保留仅用于向后兼容或特殊UI场景
+     * 
      * @param monster 检查被动技能的角色
      * @param triggerTarget 触发目标（如攻击者）
      * @param triggerType 触发类型（如 "on_hit", "on_skill_attacked"）
@@ -82,19 +82,23 @@ export class SkillManager {
         triggerType: string,
         rng?: SeededRandom
     ): void {
+        // 注意：被动技能触发现在由后端统一处理
+        // 此方法保留仅用于向后兼容或特殊UI场景
+        // 不建议在业务逻辑中使用，因为会导致前后端状态不一致
+        console.warn('checkPassiveSkillTrigger is deprecated. Passive skills are now handled by backend.');
+
         if (!monster.skills || !Array.isArray(monster.skills)) return;
 
         // 检查所有被动技能
         for (const skillId of monster.skills) {
-            const skillIdStr = typeof skillId === 'string' ? skillId : skillId.id;
-            const skill = typeof skillId === 'string' ? getSkillConfig(skillId) : skillId;
+            const skill = getSkillConfig(skillId);
 
             if (!skill || skill.type !== 'passive') continue;
 
             // 检查是否应该触发（使用后端方法）
-            if (BackendSkillManager.shouldTriggerPassiveSkill(skillIdStr, monster, triggerType)) {
+            if (BackendSkillManager.shouldTriggerPassiveSkill(skillId, monster, triggerType)) {
                 // 获取被动技能效果
-                const effects = BackendSkillManager.getPassiveSkillEffects(skillIdStr, triggerType);
+                const effects = BackendSkillManager.getPassiveSkillEffects(skillId, triggerType);
 
                 // 应用效果到触发目标
                 for (const effect of effects) {
@@ -238,13 +242,13 @@ export class SkillManager {
         }
 
         for (const skillId of monster.skills) {
-            const skillIdStr = typeof skillId === 'string' ? skillId : skillId.id;
-            const skill = typeof skillId === 'string' ? getSkillConfig(skillId) : skillId;
+
+            const skill = getSkillConfig(skillId);
 
             if (!skill) continue;
 
             if (skill.type === 'active' || skill.type === 'master') {
-                const availability = this.checkSkillAvailability(skillIdStr, monster, context);
+                const availability = this.checkSkillAvailability(skillId, monster, context);
                 if (availability.available) {
                     availableSkills.push(skill);
                 }

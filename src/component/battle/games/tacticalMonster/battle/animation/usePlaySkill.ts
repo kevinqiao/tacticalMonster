@@ -5,14 +5,15 @@
 
 import gsap from "gsap";
 import { useCallback, useMemo } from "react";
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { SkillEffectType } from "../config/skillConfigs";
+import { COMMON_SKILLS, MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { useCombatManager } from "../service/CombatManager";
 import { MonsterSprite } from "../types/CombatTypes";
+import { SkillEffectType } from "../types/skillTypes";
 import { SkillAnimationSelector } from "./SkillAnimationSelector";
 
 const usePlaySkill = () => {
-    const { characters, gridCells, hexCell, map, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, gridCells, hexCell, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { map } = game || {};
     const selector = useMemo(() => new SkillAnimationSelector(), []);
 
     // 技能特效播放函数（整合到 usePlaySkill 中）
@@ -134,18 +135,18 @@ const usePlaySkill = () => {
         skillId: string,
         targets: MonsterSprite[],
         onComplete: () => void | Promise<void>
-    ) => {
+    ): gsap.core.Timeline | null => {
         if (!gridCells || !hexCell || !map || !characters) {
             Promise.resolve(onComplete()).catch(console.error);
-            return;
+            return null;
         }
 
         // 获取技能配置
-        const skill: MonsterSkill | undefined = caster.skills?.find(s => s.id === skillId);
+        const skill: MonsterSkill | undefined = COMMON_SKILLS[skillId];
         if (!skill) {
             console.warn(`Skill ${skillId} not found for character ${caster.character_id}`);
             Promise.resolve(onComplete()).catch(console.error);
-            return;
+            return null;
         }
 
         // 选择动画
@@ -283,6 +284,9 @@ const usePlaySkill = () => {
         }
 
         tl.play();
+
+        // ✅ 返回 timeline，以便外部可以链式添加后续动画（如被动技能）
+        return tl;
     }, [characters, gridCells, hexCell, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect, playbackSpeed]);
 
     return { playSkill };

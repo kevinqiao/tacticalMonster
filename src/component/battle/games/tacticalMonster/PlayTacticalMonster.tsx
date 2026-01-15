@@ -10,7 +10,8 @@ import { PlayProps } from "../../PlayTournament";
 import usePreGameAnimate from "./animation/usePreGameAnimate";
 import BattlePlayer from "./battle/BattlePlayer";
 import CombatManager from "./battle/service/CombatManager";
-import { GameModel } from "./battle/types/CombatTypes";
+
+import { GameModel } from "./battle/types/gameTypes";
 import "./styles.css";
 import TeamLayout from "./TeamLayout";
 interface Props {
@@ -31,7 +32,7 @@ const PlayGame: React.FC<Props> = ({
         <div className="tactical-monster-game-container">
             <ConvexProvider client={client}>
                 <CombatManager game={game} onGameSubmit={onGameSubmit}>
-                    <BattlePlayer mode={mode} />
+                    <BattlePlayer />
                 </CombatManager>
             </ConvexProvider>
         </div>
@@ -43,6 +44,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     const teamLayoutRef = useRef<HTMLDivElement>(null);
     const playGameRef = useRef<HTMLDivElement>(null);
     const [game, setGame] = useState<GameModel | null>(null);
+    const loadingGameIdRef = useRef<string | null>(null); // 防止重复加载
     const { user } = useUserManager();
     const { joinTournament } = useTournamentManager();
     const tournamentClient = React.useMemo(() => { return new ConvexClient(URLS.tournament) }, []);
@@ -65,13 +67,15 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     useEffect(() => {
         if (!props.visible) {
             setGame(null);
+            loadingGameIdRef.current = null;
             playInit();
             return;
         }
         if (props.mode === "join") {
             openTeamLayout();
         } else {
-            if (props.gameId) {
+            if (props.gameId && loadingGameIdRef.current !== props.gameId) {
+                loadingGameIdRef.current = props.gameId;
                 playLoading();
                 tacticalMonsterClient.action(tacticalMonsterApi.service.tournament.tournamentService.loadGame, { uid: user?.uid, gameId: props.gameId }).then((res) => {
                     console.log("loadGame result", res);
@@ -83,7 +87,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
             }
         }
 
-    }, [props]);
+    }, [props, user?.uid, tacticalMonsterClient]);
     useEffect(() => {
         // 使用 onUpdate 订阅数据更新
         if (!user?.uid || !tournamentClient || !tacticalMonsterClient) return;
@@ -95,13 +99,17 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
                 if (!match) return;
                 if (match.status === MatchStatus.OPEN) {
                     if (props.mode === "join" && props.matchType !== "solo") {
-                        console.log("匹配成功", match);
-                        tacticalMonsterClient.action(tacticalMonsterApi.service.tournament.tournamentService.loadGame, { uid: user?.uid, gameId: match.gameId }).then((res) => {
-                            console.log("getPlayerMonsters result", res);
-                            if (res.ok) {
-                                setGame(res.game);
-                            }
-                        });
+                        // 防止重复加载相同的 gameId
+                        if (loadingGameIdRef.current !== match.gameId) {
+                            loadingGameIdRef.current = match.gameId;
+                            console.log("匹配成功", match);
+                            tacticalMonsterClient.action(tacticalMonsterApi.service.tournament.tournamentService.loadGame, { uid: user?.uid, gameId: match.gameId }).then((res) => {
+                                console.log("getPlayerMonsters result", res);
+                                if (res.ok) {
+                                    setGame(res.game);
+                                }
+                            });
+                        }
                     }
                 }
             },

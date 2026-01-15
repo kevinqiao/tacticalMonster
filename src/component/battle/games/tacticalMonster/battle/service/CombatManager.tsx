@@ -4,65 +4,64 @@
  * 基于 solitaireSolo 的架构模式实现
  */
 
-import { useConvex, useQuery } from "convex/react";
+
+import { useQuery } from "convex/react";
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useUserManager } from "service/UserManager";
+import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../../../../../convex/tacticalMonster/convex/_generated/api";
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+
 import { useGameReplay } from "../hooks/useGameReplay";
 import {
     CombatEvent,
-    CombatRound,
     GameMode,
-    GameModel,
-    GameReport,
     GridCell,
-    ICombatContext,
-    MonsterSprite
+    MonsterSprite,
+    ReplayControls
 } from "../types/CombatTypes";
+import { GameModel } from "../types/gameTypes";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
-
-const defaultRound: CombatRound = {
-    no: 0,
-    turns: [],
-    status: 0
-};
+export interface ICombatContext {
+    game: GameModel | null;
+    // activeSkill: MonsterSkill | null;
+    coordDirection: number;
+    hexCell: { width: number; height: number };
+    // map?: MapModel;
+    gridCells: GridCell[][] | null;
+    timeClock?: number;
+    characters?: MonsterSprite[];
+    // currentRound?: CombatRound;
+    eventQueue: CombatEvent[];
+    processedEvents?: CombatEvent[];  // ✅ Watch 模式：已处理的事件列表（用于实时计算分数）
+    score: number;  // 新增：当前分数
+    changeCell: React.Dispatch<React.SetStateAction<{ width: number; height: number }>>;
+    // setActiveSkill: (skill: MonsterSkill | null) => void;
+    mode?: GameMode;  // 游戏模式
+    replay?: ReplayControls;  // 重播控制（仅在 watch 模式）
+    playbackSpeed?: number;  // 回放速度（仅在 replay 模式，用于同步动画速度）
+}
 
 export const CombatContext = createContext<ICombatContext>({
     game: null,
-    activeSkill: null,
     coordDirection: 0,
-    currentRound: defaultRound,
+    // currentRound: defaultRound,
     hexCell: { width: 0, height: 0 },
-    resourceLoad: { character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 },
-    map: { rows: 7, cols: 8 },
+    // resourceLoad: { character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 },
+    // map: { rows: 7, cols: 8 },
     gridCells: null,
     timeClock: 0,
     eventQueue: [],
-    gameReport: null,
     score: 0,
-    // config: DEFAULT_GAME_CONFIG,
-    submitScore: () => null,
-    onGameOver: () => null,
-    setResourceLoad: () => null,
+    // setResourceLoad: () => null,
     changeCell: () => null,
-    setActiveSkill: () => null,
+    // setActiveSkill: () => null,
     mode: 'play',
     playbackSpeed: 1.0
 });
 
-export const useCombatManager = () => {
-    const context = useContext(CombatContext);
-    if (!context) {
-        throw new Error("useCombatManager must be used within a CombatManager");
-    }
-    return context;
-};
 
 /**
  * CombatManager Props
@@ -81,38 +80,25 @@ interface CombatManagerProps {
     children: ReactNode;
     game: GameModel | null;
     mode?: GameMode;
-    onGameSubmit?: () => void;
 }
 
 const CombatManager: React.FC<CombatManagerProps> = ({
     children,
     game = null,
     mode = 'play',
-    onGameSubmit
 }) => {
-    const [activeSkill, setActiveSkill] = useState<MonsterSkill | null>(null);
+
     const [coordDirection, setCoordDirection] = useState<number>(0);
     const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
     const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
     const [lastTime, setLastTime] = useState<number | undefined>(undefined);
-    const [resourceLoad, setResourceLoad] = useState<{
-        character: number;
-        gridContainer: number;
-        gridGround: number;
-        gridWalk: number;
-    }>({ character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 });
-    const [gameReport, setGameReport] = useState<GameReport | null>(null);
     const [score, setScore] = useState<number>(0);
     // ✅ Watch 模式：收集所有已处理的事件用于实时计算分数
     const [processedEvents, setProcessedEvents] = useState<any[]>([]);
-    // 用于保留角色的UI相关字段（container, skeleton, animator等）
-    const existingSpritesRef = useRef<Map<string, MonsterSprite>>(new Map());
+    // ✅ Replay 模式：维护游戏状态（从事件数据中提取）
+    const [replayGameState, setReplayGameState] = useState<GameModel | null>(null);
 
-
-
-    const convex = useConvex();
-    const { user } = useUserManager();
 
     // ✅ 重播功能（仅在 replay 模式）
     // 在 replay 模式下，useGameReplay 会：
@@ -135,13 +121,13 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         }
     }, [mode, replay]);
 
-    // ✅ 查询事件（play 和 watch 模式都需要实时查询）
-    // - play 模式：实时查询新事件，支持乐观更新
+    // ✅ 查询事件（仅 watch 模式需要实时查询）
+    // - play 模式：不通过事件队列查询，事件由后端响应直接处理（通过 phaseChanges）
     // - watch 模式：实时查询新事件，但不允许操作
     // - replay 模式：跳过查询（使用 findAllEvents 一次性加载）
     const events: any = useQuery(
         api.service.game.gameService.findEvents,
-        (game?.gameId && (mode === 'play' || mode === 'watch')) ? { gameId: game.gameId, lastTime } : "skip"
+        (game?.gameId && mode === 'watch') ? { gameId: game.gameId, lastTime } : "skip"
     );
 
     // 查询游戏报告
@@ -150,49 +136,61 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         game?.gameId ? { gameId: game.gameId } : "skip"
     );
 
-    // ✅ Watch 模式：如果后端不存储 score，则基于事件实时计算分数
-    // 如果后端存储 score，可以取消注释下面的代码来实时查询游戏状态
-    // const gameState: any = useQuery(
-    //     (api as any).service.game.gameService.getGame,
-    //     (gameId && finalMode === 'watch') ? { gameId } : "skip"
-    // );
+    // ✅ Watch 模式：实时查询游戏状态以同步数据更新
+    // 在 watch 模式下，通过实时查询游戏状态来确保 UI 与后端数据同步
+    const gameState: any = useQuery(
+        api.service.game.gameService.getGame,
+        (game?.gameId && mode === 'watch') ? { gameId: game.gameId } : "skip"
+    );
 
+    // ✅ Watch 模式：使用查询到的游戏状态（如果可用）
+    // ✅ Replay 模式：使用从事件数据中提取的游戏状态（如果可用）
+    // 优先级：watch 模式查询结果 > replay 模式状态 > 传入的 game prop
+    const effectiveGame = (mode === 'watch' && gameState)
+        ? gameState
+        : (mode === 'replay' && replayGameState)
+            ? replayGameState
+            : game;
 
-
-    // ✅ 处理事件更新（区分乐观事件和真实事件，play 和 watch 模式都需要）
-    // 此 useEffect 监听 events 变化（来自 useQuery），将新事件推入 eventQueue
-    // replay 模式跳过此处理（事件由 GameReplayManager 通过回调注入）
+    // ✅ Replay 模式：从 gameInit 事件初始化游戏状态
     useEffect(() => {
-        // 只处理 play 和 watch 模式，replay 模式由重播管理器处理
-        if (mode !== 'play' && mode !== 'watch') return;
+        if (mode === 'replay' && game && !replayGameState) {
+            // 在 replay 模式下，初始状态应该从 gameInit 事件中提取
+            // 但如果没有 gameInit 事件，使用传入的 game prop
+            setReplayGameState(game);
+        }
+    }, [mode, game, replayGameState]);
+
+
+
+    // ✅ 处理事件更新（仅 watch 模式需要）
+    // 此 useEffect 监听 events 变化（来自 useQuery），将新事件推入 eventQueue
+    // - play 模式：不通过事件队列，事件由后端响应直接处理（通过 phaseChanges）
+    // - replay 模式：跳过此处理（事件由 GameReplayManager 通过回调注入）
+    useEffect(() => {
+        // 只处理 watch 模式
+        if (mode !== 'watch') return;
 
         if (Array.isArray(events) && events.length > 0) {
             events.forEach((backendEvent: any) => {
-                // 检查是否是乐观事件的确认
-                // 注意：这里需要从 useCombatActHandler 获取 optimisticEventManager
-                // 但由于架构限制，我们通过事件数据匹配
-                // 实际匹配逻辑在 useCombatActHandler 中处理
-
-                // 对于非乐观事件（阶段事件等），直接添加
+                // 对于非乐观事件，直接添加
+                // 注意：watch 模式下不应该有阶段事件，所有阶段变化都在操作事件的 phaseChanges 中
                 if (!backendEvent.optimistic) {
                     eventQueueRef.current.push(backendEvent);
 
                     // ✅ Watch 模式：收集已处理的事件用于实时计算分数
-                    if (mode === 'watch') {
-                        setProcessedEvents(prev => {
-                            // 避免重复添加
-                            const exists = prev.some(e =>
-                                (e._id && backendEvent._id && e._id === backendEvent._id) ||
-                                (e.time === backendEvent.time && e.name === backendEvent.name)
-                            );
-                            if (!exists) {
-                                return [...prev, backendEvent];
-                            }
-                            return prev;
-                        });
-                    }
+                    setProcessedEvents(prev => {
+                        // 避免重复添加
+                        const exists = prev.some(e =>
+                            (e._id && backendEvent._id && e._id === backendEvent._id) ||
+                            (e.time === backendEvent.time && e.name === backendEvent.name)
+                        );
+                        if (!exists) {
+                            return [...prev, backendEvent];
+                        }
+                        return prev;
+                    });
                 }
-                // 乐观事件的确认由 useCombatActHandler 处理
             });
 
             const lastEvent = events[events.length - 1];
@@ -200,33 +198,8 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         }
     }, [events, mode]);
 
-    // 处理游戏报告更新
-    useEffect(() => {
-        if (report?.ok && report.data) {
-            setGameReport(report.data);
-            if (report.data.totalScore) {
-                setScore(report.data.totalScore);
-            }
-        }
-    }, [report]);
 
-    // 提交分数
-    const submitScore = useCallback(async (finalScore: number) => {
-        if (!game?.gameId) return;
-        try {
-            await convex.action(api.proxy.controller.submitScore, { gameId: game.gameId, score: finalScore });
-            onGameSubmit?.();
-        } catch (error) {
-            console.error("Failed to submit score", error);
-        }
-    }, [game, convex, onGameSubmit]);
 
-    // 游戏结束回调
-    const onGameOver = useCallback(() => {
-        if (gameReport) {
-            submitScore(gameReport.totalScore);
-        }
-    }, [gameReport, submitScore]);
 
     // 初始化网格
     useEffect(() => {
@@ -264,43 +237,31 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 
         setGridCells(cells);
     }, [game?.map]);
-
-
-    const map = game?.map;
-    const currentRound = game?.currentRound;
-    const timeClock = game?.timeClock;
+    const timeClock = game?.dueTime;
     const gameScore = game?.score;
 
-    // 从 team 和 boss 计算 characters（使用 useMemo 缓存，保留UI状态）
+    // 从 team 和 boss 计算 characters（使用 useMemo 缓存）
+    // ✅ Watch/Replay 模式：使用 effectiveGame 确保数据同步
     const characters = useMemo(() => {
-        if (!game?.team || !game?.boss) return [];
-        const characters = getCharactersFromGameModel(game.team, game.boss, existingSpritesRef.current);
-        // 更新 ref 以保留UI状态
-        characters.forEach(char => {
-            existingSpritesRef.current.set(char.character_id, char);
-        });
-        return characters;
-    }, [game?.team, game?.boss]);
+        const gameToUse = effectiveGame || game;
+        if (!gameToUse?.team || !gameToUse?.boss) return [];
+        return getCharactersFromGameModel(gameToUse.team, gameToUse.boss);
+    }, [effectiveGame, game?.team, game?.boss]);
 
     const value: ICombatContext = {
-        game,
-        activeSkill,
-        setActiveSkill,
+        game: effectiveGame || game,  // ✅ Watch 模式：使用查询到的游戏状态
         coordDirection,
         hexCell,
-        map: map || { rows: 7, cols: 8, obstacles: [], disables: [] },
+        // map: map || { rows: 7, cols: 8, obstacles: [], disables: [] },
         gridCells,
-        currentRound: currentRound || defaultRound,
+        // currentRound: currentRound || defaultRound,
         characters: characters || [],
         timeClock: timeClock || 0,
         eventQueue: eventQueueRef.current,
         processedEvents: mode === 'watch' ? processedEvents : undefined,  // ✅ Watch 模式：暴露已处理的事件
-        gameReport,
-        score: gameScore || score,
-        submitScore,
-        onGameOver,
-        resourceLoad,
-        setResourceLoad,
+        score: (effectiveGame || game)?.score || gameScore || score,  // ✅ Watch 模式：使用查询到的分数
+        // resourceLoad,
+        // setResourceLoad,
         changeCell: setHexCell,
         mode: mode,
         // ✅ 重播控制（仅在 replay 模式）
@@ -323,6 +284,13 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     return <CombatContext.Provider value={value}>{children}</CombatContext.Provider>;
 };
 
+export const useCombatManager = () => {
+    const context = useContext(CombatContext);
+    if (!context) {
+        throw new Error("useCombatManager must be used within a CombatManager");
+    }
+    return context;
+};
 export default CombatManager;
 
 

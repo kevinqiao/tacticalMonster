@@ -3,7 +3,8 @@
  * 负责加载、管理和回放游戏事件
  */
 
-import { CombatEvent, GameModel, MapModel } from "../types/CombatTypes";
+import { CombatEvent } from "../types/CombatTypes";
+import { GameModel, MapModel } from "../types/gameTypes";
 
 export interface ReplayState {
     isPlaying: boolean;
@@ -119,10 +120,9 @@ export class GameReplayManager {
             scoringConfigVersion: gameInitData.scoringConfigVersion,
             lastUpdate: gameInitData.lastUpdate || new Date().toISOString(),
             createdAt: gameInitData.createdAt || new Date().toISOString(),
-            round: gameInitData.round,
+            dueTime: gameInitData.dueTime || 0,
             // 前端扩展字段
-            currentRound: undefined,
-            timeClock: 0,
+            currentRound: gameInitData.currentRound,
         };
     }
 

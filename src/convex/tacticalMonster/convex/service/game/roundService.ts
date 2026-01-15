@@ -2,8 +2,8 @@
  * 回合管理服务
  * 负责回合的创建、结束和管理
  */
-
-import { CombatTurn, GameModel } from "./gameService";
+import { GameModel, CombatTurn } from "../../types/gameTypes";
+import { GameMonster } from "../../types/monsterTypes";
 
 
 export class RoundService {
@@ -31,7 +31,7 @@ export class RoundService {
         }> = [];
 
         // 1. 添加玩家队伍角色（过滤已死亡的）
-        game.team.forEach((monster) => {
+        game.team.forEach((monster: GameMonster) => {
             const currentHp = monster.stats?.hp?.current ?? 0;
             if (currentHp > 0) {
                 allCharacters.push({

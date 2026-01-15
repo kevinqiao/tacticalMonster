@@ -16,7 +16,7 @@ export const useGridElementLoader = (
     row: number,
     col: number
 ) => {
-    const { gridCells, setResourceLoad } = useCombatManager();
+    const { gridCells } = useCombatManager();
     return useCallback((ele: any) => {
         if (!gridCells || !ele) return;
 
@@ -29,12 +29,12 @@ export const useGridElementLoader = (
             row.every(item => item[gridPropertyMap[elementType]])
         );
 
-        if (loaded) {
-            setResourceLoad(pre => ({
-                ...pre,
-                [gridPropertyMap[elementType]]: pre[gridPropertyMap[elementType]] === 0 ? 1 : pre[gridPropertyMap[elementType]]
-            }));
-        }
-    }, [gridCells, row, col, setResourceLoad, elementType]);
+        // if (loaded) {
+        //     setResourceLoad(pre => ({
+        //         ...pre,
+        //         [gridPropertyMap[elementType]]: pre[gridPropertyMap[elementType]] === 0 ? 1 : pre[gridPropertyMap[elementType]]
+        //     }));
+        // }
+    }, [gridCells, row, col, elementType]);
 };
 

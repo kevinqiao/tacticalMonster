@@ -4,7 +4,7 @@
  */
 
 import { v } from "convex/values";
-import { internalMutation } from "../../../_generated/server";
+import { internal, internalMutation, mutation } from "../../../_generated/server";
 import { BossAIService } from "./bossAIService";
 
 /**
@@ -120,6 +120,90 @@ export const executeBossAction = internalMutation({
         }
 
         return { ok: true };
+    },
+});
+
+/**
+ * 执行Boss回合（公共API，供前端主动调用）
+ * 前端预测Boss动作后，立即调用此API执行并获取结果用于验证
+ * 
+ * 流程：
+ * 1. 获取Boss AI决策
+ * 2. 执行Boss动作（Boss本体 + 小怪）
+ * 3. 返回决策和执行结果
+ */
+export const executeBossTurn = mutation({
+    args: {
+        gameId: v.string(),
+        round: v.number(),
+    },
+    handler: async (ctx, args) => {
+        // 1. 获取Boss AI决策
+        const decision = await BossAIService.decideBossAction(ctx, {
+            gameId: args.gameId,
+            round: args.round,
+        });
+
+        // 2. 获取游戏数据以获取Boss标识符
+        const game = await ctx.db
+            .query("mr_games")
+            .withIndex("by_gameId", (q: any) => q.eq("gameId", args.gameId))
+            .first();
+
+        if (!game || !game.boss || !game.boss.bossId) {
+            throw new Error(`游戏不存在或Boss数据不完整: ${args.gameId}`);
+        }
+
+        // 3. 执行Boss动作（Boss本体）
+        let bossExecutionResult = null;
+        if (decision.bossAction.type !== "standby") {
+            const bossIdentifier = {
+                bossId: game.boss.bossId,
+            };
+            bossExecutionResult = await ctx.runMutation(
+                internal.service.boss.ai.bossAIActions.executeBossAction,
+                {
+                    gameId: args.gameId,
+                    action: decision.bossAction,
+                    identifier: bossIdentifier,
+                }
+            );
+        }
+
+        // 4. 执行小怪动作
+        const minionResults: Array<{ minionId: string; result: any }> = [];
+        if (decision.minionActions && decision.minionActions.length > 0) {
+            for (const minionAction of decision.minionActions) {
+                if (minionAction.action.type !== "standby") {
+                    const minionIdentifier = {
+                        minionId: minionAction.minionId,
+                    };
+                    const result = await ctx.runMutation(
+                        internal.service.boss.ai.bossAIActions.executeBossAction,
+                        {
+                            gameId: args.gameId,
+                            action: minionAction.action,
+                            identifier: minionIdentifier,
+                        }
+                    );
+                    minionResults.push({
+                        minionId: minionAction.minionId,
+                        result,
+                    });
+                }
+            }
+        }
+
+        // 5. 返回决策和执行结果
+        return {
+            ok: true,
+            decision,
+            phaseTransition: decision.phaseTransition,
+            executionResults: {
+                boss: bossExecutionResult,
+                minions: minionResults,
+            },
+        };
     },
 });
 

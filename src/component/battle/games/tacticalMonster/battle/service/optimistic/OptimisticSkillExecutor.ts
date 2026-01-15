@@ -3,13 +3,14 @@
  * 在前端预先执行技能，使用确定性随机数确保与后端结果一致
  */
 
+import { getSkillConfig } from "../../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { MonsterSprite } from "../../types/CombatTypes";
+import { GameModel } from "../../types/gameTypes";
 import { SeededRandom } from "../../utils/seededRandom";
-import { GameModel, MonsterSprite } from "../../types/CombatTypes";
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { SkillManager } from "../SkillManager";
-import { StateSnapshot, GameStateSnapshot } from "./StateSnapshot";
-import { OperationQueue, PendingOperation } from "./OperationQueue";
 import { SkillUseResult } from "./BackendValidator";
+import { OperationQueue, PendingOperation } from "./OperationQueue";
+import { GameStateSnapshot, StateSnapshot } from "./StateSnapshot";
 
 export interface OptimisticExecutionResult {
     operationId: string;
@@ -103,11 +104,20 @@ export class OptimisticSkillExecutor {
         targets: MonsterSprite[],
         rng: SeededRandom
     ): Promise<SkillUseResult> {
-        const skill = caster.skills?.find(s => s.id === skillId);
-        if (!skill) {
+        // Check if skill exists in caster's skills list
+        if (!caster.skills?.includes(skillId)) {
             return {
                 success: false,
                 message: `Skill with ID ${skillId} not found`,
+            };
+        }
+
+        // Get skill config to access name and cooldown
+        const skillConfig = getSkillConfig(skillId);
+        if (!skillConfig) {
+            return {
+                success: false,
+                message: `Skill config for ${skillId} not found`,
             };
         }
 
@@ -167,8 +177,8 @@ export class OptimisticSkillExecutor {
 
         return {
             success: true,
-            message: `Successfully used skill ${skill.name}`,
-            cooldownSet: skill.cooldown,
+            message: `Successfully used skill ${skillConfig.name}`,
+            cooldownSet: skillConfig.cooldown,
             resourcesConsumed,
             effects,
         };

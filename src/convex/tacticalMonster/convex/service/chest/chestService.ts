@@ -3,19 +3,11 @@
  * 处理宝箱生成和管理（游戏特定的逻辑）
  */
 
-import { ChestRewardsConfig, ChestType, getChestConfig } from "../../data/chestConfigs";
+import { getChestConfig } from "../../data/chestConfigs";
 import { getMonsterConfigsByRarity } from "../../data/monsterConfigs";
+import { ChestRewardsConfig, ChestType, ChestTypeWeights } from "../../types/chestTypes";
 import { SeededRandom } from "../../utils/seededRandom";
 
-/**
- * 宝箱类型权重配置
- */
-export interface ChestTypeWeights {
-    silver?: number;
-    gold?: number;
-    purple?: number;
-    orange?: number;
-}
 
 export class ChestService {
     /**

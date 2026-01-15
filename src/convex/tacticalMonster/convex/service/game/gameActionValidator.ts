@@ -5,7 +5,7 @@
 
 import { GameMonster } from "../../types/monsterTypes";
 import { hexDistance } from "../../utils/hexUtils";
-import { CharacterIdentifier, GameModel } from "./gameService";
+import { CharacterIdentifier, GameModel } from "../../types/gameTypes";
 import { RoundService } from "./roundService";
 
 /**

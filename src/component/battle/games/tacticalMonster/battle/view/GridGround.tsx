@@ -14,6 +14,7 @@ import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils
 
 const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
     const { hexCell } = useCombatManager();
+
     const { width, height } = hexCell;
 
     // 使用自定义 Hook 加载网格元素
@@ -44,12 +45,18 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
         [innerPoints]
     );
 
+    const svgStyle: React.CSSProperties = {
+        width: width,
+        height: hexHeight,
+        pointerEvents: "none",
+    };
+
     return (
         <svg
             ref={loadContainer}
             width={width}
             height={hexHeight}
-            style={{ width: width, height: hexHeight, pointerEvents: "none" }}
+            style={svgStyle}
             viewBox={`0 0 ${width} ${hexHeight}`}
             xmlns="http://www.w3.org/2000/svg"
             data-testid={`grid-cell-${row}-${col}`}
@@ -59,11 +66,12 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
                 fill="grey"
                 stroke="white"
                 strokeWidth={3}
-                opacity={0}
+                opacity={1}
                 pointerEvents="none"
                 role="button"
                 aria-label={`Base grid at row ${row}, column ${col}`}
             />
+            <text x={width / 2} y={hexHeight / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="12">{row},{col}</text>
             <polygon
                 ref={loadGround}
                 data-q={col}
@@ -97,12 +105,14 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
 };
 
 const GridContainer: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
-    const { map, hexCell, gridCells } = useCombatManager();
+    const { game, hexCell, gridCells } = useCombatManager();
+    const { map } = game || {};
     const { walk, attack } = useCombatActHandler();
 
-    // 移动 useCallback 到顶部
+    // 计算每行的样式，考虑 direction 对奇数行偏移的影响
     const rowStyle = useCallback((row: number) => {
         const isOdd = row % 2 !== 0;
+        // 当 direction === 1 时，奇数行的偏移方向相反，与 coordToPixel 保持一致
         const left = isOdd ? (map?.direction === 1 ? -hexCell.width / 2 : hexCell.width / 2) : 0;
         const bottom = -hexCell.width * HEX_RATIO.HEIGHT_TO_WIDTH * 1 / 4;
         return STYLES.row(bottom, left);
@@ -119,18 +129,22 @@ const GridContainer: React.FC<{ position: { top: number, left: number, width: nu
             {Array.from({ length: rows }).map((_, row) => (
                 <div
                     key={row}
-                    style={rowStyle(row)}  // 使用缓存的样式函数
+                    style={rowStyle(row)}
                     data-testid={`grid-row-${row}`}
                 >
-                    {Array.from({ length: cols }).map((_, col) => (
-                        <GroundCell
-                            key={`${row}-${col}`}
-                            row={row}
-                            col={col}
-                            walk={walk}
-                            attack={attack}
-                        />
-                    ))}
+                    {Array.from({ length: cols }).map((_, colIndex) => {
+                        // 当 direction === 1 时，使用 row-reverse 反转顺序，所以这里不需要反转 col
+                        const col = colIndex;
+                        return (
+                            <GroundCell
+                                key={`${row}-${col}`}
+                                row={row}
+                                col={col}
+                                walk={walk}
+                                attack={attack}
+                            />
+                        );
+                    })}
                 </div>
             ))}
         </div>

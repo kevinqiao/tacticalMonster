@@ -7,8 +7,11 @@ import { useCallback, useEffect, useRef } from "react";
 import usePlaySkill from "../../animation/usePlaySkill";
 import usePlayWalk from "../../animation/usePlayWalk";
 import { CombatEvent } from "../../types/CombatTypes";
+import type { CharacterIdentifier } from "../../utils/typeAdapter";
 import { useCombatManager } from "../CombatManager";
-import usePhaseProcessor from "../processor/usePhaseProcessor";
+import { usePassiveSkillAnimations } from "./hooks/usePassiveSkillAnimations";
+import { usePhaseChangesHandler } from "./hooks/usePhaseChangesHandler";
+import { findTargetByIdentifier } from "./utils/characterUtils";
 
 const useEventHandler = () => {
     const {
@@ -16,9 +19,8 @@ const useEventHandler = () => {
         characters,
         gridCells,
         hexCell,
-        resourceLoad,
-        updateGame,
-        mode = 'play'
+        mode = 'play',
+        game
     } = useCombatManager();
 
     const isReplayMode = mode === 'replay';
@@ -26,14 +28,11 @@ const useEventHandler = () => {
     const { playWalk } = usePlayWalk();
     const { playSkill } = usePlaySkill();
 
-    const {
-        processGameInit,
-        processRoundStart,
-        processTurnStart,
-        processTurnEnd,
-        processRoundEnd,
-        processTurnSecond
-    } = usePhaseProcessor();
+    // ✅ 使用统一的阶段变化处理器
+    const { handlePhaseChanges } = usePhaseChangesHandler();
+
+    // ✅ 被动技能动画处理（用于 watch/replay 模式）
+    const { handlePassiveSkillAnimations } = usePassiveSkillAnimations(characters, playSkill);
 
     // 处理锁：确保同时只处理一个事件
     const isProcessingRef = useRef<boolean>(false);
@@ -73,63 +72,122 @@ const useEventHandler = () => {
                 // 动画完成后统一更新
                 character.q = pendingUpdate.q;
                 character.r = pendingUpdate.r;
-                updateGame(() => { });
                 onComplete();
             });
         } else if (name === "attack" || name === "use_skill") {
-            // 攻击/技能事件
-            const attackerId = data?.attacker?.character_id || data?.caster?.character_id;
-            const targetId = data?.targets?.[0]?.character_id || data?.target?.character_id;
+            // ✅ 攻击/技能事件（改进版：支持多目标、被动技能、阶段变化）
+            // 从事件数据中提取信息
+            const identifier = data?.identifier || data?.attacker || data?.caster;
+            const skillId = data?.skillSelect || data?.skillId || "basic_attack";
+            const result = data?.result; // 后端返回的完整结果
+            const targets = data?.targets || []; // 目标列表（支持多目标）
 
-            const attacker = characters.find(c => c.character_id === attackerId);
-            const target = characters.find(c => c.character_id === targetId);
+            // 查找攻击者
+            const attacker = identifier ? findTargetByIdentifier(
+                characters,
+                identifier as CharacterIdentifier
+            ) : null;
 
-            if (!attacker || !target) {
+            if (!attacker) {
+                console.warn("Cannot find attacker for skill event", identifier);
                 onComplete();
                 return;
             }
 
-            // 准备更新数据（从事件数据获取）
-            const pendingUpdate = {
-                targetId: target.character_id,
-                newHp: data?.targets?.[0]?.hp?.current ?? target.stats?.hp?.current,
-                newMp: data?.targets?.[0]?.mp?.current ?? target.stats?.mp?.current,
-                effects: data?.targets?.[0]?.effects ?? []
-            };
+            // 查找所有目标
+            const targetSprites: any[] = [];
+            const targetUpdates: Map<string, { newHp?: number; newMp?: number; effects?: any[] }> = new Map();
 
-            // 播放技能动画
-            const skillId = data?.skillSelect || data?.skillId || attacker.skills?.[0]?.id || "";
-            if (skillId) {
-                playSkill(
-                    attacker,
-                    skillId,
-                    [target],
-                    () => {
-                        // 动画完成后统一更新
-                        if (target.stats) {
-                            if (target.stats.hp) {
-                                target.stats.hp.current = pendingUpdate.newHp;
-                            }
-                            if (target.stats.mp && pendingUpdate.newMp !== undefined) {
-                                target.stats.mp.current = pendingUpdate.newMp;
-                            }
-                            if (pendingUpdate.effects) {
-                                target.statusEffects = pendingUpdate.effects;
+            if (result?.effects) {
+                // 从 result.effects 中提取目标信息
+                result.effects.forEach((effectData: any) => {
+                    if (effectData.targetId) {
+                        const targetIdentifier = targets.find((t: any) => {
+                            const tId = t.monsterId || t.bossId || t.minionId;
+                            return tId === effectData.targetId;
+                        });
+                        if (targetIdentifier) {
+                            const target = findTargetByIdentifier(
+                                characters,
+                                targetIdentifier as CharacterIdentifier
+                            );
+                            if (target && !targetSprites.find(t => t.character_id === target.character_id)) {
+                                targetSprites.push(target);
+                                // 从 effectData 中提取状态更新信息
+                                // 注意：实际的状态更新应该从后端查询获取，这里只是示例
+                                targetUpdates.set(target.character_id, {
+                                    effects: effectData.effect ? [effectData.effect] : []
+                                });
                             }
                         }
-                        updateGame(() => { });
-                        onComplete();
                     }
-                );
-            } else {
-                // 如果没有技能ID，直接完成
-                onComplete();
+                });
+            } else if (targets.length > 0) {
+                // 如果没有 effects，直接从 targets 列表查找
+                targets.forEach((targetIdentifier: any) => {
+                    const target = findTargetByIdentifier(
+                        characters,
+                        targetIdentifier as CharacterIdentifier
+                    );
+                    if (target) {
+                        targetSprites.push(target);
+                    }
+                });
             }
+
+            if (targetSprites.length === 0) {
+                console.warn("No valid targets found for skill event");
+                onComplete();
+                return;
+            }
+
+            // 播放主动技能动画
+            let activeSkillTimeline: gsap.core.Timeline | null = null;
+            activeSkillTimeline = playSkill(
+                attacker,
+                skillId,
+                targetSprites,
+                async () => {
+                    // 动画完成后更新目标状态
+                    // 注意：实际的状态应该从后端查询获取，这里只是示例
+                    targetSprites.forEach(target => {
+                        const update = targetUpdates.get(target.character_id);
+                        if (update && target.stats) {
+                            if (update.newHp !== undefined && target.stats.hp) {
+                                target.stats.hp.current = update.newHp;
+                            }
+                            if (update.newMp !== undefined && target.stats.mp) {
+                                target.stats.mp.current = update.newMp;
+                            }
+                            if (update.effects) {
+                                target.statusEffects = update.effects;
+                            }
+                        }
+                    });
+
+                    // ✅ 处理被动技能动画（如果有）
+                    if (result && activeSkillTimeline) {
+                        handlePassiveSkillAnimations(
+                            result,
+                            activeSkillTimeline,
+                            attacker,
+                            targetSprites[0] // 被动技能通常只作用于第一个目标
+                        );
+                    }
+
+                    // ✅ 处理阶段变化（如果有）
+                    if (result?.phaseChanges) {
+                        await handlePhaseChanges(result.phaseChanges);
+                    }
+
+                    onComplete();
+                }
+            );
         } else {
             // 其他操作事件直接完成
             onComplete();
         }
-    }, [characters, gridCells, playWalk, playSkill, updateGame]);
+    }, [characters, gridCells, playWalk, playSkill, handlePassiveSkillAnimations, handlePhaseChanges]);
 
     const processEvent = useCallback(() => {
         // 如果正在处理，跳过（严格的队列机制）
@@ -165,26 +223,39 @@ const useEventHandler = () => {
 
         try {
             switch (name) {
-                // 只处理阶段事件，玩家操作事件已在 useCombatActHandler 中直接处理
+                // ✅ 阶段事件处理
+                // 所有模式统一使用 handlePhaseChanges 处理阶段变化
                 case "gameInit":
-                    processGameInit({ data, onComplete });
+                    // gameInit 只在游戏初始化时触发一次
+                    // ✅ Replay 模式：从 gameInit 事件提取初始状态
+                    if (isReplayMode && data) {
+                        // 在 replay 模式下，gameInit 事件包含完整的初始游戏状态
+                        // 这里可以提取并更新 replayGameState（如果需要）
+                        // 注意：实际的状态更新应该通过 CombatManager 的状态管理来处理
+                        console.log("Replay mode: gameInit event processed", data);
+                    }
+                    // 所有模式都需要处理 gameInit
+                    if (!characters) {
+                        onComplete();
+                        return;
+                    }
+                    onComplete();
                     break;
+
                 case "roundStart":
                 case "new_round":
-                    processRoundStart({ data, onComplete });
-                    break;
-                case "turnStart":
-                    processTurnStart({ data, onComplete });
-                    break;
-                case "turnSecond":
-                    processTurnSecond({ data, onComplete });
-                    break;
-                case "turnEnd":
-                    processTurnEnd({ data, onComplete });
-                    break;
                 case "roundEnd":
                 case "end_round":
-                    processRoundEnd({ data, onComplete });
+                case "turnStart":
+                case "turnEnd":
+                    // ✅ 所有模式：不应该出现独立的阶段事件（所有阶段变化都在操作事件的 phaseChanges 中）
+                    // 如果出现阶段事件，直接跳过（理论上不应该出现）
+                    onComplete();
+                    break;
+
+                case "turnSecond":
+                    // turnSecond 是中间状态，可以忽略或特殊处理
+                    onComplete();
                     break;
                 // 玩家操作事件（attack, walk, skillSelect）
                 case "attack":
@@ -216,19 +287,19 @@ const useEventHandler = () => {
             isProcessingRef.current = false;
             eventQueue.shift();
         }
-    }, [eventQueue, processRoundStart, processTurnStart, processTurnSecond, resourceLoad, processGameInit, processRoundEnd, processTurnEnd, isReplayMode, isWatchMode, handleWatchModeActionEvent]);
+    }, [eventQueue, handlePhaseChanges, game, characters, isReplayMode, isWatchMode, mode, handleWatchModeActionEvent]);
 
     useEffect(() => {
         // 所有模式都需要轮询处理事件队列
         // replay 模式下，事件由重播管理器通过回调注入到队列，但仍需要轮询来处理
-        if (!characters || !gridCells || !hexCell || Object.values(resourceLoad).some(v => v === 0)) return;
+        if (!characters || !gridCells || !hexCell) return;
 
         const intervalId = setInterval(() => {
             processEvent();
         }, 100);
 
         return () => clearInterval(intervalId);
-    }, [characters, gridCells, hexCell, resourceLoad, processEvent, mode]);
+    }, [characters, gridCells, hexCell, processEvent, mode]);
 };
 
 export default useEventHandler;

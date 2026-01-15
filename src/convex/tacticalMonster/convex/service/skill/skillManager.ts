@@ -7,10 +7,10 @@
 import {
     MonsterSkill,
     SkillEffect,
-    SkillEffectType,
     getSkillConfig,
     skillExists
 } from "../../data/skillConfigs";
+import { SkillEffectType } from "../../types/skillTypes";
 import { GameMonster } from "../../types/monsterTypes";
 
 /**

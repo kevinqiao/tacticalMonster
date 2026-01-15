@@ -16,6 +16,9 @@ export interface SkillUseResult {
         effect: any;
         targetId?: string;
         applied: boolean;
+        isPassive?: boolean;  // ✅ 标记是否为被动技能效果
+        passiveSkillId?: string;  // ✅ 被动技能ID
+        triggerType?: string;  // ✅ 触发类型
     }>;
 }
 
@@ -24,6 +27,7 @@ export interface ValidationResult {
     needsRollback: boolean;
     backendResult: SkillUseResult;
     differences?: string[];  // 差异说明（用于调试）
+    onlyPassiveDifferences?: boolean;  // ✅ 是否仅被动技能效果有差异
 }
 
 export class BackendValidator {
@@ -58,10 +62,27 @@ export class BackendValidator {
             differences.push('resourcesConsumed mismatch');
         }
 
-        // 对比效果
-        if (!this.compareEffects(frontendResult.effects, backendResult.effects)) {
-            isValid = false;
-            differences.push('effects mismatch');
+        // 对比效果（允许被动技能效果的差异）
+        const effectsComparison = this.compareEffects(
+            frontendResult.effects,
+            backendResult.effects
+        );
+        let onlyPassiveDifferences = false;
+        
+        if (!effectsComparison.isValid) {
+            // 如果差异仅来自被动技能效果，则允许（前端乐观更新时可能没有预测被动技能）
+            if (effectsComparison.onlyPassiveDifferences) {
+                // 仅记录差异，但不标记为验证失败
+                differences.push(`effects: passive skill effects differ (expected)`);
+                onlyPassiveDifferences = true;
+                // 被动技能差异不影响验证结果
+                isValid = true;
+            } else {
+                isValid = false;
+                differences.push(`effects mismatch: ${effectsComparison.reason}`);
+            }
+        } else if (effectsComparison.onlyPassiveDifferences) {
+            onlyPassiveDifferences = true;
         }
 
         return {
@@ -69,6 +90,7 @@ export class BackendValidator {
             needsRollback: !isValid,
             backendResult,
             differences: differences.length > 0 ? differences : undefined,
+            onlyPassiveDifferences,
         };
     }
 
@@ -94,37 +116,60 @@ export class BackendValidator {
 
     /**
      * 对比效果
+     * 返回对比结果，包括是否有效和差异原因
      */
     private static compareEffects(
-        frontend?: Array<{ effect: any; targetId?: string; applied: boolean }>,
-        backend?: Array<{ effect: any; targetId?: string; applied: boolean }>
-    ): boolean {
-        if (!frontend && !backend) return true;
-        if (!frontend || !backend) return false;
-        if (frontend.length !== backend.length) return false;
+        frontend?: Array<{ effect: any; targetId?: string; applied: boolean; isPassive?: boolean }>,
+        backend?: Array<{ effect: any; targetId?: string; applied: boolean; isPassive?: boolean }>
+    ): { isValid: boolean; onlyPassiveDifferences?: boolean; reason?: string } {
+        if (!frontend && !backend) return { isValid: true };
+        if (!frontend || !backend) {
+            // 如果后端有被动技能效果而前端没有，这是允许的
+            const backendPassiveOnly = backend?.every(e => e.isPassive) ?? false;
+            if (backendPassiveOnly && !frontend) {
+                return { isValid: true, onlyPassiveDifferences: true };
+            }
+            return { isValid: false, reason: 'effects array missing' };
+        }
 
-        // 对比每个效果
-        for (let i = 0; i < frontend.length; i++) {
-            const fe = frontend[i];
-            const be = backend[i];
+        // 分离主动技能效果和被动技能效果
+        const frontendActive = frontend.filter(e => !e.isPassive);
+        const frontendPassive = frontend.filter(e => e.isPassive);
+        const backendActive = backend.filter(e => !e.isPassive);
+        const backendPassive = backend.filter(e => e.isPassive);
+
+        // 对比主动技能效果（必须完全一致）
+        if (frontendActive.length !== backendActive.length) {
+            return { isValid: false, reason: 'active effects count mismatch' };
+        }
+
+        for (let i = 0; i < frontendActive.length; i++) {
+            const fe = frontendActive[i];
+            const be = backendActive[i];
 
             // 对比目标ID
             if (fe.targetId !== be.targetId) {
-                return false;
+                return { isValid: false, reason: `active effect targetId mismatch at index ${i}` };
             }
 
             // 对比应用状态
             if (fe.applied !== be.applied) {
-                return false;
+                return { isValid: false, reason: `active effect applied mismatch at index ${i}` };
             }
 
             // 对比效果类型和ID
             if (fe.effect?.type !== be.effect?.type || fe.effect?.id !== be.effect?.id) {
-                return false;
+                return { isValid: false, reason: `active effect type/id mismatch at index ${i}` };
             }
         }
 
-        return true;
+        // 被动技能效果的差异是允许的（前端乐观更新时可能没有预测被动技能）
+        // 只要主动技能效果一致，就认为验证通过
+        if (backendPassive.length > 0 && frontendPassive.length !== backendPassive.length) {
+            return { isValid: true, onlyPassiveDifferences: true };
+        }
+
+        return { isValid: true };
     }
 
     /**
@@ -140,4 +185,5 @@ export class BackendValidator {
         });
     }
 }
+
 

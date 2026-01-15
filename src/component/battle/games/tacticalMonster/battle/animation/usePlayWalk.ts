@@ -9,7 +9,8 @@ import { MonsterSprite } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 
 const usePlayWalk = () => {
-    const { characters, gridCells, hexCell, currentRound, map, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, gridCells, hexCell, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { map } = game || {};
     const playWalk = useCallback((character: MonsterSprite, path: { x: number; y: number }[], onComplete: () => void | Promise<void>) => {
 
         const container = character.container;

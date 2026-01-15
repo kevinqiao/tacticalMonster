@@ -4,23 +4,25 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { COMMON_SKILLS } from "../config/skillConfigs";
 import { useCombatManager } from "../service/CombatManager";
+import { MonsterSkill } from "../types/skillTypes";
 import { getAttackableNodes } from "../utils/PathFind";
 
 const usePlaySkillSelect = () => {
-    const { characters, gridCells, hexCell, currentRound, map, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, gridCells, hexCell, game, playbackSpeed = 1.0 } = useCombatManager();
 
-
-    const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; character_id: string }, onComplete: () => void | Promise<void>) => {
+    const { map, currentRound } = game || {};
+    const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; monsterId: string }, onComplete: () => void | Promise<void>) => {
         if (!characters || !gridCells || !map || !currentRound) return;
         console.log("playSkillSelect", skillSelect)
-        const { uid, character_id } = skillSelect;
-        const character = characters.find((c) => c.uid === uid && c.character_id === character_id);
+        const { uid, monsterId } = skillSelect;
+        const character = characters.find((c) => c.uid === uid && c.monsterId === monsterId);
         if (!character) return;
-        const currentTurn = currentRound.turns.find((t) => t.uid === uid && t.character_id === character_id);
+        const currentTurn = currentRound.turns.length > 0 ? currentRound.turns[0] : null;
         if (!currentTurn) return;
-        const skill: MonsterSkill | null = character.skills?.find((s) => s.id === skillSelect.skillId) ?? null;
+
+        const skill: MonsterSkill | null = COMMON_SKILLS[character.selectedSkill ?? ""] ?? null;
         if (!skill) return;
         const grid = gridCells.map((row) => row.map((cell) => {
             const char = character.q === cell.x && character.r === cell.y ? null : characters.find((c) => c.q === cell.x && c.r === cell.y)

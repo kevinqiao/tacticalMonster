@@ -3,7 +3,7 @@
  * 负责创建和插入游戏事件
  */
 
-import { CombatEvent } from "./gameService";
+import { CombatEvent } from "../../types/gameTypes";
 
 export class GameEventService {
     private dbCtx: any;

@@ -5,7 +5,7 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ThreeDModelAnimator } from "../animation/model/ThreeDModelAnimator";
 import { loadAnimationSegments as loadAnimationSegmentsFromConfig, loadModelConfig, type ModelConfig } from "../config/modelConfig";
@@ -4295,7 +4295,7 @@ const Character3D = ({ character, width, height, onAnimatorReady, overrideConfig
                     // 确保FBX模型可见，并修复材质（解决"全身黑色"问题）
                     let meshCount = 0;
                     let materialCount = 0;
-                    fbx.traverse((child) => {
+                    fbx.traverse((child: any) => {
                         if (child instanceof THREE.Mesh) {
                             child.visible = true;
                             meshCount++;

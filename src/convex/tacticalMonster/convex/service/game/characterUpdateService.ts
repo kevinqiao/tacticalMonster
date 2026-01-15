@@ -4,7 +4,7 @@
  */
 
 import { GameBoss, GameMinion, GameMonster } from "../../types/monsterTypes";
-import { GameModel } from "./gameService";
+import { GameModel } from "../../types/gameTypes";
 
 export class CharacterUpdateService {
     private dbCtx: any;

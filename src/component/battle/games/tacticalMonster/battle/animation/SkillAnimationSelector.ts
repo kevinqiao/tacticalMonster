@@ -3,8 +3,7 @@
  * 根据技能配置、映射表和效果类型选择适当的动画
  */
 
-import { MonsterSkill, SkillEffect, SkillEffectType } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { SkillAnimation } from "../types/CharacterTypes";
+import { MonsterSkill, SkillAnimation, SkillEffect, SkillEffectType } from "../types/skillTypes";
 
 export class SkillAnimationSelector {
     // 技能ID到动画配置的映射（优先级2）
@@ -15,7 +14,7 @@ export class SkillAnimationSelector {
         "group_heal": { name: "cast" },
         // 可以根据需要扩展更多技能
     };
-    
+
     // 效果类型到动画的映射（优先级4）
     private effectTypeAnimationMap: Record<SkillEffectType, SkillAnimation> = {
         [SkillEffectType.DAMAGE]: { name: "melee", target: "hurt" },
@@ -31,7 +30,7 @@ export class SkillAnimationSelector {
         [SkillEffectType.MOVEMENT]: { name: "cast" },
         [SkillEffectType.TELEPORT]: { name: "cast" },
     };
-    
+
     /**
      * 获取施法者动画名称
      * 优先级：技能配置 > 映射表 > type提示 > 效果类型 > 默认
@@ -41,12 +40,12 @@ export class SkillAnimationSelector {
         if (skill.animation?.name) {
             return skill.animation.name;
         }
-        
+
         // 优先级2: 技能ID映射表
         if (this.skillAnimationMap[skill.id]?.name) {
             return this.skillAnimationMap[skill.id].name!;
         }
-        
+
         // 优先级3: animation.type 提示
         if (skill.animation?.type === "attack") {
             return "melee";
@@ -57,7 +56,7 @@ export class SkillAnimationSelector {
         if (skill.animation?.type === "special") {
             return "cast";
         }
-        
+
         // 优先级4: 根据主要效果类型
         const primaryEffect = this.getPrimaryEffect(skill);
         if (primaryEffect) {
@@ -66,11 +65,11 @@ export class SkillAnimationSelector {
                 return effectAnimation.name;
             }
         }
-        
+
         // 默认
         return "cast";
     }
-    
+
     /**
      * 获取目标动画名称
      * 优先级：技能配置 > 映射表 > 效果类型推断 > null
@@ -80,21 +79,21 @@ export class SkillAnimationSelector {
         if (skill.animation?.target) {
             return skill.animation.target;
         }
-        
+
         // 优先级2: 技能ID映射表
         if (this.skillAnimationMap[skill.id]?.target) {
             return this.skillAnimationMap[skill.id].target!;
         }
-        
+
         // 优先级3: 根据效果类型自动推断
         if (this.hasEffectType(skill, SkillEffectType.DAMAGE)) {
             return "hurt";
         }
-        
+
         // 其他效果不播放目标动画
         return null;
     }
-    
+
     /**
      * 获取主要效果（优先返回DAMAGE效果，否则返回第一个效果）
      */
@@ -104,11 +103,11 @@ export class SkillAnimationSelector {
         if (damageEffect) {
             return damageEffect;
         }
-        
+
         // 否则返回第一个效果
         return skill.effects[0] || null;
     }
-    
+
     /**
      * 检查技能是否包含指定类型的效果
      */

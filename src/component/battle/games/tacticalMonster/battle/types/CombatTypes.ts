@@ -2,9 +2,8 @@
  * Tactical Monster 战斗类型定义
  */
 
+
 import { Spine } from "pixi-spine";
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { GameModel as BackendGameModel } from "../../../../../../convex/tacticalMonster/convex/service/game/gameService";
 import { GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
 
 export enum ACT_CODE {
@@ -60,21 +59,14 @@ export interface CombatEvent {
  * 使用 Omit 排除后端的 map 字段，然后添加前端的 MapModel
  * 注意：不再包含 characters 字段，直接使用后端的 team 和 boss
  */
-export interface GameModel extends Omit<BackendGameModel, 'map'> {
-    // 前端运行时字段
-    map: MapModel;  // 覆盖后端的 map 类型，使用前端的 MapModel（包含 direction 和 obstacles 的扩展格式）
-    currentRound?: CombatRound;  // 当前回合信息（前端运行时）
-    timeClock?: number;  // 时间时钟（前端运行时）
+// export interface GameModel extends Omit<BackendGameModel, 'map'> {
+//     // 前端运行时字段
+//     map: MapModel;  // 覆盖后端的 map 类型，使用前端的 MapModel（包含 direction 和 obstacles 的扩展格式）
+//     currentRound?: CombatRound;  // 当前回合信息（前端运行时）
+//     timeClock?: number;  // 时间时钟（前端运行时）
 
-}
+// }
 
-export interface GameReport {
-    gameId: string;
-    baseScore: number;  // 基础分数（击败Boss、使用技能等）
-    timeBonus?: number;  // 时间奖励
-    completeBonus?: number;  // 完成奖励
-    totalScore: number;  // 总分数
-}
 
 export type GameMode = 'play' | 'watch' | 'replay';  // 游戏模式：游玩 | 实时观看 | 重播
 
@@ -116,23 +108,13 @@ export interface CombatAction {
 }
 
 export interface CombatTurn {
-    gameId?: string;
-    round?: number;
     uid: string;
-    character_id: string;
-    status?: number;
-    startTime?: number;
-    endTime?: number;
-    skills?: string[];
-    skillSelect?: string;
+    monsterId: string;
 }
 
 export interface CombatRound {
-    gameId?: string;
     no: number;
     currentTurn?: CombatTurn;
-    turns: CombatTurn[];
-    status?: number;
 }
 
 export enum GridCellType {
@@ -182,9 +164,6 @@ export interface MonsterSprite extends GameMonster {
     // ========== 前端标识字段 ==========
     character_id: string;                // 前端使用的角色ID（从 monsterId/bossId/minionId 转换而来）
 
-    // ========== 技能字段（统一使用后端类型）==========
-    skills: MonsterSkill[];              // 统一使用 MonsterSkill[]（不再转换为 Skill[]）
-
     // ========== UI渲染相关字段 ==========
     scaleX?: number;                    // 水平翻转（1: 向右, -1: 向左）
     facing?: number;                     // 面向方向
@@ -205,50 +184,9 @@ export interface ModelAnimator {
     stand: () => void;
 }
 
-export interface MapModel {
-    rows: number;
-    cols: number;
-    direction?: number;
-    obstacles?: ObstacleCell[];
-    disables?: { q: number; r: number }[];
-}
 
-export interface ICombatContext {
-    game: GameModel | null;
-    activeSkill: MonsterSkill | null;
-    coordDirection: number;
-    hexCell: { width: number; height: number };
-    map?: MapModel;
-    gridCells: GridCell[][] | null;
-    timeClock?: number;
-    characters?: MonsterSprite[];
-    currentRound?: CombatRound;
-    eventQueue: CombatEvent[];
-    processedEvents?: CombatEvent[];  // ✅ Watch 模式：已处理的事件列表（用于实时计算分数）
-    gameReport: GameReport | null;  // 新增：游戏报告
-    score: number;  // 新增：当前分数
-    submitScore: (score: number) => void;  // 新增：提交分数
-    onGameOver: () => void;  // 新增：游戏结束回调
-    resourceLoad: {
-        character: number;
-        gridContainer: number;
-        gridGround: number;
-        gridWalk: number;
-    };
-    setResourceLoad: React.Dispatch<
-        React.SetStateAction<{
-            character: number;
-            gridContainer: number;
-            gridGround: number;
-            gridWalk: number;
-        }>
-    >;
-    changeCell: React.Dispatch<React.SetStateAction<{ width: number; height: number }>>;
-    setActiveSkill: (skill: MonsterSkill | null) => void;
-    mode?: GameMode;  // 游戏模式
-    replay?: ReplayControls;  // 重播控制（仅在 watch 模式）
-    playbackSpeed?: number;  // 回放速度（仅在 replay 模式，用于同步动画速度）
-}
+
+
 
 // export const DEFAULT_GAME_CONFIG: TacticalMonsterGameConfig = {
 //     scoring: {

@@ -8,7 +8,7 @@ import React from 'react';
 import BattlePlayer from './BattlePlayer';
 import CombatManager from './service/CombatManager';
 import './style.css';
-import { GameModel } from './types/CombatTypes';
+import { GameModel } from './types/gameTypes';
 
 interface TacticalMonsterGameProps {
     game: GameModel;
@@ -37,7 +37,7 @@ const PlayGame: React.FC<TacticalMonsterGameProps> = ({
         <div className="tactical-monster-game-container">
             <ConvexProvider client={client}>
                 <CombatManager game={game} onGameSubmit={onGameSubmit}>
-                    <BattlePlayer mode={mode} />
+                    <BattlePlayer />
                 </CombatManager>
             </ConvexProvider>
         </div>

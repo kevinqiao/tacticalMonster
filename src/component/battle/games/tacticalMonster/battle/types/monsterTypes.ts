@@ -3,9 +3,22 @@
  * 定义 Monster 相关的所有类型接口
  */
 
-import { ASSET_TYPE } from "convex/tacticalMonster/convex/data/monsterConfigs";
-import { Monster } from "../config/monsterConfigs";
-import { MonsterSkill } from "../config/skillConfigs";
+
+import { SkillEffect } from "./skillTypes";
+
+export enum ASSET_TYPE {
+    SPINE = 0,
+    FBX = 1,
+    GLTF = 2,  // GLTF格式支持
+    TXT = 3,
+}
+/**
+ * StatusEffect - 运行时状态效果
+ * 基于 SkillEffect，但包含运行时字段（如剩余持续时间）
+ */
+export interface StatusEffect extends SkillEffect {
+    remaining_duration: number;  // 剩余持续时间（回合数，运行时更新）
+}
 
 /**
  * PlayerMonster - 玩家拥有的怪物实例（数据库存储）
@@ -20,6 +33,7 @@ export interface PlayerMonster {
     stars: number;                 // 星级（实例数据）
     experience: number;            // 经验值（实例数据）
     shards: number;                // 碎片数量（实例数据）
+    isUnlocked: boolean;           // 是否已解锁（拥有）：false=只有碎片，true=已解锁
     unlockedSkills: string[];     // 已解锁的技能ID列表（实例数据）
     inTeam: number;                // 0: 不在队伍中，1: 在队伍中
     teamPosition?: {               // 队伍位置坐标（Hex坐标）
@@ -39,14 +53,12 @@ export interface GameMonster {
     // ========== 基础标识 ==========
     uid: string;                   // 玩家UID或"boss"
     monsterId: string;             // 怪物配置ID（引用 Monster）
-    monster_id: string;             // 怪物实例ID（通常等于monsterId）
 
     // ========== 从 Monster 配置组合的字段（不是继承关系，是组合）==========
     name: string;                  // 从 Monster.name
     rarity: "Common" | "Rare" | "Epic" | "Legendary";  // 从 Monster.rarity
     class?: string;                 // 从 Monster.class
-    race?: string;
-    assetType?: ASSET_TYPE;          // 从 Monster.assetType
+    race?: string;                  // 从 Monster.race
     assetPath: string;              // 从 Monster.assetPath
 
     // ========== 从 PlayerMonster 组合的字段 ==========
@@ -75,11 +87,12 @@ export interface GameMonster {
     r?: number;                     // Hex坐标 r
 
     // ========== 技能系统（运行时数据）==========
-    skills?: MonsterSkill[];        // 可用技能列表（从 Monster.skills 过滤已解锁的）
+    skills?: string[];  // 可用技能列表（MonsterSkill[] 用于玩家角色，string[] 用于Boss）
     skillCooldowns?: Record<string, number>;  // 技能冷却时间
+    selectedSkill?: string;  // 选中的技能
 
     // ========== 状态效果（运行时数据）==========
-    statusEffects?: any[];          // 当前激活的效果列表（统一命名：与后端保持一致）
+    statusEffects?: StatusEffect[];  // 当前激活的状态效果列表（统一命名：与GameBoss保持一致）
     status?: 'normal' | 'stunned' | 'dead';  // 角色状态
 
     // ========== 移动和战斗 ==========
@@ -91,89 +104,73 @@ export interface GameMonster {
     flightHeight?: number;          // 飞行高度
     canIgnoreObstacles?: boolean;   // 是否可以忽略障碍物
 }
+export interface Monster {
+    monsterId: string;
+    name: string;
+    rarity: "Common" | "Rare" | "Epic" | "Legendary";
+    class?: string;
+    race?: string;
+    baseHp: number;
+    baseDamage: number;
+    baseDefense: number;
+    baseSpeed: number;
 
-/**
- * 从 PlayerMonster + Monster 计算 GameMonster
- * 这是组合关系，不是继承关系
- */
-import { GROWTH_STRATEGY } from "../config/upgradeStrategyConfig";
+    // 技能配置：使用 skillIds 引用技能配置（方案二：完全独立）
+    skillIds?: string[];              // 技能ID列表（引用 skillConfigs.ts 中的技能）
 
-export function calculateGameMonster(
-    playerMonster: PlayerMonster,
-    monsterConfig: Monster,
-    position?: { q: number; r: number }
-): GameMonster {
-    const level = playerMonster.level;
-    const stars = playerMonster.stars;
-
-    // 从策略配置获取默认成长率和星级倍率
-    const { defaultGrowthRates, starMultiplierPerStar: defaultStarMultiplier } = GROWTH_STRATEGY;
-
-    // 成长率（从配置或使用策略配置的默认值）
-    const hpGrowthRate = monsterConfig.growthRates?.hp ?? defaultGrowthRates.hp;
-    const damageGrowthRate = monsterConfig.growthRates?.damage ?? defaultGrowthRates.damage;
-    const defenseGrowthRate = monsterConfig.growthRates?.defense ?? defaultGrowthRates.defense;
-    const speedGrowthRate = monsterConfig.growthRates?.speed ?? defaultGrowthRates.speed;
-
-    // 星级倍数（优先使用怪物配置的，否则使用全局默认值）
-    const starMultiplierPerStar = monsterConfig.growthRates?.starMultiplierPerStar ?? defaultStarMultiplier;
-    const starMultiplier = 1 + (stars - 1) * starMultiplierPerStar;
-
-    // 计算实际属性
-    const baseHp = monsterConfig.baseHp * (1 + (level - 1) * hpGrowthRate) * starMultiplier;
-    const baseAttack = monsterConfig.baseDamage * (1 + (level - 1) * damageGrowthRate) * starMultiplier;
-    const baseDefense = monsterConfig.baseDefense * (1 + (level - 1) * defenseGrowthRate) * starMultiplier;
-    const baseSpeed = monsterConfig.baseSpeed * (1 + (level - 1) * speedGrowthRate) * starMultiplier;
-
-    // 组合 Monster 配置 + PlayerMonster 实例 + 计算的属性
-    return {
-        // 基础标识
-        uid: playerMonster.uid,
-        monsterId: playerMonster.monsterId,
-        monster_id: playerMonster.monsterId,
-
-        // 从 Monster 配置组合的字段
-        name: monsterConfig.name,
-        rarity: monsterConfig.rarity,
-        class: monsterConfig.class,
-        race: monsterConfig.race,
-        assetPath: monsterConfig.assetPath,
-
-        // 从 PlayerMonster 组合的字段
-        level: playerMonster.level,
-        stars: playerMonster.stars,
-        experience: playerMonster.experience,
-        unlockSkills: playerMonster.unlockedSkills,
-
-        // 实时计算的属性
-        stats: {
-            hp: { current: Math.floor(baseHp), max: Math.floor(baseHp) },
-            mp: { current: 100, max: 100 },  // 默认值
-            attack: Math.floor(baseAttack),
-            defense: Math.floor(baseDefense),
-            speed: Math.floor(baseSpeed)
-        },
-
-        // 位置信息
-        q: position?.q,
-        r: position?.r,
-
-        // 技能系统（需要从 skillConfigs.ts 获取完整技能配置）
-        skills: [],  // 将在运行时根据 unlockSkills 填充
-        skillCooldowns: {},
-
-        // 状态效果
-        statusEffects: [],
-        status: "normal",
-
-        // 移动和战斗（从配置读取，如果没有配置则使用默认值）
-        move_range: monsterConfig.moveRange ?? 3,
-        attack_range: monsterConfig.attackRange ?? { min: 1, max: 2 },
-
-        // 特殊属性
-        isFlying: monsterConfig.race === "Flying",
-        flightHeight: monsterConfig.race === "Flying" ? 1.5 : undefined,
-        canIgnoreObstacles: monsterConfig.race === "Flying"
+    growthRates?: {
+        hp: number;
+        damage: number;
+        defense: number;
+        speed: number;
+        starMultiplierPerStar?: number;  // 每星增加的属性倍率（可选，默认使用 GROWTH_STRATEGY 的值）
     };
+
+    // 移动和战斗范围配置
+    moveRange?: number;               // 移动范围（Hex格子数），默认值：3
+    attackRange?: {                   // 攻击范围（Hex格子数），默认值：{ min: 1, max: 2 }
+        min: number;
+        max: number;
+    };
+
+    assetPath: string;
+    asset?: { type: ASSET_TYPE; resource: { [key: string]: string } };
 }
 
+
+/**
+ * GameMinion - 游戏中的小怪实例（Boss的护卫）
+ * 继承 GameMonster，统一角色接口
+ * 小怪数据在 Boss 配置中定义，运行时计算属性
+ */
+export interface GameMinion extends GameMonster {
+    // ========== Minion 特有字段 ==========
+    minionId: string;              // 小怪运行时唯一标识（如 "minion_guard_1"），用于在游戏中唯一标识小怪实例
+    // 注意：
+    // - minionId: 运行时唯一标识，用于区分不同的小怪实例（即使它们使用相同的 monsterId）
+    // - monsterId: 角色配置ID（引用 monsterConfigs.ts），继承自 GameMonster，用于查找角色配置
+}
+
+/**
+ * GameBoss - 游戏中的Boss实例（运行时计算出的数据）
+ * 继承 GameMonster，统一角色接口
+ * 通过 BossConfig + Monster 实时计算得出
+ * 包含Boss本体和小怪（minions）的完整数据
+ */
+export interface GameBoss extends GameMonster {
+    // ========== Boss 特有字段 ==========
+    bossId: string;                // Boss运行时唯一标识（如 "boss_bronze_1"），用于在游戏中唯一标识Boss实例
+    minions: GameMinion[];         // 小怪数组（Boss特有）
+    currentPhase?: string;         // 当前阶段（phase1, phase2, ...）
+    behaviorSeed?: string;         // 行为随机种子（用于AI决策）
+    skills?: string[];              // Boss技能ID列表（覆盖 GameMonster 的 MonsterSkill[] 类型）
+
+    // 注意：所有其他字段从 GameMonster 继承：
+    // - bossId: 运行时唯一标识，用于在游戏中唯一标识Boss实例
+    // - monsterId: 角色配置ID（引用 monsterConfigs.ts），继承自 GameMonster，用于查找角色配置
+    // - uid, name, rarity, assetPath, level, stars 等基础字段
+    // - q, r: 位置信息
+    // - stats: 属性数据
+    // - statusEffects: 状态效果
+    // - skillCooldowns: 技能冷却
+}

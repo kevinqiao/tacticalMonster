@@ -4,19 +4,20 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+
 import { useCombatManager } from "../service/CombatManager";
 import { CombatTurn, MonsterSprite } from "../types/CombatTypes";
 import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 
 const usePlayPhase = () => {
-    const { gridCells, characters, hexCell, map, setActiveSkill, playbackSpeed = 1.0 } = useCombatManager();
+    const { gridCells, characters, hexCell, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { map } = game || {};
 
     const playTurnOn = useCallback(async (currentTurn: CombatTurn, onComplete: () => void) => {
         if (!characters || !gridCells || !map) return;
-        const character = characters.find((c) => c.uid === currentTurn.uid && c.character_id === currentTurn.character_id);
+        const character = characters.find((c) => c.uid === currentTurn.uid && c.monsterId === currentTurn.monsterId);
         if (!character) return;
-        const moveRange = currentTurn.status === 1 ? (character.move_range ?? 2) : 1;
+        const moveRange = character.move_range ?? 2;
         const grid = gridCells.map((row) => row.map((cell) => {
             const char = characters.find((c) => c.q === cell.x && c.r === cell.y)
             return {
@@ -45,8 +46,8 @@ const usePlayPhase = () => {
                 r: c.r ?? 0,
             }));
 
-        const skillId = currentTurn.skillSelect || currentTurn.skills?.[0];
-        const skill: MonsterSkill | undefined = character.skills?.find((s) => skillId === s.id);
+        // const skillId = currentTurn.skillSelect || currentTurn.skills?.[0];
+        // const skill: MonsterSkill | undefined = character.skills?.find((s) => skillId === s.id);
 
         const attackableNodes = getAttackableNodes(
             grid,
@@ -59,14 +60,13 @@ const usePlayPhase = () => {
                 attackRange: character.attack_range || { min: 1, max: 2 }
             },
             enemies,
-            skill ?? null
+            null
         );
 
         character.attackables = attackableNodes;
         const tl = gsap.timeline({
             timeScale: playbackSpeed,  // ✅ 应用播放速度，同步动画速度
             onComplete: () => {
-                setActiveSkill(skill ?? null);
                 onComplete();
             }
 
@@ -110,7 +110,7 @@ const usePlayPhase = () => {
         tl.play();
 
 
-    }, [characters, gridCells, hexCell, map, setActiveSkill, playbackSpeed]);
+    }, [characters, gridCells, hexCell, map, playbackSpeed]);
 
     const playTurnStart = useCallback((character: MonsterSprite, timeline: gsap.core.Timeline | null) => {
         if (!map || !gridCells) return;

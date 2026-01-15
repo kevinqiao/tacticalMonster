@@ -2,7 +2,8 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { action, mutation } from "../../_generated/server";
 import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
-import { getStageRuleConfig, getStageRuleConfigs, STAGE_RULE_CONFIGS, StageRuleConfig } from "../../data/stageRuleConfigs";
+import { getStageRuleConfig, getStageRuleConfigs, STAGE_RULE_CONFIGS } from "../../data/stageRuleConfigs";
+import { StageRuleConfig } from "../../types/stageRuleTypes";
 import { TacticalMonsterErrorCode } from "../errorCodes";
 import { StageManagerService } from "../stage/stageManagerService";
 

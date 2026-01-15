@@ -100,13 +100,13 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     // 使用 onUpdate 订阅数据更新
     if (!user?.uid || !client) return;
-    client.query(tournamentApi.service.tournament.matchManager.findMatch, { uid: user?.uid }).then((result) => {
-      console.log("findMatch result", result);
+    client.action(tournamentApi.service.tournament.matchManager.checkLastMatch, { uid: user?.uid }).then((result) => {
+      console.log("check last Match result", result);
       if (result && result.status === MatchStatus.OPEN) {
-        openModal("play_tournament", { mode: "play", gameType: result.gameType, gameId: result.gameId, matchType: result.type });
+        setTimeout(() => { openModal("play_tournament", { mode: "play", gameType: result.gameType, gameId: result.gameId, matchType: result.matchType }); }, 1500);
       }
     }).catch((error: any) => {
-      console.error("findMatch error", error);
+      console.error("check last Match error", error);
     });
 
   }, [user, client, openModal]);

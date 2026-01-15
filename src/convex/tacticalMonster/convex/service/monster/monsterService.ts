@@ -8,7 +8,8 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
-import { getMonsterConfigsByRarity, Monster, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { getMonsterConfigsByRarity, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { Monster } from "../../types/monsterTypes";
 
 /**
  * 碎片合成需求配置

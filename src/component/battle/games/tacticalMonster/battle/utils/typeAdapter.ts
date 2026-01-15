@@ -3,10 +3,10 @@
  * 用于前后端类型转换，统一数据格式
  */
 
-import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { CharacterIdentifier } from "../../../../../../convex/tacticalMonster/convex/service/game/gameService";
+
 import { GameBoss, GameMinion, GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
 import { MonsterSprite } from "../types/CombatTypes";
+import { CharacterIdentifier } from "../types/gameTypes";
 
 // 重新导出后端类型，方便使用
 export type { CharacterIdentifier };
@@ -31,26 +31,14 @@ export function toMonsterSprite(
         character_id = monster.monsterId;
     }
 
-    // 统一使用后端的 MonsterSkill[]（不再转换）
-    // 如果 skills 是 string[]（Boss技能），需要从配置加载
-    let skills: MonsterSkill[] = [];
-    if (monster.skills) {
-        if (Array.isArray(monster.skills)) {
-            if (monster.skills.length > 0 && typeof monster.skills[0] === 'string') {
-                // Boss技能：string[]，需要从配置加载（这里暂时留空，由调用方处理）
-                // skills 保持为空数组，后续通过技能配置加载
-            } else {
-                // 玩家技能：MonsterSkill[]，直接使用
-                skills = monster.skills as MonsterSkill[];
-            }
-        }
-    }
+
+
 
     // 创建MonsterSprite（继承GameMonster的所有字段，包括statusEffects）
     const sprite: MonsterSprite = {
         ...monster,        // 继承所有GameMonster字段，包括statusEffects
         character_id,      // 添加character_id
-        skills,            // 统一使用 MonsterSkill[]
+        // 统一使用 MonsterSkill[]
         // statusEffects 已经通过 ...monster 继承，类型为 StatusEffect[]
         // 保留现有UI相关字段
         ...(existingSprite && {
@@ -133,18 +121,15 @@ export function getCharacterIdFromIdentifier(identifier: CharacterIdentifier): s
  */
 export function getCharactersFromGameModel(
     team: GameMonster[],
-    boss: GameBoss,
-    existingSpritesMap?: Map<string, MonsterSprite>
+    boss: GameBoss
 ): MonsterSprite[] {
     const characters: MonsterSprite[] = [];
 
     // 处理玩家队伍
     if (team && Array.isArray(team)) {
         team.forEach((monster: GameMonster) => {
-            const existingSprite = existingSpritesMap?.get(monster.monsterId);
-            const sprite = toMonsterSprite(monster, existingSprite);
-            // 设置角色翻转方向：玩家角色 scaleX = 1
-            sprite.scaleX = 1;
+            const sprite = toMonsterSprite(monster);
+            sprite.scaleX = 1; // 玩家角色 scaleX = 1
             characters.push(sprite);
         });
     }
@@ -152,17 +137,14 @@ export function getCharactersFromGameModel(
     // 处理Boss（包括Boss本体和小怪，uid="boss"）
     if (boss) {
         // Boss本体
-        const existingBossSprite = existingSpritesMap?.get(boss.bossId || boss.monsterId);
-        const bossSprite = toMonsterSprite(boss, existingBossSprite);
+        const bossSprite = toMonsterSprite(boss);
         bossSprite.scaleX = -1; // Boss角色 scaleX = -1（面向玩家）
         characters.push(bossSprite);
 
         // Boss的小怪
         if (boss.minions && Array.isArray(boss.minions)) {
             boss.minions.forEach((minion: GameMonster) => {
-                const minionId = (minion as any).minionId || minion.monsterId;
-                const existingMinionSprite = existingSpritesMap?.get(minionId);
-                const minionSprite = toMonsterSprite(minion, existingMinionSprite);
+                const minionSprite = toMonsterSprite(minion);
                 minionSprite.scaleX = -1; // Boss小怪 scaleX = -1（面向玩家）
                 characters.push(minionSprite);
             });

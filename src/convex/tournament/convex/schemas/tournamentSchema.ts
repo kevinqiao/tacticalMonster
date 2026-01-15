@@ -264,8 +264,7 @@ export const tournamentSchema = {
             v.literal("lose"),
             v.literal("draw")
         )),
-        joinTime: v.optional(v.string()),
-        leaveTime: v.optional(v.string()),
+        dueTime: v.optional(v.string()),
         createdAt: v.string(),
         updatedAt: v.optional(v.string()),
     }).index("by_uid_status", ["uid", "status"])

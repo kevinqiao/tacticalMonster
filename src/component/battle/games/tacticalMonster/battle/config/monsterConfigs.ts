@@ -1,4 +1,5 @@
-import { ASSET_TYPE } from "../types/CharacterTypes";
+import { GameMonster, Monster, PlayerMonster } from "../types/monsterTypes";
+import { GROWTH_STRATEGY } from "./upgradeStrategyConfig";
 
 /**
  * 怪物配置数据
@@ -8,47 +9,88 @@ import { ASSET_TYPE } from "../types/CharacterTypes";
 export const calculatePower = (damage: number, defense: number, hp: number, multiplier: number = 1): number => {
     return (damage * 2 + defense * 1.5 + hp) * multiplier;
 }
-export interface Monster {
-    monsterId: string;
-    name: string;
-    rarity: "Common" | "Rare" | "Epic" | "Legendary";
-    class?: string;
-    race?: string;
-    baseHp: number;
-    baseDamage: number;
-    baseDefense: number;
-    baseSpeed: number;
-
-    // 技能配置：使用 skillIds 引用技能配置（方案二：完全独立）
-    skillIds?: string[];              // 技能ID列表（引用 skillConfigs.ts 中的技能）
-
-    growthRates?: {
-        hp: number;
-        damage: number;
-        defense: number;
-        speed: number;
-        starMultiplierPerStar?: number;  // 每星增加的属性倍率（可选，默认使用 GROWTH_STRATEGY 的值）
-    };
-
-    // 移动和战斗范围配置
-    moveRange?: number;               // 移动范围（Hex格子数），默认值：3
-    attackRange?: {                   // 攻击范围（Hex格子数），默认值：{ min: 1, max: 2 }
-        min: number;
-        max: number;
-    };
-    assetType?: ASSET_TYPE;
-    assetPath: string;
-}
 
 /**
- * 稀有度属性倍率（基于 Camex Games 设计）
+ * 从 PlayerMonster + Monster 计算 GameMonster
+ * 这是组合关系，不是继承关系
  */
-const RARITY_MULTIPLIERS = {
-    Common: 1.0,
-    Rare: 1.15,
-    Epic: 1.35,
-    Legendary: 1.60,
-};
+export function calculateGameMonster(
+    playerMonster: PlayerMonster,
+    monsterConfig: Monster,
+    position?: { q: number; r: number }
+): GameMonster {
+    const level = playerMonster.level;
+    const stars = playerMonster.stars;
+
+    // 从策略配置获取默认成长率和星级倍率
+    const { defaultGrowthRates, starMultiplierPerStar: defaultStarMultiplier } = GROWTH_STRATEGY;
+
+    // 成长率（从配置或使用策略配置的默认值）
+    const hpGrowthRate = monsterConfig.growthRates?.hp ?? defaultGrowthRates.hp;
+    const damageGrowthRate = monsterConfig.growthRates?.damage ?? defaultGrowthRates.damage;
+    const defenseGrowthRate = monsterConfig.growthRates?.defense ?? defaultGrowthRates.defense;
+    const speedGrowthRate = monsterConfig.growthRates?.speed ?? defaultGrowthRates.speed;
+
+    // 星级倍数（优先使用怪物配置的，否则使用全局默认值）
+    const starMultiplierPerStar = monsterConfig.growthRates?.starMultiplierPerStar ?? defaultStarMultiplier;
+    const starMultiplier = 1 + (stars - 1) * starMultiplierPerStar;
+
+    // 计算实际属性
+    const baseHp = monsterConfig.baseHp * (1 + (level - 1) * hpGrowthRate) * starMultiplier;
+    const baseAttack = monsterConfig.baseDamage * (1 + (level - 1) * damageGrowthRate) * starMultiplier;
+    const baseDefense = monsterConfig.baseDefense * (1 + (level - 1) * defenseGrowthRate) * starMultiplier;
+    const baseSpeed = monsterConfig.baseSpeed * (1 + (level - 1) * speedGrowthRate) * starMultiplier;
+
+    // 组合 Monster 配置 + PlayerMonster 实例 + 计算的属性
+    return {
+        // 基础标识
+        uid: playerMonster.uid,
+        monsterId: playerMonster.monsterId,
+        // 从 Monster 配置组合的字段
+        name: monsterConfig.name,
+        rarity: monsterConfig.rarity,
+        class: monsterConfig.class,
+        race: monsterConfig.race,
+        assetPath: monsterConfig.assetPath,
+
+        // 从 PlayerMonster 组合的字段
+        level: playerMonster.level,
+        stars: playerMonster.stars,
+        experience: playerMonster.experience,
+        unlockSkills: playerMonster.unlockedSkills,
+
+        // 实时计算的属性
+        stats: {
+            hp: { current: Math.floor(baseHp), max: Math.floor(baseHp) },
+            mp: { current: 100, max: 100 },  // 默认值
+            attack: Math.floor(baseAttack),
+            defense: Math.floor(baseDefense),
+            speed: Math.floor(baseSpeed)
+        },
+
+        // 位置信息
+        q: position?.q,
+        r: position?.r,
+
+        // 技能系统（需要从 skillConfigs.ts 获取完整技能配置）
+        skills: [],  // 将在运行时根据 unlockSkills 填充
+        skillCooldowns: {},
+
+        // 状态效果
+        statusEffects: [],
+        status: "normal",
+
+        // 移动和战斗（从配置读取，如果没有配置则使用默认值）
+        move_range: monsterConfig.moveRange ?? 3,
+        attack_range: monsterConfig.attackRange ?? { min: 1, max: 2 },
+
+        // 特殊属性
+        isFlying: monsterConfig.race === "Flying",
+        flightHeight: monsterConfig.race === "Flying" ? 1.5 : undefined,
+        canIgnoreObstacles: monsterConfig.race === "Flying"
+    };
+}
+
 
 /**
  * 根据稀有度获取星级倍率

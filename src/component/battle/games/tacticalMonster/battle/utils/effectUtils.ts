@@ -3,10 +3,14 @@
  * 处理技能效果的应用、计算、移除和更新
  */
 
-import { SkillEffect, SkillEffectType } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { Effect, EffectType, Stats } from "../types/CharacterTypes";
 import { MonsterSprite } from "../types/CombatTypes";
+import { StatusEffect } from "../types/monsterTypes";
+import { SkillEffect, SkillEffectType } from "../types/skillTypes";
+
 import { SeededRandom } from "./seededRandom";
+
+// Effect 类型别名，使用 StatusEffect（前端运行时类型）
+type Effect = StatusEffect;
 
 // 处理直接效果（生命值、魔法值的变化）
 const handleDirectEffect = (target: MonsterSprite, effect: Effect) => {
@@ -66,16 +70,17 @@ const handleStatModifiers = (target: MonsterSprite, effect: Effect) => {
     const stats = target.stats;
 
     Object.entries(effect.modifiers).forEach(([stat, value]) => {
-        const statKey = stat as keyof Stats;
+        const statKey = stat as keyof typeof stats;
         const statValue = stats[statKey];
+        const numValue = typeof value === 'number' ? value : 0;
 
         if (effect.modifier_type === 'multiply') {
             // 乘法修改器
             if (statValue) {
                 if (typeof statValue === 'number') {
-                    (stats[statKey] as number) = statValue * (effect.type === SkillEffectType.DEBUFF ? (1 - value) : (1 + value));
+                    (stats[statKey] as number) = statValue * (effect.type === SkillEffectType.DEBUFF ? (1 - numValue) : (1 + numValue));
                 } else if ('current' in statValue && 'max' in statValue) {
-                    const multiplier = effect.type === SkillEffectType.DEBUFF ? (1 - value) : (1 + value);
+                    const multiplier = effect.type === SkillEffectType.DEBUFF ? (1 - numValue) : (1 + numValue);
                     statValue.current = Math.round(statValue.current * multiplier);
                     statValue.max = Math.round(statValue.max * multiplier);
                 }
@@ -84,9 +89,9 @@ const handleStatModifiers = (target: MonsterSprite, effect: Effect) => {
             // 加法修改器
             if (statValue) {
                 if (typeof statValue === 'number') {
-                    (stats[statKey] as number) = statValue + (effect.type === SkillEffectType.DEBUFF ? -value : value);
+                    (stats[statKey] as number) = statValue + (effect.type === SkillEffectType.DEBUFF ? -numValue : numValue);
                 } else if ('current' in statValue && 'max' in statValue) {
-                    const addValue = effect.type === EffectType.DEBUFF ? -value : value;
+                    const addValue = effect.type === SkillEffectType.DEBUFF ? -numValue : numValue;
                     statValue.current = Math.max(0, statValue.current + addValue);
                     statValue.max = Math.max(statValue.max, statValue.max + addValue);
                 }
@@ -206,7 +211,10 @@ export const removeEffect = (target: MonsterSprite, effect: Effect): void => {
             // 恢复属性修改
             if (effect.modifiers) {
                 const reverseModifiers = Object.fromEntries(
-                    Object.entries(effect.modifiers).map(([k, v]) => [k, effect.modifier_type === 'multiply' ? 1 / v : -v])
+                    Object.entries(effect.modifiers).map(([k, v]) => {
+                        const numValue = typeof v === 'number' ? v : 0;
+                        return [k, effect.modifier_type === 'multiply' ? 1 / numValue : -numValue];
+                    })
                 );
                 handleStatModifiers(target, {
                     ...effect,
@@ -356,7 +364,10 @@ export const calculateEffectValue = (
             if (finalEffect.modifiers && caster.stats?.intelligence) {
                 const intelligenceBonus = calculateAttributeBonus(caster.stats.intelligence, 'intelligence');
                 finalEffect.modifiers = Object.fromEntries(
-                    Object.entries(finalEffect.modifiers).map(([k, v]) => [k, v * intelligenceBonus])
+                    Object.entries(finalEffect.modifiers).map(([k, v]) => {
+                        const numValue = typeof v === 'number' ? v : 0;
+                        return [k, numValue * intelligenceBonus];
+                    })
                 );
             }
             break;

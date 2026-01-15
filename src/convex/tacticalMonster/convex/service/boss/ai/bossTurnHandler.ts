@@ -42,14 +42,14 @@ export const handleBossTurn = internalMutation({
             round: args.round,
         });
 
-        // 3. 执行Boss动作
+        // 3. 执行Boss动作（同步执行，返回结果）
+        let bossExecutionResult = null;
         if (decision.bossAction.type !== "standby") {
             // 执行Boss本体动作（使用 bossId 标识符）
             const bossIdentifier = {
                 bossId: game.boss.bossId,
             };
-            await ctx.scheduler.runAfter(
-                0,
+            bossExecutionResult = await ctx.runMutation(
                 internal.service.boss.ai.bossAIActions.executeBossAction,
                 {
                     gameId: args.gameId,
@@ -59,7 +59,8 @@ export const handleBossTurn = internalMutation({
             );
         }
 
-        // 4. 如果存在小怪，执行小怪动作（简化处理，小怪使用简单AI）
+        // 4. 如果存在小怪，执行小怪动作（同步执行，返回结果）
+        const minionResults: Array<{ minionId: string; result: any }> = [];
         if (decision.minionActions && decision.minionActions.length > 0) {
             for (const minionAction of decision.minionActions) {
                 if (minionAction.action.type !== "standby") {
@@ -67,8 +68,7 @@ export const handleBossTurn = internalMutation({
                     const minionIdentifier = {
                         minionId: minionAction.minionId,
                     };
-                    await ctx.scheduler.runAfter(
-                        100,  // 延迟执行，避免同时执行太多动作
+                    const result = await ctx.runMutation(
                         internal.service.boss.ai.bossAIActions.executeBossAction,
                         {
                             gameId: args.gameId,
@@ -76,35 +76,22 @@ export const handleBossTurn = internalMutation({
                             identifier: minionIdentifier,
                         }
                     );
+                    minionResults.push({
+                        minionId: minionAction.minionId,
+                        result,
+                    });
                 }
             }
         }
-
-        // ✅ 关键：发送确认事件（供前端验证预测）
-        // 在动作执行后立即发送，前端可以验证预测结果
-        if (!game.boss.behaviorSeed) {
-            throw new Error(`Boss缺少behaviorSeed`);
-        }
-        const behaviorSeed = game.boss.behaviorSeed;
-
-        await ctx.db.insert("mr_game_event", {
-            gameId: args.gameId,
-            name: "bossAIDecision",
-            type: 0,
-            data: {
-                decision: decision.bossAction,
-                round: args.round,
-                seed: `${behaviorSeed}_round_${args.round}`, // 包含种子用于验证
-                phaseTransition: decision.phaseTransition,
-                timestamp: Date.now(),
-            },
-            time: Date.now(),
-        });
 
         return {
             ok: true,
             decision,
             phaseTransition: decision.phaseTransition,
+            executionResults: {
+                boss: bossExecutionResult,
+                minions: minionResults,
+            },
         };
     },
 });

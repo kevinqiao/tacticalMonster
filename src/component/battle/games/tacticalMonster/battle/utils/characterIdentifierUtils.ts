@@ -3,8 +3,8 @@
  * 用于前后端角色标识符的转换和管理
  */
 
-import { CharacterIdentifier } from "../../../../../../convex/tacticalMonster/convex/service/game/gameService";
 import { MonsterSprite } from "../types/CombatTypes";
+import { CharacterIdentifier } from "../types/gameTypes";
 import { determineCharacterIdentifier, getCharacterIdFromIdentifier } from "./typeAdapter";
 
 /**

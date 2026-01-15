@@ -1,6 +1,7 @@
 import { v } from "convex/values";
+import { internal } from "../../_generated/api";
 import { Id } from "../../_generated/dataModel";
-import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
+import { action, internalMutation, internalQuery, mutation, query } from "../../_generated/server";
 import { incrementPlayerAttempts, MatchStatus, settleTournament, TournamentStatus } from "./common";
 import { createSeededRandom } from "./seedRandom";
 // import { getTorontoMidnight } from "../simpleTimezoneUtils";
@@ -318,6 +319,21 @@ export class MatchManager {
 
 
 // Convex 函数接口
+export const checkLastMatch = action({
+    args: {
+        uid: v.string(),
+    },
+    handler: async (ctx: any, args: any): Promise<any> => {
+        const match = await ctx.runQuery(internal.service.tournament.matchManager.findLastMatch, { uid: args.uid });
+        if (match && match.status === MatchStatus.OPEN && match.dueTime) {
+            const now = new Date().toISOString();
+            if (now > match.dueTime) {
+                //fetch game score from game server
+            }
+        }
+        return { gameId: match?.gameId, gameType: match?.gameType, matchType: match?.type, status: match?.status };
+    },
+});
 export const createMatch = (mutation as any)({
     args: {
         tournamentId: v.id("tournaments"),
@@ -407,24 +423,17 @@ export const findGameMatch = query({
         }
     },
 });
-export const findMatch = query({
-    args: { uid: v.string(), createdAt: v.optional(v.string()) },
-    handler: async (ctx: any, { uid, createdAt }: { uid: string, createdAt?: string }): Promise<any> => {
-        if (createdAt) {
-            const match = await ctx.db.query("player_matches").withIndex("by_uid_createdAt", (q: any) => q.eq("uid", uid).gt("createdAt", createdAt)).order("desc").first();
-            if (match) {
-                return { ...match, _id: undefined, _creationTime: undefined };
-            } else {
-                return null;
-            }
+export const findLastMatch = internalQuery({
+    args: { uid: v.string() },
+    handler: async (ctx: any, { uid }: { uid: string }): Promise<any> => {
+
+        const match = await ctx.db.query("player_matches").withIndex("by_uid", (q: any) => q.eq("uid", uid)).order("desc").first();
+        if (match) {
+            return { ...match, _id: undefined, _creationTime: undefined };
         } else {
-            const match = await ctx.db.query("player_matches").withIndex("by_uid", (q: any) => q.eq("uid", uid)).order("desc").first();
-            if (match) {
-                return { ...match, _id: undefined, _creationTime: undefined };
-            } else {
-                return null;
-            }
+            return null;
         }
+
     },
 });
 export const findNewMatch = query({

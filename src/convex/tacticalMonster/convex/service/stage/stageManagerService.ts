@@ -8,7 +8,8 @@ import { Stage } from "../../../../../component/battle/games/tacticalMonster/bat
 import { internalMutation, internalQuery, query } from "../../_generated/server";
 import { calculateScaleBoss, getBossConfig } from "../../data/bossConfigs";
 import { getMapTemplateConfig, getMapTemplateConfigsByTier } from "../../data/mapTemplateConfigs";
-import { STAGE_RULE_CONFIGS, StageRuleConfig } from "../../data/stageRuleConfigs";
+import { STAGE_RULE_CONFIGS } from "../../data/stageRuleConfigs";
+import { StageRuleConfig } from "../../types/stageRuleTypes";
 import { SeededRandom } from "../../utils/seededRandom";
 import { GameRuleConfigService } from "../game/gameRuleConfigService";
 import { TeamService } from "../team/teamService";

@@ -6,13 +6,16 @@
 import { calculateHexDistance } from "../../utils/hexUtil";
 import { SeededRandom } from "../../utils/seededRandom";
 
+import { CharacterIdentifier } from "../../types/gameTypes";
+
 export interface BossAction {
     type: "use_skill" | "attack" | "move" | "standby";
     skillId?: string;
     target?: {
         uid: string;
         character_id: string;
-    };
+    } | CharacterIdentifier;  // 支持两种格式：前端格式和后端格式
+    targets?: CharacterIdentifier[];  // 支持多个目标（后端格式）
     position?: { q: number; r: number };
 }
 

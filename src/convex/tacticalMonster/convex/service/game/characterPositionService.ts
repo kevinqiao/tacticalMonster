@@ -3,7 +3,9 @@
  * 负责更新角色在数据库中的位置
  */
 
-import { CharacterIdentifier, GameModel } from "./gameService";
+import { CharacterIdentifier, GameModel } from "../../types/gameTypes";
+
+
 
 export class CharacterPositionService {
     private dbCtx: any;
