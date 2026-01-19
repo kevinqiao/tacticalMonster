@@ -1,5 +1,9 @@
 /**
  * 技能使用操作 Hook
+ * 方案1：乐观UI + 悲观状态
+ * - 立即播放动画（乐观UI）
+ * - 等待后端响应后应用状态变化（悲观状态）
+ * - 移除乐观执行、状态快照、回滚机制
  */
 
 import type { Dispatch, SetStateAction } from "react";
@@ -7,13 +11,8 @@ import { useCallback } from "react";
 import { api } from "../../../../../../../../convex/tacticalMonster/convex/_generated/api";
 import { UseSkillResponse } from "../../../types/backendResponseTypes";
 import { MonsterSprite } from "../../../types/CombatTypes";
-import { OperationQueue } from "../../optimistic/OperationQueue";
-import { OptimisticSkillExecutor } from "../../optimistic/OptimisticSkillExecutor";
-import { StateSnapshot } from "../../optimistic/StateSnapshot";
 import { SkillSyncState } from "../types";
 import { createCharacterIdentifiers } from "../utils/characterUtils";
-import { handleBackendError } from "../utils/errorUtils";
-import { calculateKillScore } from "../utils/scoreUtils";
 import { canPerformAction } from "../utils/validationUtils";
 import { applyVisualFeedback, clearVisualFeedback } from "../utils/visualFeedbackUtils";
 
@@ -25,8 +24,6 @@ export const useSkillAction = (
     characters: any[],
     mode: string,
     convex: any,
-    optimisticExecutor: OptimisticSkillExecutor | null,
-    operationQueue: OperationQueue,
     playSkill: (
         caster: MonsterSprite,
         skillId: string,
@@ -39,95 +36,67 @@ export const useSkillAction = (
 ) => {
     const useSkill = useCallback(async (skillId: string, target?: MonsterSprite) => {
         const validation = canPerformAction(mode, game, characters);
-        if (!validation.can || !validation.character || !optimisticExecutor) return;
+        if (!validation.can || !validation.character) return;
 
         const { character } = validation;
         if (!game?.currentRound) return;
 
         const { casterIdentifier, targetIdentifiers } = createCharacterIdentifiers(characters, character, target);
-        const gameSeed = (game as any).boss?.behaviorSeed || `game_${game.gameId}`;
-        const round = game.currentRound.no || 0;
 
         applyVisualFeedback(character, target);
 
-        // 乐观执行（内部会创建状态快照）
-        let optimisticResult: any;
-        let pendingUpdate: { snapshot: any; rollback: () => void } | null = null;
+        // ✅ 方案1：立即播放动画（乐观UI）
+        const activeSkillTimeline = playSkill(character, skillId, target ? [target] : [], () => {
+            clearVisualFeedback(character, target);
+            setSkillSyncState(prev => prev ? {
+                ...prev,
+                animationCompleted: true,
+                activeSkillTimeline: activeSkillTimeline || prev.activeSkillTimeline || undefined
+            } : null);
+        });
 
-        try {
-            const beforeHp = target ? (target.stats?.hp?.current || 0) : 0;
-            optimisticResult = await optimisticExecutor.executeOptimistically(
+        // 设置同步状态（等待后端响应）
+        setSkillSyncState({
+            animationCompleted: false,
+            backendResponse: null,
+            activeSkillTimeline: activeSkillTimeline || undefined,
+            character,
+            target,
+            skillId
+        });
+
+        // ✅ 方案1：发送后端请求，等待响应后应用状态变化（悲观状态）
+        const backendRequestPromise = convex.mutation((api as any).service.game.gameService.useSkill, {
+            gameId: game.gameId,
+            data: {
+                ...casterIdentifier,
                 skillId,
-                character,
-                target ? [target] : [],
-                gameSeed,
-                round
-            );
-
-            // 使用乐观执行返回的快照创建回滚函数
-            pendingUpdate = {
-                snapshot: optimisticResult.snapshot,
-                rollback: () => {
-                    if (optimisticResult.snapshot) {
-                        StateSnapshot.restoreSnapshot(game, optimisticResult.snapshot);
-                    }
-                }
-            };
-
-            if (optimisticResult.result.success && target) {
-                const afterHp = target.stats?.hp?.current || 0;
-                calculateKillScore(characters, target, beforeHp, afterHp, skillId, calculateActionScore);
+                targets: targetIdentifiers.length > 0 ? targetIdentifiers : undefined
             }
+        });
 
-            const backendRequestPromise = convex.mutation((api as any).service.game.gameService.useSkill, {
-                gameId: game.gameId,
-                data: {
-                    ...casterIdentifier,
-                    skillId,
-                    targets: targetIdentifiers.length > 0 ? targetIdentifiers : undefined
-                }
-            });
+        backendRequestPromise
+            .then((response: UseSkillResponse) => {
+                setSkillSyncState(prev => prev ? { ...prev, backendResponse: response } : null);
+            })
+            .catch((error: any) => {
+                console.error("Use skill failed", error);
 
-            // 先播放主动技能动画，获取 timeline
-            const activeSkillTimeline = playSkill(character, skillId, target ? [target] : [], () => {
-                clearVisualFeedback(character, target);
-                setSkillSyncState(prev => prev ? {
-                    ...prev,
-                    animationCompleted: true,
-                    activeSkillTimeline: activeSkillTimeline || prev.activeSkillTimeline || undefined
-                } : null);
-            });
-
-            // 设置同步状态（包含 activeSkillTimeline，它同时作为主 timeline）
-            setSkillSyncState({
-                animationCompleted: false,
-                backendResponse: null,
-                operationId: optimisticResult.operationId,
-                activeSkillTimeline: activeSkillTimeline || undefined,
-                pendingUpdate,
-                optimisticResult,
-                character,
-                target,
-                skillId
-            });
-
-            backendRequestPromise
-                .then((response: UseSkillResponse) => {
-                    setSkillSyncState(prev => prev ? { ...prev, backendResponse: response } : null);
-                })
-                .catch((error: any) => {
-                    if (pendingUpdate && optimisticResult) {
-                        handleBackendError(error, pendingUpdate, optimisticResult.operationId, operationQueue);
+                // ✅ 方案1：网络错误时，如果动画还在播放，尝试停止
+                // 注意：这里无法访问 activeSkillTimeline，所以错误处理主要在 useSkillSync 中
+                // 但如果动画还未完成，我们可以立即清理状态，让 useSkillSync 处理
+                setSkillSyncState(prev => {
+                    if (prev) {
+                        // 如果动画还在播放，保留状态以便 useSkillSync 处理
+                        return {
+                            ...prev,
+                            backendResponse: { ok: false, error: error.message || "网络错误" }
+                        };
                     }
-                    setSkillSyncState(null);
+                    return null;
                 });
-        } catch (error) {
-            console.error("Use skill failed", error);
-            if (pendingUpdate) {
-                pendingUpdate.rollback();
-            }
-        }
-    }, [game, characters, mode, convex, optimisticExecutor, operationQueue, playSkill, handlePhaseChanges, setSkillSyncState, calculateActionScore]);
+            });
+    }, [game, characters, mode, convex, playSkill, handlePhaseChanges, setSkillSyncState, calculateActionScore]);
 
     return { useSkill };
 };

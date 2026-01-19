@@ -5,30 +5,8 @@
 
 "use node"
 import crypto from "crypto";
-import { action, internalAction } from "../_generated/server";
-
-const players = [
-    "kevin1@gmail.com"
-];
-
-const DEFAULT_TEAM_POSITIONS: Array<{ q: number; r: number }> = [
-    { q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 1 }
-];
-
-const MONSTERS_PER_PLAYER = 4;
-// 可用的怪物ID列表（每个玩家使用不同的怪物）
-const AVAILABLE_MONSTER_IDS = [
-    "monster_001", "monster_002", "monster_003", "monster_004",
-    "monster_005", "monster_006", "monster_007", "monster_008",
-    "monster_009", "monster_010", "monster_011", "monster_012",
-    "monster_013", "monster_014", "monster_015", "monster_016",
-    "monster_017", "monster_018", "monster_019", "monster_020",
-    "monster_021", "monster_022", "monster_023", "monster_024",
-    "monster_025", "monster_026", "monster_027", "monster_028",
-    "monster_029", "monster_030", "monster_031", "monster_032",
-    "monster_033", "monster_034", "monster_035", "monster_036",
-    "monster_037", "monster_038", "monster_039", "monster_040",
-];
+import { internalAction } from "../_generated/server";
+import { AVAILABLE_MONSTER_IDS, DEFAULT_TEAM_POSITIONS, MONSTERS_PER_PLAYER, players } from "./testData";
 
 type MonsterData = {
     uid: string;
@@ -126,9 +104,10 @@ async function loadMonsterHandler(ctx: any): Promise<LoadResult> {
     const uids = [...new Set(monsters.map(m => m.uid))];
 
     const result = await ctx.runMutation(
-        "schemas/loadMonsterTestDataMutation:insertMonsterTestDataBatch" as any,
+        "test/testData:insertMonsterTestDataBatch" as any,
         { monsters }
     );
+    console.log("loadMonsterHandler result", result);
 
     return {
         success: true,
@@ -146,16 +125,5 @@ export const loadMonsterTestDataWithCrypto = internalAction({
     handler: loadMonsterHandler,
 });
 
-/**
- * Public Action: 使用 crypto MD5 加载怪物测试数据（可在 Dashboard 执行）
- * 
- * 使用方法：
- * - Dashboard: Functions -> test/loadMonster:load
- * - CLI: npx convex run test/loadMonster:load
- * - 客户端: api.test.loadMonster.load
- */
-export const load = action({
-    args: {},
-    handler: loadMonsterHandler,
-});
+
 

@@ -19,17 +19,20 @@ const usePlaySkillSelect = () => {
         const { uid, monsterId } = skillSelect;
         const character = characters.find((c) => c.uid === uid && c.monsterId === monsterId);
         if (!character) return;
-        const currentTurn = currentRound.turns.length > 0 ? currentRound.turns[0] : null;
+        // ✅ 修复：查找当前活跃的 turn（status === 1），而不是假设 turns[0]
+        const currentTurn = currentRound.turns.find(
+            (t: any) => t.status === 1 && t.uid === uid && t.monsterId === monsterId
+        ) || null;
         if (!currentTurn) return;
 
         const skill: MonsterSkill | null = COMMON_SKILLS[character.selectedSkill ?? ""] ?? null;
         if (!skill) return;
         const grid = gridCells.map((row) => row.map((cell) => {
-            const char = character.q === cell.x && character.r === cell.y ? null : characters.find((c) => c.q === cell.x && c.r === cell.y)
+            const char = character.q === cell.q && character.r === cell.r ? null : characters.find((c) => c.q === cell.q && c.r === cell.r)
             return {
-                x: cell.x,
-                y: cell.y,
-                walkable: char ? false : cell.walkable
+                q: cell.q,
+                r: cell.r,
+                walkable: char ? false : !cell.disable
             }
         }))
 

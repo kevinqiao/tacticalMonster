@@ -161,6 +161,7 @@ export const mainSchema = {
         status: v.number(),
         score: v.number(),
         scoringConfigVersion: v.optional(v.string()),
+        round: v.optional(v.number()),  // ✅ 当前回合编号（用于快速访问，GameModel.currentRound 是运行时构建的 GameRound 对象）
         lastUpdate: v.string(),
         createdAt: v.string(),
         // Boss阶段管理（可选，也可以存储在 boss.currentPhase 中）
@@ -245,9 +246,29 @@ export const mainSchema = {
         name: v.string(),
         type: v.optional(v.number()),
         data: v.optional(v.any()),
-        time: v.number(),
+        time: v.number(),  // 绝对时间戳（Date.now()）
+        stepTime: v.number(),  // ✅ 相对时间位置（从游戏开始，毫秒数），用于去重和排序
     }).index("by_game", ["gameId"])
-        .index("by_name", ["name"]),
+        .index("by_name", ["name"])
+        .index("by_game_stepTime", ["gameId", "stepTime"]),  // ✅ 新增索引：用于按 stepTime 排序
+
+    // ✅ 游戏回合表：存储每个 round 的 turns 数据
+    mr_game_round: defineTable({
+        gameId: v.string(),
+        no: v.number(),  // 回合编号
+        status: v.number(),  // 回合状态：0: 进行中, 1: 已完成, 2: 已结束
+        turns: v.array(v.object({  // GameTurn 数组
+            uid: v.string(),
+            monsterId: v.string(),
+            skillSelect: v.optional(v.string()),
+            status: v.number(),  // Turn 状态：0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
+            dueTime: v.optional(v.number()),
+            order: v.optional(v.number()),  // turn 的次序
+        })),
+        startTime: v.optional(v.number()),
+        endTime: v.optional(v.number()),
+    })
+        .index("by_game_round", ["gameId", "no"]),
 
 };
 

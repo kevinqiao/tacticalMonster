@@ -46,4 +46,38 @@ export const calculateHexDistance = (from: { q: number, r: number }, to: { q: nu
     );
 };
 
+/**
+ * 导出 hexDistance 函数（别名，用于统一命名）
+ */
+export const hexDistance = calculateHexDistance;
+
+/**
+ * 获取指定范围内的所有邻居位置
+ * @param q - 中心位置的 q 坐标
+ * @param r - 中心位置的 r 坐标
+ * @param range - 范围（距离）
+ * @returns 所有在范围内的位置列表
+ */
+export function getNeighborsInRange(
+    q: number,
+    r: number,
+    range: number
+): Array<{ q: number; r: number }> {
+    const neighbors: Array<{ q: number; r: number }> = [];
+    
+    for (let dq = -range; dq <= range; dq++) {
+        for (let dr = -range; dr <= range; dr++) {
+            const distance = calculateHexDistance(
+                { q: 0, r: 0 },
+                { q: dq, r: dr }
+            );
+            if (distance > 0 && distance <= range) {
+                neighbors.push({ q: q + dq, r: r + dr });
+            }
+        }
+    }
+    
+    return neighbors;
+}
+
 

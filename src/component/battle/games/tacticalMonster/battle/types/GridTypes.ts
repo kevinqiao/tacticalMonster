@@ -2,13 +2,14 @@
  * Tactical Monster 网格类型定义
  */
 
-import { GridCellType } from "./CombatTypes";
+import { GridCellSprite, GridCellType } from "./CombatTypes";
 
 export interface GridCellProps {
     row: number;
     col: number;
-    walk?: (data: any) => void;
-    attack?: (data: any) => void;
+    cell: GridCellSprite;
+    // walk?: (data: any) => void;
+    // attack?: (data: any) => void;
 }
 
 export interface GridStyles {

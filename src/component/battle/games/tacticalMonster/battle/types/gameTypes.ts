@@ -16,6 +16,7 @@ export interface MapModel {
     obstacles?: ObstacleCell[];
     disables?: { q: number; r: number }[];
 }
+
 /**
  * GameModel - 游戏模型（运行时数据结构）
  * 对应数据库表 mr_games，包含完整的游戏状态信息
@@ -43,13 +44,84 @@ export interface GameModel {
     createdAt: string;  // ISO 字符串格式
     dueTime?: number;
     // ========== 运行时字段（不在数据库中，但用于代码逻辑）==========
-    currentRound?: { no: number; turns: { uid: string; monsterId: string }[] };
+    currentRound?: GameRound;
 }
 
+export interface GameRound {
+    no: number;
+    turns: GameTurn[];  // ✅ 统一使用 GameTurn 类型
+}
 /**
- * GameReport - 游戏报告
- * 包含游戏结束后的分数统计信息
+ * GameTurn - 游戏回合
+ * 统一使用此类型，替代原来的 CombatTurn
+ * 
+ * Turn 状态说明（简化版，三状态）：
+ * - 0 (OPEN): 开放/等待中 - 回合已创建，但尚未开始，等待轮到该角色
+ * - 1 (IN_PROGRESS): 进行中 - 回合已开始，角色可以执行行动（移动、攻击、使用技能等）
+ * - 2 (COMPLETED): 已完成 - 回合已完全结束，所有处理（行动、被动技能、状态效果等）都已完成
+ * 
+ * 状态流转：
+ * OPEN (0) → IN_PROGRESS (1) → COMPLETED (2)
+ * 
+ * 注意：
+ * - 已完成的 turn 会保留在 GameRound.turns 数组中，不会删除
+ * - 这有助于历史记录、调试和回放功能
+ * - 通过检查所有 turn 的 status === 2 来判断 round 是否完成
+ * - skills 字段已移除，技能信息应从角色（GameMonster）中获取
+ * - order 属性标识该 turn 在 round 中的次序（从 1 开始），不依赖于数组位置
  */
+export interface GameTurn {
+    uid: string;
+    monsterId: string;  // 玩家角色的monsterId，或Boss/小怪的配置ID（用于查找角色配置）
+    bossId?: string;    // Boss主体的bossId（可选，当uid="boss"且是Boss主体时使用）
+    minionId?: string;  // 小怪的minionId（可选，当uid="boss"且是小怪时使用，用于区分相同monsterId的小怪）
+    skillSelect?: string;
+    status?: number;  // 回合状态：0: open, 1: in_progress, 2: completed
+    order?: number;   // 在 round 中的次序（从 1 开始），用于明确标识和 UI 显示
+    dueTime?: number;
+}
+/**
+ * 阶段变化信息
+ */
+export interface PhaseChanges {
+    turnEnd?: {
+        uid: string;
+        monsterId: string;
+        round: number;
+    };
+    roundEnd?: {
+        round: number;
+    };
+    roundStart?: {
+        round: number;
+        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>; // ✅ 被触发的被动技能列表
+    };
+    turnStart?: {
+        uid: string;
+        monsterId: string;
+        round: number;
+        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>; // ✅ 被触发的被动技能列表
+    };
+    // 支持多个连续的 Boss turn（Boss 本体 + 多个小怪）
+    // 注意：数组的顺序就是执行顺序（按照 turns 的 order 字段排序）
+    // 前端应该按照数组顺序依次处理每个 Boss turn
+    bossAIActions?: Array<{
+        turnStart: {
+            uid: string;
+            monsterId: string;
+            round: number;
+            triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>; // ✅ 被触发的被动技能列表
+        };
+        decision: any;
+        executionResults: any;
+        phaseTransition?: any;
+    }>;
+    gameOver?: {
+        result: any; // GameResult (从 sharedScoreService 导入)
+        reason: string;
+    };
+}
+
 export interface GameReport {
     gameId: string;
     baseScore: number;
@@ -58,19 +130,7 @@ export interface GameReport {
     totalScore: number;
 }
 
-/**
- * CombatTurn - 战斗回合
- * 表示一个战斗回合中的行动信息
- */
-export interface CombatTurn {
-    uid: string;
-    monsterId: string;
-    skills?: string[];
-    skillSelect?: string;
-    status: number;  // 回合状态：0: pending, 1: in_progress, 2: completed
-    startTime?: number;
-    endTime?: number;
-}
+// ✅ CombatTurn 已移除，统一使用 GameTurn
 
 /**
  * CharacterIdentifier - 角色标识符

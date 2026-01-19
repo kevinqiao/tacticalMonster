@@ -17,11 +17,13 @@ import TeamLayout from "./TeamLayout";
 interface Props {
     game: GameModel;
     mode: 'join' | 'play' | 'watch' | 'replay';
+    initialPhaseChanges?: any; // ✅ 初始 phaseChanges
 }
 
 const PlayGame: React.FC<Props> = ({
     game,
     mode = 'play',  // ✅ 新增：默认 play 模式
+    initialPhaseChanges, // ✅ 初始 phaseChanges
 }) => {
 
     const client = React.useMemo(() => new ConvexReactClient(URLS.tacticalMonster), [URLS.tacticalMonster]);
@@ -31,7 +33,7 @@ const PlayGame: React.FC<Props> = ({
     return (
         <div className="tactical-monster-game-container">
             <ConvexProvider client={client}>
-                <CombatManager game={game} onGameSubmit={onGameSubmit}>
+                <CombatManager game={game} mode={mode === 'join' ? 'play' : mode} initialPhaseChanges={initialPhaseChanges}>
                     <BattlePlayer />
                 </CombatManager>
             </ConvexProvider>
@@ -44,6 +46,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     const teamLayoutRef = useRef<HTMLDivElement>(null);
     const playGameRef = useRef<HTMLDivElement>(null);
     const [game, setGame] = useState<GameModel | null>(null);
+    const [initialPhaseChanges, setInitialPhaseChanges] = useState<any>(null); // ✅ 保存初始 phaseChanges
     const loadingGameIdRef = useRef<string | null>(null); // 防止重复加载
     const { user } = useUserManager();
     const { joinTournament } = useTournamentManager();
@@ -58,6 +61,10 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
             const result = await joinTournament(props.typeId, props.stageId);
             if (result.ok && result.game) {
                 setGame(result.game);
+                // ✅ 保存 phaseChanges（如果存在）
+                if (result.phaseChanges) {
+                    setInitialPhaseChanges(result.phaseChanges);
+                }
                 openPlayGame();
             }
             console.log("join result", result);
@@ -67,6 +74,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     useEffect(() => {
         if (!props.visible) {
             setGame(null);
+            setInitialPhaseChanges(null); // ✅ 重置 phaseChanges
             loadingGameIdRef.current = null;
             playInit();
             return;
@@ -81,6 +89,10 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
                     console.log("loadGame result", res);
                     if (res.ok) {
                         setGame(res.game);
+                        // ✅ 保存 phaseChanges（如果存在）
+                        if (res.phaseChanges) {
+                            setInitialPhaseChanges(res.phaseChanges);
+                        }
                         openPlayGame();
                     }
                 });
@@ -107,6 +119,10 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
                                 console.log("getPlayerMonsters result", res);
                                 if (res.ok) {
                                     setGame(res.game);
+                                    // ✅ 保存 phaseChanges（如果存在）
+                                    if (res.phaseChanges) {
+                                        setInitialPhaseChanges(res.phaseChanges);
+                                    }
                                 }
                             });
                         }
@@ -127,7 +143,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
             {!game && props.stageId && <TeamLayout stageId={props.stageId} onComplete={startJoin} />}
         </div>
         <div ref={playGameRef} className="play-tactical-monster-container">
-            {game && <PlayGame game={game} mode={props.mode} />}
+            {game && <PlayGame game={game} mode={props.mode} initialPhaseChanges={initialPhaseChanges} />}
         </div>
         <div ref={loadingRef} className="play-tactical-monster-loading"><div className="play-tactical-monster-loading-text">Loading...</div></div>
     </>

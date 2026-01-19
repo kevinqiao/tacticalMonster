@@ -39,16 +39,17 @@ export class TournamentService {
         );
         const result = await response.json();
 
+
         if (result.ok) {
-            const { typeId, stageId } = result.data;
-            const game = await ctx.runMutation((internal as any).service.game.gameService.createGame, {
+            const { tournamentType, stageId } = result.match;
+            const gameResult = await ctx.runMutation((internal as any).service.game.gameService.createGame, {
                 uid,
                 gameId,
-                ruleId: typeId,
+                ruleId: tournamentType,
                 stageId,
             });
-            if (game) {
-                return { ok: true, game };
+            if (gameResult && gameResult.ok && gameResult.data) {
+                return { ok: true, game: gameResult.data, phaseChanges: gameResult.phaseChanges };
             }
         }
         return { ok: false, errorCode: TacticalMonsterErrorCode.MATCH_NOT_FOUND };
@@ -57,7 +58,7 @@ export class TournamentService {
         uid: string;
         gameId: string;
     }) {
-        console.log("surrender params", params);
+
         const { uid, gameId } = params;
         // const surResult = await ctx.runMutation((internal as any).service.game.gameService.surrender, { gameId });
         // if (surResult.ok) {
@@ -76,7 +77,7 @@ export class TournamentService {
             }
         );
         const result = await response.json();
-        console.log("surrender result", result);
+
         if (result.ok) {
             return { ok: true };
         }
@@ -128,14 +129,14 @@ export class TournamentService {
             const result = await response.json();
             if (result.ok) {
                 const { gameId, matchId, stageId, teamPower } = result.data;
-                const game = await ctx.runMutation((internal as any).service.game.gameService.createGame, {
+                const gameResult = await ctx.runMutation((internal as any).service.game.gameService.createGame, {
                     uid,
                     gameId,
                     ruleId: typeId,
                     stageId,
                 });
-                if (game) {
-                    return { ok: true, game };
+                if (gameResult && gameResult.ok && gameResult.data) {
+                    return { ok: true, game: gameResult.data, phaseChanges: gameResult.phaseChanges };
                 }
 
             }

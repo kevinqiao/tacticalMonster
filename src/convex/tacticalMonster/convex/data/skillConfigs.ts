@@ -6,7 +6,8 @@
  * 注意：技能配置不存入数据库，直接从配置文件读取
  */
 
-import { MonsterSkill, SkillEffectType } from "../types/skillTypes";
+import type { MonsterSkill, SkillEffect } from "../types/skillTypes";
+import { SkillEffectType } from "../types/skillTypes";
 
 // /**
 //  * 技能范围定义
@@ -702,4 +703,4 @@ export function skillExists(skillId: string): boolean {
 }
 
 
-export { MonsterSkill };
+export { MonsterSkill, SkillEffectType, SkillEffect };

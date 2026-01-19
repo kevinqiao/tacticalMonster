@@ -70,6 +70,10 @@ export const loadGame = action({
                 if (gameResult && gameResult.ok) {
                     res.ok = true;
                     res.game = gameResult.data;
+                    // ✅ 传递 phaseChanges 给前端
+                    if (gameResult.phaseChanges) {
+                        (res as any).phaseChanges = gameResult.phaseChanges;
+                    }
                 }
             }
         } else {

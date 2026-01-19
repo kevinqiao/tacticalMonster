@@ -17,7 +17,7 @@ const useEventHandler = () => {
     const {
         eventQueue,
         characters,
-        gridCells,
+        groundCells,
         hexCell,
         mode = 'play',
         game
@@ -39,9 +39,10 @@ const useEventHandler = () => {
 
     /**
      * 观看模式下处理操作事件（统一在动画完成后更新）
+     * ⚠️ 注意：在 watch 模式下，不手动更新状态，依赖 useQuery 自动同步
      */
-    const handleWatchModeActionEvent = useCallback((event: CombatEvent, onComplete: () => void) => {
-        if (!characters || !gridCells) {
+    const handleWatchModeActionEvent = useCallback((event: FrontendCombatEvent, onComplete: () => void) => {
+        if (!characters || !groundCells) {
             onComplete();
             return;
         }
@@ -58,20 +59,13 @@ const useEventHandler = () => {
                 return;
             }
 
-            // 准备更新数据（不立即应用）
-            const pendingUpdate = {
-                q: data.to.q,
-                r: data.to.r
-            };
-
             // 创建路径（简化处理，实际应该从事件数据获取）
-            const path = [{ x: character.q ?? 0, y: character.r ?? 0 }, { x: data.to.q, y: data.to.r }];
+            const path = [{ q: character.q ?? 0, r: character.r ?? 0 }, { q: data.to.q, r: data.to.r }];
 
-            // 播放动画
+            // ✅ 播放动画（不手动更新状态，依赖 useQuery 自动同步）
             playWalk(character, path, () => {
-                // 动画完成后统一更新
-                character.q = pendingUpdate.q;
-                character.r = pendingUpdate.r;
+                // ✅ Watch 模式下，状态由 useQuery(gameState) 自动更新
+                // 不手动修改 character.q 和 character.r，避免与 gameState 查询冲突
                 onComplete();
             });
         } else if (name === "attack" || name === "use_skill") {
@@ -148,22 +142,14 @@ const useEventHandler = () => {
                 skillId,
                 targetSprites,
                 async () => {
-                    // 动画完成后更新目标状态
-                    // 注意：实际的状态应该从后端查询获取，这里只是示例
-                    targetSprites.forEach(target => {
-                        const update = targetUpdates.get(target.character_id);
-                        if (update && target.stats) {
-                            if (update.newHp !== undefined && target.stats.hp) {
-                                target.stats.hp.current = update.newHp;
-                            }
-                            if (update.newMp !== undefined && target.stats.mp) {
-                                target.stats.mp.current = update.newMp;
-                            }
-                            if (update.effects) {
-                                target.statusEffects = update.effects;
-                            }
-                        }
-                    });
+                    // ✅ Watch 模式下，不手动更新状态，依赖 useQuery(gameState) 自动同步
+                    // 状态更新流程：
+                    // 1. 后端执行动作 → 更新数据库
+                    // 2. useQuery(gameState) 检测到数据库变化 → 自动更新
+                    // 3. effectiveGame 更新 → characters 重新计算 → UI 更新
+                    // 
+                    // 注意：targetUpdates 中的信息仅用于参考，不用于实际更新
+                    // 实际状态应该从 gameState 查询获取
 
                     // ✅ 处理被动技能动画（如果有）
                     if (result && activeSkillTimeline) {
@@ -187,13 +173,13 @@ const useEventHandler = () => {
             // 其他操作事件直接完成
             onComplete();
         }
-    }, [characters, gridCells, playWalk, playSkill, handlePassiveSkillAnimations, handlePhaseChanges]);
+    }, [characters, groundCells, playWalk, playSkill, handlePassiveSkillAnimations, handlePhaseChanges]);
 
     const processEvent = useCallback(() => {
         // 如果正在处理，跳过（严格的队列机制）
         if (isProcessingRef.current) return;
 
-        const event: CombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
+        const event: FrontendCombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event) return;
 
         // 已处理的事件直接移除
@@ -244,12 +230,84 @@ const useEventHandler = () => {
 
                 case "roundStart":
                 case "new_round":
+                    // ✅ watch/replay 模式：处理独立的回合开始事件，转换为 phaseChanges 格式
+                    if (isWatchMode || isReplayMode) {
+                        const phaseChanges: any = {
+                            roundStart: {
+                                round: data?.round || 1,
+                                triggeredPassiveSkills: data?.triggeredPassiveSkills || [], // ✅ 从事件 data 中获取被动技能信息
+                            },
+                        };
+                        handlePhaseChanges(phaseChanges).catch((error) => {
+                            console.error(`Error handling ${name} event:`, error);
+                        }).finally(() => {
+                            onComplete();
+                        });
+                    } else {
+                        // play 模式：不应该出现独立的阶段事件（所有阶段变化都在操作事件的 phaseChanges 中）
+                        onComplete();
+                    }
+                    break;
+
                 case "roundEnd":
                 case "end_round":
+                    // 回合结束事件：状态更新由后端处理，前端只需同步
+                    onComplete();
+                    break;
+
+                case "firstTurn":
+                    // ✅ watch/replay 模式：处理第一个回合的初始事件，包含所有连续 Boss turn 的数据
+                    if (isWatchMode || isReplayMode) {
+                        const phaseChanges = data?.phaseChanges || {};
+                        handlePhaseChanges(phaseChanges).catch((error) => {
+                            console.error(`Error handling ${name} event:`, error);
+                        }).finally(() => {
+                            onComplete();
+                        });
+                    } else {
+                        // play 模式：不应该出现独立的阶段事件（所有阶段变化都在操作事件的 phaseChanges 中）
+                        onComplete();
+                    }
+                    break;
+
                 case "turnStart":
+                    // ✅ watch/replay 模式：处理独立的回合开始事件，转换为 phaseChanges 格式
+                    if (isWatchMode || isReplayMode) {
+                        const phaseChanges: any = {
+                            turnStart: {
+                                uid: data?.uid || "",
+                                // ✅ 支持 CharacterIdentifier 格式（monsterId/bossId/minionId）
+                                ...(data?.monsterId ? { monsterId: data.monsterId } : {}),
+                                ...(data?.bossId ? { bossId: data.bossId } : {}),
+                                ...(data?.minionId ? { minionId: data.minionId } : {}),
+                                round: data?.round || 1,
+                                triggeredPassiveSkills: data?.triggeredPassiveSkills || [], // ✅ 从事件 data 中获取被动技能信息
+                            },
+                        };
+
+                        // ✅ 如果事件包含 Boss AI 动作信息，添加到 phaseChanges
+                        if (data?.bossAIAction) {
+                            phaseChanges.bossAIActions = [{
+                                turnStart: phaseChanges.turnStart,
+                                decision: data.bossAIAction.decision,
+                                executionResults: data.bossAIAction.executionResults,
+                                phaseTransition: data.bossAIAction.phaseTransition,
+                            }];
+                        }
+
+                        handlePhaseChanges(phaseChanges).catch((error) => {
+                            console.error(`Error handling ${name} event:`, error);
+                        }).finally(() => {
+                            onComplete();
+                        });
+                    } else {
+                        // play 模式：不应该出现独立的阶段事件（所有阶段变化都在操作事件的 phaseChanges 中）
+                        onComplete();
+                    }
+                    break;
+
                 case "turnEnd":
-                    // ✅ 所有模式：不应该出现独立的阶段事件（所有阶段变化都在操作事件的 phaseChanges 中）
-                    // 如果出现阶段事件，直接跳过（理论上不应该出现）
+                    // 回合结束事件：状态更新由后端处理，前端只需同步
                     onComplete();
                     break;
 
@@ -292,14 +350,14 @@ const useEventHandler = () => {
     useEffect(() => {
         // 所有模式都需要轮询处理事件队列
         // replay 模式下，事件由重播管理器通过回调注入到队列，但仍需要轮询来处理
-        if (!characters || !gridCells || !hexCell) return;
+        if (!characters || !groundCells || !hexCell) return;
 
         const intervalId = setInterval(() => {
             processEvent();
         }, 100);
 
         return () => clearInterval(intervalId);
-    }, [characters, gridCells, hexCell, processEvent, mode]);
+    }, [characters, groundCells, hexCell, processEvent, mode]);
 };
 
 export default useEventHandler;

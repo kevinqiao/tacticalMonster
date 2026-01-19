@@ -4,6 +4,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useCombatManager } from "./service/CombatManager";
+import { useCurrentTurnHandler } from "./service/handler/hooks/useCurrentTurnHandler";
 import useCombatActHandler from "./service/handler/useCombatActHandler";
 import useEventHandler from "./service/handler/useEventHandler";
 import "./style.css";
@@ -30,7 +31,7 @@ const CombatActPanel: React.FC = () => {
     );
 };
 
-const CombatPlaza: React.FC<{ position: { top: number; left: number; width: number; height: number }, assetType?: ASSET_TYPE }> = ({ position, assetType }) => {
+const CombatPlaza: React.FC<{ position: { top: number; left: number; width: number; height: number } | null, assetType?: ASSET_TYPE }> = ({ position, assetType }) => {
     const { game } = useCombatManager();
     // 当 direction === 1 时，反转整个容器以修正文字镜像问题
     // 注意：CSS 中已设置 transform: none，这里只在需要时覆盖
@@ -40,19 +41,18 @@ const CombatPlaza: React.FC<{ position: { top: number; left: number; width: numb
 
     return (
         <div className="tm-plaza-container" style={containerStyle}>
-            {position && (
-                <>
-                    <div className="tm-plaza-layer" style={{ top: 0, left: 0 }}>
-                        {position && <ObstacleGrid position={position} />}
-                    </div>
-                    <div className="tm-plaza-layer" style={{ top: 0, left: 0 }}>
-                        {position && <GridGround position={position} />}
-                    </div>
-                    <div className="tm-plaza-layer" style={{ top: 0, left: 0, pointerEvents: "none" }}>
-                        {position && <CharacterGrid position={position} assetType={assetType} />}
-                    </div>
-                </>
-            )}
+
+            <div className="tm-plaza-layer">
+                <ObstacleGrid />
+            </div>
+            <div className="tm-plaza-layer">
+                <GridGround />
+            </div>
+            <div className="tm-plaza-layer" style={{ pointerEvents: "none" }}>
+                <CharacterGrid assetType={assetType} />
+            </div>
+
+
         </div>
     );
 };
@@ -144,7 +144,10 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
                 }}
             >
                 <div style={{ position: "absolute", ...mapPosition }}>
-                    {gridPosition && <CombatPlaza position={gridPosition} assetType={assetType} />}
+                    <div style={{ position: "absolute", ...gridPosition }}>
+                        <CombatPlaza position={gridPosition} assetType={assetType} />
+                    </div>
+                    <CombatActPanel />
                 </div>
                 <div style={{ position: "absolute", ...mapPosition, pointerEvents: "none" }}>
                     <CombatActPanel />
@@ -162,8 +165,13 @@ const BattlePlayer: React.FC<BattlePlayerProps> = ({ assetType }) => {
     const { game, replay, mode } = useCombatManager();
     const [currentEventIndex, setCurrentEventIndex] = useState(0);
     const [allEvents, setAllEvents] = useState<any[]>([]);
+    const { positionSelectionUI } = useCombatActHandler();
+
+    // ✅ Play 模式：检查并显示当前 turn UI（用于已存在的游戏）
+    useCurrentTurnHandler();
 
     // ✅ 监听重播状态变化，更新当前事件索引和事件列表
+    // 注意：游戏初始化时的 turn UI 显示由 usePhaseChangesHandler 处理 initialPhaseChanges.turnStart 统一处理
     useEffect(() => {
         if (mode === 'replay' && replay?.state) {
             setCurrentEventIndex(replay.state.currentIndex || 0);
@@ -180,6 +188,8 @@ const BattlePlayer: React.FC<BattlePlayerProps> = ({ assetType }) => {
     return (
         <>
             <BattleVenue />
+            {/* ✅ 位置选择UI（手动移动模式） */}
+            {positionSelectionUI}
             {/* ✅ 重播控制 UI（仅在 replay 模式显示） */}
             {mode === 'replay' && <ReplayControls />}
             {/* ✅ 重播计分显示（仅在 replay 模式显示） */}

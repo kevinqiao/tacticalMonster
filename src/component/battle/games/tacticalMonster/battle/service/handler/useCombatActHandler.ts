@@ -8,7 +8,6 @@
 
 import { useModalManager } from "@/service/ModalManager";
 import { useConvex } from "convex/react";
-import { useMemo } from "react";
 import { useUserManager } from "service/UserManager";
 
 import usePlaySkill from "../../animation/usePlaySkill";
@@ -16,8 +15,6 @@ import usePlaySkillSelect from "../../animation/usePlaySkillSelect";
 import usePlayWalk from "../../animation/usePlayWalk";
 import { useScoreCalculation } from "../../hooks/useScoreCalculation";
 import { useCombatManager } from "../CombatManager";
-import { OperationQueue } from "../optimistic/OperationQueue";
-import { OptimisticSkillExecutor } from "../optimistic/OptimisticSkillExecutor";
 
 // 导入拆分后的模块
 import { useOtherActions } from "./actions/useOtherActions";
@@ -36,7 +33,8 @@ const useCombatActHandler = () => {
     const {
         game,
         characters,
-        gridCells,
+        groundCells,
+        hexDimension,  // ✅ 使用 hexDimension 作为 hexCell（格式相同：{ width, height }）
         mode = 'play'
     } = useCombatManager();
     const convex = useConvex();
@@ -49,48 +47,47 @@ const useCombatActHandler = () => {
         mode
     );
 
-    // 乐观执行相关实例
-    const operationQueue = useMemo(() => new OperationQueue(), []);
-    const optimisticExecutor = useMemo(() => {
-        if (!game) return null;
-        return new OptimisticSkillExecutor(game, operationQueue);
-    }, [game, operationQueue]);
-
-
     // ✅ 使用共享的阶段变化处理器
     const { handlePhaseChanges } = usePhaseChangesHandler();
 
     // 被动技能动画处理
     const { handlePassiveSkillAnimations } = usePassiveSkillAnimations(characters, playSkill);
 
-    // 技能同步状态管理
-    // 注意：skillSyncState 在 useSkillSync 内部使用，这里只需要 setSkillSyncState
+    // ✅ 方案1：技能同步状态管理（移除 OperationQueue 和乐观执行相关参数）
+    // ✅ 错误处理：后端失败时显示错误提示
+    const handleSkillError = (message: string) => {
+        // 可以显示错误提示（如果项目中有 toast 组件）
+        console.error("技能使用失败:", message);
+        // 可选：显示 toast 或 modal
+        // openModal("error", { message });
+    };
+
     const { setSkillSyncState } = useSkillSync(
-        operationQueue,
         handlePhaseChanges,
-        handlePassiveSkillAnimations
+        handlePassiveSkillAnimations,
+        characters || [],
+        calculateActionScore,
+        handleSkillError  // ✅ 错误提示回调
     );
 
-    // 移动操作
+    // ✅ 方案1：移动操作（移除 OperationQueue）
     const { walk } = useWalkAction(
         game,
         characters || [],
-        gridCells || [],
+        groundCells || [],
         mode,
         convex,
         playWalk,
-        operationQueue,
-        handlePhaseChanges
+        handlePhaseChanges,
+        hexDimension  // ✅ 传递 hexDimension 作为 hexCell 用于位置回滚
     );
 
-    // 技能使用操作
+    // ✅ 方案1：技能使用操作（移除 OptimisticSkillExecutor 和 OperationQueue）
     const { useSkill } = useSkillAction(
         game,
         characters || [],
         mode,
         convex,
-        optimisticExecutor,
-        operationQueue,
         playSkill,
         handlePhaseChanges,
         setSkillSyncState,
@@ -98,7 +95,7 @@ const useCombatActHandler = () => {
     );
 
     // 其他操作（选择技能、攻击、防御、待机、投降）
-    const { selectSkill, standBy, defend, surrender, attack } = useOtherActions(
+    const { selectSkill, standBy, defend, surrender, attack, positionSelectionUI } = useOtherActions(
         game,
         characters || [],
         mode,
@@ -106,7 +103,9 @@ const useCombatActHandler = () => {
         user,
         playSkillSelect,
         openModal,
-        useSkill
+        useSkill,
+        walk,
+        groundCells || []
     );
 
     return {
@@ -116,7 +115,8 @@ const useCombatActHandler = () => {
         standBy,
         selectSkill,
         useSkill,
-        surrender
+        surrender,
+        positionSelectionUI  // ✅ 位置选择UI（手动移动模式）
     };
 };
 

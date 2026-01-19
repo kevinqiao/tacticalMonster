@@ -2,7 +2,6 @@ export interface Obstacle {
     id: string;
     asset: string;
     type?: number;
-    walkable?: boolean;
 }
 export interface ObstacleCell {
     id: string;

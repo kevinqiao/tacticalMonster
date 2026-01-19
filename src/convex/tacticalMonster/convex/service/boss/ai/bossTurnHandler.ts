@@ -32,7 +32,12 @@ export const handleBossTurn = internalMutation({
             throw new Error(`游戏 ${args.gameId} 没有Boss数据`);
         }
 
-        if (!game.boss.bossId) {
+        // ✅ 从 boss 对象获取 bossId（schema 中可能没有 bossId 字段，需要使用类型断言或从其他地方获取）
+        // bossId 在 GameModel 中存在，但数据库查询可能没有包含它
+        // 可以通过 GameLifecycleService.load 获取完整的 GameModel，或者使用类型断言
+        const bossId = (game.boss as any).bossId;
+
+        if (!bossId) {
             throw new Error(`Boss缺少bossId标识符`);
         }
 
@@ -47,10 +52,10 @@ export const handleBossTurn = internalMutation({
         if (decision.bossAction.type !== "standby") {
             // 执行Boss本体动作（使用 bossId 标识符）
             const bossIdentifier = {
-                bossId: game.boss.bossId,
+                bossId: bossId,
             };
             bossExecutionResult = await ctx.runMutation(
-                internal.service.boss.ai.bossAIActions.executeBossAction,
+                (internal as any).service.boss.ai.bossAIActions.executeBossAction,
                 {
                     gameId: args.gameId,
                     action: decision.bossAction,
@@ -69,7 +74,7 @@ export const handleBossTurn = internalMutation({
                         minionId: minionAction.minionId,
                     };
                     const result = await ctx.runMutation(
-                        internal.service.boss.ai.bossAIActions.executeBossAction,
+                        (internal as any).service.boss.ai.bossAIActions.executeBossAction,
                         {
                             gameId: args.gameId,
                             action: minionAction.action,

@@ -18,7 +18,7 @@ export interface Player {
 
 export const URLS: { [k: string]: string } = {
   "solitaireArena": "https://artful-chipmunk-59.convex.cloud",
-  "tacticalMonster": "https://content-spider-446.convex.cloud",
+  "tacticalMonster": "https://grateful-retriever-612.convex.cloud",
   "ludo": "https://famous-mule-757.convex.cloud",
   "solitaire": "https://limitless-platypus-124.convex.cloud",
   "tournament": "https://beloved-mouse-699.convex.cloud",

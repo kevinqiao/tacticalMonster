@@ -2,7 +2,7 @@
  * 回合管理服务
  * 负责回合的创建、结束和管理
  */
-import { GameModel, CombatTurn } from "../../types/gameTypes";
+import { GameModel, GameTurn } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
 
 
@@ -26,6 +26,8 @@ export class RoundService {
         const allCharacters: Array<{
             uid: string;
             monsterId: string;
+            bossId?: string;    // Boss主体的bossId（可选）
+            minionId?: string; // 小怪的minionId（可选，用于区分相同monsterId的小怪）
             speed: number;
             team: 'player' | 'boss';
         }> = [];
@@ -49,6 +51,7 @@ export class RoundService {
             allCharacters.push({
                 uid: 'boss',
                 monsterId: game.boss.monsterId,
+                bossId: game.boss.bossId, // ✅ 添加 bossId 用于区分
                 speed: game.boss.stats.speed,
                 team: 'boss',
             });
@@ -61,6 +64,7 @@ export class RoundService {
                 allCharacters.push({
                     uid: 'boss',
                     monsterId: minion.monsterId,
+                    minionId: minion.minionId, // ✅ 添加 minionId 用于区分相同 monsterId 的小怪
                     speed: minion.stats.speed,
                     team: 'boss',
                 });
@@ -84,11 +88,14 @@ export class RoundService {
             return a.monsterId.localeCompare(b.monsterId);
         });
 
-        // 5. 转换为 CombatTurn 数组
-        const turns: CombatTurn[] = allCharacters.map((char) => ({
+        // 5. 转换为 GameTurn 数组（添加 order 属性标识次序）
+        const turns: GameTurn[] = allCharacters.map((char, index) => ({
             uid: char.uid,
             monsterId: char.monsterId,
-            status: 0, // 0: pending
+            ...(char.bossId ? { bossId: char.bossId } : {}), // ✅ 如果是Boss主体，添加 bossId
+            ...(char.minionId ? { minionId: char.minionId } : {}), // ✅ 如果是小怪，添加 minionId
+            status: 0, // 0: open (等待中)
+            order: index + 1, // 次序（从 1 开始）
         }));
 
         // 6. 创建回合记录
@@ -99,7 +106,7 @@ export class RoundService {
             turns,
         };
 
-        await this.dbCtx.db.insert("tacticalMonster_game_round", roundObj);
+        await this.dbCtx.db.insert("mr_game_round", roundObj);
         return true;
     }
 
@@ -109,7 +116,7 @@ export class RoundService {
      */
     async endRound(gameId: string, roundNumber: number): Promise<boolean> {
         const roundDoc = await this.dbCtx.db
-            .query("tacticalMonster_game_round")
+            .query("mr_game_round")
             .withIndex("by_game_round", (q: any) =>
                 q.eq("gameId", gameId).eq("no", roundNumber)
             )
@@ -131,10 +138,10 @@ export class RoundService {
      */
     async getCurrentRound(gameId: string, roundNumber: number): Promise<{
         roundDoc: any;
-        currentTurn: CombatTurn | null;
+        currentTurn: GameTurn | null;
     } | null> {
         const roundDoc = await this.dbCtx.db
-            .query("tacticalMonster_game_round")
+            .query("mr_game_round")
             .withIndex("by_game_round", (q: any) =>
                 q.eq("gameId", gameId).eq("no", roundNumber)
             )
@@ -145,7 +152,7 @@ export class RoundService {
         }
 
         const currentTurn = roundDoc.turns?.find(
-            (turn: CombatTurn) => turn.status === 1 || turn.status === 2
+            (turn: GameTurn) => turn.status === 1
         ) || null;
 
         return {

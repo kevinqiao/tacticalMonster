@@ -5,7 +5,7 @@
 
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { getSkillConfig } from "../../data/skillConfigs";
-import { CharacterIdentifier, CombatEvent, CombatTurn, PhaseChanges } from "../../types/gameTypes";
+import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
 import { SkillManager } from "../skill/skillManager";
 import { CharacterPositionService } from "./characterPositionService";
@@ -99,12 +99,12 @@ export class GameActionService {
         await this.eventService.createEvent(event);
         await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
 
-        // ✅ 推进回合和阶段（自动处理turnEnd, roundEnd, roundStart, turnStart, Boss AI）
-        const phaseChanges = await this.phaseService.advanceTurnAndRound(gameId, identifier, (this as any).ctx);
-
+        // ✅ 移动不结束回合，允许在同一回合内移动后执行攻击/技能
+        // 回合结束由攻击/技能使用操作（useSkill）负责
+        // 这样前端可以先移动，然后在同一回合内执行攻击
         return {
             success: true,
-            phaseChanges,
+            // 不返回 phaseChanges，因为移动不触发回合推进
         };
     }
 
@@ -215,7 +215,7 @@ export class GameActionService {
 
         // 从数据库查询当前回合
         const roundDoc = await this.dbCtx.db
-            .query("tacticalMonster_game_round")
+            .query("mr_game_round")
             .withIndex("by_game_round", (q: any) =>
                 q.eq("gameId", gameId).eq("no", roundNumber)
             )
@@ -224,7 +224,7 @@ export class GameActionService {
         if (!roundDoc) return false;
 
         const currentTurn = roundDoc.turns?.find(
-            (turn: CombatTurn) => turn.status === 1 || turn.status === 2
+            (turn: GameTurn) => turn.status === 1
         );
 
         if (!currentTurn) return false;
@@ -282,6 +282,9 @@ export class GameActionService {
             effect: any;
             targetId?: string;
             applied: boolean;
+            isPassive?: boolean;  // ✅ 标记为被动技能效果
+            passiveSkillId?: string;  // ✅ 记录被动技能ID
+            triggerType?: string;  // ✅ 记录触发类型
         }>;
         phaseChanges?: PhaseChanges;
     }> {
@@ -434,14 +437,17 @@ export class GameActionService {
             effect: any;
             targetId?: string;
             applied: boolean;
+            isPassive?: boolean;  // ✅ 标记为被动技能效果
+            passiveSkillId?: string;  // ✅ 记录被动技能ID
+            triggerType?: string;  // ✅ 记录触发类型
         }> = [];
 
         if (skillResult.success && targetMonsters.length > 0) {
             const skill = getSkillConfig(skillId);
             const canTriggerCounter = skill?.canTriggerCounter ?? false;
-            
+
             // 检查技能是否造成伤害（用于触发 on_hit 类型的被动技能）
-            const hasDamage = skillResult.effects?.some((effect: any) => 
+            const hasDamage = skillResult.effects?.some((effect: any) =>
                 effect.effect?.type === 'damage'
             ) ?? false;
 
@@ -481,13 +487,24 @@ export class GameActionService {
                         // 应用效果到触发目标（通常是攻击者）
                         for (const effect of effects) {
                             const applied = SkillManager.applyEffectToTarget(effect, caster, target);
-                            
-                            // 记录被动技能效果（标记为被动技能，以便前端识别）
+
+                            // ✅ 记录被动技能效果（包含完整的 effect 对象，以便前端显示伤害数字和播放正确的动画）
                             passiveSkillEffects.push({
                                 effect: {
                                     id: effect.id,
                                     type: effect.type,
                                     name: effect.name,
+                                    // ✅ 添加完整的 effect 信息
+                                    value: effect.value,                      // 伤害值/治疗值等
+                                    damage_type: effect.damage_type,          // 伤害类型（physical/magical）
+                                    target_attribute: effect.target_attribute, // 目标属性（hp/mp等）
+                                    duration: effect.duration,                 // 持续时间（用于BUFF/DEBUFF）
+                                    modifiers: effect.modifiers,              // 属性修改器（用于BUFF/DEBUFF）
+                                    modifier_type: effect.modifier_type,      // 修改类型（add/multiply）
+                                    icon: effect.icon,                        // 效果图标
+                                    damage_falloff: effect.damage_falloff,    // 伤害衰减
+                                    area_type: effect.area_type,              // 作用范围类型
+                                    area_size: effect.area_size,              // 作用范围大小
                                 },
                                 targetId: caster.monsterId,
                                 applied,
@@ -499,7 +516,7 @@ export class GameActionService {
 
                         // 更新目标状态（被动技能触发者）
                         await this.characterUpdateService.updateCharacterInDatabase(gameId, target, game);
-                        
+
                         // 更新攻击者状态（被动技能效果的目标）
                         await this.characterUpdateService.updateCharacterInDatabase(gameId, caster, game);
                     }

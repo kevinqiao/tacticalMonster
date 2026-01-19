@@ -131,6 +131,7 @@ export class GameService implements CharacterGetter {
      * @returns GameModel 或 null（如果游戏不存在）
      */
     async load(gameId: string): Promise<GameModel | null> {
+        console.log("loadGame params", gameId);
         const game = await this.gameLifecycleService.load(gameId);
         if (!game) return null;
 
@@ -168,16 +169,17 @@ export class GameService implements CharacterGetter {
      * @param gameId 游戏ID
      * @param ruleId 规则ID
      * @param stageId 关卡ID
-     * @returns GameModel 或 null（如果创建失败）
+     * @returns GameModel 和 phaseChanges（如果创建失败，game 为 null）
      */
     async createGame(
         uid: string,
         gameId: string,
         ruleId: string,
         stageId: string
-    ): Promise<GameModel | null> {
+    ): Promise<{ game: GameModel | null; phaseChanges?: PhaseChanges }> {
+        console.log("createGame params", uid, gameId, ruleId, stageId);
         const game = await this.gameLifecycleService.createGame(uid, gameId, ruleId, stageId);
-        if (!game) return null;
+        if (!game) return { game: null };
 
         // 更新 characterQueryService 的游戏状态
         this.characterQueryService.setGame(game);
@@ -187,7 +189,22 @@ export class GameService implements CharacterGetter {
             (this.validator as any).game = game;
         }
 
-        return game;
+        // ✅ 启动第一个 round 的第一个 turn（触发 round_start 和 turn_start 被动技能，处理 Boss AI）
+        let phaseChanges: PhaseChanges | undefined;
+        if (game.currentRound && game.currentRound.no > 0) {
+            phaseChanges = await this.gamePhaseService.startFirstTurn(
+                gameId,
+                game.currentRound.no,
+                this.ctx
+            );
+
+            console.log("First turn started with phaseChanges:", phaseChanges);
+        }
+
+        // ✅ 返回执行 phaseChanges 之前的状态，让前端根据 phaseChanges 逐步应用变化并播放动画
+        // 前端会根据 phaseChanges 来更新角色状态（HP、位置等），并播放相应的动画
+        // 这样用户体验更好，可以看到状态变化的完整过程
+        return { game, phaseChanges };
     }
 
     /**
@@ -433,11 +450,15 @@ export const createGame = internalMutation({
         stageId: v.string(),
     },
     handler: async (ctx, { uid, gameId, ruleId, stageId }) => {
-
+        console.log("createGame params", uid, gameId, ruleId, stageId);
         const gameManager = new GameService(ctx);
-        const game = await gameManager.createGame(uid, gameId, ruleId, stageId);
+        const result = await gameManager.createGame(uid, gameId, ruleId, stageId);
 
-        return game;
+        // 返回格式：{ ok: true, data: game, phaseChanges?: PhaseChanges }
+        if (result.game) {
+            return { ok: true, data: result.game, phaseChanges: result.phaseChanges };
+        }
+        return { ok: false };
     },
 });
 

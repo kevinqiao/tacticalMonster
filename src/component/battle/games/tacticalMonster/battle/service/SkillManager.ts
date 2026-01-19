@@ -6,12 +6,12 @@
  * 注意：被动技能触发现在由后端统一处理，确保状态一致性
  */
 
-import { MonsterSkill, getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { SkillManager as BackendSkillManager } from "../../../../../../convex/tacticalMonster/convex/service/skill/skillManager";
-import { GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
+import { getSkillConfig } from "../config/skillConfigs";
+import type { GameModel } from "../types/CombatTypes";
 import { MonsterSprite } from "../types/CombatTypes";
-import { GameModel } from '../types/gameTypes';
-import { SkillEffect, SkillEffectType } from "../types/skillTypes";
+import { GameMonster } from "../types/monsterTypes";
+import { MonsterSkill, SkillEffect, SkillEffectType } from "../types/skillTypes";
 import { applyEffect, calculateEffectValue } from '../utils/effectUtils';
 import { calculateHexDistance } from '../utils/hexUtil';
 import { SeededRandom } from '../utils/seededRandom';

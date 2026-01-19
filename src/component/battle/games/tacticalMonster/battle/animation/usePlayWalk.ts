@@ -11,7 +11,7 @@ import { coordToPixel } from "../utils/hexUtil";
 const usePlayWalk = () => {
     const { characters, gridCells, hexCell, game, playbackSpeed = 1.0 } = useCombatManager();
     const { map } = game || {};
-    const playWalk = useCallback((character: MonsterSprite, path: { x: number; y: number }[], onComplete: () => void | Promise<void>) => {
+    const playWalk = useCallback((character: MonsterSprite, path: { q: number; r: number }[], onComplete: () => void | Promise<void>) => {
 
         const container = character.container;
         if (!container || !gridCells || !hexCell || !map || !characters) return;
@@ -44,17 +44,17 @@ const usePlayWalk = () => {
         })
         const { cols, direction } = map;
         character.walkables?.forEach((node) => {
-            const { x, y } = node;
-            const col = direction === 1 ? cols - x - 1 : x;
-            const gridCell = gridCells[y][col];
-            if (gridCell?.gridWalk) {
-                gsap.set(gridCell.gridWalk, { autoAlpha: 0 });
+            const { q, r } = node;
+            const col = direction === 1 ? cols - q - 1 : q;
+            const gridCell = gridCells[r]?.[col];
+            if (gridCell?.element) {
+                gsap.set(gridCell.element, { opacity: 0 });
             }
 
         })
         character.walkables = [];
         const positions = path.map(node => {
-            return coordToPixel(node.x, node.y, hexCell, map)
+            return coordToPixel(node.q, node.r, hexCell, map)
         });
         gsap.set(container, { x: positions[0].x, y: positions[0].y });
         // 从第二个点开始移动（跳过起始点）
@@ -62,9 +62,9 @@ const usePlayWalk = () => {
         let currentScale = initialScale;
         movementPath.forEach(node => {
             const col = direction === 1 ? cols - node.q - 1 : node.q;
-            const cell = gridCells[node.r][col];
-            if (cell?.gridGround) {
-                gsap.set(cell.gridGround, { autoAlpha: 0.7 });
+            const cell = gridCells[node.r]?.[col];
+            if (cell?.element) {
+                gsap.set(cell.element, { opacity: 0.7 });
             }
         });
         movementPath.forEach((pos, i) => {
@@ -75,9 +75,9 @@ const usePlayWalk = () => {
             const stepTl = gsap.timeline({
                 onComplete: () => {
                     const col = direction === 1 ? cols - pos.q - 1 : pos.q;
-                    const cell = gridCells[pos.r][col];
-                    if (cell?.gridGround) {
-                        gsap.set(cell.gridGround, { fill: "black", autoAlpha: 0.1 });
+                    const cell = gridCells[pos.r]?.[col];
+                    if (cell?.element) {
+                        gsap.set(cell.element, { opacity: 0.1 });
                     }
                 }
             });

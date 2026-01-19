@@ -4,9 +4,9 @@
  */
 
 import { getMergedBossConfig } from "../../../data/bossConfigs";
+import type { CharacterIdentifier } from "../../../types/gameTypes";
 import { hexDistance } from "../../../utils/hexUtils";
 import { SeededRandom } from "../../../utils/seededRandom";
-import { CharacterIdentifier } from "../../game/gameService";
 import { BehaviorTreeExecutor, ExecutionContext } from "./behaviorTreeExecutor";
 import { BossState, GameState } from "./conditionEvaluator";
 import { PhaseManager } from "./phaseManager";

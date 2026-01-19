@@ -17,7 +17,7 @@ interface HexagonCellProps {
 // 六边形格子组件
 const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const { game, hexCell } = useCombatManager();
+    const { game, hexDimension } = useCombatManager();
     const { map } = game || {};
     if (!map) return null;
     const cell = map.obstacles?.find((c) => c.r === row && c.q === col);
@@ -29,10 +29,10 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
         return ObstacleUtils.getObstacleAsset(cell.id);
     }, [game])
     useEffect(() => {
-        if (!hexCell || !game || !game?.map) return;
-        const { x, y } = coordToPixel(col, row, hexCell, game.map);
+        if (!hexDimension || !game || !game?.map) return;
+        const { x, y } = coordToPixel(col, row, hexDimension, game.map);
         gsap.set(containerRef.current, { x, y });
-    }, [hexCell, col, row, game]);
+    }, [hexDimension, col, row, game]);
     return (
         <>
             <div
@@ -42,8 +42,8 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
                     position: "absolute",
                     top: 0,
                     left: 0,
-                    width: `${hexCell.width}px`,
-                    height: `${hexCell.height}px`,
+                    width: `${hexDimension.width}px`,
+                    height: `${hexDimension.height}px`,
                     backgroundImage: `url(${cellAsset})`,
                 }}
             />
@@ -52,12 +52,11 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
 };
 
 
-const ObstacleGrid: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
+const ObstacleGrid: React.FC = () => {
     const { game } = useCombatManager();
 
-
     return (
-        <div style={{ position: "absolute", top: position.top, left: position.left, width: position.width, height: position.height }}>
+        <div style={{ position: "absolute", width: "100%", height: "100%" }}>
             {game?.map.obstacles?.map((c, index) => (
                 <ObstacleCell key={"obstacle-" + c.r + "-" + c.q + "-" + index} row={c.r} col={c.q} />
             ))}

@@ -24,9 +24,9 @@ const getUIDs = () => {
  */
 const DEFAULT_TEAM_POSITIONS: Array<{ q: number; r: number }> = [
     { q: 0, r: 0 },  // 位置 0
-    { q: 1, r: 0 },  // 位置 1
-    { q: 0, r: 1 },  // 位置 2
-    { q: 1, r: 1 },  // 位置 3
+    { q: 2, r: 1 },  // 位置 1
+    { q: 0, r: 3 },  // 位置 2
+    { q: 1, r: 5 },  // 位置 3
 ];
 
 /**

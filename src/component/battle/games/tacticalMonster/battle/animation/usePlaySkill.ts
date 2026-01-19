@@ -12,7 +12,7 @@ import { SkillEffectType } from "../types/skillTypes";
 import { SkillAnimationSelector } from "./SkillAnimationSelector";
 
 const usePlaySkill = () => {
-    const { characters, gridCells, hexCell, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, groundCells, hexDimension, game, playbackSpeed = 1.0 } = useCombatManager();
     const { map } = game || {};
     const selector = useMemo(() => new SkillAnimationSelector(), []);
 
@@ -136,7 +136,7 @@ const usePlaySkill = () => {
         targets: MonsterSprite[],
         onComplete: () => void | Promise<void>
     ): gsap.core.Timeline | null => {
-        if (!gridCells || !hexCell || !map || !characters) {
+        if (!groundCells || !hexDimension || !map || !characters) {
             Promise.resolve(onComplete()).catch(console.error);
             return null;
         }
@@ -233,11 +233,11 @@ const usePlaySkill = () => {
 
         // 清除施法者的可行走格子
         caster.walkables?.forEach(node => {
-            const { x, y } = node;
-            const col = direction === 1 ? cols - x - 1 : x;
-            const gridCell = gridCells[y]?.[col];
-            if (gridCell?.gridWalk) {
-                tl.to(gridCell.gridWalk, { autoAlpha: 0, duration: 0.5 }, "<");
+            const { q, r } = node;
+            const col = direction === 1 ? cols - q - 1 : q;
+            const gridCell = groundCells[r]?.[col];
+            if (gridCell?.element) {
+                tl.to(gridCell.element, { opacity: 0, duration: 0.5 }, "<");
             }
         });
 
@@ -287,7 +287,7 @@ const usePlaySkill = () => {
 
         // ✅ 返回 timeline，以便外部可以链式添加后续动画（如被动技能）
         return tl;
-    }, [characters, gridCells, hexCell, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect, playbackSpeed]);
+    }, [characters, groundCells, hexDimension, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect, playbackSpeed]);
 
     return { playSkill };
 };

@@ -5,22 +5,19 @@
 import React, { useCallback, useMemo } from 'react';
 
 import { HEX_RATIO, SCALE_FACTOR, STYLES } from '../constants/GridConstants';
-import { useGridElementLoader } from '../hooks/useGridElements';
 import { useCombatManager } from '../service/CombatManager';
-import useCombatActHandler from '../service/handler/useCombatActHandler';
 import '../style.css';
+import { GridCellSprite } from '../types/CombatTypes';
 import { GridCellProps } from '../types/GridTypes';
 import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils';
 
-const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
-    const { hexCell } = useCombatManager();
-
-    const { width, height } = hexCell;
+const GroundCell: React.FC<GridCellProps> = ({ row, col, cell }) => {
+    const { hexDimension } = useCombatManager();
+    const { q, r, disable } = cell;
+    const { width, height } = hexDimension;
 
     // 使用自定义 Hook 加载网格元素
-    const loadContainer = useGridElementLoader('container', row, col);
-    const loadGround = useGridElementLoader('ground', row, col);
-    const loadWalk = useGridElementLoader('walk', row, col);
+
 
     // 使用 useMemo 缓存计算结果
     const points = useMemo(() => calculateHexPoints(width), [width]);
@@ -52,16 +49,16 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
     };
 
     return (
-        <svg
-            ref={loadContainer}
-            width={width}
-            height={hexHeight}
-            style={svgStyle}
-            viewBox={`0 0 ${width} ${hexHeight}`}
-            xmlns="http://www.w3.org/2000/svg"
-            data-testid={`grid-cell-${row}-${col}`}
-        >
-            <path
+        <>
+            <svg
+                width={width}
+                height={hexHeight}
+                style={svgStyle}
+                viewBox={`0 0 ${width} ${hexHeight}`}
+                xmlns="http://www.w3.org/2000/svg"
+                data-testid={`grid-cell-${row}-${col}`}
+            >
+                {/* <path
                 d={pathData}
                 fill="grey"
                 stroke="white"
@@ -70,88 +67,82 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, walk }) => {
                 pointerEvents="none"
                 role="button"
                 aria-label={`Base grid at row ${row}, column ${col}`}
-            />
-            <text x={width / 2} y={hexHeight / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="12">{row},{col}</text>
-            <polygon
-                ref={loadGround}
-                data-q={col}
-                data-r={row}
-                points={outerPolygonPoints}
-                fill="black"
-                stroke="white"
-                strokeWidth={4}
-                opacity={0.1}
-                pointerEvents="none"
-                role="button"
-                aria-label={`Ground grid at row ${row}, column ${col}`}
-            />
-            <polygon
-                ref={loadWalk}
-                data-q={col}
-                data-r={row}
-                points={outerPolygonPoints}
-                fill="black"
-                stroke="white"
-                strokeWidth={4}
-                opacity={0}
-                visibility="hidden"
-                pointerEvents="auto"
-                role="button"
-                aria-label={`Ground grid at row ${row}, column ${col}`}
-                onClick={() => walk?.({ q: col, r: row })}
-            />
-        </svg>
+            /> */}
+                {disable ? null : <text x={width / 2} y={hexHeight / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="12">{row},{col}</text>}
+                <polygon
+                    ref={(el) => {
+                        cell.element = el;
+                    }}
+                    data-q={col}
+                    data-r={row}
+                    points={outerPolygonPoints}
+                    fill="black"
+                    stroke="white"
+                    strokeWidth={4}
+                    opacity={disable ? 0 : 0.6}
+                    pointerEvents="none"
+                    role="button"
+                    aria-label={`Ground grid at row ${row}, column ${col}`}
+                />
+                <polygon
+                    data-q={col}
+                    data-r={row}
+                    points={outerPolygonPoints}
+                    fill="black"
+                    stroke="white"
+                    strokeWidth={4}
+                    opacity={0}
+                    visibility="hidden"
+                    pointerEvents="auto"
+                    role="button"
+                    aria-label={`Ground grid at row ${row}, column ${col}`}
+                />
+            </svg>
+        </>
     );
 };
 
-const GridContainer: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => {
-    const { game, hexCell, gridCells } = useCombatManager();
+const GridGround: React.FC = () => {
+    const { game, hexDimension, groundCells } = useCombatManager();
     const { map } = game || {};
-    const { walk, attack } = useCombatActHandler();
 
     // 计算每行的样式，考虑 direction 对奇数行偏移的影响
     const rowStyle = useCallback((row: number) => {
         const isOdd = row % 2 !== 0;
         // 当 direction === 1 时，奇数行的偏移方向相反，与 coordToPixel 保持一致
-        const left = isOdd ? (map?.direction === 1 ? -hexCell.width / 2 : hexCell.width / 2) : 0;
-        const bottom = -hexCell.width * HEX_RATIO.HEIGHT_TO_WIDTH * 1 / 4;
+        const left = isOdd ? (map?.direction === 1 ? -hexDimension.width / 2 : hexDimension.width / 2) : 0;
+        const bottom = -hexDimension.width * HEX_RATIO.HEIGHT_TO_WIDTH * 1 / 4;
         return STYLES.row(bottom, left);
-    }, [hexCell, map]);
+    }, [hexDimension, map]);
 
-    if (!gridCells || !map) {
+    if (!groundCells || !map) {
         return <div>Loading grid...</div>;
     }
 
-    const { rows, cols } = map;
 
     return (
-        <div style={{ position: "absolute", top: position.top, left: position.left, width: position.width, height: position.height }}>
-            {Array.from({ length: rows }).map((_, row) => (
+        // <div style={{ position: "absolute", top: position.top, left: position.left, width: position.width, height: position.height }}>
+        <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+            {groundCells?.map((row: GridCellSprite[], rowIndex: number) => (
                 <div
-                    key={row}
-                    style={rowStyle(row)}
-                    data-testid={`grid-row-${row}`}
+                    key={rowIndex}
+                    style={rowStyle(rowIndex)}
+                    data-testid={`grid-row-${rowIndex}`}
                 >
-                    {Array.from({ length: cols }).map((_, colIndex) => {
-                        // 当 direction === 1 时，使用 row-reverse 反转顺序，所以这里不需要反转 col
-                        const col = colIndex;
-                        return (
-                            <GroundCell
-                                key={`${row}-${col}`}
-                                row={row}
-                                col={col}
-                                walk={walk}
-                                attack={attack}
-                            />
-                        );
-                    })}
+                    {row.map((cell: GridCellSprite, colIndex: number) => (
+                        (<GroundCell
+                            key={`${rowIndex}-${colIndex}`}
+                            row={rowIndex}
+                            col={colIndex}
+                            cell={cell}
+                        />
+                        )
+                    ))}
                 </div>
             ))}
         </div>
     );
 };
-
-const GridGround: React.FC<{ position: { top: number, left: number, width: number, height: number } }> = ({ position }) => <GridContainer position={position} />;
 
 export default GridGround;
 

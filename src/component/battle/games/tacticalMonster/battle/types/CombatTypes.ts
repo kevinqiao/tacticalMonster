@@ -4,7 +4,8 @@
 
 
 import { Spine } from "pixi-spine";
-import { GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
+import { GameTurn, PhaseChanges } from "./gameTypes";
+import { GameMonster } from "./monsterTypes";
 
 export enum ACT_CODE {
     WALK = 1,
@@ -39,19 +40,55 @@ export interface Player {
     avatar?: string;
 }
 
+/**
+ * 事件名称类型
+ * 简化后的事件类型，只包含核心事件
+ * 与后端保持一致
+ */
+export type EventName =
+    | "gameInit"        // 游戏初始化
+    | "firstTurn"       // 开始第一个回合（包含初始 Boss turn 和 phaseChanges）
+    | "use_skill"       // 使用技能（包含 playerAction 和 phaseChanges）
+    | "walk"            // 移动（包含 playerAction 和 phaseChanges）
+    | "attack"          // 攻击（包含 playerAction 和 phaseChanges）
+    | "game_end";       // 游戏结束
+
+/**
+ * CombatEvent - 战斗事件（后端类型）
+ * 与后端定义保持一致，data 统一为 PhaseChanges
+ * 
+ * 设计说明：
+ * - stepTime: 相对时间位置（从游戏开始，毫秒数），用于去重和排序（数据库中必需）
+ * - data: 统一为 PhaseChanges 类型，所有事件都使用相同的数据结构
+ * - 事件名称与后端保持一致
+ */
 export interface CombatEvent {
-    name: string;
-    uid?: string;
-    gameId?: string;
-    time?: number;
-    initTime?: number;
-    status?: number;
-    data?: CombatAction | CombatRound | any;
-    // 乐观更新相关字段
-    optimistic?: boolean;           // 是否为乐观事件
-    optimisticId?: string;          // 乐观事件ID（前端生成）
-    rollback?: () => void;          // 回滚函数
-    snapshot?: any;                 // 状态快照
+    // ========== 后端必需字段（所有事件共有）==========
+    gameId: string;                 // ✅ 必需：游戏ID
+    name: EventName;                // ✅ 必需：事件名称（类型安全）
+    time: number;                   // ✅ 必需：绝对时间戳（Date.now()）
+    stepTime: number;               // ✅ 必需：相对时间位置（从游戏开始，毫秒数），用于去重和排序
+
+    // ========== 事件数据（统一结构）==========
+    data?: PhaseChanges;            // ✅ 可选：事件数据（统一为 PhaseChanges）
+
+    // ========== 事件类型（可选，用于分类）==========
+    type?: number;                  // ✅ 可选：事件类型（0: phase, 1: movement, 2: attack, 3: skill）
+}
+
+/**
+ * FrontendCombatEvent - 前端战斗事件（扩展类型）
+ * 在后端 CombatEvent 基础上添加前端运行时字段
+ * 
+ * 设计说明：
+ * - initTime: 事件初始化时间（用于超时检查）
+ * - status: 事件处理状态（0: 待处理, 1: 处理中, 2: 已完成）
+ * - 这些字段只在前端使用，不影响后端数据
+ */
+export interface FrontendCombatEvent extends CombatEvent {
+    // ========== 前端运行时字段 ==========
+    initTime?: number;              // ✅ 前端扩展：事件初始化时间（用于超时检查）
+    status?: number;                // ✅ 前端扩展：事件处理状态（0: 待处理, 1: 处理中, 2: 已完成）
 }
 
 /**
@@ -107,14 +144,11 @@ export interface CombatAction {
     data?: any;
 }
 
-export interface CombatTurn {
-    uid: string;
-    monsterId: string;
-}
+// ✅ CombatTurn 已移除，统一使用 GameTurn
 
 export interface CombatRound {
     no: number;
-    currentTurn?: CombatTurn;
+    currentTurn?: GameTurn;
 }
 
 export enum GridCellType {
@@ -124,25 +158,15 @@ export enum GridCellType {
 }
 
 export interface HexNode {
-    x: number;
-    y: number;
-    walkable?: boolean;
-    type?: GridCellType;
-}
-
-export interface GridCell extends HexNode {
-    gridContainer: SVGSVGElement | null;
-    gridGround: SVGPolygonElement | null;
-    gridWalk: SVGPolygonElement | null;
-}
-
-export interface ObstacleCell {
-    r: number;
     q: number;
-    asset: string;
-    type?: number;
-    walkable?: boolean;
-    element?: HTMLDivElement;
+    r: number;
+}
+
+export interface GridCellSprite {
+    q: number;
+    r: number;
+    disable?: boolean;
+    element?: SVGElement | null;
 }
 
 export interface WalkableNode extends HexNode {
@@ -150,9 +174,9 @@ export interface WalkableNode extends HexNode {
 }
 
 export interface AttackableNode extends HexNode {
-    uid: string;
-    character_id: string;
-    distance: number;
+    distance?: number;
+    uid?: string;  // 目标角色的 uid
+    character_id?: string;  // 目标角色的 character_id
 }
 
 /**
@@ -167,15 +191,20 @@ export interface MonsterSprite extends GameMonster {
     // ========== UI渲染相关字段 ==========
     scaleX?: number;                    // 水平翻转（1: 向右, -1: 向左）
     facing?: number;                     // 面向方向
-    walkables?: WalkableNode[];          // 可移动位置列表
-    attackables?: AttackableNode[];       // 可攻击目标列表
     container?: HTMLDivElement;          // DOM容器元素
     standEle?: HTMLDivElement;           // 站立状态元素
     attackEle?: HTMLDivElement;          // 攻击状态元素
     skeleton?: Spine;                    // Spine动画骨架
     animator?: ModelAnimator;           // 动画控制器
-
+    walkables?: WalkableNode[];
+    attackables?: AttackableNode[];
     // statusEffects 直接继承自 GameMonster，类型为 StatusEffect[]
+
+    // ========== HP/MP 显示元素（通过 GSAP 更新，避免 React 重新渲染）==========
+    hpBarElement?: HTMLDivElement;       // HP 条元素
+    mpBarElement?: HTMLDivElement;       // MP 条元素
+    hpTextElement?: HTMLDivElement;      // HP 文字元素
+    mpTextElement?: HTMLDivElement;      // MP 文字元素
 }
 
 export interface ModelAnimator {
@@ -183,6 +212,9 @@ export interface ModelAnimator {
     attack: () => void;
     stand: () => void;
 }
+
+// 重新导出 GameModel 以便统一使用
+export type { GameModel } from "./gameTypes";
 
 
 

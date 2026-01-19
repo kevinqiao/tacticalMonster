@@ -5,38 +5,41 @@
  */
 
 
-import { useQuery } from "convex/react";
 import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
-import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../../../../../../convex/tacticalMonster/convex/_generated/api";
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { useGameReplay } from "../hooks/useGameReplay";
+import { useWatchMode } from "../hooks/useWatchMode";
+import type { GameModel } from "../types/CombatTypes";
 import {
-    CombatEvent,
+    FrontendCombatEvent,
     GameMode,
-    GridCell,
+    GridCellSprite,
     MonsterSprite,
     ReplayControls
 } from "../types/CombatTypes";
-import { GameModel } from "../types/gameTypes";
+import { PhaseChanges } from "../types/gameTypes";
+import { ObstacleCell, ObstacleSprite } from "../types/obstacleTypes";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
+import { usePhaseChangesHandler } from "./handler/hooks/usePhaseChangesHandler";
 
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 export interface ICombatContext {
     game: GameModel | null;
+    initialPhaseChanges?: PhaseChanges;
     // activeSkill: MonsterSkill | null;
     coordDirection: number;
-    hexCell: { width: number; height: number };
+    hexDimension: { width: number; height: number };
     // map?: MapModel;
-    gridCells: GridCell[][] | null;
-    timeClock?: number;
+    groundCells: GridCellSprite[][] | null;
+    obstacleSprites?: ObstacleSprite[];
     characters?: MonsterSprite[];
     // currentRound?: CombatRound;
-    eventQueue: CombatEvent[];
-    processedEvents?: CombatEvent[];  // ✅ Watch 模式：已处理的事件列表（用于实时计算分数）
-    score: number;  // 新增：当前分数
+    eventQueue: FrontendCombatEvent[];
+    processedEvents?: FrontendCombatEvent[];  // ✅ Watch 模式：已处理的事件列表（用于实时计算分数）
+    updateGameState?: (updater: (game: GameModel) => GameModel) => void;  // ✅ 方案1：统一的状态更新函数
     changeCell: React.Dispatch<React.SetStateAction<{ width: number; height: number }>>;
     // setActiveSkill: (skill: MonsterSkill | null) => void;
     mode?: GameMode;  // 游戏模式
@@ -46,15 +49,13 @@ export interface ICombatContext {
 
 export const CombatContext = createContext<ICombatContext>({
     game: null,
+    initialPhaseChanges: undefined,
     coordDirection: 0,
     // currentRound: defaultRound,
-    hexCell: { width: 0, height: 0 },
-    // resourceLoad: { character: 0, gridContainer: 0, gridGround: 0, gridWalk: 0 },
-    // map: { rows: 7, cols: 8 },
-    gridCells: null,
-    timeClock: 0,
+    hexDimension: { width: 0, height: 0 },
+    groundCells: [],
+    obstacleSprites: [],
     eventQueue: [],
-    score: 0,
     // setResourceLoad: () => null,
     changeCell: () => null,
     // setActiveSkill: () => null,
@@ -80,25 +81,19 @@ interface CombatManagerProps {
     children: ReactNode;
     game: GameModel | null;
     mode?: GameMode;
+    initialPhaseChanges?: PhaseChanges; // ✅ 初始 phaseChanges（从 loadGame 返回）
 }
 
 const CombatManager: React.FC<CombatManagerProps> = ({
     children,
     game = null,
     mode = 'play',
+    initialPhaseChanges, // ✅ 初始 phaseChanges
 }) => {
 
     const [coordDirection, setCoordDirection] = useState<number>(0);
-    const eventQueueRef: React.MutableRefObject<CombatEvent[]> = useRef<CombatEvent[]>([]);
-    const [hexCell, setHexCell] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
-    const [gridCells, setGridCells] = useState<GridCell[][] | null>(null);
-    const [lastTime, setLastTime] = useState<number | undefined>(undefined);
-    const [score, setScore] = useState<number>(0);
-    // ✅ Watch 模式：收集所有已处理的事件用于实时计算分数
-    const [processedEvents, setProcessedEvents] = useState<any[]>([]);
-    // ✅ Replay 模式：维护游戏状态（从事件数据中提取）
-    const [replayGameState, setReplayGameState] = useState<GameModel | null>(null);
-
+    const eventQueueRef: React.MutableRefObject<FrontendCombatEvent[]> = useRef<FrontendCombatEvent[]>([]);
+    const [hexDimension, setHexDimension] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
     // ✅ 重播功能（仅在 replay 模式）
     // 在 replay 模式下，useGameReplay 会：
@@ -107,12 +102,19 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     // 3. 提供播放控制方法（play/pause/stop/seekTo/setSpeed）
     const replay = useGameReplay(game?.gameId || null, mode);
 
+    // ✅ Watch 模式：处理实时事件查询和收集
+    const { processedEvents } = useWatchMode({
+        gameId: game?.gameId,
+        mode,
+        eventQueueRef
+    });
+
     // ✅ 设置重播事件处理回调：将重播事件注入到 eventQueue
     // 当 GameReplayManager 播放事件时，会调用此回调
     // 回调将事件推入 eventQueue，由 useEventHandler 轮询处理
     useEffect(() => {
         if (mode === 'replay' && replay.setOnEventProcessed) {
-            replay.setOnEventProcessed((event: CombatEvent) => {
+            replay.setOnEventProcessed((event: FrontendCombatEvent) => {
                 // 将重播事件注入到事件队列
                 // 注意：这里直接推入队列，不触发 React 重新渲染
                 // 事件处理由 useEventHandler 的轮询机制负责
@@ -121,148 +123,140 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         }
     }, [mode, replay]);
 
-    // ✅ 查询事件（仅 watch 模式需要实时查询）
-    // - play 模式：不通过事件队列查询，事件由后端响应直接处理（通过 phaseChanges）
-    // - watch 模式：实时查询新事件，但不允许操作
-    // - replay 模式：跳过查询（使用 findAllEvents 一次性加载）
-    const events: any = useQuery(
-        api.service.game.gameService.findEvents,
-        (game?.gameId && mode === 'watch') ? { gameId: game.gameId, lastTime } : "skip"
-    );
+    // ✅ 优化：直接使用传入的 game prop，不维护本地状态
+    // 所有状态更新都通过直接修改 charactersRef 中的对象（通过 GSAP）实现，避免重新渲染
 
-    // 查询游戏报告
-    const report: any = useQuery(
-        (api as any).service.game.gameService.findReport,
-        game?.gameId ? { gameId: game.gameId } : "skip"
-    );
+    // ✅ 优化：使用 ref 存储 characters，避免频繁重新计算和重新渲染
+    // 直接修改 ref 中的对象（通过 GSAP）不会触发 React 重新渲染
+    const charactersRef = useRef<MonsterSprite[]>([]);
 
-    // ✅ Watch 模式：实时查询游戏状态以同步数据更新
-    // 在 watch 模式下，通过实时查询游戏状态来确保 UI 与后端数据同步
-    const gameState: any = useQuery(
-        api.service.game.gameService.getGame,
-        (game?.gameId && mode === 'watch') ? { gameId: game.gameId } : "skip"
-    );
-
-    // ✅ Watch 模式：使用查询到的游戏状态（如果可用）
-    // ✅ Replay 模式：使用从事件数据中提取的游戏状态（如果可用）
-    // 优先级：watch 模式查询结果 > replay 模式状态 > 传入的 game prop
-    const effectiveGame = (mode === 'watch' && gameState)
-        ? gameState
-        : (mode === 'replay' && replayGameState)
-            ? replayGameState
-            : game;
-
-    // ✅ Replay 模式：从 gameInit 事件初始化游戏状态
+    // ✅ 初始化 characters（只在 gameId 变化时）
     useEffect(() => {
-        if (mode === 'replay' && game && !replayGameState) {
-            // 在 replay 模式下，初始状态应该从 gameInit 事件中提取
-            // 但如果没有 gameInit 事件，使用传入的 game prop
-            setReplayGameState(game);
+        if (game?.team && game?.boss) {
+            charactersRef.current = getCharactersFromGameModel(game.team, game.boss);
         }
-    }, [mode, game, replayGameState]);
+    }, [game?.gameId]); // 只在 gameId 变化时重新初始化
 
-
-
-    // ✅ 处理事件更新（仅 watch 模式需要）
-    // 此 useEffect 监听 events 变化（来自 useQuery），将新事件推入 eventQueue
-    // - play 模式：不通过事件队列，事件由后端响应直接处理（通过 phaseChanges）
-    // - replay 模式：跳过此处理（事件由 GameReplayManager 通过回调注入）
-    useEffect(() => {
-        // 只处理 watch 模式
-        if (mode !== 'watch') return;
-
-        if (Array.isArray(events) && events.length > 0) {
-            events.forEach((backendEvent: any) => {
-                // 对于非乐观事件，直接添加
-                // 注意：watch 模式下不应该有阶段事件，所有阶段变化都在操作事件的 phaseChanges 中
-                if (!backendEvent.optimistic) {
-                    eventQueueRef.current.push(backendEvent);
-
-                    // ✅ Watch 模式：收集已处理的事件用于实时计算分数
-                    setProcessedEvents(prev => {
-                        // 避免重复添加
-                        const exists = prev.some(e =>
-                            (e._id && backendEvent._id && e._id === backendEvent._id) ||
-                            (e.time === backendEvent.time && e.name === backendEvent.name)
-                        );
-                        if (!exists) {
-                            return [...prev, backendEvent];
-                        }
-                        return prev;
-                    });
-                }
-            });
-
-            const lastEvent = events[events.length - 1];
-            setLastTime(lastEvent.time);
-        }
-    }, [events, mode]);
-
-
-
-
-    // 初始化网格
-    useEffect(() => {
-        if (!game?.map || game.map.cols === 0 || game.map.rows === 0) return;
-
-        const { rows, cols, obstacles, disables } = game.map;
-
-        const cells: GridCell[][] = Array.from({ length: rows }, (_, y) =>
+    // ✅ 优化：characters 直接使用 ref（不触发重新渲染）
+    // 直接修改 ref 中的对象（通过 GSAP）不会触发 React 重新渲染
+    // 只有在 gameId 变化时（useEffect）才会重新初始化 charactersRef
+    const characters = charactersRef.current;
+    const groundCells: GridCellSprite[][] | null = useMemo(() => {
+        if (!game?.map) return null;
+        const { rows, cols, disables } = game.map;
+        const cells: GridCellSprite[][] = Array.from({ length: rows }, (_, y) =>
             Array.from({ length: cols }, (_, x) => {
-                const cell: GridCell = {
-                    x,
-                    y,
-                    gridContainer: null,
-                    gridGround: null,
-                    gridWalk: null,
-                    walkable: true,
-                    type: 0,
+                const cell: GridCellSprite = {
+                    q: x,
+                    r: y,
+                    disable: false,
                 };
-
-                const obstacle = obstacles?.find((o) => o.q === x && o.r === y);
-                if (obstacle) {
-                    cell.walkable = false;
-                    cell.type = 1;
-                }
-
-                const disable = disables?.find((d) => d.q === x && d.r === y);
+                const disable = disables?.find((d: any) => d.q === x && d.r === y);
                 if (disable) {
-                    cell.walkable = false;
-                    cell.type = 2;
+                    cell.disable = true;
                 }
 
                 return cell;
             })
         );
-
-        setGridCells(cells);
+        return cells;
     }, [game?.map]);
-    const timeClock = game?.dueTime;
-    const gameScore = game?.score;
 
-    // 从 team 和 boss 计算 characters（使用 useMemo 缓存）
-    // ✅ Watch/Replay 模式：使用 effectiveGame 确保数据同步
-    const characters = useMemo(() => {
-        const gameToUse = effectiveGame || game;
-        if (!gameToUse?.team || !gameToUse?.boss) return [];
-        return getCharactersFromGameModel(gameToUse.team, gameToUse.boss);
-    }, [effectiveGame, game?.team, game?.boss]);
+    // ✅ 优化：移除 updateGameState（不再需要维护本地状态）
+    // 所有状态更新都通过直接修改 charactersRef 中的对象（通过 GSAP）实现
+    // 如果需要更新 React 状态，应该通过父组件的 prop 传递
+    const updateGameState = useCallback((updater: (game: GameModel) => GameModel) => {
+        // ⚠️ 已移除本地状态管理，此函数保留为空函数以确保接口兼容性
+        // 如果确实需要更新 game，应该通过父组件的状态管理来实现
+        console.warn("updateGameState is deprecated. Game state should be managed by parent component.");
+    }, []);
+
+    // ✅ 使用阶段变化处理器
+    const { handlePhaseChanges } = usePhaseChangesHandler();
+
+    // ✅ 处理初始 phaseChanges（所有模式）
+    const processedInitialPhaseChangesRef = useRef<boolean>(false);
+    useEffect(() => {
+        // 只在游戏已加载，且 phaseChanges 存在，且未处理过时执行
+        // ✅ 优化：使用 charactersRef.current 代替 characters（避免依赖 ref 触发重新渲染）
+        if (
+            game &&
+            initialPhaseChanges &&
+            !processedInitialPhaseChangesRef.current &&
+            charactersRef.current.length > 0 &&
+            groundCells
+        ) {
+            // 根据模式决定是否处理初始 phaseChanges
+            if (mode === 'play') {
+                // play 模式：总是处理初始 phaseChanges（游戏刚创建时的第一个 turn）
+                processedInitialPhaseChangesRef.current = true;
+                const timer = setTimeout(() => {
+                    handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                        console.error("Error handling initial phaseChanges in play mode:", error);
+                    });
+                }, 500); // 给资源加载一些时间
+                return () => clearTimeout(timer);
+            } else if (mode === 'watch' || mode === 'replay') {
+                // watch/replay 模式：延迟处理，等待事件队列加载完成
+                // 如果已经有历史事件，说明游戏不是刚创建的，不需要处理初始 phaseChanges
+                // 如果事件队列为空，说明游戏是刚创建的，需要处理初始 phaseChanges
+                const timer = setTimeout(() => {
+                    // 检查事件队列是否为空（如果为空，说明是刚创建的游戏）
+                    // 对于 watch 模式，还需要检查 events query 是否为空
+                    // 对于 replay 模式，检查 replay 的 events 是否为空
+                    if (mode === 'watch') {
+                        // watch 模式：如果事件队列为空，处理初始 phaseChanges
+                        if (eventQueueRef.current.length === 0) {
+                            processedInitialPhaseChangesRef.current = true;
+                            handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                                console.error("Error handling initial phaseChanges in watch mode:", error);
+                            });
+                        }
+                    } else if (mode === 'replay') {
+                        // replay 模式：如果 replay 的事件为空，处理初始 phaseChanges
+                        if (replay && replay.getAllEvents && replay.getAllEvents().length === 0) {
+                            processedInitialPhaseChangesRef.current = true;
+                            handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                                console.error("Error handling initial phaseChanges in replay mode:", error);
+                            });
+                        }
+                    }
+                }, 1000); // 给事件加载更多时间
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [mode, game, initialPhaseChanges, handlePhaseChanges, groundCells, replay]);
+
+    const obstacleSprites: ObstacleSprite[] | undefined = useMemo(() => {
+        if (!game?.map) return;
+        const { obstacles } = game.map;
+        return obstacles?.map((o: ObstacleCell) => {
+            return {
+                id: o.id,
+                q: o.q,
+                r: o.r,
+                element: undefined,
+            };
+        });
+
+    }, [game?.map]);
 
     const value: ICombatContext = {
-        game: effectiveGame || game,  // ✅ Watch 模式：使用查询到的游戏状态
+        game: game,  // ✅ 直接使用传入的 game prop，不维护本地状态
+        initialPhaseChanges: initialPhaseChanges,
         coordDirection,
-        hexCell,
+        hexDimension,
         // map: map || { rows: 7, cols: 8, obstacles: [], disables: [] },
-        gridCells,
+        groundCells,
+        obstacleSprites,
         // currentRound: currentRound || defaultRound,
         characters: characters || [],
-        timeClock: timeClock || 0,
         eventQueue: eventQueueRef.current,
-        processedEvents: mode === 'watch' ? processedEvents : undefined,  // ✅ Watch 模式：暴露已处理的事件
-        score: (effectiveGame || game)?.score || gameScore || score,  // ✅ Watch 模式：使用查询到的分数
+        processedEvents: mode === 'watch' ? processedEvents : undefined,  // ✅ Watch 模式：暴露已处理的事件（由 useWatchMode 提供）
+        updateGameState,  // ✅ 方案1：统一的状态更新函数
         // resourceLoad,
         // setResourceLoad,
-        changeCell: setHexCell,
+        changeCell: setHexDimension,
         mode: mode,
         // ✅ 重播控制（仅在 replay 模式）
         // 提供重播播放控制接口，子组件可通过 useCombatManager() 获取
@@ -283,14 +277,14 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 
     return <CombatContext.Provider value={value}>{children}</CombatContext.Provider>;
 };
-
 export const useCombatManager = () => {
     const context = useContext(CombatContext);
     if (!context) {
-        throw new Error("useCombatManager must be used within a CombatManager");
+        throw new Error("useCombatManager must be used within a CombatProvider");
     }
     return context;
 };
+
 export default CombatManager;
 
 

@@ -6,16 +6,19 @@
 import { calculateBossPower, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
 import { calculateGameMonster, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
+import { GameModel, GameRound, GameStatus } from "../../types/gameTypes";
 import { GameBoss, GameMinion, GameMonster, PlayerMonster } from "../../types/monsterTypes";
-import { GameModel, GameStatus } from "../../types/gameTypes";
 import { TeamService } from "../team/teamService";
 import { GameEventService } from "./gameEventService";
+import { RoundService } from "./roundService";
 
 export class GameLifecycleService {
     private eventService: GameEventService;
+    private roundService: RoundService;
 
     constructor(private dbCtx: any) {
         this.eventService = new GameEventService(dbCtx);
+        this.roundService = new RoundService(dbCtx);
     }
 
     /**
@@ -33,6 +36,7 @@ export class GameLifecycleService {
         ruleId: string,
         stageId: string
     ): Promise<GameModel | null> {
+        console.log("createGame params", uid, gameId, ruleId, stageId);
         // 1. 根据 uid 获取玩家队伍（从 mr_player_monsters 表）
         const playerTeamMonsters = await TeamService.getPlayerTeam(this.dbCtx, uid);
 
@@ -317,7 +321,40 @@ export class GameLifecycleService {
             currentRound: { no: 0, turns: [] },
         };
 
-        // 12. 创建 gameInit 事件（包含完整初始状态，用于重播）
+        // 12. ✅ 创建第一个 round（round 1）
+        const roundCreated = await this.roundService.createRound(gameId, 1, game);
+        if (roundCreated) {
+            // 更新数据库中的 round 字段
+            const gameDoc = await this.dbCtx.db
+                .query("mr_games")
+                .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+                .first();
+
+            if (gameDoc) {
+                await this.dbCtx.db.patch(gameDoc._id, {
+                    round: 1,
+                    lastUpdate: new Date().toISOString(),
+                });
+            }
+
+            // 重新加载 round 数据以更新 currentRound
+            const roundDoc = await this.dbCtx.db
+                .query("mr_game_round")
+                .withIndex("by_game_round", (q: any) =>
+                    q.eq("gameId", gameId).eq("no", 1)
+                )
+                .first();
+
+            if (roundDoc) {
+                // 更新 game 的 currentRound
+                game.currentRound = {
+                    no: roundDoc.no,
+                    turns: roundDoc.turns || [],
+                };
+            }
+        }
+
+        // 13. 创建 gameInit 事件（包含完整初始状态，用于重播）
         await this.eventService.createEvent({
             gameId: game.gameId,
             name: "gameInit",
@@ -342,7 +379,7 @@ export class GameLifecycleService {
                 score: 0,
                 lastUpdate: game.lastUpdate,
                 createdAt: game.createdAt,
-                round: 0,
+                round: game.currentRound?.no || 1,
             },
             time: Date.now(),
         });
@@ -357,6 +394,7 @@ export class GameLifecycleService {
      * @returns GameModel 或 null（如果游戏不存在）
      */
     async load(gameId: string): Promise<GameModel | null> {
+        console.log("loadGame lifecycleService params", gameId);
         // 查询 mr_games 表
         const game = await this.dbCtx.db
             .query("mr_games")
@@ -530,6 +568,32 @@ export class GameLifecycleService {
             },
         };
 
+        // ✅ 从数据库加载当前回合的完整数据（包括所有 turns 及其状态）
+        let currentRound: GameRound = { no: roundNumber, turns: [] };
+        if (roundNumber > 0) {
+            const roundDoc = await this.dbCtx.db
+                .query("mr_game_round")
+                .withIndex("by_game_round", (q: any) =>
+                    q.eq("gameId", gameId).eq("no", roundNumber)
+                )
+                .unique();
+
+            if (roundDoc && roundDoc.turns) {
+                // 从数据库加载所有 turns，包括它们的状态
+                currentRound = {
+                    no: roundDoc.no,
+                    turns: roundDoc.turns.map((turn: any) => ({
+                        uid: turn.uid,
+                        monsterId: turn.monsterId,
+                        skillSelect: turn.skillSelect,
+                        status: turn.status ?? 0,  // 0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
+                        dueTime: turn.dueTime,
+                        order: turn.order,  // turn 的次序
+                    })),
+                };
+            }
+        }
+
         // 构建 GameModel（符合 mr_games 表结构）
         return {
             gameId: game.gameId,
@@ -545,7 +609,7 @@ export class GameLifecycleService {
             scoringConfigVersion: game.scoringConfigVersion,  // ✅ 加载配置版本
             lastUpdate: game.lastUpdate,
             createdAt: game.createdAt,
-            currentRound: { no: roundNumber, turns: [] },
+            currentRound,  // ✅ 包含完整的 turns 数据及其状态
         };
     }
 

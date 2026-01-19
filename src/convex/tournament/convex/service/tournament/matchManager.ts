@@ -440,7 +440,7 @@ export const findNewMatch = query({
     args: { uid: v.string() },
     handler: async (ctx: any, { uid }: { uid: string }): Promise<any> => {
         const match = await ctx.db.query("player_matches").withIndex("by_uid", (q: any) => q.eq("uid", uid)).order("desc").first();
-        if (match.status === MatchStatus.OPEN) {
+        if (match && match.status === MatchStatus.OPEN) {
             return { ...match, _id: undefined, _creationTime: undefined };
         }
     },

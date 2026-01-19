@@ -1,37 +1,30 @@
 /**
  * Boss AI预测执行Hook
- * 实现前端预测执行 + 后端验证的完整机制
+ * 注意：Boss action 完全由后端执行，前端只进行预测（不执行乐观更新）
+ * 预测结果仅用于显示或调试，不会修改游戏状态
  */
 
 import { useCallback, useRef, useState } from "react";
 import { GameModel, MonsterSprite } from "../../types/CombatTypes";
-import { OperationQueue } from "../optimistic/OperationQueue";
-import { OptimisticBossExecutor } from "../optimistic/OptimisticBossExecutor";
 import { BossAction, BossAIDecision, BossAILocal } from "./BossAILocal";
 
 export interface PredictedAction {
     decision: BossAIDecision;
     timestamp: number;
     round: number;
-    operationId?: string;  // 乐观执行的操作ID
+    // operationId 已移除（Boss action 由后端执行，不需要乐观更新）
 }
 
 /**
  * Boss AI预测执行Hook
- * 实现前端预测执行 + 后端验证的完整机制
+ * 注意：Boss action 完全由后端执行，前端只进行预测（不执行乐观更新）
  */
 export const useBossAIPredictor = (
     game: GameModel | null,
-    operationQueue: OperationQueue | null
+    operationQueue: any | null  // 保留参数以保持接口兼容性，但不再使用
 ) => {
     const [predictedActions, setPredictedActions] = useState<Map<number, PredictedAction>>(new Map());
     const pendingPredictionsRef = useRef<Map<number, PredictedAction>>(new Map());
-    const rollbackCallbacksRef = useRef<Map<number, () => void>>(new Map());
-
-    // 创建乐观执行器
-    const optimisticExecutor = game && operationQueue
-        ? new OptimisticBossExecutor(game, operationQueue)
-        : null;
 
     /**
      * 预测Boss AI决策
@@ -81,7 +74,7 @@ export const useBossAIPredictor = (
                     threatValue: 0,
                 }));
 
-            // 预测决策
+            // 预测决策（仅用于显示，不执行乐观更新）
             const decision = BossAILocal.decideBossAction({
                 behaviorSeed,
                 round,
@@ -93,34 +86,13 @@ export const useBossAIPredictor = (
                 bossConfig,
             });
 
-            // 乐观执行（如果执行器可用）
-            let operationId: string | undefined;
-            if (optimisticExecutor && game) {
-                try {
-                    const executionResult = await optimisticExecutor.executeOptimistically(
-                        decision,
-                        bossCharacter,
-                        behaviorSeed,
-                        round
-                    );
-                    operationId = executionResult.operationId;
-
-                    // 保存回滚回调
-                    const operation = optimisticExecutor.getOperation(operationId);
-                    if (operation) {
-                        rollbackCallbacksRef.current.set(round, operation.rollback);
-                    }
-                } catch (error) {
-                    console.error("Failed to execute Boss action optimistically:", error);
-                }
-            }
-
-            // 保存预测结果
+            // ✅ Boss action 完全由后端执行，前端只进行预测（不执行乐观更新）
+            // 保存预测结果（用于显示或调试）
             const predicted: PredictedAction = {
                 decision,
                 timestamp: Date.now(),
                 round,
-                operationId,
+                // operationId 不再使用（Boss action 由后端执行）
             };
 
             pendingPredictionsRef.current.set(round, predicted);
@@ -131,10 +103,11 @@ export const useBossAIPredictor = (
             console.error("Boss AI预测失败:", error);
             return null;
         }
-    }, [optimisticExecutor, game]);
+    }, [game]);
 
     /**
-     * 验证预测结果
+     * 验证预测结果（仅用于日志记录，不执行回滚）
+     * 注意：Boss action 完全由后端执行，前端只记录预测准确性
      */
     const verifyPrediction = useCallback((
         round: number,
@@ -159,27 +132,10 @@ export const useBossAIPredictor = (
                 server: serverDecision.bossAction,
             });
 
-            // 触发回滚
-            const rollback = rollbackCallbacksRef.current.get(round);
-            if (rollback) {
-                try {
-                    rollback();
-                    console.log(`✅ 已回滚 Round ${round} 的Boss动作`);
-                } catch (error) {
-                    console.error(`❌ 回滚失败（Round ${round}）:`, error);
-                }
-                rollbackCallbacksRef.current.delete(round);
-            }
+            // ✅ Boss action 由后端执行，不需要回滚前端状态
+            // 只记录预测不一致的情况（用于调试）
 
-            // 如果有操作ID，从操作队列中回滚
-            if (predicted.operationId && operationQueue) {
-                const rolledBack = operationQueue.rollbackOperation(predicted.operationId);
-                if (!rolledBack) {
-                    console.warn(`Failed to rollback operation ${predicted.operationId}`);
-                }
-            }
-
-            // 触发自定义回滚回调
+            // 触发自定义回调（如果提供）
             if (onRollback) {
                 onRollback(predicted.decision.bossAction, serverDecision.bossAction);
             }
@@ -191,21 +147,15 @@ export const useBossAIPredictor = (
             return false;
         }
 
-        // 预测正确，确认操作
+        // 预测正确，记录日志
         console.log(`✅ 预测正确（Round ${round}）`);
 
-        // 如果有操作ID，确认操作
-        if (predicted.operationId && operationQueue) {
-            operationQueue.confirmOperation(predicted.operationId);
-        }
-
-        // 清理预测记录和回滚回调
+        // 清理预测记录
         pendingPredictionsRef.current.delete(round);
-        rollbackCallbacksRef.current.delete(round);
         setPredictedActions(new Map(pendingPredictionsRef.current));
 
         return true;
-    }, [operationQueue]);
+    }, []);
 
     /**
      * 清理预测记录

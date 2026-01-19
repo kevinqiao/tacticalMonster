@@ -7,12 +7,12 @@ import { AttackableNode, HexNode, WalkableNode } from "../types/CombatTypes";
 
 // 计算六边形距离（用于飞行单位的直线路径）
 const calculateHexDistance = (from: HexNode, to: HexNode): number => {
-    const fromX = from.x - Math.floor(from.y / 2);
-    const fromZ = from.y;
+    const fromX = from.q - Math.floor(from.r / 2);
+    const fromZ = from.r;
     const fromY = -fromX - fromZ;
 
-    const toX = to.x - Math.floor(to.y / 2);
-    const toZ = to.y;
+    const toX = to.q - Math.floor(to.r / 2);
+    const toZ = to.r;
     const toY = -toX - toZ;
 
     return Math.max(
@@ -27,7 +27,7 @@ const findDirectPath = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNo
     const path: HexNode[] = [start];
 
     // 如果起点和终点相同，直接返回
-    if (start.x === goal.x && start.y === goal.y) {
+    if (start.q === goal.q && start.r === goal.r) {
         return path;
     }
 
@@ -42,15 +42,15 @@ const findDirectPath = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNo
     const steps = distance;
     for (let i = 1; i <= steps; i++) {
         const t = i / steps;
-        const q = Math.round(start.x + (goal.x - start.x) * t);
-        const r = Math.round(start.y + (goal.y - start.y) * t);
+        const q = Math.round(start.q + (goal.q - start.q) * t);
+        const r = Math.round(start.r + (goal.r - start.r) * t);
 
         // 检查是否在网格范围内
         if (r >= 0 && r < grid.length && q >= 0 && q < grid[0].length) {
-            const node = { x: q, y: r };
+            const node = { q, r };
             // 避免重复添加
             const lastNode = path[path.length - 1];
-            if (lastNode.x !== node.x || lastNode.y !== node.y) {
+            if (lastNode.q !== node.q || lastNode.r !== node.r) {
                 path.push(node);
             }
         }
@@ -70,49 +70,49 @@ export const findPath = (
         return findDirectPath(start, goal, grid);
     }
 
-    const isWalkable = (x: number, y: number): boolean => {
-        if (y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) return false;
-        return grid[y][x].walkable ?? false;
+    const isWalkable = (q: number, r: number): boolean => {
+        if (r < 0 || r >= grid.length || q < 0 || q >= grid[0].length) return false;
+        return grid[r][q].walkable ?? false;
     };
 
     const getNeighbors = (pos: HexNode): HexNode[] => {
-        const directions = pos.y % 2 === 0 ? [
-            { x: 1, y: 0 },   // 右
-            { x: 0, y: -1 },  // 右上
-            { x: -1, y: -1 }, // 左上
-            { x: -1, y: 0 },  // 左
-            { x: -1, y: 1 },  // 左下
-            { x: 0, y: 1 },   // 右下
+        const directions = pos.r % 2 === 0 ? [
+            { q: 1, r: 0 },   // 右
+            { q: 0, r: -1 },  // 右上
+            { q: -1, r: -1 }, // 左上
+            { q: -1, r: 0 },  // 左
+            { q: -1, r: 1 },  // 左下
+            { q: 0, r: 1 },   // 右下
         ] : [
-            { x: 1, y: 0 },   // 右
-            { x: 1, y: -1 },  // 右上
-            { x: 0, y: -1 },  // 左上
-            { x: -1, y: 0 },  // 左
-            { x: 0, y: 1 },   // 左下
-            { x: 1, y: 1 },   // 右下
+            { q: 1, r: 0 },   // 右
+            { q: 1, r: -1 },  // 右上
+            { q: 0, r: -1 },  // 左上
+            { q: -1, r: 0 },  // 左
+            { q: 0, r: 1 },   // 左下
+            { q: 1, r: 1 },   // 右下
         ];
 
         return directions
             .map(dir => ({
-                x: pos.x + dir.x,
-                y: pos.y + dir.y
+                q: pos.q + dir.q,
+                r: pos.r + dir.r
             }))
-            .filter(neighbor => isWalkable(neighbor.x, neighbor.y));
+            .filter(neighbor => isWalkable(neighbor.q, neighbor.r));
     };
 
     const heuristic = (a: HexNode, b: HexNode): number => {
-        const dx = Math.abs(a.x - b.x);
-        const dy = Math.abs(a.y - b.y);
-        return Math.max(dx, dy) + Math.floor(Math.min(dx, dy) / 2);
+        const dq = Math.abs(a.q - b.q);
+        const dr = Math.abs(a.r - b.r);
+        return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
     };
 
-    const openSet = new Set<string>([`${start.x},${start.y}`]);
+    const openSet = new Set<string>([`${start.q},${start.r}`]);
     const cameFrom = new Map<string, HexNode>();
     const gScore = new Map<string, number>();
     const fScore = new Map<string, number>();
 
-    gScore.set(`${start.x},${start.y}`, 0);
-    fScore.set(`${start.x},${start.y}`, heuristic(start, goal));
+    gScore.set(`${start.q},${start.r}`, 0);
+    fScore.set(`${start.q},${start.r}`, heuristic(start, goal));
 
     while (openSet.size > 0) {
         let current = null;
@@ -122,37 +122,37 @@ export const findPath = (
             const score = fScore.get(pos) ?? Infinity;
             if (score < lowestFScore) {
                 lowestFScore = score;
-                const [x, y] = pos.split(',').map(Number);
-                current = { x, y };
+                const [q, r] = pos.split(',').map(Number);
+                current = { q, r };
             }
         }
 
         if (!current) break;
-        if (current.x === goal.x && current.y === goal.y) {
+        if (current.q === goal.q && current.r === goal.r) {
             const path = [current];
-            let key = `${current.x},${current.y}`;
+            let key = `${current.q},${current.r}`;
             while (cameFrom.has(key)) {
                 const pos = cameFrom.get(key)!;
                 path.unshift(pos);
-                key = `${pos.x},${pos.y}`;
+                key = `${pos.q},${pos.r}`;
             }
             return path;
         }
 
-        openSet.delete(`${current.x},${current.y}`);
+        openSet.delete(`${current.q},${current.r}`);
 
         for (const neighbor of getNeighbors(current)) {
             const tentativeGScore =
-                (gScore.get(`${current.x},${current.y}`) ?? Infinity) + 1;
+                (gScore.get(`${current.q},${current.r}`) ?? Infinity) + 1;
 
-            if (tentativeGScore < (gScore.get(`${neighbor.x},${neighbor.y}`) ?? Infinity)) {
-                cameFrom.set(`${neighbor.x},${neighbor.y}`, current);
-                gScore.set(`${neighbor.x},${neighbor.y}`, tentativeGScore);
+            if (tentativeGScore < (gScore.get(`${neighbor.q},${neighbor.r}`) ?? Infinity)) {
+                cameFrom.set(`${neighbor.q},${neighbor.r}`, current);
+                gScore.set(`${neighbor.q},${neighbor.r}`, tentativeGScore);
                 fScore.set(
-                    `${neighbor.x},${neighbor.y}`,
+                    `${neighbor.q},${neighbor.r}`,
                     tentativeGScore + heuristic(neighbor, goal)
                 );
-                openSet.add(`${neighbor.x},${neighbor.y}`);
+                openSet.add(`${neighbor.q},${neighbor.r}`);
             }
         }
     }
@@ -162,7 +162,7 @@ export const findPath = (
 
 export const getWalkableNodes = (
     gridCells: HexNode[][],
-    start: { x: number, y: number },
+    start: { q: number, r: number },
     moveRange: number,
     canIgnoreObstacles?: boolean  // 是否可以忽略障碍物（飞行单位）
 ): WalkableNode[] => {
@@ -175,12 +175,12 @@ export const getWalkableNodes = (
         for (let r = 0; r < rows; r++) {
             for (let q = 0; q < cols; q++) {
                 const distance = calculateHexDistance(
-                    { x: start.x, y: start.y },
-                    { x: q, y: r }
+                    { q: start.q, r: start.r },
+                    { q, r }
                 );
 
                 if (distance > 0 && distance <= moveRange) {
-                    movableNodes.push({ x: q, y: r, distance, walkable: true });
+                    movableNodes.push({ q, r, distance, walkable: true });
                 }
             }
         }
@@ -193,35 +193,35 @@ export const getWalkableNodes = (
     const visited = new Set<string>();
     const queue: { node: HexNode, distance: number }[] = [];
 
-    queue.push({ node: { x: start.x, y: start.y }, distance: 0 });
-    visited.add(`${start.x},${start.y}`);
+    queue.push({ node: { q: start.q, r: start.r }, distance: 0 });
+    visited.add(`${start.q},${start.r}`);
 
     const getNeighbors = (pos: HexNode): HexNode[] => {
-        const directions = pos.y % 2 === 0 ? [
-            { x: 1, y: 0 },   // 右
-            { x: 0, y: -1 },  // 右上
-            { x: -1, y: -1 }, // 左上
-            { x: -1, y: 0 },  // 左
-            { x: -1, y: 1 },  // 左下
-            { x: 0, y: 1 },   // 右下
+        const directions = pos.r % 2 === 0 ? [
+            { q: 1, r: 0 },   // 右
+            { q: 0, r: -1 },  // 右上
+            { q: -1, r: -1 }, // 左上
+            { q: -1, r: 0 },  // 左
+            { q: -1, r: 1 },  // 左下
+            { q: 0, r: 1 },   // 右下
         ] : [
-            { x: 1, y: 0 },   // 右
-            { x: 1, y: -1 },  // 右上
-            { x: 0, y: -1 },  // 左上
-            { x: -1, y: 0 },  // 左
-            { x: 0, y: 1 },   // 左下
-            { x: 1, y: 1 },   // 右下
+            { q: 1, r: 0 },   // 右
+            { q: 1, r: -1 },  // 右上
+            { q: 0, r: -1 },  // 左上
+            { q: -1, r: 0 },  // 左
+            { q: 0, r: 1 },   // 左下
+            { q: 1, r: 1 },   // 右下
         ];
 
         return directions
             .map(dir => ({
-                x: pos.x + dir.x,
-                y: pos.y + dir.y
+                q: pos.q + dir.q,
+                r: pos.r + dir.r
             }))
             .filter(neighbor => {
-                if (neighbor.y < 0 || neighbor.y >= gridCells.length ||
-                    neighbor.x < 0 || neighbor.x >= gridCells[0].length) return false;
-                return gridCells[neighbor.y][neighbor.x].walkable ?? false;
+                if (neighbor.r < 0 || neighbor.r >= gridCells.length ||
+                    neighbor.q < 0 || neighbor.q >= gridCells[0].length) return false;
+                return gridCells[neighbor.r][neighbor.q].walkable ?? false;
             });
     };
 
@@ -232,7 +232,7 @@ export const getWalkableNodes = (
         if (distance < moveRange) {
             const neighbors = getNeighbors(node);
             for (const neighbor of neighbors) {
-                const key = `${neighbor.x},${neighbor.y}`;
+                const key = `${neighbor.q},${neighbor.r}`;
                 if (!visited.has(key)) {
                     visited.add(key);
                     queue.push({
@@ -264,15 +264,15 @@ export const getAttackableNodes = (
     for (const enemy of enemies) {
         if (attacker.attackRange.max === 1) {
             gridCells[enemy.r][enemy.q].walkable = true;
-            const path = findPath(gridCells, { x: attacker.q, y: attacker.r }, { x: enemy.q, y: enemy.r });
+            const path = findPath(gridCells, { q: attacker.q, r: attacker.r }, { q: enemy.q, r: enemy.r });
             if (path.length - 2 <= attacker.moveRange)
-                attackableNodes.push({ uid: enemy.uid, character_id: enemy.character_id, x: enemy.q, y: enemy.r, distance: 1 });
+                attackableNodes.push({ uid: enemy.uid, character_id: enemy.character_id, q: enemy.q, r: enemy.r, distance: 1 });
         } else {
-            const path = findPath(grid, { x: attacker.q, y: attacker.r }, { x: enemy.q, y: enemy.r });
+            const path = findPath(grid, { q: attacker.q, r: attacker.r }, { q: enemy.q, r: enemy.r });
             const distance = path.length - 1;
             const range = (skill?.range?.distance ?? skill?.range?.max_distance) ?? attacker.attackRange.max;
             if (distance <= range) {
-                attackableNodes.push({ uid: enemy.uid, character_id: enemy.character_id, x: enemy.q, y: enemy.r, distance: distance });
+                attackableNodes.push({ uid: enemy.uid, character_id: enemy.character_id, q: enemy.q, r: enemy.r, distance: distance });
             }
         }
     }

@@ -15,7 +15,10 @@ export const canPerformAction = (
     if (mode === 'watch' || mode === 'replay') return { can: false };
     if (!game?.currentRound || !characters) return { can: false };
 
-    const currentTurn = game.currentRound.turns[0];
+    // ✅ 修复：查找当前活跃的 turn（status === 1），而不是假设 turns[0]
+    const currentTurn = game.currentRound.turns.find(
+        (t: any) => t.status === 1
+    );
     if (!currentTurn || currentTurn.uid === "boss") return { can: false };
 
     const character = characters.find(
