@@ -331,6 +331,18 @@ export class GameActionService {
             };
         }
 
+        // ✅ 记录执行者的初始状态（用于计算 stateChanges）
+        const casterStateBefore = {
+            q: caster.q ?? 0,
+            r: caster.r ?? 0,
+            hp: caster.stats?.hp?.current ?? 0,
+            mp: caster.stats?.mp?.current ?? 0,
+            shield: caster.stats?.shield?.current ?? 0,
+            status: caster.status || 'normal',
+        };
+        const casterStatusEffectsBefore = caster.statusEffects ? [...caster.statusEffects] : [];
+        const casterSkillCooldownsBefore = caster.skillCooldowns ? { ...caster.skillCooldowns } : {};
+
         // 2. 确定目标列表
         // 如果提供了 targets，使用提供的；否则根据技能范围自动计算
         let finalTargets: CharacterIdentifier[] = [];
@@ -371,11 +383,39 @@ export class GameActionService {
             };
         }
 
-        // 3. ✅ 保存目标之前的HP（用于检测击败）
+        // 3. ✅ 保存目标之前的状态（用于检测击败和计算 stateChanges）
         const targetHpBefore = new Map<string, number>();
+        const targetStatesBefore: Array<{
+            identifier: CharacterIdentifier;
+            hp: number;
+            mp: number;
+            shield: number;
+            status: 'normal' | 'stunned' | 'dead';
+        }> = [];
+        const targetStatusEffectsBefore: Map<string, any[]> = new Map();
+        const targetSkillCooldownsBefore: Map<string, Record<string, number>> = new Map();
+
         targetMonsters.forEach(target => {
             const key = target.monsterId;  // 使用 monsterId 作为唯一标识
             targetHpBefore.set(key, target.stats?.hp?.current ?? 0);
+
+            // 记录目标初始状态（用于计算 stateChanges）
+            const targetParams = this.characterQueryService.getCharacterParams(target.uid, target.monsterId);
+            targetStatesBefore.push({
+                identifier: {
+                    monsterId: targetParams.monsterId,
+                    bossId: targetParams.bossId,
+                    minionId: targetParams.minionId,
+                },
+                hp: target.stats?.hp?.current ?? 0,
+                mp: target.stats?.mp?.current ?? 0,
+                shield: target.stats?.shield?.current ?? 0,
+                status: target.status || 'normal',
+            });
+
+            // 记录目标的状态效果和技能冷却
+            targetStatusEffectsBefore.set(key, target.statusEffects ? [...target.statusEffects] : []);
+            targetSkillCooldownsBefore.set(key, target.skillCooldowns ? { ...target.skillCooldowns } : {});
         });
 
         // 4. 使用技能（使用 SkillManager）
@@ -567,11 +607,173 @@ export class GameActionService {
         // 12. ✅ 推进回合和阶段（自动处理turnEnd, roundEnd, roundStart, turnStart, Boss AI）
         const phaseChanges = await this.phaseService.advanceTurnAndRound(gameId, { monsterId, bossId, minionId }, (this as any).ctx);
 
+        // ✅ 13. 计算 stateChanges（参考 executeBossAction 的实现）
+        const casterAfter = this.characterQueryService.getCharacter(monsterId, bossId, minionId);
+        const stateChanges: any = {
+            actor: null,
+            targets: [],
+        };
+
+        // ✅ 执行者的状态变化
+        if (casterAfter) {
+            const casterStateAfter = {
+                q: casterAfter.q ?? 0,
+                r: casterAfter.r ?? 0,
+                hp: casterAfter.stats?.hp?.current ?? 0,
+                mp: casterAfter.stats?.mp?.current ?? 0,
+                shield: casterAfter.stats?.shield?.current ?? 0,
+                status: casterAfter.status || 'normal',
+            };
+
+            const hasChanged =
+                casterStateBefore.q !== casterStateAfter.q ||
+                casterStateBefore.r !== casterStateAfter.r ||
+                casterStateBefore.hp !== casterStateAfter.hp ||
+                casterStateBefore.mp !== casterStateAfter.mp ||
+                casterStateBefore.shield !== casterStateAfter.shield ||
+                casterStateBefore.status !== casterStateAfter.status;
+
+            if (hasChanged) {
+                stateChanges.actor = {
+                    identifier: characterIdentifier,
+                    before: casterStateBefore,
+                    after: casterStateAfter,
+                    positionChanged: casterStateBefore.q !== casterStateAfter.q || casterStateBefore.r !== casterStateAfter.r,
+                    hpChanged: casterStateBefore.hp !== casterStateAfter.hp,
+                    mpChanged: casterStateBefore.mp !== casterStateAfter.mp,
+                    shieldChanged: casterStateBefore.shield !== casterStateAfter.shield,
+                    statusChanged: casterStateBefore.status !== casterStateAfter.status,
+                };
+            }
+
+            // ✅ 检查状态效果变化
+            const casterStatusEffectsAfter = casterAfter.statusEffects ? [...casterAfter.statusEffects] : [];
+            const statusEffectsChanged = JSON.stringify(casterStatusEffectsBefore) !== JSON.stringify(casterStatusEffectsAfter);
+            if (statusEffectsChanged) {
+                if (!stateChanges.statusEffects) {
+                    stateChanges.statusEffects = [];
+                }
+                stateChanges.statusEffects.push({
+                    characterIdentifier,
+                    statusEffects: casterStatusEffectsAfter,
+                });
+            }
+
+            // ✅ 检查技能冷却变化
+            const casterSkillCooldownsAfter = casterAfter.skillCooldowns ? { ...casterAfter.skillCooldowns } : {};
+            const cooldownsChanged = JSON.stringify(casterSkillCooldownsBefore) !== JSON.stringify(casterSkillCooldownsAfter);
+            if (cooldownsChanged) {
+                if (!stateChanges.skillCooldowns) {
+                    stateChanges.skillCooldowns = [];
+                }
+                stateChanges.skillCooldowns.push({
+                    characterIdentifier,
+                    cooldowns: casterSkillCooldownsAfter,
+                });
+            }
+        }
+
+        // ✅ 目标的状态变化
+        for (const targetStateBefore of targetStatesBefore) {
+            const targetAfter = this.characterQueryService.getCharacter(
+                targetStateBefore.identifier.monsterId,
+                targetStateBefore.identifier.bossId,
+                targetStateBefore.identifier.minionId
+            );
+
+            if (targetAfter) {
+                const targetKey = targetStateBefore.identifier.monsterId || targetStateBefore.identifier.bossId || targetStateBefore.identifier.minionId || '';
+                const targetStateAfter = {
+                    hp: targetAfter.stats?.hp?.current ?? 0,
+                    mp: targetAfter.stats?.mp?.current ?? 0,
+                    shield: targetAfter.stats?.shield?.current ?? 0,
+                    status: targetAfter.status || 'normal',
+                };
+
+                const hasChanged =
+                    targetStateBefore.hp !== targetStateAfter.hp ||
+                    targetStateBefore.mp !== targetStateAfter.mp ||
+                    targetStateBefore.shield !== targetStateAfter.shield ||
+                    targetStateBefore.status !== targetStateAfter.status;
+
+                if (hasChanged) {
+                    stateChanges.targets.push({
+                        identifier: targetStateBefore.identifier,
+                        before: {
+                            hp: targetStateBefore.hp,
+                            mp: targetStateBefore.mp,
+                            shield: targetStateBefore.shield,
+                            status: targetStateBefore.status,
+                        },
+                        after: targetStateAfter,
+                        hpChanged: targetStateBefore.hp !== targetStateAfter.hp,
+                        mpChanged: targetStateBefore.mp !== targetStateAfter.mp,
+                        shieldChanged: targetStateBefore.shield !== targetStateAfter.shield,
+                        statusChanged: targetStateBefore.status !== targetStateAfter.status,
+                    });
+                }
+
+                // ✅ 检查目标的状态效果变化
+                const targetStatusEffectsAfter = targetAfter.statusEffects ? [...targetAfter.statusEffects] : [];
+                const targetStatusEffectsBeforeArray = targetStatusEffectsBefore.get(targetKey) || [];
+                const statusEffectsChanged = JSON.stringify(targetStatusEffectsBeforeArray) !== JSON.stringify(targetStatusEffectsAfter);
+                if (statusEffectsChanged) {
+                    if (!stateChanges.statusEffects) {
+                        stateChanges.statusEffects = [];
+                    }
+                    stateChanges.statusEffects.push({
+                        characterIdentifier: targetStateBefore.identifier,
+                        statusEffects: targetStatusEffectsAfter,
+                    });
+                }
+
+                // ✅ 检查目标的技能冷却变化
+                const targetSkillCooldownsAfter = targetAfter.skillCooldowns ? { ...targetAfter.skillCooldowns } : {};
+                const targetSkillCooldownsBeforeObj = targetSkillCooldownsBefore.get(targetKey) || {};
+                const cooldownsChanged = JSON.stringify(targetSkillCooldownsBeforeObj) !== JSON.stringify(targetSkillCooldownsAfter);
+                if (cooldownsChanged) {
+                    if (!stateChanges.skillCooldowns) {
+                        stateChanges.skillCooldowns = [];
+                    }
+                    stateChanges.skillCooldowns.push({
+                        characterIdentifier: targetStateBefore.identifier,
+                        cooldowns: targetSkillCooldownsAfter,
+                    });
+                }
+            }
+        }
+
+        // ✅ 14. 将 stateChanges 添加到 phaseChanges.playerAction.executionResults
+        if (!phaseChanges.playerAction) {
+            phaseChanges.playerAction = {
+                action: {
+                    type: 'use_skill',
+                    skillId,
+                    targets: finalTargets.length > 0 ? finalTargets : undefined,
+                },
+                executionResults: {},
+            };
+        }
+
+        if (!phaseChanges.playerAction.executionResults) {
+            phaseChanges.playerAction.executionResults = {};
+        }
+
+        // 只有在有状态变化时才设置 stateChanges
+        if (stateChanges.actor || stateChanges.targets.length > 0) {
+            phaseChanges.playerAction.executionResults.stateChanges = stateChanges;
+        }
+
         // 合并主动技能效果和被动技能效果
         const allEffects = [
             ...(skillResult.effects || []),
             ...passiveSkillEffects,
         ];
+
+        // ✅ 将 effects 也添加到 executionResults
+        if (allEffects.length > 0) {
+            phaseChanges.playerAction.executionResults.effects = allEffects;
+        }
 
         return {
             ...skillResult,

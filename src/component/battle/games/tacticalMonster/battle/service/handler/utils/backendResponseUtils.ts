@@ -6,9 +6,9 @@
  * - 计算击杀分数
  */
 
-import { updateHPMPDisplay } from "../../../utils/hpmpDisplayUpdater";
 import { StateChanges } from "../../../types/backendResponseTypes";
 import { MonsterSprite } from "../../../types/CombatTypes";
+import { updateHPMPDisplay } from "../../../utils/hpmpDisplayUpdater";
 import { CharacterIdentifier } from "../../../utils/typeAdapter";
 import { findTargetByIdentifier } from "./characterUtils";
 import { calculateKillScore } from "./scoreUtils";
@@ -35,7 +35,7 @@ export function applyStateChanges(
     // ✅ 应用执行者状态变化
     if (actorChange) {
         // ✅ 如果没有提供 actor，通过 identifier 查找
-        const actorChar = actor || (actorChange.identifier 
+        const actorChar = actor || (actorChange.identifier
             ? findTargetByIdentifier(characters, actorChange.identifier as CharacterIdentifier)
             : undefined);
 
@@ -54,6 +54,18 @@ export function applyStateChanges(
             if (actorChange.positionChanged) {
                 actorChar.q = actorChange.after.q ?? actorChar.q;
                 actorChar.r = actorChange.after.r ?? actorChar.r;
+            }
+            // ✅ 更新护盾值
+            if (actorChange.shieldChanged && actorChange.after.shield !== undefined) {
+                if (!actorChar.stats.shield) {
+                    actorChar.stats.shield = { current: 0, max: 0 };
+                }
+                actorChar.stats.shield.current = actorChange.after.shield;
+                // 可以添加护盾条更新逻辑（如果需要）
+            }
+            // ✅ 更新角色状态
+            if (actorChange.statusChanged && actorChange.after.status !== undefined) {
+                actorChar.status = actorChange.after.status;
             }
         }
     }
@@ -77,6 +89,45 @@ export function applyStateChanges(
                     targetChar.stats.mp.current = targetChange.after.mp;
                     updateHPMPDisplay(targetChar, undefined, targetChange.after.mp);
                 }
+                // ✅ 更新护盾值
+                if (targetChange.shieldChanged && targetChange.after.shield !== undefined) {
+                    if (!targetChar.stats.shield) {
+                        targetChar.stats.shield = { current: 0, max: 0 };
+                    }
+                    targetChar.stats.shield.current = targetChange.after.shield;
+                }
+                // ✅ 更新角色状态
+                if (targetChange.statusChanged && targetChange.after.status !== undefined) {
+                    targetChar.status = targetChange.after.status;
+                }
+            }
+        });
+    }
+
+    // ✅ 应用状态效果列表变化
+    if (stateChanges.statusEffects && stateChanges.statusEffects.length > 0) {
+        stateChanges.statusEffects.forEach((statusEffectChange) => {
+            const character = findTargetByIdentifier(
+                characters,
+                statusEffectChange.characterIdentifier
+            );
+            if (character) {
+                // 直接替换状态效果列表（后端返回的是完整的最新列表）
+                character.statusEffects = statusEffectChange.statusEffects;
+            }
+        });
+    }
+
+    // ✅ 应用技能冷却变化
+    if (stateChanges.skillCooldowns && stateChanges.skillCooldowns.length > 0) {
+        stateChanges.skillCooldowns.forEach((cooldownChange) => {
+            const character = findTargetByIdentifier(
+                characters,
+                cooldownChange.characterIdentifier
+            );
+            if (character) {
+                // 直接替换技能冷却对象（后端返回的是完整的最新冷却状态）
+                character.skillCooldowns = cooldownChange.cooldowns;
             }
         });
     }

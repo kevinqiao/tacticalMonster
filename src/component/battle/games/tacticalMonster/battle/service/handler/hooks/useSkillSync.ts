@@ -87,13 +87,16 @@ export const useSkillSync = (
 
                 const backendResult = backendResponse.data; // 此时已确认 backendResponse.ok 且 success
 
-                // ✅ 方案1：应用后端返回的 stateChanges（悲观状态）
-                // 注意：后端目前可能不返回 stateChanges，后续需要补充
-                applyStateChanges(backendResult.stateChanges, characters, character, target);
+                // ✅ 从 phaseChanges.playerAction.executionResults.stateChanges 提取 stateChanges
+                const phaseChanges = backendResult.phaseChanges;
+                const stateChanges = phaseChanges?.playerAction?.executionResults?.stateChanges;
+
+                // ✅ 应用后端返回的 stateChanges（包含 shield, status, statusEffects, skillCooldowns）
+                applyStateChanges(stateChanges, characters, character, target);
 
                 // ✅ 计算击杀分数（如果需要）
                 calculateKillScoreIfNeeded(
-                    backendResult.stateChanges,
+                    stateChanges,
                     target,
                     characters,
                     skillId || "",

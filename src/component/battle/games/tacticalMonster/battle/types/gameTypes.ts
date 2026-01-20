@@ -82,40 +82,84 @@ export interface GameTurn {
 }
 /**
  * 阶段变化信息
+ * 统一的事件数据结构，所有事件的 data 都使用此类型
  */
 export interface PhaseChanges {
-    turnEnd?: {
-        uid: string;
-        monsterId: string;
+    // ========== 游戏初始化 ==========
+    gameInit?: GameModel;  // ✅ 游戏初始化状态（gameInit 事件使用）
+
+    // ========== 回合和阶段 ==========
+    roundStart?: {
         round: number;
+        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
     };
     roundEnd?: {
         round: number;
-    };
-    roundStart?: {
-        round: number;
-        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>; // ✅ 被触发的被动技能列表
     };
     turnStart?: {
         uid: string;
         monsterId: string;
         round: number;
-        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>; // ✅ 被触发的被动技能列表
+        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
     };
-    // 支持多个连续的 Boss turn（Boss 本体 + 多个小怪）
-    // 注意：数组的顺序就是执行顺序（按照 turns 的 order 字段排序）
-    // 前端应该按照数组顺序依次处理每个 Boss turn
+    turnEnd?: {
+        uid: string;
+        monsterId: string;
+        round: number;
+    };
+
+    // ========== 玩家动作（与 bossAIActions 对称）==========
+    playerAction?: {
+        turnStart?: {
+            uid: string;
+            monsterId: string;
+            round: number;
+            triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
+        };
+        action: {
+            type: 'use_skill' | 'attack' | 'move' | 'standby';
+            skillId?: string;
+            target?: CharacterIdentifier;
+            targets?: CharacterIdentifier[];
+            position?: { q: number; r: number };
+        };
+        executionResults: {
+            stateChanges?: {
+                actor?: {
+                    identifier: CharacterIdentifier;
+                    before: { q: number; r: number; hp: number; mp: number };
+                    after: { q: number; r: number; hp: number; mp: number };
+                    positionChanged: boolean;
+                    hpChanged: boolean;
+                    mpChanged: boolean;
+                };
+                targets?: Array<{
+                    identifier: CharacterIdentifier;
+                    before: { hp: number; mp: number };
+                    after: { hp: number; mp: number };
+                    hpChanged: boolean;
+                    mpChanged: boolean;
+                }>;
+            };
+            effects?: any[];
+            phaseChanges?: PhaseChanges;  // 嵌套的 phaseChanges（如 turnEnd, roundEnd 等）
+        };
+    };
+
+    // ========== Boss AI 动作 ==========
     bossAIActions?: Array<{
         turnStart: {
             uid: string;
             monsterId: string;
             round: number;
-            triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>; // ✅ 被触发的被动技能列表
+            triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
         };
         decision: any;
         executionResults: any;
         phaseTransition?: any;
     }>;
+
+    // ========== 游戏结束 ==========
     gameOver?: {
         result: any; // GameResult (从 sharedScoreService 导入)
         reason: string;

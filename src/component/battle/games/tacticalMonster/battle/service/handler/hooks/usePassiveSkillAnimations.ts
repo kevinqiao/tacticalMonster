@@ -128,9 +128,15 @@ export const usePassiveSkillAnimations = (
         character: MonsterSprite | undefined,
         target: MonsterSprite | undefined
     ) => {
-        if (!backendResult.effects || !target || !character) return;
+        if (!target || !character) return;
 
-        const passiveEffects = backendResult.effects.filter((e: any) => e.isPassive);
+        // ✅ 从 phaseChanges.playerAction.executionResults.effects 获取 effects
+        const phaseChanges = backendResult.phaseChanges;
+        const effects = phaseChanges?.playerAction?.executionResults?.effects || backendResult.effects || [];
+
+        if (effects.length === 0) return;
+
+        const passiveEffects = effects.filter((e: any) => e.isPassive);
         if (passiveEffects.length === 0) return;
 
         const passiveTriggerer = characters?.find((c: MonsterSprite) =>

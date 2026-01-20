@@ -98,14 +98,22 @@ export const executeBossAction = internalMutation({
             r: actor.r ?? 0,
             hp: actor.stats?.hp?.current ?? 0,
             mp: actor.stats?.mp?.current ?? 0,
+            shield: actor.stats?.shield?.current ?? 0,
+            status: actor.status || 'normal',
         };
+        const actorStatusEffectsBefore = actor.statusEffects ? [...actor.statusEffects] : [];
+        const actorSkillCooldownsBefore = actor.skillCooldowns ? { ...actor.skillCooldowns } : {};
 
         // 记录目标的初始状态（如果有）
         const targetStatesBefore: Array<{
             identifier: { monsterId?: string; bossId?: string; minionId?: string };
             hp: number;
             mp: number;
+            shield: number;
+            status: 'normal' | 'stunned' | 'dead';
         }> = [];
+        const targetStatusEffectsBefore: Map<string, any[]> = new Map();
+        const targetSkillCooldownsBefore: Map<string, Record<string, number>> = new Map();
         
         const targets = action.targets || (action.target ? [action.target] : []);
         for (const targetIdentifier of targets) {
@@ -115,11 +123,16 @@ export const executeBossAction = internalMutation({
                 targetIdentifier.minionId
             );
             if (target) {
+                const targetKey = targetIdentifier.monsterId || targetIdentifier.bossId || targetIdentifier.minionId || '';
                 targetStatesBefore.push({
                     identifier: targetIdentifier,
                     hp: target.stats?.hp?.current ?? 0,
                     mp: target.stats?.mp?.current ?? 0,
+                    shield: target.stats?.shield?.current ?? 0,
+                    status: target.status || 'normal',
                 });
+                targetStatusEffectsBefore.set(targetKey, target.statusEffects ? [...target.statusEffects] : []);
+                targetSkillCooldownsBefore.set(targetKey, target.skillCooldowns ? { ...target.skillCooldowns } : {});
             }
         }
 
@@ -200,13 +213,17 @@ export const executeBossAction = internalMutation({
                 r: actorAfter.r ?? 0,
                 hp: actorAfter.stats?.hp?.current ?? 0,
                 mp: actorAfter.stats?.mp?.current ?? 0,
+                shield: actorAfter.stats?.shield?.current ?? 0,
+                status: actorAfter.status || 'normal',
             };
 
             const hasChanged = 
                 actorStateBefore.q !== actorStateAfter.q ||
                 actorStateBefore.r !== actorStateAfter.r ||
                 actorStateBefore.hp !== actorStateAfter.hp ||
-                actorStateBefore.mp !== actorStateAfter.mp;
+                actorStateBefore.mp !== actorStateAfter.mp ||
+                actorStateBefore.shield !== actorStateAfter.shield ||
+                actorStateBefore.status !== actorStateAfter.status;
 
             if (hasChanged) {
                 stateChanges.actor = {
@@ -216,7 +233,35 @@ export const executeBossAction = internalMutation({
                     positionChanged: actorStateBefore.q !== actorStateAfter.q || actorStateBefore.r !== actorStateAfter.r,
                     hpChanged: actorStateBefore.hp !== actorStateAfter.hp,
                     mpChanged: actorStateBefore.mp !== actorStateAfter.mp,
+                    shieldChanged: actorStateBefore.shield !== actorStateAfter.shield,
+                    statusChanged: actorStateBefore.status !== actorStateAfter.status,
                 };
+            }
+            
+            // ✅ 检查状态效果变化
+            const actorStatusEffectsAfter = actorAfter.statusEffects ? [...actorAfter.statusEffects] : [];
+            const statusEffectsChanged = JSON.stringify(actorStatusEffectsBefore) !== JSON.stringify(actorStatusEffectsAfter);
+            if (statusEffectsChanged) {
+                if (!stateChanges.statusEffects) {
+                    stateChanges.statusEffects = [];
+                }
+                stateChanges.statusEffects.push({
+                    characterIdentifier: identifier,
+                    statusEffects: actorStatusEffectsAfter,
+                });
+            }
+            
+            // ✅ 检查技能冷却变化
+            const actorSkillCooldownsAfter = actorAfter.skillCooldowns ? { ...actorAfter.skillCooldowns } : {};
+            const cooldownsChanged = JSON.stringify(actorSkillCooldownsBefore) !== JSON.stringify(actorSkillCooldownsAfter);
+            if (cooldownsChanged) {
+                if (!stateChanges.skillCooldowns) {
+                    stateChanges.skillCooldowns = [];
+                }
+                stateChanges.skillCooldowns.push({
+                    characterIdentifier: identifier,
+                    cooldowns: actorSkillCooldownsAfter,
+                });
             }
         }
 
@@ -229,22 +274,62 @@ export const executeBossAction = internalMutation({
             );
 
             if (targetAfter) {
+                const targetKey = targetStateBefore.identifier.monsterId || targetStateBefore.identifier.bossId || targetStateBefore.identifier.minionId || '';
                 const targetStateAfter = {
                     hp: targetAfter.stats?.hp?.current ?? 0,
                     mp: targetAfter.stats?.mp?.current ?? 0,
+                    shield: targetAfter.stats?.shield?.current ?? 0,
+                    status: targetAfter.status || 'normal',
                 };
 
                 const hasChanged =
                     targetStateBefore.hp !== targetStateAfter.hp ||
-                    targetStateBefore.mp !== targetStateAfter.mp;
+                    targetStateBefore.mp !== targetStateAfter.mp ||
+                    targetStateBefore.shield !== targetStateAfter.shield ||
+                    targetStateBefore.status !== targetStateAfter.status;
 
                 if (hasChanged) {
                     stateChanges.targets.push({
                         identifier: targetStateBefore.identifier,
-                        before: targetStateBefore,
+                        before: {
+                            hp: targetStateBefore.hp,
+                            mp: targetStateBefore.mp,
+                            shield: targetStateBefore.shield,
+                            status: targetStateBefore.status,
+                        },
                         after: targetStateAfter,
                         hpChanged: targetStateBefore.hp !== targetStateAfter.hp,
                         mpChanged: targetStateBefore.mp !== targetStateAfter.mp,
+                        shieldChanged: targetStateBefore.shield !== targetStateAfter.shield,
+                        statusChanged: targetStateBefore.status !== targetStateAfter.status,
+                    });
+                }
+                
+                // ✅ 检查目标的状态效果变化
+                const targetStatusEffectsAfter = targetAfter.statusEffects ? [...targetAfter.statusEffects] : [];
+                const targetStatusEffectsBeforeArray = targetStatusEffectsBefore.get(targetKey) || [];
+                const statusEffectsChanged = JSON.stringify(targetStatusEffectsBeforeArray) !== JSON.stringify(targetStatusEffectsAfter);
+                if (statusEffectsChanged) {
+                    if (!stateChanges.statusEffects) {
+                        stateChanges.statusEffects = [];
+                    }
+                    stateChanges.statusEffects.push({
+                        characterIdentifier: targetStateBefore.identifier,
+                        statusEffects: targetStatusEffectsAfter,
+                    });
+                }
+                
+                // ✅ 检查目标的技能冷却变化
+                const targetSkillCooldownsAfter = targetAfter.skillCooldowns ? { ...targetAfter.skillCooldowns } : {};
+                const targetSkillCooldownsBeforeObj = targetSkillCooldownsBefore.get(targetKey) || {};
+                const cooldownsChanged = JSON.stringify(targetSkillCooldownsBeforeObj) !== JSON.stringify(targetSkillCooldownsAfter);
+                if (cooldownsChanged) {
+                    if (!stateChanges.skillCooldowns) {
+                        stateChanges.skillCooldowns = [];
+                    }
+                    stateChanges.skillCooldowns.push({
+                        characterIdentifier: targetStateBefore.identifier,
+                        cooldowns: targetSkillCooldownsAfter,
                     });
                 }
             }

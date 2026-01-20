@@ -2,16 +2,16 @@
  * 其他操作 Hook（选择技能、攻击、防御、待机、投降）
  */
 
-import { useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { api } from "../../../../../../../../convex/tacticalMonster/convex/_generated/api";
+import { getSkillConfig } from "../../../config/skillConfigs";
+import { useGameSettings } from "../../../hooks/useGameSettings";
 import { MonsterSprite } from "../../../types/CombatTypes";
 import { MonsterSkill } from "../../../types/skillTypes";
-import { canPerformAction } from "../utils/validationUtils";
-import { getSkillConfig } from "../../../config/skillConfigs";
 import { hexDistance } from "../../../utils/hexUtil";
 import { getPossiblePositions } from "../../../utils/positionEvaluator";
-import { useGameSettings } from "../../../hooks/useGameSettings";
 import { PositionSelectionUI } from "../../../view/PositionSelectionUI";
+import { canPerformAction } from "../utils/validationUtils";
 
 /**
  * 其他操作
@@ -90,21 +90,21 @@ export const useOtherActions = (
         if (!validation.can || !validation.character || !game?.currentRound) return;
 
         const { character } = validation;
-        
+
         // 获取当前选择的技能ID（默认使用第一个技能，通常是普通攻击）
         const skillId = character.selectedSkill || "basic_attack";
-        
+
         // 获取技能配置，检查攻击范围
         const skillConfig = getSkillConfig(skillId);
         const attackRange = skillConfig?.range?.distance || 1;
         const moveRange = character.move_range || 3;
-        
+
         // 计算距离
         const distance = hexDistance(
-            { q: character.q, r: character.r },
-            { q: target.q, r: target.r }
+            { q: character.q ?? 0, r: character.r ?? 0 },
+            { q: target.q ?? 0, r: target.r ?? 0 }
         );
-        
+
         // 如果不在攻击范围内，需要移动
         if (distance > attackRange) {
             // 获取所有可能的移动位置（使用用户设置中的策略）
@@ -117,21 +117,21 @@ export const useOtherActions = (
                 characters || [],
                 settings.autoMoveStrategy
             );
-            
+
             if (possiblePositions.length === 0) {
                 console.warn("Cannot find path to target");
                 return;
             }
-            
+
             // 根据用户设置选择位置
             if (settings.autoMove) {
                 // 自动模式：选择评分最高的位置
                 const selectedPosition = possiblePositions[0];
-                
+
                 try {
                     // 执行移动（等待移动动画和后端响应都完成）
                     await walk(selectedPosition);
-                    
+
                     // 移动完成后，执行攻击
                     await useSkill(skillId, target);
                 } catch (error) {
@@ -152,20 +152,20 @@ export const useOtherActions = (
             await useSkill(skillId, target);
         }
     }, [game, mode, characters, useSkill, walk, groundCells, settings]);
-    
+
     // 处理位置选择
     const handlePositionSelect = useCallback(async (position: { q: number; r: number }) => {
         if (!positionSelectionState) return;
-        
+
         const { character, target, skillId } = positionSelectionState;
-        
+
         // 清除选择状态
         setPositionSelectionState(null);
-        
+
         try {
             // 执行移动（等待移动动画和后端响应都完成）
             await walk(position);
-            
+
             // 移动完成后，执行攻击
             await useSkill(skillId, target);
         } catch (error) {
@@ -173,27 +173,28 @@ export const useOtherActions = (
             // 移动失败，不执行攻击
         }
     }, [positionSelectionState, walk, useSkill]);
-    
+
     // 处理取消选择
     const handlePositionCancel = useCallback(() => {
         setPositionSelectionState(null);
     }, []);
 
-    return { 
-        selectSkill, 
-        standBy, 
-        defend, 
-        surrender, 
+    return {
+        selectSkill,
+        standBy,
+        defend,
+        surrender,
         attack,
-        positionSelectionUI: positionSelectionState ? (
-            <PositionSelectionUI
-                positions={positionSelectionState.positions}
-                character={positionSelectionState.character}
-                target={positionSelectionState.target}
-                gridCells={groundCells || []}
-                onSelect={handlePositionSelect}
-                onCancel={handlePositionCancel}
-            />
+        positionSelectionUI: positionSelectionState ? React.createElement(
+            PositionSelectionUI,
+            {
+                positions: positionSelectionState.positions,
+                character: positionSelectionState.character,
+                target: positionSelectionState.target,
+                gridCells: groundCells || [],
+                onSelect: handlePositionSelect,
+                onCancel: handlePositionCancel
+            }
         ) : null
     };
 };
