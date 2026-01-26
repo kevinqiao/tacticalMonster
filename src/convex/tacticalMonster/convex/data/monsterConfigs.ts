@@ -72,8 +72,8 @@ export function calculateGameMonster(
         q: position?.q,
         r: position?.r,
 
-        // 技能系统（需要从 skillConfigs.ts 获取完整技能配置）
-        skills: [],  // 将在运行时根据 unlockSkills 填充
+        // 技能系统（从 unlockSkills 填充）
+        skills: playerMonster.unlockedSkills || [],  // ✅ 从 unlockSkills 填充技能列表
         skillCooldowns: {},
 
         // 状态效果

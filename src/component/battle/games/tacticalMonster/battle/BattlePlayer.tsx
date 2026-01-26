@@ -19,8 +19,6 @@ import { ReplayScoreDisplay } from "./view/ReplayScoreDisplay";
 const CombatActPanel: React.FC = () => {
 
     const { surrender } = useCombatActHandler();
-
-
     return (
         <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
 

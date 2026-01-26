@@ -69,14 +69,14 @@ export class GameActionValidator {
      * 验证操作是否属于当前回合
      */
     async validateTurn(characterIdentifier: CharacterIdentifier): Promise<ValidationResult> {
-        if (!this.game || this.game.round === undefined) {
+        if (!this.game || !this.game.currentRound) {
             return { valid: false, message: "游戏回合信息不存在" };
         }
 
         const game = this.game; // 保存引用以避免重复检查
 
         // 使用回合服务获取当前回合
-        const roundInfo = await this.roundService.getCurrentRound(game.gameId, game.round ?? 0);
+        const roundInfo = await this.roundService.getCurrentRound(game.gameId, game.currentRound.no ?? 0);
         if (!roundInfo) {
             return { valid: false, message: "当前回合不存在" };
         }
@@ -187,12 +187,6 @@ export class GameActionValidator {
             return { valid: false, message: "游戏不存在" };
         }
 
-        // 验证目标位置是否有效
-        const positionValidation = this.validatePosition(to);
-        if (!positionValidation.valid) {
-            return positionValidation;
-        }
-
         // 计算移动距离
         const distance = hexDistance(from, to);
         const moveRange = character.move_range ?? 3;
@@ -202,14 +196,51 @@ export class GameActionValidator {
             return { valid: false, message: `移动距离 ${distance} 超出移动范围 ${moveRange}` };
         }
 
-        // 如果是飞行单位，可以忽略障碍物，直接允许
-        if (character.canIgnoreObstacles || character.isFlying) {
+        // 如果是飞行单位，可以忽略障碍物，只检查基本位置有效性（地图范围、禁用区域）和角色占用
+        const isFlying = character.canIgnoreObstacles || character.isFlying;
+        
+        if (isFlying) {
+            // 飞行单位：只检查地图范围和禁用区域，不检查障碍物
+            if (!this.game.map) {
+                return { valid: false, message: "地图信息不存在" };
+            }
+
+            const { cols, rows } = this.game.map;
+
+            // 验证坐标是否在地图范围内
+            if (to.q < 0 || to.q >= cols || to.r < 0 || to.r >= rows) {
+                return { valid: false, message: `位置超出地图范围: q=${to.q}, r=${to.r}, cols=${cols}, rows=${rows}` };
+            }
+
+            // 验证位置是否在禁用区域
+            const isDisabled = this.game.map.disables?.some(
+                (disable) => disable.q === to.q && disable.r === to.r
+            );
+            if (isDisabled) {
+                return { valid: false, message: "目标位置在禁用区域" };
+            }
+
+            // 检查目标位置是否被其他角色占用
+            const allCharacters = this.characterGetter.getAllCharacters();
+            const isOccupied = allCharacters.some((char) => {
+                if (char.uid === character.uid && char.monsterId === character.monsterId) {
+                    return false; // 排除自己
+                }
+                return char.q === to.q && char.r === to.r;
+            });
+
+            if (isOccupied) {
+                return { valid: false, message: "目标位置已被其他角色占用" };
+            }
+
             return { valid: true };
         }
 
-        // 对于非飞行单位，需要检查路径上是否有障碍物
-        // 这里简化处理：只检查目标位置是否有障碍物（已在 validatePosition 中检查）
-        // 如果需要更严格的路径验证，可以使用路径查找算法
+        // 非飞行单位：验证目标位置是否有效（包括障碍物检查）
+        const positionValidation = this.validatePosition(to);
+        if (!positionValidation.valid) {
+            return positionValidation;
+        }
 
         // 检查目标位置是否被其他角色占用
         const allCharacters = this.characterGetter.getAllCharacters();

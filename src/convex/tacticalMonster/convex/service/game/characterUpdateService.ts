@@ -32,15 +32,20 @@ export class CharacterUpdateService {
             // Boss主体：使用 bossId 定位
             const characterBossId = (character as GameBoss).bossId;
             if (characterBossId && characterBossId === game.boss.bossId) {
-                // 更新 Boss（使用 position 对象符合 schema）
-                await this.dbCtx.db.patch(gameDoc._id, {
-                    "boss.stats": character.stats,
-                    "boss.position": {
+                // ✅ 更新整个 boss 对象，避免嵌套字段冲突
+                const updatedBoss = {
+                    ...gameDoc.boss,
+                    stats: character.stats,
+                    position: {
                         q: character.q ?? 0,
                         r: character.r ?? 0,
                     },
-                    "boss.cooldowns": character.skillCooldowns || {},  // schema 中使用 cooldowns
-                    "boss.statusEffects": character.statusEffects || [],
+                    cooldowns: character.skillCooldowns || {},  // schema 中使用 cooldowns
+                    statusEffects: character.statusEffects || [],
+                };
+                
+                await this.dbCtx.db.patch(gameDoc._id, {
+                    boss: updatedBoss,
                     lastUpdate: new Date().toISOString(),
                 });
                 return true;

@@ -131,9 +131,10 @@ export class GameService implements CharacterGetter {
      * @returns GameModel 或 null（如果游戏不存在）
      */
     async load(gameId: string): Promise<GameModel | null> {
-        console.log("loadGame params", gameId);
         const game = await this.gameLifecycleService.load(gameId);
-        if (!game) return null;
+        if (!game) {
+            return null;
+        }
 
         // 更新 characterQueryService 的游戏状态
         this.characterQueryService.setGame(game);
@@ -285,6 +286,35 @@ export class GameService implements CharacterGetter {
         }>;
         phaseChanges?: PhaseChanges;
     }> {
+        // ✅ 首先检查 characterQueryService 中是否已有游戏
+        let game = (this.characterQueryService as any).game;
+
+        // ✅ 如果 characterQueryService 中没有游戏，或者 gameId 不匹配，则加载游戏
+        if (!game || game.gameId !== gameId) {
+            game = await this.load(gameId);
+            if (!game) {
+                return {
+                    success: false,
+                    message: "游戏不存在",
+                };
+            }
+            // ✅ 确保 characterQueryService 设置了游戏状态（仅在重新加载后设置）
+            this.characterQueryService.setGame(game);
+        }
+
+        // ✅ 验证游戏是否正确设置
+        const finalGame = (this.characterQueryService as any).game;
+        if (!finalGame || finalGame.gameId !== gameId) {
+            return {
+                success: false,
+                message: "游戏状态错误",
+            };
+        }
+
+        // ✅ 确保 validator 的游戏状态引用已更新
+        const validator = this.getValidator();
+        (validator as any).game = finalGame;
+
         return await this.getActionService().useSkill(gameId, data);
     }
 

@@ -394,223 +394,264 @@ export class GameLifecycleService {
      * @returns GameModel 或 null（如果游戏不存在）
      */
     async load(gameId: string): Promise<GameModel | null> {
-        console.log("loadGame lifecycleService params", gameId);
-        // 查询 mr_games 表
-        const game = await this.dbCtx.db
-            .query("mr_games")
-            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-            .first();
+        try {
+            // 查询 mr_games 表
+            const game = await this.dbCtx.db
+                .query("mr_games")
+                .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+                .first();
 
-        if (!game) return null;
-
-        // 获取当前回合数
-        const roundNumber = (game as any).round || 0;
-
-        // 从数据库读取 GameMonster 数组（统一使用stats，与GameBoss保持一致）
-        const team: GameMonster[] = await Promise.all(
-            (game.team || []).map(async (teamMember: any) => {
-                // 获取怪物配置（用于补充配置字段）
-                const monsterConfig = MONSTER_CONFIGS_MAP[teamMember.monsterId];
-                if (!monsterConfig) {
-                    throw new Error(`怪物配置不存在: ${teamMember.monsterId}`);
-                }
-
-                // 如果数据库中有完整的 stats 数据，直接使用
-                if (teamMember.stats) {
-                    // 确保 attack_range 类型正确（应该是 { min: number; max: number }）
-                    let attackRange: { min: number; max: number } | undefined;
-                    if (teamMember.attack_range) {
-                        if (typeof teamMember.attack_range === 'object' && 'min' in teamMember.attack_range && 'max' in teamMember.attack_range) {
-                            attackRange = teamMember.attack_range;
-                        } else {
-                            // 向后兼容：如果是数字，转换为对象
-                            const range = typeof teamMember.attack_range === 'number' ? teamMember.attack_range : 2;
-                            attackRange = { min: 1, max: range };
-                        }
-                    } else {
-                        // 使用配置中的默认值
-                        attackRange = monsterConfig.attackRange ?? { min: 1, max: 2 };
-                    }
-
-                    return {
-                        // 基础标识
-                        uid: teamMember.uid || game.uid,
-                        monsterId: teamMember.monsterId,
-                        // 从 Monster 配置组合的字段（从配置文件读取）
-                        name: monsterConfig.name,
-                        rarity: monsterConfig.rarity,
-                        class: monsterConfig.class,
-                        race: monsterConfig.race,
-                        assetPath: monsterConfig.assetPath,
-                        // 从数据库读取的字段
-                        level: teamMember.level,
-                        stars: teamMember.stars,
-                        // 位置信息
-                        q: teamMember.q,
-                        r: teamMember.r,
-                        // 运行时状态（从数据库读取）
-                        stats: teamMember.stats,
-                        statusEffects: teamMember.statusEffects || [],
-                        skillCooldowns: teamMember.skillCooldowns || {},
-                        status: teamMember.status || 'normal',  // 确保类型正确：'normal' | 'stunned' | 'dead'
-                        move_range: teamMember.move_range ?? monsterConfig.moveRange ?? 3,
-                        attack_range: attackRange,
-                        // 特殊属性（从配置推断）
-                        isFlying: monsterConfig.race === "Flying",
-                        flightHeight: monsterConfig.race === "Flying" ? 1.5 : undefined,
-                        canIgnoreObstacles: monsterConfig.race === "Flying",
-                    } as GameMonster;
-                }
-
-                // 向后兼容：如果没有 stats，从简化数据重建
-                const playerMonster: PlayerMonster = {
-                    uid: game.uid,
-                    monsterId: teamMember.monsterId,
-                    level: teamMember.level,
-                    stars: teamMember.stars,
-                    experience: 0,
-                    shards: 0,
-                    isUnlocked: true,
-                    unlockedSkills: [],
-                    inTeam: 1,
-                    teamPosition: { q: teamMember.q ?? 0, r: teamMember.r ?? 0 },
-                    obtainedAt: "",
-                    updatedAt: "",
-                };
-
-                const gameMonster = calculateGameMonster(
-                    playerMonster,
-                    monsterConfig,
-                    { q: teamMember.q ?? 0, r: teamMember.r ?? 0 }
-                );
-
-                // 恢复当前 HP（从数据库读取的值）
-                if (teamMember.hp !== undefined && gameMonster.stats.hp) {
-                    gameMonster.stats.hp.current = teamMember.hp;
-                }
-
-                return gameMonster;
-            })
-        );
-
-        // 从数据库读取 GameBoss 对象（统一使用stats）
-        // 注意：GameBoss 继承 GameMonster，需要包含所有必需字段
-        const bossMonsterConfig = game.boss?.monsterId ? MONSTER_CONFIGS_MAP[game.boss.monsterId] : null;
-        const bossQ = game.boss?.q ?? game.boss?.position?.q ?? 0;
-        const bossR = game.boss?.r ?? game.boss?.position?.r ?? 0;
-
-        const bossData: GameBoss = game.boss ? {
-            bossId: game.boss.bossId || game.boss.monsterId || "",  // 向后兼容：如果没有bossId，使用monsterId
-            monsterId: game.boss.monsterId || "",
-            uid: "boss",
-            name: bossMonsterConfig?.name || game.boss.monsterId || "",
-            rarity: bossMonsterConfig?.rarity || "Common",
-            assetPath: bossMonsterConfig?.assetPath || "",
-            level: 1,
-            stars: 1,
-            q: bossQ,
-            r: bossR,
-            minions: (game.boss.minions || []).map((minion: any): GameMinion => {
-                // 优先使用 stats，如果没有则从向后兼容字段构建
-                const minionStats = minion.stats || {
-                    hp: {
-                        current: minion.hp || 0,
-                        max: minion.hp || 0,
-                    },
-                    attack: minion.damage || 0,
-                    defense: minion.defense || 0,
-                    speed: minion.speed || 0,
-                };
-                const minionConfig = minion.monsterId ? MONSTER_CONFIGS_MAP[minion.monsterId] : null;
-                const minionQ = minion.q ?? minion.position?.q ?? 0;
-                const minionR = minion.r ?? minion.position?.r ?? 0;
-                return {
-                    minionId: minion.minionId || minion.monsterId || "",  // 向后兼容：如果没有minionId，使用monsterId
-                    monsterId: minion.monsterId,
-                    uid: "boss",
-                    name: minionConfig?.name || minion.monsterId || "",
-                    rarity: minionConfig?.rarity || "Common",
-                    assetPath: minionConfig?.assetPath || "",
-                    level: 1,
-                    stars: 1,
-                    q: minionQ,
-                    r: minionR,
-                    stats: minionStats,
-                    statusEffects: minion.statusEffects || [],
-                    skillCooldowns: minion.skillCooldowns || minion.cooldowns || {},
-                };
-            }),
-            // 运行时字段（必需：统一使用stats）
-            stats: game.boss.stats,
-            statusEffects: game.boss.statusEffects || [],
-            skillCooldowns: game.boss.skillCooldowns || game.boss.cooldowns || {},
-            skills: game.boss.skills || [],
-            currentPhase: game.boss.currentPhase || "phase1",
-            behaviorSeed: game.boss.behaviorSeed,
-        } : {
-            bossId: "",
-            monsterId: "",
-            uid: "boss",
-            name: "",
-            rarity: "Common",
-            assetPath: "",
-            level: 1,
-            stars: 1,
-            q: 0,
-            r: 0,
-            minions: [],
-            // 必需：stats字段用于计算血量百分比
-            stats: {
-                hp: { current: 0, max: 0 },
-                attack: 0,
-                defense: 0,
-                speed: 0,
-            },
-        };
-
-        // ✅ 从数据库加载当前回合的完整数据（包括所有 turns 及其状态）
-        let currentRound: GameRound = { no: roundNumber, turns: [] };
-        if (roundNumber > 0) {
-            const roundDoc = await this.dbCtx.db
-                .query("mr_game_round")
-                .withIndex("by_game_round", (q: any) =>
-                    q.eq("gameId", gameId).eq("no", roundNumber)
-                )
-                .unique();
-
-            if (roundDoc && roundDoc.turns) {
-                // 从数据库加载所有 turns，包括它们的状态
-                currentRound = {
-                    no: roundDoc.no,
-                    turns: roundDoc.turns.map((turn: any) => ({
-                        uid: turn.uid,
-                        monsterId: turn.monsterId,
-                        skillSelect: turn.skillSelect,
-                        status: turn.status ?? 0,  // 0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
-                        dueTime: turn.dueTime,
-                        order: turn.order,  // turn 的次序
-                    })),
-                };
+            if (!game) {
+                console.log("loadGame: game not found in database", gameId);
+                return null;
             }
-        }
 
-        // 构建 GameModel（符合 mr_games 表结构）
-        return {
-            gameId: game.gameId,
-            matchId: game.matchId,
-            stageId: game.stageId,
-            uid: game.uid,
-            teamPower: game.teamPower,
-            team: team,  // 使用重建的 GameMonster 数组
-            boss: bossData,  // 使用重建的 GameBoss 对象
-            map: game.map,
-            status: game.status,
-            score: game.score,
-            scoringConfigVersion: game.scoringConfigVersion,  // ✅ 加载配置版本
-            lastUpdate: game.lastUpdate,
-            createdAt: game.createdAt,
-            currentRound,  // ✅ 包含完整的 turns 数据及其状态
-        };
+            // 获取当前回合数
+            const roundNumber = (game as any).round || 0;
+
+            // 从数据库读取 GameMonster 数组（统一使用stats，与GameBoss保持一致）
+            const team: GameMonster[] = await Promise.all(
+                (game.team || []).map(async (teamMember: any) => {
+                    try {
+                        // 获取怪物配置（用于补充配置字段）
+                        const monsterConfig = MONSTER_CONFIGS_MAP[teamMember.monsterId];
+                        if (!monsterConfig) {
+                            console.error(`怪物配置不存在: ${teamMember.monsterId}`);
+                            throw new Error(`怪物配置不存在: ${teamMember.monsterId}`);
+                        }
+
+                        // 如果数据库中有完整的 stats 数据，直接使用
+                        if (teamMember.stats) {
+                            // 确保 attack_range 类型正确（应该是 { min: number; max: number }）
+                            let attackRange: { min: number; max: number } | undefined;
+                            if (teamMember.attack_range) {
+                                if (typeof teamMember.attack_range === 'object' && 'min' in teamMember.attack_range && 'max' in teamMember.attack_range) {
+                                    attackRange = teamMember.attack_range;
+                                } else {
+                                    // 向后兼容：如果是数字，转换为对象
+                                    const range = typeof teamMember.attack_range === 'number' ? teamMember.attack_range : 2;
+                                    attackRange = { min: 1, max: range };
+                                }
+                            } else {
+                                // 使用配置中的默认值
+                                attackRange = monsterConfig.attackRange ?? { min: 1, max: 2 };
+                            }
+
+                            // 从数据库查询 PlayerMonster 以获取 unlockedSkills
+                            const dbPlayerMonster = await this.dbCtx.db
+                                .query("mr_player_monsters")
+                                .withIndex("by_uid", (q: any) => q.eq("uid", game.uid))
+                                .filter((q: any) =>
+                                    q.and(
+                                        q.eq(q.field("monsterId"), teamMember.monsterId),
+                                        q.eq(q.field("inTeam"), 1)
+                                    )
+                                )
+                                .first();
+
+                            return {
+                                // 基础标识
+                                uid: teamMember.uid || game.uid,
+                                monsterId: teamMember.monsterId,
+                                // 从 Monster 配置组合的字段（从配置文件读取）
+                                name: monsterConfig.name,
+                                rarity: monsterConfig.rarity,
+                                class: monsterConfig.class,
+                                race: monsterConfig.race,
+                                assetPath: monsterConfig.assetPath,
+                                // 从数据库读取的字段
+                                level: teamMember.level,
+                                stars: teamMember.stars,
+                                // 位置信息
+                                q: teamMember.q,
+                                r: teamMember.r,
+                                // 运行时状态（从数据库读取）
+                                stats: teamMember.stats,
+                                statusEffects: teamMember.statusEffects || [],
+                                skillCooldowns: teamMember.skillCooldowns || {},
+                                status: teamMember.status || 'normal',  // 确保类型正确：'normal' | 'stunned' | 'dead'
+                                move_range: teamMember.move_range ?? monsterConfig.moveRange ?? 3,
+                                attack_range: attackRange,
+                                // 技能系统（从数据库读取或使用 teamMember.skills）
+                                skills: dbPlayerMonster?.unlockedSkills || teamMember.skills || [],  // ✅ 从数据库读取或使用 teamMember.skills
+                                unlockSkills: dbPlayerMonster?.unlockedSkills || teamMember.skills || [],  // ✅ 保持向后兼容
+                                // 特殊属性（从配置推断）
+                                isFlying: monsterConfig.race === "Flying",
+                                flightHeight: monsterConfig.race === "Flying" ? 1.5 : undefined,
+                                canIgnoreObstacles: monsterConfig.race === "Flying",
+                            } as GameMonster;
+                        }
+
+                        // 向后兼容：如果没有 stats，从简化数据重建
+                        // 从数据库查询 PlayerMonster 以获取 unlockedSkills
+                        const dbPlayerMonster = await this.dbCtx.db
+                            .query("mr_player_monsters")
+                            .withIndex("by_uid", (q: any) => q.eq("uid", game.uid))
+                            .filter((q: any) =>
+                                q.and(
+                                    q.eq(q.field("monsterId"), teamMember.monsterId),
+                                    q.eq(q.field("inTeam"), 1)
+                                )
+                            )
+                            .first();
+
+                        const playerMonster: PlayerMonster = {
+                            uid: game.uid,
+                            monsterId: teamMember.monsterId,
+                            level: teamMember.level,
+                            stars: teamMember.stars,
+                            experience: 0,
+                            shards: 0,
+                            isUnlocked: true,
+                            unlockedSkills: dbPlayerMonster?.unlockedSkills || teamMember.skills || [],  // ✅ 从数据库读取或使用 teamMember.skills
+                            inTeam: 1,
+                            teamPosition: { q: teamMember.q ?? 0, r: teamMember.r ?? 0 },
+                            obtainedAt: "",
+                            updatedAt: "",
+                        };
+
+                        const gameMonster = calculateGameMonster(
+                            playerMonster,
+                            monsterConfig,
+                            { q: teamMember.q ?? 0, r: teamMember.r ?? 0 }
+                        );
+
+                        // 恢复当前 HP（从数据库读取的值）
+                        if (teamMember.hp !== undefined && gameMonster.stats.hp) {
+                            gameMonster.stats.hp.current = teamMember.hp;
+                        }
+
+                        return gameMonster;
+                    } catch (error: any) {
+                        console.error("loadGame: error processing teamMember", teamMember.monsterId, error?.message);
+                        throw error; // 重新抛出异常，让外层的 try-catch 捕获
+                    }
+                })
+            );
+
+            // 从数据库读取 GameBoss 对象（统一使用stats）
+            // 注意：GameBoss 继承 GameMonster，需要包含所有必需字段
+            const bossMonsterConfig = game.boss?.monsterId ? MONSTER_CONFIGS_MAP[game.boss.monsterId] : null;
+            const bossQ = game.boss?.q ?? game.boss?.position?.q ?? 0;
+            const bossR = game.boss?.r ?? game.boss?.position?.r ?? 0;
+
+            const bossData: GameBoss = game.boss ? {
+                bossId: game.boss.bossId || game.boss.monsterId || "",  // 向后兼容：如果没有bossId，使用monsterId
+                monsterId: game.boss.monsterId || "",
+                uid: "boss",
+                name: bossMonsterConfig?.name || game.boss.monsterId || "",
+                rarity: bossMonsterConfig?.rarity || "Common",
+                assetPath: bossMonsterConfig?.assetPath || "",
+                level: 1,
+                stars: 1,
+                q: bossQ,
+                r: bossR,
+                minions: (game.boss.minions || []).map((minion: any): GameMinion => {
+                    // 优先使用 stats，如果没有则从向后兼容字段构建
+                    const minionStats = minion.stats || {
+                        hp: {
+                            current: minion.hp || 0,
+                            max: minion.hp || 0,
+                        },
+                        attack: minion.damage || 0,
+                        defense: minion.defense || 0,
+                        speed: minion.speed || 0,
+                    };
+                    const minionConfig = minion.monsterId ? MONSTER_CONFIGS_MAP[minion.monsterId] : null;
+                    const minionQ = minion.q ?? minion.position?.q ?? 0;
+                    const minionR = minion.r ?? minion.position?.r ?? 0;
+                    return {
+                        minionId: minion.minionId || minion.monsterId || "",  // 向后兼容：如果没有minionId，使用monsterId
+                        monsterId: minion.monsterId,
+                        uid: "boss",
+                        name: minionConfig?.name || minion.monsterId || "",
+                        rarity: minionConfig?.rarity || "Common",
+                        assetPath: minionConfig?.assetPath || "",
+                        level: 1,
+                        stars: 1,
+                        q: minionQ,
+                        r: minionR,
+                        stats: minionStats,
+                        statusEffects: minion.statusEffects || [],
+                        skillCooldowns: minion.skillCooldowns || minion.cooldowns || {},
+                    };
+                }),
+                // 运行时字段（必需：统一使用stats）
+                stats: game.boss.stats,
+                statusEffects: game.boss.statusEffects || [],
+                skillCooldowns: game.boss.skillCooldowns || game.boss.cooldowns || {},
+                skills: game.boss.skills || [],
+                currentPhase: game.boss.currentPhase || "phase1",
+                behaviorSeed: game.boss.behaviorSeed,
+            } : {
+                bossId: "",
+                monsterId: "",
+                uid: "boss",
+                name: "",
+                rarity: "Common",
+                assetPath: "",
+                level: 1,
+                stars: 1,
+                q: 0,
+                r: 0,
+                minions: [],
+                // 必需：stats字段用于计算血量百分比
+                stats: {
+                    hp: { current: 0, max: 0 },
+                    attack: 0,
+                    defense: 0,
+                    speed: 0,
+                },
+            };
+
+            // ✅ 从数据库加载当前回合的完整数据（包括所有 turns 及其状态）
+            let currentRound: GameRound = { no: roundNumber, turns: [] };
+            if (roundNumber > 0) {
+                const roundDoc = await this.dbCtx.db
+                    .query("mr_game_round")
+                    .withIndex("by_game_round", (q: any) =>
+                        q.eq("gameId", gameId).eq("no", roundNumber)
+                    )
+                    .unique();
+
+                if (roundDoc && roundDoc.turns) {
+                    // 从数据库加载所有 turns，包括它们的状态
+                    currentRound = {
+                        no: roundDoc.no,
+                        turns: roundDoc.turns.map((turn: any) => ({
+                            uid: turn.uid,
+                            monsterId: turn.monsterId,
+                            skillSelect: turn.skillSelect,
+                            status: turn.status ?? 0,  // 0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
+                            dueTime: turn.dueTime,
+                            order: turn.order,  // turn 的次序
+                        })),
+                    };
+                }
+            }
+
+            // 构建 GameModel（符合 mr_games 表结构）
+            return {
+                gameId: game.gameId,
+                matchId: game.matchId,
+                stageId: game.stageId,
+                uid: game.uid,
+                teamPower: game.teamPower,
+                team: team,  // 使用重建的 GameMonster 数组
+                boss: bossData,  // 使用重建的 GameBoss 对象
+                map: game.map,
+                status: game.status,
+                score: game.score,
+                scoringConfigVersion: game.scoringConfigVersion,  // ✅ 加载配置版本
+                lastUpdate: game.lastUpdate,
+                createdAt: game.createdAt,
+                currentRound,  // ✅ 包含完整的 turns 数据及其状态
+            };
+        } catch (error: any) {
+            console.error("loadGame error", gameId, error?.message, error?.stack);
+            // ✅ 如果加载过程中出现异常，返回 null
+            return null;
+        }
     }
 
     /**

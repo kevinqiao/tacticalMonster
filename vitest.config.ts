@@ -3,19 +3,30 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
     test: {
         globals: true,
-        environment: 'node',
+        // 对于 React 组件测试使用 jsdom，对于纯函数测试使用 node
+        environment: 'jsdom',
+        setupFiles: ['./src/component/battle/games/tacticalMonster/battle/__tests__/setup.ts'],
         include: [
-            'src/**/*.test.ts',
-            'src/**/*.test.tsx',
-            'src/**/*.spec.ts',
-            'src/**/*.spec.tsx',
-            'src/**/__tests__/**/*.ts',
-            'src/**/__tests__/**/*.tsx'
+            // 只包含前端测试
+            'src/component/battle/games/tacticalMonster/battle/__tests__/**/*.test.ts',
+            'src/component/battle/games/tacticalMonster/battle/__tests__/**/*.test.tsx',
+            'src/component/battle/games/tacticalMonster/battle/__tests__/**/*.spec.ts',
+            'src/component/battle/games/tacticalMonster/battle/__tests__/**/*.spec.tsx',
         ],
         exclude: [
             'node_modules',
             'dist',
-            '**/*.d.ts'
+            '**/*.d.ts',
+            '**/__tests__/setup.ts',
+            '**/__tests__/testUtils.ts',
+            // 排除后端 Convex 测试（需要 Convex 环境）
+            'src/convex/**/*.test.ts',
+            'src/convex/**/*.spec.ts',
+            'src/convex/**/__tests__/**/*.ts',
+            // 排除其他游戏的测试
+            'src/component/battle/games/solitaireSolo/**/*.test.ts',
+            'src/component/battle/games/solitaireSolo/**/*.spec.ts',
+            'src/component/battle/games/solitaireSolo/**/__tests__/**/*.ts',
         ],
         coverage: {
             provider: 'v8',
@@ -25,7 +36,8 @@ export default defineConfig({
                 'src/test/',
                 '**/*.d.ts',
                 '**/*.config.*',
-                '**/examples/**'
+                '**/examples/**',
+                '**/__tests__/**'
             ]
         }
     }

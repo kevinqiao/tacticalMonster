@@ -21,9 +21,9 @@ export class TeamService {
      */
     private static readonly DEFAULT_TEAM_POSITIONS: Array<{ q: number; r: number }> = [
         { q: 0, r: 0 },  // 位置 0
-        { q: 1, r: 0 },  // 位置 1
-        { q: 0, r: 1 },  // 位置 2
-        { q: 1, r: 1 },  // 位置 3
+        { q: 1, r: 2 },  // 位置 1
+        { q: 0, r: 3 },  // 位置 2
+        { q: 1, r: 5 },  // 位置 3
     ];
 
     /**
@@ -150,17 +150,19 @@ export class TeamService {
     /**
      * 添加怪物到队伍
      * 如果队伍已满，返回错误
-     * @param positionIndex 可选，指定位置索引（0-3），如果不指定则自动找到空位
+     * @param q 可选，指定 Hex 坐标 q，如果不指定则自动找到空位
+     * @param r 可选，指定 Hex 坐标 r，如果不指定则自动找到空位
      */
     static async addMonsterToTeam(
         ctx: any,
         params: {
             uid: string;
             monsterId: string;
-            positionIndex?: number; // 可选，指定位置索引（0-3），如果不指定则自动找到空位
+            q?: number; // 可选，指定 Hex 坐标 q
+            r?: number; // 可选，指定 Hex 坐标 r
         }
     ) {
-        const { uid, monsterId, positionIndex } = params;
+        const { uid, monsterId, q, r } = params;
 
         // 1. 获取当前队伍
         const currentTeam = await this.getPlayerTeam(ctx, uid);
@@ -182,21 +184,20 @@ export class TeamService {
 
         // 4. 确定位置坐标
         let targetPosition: { q: number; r: number };
-        if (positionIndex !== undefined) {
-            // 验证位置索引范围
-            if (positionIndex < 0 || positionIndex >= this.MAX_TEAM_SIZE) {
-                throw new Error(`位置索引必须在 0-${this.MAX_TEAM_SIZE - 1} 之间`);
+        if (q !== undefined && r !== undefined) {
+            // 验证坐标是否有效
+            if (typeof q !== 'number' || typeof r !== 'number') {
+                throw new Error(`坐标必须是数字: q=${q}, r=${r}`);
             }
             // 检查位置是否已被占用
-            const targetPos = this.getDefaultPosition(positionIndex);
             const existingAtPosition = currentTeam.find((m: any) => {
                 const pos = m.teamPosition;
-                return pos && pos.q === targetPos.q && pos.r === targetPos.r;
+                return pos && pos.q === q && pos.r === r;
             });
             if (existingAtPosition) {
-                throw new Error(`位置索引 ${positionIndex} (Hex: ${targetPos.q}, ${targetPos.r}) 已被占用`);
+                throw new Error(`位置 (Hex: ${q}, ${r}) 已被占用`);
             }
-            targetPosition = targetPos;
+            targetPosition = { q, r };
         } else {
             // 自动找到第一个空位（使用默认位置）
             const usedPositions = new Set(
@@ -231,7 +232,6 @@ export class TeamService {
 
         return {
             ok: true,
-            positionIndex: positionIndex,
             hexPosition: targetPosition,
             message: `怪物已添加到队伍位置 (Hex: ${targetPosition.q}, ${targetPosition.r})`,
         };
@@ -463,7 +463,8 @@ export const addMonsterToTeam = mutation({
     args: {
         uid: v.string(),
         monsterId: v.string(),
-        positionIndex: v.optional(v.number()), // 位置索引（0-3）
+        q: v.optional(v.number()), // Hex 坐标 q
+        r: v.optional(v.number()), // Hex 坐标 r
     },
     handler: async (ctx, args) => {
         return await TeamService.addMonsterToTeam(ctx, args);

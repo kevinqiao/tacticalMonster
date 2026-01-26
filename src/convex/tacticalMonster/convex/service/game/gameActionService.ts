@@ -288,15 +288,19 @@ export class GameActionService {
         }>;
         phaseChanges?: PhaseChanges;
     }> {
-        const game = await this.lifecycleService.load(gameId);
-        if (!game) {
+        // ✅ 从 characterQueryService 获取已加载的游戏（GameService.useSkill 已确保游戏已加载）
+        const game = (this.characterQueryService as any).game;
+
+        // ✅ 如果 characterQueryService 中没有游戏，或者 gameId 不匹配，返回错误
+        // 注意：GameService.useSkill 应该先调用 load 来确保游戏已加载
+        if (!game || game.gameId !== gameId) {
             return {
                 success: false,
                 message: "游戏不存在",
             };
         }
 
-        this.characterQueryService.setGame(game);
+        // ✅ 确保 skillTargetService 使用正确的 characterQueryService
         (this.skillTargetService as any).characterQueryService = this.characterQueryService;
 
         const { monsterId, bossId, minionId, skillId, targets } = data;
@@ -460,7 +464,7 @@ export class GameActionService {
                         const boss = game?.boss;
                         if (boss && boss.monsterId === target.monsterId) {
                             killedBoss = true;
-                        } else if (boss?.minions?.some(m => m.monsterId === target.monsterId)) {
+                        } else if (boss?.minions?.some((m: any) => m.monsterId === target.monsterId)) {
                             killedMinion = true;
                         }
                     }

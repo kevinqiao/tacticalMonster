@@ -188,6 +188,7 @@ export const mainSchema = {
         powerLevel: v.number(),//1-5
         attempts: v.number(),
     })
+        .index("by_ruleId", ["ruleId"])  // ✅ 添加 by_ruleId 索引
         .index("by_power_attempts", ["powerLevel", "attempts"])
         .index("by_stage", ["stageId"]),
     mr_player_first_clear: defineTable({
@@ -247,7 +248,7 @@ export const mainSchema = {
         type: v.optional(v.number()),
         data: v.optional(v.any()),
         time: v.number(),  // 绝对时间戳（Date.now()）
-        stepTime: v.number(),  // ✅ 相对时间位置（从游戏开始，毫秒数），用于去重和排序
+        stepTime: v.optional(v.number()),  // ✅ 相对时间位置（从游戏开始，毫秒数），用于去重和排序（可选以兼容旧数据）
     }).index("by_game", ["gameId"])
         .index("by_name", ["name"])
         .index("by_game_stepTime", ["gameId", "stepTime"]),  // ✅ 新增索引：用于按 stepTime 排序
@@ -260,6 +261,8 @@ export const mainSchema = {
         turns: v.array(v.object({  // GameTurn 数组
             uid: v.string(),
             monsterId: v.string(),
+            bossId: v.optional(v.string()),    // ✅ Boss主体的bossId（可选，当uid="boss"且是Boss主体时使用）
+            minionId: v.optional(v.string()),  // ✅ 小怪的minionId（可选，当uid="boss"且是小怪时使用）
             skillSelect: v.optional(v.string()),
             status: v.number(),  // Turn 状态：0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
             dueTime: v.optional(v.number()),

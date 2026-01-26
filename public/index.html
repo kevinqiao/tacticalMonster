@@ -9,31 +9,32 @@
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#000000" />
+  <!-- <link rel="preload" href="/src/component/lobby/tournament/tournamentList.css" as="style"> -->
   <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'nonce-<%= htmlWebpackPlugin.options.nonce %>' https://trusted.cdn.com https://lenient-louse-86.clerk.accounts.dev; style-src 'self' 'unsafe-inline' https://example.com https://fonts.googleapis.com; img-src 'self' data: https://img.clerk.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://discord.com https://canary.discord.com https://ptb.discord.com https://cdn.discordapp.com https://media.discordapp.net wss://1252780878078152844.discordsays.com data: blob: wss://dazzling-setter-839.convex.cloud https://lenient-louse-86.clerk.accounts.dev;"> -->
   <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://trusted.cdn.com  https://lenient-louse-86.clerk.accounts.dev; style-src 'self' 'unsafe-inline'  https://fonts.googleapis.com;font-src 'self' https://fonts.gstatic.com;img-src 'self' data: https://img.clerk.com;; connect-src 'self' wss://dazzling-setter-839.convex.cloud https://discord.com https://canary.discord.com https://ptb.discord.com https://cdn.discordapp.com https://media.discordapp.net wss://1252780878078152844.discordsays.com  https://lenient-louse-86.clerk.accounts.dev wss://fungift.fungift.org:3000/ws wss://dazzling-setter-839.convex.cloud data: blob: wss://dazzling-setter-839.convex.cloud; worker-src 'self' https://fungift.fungift.org;">  -->
   <title>Match 3</title>
   <!-- 最早设置错误处理，在扩展脚本执行前 - 必须在head的最开始 -->
   <script>
-    (function() {
+    (function () {
       'use strict';
-      
+
       // 覆盖所有 console 方法来过滤扩展错误
       function isExtensionErrorText(text) {
         if (!text) return false;
         var textStr = String(text);
         return textStr.indexOf('chrome-extension://') !== -1 ||
-               textStr.indexOf('solanaActionsContentScript') !== -1 ||
-               textStr.indexOf('inpage.js') !== -1 ||
-               textStr.indexOf('Failed to connect to MetaMask') !== -1 ||
-               textStr.indexOf('Failed to connect') !== -1 ||
-               textStr.indexOf('Something went wrong') !== -1 ||
-               textStr.indexOf('MetaMask') !== -1 && textStr.indexOf('extension') !== -1;
+          textStr.indexOf('solanaActionsContentScript') !== -1 ||
+          textStr.indexOf('inpage.js') !== -1 ||
+          textStr.indexOf('Failed to connect to MetaMask') !== -1 ||
+          textStr.indexOf('Failed to connect') !== -1 ||
+          textStr.indexOf('Something went wrong') !== -1 ||
+          textStr.indexOf('MetaMask') !== -1 && textStr.indexOf('extension') !== -1;
       }
-      
+
       function filterConsoleArgs(args) {
         // 确保 args 是数组
         var argsArray = Array.isArray(args) ? args : Array.prototype.slice.call(args);
-        var errorText = argsArray.map(function(arg) {
+        var errorText = argsArray.map(function (arg) {
           if (typeof arg === 'string') return arg;
           if (arg && arg.stack) return arg.stack;
           if (arg && arg.message) return arg.message;
@@ -42,50 +43,50 @@
         }).join(' ');
         return isExtensionErrorText(errorText);
       }
-      
+
       // 覆盖 console.error
       var originalConsoleError = console.error;
-      console.error = function() {
+      console.error = function () {
         if (filterConsoleArgs(arguments)) return;
         originalConsoleError.apply(console, arguments);
       };
-      
+
       // 覆盖 console.warn（某些扩展可能使用 warn）
       var originalConsoleWarn = console.warn;
-      console.warn = function() {
+      console.warn = function () {
         if (filterConsoleArgs(arguments)) return;
         originalConsoleWarn.apply(console, arguments);
       };
-      
+
       // 覆盖 console.log（某些扩展可能使用 log）
       var originalConsoleLog = console.log;
-      console.log = function() {
+      console.log = function () {
         // 只过滤明显的错误消息，保留其他日志
         var args = Array.prototype.slice.call(arguments);
         var firstArg = args[0];
-        if (firstArg && typeof firstArg === 'string' && 
-            (firstArg.indexOf('Failed to connect to MetaMask') !== -1 ||
-             firstArg.indexOf('ERROR') !== -1 && filterConsoleArgs(args))) {
+        if (firstArg && typeof firstArg === 'string' &&
+          (firstArg.indexOf('Failed to connect to MetaMask') !== -1 ||
+            firstArg.indexOf('ERROR') !== -1 && filterConsoleArgs(args))) {
           return;
         }
         originalConsoleLog.apply(console, arguments);
       };
-      
+
       // 通用函数：检查是否是浏览器扩展错误
       function isExtensionError(source, message, error) {
         if (!source && !message && !error) return false;
-        
+
         var sourceStr = (source && source.toString()) || '';
         var messageStr = (message && message.toString()) || '';
         var errorMessage = (error && error.message) || '';
         var errorStack = (error && error.stack) || '';
         var errorString = (error && String(error)) || '';
         var errorName = (error && error.name) || '';
-        
+
         // 通用检测：所有 chrome-extension:// 来源都是扩展错误
         if (sourceStr.indexOf('chrome-extension://') !== -1) return true;
         if (errorStack.indexOf('chrome-extension://') !== -1) return true;
-        
+
         // 检测常见的扩展文件名
         var extensionFiles = [
           'solanaActionsContentScript',
@@ -98,7 +99,7 @@
           if (sourceStr.indexOf(extensionFiles[i]) !== -1) return true;
           if (errorStack.indexOf(extensionFiles[i]) !== -1) return true;
         }
-        
+
         // 检测常见的扩展错误消息
         var extensionMessages = [
           'Failed to connect',
@@ -112,19 +113,19 @@
         for (var j = 0; j < extensionMessages.length; j++) {
           if (allText.indexOf(extensionMessages[j]) !== -1) {
             // 如果同时包含扩展文件标识，则确认是扩展错误
-            if (sourceStr.indexOf('chrome-extension://') !== -1 || 
-                errorStack.indexOf('chrome-extension://') !== -1) {
+            if (sourceStr.indexOf('chrome-extension://') !== -1 ||
+              errorStack.indexOf('chrome-extension://') !== -1) {
               return true;
             }
           }
         }
-        
+
         return false;
       }
-      
+
       // 捕获全局错误
       var originalErrorHandler = window.onerror;
-      window.onerror = function(message, source, lineno, colno, error) {
+      window.onerror = function (message, source, lineno, colno, error) {
         if (isExtensionError(source, message, error)) {
           return true;  // 阻止错误传播
         }
@@ -135,29 +136,29 @@
       };
 
       // 捕获未处理的Promise错误 - 使用捕获阶段，更早拦截
-      window.addEventListener('unhandledrejection', function(event) {
+      window.addEventListener('unhandledrejection', function (event) {
         try {
           var reason = event.reason;
           var errorMessage = (reason && reason.message) || (reason && reason.toString()) || '';
           var errorStack = (reason && reason.stack) || '';
           var errorString = String(reason);
           var errorName = (reason && reason.name) || '';
-          
+
           // 直接检查错误堆栈和字符串中是否包含扩展标识（最优先检测）
           var allErrorText = errorStack + ' ' + errorString + ' ' + errorMessage + ' ' + errorName;
-          
+
           // 快速检测：如果包含扩展标识，直接阻止
           if (allErrorText.indexOf('chrome-extension://') !== -1 ||
-              allErrorText.indexOf('solanaActionsContentScript') !== -1 ||
-              allErrorText.indexOf('inpage.js') !== -1 ||
-              allErrorText.indexOf('Failed to connect to MetaMask') !== -1 ||
-              allErrorText.indexOf('Failed to connect') !== -1) {
+            allErrorText.indexOf('solanaActionsContentScript') !== -1 ||
+            allErrorText.indexOf('inpage.js') !== -1 ||
+            allErrorText.indexOf('Failed to connect to MetaMask') !== -1 ||
+            allErrorText.indexOf('Failed to connect') !== -1) {
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
             return false;
           }
-          
+
           // 从堆栈中提取第一个来源
           var errorSource = '';
           if (errorStack) {
@@ -170,7 +171,7 @@
               errorSource = firstLine;
             }
           }
-          
+
           // 使用通用检测函数
           if (isExtensionError(errorSource, errorMessage, reason)) {
             event.preventDefault();

@@ -13,7 +13,7 @@ import CombatManager from "./battle/service/CombatManager";
 
 import { GameModel } from "./battle/types/gameTypes";
 import "./styles.css";
-import TeamLayout from "./TeamLayout";
+import TeamLayout from "./team/TeamLayout";
 interface Props {
     game: GameModel;
     mode: 'join' | 'play' | 'watch' | 'replay';
@@ -27,9 +27,7 @@ const PlayGame: React.FC<Props> = ({
 }) => {
 
     const client = React.useMemo(() => new ConvexReactClient(URLS.tacticalMonster), [URLS.tacticalMonster]);
-    const onGameSubmit = () => {
-        console.log("game submit");
-    };
+
     return (
         <div className="tactical-monster-game-container">
             <ConvexProvider client={client}>
@@ -72,6 +70,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     }, [props]);
 
     useEffect(() => {
+        console.log("useEffect", props);
         if (!props.visible) {
             setGame(null);
             setInitialPhaseChanges(null); // ✅ 重置 phaseChanges
@@ -140,10 +139,10 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
 
     return <>
         <div ref={teamLayoutRef} className="team-layout-container">
-            {!game && props.stageId && <TeamLayout stageId={props.stageId} onComplete={startJoin} />}
+            {props.visible && <TeamLayout stageId={props.stageId} onComplete={startJoin} />}
         </div>
         <div ref={playGameRef} className="play-tactical-monster-container">
-            {game && <PlayGame game={game} mode={props.mode} initialPhaseChanges={initialPhaseChanges} />}
+            {props.visible && game && <PlayGame game={game} mode={props.mode} initialPhaseChanges={initialPhaseChanges} />}
         </div>
         <div ref={loadingRef} className="play-tactical-monster-loading"><div className="play-tactical-monster-loading-text">Loading...</div></div>
     </>

@@ -3,7 +3,7 @@ import BattlePlayer from "component/solitaire/battle/BattlePlayer";
 import gsap from "gsap";
 import React, { useCallback, useRef, useState } from "react";
 import { useUserManager } from "service/UserManager";
-import "./style.css";
+import "./playMatch.css";
 
 export interface BattleProp {
   matchId: string | undefined;

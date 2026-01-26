@@ -8,6 +8,7 @@ const usePreGameAnimate = (teamLayoutRef: React.RefObject<HTMLDivElement>, loadi
         gsap.set(playGameRef.current, { autoAlpha: 0 });
     }, []);
     const openTeamLayout = useCallback(() => {
+        console.log("openTeamLayout", teamLayoutRef.current);
         gsap.to(teamLayoutRef.current, {
             autoAlpha: 1,
             duration: 0.5,

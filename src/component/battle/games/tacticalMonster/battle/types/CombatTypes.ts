@@ -169,6 +169,7 @@ export interface GridCellSprite {
     element?: SVGElement | null;
 }
 
+
 export interface WalkableNode extends HexNode {
     distance?: number;
 }

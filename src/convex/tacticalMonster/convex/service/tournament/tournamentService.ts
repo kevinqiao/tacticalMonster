@@ -42,6 +42,7 @@ export class TournamentService {
 
         if (result.ok) {
             const { tournamentType, stageId } = result.match;
+            console.log("match result", result.match);
             const gameResult = await ctx.runMutation((internal as any).service.game.gameService.createGame, {
                 uid,
                 gameId,

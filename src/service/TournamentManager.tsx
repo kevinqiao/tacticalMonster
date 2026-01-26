@@ -77,7 +77,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
     }
   }, [user, tacticalMonsterClient]);
   useEffect(() => {
-    if (!user?.uid || !player) return;
+    if (!user?.uid) return;
     const loadTournaments = async () => {
       const result = await tournamentClient.query(tournamentApi.service.tournament.tournamentService.getAvailableTournaments, { uid: user?.uid });
       console.log("loadTournaments result", result);
@@ -86,17 +86,17 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
       }
     }
     loadTournaments();
-  }, [user, player, tournamentClient]);
+  }, [user, tournamentClient]);
   useEffect(() => {
 
     const loadStageStatuses = async () => {
       const result = await tacticalMonsterClient.mutation(tacticalMonsterApi.service.tournament.tournamentService.getAllRuleStatuses, { uid: user?.uid });
       setStageRules(result);
     }
-    if (user?.uid && monsters && tacticalMonsterClient) {
+    if (user?.uid && tacticalMonsterClient) {
       loadStageStatuses();
     }
-  }, [user, monsters, tacticalMonsterClient]);
+  }, [user, tacticalMonsterClient]);
   useEffect(() => {
     // 使用 onUpdate 订阅数据更新
     if (!user?.uid || !client) return;
