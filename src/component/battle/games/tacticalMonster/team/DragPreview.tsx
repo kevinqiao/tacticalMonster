@@ -2,21 +2,19 @@ import React from "react";
 import { useTeamDeployManager } from "./service/TeamDeployManager";
 
 const DragPreview: React.FC = () => {
-    const { draggedMonsterId, dragPreviewPosition, mapDimension, highlightedCell } = useTeamDeployManager();
-
-    if (!draggedMonsterId || !dragPreviewPosition) {
-        return null;
-    }
-
+    const { dragMonster, dragPreviewContainerRef, mapDimension } = useTeamDeployManager();
     const size = mapDimension?.hexWidth || 80;
-    const isValidDrop = highlightedCell !== null;
+    const isValidDrop = true;
 
     return (
         <div
+            ref={dragPreviewContainerRef}
             style={{
                 position: "fixed",
-                left: dragPreviewPosition.x - size / 2,
-                top: dragPreviewPosition.y - size / 2,
+                left: 0,
+                top: 0,
+                // left: dragPreviewPosition.x - size / 2,
+                // top: dragPreviewPosition.y - size / 2,
                 width: size,
                 height: size,
                 background: isValidDrop
@@ -37,9 +35,11 @@ const DragPreview: React.FC = () => {
                 transform: isValidDrop ? "scale(1.1)" : "scale(1)",
                 transition: "transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease",
                 border: isValidDrop ? "3px solid #fff" : "2px solid rgba(255,255,255,0.5)",
+                opacity: 0,
+                visibility: "hidden",
             }}
         >
-            {draggedMonsterId}
+            {dragMonster?.monsterId}
         </div>
     );
 };

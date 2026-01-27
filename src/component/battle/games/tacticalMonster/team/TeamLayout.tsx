@@ -9,6 +9,7 @@ import "./styles.css";
 const TeamLayoutContent: React.FC = () => {
     const {
         mapDimension,
+        candidateContainerRef,
         containerRef,
         mapContainerRef,
         handleDragOver,
@@ -41,14 +42,18 @@ const TeamLayoutContent: React.FC = () => {
                 </div>
             </div>
             <div className="team-editor-container" style={{ pointerEvents: "none" }}>
-                <div style={{
-                    width: (mapDimension?.hexWidth || 0) * 2,
-                    height: mapDimension?.height,
-                    backgroundColor: "transparent",
-                    overflowY: "auto",
-                    overflowX: "hidden",
-                    pointerEvents: "auto"
-                }}>
+                <div
+                    ref={candidateContainerRef}
+                    className="candidates-container"
+                    style={{
+                        width: (mapDimension?.hexWidth || 0) * 2,
+                        height: mapDimension?.height,
+                        backgroundColor: "transparent",
+                        overflowY: "auto",
+                        overflowX: "hidden",
+                        pointerEvents: "auto"
+                    }}
+                >
                     <CandidatesBox />
                 </div>
                 <div
@@ -58,7 +63,7 @@ const TeamLayoutContent: React.FC = () => {
                         backgroundColor: "transparent",
                         pointerEvents: "none",
                     }}
-                    onClick={() => console.log("click")}
+
                 />
             </div>
             <div className="team-control-container">

@@ -1,8 +1,8 @@
+import gsap from "gsap";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { GridCellSprite } from "../../battle/types/CombatTypes";
 import { HexPoint } from "../../battle/types/GridTypes";
 import { calculateHexPoints, isPointInHex } from "../../battle/utils/gridUtils";
-
 // ============ 类型定义 ============
 
 export interface MapDimension {
@@ -15,22 +15,24 @@ export interface MapDimension {
 export interface TeamContextValue {
     // 状态
     mapDimension: MapDimension | null;
-    candidates: { monster_id: string }[];
-    placedMonsters: { monsterId: string, q: number; r: number }[];
+    // candidates: { monster_id: string }[];
+    monsters: { monsterId: string, teamPosition?: { q: number; r: number } }[];
     highlightedCell: { q: number; r: number } | null;
-    draggedMonsterId: string | null;
-    dragPreviewPosition: { x: number; y: number } | null;
+    dragMonster: { monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null;
+    // dragPreviewPosition: { x: number; y: number } | null;
     groundCells: GridCellSprite[][];
 
     // Refs
+    dragPreviewContainerRef: React.RefObject<HTMLDivElement>;
+    candidateContainerRef: React.RefObject<HTMLDivElement>;
     containerRef: React.RefObject<HTMLDivElement>;
     mapContainerRef: React.RefObject<HTMLDivElement>;
 
     // 方法
-    startDrag: (monsterId: string, e: React.DragEvent) => void;
+    startDrag: (monster: { monsterId: string, teamPosition?: { q: number, r: number } }, e: React.DragEvent) => void;
     endDrag: () => void;
-    placeMonster: (monsterId: string, q: number, r: number) => void;
-    removeCandidate: (monsterId: string) => void;
+    placeMonster: (monsterId: string, teamPosition?: { q: number; r: number }) => void;
+    // leaveTeam: (monsterId: string) => void;
     setHighlightedCell: (cell: { q: number; r: number } | null) => void;
     isCellOccupied: (q: number, r: number) => boolean;
     pixelToHex: (x: number, y: number) => { q: number; r: number } | null;
@@ -62,22 +64,21 @@ interface TeamProviderProps {
 
 export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onComplete, children }) => {
     // Refs
+    const candidateContainerRef = useRef<HTMLDivElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
+    const dragPreviewContainerRef = useRef<HTMLDivElement | null>(null);
 
     // 状态
     const [mapDimension, setMapDimension] = useState<MapDimension | null>(null);
-    const [draggedMonsterId, setDraggedMonsterId] = useState<string | null>(null);
-    const [dragPreviewPosition, setDragPreviewPosition] = useState<{ x: number; y: number } | null>(null);
+    const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
+    // const [dragPreviewPosition, setDragPreviewPosition] = useState<{ x: number; y: number } | null>(null);
     const [highlightedCell, setHighlightedCell] = useState<{ q: number; r: number } | null>(null);
-
-    const [candidates, setCandidates] = useState<{ monster_id: string }[]>(() => {
+    const [monsters, setMonsters] = useState<{ monsterId: string, teamPosition?: { q: number; r: number } }[]>(() => {
         return Array.from({ length: 7 }, (_, index) => ({
-            monster_id: `monster_${index}`,
+            monsterId: `monster_${index}`,
         }));
     });
-
-    const [placedMonsters, setPlacedMonsters] = useState<{ monsterId: string, q: number; r: number }[]>([]);
 
     // 网格数据
     const groundCells: GridCellSprite[][] = useMemo(() => {
@@ -93,49 +94,45 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onCom
     // ============ 方法 ============
 
     // 开始拖拽
-    const startDrag = useCallback((monsterId: string, e: React.DragEvent) => {
-        setDraggedMonsterId(monsterId);
-        setDragPreviewPosition({ x: e.clientX, y: e.clientY });
-        console.log("✅ 开始拖拽:", monsterId);
-    }, []);
+    const startDrag = useCallback((monster: { monsterId: string, teamPosition?: { q: number, r: number } }, e: React.DragEvent) => {
+        if (!mapDimension) return;
+        setDragMonster({ ...monster, inited: 0, q: monster.teamPosition?.q || -1, r: monster.teamPosition?.r || -1 });
+        console.log("✅ 开始拖拽:", monster.monsterId);
+    }, [mapDimension]);
 
     // 结束拖拽
     const endDrag = useCallback(() => {
-        setDraggedMonsterId(null);
-        setDragPreviewPosition(null);
-        setHighlightedCell(null);
-    }, []);
+        setDragMonster(null);
+        // setDragPreviewPosition(null);
+        gsap.set(dragPreviewContainerRef.current, { autoAlpha: 0 });
+        // setHighlightedCell(null);
+    }, [dragPreviewContainerRef]);
 
-    // 移除候选
-    const removeCandidate = useCallback((monsterId: string) => {
-        setCandidates(prev => prev.filter(c => c.monster_id !== monsterId));
-        console.log(`已从候选列表移除: ${monsterId}`);
-    }, []);
+
 
     // 检查格子是否被占用
     const isCellOccupied = useCallback((q: number, r: number): boolean => {
-        for (const pos of placedMonsters.values()) {
-            if (pos.q === q && pos.r === r) {
+        for (const pos of monsters.values()) {
+            if (pos.teamPosition?.q === q && pos.teamPosition?.r === r) {
                 return true;
             }
         }
         return false;
-    }, [placedMonsters]);
+    }, [monsters]);
 
     // 放置怪物
-    const placeMonster = useCallback((monsterId: string, q: number, r: number) => {
-        setPlacedMonsters(prev => {
+    const placeMonster = useCallback((monsterId: string, teamPosition?: { q: number; r: number }) => {
+        setMonsters(prev => {
             const m = prev.find((p) => p.monsterId === monsterId);
             if (m) {
-                m.q = q;
-                m.r = r;
+                m.teamPosition = teamPosition;
             } else {
-                prev.push({ monsterId, q, r });
+                prev.push({ monsterId, teamPosition });
             }
             return [...prev];
 
         });
-        console.log(`✅ 放置成功: ${monsterId} 到 (${q}, ${r})`);
+        console.log(`✅ 放置成功: ${monsterId} 到 (${teamPosition?.q}, ${teamPosition?.r})`);
     }, []);
 
     // 像素坐标转六边形坐标
@@ -205,67 +202,129 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onCom
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
 
-        // 更新拖拽预览位置
-        if (draggedMonsterId) {
-            setDragPreviewPosition({ x: e.clientX, y: e.clientY });
-        }
+        // 默认不允许放置
+        e.dataTransfer.dropEffect = "none";
 
-        if (!mapContainerRef.current || !mapDimension || !draggedMonsterId) {
-            e.dataTransfer.dropEffect = "none";
-            setHighlightedCell(null);
+        if (!dragMonster) return;
+
+        // 检查必要的 refs
+        if (!candidateContainerRef.current || !mapContainerRef.current || !mapDimension) {
             return;
         }
 
-        const rect = mapContainerRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        // ============ 计算 dropEffect（无论动画状态如何都要执行）============
+        const coord = { q: -2, r: -2 };
+        const candidateRect = candidateContainerRef.current.getBoundingClientRect();
+        const cx = e.clientX - candidateRect.left;
+        const cy = e.clientY - candidateRect.top;
 
-        if (x < 0 || x > rect.width || y < 0 || y > rect.height) {
-            e.dataTransfer.dropEffect = "none";
-            setHighlightedCell(null);
-            return;
-        }
-
-        const hexCoord = pixelToHex(x, y);
-
-        if (!hexCoord) {
-            e.dataTransfer.dropEffect = "none";
-            setHighlightedCell(null);
-            return;
-        }
-
-        if (isCellOccupied(hexCoord.q, hexCoord.r)) {
-            e.dataTransfer.dropEffect = "none";
-            setHighlightedCell(null);
-            return;
-        }
-
-        e.dataTransfer.dropEffect = "move";
-
-        setHighlightedCell(prev => {
-            if (prev?.q === hexCoord.q && prev?.r === hexCoord.r) {
-                return prev;
+        if (cx >= 0 && cx < candidateRect.width && cy >= 0 && cy < candidateRect.height) {
+            // 鼠标在候选区域内
+            coord.q = -1;
+            coord.r = -1;
+            if (dragMonster.teamPosition) {
+                e.dataTransfer.dropEffect = "move";
+                console.log("🟢 dragover: 候选区域, dropEffect=move");
             }
-            return hexCoord;
-        });
-    }, [mapDimension, pixelToHex, draggedMonsterId, isCellOccupied]);
+        } else {
+            // 鼠标在地图区域
+            const rect = mapContainerRef.current.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            if (mx > 0 && mx < rect.width && my > 0 && my < rect.height) {
+                const hexCoord = pixelToHex(mx, my);
+                if (hexCoord) {
+                    coord.q = hexCoord.q;
+                    coord.r = hexCoord.r;
+                    const occupied = isCellOccupied(hexCoord.q, hexCoord.r);
+                    if (!occupied) {
+                        e.dataTransfer.dropEffect = "move";
+                    }
+                }
+            }
+        }
+
+        // ============ 动画进行中，只更新 dropEffect，不更新 UI ============
+        if (dragMonster.inited === 1) return;
+
+        // ============ 更新拖拽预览位置 ============
+        if (!dragPreviewContainerRef.current) return;
+
+        const x = e.clientX - mapDimension.hexWidth / 2;
+        const y = e.clientY - mapDimension.hexHeight / 2;
+
+        if (dragMonster.inited === 0) {
+            dragMonster.inited = 1;
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    dragMonster.inited = 2;
+                }
+            });
+            tl.to(dragPreviewContainerRef.current, {
+                autoAlpha: 0,
+                x: x,
+                y: y,
+                duration: 0,
+            }).to(dragPreviewContainerRef.current, {
+                autoAlpha: 1,
+                duration: 0
+            }, ">+0.2");
+            tl.play();
+        } else {
+            gsap.set(dragPreviewContainerRef.current, { x: x, y: y, duration: 0 });
+        }
+
+        // ============ 更新高亮格子 ============
+        if (dragMonster.q !== coord.q || dragMonster.r !== coord.r) {
+            // 清除旧的高亮
+            if (dragMonster.q >= 0 && dragMonster.r >= 0) {
+                const oldCell = groundCells[dragMonster.r][dragMonster.q] as GridCellSprite;
+                if (oldCell.element) {
+                    oldCell.element.style.fill = "black";
+                    oldCell.element.style.stroke = "white";
+                    oldCell.element.style.strokeWidth = "4";
+                    oldCell.element.style.opacity = "0.6";
+                }
+            }
+            // 更新坐标
+            dragMonster.q = coord.q;
+            dragMonster.r = coord.r;
+            // 设置新的高亮
+            if (coord.q >= 0 && coord.r >= 0) {
+                const cell = groundCells[dragMonster.r][dragMonster.q] as GridCellSprite;
+                if (cell.element) {
+                    cell.element.style.fill = "rgba(0, 255, 0, 0.5)";
+                    cell.element.style.stroke = "yellow";
+                    cell.element.style.strokeWidth = "6";
+                    cell.element.style.opacity = "0.8";
+                }
+            }
+        }
+    }, [mapDimension, pixelToHex, groundCells, dragMonster, isCellOccupied]);
 
     // 处理放置
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
+        if (!dragMonster) return;
 
-        const monsterId = e.dataTransfer.getData("text/plain");
-
-        if (!monsterId || !highlightedCell) {
-            console.log("❌ 放置失败: 无效的 monsterId 或 highlightedCell");
-            endDrag();
-            return;
+        // 不依赖 dropEffect，自己判断是否是有效放置
+        if (dragMonster.q === -1 && dragMonster.r === -1) {
+            // 放回候选区域（从地图移除）
+            if (dragMonster.teamPosition) {
+                placeMonster(dragMonster.monsterId, undefined);
+                console.log("✅ drop: 移回候选区域");
+            }
+        } else if (dragMonster.q >= 0 && dragMonster.r >= 0) {
+            // 放置到地图格子
+            if (!isCellOccupied(dragMonster.q, dragMonster.r)) {
+                placeMonster(dragMonster.monsterId, { q: dragMonster.q, r: dragMonster.r });
+                console.log(`✅ drop: 放置到 (${dragMonster.q}, ${dragMonster.r})`);
+            }
         }
 
-        const { q, r } = highlightedCell;
-        placeMonster(monsterId, q, r);
+        // 清理拖拽状态
         endDrag();
-    }, [highlightedCell, placeMonster, endDrag]);
+    }, [placeMonster, endDrag, dragMonster, isCellOccupied]);
 
     // ============ 副作用：计算地图尺寸 ============
 
@@ -325,14 +384,15 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onCom
     const value: TeamContextValue = useMemo(() => ({
         // 状态
         mapDimension,
-        candidates,
-        placedMonsters,
+        monsters,
         highlightedCell,
-        draggedMonsterId,
-        dragPreviewPosition,
+        dragMonster,
+        // dragPreviewPosition,
         groundCells,
 
         // Refs
+        dragPreviewContainerRef,
+        candidateContainerRef,
         containerRef,
         mapContainerRef,
 
@@ -340,7 +400,6 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onCom
         startDrag,
         endDrag,
         placeMonster,
-        removeCandidate,
         setHighlightedCell,
         isCellOccupied,
         pixelToHex,
@@ -348,16 +407,14 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onCom
         handleDrop,
     }), [
         mapDimension,
-        candidates,
-        placedMonsters,
+        monsters,
         highlightedCell,
-        draggedMonsterId,
-        dragPreviewPosition,
+        dragMonster,
+        // dragPreviewPosition,
         groundCells,
         startDrag,
         endDrag,
         placeMonster,
-        removeCandidate,
         isCellOccupied,
         pixelToHex,
         handleDragOver,

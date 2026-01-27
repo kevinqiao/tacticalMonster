@@ -18,8 +18,8 @@ const GroundCell: React.FC<{
 
 }> = ({ cell }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const { mapDimension, placedMonsters, highlightedCell, startDrag, endDrag, removeCandidate } = useTeamDeployManager();
-    const [placedMonster, setPlacedMonster] = useState<{ monsterId: string, q: number, r: number } | null>(null);
+    const { mapDimension, monsters, highlightedCell, startDrag, endDrag } = useTeamDeployManager();
+    const [placedMonster, setPlacedMonster] = useState<{ monsterId: string, teamPosition: { q: number; r: number } } | null>(null);
     const width = mapDimension?.hexWidth || 0;
     const height = mapDimension?.hexHeight || 0;
 
@@ -36,7 +36,9 @@ const GroundCell: React.FC<{
         width: width,
         height: hexHeight,
         pointerEvents: "none",
-    }; const handleDragStart = (e: React.DragEvent) => {
+    };
+    const handleDragStart = useCallback((e: React.DragEvent) => {
+        if (!placedMonster) return;
         setIsDragging(true);
 
         e.dataTransfer.effectAllowed = "move";
@@ -46,9 +48,8 @@ const GroundCell: React.FC<{
         const emptyImage = new Image();
         emptyImage.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
         e.dataTransfer.setDragImage(emptyImage, 0, 0);
-
-        startDrag(placedMonster?.monsterId || "", e);
-    };
+        startDrag(placedMonster, e);
+    }, [placedMonster, startDrag]);
 
     const handleDragEnd = (e: React.DragEvent) => {
         setIsDragging(false);
@@ -61,16 +62,14 @@ const GroundCell: React.FC<{
         endDrag();
         e.dataTransfer.clearData();
     };
+
     useEffect(() => {
-        const key = `${cell.q}-${cell.r}`;
-        const monster = placedMonsters.find((p) => p.q === cell.q && p.r === cell.r);
-        if (!monster)
+        const monster = monsters.find((m) => m.teamPosition?.q === cell.q && m.teamPosition?.r === cell.r);
+        if (monster && monster.teamPosition)
+            setPlacedMonster({ monsterId: monster.monsterId, teamPosition: monster.teamPosition });
+        else
             setPlacedMonster(null);
-        else if (placedMonster === null || placedMonster.monsterId !== monster.monsterId) {
-            console.log("monster", monster);
-            setPlacedMonster(monster);
-        }
-    }, [placedMonsters, cell]);
+    }, [monsters, cell]);
     return (
         <div style={{ position: "relative", width: width, height: hexHeight }}>
             <svg
