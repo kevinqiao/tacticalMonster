@@ -1,8 +1,12 @@
+import { BOSS_CONFIGS } from "@/convex/tacticalMonster/convex/data/bossConfigs";
+import { useTournamentManager } from "@/service/TournamentManager";
 import gsap from "gsap";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { GridCellSprite } from "../../battle/types/CombatTypes";
-import { HexPoint } from "../../battle/types/GridTypes";
-import { calculateHexPoints, isPointInHex } from "../../battle/utils/gridUtils";
+import { GridCellSprite } from "../../types/CombatTypes";
+import { Boss, Stage } from "../../types/StageTypes";
+import { useMapDimension } from "../hooks/useMapDimension";
+import { logicToView, pixelToHex, viewToLogic } from "../utils/coordinateUtils";
+import { clearHighlight, setHighlight } from "../utils/dragHighlightUtils";
 // ============ 类型定义 ============
 
 export interface MapDimension {
@@ -10,17 +14,25 @@ export interface MapDimension {
     height: number;
     hexHeight: number;
     hexWidth: number;
+    isPortrait: boolean;  // 是否竖屏
+    cols: number;         // 列数（横屏8，竖屏7）
+    rows: number;         // 行数（横屏7，竖屏8）
 }
 
 export interface TeamContextValue {
     // 状态
+    askAddMonster: { q: number, r: number } | null;
     mapDimension: MapDimension | null;
-    // candidates: { monster_id: string }[];
-    monsters: { monsterId: string, teamPosition?: { q: number; r: number } }[];
-    highlightedCell: { q: number; r: number } | null;
+    playerMonsters: { monsterId: string, teamPosition?: { q: number; r: number } }[];
     dragMonster: { monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null;
-    // dragPreviewPosition: { x: number; y: number } | null;
     groundCells: GridCellSprite[][];
+    deployables: { q: number, r: number }[];
+    stage: Stage | null;
+    boss: Boss | null;
+
+    // 坐标转换函数
+    viewToLogic: (viewQ: number, viewR: number) => { q: number; r: number };
+    logicToView: (logicQ: number, logicR: number) => { q: number; r: number };
 
     // Refs
     dragPreviewContainerRef: React.RefObject<HTMLDivElement>;
@@ -29,15 +41,16 @@ export interface TeamContextValue {
     mapContainerRef: React.RefObject<HTMLDivElement>;
 
     // 方法
+    askAdd: (q: number, r: number) => void;
+    completeAsk: () => void;
+    quitTeam: (monsterId: string) => void;
+    selectCanadidate: (monsterId: string) => void;
     startDrag: (monster: { monsterId: string, teamPosition?: { q: number, r: number } }, e: React.DragEvent) => void;
     endDrag: () => void;
     placeMonster: (monsterId: string, teamPosition?: { q: number; r: number }) => void;
-    // leaveTeam: (monsterId: string) => void;
-    setHighlightedCell: (cell: { q: number; r: number } | null) => void;
-    isCellOccupied: (q: number, r: number) => boolean;
-    pixelToHex: (x: number, y: number) => { q: number; r: number } | null;
     handleDragOver: (e: React.DragEvent) => void;
     handleDrop: (e: React.DragEvent) => void;
+    isCellOccupied: (viewQ: number, viewR: number) => boolean;
 }
 
 // ============ Context 创建 ============
@@ -57,41 +70,106 @@ export const useTeamDeployManager = (): TeamContextValue => {
 // ============ Provider ============
 
 interface TeamProviderProps {
-    stageId?: string | null;
+    stage?: Stage | null;
     onComplete?: () => void;
     children: React.ReactNode;
 }
 
-export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onComplete, children }) => {
+export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, onComplete, children }) => {
     // Refs
     const candidateContainerRef = useRef<HTMLDivElement | null>(null);
-    const containerRef = useRef<HTMLDivElement | null>(null);
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
     const dragPreviewContainerRef = useRef<HTMLDivElement | null>(null);
 
-    // 状态
-    const [mapDimension, setMapDimension] = useState<MapDimension | null>(null);
-    const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
-    // const [dragPreviewPosition, setDragPreviewPosition] = useState<{ x: number; y: number } | null>(null);
-    const [highlightedCell, setHighlightedCell] = useState<{ q: number; r: number } | null>(null);
-    const [monsters, setMonsters] = useState<{ monsterId: string, teamPosition?: { q: number; r: number } }[]>(() => {
-        return Array.from({ length: 7 }, (_, index) => ({
-            monsterId: `monster_${index}`,
-        }));
-    });
+    // 使用 useMapDimension Hook
+    const { containerRef, mapDimension } = useMapDimension();
 
-    // 网格数据
+    const [askAddMonster, setAskAddMonster] = useState<{ q: number, r: number } | null>(null);
+    const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
+    const { monsters } = useTournamentManager();
+    const [playerMonsters, setPlayerMonsters] = useState<{ monsterId: string, teamPosition?: { q: number; r: number } }[]>([]);
+
+    // 网格数据 - 依赖 mapDimension 中的动态行列
     const groundCells: GridCellSprite[][] = useMemo(() => {
-        return Array.from({ length: 7 }, (_, row) =>
-            Array.from({ length: 8 }, (_, col) => ({
+        if (!mapDimension) return [];
+        const { rows, cols } = mapDimension;
+        return Array.from({ length: rows }, (_, row) =>
+            Array.from({ length: cols }, (_, col) => ({
                 q: col,
                 r: row,
                 disable: false
             }))
         );
-    }, []);
+    }, [mapDimension?.rows, mapDimension?.cols]);
+
+    const deployables: { q: number, r: number }[] = useMemo(() => {
+        if (!stage) return [];
+        const { q, r } = stage.deployables || { q: 2, r: 6 };
+        const deployables: { q: number, r: number }[] = [];
+
+        for (let i = 0; i <= r; i++) {
+            for (let j = 0; j <= q; j++) {
+                const disable = stage.map.disables?.find((disable) => disable.q === j && disable.r === i);
+                if (!disable) deployables.push({
+                    q: j,
+                    r: i,
+                });
+            }
+        }
+        return deployables;
+    }, [stage]);
+    const boss: Boss | null = useMemo(() => {
+        if (!stage) return null;
+        const bossConfig = BOSS_CONFIGS[stage.bossId];
+        if (!bossConfig) return null;
+        const minions = bossConfig.minions?.map((minion) => ({
+            minionId: minion.minionId,
+            monsterId: minion.monsterId,
+            hp: minion.baseHp || 0,
+            damage: minion.baseDamage || 0,
+            defense: minion.baseDefense || 0,
+            speed: minion.baseSpeed || 0,
+            skills: minion.skills || [],
+            assetPath: minion.assetPath || "",
+            position: minion.position || { q: 0, r: 0 },
+        }));
+        return {
+            bossId: stage.bossId,
+            monsterId: bossConfig.monsterId,
+            name: bossConfig.name,
+            assetPath: bossConfig.assetPath,
+            skills: bossConfig.skills,
+            hp: bossConfig.baseHp || 0,
+            damage: bossConfig.baseDamage || 0,
+            defense: bossConfig.baseDefense || 0,
+            speed: bossConfig.baseSpeed || 0,
+            position: bossConfig.position || { q: 0, r: 0 },
+            minions: minions || [],
+        };
+
+    }, [stage]);
+
+    // ============ 坐标转换函数（包装工具函数）============
+    const viewToLogicCallback = useCallback((viewQ: number, viewR: number): { q: number; r: number } => {
+        return viewToLogic(viewQ, viewR, mapDimension);
+    }, [mapDimension]);
+
+    const logicToViewCallback = useCallback((logicQ: number, logicR: number): { q: number; r: number } => {
+        return logicToView(logicQ, logicR, mapDimension);
+    }, [mapDimension]);
 
     // ============ 方法 ============
+
+    // 请求添加怪物
+    const askAdd = useCallback((q: number, r: number) => {
+        const logicPos = viewToLogic(q, r, mapDimension);
+        setAskAddMonster({ q: logicPos.q, r: logicPos.r });
+    }, [mapDimension]);
+
+    // 完成添加怪物
+    const completeAsk = useCallback(() => {
+        setAskAddMonster(null);
+    }, []);
 
     // 开始拖拽
     const startDrag = useCallback((monster: { monsterId: string, teamPosition?: { q: number, r: number } }, e: React.DragEvent) => {
@@ -102,152 +180,158 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onCom
 
     // 结束拖拽
     const endDrag = useCallback(() => {
-        setDragMonster(null);
-        // setDragPreviewPosition(null);
+        if (!dragMonster) return;
         gsap.set(dragPreviewContainerRef.current, { autoAlpha: 0 });
-        // setHighlightedCell(null);
-    }, [dragPreviewContainerRef]);
+        if (dragMonster.q >= 0 && dragMonster.r >= 0) {
+            const oldCell = groundCells[dragMonster.r][dragMonster.q] as GridCellSprite;
+            clearHighlight(oldCell);
+        }
+        setDragMonster(null);
+    }, [dragMonster, groundCells]);
 
 
 
-    // 检查格子是否被占用
-    const isCellOccupied = useCallback((q: number, r: number): boolean => {
-        for (const pos of monsters.values()) {
-            if (pos.teamPosition?.q === q && pos.teamPosition?.r === r) {
+    // 检查格子是否被占用（接收视图坐标）
+    const isCellOccupied = useCallback((viewQ: number, viewR: number): boolean => {
+        // 将视图坐标转换为逻辑坐标（stage 数据使用逻辑坐标）
+        const logicPos = viewToLogic(viewQ, viewR, mapDimension);
+        const logicQ = logicPos.q;
+        const logicR = logicPos.r;
+
+        // 1. 检查玩家怪物
+        for (const monster of playerMonsters.values()) {
+            if (!monster.teamPosition) continue;
+            const viewPos = logicToView(monster.teamPosition.q, monster.teamPosition.r, mapDimension);
+            if (viewPos.q === viewQ && viewPos.r === viewR) {
                 return true;
             }
         }
-        return false;
-    }, [monsters]);
 
-    // 放置怪物
-    const placeMonster = useCallback((monsterId: string, teamPosition?: { q: number; r: number }) => {
-        setMonsters(prev => {
-            const m = prev.find((p) => p.monsterId === monsterId);
-            if (m) {
-                m.teamPosition = teamPosition;
-            } else {
-                prev.push({ monsterId, teamPosition });
-            }
-            return [...prev];
-
-        });
-        console.log(`✅ 放置成功: ${monsterId} 到 (${teamPosition?.q}, ${teamPosition?.r})`);
-    }, []);
-
-    // 像素坐标转六边形坐标
-    const pixelToHex = useCallback((x: number, y: number): { q: number; r: number } | null => {
-        if (!mapDimension) return null;
-
-        const { hexWidth, hexHeight } = mapDimension;
-
-        const r = Math.round(y / (hexHeight * 0.75));
-        if (r < 0 || r >= 7) return null;
-
-        const isOddRow = r % 2 !== 0;
-        const colOffset = isOddRow ? hexWidth / 2 : 0;
-        const q = Math.floor((x - colOffset) / hexWidth);
-        if (q < 0 || q >= 8) return null;
-
-        const hexPoints = calculateHexPoints(hexWidth);
-        const mousePoint: HexPoint = { x, y };
-
-        const neighbors: Array<{ dq: number; dr: number }> = isOddRow
-            ? [
-                { dq: 0, dr: 0 },
-                { dq: 1, dr: 0 },
-                { dq: 1, dr: 1 },
-                { dq: 0, dr: 1 },
-                { dq: -1, dr: 0 },
-                { dq: 0, dr: -1 },
-                { dq: 1, dr: -1 },
-            ]
-            : [
-                { dq: 0, dr: 0 },
-                { dq: 1, dr: 0 },
-                { dq: 0, dr: 1 },
-                { dq: -1, dr: 1 },
-                { dq: -1, dr: 0 },
-                { dq: -1, dr: -1 },
-                { dq: 0, dr: -1 },
-            ];
-
-        for (const { dq, dr } of neighbors) {
-            const testQ = q + dq;
-            const testR = r + dr;
-
-            if (testQ < 0 || testQ >= 8 || testR < 0 || testR >= 7) {
-                continue;
-            }
-
-            const testIsOddRow = testR % 2 !== 0;
-            const testColOffset = testIsOddRow ? hexWidth / 2 : 0;
-            const hexLeftX = testQ * hexWidth + testColOffset;
-            const hexTopY = testR * hexHeight * 0.75;
-
-            const worldHexPoints: HexPoint[] = hexPoints.map(point => ({
-                x: hexLeftX + point.x,
-                y: hexTopY + point.y,
-            }));
-
-            if (isPointInHex(mousePoint, worldHexPoints)) {
-                return { q: testQ, r: testR };
-            }
-        }
-
-        return null;
-    }, [mapDimension]);
-
-    // 处理拖拽悬停
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-
-        // 默认不允许放置
-        e.dataTransfer.dropEffect = "none";
-
-        if (!dragMonster) return;
-
-        // 检查必要的 refs
-        if (!candidateContainerRef.current || !mapContainerRef.current || !mapDimension) {
-            return;
-        }
-
-        // ============ 计算 dropEffect（无论动画状态如何都要执行）============
-        const coord = { q: -2, r: -2 };
-        const candidateRect = candidateContainerRef.current.getBoundingClientRect();
-        const cx = e.clientX - candidateRect.left;
-        const cy = e.clientY - candidateRect.top;
-
-        if (cx >= 0 && cx < candidateRect.width && cy >= 0 && cy < candidateRect.height) {
-            // 鼠标在候选区域内
-            coord.q = -1;
-            coord.r = -1;
-            if (dragMonster.teamPosition) {
-                e.dataTransfer.dropEffect = "move";
-                console.log("🟢 dragover: 候选区域, dropEffect=move");
-            }
-        } else {
-            // 鼠标在地图区域
-            const rect = mapContainerRef.current.getBoundingClientRect();
-            const mx = e.clientX - rect.left;
-            const my = e.clientY - rect.top;
-            if (mx > 0 && mx < rect.width && my > 0 && my < rect.height) {
-                const hexCoord = pixelToHex(mx, my);
-                if (hexCoord) {
-                    coord.q = hexCoord.q;
-                    coord.r = hexCoord.r;
-                    const occupied = isCellOccupied(hexCoord.q, hexCoord.r);
-                    if (!occupied) {
-                        e.dataTransfer.dropEffect = "move";
-                    }
+        // 2. 检查障碍物
+        if (stage?.map?.obstacles) {
+            for (const obstacle of stage.map.obstacles) {
+                if (obstacle.q === logicQ && obstacle.r === logicR) {
+                    return true;
                 }
             }
         }
 
-        // ============ 动画进行中，只更新 dropEffect，不更新 UI ============
+        // 3. 检查禁用区域
+        if (stage?.map?.disables) {
+            for (const disable of stage.map.disables) {
+                if (disable.q === logicQ && disable.r === logicR) {
+                    return true;
+                }
+            }
+        }
+
+        // 4. 检查 Boss 位置
+        if (boss && boss.position) {
+            if (boss.position.q === logicQ && boss.position.r === logicR) {
+                return true;
+            }
+        }
+
+        // 5. 检查 Minions 位置
+        if (boss?.minions) {
+            for (const minion of boss.minions) {
+                if (minion.position?.q === logicQ && minion.position?.r === logicR) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }, [playerMonsters, mapDimension, stage, boss]);
+
+    // 放置怪物
+    // placeMonster 接收视图坐标，转换为逻辑坐标后存储
+    const placeMonster = useCallback((monsterId: string, viewPosition?: { q: number; r: number }) => {
+        // 将视图坐标转换为逻辑坐标
+        const logicPosition = viewPosition
+            ? viewToLogic(viewPosition.q, viewPosition.r, mapDimension)
+            : undefined;
+
+        setPlayerMonsters(prev => {
+            if (!monsters) return prev;
+            const m = prev.find((p) => p.monsterId === monsterId);
+            if (m) {
+                m.teamPosition = logicPosition;
+                const monster = monsters.find((m) => m.monsterId === monsterId);
+                if (monster) {
+                    monster.teamPosition = logicPosition;
+                }
+            } else {
+                prev.push({ monsterId, teamPosition: logicPosition });
+            }
+            return [...prev];
+        });
+        console.log(`✅ 放置成功: ${monsterId} 视图坐标(${viewPosition?.q}, ${viewPosition?.r}) → 逻辑坐标(${logicPosition?.q}, ${logicPosition?.r})`);
+    }, [mapDimension, monsters]);
+    const selectCanadidate = useCallback((monsterId: string) => {
+        if (!askAddMonster || !monsters) {
+            console.warn("[TeamDeployManager] selectCanadidate: askAddMonster 或 monsters 为空", { askAddMonster, monsters });
+            return;
+        }
+        setPlayerMonsters(prev => {
+            const m = prev.find((p) => p.monsterId === monsterId);
+            if (m) {
+                const monster = monsters.find((m) => m.monsterId === monsterId);
+                // askAddMonster 已经是逻辑坐标，直接使用
+                const logicPosition = { q: askAddMonster.q, r: askAddMonster.r };
+                if (monster) {
+                    monster.teamPosition = logicPosition;
+                }
+                // teamPosition 应该存储逻辑坐标，不是视图坐标
+                m.teamPosition = logicPosition;
+                setAskAddMonster(null);
+                console.log(`✅ 选择怪物: ${monsterId} 逻辑坐标(${logicPosition.q}, ${logicPosition.r})`);
+                console.log("[TeamDeployManager] 更新后的 playerMonsters:", prev.map(p => ({
+                    monsterId: p.monsterId,
+                    teamPosition: p.teamPosition
+                })));
+            } else {
+                console.warn(`[TeamDeployManager] selectCanadidate: 未找到怪物 ${monsterId}`, { prev });
+            }
+            return [...prev];
+        });
+    }, [askAddMonster, monsters]);
+
+    const quitTeam = useCallback((monsterId: string) => {
+        console.log("quitTeam", monsterId);
+        placeMonster(monsterId, undefined);
+    }, [placeMonster]);
+
+    // 处理拖拽悬停
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "none";
+
+        if (!dragMonster || !mapContainerRef.current || !mapDimension) {
+            return;
+        }
+
+        // 计算 dropEffect（无论动画状态如何都要执行）
+        const rect = mapContainerRef.current.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const coord = { q: -2, r: -2 };
+
+        if (mx > 0 && mx < rect.width && my > 0 && my < rect.height) {
+            const hexCoord = pixelToHex(mx, my, mapDimension);
+            if (hexCoord) {
+                coord.q = hexCoord.q;
+                coord.r = hexCoord.r;
+                if (!isCellOccupied(hexCoord.q, hexCoord.r)) {
+                    e.dataTransfer.dropEffect = "move";
+                }
+            }
+        }
+
+        // 动画进行中，只更新 dropEffect，不更新 UI
         if (dragMonster.inited === 1) return;
 
-        // ============ 更新拖拽预览位置 ============
+        // 更新拖拽预览位置
         if (!dragPreviewContainerRef.current) return;
 
         const x = e.clientX - mapDimension.hexWidth / 2;
@@ -274,47 +358,30 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onCom
             gsap.set(dragPreviewContainerRef.current, { x: x, y: y, duration: 0 });
         }
 
-        // ============ 更新高亮格子 ============
+        // 更新高亮格子
         if (dragMonster.q !== coord.q || dragMonster.r !== coord.r) {
             // 清除旧的高亮
             if (dragMonster.q >= 0 && dragMonster.r >= 0) {
                 const oldCell = groundCells[dragMonster.r][dragMonster.q] as GridCellSprite;
-                if (oldCell.element) {
-                    oldCell.element.style.fill = "black";
-                    oldCell.element.style.stroke = "white";
-                    oldCell.element.style.strokeWidth = "4";
-                    oldCell.element.style.opacity = "0.6";
-                }
+                clearHighlight(oldCell);
             }
             // 更新坐标
             dragMonster.q = coord.q;
             dragMonster.r = coord.r;
             // 设置新的高亮
             if (coord.q >= 0 && coord.r >= 0) {
-                const cell = groundCells[dragMonster.r][dragMonster.q] as GridCellSprite;
-                if (cell.element) {
-                    cell.element.style.fill = "rgba(0, 255, 0, 0.5)";
-                    cell.element.style.stroke = "yellow";
-                    cell.element.style.strokeWidth = "6";
-                    cell.element.style.opacity = "0.8";
-                }
+                const cell = groundCells[coord.r][coord.q] as GridCellSprite;
+                setHighlight(cell);
             }
         }
-    }, [mapDimension, pixelToHex, groundCells, dragMonster, isCellOccupied]);
+    }, [mapDimension, groundCells, dragMonster, isCellOccupied]);
 
     // 处理放置
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         if (!dragMonster) return;
 
-        // 不依赖 dropEffect，自己判断是否是有效放置
-        if (dragMonster.q === -1 && dragMonster.r === -1) {
-            // 放回候选区域（从地图移除）
-            if (dragMonster.teamPosition) {
-                placeMonster(dragMonster.monsterId, undefined);
-                console.log("✅ drop: 移回候选区域");
-            }
-        } else if (dragMonster.q >= 0 && dragMonster.r >= 0) {
+        if (dragMonster.q >= 0 && dragMonster.r >= 0) {
             // 放置到地图格子
             if (!isCellOccupied(dragMonster.q, dragMonster.r)) {
                 placeMonster(dragMonster.monsterId, { q: dragMonster.q, r: dragMonster.r });
@@ -326,99 +393,71 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stageId, onCom
         endDrag();
     }, [placeMonster, endDrag, dragMonster, isCellOccupied]);
 
-    // ============ 副作用：计算地图尺寸 ============
-
+    // ============ 副作用 ============
     useEffect(() => {
-        const cols = 8;
-        const rows = 7;
-        const mapRatio = ((cols + 2.5) * Math.sqrt(3)) / 2 / (1 + ((rows - 1) * 3) / 4);
-
-        const updateMap = () => {
-            if (containerRef.current) {
-                const containerWidth = containerRef.current.clientWidth;
-                const containerHeight = containerRef.current.clientHeight;
-                const containerRatio = containerWidth / containerHeight;
-
-                let mapSize: { width: number; height: number } = { width: 0, height: 0 };
-                let hexHeight: number;
-                let hexWidth: number;
-
-                if (mapRatio < containerRatio) {
-                    hexHeight = containerHeight / (1 + ((rows - 1) * 3) / 4);
-                    hexWidth = (hexHeight * Math.sqrt(3)) / 2;
-                    mapSize.width = hexWidth * (cols + 2.5);
-                    mapSize.height = mapSize.width / mapRatio;
-                } else {
-                    mapSize.width = containerWidth;
-                    mapSize.height = mapSize.width / mapRatio;
-                    hexWidth = mapSize.width / (cols + 2.5);
-                    hexHeight = (hexWidth * 2) / Math.sqrt(3);
-                }
-
-                setMapDimension({
-                    width: mapSize.width,
-                    height: mapSize.height,
-                    hexHeight,
-                    hexWidth
-                });
-            }
-        };
-
-        updateMap();
-
-        const resizeObserver = new ResizeObserver(() => {
-            updateMap();
-        });
-
-        if (containerRef.current) {
-            resizeObserver.observe(containerRef.current);
+        console.log("[TeamDeployManager] monsters 原始数据:", monsters);
+        if (monsters && monsters.length > 0) {
+            // 为没有 teamPosition 的怪物分配默认位置（用于测试）
+            const mapped = monsters.map((monster, index) => {
+                const hasPosition = monster.teamPosition && monster.teamPosition.q !== undefined;
+                // 如果没有位置，分配一个测试位置
+                const defaultPosition = hasPosition ? monster.teamPosition : { q: index, r: 0 };
+                console.log(`[TeamDeployManager] 怪物 ${monster.monsterId}: 原始位置=${JSON.stringify(monster.teamPosition)}, 使用位置=${JSON.stringify(defaultPosition)}`);
+                return {
+                    monsterId: monster.monsterId,
+                    teamPosition: defaultPosition
+                };
+            });
+            console.log("[TeamDeployManager] 初始化 playerMonsters:", mapped);
+            setPlayerMonsters(mapped);
         }
-
-        return () => {
-            resizeObserver.disconnect();
-        };
-    }, []);
+    }, [monsters]);
 
     // ============ Context Value ============
 
     const value: TeamContextValue = useMemo(() => ({
         // 状态
         mapDimension,
-        monsters,
-        highlightedCell,
+        playerMonsters,
         dragMonster,
-        // dragPreviewPosition,
         groundCells,
-
-        // Refs
+        deployables,
+        askAddMonster,
+        stage: stage || null,
+        boss: boss || null,
         dragPreviewContainerRef,
         candidateContainerRef,
         containerRef,
         mapContainerRef,
-
-        // 方法
+        askAdd,
+        completeAsk,
+        selectCanadidate,
+        quitTeam,
         startDrag,
         endDrag,
         placeMonster,
-        setHighlightedCell,
-        isCellOccupied,
-        pixelToHex,
         handleDragOver,
         handleDrop,
+        isCellOccupied,
+        viewToLogic: viewToLogicCallback,
+        logicToView: logicToViewCallback,
     }), [
         mapDimension,
-        monsters,
-        highlightedCell,
+        playerMonsters,
         dragMonster,
-        // dragPreviewPosition,
         groundCells,
+        askAddMonster,
+        stage,
+        boss,
+        quitTeam,
         startDrag,
         endDrag,
         placeMonster,
-        isCellOccupied,
-        pixelToHex,
         handleDragOver,
         handleDrop,
+        isCellOccupied,
+        viewToLogicCallback,
+        logicToViewCallback,
     ]);
 
     return (

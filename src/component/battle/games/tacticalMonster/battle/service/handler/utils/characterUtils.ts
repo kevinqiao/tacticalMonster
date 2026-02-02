@@ -2,9 +2,9 @@
  * 角色相关工具函数
  */
 
+import { MonsterSprite } from "../../../../types/CombatTypes";
 import { toCharacterIdentifier } from "../../../utils/characterIdentifierUtils";
 import type { CharacterIdentifier } from "../../../utils/typeAdapter";
-import { MonsterSprite } from "../../../types/CombatTypes";
 
 /**
  * 根据 CharacterIdentifier 查找目标角色

@@ -5,8 +5,8 @@ import "./style.css";
 
 
 // 组件路径映射 - 静态映射所有可能的组件
-const componentMap: Record<string, () => Promise<any>> = {
-  './games/tacticalMonster/TacticalMonsterOver': () => import('./games/tacticalMonster/TacticalMonsterOver'),
+const componentMap: Record<string, () => Promise<{ default: React.ComponentType<GameOverProps> }>> = {
+  './games/tacticalMonster/TacticalMonsterOver': () => import('@/component/battle/games/tacticalMonster/TacticalMonsterOver'),
 };
 const GAME_PROVIDERS: Record<string, string> = {
   'tacticalMonster': './games/tacticalMonster/TacticalMonsterOver',

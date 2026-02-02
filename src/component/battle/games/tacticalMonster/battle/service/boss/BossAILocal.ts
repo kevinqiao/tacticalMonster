@@ -6,7 +6,7 @@
 import { calculateHexDistance } from "../../utils/hexUtil";
 import { SeededRandom } from "../../utils/seededRandom";
 
-import { CharacterIdentifier } from "../../types/gameTypes";
+import { CharacterIdentifier } from "../../../types/gameTypes";
 
 export interface BossAction {
     type: "use_skill" | "attack" | "move" | "standby";

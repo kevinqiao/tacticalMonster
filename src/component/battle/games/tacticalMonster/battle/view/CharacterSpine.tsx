@@ -5,8 +5,8 @@
 import { Spine } from "pixi-spine";
 import * as PIXI from "pixi.js";
 import { useEffect, useRef, useState } from "react";
+import { MonsterSprite } from "../../types/CombatTypes";
 import { SpineModelAnimator } from "../animation/model/SpineModelAnimator";
-import { MonsterSprite } from "../types/CombatTypes";
 
 
 interface ICharacterProps {

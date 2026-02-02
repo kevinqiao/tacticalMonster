@@ -12,7 +12,7 @@
 import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { api } from "../../../../../../convex/tacticalMonster/convex/_generated/api";
-import { FrontendCombatEvent } from "../types/CombatTypes";
+import { FrontendCombatEvent } from "../../types/CombatTypes";
 
 interface UseWatchModeOptions {
     gameId: string | null | undefined;

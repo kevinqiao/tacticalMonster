@@ -3,12 +3,12 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import { ASSET_TYPE } from "../types/monsterTypes";
 import { useCombatManager } from "./service/CombatManager";
 import { useCurrentTurnHandler } from "./service/handler/hooks/useCurrentTurnHandler";
 import useCombatActHandler from "./service/handler/useCombatActHandler";
 import useEventHandler from "./service/handler/useEventHandler";
 import "./style.css";
-import { ASSET_TYPE } from "./types/monsterTypes";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";

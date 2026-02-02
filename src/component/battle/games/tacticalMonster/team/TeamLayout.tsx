@@ -1,20 +1,52 @@
-import React from "react";
+import gsap from "gsap";
+import React, { useCallback, useEffect } from "react";
+import { Stage } from "../types/StageTypes";
 import CandidatesBox from "./CandidatesBox";
 import DragPreview from "./DragPreview";
 import GridGround from "./GridGround";
+import StageGrid from "./StageGrid";
 import { TeamDeployProvider, useTeamDeployManager } from "./service/TeamDeployManager";
 import "./styles.css";
 
 // 内部布局组件，使用 Context
 const TeamLayoutContent: React.FC = () => {
+
     const {
+        askAddMonster,
         mapDimension,
         candidateContainerRef,
         containerRef,
         mapContainerRef,
         handleDragOver,
         handleDrop,
+        selectCanadidate,
     } = useTeamDeployManager();
+    const openCandidates = useCallback(() => {
+        gsap.to(candidateContainerRef.current, {
+            autoAlpha: 1,
+            duration: 0.5,
+            ease: "power2.inOut",
+        });
+
+    }, []);
+    const closeCandidates = useCallback(() => {
+        gsap.to(candidateContainerRef.current, {
+            autoAlpha: 0,
+            duration: 0.5,
+            ease: "power2.inOut",
+        });
+
+    }, []);
+    const handleSelectCandidate = useCallback((monsterId: string) => {
+        closeCandidates();
+        selectCanadidate(monsterId);
+    }, [closeCandidates, selectCanadidate]);
+    useEffect(() => {
+        if (askAddMonster) {
+            openCandidates();
+        }
+    }, [askAddMonster]);
+
 
     return (
         <div
@@ -24,47 +56,35 @@ const TeamLayoutContent: React.FC = () => {
             onDrop={handleDrop}
         >
             <div className="team-editor-container">
-                <div style={{
-                    width: (mapDimension?.hexWidth || 0) * 2,
-                    height: mapDimension?.height,
-                    backgroundColor: "transparent"
-                }} />
+
                 <div
                     ref={mapContainerRef}
+                    className="team-map-container"
                     style={{
-                        width: (mapDimension?.width || 0) - (mapDimension?.hexWidth || 0) * 2,
+                        width: mapDimension?.width,
                         height: mapDimension?.height,
-                        backgroundColor: "rgba(255, 0, 0, 0.1)",
-                        position: "relative"
+                        backgroundColor: "transparent",
                     }}
                 >
                     <GridGround />
+                    <StageGrid />
                 </div>
-            </div>
-            <div className="team-editor-container" style={{ pointerEvents: "none" }}>
                 <div
                     ref={candidateContainerRef}
                     className="candidates-container"
                     style={{
-                        width: (mapDimension?.hexWidth || 0) * 2,
-                        height: mapDimension?.height,
-                        backgroundColor: "transparent",
+                        opacity: 0,
+                        visibility: "hidden",
+                        backgroundColor: "white",
                         overflowY: "auto",
                         overflowX: "hidden",
                         pointerEvents: "auto"
                     }}
                 >
-                    <CandidatesBox />
+                    <CandidatesBox onSelect={handleSelectCandidate} />
+                    <div className="close-candidates-button" onClick={closeCandidates}>X</div>
                 </div>
-                <div
-                    style={{
-                        width: (mapDimension?.width || 0) - (mapDimension?.hexWidth || 0) * 2,
-                        height: mapDimension?.height,
-                        backgroundColor: "transparent",
-                        pointerEvents: "none",
-                    }}
 
-                />
             </div>
             <div className="team-control-container">
                 <button className="team-join-button">Join</button>
@@ -75,9 +95,9 @@ const TeamLayoutContent: React.FC = () => {
 };
 
 // 外部组件，包裹 Provider
-const TeamLayout: React.FC<{ stageId?: string | null, onComplete: () => void }> = ({ stageId, onComplete }) => {
+const TeamLayout: React.FC<{ stage?: Stage, onComplete: () => void }> = ({ stage, onComplete }) => {
     return (
-        <TeamDeployProvider stageId={stageId} onComplete={onComplete}>
+        <TeamDeployProvider stage={stage} onComplete={onComplete}>
             <TeamLayoutContent />
         </TeamDeployProvider>
     );

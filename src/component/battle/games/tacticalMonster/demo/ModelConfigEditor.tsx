@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AnimationExtractionConfig, AnimationSegment, ModelConfig } from "../battle/config/modelConfig";
+import { AnimationExtractionConfig, AnimationSegment, ModelConfig } from "../config/modelConfig";
 import "./ModelConfigEditor.css";
 
 interface ModelConfigEditorProps {

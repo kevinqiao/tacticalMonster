@@ -4,9 +4,9 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ModelConfig } from "../battle/config/modelConfig";
-import { MonsterSprite } from "../battle/types/CombatTypes";
 import Character3D from "../battle/view/Character3D";
+import { ModelConfig } from "../config/modelConfig";
+import { MonsterSprite } from "../types/CombatTypes";
 import "./Character3DDemo.css";
 import { mockCharacters } from "./mockCharacterData";
 import ModelConfigEditor from "./ModelConfigEditor";

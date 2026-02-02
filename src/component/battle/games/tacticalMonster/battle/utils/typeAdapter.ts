@@ -5,8 +5,8 @@
 
 
 import { GameBoss, GameMinion, GameMonster } from "../../../../../../convex/tacticalMonster/convex/types/monsterTypes";
-import { MonsterSprite } from "../types/CombatTypes";
-import { CharacterIdentifier } from "../types/gameTypes";
+import { MonsterSprite } from "../../types/CombatTypes";
+import { CharacterIdentifier } from "../../types/gameTypes";
 
 // 重新导出后端类型，方便使用
 export type { CharacterIdentifier };

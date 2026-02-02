@@ -7,8 +7,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { loadAnimationSegments as loadAnimationSegmentsFromConfig, loadModelConfig, type ModelConfig } from "../../config/modelConfig";
 import { ThreeDModelAnimator } from "../animation/model/ThreeDModelAnimator";
-import { loadAnimationSegments as loadAnimationSegmentsFromConfig, loadModelConfig, type ModelConfig } from "../config/modelConfig";
 import { ICharacterProps } from "./CharacterGrid";
 
 // 深合并函数（用于合并配置）

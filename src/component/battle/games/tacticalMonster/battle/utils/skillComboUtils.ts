@@ -4,7 +4,7 @@
  */
 
 import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { MonsterSprite } from "../types/CombatTypes";
+import { MonsterSprite } from "../../types/CombatTypes";
 
 export interface SkillCombo {
     skillIds: string[];  // 组合中的技能ID列表

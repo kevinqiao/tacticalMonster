@@ -3,7 +3,7 @@
  * 用于获取敌人和友军列表
  */
 
-import { MonsterSprite } from "../types/CombatTypes";
+import { MonsterSprite } from "../../types/CombatTypes";
 
 /**
  * 获取所有敌人
@@ -15,8 +15,8 @@ export function getAllEnemies(
     character: MonsterSprite,
     characters: MonsterSprite[]
 ): MonsterSprite[] {
-    return characters.filter(c => 
-        c.uid !== character.uid && 
+    return characters.filter(c =>
+        c.uid !== character.uid &&
         c.character_id !== character.character_id
     );
 }
@@ -31,8 +31,8 @@ export function getAllAllies(
     character: MonsterSprite,
     characters: MonsterSprite[]
 ): MonsterSprite[] {
-    return characters.filter(c => 
-        c.uid === character.uid && 
+    return characters.filter(c =>
+        c.uid === character.uid &&
         c.character_id !== character.character_id
     );
 }

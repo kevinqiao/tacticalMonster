@@ -2,7 +2,7 @@
  * Tactical Monster 六边形工具函数
  */
 
-import { MapModel } from "../types/gameTypes";
+import { MapModel } from "../../types/gameTypes";
 
 export const hexToPixel = (q: number, r: number, hexWidth: number, hexHeight: number): { q: number; r: number; x: number; y: number } => {
     const isOddRow = r % 2 !== 0;
@@ -64,7 +64,7 @@ export function getNeighborsInRange(
     range: number
 ): Array<{ q: number; r: number }> {
     const neighbors: Array<{ q: number; r: number }> = [];
-    
+
     for (let dq = -range; dq <= range; dq++) {
         for (let dr = -range; dr <= range; dr++) {
             const distance = calculateHexDistance(
@@ -76,7 +76,7 @@ export function getNeighborsInRange(
             }
         }
     }
-    
+
     return neighbors;
 }
 

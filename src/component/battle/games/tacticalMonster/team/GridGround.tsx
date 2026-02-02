@@ -4,8 +4,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { GridCellSprite } from '../battle/types/CombatTypes';
 import { calculateHexPoints } from '../battle/utils/gridUtils';
+import { GridCellSprite } from '../types/CombatTypes';
 
 import { STYLES } from '../battle/constants/GridConstants';
 import { useTeamDeployManager } from './service/TeamDeployManager';
@@ -18,15 +18,13 @@ const GroundCell: React.FC<{
 
 }> = ({ cell }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const { mapDimension, monsters, highlightedCell, startDrag, endDrag } = useTeamDeployManager();
+    const { quitTeam, mapDimension, playerMonsters, startDrag, endDrag, askAdd, logicToView } = useTeamDeployManager();
     const [placedMonster, setPlacedMonster] = useState<{ monsterId: string, teamPosition: { q: number; r: number } } | null>(null);
     const width = mapDimension?.hexWidth || 0;
     const height = mapDimension?.hexHeight || 0;
 
     const points = useMemo(() => calculateHexPoints(width), [width]);
     const hexHeight = height;
-    const isHighlighted = highlightedCell?.q === cell.q && highlightedCell?.r === cell.r;
-
     const outerPolygonPoints = useMemo(() =>
         points.map(point => `${point.x},${point.y}`).join(" "),
         [points]
@@ -35,7 +33,7 @@ const GroundCell: React.FC<{
     const svgStyle: React.CSSProperties = {
         width: width,
         height: hexHeight,
-        pointerEvents: "none",
+        // pointerEvents: "none",
     };
     const handleDragStart = useCallback((e: React.DragEvent) => {
         if (!placedMonster) return;
@@ -62,21 +60,59 @@ const GroundCell: React.FC<{
         endDrag();
         e.dataTransfer.clearData();
     };
-
+    const handleQuitTeam = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation(); // 阻止事件冒泡到拖拽层
+        console.log("handleQuitTeam", placedMonster?.monsterId);
+        if (placedMonster) {
+            quitTeam(placedMonster.monsterId);
+        }
+    }, [placedMonster, quitTeam]);
     useEffect(() => {
-        const monster = monsters.find((m) => m.teamPosition?.q === cell.q && m.teamPosition?.r === cell.r);
-        if (monster && monster.teamPosition)
-            setPlacedMonster({ monsterId: monster.monsterId, teamPosition: monster.teamPosition });
-        else
+        // playerMonsters 中的 teamPosition 是逻辑坐标，需要转换为视图坐标后与 cell 比较
+        const monster = playerMonsters.find((m) => {
+            if (!m.teamPosition) return false;
+            const viewPos = logicToView(m.teamPosition.q, m.teamPosition.r);
+            return viewPos.q === cell.q && viewPos.r === cell.r;
+        });
+        if (!monster && placedMonster) {
             setPlacedMonster(null);
-    }, [monsters, cell]);
+            return;
+        }
+        if (monster && (monster.monsterId === placedMonster?.monsterId || !placedMonster)) {
+            setPlacedMonster(monster as { monsterId: string, teamPosition: { q: number; r: number } });
+            return;
+        }
+        setPlacedMonster(null);
+    }, [playerMonsters, placedMonster, cell, logicToView]);
+    useEffect(() => {
+        if ((cell as GridCellSprite) && mapDimension) {
+            const sprite = cell as GridCellSprite;
+            if (sprite.element) {
+                sprite.element.style.fill = "black";
+                sprite.element.style.stroke = "white";
+                sprite.element.style.strokeWidth = "4";
+                sprite.element.style.opacity = "0.4";
+            }
+        }
+    }, [cell, mapDimension]);
     return (
-        <div style={{ position: "relative", width: width, height: hexHeight }}>
+        // 单元格容器 - 不响应事件，让事件穿透到内部的 SVG polygon
+        <div style={{
+            position: "relative",
+            width: width,
+            height: hexHeight,
+            pointerEvents: "none", // 关键：容器不阻挡事件
+        }}>
+            {/* 背景 SVG - 不响应事件 */}
             <svg
                 width={width}
-                height={height}
-                style={svgStyle}
-                viewBox={`0 0 ${width} ${height}`}
+                height={hexHeight}
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                }}
+                viewBox={`0 0 ${width} ${hexHeight}`}
                 xmlns="http://www.w3.org/2000/svg"
                 data-testid={`grid-cell-${cell.r}-${cell.q}`}
             >
@@ -87,45 +123,110 @@ const GroundCell: React.FC<{
                     data-q={cell.q}
                     data-r={cell.r}
                     points={outerPolygonPoints}
-                    fill={isHighlighted ? "rgba(0, 255, 0, 0.5)" : "black"}
-                    stroke={isHighlighted ? "yellow" : "white"}
-                    strokeWidth={isHighlighted ? 6 : 4}
-                    opacity={isHighlighted ? 0.8 : 0.6}
+                    fill={"black"}
+                    stroke={"white"}
+                    strokeWidth={4}
+                    opacity={0.4}
                     pointerEvents="none"
-                    role="button"
-                    aria-label={`Ground grid at row ${cell.r}, column ${cell.q}`}
                 />
             </svg>
-            {placedMonster && <div
-                key={placedMonster.monsterId}
-                draggable={true}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    cursor: "grab",
-                    userSelect: "none",
-                    width: "100%",
-                    height: "100%",
-                    opacity: isDragging ? 0 : 1,
-                    // 尖角朝上的正六边形 clip-path
-                    // 顶点顺序：上 → 右上 → 右下 → 下 → 左下 → 左上
-                    clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
-                    backgroundColor: "red",
-                }} >
-                {placedMonster.monsterId}
-            </div>}
+
+            {placedMonster &&
+                <>
+                    {/* 可拖拽的怪物卡片 */}
+                    <div
+                        draggable={true}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            backgroundColor: "blue",
+                            cursor: "grab",
+                            userSelect: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            opacity: isDragging ? 0 : 1,
+                            clipPath: "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+                            pointerEvents: "auto", // 关键：启用事件响应
+                        }}
+                    >
+                        <span style={{
+                            color: "white",
+                            fontSize: Math.min(width, hexHeight) * 0.1,
+                            pointerEvents: "none",
+                        }}>
+                            {placedMonster.monsterId}
+                        </span>
+                    </div>
+
+                    {/* QUIT 按钮 */}
+                    <div
+                        onClick={handleQuitTeam}
+                        style={{
+                            position: "absolute",
+                            left: "50%",
+                            top: "55%",
+                            transform: "translateX(-50%)",
+                            width: "40%",
+                            height: "18%",
+                            backgroundColor: "rgb(11, 133, 233)",
+                            color: "white",
+                            fontSize: Math.min(width, hexHeight) * 0.09,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            borderRadius: 3,
+                            opacity: isDragging ? 0 : 1,
+                            pointerEvents: "auto", // 关键：启用事件响应
+                        }}
+                    >
+                        QUIT
+                    </div>
+                </>
+            }
+            {/* <svg
+                    width={width}
+                    height={hexHeight}
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                    }}
+                    viewBox={`0 0 ${width} ${hexHeight}`}
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <polygon
+                        points={outerPolygonPoints}
+                        fill="transparent"
+                        style={{ cursor: "pointer" }}
+                        pointerEvents="auto"
+                        // onClick={() => askAdd(cell.q, cell.r)}
+                    />
+                    <text
+                        x="50%"
+                        y="50%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="white"
+                        fontSize={Math.min(width, hexHeight) * 0.3}
+                        pointerEvents="none"
+                    >
+                        +
+                    </text>
+                </svg> */}
+
         </div>
     );
 };
 
 const GridGround: React.FC = () => {
-    const { mapDimension, groundCells, highlightedCell } = useTeamDeployManager();
+    const { mapDimension, groundCells } = useTeamDeployManager();
 
     const hexHeight = mapDimension?.hexHeight || 0;
     const hexWidth = mapDimension?.hexWidth || 0;
@@ -137,6 +238,7 @@ const GridGround: React.FC = () => {
         return {
             ...STYLES.row(bottom, left),
             position: "relative" as const,
+            pointerEvents: "none" as const, // 行容器不阻挡事件
         };
     }, [hexHeight, hexWidth]);
 
@@ -144,6 +246,7 @@ const GridGround: React.FC = () => {
         <div style={{
             width: "100%",
             height: "100%",
+            pointerEvents: "none", // 网格容器不阻挡事件
         }}>
             {groundCells?.map((row: GridCellSprite[], rowIndex: number) => (
                 <div

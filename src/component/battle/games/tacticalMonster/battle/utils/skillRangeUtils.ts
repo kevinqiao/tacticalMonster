@@ -4,7 +4,7 @@
  */
 
 import { MonsterSkill, SkillEffect } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { MonsterSprite } from "../types/CombatTypes";
+import { MonsterSprite } from "../../types/CombatTypes";
 import { calculateHexDistance } from "./hexUtil";
 
 /**

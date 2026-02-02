@@ -3,7 +3,7 @@
  */
 
 import { Spine } from "pixi-spine";
-import { ModelAnimator } from "../../types/CombatTypes";
+import { ModelAnimator } from "../../../types/CombatTypes";
 
 export class SpineModelAnimator implements ModelAnimator {
     private skeleton: Spine;

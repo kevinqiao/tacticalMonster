@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useRef, useState } from "react";
-import { GameModel, MonsterSprite } from "../../types/CombatTypes";
+import { GameModel, MonsterSprite } from "../../../types/CombatTypes";
 import { BossAction, BossAIDecision, BossAILocal } from "./BossAILocal";
 
 export interface PredictedAction {

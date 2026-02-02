@@ -4,10 +4,10 @@
 
 import React, { useCallback, useState } from "react";
 import { api } from "../../../../../../../../convex/tacticalMonster/convex/_generated/api";
-import { getSkillConfig } from "../../../config/skillConfigs";
+import { getSkillConfig } from "../../../../config/skillConfigs";
+import { MonsterSprite } from "../../../../types/CombatTypes";
+import { MonsterSkill } from "../../../../types/skillTypes";
 import { useGameSettings } from "../../../hooks/useGameSettings";
-import { MonsterSprite } from "../../../types/CombatTypes";
-import { MonsterSkill } from "../../../types/skillTypes";
 import { hexDistance } from "../../../utils/hexUtil";
 import { getPossiblePositions } from "../../../utils/positionEvaluator";
 import { PositionSelectionUI } from "../../../view/PositionSelectionUI";

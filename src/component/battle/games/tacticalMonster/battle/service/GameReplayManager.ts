@@ -3,8 +3,8 @@
  * 负责加载、管理和回放游戏事件
  */
 
-import { CombatEvent } from "../types/CombatTypes";
-import { GameModel, MapModel } from "../types/gameTypes";
+import { CombatEvent } from "../../types/CombatTypes";
+import { GameModel, MapModel } from "../../types/gameTypes";
 
 export interface ReplayState {
     isPlaying: boolean;

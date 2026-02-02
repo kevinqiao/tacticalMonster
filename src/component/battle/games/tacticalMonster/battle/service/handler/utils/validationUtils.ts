@@ -2,7 +2,7 @@
  * 验证工具函数
  */
 
-import { MonsterSprite } from "../../../types/CombatTypes";
+import { MonsterSprite } from "../../../../types/CombatTypes";
 
 /**
  * 验证是否可以执行操作

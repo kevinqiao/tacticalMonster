@@ -3,7 +3,7 @@
  */
 
 import * as THREE from "three";
-import { ModelAnimator } from "../../types/CombatTypes";
+import { ModelAnimator } from "../../../types/CombatTypes";
 
 export class ThreeDModelAnimator implements ModelAnimator {
     private mixer: THREE.AnimationMixer;

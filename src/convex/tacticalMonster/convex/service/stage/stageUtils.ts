@@ -3,7 +3,7 @@
  * 处理 Stage 相关的工具方法
  */
 
-import { Stage } from "../../../../../component/battle/games/tacticalMonster/battle/types/StageTypes";
+import { Stage } from "../../../../../component/battle/games/tacticalMonster/types/StageTypes";
 
 export class StageUtils {
     /**

@@ -3,8 +3,8 @@
  * 支持所有 GLB 格式的角色模型
  */
 
-import { ASSET_TYPE } from "../battle/types/CharacterTypes";
-import { MonsterSprite } from "../battle/types/CombatTypes";
+import { ASSET_TYPE } from "../types/CharacterTypes";
+import { MonsterSprite } from "../types/CombatTypes";
 
 /**
  * 根据模型路径和名称生成角色配置的辅助函数

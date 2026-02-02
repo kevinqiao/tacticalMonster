@@ -5,12 +5,12 @@
 
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ModelConfig } from "../battle/config/modelConfig";
-import { MapModel, MonsterSprite } from "../battle/types/CombatTypes";
 import { calculateHexPoints, pointsToPath } from "../battle/utils/gridUtils";
 import { calculateHexDistance } from "../battle/utils/hexUtil";
 import { findPath } from "../battle/utils/PathFind";
 import Character3D from "../battle/view/Character3D";
+import { ModelConfig } from "../config/modelConfig";
+import { MapModel, MonsterSprite } from "../types/CombatTypes";
 import "./CharacterWalkDemo.css";
 import { mockCharacters } from "./mockCharacterData";
 import ModelConfigEditor from "./ModelConfigEditor";

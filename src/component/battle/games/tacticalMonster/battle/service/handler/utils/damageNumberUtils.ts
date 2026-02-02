@@ -3,8 +3,8 @@
  * 从 stateChanges 中提取伤害值并显示伤害数字
  */
 
-import { StateChanges } from "../../../types/backendResponseTypes";
-import { MonsterSprite } from "../../../types/CombatTypes";
+import { StateChanges } from "../../../../types/backendResponseTypes";
+import { MonsterSprite } from "../../../../types/CombatTypes";
 import { showDamageNumber } from "../../../utils/damageNumberDisplay";
 import { CharacterIdentifier } from "../../../utils/typeAdapter";
 import { findTargetByIdentifier } from "./characterUtils";

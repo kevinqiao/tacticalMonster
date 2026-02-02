@@ -9,18 +9,18 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import { useGameReplay } from "../hooks/useGameReplay";
-import { useWatchMode } from "../hooks/useWatchMode";
-import type { GameModel } from "../types/CombatTypes";
+import type { GameModel } from "../../types/CombatTypes";
 import {
     FrontendCombatEvent,
     GameMode,
     GridCellSprite,
     MonsterSprite,
     ReplayControls
-} from "../types/CombatTypes";
-import { PhaseChanges } from "../types/gameTypes";
-import { ObstacleCell, ObstacleSprite } from "../types/obstacleTypes";
+} from "../../types/CombatTypes";
+import { PhaseChanges } from "../../types/gameTypes";
+import { ObstacleCell, ObstacleSprite } from "../../types/obstacleTypes";
+import { useGameReplay } from "../hooks/useGameReplay";
+import { useWatchMode } from "../hooks/useWatchMode";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
 import { usePhaseChangesHandler } from "./handler/hooks/usePhaseChangesHandler";
 

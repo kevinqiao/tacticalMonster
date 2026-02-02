@@ -3,9 +3,9 @@
  * 处理技能效果的应用、计算、移除和更新
  */
 
-import { MonsterSprite } from "../types/CombatTypes";
-import { StatusEffect } from "../types/monsterTypes";
-import { SkillEffect, SkillEffectType } from "../types/skillTypes";
+import { MonsterSprite } from "../../types/CombatTypes";
+import { StatusEffect } from "../../types/monsterTypes";
+import { SkillEffect, SkillEffectType } from "../../types/skillTypes";
 
 import { SeededRandom } from "./seededRandom";
 

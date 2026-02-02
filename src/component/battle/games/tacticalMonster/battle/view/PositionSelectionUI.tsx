@@ -4,9 +4,8 @@
  */
 
 import React, { useEffect, useRef } from "react";
-import { MonsterSprite } from "../types/CombatTypes";
-import { GridCellSprite } from "../types/CombatTypes";
-import { highlightPossiblePositions, clearPositionHighlights, getScoreColor } from "../utils/positionHighlightUtils";
+import { GridCellSprite, MonsterSprite } from "../../types/CombatTypes";
+import { clearPositionHighlights, getScoreColor, highlightPossiblePositions } from "../utils/positionHighlightUtils";
 
 interface PositionSelectionUIProps {
     positions: Array<{ q: number; r: number; score: number }>;
@@ -24,14 +23,14 @@ export const PositionSelectionUI: React.FC<PositionSelectionUIProps> = ({
     onCancel
 }) => {
     const highlightedPositionsRef = useRef<Array<{ q: number; r: number }>>([]);
-    
+
     // 在地图上高亮显示所有可选位置
     useEffect(() => {
         if (positions.length > 0) {
             highlightPossiblePositions(positions, gridCells);
             highlightedPositionsRef.current = positions;
         }
-        
+
         return () => {
             // 清理高亮
             if (highlightedPositionsRef.current.length > 0) {
@@ -39,21 +38,21 @@ export const PositionSelectionUI: React.FC<PositionSelectionUIProps> = ({
             }
         };
     }, [positions, gridCells]);
-    
+
     const handlePositionClick = (position: { q: number; r: number }) => {
         // 清除高亮
         clearPositionHighlights(highlightedPositionsRef.current, gridCells);
         // 选择位置
         onSelect(position);
     };
-    
+
     const handleCancel = () => {
         // 清除高亮
         clearPositionHighlights(highlightedPositionsRef.current, gridCells);
         // 取消选择
         onCancel();
     };
-    
+
     return (
         <div className="position-selection-ui" style={{
             position: "fixed",

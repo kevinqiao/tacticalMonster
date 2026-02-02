@@ -2,7 +2,7 @@
  * 得分计算工具函数
  */
 
-import { MonsterSprite } from "../../../types/CombatTypes";
+import { MonsterSprite } from "../../../../types/CombatTypes";
 
 /**
  * 计算击杀得分

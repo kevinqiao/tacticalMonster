@@ -4,7 +4,7 @@
  */
 
 import gsap from "gsap";
-import { GridCellSprite } from "../types/CombatTypes";
+import { GridCellSprite } from "../../types/CombatTypes";
 
 /**
  * 根据评分返回颜色
@@ -40,15 +40,15 @@ export function highlightPosition(
 ): void {
     const cell = gridCells[position.r]?.[position.q];
     if (!cell?.element) return;
-    
+
     const highlightColor = color || (score !== undefined ? getScoreColor(score) : "rgba(52, 152, 219, 0.7)");
-    
+
     // 使用 GSAP 设置高亮
     gsap.set(cell.element, {
         backgroundColor: highlightColor,
         opacity: 0.7
     });
-    
+
     // 添加评分文字（如果有）
     if (score !== undefined && cell.element) {
         // 移除旧的评分文字
@@ -56,7 +56,7 @@ export function highlightPosition(
         if (oldText) {
             oldText.remove();
         }
-        
+
         // 创建新的评分文字
         const scoreText = document.createElement('div');
         scoreText.className = 'position-score-text';
@@ -88,13 +88,13 @@ export function clearPositionHighlight(
 ): void {
     const cell = gridCells[position.r]?.[position.q];
     if (!cell?.element) return;
-    
+
     // 清除背景色
     gsap.set(cell.element, {
         backgroundColor: "transparent",
         opacity: 1
     });
-    
+
     // 移除评分文字
     const scoreText = cell.element.querySelector('.position-score-text');
     if (scoreText) {

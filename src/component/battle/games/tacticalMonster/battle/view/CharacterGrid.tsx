@@ -4,16 +4,16 @@
 
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { MonsterSprite } from "../../types/CombatTypes";
+import { ASSET_TYPE } from "../../types/monsterTypes";
 import { useCombatManager } from "../service/CombatManager";
 import useCombatActHandler from "../service/handler/useCombatActHandler";
 import "../style.css";
-import { MonsterSprite } from "../types/CombatTypes";
-import { ASSET_TYPE } from "../types/monsterTypes";
 import { coordToPixel } from "../utils/hexUtil";
 import { updateHPMPDisplay } from "../utils/hpmpDisplayUpdater";
 
 
-import { ModelConfig } from "../config/modelConfig";
+import { ModelConfig } from "../../config/modelConfig";
 
 export interface ICharacterProps {
     character: MonsterSprite;

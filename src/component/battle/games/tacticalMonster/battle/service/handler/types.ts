@@ -2,8 +2,8 @@
  * 战斗操作处理器类型定义
  */
 
-import { UseSkillResponse } from "../../types/backendResponseTypes";
-import { MonsterSprite } from "../../types/CombatTypes";
+import { UseSkillResponse } from "../../../types/backendResponseTypes";
+import { MonsterSprite } from "../../../types/CombatTypes";
 
 /**
  * 技能同步状态

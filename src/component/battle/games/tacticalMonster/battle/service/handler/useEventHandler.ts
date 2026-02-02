@@ -6,7 +6,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import usePlaySkill from "../../animation/usePlaySkill";
 import usePlayWalk from "../../animation/usePlayWalk";
-import { CombatEvent } from "../../types/CombatTypes";
 import type { CharacterIdentifier } from "../../utils/typeAdapter";
 import { useCombatManager } from "../CombatManager";
 import { usePassiveSkillAnimations } from "./hooks/usePassiveSkillAnimations";

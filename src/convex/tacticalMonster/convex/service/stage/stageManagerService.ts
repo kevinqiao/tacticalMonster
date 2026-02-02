@@ -4,7 +4,7 @@
  */
 
 import { v } from "convex/values";
-import { Stage } from "../../../../../component/battle/games/tacticalMonster/battle/types/StageTypes";
+import { Stage } from "../../../../../component/battle/games/tacticalMonster/types/StageTypes";
 import { internalMutation, internalQuery, query } from "../../_generated/server";
 import { calculateScaleBoss, getBossConfig } from "../../data/bossConfigs";
 import { getMapTemplateConfig, getMapTemplateConfigsByTier } from "../../data/mapTemplateConfigs";

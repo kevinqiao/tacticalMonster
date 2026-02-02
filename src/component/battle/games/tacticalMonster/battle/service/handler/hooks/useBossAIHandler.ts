@@ -3,7 +3,7 @@
  */
 
 import { useCallback } from "react";
-import { MonsterSprite } from "../../../types/CombatTypes";
+import { MonsterSprite } from "../../../../types/CombatTypes";
 import { findPath } from "../../../utils/PathFind";
 import { CharacterIdentifier } from "../../../utils/typeAdapter";
 

@@ -2,9 +2,9 @@
  * 前端测试工具函数
  */
 
-import { MonsterSprite } from "../types/CombatTypes";
-import { StateChanges } from "../types/backendResponseTypes";
-import { SkillEffectType } from "../types/skillTypes";
+import { MonsterSprite } from "../../types/CombatTypes";
+import { StateChanges } from "../../types/backendResponseTypes";
+import { SkillEffectType } from "../../types/skillTypes";
 
 /**
  * 创建测试角色
@@ -58,15 +58,15 @@ export function createTestStateChanges(overrides?: Partial<StateChanges>): State
             {
                 characterIdentifier: { bossId: "boss_bronze_1" },
                 statusEffects: [
-                        {
-                            id: "burn_effect_001",
-                            name: "燃烧",
-                            type: SkillEffectType.DOT,
-                            value: 10,
-                            duration: 3,
-                            remaining_duration: 3,
-                            damage_type: "magical",
-                        },
+                    {
+                        id: "burn_effect_001",
+                        name: "燃烧",
+                        type: SkillEffectType.DOT,
+                        value: 10,
+                        duration: 3,
+                        remaining_duration: 3,
+                        damage_type: "magical",
+                    },
                 ],
             },
         ],

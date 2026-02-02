@@ -13,8 +13,6 @@ const DragPreview: React.FC = () => {
                 position: "fixed",
                 left: 0,
                 top: 0,
-                // left: dragPreviewPosition.x - size / 2,
-                // top: dragPreviewPosition.y - size / 2,
                 width: size,
                 height: size,
                 background: isValidDrop

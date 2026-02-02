@@ -17,7 +17,8 @@ export interface Stage {
             q: number;
             r: number;
         }>;
-    };                    // 生成的地图 ID
+    };
+    deployables?: { q: number, r: number };
     difficulty: number;                 // Boss Power / Player Team Power 比率（缩放后）
     seed: string;                       // 随机种子
     attempts?: number;                   // 尝试次数

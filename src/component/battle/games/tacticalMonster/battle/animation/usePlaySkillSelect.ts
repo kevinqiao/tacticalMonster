@@ -4,9 +4,9 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
-import { COMMON_SKILLS } from "../config/skillConfigs";
+import { COMMON_SKILLS } from "../../config/skillConfigs";
+import { MonsterSkill } from "../../types/skillTypes";
 import { useCombatManager } from "../service/CombatManager";
-import { MonsterSkill } from "../types/skillTypes";
 import { getAttackableNodes } from "../utils/PathFind";
 
 const usePlaySkillSelect = () => {

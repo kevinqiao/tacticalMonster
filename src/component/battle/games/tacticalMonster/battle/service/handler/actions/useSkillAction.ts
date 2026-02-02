@@ -9,8 +9,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback } from "react";
 import { api } from "../../../../../../../../convex/tacticalMonster/convex/_generated/api";
-import { UseSkillResponse } from "../../../types/backendResponseTypes";
-import { MonsterSprite } from "../../../types/CombatTypes";
+import { UseSkillResponse } from "../../../../types/backendResponseTypes";
+import { MonsterSprite } from "../../../../types/CombatTypes";
 import { SkillSyncState } from "../types";
 import { createCharacterIdentifiers } from "../utils/characterUtils";
 import { canPerformAction } from "../utils/validationUtils";

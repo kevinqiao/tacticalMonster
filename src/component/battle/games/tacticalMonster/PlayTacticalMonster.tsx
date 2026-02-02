@@ -11,9 +11,10 @@ import usePreGameAnimate from "./animation/usePreGameAnimate";
 import BattlePlayer from "./battle/BattlePlayer";
 import CombatManager from "./battle/service/CombatManager";
 
-import { GameModel } from "./battle/types/gameTypes";
 import "./styles.css";
-import TeamLayout from "./team/TeamLayout";
+import { TeamLayout3D } from "./team/threejs";
+import { GameModel } from "./types/gameTypes";
+import { Stage } from "./types/StageTypes";
 interface Props {
     game: GameModel;
     mode: 'join' | 'play' | 'watch' | 'replay';
@@ -43,6 +44,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     const loadingRef = useRef<HTMLDivElement>(null);
     const teamLayoutRef = useRef<HTMLDivElement>(null);
     const playGameRef = useRef<HTMLDivElement>(null);
+    const [stage, setStage] = useState<Stage | null>(null);
     const [game, setGame] = useState<GameModel | null>(null);
     const [initialPhaseChanges, setInitialPhaseChanges] = useState<any>(null); // ✅ 保存初始 phaseChanges
     const loadingGameIdRef = useRef<string | null>(null); // 防止重复加载
@@ -53,7 +55,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     const { playInit, openTeamLayout, playLoading, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
 
     const startJoin = useCallback(async () => {
-        console.log("startJoin", props);
+
         if (props.mode === "join" && props.typeId && props.stageId) {
             playLoading();
             const result = await joinTournament(props.typeId, props.stageId);
@@ -70,7 +72,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     }, [props]);
 
     useEffect(() => {
-        console.log("useEffect", props);
+
         if (!props.visible) {
             setGame(null);
             setInitialPhaseChanges(null); // ✅ 重置 phaseChanges
@@ -101,7 +103,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     }, [props, user?.uid, tacticalMonsterClient]);
     useEffect(() => {
         // 使用 onUpdate 订阅数据更新
-        if (!user?.uid || !tournamentClient || !tacticalMonsterClient) return;
+        if (!user?.uid || !tournamentClient || !tacticalMonsterClient || !props.visible) return;
         const unsubscribe = tournamentClient.onUpdate(
             tournamentApi.service.tournament.matchManager.findNewMatch,
             { uid: user?.uid },
@@ -136,10 +138,19 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
 
     }, [user, tournamentClient, props, tacticalMonsterClient]);
 
+    useEffect(() => {
+        if (!props.stageId) return;
+        tacticalMonsterClient.query(tacticalMonsterApi.service.stage.stageManagerService.findStage, { stageId: props.stageId }).then((res) => {
+            console.log("getStage result", res);
+            if (res) {
+                setStage(res);
+            }
+        });
+    }, [props.stageId]);
 
     return <>
         <div ref={teamLayoutRef} className="team-layout-container">
-            {props.visible && <TeamLayout stageId={props.stageId} onComplete={startJoin} />}
+            {props.visible && stage && <TeamLayout3D stage={stage} onComplete={startJoin} />}
         </div>
         <div ref={playGameRef} className="play-tactical-monster-container">
             {props.visible && game && <PlayGame game={game} mode={props.mode} initialPhaseChanges={initialPhaseChanges} />}

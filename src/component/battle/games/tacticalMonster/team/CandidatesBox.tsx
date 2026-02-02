@@ -2,12 +2,13 @@ import React, { useMemo, useRef, useState } from "react";
 import { useTeamDeployManager } from "./service/TeamDeployManager";
 
 interface CandidateCellProps {
+    onSelect: () => void;
     sprite: { monsterId: string };
     index: number;
 }
 
-const CandidateCell: React.FC<CandidateCellProps> = ({ sprite, index }) => {
-    const { mapDimension, startDrag, endDrag, placeMonster } = useTeamDeployManager();
+const CandidateCell: React.FC<CandidateCellProps> = ({ sprite, index, onSelect }) => {
+    const { mapDimension, startDrag, endDrag, askAddMonster } = useTeamDeployManager();
     const cellRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
 
@@ -42,6 +43,7 @@ const CandidateCell: React.FC<CandidateCellProps> = ({ sprite, index }) => {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             style={{
+                position: "relative",
                 width: "100%",
                 height: hexHeight,
                 backgroundColor: index % 2 === 0 ? "black" : "green",
@@ -57,15 +59,17 @@ const CandidateCell: React.FC<CandidateCellProps> = ({ sprite, index }) => {
             }}
         >
             <span style={{ fontSize: "12px" }}>{sprite.monsterId}</span>
+            {askAddMonster && <div className="candidate-select-button" onClick={onSelect}>select</div>}
         </div>
     );
 };
 
-const CandidatesBox: React.FC = () => {
-    const { monsters } = useTeamDeployManager();
+const CandidatesBox: React.FC<{ onSelect: (monsterId: string) => void }> = ({ onSelect }) => {
+    const { playerMonsters, selectCanadidate } = useTeamDeployManager();
     const candidates = useMemo(() => {
-        return monsters.filter((monster) => !monster.teamPosition);
-    }, [monsters]);
+        return playerMonsters.filter((monster) => !monster.teamPosition);
+    }, [playerMonsters]);
+
 
     return (
         <>
@@ -74,6 +78,7 @@ const CandidatesBox: React.FC = () => {
                     key={candidate.monsterId}
                     sprite={candidate}
                     index={index}
+                    onSelect={() => onSelect(candidate.monsterId)}
                 />
             ))}
         </>

@@ -5,8 +5,8 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
-import { getSkillConfig } from "../../../config/skillConfigs";
-import { MonsterSprite } from "../../../types/CombatTypes";
+import { getSkillConfig } from "../../../../config/skillConfigs";
+import { MonsterSprite } from "../../../../types/CombatTypes";
 import { showDamageNumber } from "../../../utils/damageNumberDisplay";
 
 /**

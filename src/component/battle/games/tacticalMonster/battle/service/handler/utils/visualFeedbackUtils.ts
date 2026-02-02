@@ -3,7 +3,7 @@
  */
 
 import gsap from "gsap";
-import { MonsterSprite } from "../../../types/CombatTypes";
+import { MonsterSprite } from "../../../../types/CombatTypes";
 
 /**
  * 应用视觉反馈（缩放效果）

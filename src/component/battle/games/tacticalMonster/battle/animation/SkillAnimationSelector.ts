@@ -3,7 +3,7 @@
  * 根据技能配置、映射表和效果类型选择适当的动画
  */
 
-import { MonsterSkill, SkillAnimation, SkillEffect, SkillEffectType } from "../types/skillTypes";
+import { MonsterSkill, SkillAnimation, SkillEffect, SkillEffectType } from "../../types/skillTypes";
 
 export class SkillAnimationSelector {
     // 技能ID到动画配置的映射（优先级2）

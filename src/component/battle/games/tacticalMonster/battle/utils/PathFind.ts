@@ -3,7 +3,7 @@
  */
 
 import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
-import { AttackableNode, HexNode, WalkableNode } from "../types/CombatTypes";
+import { AttackableNode, HexNode, WalkableNode } from "../../types/CombatTypes";
 
 // 计算六边形距离（用于飞行单位的直线路径）
 const calculateHexDistance = (from: HexNode, to: HexNode): number => {

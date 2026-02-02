@@ -6,8 +6,8 @@
  * - 计算击杀分数
  */
 
-import { StateChanges } from "../../../types/backendResponseTypes";
-import { MonsterSprite } from "../../../types/CombatTypes";
+import { StateChanges } from "../../../../types/backendResponseTypes";
+import { MonsterSprite } from "../../../../types/CombatTypes";
 import { updateHPMPDisplay } from "../../../utils/hpmpDisplayUpdater";
 import { CharacterIdentifier } from "../../../utils/typeAdapter";
 import { findTargetByIdentifier } from "./characterUtils";

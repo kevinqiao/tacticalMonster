@@ -4,8 +4,8 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
+import { MonsterSprite } from "../../types/CombatTypes";
 import { useCombatManager } from "../service/CombatManager";
-import { MonsterSprite } from "../types/CombatTypes";
 import { coordToPixel } from "../utils/hexUtil";
 
 const usePlayWalk = () => {

@@ -4,11 +4,11 @@
 
 import React, { useCallback, useMemo } from 'react';
 
+import { GridCellSprite } from '../../types/CombatTypes';
+import { GridCellProps } from '../../types/GridTypes';
 import { HEX_RATIO, SCALE_FACTOR, STYLES } from '../constants/GridConstants';
 import { useCombatManager } from '../service/CombatManager';
 import '../style.css';
-import { GridCellSprite } from '../types/CombatTypes';
-import { GridCellProps } from '../types/GridTypes';
 import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils';
 
 const GroundCell: React.FC<GridCellProps> = ({ row, col, cell }) => {

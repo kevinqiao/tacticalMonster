@@ -2,12 +2,12 @@
  * useSkillSync Hook 单元测试
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MonsterSprite } from "../../../../types/CombatTypes";
+import { UseSkillResponse } from "../../../../types/backendResponseTypes";
 import { useSkillSync } from "../../../service/handler/hooks/useSkillSync";
-import { createTestCharacter, createTestStateChanges, createTestPhaseChanges } from "../../testUtils";
-import { MonsterSprite } from "../../../types/CombatTypes";
-import { UseSkillResponse } from "../../../types/backendResponseTypes";
+import { createTestCharacter, createTestPhaseChanges } from "../../testUtils";
 
 // Mock dependencies
 vi.mock("../../../service/handler/utils/backendResponseUtils", () => ({
