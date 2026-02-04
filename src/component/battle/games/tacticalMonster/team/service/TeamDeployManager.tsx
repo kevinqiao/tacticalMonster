@@ -23,6 +23,8 @@ export interface TeamContextValue {
     // 状态
     askAddMonster: { q: number, r: number } | null;
     mapDimension: MapDimension | null;
+    /** 容器像素尺寸（固定世界尺寸时用于地图 div 布局，3D 仍用 mapDimension） */
+    containerSize: { width: number; height: number } | null;
     playerMonsters: { monsterId: string, teamPosition?: { q: number; r: number } }[];
     dragMonster: { monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null;
     groundCells: GridCellSprite[][];
@@ -51,6 +53,7 @@ export interface TeamContextValue {
     handleDragOver: (e: React.DragEvent) => void;
     handleDrop: (e: React.DragEvent) => void;
     isCellOccupied: (viewQ: number, viewR: number) => boolean;
+    moveMonster: (monsterId: string, logicQ: number, logicR: number) => void;
 }
 
 // ============ Context 创建 ============
@@ -82,7 +85,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, onCompl
     const dragPreviewContainerRef = useRef<HTMLDivElement | null>(null);
 
     // 使用 useMapDimension Hook
-    const { containerRef, mapDimension } = useMapDimension();
+    const { containerRef, mapDimension, containerSize } = useMapDimension();
 
     const [askAddMonster, setAskAddMonster] = useState<{ q: number, r: number } | null>(null);
     const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
@@ -302,6 +305,20 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, onCompl
         placeMonster(monsterId, undefined);
     }, [placeMonster]);
 
+    // 移动怪物到新位置（接收逻辑坐标）
+    const moveMonster = useCallback((monsterId: string, logicQ: number, logicR: number) => {
+        setPlayerMonsters(prev => {
+            const updated = prev.map(m => {
+                if (m.monsterId === monsterId) {
+                    return { ...m, teamPosition: { q: logicQ, r: logicR } };
+                }
+                return m;
+            });
+            console.log("[TeamDeployManager] 移动怪物:", monsterId, "到逻辑坐标:", { q: logicQ, r: logicR });
+            return updated;
+        });
+    }, []);
+
     // 处理拖拽悬停
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -331,7 +348,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, onCompl
         // 动画进行中，只更新 dropEffect，不更新 UI
         if (dragMonster.inited === 1) return;
 
-        // 更新拖拽预览位置
+        // 更新拖拽预览位置（预览用屏幕像素，固定世界尺寸时用容器内像素对应的 hex 尺寸）
         if (!dragPreviewContainerRef.current) return;
 
         const x = e.clientX - mapDimension.hexWidth / 2;
@@ -418,6 +435,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, onCompl
     const value: TeamContextValue = useMemo(() => ({
         // 状态
         mapDimension,
+        containerSize,
         playerMonsters,
         dragMonster,
         groundCells,
@@ -439,10 +457,12 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, onCompl
         handleDragOver,
         handleDrop,
         isCellOccupied,
+        moveMonster,
         viewToLogic: viewToLogicCallback,
         logicToView: logicToViewCallback,
     }), [
         mapDimension,
+        containerSize,
         playerMonsters,
         dragMonster,
         groundCells,
@@ -456,6 +476,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, onCompl
         handleDragOver,
         handleDrop,
         isCellOccupied,
+        moveMonster,
         viewToLogicCallback,
         logicToViewCallback,
     ]);

@@ -9,6 +9,7 @@ import Boss3D from "./components/Boss3D";
 import HexCell3D from "./components/HexCell3D";
 import Obstacle3D from "./components/Obstacle3D";
 import { hexTo3DPosition } from "./utils/coordinate3DUtils";
+import { getSharedHexagonGeometry } from "./utils/geometryCache";
 
 const StageGrid3D: React.FC = () => {
     const { stage, boss, mapDimension, deployables, logicToView } = useTeamDeployManager();
@@ -16,6 +17,16 @@ const StageGrid3D: React.FC = () => {
     if (!stage || !mapDimension) {
         return null;
     }
+
+    // 创建共享几何体（与 GridGround3D 中的参数保持一致）
+    const sharedGeometries = useMemo(() => {
+        const width = mapDimension.hexWidth;
+        return {
+            disabled: getSharedHexagonGeometry(width, 2, 0.90),
+            deployable: getSharedHexagonGeometry(width, 3, 0.90),
+            highlighted: getSharedHexagonGeometry(width, 4, 0.90),
+        };
+    }, [mapDimension]);
 
     // 渲染障碍物
     const obstacles = useMemo(() => {
@@ -59,11 +70,12 @@ const StageGrid3D: React.FC = () => {
                     width={mapDimension.hexWidth}
                     height={mapDimension.hexHeight}
                     position={[position.x, position.y, position.z]}
+                    geometry={sharedGeometries.disabled}
                     state="disabled"
                 />
             );
         });
-    }, [stage.map.disables, mapDimension, logicToView]);
+    }, [stage.map.disables, mapDimension, logicToView, sharedGeometries]);
 
     // 渲染可部署区域
     // Y 偏移设置为 0.15，明显高于基础格子（0 + yOffset），避免 Z-fighting
@@ -83,11 +95,12 @@ const StageGrid3D: React.FC = () => {
                     width={mapDimension.hexWidth}
                     height={mapDimension.hexHeight}
                     position={[position.x, position.y, position.z]}
+                    geometry={sharedGeometries.deployable}
                     state="deployable"
                 />
             );
         });
-    }, [deployables, mapDimension, logicToView]);
+    }, [deployables, mapDimension, logicToView, sharedGeometries]);
 
     // 渲染 Boss
     const bossElement = useMemo(() => {
@@ -126,11 +139,12 @@ const StageGrid3D: React.FC = () => {
                     width={mapDimension.hexWidth}
                     height={mapDimension.hexHeight}
                     position={[position.x, position.y, position.z]}
+                    geometry={sharedGeometries.highlighted}
                     state="highlighted"
                 />
             );
         });
-    }, [boss?.minions, mapDimension, logicToView]);
+    }, [boss?.minions, mapDimension, logicToView, sharedGeometries]);
 
     return (
         <group>

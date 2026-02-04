@@ -6,7 +6,7 @@
 import { OrbitControls, useProgress } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import gsap from "gsap";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { Stage } from "../../types/StageTypes";
@@ -35,7 +35,7 @@ const CAMERA_CONFIG = {
 
     // ===== 模式 "spherical" 的参数 =====
     // 相机到目标点的距离（越大场景越小）
-    distance: 1291.95,
+    distance: 600,
     // 水平旋转角度（度），0=正前方，正值=向右旋转，负值=向左旋转
     azimuth: -1.09,
     // 垂直角度（度），0=正上方俯视，90=水平视角，建议 30-60 度
@@ -43,7 +43,7 @@ const CAMERA_CONFIG = {
 
     // ===== 通用参数 =====
     // 视野角度
-    fov: 50,
+    fov: 35,
     // 近裁剪面和远裁剪面
     near: 0.1,
     far: 5000,
@@ -71,6 +71,30 @@ const sphericalToPosition = (
     const z = target[2] + distance * Math.sin(polarRad) * Math.cos(azimuthRad);
 
     return [x, y, z];
+};
+
+/**
+ * 方案1 视窗适配（两边都够）：用 mapDimension 与 fov 反推 distance，
+ * 使可见范围同时满足宽高，取较大 distance，场景始终填满画布且不裁切。
+ */
+const getViewportFitDistance = (
+    width: number,
+    height: number,
+    fovDeg: number
+): { distance: number; minDistance: number; maxDistance: number } => {
+    const fovRad = (fovDeg * Math.PI) / 180;
+    const halfTan = Math.tan(fovRad / 2);
+    const aspect = width / height;
+
+    const distanceByHeight = height / (2 * halfTan);
+    const distanceByWidth = width / (2 * halfTan * aspect);
+    const distance = Math.max(distanceByHeight, distanceByWidth);
+
+    return {
+        distance,
+        minDistance: distance * 0.5,
+        maxDistance: distance * 2,
+    };
 };
 // ============================================================
 
@@ -199,6 +223,18 @@ const LoadingScreen: React.FC<{ progress: number; isLoaded: boolean }> = ({ prog
     );
 };
 
+// 透明背景（使 CSS 背景图透过 Canvas 显示）
+const TransparentBackground: React.FC = () => {
+    const { gl } = useThree();
+    useEffect(() => {
+        gl.setClearColor(0x000000, 0);
+        return () => {
+            gl.setClearColor(0x000000, 1);
+        };
+    }, [gl]);
+    return null;
+};
+
 // 加载进度追踪组件（在 Canvas 内部使用）
 const LoadingTracker: React.FC<{ onProgress: (progress: number) => void; onLoaded: () => void }> = ({
     onProgress,
@@ -221,16 +257,8 @@ const LoadingTracker: React.FC<{ onProgress: (progress: number) => void; onLoade
 // 相机参数记录组件
 const CameraParamsLogger: React.FC<{
     controlsRef: React.RefObject<OrbitControlsImpl | null>;
-    mapDimension: MapDimension | null;
-}> = ({ controlsRef, mapDimension }) => {
+}> = ({ controlsRef }) => {
     const { camera } = useThree();
-
-    useEffect(() => {
-        if (mapDimension && camera instanceof THREE.PerspectiveCamera) {
-            // 设置相机看向地图中心（Y=0 是地面）
-            camera.lookAt(mapDimension.width / 2, 0, mapDimension.height / 2);
-        }
-    }, [camera, mapDimension]);
 
     // 监听相机变化并记录参数
     useEffect(() => {
@@ -270,21 +298,47 @@ const CameraParamsLogger: React.FC<{
     return null;
 };
 
+// 相机同步组件：窗口变化时保持目标与位置一致，避免突变“倾斜”
+const CameraSync: React.FC<{
+    cameraPosition: [number, number, number];
+    target: [number, number, number];
+    controlsRef: React.RefObject<OrbitControlsImpl | null>;
+}> = ({ cameraPosition, target, controlsRef }) => {
+    const { camera } = useThree();
+
+    useEffect(() => {
+        if (!(camera instanceof THREE.PerspectiveCamera)) return;
+
+        camera.position.set(cameraPosition[0], cameraPosition[1], cameraPosition[2]);
+        camera.lookAt(target[0], target[1], target[2]);
+
+        if (controlsRef.current) {
+            controlsRef.current.target.set(target[0], target[1], target[2]);
+            controlsRef.current.update();
+        }
+    }, [camera, cameraPosition, target, controlsRef]);
+
+    return null;
+};
+
 // Canvas 和控制器组件
 const CanvasWithControls: React.FC<{
     cameraPosition: [number, number, number];
     target: [number, number, number];
     mapDimension: MapDimension | null;
+    cameraDistance: number;
+    minDistance: number;
+    maxDistance: number;
     onProgress: (progress: number) => void;
     onLoaded: () => void;
-}> = ({ cameraPosition, target, mapDimension, onProgress, onLoaded }) => {
+}> = ({ cameraPosition, target, mapDimension, cameraDistance, minDistance, maxDistance, onProgress, onLoaded }) => {
     const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
     return (
         <Canvas
             shadows
-            style={{ width: "100%", height: "100%", background: "#2a2a2a" }}
-            gl={{ antialias: true }}
+            style={{ width: "100%", height: "100%", background: "transparent" }}
+            gl={{ antialias: true, alpha: true }}
             camera={{
                 position: cameraPosition,
                 fov: CAMERA_CONFIG.fov,
@@ -292,8 +346,10 @@ const CanvasWithControls: React.FC<{
                 far: CAMERA_CONFIG.far,
             }}
         >
+            <TransparentBackground />
             <LoadingTracker onProgress={onProgress} onLoaded={onLoaded} />
-            <CameraParamsLogger controlsRef={controlsRef} mapDimension={mapDimension} />
+            <CameraParamsLogger controlsRef={controlsRef} />
+            <CameraSync cameraPosition={cameraPosition} target={target} controlsRef={controlsRef} />
 
             {/* 灯光 */}
             <ambientLight intensity={0.8} />
@@ -308,13 +364,15 @@ const CanvasWithControls: React.FC<{
             <GridGround3D />
             <StageGrid3D />
 
-            {/* 轨道控制器 */}
+            {/* 轨道控制器 - 方案1 视窗适配（两边都够）的 min/max 距离 */}
             <OrbitControls
                 ref={controlsRef}
                 enablePan={true}
                 enableZoom={true}
                 enableRotate={true}
                 target={target}
+                minDistance={minDistance}
+                maxDistance={maxDistance}
             />
         </Canvas>
     );
@@ -325,6 +383,7 @@ const TeamLayoutContent3D: React.FC = () => {
     const {
         askAddMonster,
         mapDimension,
+        containerSize,
         candidateContainerRef,
         containerRef,
         mapContainerRef,
@@ -375,45 +434,72 @@ const TeamLayoutContent3D: React.FC = () => {
         }
     }, [askAddMonster, openCandidates]);
 
-    // 计算相机目标点（地图中心）
-    const defaultTarget: [number, number, number] = mapDimension
-        ? [mapDimension.width / 2, 0, mapDimension.height / 2]
-        : [0, 0, 0];
+    // 根据配置模式计算相机位置、目标点与视窗适配的 distance（useMemo 稳定引用）
+    const { cameraPosition, cameraTarget, cameraDistance, minDistance, maxDistance } = useMemo(() => {
+        const defaultTarget: [number, number, number] = mapDimension
+            ? [mapDimension.width / 2, 0, mapDimension.height / 2]
+            : [0, 0, 0];
 
-    // 根据配置模式计算相机位置和目标点
-    let cameraPosition: [number, number, number];
-    let cameraTarget: [number, number, number];
+        let position: [number, number, number];
+        let target: [number, number, number];
+        let distance = CAMERA_CONFIG.distance;
+        let minDist = 550;
+        let maxDist = 2000;
 
-    switch (CAMERA_CONFIG.mode) {
-        case "position":
-            // 使用自定义 position 和 target
-            cameraPosition = CAMERA_CONFIG.customPosition;
-            cameraTarget = CAMERA_CONFIG.customTarget;
-            break;
-        case "spherical":
-            // 使用球面坐标，目标点为地图中心
-            cameraTarget = defaultTarget;
-            cameraPosition = sphericalToPosition(
-                cameraTarget,
-                CAMERA_CONFIG.distance,
-                CAMERA_CONFIG.azimuth,
-                CAMERA_CONFIG.polar
-            );
-            break;
-        case "auto":
-        default:
-            // 自动计算
-            cameraTarget = defaultTarget;
-            cameraPosition = mapDimension
-                ? [mapDimension.width / 2, mapDimension.height * 1.5, mapDimension.height / 2]
-                : [0, 10, 10];
-            break;
-    }
+        switch (CAMERA_CONFIG.mode) {
+            case "position":
+                position = CAMERA_CONFIG.customPosition;
+                target = CAMERA_CONFIG.customTarget;
+                break;
+            case "spherical": {
+                target = [defaultTarget[0] + 5, defaultTarget[1], defaultTarget[2]];
+                if (mapDimension) {
+                    const fit = getViewportFitDistance(
+                        mapDimension.width,
+                        mapDimension.height,
+                        CAMERA_CONFIG.fov
+                    );
+                    distance = fit.distance;
+                    minDist = fit.minDistance;
+                    maxDist = fit.maxDistance;
+                }
+                position = sphericalToPosition(
+                    target,
+                    distance,
+                    CAMERA_CONFIG.azimuth,
+                    CAMERA_CONFIG.polar
+                );
+                break;
+            }
+            case "auto":
+            default:
+                target = defaultTarget;
+                position = mapDimension
+                    ? [mapDimension.width / 2, mapDimension.height * 1.5, mapDimension.height / 2]
+                    : [0, 10, 10];
+                break;
+        }
+
+        return {
+            cameraPosition: position,
+            cameraTarget: target,
+            cameraDistance: distance,
+            minDistance: minDist,
+            maxDistance: maxDist,
+        };
+    }, [mapDimension]);
 
     return (
         <div
             ref={containerRef}
-            style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "#1a1a1a" }}
+            style={{
+                position: "relative", width: "100%", height: "100%",
+                backgroundColor: "transparent",
+                backgroundImage: "url(/assets/battle_bg.png)",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+            }}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
@@ -422,9 +508,14 @@ const TeamLayoutContent3D: React.FC = () => {
                     ref={mapContainerRef}
                     className="team-map-container"
                     style={{
-                        width: mapDimension?.width,
-                        height: mapDimension?.height,
+                        width: mapDimension ? `${mapDimension.width}px` : containerSize ? `${containerSize.width}px` : "100%",
+                        height: mapDimension ? `${mapDimension.height}px` : containerSize ? `${containerSize.height}px` : "100%",
                         backgroundColor: "transparent",
+
+                        // backgroundImage: "url(/assets/battle_bg.png)",
+                        // backgroundSize: "cover",
+                        // backgroundPosition: "center",
+                        // backgroundRepeat: "no-repeat",
                     }}
                 >
                     {/* 加载效果 */}
@@ -435,6 +526,9 @@ const TeamLayoutContent3D: React.FC = () => {
                         cameraPosition={cameraPosition}
                         target={cameraTarget}
                         mapDimension={mapDimension}
+                        cameraDistance={cameraDistance}
+                        minDistance={minDistance}
+                        maxDistance={maxDistance}
                         onProgress={handleProgress}
                         onLoaded={handleLoaded}
                     />

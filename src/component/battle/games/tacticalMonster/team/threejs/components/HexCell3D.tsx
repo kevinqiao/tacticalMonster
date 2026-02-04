@@ -6,7 +6,6 @@
 import { useFrame } from "@react-three/fiber";
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { createHexagonExtrudeGeometry } from "../utils/hex3DUtils";
 
 interface HexCell3DProps {
     q: number; // 列坐标（视图坐标）
@@ -14,6 +13,7 @@ interface HexCell3DProps {
     width: number; // 六边形宽度
     height: number; // 六边形高度
     position: [number, number, number]; // 3D 位置 [x, y, z]
+    geometry: THREE.ExtrudeGeometry; // 共享的几何体（从父组件传入）
     state?: "normal" | "highlighted" | "disabled" | "deployable"; // 单元格状态
     onClick?: () => void;
     onPointerEnter?: () => void;
@@ -26,6 +26,7 @@ const HexCell3D: React.FC<HexCell3DProps> = ({
     width,
     height,
     position,
+    geometry, // 从父组件传入的共享几何体
     state = "normal",
     onClick,
     onPointerEnter,
@@ -33,25 +34,19 @@ const HexCell3D: React.FC<HexCell3DProps> = ({
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
 
-    // 根据状态确定柱状高度和缩放
-    const { depth, scale, stateBaseOffset } = useMemo(() => {
+    // 根据状态确定 Y 偏移量（用于避免 Z-fighting）
+    const stateBaseOffset = useMemo(() => {
         switch (state) {
             case "deployable":
-                return { depth: 3, scale: 0.90, stateBaseOffset: 5 };  // 可部署区域
+                return 5;  // 可部署区域
             case "disabled":
-                return { depth: 2, scale: 0.90, stateBaseOffset: 4 };  // 禁用区域
+                return 4;  // 禁用区域
             case "highlighted":
-                return { depth: 4, scale: 0.90, stateBaseOffset: 6 };  // 高亮区域（更高）
+                return 6;  // 高亮区域（更高）
             default:
-                return { depth: 2, scale: 0.92, stateBaseOffset: 0 };  // 普通格子
+                return 0;  // 普通格子
         }
     }, [state]);
-
-    // 创建几何体 - 带间距和立体柱状效果
-    const geometry = useMemo(() =>
-        createHexagonExtrudeGeometry(width, depth, scale, true),
-        [width, depth, scale]
-    );
 
     // 给每个格子一个微小的 Y 偏移，避免 Z-fighting
     const yOffset = useMemo(() => stateBaseOffset + (q * 0.001 + r * 0.0001), [q, r, stateBaseOffset]);

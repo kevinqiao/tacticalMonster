@@ -1,12 +1,14 @@
 /**
  * GridGround3D 组件
- * 3D 六边形网格地面
+ * 3D 六边形网格地面，支持怪物拖拽移动
  */
 
 import React, { useCallback, useMemo, useState } from "react";
+import * as THREE from "three";
 import { useTeamDeployManager } from "../service/TeamDeployManager";
 import HexCell3D from "./components/HexCell3D";
 import MonsterCard3D from "./components/MonsterCard3D";
+import { getSharedHexagonGeometry } from "./utils/geometryCache";
 
 const GridGround3D: React.FC = () => {
     const {
@@ -17,9 +19,28 @@ const GridGround3D: React.FC = () => {
         dragMonster,
         playerMonsters,
         logicToView,
+        viewToLogic,
+        moveMonster,
     } = useTeamDeployManager();
 
     const [hoveredCell, setHoveredCell] = useState<{ q: number; r: number } | null>(null);
+    const [draggingMonsterId, setDraggingMonsterId] = useState<string | null>(null);
+    const [dragHighlightCell, setDragHighlightCell] = useState<{ q: number; r: number } | null>(null);
+    const [dragStartCell, setDragStartCell] = useState<{ q: number; r: number } | null>(null); // 拖拽起始位置
+
+    // 为每种状态创建共享的几何体（在父组件中统一管理）
+    const sharedGeometries = useMemo(() => {
+        if (!mapDimension) return null;
+
+        const width = mapDimension.hexWidth;
+
+        return {
+            normal: getSharedHexagonGeometry(width, 2, 0.92),      // 普通格子
+            highlighted: getSharedHexagonGeometry(width, 4, 0.90),  // 高亮格子
+            disabled: getSharedHexagonGeometry(width, 2, 0.90),     // 禁用格子
+            deployable: getSharedHexagonGeometry(width, 3, 0.90),   // 可部署格子
+        };
+    }, [mapDimension]);
 
     // 处理单元格点击
     const handleCellClick = useCallback(
@@ -41,15 +62,96 @@ const GridGround3D: React.FC = () => {
         setHoveredCell(null);
     }, []);
 
-    // 检查格子是否有玩家怪物
+    // 世界坐标转换为格子坐标
+    // 怪物位置是格子中心：centerX = leftX + hexWidth/2, centerZ = topZ - hexHeight/2
+    const worldToHex = useCallback((worldPos: THREE.Vector3): { q: number; r: number } | null => {
+        if (!mapDimension) return null;
+
+        const { hexWidth, hexHeight, cols, rows } = mapDimension;
+
+        // 从中心坐标反推左上角坐标
+        // centerX = leftX + hexWidth/2  =>  leftX = centerX - hexWidth/2
+        // centerZ = topZ - hexHeight/2  =>  topZ = centerZ + hexHeight/2
+        const leftX = worldPos.x - hexWidth / 2;
+        const topZ = worldPos.z + hexHeight / 2;
+
+        // 从 topZ 计算 r
+        // topZ = r * hexHeight * 0.75
+        const approxR = Math.round(topZ / (hexHeight * 0.75));
+
+        // 从 leftX 计算 q
+        // leftX = q * hexWidth + (isOddRow ? hexWidth / 2 : 0)
+        const isOddRow = approxR % 2 !== 0;
+        const colOffset = isOddRow ? hexWidth / 2 : 0;
+        const approxQ = Math.round((leftX - colOffset) / hexWidth);
+
+        // 边界检查
+        if (approxQ < 0 || approxQ >= cols || approxR < 0 || approxR >= rows) {
+            return null;
+        }
+
+        return { q: approxQ, r: approxR };
+    }, [mapDimension]);
+
+    // 怪物拖拽开始
+    const handleMonsterDragStart = useCallback((monsterId: string) => {
+        // 找到怪物的起始位置
+        const monster = playerMonsters?.find(m => m.monsterId === monsterId);
+        if (monster?.teamPosition) {
+            const viewPos = logicToView(monster.teamPosition.q, monster.teamPosition.r);
+            setDragStartCell(viewPos);
+        }
+        setDraggingMonsterId(monsterId);
+        console.log("[GridGround3D] 开始拖拽怪物:", monsterId);
+    }, [playerMonsters, logicToView]);
+
+    // 怪物拖拽移动
+    const handleMonsterDragMove = useCallback((monsterId: string, worldPos: THREE.Vector3) => {
+        const hexCoord = worldToHex(worldPos);
+        if (hexCoord && !isCellOccupied(hexCoord.q, hexCoord.r)) {
+            setDragHighlightCell(hexCoord);
+        } else {
+            setDragHighlightCell(null);
+        }
+    }, [worldToHex, isCellOccupied]);
+
+    // 怪物拖拽结束
+    const handleMonsterDragEnd = useCallback((monsterId: string, worldPos: THREE.Vector3) => {
+        const hexCoord = worldToHex(worldPos);
+
+        // 检查是否是有效的新位置（排除起始位置）
+        const isValidNewPosition = hexCoord &&
+            !isCellOccupied(hexCoord.q, hexCoord.r) &&
+            !(dragStartCell && hexCoord.q === dragStartCell.q && hexCoord.r === dragStartCell.r);
+
+        if (isValidNewPosition) {
+            // 转换为逻辑坐标并移动怪物
+            const logicPos = viewToLogic(hexCoord.q, hexCoord.r);
+            moveMonster?.(monsterId, logicPos.q, logicPos.r);
+            console.log("[GridGround3D] 移动怪物:", monsterId, "到", logicPos);
+        } else {
+            console.log("[GridGround3D] 保持原位置");
+        }
+
+        // 清理状态
+        setDraggingMonsterId(null);
+        setDragHighlightCell(null);
+        setDragStartCell(null);
+    }, [worldToHex, isCellOccupied, viewToLogic, moveMonster, dragStartCell]);
+
+    // 检查格子是否有玩家怪物（排除正在拖拽的怪物）
     const hasMonsterAt = useCallback((viewQ: number, viewR: number) => {
         if (!playerMonsters) return false;
         return playerMonsters.some(monster => {
+            // 排除正在拖拽的怪物，这样起始格子会被渲染出来
+            if (draggingMonsterId && monster.monsterId === draggingMonsterId) {
+                return false;
+            }
             if (!monster.teamPosition) return false;
             const viewPos = logicToView(monster.teamPosition.q, monster.teamPosition.r);
             return viewPos.q === viewQ && viewPos.r === viewR;
         });
-    }, [playerMonsters, logicToView]);
+    }, [playerMonsters, logicToView, draggingMonsterId]);
 
     // 渲染所有单元格
     const cells = useMemo(() => {
@@ -74,14 +176,24 @@ const GridGround3D: React.FC = () => {
                 // 确定单元格状态
                 let state: "normal" | "highlighted" | "disabled" | "deployable" = "normal";
                 const isHovered = hoveredCell?.q === q && hoveredCell?.r === r;
+                const isDragHighlight = dragHighlightCell?.q === q && dragHighlightCell?.r === r;
+                const isDragStart = dragStartCell?.q === q && dragStartCell?.r === r;
                 const isOccupied = isCellOccupied(q, r);
-                const isDragging = dragMonster !== null;
+                const isDragging = dragMonster !== null || draggingMonsterId !== null;
 
-                if (isHovered || (isDragging && !isOccupied)) {
-                    state = "highlighted";
-                } else if (isOccupied) {
+                if (isDragHighlight) {
+                    state = "highlighted"; // 拖拽时的目标格子高亮
+                } else if (isHovered && !isDragging) {
+                    state = "highlighted"; // 非拖拽时的悬停高亮
+                } else if (isOccupied && !isDragStart) {
+                    // 被占用的格子显示为 disabled，但起始位置除外（起始位置显示为 normal）
                     state = "disabled";
                 }
+
+                // 根据状态选择对应的共享几何体
+                const geometry = sharedGeometries?.[state] || sharedGeometries?.normal;
+
+                if (!geometry) return null;
 
                 return (
                     <HexCell3D
@@ -91,6 +203,7 @@ const GridGround3D: React.FC = () => {
                         width={mapDimension.hexWidth}
                         height={mapDimension.hexHeight}
                         position={[leftX, 0, topZ]}
+                        geometry={geometry}
                         state={state}
                         onClick={() => handleCellClick(q, r)}
                         onPointerEnter={() => handleCellPointerEnter(q, r)}
@@ -102,7 +215,11 @@ const GridGround3D: React.FC = () => {
     }, [
         groundCells,
         mapDimension,
+        sharedGeometries,
         dragMonster,
+        draggingMonsterId,
+        dragHighlightCell,
+        dragStartCell,
         hoveredCell,
         isCellOccupied,
         hasMonsterAt,
@@ -159,7 +276,7 @@ const GridGround3D: React.FC = () => {
                 const centerX = leftX + mapDimension.hexWidth / 2;
                 const centerZ = topZ - mapDimension.hexHeight / 2;
 
-                const isDragging = dragMonster?.monsterId === monster.monsterId;
+                const isDragging = dragMonster?.monsterId === monster.monsterId || draggingMonsterId === monster.monsterId;
 
                 return (
                     <MonsterCard3D
@@ -171,13 +288,16 @@ const GridGround3D: React.FC = () => {
                         position={[centerX, 0, centerZ]}
                         monsterId={monster.monsterId}
                         isDragging={isDragging}
+                        onDragStart={handleMonsterDragStart}
+                        onDragMove={handleMonsterDragMove}
+                        onDragEnd={handleMonsterDragEnd}
                     />
                 );
             })
             .filter((monster) => monster !== null);
 
         return renderedMonsters;
-    }, [playerMonsters, mapDimension, dragMonster, logicToView]);
+    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, logicToView, handleMonsterDragStart, handleMonsterDragMove, handleMonsterDragEnd]);
 
     return (
         <group>

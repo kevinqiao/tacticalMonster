@@ -1,11 +1,12 @@
 /**
  * MonsterCard3D 组件
  * 怪物卡片的 3D 表示（用于拖拽预览和已放置的怪物）
+ * 支持 3D 场景内拖拽移动
  */
 
-import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import React, { useMemo, useRef } from "react";
+import { useCursor, useGLTF } from "@react-three/drei";
+import { ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { getMonsterModelPathWithFallback } from "../utils/modelPathMapper";
 
@@ -17,6 +18,9 @@ interface MonsterCard3DProps {
     position: [number, number, number];
     monsterId: string;
     isDragging?: boolean;
+    onDragStart?: (monsterId: string) => void;
+    onDragMove?: (monsterId: string, worldPos: THREE.Vector3) => void;
+    onDragEnd?: (monsterId: string, worldPos: THREE.Vector3) => void;
     onClick?: () => void;
     onPointerEnter?: () => void;
     onPointerLeave?: () => void;
@@ -29,12 +33,32 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
     height,
     position,
     monsterId,
-    isDragging = false,
+    isDragging: externalDragging = false,
+    onDragStart,
+    onDragMove,
+    onDragEnd,
     onClick,
     onPointerEnter,
     onPointerLeave,
 }) => {
     const groupRef = useRef<THREE.Group>(null);
+    const [isHovered, setIsHovered] = useState(false);
+    const [isLocalDragging, setIsLocalDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState(new THREE.Vector3());
+    const { camera, gl, raycaster } = useThree();
+
+    // 显示手型光标
+    useCursor(isHovered);
+
+    const isDragging = externalDragging || isLocalDragging;
+
+    // 当 position 变化且不在拖拽状态时，同步 groupRef 的位置
+    // 这确保了拖拽结束后怪物回到正确位置
+    useEffect(() => {
+        if (groupRef.current && !isLocalDragging) {
+            groupRef.current.position.set(position[0], position[1], position[2]);
+        }
+    }, [position, isLocalDragging]);
 
     // 获取模型路径
     const modelPath = getMonsterModelPathWithFallback(monsterId);
@@ -97,10 +121,84 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
         return clone;
     }, [scene, monsterId]);
 
-    // 拖拽时旋转动画
+    // 获取鼠标在地面上的世界坐标
+    const getWorldPosition = useCallback((event: ThreeEvent<PointerEvent>) => {
+        // 创建一个水平面（Y=0）
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const intersection = new THREE.Vector3();
+
+        // 使用射线与平面求交
+        raycaster.setFromCamera(event.pointer, camera);
+        raycaster.ray.intersectPlane(plane, intersection);
+
+        return intersection;
+    }, [camera, raycaster]);
+
+    // 拖拽开始
+    const handlePointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation();
+        setIsLocalDragging(true);
+
+        // 计算拖拽偏移量
+        const worldPos = getWorldPosition(event);
+        const currentPos = new THREE.Vector3(...position);
+        setDragOffset(currentPos.sub(worldPos));
+
+        // 捕获指针
+        (event.target as HTMLElement).setPointerCapture(event.pointerId);
+
+        onDragStart?.(monsterId);
+    }, [getWorldPosition, position, monsterId, onDragStart]);
+
+    // 拖拽移动
+    const handlePointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
+        if (!isLocalDragging || !groupRef.current) return;
+
+        event.stopPropagation();
+        const worldPos = getWorldPosition(event);
+        worldPos.add(dragOffset);
+
+        // 更新位置
+        groupRef.current.position.set(worldPos.x, position[1], worldPos.z);
+
+        onDragMove?.(monsterId, worldPos);
+    }, [isLocalDragging, getWorldPosition, dragOffset, position, monsterId, onDragMove]);
+
+    // 拖拽结束
+    const handlePointerUp = useCallback((event: ThreeEvent<PointerEvent>) => {
+        if (!isLocalDragging) return;
+
+        event.stopPropagation();
+        setIsLocalDragging(false);
+
+        // 释放指针捕获
+        (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+
+        const worldPos = getWorldPosition(event);
+        worldPos.add(dragOffset);
+
+        onDragEnd?.(monsterId, worldPos);
+    }, [isLocalDragging, getWorldPosition, dragOffset, monsterId, onDragEnd]);
+
+    // 鼠标悬停
+    const handlePointerEnter = useCallback((event: ThreeEvent<PointerEvent>) => {
+        setIsHovered(true);
+        onPointerEnter?.();
+    }, [onPointerEnter]);
+
+    const handlePointerLeave = useCallback((event: ThreeEvent<PointerEvent>) => {
+        setIsHovered(false);
+        onPointerLeave?.();
+    }, [onPointerLeave]);
+
+    // 悬浮效果（拖拽时保持静止，不旋转）
     useFrame(({ clock }) => {
-        if (groupRef.current && isDragging) {
-            groupRef.current.rotation.y = clock.elapsedTime * 2;
+        if (groupRef.current) {
+            // 悬停时上下浮动（非拖拽状态）
+            if (isHovered && !isDragging) {
+                const baseY = position[1];
+                groupRef.current.position.y = baseY + Math.sin(clock.elapsedTime * 3) * 3;
+            }
         }
     });
 
@@ -145,19 +243,24 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
             ref={groupRef}
             position={position}
             onClick={onClick}
-            onPointerEnter={onPointerEnter}
-            onPointerLeave={onPointerLeave}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
         >
-            {/* 底座 - Y 位置设为 4 确保高于 deployable 区域（约 0.2） */}
+            {/* 底座 - Y 位置设为 4 确保高于 deployable 区域 */}
             <mesh position={[0, 4, 0]}>
                 <cylinderGeometry args={[width * 0.25, width * 0.3, 6, 6]} />
                 <meshStandardMaterial
-                    color={isDragging ? "#ff9900" : "#2196F3"}
+                    color={isDragging ? "#ff9900" : isHovered ? "#64B5F6" : "#2196F3"}
                     metalness={0.3}
                     roughness={0.7}
                     polygonOffset={true}
                     polygonOffsetFactor={-5}
                     polygonOffsetUnits={-5}
+                    emissive={isHovered ? "#1565C0" : "#000000"}
+                    emissiveIntensity={isHovered ? 0.3 : 0}
                 />
             </mesh>
 
