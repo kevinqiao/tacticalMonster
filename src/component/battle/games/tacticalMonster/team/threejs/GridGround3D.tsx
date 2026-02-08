@@ -3,11 +3,12 @@
  * 3D 六边形网格地面，支持怪物拖拽移动
  */
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import * as THREE from "three";
 import { useTeamDeployManager } from "../service/TeamDeployManager";
 import HexCell3D from "./components/HexCell3D";
-import MonsterCard3D from "./components/MonsterCard3D";
+import { MonsterCard3DWithSuspense } from "./components/MonsterCard3D";
+import { TeamLayoutLoadingContext } from "./TeamLayoutLoadingContext";
 import { getSharedHexagonGeometry } from "./utils/geometryCache";
 
 const GridGround3D: React.FC = () => {
@@ -22,6 +23,7 @@ const GridGround3D: React.FC = () => {
         viewToLogic,
         moveMonster,
     } = useTeamDeployManager();
+    const loadingContext = useContext(TeamLayoutLoadingContext);
 
     const [hoveredCell, setHoveredCell] = useState<{ q: number; r: number } | null>(null);
     const [draggingMonsterId, setDraggingMonsterId] = useState<string | null>(null);
@@ -279,7 +281,7 @@ const GridGround3D: React.FC = () => {
                 const isDragging = dragMonster?.monsterId === monster.monsterId || draggingMonsterId === monster.monsterId;
 
                 return (
-                    <MonsterCard3D
+                    <MonsterCard3DWithSuspense
                         key={`monster-${monster.monsterId}`}
                         q={viewPos.q}
                         r={viewPos.r}
@@ -291,13 +293,15 @@ const GridGround3D: React.FC = () => {
                         onDragStart={handleMonsterDragStart}
                         onDragMove={handleMonsterDragMove}
                         onDragEnd={handleMonsterDragEnd}
+                        onModelLoaded={loadingContext?.onModelLoaded}
+                        isPortrait={mapDimension.isPortrait}
                     />
                 );
             })
             .filter((monster) => monster !== null);
 
         return renderedMonsters;
-    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, logicToView, handleMonsterDragStart, handleMonsterDragMove, handleMonsterDragEnd]);
+    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, logicToView, handleMonsterDragStart, handleMonsterDragMove, handleMonsterDragEnd, loadingContext]);
 
     return (
         <group>

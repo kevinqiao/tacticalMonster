@@ -3,7 +3,7 @@
  * 基于 React Three Fiber 的 3D 版本团队布局
  */
 
-import { OrbitControls, useProgress } from "@react-three/drei";
+import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,9 +13,10 @@ import { Stage } from "../../types/StageTypes";
 import { MapDimension, TeamDeployProvider, useTeamDeployManager } from "../service/TeamDeployManager";
 import "../styles.css";
 import CandidatesBox3D from "./CandidatesBox3D";
-import DragPreview3D from "./DragPreview3D";
 import GridGround3D from "./GridGround3D";
 import StageGrid3D from "./StageGrid3D";
+import { TeamLayoutLoadingContext } from "./TeamLayoutLoadingContext";
+import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
 
 // ============================================================
 // 📷 相机初始配置 - 调整视角后将控制台输出的参数复制到这里
@@ -98,127 +99,49 @@ const getViewportFitDistance = (
 };
 // ============================================================
 
-// 加载进度显示组件
+// 加载进度显示组件 — 轻量顶部进度条，不遮挡场景
+// 场景立即可见，模型各自独立加载（由单卡 Suspense 显示旋转占位）
 const LoadingScreen: React.FC<{ progress: number; isLoaded: boolean }> = ({ progress, isLoaded }) => {
-    const [visible, setVisible] = useState(true);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const barRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (isLoaded && containerRef.current) {
-            // 加载完成后，淡出动画
-            gsap.to(containerRef.current, {
+        if (isLoaded && barRef.current) {
+            gsap.to(barRef.current, {
                 opacity: 0,
                 duration: 0.5,
+                delay: 0.3,
                 ease: "power2.inOut",
-                onComplete: () => setVisible(false),
             });
         }
     }, [isLoaded]);
 
-    if (!visible) return null;
+    // 已完成且已淡出后不再渲染
+    if (isLoaded && barRef.current?.style.opacity === "0") return null;
 
     return (
         <div
-            ref={containerRef}
+            ref={barRef}
             style={{
                 position: "absolute",
                 top: 0,
                 left: 0,
                 width: "100%",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "#1a1a2e",
+                height: 3,
+                backgroundColor: "rgba(0,0,0,0.2)",
                 zIndex: 100,
+                pointerEvents: "none",
             }}
         >
-            {/* 旋转的六边形动画 */}
             <div
                 style={{
-                    width: 80,
-                    height: 80,
-                    position: "relative",
-                    marginBottom: 30,
+                    width: `${progress}%`,
+                    height: "100%",
+                    backgroundColor: "#4CAF50",
+                    borderRadius: "0 2px 2px 0",
+                    transition: "width 0.3s ease",
+                    boxShadow: "0 0 6px rgba(76,175,80,0.6)",
                 }}
-            >
-                <svg
-                    viewBox="0 0 100 100"
-                    style={{
-                        width: "100%",
-                        height: "100%",
-                        animation: "hexSpin 2s linear infinite",
-                    }}
-                >
-                    <polygon
-                        points="50,5 90,27.5 90,72.5 50,95 10,72.5 10,27.5"
-                        fill="none"
-                        stroke="#4CAF50"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        style={{
-                            strokeDasharray: "300",
-                            strokeDashoffset: 300 - (progress / 100) * 300,
-                            transition: "stroke-dashoffset 0.3s ease",
-                        }}
-                    />
-                    <polygon
-                        points="50,20 75,35 75,65 50,80 25,65 25,35"
-                        fill="none"
-                        stroke="#2196F3"
-                        strokeWidth="2"
-                        style={{
-                            animation: "hexPulse 1.5s ease-in-out infinite",
-                        }}
-                    />
-                </svg>
-            </div>
-
-            {/* 进度条 */}
-            <div
-                style={{
-                    width: 200,
-                    height: 4,
-                    backgroundColor: "#333",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                    marginBottom: 15,
-                }}
-            >
-                <div
-                    style={{
-                        width: `${progress}%`,
-                        height: "100%",
-                        backgroundColor: "#4CAF50",
-                        borderRadius: 2,
-                        transition: "width 0.3s ease",
-                    }}
-                />
-            </div>
-
-            {/* 加载文字 */}
-            <div
-                style={{
-                    color: "#aaa",
-                    fontSize: 14,
-                    fontFamily: "monospace",
-                }}
-            >
-                {progress < 100 ? `Loading... ${Math.round(progress)}%` : "Preparing battlefield..."}
-            </div>
-
-            {/* CSS 动画 */}
-            <style>{`
-                @keyframes hexSpin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-                @keyframes hexPulse {
-                    0%, 100% { opacity: 0.3; transform: scale(1); }
-                    50% { opacity: 1; transform: scale(1.05); }
-                }
-            `}</style>
+            />
         </div>
     );
 };
@@ -235,22 +158,12 @@ const TransparentBackground: React.FC = () => {
     return null;
 };
 
-// 加载进度追踪组件（在 Canvas 内部使用）
-const LoadingTracker: React.FC<{ onProgress: (progress: number) => void; onLoaded: () => void }> = ({
-    onProgress,
-    onLoaded,
-}) => {
+// 加载进度追踪组件（在 Canvas 内部使用，仅上报 useProgress 供无卡时进度条显示）
+const LoadingTracker: React.FC<{ onProgress: (progress: number) => void }> = ({ onProgress }) => {
     const { progress } = useProgress();
-
     useEffect(() => {
         onProgress(progress);
-        if (progress === 100) {
-            // 延迟一点确保场景完全渲染
-            const timer = setTimeout(onLoaded, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [progress, onProgress, onLoaded]);
-
+    }, [progress, onProgress]);
     return null;
 };
 
@@ -303,25 +216,29 @@ const CameraSync: React.FC<{
     cameraPosition: [number, number, number];
     target: [number, number, number];
     controlsRef: React.RefObject<OrbitControlsImpl | null>;
-}> = ({ cameraPosition, target, controlsRef }) => {
+    orthoZoom?: number;
+}> = ({ cameraPosition, target, controlsRef, orthoZoom }) => {
     const { camera } = useThree();
 
     useEffect(() => {
-        if (!(camera instanceof THREE.PerspectiveCamera)) return;
-
         camera.position.set(cameraPosition[0], cameraPosition[1], cameraPosition[2]);
         camera.lookAt(target[0], target[1], target[2]);
+
+        if (camera instanceof THREE.OrthographicCamera && orthoZoom !== undefined) {
+            camera.zoom = orthoZoom;
+            camera.updateProjectionMatrix();
+        }
 
         if (controlsRef.current) {
             controlsRef.current.target.set(target[0], target[1], target[2]);
             controlsRef.current.update();
         }
-    }, [camera, cameraPosition, target, controlsRef]);
+    }, [camera, cameraPosition, target, controlsRef, orthoZoom]);
 
     return null;
 };
 
-// Canvas 和控制器组件
+// Canvas 和控制器组件（onLoaded 已改为由各卡 onModelLoaded 驱动，此处仅保留 onProgress 供无卡时进度条）
 const CanvasWithControls: React.FC<{
     cameraPosition: [number, number, number];
     target: [number, number, number];
@@ -330,26 +247,45 @@ const CanvasWithControls: React.FC<{
     minDistance: number;
     maxDistance: number;
     onProgress: (progress: number) => void;
-    onLoaded: () => void;
-}> = ({ cameraPosition, target, mapDimension, cameraDistance, minDistance, maxDistance, onProgress, onLoaded }) => {
+    isPortrait: boolean;
+    orthoZoom: number;
+}> = ({ cameraPosition, target, mapDimension, cameraDistance, minDistance, maxDistance, onProgress, isPortrait, orthoZoom }) => {
     const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
+    // 竖屏：正交相机 + 纯俯视，禁用旋转
+    // 横屏：透视相机
     return (
         <Canvas
+            key={isPortrait ? "ortho" : "persp"}
+            orthographic={isPortrait}
             shadows
             style={{ width: "100%", height: "100%", background: "transparent" }}
             gl={{ antialias: true, alpha: true }}
-            camera={{
-                position: cameraPosition,
-                fov: CAMERA_CONFIG.fov,
-                near: CAMERA_CONFIG.near,
-                far: CAMERA_CONFIG.far,
-            }}
+            camera={
+                isPortrait
+                    ? {
+                        position: [target[0], 2000, target[2]],
+                        zoom: orthoZoom,
+                        near: CAMERA_CONFIG.near,
+                        far: CAMERA_CONFIG.far,
+                    }
+                    : {
+                        position: cameraPosition,
+                        fov: CAMERA_CONFIG.fov,
+                        near: CAMERA_CONFIG.near,
+                        far: CAMERA_CONFIG.far,
+                    }
+            }
         >
             <TransparentBackground />
-            <LoadingTracker onProgress={onProgress} onLoaded={onLoaded} />
+            <LoadingTracker onProgress={onProgress} />
             <CameraParamsLogger controlsRef={controlsRef} />
-            <CameraSync cameraPosition={cameraPosition} target={target} controlsRef={controlsRef} />
+            <CameraSync
+                cameraPosition={isPortrait ? [target[0], 2000, target[2]] : cameraPosition}
+                target={target}
+                controlsRef={controlsRef}
+                orthoZoom={isPortrait ? orthoZoom : undefined}
+            />
 
             {/* 灯光 */}
             <ambientLight intensity={0.8} />
@@ -364,22 +300,26 @@ const CanvasWithControls: React.FC<{
             <GridGround3D />
             <StageGrid3D />
 
-            {/* 轨道控制器 - 方案1 视窗适配（两边都够）的 min/max 距离 */}
+            {/* 轨道控制器 - 竖屏允许平移/缩放，横屏全部禁用 */}
             <OrbitControls
                 ref={controlsRef}
-                enablePan={true}
-                enableZoom={true}
-                enableRotate={true}
+                enablePan={isPortrait}
+                enableZoom={isPortrait}
+                enableRotate={false}
                 target={target}
-                minDistance={minDistance}
-                maxDistance={maxDistance}
+                minDistance={isPortrait ? undefined : minDistance}
+                maxDistance={isPortrait ? undefined : maxDistance}
+                minZoom={isPortrait ? orthoZoom * 0.5 : undefined}
+                maxZoom={isPortrait ? orthoZoom * 2 : undefined}
+                maxPolarAngle={isPortrait ? 0 : undefined}
+                minPolarAngle={isPortrait ? 0 : undefined}
             />
         </Canvas>
     );
 };
 
 // 内部布局组件，使用 Context
-const TeamLayoutContent3D: React.FC = () => {
+const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const {
         askAddMonster,
         mapDimension,
@@ -390,18 +330,51 @@ const TeamLayoutContent3D: React.FC = () => {
         handleDragOver,
         handleDrop,
         selectCanadidate,
+        playerMonsters,
+        boss,
     } = useTeamDeployManager();
 
-    // 加载状态
+    // 预加载所有角色 GLB（每个角色单独模型时统一在此预加载）
+    useEffect(() => {
+        const monsterPaths = getAllMonsterGlbPaths();
+        console.log("paths", monsterPaths);
+        getAllMonsterGlbPaths().forEach((path) => useGLTF.preload(path));
+    }, []);
+
+    // 当前需要加载的模型数量：已放置的怪物卡 + Boss（若有）
+    const expectedModelCount = useMemo(
+        () =>
+            playerMonsters.filter((m) => m.teamPosition).length +
+            (boss?.position ? 1 : 0),
+        [playerMonsters, boss?.position]
+    );
+
+    // 加载状态：以「每张卡的模型 onModelLoaded」为准，不再仅依赖 useProgress
+    const [loadedModelCount, setLoadedModelCount] = useState(0);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
 
-    const handleProgress = useCallback((progress: number) => {
-        setLoadingProgress(progress);
+    // 当放置的卡数变化时重置计数；无卡时直接视为已加载
+    useEffect(() => {
+        setLoadedModelCount(0);
+        if (expectedModelCount === 0) setIsLoaded(true);
+        else setIsLoaded(false);
+    }, [expectedModelCount]);
+
+    // 所有当前卡片的模型都 onModelLoaded 后，才视为加载完成
+    useEffect(() => {
+        if (expectedModelCount > 0 && loadedModelCount >= expectedModelCount) {
+
+            setIsLoaded(true);
+        }
+    }, [expectedModelCount, loadedModelCount]);
+
+    const onModelLoaded = useCallback((_monsterId: string) => {
+        setLoadedModelCount((c) => c + 1);
     }, []);
 
-    const handleLoaded = useCallback(() => {
-        setIsLoaded(true);
+    const handleProgress = useCallback((progress: number) => {
+        setLoadingProgress(progress);
     }, []);
 
     const openCandidates = useCallback(() => {
@@ -434,8 +407,10 @@ const TeamLayoutContent3D: React.FC = () => {
         }
     }, [askAddMonster, openCandidates]);
 
+    const isPortrait = mapDimension?.isPortrait ?? false;
+
     // 根据配置模式计算相机位置、目标点与视窗适配的 distance（useMemo 稳定引用）
-    const { cameraPosition, cameraTarget, cameraDistance, minDistance, maxDistance } = useMemo(() => {
+    const { cameraPosition, cameraTarget, cameraDistance, minDistance, maxDistance, orthoZoom } = useMemo(() => {
         const defaultTarget: [number, number, number] = mapDimension
             ? [mapDimension.width / 2, 0, mapDimension.height / 2]
             : [0, 0, 0];
@@ -445,6 +420,7 @@ const TeamLayoutContent3D: React.FC = () => {
         let distance = CAMERA_CONFIG.distance;
         let minDist = 550;
         let maxDist = 2000;
+        let zoom = 1;
 
         switch (CAMERA_CONFIG.mode) {
             case "position":
@@ -454,21 +430,35 @@ const TeamLayoutContent3D: React.FC = () => {
             case "spherical": {
                 target = [defaultTarget[0] + 5, defaultTarget[1], defaultTarget[2]];
                 if (mapDimension) {
-                    const fit = getViewportFitDistance(
-                        mapDimension.width,
-                        mapDimension.height,
-                        CAMERA_CONFIG.fov
-                    );
-                    distance = fit.distance;
-                    minDist = fit.minDistance;
-                    maxDist = fit.maxDistance;
+                    if (mapDimension.isPortrait) {
+                        // 竖屏：正交相机，纯俯视
+                        target = [target[0], target[1], target[2] - mapDimension.hexHeight];
+                        position = [target[0], 2000, target[2]];
+                        const containerW = containerSize?.width ?? mapDimension.width;
+                        const containerH = containerSize?.height ?? mapDimension.height;
+                        zoom = Math.min(
+                            containerW / mapDimension.width,
+                            containerH / mapDimension.height
+                        );
+                    } else {
+                        const fit = getViewportFitDistance(
+                            mapDimension.width,
+                            mapDimension.height,
+                            CAMERA_CONFIG.fov
+                        );
+                        distance = fit.distance;
+                        minDist = fit.minDistance;
+                        maxDist = fit.maxDistance;
+                        position = sphericalToPosition(
+                            target,
+                            distance,
+                            CAMERA_CONFIG.azimuth,
+                            CAMERA_CONFIG.polar
+                        );
+                    }
+                } else {
+                    position = [0, 10, 10];
                 }
-                position = sphericalToPosition(
-                    target,
-                    distance,
-                    CAMERA_CONFIG.azimuth,
-                    CAMERA_CONFIG.polar
-                );
                 break;
             }
             case "auto":
@@ -486,24 +476,35 @@ const TeamLayoutContent3D: React.FC = () => {
             cameraDistance: distance,
             minDistance: minDist,
             maxDistance: maxDist,
+            orthoZoom: zoom,
         };
-    }, [mapDimension]);
+    }, [mapDimension, containerSize]);
 
     return (
         <div
             ref={containerRef}
-            style={{
-                position: "relative", width: "100%", height: "100%",
-                backgroundColor: "transparent",
-                backgroundImage: "url(/assets/battle_bg.png)",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-            }}
+            style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
-            <div className="team-editor-container">
+            {/* 背景层：竖屏时旋转 90 度，不影响坐标 */}
+            <div
+                style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    width: isPortrait ? "100vh" : "100%",
+                    height: isPortrait ? "100vw" : "100%",
+                    backgroundImage: "url(/assets/battle_bg.png)",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    transform: isPortrait ? "translate(-50%, -50%) rotate(90deg)" : "translate(-50%, -50%)",
+                    pointerEvents: "none",
+                    zIndex: 0,
+                }}
+            />
+
+            <div className="team-editor-container" style={{ position: "relative", zIndex: 1 }}>
                 <div
                     ref={mapContainerRef}
                     className="team-map-container"
@@ -518,20 +519,30 @@ const TeamLayoutContent3D: React.FC = () => {
                         // backgroundRepeat: "no-repeat",
                     }}
                 >
-                    {/* 加载效果 */}
-                    <LoadingScreen progress={loadingProgress} isLoaded={isLoaded} />
+                    {/* 加载效果：进度与完成态由「每张卡 onModelLoaded」驱动，无卡时用 useProgress */}
+                    <LoadingScreen
+                        progress={
+                            expectedModelCount > 0
+                                ? Math.round((loadedModelCount / expectedModelCount) * 100)
+                                : loadingProgress
+                        }
+                        isLoaded={isLoaded}
+                    />
 
                     {/* React Three Fiber Canvas */}
-                    <CanvasWithControls
-                        cameraPosition={cameraPosition}
-                        target={cameraTarget}
-                        mapDimension={mapDimension}
-                        cameraDistance={cameraDistance}
-                        minDistance={minDistance}
-                        maxDistance={maxDistance}
-                        onProgress={handleProgress}
-                        onLoaded={handleLoaded}
-                    />
+                    <TeamLayoutLoadingContext.Provider value={{ onModelLoaded }}>
+                        <CanvasWithControls
+                            cameraPosition={cameraPosition}
+                            target={cameraTarget}
+                            mapDimension={mapDimension}
+                            cameraDistance={cameraDistance}
+                            minDistance={minDistance}
+                            maxDistance={maxDistance}
+                            onProgress={handleProgress}
+                            isPortrait={isPortrait}
+                            orthoZoom={orthoZoom}
+                        />
+                    </TeamLayoutLoadingContext.Provider>
                 </div>
 
                 {/* 候选怪物列表（2D UI overlay） */}
@@ -555,11 +566,11 @@ const TeamLayoutContent3D: React.FC = () => {
             </div>
 
             <div className="team-control-container">
-                <button className="team-join-button">Join</button>
+                <button className="team-join-button" onClick={onComplete}>Join</button>
             </div>
 
             {/* 拖拽预览（2D UI overlay） */}
-            <DragPreview3D />
+            {/* <DragPreview3D /> */}
         </div>
     );
 };
@@ -567,8 +578,8 @@ const TeamLayoutContent3D: React.FC = () => {
 // 外部组件，包裹 Provider
 const TeamLayout3D: React.FC<{ stage?: Stage; onComplete: () => void }> = ({ stage, onComplete }) => {
     return (
-        <TeamDeployProvider stage={stage} onComplete={onComplete}>
-            <TeamLayoutContent3D />
+        <TeamDeployProvider stage={stage}>
+            <TeamLayoutContent3D onComplete={onComplete} />
         </TeamDeployProvider>
     );
 };

@@ -1,4 +1,4 @@
-import { api } from "@/convex/tacticalMonster/convex/_generated/api";
+import AnimationPreview3D from "@/component/battle/games/tacticalMonster/demo/AnimationPreview3D";
 import { URLS } from "@/service/TournamentManager";
 import { PageProp } from "component/RenderApp";
 import { ConvexHttpClient } from "convex/browser";
@@ -33,6 +33,8 @@ const Child2: React.FC<PageProp> = ({ visible, data }) => {
   >
     {/* <Character3DDemo /> */}
     {/* <CharacterWalkDemo /> */}
+    {/* 仅播动画的独立 Canvas，用于排查 primitive 可见性：<AnimationPreview3D /> */}
+    <AnimationPreview3D />
   </div>
   )
 };

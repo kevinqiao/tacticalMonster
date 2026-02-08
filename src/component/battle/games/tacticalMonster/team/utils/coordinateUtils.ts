@@ -9,8 +9,43 @@ import { MapDimension } from "../service/TeamDeployManager";
 /**
  * 计算地图比例
  */
-export const calculateMapRatio = (cols: number, rows: number): number => {
+export const calculateMapRatio = (cols: number, rows: number, isPortrait?: boolean): number => {
+    if (isPortrait) {
+        ((cols + 0.5) * Math.sqrt(3)) / 2 / (1 + (rows * 3) / 4)
+    }
     return ((cols + 0.5) * Math.sqrt(3)) / 2 / (1 + ((rows - 1) * 3) / 4);
+};
+
+export const calculateMapDimension = (containerWidth: number, containerHeight: number): { width: number, height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean } => {
+    const containerRatio = containerWidth / containerHeight;
+    const isPortrait = containerHeight * 0.95 > containerWidth;
+    const mapSize: { width: number; height: number } = { width: 0, height: 0 };
+    if (isPortrait) {
+        const mapRatio = ((7 + 0.5) * Math.sqrt(3)) / 2 / (1 + (8 * 3) / 4);
+        if (mapRatio < containerRatio) {
+            mapSize.height = containerHeight;
+            mapSize.width = mapSize.height * mapRatio;
+        } else {
+            mapSize.width = containerWidth;
+            mapSize.height = mapSize.width / mapRatio;
+        }
+        const hexWidth = mapSize.width / (7 + 0.5);
+        const hexHeight = (hexWidth * 2) / Math.sqrt(3);
+        return { width: mapSize.width, height: mapSize.height, hexWidth, hexHeight, cols: 7, rows: 8, isPortrait };
+    } else {
+        const mapRatio = ((8 + 0.5) * Math.sqrt(3)) / 2 / (1 + (7 * 3) / 4);
+        if (mapRatio < containerRatio) {
+            mapSize.height = containerHeight;
+            mapSize.width = mapSize.height * mapRatio;
+        } else {
+            mapSize.width = containerWidth;
+            mapSize.height = mapSize.width / mapRatio;
+        }
+        const hexWidth = mapSize.width / (8 + 0.5);
+        const hexHeight = (hexWidth * 2) / Math.sqrt(3);
+        return { width: mapSize.width, height: mapSize.height, hexWidth, hexHeight, cols: 8, rows: 7, isPortrait };
+    }
+
 };
 
 /**

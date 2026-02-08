@@ -2,9 +2,9 @@ import { BOSS_CONFIGS } from "@/convex/tacticalMonster/convex/data/bossConfigs";
 import { useTournamentManager } from "@/service/TournamentManager";
 import gsap from "gsap";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useMapDimension } from "../../common/hooks/useMapDimension";
 import { GridCellSprite } from "../../types/CombatTypes";
 import { Boss, Stage } from "../../types/StageTypes";
-import { useMapDimension } from "../hooks/useMapDimension";
 import { logicToView, pixelToHex, viewToLogic } from "../utils/coordinateUtils";
 import { clearHighlight, setHighlight } from "../utils/dragHighlightUtils";
 // ============ 类型定义 ============
@@ -74,11 +74,11 @@ export const useTeamDeployManager = (): TeamContextValue => {
 
 interface TeamProviderProps {
     stage?: Stage | null;
-    onComplete?: () => void;
+    // onComplete?: () => void;
     children: React.ReactNode;
 }
 
-export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, onComplete, children }) => {
+export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, children }) => {
     // Refs
     const candidateContainerRef = useRef<HTMLDivElement | null>(null);
     const mapContainerRef = useRef<HTMLDivElement | null>(null);

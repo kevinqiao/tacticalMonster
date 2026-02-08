@@ -1,36 +1,37 @@
 /**
  * 3D 模型路径映射工具
- * 将 monsterId 映射到对应的 GLB 模型文件路径
+ * 将 monsterId 映射到对应的 GLB 模型文件路径（每个角色可对应不同模型文件）
  */
 
+import { MONSTER_CONFIGS_MAP } from "../../../config/monsterConfigs";
+
+/** 配置里可能是 /assets/3d/characters/...，实际 GLB 放在 /assets/3d/glb/characters/... */
+const CHARACTER_PATH_PREFIX = "/assets/3d/characters/";
+const GLB_CHARACTER_PATH_PREFIX = "/assets/3d/glb/characters/";
 
 /**
- * 获取怪物的 3D 模型路径
+ * 将配置中的 assetPath 转为实际可用的 GLB 路径
+ */
+const toGlbPath = (assetPath: string): string => {
+
+    if (assetPath.includes(CHARACTER_PATH_PREFIX)) {
+
+        return assetPath.replace(CHARACTER_PATH_PREFIX, GLB_CHARACTER_PATH_PREFIX);
+    }
+    return assetPath;
+};
+
+/**
+ * 获取怪物的 3D 模型路径（每个 monsterId 对应配置中的 assetPath，即不同角色可对应不同模型文件）
  * @param monsterId 怪物 ID（如 "monster_001"）
- * @returns GLB 模型文件路径，如果找不到则返回 null
+ * @returns GLB 模型文件路径，如果配置中无该怪物则返回 null
  */
 export const getMonsterModelPath = (monsterId: string): string | null => {
-    return "/assets/3d/glb/characters/tiger/model/tiger.glb";
-    // 从怪物配置中查找
-    // const monsterConfig = MONSTER_CONFIGS.find((m) => m.monsterId === monsterId);
-
-    // if (monsterConfig?.assetPath) {
-    //     // 如果配置中有 assetPath，需要调整路径
-    //     // 配置中的路径可能是 /assets/3d/characters/...，需要改为 /assets/3d/glb/characters/...
-    //     let modelPath = monsterConfig.assetPath;
-
-    //     // 替换路径：/assets/3d/characters/ -> /assets/3d/glb/characters/
-    //     if (modelPath.includes("/assets/3d/characters/")) {
-    //         modelPath = modelPath.replace("/assets/3d/characters/", "/assets/3d/glb/characters/");
-    //     }
-
-    //     return modelPath;
-    // }
-
-    // // 如果配置中没有 assetPath，尝试从 monsterId 推断
-    // // 例如：monster_001 -> 需要查看配置中的 name 或其他字段来推断
-    // // 这里我们返回 null，让组件使用默认占位符
-    // return null;
+    const config = MONSTER_CONFIGS_MAP[monsterId];
+    if (config?.assetPath) {
+        return toGlbPath(config.assetPath);
+    }
+    return null;
 };
 
 /**
@@ -48,7 +49,7 @@ export const extractCharacterNameFromPath = (path: string): string | null => {
  * @returns GLB 模型文件路径
  */
 export const getDefaultModelPath = (characterName: string): string => {
-    return `/assets/3d/glb/characters/${characterName}/model/${characterName}.glb`;
+    return `/assets/3d/characters/${characterName}/model/${characterName}.glb`;
 };
 
 /**
@@ -61,17 +62,32 @@ export const getMonsterModelPathWithFallback = (
     monsterId: string,
     fallbackCharacterName?: string
 ): string => {
-    const configPath = getMonsterModelPath(monsterId);
+    // const configPath = getMonsterModelPath(monsterId);
 
-    if (configPath) {
-        return configPath;
-    }
+    // if (configPath) {
+    //     return configPath;
+    // }
 
-    // 如果配置中没有，尝试使用回退名称
-    if (fallbackCharacterName) {
-        return getDefaultModelPath(fallbackCharacterName);
-    }
+    // // 如果配置中没有，尝试使用回退名称
+    // if (fallbackCharacterName) {
+    //     return getDefaultModelPath(fallbackCharacterName);
+    // }
 
     // 最后的回退：使用 "tiger" 作为默认模型
-    return getDefaultModelPath("tiger");
+    return getDefaultModelPath("wukong");
+};
+
+/**
+ * 获取所有配置中出现的角色 GLB 路径（去重），用于统一预加载
+ * 每个角色单独模型时，在布局层（如 TeamLayout3D）调用 useGLTF.preload(path) 预加载
+ */
+export const getAllMonsterGlbPaths = (): string[] => {
+    const set = new Set<string>();
+    Object.values(MONSTER_CONFIGS_MAP).forEach((config) => {
+        if (config?.assetPath) {
+            set.add(toGlbPath(config.assetPath));
+        }
+    });
+    set.add(getDefaultModelPath("wukong"));
+    return Array.from(set);
 };

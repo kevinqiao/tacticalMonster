@@ -10,11 +10,15 @@ import { PlayProps } from "../../PlayTournament";
 import usePreGameAnimate from "./animation/usePreGameAnimate";
 import BattlePlayer from "./battle/BattlePlayer";
 import CombatManager from "./battle/service/CombatManager";
+import BattlePlayer3D from "./battle3d/BattlePlayer3D";
 
 import "./styles.css";
 import { TeamLayout3D } from "./team/threejs";
 import { GameModel } from "./types/gameTypes";
 import { Stage } from "./types/StageTypes";
+/** 设为 true 使用 3D 战斗视图，false 使用 2D */
+const USE_3D_BATTLE = true;
+
 interface Props {
     game: GameModel;
     mode: 'join' | 'play' | 'watch' | 'replay';
@@ -33,7 +37,7 @@ const PlayGame: React.FC<Props> = ({
         <div className="tactical-monster-game-container">
             <ConvexProvider client={client}>
                 <CombatManager game={game} mode={mode === 'join' ? 'play' : mode} initialPhaseChanges={initialPhaseChanges}>
-                    <BattlePlayer />
+                    {USE_3D_BATTLE ? <BattlePlayer3D /> : <BattlePlayer />}
                 </CombatManager>
             </ConvexProvider>
         </div>

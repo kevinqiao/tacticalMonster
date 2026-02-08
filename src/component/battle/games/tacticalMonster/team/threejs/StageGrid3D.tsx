@@ -3,16 +3,18 @@
  * 3D 障碍物、Boss、禁用区域等
  */
 
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import { useTeamDeployManager } from "../service/TeamDeployManager";
 import Boss3D from "./components/Boss3D";
 import HexCell3D from "./components/HexCell3D";
 import Obstacle3D from "./components/Obstacle3D";
+import { TeamLayoutLoadingContext } from "./TeamLayoutLoadingContext";
 import { hexTo3DPosition } from "./utils/coordinate3DUtils";
 import { getSharedHexagonGeometry } from "./utils/geometryCache";
 
 const StageGrid3D: React.FC = () => {
     const { stage, boss, mapDimension, deployables, logicToView } = useTeamDeployManager();
+    const loadingContext = useContext(TeamLayoutLoadingContext);
 
     if (!stage || !mapDimension) {
         return null;
@@ -102,13 +104,19 @@ const StageGrid3D: React.FC = () => {
         });
     }, [deployables, mapDimension, logicToView, sharedGeometries]);
 
-    // 渲染 Boss
+    // 渲染 Boss（用与 GridGround3D 中 MonsterCard3D 相同的中心计算方式）
     const bossElement = useMemo(() => {
         if (!boss?.position) return null;
 
         const viewPos = logicToView(boss.position.q, boss.position.r);
-        const position = hexTo3DPosition(viewPos.q, viewPos.r, mapDimension, 0.2);
-        if (!position) return null;
+
+        // 与 GridGround3D 相同：先算左上角，再偏移到六边形中心
+        const isOddRow = viewPos.r % 2 !== 0;
+        const colOffset = isOddRow ? mapDimension.hexWidth / 2 : 0;
+        const leftX = viewPos.q * mapDimension.hexWidth + colOffset;
+        const topZ = viewPos.r * mapDimension.hexHeight * 0.75;
+        const centerX = leftX + mapDimension.hexWidth / 2;
+        const centerZ = topZ - mapDimension.hexHeight / 2;
 
         return (
             <Boss3D
@@ -116,11 +124,14 @@ const StageGrid3D: React.FC = () => {
                 r={viewPos.r}
                 width={mapDimension.hexWidth}
                 height={mapDimension.hexHeight}
-                position={[position.x, position.y, position.z]}
+                position={[centerX, 0, centerZ]}
                 bossId={stage.bossId}
+                monsterId={boss.monsterId}
+                onModelLoaded={loadingContext?.onModelLoaded}
+                isPortrait={mapDimension.isPortrait}
             />
         );
-    }, [boss, stage.bossId, mapDimension, logicToView]);
+    }, [boss, stage.bossId, mapDimension, logicToView, loadingContext]);
 
     // 渲染 Minions
     const minions = useMemo(() => {

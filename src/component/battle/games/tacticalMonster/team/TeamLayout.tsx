@@ -97,7 +97,7 @@ const TeamLayoutContent: React.FC = () => {
 // 外部组件，包裹 Provider
 const TeamLayout: React.FC<{ stage?: Stage, onComplete: () => void }> = ({ stage, onComplete }) => {
     return (
-        <TeamDeployProvider stage={stage} onComplete={onComplete}>
+        <TeamDeployProvider stage={stage} >
             <TeamLayoutContent />
         </TeamDeployProvider>
     );
