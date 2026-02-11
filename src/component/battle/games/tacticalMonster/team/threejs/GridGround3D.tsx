@@ -3,7 +3,7 @@
  * 3D 六边形网格地面，支持怪物拖拽移动
  */
 
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, { useCallback, useContext, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useTeamDeployManager } from "../service/TeamDeployManager";
 import HexCell3D from "./components/HexCell3D";
@@ -29,6 +29,10 @@ const GridGround3D: React.FC = () => {
     const [draggingMonsterId, setDraggingMonsterId] = useState<string | null>(null);
     const [dragHighlightCell, setDragHighlightCell] = useState<{ q: number; r: number } | null>(null);
     const [dragStartCell, setDragStartCell] = useState<{ q: number; r: number } | null>(null); // 拖拽起始位置
+
+    // ===== 性能优化：用 ref 保存频繁变化但不影响 placedMonsters 结构的值 =====
+    const loadingContextRef = useRef(loadingContext);
+    loadingContextRef.current = loadingContext;
 
     // 为每种状态创建共享的几何体（在父组件中统一管理）
     const sharedGeometries = useMemo(() => {
@@ -104,7 +108,6 @@ const GridGround3D: React.FC = () => {
             setDragStartCell(viewPos);
         }
         setDraggingMonsterId(monsterId);
-        console.log("[GridGround3D] 开始拖拽怪物:", monsterId);
     }, [playerMonsters, logicToView]);
 
     // 怪物拖拽移动
@@ -130,9 +133,6 @@ const GridGround3D: React.FC = () => {
             // 转换为逻辑坐标并移动怪物
             const logicPos = viewToLogic(hexCoord.q, hexCoord.r);
             moveMonster?.(monsterId, logicPos.q, logicPos.r);
-            console.log("[GridGround3D] 移动怪物:", monsterId, "到", logicPos);
-        } else {
-            console.log("[GridGround3D] 保持原位置");
         }
 
         // 清理状态
@@ -140,6 +140,25 @@ const GridGround3D: React.FC = () => {
         setDragHighlightCell(null);
         setDragStartCell(null);
     }, [worldToHex, isCellOccupied, viewToLogic, moveMonster, dragStartCell]);
+
+    // ===== 性能优化：用 ref 包装 drag 回调，创建稳定引用供 placedMonsters 使用 =====
+    const dragStartRef = useRef(handleMonsterDragStart);
+    dragStartRef.current = handleMonsterDragStart;
+    const dragMoveRef = useRef(handleMonsterDragMove);
+    dragMoveRef.current = handleMonsterDragMove;
+    const dragEndRef = useRef(handleMonsterDragEnd);
+    dragEndRef.current = handleMonsterDragEnd;
+
+    // 稳定的回调包装器，引用永远不变
+    const stableDragStart = useCallback((monsterId: string) => {
+        dragStartRef.current(monsterId);
+    }, []);
+    const stableDragMove = useCallback((monsterId: string, worldPos: THREE.Vector3) => {
+        dragMoveRef.current(monsterId, worldPos);
+    }, []);
+    const stableDragEnd = useCallback((monsterId: string, worldPos: THREE.Vector3) => {
+        dragEndRef.current(monsterId, worldPos);
+    }, []);
 
     // 检查格子是否有玩家怪物（排除正在拖拽的怪物）
     const hasMonsterAt = useCallback((viewQ: number, viewR: number) => {
@@ -231,33 +250,13 @@ const GridGround3D: React.FC = () => {
     ]);
 
     // 渲染已放置的怪物
+    // 优化：使用稳定的 ref 回调和 ref 获取 loadingContext，减少不必要的重计算
     const placedMonsters = useMemo(() => {
         if (!playerMonsters || !mapDimension) {
-            console.log("[GridGround3D] 缺少数据:", {
-                playerMonsters: playerMonsters?.length || 0,
-                mapDimension: !!mapDimension
-            });
             return [];
         }
-
+        console.log("placedMonster:", playerMonsters);
         const monstersWithPosition = playerMonsters.filter((monster) => monster.teamPosition);
-        console.log("[GridGround3D] 已放置的怪物数量:", monstersWithPosition.length);
-        console.log("[GridGround3D] 怪物详情:", monstersWithPosition.map(m => ({
-            monsterId: m.monsterId,
-            teamPosition: m.teamPosition ? { q: m.teamPosition.q, r: m.teamPosition.r } : null,
-        })));
-
-        // 检查是否有重复的位置
-        const positions = monstersWithPosition.map(m => m.teamPosition ? `${m.teamPosition.q},${m.teamPosition.r}` : null);
-        const uniquePositions = new Set(positions);
-        if (positions.length !== uniquePositions.size) {
-            console.warn("[GridGround3D] ⚠️ 检测到重复位置!", {
-                total: positions.length,
-                unique: uniquePositions.size,
-                positions: positions,
-                duplicates: positions.filter((pos, idx) => positions.indexOf(pos) !== idx)
-            });
-        }
 
         const renderedMonsters = monstersWithPosition
             .map((monster) => {
@@ -271,10 +270,6 @@ const GridGround3D: React.FC = () => {
                 const topZ = viewPos.r * mapDimension.hexHeight * 0.75;
 
                 // 六边形几何体中心相对于左上角的偏移
-                // 由于 HexCell3D 旋转 -90 度，原来的 Y 变成 -Z
-                // 几何体从 (0,0) 开始，中心在 (width/2, height/2)
-                // 旋转后中心变成 (width/2, 0, -height/2)
-                // 所以实际中心 = 左上角 + (width/2, 0, -height/2)
                 const centerX = leftX + mapDimension.hexWidth / 2;
                 const centerZ = topZ - mapDimension.hexHeight / 2;
 
@@ -290,10 +285,10 @@ const GridGround3D: React.FC = () => {
                         position={[centerX, 0, centerZ]}
                         monsterId={monster.monsterId}
                         isDragging={isDragging}
-                        onDragStart={handleMonsterDragStart}
-                        onDragMove={handleMonsterDragMove}
-                        onDragEnd={handleMonsterDragEnd}
-                        onModelLoaded={loadingContext?.onModelLoaded}
+                        onDragStart={stableDragStart}
+                        onDragMove={stableDragMove}
+                        onDragEnd={stableDragEnd}
+                        onModelLoaded={loadingContextRef.current?.onModelLoaded}
                         isPortrait={mapDimension.isPortrait}
                     />
                 );
@@ -301,7 +296,7 @@ const GridGround3D: React.FC = () => {
             .filter((monster) => monster !== null);
 
         return renderedMonsters;
-    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, logicToView, handleMonsterDragStart, handleMonsterDragMove, handleMonsterDragEnd, loadingContext]);
+    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, logicToView, stableDragStart, stableDragMove, stableDragEnd]);
 
     return (
         <group>

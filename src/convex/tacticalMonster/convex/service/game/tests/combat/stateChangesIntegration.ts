@@ -97,7 +97,7 @@ export const testAllStatesChange = internalMutation({
 
             // 3. 验证所有状态变化
             testResult.steps.push("验证所有状态变化");
-            const stateChanges = useSkillResult.phaseChanges?.playerAction?.executionResults?.stateChanges;
+            const stateChanges = useSkillResult.phaseChanges?.stateChanges;
 
             if (!stateChanges) {
                 testResult.errors.push("缺少 stateChanges");
@@ -211,7 +211,7 @@ export const testPartialStatesChange = internalMutation({
 
             // 3. 验证只有位置变化
             testResult.steps.push("验证只有位置变化");
-            const stateChanges = walkResult.phaseChanges?.playerAction?.executionResults?.stateChanges;
+            const stateChanges = walkResult.phaseChanges?.stateChanges;
 
             if (stateChanges?.actor) {
                 const onlyPositionChanged =
@@ -341,7 +341,7 @@ export const testMultipleCharactersStateChange = internalMutation({
 
             // 3. 验证多个目标的状态变化
             testResult.steps.push("验证多个目标的状态变化");
-            const stateChanges = useSkillResult.phaseChanges?.playerAction?.executionResults?.stateChanges;
+            const stateChanges = useSkillResult.phaseChanges?.stateChanges;
 
             if (stateChanges?.targets && stateChanges.targets.length > 0) {
                 testResult.data.targetsCount = stateChanges.targets.length;

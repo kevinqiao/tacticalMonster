@@ -12,7 +12,7 @@ import { useCombatManager } from "../service/CombatManager";
 import { SkillAnimationSelector } from "./SkillAnimationSelector";
 
 const usePlaySkill = () => {
-    const { characters, groundCells, hexDimension, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
     const { map } = game || {};
     const selector = useMemo(() => new SkillAnimationSelector(), []);
 
@@ -136,7 +136,7 @@ const usePlaySkill = () => {
         targets: MonsterSprite[],
         onComplete: () => void | Promise<void>
     ): gsap.core.Timeline | null => {
-        if (!groundCells || !hexDimension || !map || !characters) {
+        if (!groundCells || !mapDimension || !map || !characters) {
             Promise.resolve(onComplete()).catch(console.error);
             return null;
         }
@@ -287,7 +287,7 @@ const usePlaySkill = () => {
 
         // ✅ 返回 timeline，以便外部可以链式添加后续动画（如被动技能）
         return tl;
-    }, [characters, groundCells, hexDimension, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect, playbackSpeed]);
+    }, [characters, groundCells, mapDimension, map, selector, playHealEffect, playBuffEffect, playDebuffEffect, playSkillCastEffect, playbackSpeed]);
 
     return { playSkill };
 };

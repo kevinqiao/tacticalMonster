@@ -10,8 +10,9 @@ import {
     getSkillConfig,
     skillExists
 } from "../../data/skillConfigs";
-import { SkillEffectType } from "../../types/skillTypes";
 import { GameMonster } from "../../types/monsterTypes";
+import { SkillEffectType } from "../../types/skillTypes";
+import { EffectHandlerRegistry } from "./effects/EffectHandlerRegistry";
 
 /**
  * 技能解锁检查结果
@@ -465,7 +466,7 @@ export class SkillManager {
     }
 
     /**
-     * 应用效果到目标
+     * 应用效果到目标（委托给 EffectHandlerRegistry 中的处理器）
      * @param effect 技能效果
      * @param target 目标怪物（会被修改）
      * @param caster 施法者怪物（用于计算效果值）
@@ -479,146 +480,18 @@ export class SkillManager {
         if (!target.stats) {
             return false;
         }
-
-        // 初始化 statusEffects
         if (!target.statusEffects) {
             target.statusEffects = [];
         }
 
-        // 根据效果类型应用
-        switch (effect.type) {
-            case SkillEffectType.DAMAGE:
-                // 伤害效果
-                if (effect.value !== undefined && effect.target_attribute === "hp") {
-                    const damage = this.calculateDamage(effect.value, caster, target, effect);
-                    const currentHp = target.stats.hp?.current ?? 0;
-                    target.stats.hp.current = Math.max(0, currentHp - damage);
+        const handler = EffectHandlerRegistry.getHandler(effect.type);
+        if (!handler) return false;
 
-                    // 添加效果到 statusEffects（用于显示和后续处理）
-                    const effectCopy = { ...effect, remaining_duration: effect.duration || 0 };
-                    target.statusEffects.push(effectCopy);
-                    return true;
-                }
-                break;
-
-            case SkillEffectType.HEAL:
-                // 治疗效果
-                if (effect.value !== undefined && effect.target_attribute === "hp") {
-                    const heal = effect.value; // 可以基于施法者属性计算
-                    const currentHp = target.stats.hp?.current ?? 0;
-                    const maxHp = target.stats.hp?.max ?? 0;
-                    target.stats.hp.current = Math.min(maxHp, currentHp + heal);
-
-                    const effectCopy = { ...effect, remaining_duration: effect.duration || 0 };
-                    target.statusEffects.push(effectCopy);
-                    return true;
-                }
-                break;
-
-            case SkillEffectType.BUFF:
-            case SkillEffectType.DEBUFF:
-                // Buff/Debuff 效果
-                if (effect.modifiers) {
-                    const effectCopy = { ...effect, remaining_duration: effect.duration || 0 };
-                    target.statusEffects.push(effectCopy);
-                    // 实际属性修改在每回合更新时处理
-                    return true;
-                }
-                break;
-
-            case SkillEffectType.SHIELD:
-                // 护盾效果
-                if (effect.value !== undefined) {
-                    const shieldValue = effect.value;
-                    if (!target.stats.shield) {
-                        target.stats.shield = { current: 0, max: 0 };
-                    }
-                    target.stats.shield.current += shieldValue;
-                    target.stats.shield.max = Math.max(target.stats.shield.max, target.stats.shield.current);
-
-                    const effectCopy = { ...effect, remaining_duration: effect.duration || 0 };
-                    target.statusEffects.push(effectCopy);
-                    return true;
-                }
-                break;
-
-            case SkillEffectType.STUN:
-                // 眩晕效果
-                if (effect.duration !== undefined && effect.duration > 0) {
-                    target.status = "stunned";
-                    const effectCopy = { ...effect, remaining_duration: effect.duration };
-                    target.statusEffects.push(effectCopy);
-                    return true;
-                }
-                break;
-
-            case SkillEffectType.DOT:
-            case SkillEffectType.HOT:
-                // 持续伤害/治疗效果
-                if (effect.value !== undefined && effect.duration !== undefined) {
-                    const effectCopy = { ...effect, remaining_duration: effect.duration };
-                    target.statusEffects.push(effectCopy);
-                    return true;
-                }
-                break;
-
-            case SkillEffectType.MP_RESTORE:
-                // 法力恢复
-                if (effect.value !== undefined && target.stats.mp) {
-                    const currentMp = target.stats.mp.current ?? 0;
-                    const maxMp = target.stats.mp.max ?? 0;
-                    target.stats.mp.current = Math.min(maxMp, currentMp + effect.value);
-                    return true;
-                }
-                break;
-
-            case SkillEffectType.MP_DRAIN:
-                // 法力吸取
-                if (effect.value !== undefined && target.stats.mp) {
-                    const currentMp = target.stats.mp.current ?? 0;
-                    target.stats.mp.current = Math.max(0, currentMp - effect.value);
-                    return true;
-                }
-                break;
+        const result = handler.apply(effect, target, caster);
+        if (result.applied && result.statusEffect) {
+            target.statusEffects.push(result.statusEffect);
         }
-
-        return false;
-    }
-
-    /**
-     * 计算伤害值（考虑攻击力、防御力等）
-     * @param baseValue 基础伤害值
-     * @param caster 施法者
-     * @param target 目标
-     * @param effect 效果配置
-     * @returns 实际伤害值
-     */
-    private static calculateDamage(
-        baseValue: number,
-        caster: GameMonster,
-        target: GameMonster,
-        effect: SkillEffect
-    ): number {
-        // 基础伤害计算
-        let damage = baseValue;
-
-        // 根据伤害类型应用攻击力
-        if (effect.damage_type === "physical") {
-            // 物理伤害：基于攻击力
-            damage = baseValue + (caster.stats?.attack ?? 0) * 0.5;
-            // 减去目标防御
-            const defense = target.stats?.defense ?? 0;
-            damage = Math.max(1, damage - defense * 0.3);
-        } else if (effect.damage_type === "magical") {
-            // 魔法伤害：基于智力（如果有）或攻击力
-            const intelligence = caster.stats?.intelligence ?? caster.stats?.attack ?? 0;
-            damage = baseValue + intelligence * 0.5;
-            // 魔法防御（如果有）或普通防御
-            const magicDefense = target.stats?.status_resistance ?? target.stats?.defense ?? 0;
-            damage = Math.max(1, damage - magicDefense * 0.2);
-        }
-
-        return Math.floor(damage);
+        return result.applied;
     }
 
     /**

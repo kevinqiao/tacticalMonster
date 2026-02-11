@@ -4,7 +4,8 @@
 
 
 import { Spine } from "pixi-spine";
-import { GameTurn, PhaseChanges } from "./gameTypes";
+import { StateChanges } from "./backendResponseTypes";
+import { CharacterIdentifier, GameTurn, PhaseChanges, SkillEffectItem } from "./gameTypes";
 import { GameMonster } from "./monsterTypes";
 
 export enum ACT_CODE {
@@ -42,53 +43,102 @@ export interface Player {
 
 /**
  * 事件名称类型
- * 简化后的事件类型，只包含核心事件
- * 与后端保持一致
+ * 包含所有后端实际产生的事件名称，与后端保持一致
  */
 export type EventName =
+    // 生命周期事件
     | "gameInit"        // 游戏初始化
+    | "game_end"        // 游戏结束
+    // 回合/轮次事件
     | "firstTurn"       // 开始第一个回合（包含初始 Boss turn 和 phaseChanges）
-    | "use_skill"       // 使用技能（包含 playerAction 和 phaseChanges）
-    | "walk"            // 移动（包含 playerAction 和 phaseChanges）
-    | "attack"          // 攻击（包含 playerAction 和 phaseChanges）
-    | "game_end";       // 游戏结束
+    | "new_round"       // 新回合开始
+    | "end_round"       // 回合结束
+    | "roundStart"      // 回合开始（别名）
+    | "roundEnd"        // 回合结束（别名）
+    | "turnStart"       // Turn 开始（可能包含 bossAIAction）
+    | "turnEnd"         // Turn 结束
+    | "turnSecond"      // Turn 中间状态
+    // 玩家操作事件
+    | "walk"            // 移动
+    | "attack"          // 攻击
+    | "use_skill"       // 使用技能
+    | "skillSelect";    // 选择技能
 
 /**
- * CombatEvent - 战斗事件（后端类型）
- * 与后端定义保持一致，data 统一为 PhaseChanges
+ * 事件数据 payload
+ * 不同事件的 data 结构不同：
+ * - walk: { identifier, to, endTurn?, phaseChanges?, stateChanges? }
+ * - use_skill: { identifier, skillId, targets, result, phaseChanges, stateChanges }
+ * - attack: { attacker, skillUsed, skillId, targets, skillResult, phaseChanges }
+ * - new_round / end_round: { round }
+ * - turnStart: { uid, monsterId, round, bossAIAction?, triggeredPassiveSkills? }
+ * - firstTurn: { phaseChanges }
+ * - gameInit: GameModel
+ * - game_end: { gameId }
+ */
+export interface CombatEventData {
+    // 通用字段（不同事件可能包含不同组合）
+    identifier?: CharacterIdentifier;
+    to?: { q: number; r: number };
+    endTurn?: boolean;
+    skillId?: string;
+    targets?: CharacterIdentifier[];
+    result?: {
+        success?: boolean;
+        effects?: SkillEffectItem[];
+        [key: string]: any;
+    };
+    attacker?: CharacterIdentifier;
+    skillUsed?: boolean;
+    skillResult?: any;
+    skillSelect?: string;
+    // 阶段变化和状态变化（自包含数据，供 watch/replay 使用）
+    phaseChanges?: PhaseChanges;
+    stateChanges?: StateChanges;
+    // 回合相关字段
+    round?: number;
+    uid?: string;
+    monsterId?: string;
+    bossId?: string;
+    minionId?: string;
+    triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
+    bossAIAction?: {
+        decision?: any;
+        executionResults?: any;
+        phaseTransition?: any;
+    };
+    character_id?: string;
+    // 允许额外字段（兼容扩展）
+    [key: string]: any;
+}
+
+/**
+ * CombatEvent - 战斗事件
+ * 前后端统一的事件类型定义
  * 
  * 设计说明：
- * - stepTime: 相对时间位置（从游戏开始，毫秒数），用于去重和排序（数据库中必需）
- * - data: 统一为 PhaseChanges 类型，所有事件都使用相同的数据结构
+ * - stepTime: 相对时间位置（从游戏开始，毫秒数），由后端 createEvent 自动计算
+ *   创建时可选，数据库中必需
+ * - data: 事件载荷，不同事件类型的 data 结构不同（参见 CombatEventData）
  * - 事件名称与后端保持一致
  */
 export interface CombatEvent {
-    // ========== 后端必需字段（所有事件共有）==========
-    gameId: string;                 // ✅ 必需：游戏ID
-    name: EventName;                // ✅ 必需：事件名称（类型安全）
-    time: number;                   // ✅ 必需：绝对时间戳（Date.now()）
-    stepTime: number;               // ✅ 必需：相对时间位置（从游戏开始，毫秒数），用于去重和排序
-
-    // ========== 事件数据（统一结构）==========
-    data?: PhaseChanges;            // ✅ 可选：事件数据（统一为 PhaseChanges）
-
-    // ========== 事件类型（可选，用于分类）==========
-    type?: number;                  // ✅ 可选：事件类型（0: phase, 1: movement, 2: attack, 3: skill）
+    gameId: string;                 // 必需：游戏ID
+    name: EventName;                // 必需：事件名称
+    time: number;                   // 必需：绝对时间戳（Date.now()）
+    stepTime?: number;              // 可选：相对时间位置（创建时可选，由后端自动计算）
+    type?: number;                  // 可选：事件类型（0: phase, 1: movement, 2: attack, 3: skill）
+    data?: CombatEventData;         // 可选：事件数据（不同事件有不同结构）
 }
 
 /**
  * FrontendCombatEvent - 前端战斗事件（扩展类型）
- * 在后端 CombatEvent 基础上添加前端运行时字段
- * 
- * 设计说明：
- * - initTime: 事件初始化时间（用于超时检查）
- * - status: 事件处理状态（0: 待处理, 1: 处理中, 2: 已完成）
- * - 这些字段只在前端使用，不影响后端数据
+ * 在 CombatEvent 基础上添加前端运行时字段
  */
 export interface FrontendCombatEvent extends CombatEvent {
-    // ========== 前端运行时字段 ==========
-    initTime?: number;              // ✅ 前端扩展：事件初始化时间（用于超时检查）
-    status?: number;                // ✅ 前端扩展：事件处理状态（0: 待处理, 1: 处理中, 2: 已完成）
+    initTime?: number;              // 前端扩展：事件初始化时间（用于超时检查）
+    status?: number;                // 前端扩展：事件处理状态（0: 待处理, 1: 处理中, 2: 已完成）
+    optimistic?: boolean;           // 前端扩展：是否为乐观事件（play 模式下本地生成的）
 }
 
 /**

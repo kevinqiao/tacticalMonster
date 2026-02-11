@@ -4,12 +4,14 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
+import type { FrontendCombatEvent } from "../../../types/CombatTypes";
 import usePlaySkill from "../../animation/usePlaySkill";
 import usePlayWalk from "../../animation/usePlayWalk";
 import type { CharacterIdentifier } from "../../utils/typeAdapter";
 import { useCombatManager } from "../CombatManager";
 import { usePassiveSkillAnimations } from "./hooks/usePassiveSkillAnimations";
 import { usePhaseChangesHandler } from "./hooks/usePhaseChangesHandler";
+import { applyStateChanges } from "./utils/backendResponseUtils";
 import { findTargetByIdentifier } from "./utils/characterUtils";
 
 const useEventHandler = () => {
@@ -17,7 +19,6 @@ const useEventHandler = () => {
         eventQueue,
         characters,
         groundCells,
-        hexCell,
         mode = 'play',
         game
     } = useCombatManager();
@@ -50,7 +51,7 @@ const useEventHandler = () => {
 
         if (name === "walk" && data?.to) {
             // 移动事件
-            const characterId = data.identifier?.character_id || data.character_id;
+            const characterId = (data.identifier as any)?.character_id || data.character_id;
             const character = characters.find(c => c.character_id === characterId);
 
             if (!character) {
@@ -61,10 +62,22 @@ const useEventHandler = () => {
             // 创建路径（简化处理，实际应该从事件数据获取）
             const path = [{ q: character.q ?? 0, r: character.r ?? 0 }, { q: data.to.q, r: data.to.r }];
 
-            // ✅ 播放动画（不手动更新状态，依赖 useQuery 自动同步）
-            playWalk(character, path, () => {
-                // ✅ Watch 模式下，状态由 useQuery(gameState) 自动更新
-                // 不手动修改 character.q 和 character.r，避免与 gameState 查询冲突
+            // ✅ 从事件顶层获取 phaseChanges 和 stateChanges（未来 walk 可能触发被动技能/陷阱等）
+            const walkPhaseChanges = data?.phaseChanges;
+            const walkStateChanges = data?.stateChanges;
+
+            playWalk(character, path, async () => {
+                // ✅ 更新角色逻辑坐标（与 play 模式保持一致）
+                character.q = data.to!.q;
+                character.r = data.to!.r;
+                // ✅ 应用后端确认的状态变化（如踩陷阱等）
+                if (walkStateChanges) {
+                    applyStateChanges(walkStateChanges, characters);
+                }
+                // ✅ 处理阶段变化（如 walk 触发被动技能导致的回合推进等）
+                if (walkPhaseChanges) {
+                    await handlePhaseChanges(walkPhaseChanges);
+                }
                 onComplete();
             });
         } else if (name === "attack" || name === "use_skill") {
@@ -72,8 +85,11 @@ const useEventHandler = () => {
             // 从事件数据中提取信息
             const identifier = data?.identifier || data?.attacker || data?.caster;
             const skillId = data?.skillSelect || data?.skillId || "basic_attack";
-            const result = data?.result; // 后端返回的完整结果
+            const result = data?.result; // 后端返回的技能执行结果
             const targets = data?.targets || []; // 目标列表（支持多目标）
+            // ✅ 从事件顶层获取完整的 phaseChanges 和 stateChanges（后端已完整写入）
+            const eventPhaseChanges = data?.phaseChanges;
+            const eventStateChanges = data?.stateChanges;
 
             // 查找攻击者
             const attacker = identifier ? findTargetByIdentifier(
@@ -89,7 +105,6 @@ const useEventHandler = () => {
 
             // 查找所有目标
             const targetSprites: any[] = [];
-            const targetUpdates: Map<string, { newHp?: number; newMp?: number; effects?: any[] }> = new Map();
 
             if (result?.effects) {
                 // 从 result.effects 中提取目标信息
@@ -106,11 +121,6 @@ const useEventHandler = () => {
                             );
                             if (target && !targetSprites.find(t => t.character_id === target.character_id)) {
                                 targetSprites.push(target);
-                                // 从 effectData 中提取状态更新信息
-                                // 注意：实际的状态更新应该从后端查询获取，这里只是示例
-                                targetUpdates.set(target.character_id, {
-                                    effects: effectData.effect ? [effectData.effect] : []
-                                });
                             }
                         }
                     }
@@ -141,28 +151,26 @@ const useEventHandler = () => {
                 skillId,
                 targetSprites,
                 async () => {
-                    // ✅ Watch 模式下，不手动更新状态，依赖 useQuery(gameState) 自动同步
-                    // 状态更新流程：
-                    // 1. 后端执行动作 → 更新数据库
-                    // 2. useQuery(gameState) 检测到数据库变化 → 自动更新
-                    // 3. effectiveGame 更新 → characters 重新计算 → UI 更新
-                    // 
-                    // 注意：targetUpdates 中的信息仅用于参考，不用于实际更新
-                    // 实际状态应该从 gameState 查询获取
+                    // ✅ 应用状态变化：优先使用事件顶层 stateChanges，回退到 phaseChanges.stateChanges
+                    const resolvedStateChanges = eventStateChanges ?? eventPhaseChanges?.stateChanges;
+                    if (resolvedStateChanges) {
+                        applyStateChanges(resolvedStateChanges, characters);
+                    }
 
-                    // ✅ 处理被动技能动画（如果有）
-                    if (result && activeSkillTimeline) {
+                    // ✅ 处理被动技能动画：优先使用 phaseChanges.effects
+                    const resolvedEffects = eventPhaseChanges?.effects || result?.effects;
+                    if (resolvedEffects && activeSkillTimeline) {
                         handlePassiveSkillAnimations(
-                            result,
+                            { phaseChanges: eventPhaseChanges, effects: resolvedEffects },
                             activeSkillTimeline,
                             attacker,
-                            targetSprites[0] // 被动技能通常只作用于第一个目标
+                            targetSprites[0]
                         );
                     }
 
-                    // ✅ 处理阶段变化（如果有）
-                    if (result?.phaseChanges) {
-                        await handlePhaseChanges(result.phaseChanges);
+                    // ✅ 处理完整的阶段变化（turnEnd → bossAIActions → turnStart → gameOver）
+                    if (eventPhaseChanges) {
+                        await handlePhaseChanges(eventPhaseChanges);
                     }
 
                     onComplete();
@@ -349,14 +357,14 @@ const useEventHandler = () => {
     useEffect(() => {
         // 所有模式都需要轮询处理事件队列
         // replay 模式下，事件由重播管理器通过回调注入到队列，但仍需要轮询来处理
-        if (!characters || !groundCells || !hexCell) return;
+        if (!characters || !groundCells) return;
 
         const intervalId = setInterval(() => {
             processEvent();
         }, 100);
 
         return () => clearInterval(intervalId);
-    }, [characters, groundCells, hexCell, processEvent, mode]);
+    }, [characters, groundCells, processEvent, mode]);
 };
 
 export default useEventHandler;

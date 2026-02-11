@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
-import { CharacterIdentifier, CombatEvent, GameModel, GameReport, GameStatus, PhaseChanges } from "../../types/gameTypes";
+import { CharacterIdentifier, CombatEvent, GameModel, GameReport, GameStatus, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
 import { CharacterPositionService } from "./characterPositionService";
 import { CharacterQueryService } from "./characterQueryService";
@@ -139,10 +139,9 @@ export class GameService implements CharacterGetter {
         // 更新 characterQueryService 的游戏状态
         this.characterQueryService.setGame(game);
 
-        // 更新验证器的游戏状态引用
-        if (this.validator) {
-            (this.validator as any).game = game;
-        }
+        // 更新验证器的游戏状态引用（确保 validator 已初始化，避免延迟初始化导致 game 为 null）
+        const validator = this.getValidator();
+        (validator as any).game = game;
 
         return game;
     }
@@ -185,10 +184,9 @@ export class GameService implements CharacterGetter {
         // 更新 characterQueryService 的游戏状态
         this.characterQueryService.setGame(game);
 
-        // 更新验证器的游戏状态引用
-        if (this.validator) {
-            (this.validator as any).game = game;
-        }
+        // 更新验证器的游戏状态引用（确保 validator 已初始化）
+        const validator = this.getValidator();
+        (validator as any).game = game;
 
         // ✅ 启动第一个 round 的第一个 turn（触发 round_start 和 turn_start 被动技能，处理 Boss AI）
         let phaseChanges: PhaseChanges | undefined;
@@ -212,20 +210,23 @@ export class GameService implements CharacterGetter {
      * 移动角色
      * 更新角色在战场上的位置
      * 委托给 GameActionService
+     * 
      * @param gameId 游戏ID
      * @param to 目标位置（Hex坐标）
      * @param identifier 角色标识符（monsterId/bossId/minionId 三选一）
-     * @returns 是否成功
+     * @param options.endTurn 是否在移动后结束回合（walk-only turn）
+     * @returns 移动结果，包含可能的阶段变化
      */
     async walk(
         gameId: string,
         to: { q: number; r: number },
-        identifier: CharacterIdentifier
+        identifier: CharacterIdentifier,
+        options?: { endTurn?: boolean }
     ): Promise<{
         success: boolean;
         phaseChanges?: PhaseChanges;
     }> {
-        return await this.getActionService().walk(gameId, to, identifier);
+        return await this.getActionService().walk(gameId, to, identifier, options);
     }
 
     /**
@@ -279,11 +280,7 @@ export class GameService implements CharacterGetter {
             hp?: number;
             stamina?: number;
         };
-        effects?: Array<{
-            effect: any;
-            targetId?: string;
-            applied: boolean;
-        }>;
+        effects?: SkillEffectItem[];
         phaseChanges?: PhaseChanges;
     }> {
         // ✅ 首先检查 characterQueryService 中是否已有游戏
@@ -595,14 +592,29 @@ export const walk = mutation({
             bossId: v.optional(v.string()),
             minionId: v.optional(v.string()),
         }),
+        endTurn: v.optional(v.boolean()),
     },
-    handler: async (ctx, { gameId, to, identifier }) => {
-        console.log("walk", gameId, identifier, to);
+    handler: async (ctx, { gameId, to, identifier, endTurn }) => {
+        console.log("walk", gameId, identifier, to, endTurn ? "(endTurn)" : "");
         const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
-        const result = await gameManager.walk(gameId, to, identifier);
-        console.log("walk result", result);
-        return { ok: result };
+        try {
+
+            const result = await gameManager.walk(gameId, to, identifier, { endTurn: endTurn ?? false });
+            console.log("walk result", result);
+            return {
+                ok: true,
+                success: result.success,
+                phaseChanges: result.phaseChanges,
+            };
+        } catch (error) {
+            console.error("walk error", error);
+            return {
+                ok: false,
+                error: error instanceof Error ? error.message : "未知错误",
+            };
+        }
+
     },
 });
 

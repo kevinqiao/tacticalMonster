@@ -13,7 +13,7 @@ import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
 import usePlaySkill from "./usePlaySkill";
 
 const usePlayPhase = () => {
-    const { groundCells, characters, hexDimension, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { groundCells, characters, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
     const { map } = game || {};
     const { playSkill } = usePlaySkill();
 
@@ -242,7 +242,7 @@ const usePlayPhase = () => {
         }
 
         tl.play();
-    }, [characters, groundCells, hexDimension, map, playbackSpeed]);
+    }, [characters, groundCells, mapDimension, map, playbackSpeed]);
 
     // const playTurnInit = useCallback(() => {
     //     if (!map || !groundCells) return;

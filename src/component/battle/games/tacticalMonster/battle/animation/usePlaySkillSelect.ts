@@ -10,11 +10,11 @@ import { useCombatManager } from "../service/CombatManager";
 import { getAttackableNodes } from "../utils/PathFind";
 
 const usePlaySkillSelect = () => {
-    const { characters, gridCells, hexCell, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
 
     const { map, currentRound } = game || {};
     const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; monsterId: string }, onComplete: () => void | Promise<void>) => {
-        if (!characters || !gridCells || !map || !currentRound) return;
+        if (!characters || !groundCells || !map || !currentRound) return;
         console.log("playSkillSelect", skillSelect)
         const { uid, monsterId } = skillSelect;
         const character = characters.find((c) => c.uid === uid && c.monsterId === monsterId);
@@ -27,7 +27,7 @@ const usePlaySkillSelect = () => {
 
         const skill: MonsterSkill | null = COMMON_SKILLS[character.selectedSkill ?? ""] ?? null;
         if (!skill) return;
-        const grid = gridCells.map((row) => row.map((cell) => {
+        const grid = groundCells.map((row) => row.map((cell) => {
             const char = character.q === cell.q && character.r === cell.r ? null : characters.find((c) => c.q === cell.q && c.r === cell.r)
             return {
                 q: cell.q,
@@ -105,7 +105,7 @@ const usePlaySkillSelect = () => {
 
         tl.play();
 
-    }, [characters, gridCells, hexCell, currentRound, map, playbackSpeed]);
+    }, [characters, groundCells, mapDimension, currentRound, map, playbackSpeed]);
     return { playSkillSelect }
 }
 export default usePlaySkillSelect;

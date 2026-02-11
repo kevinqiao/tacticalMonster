@@ -2,10 +2,11 @@
  * Tactical Monster 战斗主界面组件
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useMapDimension } from "../common/hooks/useMapDimension";
 import { ASSET_TYPE } from "../types/monsterTypes";
 import { useCombatManager } from "./service/CombatManager";
-import { useCurrentTurnHandler } from "./service/handler/hooks/useCurrentTurnHandler";
+import { usePhaseChangesHandler } from "./service/handler/hooks/usePhaseChangesHandler";
 import useCombatActHandler from "./service/handler/useCombatActHandler";
 import useEventHandler from "./service/handler/useEventHandler";
 import "./style.css";
@@ -56,7 +57,6 @@ const CombatPlaza: React.FC<{ position: { top: number; left: number; width: numb
 };
 
 const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
-    const containerRef = useRef<HTMLDivElement | null>(null);
     const [placePosition, setPlacePosition] = useState<{
         top: number;
         left: number;
@@ -76,61 +76,86 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
         height: number;
     } | null>(null);
 
-    const { game, changeCell } = useCombatManager();
+    const {
+        game,
+        setMapDimension,
+        mode,
+        characters,
+        groundCells: contextGroundCells,
+        initialPhaseChanges,
+        markInitialPhaseChangesProcessed,
+        isInitialPhaseChangesProcessed,
+        replay,
+        eventQueue,
+    } = useCombatManager();
+    const { containerRef, mapDimension, containerSize } = useMapDimension();
     useEventHandler();
 
+    // ✅ 2D 阶段变化处理器（处理 initialPhaseChanges）
+    const { handlePhaseChanges } = usePhaseChangesHandler();
+
     useEffect(() => {
-        if (!game?.map || game.map.cols === 0 || game.map.rows === 0) return;
-        const { rows, cols } = game.map;
-
-        const mapRatio = ((cols + 0.5) * Math.sqrt(3)) / 2 / (2 + ((rows - 1) * 3) / 4);
-
-        const updateMap = () => {
-            if (containerRef.current) {
-                const windowRatio = window.innerWidth / window.innerHeight;
-                const plazaSize: { width: number; height: number } = { width: 0, height: 0 };
-
-                if (mapRatio < windowRatio) {
-                    plazaSize.width = window.innerHeight * mapRatio;
-                    plazaSize.height = window.innerHeight;
-                } else {
-                    plazaSize.width = window.innerWidth;
-                    plazaSize.height = window.innerWidth / mapRatio;
-                }
-
-                const mapHeight = plazaSize.height * 0.8;
-                const hexHeight = mapHeight / (2 + ((rows - 1) * 3) / 4);
-                const hexWidth = (hexHeight * Math.sqrt(3)) / 2;
-                const mapWidth = hexWidth * (cols + 0.5);
-
-                const mapLeft = (plazaSize.width - mapWidth) / 2 + 0.25 * hexWidth;
-                const mapTop = (plazaSize.height - mapHeight) / 2;
-                changeCell({ width: hexWidth, height: hexHeight });
-
-                setMapPosition({
-                    top: mapTop,
-                    left: mapLeft,
-                    width: mapWidth,
-                    height: mapHeight
-                });
-
-                setGridPosition({
-                    top: hexHeight / 2,
-                    left: 0,
-                    width: mapWidth,
-                    height: mapHeight - hexHeight / 2
-                });
-
-                const plazaLeft = (window.innerWidth - plazaSize.width) / 2;
-                const plazaTop = (window.innerHeight - plazaSize.height) / 2;
-                setPlacePosition({ top: plazaTop, left: plazaLeft, width: plazaSize.width, height: plazaSize.height });
+        if (
+            game &&
+            initialPhaseChanges &&
+            !isInitialPhaseChangesProcessed() &&
+            characters && characters.length > 0 &&
+            contextGroundCells
+        ) {
+            if (mode === 'play') {
+                const timer = setTimeout(() => {
+                    markInitialPhaseChangesProcessed();
+                    handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                        console.error("[BattleVenue 2D] Error handling initial phaseChanges:", error);
+                    });
+                }, 500);
+                return () => clearTimeout(timer);
+            } else if (mode === 'watch' || mode === 'replay') {
+                const timer = setTimeout(() => {
+                    if (mode === 'watch' && eventQueue.length === 0) {
+                        markInitialPhaseChangesProcessed();
+                        handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                            console.error("[BattleVenue 2D] Error handling initial phaseChanges (watch):", error);
+                        });
+                    } else if (mode === 'replay' && replay?.getAllEvents?.().length === 0) {
+                        markInitialPhaseChangesProcessed();
+                        handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                            console.error("[BattleVenue 2D] Error handling initial phaseChanges (replay):", error);
+                        });
+                    }
+                }, 1000);
+                return () => clearTimeout(timer);
             }
-        };
+        }
+    }, [game, initialPhaseChanges, mode, characters, contextGroundCells, handlePhaseChanges, markInitialPhaseChangesProcessed, isInitialPhaseChangesProcessed, eventQueue, replay]);
 
-        updateMap();
-        window.addEventListener("resize", updateMap);
-        return () => window.removeEventListener("resize", updateMap);
-    }, [game, changeCell]);
+    useEffect(() => {
+        if (!mapDimension || !containerSize) return;
+        setMapDimension(mapDimension);
+
+        const mapW = mapDimension.width;
+        const mapH = mapDimension.height;
+        const hexH = mapDimension.hexHeight;
+        const mapLeft = (containerSize.width - mapW) / 2 + 0.25 * mapDimension.hexWidth;
+        const mapTop = (containerSize.height - mapH) / 2;
+
+        setMapPosition({ top: mapTop, left: mapLeft, width: mapW, height: mapH });
+        setGridPosition({
+            top: hexH / 2,
+            left: 0,
+            width: mapW,
+            height: mapH - hexH / 2
+        });
+
+        const plazaLeft = (window.innerWidth - containerSize.width) / 2;
+        const plazaTop = (window.innerHeight - containerSize.height) / 2;
+        setPlacePosition({
+            top: plazaTop,
+            left: plazaLeft,
+            width: containerSize.width,
+            height: containerSize.height
+        });
+    }, [mapDimension, containerSize, setMapDimension]);
 
     return (
         <div className="battle-container">
@@ -138,6 +163,8 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
                 ref={containerRef}
                 style={{
                     position: "absolute",
+                    width: "100%",
+                    height: "100%",
                     ...placePosition,
                 }}
             >
@@ -165,11 +192,8 @@ const BattlePlayer: React.FC<BattlePlayerProps> = ({ assetType }) => {
     const [allEvents, setAllEvents] = useState<any[]>([]);
     const { positionSelectionUI } = useCombatActHandler();
 
-    // ✅ Play 模式：检查并显示当前 turn UI（用于已存在的游戏）
-    useCurrentTurnHandler();
-
-    // ✅ 监听重播状态变化，更新当前事件索引和事件列表
-    // 注意：游戏初始化时的 turn UI 显示由 usePhaseChangesHandler 处理 initialPhaseChanges.turnStart 统一处理
+    // 监听重播状态变化，更新当前事件索引和事件列表
+    // turn UI 显示统一由 initialPhaseChanges → handlePhaseChanges 处理
     useEffect(() => {
         if (mode === 'replay' && replay?.state) {
             setCurrentEventIndex(replay.state.currentIndex || 0);

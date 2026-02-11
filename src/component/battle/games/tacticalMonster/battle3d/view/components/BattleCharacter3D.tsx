@@ -37,6 +37,8 @@ interface BattleCharacter3DProps {
     facing?: number;
     /** 是否竖屏，竖屏时朝向旋转为上下 */
     isPortrait?: boolean;
+    /** 是否是当前回合活跃角色（显示高亮指示器） */
+    isActive?: boolean;
     onModelLoaded?: (monsterId: string) => void;
     onRefReady?: (ref: BattleCharacter3DRef) => void;
 }
@@ -48,10 +50,12 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
     height,
     facing = 1,
     isPortrait = false,
+    isActive = false,
     onModelLoaded,
     onRefReady,
 }) => {
     const groupRef = useRef<THREE.Group>(null);
+    const activeRingRef = useRef<THREE.Mesh>(null);
     const modelPath = getMonsterModelPathWithFallback(character.monsterId);
     const { scene, animations } = useGLTF(modelPath);
     const clips = Array.isArray(animations) ? animations : [];
@@ -161,6 +165,15 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
         if (groupRef.current) onRefReady?.(refApi);
     }, [onRefReady, refApi]);
 
+    // ✅ 活跃角色指示器：脉冲缩放 + 缓慢旋转
+    useFrame(({ clock }) => {
+        if (activeRingRef.current && isActive) {
+            const pulse = 1 + Math.sin(clock.elapsedTime * 3) * 0.12;
+            activeRingRef.current.scale.set(pulse, pulse, 1);
+            activeRingRef.current.rotation.z = clock.elapsedTime * 0.5;
+        }
+    });
+
     const modelScale = useMemo(() => {
         if (!originalBounds) return 1;
         const { size } = originalBounds;
@@ -192,6 +205,25 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
                     polygonOffsetUnits={-5}
                 />
             </mesh>
+
+            {/* 当前回合指示器：金色发光环 + 脉冲动画（底座顶部，不遮挡模型） */}
+            {isActive && (
+                <mesh
+                    ref={activeRingRef}
+                    position={[0, 7.5, 0]}
+                    rotation={[-Math.PI / 2, 0, 0]}
+                >
+                    <ringGeometry args={[width * 0.28, width * 0.42, 32]} />
+                    <meshStandardMaterial
+                        color="#FFD700"
+                        emissive="#FFD700"
+                        emissiveIntensity={2.5}
+                        transparent
+                        opacity={0.9}
+                        side={THREE.DoubleSide}
+                    />
+                </mesh>
+            )}
 
             {/* 3D 模型 */}
             {modelClone && (

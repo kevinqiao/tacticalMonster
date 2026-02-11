@@ -34,7 +34,7 @@ const useCombatActHandler = () => {
         game,
         characters,
         groundCells,
-        hexDimension,  // ✅ 使用 hexDimension 作为 hexCell（格式相同：{ width, height }）
+        mapDimension,
         mode = 'play'
     } = useCombatManager();
     const convex = useConvex();
@@ -70,7 +70,10 @@ const useCombatActHandler = () => {
         handleSkillError  // ✅ 错误提示回调
     );
 
-    // ✅ 方案1：移动操作（移除 OperationQueue）
+    const hexCell = mapDimension
+        ? { width: mapDimension.hexWidth, height: mapDimension.hexHeight }
+        : undefined;
+
     const { walk } = useWalkAction(
         game,
         characters || [],
@@ -79,7 +82,7 @@ const useCombatActHandler = () => {
         convex,
         playWalk,
         handlePhaseChanges,
-        hexDimension  // ✅ 传递 hexDimension 作为 hexCell 用于位置回滚
+        hexCell
     );
 
     // ✅ 方案1：技能使用操作（移除 OptimisticSkillExecutor 和 OperationQueue）

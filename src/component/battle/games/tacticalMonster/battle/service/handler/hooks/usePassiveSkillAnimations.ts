@@ -130,9 +130,9 @@ export const usePassiveSkillAnimations = (
     ) => {
         if (!target || !character) return;
 
-        // ✅ 从 phaseChanges.playerAction.executionResults.effects 获取 effects
+        // ✅ 从 phaseChanges.effects 获取 effects（顶层）
         const phaseChanges = backendResult.phaseChanges;
-        const effects = phaseChanges?.playerAction?.executionResults?.effects || backendResult.effects || [];
+        const effects = phaseChanges?.effects || backendResult.effects || [];
 
         if (effects.length === 0) return;
 

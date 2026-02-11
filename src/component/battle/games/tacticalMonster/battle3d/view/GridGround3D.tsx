@@ -15,9 +15,11 @@ interface GridGround3DProps {
     mapDimension: BattleMapDimension | null;
     /** getCellState 接收逻辑坐标 (logicQ, logicR) */
     getCellState?: (q: number, r: number) => BattleCellState;
+    /** 格子点击回调，参数为视图坐标 (viewQ, viewR) */
+    onCellClick?: (viewQ: number, viewR: number) => void;
 }
 
-export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCellState }) => {
+export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCellState, onCellClick }) => {
     const { groundCells } = useCombatManager();
 
     const sharedGeometries = useMemo(() => {
@@ -58,6 +60,10 @@ export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCel
                     sharedGeometries[state === "disabled" ? "disabled" : "normal"] ||
                     sharedGeometries.normal;
 
+                const isClickable = state === "walkable" || state === "attackable";
+                const vQ = viewQ;
+                const vR = viewR;
+
                 result.push(
                     <HexCell3D
                         key={`cell-${viewQ}-${viewR}`}
@@ -68,13 +74,14 @@ export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCel
                         position={[pos.x, pos.y, pos.z]}
                         geometry={geometry}
                         state={state}
+                        onClick={isClickable && onCellClick ? () => onCellClick(vQ, vR) : undefined}
                     />
                 );
             }
         }
 
         return result;
-    }, [groundCells, mapDimension, sharedGeometries, getCellState]);
+    }, [groundCells, mapDimension, sharedGeometries, getCellState, onCellClick]);
 
     return <group>{cells}</group>;
 };

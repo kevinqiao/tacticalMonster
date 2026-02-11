@@ -9,12 +9,15 @@ import { useCombatManager } from "../service/CombatManager";
 import { coordToPixel } from "../utils/hexUtil";
 
 const usePlayWalk = () => {
-    const { characters, gridCells, hexCell, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
     const { map } = game || {};
+    const hexCell = mapDimension
+        ? { width: mapDimension.hexWidth, height: mapDimension.hexHeight }
+        : undefined;
     const playWalk = useCallback((character: MonsterSprite, path: { q: number; r: number }[], onComplete: () => void | Promise<void>) => {
 
         const container = character.container;
-        if (!container || !gridCells || !hexCell || !map || !characters) return;
+        if (!container || !groundCells || !hexCell || !map || !characters) return;
 
         // 记录初始朝向
         const initialScale = character.scaleX ?? 1;
@@ -46,7 +49,7 @@ const usePlayWalk = () => {
         character.walkables?.forEach((node) => {
             const { q, r } = node;
             const col = direction === 1 ? cols - q - 1 : q;
-            const gridCell = gridCells[r]?.[col];
+            const gridCell = groundCells[r]?.[col];
             if (gridCell?.element) {
                 gsap.set(gridCell.element, { opacity: 0 });
             }
@@ -62,7 +65,7 @@ const usePlayWalk = () => {
         let currentScale = initialScale;
         movementPath.forEach(node => {
             const col = direction === 1 ? cols - node.q - 1 : node.q;
-            const cell = gridCells[node.r]?.[col];
+            const cell = groundCells[node.r]?.[col];
             if (cell?.element) {
                 gsap.set(cell.element, { opacity: 0.7 });
             }
@@ -75,7 +78,7 @@ const usePlayWalk = () => {
             const stepTl = gsap.timeline({
                 onComplete: () => {
                     const col = direction === 1 ? cols - pos.q - 1 : pos.q;
-                    const cell = gridCells[pos.r]?.[col];
+                    const cell = groundCells[pos.r]?.[col];
                     if (cell?.element) {
                         gsap.set(cell.element, { opacity: 0.1 });
                     }
@@ -107,7 +110,7 @@ const usePlayWalk = () => {
         });
 
         return tl.play();
-    }, [characters, gridCells, hexCell, map, playbackSpeed]);
+    }, [characters, groundCells, hexCell, map, playbackSpeed]);
 
     return { playWalk }
 }

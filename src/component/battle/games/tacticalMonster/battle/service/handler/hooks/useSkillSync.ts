@@ -87,9 +87,9 @@ export const useSkillSync = (
 
                 const backendResult = backendResponse.data; // 此时已确认 backendResponse.ok 且 success
 
-                // ✅ 从 phaseChanges.playerAction.executionResults.stateChanges 提取 stateChanges
+                // ✅ 从 phaseChanges.stateChanges 提取（顶层，无需深层访问）
                 const phaseChanges = backendResult.phaseChanges;
-                const stateChanges = phaseChanges?.playerAction?.executionResults?.stateChanges;
+                const stateChanges = phaseChanges?.stateChanges;
 
                 // ✅ 应用后端返回的 stateChanges（包含 shield, status, statusEffects, skillCooldowns）
                 applyStateChanges(stateChanges, characters, character, target);

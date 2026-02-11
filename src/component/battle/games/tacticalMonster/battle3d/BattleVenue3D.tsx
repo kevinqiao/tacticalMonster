@@ -13,10 +13,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useCombatManager } from "../battle/service/CombatManager";
-import useCombatActHandler from "../battle/service/handler/useCombatActHandler";
-import useEventHandler from "../battle/service/handler/useEventHandler";
 import "../battle/style.css";
+import { viewToLogic } from "../team/utils/coordinateUtils";
 import { BattleLoadingContext } from "./BattleLoadingContext";
+import { useBattleGridState, type BattleCellState } from "./hooks/useBattleGridState";
+import useCombatActHandler3D from "./hooks/useCombatActHandler3D";
+import useEventHandler3D from "./hooks/useEventHandler3D";
+import { usePhaseChangesHandler3D } from "./hooks/usePhaseChangesHandler3D";
 import { BattleMapDimension } from "./utils/coordinate3DUtils";
 import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
 
@@ -158,7 +161,9 @@ const CanvasWithControls: React.FC<{
     onModelLoaded: (monsterId: string) => void;
     isPortrait: boolean;
     orthoZoom: number;
-}> = ({ cameraPosition, target, mapDimension, minDistance, maxDistance, onProgress, onModelLoaded, isPortrait, orthoZoom }) => {
+    getCellState?: (q: number, r: number) => BattleCellState;
+    onCellClick?: (viewQ: number, viewR: number) => void;
+}> = ({ cameraPosition, target, mapDimension, minDistance, maxDistance, onProgress, onModelLoaded, isPortrait, orthoZoom, getCellState, onCellClick }) => {
     const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
     // 共用的场景内容
@@ -180,7 +185,7 @@ const CanvasWithControls: React.FC<{
             <BattleLoadingContext.Provider value={{ onModelLoaded }}>
                 {mapDimension && (
                     <>
-                        <GridGround3D mapDimension={mapDimension} />
+                        <GridGround3D mapDimension={mapDimension} getCellState={getCellState} onCellClick={onCellClick} />
                         <ObstacleGrid3D mapDimension={mapDimension} />
                         <CharacterGrid3D mapDimension={mapDimension} />
                     </>
@@ -233,22 +238,34 @@ const CanvasWithControls: React.FC<{
     );
 };
 
-const CombatActPanel: React.FC = () => {
-    const { surrender } = useCombatActHandler();
-    return (
-        <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
-            <div className="action-panel-item">STANDBY</div>
-            <div className="action-panel-item">DEFEND</div>
-            <div className="action-panel-item" onClick={() => surrender()}>
-                GAME OVER
-            </div>
+const CombatActPanel: React.FC<{ surrender: () => void }> = ({ surrender }) => (
+    <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
+        <div className="action-panel-item">STANDBY</div>
+        <div className="action-panel-item">DEFEND</div>
+        <div className="action-panel-item" onClick={() => surrender()}>
+            GAME OVER
         </div>
-    );
-};
+    </div>
+);
 
 export const BattleVenue3D: React.FC = () => {
-    const { game, changeCell } = useCombatManager();
-    useEventHandler();
+    const {
+        game,
+        setMapDimension,
+        mode,
+        characters,
+        groundCells: contextGroundCells,
+        initialPhaseChanges,
+        markInitialPhaseChangesProcessed,
+        isInitialPhaseChangesProcessed,
+        replay,
+        eventQueue,
+    } = useCombatManager();
+    const disabledCells = useMemo(
+        () => (game?.map?.disables ? [...game.map.disables] : []),
+        [game?.map?.disables]
+    );
+    const gridState = useBattleGridState(disabledCells);
 
     const { containerRef, mapDimension: rawMapDimension, containerSize } = useMapDimension();
 
@@ -263,15 +280,89 @@ export const BattleVenue3D: React.FC = () => {
         };
     }, [rawMapDimension, game?.map?.direction]);
 
+    useEventHandler3D({ gridState, mapDimension });
+
+    const { surrender, walk, attack, positionSelectionUI } = useCombatActHandler3D({ gridState, mapDimension });
+
+    // ✅ 格子点击处理：walkable 格子 → walk，attackable 格子 → attack
+    const handleCellClick = useCallback(
+        (viewQ: number, viewR: number) => {
+            if (!mapDimension || mode !== "play") return;
+            const logic = viewToLogic(viewQ, viewR, mapDimension);
+            const cellState = gridState.getCellState(logic.q, logic.r);
+            console.log("[handleCellClick] view:", { viewQ, viewR }, "logic:", logic, "state:", cellState);
+
+            if (cellState === "walkable") {
+                walk({ q: logic.q, r: logic.r }).catch((err: any) => console.error("[handleCellClick] walk error:", err));
+            } else if (cellState === "attackable") {
+                // 找到该格子上的敌方角色
+                const enemy = characters?.find(
+                    (c) => c.q === logic.q && c.r === logic.r
+                );
+                if (enemy) {
+                    attack(enemy);
+                }
+            }
+        },
+        [mapDimension, mode, gridState, walk, attack, characters]
+    );
+
+    // ✅ 3D 阶段变化处理器（用于 initialPhaseChanges）
+    const { handlePhaseChanges } = usePhaseChangesHandler3D({ gridState, mapDimension });
+
+    // ✅ 处理 initialPhaseChanges（从 CombatManager context 获取）
+    // 注意：markInitialPhaseChangesProcessed 必须在 setTimeout 回调内部调用，
+    // 避免因 React 重渲染取消 timer 后标记已被设置导致永远不再处理。
+    useEffect(() => {
+        if (
+            game &&
+            initialPhaseChanges &&
+            !isInitialPhaseChangesProcessed() &&
+            characters && characters.length > 0 &&
+            contextGroundCells &&
+            mapDimension
+        ) {
+            if (mode === 'play') {
+                const timer = setTimeout(() => {
+                    markInitialPhaseChangesProcessed();
+                    console.log("[BattleVenue3D] 处理 initialPhaseChanges (play):", initialPhaseChanges);
+                    handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                        console.error("[BattleVenue3D] Error handling initial phaseChanges:", error);
+                    });
+                }, 500);
+                return () => clearTimeout(timer);
+            } else if (mode === 'watch' || mode === 'replay') {
+                const timer = setTimeout(() => {
+                    if (mode === 'watch') {
+                        if (eventQueue.length === 0) {
+                            markInitialPhaseChangesProcessed();
+                            handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                                console.error("[BattleVenue3D] Error handling initial phaseChanges (watch):", error);
+                            });
+                        }
+                    } else if (mode === 'replay') {
+                        if (replay && replay.getAllEvents && replay.getAllEvents().length === 0) {
+                            markInitialPhaseChangesProcessed();
+                            handlePhaseChanges(initialPhaseChanges).catch((error) => {
+                                console.error("[BattleVenue3D] Error handling initial phaseChanges (replay):", error);
+                            });
+                        }
+                    }
+                }, 1000);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [game, initialPhaseChanges, mode, characters, contextGroundCells, mapDimension, handlePhaseChanges, markInitialPhaseChangesProcessed, isInitialPhaseChangesProcessed, eventQueue, replay]);
+
     useEffect(() => {
         getAllMonsterGlbPaths().forEach((path) => useGLTF.preload(path));
     }, []);
 
     useEffect(() => {
-        if (mapDimension) {
-            changeCell({ width: mapDimension.hexWidth, height: mapDimension.hexHeight });
+        if (rawMapDimension) {
+            setMapDimension(rawMapDimension);
         }
-    }, [mapDimension, changeCell]);
+    }, [rawMapDimension, setMapDimension]);
 
     const [loadedModelCount, setLoadedModelCount] = useState(0);
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -427,11 +518,14 @@ export const BattleVenue3D: React.FC = () => {
                             onModelLoaded={onModelLoaded}
                             isPortrait={isPortrait}
                             orthoZoom={orthoZoom}
+                            getCellState={gridState.getCellState}
+                            onCellClick={handleCellClick}
                         />
                     </div>
                 )}
 
-                <CombatActPanel />
+                <CombatActPanel surrender={surrender} />
+                {positionSelectionUI}
             </div>
 
         </div>

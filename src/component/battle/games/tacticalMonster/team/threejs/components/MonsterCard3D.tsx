@@ -377,7 +377,7 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
             {modelClone && (
                 <group
                     position={[0, 10, 0]}
-                    rotation={[isPortrait ? PORTRAIT_TILT_X : 0, isPortrait ? PORTRAIT_FACE_UP_Y : MODEL_FACE_RIGHT_Y, 0]}
+                    rotation={[isPortrait ? -PORTRAIT_TILT_X : 0, isPortrait ? PORTRAIT_FACE_UP_Y : MODEL_FACE_RIGHT_Y, 0]}
                     scale={[modelScale * MODEL_SCALE_FACTOR, modelScale * MODEL_SCALE_FACTOR, modelScale * MODEL_SCALE_FACTOR]}
                 >
                     <primitive object={modelClone} />

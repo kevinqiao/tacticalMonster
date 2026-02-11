@@ -13,7 +13,7 @@ import CombatManager from "./battle/service/CombatManager";
 import BattlePlayer3D from "./battle3d/BattlePlayer3D";
 
 import "./styles.css";
-import { TeamLayout3D } from "./team/threejs";
+import TeamLayout3D from "./team/threejs/TeamLayout3D";
 import { GameModel } from "./types/gameTypes";
 import { Stage } from "./types/StageTypes";
 /** 设为 true 使用 3D 战斗视图，false 使用 2D */
@@ -59,7 +59,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     const { playInit, openTeamLayout, playLoading, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
 
     const startJoin = useCallback(async () => {
-
+        console.log("startJoin", props.mode, props.typeId, props.stageId);
         if (props.mode === "join" && props.typeId && props.stageId) {
             playLoading();
             const result = await joinTournament(props.typeId, props.stageId);

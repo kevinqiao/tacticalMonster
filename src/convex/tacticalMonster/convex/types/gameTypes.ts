@@ -79,17 +79,58 @@ export interface GameTurn {
     dueTime?: number;
 }
 /**
+ * 技能效果条目（包含效果详情 + 元信息）
+ * effects 数组中的每一项
+ */
+export interface SkillEffectItem {
+    effect: {
+        id: string;
+        name: string;
+        type: string;                               // SkillEffectType
+        value?: number;
+        damage_type?: 'physical' | 'magical';
+        target_attribute?: string;
+        duration?: number;
+        modifiers?: Record<string, number>;
+        modifier_type?: 'add' | 'multiply';
+        icon?: string;
+        damage_falloff?: { full_damage_range: number; min_damage_percent: number };
+        area_type?: 'single' | 'circle' | 'line';
+        area_size?: number;
+    };
+    targetId?: string;
+    applied: boolean;
+    isPassive?: boolean;
+    passiveSkillId?: string;
+    triggerType?: string;
+}
+
+/**
+ * 被动技能触发记录
+ * 用于 roundStart/turnStart 的 triggeredPassiveSkills
+ * effects 为简化版效果摘要（仅 id/type/name），不同于 PhaseChanges.effects 中的完整 SkillEffectItem
+ */
+export interface TriggeredPassiveSkill {
+    uid: string;
+    monsterId: string;
+    bossId?: string;
+    minionId?: string;
+    skillId: string;
+    effects: Array<{ id: string; type: string; name: string }>;
+}
+
+/**
  * 阶段变化信息
- * 统一的事件数据结构，所有事件的 data 都使用此类型
+ * 统一的事件数据结构
  */
 export interface PhaseChanges {
     // ========== 游戏初始化 ==========
-    gameInit?: GameModel;  // ✅ 游戏初始化状态（gameInit 事件使用）
+    gameInit?: GameModel;
 
     // ========== 回合和阶段 ==========
     roundStart?: {
         round: number;
-        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
+        triggeredPassiveSkills?: TriggeredPassiveSkill[];
     };
     roundEnd?: {
         round: number;
@@ -98,7 +139,13 @@ export interface PhaseChanges {
         uid: string;
         monsterId: string;
         round: number;
-        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
+        triggeredPassiveSkills?: TriggeredPassiveSkill[];
+        /** 本回合开始时的状态效果 tick 结果（DOT/HOT/BUFF/DEBUFF/STUN 等） */
+        statusEffectChanges?: {
+            expired: Array<{ id: string; type: string; name?: string }>;
+            ticked: Array<{ effectId: string; type: string; value: number }>;
+            characterState: { hp: number; mp?: number; status: string };
+        };
     };
     turnEnd?: {
         uid: string;
@@ -106,43 +153,9 @@ export interface PhaseChanges {
         round: number;
     };
 
-    // ========== 玩家动作（与 bossAIActions 对称）==========
-    playerAction?: {
-        turnStart?: {
-            uid: string;
-            monsterId: string;
-            round: number;
-            triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
-        };
-        action: {
-            type: 'use_skill' | 'attack' | 'move' | 'standby';
-            skillId?: string;
-            target?: CharacterIdentifier;
-            targets?: CharacterIdentifier[];
-            position?: { q: number; r: number };
-        };
-        executionResults: {
-            stateChanges?: {
-                actor?: {
-                    identifier: CharacterIdentifier;
-                    before: { q: number; r: number; hp: number; mp: number };
-                    after: { q: number; r: number; hp: number; mp: number };
-                    positionChanged: boolean;
-                    hpChanged: boolean;
-                    mpChanged: boolean;
-                };
-                targets?: Array<{
-                    identifier: CharacterIdentifier;
-                    before: { hp: number; mp: number };
-                    after: { hp: number; mp: number };
-                    hpChanged: boolean;
-                    mpChanged: boolean;
-                }>;
-            };
-            effects?: any[];
-            phaseChanges?: PhaseChanges;  // 嵌套的 phaseChanges（如 turnEnd, roundEnd 等）
-        };
-    };
+    // ========== 执行结果 ==========
+    stateChanges?: any;                     // 角色状态前后对比（对应前端 StateChanges）
+    effects?: SkillEffectItem[];            // 技能效果列表（包含主动和被动技能效果）
 
     // ========== Boss AI 动作 ==========
     bossAIActions?: Array<{
@@ -150,7 +163,12 @@ export interface PhaseChanges {
             uid: string;
             monsterId: string;
             round: number;
-            triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
+            triggeredPassiveSkills?: TriggeredPassiveSkill[];
+            statusEffectChanges?: {
+                expired: Array<{ id: string; type: string; name?: string }>;
+                ticked: Array<{ effectId: string; type: string; value: number }>;
+                characterState: { hp: number; mp?: number; status: string };
+            };
         };
         decision: any;
         executionResults: any;
@@ -159,7 +177,7 @@ export interface PhaseChanges {
 
     // ========== 游戏结束 ==========
     gameOver?: {
-        result: any; // GameResult (从 sharedScoreService 导入)
+        result: any;
         reason: string;
     };
 }
@@ -185,21 +203,25 @@ export interface CharacterIdentifier {
 }
 
 /**
- * CombatEvent - 战斗事件（创建时，stepTime 可选）
- * 统一的事件类型定义，所有事件使用 PhaseChanges 作为 data
+ * CombatEvent - 战斗事件
+ * 统一的事件类型定义
  * 
  * 设计说明：
  * - stepTime: 相对时间位置（从游戏开始，毫秒数），用于去重和排序
  *   - 创建时可选（由 createEvent 自动计算）
  *   - 数据库中必需
- * - data: 统一为 PhaseChanges 类型，包含游戏状态、动作和阶段变化
- * - 事件名称与前端保持一致：gameInit, firstTurn, use_skill, walk, attack, game_end
+ * - data: 事件载荷，不同事件类型有不同结构（使用 Record 保持灵活性）
+ *   - walk: { identifier, to, endTurn?, phaseChanges?, stateChanges? }
+ *   - use_skill: { identifier, skillId, targets, result, phaseChanges, stateChanges }
+ *   - attack: { attacker, skillUsed, skillId, targets, skillResult, phaseChanges }
+ *   - new_round / end_round: { round }
+ *   - game_end: { gameId }
  */
 export interface CombatEvent {
     gameId: string;
-    name: string;  // 事件名称：gameInit | firstTurn | use_skill | walk | attack | game_end
-    time: number;  // 绝对时间戳（Date.now()）
-    stepTime?: number;  // ✅ 相对时间位置（创建时可选，由 createEvent 自动计算）
-    type?: number;  // 事件类型：0: round, 1: movement, 2: attack, 3: skill
-    data?: PhaseChanges | any;  // ✅ 统一为 PhaseChanges 类型（暂时允许 any 以兼容旧代码）
+    name: string;           // 事件名称
+    time: number;           // 绝对时间戳（Date.now()）
+    stepTime?: number;      // 相对时间位置（创建时可选，由 createEvent 自动计算）
+    type?: number;          // 事件类型：0: round, 1: movement, 2: attack, 3: skill
+    data?: Record<string, any>;  // 事件载荷（不同事件有不同结构）
 }

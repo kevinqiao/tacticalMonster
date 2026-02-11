@@ -19,7 +19,7 @@ interface CharacterGrid3DProps {
 }
 
 export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }) => {
-    const { characters } = useCombatManager();
+    const { characters, activeCharacterKey } = useCombatManager();
     const loadingContext = useContext(BattleLoadingContext);
     const refsContext = useBattleCharacterRefsContext();
 
@@ -46,6 +46,10 @@ export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }
                 const key = getCharacterKey(character);
                 const position: [number, number, number] = [pos.x, pos.y, pos.z];
                 const facing = (character.scaleX ?? 1) >= 0 ? 1 : -1;
+                const isActive = key === activeCharacterKey;
+                if (isActive) {
+                    console.log("[CharacterGrid3D] isActive=true for:", key, "activeCharacterKey:", activeCharacterKey);
+                }
 
                 return (
                     <BattleCharacter3DWithSuspense
@@ -56,12 +60,13 @@ export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }
                         height={mapDimension.hexHeight}
                         facing={facing}
                         isPortrait={mapDimension.isPortrait}
+                        isActive={isActive}
                         onModelLoaded={loadingContext?.onModelLoaded}
                         onRefReady={handleRefReady(key)}
                     />
                 );
             });
-    }, [characters, mapDimension, loadingContext?.onModelLoaded, handleRefReady]);
+    }, [characters, mapDimension, activeCharacterKey, loadingContext?.onModelLoaded, handleRefReady]);
 
     return <group>{characterElements}</group>;
 };

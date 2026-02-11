@@ -23,7 +23,37 @@ export class TournamentService {
         const { uid, gameId } = params;
         const game = await ctx.runQuery((internal as any).service.game.gameService.findGame, { gameId });
         if (game) {
-            return { ok: true, game };
+            // 已存在的游戏：检查是否有活跃的玩家 turn，构造 phaseChanges 让前端统一处理
+            let phaseChanges: any = undefined;
+            const currentRound = (game as any).currentRound;
+            console.log("[loadGame] 游戏已存在, currentRound:", JSON.stringify({
+                no: currentRound?.no,
+                turnsCount: currentRound?.turns?.length,
+                turns: currentRound?.turns?.map((t: any) => ({
+                    uid: t.uid, monsterId: t.monsterId, status: t.status
+                })),
+            }));
+            if (currentRound && currentRound.turns) {
+                const activeTurn = currentRound.turns.find(
+                    (t: any) => t.status === 1 && t.uid !== "boss"
+                );
+                console.log("[loadGame] activeTurn:", activeTurn ? {
+                    uid: activeTurn.uid,
+                    monsterId: activeTurn.monsterId,
+                    status: activeTurn.status,
+                } : "未找到活跃的玩家 turn");
+                if (activeTurn) {
+                    phaseChanges = {
+                        turnStart: {
+                            uid: activeTurn.uid,
+                            monsterId: activeTurn.monsterId,
+                            round: currentRound.no || 1,
+                        },
+                    };
+                }
+            }
+            console.log("[loadGame] 返回 phaseChanges:", phaseChanges ? JSON.stringify(phaseChanges) : "undefined");
+            return { ok: true, game, phaseChanges };
         }
         const response = await fetch(
             getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.FIND_MATCH_GAME),

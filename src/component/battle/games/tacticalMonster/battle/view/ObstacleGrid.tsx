@@ -17,7 +17,7 @@ interface HexagonCellProps {
 // 六边形格子组件
 const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const { game, hexDimension } = useCombatManager();
+    const { game, mapDimension } = useCombatManager();
     const { map } = game || {};
     if (!map) return null;
     const cell = map.obstacles?.find((c) => c.r === row && c.q === col);
@@ -29,10 +29,11 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
         return ObstacleUtils.getObstacleAsset(cell.id);
     }, [game])
     useEffect(() => {
-        if (!hexDimension || !game || !game?.map) return;
-        const { x, y } = coordToPixel(col, row, hexDimension, game.map);
+        if (!mapDimension || !game || !game?.map) return;
+        const hexCell = { width: mapDimension.hexWidth, height: mapDimension.hexHeight };
+        const { x, y } = coordToPixel(col, row, hexCell, game.map);
         gsap.set(containerRef.current, { x, y });
-    }, [hexDimension, col, row, game]);
+    }, [mapDimension, col, row, game]);
     return (
         <>
             <div
@@ -42,8 +43,8 @@ const ObstacleCell: React.FC<HexagonCellProps> = ({ row, col }) => {
                     position: "absolute",
                     top: 0,
                     left: 0,
-                    width: `${hexDimension.width}px`,
-                    height: `${hexDimension.height}px`,
+                    width: `${mapDimension?.hexWidth ?? 0}px`,
+                    height: `${mapDimension?.hexHeight ?? 0}px`,
                     backgroundImage: `url(${cellAsset})`,
                 }}
             />

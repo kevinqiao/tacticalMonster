@@ -85,17 +85,8 @@ export function createTestStateChanges(overrides?: Partial<StateChanges>): State
  */
 export function createTestPhaseChanges(overrides?: any): any {
     return {
-        playerAction: {
-            action: {
-                type: "use_skill" as const,
-                skillId: "fire_ball",
-                targets: [{ bossId: "boss_bronze_1" }],
-            },
-            executionResults: {
-                stateChanges: createTestStateChanges(),
-                effects: [],
-            },
-        },
+        stateChanges: createTestStateChanges(),
+        effects: [],
         ...overrides,
     };
 }

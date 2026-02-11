@@ -5,7 +5,7 @@
 
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { getSkillConfig } from "../../data/skillConfigs";
-import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges } from "../../types/gameTypes";
+import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
 import { SkillManager } from "../skill/skillManager";
 import { CharacterPositionService } from "./characterPositionService";
@@ -52,7 +52,8 @@ export class GameActionService {
     async walk(
         gameId: string,
         to: { q: number; r: number },
-        identifier: CharacterIdentifier
+        identifier: CharacterIdentifier,
+        options?: { endTurn?: boolean }
     ): Promise<{
         success: boolean;
         phaseChanges?: PhaseChanges;
@@ -61,6 +62,8 @@ export class GameActionService {
         if (!game) return { success: false };
 
         this.characterQueryService.setGame(game);
+        // 同步更新 validator 的游戏状态引用
+        (this.validator as any).game = game;
 
         const { monsterId, bossId, minionId } = identifier;
 
@@ -94,17 +97,37 @@ export class GameActionService {
 
         if (!success) return { success: false };
 
-        // 使用事件服务创建和插入事件
+        // ✅ Walk-only turn：如果 endTurn 为 true，结束当前回合并推进阶段
+        // 场景：玩家选择只移动不攻击（跳过技能），回合结束后可能轮到 Boss AI 行动
+        let phaseChanges: PhaseChanges | undefined = undefined;
+
+        if (options?.endTurn) {
+            // 推进回合和阶段（自动处理 turnEnd, roundEnd, roundStart, turnStart, Boss AI）
+            phaseChanges = await this.phaseService.advanceTurnAndRound(
+                gameId,
+                identifier,
+                (this as any).ctx
+            );
+
+            // walk-only turn 不需要额外的 stateChanges/effects（移动本身不产生状态变化）
+            // 如果未来 walk 触发陷阱/被动技能，stateChanges 和 effects 会在此处补充
+        }
+
+        // ✅ 创建事件（延后到 phaseChanges 确定后，确保事件数据完整供 watch/replay 使用）
         const event = this.eventService.createWalkEvent(gameId, identifier, to);
+        // 附加 endTurn 标记和 phaseChanges 到事件数据中
+        if (options?.endTurn) {
+            event.data = { ...event.data, endTurn: true };
+        }
+        if (phaseChanges) {
+            event.data = { ...event.data, phaseChanges };
+        }
         await this.eventService.createEvent(event);
         await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
 
-        // ✅ 移动不结束回合，允许在同一回合内移动后执行攻击/技能
-        // 回合结束由攻击/技能使用操作（useSkill）负责
-        // 这样前端可以先移动，然后在同一回合内执行攻击
         return {
             success: true,
-            // 不返回 phaseChanges，因为移动不触发回合推进
+            phaseChanges,
         };
     }
 
@@ -146,6 +169,8 @@ export class GameActionService {
         if (!game) return null;
 
         this.characterQueryService.setGame(game);
+        // 同步更新 validator 的游戏状态引用
+        (this.validator as any).game = game;
 
         // === 验证层 ===
         const validationResult = await this.validator.validateAction(data.attacker);
@@ -180,7 +205,7 @@ export class GameActionService {
         if (!attacker) return null;
 
         // 创建 attack 事件（作为统一的事件接口）
-        // 注意：useSkill 已经创建了 use_skill 事件
+        // 注意：useSkill 已经创建了 use_skill 事件（包含完整 phaseChanges）
         // attack 事件用于：
         // 1. 统一的事件接口（前端可以统一监听 attack 事件）
         // 2. 语义清晰（attack 表示攻击行为，use_skill 表示技能使用）
@@ -191,6 +216,7 @@ export class GameActionService {
             skillId: skillId,
             targets: data.targets,
             skillResult,
+            phaseChanges: skillResult.phaseChanges,    // ✅ 包含完整阶段变化
         });
 
         await this.eventService.createEvent(event);
@@ -278,14 +304,7 @@ export class GameActionService {
             hp?: number;
             stamina?: number;
         };
-        effects?: Array<{
-            effect: any;
-            targetId?: string;
-            applied: boolean;
-            isPassive?: boolean;  // ✅ 标记为被动技能效果
-            passiveSkillId?: string;  // ✅ 记录被动技能ID
-            triggerType?: string;  // ✅ 记录触发类型
-        }>;
+        effects?: SkillEffectItem[];
         phaseChanges?: PhaseChanges;
     }> {
         // ✅ 从 characterQueryService 获取已加载的游戏（GameService.useSkill 已确保游戏已加载）
@@ -477,14 +496,7 @@ export class GameActionService {
 
         // 6.5. ✅ 触发被动技能（在更新目标状态后）
         // 检查目标是否有被动技能需要触发（如反击）
-        const passiveSkillEffects: Array<{
-            effect: any;
-            targetId?: string;
-            applied: boolean;
-            isPassive?: boolean;  // ✅ 标记为被动技能效果
-            passiveSkillId?: string;  // ✅ 记录被动技能ID
-            triggerType?: string;  // ✅ 记录触发类型
-        }> = [];
+        const passiveSkillEffects: SkillEffectItem[] = [];
 
         if (skillResult.success && targetMonsters.length > 0) {
             const skill = getSkillConfig(skillId);
@@ -594,18 +606,7 @@ export class GameActionService {
             await this.scoreService.updateScore(gameId, scoreDelta);
         }
 
-        // 10. 创建技能使用事件
-        const event = this.eventService.createUseSkillEvent(gameId, {
-            identifier: { monsterId, bossId, minionId },
-            skillId,
-            targets: finalTargets,
-            result: skillResult,
-        });
-
-        await this.eventService.createEvent(event);
-        await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
-
-        // 11. ✅ 检查游戏是否结束
+        // 10. ✅ 检查游戏是否结束（事件创建延后到 phaseChanges 构建完成后）
         await this.scoreService.checkAndUpdateGameStatus(gameId);
 
         // 12. ✅ 推进回合和阶段（自动处理turnEnd, roundEnd, roundStart, turnStart, Boss AI）
@@ -747,25 +748,10 @@ export class GameActionService {
             }
         }
 
-        // ✅ 14. 将 stateChanges 添加到 phaseChanges.playerAction.executionResults
-        if (!phaseChanges.playerAction) {
-            phaseChanges.playerAction = {
-                action: {
-                    type: 'use_skill',
-                    skillId,
-                    targets: finalTargets.length > 0 ? finalTargets : undefined,
-                },
-                executionResults: {},
-            };
-        }
-
-        if (!phaseChanges.playerAction.executionResults) {
-            phaseChanges.playerAction.executionResults = {};
-        }
-
+        // ✅ 14. 将 stateChanges 和 effects 直接放到 phaseChanges 顶层
         // 只有在有状态变化时才设置 stateChanges
         if (stateChanges.actor || stateChanges.targets.length > 0) {
-            phaseChanges.playerAction.executionResults.stateChanges = stateChanges;
+            phaseChanges.stateChanges = stateChanges;
         }
 
         // 合并主动技能效果和被动技能效果
@@ -774,10 +760,23 @@ export class GameActionService {
             ...passiveSkillEffects,
         ];
 
-        // ✅ 将 effects 也添加到 executionResults
+        // 将 effects 也放到 phaseChanges 顶层
         if (allEffects.length > 0) {
-            phaseChanges.playerAction.executionResults.effects = allEffects;
+            phaseChanges.effects = allEffects;
         }
+
+        // 15. ✅ 创建技能使用事件（延后到 phaseChanges 完整构建后，确保事件包含完整数据供 watch/replay 使用）
+        const event = this.eventService.createUseSkillEvent(gameId, {
+            identifier: { monsterId, bossId, minionId },
+            skillId,
+            targets: finalTargets,
+            result: skillResult,
+            phaseChanges,          // ✅ 包含完整的阶段变化（turnEnd, bossAIActions, turnStart, gameOver 等）
+            stateChanges,          // ✅ 包含角色状态前后对比（HP/MP/Shield/Status）
+        });
+
+        await this.eventService.createEvent(event);
+        await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
 
         return {
             ...skillResult,

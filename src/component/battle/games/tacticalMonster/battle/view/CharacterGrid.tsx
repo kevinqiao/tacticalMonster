@@ -31,7 +31,7 @@ interface Props {
 }
 
 const CharacterCell: React.FC<Props> = ({ character, assetType }) => {
-    const { game, hexDimension } = useCombatManager();
+    const { game, mapDimension } = useCombatManager();
     const { attack } = useCombatActHandler();
     const containerRef = useRef<HTMLDivElement | null>(null);
     const hpBarRef = useRef<HTMLDivElement | null>(null);
@@ -41,12 +41,13 @@ const CharacterCell: React.FC<Props> = ({ character, assetType }) => {
     const { map, currentRound } = game || {};
 
     useEffect(() => {
-        if (!containerRef.current || hexDimension.width === 0 || !map) return;
+        if (!containerRef.current || !mapDimension || !map) return;
         const q = character.q ?? 0;
         const r = character.r ?? 0;
-        const { x, y } = coordToPixel(q, r, hexDimension, map);
+        const hexCell = { width: mapDimension.hexWidth, height: mapDimension.hexHeight };
+        const { x, y } = coordToPixel(q, r, hexCell, map);
         gsap.set(containerRef.current, { autoAlpha: 1, x, y, scaleX: character.scaleX ?? 1 });
-    }, [character, hexDimension, map]);
+    }, [character, mapDimension, map]);
 
     // ✅ 组件挂载后，设置 DOM 元素引用并初始化 HP/MP 显示
     useEffect(() => {
@@ -94,8 +95,8 @@ const CharacterCell: React.FC<Props> = ({ character, assetType }) => {
                     position: "absolute",
                     top: 0,
                     left: 0,
-                    width: `${hexDimension.width}px`,
-                    height: `${hexDimension.height}px`,
+                    width: `${mapDimension?.hexWidth ?? 0}px`,
+                    height: `${mapDimension?.hexHeight ?? 0}px`,
                     margin: 0,
                     padding: 0,
                     // opacity: 0,

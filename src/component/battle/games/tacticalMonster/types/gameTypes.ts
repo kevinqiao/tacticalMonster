@@ -1,3 +1,4 @@
+import { StateChanges } from "./backendResponseTypes";
 import { GameBoss, GameMonster } from "./monsterTypes";
 import { ObstacleCell } from "./obstacleTypes";
 
@@ -81,17 +82,85 @@ export interface GameTurn {
     dueTime?: number;
 }
 /**
+ * 技能效果类型（与后端 SkillEffectType 保持一致）
+ */
+export type SkillEffectType =
+    | 'damage'      // 直接伤害
+    | 'heal'        // 直接治疗
+    | 'buff'        // 增益效果
+    | 'debuff'      // 减益效果
+    | 'dot'         // 持续伤害
+    | 'hot'         // 持续治疗
+    | 'stun'        // 眩晕
+    | 'shield'      // 护盾
+    | 'mp_drain'    // 法力吸取
+    | 'mp_restore'  // 法力恢复
+    | 'movement'    // 移动效果
+    | 'teleport';   // 传送效果
+
+/**
+ * 技能效果详情（与后端 SkillEffect 保持一致）
+ * 描述单个效果的具体属性
+ */
+export interface SkillEffectDetail {
+    id: string;                                 // 效果ID
+    name: string;                               // 效果名称
+    type: SkillEffectType;                      // 效果类型
+    value?: number;                             // 直接数值（伤害值、治疗值等）
+    damage_type?: 'physical' | 'magical';       // 伤害类型
+    target_attribute?: string;                  // 目标属性（如 "attack", "defense", "hp", "mp"）
+    duration?: number;                          // 持续时间（回合数，0 表示立即生效）
+    modifiers?: Record<string, number>;         // 属性修改器（如 { "attack": 20, "defense": -10 }）
+    modifier_type?: 'add' | 'multiply';         // 修改类型
+    icon?: string;                              // 效果图标路径
+    damage_falloff?: {                          // 伤害衰减
+        full_damage_range: number;
+        min_damage_percent: number;
+    };
+    area_type?: 'single' | 'circle' | 'line';  // 作用范围类型
+    area_size?: number;                         // 作用范围大小
+}
+
+/**
+ * 技能效果条目（包含效果详情 + 元信息）
+ * effects 数组中的每一项
+ */
+export interface SkillEffectItem {
+    effect: SkillEffectDetail;          // 效果详情
+    targetId?: string;                  // 作用目标的 monsterId/bossId/minionId
+    applied: boolean;                   // 是否成功应用
+    // 被动技能附加字段（主动技能效果不包含这些字段）
+    isPassive?: boolean;                // 是否为被动技能效果
+    passiveSkillId?: string;            // 触发的被动技能ID
+    triggerType?: string;               // 触发类型（如 "on_hit", "on_skill_attacked"）
+}
+
+/**
+ * 被动技能触发记录
+ * 用于 roundStart/turnStart 的 triggeredPassiveSkills
+ * effects 为简化版效果摘要（仅 id/type/name），不同于 PhaseChanges.effects 中的完整 SkillEffectItem
+ */
+export interface TriggeredPassiveSkill {
+    uid: string;
+    monsterId: string;
+    bossId?: string;
+    minionId?: string;
+    skillId: string;
+    effects: Array<{ id: string; type: string; name: string }>;
+}
+
+/**
  * 阶段变化信息
  * 统一的事件数据结构，所有事件的 data 都使用此类型
  */
 export interface PhaseChanges {
     // ========== 游戏初始化 ==========
-    gameInit?: GameModel;  // ✅ 游戏初始化状态（gameInit 事件使用）
+    gameInit?: GameModel;
 
     // ========== 回合和阶段 ==========
     roundStart?: {
         round: number;
-        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
+        triggeredPassiveSkills?: TriggeredPassiveSkill[];
     };
     roundEnd?: {
         round: number;
@@ -100,7 +169,13 @@ export interface PhaseChanges {
         uid: string;
         monsterId: string;
         round: number;
-        triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
+        triggeredPassiveSkills?: TriggeredPassiveSkill[];
+        /** 本回合开始时的状态效果 tick 结果（DOT/HOT/BUFF/DEBUFF/STUN 等） */
+        statusEffectChanges?: {
+            expired: Array<{ id: string; type: string; name?: string }>;
+            ticked: Array<{ effectId: string; type: string; value: number }>;
+            characterState: { hp: number; mp?: number; status: string };
+        };
     };
     turnEnd?: {
         uid: string;
@@ -108,43 +183,9 @@ export interface PhaseChanges {
         round: number;
     };
 
-    // ========== 玩家动作（与 bossAIActions 对称）==========
-    playerAction?: {
-        turnStart?: {
-            uid: string;
-            monsterId: string;
-            round: number;
-            triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
-        };
-        action: {
-            type: 'use_skill' | 'attack' | 'move' | 'standby';
-            skillId?: string;
-            target?: CharacterIdentifier;
-            targets?: CharacterIdentifier[];
-            position?: { q: number; r: number };
-        };
-        executionResults: {
-            stateChanges?: {
-                actor?: {
-                    identifier: CharacterIdentifier;
-                    before: { q: number; r: number; hp: number; mp: number };
-                    after: { q: number; r: number; hp: number; mp: number };
-                    positionChanged: boolean;
-                    hpChanged: boolean;
-                    mpChanged: boolean;
-                };
-                targets?: Array<{
-                    identifier: CharacterIdentifier;
-                    before: { hp: number; mp: number };
-                    after: { hp: number; mp: number };
-                    hpChanged: boolean;
-                    mpChanged: boolean;
-                }>;
-            };
-            effects?: any[];
-            phaseChanges?: PhaseChanges;  // 嵌套的 phaseChanges（如 turnEnd, roundEnd 等）
-        };
-    };
+    // ========== 执行结果 ==========
+    stateChanges?: StateChanges;            // 角色状态前后对比（HP/MP/Shield/Status 等）
+    effects?: SkillEffectItem[];            // 技能效果列表（包含主动和被动技能效果）
 
     // ========== Boss AI 动作 ==========
     bossAIActions?: Array<{
@@ -152,7 +193,12 @@ export interface PhaseChanges {
             uid: string;
             monsterId: string;
             round: number;
-            triggeredPassiveSkills?: Array<{ uid: string; monsterId: string; skillId: string; effects: any[] }>;
+            triggeredPassiveSkills?: TriggeredPassiveSkill[];
+            statusEffectChanges?: {
+                expired: Array<{ id: string; type: string; name?: string }>;
+                ticked: Array<{ effectId: string; type: string; value: number }>;
+                characterState: { hp: number; mp?: number; status: string };
+            };
         };
         decision: any;
         executionResults: any;
@@ -161,7 +207,7 @@ export interface PhaseChanges {
 
     // ========== 游戏结束 ==========
     gameOver?: {
-        result: any; // GameResult (从 sharedScoreService 导入)
+        result: any;
         reason: string;
     };
 }
@@ -186,14 +232,5 @@ export interface CharacterIdentifier {
     minionId?: string;   // 小怪的minionId
 }
 
-/**
- * CombatEvent - 战斗事件
- * 记录战斗过程中发生的各种事件
- */
-export interface CombatEvent {
-    gameId: string;
-    name: string;
-    type?: number;  // 事件类型：0: round, 1: movement, 2: attack, etc.
-    data?: any;
-    time: number;
-}
+// CombatEvent 类型统一在 CombatTypes.ts 中定义，请使用：
+// import { CombatEvent } from "./CombatTypes";

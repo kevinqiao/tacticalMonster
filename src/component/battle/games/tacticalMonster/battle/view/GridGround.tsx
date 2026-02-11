@@ -12,9 +12,10 @@ import '../style.css';
 import { calculateHexPoints, pointsToPath, scalePoint } from '../utils/gridUtils';
 
 const GroundCell: React.FC<GridCellProps> = ({ row, col, cell }) => {
-    const { hexDimension } = useCombatManager();
+    const { mapDimension } = useCombatManager();
     const { q, r, disable } = cell;
-    const { width, height } = hexDimension;
+    const width = mapDimension?.hexWidth ?? 0;
+    const height = mapDimension?.hexHeight ?? 0;
 
     // 使用自定义 Hook 加载网格元素
 
@@ -103,17 +104,16 @@ const GroundCell: React.FC<GridCellProps> = ({ row, col, cell }) => {
 };
 
 const GridGround: React.FC = () => {
-    const { game, hexDimension, groundCells } = useCombatManager();
+    const { game, mapDimension, groundCells } = useCombatManager();
     const { map } = game || {};
 
-    // 计算每行的样式，考虑 direction 对奇数行偏移的影响
     const rowStyle = useCallback((row: number) => {
         const isOdd = row % 2 !== 0;
-        // 当 direction === 1 时，奇数行的偏移方向相反，与 coordToPixel 保持一致
-        const left = isOdd ? (map?.direction === 1 ? -hexDimension.width / 2 : hexDimension.width / 2) : 0;
-        const bottom = -hexDimension.width * HEX_RATIO.HEIGHT_TO_WIDTH * 1 / 4;
+        const hexW = mapDimension?.hexWidth ?? 0;
+        const left = isOdd ? (map?.direction === 1 ? -hexW / 2 : hexW / 2) : 0;
+        const bottom = -hexW * HEX_RATIO.HEIGHT_TO_WIDTH * 1 / 4;
         return STYLES.row(bottom, left);
-    }, [hexDimension, map]);
+    }, [mapDimension, map]);
 
     if (!groundCells || !map) {
         return <div>Loading grid...</div>;

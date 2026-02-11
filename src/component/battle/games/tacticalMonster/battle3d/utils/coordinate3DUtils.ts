@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 
-/** 战斗地图尺寸信息（从 hexDimension + game.map 派生） */
+/** 战斗地图尺寸信息（从 mapDimension + game.map 派生） */
 export interface BattleMapDimension {
     hexWidth: number;
     hexHeight: number;

@@ -77,8 +77,8 @@ export interface StateChanges {
  * 注意：
  * - success: 操作是否成功
  * - message: 错误消息（可选）
- * - effects 在 phaseChanges.playerAction.executionResults.effects 中
- * - stateChanges 在 phaseChanges.playerAction.executionResults.stateChanges 中
+ * - stateChanges 在 phaseChanges.stateChanges 中（顶层）
+ * - effects 在 phaseChanges.effects 中（顶层）
  */
 export type UseSkillResponse =
     | {

@@ -97,7 +97,7 @@ export const testUseSkillFlow = internalMutation({
 
             // 3. 验证 stateChanges 正确性
             testResult.steps.push("验证 stateChanges");
-            const stateChanges = useSkillResult.phaseChanges?.playerAction?.executionResults?.stateChanges;
+            const stateChanges = useSkillResult.phaseChanges?.stateChanges;
 
             if (!stateChanges) {
                 testResult.errors.push("缺少 stateChanges");
@@ -143,17 +143,11 @@ export const testUseSkillFlow = internalMutation({
                 }
             }
 
-            // 7. 验证 effects 数组
-            const effects = useSkillResult.phaseChanges?.playerAction?.executionResults?.effects;
+            // 7. 验证 effects 数组（现在在 phaseChanges 顶层）
+            const effects = useSkillResult.phaseChanges?.effects;
             if (effects && Array.isArray(effects)) {
                 testResult.data.effectsCount = effects.length;
                 testResult.steps.push(`✓ Effects 数组验证完成 (${effects.length} 个效果)`);
-            }
-
-            // 8. 验证 phaseChanges 嵌套
-            const nestedPhaseChanges = useSkillResult.phaseChanges?.playerAction?.executionResults?.phaseChanges;
-            if (nestedPhaseChanges) {
-                testResult.steps.push("✓ 嵌套 phaseChanges 检测到");
             }
 
             testResult.success = true;
@@ -258,7 +252,7 @@ export const testWalkFlow = internalMutation({
             }
 
             // 4. 验证 stateChanges 正确性
-            const stateChanges = walkResult.phaseChanges?.playerAction?.executionResults?.stateChanges;
+            const stateChanges = walkResult.phaseChanges?.stateChanges;
             if (stateChanges?.actor?.positionChanged) {
                 testResult.steps.push("✓ StateChanges 位置变化检测到");
             }
