@@ -1,11 +1,10 @@
 /**
  * 战斗 GridGround3D - 六边形地面网格
- * 使用视图坐标渲染，通过 viewToLogic 映射回逻辑坐标检查禁用/状态
+ * 始终按逻辑坐标 (q, r) 遍历与定位，横竖屏同一场景；竖屏由相机旋转 90° 实现。
  */
 
 import React, { useMemo } from "react";
 import { useCombatManager } from "../../battle/service/CombatManager";
-import { viewToLogic } from "../../team/utils/coordinateUtils";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { hexTo3DPosition } from "../utils/coordinate3DUtils";
 import { getSharedHexagonGeometry } from "../utils/geometryCache";
@@ -15,8 +14,8 @@ interface GridGround3DProps {
     mapDimension: BattleMapDimension | null;
     /** getCellState 接收逻辑坐标 (logicQ, logicR) */
     getCellState?: (q: number, r: number) => BattleCellState;
-    /** 格子点击回调，参数为视图坐标 (viewQ, viewR) */
-    onCellClick?: (viewQ: number, viewR: number) => void;
+    /** 格子点击回调，参数为逻辑坐标 (logicQ, logicR) */
+    onCellClick?: (logicQ: number, logicR: number) => void;
 }
 
 export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCellState, onCellClick }) => {
@@ -39,42 +38,38 @@ export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCel
         if (!mapDimension || !sharedGeometries) return [];
 
         const result: React.ReactElement[] = [];
+        const rows = mapDimension.rows;
+        const cols = mapDimension.cols;
 
-        // 按视图坐标 (cols × rows) 遍历，竖屏时会旋转网格
-        for (let viewR = 0; viewR < mapDimension.rows; viewR++) {
-            for (let viewQ = 0; viewQ < mapDimension.cols; viewQ++) {
-                const pos = hexTo3DPosition(viewQ, viewR, mapDimension, 0);
+        for (let r = 0; r < rows; r++) {
+            for (let q = 0; q < cols; q++) {
+                const pos = hexTo3DPosition(q, r, mapDimension, 0);
                 if (!pos) continue;
 
-                // 转换回逻辑坐标，用于查询 groundCells 禁用状态和 getCellState
-                const logic = viewToLogic(viewQ, viewR, mapDimension);
-                const logicCell = groundCells?.[logic.r]?.[logic.q];
-
+                const logicCell = groundCells?.[r]?.[q];
                 const state: BattleCellState = getCellState
-                    ? getCellState(logic.q, logic.r)
+                    ? getCellState(q, r)
                     : logicCell?.disable
                         ? "disabled"
                         : "normal";
 
                 const geometry =
-                    sharedGeometries[state === "disabled" ? "disabled" : "normal"] ||
+                    (state && sharedGeometries[state as keyof typeof sharedGeometries]) ||
                     sharedGeometries.normal;
 
                 const isClickable = state === "walkable" || state === "attackable";
-                const vQ = viewQ;
-                const vR = viewR;
 
                 result.push(
                     <HexCell3D
-                        key={`cell-${viewQ}-${viewR}`}
-                        q={viewQ}
-                        r={viewR}
+                        key={`cell-${q}-${r}`}
+                        q={q}
+                        r={r}
                         width={mapDimension.hexWidth}
                         height={mapDimension.hexHeight}
                         position={[pos.x, pos.y, pos.z]}
                         geometry={geometry}
                         state={state}
-                        onClick={isClickable && onCellClick ? () => onCellClick(vQ, vR) : undefined}
+                        onClick={isClickable && onCellClick ? () => onCellClick(q, r) : undefined}
                     />
                 );
             }

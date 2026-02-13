@@ -600,7 +600,7 @@ export const walk = mutation({
         await gameManager.load(gameId);
         try {
 
-            const result = await gameManager.walk(gameId, to, identifier, { endTurn: endTurn ?? false });
+            const result = await gameManager.walk(gameId, to, identifier, { endTurn: endTurn ?? true });
             console.log("walk result", result);
             return {
                 ok: true,

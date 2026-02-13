@@ -67,6 +67,20 @@ export const hexTo3DCenter = (
 };
 
 /**
+ * 六边形网格几何中心（平顶布局：X 跨度为 (cols+0.5)*hexWidth，Z 为行方向）
+ * 用于相机 target，使 GridGround 居中
+ */
+export const getGridCenter3D = (
+    mapDimension: BattleMapDimension | null
+): [number, number, number] | null => {
+    if (!mapDimension) return null;
+    const { cols, rows, hexWidth, hexHeight } = mapDimension;
+    const x = ((cols + 0.5) * hexWidth) / 2;
+    const z = ((rows - 1) * 0.75 * hexHeight - hexHeight) / 2;
+    return [x, 0, z];
+};
+
+/**
  * 将 Three.js 3D 世界坐标转换为六边形坐标
  */
 export const world3DToHex = (

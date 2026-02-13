@@ -16,38 +16,71 @@ export const calculateMapRatio = (cols: number, rows: number, isPortrait?: boole
     return ((cols + 0.5) * Math.sqrt(3)) / 2 / (1 + ((rows - 1) * 3) / 4);
 };
 
-export const calculateMapDimension = (containerWidth: number, containerHeight: number): { width: number, height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean } => {
+// export const calculateMapDimension = (containerWidth: number, containerHeight: number): { width: number, height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean } => {
+//     const containerRatio = containerWidth / containerHeight;
+//     const isPortrait = containerHeight * 0.95 > containerWidth;
+//     const mapSize: { width: number; height: number } = { width: 0, height: 0 };
+//     if (isPortrait) {
+//         const mapRatio = ((7 + 0.5) * Math.sqrt(3)) / 2 / (1 + (8 * 3) / 4);
+//         if (mapRatio < containerRatio) {
+//             mapSize.height = containerHeight;
+//             mapSize.width = mapSize.height * mapRatio;
+//         } else {
+//             mapSize.width = containerWidth;
+//             mapSize.height = mapSize.width / mapRatio;
+//         }
+//         const hexWidth = mapSize.width / (7 + 0.5);
+//         const hexHeight = (hexWidth * 2) / Math.sqrt(3);
+//         return { width: mapSize.width, height: mapSize.height, hexWidth, hexHeight, cols: 7, rows: 8, isPortrait };
+//     } else {
+//         const mapRatio = ((8 + 0.5) * Math.sqrt(3)) / 2 / (1 + (7 * 3) / 4);
+//         if (mapRatio < containerRatio) {
+//             mapSize.height = containerHeight;
+//             mapSize.width = mapSize.height * mapRatio;
+//         } else {
+//             mapSize.width = containerWidth;
+//             mapSize.height = mapSize.width / mapRatio;
+//         }
+//         const hexWidth = mapSize.width / (8 + 0.5);
+//         const hexHeight = (hexWidth * 2) / Math.sqrt(3);
+//         return { width: mapSize.width, height: mapSize.height, hexWidth, hexHeight, cols: 8, rows: 7, isPortrait };
+//     }
+
+// };
+export const calculateMapDimension = (containerWidth: number, containerHeight: number): { width: number, height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean, zoom?: number } => {
+    const hratio = ((9 + 0.5) * Math.sqrt(3)) / 2 / (1 + (8 * 3) / 4);
     const containerRatio = containerWidth / containerHeight;
-    const isPortrait = containerHeight * 0.95 > containerWidth;
-    const mapSize: { width: number; height: number } = { width: 0, height: 0 };
+    const isPortrait = containerRatio < hratio;
+    const dimension: { width: number; height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean, zoom?: number } = { width: 0, height: 0, hexWidth: 0, hexHeight: 0, cols: 8, rows: 7, isPortrait, zoom: 1 };
     if (isPortrait) {
-        const mapRatio = ((7 + 0.5) * Math.sqrt(3)) / 2 / (1 + (8 * 3) / 4);
-        if (mapRatio < containerRatio) {
-            mapSize.height = containerHeight;
-            mapSize.width = mapSize.height * mapRatio;
-        } else {
-            mapSize.width = containerWidth;
-            mapSize.height = mapSize.width / mapRatio;
-        }
-        const hexWidth = mapSize.width / (7 + 0.5);
+        const hexWidth = containerWidth / (9.5 + 0.5);
         const hexHeight = (hexWidth * 2) / Math.sqrt(3);
-        return { width: mapSize.width, height: mapSize.height, hexWidth, hexHeight, cols: 7, rows: 8, isPortrait };
+        const hzoom = containerHeight / (hexWidth * 10);
+        const vzoom = containerWidth / (hexHeight * (2 + 7 * 3 / 4));
+        dimension.zoom = Math.min(hzoom, vzoom);
+        dimension.height = hexWidth * 8.5 * dimension.zoom;
+        dimension.width = hexHeight * dimension.zoom * (1 + 6 * 3 / 4);
+        // if (hzoom < vzoom) {
+        //     dimension.height = containerHeight;
+        //     dimension.width = dimension.height * hratio;
+        //     dimension.zoom = hzoom;
+        // } else {
+        //     dimension.width = containerWidth;
+        //     dimension.height = dimension.width / hratio;
+        //     dimension.zoom = vzoom;
+        // }
+        dimension.hexWidth = hexWidth;
+        dimension.hexHeight = hexHeight;
     } else {
-        const mapRatio = ((8 + 0.5) * Math.sqrt(3)) / 2 / (1 + (7 * 3) / 4);
-        if (mapRatio < containerRatio) {
-            mapSize.height = containerHeight;
-            mapSize.width = mapSize.height * mapRatio;
-        } else {
-            mapSize.width = containerWidth;
-            mapSize.height = mapSize.width / mapRatio;
-        }
-        const hexWidth = mapSize.width / (8 + 0.5);
-        const hexHeight = (hexWidth * 2) / Math.sqrt(3);
-        return { width: mapSize.width, height: mapSize.height, hexWidth, hexHeight, cols: 8, rows: 7, isPortrait };
+        const hexHeight = containerHeight / (1 + (7 * 3 / 4));
+        const hexWidth = hexHeight * Math.sqrt(3) / 2;
+        dimension.height = hexHeight * (1 + (6 * 3 / 4));
+        dimension.width = hexWidth * 8.5;
+        dimension.hexWidth = hexWidth;
+        dimension.hexHeight = hexHeight;
     }
-
+    return dimension;
 };
-
 /**
  * 视图坐标 → 逻辑坐标（发送给后端时使用）
  * 横屏：从左到右 q 增加 (0→7)

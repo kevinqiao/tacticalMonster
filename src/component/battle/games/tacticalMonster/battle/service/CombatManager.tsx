@@ -33,6 +33,7 @@ export interface ICombatContext {
     eventQueue: FrontendCombatEvent[];
     processedEvents?: FrontendCombatEvent[];  // Watch 模式：已处理的事件列表（用于实时计算分数）
     updateGameState?: (updater: (game: GameModel) => GameModel) => void;
+    /** 由当前挂载的战斗视图写入：2D 时 BattlePlayer 写入，3D 时 BattleVenue3D 写入；2D 动画/格子等从 context 读取 */
     mapDimension: MapDimension | null;
     setMapDimension: React.Dispatch<React.SetStateAction<MapDimension | null>>;
     mode?: GameMode;
@@ -45,6 +46,12 @@ export interface ICombatContext {
     // ✅ 当前回合活跃角色（用于 3D 视图高亮指示）
     activeCharacterKey: string | null;
     setActiveCharacterKey: (key: string | null) => void;
+    // ✅ 动画中角色（2D/3D 行走等）：避免重渲染覆盖 GSAP 控制的 position
+    animatingCharacterKey: string | null;
+    /** 动画起点 position 的稳定引用（3D: [x,y,z]，行走期间对该角色传此引用） */
+    animatingStartPositionRef: React.MutableRefObject<[number, number, number]>;
+    /** 开始动画：key + 可选 position（写入 ref）；结束动画：setCharacterAnimating(null) */
+    setCharacterAnimating: (key: string | null, position?: [number, number, number]) => void;
 }
 
 export const CombatContext = createContext<ICombatContext>({
@@ -60,6 +67,9 @@ export const CombatContext = createContext<ICombatContext>({
     isInitialPhaseChangesProcessed: () => false,
     activeCharacterKey: null,
     setActiveCharacterKey: () => { },
+    animatingCharacterKey: null,
+    animatingStartPositionRef: { current: [0, 0, 0] },
+    setCharacterAnimating: () => { },
 });
 
 
@@ -91,6 +101,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 }) => {
 
     const eventQueueRef: React.MutableRefObject<FrontendCombatEvent[]> = useRef<FrontendCombatEvent[]>([]);
+    /** 与 mapDimension 一致：仅由当前激活的 2D/3D 视图通过 setMapDimension 写入，避免多处来源混乱 */
     const [mapDimension, setMapDimension] = useState<MapDimension | null>(null);
 
     // ✅ 重播功能（仅在 replay 模式）
@@ -182,6 +193,19 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     // ✅ 当前回合活跃角色（用于 3D 视图高亮指示）
     const [activeCharacterKey, setActiveCharacterKey] = useState<string | null>(null);
 
+    // ✅ 动画中角色（2D/3D 行走等）：稳定 position 引用 + 触发一次重渲染，避免动画期间被覆盖
+    const [animatingCharacterKey, setAnimatingCharacterKey] = useState<string | null>(null);
+    const animatingStartPositionRef = useRef<[number, number, number]>([0, 0, 0]);
+    const setCharacterAnimating = useCallback((key: string | null, position?: [number, number, number]) => {
+        if (key !== null && position) {
+            animatingStartPositionRef.current[0] = position[0];
+            animatingStartPositionRef.current[1] = position[1];
+            animatingStartPositionRef.current[2] = position[2];
+        }
+        setAnimatingCharacterKey(key);
+    }, []);
+    useEffect(() => () => setAnimatingCharacterKey(null), []);
+
     const obstacleSprites: ObstacleSprite[] | undefined = useMemo(() => {
         if (!game?.map) return;
         const { obstacles } = game.map;
@@ -212,6 +236,9 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         isInitialPhaseChangesProcessed,
         activeCharacterKey,
         setActiveCharacterKey,
+        animatingCharacterKey,
+        animatingStartPositionRef,
+        setCharacterAnimating,
         // ✅ 重播控制（仅在 replay 模式）
         // 提供重播播放控制接口，子组件可通过 useCombatManager() 获取
         // 例如：const { replay } = useCombatManager(); replay?.play();

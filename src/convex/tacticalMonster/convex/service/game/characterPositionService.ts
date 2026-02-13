@@ -63,21 +63,18 @@ export class CharacterPositionService {
             }
             return false;
         } else if (monsterId) {
-            // 玩家角色从 tacticalMonster_game_character 查询
-            const charDoc = await this.dbCtx.db
-                .query("tacticalMonster_game_character")
-                .withIndex("by_game", (q: any) => q.eq("gameId", gameId))
-                .filter((q: any) =>
-                    q.or(
-                        q.eq(q.field("monsterId"), monsterId),
-                        q.eq(q.field("character_id"), monsterId)  // 向后兼容
-                    )
-                )
-                .first();
+            // 玩家角色：从 gameDoc.team 中按 monsterId 查找并更新位置
+            const teamIndex = gameDoc.team.findIndex((m: { monsterId: string }) => m.monsterId === monsterId);
+            if (teamIndex < 0) return false;
 
-            if (!charDoc) return false;
+            const updatedTeam = [...gameDoc.team];
+            const member = updatedTeam[teamIndex];
+            updatedTeam[teamIndex] = { ...member, q: position.q, r: position.r };
 
-            await this.dbCtx.db.patch(charDoc._id, { q: position.q, r: position.r });
+            await this.dbCtx.db.patch(gameDoc._id, {
+                team: updatedTeam,
+                lastUpdate: new Date().toISOString(),
+            });
             return true;
         }
 

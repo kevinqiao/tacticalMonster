@@ -1,6 +1,7 @@
 /**
- * Hex坐标计算工具
- * 用于处理六边形网格的坐标计算、距离、邻接关系等
+ * Hex 坐标计算工具
+ * 移动范围/行走校验：offset (even-r) 距离，与前端 PathFind 一致；
+ * 其他（技能范围、AI 等）仍可用 hexDistance（轴向）。
  */
 
 export interface HexCoord {
@@ -9,12 +10,22 @@ export interface HexCoord {
 }
 
 /**
- * Hex坐标距离计算（六边形网格中的移动步数）
+ * 轴向六边形距离（用于技能范围、AI 选目标等）
  */
 export function hexDistance(a: HexCoord, b: HexCoord): number {
-    return (Math.abs(a.q - b.q) + 
-            Math.abs(a.q + a.r - b.q - b.r) + 
+    return (Math.abs(a.q - b.q) +
+            Math.abs(a.q + a.r - b.q - b.r) +
             Math.abs(a.r - b.r)) / 2;
+}
+
+/**
+ * Offset (even-r) 六边形距离，与前端 PathFind.offsetHexDistance 一致
+ * 用于行走移动范围校验，与前端可行走高亮一致
+ */
+export function offsetHexDistance(a: HexCoord, b: HexCoord): number {
+    const dq = Math.abs(a.q - b.q);
+    const dr = Math.abs(a.r - b.r);
+    return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
 }
 
 /**
@@ -35,7 +46,7 @@ export function getHexesInRange(center: HexCoord, radius: number): HexCoord[] {
 }
 
 /**
- * 获取相邻的6个Hex坐标
+ * 轴向 6 邻格（与前端 AXIAL_NEIGHBOR_DIRS 一致）
  */
 export function getNeighbors(hex: HexCoord): HexCoord[] {
     const directions = [

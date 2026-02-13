@@ -16,7 +16,7 @@ import { getCharacterKey } from "../utils/battle3DAdapter";
 import { usePlaySkill3D } from "./usePlaySkill3D";
 
 export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
-    const { groundCells, characters, game, playbackSpeed = 1.0, setActiveCharacterKey } = useCombatManager();
+    const { groundCells, characters, game, mapDimension, playbackSpeed = 1.0, setActiveCharacterKey } = useCombatManager();
     const { map } = game || {};
     const { playSkill } = usePlaySkill3D();
 
@@ -127,6 +127,11 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             }
 
             const moveRange = character.move_range ?? 2;
+            const isFlying = character.isFlying ?? false;
+            const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
+            const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
+
+            // 横竖屏统一用逻辑空间：高亮 = 可点击 = 与后端一致；竖屏时环在屏幕上可能略不齐，但所见即所点
             const grid = groundCells.map((row) =>
                 row.map((cell) => {
                     const char = characters.find((c) => c.q === cell.q && c.r === cell.r);
@@ -137,16 +142,11 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                     };
                 })
             );
-
-            const isFlying = character.isFlying ?? false;
-            const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
-            const walkableNodes = getWalkableNodes(
-                grid,
-                { q: character.q ?? 0, r: character.r ?? 0 },
-                moveRange,
-                canIgnoreObstacles
-            );
+            const walkableNodes = getWalkableNodes(grid, startLogic, moveRange, canIgnoreObstacles);
             character.walkables = walkableNodes;
+            const walkableCells = walkableNodes
+                .filter((n) => (n.distance ?? 0) !== 0)
+                .map((n) => ({ q: n.q, r: n.r }));
 
             const enemies = characters
                 .filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
@@ -173,14 +173,46 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             character.attackables = attackableNodes;
 
             gridState.clearAll();
-            const walkableCells = walkableNodes
-                .filter((n) => n.distance !== 0)
-                .map((n) => ({ q: n.q, r: n.r }));
             const attackableCells = attackableNodes.map((n) => ({ q: n.q, r: n.r }));
             if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells);
             if (attackableCells.length > 0) gridState.highlightAttackable(attackableCells);
 
-            // ✅ 高亮角色所在格子
+            // 调试：可移动范围（用 offset 距离与 PathFind 一致）
+            const isPortrait = mapDimension?.isPortrait ?? false;
+            const offsetDist = (a: { q: number; r: number }, b: { q: number; r: number }) => {
+                const dq = Math.abs(a.q - b.q);
+                const dr = Math.abs(a.r - b.r);
+                return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
+            };
+            const offsetDistances = walkableCells.map((c) => offsetDist(startLogic, c));
+            const maxOffsetD = offsetDistances.length ? Math.max(...offsetDistances) : -1;
+            const overRange = walkableCells.filter((c) => offsetDist(startLogic, c) > moveRange);
+
+            console.log("[HexDebug] playTurnOn highlight", {
+                character: startLogic,
+                moveRange,
+                isPortrait,
+                gridShape: groundCells ? [groundCells.length, groundCells[0]?.length ?? 0] : null,
+                walkableCount: walkableCells.length,
+                maxOffsetD,
+                overRangeCount: overRange.length,
+                walkableSample: walkableCells.slice(0, 5).map((c) => ({ ...c, offsetD: offsetDist(startLogic, c) })),
+            });
+            if (isPortrait && overRange.length > 0) {
+                console.warn("[HexDebug] portrait 可行走中有超出 moveRange 的格子", {
+                    moveRange,
+                    overRange: overRange.slice(0, 10).map((c) => ({ ...c, offsetD: offsetDist(startLogic, c) })),
+                });
+            }
+            if (maxOffsetD > moveRange) {
+                console.warn("[HexDebug] 可行走最远距离 maxOffsetD 超出 moveRange", {
+                    moveRange,
+                    maxOffsetD,
+                    isPortrait,
+                });
+            }
+
+            // ✅ 高亮角色所在格子（逻辑坐标）
             gridState.setSelected({ q: character.q ?? 0, r: character.r ?? 0 });
 
             // ✅ 设置活跃角色（驱动 BattleCharacter3D 发光环指示器）

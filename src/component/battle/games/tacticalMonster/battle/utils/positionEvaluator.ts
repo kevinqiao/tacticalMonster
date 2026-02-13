@@ -162,21 +162,10 @@ function checkObstacleProtection(
     position: { q: number; r: number },
     gridCells: GridCellSprite[][]
 ): boolean {
-    // 检查周围6个方向是否有障碍物
-    const directions = position.r % 2 === 0 ? [
-        { q: 1, r: 0 },   // 右
-        { q: 0, r: -1 },  // 右上
-        { q: -1, r: -1 }, // 左上
-        { q: -1, r: 0 },  // 左
-        { q: -1, r: 1 },  // 左下
-        { q: 0, r: 1 },   // 右下
-    ] : [
-        { q: 1, r: 0 },   // 右
-        { q: 1, r: -1 },  // 右上
-        { q: 0, r: -1 },  // 左上
-        { q: -1, r: 0 },  // 左
-        { q: 0, r: 1 },   // 左下
-        { q: 1, r: 1 },   // 右下
+    // 轴向 6 邻格（与后端 hexUtils.getNeighbors 一致，不区分奇偶行）
+    const directions = [
+        { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 0, r: -1 },
+        { q: -1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: 1 },
     ];
 
     let obstacleCount = 0;

@@ -14,13 +14,12 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useCombatManager } from "../battle/service/CombatManager";
 import "../battle/style.css";
-import { viewToLogic } from "../team/utils/coordinateUtils";
 import { BattleLoadingContext } from "./BattleLoadingContext";
 import { useBattleGridState, type BattleCellState } from "./hooks/useBattleGridState";
 import useCombatActHandler3D from "./hooks/useCombatActHandler3D";
 import useEventHandler3D from "./hooks/useEventHandler3D";
 import { usePhaseChangesHandler3D } from "./hooks/usePhaseChangesHandler3D";
-import { BattleMapDimension } from "./utils/coordinate3DUtils";
+import { BattleMapDimension, getGridCenter3D } from "./utils/coordinate3DUtils";
 import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
 
 const CAMERA_CONFIG = {
@@ -131,13 +130,15 @@ const CameraSync: React.FC<{
     target: [number, number, number];
     controlsRef: React.RefObject<OrbitControlsImpl | null>;
     orthoZoom?: number;
-}> = ({ cameraPosition, target, controlsRef, orthoZoom }) => {
+    /** 竖屏时设为 (1,0,0)，使俯视画面旋转 90° */
+    cameraUp?: [number, number, number];
+}> = ({ cameraPosition, target, controlsRef, orthoZoom, cameraUp }) => {
     const { camera } = useThree();
     useEffect(() => {
         camera.position.set(cameraPosition[0], cameraPosition[1], cameraPosition[2]);
+        camera.up.set(cameraUp?.[0] ?? 0, cameraUp?.[1] ?? 1, cameraUp?.[2] ?? 0);
         camera.lookAt(target[0], target[1], target[2]);
 
-        // 正交相机需要同步 zoom 并刷新投影矩阵
         if (camera instanceof THREE.OrthographicCamera && orthoZoom !== undefined) {
             camera.zoom = orthoZoom;
             camera.updateProjectionMatrix();
@@ -147,7 +148,7 @@ const CameraSync: React.FC<{
             controlsRef.current.target.set(target[0], target[1], target[2]);
             controlsRef.current.update();
         }
-    }, [camera, cameraPosition, target, controlsRef, orthoZoom]);
+    }, [camera, cameraPosition, target, controlsRef, orthoZoom, cameraUp]);
     return null;
 };
 
@@ -161,10 +162,34 @@ const CanvasWithControls: React.FC<{
     onModelLoaded: (monsterId: string) => void;
     isPortrait: boolean;
     orthoZoom: number;
+    cameraUp?: [number, number, number];
     getCellState?: (q: number, r: number) => BattleCellState;
-    onCellClick?: (viewQ: number, viewR: number) => void;
-}> = ({ cameraPosition, target, mapDimension, minDistance, maxDistance, onProgress, onModelLoaded, isPortrait, orthoZoom, getCellState, onCellClick }) => {
+    onCellClick?: (logicQ: number, logicR: number) => void;
+}> = ({ cameraPosition, target, mapDimension, minDistance, maxDistance, onProgress, onModelLoaded, isPortrait, orthoZoom, cameraUp, getCellState, onCellClick }) => {
     const controlsRef = useRef<OrbitControlsImpl | null>(null);
+
+    // 稳定引用，供 onCreated 使用（避免闭包过期）
+    const cameraUpRef = useRef(cameraUp);
+    const targetRef = useRef(target);
+    const orthoZoomRef = useRef(orthoZoom);
+    cameraUpRef.current = cameraUp;
+    targetRef.current = target;
+    orthoZoomRef.current = orthoZoom;
+
+    // onCreated：Canvas 创建后、首帧渲染前设置 camera.up + lookAt + zoom
+    // R3F 自动根据画布尺寸管理 left/right/top/bottom，我们只需 zoom 控制可见范围
+    const handleCreated = useCallback(({ camera }: { camera: THREE.Camera }) => {
+        const up = cameraUpRef.current;
+        const t = targetRef.current;
+        if (up) {
+            camera.up.set(up[0], up[1], up[2]);
+        }
+        camera.lookAt(t[0], t[1], t[2]);
+        if (camera instanceof THREE.OrthographicCamera) {
+            camera.zoom = orthoZoomRef.current;
+            camera.updateProjectionMatrix();
+        }
+    }, []);
 
     // 共用的场景内容
     const sceneContent = (
@@ -176,6 +201,7 @@ const CanvasWithControls: React.FC<{
                 target={target}
                 controlsRef={controlsRef}
                 orthoZoom={isPortrait ? orthoZoom : undefined}
+                cameraUp={cameraUp}
             />
 
             <ambientLight intensity={0.8} />
@@ -185,7 +211,11 @@ const CanvasWithControls: React.FC<{
             <BattleLoadingContext.Provider value={{ onModelLoaded }}>
                 {mapDimension && (
                     <>
-                        <GridGround3D mapDimension={mapDimension} getCellState={getCellState} onCellClick={onCellClick} />
+                        <GridGround3D
+                            mapDimension={mapDimension}
+                            getCellState={getCellState}
+                            onCellClick={onCellClick}
+                        />
                         <ObstacleGrid3D mapDimension={mapDimension} />
                         <CharacterGrid3D mapDimension={mapDimension} />
                     </>
@@ -194,7 +224,7 @@ const CanvasWithControls: React.FC<{
         </>
     );
 
-    // 竖屏：正交相机 + 纯俯视，禁用旋转
+    // 竖屏：正交相机 + 俯视（camera.up 旋转 90°），禁用旋转
     // 横屏：透视相机 + 球面坐标，允许旋转
     return (
         <Canvas
@@ -218,6 +248,7 @@ const CanvasWithControls: React.FC<{
                         far: CAMERA_CONFIG.far,
                     }
             }
+            onCreated={handleCreated}
         >
             {sceneContent}
 
@@ -231,8 +262,8 @@ const CanvasWithControls: React.FC<{
                 maxDistance={isPortrait ? undefined : maxDistance}
                 minZoom={isPortrait ? orthoZoom * 0.5 : undefined}
                 maxZoom={isPortrait ? orthoZoom * 2 : undefined}
-                maxPolarAngle={isPortrait ? 0 : undefined}
-                minPolarAngle={isPortrait ? 0 : undefined}
+                maxPolarAngle={isPortrait ? Math.PI / 2 : undefined}
+                minPolarAngle={isPortrait ? Math.PI / 2 : undefined}
             />
         </Canvas>
     );
@@ -248,6 +279,7 @@ const CombatActPanel: React.FC<{ surrender: () => void }> = ({ surrender }) => (
     </div>
 );
 
+/** 3D 战斗场景。mapDimension：本视图用 useMapDimension() 测容器并同步到 CombatManager，与 2D 的 BattlePlayer 一致（仅当前激活视图写入 context）。 */
 export const BattleVenue3D: React.FC = () => {
     const {
         game,
@@ -261,43 +293,66 @@ export const BattleVenue3D: React.FC = () => {
         replay,
         eventQueue,
     } = useCombatManager();
-    const disabledCells = useMemo(
-        () => (game?.map?.disables ? [...game.map.disables] : []),
-        [game?.map?.disables]
-    );
-    const gridState = useBattleGridState(disabledCells);
+    const gridState = useBattleGridState();
 
-    const { containerRef, mapDimension: rawMapDimension, containerSize } = useMapDimension();
+    const { containerRef, mapDimension } = useMapDimension();
 
-    // direction 来自游戏数据（决定哪个玩家看到镜像），不随屏幕方向变化
-    // isPortrait 来自 rawMapDimension，用于 logicToView/viewToLogic 坐标转换
-    const mapDimension: BattleMapDimension | null = useMemo(() => {
-        if (!rawMapDimension) return null;
-        return {
-            ...rawMapDimension,
-            direction: game?.map?.direction ?? 0,
-            isPortrait: rawMapDimension.isPortrait,
-        };
-    }, [rawMapDimension, game?.map?.direction]);
+    // // // 3D 竖屏：使用逻辑 rows/cols（与 game.map 一致），不对调；仅根据容器计算宽高与 hex 尺寸
+    // const mapDimension = useMemo((): BattleMapDimension | null => {
+    //     if (!rawMapDimension) return null;
+    //     if (!rawMapDimension.isPortrait || !game?.map) return rawMapDimension as BattleMapDimension;
+
+    //     const logicCols = game.map.cols;
+    //     const logicRows = game.map.rows;
+    //     const cw = containerSize?.width ?? rawMapDimension.width;
+    //     const ch = containerSize?.height ?? rawMapDimension.height;
+    //     const mapRatio =
+    //         ((logicCols + 0.5) * Math.sqrt(3)) / 2 / (1 + (logicRows * 3) / 4);
+    //     const containerRatio = cw / ch;
+    //     let mapWidth: number;
+    //     let mapHeight: number;
+    //     if (mapRatio < containerRatio) {
+    //         mapHeight = ch;
+    //         mapWidth = mapHeight * mapRatio;
+    //     } else {
+    //         mapWidth = cw;
+    //         mapHeight = mapWidth / mapRatio;
+    //     }
+    //     const hexWidth = mapWidth / (logicCols + 0.5);
+    //     const hexHeight = (hexWidth * 2) / Math.sqrt(3);
+    //     return {
+    //         ...rawMapDimension,
+    //         width: mapWidth,
+    //         height: mapHeight,
+    //         hexWidth,
+    //         hexHeight,
+    //         cols: logicCols,
+    //         rows: logicRows,
+    //         isPortrait: true,
+    //     };
+    // }, [rawMapDimension, game?.map, containerSize]);
+
+    // useEffect(() => {
+    //     if (mapDimension) {
+    //         setMapDimension(mapDimension);
+    //     }
+    // }, [mapDimension, setMapDimension]);
 
     useEventHandler3D({ gridState, mapDimension });
 
     const { surrender, walk, attack, positionSelectionUI } = useCombatActHandler3D({ gridState, mapDimension });
 
-    // ✅ 格子点击处理：walkable 格子 → walk，attackable 格子 → attack
+    // 格子点击：参数为逻辑坐标 (logicQ, logicR)，所见即所点
     const handleCellClick = useCallback(
-        (viewQ: number, viewR: number) => {
+        (logicQ: number, logicR: number) => {
             if (!mapDimension || mode !== "play") return;
-            const logic = viewToLogic(viewQ, viewR, mapDimension);
-            const cellState = gridState.getCellState(logic.q, logic.r);
-            console.log("[handleCellClick] view:", { viewQ, viewR }, "logic:", logic, "state:", cellState);
+            const cellState = gridState.getCellState(logicQ, logicR);
 
             if (cellState === "walkable") {
-                walk({ q: logic.q, r: logic.r }).catch((err: any) => console.error("[handleCellClick] walk error:", err));
+                walk({ q: logicQ, r: logicR }).catch((err: any) => console.error("[handleCellClick] walk error:", err));
             } else if (cellState === "attackable") {
-                // 找到该格子上的敌方角色
                 const enemy = characters?.find(
-                    (c) => c.q === logic.q && c.r === logic.r
+                    (c) => c.q === logicQ && c.r === logicR
                 );
                 if (enemy) {
                     attack(enemy);
@@ -358,12 +413,6 @@ export const BattleVenue3D: React.FC = () => {
         getAllMonsterGlbPaths().forEach((path) => useGLTF.preload(path));
     }, []);
 
-    useEffect(() => {
-        if (rawMapDimension) {
-            setMapDimension(rawMapDimension);
-        }
-    }, [rawMapDimension, setMapDimension]);
-
     const [loadedModelCount, setLoadedModelCount] = useState(0);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -393,39 +442,23 @@ export const BattleVenue3D: React.FC = () => {
 
     const isPortrait = mapDimension?.isPortrait ?? false;
 
-    const { cameraPosition, cameraTarget, minDistance, maxDistance, orthoZoom } = useMemo(() => {
-        const defaultTarget: [number, number, number] = mapDimension
-            ? [mapDimension.width / 2, 0, mapDimension.height / 2]
-            : [0, 0, 0];
+    const { cameraPosition, cameraTarget, minDistance, maxDistance, orthoZoom, cameraUp } = useMemo(() => {
+        const defaultTarget: [number, number, number] =
+            (mapDimension && getGridCenter3D(mapDimension)) ?? [0, 0, 0];
 
         let position: [number, number, number];
-        let target = defaultTarget;
+        const target = defaultTarget;
         let minDist = 550;
         let maxDist = 1500;
-        let zoom = 1;
+        let zoom = mapDimension?.zoom ?? 1;
+        let up: [number, number, number] | undefined;
 
         if (mapDimension) {
-            target = [defaultTarget[0], defaultTarget[1], defaultTarget[2]];
-
             if (mapDimension.isPortrait) {
-                // 竖屏：正交相机，纯俯视
-                // 不减会偏移的原因：defaultTarget[2]=height/2 是「按 mapRatio 算出的矩形」的中心，
-                // 而六边形网格的 Z 中心在第一行中心 (-hexHeight/2) 与最后一行中心的中点，二者相差约 hexHeight
-                // （height = hexHeight*(1+(rows-1)*3/4)，几何中心在 height/2 - hexHeight），故减去 hexHeight 使对准真实网格中心
-                target = [target[0], target[1], target[2] - mapDimension.hexHeight * 1.2];
-                // 相机在目标正上方
                 position = [target[0], 2000, target[2]];
-                // 正交相机 zoom: 画布CSS像素 / 3D世界尺寸，取小边保证完全显示
-                // R3F 正交相机 frustum = canvasCSS / zoom，因此 zoom = canvasCSS / worldSize
-                const containerW = containerSize?.width ?? mapDimension.width;
-                const containerH = containerSize?.height ?? mapDimension.height;
-                zoom = Math.min(
-                    containerW / mapDimension.width,
-                    containerH / mapDimension.height
-                );
+                up = [1, 0, 0];
+                // camera.up=(1,0,0)：屏幕竖轴=world X，屏幕横轴=world Z
             } else {
-                target = [target[0], target[1], target[2] - mapDimension.hexHeight / 2];
-
                 // 横屏：透视相机
                 const fit = getViewportFitDistance(
                     mapDimension.width,
@@ -452,8 +485,9 @@ export const BattleVenue3D: React.FC = () => {
             minDistance: minDist,
             maxDistance: maxDist,
             orthoZoom: zoom,
+            cameraUp: up,
         };
-    }, [mapDimension, containerSize]);
+    }, [mapDimension]);
 
     const progress =
         (game?.team?.length ?? 0) + (game?.boss ? 1 : 0) > 0
@@ -465,14 +499,14 @@ export const BattleVenue3D: React.FC = () => {
             )
             : loadingProgress;
 
-    // 与 TeamLayout3D 相同：容器 ref，map 区域用 mapDimension/containerSize 控制宽高，居中由 CSS 完成
+    // 竖屏时画布填满容器；横屏用 mapDimension 尺寸
     const mapContainerStyle: React.CSSProperties = {
         position: "absolute",
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        width: mapDimension ? `${mapDimension.width}px` : containerSize ? `${containerSize.width}px` : "100%",
-        height: mapDimension ? `${mapDimension.height}px` : containerSize ? `${containerSize.height}px` : "100%",
+        width: mapDimension?.width,
+        height: mapDimension?.height,       
         backgroundColor: "transparent",
     };
 
@@ -507,7 +541,7 @@ export const BattleVenue3D: React.FC = () => {
                 <LoadingScreen progress={progress} isLoaded={isLoaded} />
 
                 {mapDimension && (
-                    <div style={{ width: "100%", height: "100%" }}>
+                    <div style={{ width: "100%", height: "100%", backgroundColor: "transparent" }}>
                         <CanvasWithControls
                             cameraPosition={cameraPosition}
                             target={cameraTarget}
@@ -518,6 +552,7 @@ export const BattleVenue3D: React.FC = () => {
                             onModelLoaded={onModelLoaded}
                             isPortrait={isPortrait}
                             orthoZoom={orthoZoom}
+                            cameraUp={cameraUp}
                             getCellState={gridState.getCellState}
                             onCellClick={handleCellClick}
                         />

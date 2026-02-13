@@ -97,31 +97,19 @@ export class GameActionService {
 
         if (!success) return { success: false };
 
-        // ✅ Walk-only turn：如果 endTurn 为 true，结束当前回合并推进阶段
-        // 场景：玩家选择只移动不攻击（跳过技能），回合结束后可能轮到 Boss AI 行动
-        let phaseChanges: PhaseChanges | undefined = undefined;
+        // ✅ Walk 应结束当前 turn，推进回合和阶段（自动处理 turnEnd, roundEnd, roundStart, turnStart, Boss AI）
+        const phaseChanges = await this.phaseService.advanceTurnAndRound(
+            gameId,
+            identifier,
+            (this as any).ctx
+        );
 
-        if (options?.endTurn) {
-            // 推进回合和阶段（自动处理 turnEnd, roundEnd, roundStart, turnStart, Boss AI）
-            phaseChanges = await this.phaseService.advanceTurnAndRound(
-                gameId,
-                identifier,
-                (this as any).ctx
-            );
-
-            // walk-only turn 不需要额外的 stateChanges/effects（移动本身不产生状态变化）
-            // 如果未来 walk 触发陷阱/被动技能，stateChanges 和 effects 会在此处补充
-        }
+        // walk-only turn 不需要额外的 stateChanges/effects（移动本身不产生状态变化）
+        // 如果未来 walk 触发陷阱/被动技能，stateChanges 和 effects 会在此处补充
 
         // ✅ 创建事件（延后到 phaseChanges 确定后，确保事件数据完整供 watch/replay 使用）
         const event = this.eventService.createWalkEvent(gameId, identifier, to);
-        // 附加 endTurn 标记和 phaseChanges 到事件数据中
-        if (options?.endTurn) {
-            event.data = { ...event.data, endTurn: true };
-        }
-        if (phaseChanges) {
-            event.data = { ...event.data, phaseChanges };
-        }
+        event.data = { ...event.data, endTurn: true, phaseChanges };
         await this.eventService.createEvent(event);
         await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
 

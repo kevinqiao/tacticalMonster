@@ -16,6 +16,11 @@
 
 # misc
 .DS_Store
+# Windows 保留设备名，避免误创建后导致 git add 失败
+nul
+con
+prn
+aux
 # .env.local
 .env.development.local
 .env.test.local

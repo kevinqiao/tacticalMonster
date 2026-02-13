@@ -1,17 +1,14 @@
 /**
  * CharacterGrid3D - 所有战斗角色的 3D 渲染
- * 角色逻辑坐标通过 logicToView 转换为视图坐标后渲染
+ * 角色始终用逻辑坐标 (q,r) 通过 hexTo3DCenter 算 3D 位置，横竖屏同一场景。
  */
 
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import { useCombatManager } from "../../battle/service/CombatManager";
-import { logicToView } from "../../team/utils/coordinateUtils";
-import { useBattleCharacterRefsContext } from "../BattleCharacterRefsContext";
 import { BattleLoadingContext } from "../BattleLoadingContext";
 import { getCharacterKey } from "../utils/battle3DAdapter";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { hexTo3DCenter } from "../utils/coordinate3DUtils";
-import type { BattleCharacter3DRef } from "./components/BattleCharacter3D";
 import { BattleCharacter3DWithSuspense } from "./components/BattleCharacter3D";
 
 interface CharacterGrid3DProps {
@@ -19,32 +16,28 @@ interface CharacterGrid3DProps {
 }
 
 export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }) => {
-    const { characters, activeCharacterKey } = useCombatManager();
+    const { characters, activeCharacterKey, animatingCharacterKey, animatingStartPositionRef } = useCombatManager();
     const loadingContext = useContext(BattleLoadingContext);
-    const refsContext = useBattleCharacterRefsContext();
-
-    const handleRefReady = useCallback(
-        (key: string) => (ref: BattleCharacter3DRef) => {
-            refsContext?.registerRef(key, ref);
-        },
-        [refsContext]
-    );
 
     const characterElements = useMemo(() => {
         if (!characters || !mapDimension) return [];
 
-        return characters
-            .filter((c) => c.q != null && c.r != null)
-            .map((character) => {
-                const logicQ = character.q ?? 0;
-                const logicR = character.r ?? 0;
-                // 逻辑坐标 → 视图坐标（竖屏时旋转）
-                const view = logicToView(logicQ, logicR, mapDimension);
-                const pos = hexTo3DCenter(view.q, view.r, mapDimension, 0);
+        const { cols, rows } = mapDimension;
+        console.log("[CharacterGrid3D] rendering", characters.length, "characters, keys:",
+            characters.map(c => getCharacterKey(c)));
+        return characters.map((character, index) => {
+                // 确保每个角色都有坐标（无则用索引占位），保证每个角色都挂载并注册 ref，行走时能按 key 取到
+                const logicQ = character.q ?? index % Math.max(1, cols);
+                const logicR = character.r ?? Math.floor(index / Math.max(1, cols)) % Math.max(1, rows);
+                const pos = hexTo3DCenter(logicQ, logicR, mapDimension, 0);
                 if (!pos) return null;
 
                 const key = getCharacterKey(character);
-                const position: [number, number, number] = [pos.x, pos.y, pos.z];
+                // 动画中角色使用稳定引用，避免重渲染覆盖 GSAP 控制的 position
+                const position: [number, number, number] =
+                    animatingCharacterKey === key
+                        ? animatingStartPositionRef.current
+                        : [pos.x, pos.y, pos.z];
                 const facing = (character.scaleX ?? 1) >= 0 ? 1 : -1;
                 const isActive = key === activeCharacterKey;
                 if (isActive) {
@@ -56,17 +49,17 @@ export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }
                         key={key}
                         character={character}
                         position={position}
+                        animatingCharacterKey={animatingCharacterKey}
                         width={mapDimension.hexWidth}
                         height={mapDimension.hexHeight}
                         facing={facing}
                         isPortrait={mapDimension.isPortrait}
                         isActive={isActive}
                         onModelLoaded={loadingContext?.onModelLoaded}
-                        onRefReady={handleRefReady(key)}
                     />
                 );
             });
-    }, [characters, mapDimension, activeCharacterKey, loadingContext?.onModelLoaded, handleRefReady]);
+    }, [characters, mapDimension, activeCharacterKey, animatingCharacterKey, loadingContext?.onModelLoaded]);
 
     return <group>{characterElements}</group>;
 };

@@ -1,8 +1,12 @@
 /**
  * 战斗格子状态管理 - 控制 walkable/attackable/path/selected 高亮
+ * 禁用格从 CombatManager 的 groundCells 推导（与 groundCells 单一数据源一致）
+ * 约定：highlightWalkable / highlightAttackable / highlightPath / setSelected 均使用逻辑坐标 (q, r)；
+ * GridGround3D 按逻辑 (q,r) 遍历，getCellState(q,r) 与 onCellClick 均为逻辑坐标，横竖屏一致。
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { useCombatManager } from "../../battle/service/CombatManager";
 
 export type BattleCellState =
     | "normal"
@@ -26,16 +30,20 @@ export interface UseBattleGridStateReturn {
 
 const cellKey = (q: number, r: number) => `${q},${r}`;
 
-export const useBattleGridState = (
-    disabledCells: Array<{ q: number; r: number }> = []
-): UseBattleGridStateReturn => {
+export const useBattleGridState = (): UseBattleGridStateReturn => {
+    const { groundCells } = useCombatManager();
     const [cellStates, setCellStates] = useState<Map<string, BattleCellState>>(new Map());
 
     const disabledSet = useMemo(() => {
         const s = new Set<string>();
-        disabledCells.forEach(({ q, r }) => s.add(cellKey(q, r)));
+        if (!groundCells) return s;
+        groundCells.forEach((row) =>
+            row.forEach((cell) => {
+                if (cell.disable) s.add(cellKey(cell.q, cell.r));
+            })
+        );
         return s;
-    }, [disabledCells]);
+    }, [groundCells]);
 
     const getCellState = useCallback(
         (q: number, r: number): BattleCellState => {

@@ -15,7 +15,6 @@ export const canPerformAction = (
     if (mode === 'watch' || mode === 'replay') return { can: false };
     if (!game?.currentRound || !characters) return { can: false };
 
-    // ✅ 修复：查找当前活跃的 turn（status === 1），而不是假设 turns[0]
     const currentTurn = game.currentRound.turns.find(
         (t: any) => t.status === 1
     );
@@ -26,6 +25,14 @@ export const canPerformAction = (
     );
     if (!character) return { can: false };
 
+    console.log("[canPerformAction] ✅ character:", {
+        monsterId: character.monsterId,
+        uid: character.uid,
+        q: character.q,
+        r: character.r,
+        hasRef3D: !!character.ref3D,
+        ref3DGroupCurrent: !!character.ref3D?.groupRef?.current,
+    });
+
     return { can: true, currentTurn, character };
 };
-

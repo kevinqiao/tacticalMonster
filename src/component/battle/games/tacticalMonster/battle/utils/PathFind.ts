@@ -1,61 +1,83 @@
 /**
  * Tactical Monster 路径查找工具
+ * 寻路与可移动范围展示使用 offset (even-r) 六边形邻格，与网格渲染一致；
+ * 与后端校验时仍用轴向距离 (calculateHexDistance)。
  */
 
 import { MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { AttackableNode, HexNode, WalkableNode } from "../../types/CombatTypes";
 
-// 计算六边形距离（用于飞行单位的直线路径）
-const calculateHexDistance = (from: HexNode, to: HexNode): number => {
-    const fromX = from.q - Math.floor(from.r / 2);
-    const fromZ = from.r;
-    const fromY = -fromX - fromZ;
+/** 轴向六边形距离（与后端 hexUtils.hexDistance 一致，用于 moveRange 过滤与校验） */
+const calculateHexDistance = (from: HexNode, to: HexNode): number =>
+    (Math.abs(from.q - to.q) + Math.abs(from.q + from.r - to.q - to.r) + Math.abs(from.r - to.r)) / 2;
 
-    const toX = to.q - Math.floor(to.r / 2);
-    const toZ = to.r;
-    const toY = -toX - toZ;
-
-    return Math.max(
-        Math.abs(fromX - toX),
-        Math.abs(fromY - toY),
-        Math.abs(fromZ - toZ)
-    );
+/** Offset (even-r) 六边形距离，与网格步数一致 */
+const offsetHexDistance = (from: HexNode, to: HexNode): number => {
+    const dq = Math.abs(from.q - to.q);
+    const dr = Math.abs(from.r - to.r);
+    return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
 };
 
-// 飞行单位的直线路径（忽略障碍物）
+/** Offset (even-r) 下 (q,r) 的 6 邻格偏移，与网格显示一致 */
+const getOffsetNeighborDirs = (r: number): { dq: number; dr: number }[] =>
+    r % 2 === 0
+        ? [
+            { dq: 1, dr: 0 }, { dq: 0, dr: -1 }, { dq: -1, dr: -1 },
+            { dq: -1, dr: 0 }, { dq: -1, dr: 1 }, { dq: 0, dr: 1 },
+        ]
+        : [
+            { dq: 1, dr: 0 }, { dq: 1, dr: -1 }, { dq: 0, dr: -1 },
+            { dq: -1, dr: 0 }, { dq: 0, dr: 1 }, { dq: 1, dr: 1 },
+        ];
+
+/**
+ * 飞行单位直线路径：offset 邻格 + offset 距离。
+ * 横屏 grid=逻辑网格；竖屏 grid=view 网格（useWalkAction3D 构建），path 为 view 坐标。
+ */
 const findDirectPath = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNode[] => {
     const path: HexNode[] = [start];
+    if (start.q === goal.q && start.r === goal.r) return path;
 
-    // 如果起点和终点相同，直接返回
-    if (start.q === goal.q && start.r === goal.r) {
-        return path;
-    }
+    const rows = grid.length;
+    const cols = grid[0]?.length ?? 0;
+    const inBounds = (q: number, r: number) => r >= 0 && r < rows && q >= 0 && q < cols;
+    const distance = offsetHexDistance(start, goal);
+    if (distance <= 1) return [start, goal];
 
-    const distance = calculateHexDistance(start, goal);
-
-    // 如果距离为1，直接返回终点
-    if (distance <= 1) {
-        return [start, goal];
-    }
-
-    // 计算直线路径上的所有中间点
-    const steps = distance;
-    for (let i = 1; i <= steps; i++) {
-        const t = i / steps;
-        const q = Math.round(start.q + (goal.q - start.q) * t);
-        const r = Math.round(start.r + (goal.r - start.r) * t);
-
-        // 检查是否在网格范围内
-        if (r >= 0 && r < grid.length && q >= 0 && q < grid[0].length) {
-            const node = { q, r };
-            // 避免重复添加
-            const lastNode = path[path.length - 1];
-            if (lastNode.q !== node.q || lastNode.r !== node.r) {
-                path.push(node);
+    const maxSteps = Math.min(rows * cols, Math.max(distance + 2, 8));
+    let current: HexNode = { q: start.q, r: start.r };
+    for (let step = 0; step < maxSteps; step++) {
+        if (current.q === goal.q && current.r === goal.r) break;
+        const curDist = offsetHexDistance(current, goal);
+        const prevNode = path.length >= 2 ? path[path.length - 2] : null;
+        let best: HexNode | null = null;
+        let bestDist = Infinity;
+        for (const { dq, dr } of getOffsetNeighborDirs(current.r)) {
+            const nq = current.q + dq;
+            const nr = current.r + dr;
+            if (!inBounds(nq, nr)) continue;
+            if (prevNode && nq === prevNode.q && nr === prevNode.r) continue;
+            if (nq === goal.q && nr === goal.r) {
+                best = { q: nq, r: nr };
+                bestDist = 0;
+                break;
+            }
+            const next = { q: nq, r: nr };
+            const dist = offsetHexDistance(next, goal);
+            const notFarther = dist <= curDist;
+            const better =
+                !best ||
+                dist < bestDist ||
+                (dist === bestDist && calculateHexDistance(next, goal) < calculateHexDistance(best!, goal));
+            if (notFarther && better) {
+                bestDist = dist;
+                best = next;
             }
         }
+        if (!best) break;
+        path.push(best);
+        current = best;
     }
-
     return path;
 };
 
@@ -63,9 +85,9 @@ export const findPath = (
     grid: HexNode[][],
     start: HexNode,
     goal: HexNode,
-    canIgnoreObstacles?: boolean  // 是否可以忽略障碍物（飞行单位）
+    canIgnoreObstacles?: boolean,  // 是否可以忽略障碍物（飞行单位）
+    _debugLabel?: string            // 调试：调用来源 "walk" | "attack" 等，便于区分日志
 ): HexNode[] => {
-    // 飞行单位：使用直线路径（忽略障碍物）
     if (canIgnoreObstacles) {
         return findDirectPath(start, goal, grid);
     }
@@ -76,35 +98,12 @@ export const findPath = (
     };
 
     const getNeighbors = (pos: HexNode): HexNode[] => {
-        const directions = pos.r % 2 === 0 ? [
-            { q: 1, r: 0 },   // 右
-            { q: 0, r: -1 },  // 右上
-            { q: -1, r: -1 }, // 左上
-            { q: -1, r: 0 },  // 左
-            { q: -1, r: 1 },  // 左下
-            { q: 0, r: 1 },   // 右下
-        ] : [
-            { q: 1, r: 0 },   // 右
-            { q: 1, r: -1 },  // 右上
-            { q: 0, r: -1 },  // 左上
-            { q: -1, r: 0 },  // 左
-            { q: 0, r: 1 },   // 左下
-            { q: 1, r: 1 },   // 右下
-        ];
-
-        return directions
-            .map(dir => ({
-                q: pos.q + dir.q,
-                r: pos.r + dir.r
-            }))
-            .filter(neighbor => isWalkable(neighbor.q, neighbor.r));
+        return getOffsetNeighborDirs(pos.r)
+            .map(({ dq, dr }) => ({ q: pos.q + dq, r: pos.r + dr }))
+            .filter((neighbor) => isWalkable(neighbor.q, neighbor.r));
     };
 
-    const heuristic = (a: HexNode, b: HexNode): number => {
-        const dq = Math.abs(a.q - b.q);
-        const dr = Math.abs(a.r - b.r);
-        return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
-    };
+    const heuristic = (a: HexNode, b: HexNode): number => calculateHexDistance(a, b);
 
     const openSet = new Set<string>([`${start.q},${start.r}`]);
     const cameFrom = new Map<string, HexNode>();
@@ -136,6 +135,14 @@ export const findPath = (
                 path.unshift(pos);
                 key = `${pos.q},${pos.r}`;
             }
+            const axialDist = calculateHexDistance(start, goal);
+            console.log("[HexDebug] findPath", {
+                caller: _debugLabel ?? "?",
+                start: { q: start.q, r: start.r },
+                goal: { q: goal.q, r: goal.r },
+                pathSteps: path.length - 1,
+                axialDistance: axialDist,
+            });
             return path;
         }
 
@@ -185,6 +192,12 @@ export const getWalkableNodes = (
             }
         }
 
+        console.log("[HexDebug] getWalkableNodes flying", {
+            start: { q: start.q, r: start.r },
+            moveRange,
+            count: movableNodes.length,
+            sample: movableNodes.slice(0, 3).map((n) => ({ q: n.q, r: n.r, distance: n.distance })),
+        });
         return movableNodes;
     }
 
@@ -196,31 +209,18 @@ export const getWalkableNodes = (
     queue.push({ node: { q: start.q, r: start.r }, distance: 0 });
     visited.add(`${start.q},${start.r}`);
 
+    // offset (even-r) 6 邻格，与网格显示一致
     const getNeighbors = (pos: HexNode): HexNode[] => {
-        const directions = pos.r % 2 === 0 ? [
-            { q: 1, r: 0 },   // 右
-            { q: 0, r: -1 },  // 右上
-            { q: -1, r: -1 }, // 左上
-            { q: -1, r: 0 },  // 左
-            { q: -1, r: 1 },  // 左下
-            { q: 0, r: 1 },   // 右下
-        ] : [
-            { q: 1, r: 0 },   // 右
-            { q: 1, r: -1 },  // 右上
-            { q: 0, r: -1 },  // 左上
-            { q: -1, r: 0 },  // 左
-            { q: 0, r: 1 },   // 左下
-            { q: 1, r: 1 },   // 右下
-        ];
-
-        return directions
-            .map(dir => ({
-                q: pos.q + dir.q,
-                r: pos.r + dir.r
-            }))
-            .filter(neighbor => {
-                if (neighbor.r < 0 || neighbor.r >= gridCells.length ||
-                    neighbor.q < 0 || neighbor.q >= gridCells[0].length) return false;
+        return getOffsetNeighborDirs(pos.r)
+            .map((dir) => ({ q: pos.q + dir.dq, r: pos.r + dir.dr }))
+            .filter((neighbor) => {
+                if (
+                    neighbor.r < 0 ||
+                    neighbor.r >= gridCells.length ||
+                    neighbor.q < 0 ||
+                    neighbor.q >= (gridCells[0]?.length ?? 0)
+                )
+                    return false;
                 return gridCells[neighbor.r][neighbor.q].walkable ?? false;
             });
     };
@@ -244,7 +244,33 @@ export const getWalkableNodes = (
         }
     }
 
-    return movableNodes;
+    // 与 BFS 一致：用 offset 距离过滤，可行走范围边界统一（不再混用轴向导致有远有近）
+    const startNode = { q: start.q, r: start.r };
+    const filtered = movableNodes.filter((n) => offsetHexDistance(startNode, n) <= moveRange);
+
+    // 调试：可移动范围（offset 距离）
+    const distances = filtered.map((n) => offsetHexDistance(startNode, n));
+    const maxDist = distances.length ? Math.max(...distances) : -1;
+    const overRangeCells = filtered.filter((n) => offsetHexDistance(startNode, n) > moveRange);
+
+    console.log("[HexDebug] getWalkableNodes BFS", {
+        start: { q: start.q, r: start.r },
+        moveRange,
+        gridShape: [gridCells.length, gridCells[0]?.length ?? 0],
+        beforeFilter: movableNodes.length,
+        afterFilter: filtered.length,
+        maxOffsetDistInResult: maxDist,
+        overRangeInResult: overRangeCells.length,
+        sample: filtered.slice(0, 4).map((n) => ({ q: n.q, r: n.r, offsetD: offsetHexDistance(startNode, n) })),
+    });
+    if (overRangeCells.length > 0) {
+        console.warn("[HexDebug] getWalkableNodes 过滤后仍存在 offsetD > moveRange", {
+            moveRange,
+            overRange: overRangeCells.slice(0, 5).map((n) => ({ q: n.q, r: n.r, offsetD: offsetHexDistance(startNode, n) })),
+        });
+    }
+
+    return filtered;
 };
 
 /**
@@ -264,11 +290,11 @@ export const getAttackableNodes = (
     for (const enemy of enemies) {
         if (attacker.attackRange.max === 1) {
             gridCells[enemy.r][enemy.q].walkable = true;
-            const path = findPath(gridCells, { q: attacker.q, r: attacker.r }, { q: enemy.q, r: enemy.r });
+            const path = findPath(gridCells, { q: attacker.q, r: attacker.r }, { q: enemy.q, r: enemy.r }, undefined, "attack");
             if (path.length - 2 <= attacker.moveRange)
                 attackableNodes.push({ uid: enemy.uid, character_id: enemy.character_id, q: enemy.q, r: enemy.r, distance: 1 });
         } else {
-            const path = findPath(grid, { q: attacker.q, r: attacker.r }, { q: enemy.q, r: enemy.r });
+            const path = findPath(grid, { q: attacker.q, r: attacker.r }, { q: enemy.q, r: enemy.r }, undefined, "attack");
             const distance = path.length - 1;
             const range = (skill?.range?.distance ?? skill?.range?.max_distance) ?? attacker.attackRange.max;
             if (distance <= range) {
@@ -281,19 +307,17 @@ export const getAttackableNodes = (
 
 export const isInAttackRange = (
     attacker: {
-        q: number,
-        r: number,
-        moveRange: number,
-        attackRange: { min: number, max: number }
+        q: number;
+        r: number;
+        moveRange: number;
+        attackRange: { min: number; max: number };
     },
-    target: { q: number, r: number },
+    target: { q: number; r: number },
     skill: MonsterSkill | null
-): { ok: boolean, distance: number } => {
-    const dx = attacker.q - target.q;
-    const dy = attacker.r - target.r;
-    const distance = Math.max(Math.abs(dx), Math.abs(dy));
+): { ok: boolean; distance: number } => {
+    const distance = calculateHexDistance(attacker, target);
     const maxReach = attacker.moveRange + (skill?.range?.max_distance ?? attacker.attackRange.max);
-    return { ok: distance <= maxReach ? true : false, distance };
+    return { ok: distance <= maxReach, distance };
 };
 
 

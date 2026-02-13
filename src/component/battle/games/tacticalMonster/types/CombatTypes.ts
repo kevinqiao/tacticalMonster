@@ -2,7 +2,7 @@
  * Tactical Monster 战斗类型定义
  */
 
-
+import React from "react";
 import { Spine } from "pixi-spine";
 import { StateChanges } from "./backendResponseTypes";
 import { CharacterIdentifier, GameTurn, PhaseChanges, SkillEffectItem } from "./gameTypes";
@@ -231,6 +231,19 @@ export interface AttackableNode extends HexNode {
 }
 
 /**
+ * 3D 视图节点引用（由 BattleCharacter3D 挂载时设置，供 walk/skill 动画与回滚使用）
+ */
+export interface CharacterRef3D {
+    groupRef: React.RefObject<{
+        position: { x: number; y: number; z: number };
+        rotation: { y: number };
+    } | null>;
+    /** 内层模型组，仅控制朝向 Y；行走时由 GSAP 驱动，避免被 React 覆盖 */
+    modelGroupRef?: React.RefObject<{ rotation: { y: number } } | null>;
+    playAnimation: (name: string) => void;
+}
+
+/**
  * MonsterSprite - 前端渲染用的Monster类型
  * 基于GameMonster，添加UI渲染相关字段和前端需要的扩展字段
  * 统一使用后端的 MonsterSkill[] 类型（不再转换）
@@ -243,6 +256,8 @@ export interface MonsterSprite extends GameMonster {
     scaleX?: number;                    // 水平翻转（1: 向右, -1: 向左）
     facing?: number;                     // 面向方向
     container?: HTMLDivElement;          // DOM容器元素
+    /** 3D 视图节点引用（仅 3D 战斗使用，挂载时设置、卸载时清空） */
+    ref3D?: CharacterRef3D;
     standEle?: HTMLDivElement;           // 站立状态元素
     attackEle?: HTMLDivElement;          // 攻击状态元素
     skeleton?: Spine;                    // Spine动画骨架

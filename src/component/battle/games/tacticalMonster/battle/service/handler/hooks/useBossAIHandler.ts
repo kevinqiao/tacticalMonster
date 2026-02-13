@@ -33,17 +33,17 @@ export const useBossAIHandler = (
     ) => {
         if (!game || !gridCells) return;
 
-        const col = game.map.direction === 1 ? game.map.cols - position.q - 1 : position.q;
+        // PVE：统一使用逻辑坐标 (q, r)，不做 direction 变换
         const path = findPath(
             gridCells,
             { q: character.q ?? 0, r: character.r ?? 0 },
-            { q: col, r: position.r },
+            { q: position.q, r: position.r },
             character.isFlying ?? false
         );
 
         if (path) {
             playWalk(character, path, () => {
-                character.q = col;
+                character.q = position.q;
                 character.r = position.r;
                 // ✅ 动画完成后更新状态（如果有回调）
                 if (onStateUpdate) {

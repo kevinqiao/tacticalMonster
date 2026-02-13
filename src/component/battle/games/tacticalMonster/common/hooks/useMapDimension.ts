@@ -12,8 +12,8 @@ import { calculateMapDimension } from "../../team/utils/coordinateUtils";
 export const useMapDimension = () => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [mapDimension, setMapDimension] = useState<MapDimension | null>(null);
-    const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
-    const orientationRef = useRef<"portrait" | "landscape" | null>(null);
+    // const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null);
+
 
     useEffect(() => {
         const updateMap = () => {
@@ -22,10 +22,9 @@ export const useMapDimension = () => {
             const containerWidth = containerRef.current.clientWidth;
             const containerHeight = containerRef.current.clientHeight;
 
-            setContainerSize({ width: containerWidth, height: containerHeight });
+            // setContainerSize({ width: containerWidth, height: containerHeight });
             const dimension = calculateMapDimension(containerWidth, containerHeight);
             setMapDimension(dimension);
-
         };
 
         updateMap();
@@ -43,5 +42,5 @@ export const useMapDimension = () => {
         };
     }, []);
 
-    return { containerRef, mapDimension, containerSize };
+    return { containerRef, mapDimension };
 };

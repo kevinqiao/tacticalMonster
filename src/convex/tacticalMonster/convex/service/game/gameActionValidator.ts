@@ -4,7 +4,7 @@
  */
 
 import { GameMonster } from "../../types/monsterTypes";
-import { hexDistance } from "../../utils/hexUtils";
+import { offsetHexDistance } from "../../utils/hexUtils";
 import { CharacterIdentifier, GameModel } from "../../types/gameTypes";
 import { RoundService } from "./roundService";
 
@@ -187,8 +187,8 @@ export class GameActionValidator {
             return { valid: false, message: "游戏不存在" };
         }
 
-        // 计算移动距离
-        const distance = hexDistance(from, to);
+        // 计算移动距离（offset 距离，与前端可行走范围一致）
+        const distance = offsetHexDistance(from, to);
         const moveRange = character.move_range ?? 3;
 
         // 验证移动距离是否在范围内

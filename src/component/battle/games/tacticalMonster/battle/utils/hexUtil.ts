@@ -30,25 +30,19 @@ export const offsetToCube = (col: number, row: number) => {
     return { x, y, z };
 };
 
-export const calculateHexDistance = (from: { q: number, r: number }, to: { q: number, r: number }): number => {
-    const fromX = from.q - Math.floor(from.r / 2);
-    const fromZ = from.r;
-    const fromY = -fromX - fromZ;
-
-    const toX = to.q - Math.floor(to.r / 2);
-    const toZ = to.r;
-    const toY = -toX - toZ;
-
-    return Math.max(
-        Math.abs(fromX - toX),
-        Math.abs(fromY - toY),
-        Math.abs(fromZ - toZ)
-    );
+/**
+ * 轴向六边形距离（与后端 convex hexUtils.hexDistance 一致）
+ * 用于前后端统一：移动范围、攻击范围、寻路均按轴向距离。
+ */
+export const calculateHexDistance = (from: { q: number; r: number }, to: { q: number; r: number }): number => {
+    return (
+        Math.abs(from.q - to.q) +
+        Math.abs(from.q + from.r - to.q - to.r) +
+        Math.abs(from.r - to.r)
+    ) / 2;
 };
 
-/**
- * 导出 hexDistance 函数（别名，用于统一命名）
- */
+/** 别名，与后端命名一致 */
 export const hexDistance = calculateHexDistance;
 
 /**

@@ -8,7 +8,6 @@ import React, { useEffect, useState } from "react";
 import { useCombatManager } from "../battle/service/CombatManager";
 import { ReplayControls } from "../battle/view/ReplayControls";
 import { ReplayScoreDisplay } from "../battle/view/ReplayScoreDisplay";
-import { BattleCharacterRefsProvider } from "./BattleCharacterRefsContext";
 import { BattleVenue3D } from "./BattleVenue3D";
 
 const BattlePlayer3D: React.FC = () => {
@@ -28,7 +27,7 @@ const BattlePlayer3D: React.FC = () => {
     if (!game) return null;
 
     return (
-        <BattleCharacterRefsProvider>
+        <>
             <BattleVenue3D />
             {mode === "replay" && <ReplayControls />}
             {mode === "replay" && game && allEvents.length > 0 && (
@@ -38,7 +37,7 @@ const BattlePlayer3D: React.FC = () => {
                     currentEventIndex={currentEventIndex}
                 />
             )}
-        </BattleCharacterRefsProvider>
+        </>
     );
 };
 

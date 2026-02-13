@@ -131,7 +131,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
 
     useEffect(() => {
         if (!mapDimension || !containerSize) return;
-        setMapDimension(mapDimension);
+        setMapDimension(mapDimension); // 同步到 CombatManager，供 2D 动画/格子等从 context 读取
 
         const mapW = mapDimension.width;
         const mapH = mapDimension.height;

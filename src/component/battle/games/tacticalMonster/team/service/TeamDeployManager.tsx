@@ -17,14 +17,13 @@ export interface MapDimension {
     isPortrait: boolean;  // 是否竖屏
     cols: number;         // 列数（横屏8，竖屏7）
     rows: number;         // 行数（横屏7，竖屏8）
+    zoom?: number;
 }
 
 export interface TeamContextValue {
     // 状态
     askAddMonster: { q: number, r: number } | null;
     mapDimension: MapDimension | null;
-    /** 容器像素尺寸（固定世界尺寸时用于地图 div 布局，3D 仍用 mapDimension） */
-    containerSize: { width: number; height: number } | null;
     playerMonsters: { monsterId: string, teamPosition?: { q: number; r: number } }[];
     dragMonster: { monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null;
     groundCells: GridCellSprite[][];
@@ -85,7 +84,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
     const dragPreviewContainerRef = useRef<HTMLDivElement | null>(null);
 
     // 使用 useMapDimension Hook
-    const { containerRef, mapDimension, containerSize } = useMapDimension();
+    const { containerRef, mapDimension } = useMapDimension();
 
     const [askAddMonster, setAskAddMonster] = useState<{ q: number, r: number } | null>(null);
     const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
@@ -435,7 +434,6 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
     const value: TeamContextValue = useMemo(() => ({
         // 状态
         mapDimension,
-        containerSize,
         playerMonsters,
         dragMonster,
         groundCells,
@@ -462,7 +460,6 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         logicToView: logicToViewCallback,
     }), [
         mapDimension,
-        containerSize,
         playerMonsters,
         dragMonster,
         groundCells,

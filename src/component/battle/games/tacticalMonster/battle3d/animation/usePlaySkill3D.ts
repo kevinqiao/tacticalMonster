@@ -5,9 +5,7 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
-import { logicToView } from "../../team/utils/coordinateUtils";
 import type { MonsterSprite } from "../../types/CombatTypes";
-import { useBattleCharacterRefsContext } from "../BattleCharacterRefsContext";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { hexTo3DCenter } from "../utils/coordinate3DUtils";
 
@@ -20,10 +18,8 @@ interface UsePlaySkill3DOptions {
 }
 
 export const usePlaySkill3D = (options?: UsePlaySkill3DOptions) => {
-    const refsContext = useBattleCharacterRefsContext();
     const mapDimension = options?.mapDimension ?? null;
     const playbackSpeed = options?.playbackSpeed ?? 1.0;
-
     const playSkill = useCallback(
         (
             caster: MonsterSprite,
@@ -31,7 +27,7 @@ export const usePlaySkill3D = (options?: UsePlaySkill3DOptions) => {
             targets: MonsterSprite[],
             onComplete: () => void | Promise<void>
         ): gsap.core.Timeline | null => {
-            const casterRef = refsContext?.getRef(caster);
+            const casterRef = caster.ref3D;
             if (!casterRef) {
                 onComplete?.();
                 return null;
@@ -47,33 +43,22 @@ export const usePlaySkill3D = (options?: UsePlaySkill3DOptions) => {
                 timeScale: playbackSpeed,
                 onComplete: () => {
                     casterRef.playAnimation("stand");
-                    targets.forEach((t) => refsContext?.getRef(t)?.playAnimation("stand"));
+                    targets.forEach((t) => t.ref3D?.playAnimation("stand"));
                     const result = onComplete();
                     if (result instanceof Promise) result.catch((err) => console.error(err));
                 },
             });
 
-            // 若有 mapDimension 且存在目标，先旋转施法者面向第一个目标
             if (mapDimension && targets.length > 0) {
-                const casterView = logicToView(caster.q ?? 0, caster.r ?? 0, mapDimension);
                 const target = targets[0];
-                const targetView = logicToView(target.q ?? 0, target.r ?? 0, mapDimension);
-                const casterPos = hexTo3DCenter(casterView.q, casterView.r, mapDimension, 0);
-                const targetPos = hexTo3DCenter(targetView.q, targetView.r, mapDimension, 0);
+                const casterPos = hexTo3DCenter(caster.q ?? 0, caster.r ?? 0, mapDimension, 0);
+                const targetPos = hexTo3DCenter(target.q ?? 0, target.r ?? 0, mapDimension, 0);
                 if (casterPos && targetPos) {
                     const dx = targetPos.x - casterPos.x;
-                    const dz = targetPos.z - casterPos.z;
+                    // 朝向始终为左右（竖屏由相机旋转处理，模型与横屏一致）
                     const MODEL_FACE_Y = Math.PI / 2;
-                    const PORTRAIT_UP_Y = Math.PI;
-                    const PORTRAIT_DOWN_Y = 0;
-                    let targetRotationY: number;
-                    if (mapDimension.isPortrait) {
-                        const faceUp = dz < 0;
-                        targetRotationY = faceUp ? PORTRAIT_UP_Y : PORTRAIT_DOWN_Y;
-                    } else {
-                        const faceRight = dx > 0;
-                        targetRotationY = faceRight ? MODEL_FACE_Y : -MODEL_FACE_Y;
-                    }
+                    const faceRight = dx > 0;
+                    const targetRotationY = faceRight ? MODEL_FACE_Y : -MODEL_FACE_Y;
                     tl.to(group.rotation, {
                         y: targetRotationY,
                         duration: FACE_TARGET_DURATION,
@@ -83,13 +68,13 @@ export const usePlaySkill3D = (options?: UsePlaySkill3DOptions) => {
             }
 
             casterRef.playAnimation("attack");
-            targets.forEach((t) => refsContext?.getRef(t)?.playAnimation("hurt"));
+            targets.forEach((t) => t.ref3D?.playAnimation("hurt"));
 
             tl.delay(SKILL_ANIM_DURATION);
 
             return tl;
         },
-        [refsContext, mapDimension, playbackSpeed]
+        [mapDimension, playbackSpeed]
     );
 
     return { playSkill };
