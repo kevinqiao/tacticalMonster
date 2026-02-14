@@ -48,31 +48,22 @@ export const calculateMapRatio = (cols: number, rows: number, isPortrait?: boole
 
 // };
 export const calculateMapDimension = (containerWidth: number, containerHeight: number): { width: number, height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean, zoom?: number } => {
-    const hratio = ((9 + 0.5) * Math.sqrt(3)) / 2 / (1 + (8 * 3) / 4);
+    const hratio = ((9.5 + 0.5) * Math.sqrt(3)) / 2 / (2.5 + (6 * 3) / 4);
     const containerRatio = containerWidth / containerHeight;
     const isPortrait = containerRatio < hratio;
     const dimension: { width: number; height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean, zoom?: number } = { width: 0, height: 0, hexWidth: 0, hexHeight: 0, cols: 8, rows: 7, isPortrait, zoom: 1 };
     if (isPortrait) {
-        const hexWidth = containerWidth / (9.5 + 0.5);
+        const hexWidth = containerWidth / (9 + 0.5);
         const hexHeight = (hexWidth * 2) / Math.sqrt(3);
-        const hzoom = containerHeight / (hexWidth * 10);
-        const vzoom = containerWidth / (hexHeight * (2 + 7 * 3 / 4));
+        const hzoom = containerHeight / (hexWidth * 10.5);
+        const vzoom = containerWidth / (hexHeight * (2 + 6 * 3 / 4));
         dimension.zoom = Math.min(hzoom, vzoom);
         dimension.height = hexWidth * 8.5 * dimension.zoom;
         dimension.width = hexHeight * dimension.zoom * (1 + 6 * 3 / 4);
-        // if (hzoom < vzoom) {
-        //     dimension.height = containerHeight;
-        //     dimension.width = dimension.height * hratio;
-        //     dimension.zoom = hzoom;
-        // } else {
-        //     dimension.width = containerWidth;
-        //     dimension.height = dimension.width / hratio;
-        //     dimension.zoom = vzoom;
-        // }
         dimension.hexWidth = hexWidth;
         dimension.hexHeight = hexHeight;
     } else {
-        const hexHeight = containerHeight / (1 + (7 * 3 / 4));
+        const hexHeight = containerHeight / (2 + (6 * 3 / 4));
         const hexWidth = hexHeight * Math.sqrt(3) / 2;
         dimension.height = hexHeight * (1 + (6 * 3 / 4));
         dimension.width = hexWidth * 8.5;

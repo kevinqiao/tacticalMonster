@@ -5,7 +5,6 @@
 import { CharacterGrid3D } from "@/component/battle/games/tacticalMonster/battle3d/view/CharacterGrid3D";
 import { GridGround3D } from "@/component/battle/games/tacticalMonster/battle3d/view/GridGround3D";
 import { ObstacleGrid3D } from "@/component/battle/games/tacticalMonster/battle3d/view/ObstacleGrid3D";
-import { useMapDimension } from "@/component/battle/games/tacticalMonster/common/hooks/useMapDimension";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import gsap from "gsap";
@@ -19,7 +18,7 @@ import { useBattleGridState, type BattleCellState } from "./hooks/useBattleGridS
 import useCombatActHandler3D from "./hooks/useCombatActHandler3D";
 import useEventHandler3D from "./hooks/useEventHandler3D";
 import { usePhaseChangesHandler3D } from "./hooks/usePhaseChangesHandler3D";
-import { BattleMapDimension, getGridCenter3D } from "./utils/coordinate3DUtils";
+import { BattleMapDimension, getGridCenter3D, getGridExtent3D } from "./utils/coordinate3DUtils";
 import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
 
 const CAMERA_CONFIG = {
@@ -46,17 +45,19 @@ const sphericalToPosition = (
     return [x, y, z];
 };
 
+/** 横屏透视相机：让矩形 (width, height) 刚好放入视锥，padding 略放大距离避免边缘裁剪 */
 const getViewportFitDistance = (
     width: number,
     height: number,
-    fovDeg: number
+    fovDeg: number,
+    padding: number = 1.15
 ): { distance: number; minDistance: number; maxDistance: number } => {
     const fovRad = (fovDeg * Math.PI) / 180;
     const halfTan = Math.tan(fovRad / 2);
     const aspect = width / height;
     const distanceByHeight = height / (2 * halfTan);
     const distanceByWidth = width / (2 * halfTan * aspect);
-    const distance = Math.max(distanceByHeight, distanceByWidth);
+    const distance = Math.max(distanceByHeight, distanceByWidth) * padding;
     return {
         distance,
         minDistance: distance * 0.5,
@@ -195,7 +196,7 @@ const CanvasWithControls: React.FC<{
     const sceneContent = (
         <>
             <TransparentBackground />
-            <LoadingTracker onProgress={onProgress} />
+            {/* <LoadingTracker onProgress={onProgress} /> */}
             <CameraSync
                 cameraPosition={cameraPosition}
                 target={target}
@@ -279,11 +280,10 @@ const CombatActPanel: React.FC<{ surrender: () => void }> = ({ surrender }) => (
     </div>
 );
 
-/** 3D 战斗场景。mapDimension：本视图用 useMapDimension() 测容器并同步到 CombatManager，与 2D 的 BattlePlayer 一致（仅当前激活视图写入 context）。 */
+/** 3D 战斗场景。mapDimension、containerRef 从 CombatManager context 获取（CombatManager 内 useMapDimension 测量包装容器）。 */
 export const BattleVenue3D: React.FC = () => {
     const {
         game,
-        setMapDimension,
         mode,
         characters,
         groundCells: contextGroundCells,
@@ -292,51 +292,10 @@ export const BattleVenue3D: React.FC = () => {
         isInitialPhaseChangesProcessed,
         replay,
         eventQueue,
+        mapDimension,
     } = useCombatManager();
     const gridState = useBattleGridState();
 
-    const { containerRef, mapDimension } = useMapDimension();
-
-    // // // 3D 竖屏：使用逻辑 rows/cols（与 game.map 一致），不对调；仅根据容器计算宽高与 hex 尺寸
-    // const mapDimension = useMemo((): BattleMapDimension | null => {
-    //     if (!rawMapDimension) return null;
-    //     if (!rawMapDimension.isPortrait || !game?.map) return rawMapDimension as BattleMapDimension;
-
-    //     const logicCols = game.map.cols;
-    //     const logicRows = game.map.rows;
-    //     const cw = containerSize?.width ?? rawMapDimension.width;
-    //     const ch = containerSize?.height ?? rawMapDimension.height;
-    //     const mapRatio =
-    //         ((logicCols + 0.5) * Math.sqrt(3)) / 2 / (1 + (logicRows * 3) / 4);
-    //     const containerRatio = cw / ch;
-    //     let mapWidth: number;
-    //     let mapHeight: number;
-    //     if (mapRatio < containerRatio) {
-    //         mapHeight = ch;
-    //         mapWidth = mapHeight * mapRatio;
-    //     } else {
-    //         mapWidth = cw;
-    //         mapHeight = mapWidth / mapRatio;
-    //     }
-    //     const hexWidth = mapWidth / (logicCols + 0.5);
-    //     const hexHeight = (hexWidth * 2) / Math.sqrt(3);
-    //     return {
-    //         ...rawMapDimension,
-    //         width: mapWidth,
-    //         height: mapHeight,
-    //         hexWidth,
-    //         hexHeight,
-    //         cols: logicCols,
-    //         rows: logicRows,
-    //         isPortrait: true,
-    //     };
-    // }, [rawMapDimension, game?.map, containerSize]);
-
-    // useEffect(() => {
-    //     if (mapDimension) {
-    //         setMapDimension(mapDimension);
-    //     }
-    // }, [mapDimension, setMapDimension]);
 
     useEventHandler3D({ gridState, mapDimension });
 
@@ -443,11 +402,10 @@ export const BattleVenue3D: React.FC = () => {
     const isPortrait = mapDimension?.isPortrait ?? false;
 
     const { cameraPosition, cameraTarget, minDistance, maxDistance, orthoZoom, cameraUp } = useMemo(() => {
-        const defaultTarget: [number, number, number] =
+        let target: [number, number, number] =
             (mapDimension && getGridCenter3D(mapDimension)) ?? [0, 0, 0];
 
         let position: [number, number, number];
-        const target = defaultTarget;
         let minDist = 550;
         let maxDist = 1500;
         let zoom = mapDimension?.zoom ?? 1;
@@ -459,10 +417,14 @@ export const BattleVenue3D: React.FC = () => {
                 up = [1, 0, 0];
                 // camera.up=(1,0,0)：屏幕竖轴=world X，屏幕横轴=world Z
             } else {
-                // 横屏：透视相机
+                // 横屏：透视相机，用网格实际 XZ 范围计算距离，避免场景被裁剪
+                target = [target[0], target[1], target[2]];
+                const extent = getGridExtent3D(mapDimension);
+                const fitWidth = extent?.extentX ?? mapDimension.width;
+                const fitHeight = extent?.extentZ ?? mapDimension.height;
                 const fit = getViewportFitDistance(
-                    mapDimension.width,
-                    mapDimension.height,
+                    fitWidth,
+                    fitHeight,
                     CAMERA_CONFIG.fov
                 );
                 minDist = fit.minDistance;
@@ -500,19 +462,22 @@ export const BattleVenue3D: React.FC = () => {
             : loadingProgress;
 
     // 竖屏时画布填满容器；横屏用 mapDimension 尺寸
-    const mapContainerStyle: React.CSSProperties = {
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: mapDimension?.width,
-        height: mapDimension?.height,       
-        backgroundColor: "transparent",
-    };
+    const mapContainerStyle: React.CSSProperties = useMemo(() => {
+        if (!mapDimension) return {};
+        const offset = mapDimension?.isPortrait ? mapDimension.hexWidth / 4 : mapDimension.hexHeight / 2;
+        return {
+            position: "absolute",
+            top: `calc(50% - ${offset}px)`,
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: mapDimension?.width,
+            height: mapDimension?.height,
+            backgroundColor: "transparent",
+        }
+    }, [mapDimension]);
 
     return (
         <div
-            ref={containerRef}
             style={{
                 position: "relative",
                 width: "100%",
@@ -531,14 +496,14 @@ export const BattleVenue3D: React.FC = () => {
                     backgroundImage: "url(/assets/battle_bg.png)",
                     backgroundSize: "cover",
                     backgroundPosition: "center",
-                    transform: isPortrait ? "translate(-50%, -50%) rotate(90deg)" : "translate(-50%, -50%)",
+                    transform: isPortrait ? "translate(-50%, -50%) rotate(-90deg)" : "translate(-50%, -50%)",
                     pointerEvents: "none",
                     zIndex: 0,
                 }}
             />
 
             <div style={{ ...mapContainerStyle, zIndex: 1 }}>
-                <LoadingScreen progress={progress} isLoaded={isLoaded} />
+                {/* <LoadingScreen progress={progress} isLoaded={isLoaded} /> */}
 
                 {mapDimension && (
                     <div style={{ width: "100%", height: "100%", backgroundColor: "transparent" }}>

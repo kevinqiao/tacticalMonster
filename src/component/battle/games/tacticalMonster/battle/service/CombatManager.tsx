@@ -20,6 +20,7 @@ import {
 } from "../../types/CombatTypes";
 import { PhaseChanges } from "../../types/gameTypes";
 import { ObstacleCell, ObstacleSprite } from "../../types/obstacleTypes";
+import { useMapDimension } from "../../common/hooks/useMapDimension";
 import { useGameReplay } from "../hooks/useGameReplay";
 import { useWatchMode } from "../hooks/useWatchMode";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
@@ -33,9 +34,11 @@ export interface ICombatContext {
     eventQueue: FrontendCombatEvent[];
     processedEvents?: FrontendCombatEvent[];  // Watch 模式：已处理的事件列表（用于实时计算分数）
     updateGameState?: (updater: (game: GameModel) => GameModel) => void;
-    /** 由当前挂载的战斗视图写入：2D 时 BattlePlayer 写入，3D 时 BattleVenue3D 写入；2D 动画/格子等从 context 读取 */
+    /** 由 CombatManager 通过 useMapDimension 测量容器得到，供 2D/3D 视图与动画使用 */
     mapDimension: MapDimension | null;
     setMapDimension: React.Dispatch<React.SetStateAction<MapDimension | null>>;
+    /** 测量 mapDimension 的容器 ref，挂在 CombatManager 的包装 div 上 */
+    containerRef: React.RefObject<HTMLDivElement | null>;
     mode?: GameMode;
     replay?: ReplayControls;
     playbackSpeed?: number;
@@ -61,6 +64,7 @@ export const CombatContext = createContext<ICombatContext>({
     eventQueue: [],
     mapDimension: null,
     setMapDimension: () => null,
+    containerRef: { current: null },
     mode: 'play',
     playbackSpeed: 1.0,
     markInitialPhaseChangesProcessed: () => { },
@@ -101,8 +105,11 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 }) => {
 
     const eventQueueRef: React.MutableRefObject<FrontendCombatEvent[]> = useRef<FrontendCombatEvent[]>([]);
-    /** 与 mapDimension 一致：仅由当前激活的 2D/3D 视图通过 setMapDimension 写入，避免多处来源混乱 */
+    const { containerRef, mapDimension: hookMapDimension } = useMapDimension();
     const [mapDimension, setMapDimension] = useState<MapDimension | null>(null);
+    useEffect(() => {
+        setMapDimension(hookMapDimension);
+    }, [hookMapDimension]);
 
     // ✅ 重播功能（仅在 replay 模式）
     // 在 replay 模式下，useGameReplay 会：
@@ -230,6 +237,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         updateGameState,
         mapDimension,
         setMapDimension,
+        containerRef,
         mode: mode,
         initialPhaseChanges,
         markInitialPhaseChangesProcessed,
@@ -256,7 +264,13 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         playbackSpeed: mode === 'replay' ? (replay?.replayState?.playbackSpeed ?? 1.0) : 1.0,
     };
 
-    return <CombatContext.Provider value={value}>{children}</CombatContext.Provider>;
+    return (
+        <CombatContext.Provider value={value}>
+            <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+                {children}
+            </div>
+        </CombatContext.Provider>
+    );
 };
 export const useCombatManager = () => {
     const context = useContext(CombatContext);

@@ -81,6 +81,19 @@ export const getGridCenter3D = (
 };
 
 /**
+ * 六边形网格在世界空间 XZ 平面的范围（用于透视相机视锥 fit，避免裁剪）
+ */
+export const getGridExtent3D = (
+    mapDimension: BattleMapDimension | null
+): { extentX: number; extentZ: number } | null => {
+    if (!mapDimension) return null;
+    const { cols, rows, hexWidth, hexHeight } = mapDimension;
+    const extentX = (cols + 0.5) * hexWidth;
+    const extentZ = (rows - 1) * 0.75 * hexHeight + hexHeight;
+    return { extentX, extentZ };
+};
+
+/**
  * 将 Three.js 3D 世界坐标转换为六边形坐标
  */
 export const world3DToHex = (
