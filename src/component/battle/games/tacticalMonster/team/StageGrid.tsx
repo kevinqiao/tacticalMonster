@@ -12,26 +12,19 @@ import { hexToPixel } from "./utils/coordinateUtils";
  * 障碍物单元格
  */
 const ObstacleCell: React.FC<{ q: number; r: number; type: number; asset: string }> = ({ q, r, type, asset }) => {
-    const { mapDimension, logicToView } = useTeamDeployManager();
+    const { mapDimension } = useTeamDeployManager();
     const [infoVisible, setInfoVisible] = useState(true);
 
-    // 在渲染时直接计算位置，避免动画效果
     const position = React.useMemo(() => {
         if (!mapDimension) return { x: 0, y: 0 };
-
-        // 将逻辑坐标转换为视图坐标
-        const viewPos = logicToView(q, r);
-        const pixelPos = hexToPixel(viewPos.q, viewPos.r, mapDimension);
-
+        const pixelPos = hexToPixel(q, r, mapDimension);
         if (pixelPos) {
-            // 设置位置（中心点对齐）
             const x = pixelPos.x - mapDimension.hexWidth / 2;
             const y = pixelPos.y - mapDimension.hexHeight / 2;
             return { x, y };
         }
-
         return { x: 0, y: 0 };
-    }, [q, r, mapDimension, logicToView]);
+    }, [q, r, mapDimension]);
 
     return (
         <div
@@ -65,23 +58,18 @@ const ObstacleCell: React.FC<{ q: number; r: number; type: number; asset: string
  * Boss 位置单元格
  */
 const BossCell: React.FC<{ q: number; r: number; bossId: string }> = ({ q, r, bossId }) => {
-    const { mapDimension, logicToView } = useTeamDeployManager();
+    const { mapDimension } = useTeamDeployManager();
 
-    // 在渲染时直接计算位置，避免动画效果
     const position = React.useMemo(() => {
         if (!mapDimension) return { x: 0, y: 0 };
-
-        const viewPos = logicToView(q, r);
-        const pixelPos = hexToPixel(viewPos.q, viewPos.r, mapDimension);
-
+        const pixelPos = hexToPixel(q, r, mapDimension);
         if (pixelPos) {
             const x = pixelPos.x - mapDimension.hexWidth / 2;
             const y = pixelPos.y - mapDimension.hexHeight / 2;
             return { x, y };
         }
-
         return { x: 0, y: 0 };
-    }, [q, r, mapDimension, logicToView]);
+    }, [q, r, mapDimension]);
 
     return (
         <div
@@ -112,24 +100,19 @@ const BossCell: React.FC<{ q: number; r: number; bossId: string }> = ({ q, r, bo
  * Minion 位置单元格
  */
 const MinionCell: React.FC<{ q: number; r: number; minionId: string }> = ({ q, r, minionId }) => {
-    const { mapDimension, logicToView } = useTeamDeployManager();
+    const { mapDimension } = useTeamDeployManager();
     const [infoVisible, setInfoVisible] = useState(false);
 
-    // 在渲染时直接计算位置，避免动画效果
     const position = React.useMemo(() => {
         if (!mapDimension) return { x: 0, y: 0 };
-
-        const viewPos = logicToView(q, r);
-        const pixelPos = hexToPixel(viewPos.q, viewPos.r, mapDimension);
-
+        const pixelPos = hexToPixel(q, r, mapDimension);
         if (pixelPos) {
             const x = pixelPos.x - mapDimension.hexWidth / 2;
             const y = pixelPos.y - mapDimension.hexHeight / 2;
             return { x, y };
         }
-
         return { x: 0, y: 0 };
-    }, [q, r, mapDimension, logicToView]);
+    }, [q, r, mapDimension]);
 
     return (
         <div
@@ -183,24 +166,19 @@ const MinionCell: React.FC<{ q: number; r: number; minionId: string }> = ({ q, r
  * 禁用区域单元格
  */
 const DisableCell: React.FC<{ q: number; r: number }> = ({ q, r }) => {
-    const { mapDimension, logicToView } = useTeamDeployManager();
+    const { mapDimension } = useTeamDeployManager();
     const [infoVisible, setInfoVisible] = useState(false);
 
-    // 在渲染时直接计算位置，避免动画效果
     const position = React.useMemo(() => {
         if (!mapDimension) return { x: 0, y: 0 };
-
-        const viewPos = logicToView(q, r);
-        const pixelPos = hexToPixel(viewPos.q, viewPos.r, mapDimension);
-
+        const pixelPos = hexToPixel(q, r, mapDimension);
         if (pixelPos) {
             const x = pixelPos.x - mapDimension.hexWidth / 2;
             const y = pixelPos.y - mapDimension.hexHeight / 2;
             return { x, y };
         }
-
         return { x: 0, y: 0 };
-    }, [q, r, mapDimension, logicToView]);
+    }, [q, r, mapDimension]);
 
     return (
         <div
@@ -252,22 +230,18 @@ const DisableCell: React.FC<{ q: number; r: number }> = ({ q, r }) => {
  */
 const DeployableCell: React.FC<{ q: number; r: number }> = ({ q, r }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const { playerMonsters, mapDimension, logicToView } = useTeamDeployManager();
+    const { playerMonsters, mapDimension } = useTeamDeployManager();
 
-
-    // 在渲染时直接计算位置，避免动画效果
     const position = React.useMemo(() => {
         if (!mapDimension) return { x: 0, y: 0, visible: false };
-        const viewPos = logicToView(q, r);
-        const pixelPos = hexToPixel(viewPos.q, viewPos.r, mapDimension);
-
+        const pixelPos = hexToPixel(q, r, mapDimension);
         if (pixelPos) {
             const x = pixelPos.x - mapDimension.hexWidth / 2;
             const y = pixelPos.y - mapDimension.hexHeight / 2;
             return { x, y, visible: true };
         }
         return { x: 0, y: 0, visible: false };
-    }, [q, r, mapDimension, logicToView]);
+    }, [q, r, mapDimension]);
     useEffect(() => {
         if (!containerRef.current) return;
 

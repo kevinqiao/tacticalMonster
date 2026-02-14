@@ -13,13 +13,13 @@ import { hexTo3DPosition } from "./utils/coordinate3DUtils";
 import { getSharedHexagonGeometry } from "./utils/geometryCache";
 
 const StageGrid3D: React.FC = () => {
-    const { stage, boss, mapDimension, deployables, logicToView } = useTeamDeployManager();
+    const { stage, boss, mapDimension, deployables } = useTeamDeployManager();
     const loadingContext = useContext(TeamLayoutLoadingContext);
 
     if (!stage || !mapDimension) {
         return null;
     }
-
+    console.log("stage:", stage);
     // 创建共享几何体（与 GridGround3D 中的参数保持一致）
     const sharedGeometries = useMemo(() => {
         const width = mapDimension.hexWidth;
@@ -30,20 +30,19 @@ const StageGrid3D: React.FC = () => {
         };
     }, [mapDimension]);
 
-    // 渲染障碍物
+    // 渲染障碍物（3D 模式：直接用逻辑坐标，camera.up 处理竖屏旋转）
     const obstacles = useMemo(() => {
         if (!stage.map.obstacles) return [];
 
         return stage.map.obstacles.map((obstacle, index) => {
-            const viewPos = logicToView(obstacle.q, obstacle.r);
-            const position = hexTo3DPosition(viewPos.q, viewPos.r, mapDimension, 0.1);
+            const position = hexTo3DPosition(obstacle.q, obstacle.r, mapDimension, 0.1);
             if (!position) return null;
 
             return (
                 <Obstacle3D
                     key={`obstacle-${obstacle.q}-${obstacle.r}-${index}`}
-                    q={viewPos.q}
-                    r={viewPos.r}
+                    q={obstacle.q}
+                    r={obstacle.r}
                     width={mapDimension.hexWidth}
                     height={mapDimension.hexHeight}
                     position={[position.x, position.y, position.z]}
@@ -52,23 +51,21 @@ const StageGrid3D: React.FC = () => {
                 />
             );
         });
-    }, [stage.map.obstacles, mapDimension, logicToView]);
+    }, [stage.map.obstacles, mapDimension]);
 
-    // 渲染禁用区域
-    // Y 偏移设置为 0.12，明显高于基础格子，避免 Z-fighting
+    // 渲染禁用区域（3D 模式：直接用逻辑坐标）
     const disables = useMemo(() => {
         if (!stage.map.disables) return [];
 
         return stage.map.disables.map((disable, index) => {
-            const viewPos = logicToView(disable.q, disable.r);
-            const position = hexTo3DPosition(viewPos.q, viewPos.r, mapDimension, 0.12);
+            const position = hexTo3DPosition(disable.q, disable.r, mapDimension, 0.12);
             if (!position) return null;
 
             return (
                 <HexCell3D
                     key={`disable-${disable.q}-${disable.r}-${index}`}
-                    q={viewPos.q}
-                    r={viewPos.r}
+                    q={disable.q}
+                    r={disable.r}
                     width={mapDimension.hexWidth}
                     height={mapDimension.hexHeight}
                     position={[position.x, position.y, position.z]}
@@ -77,23 +74,21 @@ const StageGrid3D: React.FC = () => {
                 />
             );
         });
-    }, [stage.map.disables, mapDimension, logicToView, sharedGeometries]);
+    }, [stage.map.disables, mapDimension, sharedGeometries]);
 
-    // 渲染可部署区域
-    // Y 偏移设置为 0.15，明显高于基础格子（0 + yOffset），避免 Z-fighting
+    // 渲染可部署区域（3D 模式：直接用逻辑坐标）
     const deployableCells = useMemo(() => {
         if (!deployables || deployables.length === 0) return [];
 
         return deployables.map((deployable, index) => {
-            const viewPos = logicToView(deployable.q, deployable.r);
-            const position = hexTo3DPosition(viewPos.q, viewPos.r, mapDimension, 0.15);
+            const position = hexTo3DPosition(deployable.q, deployable.r, mapDimension, 0.15);
             if (!position) return null;
 
             return (
                 <HexCell3D
                     key={`deployable-${deployable.q}-${deployable.r}-${index}`}
-                    q={viewPos.q}
-                    r={viewPos.r}
+                    q={deployable.q}
+                    r={deployable.r}
                     width={mapDimension.hexWidth}
                     height={mapDimension.hexHeight}
                     position={[position.x, position.y, position.z]}
@@ -102,26 +97,25 @@ const StageGrid3D: React.FC = () => {
                 />
             );
         });
-    }, [deployables, mapDimension, logicToView, sharedGeometries]);
+    }, [deployables, mapDimension, sharedGeometries]);
 
-    // 渲染 Boss（用与 GridGround3D 中 MonsterCard3D 相同的中心计算方式）
+    // 渲染 Boss（3D 模式：直接用逻辑坐标，camera.up 处理竖屏旋转）
     const bossElement = useMemo(() => {
         if (!boss?.position) return null;
 
-        const viewPos = logicToView(boss.position.q, boss.position.r);
+        const { q, r } = boss.position;
 
-        // 与 GridGround3D 相同：先算左上角，再偏移到六边形中心
-        const isOddRow = viewPos.r % 2 !== 0;
+        const isOddRow = r % 2 !== 0;
         const colOffset = isOddRow ? mapDimension.hexWidth / 2 : 0;
-        const leftX = viewPos.q * mapDimension.hexWidth + colOffset;
-        const topZ = viewPos.r * mapDimension.hexHeight * 0.75;
+        const leftX = q * mapDimension.hexWidth + colOffset;
+        const topZ = r * mapDimension.hexHeight * 0.75;
         const centerX = leftX + mapDimension.hexWidth / 2;
         const centerZ = topZ - mapDimension.hexHeight / 2;
 
         return (
             <Boss3D
-                q={viewPos.q}
-                r={viewPos.r}
+                q={q}
+                r={r}
                 width={mapDimension.hexWidth}
                 height={mapDimension.hexHeight}
                 position={[centerX, 0, centerZ]}
@@ -131,22 +125,21 @@ const StageGrid3D: React.FC = () => {
                 isPortrait={mapDimension.isPortrait}
             />
         );
-    }, [boss, stage.bossId, mapDimension, logicToView, loadingContext]);
+    }, [boss, stage.bossId, mapDimension, loadingContext]);
 
-    // 渲染 Minions
+    // 渲染 Minions（3D 模式：直接用逻辑坐标）
     const minions = useMemo(() => {
         if (!boss?.minions) return [];
 
         return boss.minions.map((minion, index) => {
-            const viewPos = logicToView(minion.position.q, minion.position.r);
-            const position = hexTo3DPosition(viewPos.q, viewPos.r, mapDimension, 0.15);
+            const position = hexTo3DPosition(minion.position.q, minion.position.r, mapDimension, 0.15);
             if (!position) return null;
 
             return (
                 <HexCell3D
                     key={`minion-${minion.position.q}-${minion.position.r}-${index}`}
-                    q={viewPos.q}
-                    r={viewPos.r}
+                    q={minion.position.q}
+                    r={minion.position.r}
                     width={mapDimension.hexWidth}
                     height={mapDimension.hexHeight}
                     position={[position.x, position.y, position.z]}
@@ -155,15 +148,15 @@ const StageGrid3D: React.FC = () => {
                 />
             );
         });
-    }, [boss?.minions, mapDimension, logicToView, sharedGeometries]);
+    }, [boss?.minions, mapDimension, sharedGeometries]);
 
     return (
         <group>
-            {obstacles}
+            {/* {obstacles} */}
             {disables}
             {deployableCells}
             {bossElement}
-            {minions}
+            {/* {minions} */}
         </group>
     );
 };

@@ -103,12 +103,10 @@ interface MonsterCard3DProps {
 
 /** 角色在场景中的整体放大系数 */
 const MODEL_SCALE_FACTOR = 1.6;
-/** 横屏朝向：面向正右（无上下偏移） */
+/** 朝向：面向正右（竖屏由 camera.up 旋转处理，模型始终用横屏朝向，与 BattleCharacter3D 一致） */
 const MODEL_FACE_RIGHT_Y = Math.PI / 2;
-/** 竖屏朝向：面向正上（无左右偏移） */
-const PORTRAIT_FACE_UP_Y = Math.PI;
-/** 竖屏俯视时模型前倾角度（皇室战争风格，与 BattleCharacter3D 一致） */
-const PORTRAIT_TILT_X = -Math.PI * 0.2;
+/** 竖屏整体身体绕 Z 轴后倾（参考皇室战争，与 BattleCharacter3D 一致）：约 35°，俯视可见正面 */
+const BODY_TILT_Z_PORTRAIT = Math.PI * 0.195;
 
 const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
     q,
@@ -149,7 +147,7 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
 
     // 获取模型路径
     const modelPath = getMonsterModelPathWithFallback(monsterId);
-    console.log("modelPath", modelPath);
+
 
     // 加载 3D 模型（含动画片段）
     const { scene, animations } = useGLTF(modelPath);
@@ -161,11 +159,11 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
         const box = new THREE.Box3().setFromObject(scene);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
-        console.log("[MonsterCard3D] 原始 scene 包围盒:", {
-            monsterId,
-            size: { x: size.x.toFixed(2), y: size.y.toFixed(2), z: size.z.toFixed(2) },
-            center: { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) }
-        });
+        // console.log("[MonsterCard3D] 原始 scene 包围盒:", {
+        //     monsterId,
+        //     size: { x: size.x.toFixed(2), y: size.y.toFixed(2), z: size.z.toFixed(2) },
+        //     center: { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) }
+        // });
         return { center, size };
     }, [scene, monsterId]);
 
@@ -176,7 +174,7 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
             return null;
         }
 
-        console.log("[MonsterCard3D] SkeletonUtils.clone 克隆模型:", monsterId);
+        // console.log("[MonsterCard3D] SkeletonUtils.clone 克隆模型:", monsterId);
 
         // SkeletonUtils.clone 正确处理 SkinnedMesh 的骨骼绑定
         const clone = SkeletonUtils.clone(scene);
@@ -374,13 +372,16 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
             </mesh>
 
             {/* 统一用 SkeletonUtils 克隆体 + primitive 渲染（每张卡独立实例，都能显示+播动画） */}
+            {/* 竖屏时整体绕 Z 轴后倾，底座保持平（与 BattleCharacter3D 一致） */}
             {modelClone && (
-                <group
-                    position={[0, 10, 0]}
-                    rotation={[isPortrait ? -PORTRAIT_TILT_X : 0, isPortrait ? PORTRAIT_FACE_UP_Y : MODEL_FACE_RIGHT_Y, 0]}
-                    scale={[modelScale * MODEL_SCALE_FACTOR, modelScale * MODEL_SCALE_FACTOR, modelScale * MODEL_SCALE_FACTOR]}
-                >
-                    <primitive object={modelClone} />
+                <group rotation={isPortrait ? [0, 0, BODY_TILT_Z_PORTRAIT] : [0, 0, 0]}>
+                    <group
+                        position={[0, 10, 0]}
+                        rotation={[0, MODEL_FACE_RIGHT_Y, 0]}
+                        scale={[modelScale * MODEL_SCALE_FACTOR, modelScale * MODEL_SCALE_FACTOR, modelScale * MODEL_SCALE_FACTOR]}
+                    >
+                        <primitive object={modelClone} />
+                    </group>
                 </group>
             )}
         </group>

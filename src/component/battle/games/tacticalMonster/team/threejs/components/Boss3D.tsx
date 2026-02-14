@@ -27,12 +27,10 @@ interface Boss3DProps {
 
 /** Boss 在场景中的整体放大系数（比普通怪物更大） */
 const BOSS_SCALE_FACTOR = 2.2;
-/** 横屏朝向：面向正左（无上下偏移） */
+/** 朝向：面向正左（竖屏由 camera.up 旋转处理，模型始终用横屏朝向，与 BattleCharacter3D 一致） */
 const MODEL_FACE_LEFT_Y = -Math.PI / 2;
-/** 竖屏朝向：面向正下（无左右偏移） */
-const PORTRAIT_FACE_DOWN_Y = 0;
-/** 竖屏俯视时模型前倾角度（与 BattleCharacter3D 一致） */
-const PORTRAIT_TILT_X = -Math.PI * 0.2;
+/** 竖屏整体身体绕 Z 轴后倾（参考皇室战争，与 BattleCharacter3D 一致）：约 35°，俯视可见正面 */
+const BODY_TILT_Z_PORTRAIT = Math.PI * 0.195;
 
 const Boss3D: React.FC<Boss3DProps> = ({
     q,
@@ -146,14 +144,17 @@ const Boss3D: React.FC<Boss3DProps> = ({
                 />
             </mesh>
 
+            {/* 竖屏时整体绕 Z 轴后倾，底座保持平（与 BattleCharacter3D 一致） */}
             {modelClone && (
-                <group
-                    ref={modelGroupRef}
-                    position={[0, 12, 0]}
-                    rotation={[isPortrait ? PORTRAIT_TILT_X : 0, isPortrait ? PORTRAIT_FACE_DOWN_Y : MODEL_FACE_LEFT_Y, 0]}
-                    scale={modelScale * BOSS_SCALE_FACTOR}
-                >
-                    <primitive object={modelClone} />
+                <group rotation={isPortrait ? [0, 0, -BODY_TILT_Z_PORTRAIT] : [0, 0, 0]}>
+                    <group
+                        ref={modelGroupRef}
+                        position={[0, 12, 0]}
+                        rotation={[0, MODEL_FACE_LEFT_Y, 0]}
+                        scale={modelScale * BOSS_SCALE_FACTOR}
+                    >
+                        <primitive object={modelClone} />
+                    </group>
                 </group>
             )}
         </group>

@@ -18,7 +18,7 @@ const GroundCell: React.FC<{
 
 }> = ({ cell }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const { quitTeam, mapDimension, playerMonsters, startDrag, endDrag, askAdd, logicToView } = useTeamDeployManager();
+    const { quitTeam, mapDimension, playerMonsters, startDrag, endDrag, askAdd } = useTeamDeployManager();
     const [placedMonster, setPlacedMonster] = useState<{ monsterId: string, teamPosition: { q: number; r: number } } | null>(null);
     const width = mapDimension?.hexWidth || 0;
     const height = mapDimension?.hexHeight || 0;
@@ -68,11 +68,9 @@ const GroundCell: React.FC<{
         }
     }, [placedMonster, quitTeam]);
     useEffect(() => {
-        // playerMonsters 中的 teamPosition 是逻辑坐标，需要转换为视图坐标后与 cell 比较
         const monster = playerMonsters.find((m) => {
             if (!m.teamPosition) return false;
-            const viewPos = logicToView(m.teamPosition.q, m.teamPosition.r);
-            return viewPos.q === cell.q && viewPos.r === cell.r;
+            return m.teamPosition.q === cell.q && m.teamPosition.r === cell.r;
         });
         if (!monster && placedMonster) {
             setPlacedMonster(null);
@@ -83,7 +81,7 @@ const GroundCell: React.FC<{
             return;
         }
         setPlacedMonster(null);
-    }, [playerMonsters, placedMonster, cell, logicToView]);
+    }, [playerMonsters, placedMonster, cell]);
     useEffect(() => {
         if ((cell as GridCellSprite) && mapDimension) {
             const sprite = cell as GridCellSprite;

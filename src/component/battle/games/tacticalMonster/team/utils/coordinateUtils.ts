@@ -73,45 +73,7 @@ export const calculateMapDimension = (containerWidth: number, containerHeight: n
     return dimension;
 };
 /**
- * 视图坐标 → 逻辑坐标（发送给后端时使用）
- * 横屏：从左到右 q 增加 (0→7)
- * 竖屏：从下到上 对应横屏的 q 增加
- * 竖屏时 rows=8，视图 r 范围是 0-7
- * 逻辑 q=0 对应视图 r=7（最下面），逻辑 q=7 对应视图 r=0（最上面）
- */
-export const viewToLogic = (
-    viewQ: number,
-    viewR: number,
-    mapDimension: MapDimension | null
-): { q: number; r: number } => {
-    if (mapDimension?.isPortrait) {
-        const { rows } = mapDimension;
-        // 竖屏：视图(q, r) → 逻辑(rows-1-r, q)
-        // 视图的 r 从下到上对应逻辑的 q 从小到大
-        return { q: rows - 1 - viewR, r: viewQ };
-    }
-    return { q: viewQ, r: viewR };
-};
-
-/**
- * 逻辑坐标 → 视图坐标（从后端接收数据时使用）
- */
-export const logicToView = (
-    logicQ: number,
-    logicR: number,
-    mapDimension: MapDimension | null
-): { q: number; r: number } => {
-    if (mapDimension?.isPortrait) {
-        const { rows } = mapDimension;
-        // 竖屏：逻辑(q, r) → 视图(r, rows-1-q)
-        // 逻辑的 q 从小到大对应视图的 r 从下到上（即 r 从大到小）
-        return { q: logicR, r: rows - 1 - logicQ };
-    }
-    return { q: logicQ, r: logicR };
-};
-
-/**
- * 像素坐标转六边形坐标（返回视图坐标）
+ * 像素坐标转六边形坐标（返回六边形格子的 q, r）
  */
 export const pixelToHex = (
     x: number,

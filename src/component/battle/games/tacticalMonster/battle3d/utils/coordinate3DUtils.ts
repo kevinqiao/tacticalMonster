@@ -14,7 +14,7 @@ export interface BattleMapDimension {
     cols: number;
     rows: number;
     direction?: number; // 0: 默认, 1: 镜像
-    isPortrait: boolean; // 是否竖屏（竖屏时 logicToView 会旋转坐标）
+    isPortrait: boolean; // 是否竖屏
 }
 
 /**

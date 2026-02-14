@@ -5,7 +5,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useMapDimension } from "../../common/hooks/useMapDimension";
 import { GridCellSprite } from "../../types/CombatTypes";
 import { Boss, Stage } from "../../types/StageTypes";
-import { logicToView, pixelToHex, viewToLogic } from "../utils/coordinateUtils";
+import { pixelToHex } from "../utils/coordinateUtils";
 import { clearHighlight, setHighlight } from "../utils/dragHighlightUtils";
 // ============ 类型定义 ============
 
@@ -31,10 +31,6 @@ export interface TeamContextValue {
     stage: Stage | null;
     boss: Boss | null;
 
-    // 坐标转换函数
-    viewToLogic: (viewQ: number, viewR: number) => { q: number; r: number };
-    logicToView: (logicQ: number, logicR: number) => { q: number; r: number };
-
     // Refs
     dragPreviewContainerRef: React.RefObject<HTMLDivElement>;
     candidateContainerRef: React.RefObject<HTMLDivElement>;
@@ -51,7 +47,7 @@ export interface TeamContextValue {
     placeMonster: (monsterId: string, teamPosition?: { q: number; r: number }) => void;
     handleDragOver: (e: React.DragEvent) => void;
     handleDrop: (e: React.DragEvent) => void;
-    isCellOccupied: (viewQ: number, viewR: number) => boolean;
+    isCellOccupied: (q: number, r: number) => boolean;
     moveMonster: (monsterId: string, logicQ: number, logicR: number) => void;
 }
 
@@ -151,22 +147,12 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
 
     }, [stage]);
 
-    // ============ 坐标转换函数（包装工具函数）============
-    const viewToLogicCallback = useCallback((viewQ: number, viewR: number): { q: number; r: number } => {
-        return viewToLogic(viewQ, viewR, mapDimension);
-    }, [mapDimension]);
-
-    const logicToViewCallback = useCallback((logicQ: number, logicR: number): { q: number; r: number } => {
-        return logicToView(logicQ, logicR, mapDimension);
-    }, [mapDimension]);
-
     // ============ 方法 ============
 
-    // 请求添加怪物
+    // 请求添加怪物（坐标统一为逻辑坐标）
     const askAdd = useCallback((q: number, r: number) => {
-        const logicPos = viewToLogic(q, r, mapDimension);
-        setAskAddMonster({ q: logicPos.q, r: logicPos.r });
-    }, [mapDimension]);
+        setAskAddMonster({ q, r });
+    }, []);
 
     // 完成添加怪物
     const completeAsk = useCallback(() => {
@@ -193,18 +179,12 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
 
 
 
-    // 检查格子是否被占用（接收视图坐标）
-    const isCellOccupied = useCallback((viewQ: number, viewR: number): boolean => {
-        // 将视图坐标转换为逻辑坐标（stage 数据使用逻辑坐标）
-        const logicPos = viewToLogic(viewQ, viewR, mapDimension);
-        const logicQ = logicPos.q;
-        const logicR = logicPos.r;
-
+    // 检查格子是否被占用（坐标统一为逻辑坐标）
+    const isCellOccupied = useCallback((q: number, r: number): boolean => {
         // 1. 检查玩家怪物
         for (const monster of playerMonsters.values()) {
             if (!monster.teamPosition) continue;
-            const viewPos = logicToView(monster.teamPosition.q, monster.teamPosition.r, mapDimension);
-            if (viewPos.q === viewQ && viewPos.r === viewR) {
+            if (monster.teamPosition.q === q && monster.teamPosition.r === r) {
                 return true;
             }
         }
@@ -212,64 +192,47 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         // 2. 检查障碍物
         if (stage?.map?.obstacles) {
             for (const obstacle of stage.map.obstacles) {
-                if (obstacle.q === logicQ && obstacle.r === logicR) {
-                    return true;
-                }
+                if (obstacle.q === q && obstacle.r === r) return true;
             }
         }
 
         // 3. 检查禁用区域
         if (stage?.map?.disables) {
             for (const disable of stage.map.disables) {
-                if (disable.q === logicQ && disable.r === logicR) {
-                    return true;
-                }
+                if (disable.q === q && disable.r === r) return true;
             }
         }
 
         // 4. 检查 Boss 位置
-        if (boss && boss.position) {
-            if (boss.position.q === logicQ && boss.position.r === logicR) {
-                return true;
-            }
+        if (boss?.position && boss.position.q === q && boss.position.r === r) {
+            return true;
         }
 
         // 5. 检查 Minions 位置
         if (boss?.minions) {
             for (const minion of boss.minions) {
-                if (minion.position?.q === logicQ && minion.position?.r === logicR) {
-                    return true;
-                }
+                if (minion.position?.q === q && minion.position?.r === r) return true;
             }
         }
 
         return false;
-    }, [playerMonsters, mapDimension, stage, boss]);
+    }, [playerMonsters, stage, boss]);
 
-    // 放置怪物
-    // placeMonster 接收视图坐标，转换为逻辑坐标后存储
-    const placeMonster = useCallback((monsterId: string, viewPosition?: { q: number; r: number }) => {
-        // 将视图坐标转换为逻辑坐标
-        const logicPosition = viewPosition
-            ? viewToLogic(viewPosition.q, viewPosition.r, mapDimension)
-            : undefined;
-
+    // 放置怪物（坐标统一为逻辑坐标）
+    const placeMonster = useCallback((monsterId: string, position?: { q: number; r: number }) => {
         setPlayerMonsters(prev => {
             if (!monsters) return prev;
             const m = prev.find((p) => p.monsterId === monsterId);
             if (m) {
-                m.teamPosition = logicPosition;
+                m.teamPosition = position;
                 const monster = monsters.find((m) => m.monsterId === monsterId);
-                if (monster) {
-                    monster.teamPosition = logicPosition;
-                }
+                if (monster) monster.teamPosition = position;
             } else {
-                prev.push({ monsterId, teamPosition: logicPosition });
+                prev.push({ monsterId, teamPosition: position });
             }
             return [...prev];
         });
-        console.log(`✅ 放置成功: ${monsterId} 视图坐标(${viewPosition?.q}, ${viewPosition?.r}) → 逻辑坐标(${logicPosition?.q}, ${logicPosition?.r})`);
-    }, [mapDimension, monsters]);
+    }, [monsters]);
     const selectCanadidate = useCallback((monsterId: string) => {
         if (!askAddMonster || !monsters) {
             console.warn("[TeamDeployManager] selectCanadidate: askAddMonster 或 monsters 为空", { askAddMonster, monsters });
@@ -456,8 +419,6 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         handleDrop,
         isCellOccupied,
         moveMonster,
-        viewToLogic: viewToLogicCallback,
-        logicToView: logicToViewCallback,
     }), [
         mapDimension,
         playerMonsters,
@@ -474,8 +435,6 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         handleDrop,
         isCellOccupied,
         moveMonster,
-        viewToLogicCallback,
-        logicToViewCallback,
     ]);
 
     return (

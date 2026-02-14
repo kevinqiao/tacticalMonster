@@ -7,7 +7,6 @@ import { GridGround3D } from "@/component/battle/games/tacticalMonster/battle3d/
 import { ObstacleGrid3D } from "@/component/battle/games/tacticalMonster/battle3d/view/ObstacleGrid3D";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -65,49 +64,6 @@ const getViewportFitDistance = (
     };
 };
 
-const LoadingScreen: React.FC<{ progress: number; isLoaded: boolean }> = ({ progress, isLoaded }) => {
-    const barRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (isLoaded && barRef.current) {
-            gsap.to(barRef.current, {
-                opacity: 0,
-                duration: 0.5,
-                delay: 0.3,
-                ease: "power2.inOut",
-            });
-        }
-    }, [isLoaded]);
-
-    if (isLoaded && barRef.current?.style.opacity === "0") return null;
-
-    return (
-        <div
-            ref={barRef}
-            style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: 3,
-                backgroundColor: "rgba(0,0,0,0.2)",
-                zIndex: 100,
-                pointerEvents: "none",
-            }}
-        >
-            <div
-                style={{
-                    width: `${progress}%`,
-                    height: "100%",
-                    backgroundColor: "#4CAF50",
-                    borderRadius: "0 2px 2px 0",
-                    transition: "width 0.3s ease",
-                    boxShadow: "0 0 6px rgba(76,175,80,0.6)",
-                }}
-            />
-        </div>
-    );
-};
 
 const TransparentBackground: React.FC = () => {
     const { gl } = useThree();
@@ -451,15 +407,7 @@ export const BattleVenue3D: React.FC = () => {
         };
     }, [mapDimension]);
 
-    const progress =
-        (game?.team?.length ?? 0) + (game?.boss ? 1 : 0) > 0
-            ? Math.round(
-                (loadedModelCount /
-                    ((game?.team?.length ?? 0) +
-                        (game?.boss ? 1 + (game.boss.minions?.length ?? 0) : 0))) *
-                100
-            )
-            : loadingProgress;
+
 
     // 竖屏时画布填满容器；横屏用 mapDimension 尺寸
     const mapContainerStyle: React.CSSProperties = useMemo(() => {

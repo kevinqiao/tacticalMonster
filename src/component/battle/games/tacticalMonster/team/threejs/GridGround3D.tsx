@@ -19,8 +19,6 @@ const GridGround3D: React.FC = () => {
         askAdd,
         dragMonster,
         playerMonsters,
-        logicToView,
-        viewToLogic,
         moveMonster,
     } = useTeamDeployManager();
     const loadingContext = useContext(TeamLayoutLoadingContext);
@@ -99,16 +97,14 @@ const GridGround3D: React.FC = () => {
         return { q: approxQ, r: approxR };
     }, [mapDimension]);
 
-    // 怪物拖拽开始
+    // 怪物拖拽开始（3D 模式：直接用逻辑坐标，camera.up 处理竖屏旋转）
     const handleMonsterDragStart = useCallback((monsterId: string) => {
-        // 找到怪物的起始位置
         const monster = playerMonsters?.find(m => m.monsterId === monsterId);
         if (monster?.teamPosition) {
-            const viewPos = logicToView(monster.teamPosition.q, monster.teamPosition.r);
-            setDragStartCell(viewPos);
+            setDragStartCell(monster.teamPosition);
         }
         setDraggingMonsterId(monsterId);
-    }, [playerMonsters, logicToView]);
+    }, [playerMonsters]);
 
     // 怪物拖拽移动
     const handleMonsterDragMove = useCallback((monsterId: string, worldPos: THREE.Vector3) => {
@@ -120,26 +116,22 @@ const GridGround3D: React.FC = () => {
         }
     }, [worldToHex, isCellOccupied]);
 
-    // 怪物拖拽结束
+    // 怪物拖拽结束（3D 模式：世界坐标即逻辑坐标）
     const handleMonsterDragEnd = useCallback((monsterId: string, worldPos: THREE.Vector3) => {
         const hexCoord = worldToHex(worldPos);
 
-        // 检查是否是有效的新位置（排除起始位置）
         const isValidNewPosition = hexCoord &&
             !isCellOccupied(hexCoord.q, hexCoord.r) &&
             !(dragStartCell && hexCoord.q === dragStartCell.q && hexCoord.r === dragStartCell.r);
 
         if (isValidNewPosition) {
-            // 转换为逻辑坐标并移动怪物
-            const logicPos = viewToLogic(hexCoord.q, hexCoord.r);
-            moveMonster?.(monsterId, logicPos.q, logicPos.r);
+            moveMonster?.(monsterId, hexCoord.q, hexCoord.r);
         }
 
-        // 清理状态
         setDraggingMonsterId(null);
         setDragHighlightCell(null);
         setDragStartCell(null);
-    }, [worldToHex, isCellOccupied, viewToLogic, moveMonster, dragStartCell]);
+    }, [worldToHex, isCellOccupied, moveMonster, dragStartCell]);
 
     // ===== 性能优化：用 ref 包装 drag 回调，创建稳定引用供 placedMonsters 使用 =====
     const dragStartRef = useRef(handleMonsterDragStart);
@@ -160,19 +152,17 @@ const GridGround3D: React.FC = () => {
         dragEndRef.current(monsterId, worldPos);
     }, []);
 
-    // 检查格子是否有玩家怪物（排除正在拖拽的怪物）
-    const hasMonsterAt = useCallback((viewQ: number, viewR: number) => {
+    // 检查格子是否有玩家怪物（排除正在拖拽的怪物）—— 3D 模式：直接比较逻辑坐标
+    const hasMonsterAt = useCallback((q: number, r: number) => {
         if (!playerMonsters) return false;
         return playerMonsters.some(monster => {
-            // 排除正在拖拽的怪物，这样起始格子会被渲染出来
             if (draggingMonsterId && monster.monsterId === draggingMonsterId) {
                 return false;
             }
             if (!monster.teamPosition) return false;
-            const viewPos = logicToView(monster.teamPosition.q, monster.teamPosition.r);
-            return viewPos.q === viewQ && viewPos.r === viewR;
+            return monster.teamPosition.q === q && monster.teamPosition.r === r;
         });
-    }, [playerMonsters, logicToView, draggingMonsterId]);
+    }, [playerMonsters, draggingMonsterId]);
 
     // 渲染所有单元格
     const cells = useMemo(() => {
@@ -249,27 +239,23 @@ const GridGround3D: React.FC = () => {
         handleCellPointerLeave,
     ]);
 
-    // 渲染已放置的怪物
-    // 优化：使用稳定的 ref 回调和 ref 获取 loadingContext，减少不必要的重计算
+    // 渲染已放置的怪物（3D 模式：直接用逻辑坐标定位，camera.up 处理竖屏旋转）
     const placedMonsters = useMemo(() => {
         if (!playerMonsters || !mapDimension) {
             return [];
         }
-        console.log("placedMonster:", playerMonsters);
         const monstersWithPosition = playerMonsters.filter((monster) => monster.teamPosition);
 
         const renderedMonsters = monstersWithPosition
             .map((monster) => {
                 if (!monster.teamPosition) return null;
-                const viewPos = logicToView(monster.teamPosition.q, monster.teamPosition.r);
+                const { q, r } = monster.teamPosition;
 
-                // 计算六边形左上角位置（与 HexCell3D 相同）
-                const isOddRow = viewPos.r % 2 !== 0;
+                const isOddRow = r % 2 !== 0;
                 const colOffset = isOddRow ? mapDimension.hexWidth / 2 : 0;
-                const leftX = viewPos.q * mapDimension.hexWidth + colOffset;
-                const topZ = viewPos.r * mapDimension.hexHeight * 0.75;
+                const leftX = q * mapDimension.hexWidth + colOffset;
+                const topZ = r * mapDimension.hexHeight * 0.75;
 
-                // 六边形几何体中心相对于左上角的偏移
                 const centerX = leftX + mapDimension.hexWidth / 2;
                 const centerZ = topZ - mapDimension.hexHeight / 2;
 
@@ -278,8 +264,8 @@ const GridGround3D: React.FC = () => {
                 return (
                     <MonsterCard3DWithSuspense
                         key={`monster-${monster.monsterId}`}
-                        q={viewPos.q}
-                        r={viewPos.r}
+                        q={q}
+                        r={r}
                         width={mapDimension.hexWidth}
                         height={mapDimension.hexHeight}
                         position={[centerX, 0, centerZ]}
@@ -296,7 +282,7 @@ const GridGround3D: React.FC = () => {
             .filter((monster) => monster !== null);
 
         return renderedMonsters;
-    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, logicToView, stableDragStart, stableDragMove, stableDragEnd]);
+    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, stableDragStart, stableDragMove, stableDragEnd]);
 
     return (
         <group>
