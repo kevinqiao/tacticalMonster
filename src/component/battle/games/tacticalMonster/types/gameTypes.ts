@@ -149,6 +149,77 @@ export interface TriggeredPassiveSkill {
     effects: Array<{ id: string; type: string; name: string }>;
 }
 
+// ========== Boss AI 相关类型（PhaseChanges.bossAIActions 使用） ==========
+
+/** Boss 单次动作类型（与后端 BossAction 一致） */
+export interface BossAction {
+    type: "use_skill" | "attack" | "move" | "standby";
+    skillId?: string;
+    target?: CharacterIdentifier;
+    targets?: CharacterIdentifier[];
+    position?: { q: number; r: number };
+}
+
+/** Boss AI 决策结果：Boss 本体动作 + 可选小怪动作列表 */
+export interface BossAIDecision {
+    bossAction: BossAction;
+    minionActions?: Array<{
+        minionId: string;
+        action: BossAction;
+    }>;
+    phaseTransition?: BossAIPhaseTransition;
+}
+
+/** Boss 阶段切换信息 */
+export interface BossAIPhaseTransition {
+    fromPhase: string;
+    toPhase: string;
+}
+
+/** 单次 Boss/小怪动作执行结果（executeBossAction 返回值） */
+export interface BossActionExecutionResult {
+    ok: true;
+    stateChanges?: StateChanges | null;
+    effects?: SkillEffectItem[];
+    phaseChanges?: PhaseChanges;
+}
+
+/** Boss AI 执行结果汇总：Boss 本体 + 小怪列表；或跳过标记 */
+export interface BossAIExecutionResults {
+    boss?: BossActionExecutionResult | null;
+    minions?: Array<{
+        minionId: string;
+        result: BossActionExecutionResult;
+    }>;
+    /** 死亡/眩晕等跳过 AI 时由后端设置 */
+    skipped?: true;
+}
+
+/** bossAIActions 数组中单项的 turnStart 结构 */
+export interface BossAIActionTurnStart {
+    uid: string;
+    monsterId: string;
+    round: number;
+    bossId?: string;
+    minionId?: string;
+    triggeredPassiveSkills?: TriggeredPassiveSkill[];
+    statusEffectChanges?: {
+        expired: Array<{ id: string; type: string; name?: string }>;
+        ticked: Array<{ effectId: string; type: string; value: number }>;
+        characterState: { hp: number; mp?: number; status: string };
+    };
+}
+
+/** Boss AI 动作项（PhaseChanges.bossAIActions 数组元素） */
+export interface BossAIActionItem {
+    turnStart: BossAIActionTurnStart;
+    /** 决策结果；跳过 AI 时可为 null */
+    decision: BossAIDecision | null;
+    /** 执行结果；跳过时为 { skipped: true }，否则为 BossAIExecutionResults */
+    executionResults: BossAIExecutionResults | { skipped: true };
+    phaseTransition?: BossAIPhaseTransition;
+}
+
 /**
  * 阶段变化信息
  * 统一的事件数据结构，所有事件的 data 都使用此类型
@@ -188,22 +259,7 @@ export interface PhaseChanges {
     effects?: SkillEffectItem[];            // 技能效果列表（包含主动和被动技能效果）
 
     // ========== Boss AI 动作 ==========
-    bossAIActions?: Array<{
-        turnStart: {
-            uid: string;
-            monsterId: string;
-            round: number;
-            triggeredPassiveSkills?: TriggeredPassiveSkill[];
-            statusEffectChanges?: {
-                expired: Array<{ id: string; type: string; name?: string }>;
-                ticked: Array<{ effectId: string; type: string; value: number }>;
-                characterState: { hp: number; mp?: number; status: string };
-            };
-        };
-        decision: any;
-        executionResults: any;
-        phaseTransition?: any;
-    }>;
+    bossAIActions?: BossAIActionItem[];
 
     // ========== 游戏结束 ==========
     gameOver?: {

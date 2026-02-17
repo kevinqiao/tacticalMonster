@@ -4,13 +4,15 @@
 
 import { CharacterGrid3D } from "@/component/battle/games/tacticalMonster/battle3d/view/CharacterGrid3D";
 import { GridGround3D } from "@/component/battle/games/tacticalMonster/battle3d/view/GridGround3D";
+import { GridHighlight3D } from "@/component/battle/games/tacticalMonster/battle3d/view/GridHighlight3D";
 import { ObstacleGrid3D } from "@/component/battle/games/tacticalMonster/battle3d/view/ObstacleGrid3D";
+import { TurnOrderBar } from "@/component/battle/games/tacticalMonster/battle3d/view/TurnOrderBar";
 import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { useCombatManager } from "../battle/service/CombatManager";
+import { useCombatManager } from "../service/CombatManager";
 import "../battle/style.css";
 import { BattleLoadingContext } from "./BattleLoadingContext";
 import { useBattleGridState, type BattleCellState } from "./hooks/useBattleGridState";
@@ -74,13 +76,7 @@ const TransparentBackground: React.FC = () => {
     return null;
 };
 
-const LoadingTracker: React.FC<{ onProgress: (progress: number) => void }> = ({ onProgress }) => {
-    const { progress } = useProgress();
-    useEffect(() => {
-        onProgress(progress);
-    }, [progress, onProgress]);
-    return null;
-};
+
 
 const CameraSync: React.FC<{
     cameraPosition: [number, number, number];
@@ -121,8 +117,10 @@ const CanvasWithControls: React.FC<{
     orthoZoom: number;
     cameraUp?: [number, number, number];
     getCellState?: (q: number, r: number) => BattleCellState;
+    getWalkableDistance?: (q: number, r: number) => number | undefined;
+    getWalkableMoveRange?: () => number | undefined;
     onCellClick?: (logicQ: number, logicR: number) => void;
-}> = ({ cameraPosition, target, mapDimension, minDistance, maxDistance, onProgress, onModelLoaded, isPortrait, orthoZoom, cameraUp, getCellState, onCellClick }) => {
+}> = ({ cameraPosition, target, mapDimension, minDistance, maxDistance, onProgress, onModelLoaded, isPortrait, orthoZoom, cameraUp, getCellState, getWalkableDistance, getWalkableMoveRange, onCellClick }) => {
     const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
     // 稳定引用，供 onCreated 使用（避免闭包过期）
@@ -171,10 +169,19 @@ const CanvasWithControls: React.FC<{
                         <GridGround3D
                             mapDimension={mapDimension}
                             getCellState={getCellState}
+                            getWalkableDistance={getWalkableDistance}
+                            getWalkableMoveRange={getWalkableMoveRange}
                             onCellClick={onCellClick}
                         />
                         <ObstacleGrid3D mapDimension={mapDimension} />
                         <CharacterGrid3D mapDimension={mapDimension} />
+                        <GridHighlight3D
+                            mapDimension={mapDimension}
+                            getCellState={getCellState}
+                            getWalkableDistance={getWalkableDistance}
+                            getWalkableMoveRange={getWalkableMoveRange}
+                            onCellClick={onCellClick}
+                        />
                     </>
                 )}
             </BattleLoadingContext.Provider>
@@ -264,6 +271,7 @@ export const BattleVenue3D: React.FC = () => {
             const cellState = gridState.getCellState(logicQ, logicR);
 
             if (cellState === "walkable") {
+                gridState.clearAll();
                 walk({ q: logicQ, r: logicR }).catch((err: any) => console.error("[handleCellClick] walk error:", err));
             } else if (cellState === "attackable") {
                 const enemy = characters?.find(
@@ -467,11 +475,14 @@ export const BattleVenue3D: React.FC = () => {
                             orthoZoom={orthoZoom}
                             cameraUp={cameraUp}
                             getCellState={gridState.getCellState}
+                            getWalkableDistance={gridState.getWalkableDistance}
+                            getWalkableMoveRange={gridState.getWalkableMoveRange}
                             onCellClick={handleCellClick}
                         />
                     </div>
                 )}
 
+                <TurnOrderBar />
                 <CombatActPanel surrender={surrender} />
                 {positionSelectionUI}
             </div>

@@ -6,6 +6,7 @@
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { getSkillConfig } from "../../data/skillConfigs";
 import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
+import { offsetHexDistance } from "../../utils/hexUtils";
 import { GameMonster } from "../../types/monsterTypes";
 import { SkillManager } from "../skill/skillManager";
 import { CharacterPositionService } from "./characterPositionService";
@@ -16,6 +17,7 @@ import { GameEventService } from "./gameEventService";
 import { GameLifecycleService } from "./gameLifecycleService";
 import { GamePhaseService } from "./gamePhaseService";
 import { GameScoreService } from "./gameScoreService";
+import { RoundService } from "./roundService";
 import { sharedScoreService } from "./sharedScoreService";
 import { SkillTargetService } from "./skillTargetService";
 
@@ -30,7 +32,8 @@ export class GameActionService {
         private validator: GameActionValidator,
         private phaseService: GamePhaseService,
         private lifecycleService: GameLifecycleService,
-        private scoreService: GameScoreService
+        private scoreService: GameScoreService,
+        private roundService: RoundService
     ) { }
 
     /**
@@ -53,69 +56,114 @@ export class GameActionService {
         gameId: string,
         to: { q: number; r: number },
         identifier: CharacterIdentifier,
-        options?: { endTurn?: boolean }
+        options?: { endTurn?: boolean; steps?: number; forceEndTurn?: boolean }
     ): Promise<{
         success: boolean;
+        message?: string;
         phaseChanges?: PhaseChanges;
+        endTurn?: boolean;
     }> {
         const game = await this.lifecycleService.load(gameId);
-        if (!game) return { success: false };
+        if (!game) return { success: false, message: "game_not_found" };
 
         this.characterQueryService.setGame(game);
-        // 同步更新 validator 的游戏状态引用
         (this.validator as any).game = game;
 
         const { monsterId, bossId, minionId } = identifier;
-
-        // 检查参数：应该只有一个存在
         const paramCount = [monsterId, bossId, minionId].filter(Boolean).length;
         if (paramCount !== 1) {
-            return { success: false };  // 参数错误：应该只有一个标识符
+            return { success: false, message: "invalid_identifier" };
         }
 
-        // === 验证层 ===
         const character = this.characterQueryService.getCharacter(monsterId, bossId, minionId);
-        if (!character) return { success: false };
+        if (!character) return { success: false, message: "character_not_found" };
 
         const from = { q: character.q ?? 0, r: character.r ?? 0 };
+        const moveRange = character.move_range ?? 3;
+        const straightDistance = offsetHexDistance(from, to);
+        const thisWalkSteps =
+            options?.steps !== undefined
+                ? Math.floor(Number(options.steps))
+                : straightDistance;
+        if (thisWalkSteps < 0) return { success: false, message: "invalid_steps" };
+
+        const roundNumber = game.currentRound?.no ?? 0;
+        const roundInfo = await this.roundService.getCurrentRound(gameId, roundNumber);
+        const stepsUsedBefore = (roundInfo?.currentTurn as any)?.stepsUsed ?? 0;
+        const newStepsUsed = stepsUsedBefore + thisWalkSteps;
+        if (newStepsUsed > moveRange) {
+            return {
+                success: false,
+                message: `steps_over_range: usedBefore=${stepsUsedBefore} thisWalk=${thisWalkSteps} newTotal=${newStepsUsed} moveRange=${moveRange}`,
+            };
+        }
+
         const validationResult = await this.validator.validateAction(identifier, {
             validatePosition: { from, to }
         });
-
         if (!validationResult.valid) {
             console.error("Walk validation failed:", validationResult.message);
-            return { success: false };
+            return { success: false, message: validationResult.message ?? "validation_failed" };
         }
 
-        // 使用位置服务更新位置
         const success = await this.positionService.updatePosition(
             gameId,
             identifier,
             to,
             game
         );
+        if (!success) return { success: false, message: "position_update_failed" };
 
-        if (!success) return { success: false };
+        const forceEndTurnValid =
+            options?.forceEndTurn === true && stepsUsedBefore + straightDistance >= moveRange;
+        const endTurn =
+            options?.endTurn ??
+            (forceEndTurnValid || newStepsUsed >= moveRange);
 
-        // ✅ Walk 应结束当前 turn，推进回合和阶段（自动处理 turnEnd, roundEnd, roundStart, turnStart, Boss AI）
-        const phaseChanges = await this.phaseService.advanceTurnAndRound(
-            gameId,
-            identifier,
-            (this as any).ctx
-        );
+        if (endTurn) {
+            // 结束当前 turn，推进回合和阶段（自动处理 turnEnd, roundEnd, turnStart, Boss AI）
+            const phaseChanges = await this.phaseService.advanceTurnAndRound(
+                gameId,
+                identifier,
+                this.dbCtx
+            );
 
-        // walk-only turn 不需要额外的 stateChanges/effects（移动本身不产生状态变化）
-        // 如果未来 walk 触发陷阱/被动技能，stateChanges 和 effects 会在此处补充
+            const event = this.eventService.createWalkEvent(gameId, identifier, to);
+            event.data = { ...event.data, endTurn: true, stepsUsed: thisWalkSteps, stepsUsedTotal: newStepsUsed, phaseChanges };
+            await this.eventService.createEvent(event);
+            await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
 
-        // ✅ 创建事件（延后到 phaseChanges 确定后，确保事件数据完整供 watch/replay 使用）
+            return {
+                success: true,
+                phaseChanges,
+                endTurn: true,
+            };
+        }
+
+        // 未走满：更新当前 turn 的 stepsUsed，写 walk 事件，前端保持当前 turn
+        if (roundInfo?.roundDoc && roundInfo?.currentTurn) {
+            const ct = roundInfo.currentTurn as GameTurn;
+            const turnIndex = roundInfo.roundDoc.turns.findIndex(
+                (t: GameTurn) =>
+                    t.uid === ct.uid &&
+                    t.monsterId === ct.monsterId &&
+                    (t.bossId ?? "") === (ct.bossId ?? "") &&
+                    (t.minionId ?? "") === (ct.minionId ?? "")
+            );
+            if (turnIndex >= 0) {
+                const updatedTurns = [...roundInfo.roundDoc.turns];
+                updatedTurns[turnIndex] = { ...updatedTurns[turnIndex], stepsUsed: newStepsUsed };
+                await this.dbCtx.db.patch(roundInfo.roundDoc._id, { turns: updatedTurns });
+            }
+        }
         const event = this.eventService.createWalkEvent(gameId, identifier, to);
-        event.data = { ...event.data, endTurn: true, phaseChanges };
+        event.data = { ...event.data, endTurn: false, stepsUsed: thisWalkSteps, stepsUsedTotal: newStepsUsed };
         await this.eventService.createEvent(event);
         await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
 
         return {
             success: true,
-            phaseChanges,
+            endTurn: false,
         };
     }
 
@@ -598,7 +646,7 @@ export class GameActionService {
         await this.scoreService.checkAndUpdateGameStatus(gameId);
 
         // 12. ✅ 推进回合和阶段（自动处理turnEnd, roundEnd, roundStart, turnStart, Boss AI）
-        const phaseChanges = await this.phaseService.advanceTurnAndRound(gameId, { monsterId, bossId, minionId }, (this as any).ctx);
+        const phaseChanges = await this.phaseService.advanceTurnAndRound(gameId, { monsterId, bossId, minionId }, this.dbCtx);
 
         // ✅ 13. 计算 stateChanges（参考 executeBossAction 的实现）
         const casterAfter = this.characterQueryService.getCharacter(monsterId, bossId, minionId);

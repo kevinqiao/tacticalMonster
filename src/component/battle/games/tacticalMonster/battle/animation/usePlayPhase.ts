@@ -8,8 +8,8 @@ import { useCallback } from "react";
 import { getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { MonsterSprite } from "../../types/CombatTypes";
 import { GameTurn } from "../../types/gameTypes";
-import { useCombatManager } from "../service/CombatManager";
-import { getAttackableNodes, getWalkableNodes } from "../utils/PathFind";
+import { useCombatManager } from "../../service/CombatManager";
+import { getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
 import usePlaySkill from "./usePlaySkill";
 
 const usePlayPhase = () => {

@@ -93,7 +93,8 @@ export class GameService implements CharacterGetter {
                 this.getValidator(),
                 this.gamePhaseService,
                 this.gameLifecycleService,
-                this.gameScoreService
+                this.gameScoreService,
+                this.roundService
             );
         }
         return (this as any).gameActionService;
@@ -215,16 +216,19 @@ export class GameService implements CharacterGetter {
      * @param to 目标位置（Hex坐标）
      * @param identifier 角色标识符（monsterId/bossId/minionId 三选一）
      * @param options.endTurn 是否在移动后结束回合（walk-only turn）
+     * @param options.steps 实际行走步数（路径长度），用于判断是否走到最远格才结束
+     * @param options.forceEndTurn 前端在 pathSteps>=moveRange 时传 true，后端用直线距离校验后强制结束回合
      * @returns 移动结果，包含可能的阶段变化
      */
     async walk(
         gameId: string,
         to: { q: number; r: number },
         identifier: CharacterIdentifier,
-        options?: { endTurn?: boolean }
+        options?: { endTurn?: boolean; steps?: number; forceEndTurn?: boolean }
     ): Promise<{
         success: boolean;
         phaseChanges?: PhaseChanges;
+        endTurn?: boolean;
     }> {
         return await this.getActionService().walk(gameId, to, identifier, options);
     }
@@ -593,19 +597,26 @@ export const walk = mutation({
             minionId: v.optional(v.string()),
         }),
         endTurn: v.optional(v.boolean()),
+        steps: v.optional(v.number()),
+        forceEndTurn: v.optional(v.boolean()),
     },
-    handler: async (ctx, { gameId, to, identifier, endTurn }) => {
-        console.log("walk", gameId, identifier, to, endTurn ? "(endTurn)" : "");
+    handler: async (ctx, { gameId, to, identifier, endTurn, steps, forceEndTurn }) => {
+        console.log("walk", gameId, identifier, to, endTurn ?? "(auto)", steps ?? "(auto)", forceEndTurn ?? false);
         const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
         try {
-
-            const result = await gameManager.walk(gameId, to, identifier, { endTurn: endTurn ?? true });
-            console.log("walk result", result);
+            const options =
+                endTurn !== undefined || steps !== undefined || forceEndTurn !== undefined
+                    ? { endTurn, steps, forceEndTurn }
+                    : undefined;
+            const result = await gameManager.walk(gameId, to, identifier, options);
+            console.log("walk result", result.success, result.message ?? "");
             return {
                 ok: true,
                 success: result.success,
+                message: result.message,
                 phaseChanges: result.phaseChanges,
+                endTurn: result.endTurn,
             };
         } catch (error) {
             console.error("walk error", error);

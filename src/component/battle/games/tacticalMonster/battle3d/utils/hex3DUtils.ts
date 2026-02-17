@@ -3,7 +3,7 @@
  */
 
 import * as THREE from "three";
-import { calculateHexMetrics } from "../../battle/utils/gridUtils";
+import { calculateHexMetrics } from "../../utils/gridUtils";
 
 /**
  * 创建六边形 Shape（用于 ExtrudeGeometry）

@@ -1,7 +1,6 @@
 /**
  * Hex 坐标计算工具
- * 移动范围/行走校验：offset (even-r) 距离，与前端 PathFind 一致；
- * 其他（技能范围、AI 等）仍可用 hexDistance（轴向）。
+ * 统一使用 offset (even-r) 距离，与前端 PathFind、网格渲染一致。
  */
 
 export interface HexCoord {
@@ -78,21 +77,21 @@ export function isInRegion(
 }
 
 /**
- * 检查坐标是否在圆形区域内（基于Hex距离）
+ * 检查坐标是否在圆形区域内（基于 offset 距离）
  */
 export function isInCircle(
     coord: HexCoord,
     center: HexCoord,
     radius: number
 ): boolean {
-    return hexDistance(coord, center) <= radius;
+    return offsetHexDistance(coord, center) <= radius;
 }
 
 /**
- * 检查两个坐标是否相邻
+ * 检查两个坐标是否相邻（offset 距离为 1）
  */
 export function isAdjacent(a: HexCoord, b: HexCoord): boolean {
-    return hexDistance(a, b) === 1;
+    return offsetHexDistance(a, b) === 1;
 }
 
 /**
@@ -149,7 +148,7 @@ export function selectMinionPosition(
             // 排除已存在的位置
             !hasOverlap(coord, existingPositions) &&
             // 至少距离Boss 1格
-            hexDistance(coord, bossMain) >= 1
+            offsetHexDistance(coord, bossMain) >= 1
         );
     
     if (candidates.length === 0) {

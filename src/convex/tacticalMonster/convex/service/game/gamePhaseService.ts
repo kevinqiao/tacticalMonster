@@ -282,10 +282,12 @@ export class GamePhaseService {
             }
 
             processedBossTurns++;
-            const turnStartInfo: { uid: string; monsterId: string; round: number; triggeredPassiveSkills?: any[]; statusEffectChanges?: any } = {
+            const turnStartInfo: { uid: string; monsterId: string; round: number; bossId?: string; minionId?: string; triggeredPassiveSkills?: any[]; statusEffectChanges?: any } = {
                 uid: nextTurn.uid,
                 monsterId: nextTurn.monsterId,
                 round: roundNumber,
+                ...(nextTurn.bossId ? { bossId: nextTurn.bossId } : {}),
+                ...(nextTurn.minionId ? { minionId: nextTurn.minionId } : {}),
             };
 
             let turnStartPassiveSkills: Array<{ uid: string; monsterId: string; bossId?: string; minionId?: string; skillId: string; effects: any[] }> = [];
@@ -847,10 +849,12 @@ export class GamePhaseService {
                 }
 
                 processedBossTurns++;
-                const turnStartInfo: { uid: string; monsterId: string; round: number; triggeredPassiveSkills?: any[]; statusEffectChanges?: any } = {
+                const turnStartInfo: { uid: string; monsterId: string; round: number; bossId?: string; minionId?: string; triggeredPassiveSkills?: any[]; statusEffectChanges?: any } = {
                     uid: nextTurn.uid,
                     monsterId: nextTurn.monsterId,
                     round: roundNumber,
+                    ...(nextTurn.bossId ? { bossId: nextTurn.bossId } : {}),
+                    ...(nextTurn.minionId ? { minionId: nextTurn.minionId } : {}),
                 };
 
                 let turnStartPassiveSkills: Array<{ uid: string; monsterId: string; bossId?: string; minionId?: string; skillId: string; effects: any[] }> = [];
@@ -898,17 +902,9 @@ export class GamePhaseService {
                     turns: updatedTurns,
                 });
 
-                // 记录 turnEnd 变化
-                if (processedBossTurns === 1) {
-                    // 第一个 Boss turn 的 turnEnd 记录在 changes.turnEnd
-                    changes.turnEnd = {
-                        uid: nextTurn.uid,
-                        monsterId: nextTurn.monsterId,
-                        round: roundNumber,
-                    };
-                }
+                // 不要覆盖 changes.turnEnd：已在上方设为刚结束的玩家，前端需据此标记该玩家回合完成
 
-                // 4. 保存 Boss AI 动作结果（包含被动技能与 statusEffectChanges）
+                // 4. 保存 Boss AI 动作结果（前端至少需要一项以显示“轮到 Boss”）
                 const bossTurnStart = { ...turnStartInfo };
                 if (bossActionResult?.ok && bossActionResult.decision) {
                     bossAIActions.push({
@@ -917,19 +913,106 @@ export class GamePhaseService {
                         executionResults: bossActionResult.executionResults || { boss: { ok: true }, minions: [] },
                         phaseTransition: bossActionResult.phaseTransition,
                     });
-                } else if (skipBossAI && turnStartInfo.statusEffectChanges) {
+                } else if (skipBossAI) {
                     bossAIActions.push({
                         turnStart: bossTurnStart,
                         decision: null,
                         executionResults: { skipped: true },
                     });
+                } else {
+                    bossAIActions.push({
+                        turnStart: bossTurnStart,
+                        decision: null,
+                        executionResults: null,
+                    });
                 }
             }
 
-            // 设置 Boss AI 动作（支持多个连续的 Boss turn）
-            // 注意：bossAIActions 数组的顺序就是执行顺序（按照 turns 的 order 排序）
             if (bossAIActions.length > 0) {
                 changes.bossAIActions = bossAIActions;
+            }
+
+            // ✅ Boss 全部处理完后，若本 round 已全部完成，则结束本 round 并开启下一 round（否则下次 walk 会报「当前没有进行中的回合」）
+            const roundAfterBoss = await this.dbCtx.db
+                .query("mr_game_round")
+                .withIndex("by_game_round", (q: any) =>
+                    q.eq("gameId", gameId).eq("no", roundNumber)
+                )
+                .unique();
+            if (roundAfterBoss && roundAfterBoss.turns.every((t: GameTurn) => t.status === 2)) {
+                await this.roundService.endRound(gameId, roundNumber);
+                changes.roundEnd = { round: roundNumber };
+
+                const gameStatus = await this.scoreService.checkAndUpdateGameStatus(gameId);
+                if (gameStatus?.isGameOver) {
+                    changes.gameOver = { result: gameStatus.result, reason: gameStatus.reason };
+                    return changes;
+                }
+
+                const newRoundNo = roundNumber + 1;
+                const roundStarted = await this.roundService.createRound(gameId, newRoundNo, game);
+                if (roundStarted) {
+                    const roundStartPassiveSkills = await this.triggerPassiveSkills(gameId, "round_start");
+                    const eventService = new GameEventService(this.dbCtx);
+                    const event = eventService.createNewRoundEvent(gameId, newRoundNo);
+                    if (event.data) (event.data as any).triggeredPassiveSkills = roundStartPassiveSkills;
+                    await eventService.createEvent(event);
+                    await this.lifecycleService.save(gameId, { round: newRoundNo, lastUpdate: new Date().toISOString() });
+                    changes.roundStart = { round: newRoundNo, triggeredPassiveSkills: roundStartPassiveSkills };
+                }
+
+                let updatedGame = await this.lifecycleService.load(gameId);
+                if (updatedGame) this.characterQueryService.setGame(updatedGame);
+
+                const newRoundDoc = await this.dbCtx.db
+                    .query("mr_game_round")
+                    .withIndex("by_game_round", (q: any) =>
+                        q.eq("gameId", gameId).eq("no", newRoundNo)
+                    )
+                    .unique();
+
+                if (newRoundDoc && newRoundDoc.turns.length > 0) {
+                    const nextTurn = newRoundDoc.turns
+                        .filter((t: GameTurn) => t.status === 0)
+                        .sort((a: GameTurn, b: GameTurn) => (a.order || 0) - (b.order || 0))[0];
+                    if (nextTurn && nextTurn.uid !== "boss") {
+                        changes.turnStart = {
+                            uid: nextTurn.uid,
+                            monsterId: nextTurn.monsterId,
+                            round: newRoundNo,
+                            ...(nextTurn.bossId ? { bossId: nextTurn.bossId } : {}),
+                            ...(nextTurn.minionId ? { minionId: nextTurn.minionId } : {}),
+                        };
+                        const { monsterId: tm, bossId: tb, minionId: tn } =
+                            this.characterQueryService.getCharacterParams(nextTurn.uid, nextTurn.monsterId);
+                        const turnChar = this.characterQueryService.getCharacter(tm, tb, tn);
+                        if (turnChar) {
+                            const tickResult = processStatusEffects(turnChar);
+                            if ((turnChar.stats?.hp?.current ?? 0) <= 0) turnChar.status = "dead";
+                            await this.characterUpdateService.updateCharacterInDatabase(gameId, turnChar, updatedGame!);
+                            if (changes.turnStart) {
+                                changes.turnStart.statusEffectChanges = {
+                                    expired: tickResult.expired.map((e) => ({ id: e.id, type: e.type, name: e.name })),
+                                    ticked: tickResult.ticked,
+                                    characterState: tickResult.characterState,
+                                };
+                            }
+                            if (turnChar.status !== "dead" && turnChar.status !== "stunned") {
+                                const tps = await this.triggerPassiveSkills(gameId, "turn_start", turnChar);
+                                if (changes.turnStart) changes.turnStart.triggeredPassiveSkills = tps;
+                            }
+                        }
+                        const updatedTurns = newRoundDoc.turns.map((turn: GameTurn) => {
+                            const isMatch = turn.uid === nextTurn.uid && (
+                                (nextTurn.bossId && turn.bossId === nextTurn.bossId) ||
+                                (nextTurn.minionId && turn.minionId === nextTurn.minionId) ||
+                                (!nextTurn.bossId && !nextTurn.minionId && turn.monsterId === nextTurn.monsterId)
+                            );
+                            return isMatch ? { ...turn, status: 1 } : turn;
+                        });
+                        await this.dbCtx.db.patch(newRoundDoc._id, { turns: updatedTurns });
+                    }
+                }
             }
         }
 

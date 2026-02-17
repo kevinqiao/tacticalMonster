@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo } from "react";
-import { useCombatManager } from "../../battle/service/CombatManager";
+import { useCombatManager } from "../../service/CombatManager";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { hexTo3DPosition } from "../utils/coordinate3DUtils";
 import { getSharedHexagonGeometry } from "../utils/geometryCache";
@@ -14,11 +14,21 @@ interface GridGround3DProps {
     mapDimension: BattleMapDimension | null;
     /** getCellState 接收逻辑坐标 (logicQ, logicR) */
     getCellState?: (q: number, r: number) => BattleCellState;
+    /** 可行走格距离（用于近深远浅）；仅 walkable 时有效 */
+    getWalkableDistance?: (q: number, r: number) => number | undefined;
+    /** 当前可行走移动范围（用于计算透明度） */
+    getWalkableMoveRange?: () => number | undefined;
     /** 格子点击回调，参数为逻辑坐标 (logicQ, logicR) */
     onCellClick?: (logicQ: number, logicR: number) => void;
 }
 
-export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCellState, onCellClick }) => {
+export const GridGround3D: React.FC<GridGround3DProps> = ({
+    mapDimension,
+    getCellState,
+    getWalkableDistance,
+    getWalkableMoveRange,
+    onCellClick,
+}) => {
     const { groundCells } = useCombatManager();
 
     const sharedGeometries = useMemo(() => {
@@ -47,17 +57,21 @@ export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCel
                 if (!pos) continue;
 
                 const logicCell = groundCells?.[r]?.[q];
-                const state: BattleCellState = getCellState
+                const rawState: BattleCellState = getCellState
                     ? getCellState(q, r)
                     : logicCell?.disable
                         ? "disabled"
                         : "normal";
+                const overlayStates: BattleCellState[] = ["walkable", "attackable", "path", "selected"];
+                const state: BattleCellState = overlayStates.includes(rawState) ? "normal" : rawState;
 
                 const geometry =
                     (state && sharedGeometries[state as keyof typeof sharedGeometries]) ||
                     sharedGeometries.normal;
 
                 const isClickable = state === "walkable" || state === "attackable";
+                const walkableDistance = state === "walkable" ? getWalkableDistance?.(q, r) : undefined;
+                const moveRange = state === "walkable" ? getWalkableMoveRange?.() : undefined;
 
                 result.push(
                     <HexCell3D
@@ -69,6 +83,8 @@ export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCel
                         position={[pos.x, pos.y, pos.z]}
                         geometry={geometry}
                         state={state}
+                        walkableDistance={walkableDistance}
+                        moveRange={moveRange}
                         onClick={isClickable && onCellClick ? () => onCellClick(q, r) : undefined}
                     />
                 );
@@ -76,7 +92,7 @@ export const GridGround3D: React.FC<GridGround3DProps> = ({ mapDimension, getCel
         }
 
         return result;
-    }, [groundCells, mapDimension, sharedGeometries, getCellState, onCellClick]);
+    }, [groundCells, mapDimension, sharedGeometries, getCellState, getWalkableDistance, getWalkableMoveRange, onCellClick]);
 
     return <group>{cells}</group>;
 };

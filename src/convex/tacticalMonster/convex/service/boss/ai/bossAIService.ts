@@ -4,33 +4,17 @@
  */
 
 import { getMergedBossConfig } from "../../../data/bossConfigs";
-import type { CharacterIdentifier } from "../../../types/gameTypes";
-import { hexDistance } from "../../../utils/hexUtils";
+import { MONSTER_CONFIGS_MAP } from "../../../data/monsterConfigs";
+import type { BossAction, BossAIDecision, CharacterIdentifier } from "../../../types/gameTypes";
+import { getNeighbors, offsetHexDistance } from "../../../utils/hexUtils";
 import { SeededRandom } from "../../../utils/seededRandom";
 import { BehaviorTreeExecutor, ExecutionContext } from "./behaviorTreeExecutor";
 import { BossState, GameState } from "./conditionEvaluator";
 import { PhaseManager } from "./phaseManager";
 import { TargetCharacter, TargetSelector } from "./targetSelector";
 
-export interface BossAction {
-    type: "use_skill" | "attack" | "move" | "standby";
-    skillId?: string;
-    target?: CharacterIdentifier;  // 使用 CharacterIdentifier 区分玩家角色、boss主体、小怪
-    targets?: CharacterIdentifier[];  // 支持多个目标
-    position?: { q: number; r: number };
-}
-
-export interface BossAIDecision {
-    bossAction: BossAction;
-    minionActions?: Array<{
-        minionId: string;
-        action: BossAction;
-    }>;
-    phaseTransition?: {
-        fromPhase: string;
-        toPhase: string;
-    };
-}
+// 从 types/gameTypes 统一导出，供其他模块使用
+export type { BossAction, BossAIDecision };
 
 export class BossAIService {
     /**
@@ -79,11 +63,11 @@ export class BossAIService {
 
         const bossMain = game.boss;
 
-        if (!bossMain.bossId) {
+        // mr_games.boss 可能未存 bossId，用 monsterId 作为回退（用于实体标识）
+        const bossId = (bossMain as any).bossId ?? bossMain.monsterId;
+        if (!bossId) {
             throw new Error(`Boss缺少bossId标识符`);
         }
-
-        const bossId = bossMain.bossId;
 
         // 2. 检查Boss是否存活
         if (!bossMain.stats?.hp?.current) {
@@ -97,10 +81,15 @@ export class BossAIService {
             };
         }
 
-        // 3. 获取Boss配置
-        const bossConfig = getMergedBossConfig(bossId);
+        // 3. 获取Boss配置（配置按 stage.bossId 存储，如 boss_bronze_1，需用 stage 查）
+        const stage = await ctx.db
+            .query("mr_stage")
+            .withIndex("by_stageId", (q: any) => q.eq("stageId", game.stageId))
+            .first();
+        const configBossId = stage?.bossId ?? bossId;
+        const bossConfig = getMergedBossConfig(configBossId);
         if (!bossConfig) {
-            throw new Error(`Boss配置不存在: ${bossId}`);
+            throw new Error(`Boss配置不存在: ${configBossId}`);
         }
 
         // 4. 获取 behaviorSeed
@@ -191,11 +180,10 @@ export class BossAIService {
         // 8. 获取当前阶段配置
         const phaseConfig = bossConfig.phases?.find(p => p.phaseName === currentPhase);
 
-        // 9. 准备执行上下文
-        if (bossMain.q === undefined || bossMain.r === undefined) {
-            throw new Error(`Boss缺少位置信息`);
-        }
-        const bossPosition = { q: bossMain.q, r: bossMain.r };
+        // 9. 准备执行上下文（位置：DB boss → 配置默认 → 0,0）
+        const bossQ = (bossMain as any).q ?? (bossMain as any).position?.q ?? (bossConfig as any).position?.q ?? 0;
+        const bossR = (bossMain as any).r ?? (bossMain as any).position?.r ?? (bossConfig as any).position?.r ?? 0;
+        const bossPosition = { q: bossQ, r: bossR };
         const minionCount = game.boss.minions?.length || 0;
         const gameState: GameState = {
             round: params.round,
@@ -213,7 +201,7 @@ export class BossAIService {
                 bossPosition
             );
             if (nearest) {
-                gameState.distanceToNearest = hexDistance(
+                gameState.distanceToNearest = offsetHexDistance(
                     bossPosition,
                     { q: nearest.q, r: nearest.r }
                 );
@@ -246,18 +234,64 @@ export class BossAIService {
             // 使用阶段配置的简化决策
             bossAction = this.decideFromPhaseConfig(phaseConfig, context);
         } else {
-            // 默认行为：攻击最近敌人
+            // 默认行为：能攻击则攻击，否则向最近敌人移动一步（攻击前有移动）
             const target = TargetSelector.selectTarget(
                 "nearest",
                 targets,
                 bossPosition,
                 rng
             );
+            if (!target) {
+                bossAction = { type: "standby" };
+            } else {
+                const monsterConfig = MONSTER_CONFIGS_MAP[bossConfig.monsterId];
+                const moveRange = (bossMain as any).move_range ?? monsterConfig?.moveRange ?? 3;
+                const attackRange = (bossMain as any).attack_range ?? monsterConfig?.attackRange ?? { min: 1, max: 2 };
+                const attackMax = (typeof attackRange === "object" && attackRange != null && "max" in attackRange)
+                    ? (attackRange as { max?: number }).max ?? 2
+                    : 2;
+                const distToTarget = offsetHexDistance(bossPosition, { q: target.q, r: target.r });
 
-            bossAction = {
-                type: target ? "attack" : "standby",
-                target: target ? this.convertTargetToIdentifier(target) : undefined,
-            };
+                if (distToTarget <= attackMax) {
+                    bossAction = {
+                        type: "attack",
+                        target: this.convertTargetToIdentifier(target),
+                    };
+                } else if (moveRange >= 1) {
+                    // 向最近目标移动一步：在合法邻格中选离目标最近的一格
+                    const occupied = new Set(targets.map((t) => `${t.q},${t.r}`));
+                    const map = game.map;
+                    const rows = map?.rows ?? 20;
+                    const cols = map?.cols ?? 20;
+                    const obstacles = new Set(
+                        (map?.obstacles ?? []).map((o: { q: number; r: number }) => `${o.q},${o.r}`)
+                    );
+                    const disables = new Set(
+                        (map?.disables ?? []).map((d: { q: number; r: number }) => `${d.q},${d.r}`)
+                    );
+                    const targetPos = { q: target.q, r: target.r };
+                    const neighbors = getNeighbors(bossPosition);
+                    let best: { q: number; r: number } | null = null;
+                    let bestDist = Infinity;
+                    for (const cell of neighbors) {
+                        if (cell.q < 0 || cell.r < 0 || cell.q >= cols || cell.r >= rows) continue;
+                        const key = `${cell.q},${cell.r}`;
+                        if (obstacles.has(key) || disables.has(key) || occupied.has(key)) continue;
+                        const d = offsetHexDistance(cell, targetPos);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            best = cell;
+                        }
+                    }
+                    if (best) {
+                        bossAction = { type: "move", position: best };
+                    } else {
+                        bossAction = { type: "standby" };
+                    }
+                } else {
+                    bossAction = { type: "standby" };
+                }
+            }
         }
 
         return {

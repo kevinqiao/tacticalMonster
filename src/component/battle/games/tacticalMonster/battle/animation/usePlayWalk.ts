@@ -5,8 +5,8 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { MonsterSprite } from "../../types/CombatTypes";
-import { useCombatManager } from "../service/CombatManager";
-import { coordToPixel } from "../utils/hexUtil";
+import { useCombatManager } from "../../service/CombatManager";
+import { coordToPixel } from "../../utils/hexUtil";
 
 const usePlayWalk = () => {
     const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();

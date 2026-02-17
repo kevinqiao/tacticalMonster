@@ -5,12 +5,12 @@
 import { useModalManager } from "@/service/ModalManager";
 import { useConvex } from "convex/react";
 import { useUserManager } from "service/UserManager";
-import usePlaySkillSelect from "../../battle/animation/usePlaySkillSelect";
+import { usePlaySkillSelect3D } from "../animation/usePlaySkillSelect3D";
 import { useScoreCalculation } from "../../battle/hooks/useScoreCalculation";
-import { useCombatManager } from "../../battle/service/CombatManager";
-import { useOtherActions } from "../../battle/service/handler/actions/useOtherActions";
-import { usePassiveSkillAnimations } from "../../battle/service/handler/hooks/usePassiveSkillAnimations";
-import { useSkillSync } from "../../battle/service/handler/hooks/useSkillSync";
+import { useCombatManager } from "../../service/CombatManager";
+import { useOtherActions } from "../../service/handler/actions/useOtherActions";
+import { usePassiveSkillAnimations } from "../../service/handler/hooks/usePassiveSkillAnimations";
+import { useSkillSync } from "../../service/handler/hooks/useSkillSync";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
 import { usePlayWalk3D } from "../animation/usePlayWalk3D";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
@@ -27,7 +27,7 @@ interface UseCombatActHandler3DOptions {
 
 const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
     const { gridState, mapDimension, playbackSpeed = 1.0 } = options;
-    const { playSkillSelect } = usePlaySkillSelect();
+    const { playSkillSelect } = usePlaySkillSelect3D();
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
     const { playWalk } = usePlayWalk3D({ mapDimension, playbackSpeed });
     const { user } = useUserManager();
@@ -36,7 +36,7 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
     const { openModal } = useModalManager();
 
     const { calculateActionScore } = useScoreCalculation(game ?? null, [], mode);
-    const { handlePhaseChanges } = usePhaseChangesHandler3D({
+    const { handlePhaseChanges, refreshWalkableFromPosition } = usePhaseChangesHandler3D({
         gridState,
         mapDimension,
         playbackSpeed,
@@ -63,7 +63,8 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         convex,
         playWalk,
         handlePhaseChanges,
-        mapDimension
+        mapDimension,
+        refreshWalkableFromPosition ?? undefined
     );
 
     const { useSkill } = useSkillAction3D(

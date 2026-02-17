@@ -3,10 +3,10 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
-import { useCombatManager } from "../../battle/service/CombatManager";
-import { usePassiveSkillAnimations } from "../../battle/service/handler/hooks/usePassiveSkillAnimations";
-import { applyStateChanges } from "../../battle/service/handler/utils/backendResponseUtils";
-import { findTargetByIdentifier } from "../../battle/service/handler/utils/characterUtils";
+import { useCombatManager } from "../../service/CombatManager";
+import { usePassiveSkillAnimations } from "../../service/handler/hooks/usePassiveSkillAnimations";
+import { applyStateChanges } from "../../service/handler/utils/backendResponseUtils";
+import { findTargetByIdentifier } from "../../service/handler/utils/characterUtils";
 import type { FrontendCombatEvent } from "../../types/CombatTypes";
 import type { CharacterIdentifier } from "../../types/gameTypes";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
@@ -66,19 +66,17 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                     { q: character.q ?? 0, r: character.r ?? 0 },
                     { q: to.q, r: to.r },
                 ];
-                // ✅ 从事件顶层获取 phaseChanges 和 stateChanges（未来 walk 可能触发被动技能/陷阱等）
+                // ✅ 从事件顶层获取 phaseChanges 和 stateChanges；Braveland 式：endTurn false 时无 phaseChanges，不推进回合
                 const walkPhaseChanges = data?.phaseChanges;
                 const walkStateChanges = data?.stateChanges;
+                const walkEndTurn = data?.endTurn !== false;
                 playWalk(character, path, async () => {
-                    // ✅ 更新角色逻辑坐标（与 play 模式 useWalkAction3D 保持一致）
                     character.q = to.q;
                     character.r = to.r;
-                    // ✅ 应用后端确认的状态变化（如踩陷阱等）
                     if (walkStateChanges) {
                         applyStateChanges(walkStateChanges, characters);
                     }
-                    // ✅ 处理阶段变化（如 walk 触发被动技能导致的回合推进等）
-                    if (walkPhaseChanges) {
+                    if (walkEndTurn && walkPhaseChanges) {
                         await handlePhaseChanges(walkPhaseChanges);
                     }
                     onComplete();

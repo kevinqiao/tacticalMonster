@@ -8,7 +8,7 @@ import { useCallback, useMemo } from "react";
 import { COMMON_SKILLS, MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { MonsterSprite } from "../../types/CombatTypes";
 import { SkillEffectType } from "../../types/skillTypes";
-import { useCombatManager } from "../service/CombatManager";
+import { useCombatManager } from "../../service/CombatManager";
 import { SkillAnimationSelector } from "./SkillAnimationSelector";
 
 const usePlaySkill = () => {

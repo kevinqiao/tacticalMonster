@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { GridCellSprite, MonsterSprite } from "../../types/CombatTypes";
-import { clearPositionHighlights, getScoreColor, highlightPossiblePositions } from "../utils/positionHighlightUtils";
+import { clearPositionHighlights, getScoreColor, highlightPossiblePositions } from "../../utils/positionHighlightUtils";
 
 interface PositionSelectionUIProps {
     positions: Array<{ q: number; r: number; score: number }>;

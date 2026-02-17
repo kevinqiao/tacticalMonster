@@ -4,13 +4,13 @@
  */
 
 import gsap from "gsap";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { flushSync } from "react-dom";
 import { api } from "../../../../../../../convex/tacticalMonster/convex/_generated/api";
-import { useCombatManager } from "../../../battle/service/CombatManager";
-import { createCharacterIdentifiers } from "../../../battle/service/handler/utils/characterUtils";
-import { canPerformAction } from "../../../battle/service/handler/utils/validationUtils";
-import { findPath } from "../../../battle/utils/PathFind";
+import { useCombatManager } from "../../../service/CombatManager";
+import { createCharacterIdentifiers } from "../../../service/handler/utils/characterUtils";
+import { canPerformAction } from "../../../service/handler/utils/validationUtils";
+import { findPath } from "../../../utils/PathFind";
 import { getCharacterKey } from "../../utils/battle3DAdapter";
 import type { BattleMapDimension } from "../../utils/coordinate3DUtils";
 import { hexTo3DCenter } from "../../utils/coordinate3DUtils";
@@ -27,9 +27,12 @@ export const useWalkAction3D = (
         onComplete: () => void | Promise<void>
     ) => void,
     handlePhaseChanges: (phaseChanges: any) => Promise<void>,
-    mapDimension: BattleMapDimension | null
+    mapDimension: BattleMapDimension | null,
+    refreshWalkableFromPosition?: (character: any, moveRange: number, onlyFurthestLayer?: boolean) => void
 ) => {
     const { setCharacterAnimating } = useCombatManager();
+    const stepsUsedThisTurnRef = useRef(0);
+    const lastTurnKeyRef = useRef<string | null>(null);
 
     const walk = useCallback(
         async (to: { q: number; r: number }): Promise<void> => {
@@ -39,6 +42,11 @@ export const useWalkAction3D = (
             }
 
             const { character } = validation;
+            const charKey = getCharacterKey(character);
+            if (charKey !== lastTurnKeyRef.current) {
+                lastTurnKeyRef.current = charKey;
+                stepsUsedThisTurnRef.current = 0;
+            }
             const originalPos = { q: character.q ?? 0, r: character.r ?? 0 };
 
             const startPos = hexTo3DCenter(originalPos.q, originalPos.r, mapDimension, 0);
@@ -74,9 +82,11 @@ export const useWalkAction3D = (
 
             const pathSteps = path.length - 1;
             const moveRange = character.move_range ?? 3;
-            if (pathSteps > moveRange) {
-                console.warn("[HexDebug] walk path over moveRange", {
+            const remainingSteps = moveRange - stepsUsedThisTurnRef.current;
+            if (pathSteps > remainingSteps) {
+                console.warn("[HexDebug] walk path over remainingSteps", {
                     pathSteps,
+                    remainingSteps,
                     moveRange,
                     toLogic: to,
                     originalPos,
@@ -89,15 +99,19 @@ export const useWalkAction3D = (
                 character
             );
 
+            // 本步用尽剩余步数（走到暗区）时传 forceEndTurn，后端结束回合并返回 phaseChanges；pathSteps > remainingSteps 为异常，不设 forceEndTurn
+            const forceEndTurn = pathSteps === remainingSteps;
             const backendRequestPromise = convex.mutation(
                 (api as any).service.game.gameService.walk,
                 {
                     gameId: game.gameId,
                     to: { q: to.q, r: to.r },
                     identifier: characterIdentifier,
+                    steps: pathSteps,
+                    forceEndTurn,
                 }
             );
-
+            // console.log("[useWalkAction3D] backendRequestPromise", backendRequestPromise);
             const clearAnimatingState = () => {
                 setCharacterAnimating(null);
             };
@@ -126,22 +140,50 @@ export const useWalkAction3D = (
                     }
                     try {
                         const result = await backendRequestPromise;
+                        console.log("[useWalkAction3D] result", result);
                         if (result.success) {
                             character.q = finalPos.q;
                             character.r = finalPos.r;
-                            if (result.phaseChanges) await handlePhaseChanges(result.phaseChanges);
-                            clearAnimatingState();
+                            clearAnimatingState(); // 动画已结束、逻辑位置已提交，先清除「正在移动」状态
+
+                            // 后端结束回合时返回 phaseChanges（含 turnEnd），未结束时无 phaseChanges
+                            if (result.phaseChanges) {
+                                await handlePhaseChanges(result.phaseChanges);
+                            } else {
+                                stepsUsedThisTurnRef.current += pathSteps;
+                                flushSync(() =>
+                                    refreshWalkableFromPosition?.(
+                                        character,
+                                        moveRange - stepsUsedThisTurnRef.current
+                                    )
+                                );
+                            }
                             resolve();
                         } else {
-                            console.error("[HexDebug] walk backend rejected", { result, originalPos, toLogic: to });
+                            const msg = (result as any).message ?? "unknown";
+                            console.error("[HexDebug] walk backend rejected", { message: msg, result, originalPos, toLogic: to });
                             rollbackToOriginal();
                             clearAnimatingState();
-                            reject(new Error("Walk rejected by backend"));
+                            flushSync(() =>
+                                refreshWalkableFromPosition?.(
+                                    character,
+                                    moveRange - stepsUsedThisTurnRef.current,
+                                    stepsUsedThisTurnRef.current > 0
+                                )
+                            );
+                            reject(new Error(`Walk rejected: ${msg}`));
                         }
                     } catch (error) {
                         console.error("[HexDebug] walk error, rollback to original", { error, originalPos });
                         rollbackToOriginal();
                         clearAnimatingState();
+                        flushSync(() =>
+                            refreshWalkableFromPosition?.(
+                                character,
+                                moveRange - stepsUsedThisTurnRef.current,
+                                stepsUsedThisTurnRef.current > 0
+                            )
+                        );
                         reject(error);
                     }
                 });
@@ -157,6 +199,7 @@ export const useWalkAction3D = (
             handlePhaseChanges,
             mapDimension,
             setCharacterAnimating,
+            refreshWalkableFromPosition,
         ]
     );
 

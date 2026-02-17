@@ -5,9 +5,9 @@
 
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { calculateHexPoints, pointsToPath } from "../battle/utils/gridUtils";
-import { calculateHexDistance } from "../battle/utils/hexUtil";
-import { findPath } from "../battle/utils/PathFind";
+import { calculateHexPoints, pointsToPath } from "../utils/gridUtils";
+import { offsetHexDistance } from "../utils/hexUtil";
+import { findPath } from "../utils/PathFind";
 import Character3D from "../battle/view/Character3D";
 import { ModelConfig } from "../config/modelConfig";
 import { MapModel, MonsterSprite } from "../types/CombatTypes";
@@ -178,7 +178,7 @@ const CharacterWalkDemo: React.FC = () => {
         const isObstacleCell = isObstacle(cell.q, cell.r);
 
         // 计算是否可以移动（距离小于等于移动范围）
-        const distance = calculateHexDistance(
+        const distance = offsetHexDistance(
             { q: selectedCharacter.q ?? 0, r: selectedCharacter.r ?? 0 },
             { q: cell.q, r: cell.r }
         );
@@ -274,7 +274,7 @@ const CharacterWalkDemo: React.FC = () => {
     const handleCellClick = useCallback((q: number, r: number) => {
         if (isMoving || !characterContainerRef.current) return;
 
-        const distance = calculateHexDistance(
+        const distance = offsetHexDistance(
             { q: selectedCharacter.q ?? 0, r: selectedCharacter.r ?? 0 },
             { q, r }
         );

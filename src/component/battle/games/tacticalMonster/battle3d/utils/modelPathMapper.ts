@@ -3,5 +3,5 @@
  * 复用 team 版本的逻辑
  */
 
-export { getAllMonsterGlbPaths, getMonsterModelPath, getMonsterModelPathWithFallback } from "../../team/threejs/utils/modelPathMapper";
+export { getAllMonsterGlbPaths, getMonsterModelPath, getMonsterModelPathWithFallback } from "../../team3d/utils/modelPathMapper";
 

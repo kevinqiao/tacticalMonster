@@ -49,23 +49,12 @@ export const offsetToCube = (col: number, row: number) => {
     return { x, y, z };
 };
 
-// 计算六边形网格距离 (以网格数为单位)
-export const calculateHexDistance = (from: { q: number, r: number }, to: { q: number, r: number }): number => {
-    console.log("from", from, "to", to);
-    
-    // 转换为立方坐标
-    const fromX = from.q - Math.floor(from.r / 2);
-    const fromZ = from.r;
-    const fromY = -fromX - fromZ;
-    
-    const toX = to.q - Math.floor(to.r / 2);
-    const toZ = to.r;
-    const toY = -toX - toZ;
-    
-    // 计算立方坐标系中的距离
-    return Math.max(
-        Math.abs(fromX - toX),
-        Math.abs(fromY - toY),
-        Math.abs(fromZ - toZ)
-    );
+/** Offset (even-r) 六边形距离，与 PathFind/网格渲染一致，统一使用 */
+export const offsetHexDistance = (from: { q: number, r: number }, to: { q: number, r: number }): number => {
+    const dq = Math.abs(from.q - to.q);
+    const dr = Math.abs(from.r - to.r);
+    return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
 };
+
+/** 已弃用，请用 offsetHexDistance */
+export const calculateHexDistance = offsetHexDistance;

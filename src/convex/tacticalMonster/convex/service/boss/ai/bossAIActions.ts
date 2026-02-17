@@ -6,6 +6,9 @@
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalMutation, mutation } from "../../../_generated/server";
+import { CharacterQueryService } from "../../game/characterQueryService";
+import { GameLifecycleService } from "../../game/gameLifecycleService";
+import { GameService } from "../../game/gameService";
 import { BossAIService } from "./bossAIService";
 
 /**
@@ -72,7 +75,6 @@ export const executeBossAction = internalMutation({
         const { gameId, action, identifier } = args;
 
         // ✅ 1. 执行动作前，加载游戏状态并记录关键角色的初始状态
-        const { GameLifecycleService } = await import("../../game/gameLifecycleService");
         const lifecycleService = new GameLifecycleService(ctx);
         const gameBefore = await lifecycleService.load(gameId);
         if (!gameBefore) {
@@ -80,7 +82,6 @@ export const executeBossAction = internalMutation({
         }
 
         // 记录执行者的初始状态
-        const { CharacterQueryService } = await import("../../game/characterQueryService");
         const characterQueryService = new CharacterQueryService();
         characterQueryService.setGame(gameBefore);
         
@@ -137,7 +138,6 @@ export const executeBossAction = internalMutation({
         }
 
         // ✅ 2. 执行动作
-        const { GameService } = await import("../../game/gameService");
         const gameManager = new GameService(ctx);
         
         let actionResult: any = null;
@@ -383,7 +383,8 @@ export const executeBossTurn = mutation({
             .withIndex("by_gameId", (q: any) => q.eq("gameId", args.gameId))
             .first();
 
-        if (!game || !game.boss || !("bossId" in game.boss) || !game.boss.bossId) {
+        const bossId = game?.boss ? (game.boss as any).bossId ?? game.boss.monsterId : undefined;
+        if (!game || !game.boss || !bossId) {
             throw new Error(`游戏不存在或Boss数据不完整: ${args.gameId}`);
         }
 
@@ -391,7 +392,7 @@ export const executeBossTurn = mutation({
         let bossExecutionResult = null;
         if (decision.bossAction.type !== "standby") {
             const bossIdentifier = {
-                bossId: (game.boss as any).bossId,
+                bossId,
             };
             bossExecutionResult = await ctx.runMutation(
                 internal.service.boss.ai.bossAIActions.executeBossAction,

@@ -5,9 +5,9 @@
 import { ObstacleUtils } from "@/convex/tacticalMonster/convex/utils/obstacleUtils";
 import gsap from "gsap";
 import React, { useEffect, useMemo, useRef } from "react";
-import { useCombatManager } from "../service/CombatManager";
+import { useCombatManager } from "../../service/CombatManager";
 import "../style.css";
-import { coordToPixel } from "../utils/hexUtil";
+import { coordToPixel } from "../../utils/hexUtil";
 
 interface HexagonCellProps {
     row: number;

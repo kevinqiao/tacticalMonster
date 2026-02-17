@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo } from "react";
-import { useCombatManager } from "../../battle/service/CombatManager";
+import { useCombatManager } from "../../service/CombatManager";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { hexTo3DCenter } from "../utils/coordinate3DUtils";
 
@@ -23,7 +23,7 @@ export const ObstacleGrid3D: React.FC<ObstacleGrid3DProps> = ({ mapDimension }) 
             if (!pos) return null;
 
             return (
-                <mesh key={`obstacle-${idx}`} position={[pos.x, 0.5, pos.z]}>
+                <mesh key={`obstacle-${idx}`} position={[pos.x, 0.5, pos.z]} renderOrder={2}>
                     <boxGeometry args={[mapDimension.hexWidth * 0.6, 1, mapDimension.hexHeight * 0.6]} />
                     <meshStandardMaterial color={0x8b4513} />
                 </mesh>

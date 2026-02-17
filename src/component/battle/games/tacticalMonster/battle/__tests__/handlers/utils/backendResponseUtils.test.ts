@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MonsterSprite } from "../../../../types/CombatTypes";
 import { StateChanges } from "../../../../types/backendResponseTypes";
 import { SkillEffectType } from "../../../../types/skillTypes";
-import { applyStateChanges } from "../../../service/handler/utils/backendResponseUtils";
+import { applyStateChanges } from "../../../../service/handler/utils/backendResponseUtils";
 import { createTestCharacter } from "../../testUtils";
 
 // Mock updateHPMPDisplay

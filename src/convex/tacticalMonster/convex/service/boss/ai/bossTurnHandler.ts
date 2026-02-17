@@ -32,10 +32,8 @@ export const handleBossTurn = internalMutation({
             throw new Error(`游戏 ${args.gameId} 没有Boss数据`);
         }
 
-        // ✅ 从 boss 对象获取 bossId（schema 中可能没有 bossId 字段，需要使用类型断言或从其他地方获取）
-        // bossId 在 GameModel 中存在，但数据库查询可能没有包含它
-        // 可以通过 GameLifecycleService.load 获取完整的 GameModel，或者使用类型断言
-        const bossId = (game.boss as any).bossId;
+        // bossId：schema 中 mr_games.boss 可能未存 bossId，用 monsterId 作为回退（单 Boss 时等价）
+        const bossId = (game.boss as any).bossId ?? game.boss.monsterId;
 
         if (!bossId) {
             throw new Error(`Boss缺少bossId标识符`);

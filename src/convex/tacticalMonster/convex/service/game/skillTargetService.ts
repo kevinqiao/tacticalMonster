@@ -5,7 +5,7 @@
 
 import { getSkillConfig, skillExists } from "../../data/skillConfigs";
 import { GameBoss, GameMinion, GameMonster } from "../../types/monsterTypes";
-import { HexCoord, hexDistance } from "../../utils/hexUtils";
+import { HexCoord, offsetHexDistance } from "../../utils/hexUtils";
 import { CharacterQueryService } from "./characterQueryService";
 
 export class SkillTargetService {
@@ -107,7 +107,7 @@ export class SkillTargetService {
                             q: targetChar.q ?? 0,
                             r: targetChar.r ?? 0,
                         };
-                        if (hexDistance(casterPos, targetPos) <= distance) {
+                        if (offsetHexDistance(casterPos, targetPos) <= distance) {
                             targets.push(primaryTarget);
                         }
                     }
@@ -127,7 +127,7 @@ export class SkillTargetService {
                         q: char.q ?? 0,
                         r: char.r ?? 0,
                     };
-                    if (hexDistance(casterPos, charPos) <= circleRadius) {
+                    if (offsetHexDistance(casterPos, charPos) <= circleRadius) {
                         targets.push({
                             uid: char.uid,
                             monsterId: getCharacterIdentifier(char),  // 使用正确的标识符
@@ -157,9 +157,9 @@ export class SkillTargetService {
                         };
 
                         // 检查是否在直线上（简化：检查是否在从施法者到主要目标的路径上）
-                        const distToCaster = hexDistance(casterPos, charPos);
-                        const distToPrimary = hexDistance(primaryTargetPos, charPos);
-                        const distCasterToPrimary = hexDistance(casterPos, primaryTargetPos);
+                        const distToCaster = offsetHexDistance(casterPos, charPos);
+                        const distToPrimary = offsetHexDistance(primaryTargetPos, charPos);
+                        const distCasterToPrimary = offsetHexDistance(casterPos, primaryTargetPos);
 
                         // 如果角色在从施法者到主要目标的路径上，且在范围内
                         if (distToCaster <= lineDistance && distToCaster + distToPrimary <= distCasterToPrimary + 1) {

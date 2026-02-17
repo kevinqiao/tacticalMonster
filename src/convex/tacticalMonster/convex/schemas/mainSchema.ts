@@ -267,6 +267,7 @@ export const mainSchema = {
             status: v.number(),  // Turn 状态：0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
             dueTime: v.optional(v.number()),
             order: v.optional(v.number()),  // turn 的次序
+            stepsUsed: v.optional(v.number()),  // Braveland：本回合已用移动步数，用于多步移动后结束回合
         })),
         startTime: v.optional(v.number()),
         endTime: v.optional(v.number()),

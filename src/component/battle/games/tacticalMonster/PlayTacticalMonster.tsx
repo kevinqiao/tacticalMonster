@@ -9,11 +9,11 @@ import { MatchStatus } from "../../MatchTypes";
 import { PlayProps } from "../../PlayTournament";
 import usePreGameAnimate from "./animation/usePreGameAnimate";
 import BattlePlayer from "./battle/BattlePlayer";
-import CombatManager from "./battle/service/CombatManager";
+import CombatManager from "./service/CombatManager";
 import BattlePlayer3D from "./battle3d/BattlePlayer3D";
 
 import "./styles.css";
-import TeamLayout3D from "./team/threejs/TeamLayout3D";
+import TeamLayout3D from "./team3d/TeamLayout3D";
 import { GameModel } from "./types/gameTypes";
 import { Stage } from "./types/StageTypes";
 /** 设为 true 使用 3D 战斗视图，false 使用 2D */

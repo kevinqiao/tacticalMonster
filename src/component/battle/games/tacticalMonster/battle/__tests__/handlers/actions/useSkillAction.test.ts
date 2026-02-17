@@ -4,25 +4,25 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { useSkillAction } from "../../../service/handler/actions/useSkillAction";
+import { useSkillAction } from "../../../../service/handler/actions/useSkillAction";
 import { createTestCharacter } from "../../testUtils";
 
 // Mock dependencies
-vi.mock("../../../service/handler/utils/characterUtils", () => ({
+vi.mock("../../../../service/handler/utils/characterUtils", () => ({
     createCharacterIdentifiers: vi.fn(() => ({
         casterIdentifier: { monsterId: "monster_001" },
         targetIdentifiers: [{ bossId: "boss_001" }],
     })),
 }));
 
-vi.mock("../../../service/handler/utils/validationUtils", () => ({
+vi.mock("../../../../service/handler/utils/validationUtils", () => ({
     canPerformAction: vi.fn(() => ({
         can: true,
         character: createTestCharacter(),
     })),
 }));
 
-vi.mock("../../../service/handler/utils/visualFeedbackUtils", () => ({
+vi.mock("../../../../service/handler/utils/visualFeedbackUtils", () => ({
     applyVisualFeedback: vi.fn(),
     clearVisualFeedback: vi.fn(),
 }));
@@ -88,7 +88,7 @@ describe("useSkillAction", () => {
     });
 
     it("应该在验证失败时返回", async () => {
-            const { canPerformAction } = await import("../../../service/handler/utils/validationUtils");
+            const { canPerformAction } = await import("../../../../service/handler/utils/validationUtils");
         vi.mocked(canPerformAction).mockReturnValue({
             can: false,
             character: null,

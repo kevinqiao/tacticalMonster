@@ -98,9 +98,14 @@ export class GameActionValidator {
             return { valid: false, message: "角色不存在" };
         }
 
-        // 验证 UID 和 monsterId 是否匹配当前回合
         if (currentTurn.uid !== character.uid || currentTurn.monsterId !== character.monsterId) {
             return { valid: false, message: "不是当前回合，无法执行操作" };
+        }
+        if ((currentTurn as any).bossId != null && characterIdentifier.bossId !== (currentTurn as any).bossId) {
+            return { valid: false, message: "不是当前回合(bossId不匹配)" };
+        }
+        if ((currentTurn as any).minionId != null && characterIdentifier.minionId !== (currentTurn as any).minionId) {
+            return { valid: false, message: "不是当前回合(minionId不匹配)" };
         }
 
         // 验证回合状态（如果已完成，不允许再次操作）

@@ -7,7 +7,7 @@ import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import React from 'react';
 import { GameModel } from '../types/gameTypes';
 import BattlePlayer from './BattlePlayer';
-import CombatManager from './service/CombatManager';
+import CombatManager from '../service/CombatManager';
 import './style.css';
 
 

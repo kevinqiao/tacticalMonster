@@ -5,9 +5,9 @@
 import gsap from "gsap";
 import { useCallback } from "react";
 import { COMMON_SKILLS } from "../../config/skillConfigs";
+import { useCombatManager } from "../../service/CombatManager";
 import { MonsterSkill } from "../../types/skillTypes";
-import { useCombatManager } from "../service/CombatManager";
-import { getAttackableNodes } from "../utils/PathFind";
+import { getAttackableNodes } from "../../utils/PathFind";
 
 const usePlaySkillSelect = () => {
     const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
@@ -90,7 +90,7 @@ const usePlaySkillSelect = () => {
 
         if (character.attackables) {
             character.attackables.forEach((node) => {
-                const { x, y, uid, character_id, distance } = node;
+                const { q, r, uid, character_id, distance } = node;
                 const enemy = characters.find((c) => c.uid === uid && c.character_id === character_id);
                 if (!enemy) return;
 

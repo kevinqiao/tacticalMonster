@@ -15,7 +15,8 @@ export class RoundService {
 
     /**
      * 创建新回合
-     * 根据所有存活角色按速度排序创建回合记录
+     * Braveland 式全局回合顺序：收集所有存活角色（玩家+Boss+小怪），按 speed 降序排序；
+     * 同速时玩家优先，同队内按 monsterId 稳定排序。生成的 turns[].order 用于整轮执行顺序。
      */
     async createRound(
         gameId: string,

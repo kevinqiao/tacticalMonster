@@ -4,7 +4,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { calculateHexPoints } from '../battle/utils/gridUtils';
+import { calculateHexPoints } from '../utils/gridUtils';
 import { GridCellSprite } from '../types/CombatTypes';
 
 import { STYLES } from '../battle/constants/GridConstants';

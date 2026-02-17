@@ -4,11 +4,11 @@
 
 import React, { useEffect, useState } from "react";
 import { useMapDimension } from "../common/hooks/useMapDimension";
+import { useCombatManager } from "../service/CombatManager";
+import { usePhaseChangesHandler } from "../service/handler/hooks/usePhaseChangesHandler";
+import useCombatActHandler from "../service/handler/useCombatActHandler";
+import useEventHandler from "../service/handler/useEventHandler";
 import { ASSET_TYPE } from "../types/monsterTypes";
-import { useCombatManager } from "./service/CombatManager";
-import { usePhaseChangesHandler } from "./service/handler/hooks/usePhaseChangesHandler";
-import useCombatActHandler from "./service/handler/useCombatActHandler";
-import useEventHandler from "./service/handler/useEventHandler";
 import "./style.css";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
@@ -88,7 +88,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
         replay,
         eventQueue,
     } = useCombatManager();
-    const { containerRef, mapDimension, containerSize } = useMapDimension();
+    const { containerRef, mapDimension } = useMapDimension();
     useEventHandler();
 
     // ✅ 2D 阶段变化处理器（处理 initialPhaseChanges）
@@ -130,14 +130,14 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
     }, [game, initialPhaseChanges, mode, characters, contextGroundCells, handlePhaseChanges, markInitialPhaseChangesProcessed, isInitialPhaseChangesProcessed, eventQueue, replay]);
 
     useEffect(() => {
-        if (!mapDimension || !containerSize) return;
+        if (!mapDimension) return;
         setMapDimension(mapDimension); // 同步到 CombatManager，供 2D 动画/格子等从 context 读取
 
         const mapW = mapDimension.width;
         const mapH = mapDimension.height;
         const hexH = mapDimension.hexHeight;
-        const mapLeft = (containerSize.width - mapW) / 2 + 0.25 * mapDimension.hexWidth;
-        const mapTop = (containerSize.height - mapH) / 2;
+        const mapLeft = (mapDimension.width - mapW) / 2 + 0.25 * mapDimension.hexWidth;
+        const mapTop = (mapDimension.height - mapH) / 2;
 
         setMapPosition({ top: mapTop, left: mapLeft, width: mapW, height: mapH });
         setGridPosition({
@@ -147,15 +147,15 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
             height: mapH - hexH / 2
         });
 
-        const plazaLeft = (window.innerWidth - containerSize.width) / 2;
-        const plazaTop = (window.innerHeight - containerSize.height) / 2;
+        const plazaLeft = (window.innerWidth - mapDimension.width) / 2;
+        const plazaTop = (window.innerHeight - mapDimension.height) / 2;
         setPlacePosition({
             top: plazaTop,
             left: plazaLeft,
-            width: containerSize.width,
-            height: containerSize.height
+            width: mapDimension.width,
+            height: mapDimension.height
         });
-    }, [mapDimension, containerSize, setMapDimension]);
+    }, [mapDimension, setMapDimension]);
 
     return (
         <div className="battle-container">

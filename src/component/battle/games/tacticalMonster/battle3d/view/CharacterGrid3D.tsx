@@ -4,7 +4,7 @@
  */
 
 import React, { useContext, useMemo } from "react";
-import { useCombatManager } from "../../battle/service/CombatManager";
+import { useCombatManager } from "../../service/CombatManager";
 import { BattleLoadingContext } from "../BattleLoadingContext";
 import { getCharacterKey } from "../utils/battle3DAdapter";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";

@@ -115,6 +115,7 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 mesh.frustumCulled = false;
+                mesh.renderOrder = 2; // 角色在高亮层 (renderOrder=1) 之上渲染
             }
         });
 
@@ -229,7 +230,7 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
         <group ref={groupRef} position={position}>
             {/* 底座 + 光环：始终水平，不随竖屏倾斜 */}
             <group>
-                <mesh position={[0, 4, 0]}>
+                <mesh position={[0, 4, 0]} renderOrder={2}>
                     <cylinderGeometry args={[width * 0.25, width * 0.3, 6, 6]} />
                     <meshStandardMaterial
                         color={character.uid === "boss" ? "#e91e63" : "#2196F3"}
@@ -245,6 +246,7 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
                         ref={activeRingRef}
                         position={[0, 7.5, 0]}
                         rotation={[-Math.PI / 2, 0, 0]}
+                        renderOrder={2}
                     >
                         <ringGeometry args={[width * 0.28, width * 0.42, 32]} />
                         <meshStandardMaterial

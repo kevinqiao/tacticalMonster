@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { useCombatManager } from "../battle/service/CombatManager";
+import { useCombatManager } from "../service/CombatManager";
 import { ReplayControls } from "../battle/view/ReplayControls";
 import { ReplayScoreDisplay } from "../battle/view/ReplayScoreDisplay";
 import { BattleVenue3D } from "./BattleVenue3D";

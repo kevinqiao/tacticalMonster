@@ -3,7 +3,7 @@ import { Engine } from 'json-rules-engine';
 import { Effect, EffectType, Skill } from '../types/CharacterTypes';
 import { GameCharacter, GameModel } from '../types/CombatTypes';
 import { applyEffect, calculateEffectValue, removeEffect, updateEffects } from '../utils/effectUtils';
-import { calculateHexDistance } from '../utils/hexUtil';
+import { offsetHexDistance } from '../utils/hexUtil';
 // 支持：
 // 单体/群体技能
 // 物理/魔法伤害
@@ -145,7 +145,7 @@ export class SkillManager {
 
     // 计算效果值（考虑距离衰减等）
     private calculateEffectValue(effect: Effect, target: GameCharacter): Effect {
-        const distance = calculateHexDistance(
+        const distance = offsetHexDistance(
             { q: this.character.q ?? 0, r: this.character.r ?? 0 },
             { q: target.q ?? 0, r: target.r ?? 0 }
         );
@@ -261,7 +261,7 @@ export class SkillManager {
             if(char.uid === this.character.uid)continue;
             const from = {q:this.character.q??0,r:this.character.r??0}
             const to = {q:char.q??0,r:char.r??0}
-            const distance = calculateHexDistance(from, to);
+            const distance = offsetHexDistance(from, to);
             console.log("countNearbyEnemies",this.character.name,char.name,distance)
             if(distance === 1){
                 count++;
@@ -299,7 +299,7 @@ export class SkillManager {
             if (char.uid === this.character.uid) return; // 跳过自己
 
             const targetPos = { q: char.q ?? 0, r: char.r ?? 0 };
-            const distance = calculateHexDistance(centerPos, targetPos);
+            const distance = offsetHexDistance(centerPos, targetPos);
 
             switch (effect.area_type) {
                 case 'circle':

@@ -6,17 +6,17 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MonsterSprite } from "../../../../types/CombatTypes";
 import { UseSkillResponse } from "../../../../types/backendResponseTypes";
-import { useSkillSync } from "../../../service/handler/hooks/useSkillSync";
+import { useSkillSync } from "../../../../service/handler/hooks/useSkillSync";
 import { createTestCharacter, createTestPhaseChanges } from "../../testUtils";
 
 // Mock dependencies
-vi.mock("../../../service/handler/utils/backendResponseUtils", () => ({
+vi.mock("../../../../service/handler/utils/backendResponseUtils", () => ({
     applyStateChanges: vi.fn(),
     calculateKillScoreIfNeeded: vi.fn(),
     handleBackendError: vi.fn(),
 }));
 
-vi.mock("../../../service/handler/utils/visualFeedbackUtils", () => ({
+vi.mock("../../../../service/handler/utils/visualFeedbackUtils", () => ({
     clearVisualFeedback: vi.fn(),
 }));
 
@@ -85,7 +85,7 @@ describe("useSkillSync", () => {
     });
 
     it("应该处理后端响应错误", async () => {
-        const { handleBackendError } = await import("../../../service/handler/utils/backendResponseUtils");
+        const { handleBackendError } = await import("../../../../service/handler/utils/backendResponseUtils");
 
         const { result } = renderHook(() =>
             useSkillSync(
@@ -125,7 +125,7 @@ describe("useSkillSync", () => {
     });
 
     it("应该在动画未完成时处理错误", async () => {
-        const { clearVisualFeedback } = await import("../../../service/handler/utils/visualFeedbackUtils");
+        const { clearVisualFeedback } = await import("../../../../service/handler/utils/visualFeedbackUtils");
 
         const { result } = renderHook(() =>
             useSkillSync(
@@ -172,7 +172,7 @@ describe("useSkillSync", () => {
     });
 
     it("应该处理状态同步逻辑", async () => {
-        const { applyStateChanges } = await import("../../../service/handler/utils/backendResponseUtils");
+        const { applyStateChanges } = await import("../../../../service/handler/utils/backendResponseUtils");
 
         const { result } = renderHook(() =>
             useSkillSync(

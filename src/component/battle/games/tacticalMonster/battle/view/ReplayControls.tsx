@@ -2,7 +2,7 @@
  * 重播控制组件
  */
 import React from 'react';
-import { useCombatManager } from '../service/CombatManager';
+import { useCombatManager } from '../../service/CombatManager';
 
 export const ReplayControls: React.FC = () => {
     const { replay, mode } = useCombatManager();

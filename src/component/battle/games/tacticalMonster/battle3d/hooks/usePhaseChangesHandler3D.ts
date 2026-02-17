@@ -4,14 +4,16 @@
 
 import { useModalManager } from "@/service/ModalManager";
 import { useCallback } from "react";
-import { useCombatManager } from "../../battle/service/CombatManager";
-import { useBossAIHandler } from "../../battle/service/handler/hooks/useBossAIHandler";
-import { applyStateChanges } from "../../battle/service/handler/utils/backendResponseUtils";
-import { findTargetByIdentifier, getTargetsFromAction } from "../../battle/service/handler/utils/characterUtils";
+import { flushSync } from "react-dom";
+import { useCombatManager } from "../../service/CombatManager";
+import { useBossAIHandler } from "../../service/handler/hooks/useBossAIHandler";
+import { applyStateChanges } from "../../service/handler/utils/backendResponseUtils";
+import { findTargetByIdentifier, getTargetsFromAction } from "../../service/handler/utils/characterUtils";
 import type { CharacterIdentifier } from "../../types/gameTypes";
 import { usePlayPhase3D } from "../animation/usePlayPhase3D";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
 import { usePlayWalk3D } from "../animation/usePlayWalk3D";
+import { getCharacterKey } from "../utils/battle3DAdapter";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import type { UseBattleGridStateReturn } from "./useBattleGridState";
 
@@ -28,7 +30,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
 
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
     const { playWalk } = usePlayWalk3D({ mapDimension, playbackSpeed });
-    const { playTurnStart, playTurnOn } = usePlayPhase3D(gridState);
+    const { playTurnStart, playTurnOn, refreshWalkableFromPosition } = usePlayPhase3D(gridState);
 
     const findTargetByIdentifierWrapper = useCallback(
         (identifier: CharacterIdentifier, excludeBoss?: boolean) => {
@@ -72,74 +74,96 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
             }
 
             if (phaseChanges.bossAIActions && phaseChanges.bossAIActions.length > 0) {
+
+                console.log("[handlePhaseChanges] bossAIActions", phaseChanges.bossAIActions.length, phaseChanges.bossAIActions);
+
                 for (const bossAIActionItem of phaseChanges.bossAIActions) {
                     const { turnStart, decision, executionResults, phaseTransition } = bossAIActionItem;
-                    const { uid, monsterId } = turnStart;
+                    const { uid, monsterId, bossId, minionId } = turnStart;
 
-                    if (game.currentRound) {
-                        const currentTurn = game.currentRound.turns.find(
-                            (t) => t.uid === uid && t.monsterId === monsterId
-                        );
+                    const character =
+                        (bossId != null && characters.find((c) => (c as any).character_id === bossId)) ||
+                        (minionId != null && characters.find((c) => (c as any).character_id === minionId)) ||
+                        characters.find((c) => c.uid === uid && c.monsterId === monsterId);
+
+                    if (character) {
+                        flushSync(() => {
+                            setActiveCharacterKey(getCharacterKey(character));
+                        });
+                        if (gridState && character.q != null && character.r != null) {
+                            gridState.clearAll();
+                            gridState.setSelected({ q: character.q, r: character.r });
+                        }
+                    }
+
+                    const currentTurn =
+                        game.currentRound?.turns.find(
+                            (t) =>
+                                t.uid === uid &&
+                                t.monsterId === monsterId &&
+                                (bossId == null || (t as any).bossId === bossId) &&
+                                (minionId == null || (t as any).minionId === minionId)
+                        ) ?? null;
+
+                    if (currentTurn) currentTurn.status = 2;
+
+                    if (character && decision) {
+                        const statusEffectChanges = turnStart.statusEffectChanges;
+                        if (statusEffectChanges?.characterState && character.stats) {
+                            character.stats.hp.current = statusEffectChanges.characterState.hp;
+                            if (statusEffectChanges.characterState.mp !== undefined && character.stats.mp) {
+                                character.stats.mp.current = statusEffectChanges.characterState.mp;
+                            }
+                            if (statusEffectChanges.characterState.status) {
+                                character.status = statusEffectChanges.characterState.status as "normal" | "stunned" | "dead";
+                            }
+                        }
                         if (currentTurn) {
-                            currentTurn.status = 2;
-                            const character = characters.find(
-                                (c) => c.uid === uid && c.monsterId === monsterId
+                            const bossPhaseChanges = { ...phaseChanges, turnStart };
+                            const turnStartTimeline = await playTurnStart(
+                                character,
+                                currentTurn,
+                                bossPhaseChanges
                             );
-                            if (character && currentTurn) {
-                                const statusEffectChanges = turnStart.statusEffectChanges;
-                                if (statusEffectChanges?.characterState && character.stats) {
-                                    character.stats.hp.current = statusEffectChanges.characterState.hp;
-                                    if (statusEffectChanges.characterState.mp !== undefined && character.stats.mp) {
-                                        character.stats.mp.current = statusEffectChanges.characterState.mp;
+                            if (turnStartTimeline && turnStartTimeline.duration() > 0) {
+                                await new Promise<void>((resolve) => {
+                                    if (
+                                        !turnStartTimeline.isActive() &&
+                                        turnStartTimeline.progress() >= 1
+                                    ) {
+                                        resolve();
+                                        return;
                                     }
-                                    if (statusEffectChanges.characterState.status) {
-                                        character.status = statusEffectChanges.characterState.status as "normal" | "stunned" | "dead";
-                                    }
-                                }
-                                const bossPhaseChanges = { ...phaseChanges, turnStart };
-                                const turnStartTimeline = await playTurnStart(
-                                    character,
-                                    currentTurn,
-                                    bossPhaseChanges
-                                );
-                                if (turnStartTimeline && turnStartTimeline.duration() > 0) {
-                                    await new Promise<void>((resolve) => {
-                                        if (
-                                            !turnStartTimeline.isActive() &&
-                                            turnStartTimeline.progress() >= 1
-                                        ) {
-                                            resolve();
-                                            return;
-                                        }
-                                        turnStartTimeline.eventCallback("onComplete", () => {
-                                            turnStartTimeline.eventCallback("onComplete", null);
-                                            resolve();
-                                        });
+                                    turnStartTimeline.eventCallback("onComplete", () => {
+                                        turnStartTimeline.eventCallback("onComplete", null);
+                                        resolve();
                                     });
-                                }
-                                await handleBossAIAction({
-                                    decision,
-                                    executionResults,
-                                    phaseTransition,
                                 });
-                                if (executionResults) {
-                                    if (executionResults.boss?.stateChanges) {
+                            }
+                        }
+                        await handleBossAIAction({
+                            turnStart: { uid, monsterId, bossId, minionId },
+                            character,
+                            decision,
+                            executionResults,
+                            phaseTransition,
+                        });
+                        if (executionResults) {
+                            if (executionResults.boss?.stateChanges) {
+                                applyStateChanges(
+                                    executionResults.boss.stateChanges,
+                                    characters
+                                );
+                            }
+                            if (executionResults.minions && Array.isArray(executionResults.minions)) {
+                                executionResults.minions.forEach((minionResult: any) => {
+                                    if (minionResult.result?.stateChanges) {
                                         applyStateChanges(
-                                            executionResults.boss.stateChanges,
+                                            minionResult.result.stateChanges,
                                             characters
                                         );
                                     }
-                                    if (executionResults.minions && Array.isArray(executionResults.minions)) {
-                                        executionResults.minions.forEach((minionResult: any) => {
-                                            if (minionResult.result?.stateChanges) {
-                                                applyStateChanges(
-                                                    minionResult.result.stateChanges,
-                                                    characters
-                                                );
-                                            }
-                                        });
-                                    }
-                                }
+                                });
                             }
                         }
                     }
@@ -215,5 +239,5 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
         ]
     );
 
-    return { handlePhaseChanges };
+    return { handlePhaseChanges, refreshWalkableFromPosition };
 };
