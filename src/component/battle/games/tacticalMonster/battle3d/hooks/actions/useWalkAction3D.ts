@@ -84,7 +84,7 @@ export const useWalkAction3D = (
             const moveRange = character.move_range ?? 3;
             const remainingSteps = moveRange - stepsUsedThisTurnRef.current;
             if (pathSteps > remainingSteps) {
-                console.warn("[HexDebug] walk path over remainingSteps", {
+                console.warn("[HexDebug] walk pathSteps over remainingSteps", {
                     pathSteps,
                     remainingSteps,
                     moveRange,
@@ -99,7 +99,6 @@ export const useWalkAction3D = (
                 character
             );
 
-            // 本步用尽剩余步数（走到暗区）时传 forceEndTurn，后端结束回合并返回 phaseChanges；pathSteps > remainingSteps 为异常，不设 forceEndTurn
             const forceEndTurn = pathSteps === remainingSteps;
             const backendRequestPromise = convex.mutation(
                 (api as any).service.game.gameService.walk,

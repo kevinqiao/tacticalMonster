@@ -4,7 +4,7 @@
  */
 
 import { GameMonster } from "../../types/monsterTypes";
-import { offsetHexDistance } from "../../utils/hexUtils";
+import { offsetHexDistance, offsetBfsStepDistance } from "../../utils/hexUtils";
 import { CharacterIdentifier, GameModel } from "../../types/gameTypes";
 import { RoundService } from "./roundService";
 
@@ -192,18 +192,17 @@ export class GameActionValidator {
             return { valid: false, message: "游戏不存在" };
         }
 
-        // 计算移动距离（offset 距离，与前端可行走范围一致）
-        const distance = offsetHexDistance(from, to);
         const moveRange = character.move_range ?? 3;
+        const isFlying = character.canIgnoreObstacles || character.isFlying;
 
-        // 验证移动距离是否在范围内
+        // 飞行单位：按 BFS 步数校验；陆地单位：按 offset 距离校验（BFS 步数 = offset 距离，无障碍时一致）
+        const distance = isFlying && this.game.map
+            ? offsetBfsStepDistance(from, to, this.game.map.cols, this.game.map.rows)
+            : offsetHexDistance(from, to);
         if (distance > moveRange) {
             return { valid: false, message: `移动距离 ${distance} 超出移动范围 ${moveRange}` };
         }
 
-        // 如果是飞行单位，可以忽略障碍物，只检查基本位置有效性（地图范围、禁用区域）和角色占用
-        const isFlying = character.canIgnoreObstacles || character.isFlying;
-        
         if (isFlying) {
             // 飞行单位：只检查地图范围和禁用区域，不检查障碍物
             if (!this.game.map) {

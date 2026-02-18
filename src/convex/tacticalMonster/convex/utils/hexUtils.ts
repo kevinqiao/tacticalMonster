@@ -44,6 +44,48 @@ export function getHexesInRange(center: HexCoord, radius: number): HexCoord[] {
     return hexes;
 }
 
+/** Offset (even-r) 6 邻格，与前端 PathFind.getOffsetNeighborDirs 一致 */
+export function getOffsetNeighbors(hex: HexCoord, cols: number, rows: number): HexCoord[] {
+    const r = hex.r;
+    const dirs = r % 2 === 0
+        ? [
+            { dq: 1, dr: 0 }, { dq: 0, dr: -1 }, { dq: -1, dr: -1 },
+            { dq: -1, dr: 0 }, { dq: -1, dr: 1 }, { dq: 0, dr: 1 },
+        ]
+        : [
+            { dq: 1, dr: 0 }, { dq: 1, dr: -1 }, { dq: 0, dr: -1 },
+            { dq: -1, dr: 0 }, { dq: 0, dr: 1 }, { dq: 1, dr: 1 },
+        ];
+    return dirs
+        .map((d) => ({ q: hex.q + d.dq, r: hex.r + d.dr }))
+        .filter((n) => n.q >= 0 && n.q < cols && n.r >= 0 && n.r < rows);
+}
+
+/** 飞行单位 BFS 步数：可经过任意格，与前端 findPathBFS 一致 */
+export function offsetBfsStepDistance(
+    from: HexCoord,
+    to: HexCoord,
+    cols: number,
+    rows: number
+): number {
+    const visited = new Set<string>();
+    const queue: { coord: HexCoord; steps: number }[] = [{ coord: from, steps: 0 }];
+    visited.add(`${from.q},${from.r}`);
+
+    while (queue.length > 0) {
+        const { coord, steps } = queue.shift()!;
+        if (coord.q === to.q && coord.r === to.r) return steps;
+        for (const n of getOffsetNeighbors(coord, cols, rows)) {
+            const key = `${n.q},${n.r}`;
+            if (!visited.has(key)) {
+                visited.add(key);
+                queue.push({ coord: n, steps: steps + 1 });
+            }
+        }
+    }
+    return Infinity;
+}
+
 /**
  * 轴向 6 邻格（与前端 AXIAL_NEIGHBOR_DIRS 一致）
  */

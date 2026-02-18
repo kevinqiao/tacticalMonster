@@ -6,8 +6,11 @@
 import { MonsterSkill } from "../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { AttackableNode, HexNode, WalkableNode } from "../types/CombatTypes";
 
+/** 寻路网格单元：至少含 q,r，非飞行时需 walkable */
+type WalkGridCell = HexNode & { walkable?: boolean };
+
 /** Offset (even-r) 六边形距离，与网格步数、后端 offsetHexDistance 一致 */
-const offsetHexDistance = (from: HexNode, to: HexNode): number => {
+export const offsetHexDistance = (from: HexNode, to: HexNode): number => {
     const dq = Math.abs(from.q - to.q);
     const dr = Math.abs(from.r - to.r);
     return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
@@ -76,19 +79,56 @@ const findDirectPath = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNo
     return path;
 };
 
+/** 飞行单位 BFS 寻路：可经过任意格，路径长度 = 步数 */
+const findPathBFS = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNode[] => {
+    const rows = grid.length;
+    const cols = grid[0]?.length ?? 0;
+    const inBounds = (q: number, r: number) => r >= 0 && r < rows && q >= 0 && q < cols;
+    const getNeighbors = (pos: HexNode): HexNode[] =>
+        getOffsetNeighborDirs(pos.r)
+            .map((dir) => ({ q: pos.q + dir.dq, r: pos.r + dir.dr }))
+            .filter((n) => inBounds(n.q, n.r));
+
+    const cameFrom = new Map<string, HexNode>();
+    const queue: HexNode[] = [start];
+
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+        if (current.q === goal.q && current.r === goal.r) {
+            const path: HexNode[] = [current];
+            let key = `${current.q},${current.r}`;
+            let prev: HexNode | undefined;
+            while ((prev = cameFrom.get(key)) !== undefined) {
+                path.unshift(prev);
+                if (prev.q === start.q && prev.r === start.r) break;
+                key = `${prev.q},${prev.r}`;
+            }
+            return path;
+        }
+        for (const n of getNeighbors(current)) {
+            const k = `${n.q},${n.r}`;
+            if (!cameFrom.has(k)) {
+                cameFrom.set(k, current);
+                queue.push(n);
+            }
+        }
+    }
+    return [start];
+};
+
 export const findPath = (
-    grid: HexNode[][],
+    grid: WalkGridCell[][],
     start: HexNode,
     goal: HexNode,
-    canIgnoreObstacles?: boolean,  // 是否可以忽略障碍物（飞行单位）
+    canIgnoreObstacles?: boolean,  // 飞行单位：BFS 步数寻路
     _debugLabel?: string            // 调试：调用来源 "walk" | "attack" 等，便于区分日志
 ): HexNode[] => {
     if (canIgnoreObstacles) {
-        return findDirectPath(start, goal, grid);
+        return findPathBFS(start, goal, grid);
     }
 
     const isWalkable = (q: number, r: number): boolean => {
-        if (r < 0 || r >= grid.length || q < 0 || q >= grid[0].length) return false;
+        if (r < 0 || r >= grid.length || q < 0 || q >= (grid[0]?.length ?? 0)) return false;
         return grid[r][q].walkable ?? false;
     };
 
@@ -163,106 +203,62 @@ export const findPath = (
 };
 
 export const getWalkableNodes = (
-    gridCells: HexNode[][],
+    gridCells: WalkGridCell[][],
     start: { q: number, r: number },
     moveRange: number,
-    canIgnoreObstacles?: boolean  // 是否可以忽略障碍物（飞行单位）
+    canIgnoreObstacles?: boolean  // 飞行/陆地：统一按 BFS 步数（offset 步数）
 ): WalkableNode[] => {
-    // 飞行单位：计算范围内的所有格子（忽略障碍物），与非飞行一致使用 offset 距离
-    if (canIgnoreObstacles) {
-        const movableNodes: WalkableNode[] = [];
-        const rows = gridCells.length;
-        const cols = gridCells[0]?.length || 0;
-        const startNode = { q: start.q, r: start.r };
+    const rows = gridCells.length;
+    const cols = gridCells[0]?.length ?? 0;
+    const startNode = { q: start.q, r: start.r };
 
-        for (let r = 0; r < rows; r++) {
-            for (let q = 0; q < cols; q++) {
-                const distance = offsetHexDistance(startNode, { q, r });
+    const inBounds = (q: number, r: number) =>
+        r >= 0 && r < rows && q >= 0 && q < cols;
 
-                if (distance > 0 && distance <= moveRange) {
-                    movableNodes.push({ q, r, distance, walkable: true });
-                }
-            }
-        }
-
-        console.log("[HexDebug] getWalkableNodes flying", {
-            start: { q: start.q, r: start.r },
-            moveRange,
-            count: movableNodes.length,
-            sample: movableNodes.slice(0, 3).map((n) => ({ q: n.q, r: n.r, distance: n.distance })),
-        });
-        return movableNodes;
-    }
-
-    // 非飞行单位：使用BFS算法（考虑障碍物）
-    const movableNodes: WalkableNode[] = [];
-    const visited = new Set<string>();
-    const queue: { node: HexNode, distance: number }[] = [];
-
-    queue.push({ node: { q: start.q, r: start.r }, distance: 0 });
-    visited.add(`${start.q},${start.r}`);
-
-    // offset (even-r) 6 邻格，与网格显示一致
-    const getNeighbors = (pos: HexNode): HexNode[] => {
+    // 飞行：BFS 按步数扩展，可越过障碍（扩展时经任意格），仅可落点加入结果；陆地：BFS 仅经 walkable 格
+    const getNeighbors = (pos: HexNode, flying: boolean): HexNode[] => {
         return getOffsetNeighborDirs(pos.r)
             .map((dir) => ({ q: pos.q + dir.dq, r: pos.r + dir.dr }))
             .filter((neighbor) => {
-                if (
-                    neighbor.r < 0 ||
-                    neighbor.r >= gridCells.length ||
-                    neighbor.q < 0 ||
-                    neighbor.q >= (gridCells[0]?.length ?? 0)
-                )
-                    return false;
+                if (!inBounds(neighbor.q, neighbor.r)) return false;
+                if (flying) return true;
                 return gridCells[neighbor.r][neighbor.q].walkable ?? false;
             });
     };
 
+    const movableNodes: WalkableNode[] = [];
+    const visited = new Set<string>();
+    const queue: { node: HexNode; distance: number }[] = [];
+    queue.push({ node: { q: start.q, r: start.r }, distance: 0 });
+    visited.add(`${start.q},${start.r}`);
+
     while (queue.length > 0) {
         const { node, distance } = queue.shift()!;
-        movableNodes.push({ ...node, distance });
+        const canLand = gridCells[node.r]?.[node.q]?.walkable !== false;
+        if (canLand) movableNodes.push({ ...node, distance });
 
         if (distance < moveRange) {
-            const neighbors = getNeighbors(node);
+            const neighbors = getNeighbors(node, !!canIgnoreObstacles);
             for (const neighbor of neighbors) {
                 const key = `${neighbor.q},${neighbor.r}`;
                 if (!visited.has(key)) {
                     visited.add(key);
-                    queue.push({
-                        node: neighbor,
-                        distance: distance + 1
-                    });
+                    queue.push({ node: neighbor, distance: distance + 1 });
                 }
             }
         }
     }
 
-    // 与 BFS 一致：用 offset 距离过滤，可行走范围边界统一（不再混用轴向导致有远有近）
-    const startNode = { q: start.q, r: start.r };
-    const filtered = movableNodes.filter((n) => offsetHexDistance(startNode, n) <= moveRange);
-
-    // 调试：可移动范围（offset 距离）
-    const distances = filtered.map((n) => offsetHexDistance(startNode, n));
-    const maxDist = distances.length ? Math.max(...distances) : -1;
-    const overRangeCells = filtered.filter((n) => offsetHexDistance(startNode, n) > moveRange);
-
-    console.log("[HexDebug] getWalkableNodes BFS", {
+    const filtered = movableNodes.filter((n) => {
+        const d = n.distance ?? 0;
+        return d > 0 && d <= moveRange;
+    });
+    console.log("[HexDebug] getWalkableNodes BFS (offset steps)", {
+        flying: !!canIgnoreObstacles,
         start: { q: start.q, r: start.r },
         moveRange,
-        gridShape: [gridCells.length, gridCells[0]?.length ?? 0],
-        beforeFilter: movableNodes.length,
-        afterFilter: filtered.length,
-        maxOffsetDistInResult: maxDist,
-        overRangeInResult: overRangeCells.length,
-        sample: filtered.slice(0, 4).map((n) => ({ q: n.q, r: n.r, offsetD: offsetHexDistance(startNode, n) })),
+        count: filtered.length,
     });
-    if (overRangeCells.length > 0) {
-        console.warn("[HexDebug] getWalkableNodes 过滤后仍存在 offsetD > moveRange", {
-            moveRange,
-            overRange: overRangeCells.slice(0, 5).map((n) => ({ q: n.q, r: n.r, offsetD: offsetHexDistance(startNode, n) })),
-        });
-    }
-
     return filtered;
 };
 
@@ -271,7 +267,7 @@ export const getWalkableNodes = (
  * PVE模式：enemies参数包含Boss角色（Boss本体 + 小怪，uid="boss"）
  */
 export const getAttackableNodes = (
-    gridCells: HexNode[][],
+    gridCells: WalkGridCell[][],
     attacker: { q: number, r: number, uid: string, character_id: string, moveRange: number, attackRange: { min: number, max: number } },
     enemies: { q: number, r: number, uid: string, character_id: string }[],  // PVE模式：Boss角色列表
     skill: MonsterSkill | null

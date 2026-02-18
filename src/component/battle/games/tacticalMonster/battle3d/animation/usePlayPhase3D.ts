@@ -7,10 +7,10 @@ import gsap from "gsap";
 import { useCallback } from "react";
 import { getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { useCombatManager } from "../../service/CombatManager";
-import { getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
-import { showDamageNumber } from "../../utils/damageNumberDisplay";
 import type { MonsterSprite } from "../../types/CombatTypes";
 import type { GameTurn } from "../../types/gameTypes";
+import { getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
+import { showDamageNumber } from "../../utils/damageNumberDisplay";
 import type { UseBattleGridStateReturn } from "../hooks/useBattleGridState";
 import { getCharacterKey } from "../utils/battle3DAdapter";
 import { usePlaySkill3D } from "./usePlaySkill3D";
@@ -141,13 +141,15 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             const grid = groundCells.map((row) =>
                 row.map((cell) => {
                     const char = characters.find((c) => c.q === cell.q && c.r === cell.r);
+                    const obstacle = map?.obstacles?.find((o) => o.q === cell.q && o.r === cell.r);
                     return {
                         q: cell.q,
                         r: cell.r,
-                        walkable: char ? false : !cell.disable,
+                        walkable: char || obstacle || cell.disable ? false : true,
                     };
                 })
             );
+            console.log("[HexDebug] playTurnOn map", map);
             const walkableNodes = getWalkableNodes(grid, startLogic, moveRange, canIgnoreObstacles);
             character.walkables = walkableNodes;
             const walkableCells = walkableNodes
