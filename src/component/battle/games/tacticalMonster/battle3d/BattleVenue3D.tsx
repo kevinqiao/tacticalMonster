@@ -7,13 +7,13 @@ import { GridGround3D } from "@/component/battle/games/tacticalMonster/battle3d/
 import { GridHighlight3D } from "@/component/battle/games/tacticalMonster/battle3d/view/GridHighlight3D";
 import { ObstacleGrid3D } from "@/component/battle/games/tacticalMonster/battle3d/view/ObstacleGrid3D";
 import { TurnOrderBar } from "@/component/battle/games/tacticalMonster/battle3d/view/TurnOrderBar";
-import { OrbitControls, useGLTF, useProgress } from "@react-three/drei";
+import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { useCombatManager } from "../service/CombatManager";
 import "../battle/style.css";
+import { useCombatManager } from "../service/CombatManager";
 import { BattleLoadingContext } from "./BattleLoadingContext";
 import { useBattleGridState, type BattleCellState } from "./hooks/useBattleGridState";
 import useCombatActHandler3D from "./hooks/useCombatActHandler3D";
@@ -220,7 +220,7 @@ const CanvasWithControls: React.FC<{
                 ref={controlsRef}
                 enablePan={isPortrait}
                 enableZoom={true}
-                enableRotate={!isPortrait}
+                enableRotate={false}
                 target={target}
                 minDistance={isPortrait ? undefined : minDistance}
                 maxDistance={isPortrait ? undefined : maxDistance}

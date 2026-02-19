@@ -30,7 +30,7 @@ export const useWalkAction3D = (
     mapDimension: BattleMapDimension | null,
     refreshWalkableFromPosition?: (character: any, moveRange: number, onlyFurthestLayer?: boolean) => void
 ) => {
-    const { setCharacterAnimating } = useCombatManager();
+    const { setCharacterAnimating, setActiveCharacterKey } = useCombatManager();
     const stepsUsedThisTurnRef = useRef(0);
     const lastTurnKeyRef = useRef<string | null>(null);
 
@@ -46,6 +46,14 @@ export const useWalkAction3D = (
             if (charKey !== lastTurnKeyRef.current) {
                 lastTurnKeyRef.current = charKey;
                 stepsUsedThisTurnRef.current = 0;
+            }
+            // 与后端 currentTurn.stepsUsed 同步，避免重载/回放后本地 ref 落后于后端
+            const currentTurn = game?.currentRound?.turns?.find(
+                (t: any) => t.status === 1 && t.uid === character.uid && t.monsterId === character.monsterId
+            );
+            const backendStepsUsed = (currentTurn?.stepsUsed ?? 0) as number;
+            if (backendStepsUsed > stepsUsedThisTurnRef.current) {
+                stepsUsedThisTurnRef.current = backendStepsUsed;
             }
             const originalPos = { q: character.q ?? 0, r: character.r ?? 0 };
 
@@ -99,7 +107,7 @@ export const useWalkAction3D = (
                 character
             );
 
-            const forceEndTurn = pathSteps === remainingSteps;
+            // 结束回合由后端根据 stepsUsedBefore>0（第二次点击行走）或步数用尽判定，前端不需传 endTurn/forceEndTurn
             const backendRequestPromise = convex.mutation(
                 (api as any).service.game.gameService.walk,
                 {
@@ -107,7 +115,6 @@ export const useWalkAction3D = (
                     to: { q: to.q, r: to.r },
                     identifier: characterIdentifier,
                     steps: pathSteps,
-                    forceEndTurn,
                 }
             );
             // console.log("[useWalkAction3D] backendRequestPromise", backendRequestPromise);
@@ -150,12 +157,17 @@ export const useWalkAction3D = (
                                 await handlePhaseChanges(result.phaseChanges);
                             } else {
                                 stepsUsedThisTurnRef.current += pathSteps;
-                                flushSync(() =>
-                                    refreshWalkableFromPosition?.(
-                                        character,
-                                        moveRange - stepsUsedThisTurnRef.current
-                                    )
-                                );
+                                const remainingAfter = moveRange - stepsUsedThisTurnRef.current;
+                                // 步数用尽时清除可行走高亮并结束回合 UI，避免出现「新的暗区」导致回合无法结束
+                                flushSync(() => {
+                                    if (remainingAfter <= 0) {
+                                        setActiveCharacterKey?.(null);
+                                        refreshWalkableFromPosition?.(character, 0, true);
+                                    } else {
+                                        // 部分移动后只显示暗区，remainingSteps 传 1
+                                        refreshWalkableFromPosition?.(character, 1, true);
+                                    }
+                                });
                             }
                             resolve();
                         } else {
@@ -166,7 +178,7 @@ export const useWalkAction3D = (
                             flushSync(() =>
                                 refreshWalkableFromPosition?.(
                                     character,
-                                    moveRange - stepsUsedThisTurnRef.current,
+                                    stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
                                     stepsUsedThisTurnRef.current > 0
                                 )
                             );
@@ -177,11 +189,11 @@ export const useWalkAction3D = (
                         rollbackToOriginal();
                         clearAnimatingState();
                         flushSync(() =>
-                            refreshWalkableFromPosition?.(
-                                character,
-                                moveRange - stepsUsedThisTurnRef.current,
-                                stepsUsedThisTurnRef.current > 0
-                            )
+                                refreshWalkableFromPosition?.(
+                                    character,
+                                    stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
+                                    stepsUsedThisTurnRef.current > 0
+                                )
                         );
                         reject(error);
                     }
@@ -198,6 +210,7 @@ export const useWalkAction3D = (
             handlePhaseChanges,
             mapDimension,
             setCharacterAnimating,
+            setActiveCharacterKey,
             refreshWalkableFromPosition,
         ]
     );

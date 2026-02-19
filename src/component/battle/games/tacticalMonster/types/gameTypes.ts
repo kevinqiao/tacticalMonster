@@ -80,6 +80,7 @@ export interface GameTurn {
     status?: number;  // 回合状态：0: open, 1: in_progress, 2: completed
     order?: number;   // 在 round 中的次序（从 1 开始），用于明确标识和 UI 显示
     dueTime?: number;
+    stepsUsed?: number;  // 本回合已用移动步数（重载/回放时与后端一致，用于只显示暗区）
 }
 /**
  * 技能效果类型（与后端 SkillEffectType 保持一致）

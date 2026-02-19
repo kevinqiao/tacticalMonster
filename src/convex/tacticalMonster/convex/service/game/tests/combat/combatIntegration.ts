@@ -223,9 +223,12 @@ export const testWalkFlow = internalMutation({
             const originalPosition = { q: playerMonster.q ?? 0, r: playerMonster.r ?? 0 };
             const newPosition = { q: originalPosition.q + 1, r: originalPosition.r };
 
-            const walkResult = await gameService.walk(testData.gameId, newPosition, {
-                monsterId: playerMonster.monsterId,
-            });
+            const walkResult = await gameService.walk(
+                testData.gameId,
+                newPosition,
+                { monsterId: playerMonster.monsterId },
+                { steps: 1 }
+            );
 
             if (!walkResult.success) {
                 testResult.errors.push("移动失败");

@@ -33,11 +33,12 @@ export class CharacterPositionService {
         if (!gameDoc) return false;
 
         if (bossId) {
-            // Boss主体：更新Boss位置（使用 position 对象符合 schema）
+            // Boss主体：更新Boss位置（Convex patch 不支持点号，需替换整个 boss 对象）
+            const existingBoss = gameDoc.boss || game.boss;
             await this.dbCtx.db.patch(gameDoc._id, {
-                "boss.position": {
-                    q: position.q,
-                    r: position.r,
+                boss: {
+                    ...existingBoss,
+                    position: { q: position.q, r: position.r },
                 },
                 lastUpdate: new Date().toISOString(),
             });
@@ -55,8 +56,12 @@ export class CharacterPositionService {
                         r: position.r,
                     },
                 };
+                const existingBoss = gameDoc.boss || game.boss;
                 await this.dbCtx.db.patch(gameDoc._id, {
-                    "boss.minions": updatedMinions,
+                    boss: {
+                        ...existingBoss,
+                        minions: updatedMinions,
+                    },
                     lastUpdate: new Date().toISOString(),
                 });
                 return true;

@@ -13,8 +13,8 @@ export interface HexCoord {
  */
 export function hexDistance(a: HexCoord, b: HexCoord): number {
     return (Math.abs(a.q - b.q) +
-            Math.abs(a.q + a.r - b.q - b.r) +
-            Math.abs(a.r - b.r)) / 2;
+        Math.abs(a.q + a.r - b.q - b.r) +
+        Math.abs(a.r - b.r)) / 2;
 }
 
 /**
@@ -32,7 +32,7 @@ export function offsetHexDistance(a: HexCoord, b: HexCoord): number {
  */
 export function getHexesInRange(center: HexCoord, radius: number): HexCoord[] {
     const hexes: HexCoord[] = [];
-    
+
     for (let q = -radius; q <= radius; q++) {
         const r1 = Math.max(-radius, -q - radius);
         const r2 = Math.min(radius, -q + radius);
@@ -40,7 +40,7 @@ export function getHexesInRange(center: HexCoord, radius: number): HexCoord[] {
             hexes.push({ q: center.q + q, r: center.r + r });
         }
     }
-    
+
     return hexes;
 }
 
@@ -98,7 +98,7 @@ export function getNeighbors(hex: HexCoord): HexCoord[] {
         { q: -1, r: 1 },
         { q: 0, r: 1 },
     ];
-    
+
     return directions.map(dir => ({
         q: hex.q + dir.q,
         r: hex.r + dir.r,
@@ -113,9 +113,9 @@ export function isInRegion(
     region: { minQ: number; maxQ: number; minR: number; maxR: number }
 ): boolean {
     return coord.q >= region.minQ &&
-           coord.q <= region.maxQ &&
-           coord.r >= region.minR &&
-           coord.r <= region.maxR;
+        coord.q <= region.maxQ &&
+        coord.r >= region.minR &&
+        coord.r <= region.maxR;
 }
 
 /**
@@ -153,7 +153,7 @@ export function selectRandomPositionInZone(
     random: { randomInt: (min: number, max: number) => number }
 ): HexCoord {
     const candidates: HexCoord[] = [];
-    
+
     // 生成区域内所有可能的坐标
     for (let q = region.minQ; q <= region.maxQ; q++) {
         for (let r = region.minR; r <= region.maxR; r++) {
@@ -163,11 +163,11 @@ export function selectRandomPositionInZone(
             }
         }
     }
-    
+
     if (candidates.length === 0) {
         throw new Error("No available positions in zone");
     }
-    
+
     const index = random.randomInt(0, candidates.length);
     return candidates[index];
 }
@@ -184,7 +184,7 @@ export function selectMinionPosition(
 ): HexCoord {
     // 获取Boss周围半径内的所有坐标
     const candidates = getHexesInRange(bossMain, radius)
-        .filter(coord => 
+        .filter(coord =>
             // 排除Boss主位置
             !(coord.q === bossMain.q && coord.r === bossMain.r) &&
             // 排除已存在的位置
@@ -192,7 +192,7 @@ export function selectMinionPosition(
             // 至少距离Boss 1格
             offsetHexDistance(coord, bossMain) >= 1
         );
-    
+
     if (candidates.length === 0) {
         // 如果半径内没有可用位置，扩大搜索范围
         return selectRandomPositionInZone(
@@ -206,6 +206,6 @@ export function selectMinionPosition(
             random
         );
     }
-    
+
     return random.choice(candidates);
 }

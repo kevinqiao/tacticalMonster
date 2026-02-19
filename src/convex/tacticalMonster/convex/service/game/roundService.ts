@@ -13,6 +13,19 @@ export class RoundService {
         this.dbCtx = dbCtx;
     }
 
+    /** 获取回合文档，有重复时取 _creationTime 最新的 */
+    async getRoundDoc(gameId: string, roundNumber: number): Promise<any | null> {
+        const docs = await this.dbCtx.db
+            .query("mr_game_round")
+            .withIndex("by_game_round", (q: any) =>
+                q.eq("gameId", gameId).eq("no", roundNumber)
+            )
+            .collect();
+        return docs.length > 0
+            ? docs.reduce((a:any, b:any) => (a._creationTime > b._creationTime ? a : b))
+            : null;
+    }
+
     /**
      * 创建新回合
      * Braveland 式全局回合顺序：收集所有存活角色（玩家+Boss+小怪），按 speed 降序排序；
@@ -99,7 +112,15 @@ export class RoundService {
             order: index + 1, // 次序（从 1 开始）
         }));
 
-        // 6. 创建回合记录
+        // 6. 创建回合记录（若已存在则跳过，防止重复）
+        const existing = await this.dbCtx.db
+            .query("mr_game_round")
+            .withIndex("by_game_round", (q: any) =>
+                q.eq("gameId", gameId).eq("no", roundNumber)
+            )
+            .first();
+        if (existing) return true;
+
         const roundObj = {
             gameId,
             no: roundNumber,
@@ -116,12 +137,7 @@ export class RoundService {
      * 标记当前回合为已完成
      */
     async endRound(gameId: string, roundNumber: number): Promise<boolean> {
-        const roundDoc = await this.dbCtx.db
-            .query("mr_game_round")
-            .withIndex("by_game_round", (q: any) =>
-                q.eq("gameId", gameId).eq("no", roundNumber)
-            )
-            .unique();
+        const roundDoc = await this.getRoundDoc(gameId, roundNumber);
 
         if (roundDoc) {
             await this.dbCtx.db.patch(roundDoc._id, {
@@ -141,12 +157,7 @@ export class RoundService {
         roundDoc: any;
         currentTurn: GameTurn | null;
     } | null> {
-        const roundDoc = await this.dbCtx.db
-            .query("mr_game_round")
-            .withIndex("by_game_round", (q: any) =>
-                q.eq("gameId", gameId).eq("no", roundNumber)
-            )
-            .unique();
+        const roundDoc = await this.getRoundDoc(gameId, roundNumber);
 
         if (!roundDoc) {
             return null;

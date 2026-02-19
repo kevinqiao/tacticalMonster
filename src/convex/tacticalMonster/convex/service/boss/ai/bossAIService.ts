@@ -164,9 +164,10 @@ export class BossAIService {
             );
 
             if (phaseCheck.shouldTransition && phaseCheck.newPhase) {
-                // 更新阶段（更新到 mr_games 表的 boss 字段）
+                // 更新阶段（Convex patch 不支持点号，需替换整个 boss 对象）
+                const existingBoss = game.boss || {};
                 await ctx.db.patch(game._id, {
-                    "boss.currentPhase": phaseCheck.newPhase,
+                    boss: { ...existingBoss, currentPhase: phaseCheck.newPhase },
                     lastUpdate: new Date().toISOString(),
                 });
 

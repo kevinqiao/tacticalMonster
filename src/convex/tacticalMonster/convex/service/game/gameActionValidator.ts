@@ -3,9 +3,9 @@
  * 负责验证游戏操作的有效性（游戏状态、回合、权限、位置等）
  */
 
-import { GameMonster } from "../../types/monsterTypes";
-import { offsetHexDistance, offsetBfsStepDistance } from "../../utils/hexUtils";
 import { CharacterIdentifier, GameModel } from "../../types/gameTypes";
+import { GameMonster } from "../../types/monsterTypes";
+import { offsetBfsStepDistance } from "../../utils/hexUtils";
 import { RoundService } from "./roundService";
 
 /**
@@ -76,11 +76,12 @@ export class GameActionValidator {
         const game = this.game; // 保存引用以避免重复检查
 
         // 使用回合服务获取当前回合
-        const roundInfo = await this.roundService.getCurrentRound(game.gameId, game.currentRound.no ?? 0);
+        const roundInfo = await this.roundService.getCurrentRound(game.gameId, game.currentRound?.no ?? 0);
         if (!roundInfo) {
             return { valid: false, message: "当前回合不存在" };
         }
 
+        console.log("validateTurn roundInfo", roundInfo, characterIdentifier);
         const { currentTurn } = roundInfo;
 
         if (!currentTurn) {
@@ -97,7 +98,7 @@ export class GameActionValidator {
         if (!character) {
             return { valid: false, message: "角色不存在" };
         }
-
+        console.log("validateTurn character", character);
         if (currentTurn.uid !== character.uid || currentTurn.monsterId !== character.monsterId) {
             return { valid: false, message: "不是当前回合，无法执行操作" };
         }
@@ -195,10 +196,12 @@ export class GameActionValidator {
         const moveRange = character.move_range ?? 3;
         const isFlying = character.canIgnoreObstacles || character.isFlying;
 
-        // 飞行单位：按 BFS 步数校验；陆地单位：按 offset 距离校验（BFS 步数 = offset 距离，无障碍时一致）
-        const distance = isFlying && this.game.map
-            ? offsetBfsStepDistance(from, to, this.game.map.cols, this.game.map.rows)
-            : offsetHexDistance(from, to);
+        // 行走/飞行统一按 BFS 步数校验（实际以 gameActionService 收到的 steps 为准）
+        if (!this.game.map) {
+            return { valid: false, message: "地图信息不存在" };
+        }
+        const { cols, rows } = this.game.map;
+        const distance = offsetBfsStepDistance(from, to, cols, rows);
         if (distance > moveRange) {
             return { valid: false, message: `移动距离 ${distance} 超出移动范围 ${moveRange}` };
         }

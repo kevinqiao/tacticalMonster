@@ -9,6 +9,7 @@ import { internalMutation, mutation } from "../../../_generated/server";
 import { CharacterQueryService } from "../../game/characterQueryService";
 import { GameLifecycleService } from "../../game/gameLifecycleService";
 import { GameService } from "../../game/gameService";
+import { offsetBfsStepDistance } from "../../../utils/hexUtils";
 import { BossAIService } from "./bossAIService";
 
 /**
@@ -172,11 +173,16 @@ export const executeBossAction = internalMutation({
 
             case "move":
                 if (action.position) {
-                    // 执行移动（返回 phaseChanges）
+                    const from = { q: actor.q ?? 0, r: actor.r ?? 0 };
+                    const map = gameBefore?.map;
+                    const cols = map?.cols ?? 20;
+                    const rows = map?.rows ?? 20;
+                    const steps = offsetBfsStepDistance(from, action.position, cols, rows);
                     actionResult = await gameManager.walk(
                         gameId,
                         action.position,
-                        identifier
+                        identifier,
+                        { steps }
                     );
                 }
                 break;

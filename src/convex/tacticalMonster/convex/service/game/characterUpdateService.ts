@@ -75,8 +75,9 @@ export class CharacterUpdateService {
                         cooldowns: character.skillCooldowns || {},  // schema 中使用 cooldowns
                     };
 
+                    const existingBoss = gameDoc.boss || game.boss || {};
                     await this.dbCtx.db.patch(gameDoc._id, {
-                        "boss.minions": updatedMinions,
+                        boss: { ...existingBoss, minions: updatedMinions },
                         lastUpdate: new Date().toISOString(),
                     });
                     return true;

@@ -138,9 +138,12 @@ export const testCompleteCombatFlow = internalMutation({
                     const originalPosition = { q: updatedPlayer.q ?? 0, r: updatedPlayer.r ?? 0 };
                     const newPosition = { q: originalPosition.q + 1, r: originalPosition.r };
 
-                    const walkResult = await gameService.walk(testData.gameId, newPosition, {
-                        monsterId: playerMonster.monsterId,
-                    });
+                    const walkResult = await gameService.walk(
+                        testData.gameId,
+                        newPosition,
+                        { monsterId: playerMonster.monsterId },
+                        { steps: 1 }
+                    );
 
                     if (walkResult.success) {
                         testResult.steps.push("✓ 移动成功");

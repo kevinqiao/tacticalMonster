@@ -6,7 +6,6 @@
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { getSkillConfig } from "../../data/skillConfigs";
 import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
-import { offsetHexDistance } from "../../utils/hexUtils";
 import { GameMonster } from "../../types/monsterTypes";
 import { SkillManager } from "../skill/skillManager";
 import { CharacterPositionService } from "./characterPositionService";
@@ -56,7 +55,7 @@ export class GameActionService {
         gameId: string,
         to: { q: number; r: number },
         identifier: CharacterIdentifier,
-        options?: { endTurn?: boolean; steps?: number; forceEndTurn?: boolean }
+        options?: { steps?: number; endTurn?: boolean; forceEndTurn?: boolean }
     ): Promise<{
         success: boolean;
         message?: string;
@@ -80,11 +79,10 @@ export class GameActionService {
 
         const from = { q: character.q ?? 0, r: character.r ?? 0 };
         const moveRange = character.move_range ?? 3;
-        const straightDistance = offsetHexDistance(from, to);
-        const thisWalkSteps =
-            options?.steps !== undefined
-                ? Math.floor(Number(options.steps))
-                : straightDistance;
+        if (options?.steps === undefined) {
+            return { success: false, message: "steps_required: walk must provide options.steps (BFS path length)" };
+        }
+        const thisWalkSteps = Math.floor(Number(options.steps));
         if (thisWalkSteps < 0) return { success: false, message: "invalid_steps" };
 
         const roundNumber = game.currentRound?.no ?? 0;
@@ -97,7 +95,7 @@ export class GameActionService {
                 message: `steps_over_range: usedBefore=${stepsUsedBefore} thisWalk=${thisWalkSteps} newTotal=${newStepsUsed} moveRange=${moveRange}`,
             };
         }
-
+        console.log("validateAction identifier", identifier, stepsUsedBefore, thisWalkSteps, newStepsUsed, moveRange);
         const validationResult = await this.validator.validateAction(identifier, {
             validatePosition: { from, to }
         });
@@ -114,11 +112,10 @@ export class GameActionService {
         );
         if (!success) return { success: false, message: "position_update_failed" };
 
-        const forceEndTurnValid =
-            options?.forceEndTurn === true && stepsUsedBefore + straightDistance >= moveRange;
-        const endTurn =
-            options?.endTurn ??
-            (forceEndTurnValid || newStepsUsed >= moveRange);
+        // 结束回合：步数用尽 或 第二次点击行走（stepsUsedBefore>0 表示已做过部分移动，本次为点击暗区）
+        const stepsExhausted = newStepsUsed >= moveRange;
+        const isSecondWalk = stepsUsedBefore > 0;
+        const endTurn = stepsExhausted || isSecondWalk;
 
         if (endTurn) {
             // 结束当前 turn，推进回合和阶段（自动处理 turnEnd, roundEnd, turnStart, Boss AI）
@@ -207,7 +204,7 @@ export class GameActionService {
         this.characterQueryService.setGame(game);
         // 同步更新 validator 的游戏状态引用
         (this.validator as any).game = game;
-
+        console.log("attack data", data);
         // === 验证层 ===
         const validationResult = await this.validator.validateAction(data.attacker);
 
@@ -276,12 +273,7 @@ export class GameActionService {
         const roundNumber = game.currentRound?.no ?? 0;
 
         // 从数据库查询当前回合
-        const roundDoc = await this.dbCtx.db
-            .query("mr_game_round")
-            .withIndex("by_game_round", (q: any) =>
-                q.eq("gameId", gameId).eq("no", roundNumber)
-            )
-            .unique();
+        const roundDoc = await this.roundService.getRoundDoc(gameId, roundNumber);
 
         if (!roundDoc) return false;
 

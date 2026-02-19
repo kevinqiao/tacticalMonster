@@ -94,9 +94,12 @@ export const testWatchMode = internalMutation({
                 const nextTurn = gameAfterSkill.currentRound?.turns?.find((t: any) => t.status === 1);
                 if (nextTurn && nextTurn.monsterId === playerMonster.monsterId) {
                     const newPosition = { q: (playerMonster.q ?? 0) + 1, r: playerMonster.r ?? 0 };
-                    const walkResult = await gameService.walk(testData.gameId, newPosition, {
-                        monsterId: playerMonster.monsterId,
-                    });
+                    const walkResult = await gameService.walk(
+                        testData.gameId,
+                        newPosition,
+                        { monsterId: playerMonster.monsterId },
+                        { steps: 1 }
+                    );
                     if (walkResult.success) {
                         testResult.steps.push("✓ 执行移动操作");
                     } else {

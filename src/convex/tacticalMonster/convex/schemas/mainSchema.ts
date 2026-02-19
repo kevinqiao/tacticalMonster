@@ -105,7 +105,8 @@ export const mainSchema = {
                 max: v.number()
             })),
         })),
-        boss: v.object({             // Boss数据（统一使用stats）
+        boss: v.object({
+            bossId: v.string(),             // Boss数据（统一使用stats）
             monsterId: v.string(),
             position: v.object({      // Hex位置
                 q: v.number(),

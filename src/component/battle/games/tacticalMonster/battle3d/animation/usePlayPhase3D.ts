@@ -127,15 +127,11 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             }
 
             const moveRange = character.move_range ?? 2;
+            const stepsUsed = currentTurn.stepsUsed ?? 0;
+            const remainingSteps = moveRange - stepsUsed;
             const isFlying = character.isFlying ?? false;
             const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
             const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
-            // offset 六边形距离，与 PathFind/网格一致，用于「近深远浅」暗区正确落在最远一层
-            const offsetDist = (a: { q: number; r: number }, b: { q: number; r: number }) => {
-                const dq = Math.abs(a.q - b.q);
-                const dr = Math.abs(a.r - b.r);
-                return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
-            };
 
             // 横竖屏统一用逻辑空间：高亮 = 可点击 = 与后端一致；竖屏时环在屏幕上可能略不齐，但所见即所点
             const grid = groundCells.map((row) =>
@@ -150,11 +146,16 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                 })
             );
             console.log("[HexDebug] playTurnOn map", map);
-            const walkableNodes = getWalkableNodes(grid, startLogic, moveRange, canIgnoreObstacles);
-            character.walkables = walkableNodes;
-            const walkableCells = walkableNodes
-                .filter((n) => offsetDist(startLogic, { q: n.q, r: n.r }) !== 0)
-                .map((n) => ({ q: n.q, r: n.r, distance: offsetDist(startLogic, { q: n.q, r: n.r }) }));
+            // 规则：部分移动后只显示暗区（distance=1，紧靠怪物的第一层），不显示亮区
+            const rangeForNodes = stepsUsed > 0 ? remainingSteps : moveRange;
+            const walkableNodes = getWalkableNodes(grid, startLogic, rangeForNodes, canIgnoreObstacles);
+            character.walkables =
+                stepsUsed > 0
+                    ? walkableNodes.filter((n) => (n.distance ?? 0) === 1)
+                    : walkableNodes;
+            const walkableCells = character.walkables
+                .filter((n) => (n.distance ?? 0) > 0)
+                .map((n) => ({ q: n.q, r: n.r, distance: n.distance ?? 0 }));
 
             const enemies = characters
                 .filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
@@ -182,14 +183,15 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
 
             gridState.clearAll();
             const attackableCells = attackableNodes.map((n) => ({ q: n.q, r: n.r }));
-            if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells, moveRange);
+            const rangeForHighlight = stepsUsed > 0 ? 1 : moveRange;
+            if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells, rangeForHighlight);
             if (attackableCells.length > 0) gridState.highlightAttackable(attackableCells);
 
-            // 调试：可移动范围（用 offset 距离与 PathFind 一致）
+            // 调试：可移动范围按 BFS 步数（与 PathFind getWalkableNodes 一致）
             const isPortrait = mapDimension?.isPortrait ?? false;
-            const offsetDistances = walkableCells.map((c) => offsetDist(startLogic, c));
-            const maxOffsetD = offsetDistances.length ? Math.max(...offsetDistances) : -1;
-            const overRange = walkableCells.filter((c) => offsetDist(startLogic, c) > moveRange);
+            const stepDistances = walkableCells.map((c) => c.distance);
+            const maxStepD = stepDistances.length ? Math.max(...stepDistances) : -1;
+            const overRange = walkableCells.filter((c) => c.distance > moveRange);
 
             console.log("[HexDebug] playTurnOn highlight", {
                 character: startLogic,
@@ -197,20 +199,20 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                 isPortrait,
                 gridShape: groundCells ? [groundCells.length, groundCells[0]?.length ?? 0] : null,
                 walkableCount: walkableCells.length,
-                maxOffsetD,
+                maxStepD,
                 overRangeCount: overRange.length,
-                walkableSample: walkableCells.slice(0, 5).map((c) => ({ ...c, offsetD: offsetDist(startLogic, c) })),
+                walkableSample: walkableCells.slice(0, 5),
             });
             if (isPortrait && overRange.length > 0) {
                 console.warn("[HexDebug] portrait 可行走中有超出 moveRange 的格子", {
                     moveRange,
-                    overRange: overRange.slice(0, 10).map((c) => ({ ...c, offsetD: offsetDist(startLogic, c) })),
+                    overRange: overRange.slice(0, 10),
                 });
             }
-            if (maxOffsetD > moveRange) {
-                console.warn("[HexDebug] 可行走最远距离 maxOffsetD 超出 moveRange", {
+            if (maxStepD > moveRange) {
+                console.warn("[HexDebug] 可行走最远步数 maxStepD 超出 moveRange", {
                     moveRange,
-                    maxOffsetD,
+                    maxStepD,
                     isPortrait,
                 });
             }
@@ -235,35 +237,32 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
 
     /**
      * 从当前角色位置按剩余步数刷新可行走/可攻击高亮。
-     * @param onlyFurthestLayer true：只显示暗区（最远一层），用于部分移动后；false：显示全范围（亮区+暗区），用于第一次点击失败等恢复
+     * @param remainingSteps 剩余步数（调用方传 moveRange - stepsUsed）
+     * @param onlyFurthestLayer 规则：部分移动后只显示暗区（distance=1，紧靠怪物的第一层），不显示亮区；true=只显示暗区，false=显示全范围（亮区+暗区）
      */
     const refreshWalkableFromPosition = useCallback(
-        (character: MonsterSprite, moveRange: number, onlyFurthestLayer: boolean = true) => {
+        (character: MonsterSprite, remainingSteps: number, onlyFurthestLayer: boolean = true) => {
             if (!characters || !groundCells || !map || !gridState) return;
             const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
-            const offsetDist = (a: { q: number; r: number }, b: { q: number; r: number }) => {
-                const dq = Math.abs(a.q - b.q);
-                const dr = Math.abs(a.r - b.r);
-                return Math.max(dq, dr) + Math.floor(Math.min(dq, dr) / 2);
-            };
             const isFlying = character.isFlying ?? false;
             const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
             const grid = groundCells.map((row) =>
                 row.map((cell) => {
                     const char = characters.find((c) => c.q === cell.q && c.r === cell.r);
-                    return { q: cell.q, r: cell.r, walkable: char ? false : !cell.disable };
+                    const obstacle = map?.obstacles?.find((o) => o.q === cell.q && o.r === cell.r);
+                    return { q: cell.q, r: cell.r, walkable: char || obstacle || cell.disable ? false : true };
                 })
             );
-            const allInRange = getWalkableNodes(grid, startLogic, moveRange, canIgnoreObstacles);
-            const layer =
-                onlyFurthestLayer
-                    ? allInRange.filter((n) => offsetDist(startLogic, { q: n.q, r: n.r }) === moveRange)
-                    : allInRange;
+            // 规则：部分移动后 remainingSteps=1，只显示暗区（distance=1）
+            const effectiveRange = onlyFurthestLayer && remainingSteps > 0 ? 1 : remainingSteps;
+            const allInRange = getWalkableNodes(grid, startLogic, effectiveRange, canIgnoreObstacles);
+            const layer = allInRange;
             character.walkables = layer;
-            const walkableCells = layer.map((n) => {
-                const d = offsetDist(startLogic, { q: n.q, r: n.r });
-                return { q: n.q, r: n.r, distance: d };
-            });
+            const walkableCells = layer.map((n) => ({
+                q: n.q,
+                r: n.r,
+                distance: n.distance ?? 0,
+            }));
             const enemies = characters
                 .filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
                 .map((c) => ({ uid: c.uid, character_id: c.character_id, q: c.q ?? 0, r: c.r ?? 0 }));
@@ -282,7 +281,8 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             );
             character.attackables = attackableNodes;
             gridState.clearAll();
-            if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells, moveRange);
+            const rangeForHighlight = effectiveRange;
+            if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells, rangeForHighlight);
             const attackableCells = attackableNodes.map((n) => ({ q: n.q, r: n.r }));
             if (attackableCells.length > 0) gridState.highlightAttackable(attackableCells);
             gridState.setSelected(startLogic);

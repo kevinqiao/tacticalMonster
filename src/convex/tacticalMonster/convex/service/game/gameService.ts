@@ -215,9 +215,9 @@ export class GameService implements CharacterGetter {
      * @param gameId 游戏ID
      * @param to 目标位置（Hex坐标）
      * @param identifier 角色标识符（monsterId/bossId/minionId 三选一）
-     * @param options.endTurn 是否在移动后结束回合（walk-only turn）
-     * @param options.steps 实际行走步数（路径长度），用于判断是否走到最远格才结束
-     * @param options.forceEndTurn 前端在 pathSteps>=moveRange 时传 true，后端用直线距离校验后强制结束回合
+     * @param options.steps 实际行走步数（路径长度），必填
+     * @param options.endTurn @deprecated 已忽略，由后端根据 stepsUsedBefore>0（第二次行走）或步数用尽自动判定
+     * @param options.forceEndTurn @deprecated 已忽略
      * @returns 移动结果，包含可能的阶段变化
      */
     async walk(
@@ -610,11 +610,10 @@ export const walk = mutation({
                     ? { endTurn, steps, forceEndTurn }
                     : undefined;
             const result = await gameManager.walk(gameId, to, identifier, options);
-            console.log("walk result", result.success, result.message ?? "");
+            console.log("walk result", result.success, result.phaseChanges ?? "");
             return {
                 ok: true,
                 success: result.success,
-                message: result.message,
                 phaseChanges: result.phaseChanges,
                 endTurn: result.endTurn,
             };

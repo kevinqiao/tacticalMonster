@@ -264,6 +264,7 @@ export class GameLifecycleService {
             })),
             boss: {
                 // 统一使用stats和GameMonster格式
+                bossId: bossData.bossId,
                 monsterId: bossData.monsterId,  // 角色配置ID
                 position: {  // 使用 position 对象（符合 schema）
                     q: bossData.q,
@@ -338,12 +339,7 @@ export class GameLifecycleService {
             }
 
             // 重新加载 round 数据以更新 currentRound
-            const roundDoc = await this.dbCtx.db
-                .query("mr_game_round")
-                .withIndex("by_game_round", (q: any) =>
-                    q.eq("gameId", gameId).eq("no", 1)
-                )
-                .first();
+            const roundDoc = await this.roundService.getRoundDoc(gameId, 1);
 
             if (roundDoc) {
                 // 更新 game 的 currentRound
@@ -607,15 +603,18 @@ export class GameLifecycleService {
             // ✅ 从数据库加载当前回合的完整数据（包括所有 turns 及其状态）
             let currentRound: GameRound = { no: roundNumber, turns: [] };
             if (roundNumber > 0) {
-                const roundDoc = await this.dbCtx.db
+                const roundDocs = await this.dbCtx.db
                     .query("mr_game_round")
                     .withIndex("by_game_round", (q: any) =>
                         q.eq("gameId", gameId).eq("no", roundNumber)
                     )
-                    .unique();
+                    .collect();
+                const roundDoc = roundDocs.length > 0
+                    ? roundDocs.reduce((a: any, b: any) => (a._creationTime > b._creationTime ? a : b))
+                    : null;
 
                 if (roundDoc && roundDoc.turns) {
-                    // 从数据库加载所有 turns，包括它们的状态
+                    // 从数据库加载所有 turns，包括它们的状态（含 stepsUsed，用于重载后只显示暗区）
                     currentRound = {
                         no: roundDoc.no,
                         turns: roundDoc.turns.map((turn: any) => ({
@@ -625,6 +624,7 @@ export class GameLifecycleService {
                             status: turn.status ?? 0,  // 0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
                             dueTime: turn.dueTime,
                             order: turn.order,  // turn 的次序
+                            stepsUsed: turn.stepsUsed,  // 本回合已用步数，重载后 playTurnOn 只显示暗区
                         })),
                     };
                 }
