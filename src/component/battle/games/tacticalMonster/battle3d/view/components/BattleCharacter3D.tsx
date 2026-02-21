@@ -9,6 +9,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef } from "react"
 import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
 import type { CharacterRef3D, MonsterSprite } from "../../../types/CombatTypes";
+import { resolveAttackProfile } from "../../../utils/skillRangeUtils";
 import { getCharacterKey } from "../../utils/battle3DAdapter";
 import { getMonsterModelPathWithFallback } from "../../utils/modelPathMapper";
 
@@ -220,6 +221,13 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
     const hpPercent = character.stats?.hp
         ? (character.stats.hp.current / character.stats.hp.max) * 100
         : 100;
+    const attackRangeLabel = useMemo(() => {
+        const { skillId, attackRange, isMelee } = resolveAttackProfile(character);
+        return attackRange;
+        // const min = character.attack_range?.min ?? 1;
+        // const max = character.attack_range?.max ?? min;
+        // return min === max ? `${max}` : `${min}-${max}`;
+    }, [character]);
 
     const isAnimating = animatingCharacterKey === getCharacterKey(character);
     const upperRotation: [number, number, number] = isPortrait
@@ -305,6 +313,17 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
                         >
                             {character.stats.hp.current}/{character.stats.hp.max}
                         </div>
+                        <div
+                            style={{
+                                fontSize: 10,
+                                color: "#ffeb3b",
+                                textAlign: "center",
+                                marginTop: 2,
+                                textShadow: "1px 1px 2px #000",
+                            }}
+                        >
+                            AR: {attackRangeLabel}
+                        </div>
                     </Html>
                 )}
             </group>
@@ -323,7 +342,7 @@ const BattleCharacterPlaceholder: React.FC<{
     useEffect(() => {
         const refApi: CharacterRef3D = {
             groupRef,
-            playAnimation: () => {},
+            playAnimation: () => { },
         };
         character.ref3D = refApi;
         return () => {

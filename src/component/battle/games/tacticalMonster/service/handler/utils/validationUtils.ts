@@ -25,14 +25,7 @@ export const canPerformAction = (
     );
     if (!character) return { can: false };
 
-    console.log("[canPerformAction] ✅ character:", {
-        monsterId: character.monsterId,
-        uid: character.uid,
-        q: character.q,
-        r: character.r,
-        hasRef3D: !!character.ref3D,
-        ref3DGroupCurrent: !!character.ref3D?.groupRef?.current,
-    });
+
 
     return { can: true, currentTurn, character };
 };

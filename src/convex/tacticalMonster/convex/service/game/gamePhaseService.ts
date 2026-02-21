@@ -270,6 +270,27 @@ export class GamePhaseService {
         await this.processPlayerTurnStart(gameId, newRoundNo, nextTurn, roundDoc, gameRef, changes);
     }
 
+    /** 完成当前 round 并过渡到下一个 round：结束当前 round → 创建新 round → 处理连续 Boss turns → 确保 turnStart */
+    private async transitionToNextRound(
+        gameId: string,
+        roundNumber: number,
+        game: any,
+        changes: PhaseChanges,
+        ctx: any
+    ): Promise<boolean> {
+        const newRoundNo = await this.finishRoundAndStartNext(gameId, roundNumber, game, changes);
+        if (newRoundNo === null) return false;
+        const updatedGame = await this.lifecycleService.load(gameId);
+        if (!updatedGame) return false;
+        this.characterQueryService.setGame(updatedGame);
+        const gameRef = { current: updatedGame };
+        await this.processConsecutiveTurnsUntilPlayer(gameId, newRoundNo, gameRef, changes, ctx);
+        if (changes.roundStart && !changes.turnStart) {
+            await this.ensureTurnStartAfterRoundTransition(gameId, newRoundNo, gameRef, changes);
+        }
+        return true;
+    }
+
     /** 结束当前轮、创建新轮、round_start 事件与 changes.roundStart；若游戏结束则返回 null，否则返回新轮号。 */
     private async finishRoundAndStartNext(
         gameId: string,
@@ -405,305 +426,57 @@ export class GamePhaseService {
 
         this.characterQueryService.setGame(game);
 
-        // ✅ 1. 先触发所有存活角色的 round_start 被动技能并收集信息（传入当前游戏对象）
         const roundStartPassiveSkills = await this.triggerPassiveSkills(gameId, "round_start", undefined, game);
 
-        // ✅ 2. 创建第一个 round 的 new_round 事件（用于 watch/replay 模式），包含被动技能信息
         const eventService = new GameEventService(this.dbCtx);
         const roundStartEvent = eventService.createNewRoundEvent(gameId, roundNumber);
-        // ✅ 将被动技能信息添加到事件 data 中，供 watch/replay 模式使用
         if (roundStartEvent.data) {
             (roundStartEvent.data as any).triggeredPassiveSkills = roundStartPassiveSkills;
         }
         await eventService.createEvent(roundStartEvent);
 
-        // 记录 roundStart 变化
         changes.roundStart = {
             round: roundNumber,
-            triggeredPassiveSkills: roundStartPassiveSkills, // ✅ 将被动技能信息添加到 phaseChanges
+            triggeredPassiveSkills: roundStartPassiveSkills,
         };
 
-        // 2. 如果触发了被动技能，重新加载游戏状态以获取最新状态
         let currentGame = game;
         if (roundStartPassiveSkills.length > 0) {
             const reloadedGame = await this.lifecycleService.load(gameId);
             if (!reloadedGame || !reloadedGame.currentRound) return changes;
             currentGame = reloadedGame;
-            this.characterQueryService.setGame(currentGame);
-        } else {
-            // 没有被动技能触发，继续使用当前游戏对象
-            if (currentGame) {
-                this.characterQueryService.setGame(currentGame);
-            }
         }
+        this.characterQueryService.setGame(currentGame);
 
-        // 3. 获取当前回合文档
-        const roundDoc = await this.loadRoundDoc(gameId, roundNumber);
+        const gameRef = { current: currentGame };
+        await this.processConsecutiveTurnsUntilPlayer(gameId, roundNumber, gameRef, changes, ctx);
 
-        if (!roundDoc || roundDoc.turns.length === 0) return changes;
-
-        // 4. 找到第一个 turn（按 order 排序，取 status === 0 的第一个）
-        const firstTurn = roundDoc.turns
-            .filter((turn: GameTurn) => turn.status === 0)
-            .sort((a: GameTurn, b: GameTurn) => (a.order || 0) - (b.order || 0))[0];
-
-        if (!firstTurn) return changes;
-
-        // 5. 支持多个连续的 Boss turn：循环处理直到遇到玩家 turn
-        const bossAIActions: Array<{
-            turnStart: { uid: string; monsterId: string; round: number };
-            decision: any;
-            executionResults: any;
-            phaseTransition?: any;
-        }> = [];
-
-        let currentRoundDoc = roundDoc;
-        let processedBossTurns = 0;
-        const maxBossTurns = 10; // 防止无限循环
-
-        // 循环处理连续的 Boss turn
-        while (processedBossTurns < maxBossTurns) {
-            // 重新加载当前回合文档以获取最新状态
-            const reloaded = await this.loadRoundDoc(gameId, roundNumber);
-            if (!reloaded) break;
-            currentRoundDoc = reloaded;
-
-            const nextTurn = this.getNextPendingTurn(currentRoundDoc);
-            if (!nextTurn) break;
-
-            // 如果下一个 turn 是玩家 turn，停止循环
-            if (nextTurn.uid !== "boss") {
-                // 记录玩家 turn 的开始
-                changes.turnStart = {
-                    uid: nextTurn.uid,
-                    monsterId: nextTurn.monsterId,
-                    round: roundNumber,
-                };
-
-                // 先处理状态效果 tick，再触发 turn_start 被动技能
-                let turnStartPassiveSkills: Array<{ uid: string; monsterId: string; bossId?: string; minionId?: string; skillId: string; effects: any[] }> = [];
-                const { monsterId: turnMonsterId, bossId: turnBossId, minionId: turnMinionId } =
-                    this.characterQueryService.getCharacterParams(nextTurn.uid, nextTurn.monsterId);
-                const turnCharacter = this.characterQueryService.getCharacter(turnMonsterId, turnBossId, turnMinionId);
-                if (turnCharacter && currentGame) {
-                    const tickResult = processStatusEffects(turnCharacter);
-                    if ((turnCharacter.stats?.hp?.current ?? 0) <= 0) turnCharacter.status = "dead";
-                    await this.characterUpdateService.updateCharacterInDatabase(gameId, turnCharacter, currentGame);
-                    const reloadedAfterTick = await this.lifecycleService.load(gameId);
-                    if (reloadedAfterTick) {
-                        currentGame = reloadedAfterTick;
-                        this.characterQueryService.setGame(currentGame);
-                    }
-                    if (changes.turnStart) {
-                        changes.turnStart.statusEffectChanges = {
-                            expired: tickResult.expired.map((e) => ({ id: e.id, type: e.type, name: e.name })),
-                            ticked: tickResult.ticked,
-                            characterState: tickResult.characterState,
-                        };
-                    }
-                    turnStartPassiveSkills = await this.triggerPassiveSkills(gameId, "turn_start", turnCharacter, currentGame);
-                    if (turnStartPassiveSkills.length > 0) {
-                        const reloadedGame = await this.lifecycleService.load(gameId);
-                        if (reloadedGame) {
-                            currentGame = reloadedGame;
-                            this.characterQueryService.setGame(currentGame);
-                        }
-                    }
-                    if (changes.turnStart) {
-                        changes.turnStart.triggeredPassiveSkills = turnStartPassiveSkills;
-                    }
-                }
-
-                const turnStartEvent: CombatEvent = {
-                    gameId,
-                    name: "turnStart",
-                    type: 0,
-                    data: {
-                        uid: nextTurn.uid,
-                        monsterId: nextTurn.monsterId,
-                        round: roundNumber,
-                        triggeredPassiveSkills: turnStartPassiveSkills,
-                    },
-                    time: Date.now(),
-                };
-                await eventService.createEvent(turnStartEvent);
-
-                const updatedTurns = currentRoundDoc.turns.map((turn: GameTurn) => {
-                    const isMatch = turn.uid === nextTurn.uid && (
-                        (nextTurn.bossId && turn.bossId === nextTurn.bossId) ||
-                        (nextTurn.minionId && turn.minionId === nextTurn.minionId) ||
-                        (!nextTurn.bossId && !nextTurn.minionId && turn.monsterId === nextTurn.monsterId)
-                    );
-                    return isMatch ? { ...turn, status: 1 } : turn;
-                });
-                await this.dbCtx.db.patch(currentRoundDoc._id, { turns: updatedTurns });
-                break;
-            }
-
-            processedBossTurns++;
-            const turnStartInfo: { uid: string; monsterId: string; round: number; bossId?: string; minionId?: string; triggeredPassiveSkills?: any[]; statusEffectChanges?: any } = {
-                uid: nextTurn.uid,
-                monsterId: nextTurn.monsterId,
-                round: roundNumber,
-                ...(nextTurn.bossId ? { bossId: nextTurn.bossId } : {}),
-                ...(nextTurn.minionId ? { minionId: nextTurn.minionId } : {}),
-            };
-
-            let turnStartPassiveSkills: Array<{ uid: string; monsterId: string; bossId?: string; minionId?: string; skillId: string; effects: any[] }> = [];
-            const { monsterId: turnMonsterId, bossId: turnBossId, minionId: turnMinionId } =
-                this.characterQueryService.getCharacterParams(nextTurn.uid, nextTurn.monsterId);
-            const turnCharacter = this.characterQueryService.getCharacter(turnMonsterId, turnBossId, turnMinionId);
-            if (turnCharacter && currentGame) {
-                const tickResult = processStatusEffects(turnCharacter);
-                if ((turnCharacter.stats?.hp?.current ?? 0) <= 0) turnCharacter.status = "dead";
-                await this.characterUpdateService.updateCharacterInDatabase(gameId, turnCharacter, currentGame);
-                const reloadedAfterTick = await this.lifecycleService.load(gameId);
-                if (reloadedAfterTick) {
-                    currentGame = reloadedAfterTick;
-                    this.characterQueryService.setGame(currentGame);
-                }
-                turnStartInfo.statusEffectChanges = {
-                    expired: tickResult.expired.map((e) => ({ id: e.id, type: e.type, name: e.name })),
-                    ticked: tickResult.ticked,
-                    characterState: tickResult.characterState,
-                };
-                turnStartPassiveSkills = await this.triggerPassiveSkills(gameId, "turn_start", turnCharacter, currentGame);
-                if (turnStartPassiveSkills.length > 0) {
-                    const reloadedGame = await this.lifecycleService.load(gameId);
-                    if (reloadedGame) {
-                        currentGame = reloadedGame;
-                        this.characterQueryService.setGame(currentGame);
-                    }
-                }
-            }
-
-            // ✅ 2. 每个 Boss turn 都执行 AI 决策并执行当前 turn 对应的动作
-            // 注意：每个 turn 都会重新决策（基于最新的游戏状态，包括已触发的被动技能），但只执行当前 turn 对应的动作
-            let currentBossActionResult: any = null;
-            if (ctx) {
-                // ✅ 使用当前游戏对象（如果被动技能已更新，currentGame 已是最新状态）
-                if (currentGame) {
-                    this.characterQueryService.setGame(currentGame);
-                }
-
-                // ✅ 获取 Boss AI 决策（只获取决策，不执行动作）
-                const decision = await ctx.runMutation(
-                    internal.service.boss.ai.bossAIActions.getBossAIDecision,
-                    {
-                        gameId,
-                        round: roundNumber,
-                    }
-                );
-
-                if (decision) {
-                    // ✅ 从决策中提取当前 turn 对应的动作
-                    let currentAction: any = null;
-                    let currentExecutionResult: any = null;
-
-                    if (turnBossId) {
-                        // 当前 turn 是 Boss 本体
-                        currentAction = decision.bossAction;
-                    } else if (turnMinionId) {
-                        // 当前 turn 是小怪，从 minionActions 中找到对应的动作
-                        const minionAction = decision.minionActions?.find(
-                            (ma: any) => ma.minionId === turnMinionId
-                        );
-                        if (minionAction) {
-                            currentAction = minionAction.action;
-                        }
-                    }
-
-                    // ✅ 执行当前 turn 对应的动作
-                    if (currentAction && currentAction.type !== "standby") {
-                        const identifier = turnBossId
-                            ? { bossId: turnBossId }
-                            : turnMinionId
-                                ? { minionId: turnMinionId }
-                                : null;
-
-                        if (identifier) {
-                            currentExecutionResult = await ctx.runMutation(
-                                (internal as any).service.boss.ai.bossAIActions.executeBossAction,
-                                {
-                                    gameId,
-                                    action: currentAction,
-                                    identifier,
-                                }
-                            );
-                        }
-                    }
-
-                    // ✅ 构建当前 turn 的 AI 动作结果
-                    if (currentAction) {
-                        currentBossActionResult = {
-                            ok: true,
-                            decision: {
-                                bossAction: turnBossId ? currentAction : undefined,
-                                minionActions: turnMinionId ? [{ minionId: turnMinionId, action: currentAction }] : undefined,
-                            },
-                            executionResults: {
-                                boss: turnBossId ? currentExecutionResult : undefined,
-                                minions: turnMinionId ? [{ minionId: turnMinionId, result: currentExecutionResult }] : undefined,
-                            },
-                            phaseTransition: processedBossTurns === 1 ? decision.phaseTransition : undefined, // 只在第一个 turn 时包含阶段转换
-                        };
-                    }
-                }
-            }
-
-            // ✅ 3. 收集 Boss turn 数据（不创建事件，最后统一创建一个 firstTurn 事件）
-
-            // 4. ✅ 更新回合状态为完成（Boss AI 执行完成后自动完成 turn）
-            const updatedTurns = currentRoundDoc.turns.map((turn: GameTurn) => {
-                // ✅ 使用更精确的匹配：对于Boss，使用bossId/minionId；对于玩家，使用monsterId
-                const isMatch = turn.uid === nextTurn.uid && (
-                    (nextTurn.bossId && turn.bossId === nextTurn.bossId) ||
-                    (nextTurn.minionId && turn.minionId === nextTurn.minionId) ||
-                    (!nextTurn.bossId && !nextTurn.minionId && turn.monsterId === nextTurn.monsterId)
-                );
-                return isMatch ? { ...turn, status: 2 } : turn; // 直接标记为完成
-            });
-
-            await this.dbCtx.db.patch(currentRoundDoc._id, {
-                turns: updatedTurns,
-            });
-
-            // 5. 为每个 Boss turn 保存对应的 AI 动作结果
-            if (currentBossActionResult?.ok && currentBossActionResult.decision) {
-                const bossTurnStart = {
-                    ...turnStartInfo,
-                    triggeredPassiveSkills: turnStartPassiveSkills, // ✅ 添加被动技能信息
-                };
-
-                bossAIActions.push({
-                    turnStart: bossTurnStart,
-                    decision: currentBossActionResult.decision,
-                    executionResults: currentBossActionResult.executionResults,
-                    phaseTransition: currentBossActionResult.phaseTransition,
-                });
-            }
-
-            // 继续循环处理下一个 turn
-        }
-
-        // ✅ 设置 Boss AI 动作（支持多个连续的 Boss turn）
-        // 注意：bossAIActions 数组的顺序就是执行顺序（按照 turns 的 order 排序）
-        if (bossAIActions.length > 0) {
-            changes.bossAIActions = bossAIActions;
-
-            // ✅ 创建一个 firstTurn 事件（用于 watch/replay 模式），包含所有连续 Boss turn 的数据
-            // 注意：只在有连续 Boss turn 时创建，如果没有（直接是玩家 turn），则使用正常的 turnStart 事件
+        if (changes.bossAIActions && changes.bossAIActions.length > 0) {
             const firstTurnEvent: CombatEvent = {
                 gameId,
                 name: "firstTurn",
                 type: 0,
                 data: {
                     round: roundNumber,
-                    phaseChanges: changes, // ✅ 包含所有 phaseChanges（roundStart, bossAIActions, turnStart）
+                    phaseChanges: changes,
                 },
                 time: Date.now(),
             };
             await eventService.createEvent(firstTurnEvent);
+        } else if (changes.turnStart) {
+            const turnStartEvent: CombatEvent = {
+                gameId,
+                name: "turnStart",
+                type: 0,
+                data: {
+                    uid: changes.turnStart.uid,
+                    monsterId: changes.turnStart.monsterId,
+                    round: roundNumber,
+                    triggeredPassiveSkills: (changes.turnStart as any).triggeredPassiveSkills || [],
+                },
+                time: Date.now(),
+            };
+            await eventService.createEvent(turnStartEvent);
         }
 
         return changes;
@@ -736,7 +509,7 @@ export class GamePhaseService {
         if (!roundDoc) return changes;
 
         const currentTurn = this.findTurnByIdentifier(roundDoc, characterIdentifier);
-        console.log("advanceTurnAndRound currentTurn", currentTurn, characterIdentifier);
+        // console.log("advanceTurnAndRound currentTurn", currentTurn, characterIdentifier);
         if (currentTurn && currentTurn.status !== 2) {
             await this.patchTurnStatus(roundDoc, currentTurn, 2);
             changes.turnEnd = {
@@ -746,41 +519,17 @@ export class GamePhaseService {
             };
         }
 
-        const allTurnsCompleted = roundDoc.turns.every((turn: GameTurn) => turn.status === 2);
-
-        if (allTurnsCompleted) {
-            const newRoundNo = await this.finishRoundAndStartNext(gameId, roundNumber, game, changes);
-            if (newRoundNo === null) return changes;
-
-            let updatedGame = await this.lifecycleService.load(gameId);
-            if (!updatedGame) return changes;
-            this.characterQueryService.setGame(updatedGame);
-
-            const gameRef = { current: updatedGame };
-            await this.processConsecutiveTurnsUntilPlayer(gameId, newRoundNo, gameRef, changes, ctx);
-            if (changes.roundStart && !changes.turnStart) {
-                await this.ensureTurnStartAfterRoundTransition(gameId, newRoundNo, gameRef, changes);
-            }
+        if (roundDoc.turns.every((turn: GameTurn) => turn.status === 2)) {
+            await this.transitionToNextRound(gameId, roundNumber, game, changes, ctx);
             return changes;
         }
 
-        // 还有未完成的回合，推进到下一个回合
         const gameRef = { current: game };
         await this.processConsecutiveTurnsUntilPlayer(gameId, roundNumber, gameRef, changes, ctx);
 
         const roundAfterBoss = await this.loadRoundDoc(gameId, roundNumber);
-        if (roundAfterBoss && roundAfterBoss.turns.every((t: GameTurn) => t.status === 2)) {
-            const newRoundNo = await this.finishRoundAndStartNext(gameId, roundNumber, game, changes);
-            if (newRoundNo === null) return changes;
-
-            const updatedGame = await this.lifecycleService.load(gameId);
-            if (updatedGame) this.characterQueryService.setGame(updatedGame);
-            const gameRef2 = { current: updatedGame || game };
-            await this.processConsecutiveTurnsUntilPlayer(gameId, newRoundNo, gameRef2, changes, ctx);
-            // 确保 round 过渡后必有 turnStart，否则前端会停留在 Boss 高亮
-            if (changes.roundStart && !changes.turnStart) {
-                await this.ensureTurnStartAfterRoundTransition(gameId, newRoundNo, gameRef2, changes);
-            }
+        if (roundAfterBoss?.turns.every((t: GameTurn) => t.status === 2)) {
+            await this.transitionToNextRound(gameId, roundNumber, game, changes, ctx);
         }
 
         return changes;

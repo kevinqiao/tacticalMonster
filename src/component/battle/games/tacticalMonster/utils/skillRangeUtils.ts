@@ -3,8 +3,10 @@
  * 处理技能范围计算和目标获取
  */
 
-import { MonsterSkill, SkillEffect } from "../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+
+import { getSkillConfig } from "../config/skillConfigs";
 import { MonsterSprite } from "../types/CombatTypes";
+import { MonsterSkill, SkillEffect } from "../types/skillTypes";
 import { offsetHexDistance } from "./hexUtil";
 
 /**
@@ -202,5 +204,26 @@ export const isTargetInRange = (
     const minRange = skill.range?.min_distance || 0;
 
     return distance >= minRange && distance <= maxRange;
+};
+
+export type AttackProfile = {
+    skillId: string;
+    attackRange: number;
+    isMelee: boolean;
+};
+
+export const resolveAttackProfile = (character: MonsterSprite): AttackProfile => {
+    const skillId = character.selectedSkill || "basic_attack";
+    const skillConfig = getSkillConfig(skillId);
+    console.log("skillConfig", skillConfig);
+    const attackRange =
+        (skillConfig?.range?.distance ?? skillConfig?.range?.max_distance) ??
+        character.attack_range?.max ??
+        1;
+    return {
+        skillId,
+        attackRange,
+        isMelee: attackRange === 1,
+    };
 };
 

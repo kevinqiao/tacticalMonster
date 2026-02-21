@@ -162,7 +162,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         priority: 1,
         range: {
             area_type: "single",
-            distance: 1,
+            // distance: 1,
         },
         resource_cost: {},
         cooldown: 0,

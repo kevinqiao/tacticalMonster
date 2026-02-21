@@ -269,7 +269,7 @@ export const BattleVenue3D: React.FC = () => {
         (logicQ: number, logicR: number) => {
             if (!mapDimension || mode !== "play") return;
             const cellState = gridState.getCellState(logicQ, logicR);
-
+            console.log("[handleCellClick] cellState", cellState);
             if (cellState === "walkable") {
                 gridState.clearAll();
                 walk({ q: logicQ, r: logicR }).catch((err: any) => console.error("[handleCellClick] walk error:", err));
@@ -278,6 +278,7 @@ export const BattleVenue3D: React.FC = () => {
                     (c) => c.q === logicQ && c.r === logicR
                 );
                 if (enemy) {
+                    console.log("[handleCellClick] attack enemy", enemy);
                     attack(enemy);
                 }
             }

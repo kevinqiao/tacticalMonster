@@ -128,7 +128,7 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
 
             const moveRange = character.move_range ?? 2;
             const stepsUsed = currentTurn.stepsUsed ?? 0;
-            const remainingSteps = moveRange - stepsUsed;
+            const remainingSteps = Math.max(0, moveRange - stepsUsed);
             const isFlying = character.isFlying ?? false;
             const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
             const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
@@ -173,11 +173,12 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                     r: character.r ?? 0,
                     uid: character.uid,
                     character_id: character.character_id,
-                    moveRange: character.move_range ?? 2,
+                    moveRange: remainingSteps,
                     attackRange: character.attack_range || { min: 1, max: 2 },
                 },
                 enemies,
-                null
+                null,
+                canIgnoreObstacles
             );
             character.attackables = attackableNodes;
 
@@ -243,6 +244,7 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
     const refreshWalkableFromPosition = useCallback(
         (character: MonsterSprite, remainingSteps: number, onlyFurthestLayer: boolean = true) => {
             if (!characters || !groundCells || !map || !gridState) return;
+            const remainingMove = Math.max(0, remainingSteps);
             const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
             const isFlying = character.isFlying ?? false;
             const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
@@ -254,7 +256,7 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                 })
             );
             // 规则：部分移动后 remainingSteps=1，只显示暗区（distance=1）
-            const effectiveRange = onlyFurthestLayer && remainingSteps > 0 ? 1 : remainingSteps;
+            const effectiveRange = onlyFurthestLayer && remainingMove > 0 ? 1 : remainingMove;
             const allInRange = getWalkableNodes(grid, startLogic, effectiveRange, canIgnoreObstacles);
             const layer = allInRange;
             character.walkables = layer;
@@ -273,11 +275,12 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                     r: character.r ?? 0,
                     uid: character.uid,
                     character_id: character.character_id,
-                    moveRange: character.move_range ?? 2,
+                    moveRange: remainingMove,
                     attackRange: character.attack_range || { min: 1, max: 2 },
                 },
                 enemies,
-                null
+                null,
+                canIgnoreObstacles
             );
             character.attackables = attackableNodes;
             gridState.clearAll();

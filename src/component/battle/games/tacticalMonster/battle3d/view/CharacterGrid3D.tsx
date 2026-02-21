@@ -23,42 +23,41 @@ export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }
         if (!characters || !mapDimension) return [];
 
         const { cols, rows } = mapDimension;
-        console.log("[CharacterGrid3D] rendering", characters.length, "characters, keys:",
-            characters.map(c => getCharacterKey(c)));
+
         return characters.map((character, index) => {
-                // 确保每个角色都有坐标（无则用索引占位），保证每个角色都挂载并注册 ref，行走时能按 key 取到
-                const logicQ = character.q ?? index % Math.max(1, cols);
-                const logicR = character.r ?? Math.floor(index / Math.max(1, cols)) % Math.max(1, rows);
-                const pos = hexTo3DCenter(logicQ, logicR, mapDimension, 0);
-                if (!pos) return null;
+            // 确保每个角色都有坐标（无则用索引占位），保证每个角色都挂载并注册 ref，行走时能按 key 取到
+            const logicQ = character.q ?? index % Math.max(1, cols);
+            const logicR = character.r ?? Math.floor(index / Math.max(1, cols)) % Math.max(1, rows);
+            const pos = hexTo3DCenter(logicQ, logicR, mapDimension, 0);
+            if (!pos) return null;
 
-                const key = getCharacterKey(character);
-                // 动画中角色使用稳定引用，避免重渲染覆盖 GSAP 控制的 position
-                const position: [number, number, number] =
-                    animatingCharacterKey === key
-                        ? animatingStartPositionRef.current
-                        : [pos.x, pos.y, pos.z];
-                const facing = (character.scaleX ?? 1) >= 0 ? 1 : -1;
-                const isActive = key === activeCharacterKey;
-                if (isActive) {
-                    console.log("[CharacterGrid3D] isActive=true for:", key, "activeCharacterKey:", activeCharacterKey);
-                }
+            const key = getCharacterKey(character);
+            // 动画中角色使用稳定引用，避免重渲染覆盖 GSAP 控制的 position
+            const position: [number, number, number] =
+                animatingCharacterKey === key
+                    ? animatingStartPositionRef.current
+                    : [pos.x, pos.y, pos.z];
+            const facing = (character.scaleX ?? 1) >= 0 ? 1 : -1;
+            const isActive = key === activeCharacterKey;
+            if (isActive) {
+                console.log("[CharacterGrid3D] isActive=true for:", key, "activeCharacterKey:", activeCharacterKey);
+            }
 
-                return (
-                    <BattleCharacter3DWithSuspense
-                        key={key}
-                        character={character}
-                        position={position}
-                        animatingCharacterKey={animatingCharacterKey}
-                        width={mapDimension.hexWidth}
-                        height={mapDimension.hexHeight}
-                        facing={facing}
-                        isPortrait={mapDimension.isPortrait}
-                        isActive={isActive}
-                        onModelLoaded={loadingContext?.onModelLoaded}
-                    />
-                );
-            });
+            return (
+                <BattleCharacter3DWithSuspense
+                    key={key}
+                    character={character}
+                    position={position}
+                    animatingCharacterKey={animatingCharacterKey}
+                    width={mapDimension.hexWidth}
+                    height={mapDimension.hexHeight}
+                    facing={facing}
+                    isPortrait={mapDimension.isPortrait}
+                    isActive={isActive}
+                    onModelLoaded={loadingContext?.onModelLoaded}
+                />
+            );
+        });
     }, [characters, mapDimension, activeCharacterKey, animatingCharacterKey, loadingContext?.onModelLoaded]);
 
     return <group>{characterElements}</group>;

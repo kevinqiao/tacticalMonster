@@ -147,5 +147,4 @@ export interface MonsterSkill {
     triggerConditions?: SkillTriggerCondition[];  // 触发条件列表
 }
 
-// 显式导出类型，确保运行时模块系统可以识别
-export type { MonsterSkill, SkillEffect, SkillEffectType };
+

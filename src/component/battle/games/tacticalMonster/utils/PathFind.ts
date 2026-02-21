@@ -3,8 +3,9 @@
  * 寻路与可移动范围统一使用 offset (even-r) 六边形距离，与网格渲染、后端校验一致。
  */
 
-import { MonsterSkill } from "../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+
 import { AttackableNode, HexNode, WalkableNode } from "../types/CombatTypes";
+import { MonsterSkill } from "../types/skillTypes";
 
 /** 寻路网格单元：至少含 q,r，非飞行时需 walkable */
 type WalkGridCell = HexNode & { walkable?: boolean };
@@ -17,7 +18,7 @@ export const offsetHexDistance = (from: HexNode, to: HexNode): number => {
 };
 
 /** Offset (even-r) 下 (q,r) 的 6 邻格偏移，与网格显示一致 */
-const getOffsetNeighborDirs = (r: number): { dq: number; dr: number }[] =>
+export const getOffsetNeighborDirs = (r: number): { dq: number; dr: number }[] =>
     r % 2 === 0
         ? [
             { dq: 1, dr: 0 }, { dq: 0, dr: -1 }, { dq: -1, dr: -1 },
@@ -27,57 +28,6 @@ const getOffsetNeighborDirs = (r: number): { dq: number; dr: number }[] =>
             { dq: 1, dr: 0 }, { dq: 1, dr: -1 }, { dq: 0, dr: -1 },
             { dq: -1, dr: 0 }, { dq: 0, dr: 1 }, { dq: 1, dr: 1 },
         ];
-
-/**
- * 飞行单位直线路径：offset 邻格 + offset 距离。
- * 横屏 grid=逻辑网格；竖屏 grid=view 网格（useWalkAction3D 构建），path 为 view 坐标。
- */
-const findDirectPath = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNode[] => {
-    const path: HexNode[] = [start];
-    if (start.q === goal.q && start.r === goal.r) return path;
-
-    const rows = grid.length;
-    const cols = grid[0]?.length ?? 0;
-    const inBounds = (q: number, r: number) => r >= 0 && r < rows && q >= 0 && q < cols;
-    const distance = offsetHexDistance(start, goal);
-    if (distance <= 1) return [start, goal];
-
-    const maxSteps = Math.min(rows * cols, Math.max(distance + 2, 8));
-    let current: HexNode = { q: start.q, r: start.r };
-    for (let step = 0; step < maxSteps; step++) {
-        if (current.q === goal.q && current.r === goal.r) break;
-        const curDist = offsetHexDistance(current, goal);
-        const prevNode = path.length >= 2 ? path[path.length - 2] : null;
-        let best: HexNode | null = null;
-        let bestDist = Infinity;
-        for (const { dq, dr } of getOffsetNeighborDirs(current.r)) {
-            const nq = current.q + dq;
-            const nr = current.r + dr;
-            if (!inBounds(nq, nr)) continue;
-            if (prevNode && nq === prevNode.q && nr === prevNode.r) continue;
-            if (nq === goal.q && nr === goal.r) {
-                best = { q: nq, r: nr };
-                bestDist = 0;
-                break;
-            }
-            const next = { q: nq, r: nr };
-            const dist = offsetHexDistance(next, goal);
-            const notFarther = dist <= curDist;
-            const better =
-                !best ||
-                dist < bestDist ||
-                (dist === bestDist && offsetHexDistance(next, goal) < offsetHexDistance(best!, goal));
-            if (notFarther && better) {
-                bestDist = dist;
-                best = next;
-            }
-        }
-        if (!best) break;
-        path.push(best);
-        current = best;
-    }
-    return path;
-};
 
 /** 飞行单位 BFS 寻路：可经过任意格，路径长度 = 步数 */
 const findPathBFS = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNode[] => {
@@ -270,22 +220,33 @@ export const getAttackableNodes = (
     gridCells: WalkGridCell[][],
     attacker: { q: number, r: number, uid: string, character_id: string, moveRange: number, attackRange: { min: number, max: number } },
     enemies: { q: number, r: number, uid: string, character_id: string }[],  // PVE模式：Boss角色列表
-    skill: MonsterSkill | null
+    skill: MonsterSkill | null,
+    canIgnoreObstacles?: boolean
 ): AttackableNode[] => {
-    const grid = gridCells.map(row => row.map(cell => ({ ...cell, walkable: true })));
     const attackableNodes: AttackableNode[] = [];
+    const range = (skill?.range?.distance ?? skill?.range?.max_distance) ?? attacker.attackRange.max;
 
     // PVE模式：遍历Boss角色（Boss本体 + 小怪）
     for (const enemy of enemies) {
-        if (attacker.attackRange.max === 1) {
-            gridCells[enemy.r][enemy.q].walkable = true;
-            const path = findPath(gridCells, { q: attacker.q, r: attacker.r }, { q: enemy.q, r: enemy.r }, undefined, "attack");
-            if (path.length - 2 <= attacker.moveRange)
+        if (range === 1) {
+            const meleeGrid = gridCells.map((row) => row.map((cell) => ({ ...cell })));
+            // 近战判定需要把目标格临时视为可达，用于计算“移动到相邻位后攻击”所需步数
+            if (meleeGrid[enemy.r]?.[enemy.q]) {
+                meleeGrid[enemy.r][enemy.q].walkable = true;
+            }
+            const path = findPath(
+                meleeGrid,
+                { q: attacker.q, r: attacker.r },
+                { q: enemy.q, r: enemy.r },
+                !!canIgnoreObstacles,
+                "attack"
+            );
+            if (path.length > 1 && path.length - 2 <= attacker.moveRange) {
                 attackableNodes.push({ uid: enemy.uid, character_id: enemy.character_id, q: enemy.q, r: enemy.r, distance: 1 });
+            }
         } else {
-            const path = findPath(grid, { q: attacker.q, r: attacker.r }, { q: enemy.q, r: enemy.r }, undefined, "attack");
-            const distance = path.length - 1;
-            const range = (skill?.range?.distance ?? skill?.range?.max_distance) ?? attacker.attackRange.max;
+            // Braveland 风格：远程仅按当前站位是否在射程内，不预览“移动后再攻击”
+            const distance = offsetHexDistance(attacker, enemy);
             if (distance <= range) {
                 attackableNodes.push({ uid: enemy.uid, character_id: enemy.character_id, q: enemy.q, r: enemy.r, distance: distance });
             }

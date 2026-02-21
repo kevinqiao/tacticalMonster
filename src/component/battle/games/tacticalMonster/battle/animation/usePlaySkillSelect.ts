@@ -24,6 +24,10 @@ const usePlaySkillSelect = () => {
             (t: any) => t.status === 1 && t.uid === uid && t.monsterId === monsterId
         ) || null;
         if (!currentTurn) return;
+        const moveRange = character.move_range ?? 2;
+        const remainingSteps = Math.max(0, moveRange - (currentTurn.stepsUsed ?? 0));
+        const isFlying = character.isFlying ?? false;
+        const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
 
         const skill: MonsterSkill | null = COMMON_SKILLS[character.selectedSkill ?? ""] ?? null;
         if (!skill) return;
@@ -61,11 +65,12 @@ const usePlaySkillSelect = () => {
                 r: character.r ?? 0,
                 uid: character.uid,
                 character_id: character.character_id,
-                moveRange: character.move_range ?? 2,
+                moveRange: remainingSteps,
                 attackRange: character.attack_range || { min: 1, max: 2 }
             },
             enemies,
-            skill ?? null
+            skill ?? null,
+            canIgnoreObstacles
         );
 
         character.attackables = attackableNodes;

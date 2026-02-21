@@ -145,6 +145,8 @@ const usePlayPhase = () => {
 
         // 1. 计算可移动范围
         const moveRange = character.move_range ?? 2;
+        const stepsUsed = currentTurn.stepsUsed ?? 0;
+        const remainingSteps = Math.max(0, moveRange - stepsUsed);
         const grid = groundCells.map((row) => row.map((cell) => {
             const char = characters.find((c) => c.q === cell.q && c.r === cell.r);
             return {
@@ -160,7 +162,7 @@ const usePlayPhase = () => {
         const walkableNodes = getWalkableNodes(
             grid,
             { q: character.q ?? 0, r: character.r ?? 0 },
-            moveRange,
+            remainingSteps,
             canIgnoreObstacles
         );
         character.walkables = walkableNodes;
@@ -182,11 +184,12 @@ const usePlayPhase = () => {
                 r: character.r ?? 0,
                 uid: character.uid,
                 character_id: character.character_id,
-                moveRange: character.move_range ?? 2,
+                moveRange: remainingSteps,
                 attackRange: character.attack_range || { min: 1, max: 2 }
             },
             enemies,
-            null
+            null,
+            canIgnoreObstacles
         );
         character.attackables = attackableNodes;
 
@@ -208,7 +211,7 @@ const usePlayPhase = () => {
                 const gridCell = groundCells[r]?.[col];
                 if (!gridCell?.element || node.distance === 0) return;
                 tl.to(gridCell.element, {
-                    opacity: node.distance === character.move_range ? 0.4 : 0.8,
+                    opacity: node.distance === remainingSteps ? 0.4 : 0.8,
                     duration: 0.5,
                     ease: "power2.inOut"
                 }, "<");

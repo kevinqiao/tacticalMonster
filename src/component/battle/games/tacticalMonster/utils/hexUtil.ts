@@ -2,7 +2,9 @@
  * Tactical Monster 六边形工具函数
  */
 
+import { GridCellSprite, HexNode, MonsterSprite } from "../types/CombatTypes";
 import { MapModel } from "../types/gameTypes";
+import { getOffsetNeighborDirs } from "./PathFind";
 
 export const hexToPixel = (q: number, r: number, hexWidth: number, hexHeight: number): { q: number; r: number; x: number; y: number } => {
     const isOddRow = r % 2 !== 0;
@@ -80,5 +82,20 @@ export function getNeighborsInRange(
 
     return neighbors;
 }
+
+export const getNeighbors = (pos: HexNode, characters: MonsterSprite[], gridCells: GridCellSprite[][]): HexNode[] => {
+    const isWalkable = (q: number, r: number): boolean => {
+        if (r < 0 || r >= gridCells.length || q < 0 || q >= (gridCells[0]?.length ?? 0)) return false;
+        const cell = gridCells[r][q];
+        // const character = characters.find((c) => c.q === q && c.r === r);
+        // if (character) return false;
+        return !cell.obstacle && !cell.disable;
+    };
+    return getOffsetNeighborDirs(pos.r)
+        .map(({ dq, dr }) => ({ q: pos.q + dq, r: pos.r + dr }))
+        .filter((neighbor) => {
+            return isWalkable(neighbor.q, neighbor.r)
+        });
+};
 
 

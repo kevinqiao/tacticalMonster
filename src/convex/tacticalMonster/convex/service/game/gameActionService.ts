@@ -95,7 +95,7 @@ export class GameActionService {
                 message: `steps_over_range: usedBefore=${stepsUsedBefore} thisWalk=${thisWalkSteps} newTotal=${newStepsUsed} moveRange=${moveRange}`,
             };
         }
-        console.log("validateAction identifier", identifier, stepsUsedBefore, thisWalkSteps, newStepsUsed, moveRange);
+        // console.log("validateAction identifier", identifier, stepsUsedBefore, thisWalkSteps, newStepsUsed, moveRange);
         const validationResult = await this.validator.validateAction(identifier, {
             validatePosition: { from, to }
         });

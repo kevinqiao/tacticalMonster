@@ -2,8 +2,8 @@
  * Tactical Monster 战斗类型定义
  */
 
-import React from "react";
 import { Spine } from "pixi-spine";
+import React from "react";
 import { StateChanges } from "./backendResponseTypes";
 import { CharacterIdentifier, GameTurn, PhaseChanges, SkillEffectItem } from "./gameTypes";
 import { GameMonster } from "./monsterTypes";
@@ -216,6 +216,7 @@ export interface GridCellSprite {
     q: number;
     r: number;
     disable?: boolean;
+    obstacle?: number;//0-无障碍物,>1-障碍物类型
     element?: SVGElement | null;
 }
 

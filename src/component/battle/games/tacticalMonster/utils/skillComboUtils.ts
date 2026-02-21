@@ -2,9 +2,8 @@
  * Tactical Monster 技能组合工具函数
  * 处理技能组合效果检测和加成计算
  */
-
-import { MonsterSkill } from "../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { MonsterSprite } from "../types/CombatTypes";
+import { MonsterSkill } from "../types/skillTypes";
 
 export interface SkillCombo {
     skillIds: string[];  // 组合中的技能ID列表
@@ -82,7 +81,7 @@ export const getSkillComboInfo = (
     skillId: string
 ): SkillCombo[] => {
     const combos: SkillCombo[] = [];
-    const characterSkills = character.skills?.map(s => s.id) || [];
+    const characterSkills = character.skills || [];
 
     for (const combo of PREDEFINED_COMBOS) {
         if (combo.skillIds.includes(skillId) &&

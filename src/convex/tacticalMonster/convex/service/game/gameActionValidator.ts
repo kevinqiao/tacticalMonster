@@ -81,7 +81,7 @@ export class GameActionValidator {
             return { valid: false, message: "当前回合不存在" };
         }
 
-        console.log("validateTurn roundInfo", roundInfo, characterIdentifier);
+        // console.log("validateTurn roundInfo", roundInfo, characterIdentifier);
         const { currentTurn } = roundInfo;
 
         if (!currentTurn) {
@@ -98,7 +98,7 @@ export class GameActionValidator {
         if (!character) {
             return { valid: false, message: "角色不存在" };
         }
-        console.log("validateTurn character", character);
+        // console.log("validateTurn character", character);
         if (currentTurn.uid !== character.uid || currentTurn.monsterId !== character.monsterId) {
             return { valid: false, message: "不是当前回合，无法执行操作" };
         }

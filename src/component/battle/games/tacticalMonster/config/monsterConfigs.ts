@@ -270,7 +270,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         skillIds: getSkillsByClass("Warrior"),
         growthRates: getGrowthRatesByClass("Warrior", "Legendary"),
         moveRange: 4,
-        attackRange: { min: 1, max: 2 },
+        attackRange: { min: 1, max: 1 },
         assetPath: "/assets/3d/characters/griffin/model/griffin.glb",
     },
     {

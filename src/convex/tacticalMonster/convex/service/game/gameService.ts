@@ -178,7 +178,7 @@ export class GameService implements CharacterGetter {
         ruleId: string,
         stageId: string
     ): Promise<{ game: GameModel | null; phaseChanges?: PhaseChanges }> {
-        console.log("createGame params", uid, gameId, ruleId, stageId);
+        // console.log("createGame params", uid, gameId, ruleId, stageId);
         const game = await this.gameLifecycleService.createGame(uid, gameId, ruleId, stageId);
         if (!game) return { game: null };
 
@@ -601,7 +601,7 @@ export const walk = mutation({
         forceEndTurn: v.optional(v.boolean()),
     },
     handler: async (ctx, { gameId, to, identifier, endTurn, steps, forceEndTurn }) => {
-        console.log("walk", gameId, identifier, to, endTurn ?? "(auto)", steps ?? "(auto)", forceEndTurn ?? false);
+        // console.log("walk", gameId, identifier, to, endTurn ?? "(auto)", steps ?? "(auto)", forceEndTurn ?? false);
         const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
         try {
@@ -610,7 +610,7 @@ export const walk = mutation({
                     ? { endTurn, steps, forceEndTurn }
                     : undefined;
             const result = await gameManager.walk(gameId, to, identifier, options);
-            console.log("walk result", result.success, result.phaseChanges ?? "");
+            // console.log("walk result", result.success, result.phaseChanges ?? "");
             return {
                 ok: true,
                 success: result.success,

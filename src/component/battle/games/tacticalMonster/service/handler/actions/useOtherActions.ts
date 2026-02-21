@@ -2,22 +2,79 @@
  * 其他操作 Hook（选择技能、攻击、防御、待机、投降）
  */
 
-import React, { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { api } from "../../../../../../../convex/tacticalMonster/convex/_generated/api";
-import { getSkillConfig } from "../../../config/skillConfigs";
-import { MonsterSprite } from "../../../types/CombatTypes";
-import { MonsterSkill } from "../../../types/skillTypes";
 import { useGameSettings } from "../../../battle/hooks/useGameSettings";
+import { GameModel, MonsterSprite } from "../../../types/CombatTypes";
+import { MonsterSkill } from "../../../types/skillTypes";
 import { offsetHexDistance } from "../../../utils/hexUtil";
-import { getPossiblePositions } from "../../../utils/positionEvaluator";
-import { PositionSelectionUI } from "../../../battle/view/PositionSelectionUI";
+import { findPath } from "../../../utils/PathFind";
+import { getMeleePossiblePositions } from "../../../utils/positionEvaluator";
+import { resolveAttackProfile } from "../../../utils/skillRangeUtils";
 import { canPerformAction } from "../utils/validationUtils";
+
+const getRemainingSteps = (character: MonsterSprite, currentTurn: any): number => {
+    const totalMoveRange = character.move_range || 3;
+    return Math.max(0, totalMoveRange - (currentTurn.stepsUsed ?? 0));
+};
+
+const buildAttackWalkGrid = (
+    groundCells: any[][],
+    characters: any[],
+    self: MonsterSprite,
+    target: MonsterSprite
+) => {
+    return groundCells.map((row: any[]) =>
+        row.map((cell: any) => {
+            const occupied = (characters || []).some((c: any) => {
+                const isSelf = c.uid === self.uid && c.character_id === self.character_id;
+                const isTarget = c.uid === target.uid && c.character_id === target.character_id;
+                return c.q === cell.q && c.r === cell.r && !isSelf && !isTarget;
+            });
+            return {
+                q: cell.q,
+                r: cell.r,
+                walkable: !cell.disable && !occupied,
+            };
+        })
+    );
+};
+
+const canDirectMeleeAttack = (
+    character: MonsterSprite,
+    target: MonsterSprite,
+    groundCells: any[][],
+    characters: any[],
+    attackRange: number
+): boolean => {
+    if (!groundCells || groundCells.length === 0) {
+        // 缺少网格数据时，回退到几何距离判断
+        return (
+            offsetHexDistance(
+                { q: character.q ?? 0, r: character.r ?? 0 },
+                { q: target.q ?? 0, r: target.r ?? 0 }
+            ) <= attackRange
+        );
+    }
+
+    const canIgnoreObstacles = character.canIgnoreObstacles ?? character.isFlying ?? false;
+    const walkGrid = buildAttackWalkGrid(groundCells, characters, character, target);
+    const pathToTarget = findPath(
+        walkGrid,
+        { q: character.q ?? 0, r: character.r ?? 0 },
+        { q: target.q ?? 0, r: target.r ?? 0 },
+        canIgnoreObstacles,
+        "attack_direct_check"
+    );
+    // path=[start,target] 表示邻接，可直接近战
+    return pathToTarget.length > 1 && pathToTarget.length - 2 <= 0;
+};
 
 /**
  * 其他操作
  */
 export const useOtherActions = (
-    game: any,
+    game: GameModel | null,
     characters: any[],
     mode: string,
     convex: any,
@@ -29,12 +86,6 @@ export const useOtherActions = (
     groundCells: any[][]
 ) => {
     const { settings } = useGameSettings();
-    const [positionSelectionState, setPositionSelectionState] = useState<{
-        positions: Array<{ q: number; r: number; score: number }>;
-        character: MonsterSprite;
-        target: MonsterSprite;
-        skillId: string;
-    } | null>(null);
     const selectSkill = useCallback(async (skill: MonsterSkill) => {
         const validation = canPerformAction(mode, game, characters);
         if (!validation.can || !validation.currentTurn) return;
@@ -87,97 +138,55 @@ export const useOtherActions = (
 
     const attack = useCallback(async (target: MonsterSprite) => {
         const validation = canPerformAction(mode, game, characters);
-        if (!validation.can || !validation.character || !game?.currentRound) return;
+        console.log("attack validation", validation);
+        if (!validation.can || !validation.character || !validation.currentTurn || !game?.currentRound) return;
 
-        const { character } = validation;
-
-        // 获取当前选择的技能ID（默认使用第一个技能，通常是普通攻击）
-        const skillId = character.selectedSkill || "basic_attack";
-
-        // 获取技能配置，检查攻击范围
-        const skillConfig = getSkillConfig(skillId);
-        const attackRange = skillConfig?.range?.distance || 1;
-        const moveRange = character.move_range || 3;
-
-        // 计算距离
-        const distance = offsetHexDistance(
-            { q: character.q ?? 0, r: character.r ?? 0 },
-            { q: target.q ?? 0, r: target.r ?? 0 }
-        );
-
-        // 如果不在攻击范围内，需要移动
-        if (distance > attackRange) {
-            // 获取所有可能的移动位置（使用用户设置中的策略）
-            const possiblePositions = getPossiblePositions(
-                character,
-                target,
-                attackRange,
-                moveRange,
-                groundCells || [],
-                characters || [],
-                settings.autoMoveStrategy
+        const { character, currentTurn } = validation;
+        const { skillId, attackRange, isMelee } = resolveAttackProfile(character);
+        const remainingSteps = getRemainingSteps(character, currentTurn);
+        console.log("attack profile", { skillId, attackRange, isMelee });
+        if (!isMelee) {
+            // Braveland 风格：远程仅按当前站位判定，不执行“自动移动后攻击”
+            const directRangedDistance = offsetHexDistance(
+                { q: character.q ?? 0, r: character.r ?? 0 },
+                { q: target.q ?? 0, r: target.r ?? 0 }
             );
-
-            if (possiblePositions.length === 0) {
-                console.warn("Cannot find path to target");
+            if (directRangedDistance <= attackRange) {
+                await useSkill(skillId, target);
                 return;
             }
+            console.warn("Ranged target is out of current attack range");
+            return;
+        }
 
-            // 根据用户设置选择位置
-            if (settings.autoMove) {
-                // 自动模式：选择评分最高的位置
-                const selectedPosition = possiblePositions[0];
+        const possiblePositions = getMeleePossiblePositions(
+            character,
+            target,
+            attackRange,
+            remainingSteps,
+            groundCells || [],
+            characters || [],
+            settings.autoMoveStrategy
+        );
 
-                try {
-                    // 执行移动（等待移动动画和后端响应都完成）
-                    await walk(selectedPosition);
-
-                    // 移动完成后，执行攻击
-                    await useSkill(skillId, target);
-                } catch (error) {
-                    console.error("Move and attack failed:", error);
-                    // 移动失败，不执行攻击
-                }
-            } else {
-                // 手动模式：显示位置选择UI
-                setPositionSelectionState({
-                    positions: possiblePositions,
-                    character,
-                    target,
-                    skillId
-                });
-            }
-        } else {
-            // 已在攻击范围内，直接攻击
+        if (possiblePositions.length === 0) {
+            console.warn("Cannot find reachable melee position to attack target");
+            return;
+        }
+        const isNeighbor = possiblePositions.some((pos) => pos.q === character.q && pos.r === character.r);
+        if (isNeighbor) {
             await useSkill(skillId, target);
+            return;
+        } else {
+            const selectedPosition = possiblePositions[0];
+            try {
+                await walk(selectedPosition);
+                await useSkill(skillId, target);
+            } catch (error) {
+                console.error("Move and attack failed:", error);
+            }
         }
     }, [game, mode, characters, useSkill, walk, groundCells, settings]);
-
-    // 处理位置选择
-    const handlePositionSelect = useCallback(async (position: { q: number; r: number }) => {
-        if (!positionSelectionState) return;
-
-        const { character, target, skillId } = positionSelectionState;
-
-        // 清除选择状态
-        setPositionSelectionState(null);
-
-        try {
-            // 执行移动（等待移动动画和后端响应都完成）
-            await walk(position);
-
-            // 移动完成后，执行攻击
-            await useSkill(skillId, target);
-        } catch (error) {
-            console.error("Move and attack failed:", error);
-            // 移动失败，不执行攻击
-        }
-    }, [positionSelectionState, walk, useSkill]);
-
-    // 处理取消选择
-    const handlePositionCancel = useCallback(() => {
-        setPositionSelectionState(null);
-    }, []);
 
     return {
         selectSkill,
@@ -185,17 +194,7 @@ export const useOtherActions = (
         defend,
         surrender,
         attack,
-        positionSelectionUI: positionSelectionState ? React.createElement(
-            PositionSelectionUI,
-            {
-                positions: positionSelectionState.positions,
-                character: positionSelectionState.character,
-                target: positionSelectionState.target,
-                gridCells: groundCells || [],
-                onSelect: handlePositionSelect,
-                onCancel: handlePositionCancel
-            }
-        ) : null
+        positionSelectionUI: null
     };
 };
 

@@ -5,7 +5,7 @@
 
 import { GridCellSprite, MonsterSprite } from "../types/CombatTypes";
 import { getAllAllies, getAllEnemies } from "./characterFilterUtils";
-import { getNeighborsInRange, offsetHexDistance } from "./hexUtil";
+import { getNeighbors, offsetHexDistance } from "./hexUtil";
 import { findPath } from "./PathFind";
 
 /**
@@ -30,7 +30,7 @@ export function evaluatePosition(
     const attackRange = character.attack_range?.max || 1;
 
     // 1. 距离目标的位置（越近越好，但要在攻击范围内）
-    const distanceToTarget = offsetHexDistance(position, { q: target.q, r: target.r });
+    const distanceToTarget = offsetHexDistance(position, { q: target.q ?? 0, r: target.r ?? 0 });
     if (distanceToTarget > attackRange) {
         return 0;  // 不在攻击范围内，直接返回0
     }
@@ -80,7 +80,7 @@ function evaluateThreat(
     const enemies = getAllEnemies(character, characters);
 
     for (const enemy of enemies) {
-        const distance = offsetHexDistance(position, { q: enemy.q, r: enemy.r });
+        const distance = offsetHexDistance(position, { q: enemy.q ?? 0, r: enemy.r ?? 0 });
         const enemyAttackRange = enemy.attack_range?.max || 1;
 
         // 如果在敌人的攻击范围内，扣分
@@ -109,7 +109,7 @@ function evaluateSupport(
     const allies = getAllAllies(character, characters);
 
     for (const ally of allies) {
-        const distance = offsetHexDistance(position, { q: ally.q, r: ally.r });
+        const distance = offsetHexDistance(position, { q: ally.q ?? 0, r: ally.r ?? 0 });
 
         // 如果友军可以支援（在友军的攻击范围内），加分
         const allyAttackRange = ally.attack_range?.max || 1;
@@ -173,7 +173,7 @@ function checkObstacleProtection(
         const neighborQ = position.q + dir.q;
         const neighborR = position.r + dir.r;
         const neighborCell = gridCells[neighborR]?.[neighborQ];
-        if (neighborCell && !neighborCell.walkable) {
+        if (neighborCell?.disable) {
             obstacleCount++;
         }
     }
@@ -205,7 +205,7 @@ function isPositionOccupied(
  * @param characters - 所有角色列表
  * @returns 所有可能的移动位置列表（按评分排序）
  */
-export function getPossiblePositions(
+export function getMeleePossiblePositions(
     character: MonsterSprite,
     target: MonsterSprite,
     attackRange: number,
@@ -217,39 +217,30 @@ export function getPossiblePositions(
     const possiblePositions: Array<{ q: number; r: number; score: number }> = [];
 
     // 1. 获取目标周围的所有位置（在攻击范围内）
-    const targetNeighbors = getNeighborsInRange(target.q, target.r, attackRange);
+    // console.log("attackRange", attackRange, " moveRange", moveRange);
+    const targetNeighbors = getNeighbors({ q: target.q ?? 0, r: target.r ?? 0 }, characters, gridCells);
+
+    const isNeighbor = targetNeighbors.some((pos) => pos.q === character.q && pos.r === character.r);
+    if (isNeighbor) {
+        possiblePositions.push({ q: character.q ?? 0, r: character.r ?? 0, score: 100 });
+        return possiblePositions;
+    }
 
     // 2. 过滤出可到达的位置
     for (const pos of targetNeighbors) {
-        // 检查是否在地图范围内
-        if (pos.r < 0 || pos.r >= gridCells.length ||
-            pos.q < 0 || pos.q >= (gridCells[0]?.length || 0)) {
+        const isOccupied = characters.find((char) => char.q === pos.q && char.r === pos.r);
+        if (isOccupied) {
             continue;
         }
-
-        // 检查位置是否被占用
-        if (isPositionOccupied(pos, characters)) {
-            continue;
-        }
-
-        // 计算从当前位置到目标位置的距离
-        const distance = offsetHexDistance(
-            { q: character.q, r: character.r },
-            { q: pos.q, r: pos.r }
-        );
-
-        // 检查是否在移动范围内
-        if (distance > moveRange) continue;
-
-        // 检查路径是否可达
+        // 检查路径是否可达（并基于实际步数过滤）
         const path = findPath(
             gridCells,
-            { q: character.q, r: character.r },
+            { q: character.q ?? 0, r: character.r ?? 0 },
             { q: pos.q, r: pos.r },
             character.canIgnoreObstacles || character.isFlying
         );
 
-        if (path && path.length > 0) {
+        if (path && path.length - 1 <= moveRange) {
             // 计算位置评分（使用传入的策略）
             const score = evaluatePosition(
                 pos,

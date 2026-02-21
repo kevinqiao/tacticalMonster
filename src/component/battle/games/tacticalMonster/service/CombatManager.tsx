@@ -9,6 +9,9 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
+import { useGameReplay } from "../battle/hooks/useGameReplay";
+import { useWatchMode } from "../battle/hooks/useWatchMode";
+import { useMapDimension } from "../common/hooks/useMapDimension";
 import type { MapDimension } from "../team/service/TeamDeployManager";
 import type { GameModel } from "../types/CombatTypes";
 import {
@@ -20,9 +23,6 @@ import {
 } from "../types/CombatTypes";
 import { PhaseChanges } from "../types/gameTypes";
 import { ObstacleCell, ObstacleSprite } from "../types/obstacleTypes";
-import { useMapDimension } from "../common/hooks/useMapDimension";
-import { useGameReplay } from "../battle/hooks/useGameReplay";
-import { useWatchMode } from "../battle/hooks/useWatchMode";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
@@ -149,6 +149,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     // ✅ 初始化 characters（只在 gameId 变化时）
     useEffect(() => {
         if (game?.team && game?.boss) {
+            console.log("game.team", game.team);
             charactersRef.current = getCharactersFromGameModel(game.team, game.boss);
         }
     }, [game?.gameId]); // 只在 gameId 变化时重新初始化
@@ -159,7 +160,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     const characters = charactersRef.current;
     const groundCells: GridCellSprite[][] | null = useMemo(() => {
         if (!game?.map) return null;
-        const { rows, cols, disables } = game.map;
+        const { rows, cols, disables, obstacles } = game.map;
         const cells: GridCellSprite[][] = Array.from({ length: rows }, (_, y) =>
             Array.from({ length: cols }, (_, x) => {
                 const cell: GridCellSprite = {
@@ -171,7 +172,10 @@ const CombatManager: React.FC<CombatManagerProps> = ({
                 if (disable) {
                     cell.disable = true;
                 }
-
+                const obstacle = obstacles?.find((o: ObstacleCell) => o.q === x && o.r === y);
+                if (obstacle) {
+                    cell.obstacle = 1;
+                }
                 return cell;
             })
         );
