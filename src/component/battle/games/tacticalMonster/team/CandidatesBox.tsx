@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { useTeamDeployManager } from "./service/TeamDeployManager";
+import { useTeamDeployManager } from "../service/TeamDeployManager";
 
 interface CandidateCellProps {
     onSelect: () => void;

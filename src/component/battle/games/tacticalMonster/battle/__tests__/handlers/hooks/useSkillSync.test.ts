@@ -4,9 +4,9 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useSkillSync } from "../../../../battle3d/handler/useSkillSync";
 import { MonsterSprite } from "../../../../types/CombatTypes";
 import { UseSkillResponse } from "../../../../types/backendResponseTypes";
-import { useSkillSync } from "../../../../service/handler/hooks/useSkillSync";
 import { createTestCharacter, createTestPhaseChanges } from "../../testUtils";
 
 // Mock dependencies

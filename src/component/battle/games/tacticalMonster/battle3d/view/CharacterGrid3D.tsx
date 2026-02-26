@@ -39,9 +39,6 @@ export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }
                     : [pos.x, pos.y, pos.z];
             const facing = (character.scaleX ?? 1) >= 0 ? 1 : -1;
             const isActive = key === activeCharacterKey;
-            if (isActive) {
-                console.log("[CharacterGrid3D] isActive=true for:", key, "activeCharacterKey:", activeCharacterKey);
-            }
 
             return (
                 <BattleCharacter3DWithSuspense

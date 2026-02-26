@@ -11,12 +11,11 @@ import type { MonsterSprite } from "../../types/CombatTypes";
 import type { GameTurn } from "../../types/gameTypes";
 import { getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
 import { showDamageNumber } from "../../utils/damageNumberDisplay";
-import type { UseBattleGridStateReturn } from "../hooks/useBattleGridState";
-import { getCharacterKey } from "../utils/battle3DAdapter";
+import type { UseBattleGridStateReturn } from "../handler/useBattleGridState";
 import { usePlaySkill3D } from "./usePlaySkill3D";
 
 export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
-    const { groundCells, characters, game, mapDimension, playbackSpeed = 1.0, setActiveCharacterKey } = useCombatManager();
+    const { groundCells, characters, game, mapDimension, playbackSpeed = 1.0 } = useCombatManager();
     const { map } = game || {};
     const { playSkill } = usePlaySkill3D();
 
@@ -221,20 +220,16 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             // ✅ 高亮角色所在格子（逻辑坐标）
             gridState.setSelected({ q: character.q ?? 0, r: character.r ?? 0 });
 
-            // ✅ 设置活跃角色（驱动 BattleCharacter3D 发光环指示器）
-            const charKey = getCharacterKey(character);
-            console.log("[playTurnOn] setActiveCharacterKey:", charKey, "character:", character.uid, character.monsterId);
-            setActiveCharacterKey(charKey);
+            // 活跃角色由 CombatManager 从 currentRound 推导，无需在此设置
 
             onComplete();
         },
-        [characters, groundCells, map, gridState, setActiveCharacterKey]
+        [characters, groundCells, map, gridState]
     );
 
     const clearTurnUI = useCallback(() => {
         gridState?.clearAll();
-        setActiveCharacterKey(null);
-    }, [gridState, setActiveCharacterKey]);
+    }, [gridState]);
 
     /**
      * 从当前角色位置按剩余步数刷新可行走/可攻击高亮。

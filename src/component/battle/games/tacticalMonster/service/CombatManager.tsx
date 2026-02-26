@@ -11,8 +11,7 @@ import React, { createContext, ReactNode, useCallback, useContext, useEffect, us
 
 import { useGameReplay } from "../battle/hooks/useGameReplay";
 import { useWatchMode } from "../battle/hooks/useWatchMode";
-import { useMapDimension } from "../common/hooks/useMapDimension";
-import type { MapDimension } from "../team/service/TeamDeployManager";
+import { getCharacterKey } from "../battle3d/utils/battle3DAdapter";
 import type { GameModel } from "../types/CombatTypes";
 import {
     FrontendCombatEvent,
@@ -21,9 +20,24 @@ import {
     MonsterSprite,
     ReplayControls
 } from "../types/CombatTypes";
+import type { GameRound } from "../types/gameTypes";
 import { PhaseChanges } from "../types/gameTypes";
 import { ObstacleCell, ObstacleSprite } from "../types/obstacleTypes";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
+import { useInitialPhaseChangesGate } from "./hooks/useInitialPhaseChangesGate";
+import type { MapDimension } from "./TeamDeployManager";
+import { useMapDimension } from "./useMapDimension";
+
+export type TurnRoundData =
+    | NonNullable<PhaseChanges["roundStart"]>
+    | NonNullable<PhaseChanges["turnStart"]>
+    | NonNullable<PhaseChanges["roundEnd"]>
+    | NonNullable<PhaseChanges["turnEnd"]>;
+
+export type TurnRoundPayload = {
+    name: "roundStart" | "turnStart" | "roundEnd" | "turnEnd";
+    data: TurnRoundData;
+};
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 export interface ICombatContext {
@@ -32,13 +46,14 @@ export interface ICombatContext {
     obstacleSprites?: ObstacleSprite[];
     characters?: MonsterSprite[];
     eventQueue: FrontendCombatEvent[];
+
     processedEvents?: FrontendCombatEvent[];  // Watch 模式：已处理的事件列表（用于实时计算分数）
-    updateGameState?: (updater: (game: GameModel) => GameModel) => void;
+
     /** 由 CombatManager 通过 useMapDimension 测量容器得到，供 2D/3D 视图与动画使用 */
     mapDimension: MapDimension | null;
-    setMapDimension: React.Dispatch<React.SetStateAction<MapDimension | null>>;
+    // setMapDimension: React.Dispatch<React.SetStateAction<MapDimension | null>>;
     /** 测量 mapDimension 的容器 ref，挂在 CombatManager 的包装 div 上 */
-    containerRef: React.RefObject<HTMLDivElement | null>;
+    // containerRef: React.RefObject<HTMLDivElement | null>;
     mode?: GameMode;
     replay?: ReplayControls;
     playbackSpeed?: number;
@@ -46,7 +61,9 @@ export interface ICombatContext {
     initialPhaseChanges?: PhaseChanges;
     markInitialPhaseChangesProcessed: () => void;
     isInitialPhaseChangesProcessed: () => boolean;
-    // ✅ 当前回合活跃角色（用于 3D 视图高亮指示）
+    turnRound?: TurnRoundPayload;
+    setTurnRound: (payload: TurnRoundPayload) => void;
+    /** 当前回合活跃角色（用于 3D 视图高亮指示）；由 derivation 与 setActiveCharacterKey 共同控制 */
     activeCharacterKey: string | null;
     setActiveCharacterKey: (key: string | null) => void;
     // ✅ 动画中角色（2D/3D 行走等）：避免重渲染覆盖 GSAP 控制的 position
@@ -63,12 +80,14 @@ export const CombatContext = createContext<ICombatContext>({
     obstacleSprites: [],
     eventQueue: [],
     mapDimension: null,
-    setMapDimension: () => null,
-    containerRef: { current: null },
+    // setMapDimension: () => null,
+    // containerRef: { current: null },
     mode: 'play',
     playbackSpeed: 1.0,
     markInitialPhaseChangesProcessed: () => { },
     isInitialPhaseChangesProcessed: () => false,
+    turnRound: undefined,
+    setTurnRound: () => { },
     activeCharacterKey: null,
     setActiveCharacterKey: () => { },
     animatingCharacterKey: null,
@@ -105,12 +124,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 }) => {
 
     const eventQueueRef: React.MutableRefObject<FrontendCombatEvent[]> = useRef<FrontendCombatEvent[]>([]);
-    const { containerRef, mapDimension: hookMapDimension } = useMapDimension();
-    const [mapDimension, setMapDimension] = useState<MapDimension | null>(null);
-    useEffect(() => {
-        setMapDimension(hookMapDimension);
-    }, [hookMapDimension]);
-
+    const { containerRef, mapDimension } = useMapDimension();
     // ✅ 重播功能（仅在 replay 模式）
     // 在 replay 模式下，useGameReplay 会：
     // 1. 加载所有历史事件（findAllEvents）
@@ -139,25 +153,12 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         }
     }, [mode, replay]);
 
-    // ✅ 优化：直接使用传入的 game prop，不维护本地状态
-    // 所有状态更新都通过直接修改 charactersRef 中的对象（通过 GSAP）实现，避免重新渲染
 
-    // ✅ 优化：使用 ref 存储 characters，避免频繁重新计算和重新渲染
-    // 直接修改 ref 中的对象（通过 GSAP）不会触发 React 重新渲染
-    const charactersRef = useRef<MonsterSprite[]>([]);
 
-    // ✅ 初始化 characters（只在 gameId 变化时）
-    useEffect(() => {
-        if (game?.team && game?.boss) {
-            console.log("game.team", game.team);
-            charactersRef.current = getCharactersFromGameModel(game.team, game.boss);
-        }
-    }, [game?.gameId]); // 只在 gameId 变化时重新初始化
-
-    // ✅ 优化：characters 直接使用 ref（不触发重新渲染）
-    // 直接修改 ref 中的对象（通过 GSAP）不会触发 React 重新渲染
-    // 只有在 gameId 变化时（useEffect）才会重新初始化 charactersRef
-    const characters = charactersRef.current;
+    const characters = useMemo(() => {
+        if (!game?.team || !game?.boss) return [];
+        return getCharactersFromGameModel(game.team, game.boss);
+    }, [game?.gameId]);
     const groundCells: GridCellSprite[][] | null = useMemo(() => {
         if (!game?.map) return null;
         const { rows, cols, disables, obstacles } = game.map;
@@ -182,27 +183,69 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         return cells;
     }, [game?.map]);
 
-    // ✅ 优化：移除 updateGameState（不再需要维护本地状态）
-    // 所有状态更新都通过直接修改 charactersRef 中的对象（通过 GSAP）实现
-    // 如果需要更新 React 状态，应该通过父组件的 prop 传递
-    const updateGameState = useCallback((updater: (game: GameModel) => GameModel) => {
-        // ⚠️ 已移除本地状态管理，此函数保留为空函数以确保接口兼容性
-        // 如果确实需要更新 game，应该通过父组件的状态管理来实现
-        console.warn("updateGameState is deprecated. Game state should be managed by parent component.");
-    }, []);
 
-    // ✅ initialPhaseChanges 由各视图层（2D BattlePlayer / 3D BattleVenue3D）自行处理
-    // CombatManager 只负责暴露数据和标记是否已处理
-    const processedInitialPhaseChangesRef = useRef<boolean>(false);
-    const markInitialPhaseChangesProcessed = useCallback(() => {
-        processedInitialPhaseChangesRef.current = true;
-    }, []);
-    const isInitialPhaseChangesProcessed = useCallback(() => {
-        return processedInitialPhaseChangesRef.current;
-    }, []);
 
-    // ✅ 当前回合活跃角色（用于 3D 视图高亮指示）
+    const { markInitialPhaseChangesProcessed, isInitialPhaseChangesProcessed } =
+        useInitialPhaseChangesGate();
+
+    const [turnRound, setTurnRoundState] = useState<TurnRoundPayload | undefined>(undefined);
+
+    const setTurnRound = useCallback((payload: TurnRoundPayload) => {
+        if (!game) return;
+        const { name, data } = payload;
+
+        // roundStart: 先同步 game.currentRound（后端返回的 round.turns 已保证 uid="boss" 时含 bossId 或 minionId）
+        if (name === "roundStart" && "round" in data && data.round) {
+            const round = data.round as GameRound;
+            (game as { currentRound?: GameRound }).currentRound = round;
+        }
+
+        // turnStart / turnEnd: 更新 game.currentRound.turns 的 status
+        if ((name === "turnStart" || name === "turnEnd") && game.currentRound) {
+            const actor = ("turn" in data ? data.turn : data) as {
+                uid?: string;
+                monsterId?: string;
+                bossId?: string;
+                minionId?: string;
+            };
+
+            const turn = game.currentRound.turns.find((t) => {
+                if (actor.bossId) return t.bossId === actor.bossId;
+                if (actor.minionId) return t.minionId === actor.minionId;
+                return actor.uid !== "boss" && !!actor.monsterId && t.monsterId === actor.monsterId;
+            });
+
+            if (turn) {
+                turn.status = name === "turnStart" ? 1 : 2;
+            }
+        }
+
+        setTurnRoundState(payload);
+    }, [game]);
+
+    // ✅ 当前回合活跃角色（命令式设置，确保 phase handler 中即时生效）
     const [activeCharacterKey, setActiveCharacterKey] = useState<string | null>(null);
+
+    // ✅ 兜底同步：当 turnRound / game.currentRound 变化时，根据 status 1 的 turn 推导 activeCharacterKey，确保高亮不丢失
+    useEffect(() => {
+        const round = game?.currentRound;
+        const turns = round?.turns ?? [];
+        const activeTurn = turns.find((t) => (t.status ?? 0) === 1);
+        if (!activeTurn || !characters?.length) {
+            setActiveCharacterKey(null);
+            return;
+        }
+        const t = activeTurn as { uid?: string; monsterId?: string; bossId?: string; minionId?: string };
+        const character =
+            (t.bossId != null && characters.find((c) => (c as { character_id?: string }).character_id === t.bossId)) ||
+            (t.minionId != null && characters.find((c) => (c as { character_id?: string }).character_id === t.minionId)) ||
+            characters.find((c) => c.uid === t.uid && c.monsterId === t.monsterId);
+        if (character) {
+            setActiveCharacterKey(getCharacterKey(character));
+        } else {
+            setActiveCharacterKey(null);
+        }
+    }, [turnRound, game?.currentRound, characters]);
 
     // ✅ 动画中角色（2D/3D 行走等）：稳定 position 引用 + 触发一次重渲染，避免动画期间被覆盖
     const [animatingCharacterKey, setAnimatingCharacterKey] = useState<string | null>(null);
@@ -238,14 +281,15 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         characters: characters || [],
         eventQueue: eventQueueRef.current,
         processedEvents: mode === 'watch' ? processedEvents : undefined,
-        updateGameState,
         mapDimension,
-        setMapDimension,
-        containerRef,
+        // setMapDimension,
+        // containerRef,
         mode: mode,
         initialPhaseChanges,
         markInitialPhaseChangesProcessed,
         isInitialPhaseChangesProcessed,
+        turnRound,
+        setTurnRound,
         activeCharacterKey,
         setActiveCharacterKey,
         animatingCharacterKey,

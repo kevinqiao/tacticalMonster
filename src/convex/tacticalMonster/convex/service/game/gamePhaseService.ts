@@ -4,7 +4,7 @@
  */
 
 import { internal } from "../../_generated/api";
-import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges, TriggeredPassiveSkill } from "../../types/gameTypes";
+import { CharacterIdentifier, CombatEvent, GameRound, GameTurn, PhaseChanges, TriggeredPassiveSkill } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
 import { processStatusEffects } from "../skill/StatusEffectProcessor";
 import { SkillManager } from "../skill/skillManager";
@@ -308,13 +308,17 @@ export class GamePhaseService {
         const newRoundNo = roundNumber + 1;
         const roundStarted = await this.roundService.createRound(gameId, newRoundNo, game);
         if (!roundStarted) return null;
+        const roundDoc = await this.roundService.getRoundDoc(gameId, newRoundNo);
+        const round: GameRound = roundDoc
+            ? { no: roundDoc.no, turns: roundDoc.turns || [] }
+            : { no: newRoundNo, turns: [] };
         const roundStartPassiveSkills = await this.triggerPassiveSkills(gameId, "round_start");
         const eventService = new GameEventService(this.dbCtx);
         const event = eventService.createNewRoundEvent(gameId, newRoundNo);
         if (event.data) (event.data as any).triggeredPassiveSkills = roundStartPassiveSkills;
         await eventService.createEvent(event);
         await this.lifecycleService.save(gameId, { round: newRoundNo, lastUpdate: new Date().toISOString() });
-        changes.roundStart = { round: newRoundNo, triggeredPassiveSkills: roundStartPassiveSkills };
+        changes.roundStart = { round, triggeredPassiveSkills: roundStartPassiveSkills };
         return newRoundNo;
     }
 
@@ -435,8 +439,11 @@ export class GamePhaseService {
         }
         await eventService.createEvent(roundStartEvent);
 
+        const round: GameRound = game.currentRound
+            ? { no: game.currentRound.no, turns: game.currentRound.turns }
+            : { no: roundNumber, turns: [] };
         changes.roundStart = {
-            round: roundNumber,
+            round,
             triggeredPassiveSkills: roundStartPassiveSkills,
         };
 

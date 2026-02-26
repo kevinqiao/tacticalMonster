@@ -19,8 +19,7 @@ export const usePlaySkillSelect3D = () => {
             const character = characters.find((c) => c.uid === uid && c.monsterId === monsterId);
             if (!character) return;
             const currentTurn = currentRound.turns.find(
-                (t: { status: number; uid: string; monsterId: string }) =>
-                    t.status === 1 && t.uid === uid && t.monsterId === monsterId
+                (t) => t.status === 1 && t.uid === uid && t.monsterId === monsterId
             ) ?? null;
             if (!currentTurn) return;
             const moveRange = character.move_range ?? 2;

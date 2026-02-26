@@ -3,9 +3,9 @@
  * 用于在 2D 六边形坐标和 Three.js 3D 世界坐标之间转换
  */
 
-import { MapDimension } from "../../team/service/TeamDeployManager";
-import { hexToPixel } from "../../team/utils/coordinateUtils";
 import * as THREE from "three";
+import { MapDimension } from "../../service/TeamDeployManager";
+import { hexToPixel } from "../../team/utils/coordinateUtils";
 
 /**
  * 将六边形坐标转换为 Three.js 3D 世界坐标（返回六边形左上角位置）
@@ -22,9 +22,9 @@ export const hexTo3DPosition = (
     y: number = 0
 ): THREE.Vector3 | null => {
     if (!mapDimension) return null;
-    
+
     const { hexWidth, hexHeight } = mapDimension;
-    
+
     // 计算六边形的左上角坐标（与 2D 渲染保持一致）
     const isOddRow = r % 2 !== 0;
     const colOffset = isOddRow ? hexWidth / 2 : 0;
@@ -52,15 +52,15 @@ export const hexTo3DCenter = (
     y: number = 0
 ): THREE.Vector3 | null => {
     if (!mapDimension) return null;
-    
+
     const { hexWidth, hexHeight } = mapDimension;
-    
+
     // 计算六边形的左上角坐标
     const isOddRow = r % 2 !== 0;
     const colOffset = isOddRow ? hexWidth / 2 : 0;
     const hexLeftX = q * hexWidth + colOffset;
     const hexTopY = r * hexHeight * 0.75;
-    
+
     // 计算六边形中心点
     const centerX = hexLeftX + hexWidth / 2;
     const centerZ = hexTopY + hexHeight / 2;
@@ -92,15 +92,15 @@ export const world3DToHex = (
         Math.round(worldPos.z / (mapDimension.hexHeight * 0.75)),
         mapDimension
     );
-    
+
     if (!hexPos) return null;
-    
+
     // 从像素坐标反推六边形坐标（简化版本，实际应该使用更精确的方法）
     const r = Math.round(worldPos.z / (mapDimension.hexHeight * 0.75));
     const isOddRow = r % 2 !== 0;
     const colOffset = isOddRow ? mapDimension.hexWidth / 2 : 0;
     const q = Math.floor((worldPos.x - colOffset) / mapDimension.hexWidth);
-    
+
     return { q, r };
 };
 
@@ -128,7 +128,7 @@ export const raycastToHex = (
     // 创建一个 Y=0 的平面用于射线检测
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -planeY);
     const intersectionPoint = new THREE.Vector3();
-    
+
     raycaster.ray.intersectPlane(plane, intersectionPoint);
 
     // 将交点转换为六边形坐标

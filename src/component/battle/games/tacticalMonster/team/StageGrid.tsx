@@ -5,7 +5,7 @@
 
 import gsap from "gsap";
 import React, { useEffect, useRef, useState } from "react";
-import { useTeamDeployManager } from "./service/TeamDeployManager";
+import { useTeamDeployManager } from "../service/TeamDeployManager";
 import { hexToPixel } from "./utils/coordinateUtils";
 
 /**

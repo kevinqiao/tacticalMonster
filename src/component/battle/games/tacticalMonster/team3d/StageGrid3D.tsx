@@ -4,7 +4,7 @@
  */
 
 import React, { useContext, useMemo } from "react";
-import { useTeamDeployManager } from "../team/service/TeamDeployManager";
+import { useTeamDeployManager } from "../service/TeamDeployManager";
 import Boss3D from "./components/Boss3D";
 import HexCell3D from "./components/HexCell3D";
 import Obstacle3D from "./components/Obstacle3D";

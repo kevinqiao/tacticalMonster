@@ -1,6 +1,6 @@
-import { useConvex, useQuery } from "convex/react";
+import { useConvex } from "convex/react";
 import gsap from "gsap";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useGameCenterManager } from "service/GameCenterManager";
 import { usePageManager } from "service/PageManager";
 import { UserEvent, useUserManager } from "service/UserManager";
@@ -15,7 +15,7 @@ const UserEventHandler = () => {
     const { activeGame } = useGameCenterManager();
     const [lastUpdate, setLastUpdate] = useState<number | undefined>(user?.lastUpdate);
     const convex = useConvex();
-    const userEvents: UserEvent[] | undefined = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastUpdate });
+    // const userEvents: UserEvent[] | undefined = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastUpdate });
 
     const handleGameMatched = useCallback(async (event: UserEvent) => {
         if (activeGame?.ssa === event.data.game) {
@@ -55,25 +55,25 @@ const UserEventHandler = () => {
         tl.to(alertRef.current, { autoAlpha: 0, duration: 0.5 }).to(maskRef.current, { autoAlpha: 0, duration: 0.5 }, "<");
         tl.play();
     }, [user]);
-    useEffect(() => {
-        // const updateLastEvent = async (time: number) => {
-        //     await convex.mutation(api.dao.userDao.updateLastEvent, { uid: user?.uid ?? "", token: user?.token ?? "", lastUpdate: time });
-        // }
-        if (user?.uid && userEvents && userEvents.length > 0) {
-            for (const event of userEvents) {
-                console.log("event", event, activeGame);
-                if (event.name === "GameMatched" && event.data.game === activeGame?.ssa) {
-                    console.log("gameMatched", event);
-                    handleGameMatched(event);
-                }
-            }
-            const lastEvent = userEvents[userEvents.length - 1] as UserEvent;
-            console.log("lastEvent", lastEvent);
-            setLastUpdate(lastEvent.time);
-            // updateLastEvent(lastEvent.time);
-            // completeEventHandle(lastEvent.time);
-        }
-    }, [user, userEvents]);
+    // useEffect(() => {
+    //     // const updateLastEvent = async (time: number) => {
+    //     //     await convex.mutation(api.dao.userDao.updateLastEvent, { uid: user?.uid ?? "", token: user?.token ?? "", lastUpdate: time });
+    //     // }
+    //     if (user?.uid && userEvents && userEvents.length > 0) {
+    //         for (const event of userEvents) {
+    //             console.log("event", event, activeGame);
+    //             if (event.name === "GameMatched" && event.data.game === activeGame?.ssa) {
+    //                 console.log("gameMatched", event);
+    //                 handleGameMatched(event);
+    //             }
+    //         }
+    //         const lastEvent = userEvents[userEvents.length - 1] as UserEvent;
+    //         console.log("lastEvent", lastEvent);
+    //         setLastUpdate(lastEvent.time);
+    //         // updateLastEvent(lastEvent.time);
+    //         // completeEventHandle(lastEvent.time);
+    //     }
+    // }, [user, userEvents]);
     useEffect(() => {
         const checkMatch = async (matchId: string) => {
             const uri = matchAPI + "/check";

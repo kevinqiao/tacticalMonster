@@ -1,11 +1,11 @@
 import gsap from "gsap";
 import React, { useCallback, useEffect } from "react";
+import { TeamDeployProvider, useTeamDeployManager } from "../service/TeamDeployManager";
 import { Stage } from "../types/StageTypes";
 import CandidatesBox from "./CandidatesBox";
 import DragPreview from "./DragPreview";
 import GridGround from "./GridGround";
 import StageGrid from "./StageGrid";
-import { TeamDeployProvider, useTeamDeployManager } from "./service/TeamDeployManager";
 import "./styles.css";
 
 // 内部布局组件，使用 Context

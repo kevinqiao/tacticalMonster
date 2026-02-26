@@ -215,7 +215,7 @@ export type AttackProfile = {
 export const resolveAttackProfile = (character: MonsterSprite): AttackProfile => {
     const skillId = character.selectedSkill || "basic_attack";
     const skillConfig = getSkillConfig(skillId);
-    console.log("skillConfig", skillConfig);
+    // console.log("skillConfig", skillConfig);
     const attackRange =
         (skillConfig?.range?.distance ?? skillConfig?.range?.max_distance) ??
         character.attack_range?.max ??

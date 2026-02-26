@@ -201,7 +201,7 @@ export interface PhaseChanges {
 
     // ========== 回合和阶段 ==========
     roundStart?: {
-        round: number;
+        round: GameRound;  // 完整 GameRound（no + turns，turns 含 order，uid="boss" 时含 bossId 或 minionId）
         triggeredPassiveSkills?: TriggeredPassiveSkill[];
     };
     roundEnd?: {

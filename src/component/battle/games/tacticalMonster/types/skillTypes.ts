@@ -6,6 +6,9 @@
  * 注意：技能配置不存入数据库，直接从配置文件读取
  */
 
+import { UseSkillResponse } from "./backendResponseTypes";
+import { MonsterSprite } from "./CombatTypes";
+
 /**
  * 技能范围定义
  */
@@ -146,6 +149,20 @@ export interface MonsterSkill {
     // 触发条件（用于被动技能）
     triggerConditions?: SkillTriggerCondition[];  // 触发条件列表
 }
+
+/**
+ * 技能同步状态
+ * 方案1：乐观UI + 悲观状态
+ * 用于同步主动技能动画和后端响应的完成状态
+ */
+export type SkillSyncState = {
+    animationCompleted: boolean;
+    backendResponse: UseSkillResponse | null;
+    activeSkillTimeline?: gsap.core.Timeline;  // 主动技能动画 timeline，也作为主 timeline 使用
+    character?: MonsterSprite;
+    target?: MonsterSprite;
+    skillId?: string;
+};
 
 
 

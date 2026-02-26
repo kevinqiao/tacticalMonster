@@ -4,11 +4,11 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { calculateHexPoints } from '../utils/gridUtils';
 import { GridCellSprite } from '../types/CombatTypes';
+import { calculateHexPoints } from '../utils/gridUtils';
 
 import { STYLES } from '../battle/constants/GridConstants';
-import { useTeamDeployManager } from './service/TeamDeployManager';
+import { useTeamDeployManager } from '../service/TeamDeployManager';
 import './styles.css';
 
 const GroundCell: React.FC<{

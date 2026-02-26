@@ -11,6 +11,10 @@ import { hexTo3DCenter } from "../utils/coordinate3DUtils";
 
 const SKILL_ANIM_DURATION = 0.5;
 const FACE_TARGET_DURATION = 0.2;
+const RESTORE_FACING_DURATION = 0.2;
+// 朝向常量：与 BattleCharacter3D、usePlayWalk3D 一致
+const MODEL_FACE_RIGHT = Math.PI / 2;
+const MODEL_FACE_LEFT = -Math.PI / 2;
 
 interface UsePlaySkill3DOptions {
     mapDimension?: BattleMapDimension | null;
@@ -38,6 +42,10 @@ export const usePlaySkill3D = (options?: UsePlaySkill3DOptions) => {
                 onComplete?.();
                 return null;
             }
+            const modelGroup = casterRef.modelGroupRef?.current ?? group;
+
+            const isPlayer = caster.uid !== "boss";
+            const defaultRotationY = isPlayer ? MODEL_FACE_RIGHT : MODEL_FACE_LEFT;
 
             const tl = gsap.timeline({
                 timeScale: playbackSpeed,
@@ -55,11 +63,9 @@ export const usePlaySkill3D = (options?: UsePlaySkill3DOptions) => {
                 const targetPos = hexTo3DCenter(target.q ?? 0, target.r ?? 0, mapDimension, 0);
                 if (casterPos && targetPos) {
                     const dx = targetPos.x - casterPos.x;
-                    // 朝向始终为左右（竖屏由相机旋转处理，模型与横屏一致）
-                    const MODEL_FACE_Y = Math.PI / 2;
                     const faceRight = dx > 0;
-                    const targetRotationY = faceRight ? MODEL_FACE_Y : -MODEL_FACE_Y;
-                    tl.to(group.rotation, {
+                    const targetRotationY = faceRight ? MODEL_FACE_RIGHT : MODEL_FACE_LEFT;
+                    tl.to(modelGroup.rotation, {
                         y: targetRotationY,
                         duration: FACE_TARGET_DURATION,
                         ease: "power1.inOut",
@@ -71,6 +77,13 @@ export const usePlaySkill3D = (options?: UsePlaySkill3DOptions) => {
             targets.forEach((t) => t.ref3D?.playAnimation("hurt"));
 
             tl.delay(SKILL_ANIM_DURATION);
+
+            // 攻击结束后恢复到默认朝向：玩家朝右，Boss朝左
+            tl.to(
+                modelGroup.rotation,
+                { y: defaultRotationY, duration: RESTORE_FACING_DURATION, ease: "power2.inOut" },
+                `+=0.1`
+            );
 
             return tl;
         },

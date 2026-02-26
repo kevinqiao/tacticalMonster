@@ -4,7 +4,6 @@
  */
 
 import React from "react";
-import { useTeamDeployManager } from "../team/service/TeamDeployManager";
 import DragPreview from "../team/DragPreview";
 
 /**

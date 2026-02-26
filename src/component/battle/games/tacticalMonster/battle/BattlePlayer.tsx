@@ -3,12 +3,12 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { useMapDimension } from "../common/hooks/useMapDimension";
 import { useCombatManager } from "../service/CombatManager";
-import { usePhaseChangesHandler } from "../service/handler/hooks/usePhaseChangesHandler";
-import useCombatActHandler from "../service/handler/useCombatActHandler";
-import useEventHandler from "../service/handler/useEventHandler";
+import { useMapDimension } from "../service/useMapDimension";
 import { ASSET_TYPE } from "../types/monsterTypes";
+import { usePhaseChangesHandler } from "./handler/hooks/usePhaseChangesHandler";
+import useCombatActHandler from "./handler/useCombatActHandler";
+import useEventHandler from "./handler/useEventHandler";
 import "./style.css";
 import CharacterGrid from "./view/CharacterGrid";
 import GridGround from "./view/GridGround";
@@ -78,7 +78,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
 
     const {
         game,
-        setMapDimension,
+        // setMapDimension,
         mode,
         characters,
         groundCells: contextGroundCells,
@@ -131,7 +131,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
 
     useEffect(() => {
         if (!mapDimension) return;
-        setMapDimension(mapDimension); // 同步到 CombatManager，供 2D 动画/格子等从 context 读取
+        // setMapDimension(mapDimension); // 同步到 CombatManager，供 2D 动画/格子等从 context 读取
 
         const mapW = mapDimension.width;
         const mapH = mapDimension.height;
@@ -155,7 +155,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
             width: mapDimension.width,
             height: mapDimension.height
         });
-    }, [mapDimension, setMapDimension]);
+    }, [mapDimension]);
 
     return (
         <div className="battle-container">

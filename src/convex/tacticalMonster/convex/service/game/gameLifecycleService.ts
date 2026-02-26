@@ -615,17 +615,33 @@ export class GameLifecycleService {
 
                 if (roundDoc && roundDoc.turns) {
                     // 从数据库加载所有 turns，包括它们的状态（含 stepsUsed，用于重载后只显示暗区）
-                    currentRound = {
-                        no: roundDoc.no,
-                        turns: roundDoc.turns.map((turn: any) => ({
+                    // ✅ uid="boss" 的 turn 必须包含 bossId 或 minionId 之一；若缺失则从 bossData 推导（兼容旧数据）
+                    const mappedTurns = roundDoc.turns.map((turn: any) => {
+                        let bossId = turn.bossId;
+                        let minionId = turn.minionId;
+                        if (turn.uid === "boss" && !bossId && !minionId) {
+                            if (turn.monsterId === bossData.monsterId) {
+                                bossId = bossData.bossId;
+                            } else {
+                                const minion = bossData.minions?.find((m: any) => m.monsterId === turn.monsterId);
+                                if (minion) minionId = minion.minionId;
+                            }
+                        }
+                        return {
                             uid: turn.uid,
                             monsterId: turn.monsterId,
+                            bossId,
+                            minionId,
                             skillSelect: turn.skillSelect,
                             status: turn.status ?? 0,  // 0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
                             dueTime: turn.dueTime,
-                            order: turn.order,  // turn 的次序
-                            stepsUsed: turn.stepsUsed,  // 本回合已用步数，重载后 playTurnOn 只显示暗区
-                        })),
+                            order: turn.order,
+                            stepsUsed: turn.stepsUsed,
+                        };
+                    });
+                    currentRound = {
+                        no: roundDoc.no,
+                        turns: mappedTurns,
                     };
                 }
             }

@@ -6,21 +6,21 @@ import { CharacterGrid3D } from "@/component/battle/games/tacticalMonster/battle
 import { GridGround3D } from "@/component/battle/games/tacticalMonster/battle3d/view/GridGround3D";
 import { GridHighlight3D } from "@/component/battle/games/tacticalMonster/battle3d/view/GridHighlight3D";
 import { ObstacleGrid3D } from "@/component/battle/games/tacticalMonster/battle3d/view/ObstacleGrid3D";
-import { TurnOrderBar } from "@/component/battle/games/tacticalMonster/battle3d/view/TurnOrderBar";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import "../battle/style.css";
 import { useCombatManager } from "../service/CombatManager";
 import { BattleLoadingContext } from "./BattleLoadingContext";
-import { useBattleGridState, type BattleCellState } from "./hooks/useBattleGridState";
-import useCombatActHandler3D from "./hooks/useCombatActHandler3D";
-import useEventHandler3D from "./hooks/useEventHandler3D";
-import { usePhaseChangesHandler3D } from "./hooks/usePhaseChangesHandler3D";
+import { useBattleGridState, type BattleCellState } from "./handler/useBattleGridState";
+import useCombatActHandler3D from "./handler/useCombatActHandler3D";
+import useEventHandler3D from "./handler/useEventHandler3D";
+import { usePhaseChangesHandler3D } from "./handler/usePhaseChangesHandler3D";
+import "./style.css";
 import { BattleMapDimension, getGridCenter3D, getGridExtent3D } from "./utils/coordinate3DUtils";
 import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
+import { TurnOrderBar } from "./view/turnbar/TurnOrderBar";
 
 const CAMERA_CONFIG = {
     mode: "spherical" as const,
@@ -234,7 +234,7 @@ const CanvasWithControls: React.FC<{
 };
 
 const CombatActPanel: React.FC<{ surrender: () => void }> = ({ surrender }) => (
-    <div className="action-control" style={{ left: -40, bottom: -40, pointerEvents: "auto" }}>
+    <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
         <div className="action-panel-item">STANDBY</div>
         <div className="action-panel-item">DEFEND</div>
         <div className="action-panel-item" onClick={() => surrender()}>
@@ -262,7 +262,7 @@ export const BattleVenue3D: React.FC = () => {
 
     useEventHandler3D({ gridState, mapDimension });
 
-    const { surrender, walk, attack, positionSelectionUI } = useCombatActHandler3D({ gridState, mapDimension });
+    const { surrender, walk, attack } = useCombatActHandler3D({ gridState, mapDimension });
 
     // 格子点击：参数为逻辑坐标 (logicQ, logicR)，所见即所点
     const handleCellClick = useCallback(
@@ -421,10 +421,10 @@ export const BattleVenue3D: React.FC = () => {
     // 竖屏时画布填满容器；横屏用 mapDimension 尺寸
     const mapContainerStyle: React.CSSProperties = useMemo(() => {
         if (!mapDimension) return {};
-        const offset = mapDimension?.isPortrait ? mapDimension.hexWidth / 4 : mapDimension.hexHeight / 2;
+        // const offset = mapDimension?.isPortrait ? mapDimension.hexWidth / 4 : mapDimension.hexHeight / 2;
         return {
             position: "absolute",
-            top: `calc(50% - ${offset}px)`,
+            top: `calc(50% - ${mapDimension.topOffset ?? 0}px)`,
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: mapDimension?.width,
@@ -483,9 +483,16 @@ export const BattleVenue3D: React.FC = () => {
                     </div>
                 )}
 
-                <TurnOrderBar />
-                <CombatActPanel surrender={surrender} />
-                {positionSelectionUI}
+
+
+            </div>
+            <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", zIndex: 2 }}>
+                <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "100%" }}>
+                    <TurnOrderBar />
+                </div>
+                <div>
+                    <CombatActPanel surrender={surrender} />
+                </div>
             </div>
 
         </div>

@@ -5,7 +5,7 @@
 
 import React, { useCallback, useContext, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { useTeamDeployManager } from "../team/service/TeamDeployManager";
+import { useTeamDeployManager } from "../service/TeamDeployManager";
 import HexCell3D from "./components/HexCell3D";
 import { MonsterCard3DWithSuspense } from "./components/MonsterCard3D";
 import { TeamLayoutLoadingContext } from "./TeamLayoutLoadingContext";

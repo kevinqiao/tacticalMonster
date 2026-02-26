@@ -36,7 +36,7 @@ const PlayGame: React.FC<Props> = ({
     return (
         <div className="tactical-monster-game-container">
             <ConvexProvider client={client}>
-                <CombatManager game={game} mode={mode === 'join' ? 'play' : mode} initialPhaseChanges={initialPhaseChanges}>
+                <CombatManager key={game?.gameId ?? 'loading'} game={game} mode={mode === 'join' ? 'play' : mode} initialPhaseChanges={initialPhaseChanges}>
                     {USE_3D_BATTLE ? <BattlePlayer3D /> : <BattlePlayer />}
                 </CombatManager>
             </ConvexProvider>
@@ -121,7 +121,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
                             loadingGameIdRef.current = match.gameId;
                             console.log("匹配成功", match);
                             tacticalMonsterClient.action(tacticalMonsterApi.service.tournament.tournamentService.loadGame, { uid: user?.uid, gameId: match.gameId }).then((res) => {
-                                console.log("getPlayerMonsters result", res);
+                                console.log("loadGame result", res);
                                 if (res.ok) {
                                     setGame(res.game);
                                     // ✅ 保存 phaseChanges（如果存在）

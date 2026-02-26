@@ -2,9 +2,9 @@
  * 坐标转换工具函数
  */
 
-import { calculateHexPoints, isPointInHex } from "../../utils/gridUtils";
+import { MapDimension } from "../../service/TeamDeployManager";
 import { HexPoint } from "../../types/GridTypes";
-import { MapDimension } from "../service/TeamDeployManager";
+import { calculateHexPoints, isPointInHex } from "../../utils/gridUtils";
 
 /**
  * 计算地图比例
@@ -47,11 +47,12 @@ export const calculateMapRatio = (cols: number, rows: number, isPortrait?: boole
 //     }
 
 // };
-export const calculateMapDimension = (containerWidth: number, containerHeight: number): { width: number, height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean, zoom?: number } => {
+export const calculateMapDimension = (containerWidth: number, containerHeight: number): MapDimension => {
     const hratio = ((9.5 + 0.5) * Math.sqrt(3)) / 2 / (2.5 + (6 * 3) / 4);
     const containerRatio = containerWidth / containerHeight;
     const isPortrait = containerRatio < hratio;
-    const dimension: { width: number; height: number, hexWidth: number, hexHeight: number, cols: number, rows: number, isPortrait: boolean, zoom?: number } = { width: 0, height: 0, hexWidth: 0, hexHeight: 0, cols: 8, rows: 7, isPortrait, zoom: 1 };
+    const dimension: MapDimension = { containerWidth, containerHeight, width: 0, height: 0, hexWidth: 0, hexHeight: 0, cols: 8, rows: 7, isPortrait, zoom: 1 };
+
     if (isPortrait) {
         const hexWidth = containerWidth / (9 + 0.5);
         const hexHeight = (hexWidth * 2) / Math.sqrt(3);
@@ -62,6 +63,7 @@ export const calculateMapDimension = (containerWidth: number, containerHeight: n
         dimension.width = hexHeight * dimension.zoom * (1 + 6 * 3 / 4);
         dimension.hexWidth = hexWidth;
         dimension.hexHeight = hexHeight;
+        dimension.topOffset = hexWidth / 4;
     } else {
         const hexHeight = containerHeight / (2 + (6 * 3 / 4));
         const hexWidth = hexHeight * Math.sqrt(3) / 2;
@@ -69,8 +71,9 @@ export const calculateMapDimension = (containerWidth: number, containerHeight: n
         dimension.width = hexWidth * 8.5;
         dimension.hexWidth = hexWidth;
         dimension.hexHeight = hexHeight;
+        dimension.topOffset = hexHeight / 2;
     }
-    return dimension;
+    return { ...dimension, containerWidth, containerHeight };
 };
 /**
  * 像素坐标转六边形坐标（返回六边形格子的 q, r）

@@ -1,5 +1,5 @@
 import React from "react";
-import { useTeamDeployManager } from "./service/TeamDeployManager";
+import { useTeamDeployManager } from "../service/TeamDeployManager";
 
 const DragPreview: React.FC = () => {
     const { dragMonster, dragPreviewContainerRef, mapDimension } = useTeamDeployManager();

@@ -4,13 +4,13 @@
 
 import gsap from "gsap";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCombatManager } from "../../service/CombatManager";
 import { MonsterSprite } from "../../types/CombatTypes";
 import { ASSET_TYPE } from "../../types/monsterTypes";
-import { useCombatManager } from "../../service/CombatManager";
-import useCombatActHandler from "../../service/handler/useCombatActHandler";
-import "../style.css";
 import { coordToPixel } from "../../utils/hexUtil";
 import { updateHPMPDisplay } from "../../utils/hpmpDisplayUpdater";
+import useCombatActHandler from "../handler/useCombatActHandler";
+import "../style.css";
 
 
 import { ModelConfig } from "../../config/modelConfig";

@@ -3,8 +3,7 @@
  * 候选怪物列表（保持 2D UI，作为 HTML overlay）
  */
 
-import React, { useMemo } from "react";
-import { useTeamDeployManager } from "../team/service/TeamDeployManager";
+import React from "react";
 import CandidatesBox from "../team/CandidatesBox";
 
 interface CandidatesBox3DProps {
