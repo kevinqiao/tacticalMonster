@@ -639,6 +639,7 @@ export class GameLifecycleService {
                             stepsUsed: turn.stepsUsed,
                         };
                     });
+                    // console.log("mappedTurns", mappedTurns)
                     currentRound = {
                         no: roundDoc.no,
                         turns: mappedTurns,

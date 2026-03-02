@@ -4,35 +4,35 @@
  */
 
 import React from "react";
-import { MonsterSprite } from "../../../types/CombatTypes";
 import { TurnOrderBarDimension } from "../useTurnOrderBarDimension";
 
 
-export interface TurnItemSpriteProps {
-    turnItem: { character?: MonsterSprite, ele?: HTMLDivElement, index?: number, status?: number };
+export interface SeparatorProps {
     dimension: TurnOrderBarDimension | null;
+    separator: { ele: HTMLDivElement | null, nextRound: number, index: number };
 }
 
-export const TurnItemSprite: React.FC<TurnItemSpriteProps> = ({
-    turnItem, dimension
+export const SeparatorSprite: React.FC<SeparatorProps> = ({
+    dimension, separator
 }) => {
 
     return (
         <div
             ref={ele => {
                 if (ele) {
-                    turnItem.ele = ele;
+                    separator.ele = ele;
                 }
             }}
             style={{
                 position: "absolute",
                 left: 0,
                 top: 0,
-                zIndex: (turnItem.index ?? 0) * 4,
-                width: dimension?.itemWidth ?? 0,
+                zIndex: separator.index * 4 - 1,
+                width: (dimension?.itemWidth ?? 0) * 0.75,
                 height: dimension?.itemHeight ?? 0,
-                backgroundColor: "red",
+                backgroundColor: "blue",
                 border: "none",
+                opacity: 0,
             }}>
             <div style={{
                 display: "flex",
@@ -43,9 +43,9 @@ export const TurnItemSprite: React.FC<TurnItemSpriteProps> = ({
                 width: "100%",
                 height: "100%",
                 border: "none",
+                color: "white",
             }}>
-                <div>{turnItem.character?.character_id}</div>
-                <div>{turnItem.character?.attack_range?.min}-{turnItem.character?.attack_range?.max}</div>
+                <div>{separator.nextRound}</div>
             </div>
 
         </div >

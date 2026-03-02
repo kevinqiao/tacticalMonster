@@ -32,10 +32,11 @@ export type TurnRoundData =
     | NonNullable<PhaseChanges["roundStart"]>
     | NonNullable<PhaseChanges["turnStart"]>
     | NonNullable<PhaseChanges["roundEnd"]>
-    | NonNullable<PhaseChanges["turnEnd"]>;
+    | NonNullable<PhaseChanges["turnEnd"]>
+
 
 export type TurnRoundPayload = {
-    name: "roundStart" | "turnStart" | "roundEnd" | "turnEnd";
+    name: "roundStart" | "turnStart" | "roundEnd" | "turnEnd" | "init";
     data: TurnRoundData;
 };
 // 注册 MotionPathPlugin

@@ -5,9 +5,9 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { useCombatManager } from "../service/CombatManager";
 import { ReplayControls } from "../battle/view/ReplayControls";
 import { ReplayScoreDisplay } from "../battle/view/ReplayScoreDisplay";
+import { useCombatManager } from "../service/CombatManager";
 import { BattleVenue3D } from "./BattleVenue3D";
 
 const BattlePlayer3D: React.FC = () => {
