@@ -98,15 +98,25 @@ export class GameActionValidator {
         if (!character) {
             return { valid: false, message: "角色不存在" };
         }
-        // console.log("validateTurn character", character);
-        if (currentTurn.uid !== character.uid || currentTurn.monsterId !== character.monsterId) {
+        // 以调用方传入的标识符为准（玩家=monsterId，Boss=bossId，小怪=minionId），
+        // 避免 Boss/小怪对象没有 character_id 时错误回退到 monsterId（配置ID）导致回合校验误判。
+        const identifierInstanceId =
+            characterIdentifier.monsterId ??
+            characterIdentifier.bossId ??
+            characterIdentifier.minionId;
+        const characterInstanceId =
+            identifierInstanceId ??
+            (character as any).character_id ??
+            (character as any).bossId ??
+            (character as any).minionId ??
+            character.monsterId;
+        if (currentTurn.uid !== character.uid || currentTurn.character_id !== characterInstanceId) {
+            console.error("[validateTurn mismatch]", {
+                identifier: characterIdentifier,
+                expected: { uid: currentTurn.uid, character_id: currentTurn.character_id },
+                actual: { uid: character.uid, character_id: characterInstanceId },
+            });
             return { valid: false, message: "不是当前回合，无法执行操作" };
-        }
-        if ((currentTurn as any).bossId != null && characterIdentifier.bossId !== (currentTurn as any).bossId) {
-            return { valid: false, message: "不是当前回合(bossId不匹配)" };
-        }
-        if ((currentTurn as any).minionId != null && characterIdentifier.minionId !== (currentTurn as any).minionId) {
-            return { valid: false, message: "不是当前回合(minionId不匹配)" };
         }
 
         // 验证回合状态（如果已完成，不允许再次操作）
@@ -230,8 +240,10 @@ export class GameActionValidator {
             // 检查目标位置是否被其他角色占用
             const allCharacters = this.characterGetter.getAllCharacters();
             const isOccupied = allCharacters.some((char) => {
-                if (char.uid === character.uid && char.monsterId === character.monsterId) {
-                    return false; // 排除自己
+                const charInstanceId = (char as any).character_id ?? char.monsterId;
+                const selfInstanceId = (character as any).character_id ?? character.monsterId;
+                if (char.uid === character.uid && charInstanceId === selfInstanceId) {
+                    return false; // 排除自己（按实例 id 比较以支持同 monsterId 多单位）
                 }
                 return char.q === to.q && char.r === to.r;
             });
@@ -249,10 +261,12 @@ export class GameActionValidator {
             return positionValidation;
         }
 
-        // 检查目标位置是否被其他角色占用
+        // 检查目标位置是否被其他角色占用（按实例 id 排除自己，支持同 monsterId 多单位如召唤）
         const allCharacters = this.characterGetter.getAllCharacters();
         const isOccupied = allCharacters.some((char) => {
-            if (char.uid === character.uid && char.monsterId === character.monsterId) {
+            const charInstanceId = (char as any).character_id ?? char.monsterId;
+            const selfInstanceId = (character as any).character_id ?? character.monsterId;
+            if (char.uid === character.uid && charInstanceId === selfInstanceId) {
                 return false; // 排除自己
             }
             return char.q === to.q && char.r === to.r;

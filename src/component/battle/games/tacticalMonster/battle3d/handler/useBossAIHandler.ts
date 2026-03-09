@@ -86,17 +86,14 @@ export const useBossAIHandler = (
         const { turnStart, character: passedCharacter, decision, executionResults } = bossAIAction;
         const actingCharacter =
             passedCharacter ??
-            (turnStart?.bossId != null && characters.find((c) => (c as any).character_id === turnStart.bossId)) ??
-            (turnStart?.minionId != null && characters.find((c) => (c as any).character_id === turnStart.minionId)) ??
-            (turnStart?.uid === "boss" && turnStart?.monsterId != null &&
-                characters.find((c) => c.uid === "boss" && c.monsterId === turnStart.monsterId)) ??
+            (turnStart?.character_id && characters.find((c) => (c as any).character_id === turnStart.character_id)) ??
             ((game as any).boss?.bossId != null &&
                 characters.find((c) => c.uid === "boss" && (c as any).character_id === (game as any).boss.bossId));
         if (!actingCharacter) return;
 
-        const isMinion = turnStart?.minionId != null;
+        const isMinion = (game as any).boss?.bossId != null && turnStart?.character_id !== (game as any).boss.bossId;
         const action = isMinion
-            ? decision.minionActions?.find((m: any) => m.minionId === turnStart.minionId)?.action
+            ? decision.minionActions?.find((m: any) => m.minionId === turnStart?.character_id)?.action
             : decision.bossAction;
         if (!action || action.type === "standby") return;
 

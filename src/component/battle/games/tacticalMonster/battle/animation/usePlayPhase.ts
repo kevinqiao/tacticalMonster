@@ -137,7 +137,7 @@ const usePlayPhase = () => {
             return;
         }
 
-        const character = characters.find((c) => c.uid === currentTurn.uid && c.monsterId === currentTurn.monsterId);
+        const character = characters.find((c) => c.character_id === currentTurn.character_id);
         if (!character) {
             onComplete();
             return;

@@ -446,7 +446,8 @@ export class GameLifecycleService {
                                 .first();
 
                             return {
-                                // 基础标识
+                                // 基础标识（character_id 区分同 monsterId 多实例，如召唤）
+                                character_id: teamMember.character_id ?? teamMember.monsterId,
                                 uid: teamMember.uid || game.uid,
                                 monsterId: teamMember.monsterId,
                                 // 从 Monster 配置组合的字段（从配置文件读取）
@@ -517,6 +518,8 @@ export class GameLifecycleService {
                             gameMonster.stats.hp.current = teamMember.hp;
                         }
 
+                        // character_id 区分同 monsterId 多实例（如召唤）
+                        (gameMonster as any).character_id = teamMember.character_id ?? teamMember.monsterId;
                         return gameMonster;
                     } catch (error: any) {
                         console.error("loadGame: error processing teamMember", teamMember.monsterId, error?.message);
@@ -614,31 +617,15 @@ export class GameLifecycleService {
                     : null;
 
                 if (roundDoc && roundDoc.turns) {
-                    // 从数据库加载所有 turns，包括它们的状态（含 stepsUsed，用于重载后只显示暗区）
-                    // ✅ uid="boss" 的 turn 必须包含 bossId 或 minionId 之一；若缺失则从 bossData 推导（兼容旧数据）
-                    const mappedTurns = roundDoc.turns.map((turn: any) => {
-                        let bossId = turn.bossId;
-                        let minionId = turn.minionId;
-                        if (turn.uid === "boss" && !bossId && !minionId) {
-                            if (turn.monsterId === bossData.monsterId) {
-                                bossId = bossData.bossId;
-                            } else {
-                                const minion = bossData.minions?.find((m: any) => m.monsterId === turn.monsterId);
-                                if (minion) minionId = minion.minionId;
-                            }
-                        }
-                        return {
-                            uid: turn.uid,
-                            monsterId: turn.monsterId,
-                            bossId,
-                            minionId,
-                            skillSelect: turn.skillSelect,
-                            status: turn.status ?? 0,  // 0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
-                            dueTime: turn.dueTime,
-                            order: turn.order,
-                            stepsUsed: turn.stepsUsed,
-                        };
-                    });
+                    const mappedTurns = roundDoc.turns.map((turn: any) => ({
+                        uid: turn.uid,
+                        character_id: turn.character_id,
+                        skillSelect: turn.skillSelect,
+                        status: turn.status ?? 0,
+                        dueTime: turn.dueTime,
+                        order: turn.order,
+                        stepsUsed: turn.stepsUsed,
+                    }));
                     // console.log("mappedTurns", mappedTurns)
                     currentRound = {
                         no: roundDoc.no,

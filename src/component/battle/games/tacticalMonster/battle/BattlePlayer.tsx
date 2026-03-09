@@ -83,8 +83,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
         characters,
         groundCells: contextGroundCells,
         initialPhaseChanges,
-        markInitialPhaseChangesProcessed,
-        isInitialPhaseChangesProcessed,
+        initialPhaseChangesGate,
         replay,
         eventQueue,
     } = useCombatManager();
@@ -98,13 +97,13 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
         if (
             game &&
             initialPhaseChanges &&
-            !isInitialPhaseChangesProcessed() &&
+            !initialPhaseChangesGate.isProcessed() &&
             characters && characters.length > 0 &&
             contextGroundCells
         ) {
             if (mode === 'play') {
                 const timer = setTimeout(() => {
-                    markInitialPhaseChangesProcessed();
+                    initialPhaseChangesGate.markProcessed();
                     handlePhaseChanges(initialPhaseChanges).catch((error) => {
                         console.error("[BattleVenue 2D] Error handling initial phaseChanges:", error);
                     });
@@ -113,12 +112,12 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
             } else if (mode === 'watch' || mode === 'replay') {
                 const timer = setTimeout(() => {
                     if (mode === 'watch' && eventQueue.length === 0) {
-                        markInitialPhaseChangesProcessed();
+                        initialPhaseChangesGate.markProcessed();
                         handlePhaseChanges(initialPhaseChanges).catch((error) => {
                             console.error("[BattleVenue 2D] Error handling initial phaseChanges (watch):", error);
                         });
                     } else if (mode === 'replay' && replay?.getAllEvents?.().length === 0) {
-                        markInitialPhaseChangesProcessed();
+                        initialPhaseChangesGate.markProcessed();
                         handlePhaseChanges(initialPhaseChanges).catch((error) => {
                             console.error("[BattleVenue 2D] Error handling initial phaseChanges (replay):", error);
                         });
@@ -127,7 +126,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
                 return () => clearTimeout(timer);
             }
         }
-    }, [game, initialPhaseChanges, mode, characters, contextGroundCells, handlePhaseChanges, markInitialPhaseChangesProcessed, isInitialPhaseChangesProcessed, eventQueue, replay]);
+    }, [game, initialPhaseChanges, mode, characters, contextGroundCells, handlePhaseChanges, initialPhaseChangesGate, eventQueue, replay]);
 
     useEffect(() => {
         if (!mapDimension) return;

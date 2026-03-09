@@ -6,7 +6,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../../_generated/server";
 import { GameService } from "../../gameService";
-import { cleanupCombatTestData, setupCombatTestData } from "./combatTestData";
+import { cleanupCombatTestData, setupCombatTestData, SUMMON_TEST_TEAM_MONSTERS } from "./combatTestData";
 
 /**
  * 完整技能使用流程测试
@@ -67,7 +67,7 @@ export const testUseSkillFlow = internalMutation({
             }
 
             // ✅ 根据当前回合找到对应的玩家角色
-            const playerMonster = currentGame.team?.find(m => m.monsterId === currentTurn.monsterId);
+            const playerMonster = currentGame.team?.find((m: any) => (m.character_id ?? m.monsterId) === currentTurn.character_id);
             const boss = currentGame.boss;
 
             if (!playerMonster || !boss) {
@@ -83,7 +83,7 @@ export const testUseSkillFlow = internalMutation({
             }
 
             const useSkillResult = await gameService.useSkill(testData.gameId, {
-                monsterId: playerMonster.monsterId,
+                monsterId: (playerMonster as any).character_id ?? playerMonster.monsterId,
                 skillId: skillId,
                 targets: [{ bossId: boss.bossId }],
             });
@@ -113,7 +113,7 @@ export const testUseSkillFlow = internalMutation({
 
             // 验证 targets 状态变化
             if (stateChanges.targets && stateChanges.targets.length > 0) {
-                const targetChanged = stateChanges.targets.some(t => t.hpChanged || t.mpChanged);
+                const targetChanged = stateChanges.targets.some((t: { hpChanged?: boolean; mpChanged?: boolean }) => t.hpChanged || t.mpChanged);
                 if (targetChanged) {
                     testResult.steps.push("✓ Targets 状态变化检测到");
                 }
@@ -123,7 +123,7 @@ export const testUseSkillFlow = internalMutation({
             testResult.steps.push("验证状态更新");
             const updatedGame = await gameService.load(testData.gameId);
             if (updatedGame) {
-                const updatedPlayer = updatedGame.team?.find(m => m.monsterId === playerMonster.monsterId);
+                const updatedPlayer = updatedGame.team?.find((m: any) => (m.character_id ?? m.monsterId) === (playerMonster.character_id ?? playerMonster.monsterId));
                 const updatedBoss = updatedGame.boss;
 
                 if (updatedPlayer && updatedBoss) {
@@ -226,7 +226,7 @@ export const testWalkFlow = internalMutation({
             const walkResult = await gameService.walk(
                 testData.gameId,
                 newPosition,
-                { monsterId: playerMonster.monsterId },
+                { monsterId: (playerMonster as any).character_id ?? playerMonster.monsterId },
                 { steps: 1 }
             );
 
@@ -241,7 +241,7 @@ export const testWalkFlow = internalMutation({
             testResult.steps.push("验证位置更新");
             const updatedGame = await gameService.load(testData.gameId);
             if (updatedGame) {
-                const updatedPlayer = updatedGame.team?.find(m => m.monsterId === playerMonster.monsterId);
+                const updatedPlayer = updatedGame.team?.find((m: any) => (m.character_id ?? m.monsterId) === (playerMonster.character_id ?? playerMonster.monsterId));
                 if (updatedPlayer) {
                     const updatedPosition = { q: updatedPlayer.q ?? 0, r: updatedPlayer.r ?? 0 };
                     if (updatedPosition.q === newPosition.q && updatedPosition.r === newPosition.r) {
@@ -271,6 +271,141 @@ export const testWalkFlow = internalMutation({
                 await cleanupCombatTestData(ctx, {
                     gameId: testData.gameId,
                     uid: testData.uid,
+                });
+                testResult.steps.push("✓ 测试数据清理完成");
+            }
+        }
+
+        return testResult;
+    },
+});
+
+/**
+ * 召唤技能完整流程测试
+ * 使用 SUMMON_TEST_TEAM_MONSTERS（含 monster_008 Support 带 summon_minion）
+ */
+export const testSummonSkillFlow = internalMutation({
+    args: {
+        uid: v.optional(v.string()),
+        gameId: v.optional(v.string()),
+    },
+    handler: async (ctx, params) => {
+        const testResult: any = {
+            testName: "testSummonSkillFlow",
+            success: false,
+            errors: [] as string[],
+            steps: [] as string[],
+            data: {} as any,
+        };
+
+        let testData: any = null;
+
+        try {
+            // 1. 先清理旧队伍，再创建测试数据（确保使用 SUMMON_TEST_TEAM_MONSTERS）
+            const summonTestUid = params.uid ?? "test_summon_player_001";
+            await cleanupCombatTestData(ctx, { uid: summonTestUid, cleanupTeam: true });
+            testResult.steps.push("创建召唤测试数据");
+            testData = await setupCombatTestData(ctx, {
+                uid: summonTestUid,
+                gameId: params.gameId,
+                teamMonsters: SUMMON_TEST_TEAM_MONSTERS,
+                ruleId: "monster_rumble_challenge_bronze_boss_1",
+                skipFirstTurn: false,
+            });
+
+            if (testData.errors.length > 0) {
+                testResult.errors.push(...testData.errors);
+                return testResult;
+            }
+
+            if (!testData.game) {
+                testResult.errors.push("游戏创建失败");
+                return testResult;
+            }
+
+            testResult.steps.push("✓ 召唤测试数据创建成功");
+
+            // 2. 找到 monster_008（Support，有 summon_minion）并施放召唤技能
+            testResult.steps.push("执行召唤技能");
+            const gameService = new GameService(ctx);
+
+            const currentGame = await gameService.load(testData.gameId);
+            if (!currentGame) {
+                testResult.errors.push("无法加载游戏");
+                return testResult;
+            }
+
+            const currentTurn = currentGame.currentRound?.turns?.find((t: any) => t.status === 1);
+            if (!currentTurn) {
+                testResult.errors.push("没有当前回合");
+                return testResult;
+            }
+
+            const playerMonster = currentGame.team?.find((m: any) => (m.character_id ?? m.monsterId) === currentTurn.character_id);
+            if (!playerMonster) {
+                testResult.errors.push("缺少当前回合的玩家角色");
+                return testResult;
+            }
+
+            const hasSummonSkill = playerMonster.skills?.includes("summon_minion");
+            if (!hasSummonSkill) {
+                testResult.errors.push(
+                    `当前回合角色 ${playerMonster.monsterId} 没有 summon_minion 技能，请确保 monster_008 先手`
+                );
+                return testResult;
+            }
+
+            const useSkillResult = await gameService.useSkill(testData.gameId, {
+                monsterId: (playerMonster as any).character_id ?? playerMonster.monsterId,
+                skillId: "summon_minion",
+                targets: [],
+            });
+
+            if (!useSkillResult.success) {
+                testResult.errors.push(`召唤技能使用失败: ${useSkillResult.message || "未知错误"}`);
+                return testResult;
+            }
+
+            testResult.steps.push("✓ 召唤技能施放成功");
+
+            // 3. 验证 summonedCharacters
+            testResult.steps.push("验证 summonedCharacters");
+            const summonedCharacters = useSkillResult.phaseChanges?.summonedCharacters;
+
+            if (!summonedCharacters || !Array.isArray(summonedCharacters) || summonedCharacters.length === 0) {
+                testResult.errors.push("phaseChanges 中缺少 summonedCharacters 或为空");
+                return testResult;
+            }
+
+            const summoned = summonedCharacters[0];
+            if (summoned.monsterId !== "monster_001") {
+                testResult.errors.push(`召唤单位 monsterId 应为 monster_001，实际为 ${summoned.monsterId}`);
+                return testResult;
+            }
+
+            testResult.steps.push("✓ summonedCharacters 验证通过");
+            testResult.data.summonedCount = summonedCharacters.length;
+            testResult.data.summonedMonsterId = summoned.monsterId;
+
+            // 4. 验证 game.team 已包含召唤单位（队伍人数应增加）
+            const updatedGame = await gameService.load(testData.gameId);
+            const initialTeamSize = currentGame.team?.length ?? 0;
+            const finalTeamSize = updatedGame?.team?.length ?? 0;
+            if (finalTeamSize > initialTeamSize) {
+                testResult.steps.push("✓ 召唤单位已加入 game.team");
+            }
+
+            testResult.success = true;
+        } catch (error: any) {
+            testResult.errors.push(`测试执行失败: ${error.message}`);
+            testResult.steps.push(`✗ 错误: ${error.message}`);
+        } finally {
+            if (testData) {
+                testResult.steps.push("清理测试数据");
+                await cleanupCombatTestData(ctx, {
+                    gameId: testData.gameId,
+                    uid: testData.uid,
+                    cleanupTeam: true,
                 });
                 testResult.steps.push("✓ 测试数据清理完成");
             }

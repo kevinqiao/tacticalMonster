@@ -25,6 +25,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         position: { q: 6, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
         phases: [],
+        skills: [{ skillId: "summon_minion" }],  // 召唤测试
         configVersion: 1,
     },
     boss_bronze_2: {

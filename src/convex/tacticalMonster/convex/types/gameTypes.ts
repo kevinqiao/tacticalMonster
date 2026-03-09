@@ -70,12 +70,11 @@ export interface GameRound {
  */
 export interface GameTurn {
     uid: string;
-    monsterId: string;  // 玩家角色的monsterId，或Boss/小怪的配置ID（用于查找角色配置）
-    bossId?: string;    // Boss主体的bossId（可选，当uid="boss"且是Boss主体时使用）
-    minionId?: string;  // 小怪的minionId（可选，当uid="boss"且是小怪时使用，用于区分相同monsterId的小怪）
+    character_id: string;  // 当前行动角色的实例 id（玩家=character_id，Boss=bossId/minionId），唯一标识该 turn 对应的角色
     skillSelect?: string;
     status?: number;  // 回合状态：0: open, 1: in_progress, 2: completed
     order?: number;   // 在 round 中的次序（从 1 开始），用于明确标识和 UI 显示
+    actionOrder?: number;  // 实际出手顺序（完成时写入），用于 roundEnd.lastRound 按行动序排序
     dueTime?: number;
     stepsUsed?: number;  // Braveland：本回合已用移动步数
 }
@@ -113,9 +112,7 @@ export interface SkillEffectItem {
  */
 export interface TriggeredPassiveSkill {
     uid: string;
-    monsterId: string;
-    bossId?: string;
-    minionId?: string;
+    character_id: string;  // 触发被动技能的角色实例 id
     skillId: string;
     effects: Array<{ id: string; type: string; name: string }>;
 }
@@ -169,10 +166,8 @@ export interface BossAIExecutionResults {
 /** bossAIActions 数组中单项的 turnStart 结构 */
 export interface BossAIActionTurnStart {
     uid: string;
-    monsterId: string;
+    character_id: string;
     round: number;
-    bossId?: string;
-    minionId?: string;
     triggeredPassiveSkills?: TriggeredPassiveSkill[];
     statusEffectChanges?: {
         expired: Array<{ id: string; type: string; name?: string }>;
@@ -206,13 +201,14 @@ export interface PhaseChanges {
     };
     roundEnd?: {
         round: number;
+        /** 该回合结束时按实际出手顺序排序的 turns，供前端 turnbar 重排 */
+        lastRound?: GameRound;
     };
     turnStart?: {
         uid: string;
-        monsterId: string;
+        character_id: string;
         round: number;
         triggeredPassiveSkills?: TriggeredPassiveSkill[];
-        /** 本回合开始时的状态效果 tick 结果（DOT/HOT/BUFF/DEBUFF/STUN 等） */
         statusEffectChanges?: {
             expired: Array<{ id: string; type: string; name?: string }>;
             ticked: Array<{ effectId: string; type: string; value: number }>;
@@ -221,13 +217,19 @@ export interface PhaseChanges {
     };
     turnEnd?: {
         uid: string;
-        monsterId: string;
+        character_id: string;
         round: number;
     };
+
+    /** 与 turnStart 同时下发时的最新 currentRound（完整 turns 含 order），前端用于整体替换以同步召唤等导致的 order 变化 */
+    currentRound?: GameRound;
 
     // ========== 执行结果 ==========
     stateChanges?: any;                     // 角色状态前后对比（对应前端 StateChanges）
     effects?: SkillEffectItem[];            // 技能效果列表（包含主动和被动技能效果）
+
+    /** 召唤单位列表（use_skill 触发召唤时由后端填入） */
+    summonedCharacters?: SummonedCharacter[];
 
     // ========== Boss AI 动作 ==========
     bossAIActions?: BossAIActionItem[];
@@ -257,6 +259,34 @@ export interface CharacterIdentifier {
     monsterId?: string;  // 玩家角色的monsterId
     bossId?: string;     // Boss主体的bossId
     minionId?: string;   // 小怪的minionId
+}
+
+/**
+ * 召唤单位数据
+ * 用于 PhaseChanges.summonedCharacters，与前端 gameTypes 一致
+ */
+export interface SummonedCharacter {
+    identifier: CharacterIdentifier;
+    uid: string;
+    monsterId: string;
+    minionId?: string;
+    bossId?: string;
+    q: number;
+    r: number;
+    character_id: string;
+    name?: string;
+    assetPath?: string;
+    stats: {
+        hp: { current: number; max: number };
+        mp?: { current: number; max: number };
+        attack: number;
+        defense: number;
+        speed: number;
+        shield?: { current: number; max: number };
+    };
+    statusEffects?: Array<{ id: string; type: string; name?: string }>;
+    skillCooldowns?: Record<string, number>;
+    skills?: string[];
 }
 
 /**

@@ -4,7 +4,7 @@
  */
 
 
-import { GameBoss, GameMinion, GameMonster } from "../../../../../convex/tacticalMonster/convex/types/monsterTypes";
+import { GameBoss, GameMinion, GameMonster } from "../types/monsterTypes";
 import { MonsterSprite } from "../types/CombatTypes";
 import { CharacterIdentifier } from "../types/gameTypes";
 
@@ -21,9 +21,11 @@ export function toMonsterSprite(
     monster: GameMonster | GameBoss | GameMinion,
     existingSprite?: MonsterSprite
 ): MonsterSprite {
-    // 确定 character_id
+    // 确定 character_id（召唤单位等可能已有 character_id，需保留以区分同 monsterId 的多个单位）
     let character_id: string;
-    if ('bossId' in monster && monster.bossId) {
+    if ((monster as any).character_id) {
+        character_id = (monster as any).character_id;
+    } else if ('bossId' in monster && monster.bossId) {
         character_id = monster.bossId;
     } else if ('minionId' in monster && monster.minionId) {
         character_id = monster.minionId;
@@ -124,11 +126,18 @@ export function getCharactersFromGameModel(
     boss: GameBoss
 ): MonsterSprite[] {
     const characters: MonsterSprite[] = [];
+    const usedIds = new Set<string>();
 
     // 处理玩家队伍
     if (team && Array.isArray(team)) {
-        team.forEach((monster: GameMonster) => {
+        team.forEach((monster: GameMonster, index: number) => {
             const sprite = toMonsterSprite(monster);
+            let cid = sprite.character_id;
+            if (usedIds.has(cid)) {
+                cid = `${cid}_${index}`;
+                sprite.character_id = cid;
+            }
+            usedIds.add(cid);
             sprite.scaleX = 1; // 玩家角色 scaleX = 1
             characters.push(sprite);
         });

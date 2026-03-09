@@ -16,10 +16,11 @@ export interface CharacterRef3D {
 export type CharacterRefsMap = Map<string, CharacterRef3D>;
 
 /**
- * 获取角色的唯一标识（用于 refs 映射）
+ * 获取角色的唯一标识（用于 refs 映射与 React key）
+ * 使用 character_id 区分同 monsterId 的多个单位（如召唤物与队伍原成员）
  */
 export const getCharacterKey = (c: MonsterSprite): string => {
-    if (c.uid === "boss") return `boss_${c.monsterId}`;
-    if ("minionId" in c && c.minionId) return `minion_${c.minionId}`;
-    return `monster_${c.uid}_${c.monsterId}`;
+    if (c.uid === "boss") return `boss_${(c as any).bossId ?? c.character_id}`;
+    if ("minionId" in c && (c as any).minionId) return `minion_${(c as any).minionId}`;
+    return `monster_${c.uid}_${c.character_id}`;
 };

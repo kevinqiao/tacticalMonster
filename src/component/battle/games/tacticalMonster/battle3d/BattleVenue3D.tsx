@@ -11,7 +11,9 @@ import { Canvas, useThree } from "@react-three/fiber";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { COMMON_SKILLS } from "../config/skillConfigs";
 import { useCombatManager } from "../service/CombatManager";
+import { canPerformAction } from "../utils/validationUtils";
 import { BattleLoadingContext } from "./BattleLoadingContext";
 import { useBattleGridState, type BattleCellState } from "./handler/useBattleGridState";
 import useCombatActHandler3D from "./handler/useCombatActHandler3D";
@@ -233,15 +235,117 @@ const CanvasWithControls: React.FC<{
     );
 };
 
-const CombatActPanel: React.FC<{ surrender: () => void }> = ({ surrender }) => (
-    <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
-        <div className="action-panel-item">STANDBY</div>
-        <div className="action-panel-item">DEFEND</div>
-        <div className="action-panel-item" onClick={() => surrender()}>
-            GAME OVER
+/**
+ * 技能面板 - 显示当前角色的主动技能，支持选择技能并执行
+ * 使用本地乐观状态：点击技能后立即显示选中与「使用」按钮，不等待后端 skillSelect 推送
+ */
+const SkillPanel: React.FC<{
+    selectSkill: (skill: import("../types/skillTypes").MonsterSkill) => void;
+    useSkill: (skillId: string, target?: import("../types/CombatTypes").MonsterSprite) => Promise<void>;
+    surrender: () => void;
+    clearGrid: () => void;
+}> = ({ selectSkill, useSkill, surrender, clearGrid }) => {
+    const { game, mode, characters } = useCombatManager();
+    const validation = canPerformAction(mode ?? "play", game, characters);
+    const { can, currentTurn, character } = validation;
+
+    const [localSelectedSkillId, setLocalSelectedSkillId] = useState<string | null>(null);
+    const turnKey = `${currentTurn?.uid ?? ""}-${currentTurn?.character_id ?? ""}-${game?.currentRound?.no ?? 0}`;
+
+    useEffect(() => {
+        setLocalSelectedSkillId(null);
+    }, [turnKey]);
+
+    const selectedSkillId = localSelectedSkillId ?? currentTurn?.skillSelect ?? null;
+    const selectedSkill = selectedSkillId ? COMMON_SKILLS[selectedSkillId] : null;
+    const isNoTargetSkill =
+        selectedSkill?.effects?.some(
+            (e: any) => e.type === "summon" && e.summonConfig?.position_mode === "caster_adjacent"
+        ) ?? false;
+
+    const skillIds = character?.skills?.length
+        ? character.skills
+        : (character as any)?.unlockSkills ?? ["basic_attack"];
+    const activeSkills = (Array.isArray(skillIds) ? skillIds : [])
+        .map((id: string) => ({ id, skill: COMMON_SKILLS[id] }))
+        .filter(({ skill }: { skill: any }) => skill && (skill.type === "active" || skill.type === "master"));
+
+    const mp = (character as any)?.stats?.mp?.current ?? 100;
+    const cooldowns = (character as any)?.skillCooldowns ?? {};
+
+    if (!can || mode === "watch" || mode === "replay") {
+        return (
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
+                <div className="action-panel-item" onClick={() => surrender()}>GAME OVER</div>
+            </div>
+        );
+    }
+
+    const handleSkillClick = (skill: any) => {
+        setLocalSelectedSkillId(skill.id);
+        selectSkill(skill);
+    };
+
+    const handleUseNoTarget = () => {
+        if (!selectedSkillId || !isNoTargetSkill) return;
+        const cooldown = cooldowns[selectedSkillId] ?? 0;
+        const mpCost = selectedSkill?.resource_cost?.mp ?? 0;
+        if (cooldown > 0 || mp < mpCost) return; // 冷却或 MP 不足时不再发起请求
+        setLocalSelectedSkillId(null);
+        clearGrid();
+        useSkill(selectedSkillId).catch((err: any) => console.error("[SkillPanel] useSkill error:", err));
+    };
+
+    return (
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
+            {activeSkills.map(({ id, skill }: { id: string; skill: any }) => {
+                const cooldown = cooldowns[id] ?? 0;
+                const mpCost = skill.resource_cost?.mp ?? 0;
+                const disabled = cooldown > 0 || mp < mpCost;
+                const isSelected = selectedSkillId === id;
+                return (
+                    <div
+                        key={id}
+                        className={`action-panel-item ${isSelected ? "action-panel-item--selected" : ""}`}
+                        style={{
+                            opacity: disabled ? 0.6 : 1,
+                            pointerEvents: disabled ? "none" : "auto",
+                            border: isSelected ? "2px solid #fff" : undefined,
+                        }}
+                        onClick={() => !disabled && handleSkillClick(skill)}
+                        title={`${skill.name}${cooldown > 0 ? ` (冷却${cooldown})` : ""}`}
+                    >
+                        {skill.name}
+                        {cooldown > 0 && <span style={{ fontSize: 10, marginLeft: 2 }}>CD{cooldown}</span>}
+                    </div>
+                );
+            })}
+            {isNoTargetSkill && (() => {
+                const cd = cooldowns[selectedSkillId ?? ""] ?? 0;
+                const cost = selectedSkill?.resource_cost?.mp ?? 0;
+                const useDisabled = cd > 0 || mp < cost;
+                return (
+                    <div
+                        className="action-panel-item"
+                        style={{
+                            backgroundColor: "rgb(34, 139, 34)",
+                            border: "2px solid #fff",
+                            opacity: useDisabled ? 0.6 : 1,
+                            pointerEvents: useDisabled ? "none" : "auto",
+                        }}
+                        onClick={handleUseNoTarget}
+                        title={useDisabled ? (cd > 0 ? `技能冷却中，剩余 ${cd} 回合` : "MP 不足") : "使用"}
+                    >
+                        使用
+                    </div>
+                );
+            })()}
+            <div className="action-panel-item" onClick={() => surrender()}>
+                GAME OVER
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 /** 3D 战斗场景。mapDimension、containerRef 从 CombatManager context 获取（CombatManager 内 useMapDimension 测量包装容器）。 */
 export const BattleVenue3D: React.FC = () => {
@@ -251,8 +355,8 @@ export const BattleVenue3D: React.FC = () => {
         characters,
         groundCells: contextGroundCells,
         initialPhaseChanges,
-        markInitialPhaseChangesProcessed,
-        isInitialPhaseChangesProcessed,
+        initialPhaseChangesGate,
+        turnRound,
         replay,
         eventQueue,
         mapDimension,
@@ -262,48 +366,69 @@ export const BattleVenue3D: React.FC = () => {
 
     useEventHandler3D({ gridState, mapDimension });
 
-    const { surrender, walk, attack } = useCombatActHandler3D({ gridState, mapDimension });
+    const { surrender, walk, attack, selectSkill, useSkill } = useCombatActHandler3D({ gridState, mapDimension });
 
     // 格子点击：参数为逻辑坐标 (logicQ, logicR)，所见即所点
     const handleCellClick = useCallback(
         (logicQ: number, logicR: number) => {
             if (!mapDimension || mode !== "play") return;
+            const turnRoundCurrentRound = (turnRound?.data as any)?.currentRound;
+            const effectiveGame = turnRoundCurrentRound
+                ? { ...game, currentRound: turnRoundCurrentRound }
+                : game;
+            const validation = canPerformAction(mode, effectiveGame, characters);
+            if (!validation.can || !validation.character) {
+                gridState.clearAll();
+                return;
+            }
             const cellState = gridState.getCellState(logicQ, logicR);
-            console.log("[handleCellClick] cellState", cellState);
             if (cellState === "walkable") {
                 gridState.clearAll();
-                walk({ q: logicQ, r: logicR }).catch((err: any) => console.error("[handleCellClick] walk error:", err));
+                walk({ q: logicQ, r: logicR }).catch((err: any) => {
+                    const message = String(err?.message ?? err ?? "");
+                    const expectedDuringTransition =
+                        message.includes("Walk action in progress") ||
+                        message.includes("no active turn") ||
+                        message.includes("turn changed before request") ||
+                        message.includes("不是当前回合");
+                    if (!expectedDuringTransition) {
+                        console.error("[handleCellClick] walk error:", err);
+                    }
+                });
             } else if (cellState === "attackable") {
-                const enemy = characters?.find(
-                    (c) => c.q === logicQ && c.r === logicR
-                );
+                const enemy = characters?.find((c) => c.q === logicQ && c.r === logicR);
                 if (enemy) {
-                    console.log("[handleCellClick] attack enemy", enemy);
-                    attack(enemy);
+                    const selectedSkillId = effectiveGame?.currentRound?.turns?.find((t: any) => t.status === 1)?.skillSelect;
+                    if (selectedSkillId) {
+                        gridState.clearAll();
+                        useSkill(selectedSkillId, enemy).catch((err: any) => console.error("[handleCellClick] useSkill error:", err));
+                    } else {
+                        attack(enemy);
+                    }
                 }
             }
         },
-        [mapDimension, mode, gridState, walk, attack, characters]
+        [mapDimension, mode, gridState, walk, attack, useSkill, characters, game, turnRound]
     );
 
     // ✅ 3D 阶段变化处理器（用于 initialPhaseChanges）
     const { handlePhaseChanges } = usePhaseChangesHandler3D({ gridState, mapDimension });
 
     // ✅ 处理 initialPhaseChanges（从 CombatManager context 获取）
-    // 注意：markInitialPhaseChangesProcessed 必须在 setTimeout 回调内部调用，
+    // 注意：initialPhaseChangesGate.markProcessed 必须在 setTimeout 回调内部调用，
     // 避免因 React 重渲染取消 timer 后标记已被设置导致永远不再处理。
     useEffect(() => {
         if (
             game &&
             initialPhaseChanges &&
-            !isInitialPhaseChangesProcessed() &&
+            !initialPhaseChangesGate.isProcessed() &&
             characters && characters.length > 0 &&
             contextGroundCells &&
             mapDimension
         ) {
             if (mode === 'play') {
                 const timer = setTimeout(() => {
-                    markInitialPhaseChangesProcessed();
+                    initialPhaseChangesGate.markProcessed();
                     console.log("[BattleVenue3D] 处理 initialPhaseChanges (play):", initialPhaseChanges);
                     handlePhaseChanges(initialPhaseChanges).catch((error) => {
                         console.error("[BattleVenue3D] Error handling initial phaseChanges:", error);
@@ -314,14 +439,14 @@ export const BattleVenue3D: React.FC = () => {
                 const timer = setTimeout(() => {
                     if (mode === 'watch') {
                         if (eventQueue.length === 0) {
-                            markInitialPhaseChangesProcessed();
+                            initialPhaseChangesGate.markProcessed();
                             handlePhaseChanges(initialPhaseChanges).catch((error) => {
                                 console.error("[BattleVenue3D] Error handling initial phaseChanges (watch):", error);
                             });
                         }
                     } else if (mode === 'replay') {
                         if (replay && replay.getAllEvents && replay.getAllEvents().length === 0) {
-                            markInitialPhaseChangesProcessed();
+                            initialPhaseChangesGate.markProcessed();
                             handlePhaseChanges(initialPhaseChanges).catch((error) => {
                                 console.error("[BattleVenue3D] Error handling initial phaseChanges (replay):", error);
                             });
@@ -331,7 +456,7 @@ export const BattleVenue3D: React.FC = () => {
                 return () => clearTimeout(timer);
             }
         }
-    }, [game, initialPhaseChanges, mode, characters, contextGroundCells, mapDimension, handlePhaseChanges, markInitialPhaseChangesProcessed, isInitialPhaseChangesProcessed, eventQueue, replay]);
+    }, [game, initialPhaseChanges, mode, characters, contextGroundCells, mapDimension, handlePhaseChanges, initialPhaseChangesGate, eventQueue, replay]);
 
     useEffect(() => {
         getAllMonsterGlbPaths().forEach((path) => useGLTF.preload(path));
@@ -486,12 +611,17 @@ export const BattleVenue3D: React.FC = () => {
 
 
             </div>
-            <div style={{ display: "flex", position: "absolute", bottom: 0, left: 0, width: "100%", zIndex: 2 }}>
+            <div style={{ display: "flex", alignItems: "flex-end", position: "absolute", bottom: 0, left: 0, width: "100%", zIndex: 2 }}>
                 <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "100%" }}>
                     <TurnOrderBar />
                 </div>
                 <div>
-                    <CombatActPanel surrender={surrender} />
+                    <SkillPanel
+                        selectSkill={selectSkill}
+                        useSkill={useSkill}
+                        surrender={surrender}
+                        clearGrid={() => gridState.clearAll()}
+                    />
                 </div>
             </div>
 

@@ -85,8 +85,9 @@ export class CharacterUpdateService {
             }
         } else {
             // 更新玩家角色
+            const instanceId = (character as any).character_id ?? character.monsterId;
             const teamIndex = (gameDoc.team || []).findIndex(
-                (m: any) => m.uid === character.uid && m.monsterId === character.monsterId
+                (m: any) => m.uid === character.uid && ((m.character_id ?? m.monsterId) === instanceId)
             );
             if (teamIndex >= 0) {
                 const updatedTeam = [...(gameDoc.team || [])];

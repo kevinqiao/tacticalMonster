@@ -47,6 +47,7 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 minMultiplier: 0.5,
                 maxMultiplier: 2.0,
             },
+            summonTestTeamPreset: "default",  // 召唤测试使用 SUMMON_TEST_TEAM_MONSTERS
         },
 
         isVisible: true,

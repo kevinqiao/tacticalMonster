@@ -35,6 +35,7 @@ export enum SkillEffectType {
     HEAL = 'heal',            // 直接治疗
     MOVEMENT = 'movement',    // 移动效果
     TELEPORT = 'teleport',    // 传送效果
+    SUMMON = 'summon',        // 召唤单位
 }
 
 /**
@@ -77,6 +78,17 @@ export interface SkillEffect {
 
     // 目标属性
     target_attribute?: string;      // 目标属性（如 "attack", "defense", "hp", "mp"）
+
+    // 召唤专用配置（type 为 SUMMON 时使用）
+    summonConfig?: {
+        monsterId: string;
+        side?: 'player' | 'boss';
+        position_mode?: 'caster_adjacent' | 'skill_target' | 'fixed';
+        q?: number;
+        r?: number;
+        dq?: number;
+        dr?: number;
+    };
 }
 
 /**

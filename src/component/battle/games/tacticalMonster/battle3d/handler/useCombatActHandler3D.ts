@@ -3,6 +3,7 @@
  */
 
 import { useModalManager } from "@/service/ModalManager";
+import { useCallback } from "react";
 import { useConvex } from "convex/react";
 import { useUserManager } from "service/UserManager";
 import { useScoreCalculation } from "../../battle/hooks/useScoreCalculation";
@@ -14,6 +15,7 @@ import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { useOtherAction3D } from "./actions/useOtherAction3D";
 import { useSkillAction3D } from "./actions/useSkillAction3D";
 import { useWalkAction3D } from "./actions/useWalkAction3D";
+import { useWalkAndAttack3D } from "./actions/useWalkAndAttack3D";
 import type { UseBattleGridStateReturn } from "./useBattleGridState";
 import { usePassiveSkillAnimations } from "./usePassiveSkillAnimations";
 import { usePhaseChangesHandler3D } from "./usePhaseChangesHandler3D";
@@ -43,9 +45,10 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
     });
     const { handlePassiveSkillAnimations } = usePassiveSkillAnimations(characters ?? [], playSkill);
 
-    const handleSkillError = (message: string) => {
+    const handleSkillError = useCallback((message: string) => {
         console.error("技能使用失败:", message);
-    };
+        window.alert(`技能使用失败: ${message}`);
+    }, []);
 
     const { setSkillSyncState } = useSkillSync(
         handlePhaseChanges,
@@ -62,6 +65,20 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         mode,
         convex,
         playWalk,
+        handlePhaseChanges,
+        mapDimension,
+        refreshWalkableFromPosition ?? undefined
+    );
+
+    const { walkAndAttack } = useWalkAndAttack3D(
+        game ?? null,
+        characters ?? [],
+        groundCells ?? [],
+        mode,
+        convex,
+        playWalk,
+        playSkill,
+        setSkillSyncState,
         handlePhaseChanges,
         mapDimension,
         refreshWalkableFromPosition ?? undefined
@@ -87,7 +104,7 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         playSkillSelect,
         openModal,
         useSkill,
-        walk,
+        walkAndAttack,
         groundCells ?? []
     );
 

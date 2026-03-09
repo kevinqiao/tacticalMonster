@@ -100,7 +100,8 @@ export class SkillTargetService {
                 // 单体目标：需要提供主要目标
                 if (primaryTarget) {
                     const distance = range.distance ?? 999;
-                    const targetParams = this.characterQueryService.getCharacterParams(primaryTarget.uid, primaryTarget.monsterId);
+                    const targetId = (primaryTarget as any).character_id ?? primaryTarget.monsterId;
+                    const targetParams = this.characterQueryService.getCharacterParams(primaryTarget.uid, targetId);
                     const targetChar = this.characterQueryService.getCharacter(targetParams.monsterId, targetParams.bossId, targetParams.minionId);
                     if (targetChar) {
                         const targetPos: HexCoord = {
@@ -140,7 +141,8 @@ export class SkillTargetService {
                 // 直线范围：需要提供主要目标来确定方向
                 if (primaryTarget) {
                     const lineDistance = range.distance ?? range.max_distance ?? 999;
-                    const primaryTargetParams = this.characterQueryService.getCharacterParams(primaryTarget.uid, primaryTarget.monsterId);
+                    const primaryTargetId = (primaryTarget as any).character_id ?? primaryTarget.monsterId;
+                    const primaryTargetParams = this.characterQueryService.getCharacterParams(primaryTarget.uid, primaryTargetId);
                     const primaryTargetChar = this.characterQueryService.getCharacter(primaryTargetParams.monsterId, primaryTargetParams.bossId, primaryTargetParams.minionId);
                     if (!primaryTargetChar) break;
 

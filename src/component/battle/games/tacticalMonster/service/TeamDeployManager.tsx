@@ -376,22 +376,27 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         endDrag();
     }, [placeMonster, endDrag, dragMonster, isCellOccupied]);
 
+    // 队伍最大人数（与后端一致）
+    const MAX_TEAM_SIZE = 4;
+
     // ============ 副作用 ============
     useEffect(() => {
         console.log("[TeamDeployManager] monsters 原始数据:", monsters);
         if (monsters && monsters.length > 0) {
-            // 为没有 teamPosition 的怪物分配默认位置（用于测试）
-            const mapped = monsters.map((monster, index) => {
+            // 优先使用已有 teamPosition 的（当前队伍），再补足其余，最多 4 个
+            const withPosition = monsters.filter((m: any) => m.teamPosition && m.teamPosition.q !== undefined);
+            const withoutPosition = monsters.filter((m: any) => !m.teamPosition || m.teamPosition.q === undefined);
+            const ordered = [...withPosition, ...withoutPosition].slice(0, MAX_TEAM_SIZE);
+
+            const mapped = ordered.map((monster: any, index: number) => {
                 const hasPosition = monster.teamPosition && monster.teamPosition.q !== undefined;
-                // 如果没有位置，分配一个测试位置
                 const defaultPosition = hasPosition ? monster.teamPosition : { q: index, r: 0 };
-                console.log(`[TeamDeployManager] 怪物 ${monster.monsterId}: 原始位置=${JSON.stringify(monster.teamPosition)}, 使用位置=${JSON.stringify(defaultPosition)}`);
                 return {
                     monsterId: monster.monsterId,
                     teamPosition: defaultPosition
                 };
             });
-            console.log("[TeamDeployManager] 初始化 playerMonsters:", mapped);
+            console.log("[TeamDeployManager] 初始化 playerMonsters (最多4个):", mapped);
             setPlayerMonsters(mapped);
         }
     }, [monsters]);

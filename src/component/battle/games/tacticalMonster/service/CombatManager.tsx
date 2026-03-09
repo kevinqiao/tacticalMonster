@@ -20,7 +20,7 @@ import {
     MonsterSprite,
     ReplayControls
 } from "../types/CombatTypes";
-import type { GameRound } from "../types/gameTypes";
+import type { GameRound, GameTurn } from "../types/gameTypes";
 import { PhaseChanges } from "../types/gameTypes";
 import { ObstacleCell, ObstacleSprite } from "../types/obstacleTypes";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
@@ -34,15 +34,22 @@ export type TurnRoundData =
     | NonNullable<PhaseChanges["roundEnd"]>
     | NonNullable<PhaseChanges["turnEnd"]>
 
+export type TurnRoundDataWithRound = TurnRoundData & {
+    /** 由前端 setTurnRound 注入的最新回合快照（用于 UI 同步，如 turnbar） */
+    currentRound?: GameRound;
+};
 
 export type TurnRoundPayload = {
     name: "roundStart" | "turnStart" | "roundEnd" | "turnEnd" | "init";
-    data: TurnRoundData;
+    data: TurnRoundDataWithRound;
 };
 // 注册 MotionPathPlugin
 gsap.registerPlugin(MotionPathPlugin);
 export interface ICombatContext {
+    /** 运行时 game（CombatManager 内部维护，phase 变化通过 updateRuntimeGame 写入）；fallback 为 props.game */
     game: GameModel | null;
+    /** 应用阶段变化到 runtimeGame 的受控更新接口（单一写入入口） */
+    updateRuntimeGame?: (updater: (prev: GameModel) => GameModel) => void;
     groundCells: GridCellSprite[][] | null;
     obstacleSprites?: ObstacleSprite[];
     characters?: MonsterSprite[];
@@ -60,23 +67,22 @@ export interface ICombatContext {
     playbackSpeed?: number;
     // ✅ 初始 phaseChanges 由各视图层（2D/3D）自行处理
     initialPhaseChanges?: PhaseChanges;
-    markInitialPhaseChangesProcessed: () => void;
-    isInitialPhaseChangesProcessed: () => boolean;
+    /** 初始 phaseChanges 处理门：markProcessed 标记已处理，isProcessed 检查 */
+    initialPhaseChangesGate: { markProcessed: () => void; isProcessed: () => boolean };
     turnRound?: TurnRoundPayload;
     setTurnRound: (payload: TurnRoundPayload) => void;
     /** 当前回合活跃角色（用于 3D 视图高亮指示）；由 derivation 与 setActiveCharacterKey 共同控制 */
     activeCharacterKey: string | null;
     setActiveCharacterKey: (key: string | null) => void;
-    // ✅ 动画中角色（2D/3D 行走等）：避免重渲染覆盖 GSAP 控制的 position
-    animatingCharacterKey: string | null;
-    /** 动画起点 position 的稳定引用（3D: [x,y,z]，行走期间对该角色传此引用） */
-    animatingStartPositionRef: React.MutableRefObject<[number, number, number]>;
-    /** 开始动画：key + 可选 position（写入 ref）；结束动画：setCharacterAnimating(null) */
+    /** 动画中角色：{ key, position } 或 null；避免重渲染覆盖 GSAP 控制的 position */
+    animating: { key: string; position: [number, number, number] } | null;
+    /** 开始动画：key + 可选 position；结束动画：setCharacterAnimating(null) */
     setCharacterAnimating: (key: string | null, position?: [number, number, number]) => void;
 }
 
 export const CombatContext = createContext<ICombatContext>({
     game: null,
+    updateRuntimeGame: undefined,
     groundCells: [],
     obstacleSprites: [],
     eventQueue: [],
@@ -85,14 +91,12 @@ export const CombatContext = createContext<ICombatContext>({
     // containerRef: { current: null },
     mode: 'play',
     playbackSpeed: 1.0,
-    markInitialPhaseChangesProcessed: () => { },
-    isInitialPhaseChangesProcessed: () => false,
+    initialPhaseChangesGate: { markProcessed: () => { }, isProcessed: () => false },
     turnRound: undefined,
     setTurnRound: () => { },
     activeCharacterKey: null,
     setActiveCharacterKey: () => { },
-    animatingCharacterKey: null,
-    animatingStartPositionRef: { current: [0, 0, 0] },
+    animating: null,
     setCharacterAnimating: () => { },
 });
 
@@ -121,11 +125,32 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     children,
     game = null,
     mode = 'play',
-    initialPhaseChanges, // ✅ 初始 phaseChanges
+    initialPhaseChanges,
 }) => {
 
     const eventQueueRef: React.MutableRefObject<FrontendCombatEvent[]> = useRef<FrontendCombatEvent[]>([]);
     const { containerRef, mapDimension } = useMapDimension();
+
+    // runtimeGame: 运行时 game 状态，phase 变化由此单一写入，避免多处 mutation 导致状态漂移
+    const [runtimeGame, setRuntimeGame] = useState<GameModel | null>(null);
+    const gameIdRef = useRef<string | null>(null);
+    const lastSyncedRoundRef = useRef<GameRound | null>(null);
+    useEffect(() => {
+        const nextId = game?.gameId ?? null;
+        if (nextId !== gameIdRef.current) {
+            gameIdRef.current = nextId;
+            lastSyncedRoundRef.current = null;
+            setRuntimeGame(game);
+        }
+    }, [game, game?.gameId]);
+    const effectiveGame = runtimeGame ?? game;
+    const updateRuntimeGame = useCallback((updater: (prev: GameModel) => GameModel) => {
+        setRuntimeGame((prev) => {
+            const base = prev ?? game;
+            if (!base) return prev;
+            return updater(base) ?? prev;
+        });
+    }, [game]);
     // ✅ 重播功能（仅在 replay 模式）
     // 在 replay 模式下，useGameReplay 会：
     // 1. 加载所有历史事件（findAllEvents）
@@ -157,12 +182,13 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 
 
     const characters = useMemo(() => {
-        if (!game?.team || !game?.boss) return [];
-        return getCharactersFromGameModel(game.team, game.boss);
-    }, [game?.gameId]);
+        if (!effectiveGame?.team || !effectiveGame?.boss) return [];
+        return getCharactersFromGameModel(effectiveGame.team, effectiveGame.boss);
+    }, [effectiveGame?.gameId, effectiveGame?.team, effectiveGame?.boss]);
+
     const groundCells: GridCellSprite[][] | null = useMemo(() => {
-        if (!game?.map) return null;
-        const { rows, cols, disables, obstacles } = game.map;
+        if (!effectiveGame?.map) return null;
+        const { rows, cols, disables, obstacles } = effectiveGame.map;
         const cells: GridCellSprite[][] = Array.from({ length: rows }, (_, y) =>
             Array.from({ length: cols }, (_, x) => {
                 const cell: GridCellSprite = {
@@ -182,88 +208,212 @@ const CombatManager: React.FC<CombatManagerProps> = ({
             })
         );
         return cells;
-    }, [game?.map]);
+    }, [effectiveGame?.map]);
 
 
 
-    const { markInitialPhaseChangesProcessed, isInitialPhaseChangesProcessed } =
-        useInitialPhaseChangesGate();
+    const initialPhaseChangesGate = useInitialPhaseChangesGate();
 
     const [turnRound, setTurnRoundState] = useState<TurnRoundPayload | undefined>(undefined);
 
     const setTurnRound = useCallback((payload: TurnRoundPayload) => {
-        if (!game) return;
+        if (!effectiveGame) return;
         const { name, data } = payload;
+        let nextPayload = payload;
+        const actor = ("turn" in data ? data.turn : data) as {
+            uid?: string;
+            character_id?: string;
+            monsterId?: string;
+            bossId?: string;
+            minionId?: string;
+            status?: number;
+            order?: number;
+        };
+        const actorId =
+            actor.character_id ??
+            actor.monsterId ??
+            actor.bossId ??
+            actor.minionId;
 
-        // roundStart: 先同步 game.currentRound（后端返回的 round.turns 已保证 uid="boss" 时含 bossId 或 minionId）
+        // roundStart: 先同步 effectiveGame.currentRound（后端返回的 round.turns 已保证 uid="boss" 时含 bossId 或 minionId）
         if (name === "roundStart" && "round" in data && data.round) {
             const round = data.round as GameRound;
-            (game as { currentRound?: GameRound }).currentRound = round;
+            (effectiveGame as { currentRound?: GameRound }).currentRound = round;
         }
 
-        // turnStart / turnEnd: 更新 game.currentRound.turns 的 status
-        if ((name === "turnStart" || name === "turnEnd") && game.currentRound) {
-            const actor = ("turn" in data ? data.turn : data) as {
-                uid?: string;
-                monsterId?: string;
-                bossId?: string;
-                minionId?: string;
-            };
+        // turnStart / turnEnd: 同步 effectiveGame.currentRound
+        if ((name === "turnStart" || name === "turnEnd") && effectiveGame.currentRound) {
+            const dataWithRound = data as TurnRoundData & { currentRound?: GameRound };
+            // 固定逻辑：后端每次 turnStart 都带 currentRound，直接整体替换以同步 order（含召唤等）
+            if (name === "turnStart" && dataWithRound.currentRound) {
+                const activeFromRound = dataWithRound.currentRound.turns.find((t) => (t.status ?? 0) === 1)?.character_id;
+                const resolvedActorId =
+                    actor.character_id ??
+                    activeFromRound ??
+                    actor.monsterId ??
+                    actor.bossId ??
+                    actor.minionId;
+                // 后端 turnStart.currentRound 在部分场景不会带完整的 completed(2) 轨迹。
+                // 若仍在同一回合，优先保留前端已知的 completed 状态，避免 turnbar 每次“重置”。
+                const keepCompletedFromPrev =
+                    effectiveGame.currentRound?.no === dataWithRound.currentRound.no;
+                const prevCompletedIds = new Set(
+                    keepCompletedFromPrev
+                        ? (effectiveGame.currentRound?.turns ?? [])
+                            .filter((t) => (t.status ?? 0) === 2)
+                            .map((t) => t.character_id)
+                        : []
+                );
+                if (keepCompletedFromPrev) {
+                    const prevActiveId = (effectiveGame.currentRound?.turns ?? []).find((t) => (t.status ?? 0) === 1)?.character_id;
+                    if (prevActiveId && prevActiveId !== resolvedActorId) {
+                        prevCompletedIds.add(prevActiveId);
+                    }
+                }
+                let matched = false;
+                const normalizedTurns = dataWithRound.currentRound.turns.map((t) => {
+                    const isActor =
+                        !!resolvedActorId &&
+                        t.character_id === resolvedActorId &&
+                        (!actor.uid || t.uid === actor.uid);
+                    if (isActor) {
+                        matched = true;
+                        return { ...t, status: 1 };
+                    }
+                    if (prevCompletedIds.has(t.character_id)) {
+                        return { ...t, status: 2 };
+                    }
+                    // turnStart 场景仅允许一个进行中 turn（仅当能解析到 actorId 时）
+                    if ((t.status ?? 0) === 1 && !!resolvedActorId) {
+                        return { ...t, status: 0 };
+                    }
+                    return { ...t };
+                });
+                if (!matched && resolvedActorId && actor.uid) {
+                    normalizedTurns.push({
+                        uid: actor.uid,
+                        character_id: resolvedActorId,
+                        status: 1,
+                        order: actor.order ?? (normalizedTurns.length + 1),
+                    });
+                }
+                const normalizedRound: GameRound = {
+                    ...dataWithRound.currentRound,
+                    turns: normalizedTurns,
+                };
+                (effectiveGame as { currentRound?: GameRound }).currentRound = normalizedRound;
+                nextPayload = {
+                    ...payload,
+                    data: {
+                        ...(data as TurnRoundData),
+                        currentRound: normalizedRound,
+                    },
+                };
+            } else {
+                // 兼容：无 currentRound 时按单条更新/追加
+                const turns = effectiveGame.currentRound.turns;
+                let updatedTurns = turns.map((t) => ({ ...t }));
+                let turn = actorId ? updatedTurns.find((t) => t.character_id === actorId) : undefined;
 
-            const turn = game.currentRound.turns.find((t) => {
-                if (actor.bossId) return t.bossId === actor.bossId;
-                if (actor.minionId) return t.minionId === actor.minionId;
-                return actor.uid !== "boss" && !!actor.monsterId && t.monsterId === actor.monsterId;
-            });
+                if (name === "turnStart") {
+                    // turnStart 场景只允许一个 status=1，先清掉其他进行中 turn
+                    updatedTurns = updatedTurns.map((t) => {
+                        if ((t.status ?? 0) === 1) return { ...t, status: 0 };
+                        return t;
+                    });
+                    turn = actorId ? updatedTurns.find((t) => t.character_id === actorId) : undefined;
 
-            if (turn) {
-                turn.status = name === "turnStart" ? 1 : 2;
+                    if (!turn && actorId && actor.uid) {
+                        updatedTurns.push({
+                            uid: actor.uid,
+                            character_id: actorId,
+                            status: 1,
+                            order: actor.order ?? (updatedTurns.length + 1),
+                        });
+                    } else if (turn) {
+                        turn.status = 1;
+                    }
+                } else {
+                    if (turn) {
+                        turn.status = 2;
+                    } else {
+                        // turnEnd 常见只带 uid/monsterId，可能无法直接匹配 character_id；
+                        // 兜底：将当前进行中的 turn 标记为完成，避免回合轨迹丢失导致 turnbar 重置。
+                        const inProgress = updatedTurns.find((t) => (t.status ?? 0) === 1 && (!actor.uid || t.uid === actor.uid));
+                        if (inProgress) inProgress.status = 2;
+                    }
+                }
+
+                (effectiveGame.currentRound as { turns: GameTurn[] }).turns = updatedTurns;
+
+                const currentRoundSnapshot: GameRound = {
+                    no: effectiveGame.currentRound.no,
+                    turns: updatedTurns.map((t) => ({ ...t })),
+                };
+                nextPayload = {
+                    ...payload,
+                    data: {
+                        ...(data as TurnRoundData),
+                        currentRound: currentRoundSnapshot,
+                    },
+                };
             }
         }
 
-        setTurnRoundState(payload);
-    }, [game]);
+        setTurnRoundState(nextPayload);
+    }, [effectiveGame]);
 
     // ✅ 当前回合活跃角色（命令式设置，确保 phase handler 中即时生效）
     const [activeCharacterKey, setActiveCharacterKey] = useState<string | null>(null);
 
+    // turnRound.currentRound 是前端动作链里最及时的回合快照（尤其是召唤/插队场景），
+    // 通过 updateRuntimeGame 回写到 runtimeGame.currentRound，避免后续消费者读到旧回合。
+    useEffect(() => {
+        const roundFromTurnRound = (turnRound?.data as any)?.currentRound as GameRound | undefined;
+        if (!roundFromTurnRound || roundFromTurnRound === lastSyncedRoundRef.current) return;
+        lastSyncedRoundRef.current = roundFromTurnRound;
+        updateRuntimeGame((prev) => ({ ...prev, currentRound: roundFromTurnRound }));
+    }, [turnRound, updateRuntimeGame]);
+
     // ✅ 兜底同步：当 turnRound / game.currentRound 变化时，根据 status 1 的 turn 推导 activeCharacterKey，确保高亮不丢失
     useEffect(() => {
-        const round = game?.currentRound;
+        const roundFromTurnRound = (turnRound?.data as any)?.currentRound as GameRound | undefined;
+        const round = roundFromTurnRound ?? effectiveGame?.currentRound;
         const turns = round?.turns ?? [];
         const activeTurn = turns.find((t) => (t.status ?? 0) === 1);
         if (!activeTurn || !characters?.length) {
             setActiveCharacterKey(null);
             return;
         }
-        const t = activeTurn as { uid?: string; monsterId?: string; bossId?: string; minionId?: string };
-        const character =
-            (t.bossId != null && characters.find((c) => (c as { character_id?: string }).character_id === t.bossId)) ||
-            (t.minionId != null && characters.find((c) => (c as { character_id?: string }).character_id === t.minionId)) ||
-            characters.find((c) => c.uid === t.uid && c.monsterId === t.monsterId);
+        const t = activeTurn as { uid?: string; character_id?: string; monsterId?: string; bossId?: string; minionId?: string };
+        const activeTurnId = t.character_id ?? t.monsterId ?? t.bossId ?? t.minionId;
+        const character = characters.find((c) => (c as { character_id?: string }).character_id === activeTurnId);
         if (character) {
             setActiveCharacterKey(getCharacterKey(character));
         } else {
             setActiveCharacterKey(null);
         }
-    }, [turnRound, game?.currentRound, characters]);
+    }, [turnRound, effectiveGame?.currentRound, characters]);
 
-    // ✅ 动画中角色（2D/3D 行走等）：稳定 position 引用 + 触发一次重渲染，避免动画期间被覆盖
-    const [animatingCharacterKey, setAnimatingCharacterKey] = useState<string | null>(null);
-    const animatingStartPositionRef = useRef<[number, number, number]>([0, 0, 0]);
+    // ✅ 动画中角色（2D/3D 行走等）：key + position 合一，避免动画期间被 React 覆盖 GSAP
+    const [animating, setAnimatingState] = useState<{
+        key: string;
+        position: [number, number, number];
+    } | null>(null);
     const setCharacterAnimating = useCallback((key: string | null, position?: [number, number, number]) => {
-        if (key !== null && position) {
-            animatingStartPositionRef.current[0] = position[0];
-            animatingStartPositionRef.current[1] = position[1];
-            animatingStartPositionRef.current[2] = position[2];
+        if (key === null) {
+            setAnimatingState(null);
+            return;
         }
-        setAnimatingCharacterKey(key);
+        if (position) {
+            setAnimatingState({ key, position });
+        }
     }, []);
-    useEffect(() => () => setAnimatingCharacterKey(null), []);
+    useEffect(() => () => setAnimatingState(null), []);
 
     const obstacleSprites: ObstacleSprite[] | undefined = useMemo(() => {
-        if (!game?.map) return;
-        const { obstacles } = game.map;
+        if (!effectiveGame?.map) return;
+        const { obstacles } = effectiveGame.map;
         return obstacles?.map((o: ObstacleCell) => {
             return {
                 id: o.id,
@@ -273,10 +423,11 @@ const CombatManager: React.FC<CombatManagerProps> = ({
             };
         });
 
-    }, [game?.map]);
+    }, [effectiveGame?.map]);
 
     const value: ICombatContext = {
-        game: game,
+        game: effectiveGame,
+        updateRuntimeGame,
         groundCells,
         obstacleSprites,
         characters: characters || [],
@@ -287,14 +438,12 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         // containerRef,
         mode: mode,
         initialPhaseChanges,
-        markInitialPhaseChangesProcessed,
-        isInitialPhaseChangesProcessed,
+        initialPhaseChangesGate,
         turnRound,
         setTurnRound,
         activeCharacterKey,
         setActiveCharacterKey,
-        animatingCharacterKey,
-        animatingStartPositionRef,
+        animating,
         setCharacterAnimating,
         // ✅ 重播控制（仅在 replay 模式）
         // 提供重播播放控制接口，子组件可通过 useCombatManager() 获取

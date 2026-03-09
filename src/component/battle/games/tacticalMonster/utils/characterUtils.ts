@@ -18,7 +18,8 @@ export const findTargetByIdentifier = (
 
     return characters.find((c) => {
         if (identifier.monsterId) {
-            return c.monsterId === identifier.monsterId && (!excludeBoss || c.uid !== "boss");
+            // 玩家侧：identifier.monsterId 实际传的是 character_id（实例 id），需按实例匹配以支持同 monsterId 多单位（如召唤）
+            return c.uid !== "boss" && c.character_id === identifier.monsterId && (!excludeBoss || c.uid !== "boss");
         } else if (identifier.bossId) {
             return c.character_id === identifier.bossId;
         } else if (identifier.minionId) {

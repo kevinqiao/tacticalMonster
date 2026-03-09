@@ -16,7 +16,7 @@ interface CharacterGrid3DProps {
 }
 
 export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }) => {
-    const { characters, activeCharacterKey, animatingCharacterKey, animatingStartPositionRef } = useCombatManager();
+    const { characters, activeCharacterKey, animating } = useCombatManager();
     const loadingContext = useContext(BattleLoadingContext);
 
     const characterElements = useMemo(() => {
@@ -32,11 +32,9 @@ export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }
             if (!pos) return null;
 
             const key = getCharacterKey(character);
-            // 动画中角色使用稳定引用，避免重渲染覆盖 GSAP 控制的 position
+            // 动画中角色使用稳定 position，避免重渲染覆盖 GSAP 控制的 position
             const position: [number, number, number] =
-                animatingCharacterKey === key
-                    ? animatingStartPositionRef.current
-                    : [pos.x, pos.y, pos.z];
+                animating?.key === key ? animating.position : [pos.x, pos.y, pos.z];
             const facing = (character.scaleX ?? 1) >= 0 ? 1 : -1;
             const isActive = key === activeCharacterKey;
 
@@ -45,7 +43,7 @@ export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }
                     key={key}
                     character={character}
                     position={position}
-                    animatingCharacterKey={animatingCharacterKey}
+                    animatingCharacterKey={animating?.key ?? null}
                     width={mapDimension.hexWidth}
                     height={mapDimension.hexHeight}
                     facing={facing}
@@ -55,7 +53,7 @@ export const CharacterGrid3D: React.FC<CharacterGrid3DProps> = ({ mapDimension }
                 />
             );
         });
-    }, [characters, mapDimension, activeCharacterKey, animatingCharacterKey, loadingContext?.onModelLoaded]);
+    }, [characters, mapDimension, activeCharacterKey, animating, loadingContext?.onModelLoaded]);
 
     return <group>{characterElements}</group>;
 };

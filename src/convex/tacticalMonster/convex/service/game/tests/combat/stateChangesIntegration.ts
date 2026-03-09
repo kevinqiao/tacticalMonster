@@ -68,7 +68,7 @@ export const testAllStatesChange = internalMutation({
             }
 
             // ✅ 根据当前回合找到对应的玩家角色
-            const playerMonster = currentGame.team?.find(m => m.monsterId === currentTurn.monsterId);
+            const playerMonster = currentGame.team?.find((m: any) => (m.character_id ?? m.monsterId) === currentTurn.character_id);
             const boss = currentGame.boss;
 
             if (!playerMonster || !boss) {
@@ -83,7 +83,7 @@ export const testAllStatesChange = internalMutation({
             }
 
             const useSkillResult = await gameService.useSkill(testData.gameId, {
-                monsterId: playerMonster.monsterId,
+                monsterId: (playerMonster as any).character_id ?? playerMonster.monsterId,
                 skillId: skillId,
                 targets: [{ bossId: boss.bossId }],
             });
@@ -201,7 +201,7 @@ export const testPartialStatesChange = internalMutation({
             const walkResult = await gameService.walk(
                 testData.gameId,
                 newPosition,
-                { monsterId: playerMonster.monsterId },
+                { monsterId: (playerMonster as any).character_id ?? playerMonster.monsterId },
                 { steps: 1 }
             );
 
@@ -308,7 +308,7 @@ export const testMultipleCharactersStateChange = internalMutation({
             }
 
             // ✅ 根据当前回合找到对应的玩家角色
-            const playerMonster = currentGame.team?.find(m => m.monsterId === currentTurn.monsterId);
+            const playerMonster = currentGame.team?.find((m: any) => (m.character_id ?? m.monsterId) === currentTurn.character_id);
             const boss = currentGame.boss;
 
             if (!playerMonster || !boss) {
@@ -330,7 +330,7 @@ export const testMultipleCharactersStateChange = internalMutation({
             }
 
             const useSkillResult = await gameService.useSkill(testData.gameId, {
-                monsterId: playerMonster.monsterId,
+                monsterId: (playerMonster as any).character_id ?? playerMonster.monsterId,
                 skillId: skillId,
                 targets: targets,
             });

@@ -6,37 +6,15 @@ import { useCallback } from "react";
 import { api } from "../../../../../../../convex/tacticalMonster/convex/_generated/api";
 import { useGameSettings } from "../../../battle/hooks/useGameSettings";
 import { GameModel, MonsterSprite } from "../../../types/CombatTypes";
-import { canPerformAction } from "../../../utils/validationUtils";
 import { MonsterSkill } from "../../../types/skillTypes";
 import { offsetHexDistance } from "../../../utils/hexUtil";
 import { getMeleePossiblePositions } from "../../../utils/positionEvaluator";
 import { resolveAttackProfile } from "../../../utils/skillRangeUtils";
+import { canPerformAction } from "../../../utils/validationUtils";
 
 const getRemainingSteps = (character: MonsterSprite, currentTurn: any): number => {
     const totalMoveRange = character.move_range || 3;
     return Math.max(0, totalMoveRange - (currentTurn.stepsUsed ?? 0));
-};
-
-const buildAttackWalkGrid = (
-    groundCells: any[][],
-    characters: any[],
-    self: MonsterSprite,
-    target: MonsterSprite
-) => {
-    return groundCells.map((row: any[]) =>
-        row.map((cell: any) => {
-            const occupied = (characters || []).some((c: any) => {
-                const isSelf = c.uid === self.uid && c.character_id === self.character_id;
-                const isTarget = c.uid === target.uid && c.character_id === target.character_id;
-                return c.q === cell.q && c.r === cell.r && !isSelf && !isTarget;
-            });
-            return {
-                q: cell.q,
-                r: cell.r,
-                walkable: !cell.disable && !occupied,
-            };
-        })
-    );
 };
 
 
@@ -52,7 +30,7 @@ export const useOtherAction3D = (
     playSkillSelect: (data: any, onComplete: () => void) => void,
     openModal: (modalType: string, data?: any) => void,
     useSkill: (skillId: string, target?: MonsterSprite) => Promise<void>,
-    walk: (to: { q: number; r: number }) => Promise<void>,
+    walkAndAttack: (to: { q: number; r: number }, skillId: string, target: MonsterSprite) => Promise<void>,
     groundCells: any[][]
 ) => {
     const { settings } = useGameSettings();
@@ -63,7 +41,7 @@ export const useOtherAction3D = (
         playSkillSelect(
             {
                 uid: validation.currentTurn.uid,
-                monsterId: validation.currentTurn.monsterId,
+                character_id: validation.currentTurn.character_id,
                 skillId: skill.id
             },
             () => { }
@@ -150,13 +128,12 @@ export const useOtherAction3D = (
         } else {
             const selectedPosition = possiblePositions[0];
             try {
-                await walk(selectedPosition);
-                await useSkill(skillId, target);
+                await walkAndAttack(selectedPosition, skillId, target);
             } catch (error) {
                 console.error("Move and attack failed:", error);
             }
         }
-    }, [game, mode, characters, useSkill, walk, groundCells, settings]);
+    }, [game, mode, characters, useSkill, walkAndAttack, groundCells, settings]);
 
     return {
         selectSkill,

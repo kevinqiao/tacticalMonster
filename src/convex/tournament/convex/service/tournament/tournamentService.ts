@@ -75,6 +75,7 @@ export class TournamentService {
             delete dataToInsert.type;
             delete dataToInsert.stageRuleId;
             delete dataToInsert.stageRule; // 兼容旧版本的 stageRule
+            delete dataToInsert.priority; // schema 中无此字段，避免校验失败
 
             await ctx.db.insert("tournament_types", dataToInsert);
         }

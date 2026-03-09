@@ -65,7 +65,7 @@ export const testReplayMode = internalMutation({
             }
 
             // ✅ 根据当前回合找到对应的玩家角色
-            const playerMonster = currentGame.team?.find(m => m.monsterId === currentTurn.monsterId);
+            const playerMonster = currentGame.team?.find((m: any) => (m.character_id ?? m.monsterId) === currentTurn.character_id);
             const boss = currentGame.boss;
 
             if (!playerMonster || !boss) {
@@ -81,7 +81,7 @@ export const testReplayMode = internalMutation({
             const skillId = playerMonster.skills?.[0];
             if (skillId) {
                 const result1 = await gameService.useSkill(testData.gameId, {
-                    monsterId: playerMonster.monsterId,
+                    monsterId: (playerMonster as any).character_id ?? playerMonster.monsterId,
                     skillId: skillId,
                     targets: [{ bossId: boss.bossId }],
                 });
@@ -96,9 +96,10 @@ export const testReplayMode = internalMutation({
             const gameAfterFirstSkill = await gameService.load(testData.gameId);
             if (gameAfterFirstSkill) {
                 const nextTurn = gameAfterFirstSkill.currentRound?.turns?.find((t: any) => t.status === 1);
-                if (nextTurn && nextTurn.monsterId === playerMonster.monsterId && skillId) {
+                const playerInstanceId = (playerMonster as any).character_id ?? playerMonster.monsterId;
+                if (nextTurn && nextTurn.character_id === playerInstanceId && skillId) {
                     const result2 = await gameService.useSkill(testData.gameId, {
-                        monsterId: playerMonster.monsterId,
+                        monsterId: playerInstanceId,
                         skillId: skillId,
                         targets: [{ bossId: boss.bossId }],
                     });

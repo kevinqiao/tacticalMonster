@@ -14,6 +14,18 @@ import { GameRuleConfigService } from "../../gameRuleConfigService";
 import { GameService } from "../../gameService";
 
 /**
+ * 召唤技能测试专用队伍
+ * monster_008（Support）拥有 summon_minion，等级 6 已解锁
+ * 召唤测试时传入 setupCombatTestData 的 teamMonsters 参数
+ */
+export const SUMMON_TEST_TEAM_MONSTERS = [
+    { monsterId: "monster_008", level: 6, stars: 1 },  // Support，有 summon_minion
+    { monsterId: "monster_001", level: 5, stars: 1 },
+    { monsterId: "monster_002", level: 5, stars: 1 },
+    { monsterId: "monster_004", level: 5, stars: 1 },
+];
+
+/**
  * 检查怪物配置是否存在（从配置文件检查）
  */
 function checkMonsterConfigExists(monsterId: string): void {
@@ -26,6 +38,7 @@ function checkMonsterConfigExists(monsterId: string): void {
 /**
  * 准备战斗测试数据
  * 创建完整的战斗测试数据，包括玩家、队伍、stage、游戏实例
+ * 召唤测试时传入 teamMonsters: SUMMON_TEST_TEAM_MONSTERS
  */
 export async function setupCombatTestData(
     ctx: any,
@@ -74,38 +87,39 @@ export async function setupCombatTestData(
         }
     }
 
-    // 检查是否已存在队伍（使用 inTeam 字段判断）
-    const existingTeamMonsters = await ctx.db
+    // 查询该 uid 下所有怪物（用于“清空队伍”或“按 monsterId 查找”）
+    const allPlayerMonsters = await ctx.db
         .query("mr_player_monsters")
         .withIndex("by_uid", (q: any) => q.eq("uid", uid))
-        .filter((q: any) => q.eq(q.field("inTeam"), 1))
         .collect();
 
-    // ✅ 如果已存在队伍，更新 unlockedSkills；否则创建新队伍
-    if (existingTeamMonsters.length > 0) {
-        // 更新现有怪物的 unlockedSkills
-        for (let i = 0; i < Math.min(existingTeamMonsters.length, teamMonsters.length); i++) {
-            const existingMonster = existingTeamMonsters[i];
-            const monster = teamMonsters[i];
-            const monsterConfig = MONSTER_CONFIGS_MAP[monster.monsterId];
-            const skillIds = monsterConfig?.skillIds || [];
+    const existingTeamMonsters = allPlayerMonsters.filter((m: any) => m.inTeam === 1);
 
-            if (existingMonster.monsterId === monster.monsterId) {
-                await ctx.db.patch(existingMonster._id, {
-                    unlockedSkills: skillIds,  // ✅ 更新技能列表
+    // ✅ 当传入了 teamMonsters 时，强制将队伍设为该列表（保证创建的战斗中包含 monster_008 等）
+    // 1. 先清空当前队伍（所有 inTeam=1 的改为 inTeam=0）
+    for (const m of existingTeamMonsters) {
+        await ctx.db.patch(m._id, { inTeam: 0, teamPosition: undefined });
+    }
+
+    // 2. 按 teamMonsters 顺序设置队伍：存在则更新并入队，不存在则插入
+    for (let i = 0; i < teamMonsters.length; i++) {
+        const monster = teamMonsters[i];
+        const position = TeamService.getDefaultPosition(i);
+        const monsterConfig = MONSTER_CONFIGS_MAP[monster.monsterId];
+        const skillIds = monsterConfig?.skillIds || [];
+
+        const existing = allPlayerMonsters.find((m: any) => m.monsterId === monster.monsterId);
+        try {
+            if (existing) {
+                await ctx.db.patch(existing._id, {
+                    level: monster.level,
+                    stars: monster.stars,
+                    unlockedSkills: skillIds,
+                    inTeam: 1,
+                    teamPosition: position,
+                    updatedAt: nowISO,
                 });
-            }
-        }
-    } else {
-        // 创建怪物并设置 teamPosition（使用 Hex 坐标对象）
-        for (let i = 0; i < teamMonsters.length; i++) {
-            const monster = teamMonsters[i];
-            const position = TeamService.getDefaultPosition(i);
-            try {
-                // 从怪物配置中获取技能ID列表
-                const monsterConfig = MONSTER_CONFIGS_MAP[monster.monsterId];
-                const skillIds = monsterConfig?.skillIds || [];
-
+            } else {
                 await ctx.db.insert("mr_player_monsters", {
                     uid,
                     monsterId: monster.monsterId,
@@ -113,16 +127,16 @@ export async function setupCombatTestData(
                     stars: monster.stars,
                     experience: 0,
                     shards: 0,
-                    isUnlocked: true,  // ✅ 测试数据中怪物已解锁
-                    unlockedSkills: skillIds,  // ✅ 从怪物配置中获取技能
+                    isUnlocked: true,
+                    unlockedSkills: skillIds,
                     inTeam: 1,
-                    teamPosition: position,  // 使用 Hex 坐标对象 { q, r }
+                    teamPosition: position,
                     obtainedAt: nowISO,
                     updatedAt: nowISO,
                 });
-            } catch (error: any) {
-                errors.push(`创建怪物 ${monster.monsterId} 失败: ${error.message}`);
             }
+        } catch (error: any) {
+            errors.push(`设置队伍怪物 ${monster.monsterId} 失败: ${error.message}`);
         }
     }
 

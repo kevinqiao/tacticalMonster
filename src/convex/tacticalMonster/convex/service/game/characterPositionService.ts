@@ -69,7 +69,7 @@ export class CharacterPositionService {
             return false;
         } else if (monsterId) {
             // 玩家角色：从 gameDoc.team 中按 monsterId 查找并更新位置
-            const teamIndex = gameDoc.team.findIndex((m: { monsterId: string }) => m.monsterId === monsterId);
+            const teamIndex = gameDoc.team.findIndex((m: any) => (m.character_id ?? m.monsterId) === monsterId);
             if (teamIndex < 0) return false;
 
             const updatedTeam = [...gameDoc.team];

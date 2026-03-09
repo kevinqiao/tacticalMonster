@@ -67,8 +67,10 @@ echo ========================================
 echo 步骤1: 准备 Tournament 模块测试数据
 echo ========================================
 cd /d "%TOURNAMENT_DIR%"
+set "SETUP_ARGS={\"playerIds\": [\"%TEST_UID%\"]}"
 echo [INFO] 执行: setupChallengeLevelTestData
-call npx convex run service/tournament/tests/challengeLevel/runTest:setupChallengeLevelTestData
+echo [INFO] 参数: %SETUP_ARGS%
+call npx convex run service/tournament/tests/challengeLevel/runTest:setupChallengeLevelTestData "%SETUP_ARGS%"
 if errorlevel 1 (
     echo [ERROR] Tournament 模块测试数据创建失败
     exit /b 1
@@ -79,6 +81,22 @@ echo.
 REM 等待数据创建完成
 echo [INFO] 等待 3 秒以确保数据同步...
 timeout /t 3 /nobreak >nul
+echo.
+
+REM 步骤1b: 创建 TacticalMonster 队伍数据（Tournament HTTP 404 的替代方案）
+echo ========================================
+echo 步骤1b: 创建 TacticalMonster 队伍数据
+echo ========================================
+cd /d "%TACTICAL_MONSTER_DIR%"
+set "TM_SETUP_ARGS={\"uid\": \"%TEST_UID%\", \"teamMonsters\": [{\"monsterId\": \"monster_008\", \"level\": 6, \"stars\": 1}, {\"monsterId\": \"monster_001\", \"level\": 5, \"stars\": 1}, {\"monsterId\": \"monster_002\", \"level\": 5, \"stars\": 1}, {\"monsterId\": \"monster_004\", \"level\": 5, \"stars\": 1}], \"ruleId\": \"%TEST_TOURNAMENT_TYPE%\"}"
+echo [INFO] 执行: setupCombatTestDataAction
+call npx convex run service/game/tests/combat/combatTestData:setupCombatTestDataAction "%TM_SETUP_ARGS%"
+if errorlevel 1 (
+    echo [WARNING] TacticalMonster 队伍数据创建出现问题（步骤3可能失败）
+) else (
+    echo [SUCCESS] TacticalMonster 队伍数据创建成功
+)
+timeout /t 2 /nobreak >nul
 echo.
 
 REM 步骤2: 验证测试数据（Tournament模块）

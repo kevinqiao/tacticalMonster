@@ -101,7 +101,7 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                     result.effects.forEach((effectData: any) => {
                         if (effectData.targetId) {
                             const targetIdentifier = targets.find((t: any) => {
-                                const tId = t.monsterId || t.bossId || t.minionId;
+                                const tId = t.character_id;
                                 return tId === effectData.targetId;
                             });
                             if (targetIdentifier) {
@@ -203,6 +203,10 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                     break;
                 case "roundStart":
                 case "new_round": {
+                    if (!isReplayMode && !isWatchMode) {
+                        onComplete();
+                        break;
+                    }
                     const roundPhaseChanges = {
                         roundStart: {
                             round: payload?.round ?? 1,
@@ -219,6 +223,10 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                     onComplete();
                     break;
                 case "firstTurn": {
+                    if (!isReplayMode && !isWatchMode) {
+                        onComplete();
+                        break;
+                    }
                     const firstTurnPhaseChanges = payload?.phaseChanges || {};
                     handlePhaseChanges(firstTurnPhaseChanges)
                         .catch(() => { })
@@ -226,12 +234,14 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                     break;
                 }
                 case "turnStart": {
+                    if (!isReplayMode && !isWatchMode) {
+                        onComplete();
+                        break;
+                    }
                     const turnPhaseChanges: Record<string, any> = {
                         turnStart: {
                             uid: payload?.uid ?? "",
-                            ...(payload?.monsterId != null ? { monsterId: payload.monsterId } : {}),
-                            ...(payload?.bossId != null ? { bossId: payload.bossId } : {}),
-                            ...(payload?.minionId != null ? { minionId: payload.minionId } : {}),
+                            character_id: payload?.character_id ?? "",
                             round: payload?.round ?? 1,
                             triggeredPassiveSkills: payload?.triggeredPassiveSkills ?? [],
                         },
@@ -254,7 +264,11 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                 }
                 case "turnEnd":
                 case "turnSecond": {
-                    const turnEndPayload = payload && (payload.uid != null || payload.bossId != null || payload.minionId != null);
+                    if (!isReplayMode && !isWatchMode) {
+                        onComplete();
+                        break;
+                    }
+                    const turnEndPayload = payload && (payload.uid != null || payload.character_id != null);
                     if (turnEndPayload) {
                         const turnEndPhaseChanges = { turnEnd: payload };
                         handlePhaseChanges(turnEndPhaseChanges)

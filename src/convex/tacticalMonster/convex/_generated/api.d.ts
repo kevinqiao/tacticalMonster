@@ -72,6 +72,8 @@ import type * as service_game_gameService from "../service/game/gameService.js";
 import type * as service_game_roundService from "../service/game/roundService.js";
 import type * as service_game_sharedScoreService from "../service/game/sharedScoreService.js";
 import type * as service_game_skillTargetService from "../service/game/skillTargetService.js";
+import type * as service_game_summonService from "../service/game/summonService.js";
+import type * as service_game_tests_challengeLevel_endToEndTest from "../service/game/tests/challengeLevel/endToEndTest.js";
 import type * as service_game_tests_combat_combatE2E from "../service/game/tests/combat/combatE2E.js";
 import type * as service_game_tests_combat_combatIntegration from "../service/game/tests/combat/combatIntegration.js";
 import type * as service_game_tests_combat_combatTestData from "../service/game/tests/combat/combatTestData.js";
@@ -200,6 +202,8 @@ declare const fullApi: ApiFromModules<{
   "service/game/roundService": typeof service_game_roundService;
   "service/game/sharedScoreService": typeof service_game_sharedScoreService;
   "service/game/skillTargetService": typeof service_game_skillTargetService;
+  "service/game/summonService": typeof service_game_summonService;
+  "service/game/tests/challengeLevel/endToEndTest": typeof service_game_tests_challengeLevel_endToEndTest;
   "service/game/tests/combat/combatE2E": typeof service_game_tests_combat_combatE2E;
   "service/game/tests/combat/combatIntegration": typeof service_game_tests_combat_combatIntegration;
   "service/game/tests/combat/combatTestData": typeof service_game_tests_combat_combatTestData;

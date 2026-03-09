@@ -40,13 +40,18 @@ export const refreshToken = action({
 export const authByToken = action({
     args: { uid: v.string(), token: v.string() },
     handler: async (ctx, { uid, token }): Promise<User | null> => {
-        const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
-        console.log("authByToken", user?.token, token);
-        if (user?.token === token) {
-            await ctx.runMutation(internal.dao.userDao.refreshExpire, { uid });
-            return Object.assign({}, user, { _id: undefined, _creationTime: undefined, cuid: undefined, cid: undefined, data: undefined });
+        try {
+            const user: User | null = await ctx.runQuery(internal.dao.userDao.find, { uid });
+            console.log("authByToken", user?.token, token);
+            if (user?.token === token) {
+                await ctx.runMutation(internal.dao.userDao.refreshExpire, { uid });
+                return Object.assign({}, user, { _id: undefined, _creationTime: undefined, cuid: undefined, cid: undefined, data: undefined });
+            }
+            return null;
+        } catch (err) {
+            console.error("[authByToken] error", err);
+            return null;
         }
-        return null;
     }
 })
 export const signUp = action({

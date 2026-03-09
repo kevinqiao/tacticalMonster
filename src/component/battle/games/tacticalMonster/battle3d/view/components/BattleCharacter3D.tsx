@@ -374,6 +374,7 @@ const BattleCharacterPlaceholder: React.FC<{
 const BattleCharacter3DInnerMemo = React.memo(BattleCharacter3DInner, areEqual);
 
 export const BattleCharacter3DWithSuspense: React.FC<BattleCharacter3DProps> = (props) => {
+    
     return (
         <Suspense
             fallback={

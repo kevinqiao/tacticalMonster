@@ -53,16 +53,8 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             }
 
             const triggeredPassiveSkills =
-                phaseChanges?.turnStart?.triggeredPassiveSkills?.filter((ps: any) => {
-                    if (ps.bossId && character.character_id === ps.bossId) return true;
-                    if (ps.minionId && character.character_id === ps.minionId) return true;
-                    return ps.uid === character.uid && ps.monsterId === character.monsterId;
-                }) ||
-                phaseChanges?.roundStart?.triggeredPassiveSkills?.filter((ps: any) => {
-                    if (ps.bossId && character.character_id === ps.bossId) return true;
-                    if (ps.minionId && character.character_id === ps.minionId) return true;
-                    return ps.uid === character.uid && ps.monsterId === character.monsterId;
-                }) ||
+                phaseChanges?.turnStart?.triggeredPassiveSkills?.filter((ps: any) => ps.character_id === character.character_id) ||
+                phaseChanges?.roundStart?.triggeredPassiveSkills?.filter((ps: any) => ps.character_id === character.character_id) ||
                 [];
 
             if (triggeredPassiveSkills.length > 0) {
@@ -109,16 +101,18 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
 
     /**
      * 显示回合 UI：内部计算可移动/可攻击格子并高亮 3D 网格，与 2D playTurnOn(currentTurn, onComplete) 一致
+     * @param charactersOverride 可选，覆盖从 context 读取的 characters（用于召唤单位 turnStart 时，确保能找到新加入的角色）
      */
     const playTurnOn = useCallback(
-        (currentTurn: GameTurn, onComplete: () => void) => {
-            if (!characters || !groundCells || !map || !gridState) {
+        (currentTurn: GameTurn, onComplete: () => void, options?: { charactersOverride?: MonsterSprite[] }) => {
+            const chars = options?.charactersOverride ?? characters;
+            if (!chars || !groundCells || !map || !gridState) {
                 onComplete();
                 return;
             }
 
-            const character = characters.find(
-                (c) => c.uid === currentTurn.uid && c.monsterId === currentTurn.monsterId
+            const character = chars.find(
+                (c) => c.character_id === currentTurn.character_id
             );
             if (!character) {
                 onComplete();
@@ -135,7 +129,7 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             // 横竖屏统一用逻辑空间：高亮 = 可点击 = 与后端一致；竖屏时环在屏幕上可能略不齐，但所见即所点
             const grid = groundCells.map((row) =>
                 row.map((cell) => {
-                    const char = characters.find((c) => c.q === cell.q && c.r === cell.r);
+                    const char = chars.find((c) => c.q === cell.q && c.r === cell.r);
                     const obstacle = map?.obstacles?.find((o) => o.q === cell.q && o.r === cell.r);
                     return {
                         q: cell.q,
@@ -156,7 +150,7 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                 .filter((n) => (n.distance ?? 0) > 0)
                 .map((n) => ({ q: n.q, r: n.r, distance: n.distance ?? 0 }));
 
-            const enemies = characters
+            const enemies = chars
                 .filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
                 .map((c) => ({
                     uid: c.uid,
@@ -225,7 +219,7 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             onComplete();
         },
         [characters, groundCells, map, gridState]
-    );
+    ); // characters in deps for default; options?.charactersOverride used at call time
 
     const clearTurnUI = useCallback(() => {
         gridState?.clearAll();

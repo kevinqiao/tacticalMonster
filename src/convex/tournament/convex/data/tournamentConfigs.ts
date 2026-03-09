@@ -1112,6 +1112,7 @@ function convertToSchemaFormat(config: any): TournamentConfig {
     delete converted.type;
     delete converted.stageRuleId;
     delete converted.stageRule; // 兼容旧版本的 stageRule
+    delete converted.priority; // schema 中无此字段
 
     return converted as TournamentConfig;
 }

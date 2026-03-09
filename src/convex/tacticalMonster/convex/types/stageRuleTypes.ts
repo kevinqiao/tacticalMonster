@@ -83,6 +83,8 @@ export interface StageRuleConfig {
             minMultiplier?: number;        // 最低难度倍数
             maxMultiplier?: number;        // 最高难度倍数
         };
+        // 用于召唤测试的队伍预设标识，测试逻辑可根据此选择 SUMMON_TEST_TEAM_MONSTERS
+        summonTestTeamPreset?: "default";
     };
 
 

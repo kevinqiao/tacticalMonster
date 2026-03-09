@@ -356,7 +356,8 @@ export class SkillManager {
         // 检查技能是否需要目标
         const effects = skill.effects || [];
         const needsTarget = effects.some(effect => {
-            // 伤害、治疗、Debuff等效果通常需要目标
+            // 伤害、治疗、Debuff等效果通常需要目标；SUMMON 不需要目标
+            if (effect.type === SkillEffectType.SUMMON) return false;
             return effect.type === SkillEffectType.DAMAGE ||
                 effect.type === SkillEffectType.HEAL ||
                 effect.type === SkillEffectType.DEBUFF ||
@@ -417,16 +418,19 @@ export class SkillManager {
             );
 
             for (const effect of effects) {
+                // SUMMON 效果不在此处理，由 GameActionService 调用 SummonService
+                if (effect.type === SkillEffectType.SUMMON) continue;
+
                 // 判断是单体还是群体效果
                 const isAreaEffect = effect.area_type && effect.area_type !== "single";
 
                 if (isAreaEffect) {
-                    // 群体效果：应用到所有有效目标
+                    // 群体效果：应用到所有有效目标；targetId 用实例 id 以支持同 monsterId 多目标（如召唤）
                     for (const target of validTargets) {
                         const applied = this.applyEffectToTarget(effect, target, monster);
                         appliedEffects.push({
                             effect,
-                            targetId: target.monsterId,
+                            targetId: (target as any).character_id ?? target.monsterId,
                             applied,
                         });
                     }
@@ -437,20 +441,23 @@ export class SkillManager {
                         const applied = this.applyEffectToTarget(effect, target, monster);
                         appliedEffects.push({
                             effect,
-                            targetId: target.monsterId,
+                            targetId: (target as any).character_id ?? target.monsterId,
                             applied,
                         });
                     }
                 }
             }
         } else if (!needsTarget) {
-            // 不需要目标的技能（如给自己加BUFF），直接应用效果
+            // 不需要目标的技能（如给自己加BUFF、召唤），直接应用效果
             for (const effect of effects) {
+                // SUMMON 效果不在此处理，由 GameActionService 调用 SummonService
+                if (effect.type === SkillEffectType.SUMMON) continue;
+
                 // 对于不需要目标的技能，可以应用到施法者自己
                 const applied = this.applyEffectToTarget(effect, monster, monster);
                 appliedEffects.push({
                     effect,
-                    targetId: monster.monsterId,
+                    targetId: (monster as any).character_id ?? monster.monsterId,
                     applied,
                 });
             }

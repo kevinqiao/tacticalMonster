@@ -56,8 +56,10 @@ export class CharacterQueryService {
             const minion = this.game.boss.minions.find((m) => m.minionId === minionId);
             return minion ? CharacterEnricher.enrichMinionAsGameMonster(minion) : null;
         } else if (monsterId) {
-            // 玩家角色：使用 monsterId 定位（玩家队伍中的monster不会重复）
-            return this.game.team.find((m) => m.monsterId === monsterId) || null;
+            // 玩家角色：支持实例 id（character_id）与类型 id（monsterId），以区分同 monsterId 多单位（如召唤）
+            return this.game.team.find((m: any) =>
+                (m.character_id ?? m.monsterId) === monsterId
+            ) || null;
         }
 
         return null;

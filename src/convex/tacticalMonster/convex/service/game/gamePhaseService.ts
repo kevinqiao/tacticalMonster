@@ -25,24 +25,16 @@ export class GamePhaseService {
         private scoreService: GameScoreService
     ) { }
 
-    /** 按标识符在 roundDoc.turns 中查找对应回合 */
+    /** 按标识符在 roundDoc.turns 中查找对应回合（identifier 的 monsterId/bossId/minionId 即实例 id，与 turn.character_id 一致） */
     private findTurnByIdentifier(roundDoc: { turns: GameTurn[] }, characterIdentifier: CharacterIdentifier): GameTurn | undefined {
-        const { monsterId, bossId, minionId } = characterIdentifier;
-        return roundDoc.turns.find((turn: GameTurn) => {
-            if (monsterId) return turn.uid !== "boss" && turn.monsterId === monsterId;
-            if (bossId) return turn.uid === "boss" && turn.bossId === bossId;
-            if (minionId) return turn.uid === "boss" && turn.minionId === minionId;
-            return false;
-        });
+        const characterId = characterIdentifier.monsterId ?? characterIdentifier.bossId ?? characterIdentifier.minionId;
+        if (!characterId) return undefined;
+        return roundDoc.turns.find((turn: GameTurn) => turn.character_id === characterId);
     }
 
-    /** 判断两条 turn 是否指向同一角色（uid + bossId/minionId/monsterId） */
+    /** 判断两条 turn 是否指向同一角色 */
     private turnsMatch(turn: GameTurn, turnToMatch: GameTurn): boolean {
-        return turn.uid === turnToMatch.uid && (
-            (turnToMatch.bossId && turn.bossId === turnToMatch.bossId) ||
-            (turnToMatch.minionId && turn.minionId === turnToMatch.minionId) ||
-            (!turnToMatch.bossId && !turnToMatch.minionId && turn.monsterId === turnToMatch.monsterId)
-        );
+        return turn.uid === turnToMatch.uid && turn.character_id === turnToMatch.character_id;
     }
 
     /** 返回 status===0 且按 order 排序后的第一个回合。若已有 status===1（进行中），则返回 undefined，避免跳过当前回合去处理后面的 turn。 */
@@ -59,15 +51,23 @@ export class GamePhaseService {
         return await this.roundService.getRoundDoc(gameId, roundNo);
     }
 
-    /** 将匹配 turnToMatch 的回合状态改为 newStatus 并写回数据库 */
+    /** 将匹配 turnToMatch 的回合状态改为 newStatus 并写回数据库；status=2 时写入 actionOrder 记录实际出手顺序 */
     private async patchTurnStatus(
         roundDoc: { _id: any; turns: GameTurn[] },
         turnToMatch: GameTurn,
         newStatus: number
     ): Promise<void> {
-        const updatedTurns = roundDoc.turns.map((turn: GameTurn) =>
-            this.turnsMatch(turn, turnToMatch) ? { ...turn, status: newStatus } : turn
-        );
+        const fresh = await this.dbCtx.db.get(roundDoc._id);
+        const turns = (fresh?.turns ?? roundDoc.turns) as GameTurn[];
+        const completedCount = turns.filter((t: GameTurn) => (t.status ?? 0) === 2).length;
+        const updatedTurns = turns.map((turn: GameTurn) => {
+            if (!this.turnsMatch(turn, turnToMatch)) return turn;
+            const updated = { ...turn, status: newStatus };
+            if (newStatus === 2) {
+                (updated as GameTurn).actionOrder = completedCount + 1;
+            }
+            return updated;
+        });
         await this.dbCtx.db.patch(roundDoc._id, { turns: updatedTurns });
     }
 
@@ -82,17 +82,14 @@ export class GamePhaseService {
         gameRef: { current: any },
         changes: PhaseChanges
     ): Promise<{ skipToNext: boolean }> {
-        const turnStartPayload: any = {
+        changes.turnStart = {
             uid: nextTurn.uid,
-            monsterId: nextTurn.monsterId,
+            character_id: nextTurn.character_id,
             round: roundNo,
         };
-        if (nextTurn.bossId) turnStartPayload.bossId = nextTurn.bossId;
-        if (nextTurn.minionId) turnStartPayload.minionId = nextTurn.minionId;
-        changes.turnStart = turnStartPayload;
 
         const { monsterId: turnMonsterId, bossId: turnBossId, minionId: turnMinionId } =
-            this.characterQueryService.getCharacterParams(nextTurn.uid, nextTurn.monsterId);
+            this.characterQueryService.getCharacterParams(nextTurn.uid, nextTurn.character_id);
         const turnCharacter = this.characterQueryService.getCharacter(turnMonsterId, turnBossId, turnMinionId);
         if (turnCharacter) {
             const tickResult = processStatusEffects(turnCharacter);
@@ -118,6 +115,12 @@ export class GamePhaseService {
             if (changes.turnStart) (changes.turnStart as any).triggeredPassiveSkills = turnStartPassiveSkills;
         }
         await this.patchTurnStatus(roundDoc, nextTurn, 1);
+        // turnStart 标记后重新加载，确保后续 currentRound 快照包含 status=1
+        const reloadedAfterTurnStart = await this.lifecycleService.load(gameId);
+        if (reloadedAfterTurnStart) {
+            gameRef.current = reloadedAfterTurnStart;
+            this.characterQueryService.setGame(reloadedAfterTurnStart);
+        }
         return { skipToNext: false };
     }
 
@@ -139,16 +142,14 @@ export class GamePhaseService {
     }> {
         const turnStartInfo: any = {
             uid: nextTurn.uid,
-            monsterId: nextTurn.monsterId,
+            character_id: nextTurn.character_id,
             round: roundNo,
         };
         console.log("processBossTurn turnStartInfo", turnStartInfo);
-        if (nextTurn.bossId) turnStartInfo.bossId = nextTurn.bossId;
-        if (nextTurn.minionId) turnStartInfo.minionId = nextTurn.minionId;
 
         let turnStartPassiveSkills: any[] = [];
         const { monsterId: turnMonsterId, bossId: turnBossId, minionId: turnMinionId } =
-            this.characterQueryService.getCharacterParams(nextTurn.uid, nextTurn.monsterId);
+            this.characterQueryService.getCharacterParams(nextTurn.uid, nextTurn.character_id);
         let turnCharacter = this.characterQueryService.getCharacter(turnMonsterId, turnBossId, turnMinionId);
         if (turnCharacter) {
             console.log("processBossTurn turnCharacter", turnCharacter);
@@ -288,6 +289,16 @@ export class GamePhaseService {
         if (changes.roundStart && !changes.turnStart) {
             await this.ensureTurnStartAfterRoundTransition(gameId, newRoundNo, gameRef, changes);
         }
+        // 与 advanceTurnAndRound 一致：有 turnStart 时带最新 currentRound
+        if (changes.turnStart && gameRef.current?.currentRound) {
+            const round = gameRef.current.currentRound;
+            const latestRoundDoc = await this.loadRoundDoc(gameId, round.no);
+            const latestTurns = latestRoundDoc?.turns ?? round.turns ?? [];
+            changes.currentRound = {
+                no: round.no,
+                turns: latestTurns.map((t: GameTurn) => ({ ...t })),
+            };
+        }
         return true;
     }
 
@@ -298,21 +309,48 @@ export class GamePhaseService {
         game: any,
         changes: PhaseChanges
     ): Promise<number | null> {
+        const lastRoundDoc = await this.loadRoundDoc(gameId, roundNumber);
+        const lastRound: GameRound | undefined = lastRoundDoc?.turns?.length
+            ? {
+                no: roundNumber,
+                turns: [...lastRoundDoc.turns]
+                    .filter((t: GameTurn) => t.status !== 2)
+                    .sort((a: GameTurn, b: GameTurn) => (a.order ?? 0) - (b.order ?? 0))
+                    .concat(
+                        [...lastRoundDoc.turns]
+                            .filter((t: GameTurn) => t.status === 2)
+                            .sort((a: GameTurn, b: GameTurn) =>
+                                (a.actionOrder ?? a.order ?? 0) - (b.actionOrder ?? b.order ?? 0)
+                            ),
+                    ),
+            }
+            : undefined;
         await this.roundService.endRound(gameId, roundNumber);
-        changes.roundEnd = { round: roundNumber };
+        changes.roundEnd = { round: roundNumber, ...(lastRound && { lastRound }) };
         const gameStatus = await this.scoreService.checkAndUpdateGameStatus(gameId);
         if (gameStatus?.isGameOver) {
             changes.gameOver = { result: gameStatus.result, reason: gameStatus.reason };
             return null;
         }
         const newRoundNo = roundNumber + 1;
-        const roundStarted = await this.roundService.createRound(gameId, newRoundNo, game);
+        // 使用最新 game 创建新回合，避免漏掉召唤等本回合末写入的数据
+        let latestGame = await this.lifecycleService.load(gameId);
+        if (!latestGame) return null;
+        const roundStarted = await this.roundService.createRound(gameId, newRoundNo, latestGame);
         if (!roundStarted) return null;
+
+        const roundStartPassiveSkills = await this.triggerPassiveSkills(gameId, "round_start");
+
+        // round_start 被动可能修改 speed，重排新回合以确保 roundStart 是最新速度顺序
+        latestGame = await this.lifecycleService.load(gameId);
+        if (latestGame) {
+            await this.roundService.resortRoundTurnsBySpeed(gameId, newRoundNo, latestGame);
+        }
+
         const roundDoc = await this.roundService.getRoundDoc(gameId, newRoundNo);
         const round: GameRound = roundDoc
             ? { no: roundDoc.no, turns: roundDoc.turns || [] }
             : { no: newRoundNo, turns: [] };
-        const roundStartPassiveSkills = await this.triggerPassiveSkills(gameId, "round_start");
         const eventService = new GameEventService(this.dbCtx);
         const event = eventService.createNewRoundEvent(gameId, newRoundNo);
         if (event.data) (event.data as any).triggeredPassiveSkills = roundStartPassiveSkills;
@@ -369,27 +407,16 @@ export class GamePhaseService {
 
                     // ✅ 记录被触发的技能（用于前端播放动画）
                     // 注意：对于小怪，需要包含 minionId 来区分相同 monsterId 的小怪
-                    const skillInfo: TriggeredPassiveSkill = {
+                    triggeredSkills.push({
                         uid: character.uid,
-                        monsterId: character.monsterId,
+                        character_id: (character as any).character_id ?? (character as any).bossId ?? (character as any).minionId ?? character.monsterId,
                         skillId: skillIdStr,
                         effects: effects.map(effect => ({
                             id: effect.id,
                             type: effect.type,
                             name: effect.name,
                         })),
-                    };
-
-                    // ✅ 如果是 Boss 主体，添加 bossId
-                    if (character.uid === "boss" && (character as any).bossId) {
-                        skillInfo.bossId = (character as any).bossId;
-                    }
-                    // ✅ 如果是小怪，添加 minionId（用于区分相同 monsterId 的小怪）
-                    else if (character.uid === "boss" && (character as any).minionId) {
-                        skillInfo.minionId = (character as any).minionId;
-                    }
-
-                    triggeredSkills.push(skillInfo);
+                    });
 
                     // 更新角色到数据库（统一使用 updateCharacterInDatabase，它会自动处理玩家、Boss、小怪）
                     await this.characterUpdateService.updateCharacterInDatabase(
@@ -477,7 +504,7 @@ export class GamePhaseService {
                 type: 0,
                 data: {
                     uid: changes.turnStart.uid,
-                    monsterId: changes.turnStart.monsterId,
+                    character_id: changes.turnStart.character_id,
                     round: roundNumber,
                     triggeredPassiveSkills: (changes.turnStart as any).triggeredPassiveSkills || [],
                 },
@@ -521,7 +548,7 @@ export class GamePhaseService {
             await this.patchTurnStatus(roundDoc, currentTurn, 2);
             changes.turnEnd = {
                 uid: currentTurn.uid,
-                monsterId: currentTurn.monsterId,
+                character_id: currentTurn.character_id,
                 round: roundNumber,
             };
         }
@@ -537,6 +564,17 @@ export class GamePhaseService {
         const roundAfterBoss = await this.loadRoundDoc(gameId, roundNumber);
         if (roundAfterBoss?.turns.every((t: GameTurn) => t.status === 2)) {
             await this.transitionToNextRound(gameId, roundNumber, game, changes, ctx);
+        }
+
+        // 固定逻辑：每次带 turnStart 时都带最新 currentRound，供前端整体替换以同步 order（含召唤等）
+        if (changes.turnStart && gameRef.current?.currentRound) {
+            const round = gameRef.current.currentRound;
+            const latestRoundDoc = await this.loadRoundDoc(gameId, round.no);
+            const latestTurns = latestRoundDoc?.turns ?? round.turns ?? [];
+            changes.currentRound = {
+                no: round.no,
+                turns: latestTurns.map((t: GameTurn) => ({ ...t })),
+            };
         }
 
         return changes;

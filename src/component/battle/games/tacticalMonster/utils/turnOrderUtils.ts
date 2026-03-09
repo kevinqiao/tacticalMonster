@@ -7,34 +7,20 @@ import type { GameTurn } from "../types/gameTypes";
 import { findTargetByIdentifier } from "./characterUtils";
 
 export const getTurnKey = (turn: GameTurn): string =>
-    `${turn.uid}-${turn.monsterId}-${turn.bossId ?? ""}-${turn.minionId ?? ""}-${turn.order ?? 0}`;
+    `${turn.uid}-${turn.character_id}-${turn.order ?? 0}`;
 
 export const getCharacterForTurn = (
     characters: MonsterSprite[] | undefined,
     turn: GameTurn | undefined
 ): MonsterSprite | undefined => {
     if (!characters || !turn) return undefined;
-    if (turn.bossId) {
-        return findTargetByIdentifier(characters, { bossId: turn.bossId });
-    }
-    if (turn.minionId) {
-        return findTargetByIdentifier(characters, { minionId: turn.minionId });
-    }
-    return characters.find((c) => c.uid === turn.uid && c.monsterId === turn.monsterId);
+    return characters.find((c) => c.character_id === turn.character_id);
 };
 
-/**
- * 从 GameTurn 得到对应角色的 character_id。
- * - 有 bossId/minionId 时直接等于该字段；
- * - 玩家角色需用 characters 查找后取 .character_id。
- */
+/** 从 GameTurn 得到对应角色的 character_id（与 turn.character_id 一致） */
 export function getCharacterIdFromTurn(
-    characters: MonsterSprite[] | undefined,
+    _characters: MonsterSprite[] | undefined,
     turn: GameTurn | undefined
 ): string | undefined {
-    if (!turn) return undefined;
-    if (turn.bossId) return turn.bossId;
-    if (turn.minionId) return turn.minionId;
-    const c = getCharacterForTurn(characters, turn);
-    return c?.character_id;
+    return turn?.character_id;
 }

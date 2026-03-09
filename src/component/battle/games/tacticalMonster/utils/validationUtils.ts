@@ -11,19 +11,38 @@ export const canPerformAction = (
     mode: string,
     game: any,
     characters: MonsterSprite[] | undefined
-): { can: boolean; currentTurn?: any; character?: MonsterSprite } => {
-    if (mode === 'watch' || mode === 'replay') return { can: false };
-    if (!game?.currentRound || !characters) return { can: false };
+): { can: boolean; currentTurn?: any; character?: MonsterSprite; reason?: string } => {
+    if (mode === "watch" || mode === "replay") {
+        return { can: false, reason: `mode=${mode}` };
+    }
+    if (!game?.currentRound) {
+        return { can: false, reason: "game.currentRound is missing" };
+    }
+    if (!characters?.length) {
+        return { can: false, reason: "characters is empty" };
+    }
 
     const currentTurn = game.currentRound.turns.find(
         (t: any) => t.status === 1
     );
-    if (!currentTurn || currentTurn.uid === "boss") return { can: false };
+    if (!currentTurn) {
+        return { can: false, reason: "no active turn (status=1)" };
+    }
+    if (currentTurn.uid === "boss") {
+        return { can: false, currentTurn, reason: "current active turn is boss" };
+    }
 
+    const turnActorId =
+        currentTurn.character_id ??
+        currentTurn.monsterId ??
+        currentTurn.bossId ??
+        currentTurn.minionId;
     const character = characters.find(
-        c => c.monsterId === currentTurn.monsterId && c.uid === currentTurn.uid
+        c => c.character_id === turnActorId
     );
-    if (!character) return { can: false };
+    if (!character) {
+        return { can: false, currentTurn, reason: `active turn character not found: ${String(turnActorId)}` };
+    }
 
 
 

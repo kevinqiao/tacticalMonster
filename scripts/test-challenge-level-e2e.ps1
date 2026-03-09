@@ -1,24 +1,31 @@
-# 挑战关卡端到端测试自动化脚本 (PowerShell)
-# 适用于 Windows PowerShell 和 PowerShell Core
-#
-# 使用方法:
-#   powershell -ExecutionPolicy Bypass -File scripts/test-challenge-level-e2e.ps1
-#   或
-#   pwsh scripts/test-challenge-level-e2e.ps1
+# Challenge Level E2E Test Script (PowerShell)
+# Usage: powershell -ExecutionPolicy Bypass -File scripts/test-challenge-level-e2e.ps1
+# Use existing SSO account: $env:TEST_PLAYER_EMAIL = "kevin1@gmail.com"
+# Or set uid directly:      $env:TEST_UID = "0_xxxx"  (from JSON.parse(localStorage.user).uid after login)
 
 $ErrorActionPreference = "Stop"
 
-# 配置
+# Config
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 $TournamentDir = Join-Path $ProjectRoot "src\convex\tournament"
 $TacticalMonsterDir = Join-Path $ProjectRoot "src\convex\tacticalMonster"
 
-# 测试参数
-$TestUid = if ($env:TEST_UID) { $env:TEST_UID } else { "test_player_bronze" }
+# Test params. Use TEST_PLAYER_EMAIL (e.g. kevin1@gmail.com) to derive uid = "0_"+MD5(email)
+$TestUid = if ($env:TEST_UID) {
+    $env:TEST_UID
+} elseif ($env:TEST_PLAYER_EMAIL) {
+    $email = $env:TEST_PLAYER_EMAIL.Trim().ToLower()
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($email)
+    $hash = [System.Security.Cryptography.MD5]::Create().ComputeHash($bytes)
+    $hex = [BitConverter]::ToString($hash).Replace("-", "").ToLower()
+    "0_$hex"
+} else {
+    "test_player_bronze"
+}
 $TestTournamentType = if ($env:TEST_TOURNAMENT_TYPE) { $env:TEST_TOURNAMENT_TYPE } else { "monster_rumble_challenge_bronze_boss_1" }
 
-# 日志函数
+# Log helpers
 function Write-Info {
     param([string]$Message)
     Write-Host "[INFO] $Message" -ForegroundColor Blue
@@ -47,131 +54,130 @@ function Write-Step {
     Write-Host "========================================" -ForegroundColor Blue
 }
 
-# 检查命令是否存在
+# Check command exists
 function Test-Command {
     param([string]$Command)
     if (!(Get-Command $Command -ErrorAction SilentlyContinue)) {
-        Write-Error "$Command 未安装或不在 PATH 中"
+        Write-Error "$Command not found or not in PATH"
         exit 1
     }
 }
 
-# 检查目录是否存在
+# Check directory exists
 function Test-Directory {
     param([string]$Path)
     if (!(Test-Path $Path -PathType Container)) {
-        Write-Error "目录不存在: $Path"
+        Write-Error "Directory not found: $Path"
         exit 1
     }
 }
 
-# 运行 Convex 命令
+# Run Convex command
 function Invoke-ConvexRun {
     param(
         [string]$ModuleDir,
         [string]$Command,
-        [string]$Args = ""
+        [string]$JsonArgs = ""
     )
     
-    Write-Info "执行: $Command"
-    if ($Args) {
-        Write-Info "参数: $Args"
-        Push-Location $ModuleDir
-        try {
-            if ($Args) {
-                npx convex run $Command $Args
-            } else {
-                npx convex run $Command
-            }
-        } finally {
-            Pop-Location
+    Write-Info "Running: $Command"
+    Push-Location $ModuleDir
+    try {
+        if ($JsonArgs) {
+            Write-Info "Args: $JsonArgs"
+            # Pass JSON as single argument (avoid $args conflict; use comma to build array for &)
+            & npx convex run $Command $JsonArgs
+        } else {
+            & npx convex run $Command
         }
-    } else {
-        Push-Location $ModuleDir
-        try {
-            npx convex run $Command
-        } finally {
-            Pop-Location
-        }
+    } finally {
+        Pop-Location
     }
 }
 
-# 主函数
+# Main
 function Main {
-    Write-Step "挑战关卡端到端测试 - 完整流程"
-    Write-Info "测试玩家: $TestUid"
-    Write-Info "测试关卡: $TestTournamentType"
-    Write-Info "项目根目录: $ProjectRoot"
+    Write-Step "Challenge Level E2E Test - Full Flow"
+    Write-Info "Test UID: $TestUid"
+    Write-Info "Tournament Type: $TestTournamentType"
+    Write-Info "Project Root: $ProjectRoot"
     
-    # 检查前置条件
-    Write-Step "检查前置条件"
+    Write-Step "Check Prerequisites"
     Test-Command "npx"
     Test-Command "node"
     Test-Directory $TournamentDir
     Test-Directory $TacticalMonsterDir
-    Write-Success "前置条件检查通过"
+    Write-Success "Prerequisites OK"
     
-    # 步骤1: 准备测试数据（Tournament模块）
-    Write-Step "步骤1: 准备 Tournament 模块测试数据"
+    Write-Step "Step 1: Setup Tournament Test Data"
+    $SetupArgs = "{`"playerIds`": [`"$TestUid`"]}"
     try {
         Invoke-ConvexRun -ModuleDir $TournamentDir `
-            -Command "service/tournament/tests/challengeLevel/runTest:setupChallengeLevelTestData"
-        Write-Success "Tournament 模块测试数据创建成功"
+            -Command "service/tournament/tests/challengeLevel/runTest:setupChallengeLevelTestData" `
+            -Args $SetupArgs
+        Write-Success "Tournament test data created"
     } catch {
-        Write-Error "Tournament 模块测试数据创建失败: $_"
+        Write-Error "Tournament test data setup failed: $_"
         exit 1
     }
     
-    # 等待数据创建完成
-    Write-Info "等待 3 秒以确保数据同步..."
+    # Wait for data sync
+    Write-Info "Waiting 3 seconds for data sync..."
     Start-Sleep -Seconds 3
     
-    # 步骤2: 验证测试数据（Tournament模块）
-    Write-Step "步骤2: 验证 Tournament 模块测试数据"
+    # Step 1b: Create TacticalMonster team/game data for test player (Tournament HTTP 404 workaround)
+    Write-Step "Step 1b: Setup TacticalMonster Team Data"
+    $TmSetupArgs = "{`"uid`": `"$TestUid`", `"teamMonsters`": [{`"monsterId`": `"monster_008`", `"level`": 6, `"stars`": 1}, {`"monsterId`": `"monster_001`", `"level`": 5, `"stars`": 1}, {`"monsterId`": `"monster_002`", `"level`": 5, `"stars`": 1}, {`"monsterId`": `"monster_004`", `"level`": 5, `"stars`": 1}], `"ruleId`": `"$TestTournamentType`"}"
+    try {
+        Invoke-ConvexRun -ModuleDir $TacticalMonsterDir `
+            -Command "service/game/tests/combat/combatTestData:setupCombatTestDataAction" `
+            -JsonArgs $TmSetupArgs
+        Write-Success "TacticalMonster team data created"
+    } catch {
+        Write-Warning "TacticalMonster setup had issues (Step 3 may fail): $_"
+    }
+    Start-Sleep -Seconds 2
+    
+    Write-Step "Step 2: Validate Tournament Test Data"
     $ValidationArgs = "{`"playerIds`": [`"$TestUid`"], `"tournamentTypeId`": `"$TestTournamentType`"}"
     try {
         Invoke-ConvexRun -ModuleDir $TournamentDir `
             -Command "service/tournament/tests/challengeLevel/runTest:validateChallengeLevelTestData" `
             -Args $ValidationArgs
-        Write-Success "Tournament 模块数据验证完成"
+        Write-Success "Tournament validation done"
     } catch {
-        Write-Warning "Tournament 模块数据验证出现问题（继续执行）: $_"
+        Write-Warning "Tournament validation had issues (continuing): $_"
     }
     
-    # 步骤3: 验证测试数据（TacticalMonster模块）
-    Write-Step "步骤3: 验证 TacticalMonster 模块测试数据"
+    Write-Step "Step 3: Validate TacticalMonster Test Data"
     $ValidationArgs = "{`"uid`": `"$TestUid`"}"
     try {
         Invoke-ConvexRun -ModuleDir $TacticalMonsterDir `
             -Command "service/game/tests/challengeLevel/endToEndTest:testChallengeLevelDataValidation" `
             -Args $ValidationArgs
-        Write-Success "TacticalMonster 模块数据验证完成"
+        Write-Success "TacticalMonster validation done"
     } catch {
-        Write-Warning "TacticalMonster 模块数据验证出现问题（继续执行）: $_"
+        Write-Warning "TacticalMonster validation had issues (continuing): $_"
     }
     
-    # 步骤4: 运行端到端测试（TacticalMonster模块）
-    Write-Step "步骤4: 运行端到端测试"
+    Write-Step "Step 4: Run E2E Test"
     $E2EArgs = "{`"uid`": `"$TestUid`", `"tournamentType`": `"$TestTournamentType`"}"
     try {
         Invoke-ConvexRun -ModuleDir $TacticalMonsterDir `
             -Command "service/game/tests/challengeLevel/endToEndTest:testChallengeLevelEndToEnd" `
             -Args $E2EArgs
-        Write-Success "端到端测试执行完成"
+        Write-Success "E2E test completed"
     } catch {
-        Write-Error "端到端测试执行失败: $_"
+        Write-Error "E2E test failed: $_"
         exit 1
     }
     
-    Write-Step "测试流程完成"
-    Write-Success "所有步骤执行完毕！"
+    Write-Step "Test Flow Complete"
+    Write-Success "All steps finished!"
     Write-Info ""
-    Write-Info "下一步："
-    Write-Info "1. 查看 Convex Dashboard 中的日志以获取详细信息"
-    Write-Info "2. 验证 Match 和 PlayerMatch 记录"
-    Write-Info "3. 验证游戏实例和分数提交"
+    Write-Info "Next: Check Convex Dashboard for logs, Match/PlayerMatch records, and game scores."
 }
 
-# 运行主函数
+# Run
 Main
 

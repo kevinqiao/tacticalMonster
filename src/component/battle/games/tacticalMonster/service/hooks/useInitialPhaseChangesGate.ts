@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useMemo, useRef } from "react";
 
 /**
  * Gate for marking whether initial phase changes have been processed.
@@ -6,14 +6,13 @@ import { useCallback, useRef } from "react";
  */
 export function useInitialPhaseChangesGate() {
     const processedRef = useRef(false);
-
-    const markInitialPhaseChangesProcessed = useCallback(() => {
-        processedRef.current = true;
-    }, []);
-
-    const isInitialPhaseChangesProcessed = useCallback(() => {
-        return processedRef.current;
-    }, []);
-
-    return { markInitialPhaseChangesProcessed, isInitialPhaseChangesProcessed };
+    return useMemo(
+        () => ({
+            markProcessed: () => {
+                processedRef.current = true;
+            },
+            isProcessed: () => processedRef.current,
+        }),
+        []
+    );
 }

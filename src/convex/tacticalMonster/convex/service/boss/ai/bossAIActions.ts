@@ -9,6 +9,7 @@ import { internalMutation, mutation } from "../../../_generated/server";
 import { CharacterQueryService } from "../../game/characterQueryService";
 import { GameLifecycleService } from "../../game/gameLifecycleService";
 import { GameService } from "../../game/gameService";
+import { RoundService } from "../../game/roundService";
 import { offsetBfsStepDistance } from "../../../utils/hexUtils";
 import { BossAIService } from "./bossAIService";
 
@@ -77,9 +78,28 @@ export const executeBossAction = internalMutation({
 
         // ✅ 1. 执行动作前，加载游戏状态并记录关键角色的初始状态
         const lifecycleService = new GameLifecycleService(ctx);
+        const roundService = new RoundService(ctx);
         const gameBefore = await lifecycleService.load(gameId);
         if (!gameBefore) {
             return { ok: false, error: "游戏不存在" };
+        }
+
+        // ✅ 1.1 兜底：跨 mutation 时序下，确保本次执行者在当前 round 为进行中 turn（status=1）
+        // 否则 gameManager.attack/useSkill 的 validateTurn 可能报“不是当前回合”。
+        const roundNo = gameBefore.currentRound?.no ?? 0;
+        if (roundNo > 0) {
+            const roundDoc = await roundService.getRoundDoc(gameId, roundNo);
+            if (roundDoc?.turns?.length) {
+                const actorId = identifier.monsterId ?? identifier.bossId ?? identifier.minionId;
+                if (actorId) {
+                    const updatedTurns = roundDoc.turns.map((t: any) => {
+                        if (t.character_id === actorId) return { ...t, status: 1 };
+                        if ((t.status ?? 0) === 1) return { ...t, status: 0 };
+                        return t;
+                    });
+                    await ctx.db.patch(roundDoc._id, { turns: updatedTurns });
+                }
+            }
         }
 
         // 记录执行者的初始状态

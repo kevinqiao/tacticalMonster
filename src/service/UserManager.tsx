@@ -95,10 +95,16 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
 
     const authByToken = async (uid: string, token: string) => {
-      const u = await convex.action(api.service.AuthManager.authByToken, { uid, token });
-      if (u?.uid && u?.token) {
-        setTimeout(() => { authComplete(u, 1); }, 500);
-      } else {
+      try {
+        const u = await convex.action(api.service.AuthManager.authByToken, { uid, token });
+        if (u?.uid && u?.token) {
+          setTimeout(() => { authComplete(u, 1); }, 500);
+        } else {
+          localStorage.removeItem("user");
+          setTimeout(() => { setUser({}); }, 500);
+        }
+      } catch (err) {
+        console.warn("[authByToken] auth failed, clearing session", err);
         localStorage.removeItem("user");
         setTimeout(() => { setUser({}); }, 500);
       }

@@ -13,16 +13,12 @@ const usePlaySkillSelect = () => {
     const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
 
     const { map, currentRound } = game || {};
-    const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; monsterId: string }, onComplete: () => void | Promise<void>) => {
+    const playSkillSelect = useCallback(async (skillSelect: { skillId: string; uid: string; character_id: string }, onComplete: () => void | Promise<void>) => {
         if (!characters || !groundCells || !map || !currentRound) return;
-        console.log("playSkillSelect", skillSelect)
-        const { uid, monsterId } = skillSelect;
-        const character = characters.find((c) => c.uid === uid && c.monsterId === monsterId);
+        const { character_id } = skillSelect;
+        const character = characters.find((c) => c.character_id === character_id);
         if (!character) return;
-        // ✅ 修复：查找当前活跃的 turn（status === 1），而不是假设 turns[0]
-        const currentTurn = currentRound.turns.find(
-            (t: any) => t.status === 1 && t.uid === uid && t.monsterId === monsterId
-        ) || null;
+        const currentTurn = currentRound.turns.find((t: any) => t.status === 1 && t.character_id === character_id) ?? null;
         if (!currentTurn) return;
         const moveRange = character.move_range ?? 2;
         const remainingSteps = Math.max(0, moveRange - (currentTurn.stepsUsed ?? 0));

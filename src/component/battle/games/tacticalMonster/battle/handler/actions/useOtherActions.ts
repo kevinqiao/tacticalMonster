@@ -93,7 +93,7 @@ export const useOtherActions = (
         playSkillSelect(
             {
                 uid: validation.currentTurn.uid,
-                monsterId: validation.currentTurn.monsterId,
+                character_id: validation.currentTurn.character_id,
                 skillId: skill.id
             },
             () => { }

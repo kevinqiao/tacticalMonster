@@ -87,9 +87,9 @@ export const testCompleteCombatFlow = internalMutation({
             }
 
             // ✅ 根据当前回合的 monsterId 找到对应的角色
-            const playerMonster = initialGame.team?.find((m: any) => m.monsterId === currentTurn.monsterId);
+            const playerMonster = initialGame.team?.find((m: any) => (m.character_id ?? m.monsterId) === currentTurn.character_id);
             if (!playerMonster) {
-                testResult.errors.push(`找不到当前回合的角色: ${currentTurn.monsterId}`);
+                testResult.errors.push(`找不到当前回合的角色: ${currentTurn.character_id}`);
                 return testResult;
             }
 
@@ -107,7 +107,7 @@ export const testCompleteCombatFlow = internalMutation({
             }
 
             const useSkillResult = await gameService.useSkill(testData.gameId, {
-                monsterId: playerMonster.monsterId,
+                monsterId: (playerMonster as any).character_id ?? playerMonster.monsterId,
                 skillId: skillId,
                 targets: [{ bossId: boss.bossId }],
             });
@@ -132,8 +132,9 @@ export const testCompleteCombatFlow = internalMutation({
             testResult.steps.push("步骤5: 玩家移动");
             // ✅ 检查当前回合的角色
             const currentTurnAfterSkill = gameAfterSkill?.currentRound?.turns?.find((turn: any) => turn.status === 1);
-            if (currentTurnAfterSkill && currentTurnAfterSkill.monsterId === playerMonster.monsterId) {
-                const updatedPlayer = gameAfterSkill?.team?.find(m => m.monsterId === playerMonster.monsterId);
+            const playerInstanceId = (playerMonster as any).character_id ?? playerMonster.monsterId;
+            if (currentTurnAfterSkill && currentTurnAfterSkill.character_id === playerInstanceId) {
+                const updatedPlayer = gameAfterSkill?.team?.find((m: any) => (m.character_id ?? m.monsterId) === playerInstanceId);
                 if (updatedPlayer) {
                     const originalPosition = { q: updatedPlayer.q ?? 0, r: updatedPlayer.r ?? 0 };
                     const newPosition = { q: originalPosition.q + 1, r: originalPosition.r };
@@ -141,7 +142,7 @@ export const testCompleteCombatFlow = internalMutation({
                     const walkResult = await gameService.walk(
                         testData.gameId,
                         newPosition,
-                        { monsterId: playerMonster.monsterId },
+                        { monsterId: playerInstanceId },
                         { steps: 1 }
                     );
 
@@ -160,11 +161,11 @@ export const testCompleteCombatFlow = internalMutation({
             // ✅ 重新加载游戏以获取最新的回合状态
             const gameBeforeAttack = await gameService.load(testData.gameId);
             const currentTurnBeforeAttack = gameBeforeAttack?.currentRound?.turns?.find((turn: any) => turn.status === 1);
-            if (currentTurnBeforeAttack && currentTurnBeforeAttack.monsterId === playerMonster.monsterId) {
+            if (currentTurnBeforeAttack && currentTurnBeforeAttack.character_id === playerInstanceId) {
                 const attackSkillId = playerMonster.skills?.find((s: string) => s.includes("attack") || s.includes("basic"));
                 if (attackSkillId) {
                     const attackResult = await gameService.useSkill(testData.gameId, {
-                        monsterId: playerMonster.monsterId,
+                        monsterId: playerInstanceId,
                         skillId: attackSkillId,
                         targets: [{ bossId: boss.bossId }],
                     });

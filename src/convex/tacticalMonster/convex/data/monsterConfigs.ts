@@ -155,6 +155,7 @@ function getSkillsByClass(monsterClass?: string): string[] {
             return [
                 ...baseSkills,
                 "heal",              // 3级解锁
+                "summon_minion",     // 5级解锁，召唤 monster_001
                 "group_heal",        // 10级解锁
                 "attack_boost",      // 7级解锁
                 "defense_boost",     // 7级解锁

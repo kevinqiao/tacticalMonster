@@ -26,8 +26,9 @@ export const SeparatorSprite: React.FC<SeparatorProps> = ({
             style={{
                 position: "absolute",
                 left: 0,
-                top: 0,
+                bottom: 0,
                 zIndex: separator.index * 4 - 1,
+                transformOrigin: "50% 100%",
                 width: (dimension?.itemWidth ?? 0) * 0.75,
                 height: dimension?.itemHeight ?? 0,
                 backgroundColor: "blue",

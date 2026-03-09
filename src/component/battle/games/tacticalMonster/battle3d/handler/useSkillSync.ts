@@ -6,7 +6,7 @@
  * - 后端失败时：显示错误提示 + 清理视觉反馈 + 停止动画（如果还在播放）
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SkillSyncState } from "../../types/skillTypes";
 import {
     applyStateChanges,
@@ -31,6 +31,10 @@ export const useSkillSync = (
     onError?: (message: string) => void  // ✅ 错误提示回调（可选）
 ) => {
     const [skillSyncState, setSkillSyncState] = useState<SkillSyncState | null>(null);
+    const handlePhaseChangesRef = useRef(handlePhaseChanges);
+    const handlePassiveSkillAnimationsRef = useRef(handlePassiveSkillAnimations);
+    handlePhaseChangesRef.current = handlePhaseChanges;
+    handlePassiveSkillAnimationsRef.current = handlePassiveSkillAnimations;
 
     useEffect(() => {
         if (!skillSyncState) return;
@@ -104,25 +108,42 @@ export const useSkillSync = (
                 );
 
                 // ✅ 处理被动技能动画
-                handlePassiveSkillAnimations(
+                handlePassiveSkillAnimationsRef.current(
                     backendResult,
                     skillSyncState.activeSkillTimeline,
                     character,
                     target
                 );
 
-                // ✅ 处理阶段变化
-                if (backendResult.phaseChanges) {
-                    await handlePhaseChanges(backendResult.phaseChanges);
+                try {
+                    // ✅ 处理阶段变化（通过 ref 调用，避免 handlePhaseChanges 变更触发本 effect 重跑导致无限循环）
+                    // 关键：从 effect 调用栈切到 microtask，再进入 handlePhaseChanges，避免内部 flushSync 触发 React warning。
+                    if (backendResult.phaseChanges) {
+                        await new Promise<void>((resolve, reject) => {
+                            queueMicrotask(() => {
+                                handlePhaseChangesRef.current(backendResult.phaseChanges)
+                                    .then(resolve)
+                                    .catch(reject);
+                            });
+                        });
+                    }
+                } catch (error) {
+                    console.error("[useSkillSync] handlePhaseChanges failed:", error);
+                    if (onError) {
+                        onError("阶段变化处理失败");
+                    }
+                } finally {
+                    // ✅ 无论成功/失败都重置状态，避免技能流程卡住
+                    setSkillSyncState(null);
                 }
-
-                // ✅ 重置状态
-                setSkillSyncState(null);
             };
 
-            processBothCompleted();
+            processBothCompleted().catch((error) => {
+                console.error("[useSkillSync] processBothCompleted failed:", error);
+                setSkillSyncState(null);
+            });
         }
-    }, [skillSyncState, handlePhaseChanges, handlePassiveSkillAnimations, characters, calculateActionScore, onError]);
+    }, [skillSyncState]);
 
     return { skillSyncState, setSkillSyncState };
 };

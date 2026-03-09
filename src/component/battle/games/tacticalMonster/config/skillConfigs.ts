@@ -344,6 +344,36 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         ],
     },
 
+    // ========== 召唤技能 ==========
+    summon_minion: {
+        id: "summon_minion",
+        name: "召唤随从",
+        type: "active",
+        description: "在施法者相邻的空格召唤一个随从",
+        priority: 2,
+        range: {
+            area_type: "single",
+            distance: 0,  // 不需要目标
+        },
+        unlockConditions: {
+            level: 5,
+        },
+        resource_cost: { mp: 30 },
+        cooldown: 5,
+        effects: [
+            {
+                id: "summon_effect",
+                name: "召唤随从",
+                type: SkillEffectType.SUMMON,
+                summonConfig: {
+                    monsterId: "monster_001",
+                    side: "player",
+                    position_mode: "caster_adjacent",
+                },
+            },
+        ],
+    },
+
     weaken: {
         id: "weaken",
         name: "虚弱",

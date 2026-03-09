@@ -50,14 +50,10 @@ export interface GameModel {
 
 export interface GameRound {
     no: number;
-    /** 回合顺序；uid="boss" 的 turn 需包含 bossId 或 minionId 以标识具体角色 */
     turns: GameTurn[];
 }
 /**
  * GameTurn - 游戏回合
- * 统一使用此类型，替代原来的 CombatTurn
- *
- * 当 uid === "boss" 时，turn 必须包含 bossId（Boss 主体）或 minionId（小怪）之一，用于唯一标识角色。
  *
  * Turn 状态说明（简化版，三状态）：
  * - 0 (OPEN): 开放/等待中 - 回合已创建，但尚未开始，等待轮到该角色
@@ -76,14 +72,12 @@ export interface GameRound {
  */
 export interface GameTurn {
     uid: string;
-    monsterId?: string;  // 玩家角色的 monsterId；uid="boss" 时可选，配置查找用
-    bossId?: string;     // Boss 主体的 bossId；当 uid="boss" 且是 Boss 主体时必含
-    minionId?: string;   // 小怪的 minionId；当 uid="boss" 且是小怪时必含
+    character_id: string;  // 当前行动角色的实例 id（玩家/Boss/小怪统一）
     skillSelect?: string;
     status?: number;  // 回合状态：0: open, 1: in_progress, 2: completed
-    order?: number;   // 在 round 中的次序（从 1 开始），用于明确标识和 UI 显示
+    order?: number;   // 在 round 中的次序（从 1 开始）
     dueTime?: number;
-    stepsUsed?: number;  // 本回合已用移动步数（重载/回放时与后端一致，用于只显示暗区）
+    stepsUsed?: number;
 }
 /**
  * 技能效果类型（与后端 SkillEffectType 保持一致）
@@ -247,6 +241,8 @@ export interface PhaseChanges {
     };
     roundEnd?: {
         round: number;
+        /** 该回合结束时按实际出手顺序排序的 turns，供前端 turnbar 重排 */
+        lastRound?: GameRound;
     };
     // turnStart?: {
     //     uid: string;
@@ -279,6 +275,9 @@ export interface PhaseChanges {
     stateChanges?: StateChanges;            // 角色状态前后对比（HP/MP/Shield/Status 等）
     effects?: SkillEffectItem[];            // 技能效果列表（包含主动和被动技能效果）
 
+    /** 召唤单位列表（use_skill 触发召唤时由后端填入） */
+    summonedCharacters?: SummonedCharacter[];
+
     // ========== Boss AI 动作 ==========
     bossAIActions?: BossAIActionItem[];
 
@@ -307,6 +306,34 @@ export interface CharacterIdentifier {
     monsterId?: string;  // 玩家角色的monsterId
     bossId?: string;     // Boss主体的bossId
     minionId?: string;   // 小怪的minionId
+}
+
+/**
+ * 召唤单位数据
+ * 用于 PhaseChanges.summonedCharacters，前端可直接转为 MonsterSprite 渲染
+ */
+export interface SummonedCharacter {
+    identifier: CharacterIdentifier;
+    uid: string;
+    monsterId: string;
+    minionId?: string;
+    bossId?: string;
+    q: number;
+    r: number;
+    character_id: string;
+    name?: string;
+    assetPath?: string;
+    stats: {
+        hp: { current: number; max: number };
+        mp?: { current: number; max: number };
+        attack: number;
+        defense: number;
+        speed: number;
+        shield?: { current: number; max: number };
+    };
+    statusEffects?: Array<{ id: string; type: string; name?: string }>;
+    skillCooldowns?: Record<string, number>;
+    skills?: string[];
 }
 
 // CombatEvent 类型统一在 CombatTypes.ts 中定义，请使用：

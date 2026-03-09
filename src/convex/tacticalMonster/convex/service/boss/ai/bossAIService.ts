@@ -126,7 +126,7 @@ export class BossAIService {
 
                 return {
                     uid: member.uid,
-                    character_id: member.monsterId,
+                    character_id: (member as any).character_id ?? member.monsterId,
                     q: member.q,
                     r: member.r,
                     currentHp: member.stats.hp.current,

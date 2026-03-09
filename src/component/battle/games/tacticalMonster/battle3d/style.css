@@ -28,3 +28,7 @@
     font-size: 12px;
     margin: 2px;
 }
+
+.action-panel-item--selected {
+    border: 2px solid #fff;
+}

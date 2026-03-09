@@ -30,7 +30,7 @@ export class TournamentService {
                 no: currentRound?.no,
                 turnsCount: currentRound?.turns?.length,
                 turns: currentRound?.turns?.map((t: any) => ({
-                    uid: t.uid, monsterId: t.monsterId, status: t.status
+                    uid: t.uid, character_id: t.character_id, status: t.status
                 })),
             }));
             if (currentRound && currentRound.turns) {
@@ -39,14 +39,14 @@ export class TournamentService {
                 );
                 console.log("[loadGame] activeTurn:", activeTurn ? {
                     uid: activeTurn.uid,
-                    monsterId: activeTurn.monsterId,
+                    character_id: activeTurn.character_id,
                     status: activeTurn.status,
                 } : "未找到活跃的玩家 turn");
                 if (activeTurn) {
                     phaseChanges = {
                         turnStart: {
                             uid: activeTurn.uid,
-                            monsterId: activeTurn.monsterId,
+                            character_id: activeTurn.character_id,
                             round: currentRound.no || 1,
                         },
                     };

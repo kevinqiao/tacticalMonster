@@ -13,14 +13,12 @@ export const usePlaySkillSelect3D = () => {
     const { map, currentRound } = game || {};
 
     const playSkillSelect = useCallback(
-        (skillSelect: { skillId: string; uid: string; monsterId: string }, onComplete: () => void | Promise<void>) => {
+        (skillSelect: { skillId: string; uid: string; character_id: string }, onComplete: () => void | Promise<void>) => {
             if (!characters || !groundCells || !map || !currentRound) return;
-            const { uid, monsterId, skillId } = skillSelect;
-            const character = characters.find((c) => c.uid === uid && c.monsterId === monsterId);
+            const { character_id, skillId } = skillSelect;
+            const character = characters.find((c) => c.character_id === character_id);
             if (!character) return;
-            const currentTurn = currentRound.turns.find(
-                (t) => t.status === 1 && t.uid === uid && t.monsterId === monsterId
-            ) ?? null;
+            const currentTurn = currentRound.turns.find((t) => t.status === 1 && t.character_id === character_id) ?? null;
             if (!currentTurn) return;
             const moveRange = character.move_range ?? 2;
             const remainingSteps = Math.max(0, moveRange - (currentTurn.stepsUsed ?? 0));

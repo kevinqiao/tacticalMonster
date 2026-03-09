@@ -5,13 +5,13 @@ export default defineConfig({
         globals: true,
         // 对于 React 组件测试使用 jsdom，对于纯函数测试使用 node
         environment: 'jsdom',
-        setupFiles: ['./src/component/battle/games/tacticalMonster/battle/__tests__/setup.ts'],
+        setupFiles: ['./src/component/battle/games/tacticalMonster/battle3d/__tests__/setup.ts'],
         include: [
-            // 只包含前端测试
-            'src/component/battle/games/tacticalMonster/battle/__tests__/**/*.test.ts',
-            'src/component/battle/games/tacticalMonster/battle/__tests__/**/*.test.tsx',
-            'src/component/battle/games/tacticalMonster/battle/__tests__/**/*.spec.ts',
-            'src/component/battle/games/tacticalMonster/battle/__tests__/**/*.spec.tsx',
+            // 只包含 battle3d 前端测试
+            'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.test.ts',
+            'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.test.tsx',
+            'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.spec.ts',
+            'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.spec.tsx',
         ],
         exclude: [
             'node_modules',

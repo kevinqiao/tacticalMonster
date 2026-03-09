@@ -33,12 +33,39 @@ export const useWalkAction3D = (
     const { setCharacterAnimating } = useCombatManager();
     const stepsUsedThisTurnRef = useRef(0);
     const lastTurnKeyRef = useRef<string | null>(null);
+    const walkInFlightRef = useRef(false);
 
     const walk = useCallback(
         async (to: { q: number; r: number }): Promise<void> => {
-            const validation = canPerformAction(mode, game, characters);
+            if (walkInFlightRef.current) {
+                return Promise.reject(new Error("Walk action in progress"));
+            }
+            let validation = canPerformAction(mode, game, characters);
+            // 回合切换瞬间可能短暂出现“无 active turn”，给一个极短重试窗口避免误判
+            if ((!validation.can || !validation.character) && mode === "play") {
+                const retryableReason =
+                    validation.reason === "no active turn (status=1)" ||
+                    validation.reason?.startsWith("active turn character not found");
+                if (retryableReason) {
+                    for (let i = 0; i < 3; i++) {
+                        await new Promise((resolve) => setTimeout(resolve, 20));
+                        validation = canPerformAction(mode, game, characters);
+                        if (validation.can && validation.character) break;
+                    }
+                }
+            }
             if (!validation.can || !validation.character || !gridCells || !game?.map || !mapDimension) {
-                return Promise.reject(new Error("Cannot perform walk action"));
+                const reason =
+                    !validation.can
+                        ? (validation.reason ?? "validation.can is false")
+                        : !validation.character
+                          ? "no character for current turn (e.g. summoned unit not in characters yet)"
+                          : !gridCells
+                            ? "no gridCells"
+                            : !game?.map
+                              ? "no map"
+                              : "no mapDimension";
+                return Promise.reject(new Error(`Cannot perform walk action: ${reason}`));
             }
 
             const { character } = validation;
@@ -49,7 +76,7 @@ export const useWalkAction3D = (
             }
             // 与后端 currentTurn.stepsUsed 同步，避免重载/回放后本地 ref 落后于后端
             const currentTurn = game?.currentRound?.turns?.find(
-                (t: any) => t.status === 1 && t.uid === character.uid && t.monsterId === character.monsterId
+                (t: any) => t.status === 1 && t.character_id === character.character_id
             );
             const backendStepsUsed = (currentTurn?.stepsUsed ?? 0) as number;
             if (backendStepsUsed > stepsUsedThisTurnRef.current) {
@@ -60,9 +87,11 @@ export const useWalkAction3D = (
             const startPos = hexTo3DCenter(originalPos.q, originalPos.r, mapDimension, 0);
             if (startPos) {
                 const characterKey = getCharacterKey(character);
-                flushSync(() => {
-                    setCharacterAnimating(characterKey, [startPos.x, startPos.y, startPos.z]);
-                });
+                queueMicrotask(() =>
+                    flushSync(() => {
+                        setCharacterAnimating(characterKey, [startPos.x, startPos.y, startPos.z]);
+                    })
+                );
             }
 
             const isFlying = character.isFlying ?? false;
@@ -74,7 +103,7 @@ export const useWalkAction3D = (
                         (c: any) =>
                             c.q === cell.q &&
                             c.r === cell.r &&
-                            !(c.uid === character.uid && c.monsterId === character.monsterId)
+                            !(c.uid === character.uid && c.character_id === character.character_id)
                     );
                     const walkable = canIgnoreObstacles
                         ? !cell.disable
@@ -102,6 +131,16 @@ export const useWalkAction3D = (
             }
 
             const finalPos = path[path.length - 1];
+            // 发送 mutation 前再次校验，避免回合切换窗口把过期点击发到后端
+            const preflight = canPerformAction(mode, game, characters);
+            if (
+                !preflight.can ||
+                !preflight.character ||
+                preflight.character.character_id !== character.character_id
+            ) {
+                const reason = preflight.reason ?? "turn changed before request";
+                return Promise.reject(new Error(`Cannot perform walk action: ${reason}`));
+            }
             const { casterIdentifier: characterIdentifier } = createCharacterIdentifiers(
                 characters,
                 character
@@ -138,15 +177,16 @@ export const useWalkAction3D = (
             };
 
             return new Promise<void>((resolve, reject) => {
+                walkInFlightRef.current = true;
                 playWalk(character, path, async () => {
                     if (!game) {
                         clearAnimatingState();
+                        walkInFlightRef.current = false;
                         reject(new Error("Game not found"));
                         return;
                     }
                     try {
                         const result = await backendRequestPromise;
-                        console.log("[useWalkAction3D] result", result);
                         if (result.success) {
                             character.q = finalPos.q;
                             character.r = finalPos.r;
@@ -159,41 +199,49 @@ export const useWalkAction3D = (
                                 stepsUsedThisTurnRef.current += pathSteps;
                                 const remainingAfter = moveRange - stepsUsedThisTurnRef.current;
                                 // 步数用尽时清除可行走高亮并结束回合 UI，避免出现「新的暗区」导致回合无法结束
-                                flushSync(() => {
-                                    if (remainingAfter <= 0) {
-                                        refreshWalkableFromPosition?.(character, 0, true);
-                                    } else {
-                                        // 部分移动后只显示暗区，remainingSteps 传 1
-                                        refreshWalkableFromPosition?.(character, 1, true);
-                                    }
-                                });
+                                queueMicrotask(() =>
+                                    flushSync(() => {
+                                        if (remainingAfter <= 0) {
+                                            refreshWalkableFromPosition?.(character, 0, true);
+                                        } else {
+                                            refreshWalkableFromPosition?.(character, 1, true);
+                                        }
+                                    })
+                                );
                             }
+                            walkInFlightRef.current = false;
                             resolve();
                         } else {
-                            const msg = (result as any).message ?? "unknown";
+                            const msg = (result as any).message ?? (result as any).error ?? "unknown";
                             console.error("[HexDebug] walk backend rejected", { message: msg, result, originalPos, toLogic: to });
                             rollbackToOriginal();
                             clearAnimatingState();
-                            flushSync(() =>
-                                refreshWalkableFromPosition?.(
-                                    character,
-                                    stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
-                                    stepsUsedThisTurnRef.current > 0
+                            queueMicrotask(() =>
+                                flushSync(() =>
+                                    refreshWalkableFromPosition?.(
+                                        character,
+                                        stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
+                                        stepsUsedThisTurnRef.current > 0
+                                    )
                                 )
                             );
+                            walkInFlightRef.current = false;
                             reject(new Error(`Walk rejected: ${msg}`));
                         }
                     } catch (error) {
                         console.error("[HexDebug] walk error, rollback to original", { error, originalPos });
                         rollbackToOriginal();
                         clearAnimatingState();
-                        flushSync(() =>
-                            refreshWalkableFromPosition?.(
-                                character,
-                                stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
-                                stepsUsedThisTurnRef.current > 0
+                        queueMicrotask(() =>
+                            flushSync(() =>
+                                refreshWalkableFromPosition?.(
+                                    character,
+                                    stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
+                                    stepsUsedThisTurnRef.current > 0
+                                )
                             )
                         );
+                        walkInFlightRef.current = false;
                         reject(error);
                     }
                 });

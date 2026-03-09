@@ -8,8 +8,11 @@ import { flushSync } from "react-dom";
 import { useCombatManager } from "../../service/CombatManager";
 
 import type { CharacterIdentifier, GameRound, GameTurn } from "../../types/gameTypes";
+import { applyPhaseChangesToGame } from "../../utils/applyPhaseChangesToGame";
 import { applyStateChanges } from "../../utils/backendResponseUtils";
 import { findTargetByIdentifier, getTargetsFromAction } from "../../utils/characterUtils";
+import { syncCharacterPositionsToGame } from "../../utils/syncCharacterPositionsToGame";
+import { getCharactersFromGameModel } from "../../utils/typeAdapter";
 import { usePlayPhase3D } from "../animation/usePlayPhase3D";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
 import { usePlayWalk3D } from "../animation/usePlayWalk3D";
@@ -24,38 +27,26 @@ interface UsePhaseChangesHandler3DOptions {
     playbackSpeed?: number;
 }
 
-type TurnActor = {
-    uid?: string;
-    monsterId?: string;
-    bossId?: string;
-    minionId?: string;
-};
+type TurnActor = { uid?: string; character_id?: string };
 
-const isSameTurnActor = (turn: GameTurn, actor: TurnActor): boolean => {
-    if (actor.bossId != null) return (turn as any).bossId === actor.bossId;
-    if (actor.minionId != null) return (turn as any).minionId === actor.minionId;
-    return turn.uid === actor.uid && turn.monsterId === actor.monsterId;
-};
+const isSameTurnActor = (turn: GameTurn, actor: TurnActor): boolean =>
+    turn.character_id === actor.character_id;
 
-const findTurnIndexByPriority = (
-    turns: GameTurn[],
-    actor: TurnActor,
-    statusPriority: number[]
-): number => {
-    for (const status of statusPriority) {
-        const idx = turns.findIndex((t) => isSameTurnActor(t, actor) && (t.status ?? 0) === status);
-        if (idx >= 0) return idx;
-    }
-    return turns.findIndex((t) => isSameTurnActor(t, actor) && (t.status ?? 0) !== 2);
-};
+const getCurrentRoundActiveId = (round?: GameRound | null): string | null =>
+    round?.turns?.find((t) => (t.status ?? 0) === 1)?.character_id ?? null;
 
-/** 仅按 actor 匹配查找 turn，不限制 status。boss 完成 turn 后必须用此函数才能正确更新。 */
-const findTurnIndexByActor = (turns: GameTurn[], actor: TurnActor): number =>
-    turns.findIndex((t) => isSameTurnActor(t, actor));
+const getTurnActorId = (actor: any, currentRound?: GameRound | null): string | null =>
+    actor?.character_id ??
+    getCurrentRoundActiveId(currentRound) ??
+    actor?.monsterId ??
+    actor?.bossId ??
+    actor?.minionId ??
+    null;
+
 
 export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOptions) => {
     const { gridState, mapDimension, playbackSpeed = 1.0 } = options;
-    const { game, characters, groundCells, setActiveCharacterKey, setTurnRound } = useCombatManager();
+    const { game, characters, groundCells, setActiveCharacterKey, setTurnRound, updateRuntimeGame } = useCombatManager();
     const { openModal } = useModalManager();
 
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
@@ -89,21 +80,79 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
     const handlePhaseChanges = useCallback(
         async (phaseChanges: any) => {
             if (!phaseChanges || !game || !characters || !groundCells) return;
-            console.log("phaseChanges", phaseChanges);
-            if (phaseChanges.turnEnd) {
-                const { uid, monsterId, bossId, minionId } = phaseChanges.turnEnd as any;
-                const actor: TurnActor = { uid, monsterId, bossId, minionId };
+
+            const runtimeChars = characters ?? [];
+            // ✅ 先处理召唤，确保 turnStart 时 characters 已包含召唤单位（用于高亮与 walk 校验）
+            const hasSummoned = (phaseChanges.summonedCharacters?.length ?? 0) > 0;
+            const gameWithLivePositions = hasSummoned
+                ? syncCharacterPositionsToGame(game, runtimeChars)
+                : game;
+            if (hasSummoned && updateRuntimeGame) {
+                // 必须以“当前 runtimeGame + 实时坐标”为基准合并召唤，避免把角色位置回退到旧快照。
+                updateRuntimeGame((prev) =>
+                    applyPhaseChangesToGame(
+                        syncCharacterPositionsToGame(prev ?? gameWithLivePositions, runtimeChars),
+                        phaseChanges
+                    )
+                );
+            }
+            const mergedGame = hasSummoned
+                ? applyPhaseChangesToGame(gameWithLivePositions, phaseChanges)
+                : game;
+            const liveCharsFromGame = getCharactersFromGameModel(
+                mergedGame.team ?? [],
+                mergedGame.boss
+            );
+            const charsForTurnStart = (() => {
+                // 默认优先使用运行时 characters（位置最实时，避免 roundStart 后按旧坐标高亮）
+                if (!hasSummoned) return runtimeChars;
+                // 召唤场景：在实时 characters 基础上只补充新增召唤单位，避免把已有单位位置回退到 game 快照
+                const mergedSprites = getCharactersFromGameModel(mergedGame.team, mergedGame.boss);
+                const runtimeIds = new Set(runtimeChars.map((c: any) => c.character_id));
+                const onlyNewSummons = mergedSprites.filter((c: any) => !runtimeIds.has(c.character_id));
+                return [...runtimeChars, ...onlyNewSummons];
+            })();
+            const findCharacterById = (id: string | null | undefined) => {
+                if (!id) return null;
+                return (
+                    charsForTurnStart.find((c) => (c as any).character_id === id) ??
+                    runtimeChars.find((c) => (c as any).character_id === id) ??
+                    liveCharsFromGame.find((c) => (c as any).character_id === id) ??
+                    null
+                );
+            };
+            const hasBossAIActions = !!(phaseChanges.bossAIActions?.length);
+            const hasTurnStart = !!phaseChanges.turnStart;
+            const hasTurnEnd = !!phaseChanges.turnEnd;
+            // ✅ 同一 phaseChanges 内同时有 turnEnd + turnStart（玩家→玩家）时，一次 flushSync 内先 turnEnd 再 turnStart，避免中间帧「无当前回合」导致 validation.can 为 false 与 TurnBar 错帧
+            const hasTurnEndAndStart = hasTurnEnd && hasTurnStart && !hasBossAIActions;
+            // ✅ 仅有 summon + turnStart（无 turnEnd / bossAI）时，同步提交 turnStart，确保 merged game 与 turnRound 同帧可见
+            const hasSummonedTurnStartOnly = hasSummoned && hasTurnStart && !hasTurnEnd && !hasBossAIActions;
+
+            let turnStartAppliedSync = false;
+            if (hasTurnEndAndStart || hasSummonedTurnStartOnly) {
+                const turnStartData = phaseChanges.turnStart;
+                const actorSource = turnStartData && "turn" in turnStartData ? turnStartData.turn : turnStartData;
+                const character_id = getTurnActorId(actorSource, phaseChanges.currentRound);
+                const characterForSync = findCharacterById(character_id);
                 flushSync(() => {
-                    // updateCurrentRound((prev) => {
-                    //     const baseRound = prev ?? game.currentRound;
-                    //     if (!baseRound) return prev;
-                    //     const idx = findTurnIndexByPriority(baseRound.turns, actor, [1, 0]);
-                    //     if (idx < 0) return baseRound;
-                    //     const newTurns = baseRound.turns.map((t, i) =>
-                    //         i === idx ? { ...t, status: 2 as const } : t
-                    //     );
-                    //     return { ...baseRound, turns: newTurns };
-                    // });
+                    if (hasTurnEndAndStart) {
+                        setActiveCharacterKey(null);
+                        gridState?.clearAll();
+                        setTurnRound({ name: "turnEnd", data: phaseChanges.turnEnd });
+                    }
+                    setTurnRound({
+                        name: "turnStart",
+                        data: {
+                            ...phaseChanges.turnStart,
+                            ...(phaseChanges.currentRound && { currentRound: phaseChanges.currentRound }),
+                        },
+                    });
+                    if (characterForSync) setActiveCharacterKey(getCharacterKey(characterForSync));
+                });
+                turnStartAppliedSync = true;
+            } else if (phaseChanges.turnEnd) {
+                flushSync(() => {
                     setActiveCharacterKey(null);
                     gridState?.clearAll();
                     setTurnRound({ name: "turnEnd", data: phaseChanges.turnEnd });
@@ -115,13 +164,9 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                 for (const bossAIActionItem of phaseChanges.bossAIActions) {
                     const { turnStart, decision, executionResults, phaseTransition } = bossAIActionItem;
                     const actorSource = turnStart && "turn" in turnStart ? turnStart.turn : turnStart;
-                    const { uid, monsterId, bossId, minionId } = actorSource;
-                    const actor: TurnActor = { uid, monsterId, bossId, minionId };
+                    const actor: TurnActor = { uid: actorSource.uid, character_id: actorSource.character_id };
 
-                    const character =
-                        (bossId != null && characters.find((c) => (c as any).character_id === bossId)) ||
-                        (minionId != null && characters.find((c) => (c as any).character_id === minionId)) ||
-                        characters.find((c) => c.uid === uid && c.monsterId === monsterId);
+                    const character = (actorSource.character_id && characters.find((c) => (c as any).character_id === actorSource.character_id)) ?? null;
 
                     if (character && gridState && character.q != null && character.r != null) {
                         gridState.clearAll();
@@ -130,18 +175,13 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                     let startedTurn: GameTurn | null = null;
                     flushSync(() => {
                         if (character) setActiveCharacterKey(getCharacterKey(character));
-                        // updateCurrentRound((prev) => {
-                        //     const baseRound = prev ?? game.currentRound;
-                        //     if (!baseRound) return prev;
-                        //     const idx = findTurnIndexByActor(baseRound.turns, actor);
-                        //     if (idx < 0) return baseRound;
-                        //     const newTurns = baseRound.turns.map((t, i) =>
-                        //         i === idx ? { ...t, status: 1 as const } : t
-                        //     );
-                        //     startedTurn = newTurns[idx];
-                        //     return { ...baseRound, turns: newTurns };
-                        // });
-                        setTurnRound({ name: "turnStart", data: turnStart });
+                        setTurnRound({
+                            name: "turnStart",
+                            // bossAIActions 阶段只推进局部 turn 状态，避免过早注入最终 currentRound
+                            data: {
+                                ...turnStart,
+                            },
+                        });
                     });
                     startedTurn = "turn" in turnStart ? turnStart.turn : (game?.currentRound?.turns.find((t) => isSameTurnActor(t, actor)) ?? null);
 
@@ -180,7 +220,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                             }
                         }
                         await handleBossAIAction({
-                            turnStart: { uid, monsterId, bossId, minionId },
+                            turnStart,
                             character,
                             decision,
                             executionResults,
@@ -210,75 +250,74 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                     }
                     if (startedTurn) {
                         flushSync(() => {
-                            // updateCurrentRound((prev) => {
-                            //     const baseRound = prev ?? game.currentRound;
-                            //     if (!baseRound) return prev;
-                            //     const idx = findTurnIndexByActor(baseRound.turns, actor);
-                            //     if (idx < 0) return baseRound;
-                            //     const newTurns = baseRound.turns.map((t, i) =>
-                            //         i === idx ? { ...t, status: 2 as const } : t
-                            //     );
-                            //     return { ...baseRound, turns: newTurns };
-                            // });
                             setTurnRound({ name: "turnEnd", data: turnStart });
                             setActiveCharacterKey(null);
-                        })
+                        });
                     }
                 }
             }
 
+            // roundEnd：后端 lastRound 为按实际出手顺序排序的回合，供 turnbar 重排
+            if (phaseChanges.roundEnd) {
+                const roundForTurnbar = phaseChanges.roundEnd.lastRound ?? game?.currentRound;
+                if (roundForTurnbar) {
+                    flushSync(() => {
+                        setTurnRound({
+                            name: "roundEnd",
+                            data: {
+                                ...phaseChanges.roundEnd,
+                                currentRound: roundForTurnbar,
+                            },
+                        });
+                    });
+                }
+            }
+
             if (phaseChanges.roundStart) {
+                // const hasAuthoritativeTurnStartRound = !!phaseChanges.turnStart && !!phaseChanges.currentRound;
+                // if (hasAuthoritativeTurnStartRound) {
+                //     // 同一批 phase 中若已带 turnStart + currentRound（包含唯一 status=1），
+                //     // 跳过 roundStart 覆盖，避免把 active turn 意外重置为全 0。
+                // }
                 const roundPayload = phaseChanges.roundStart.round;
                 const roundNo = typeof roundPayload === "number" ? roundPayload : (roundPayload as GameRound)?.no ?? 1;
                 const existingTurns = typeof roundPayload === "object" && roundPayload !== null && "turns" in roundPayload
                     ? (roundPayload as GameRound).turns
                     : null;
-                const bossChars = characters.filter((c) => c.uid === "boss");
-                const mainBossId =
-                    (game as any)?.boss?.bossId ??
-                    (bossChars.find((c) => !(game as any)?.boss?.minions?.some((m: any) => m.minionId === (c as any).character_id)) as any)?.character_id ??
-                    (bossChars[0] as any)?.character_id;
                 const syntheticTurns: GameTurn[] = existingTurns ?? [...characters]
                     .sort((a, b) => ((b as any).stats?.speed ?? 0) - ((a as any).stats?.speed ?? 0))
                     .map((c, i) => ({
                         uid: c.uid,
-                        monsterId: c.monsterId ?? "",
-                        ...(c.uid === "boss" && c.character_id === mainBossId ? { bossId: c.character_id } : {}),
-                        ...(c.uid === "boss" && c.character_id !== mainBossId ? { minionId: c.character_id } : {}),
+                        character_id: c.character_id,
                         status: 0,
                         order: i + 1,
                     }));
                 const round: GameRound = { no: roundNo, turns: syntheticTurns };
-                flushSync(() => {
-                    setTurnRound({ name: "roundStart", data: { ...phaseChanges.roundStart, round } });
-                });
+                // if (!hasAuthoritativeTurnStartRound) {
+                    flushSync(() => {
+                        setTurnRound({ name: "roundStart", data: { ...phaseChanges.roundStart, round } });
+                    });
+                // }
             }
 
             if (phaseChanges.turnStart) {
                 const turnStartData = phaseChanges.turnStart;
                 const actorSource = turnStartData && "turn" in turnStartData ? turnStartData.turn : turnStartData;
-                const { uid, monsterId, bossId, minionId } = actorSource as TurnActor;
-                const actor: TurnActor = { uid, monsterId, bossId, minionId };
-                const character =
-                    (bossId != null && characters.find((c) => (c as any).character_id === bossId)) ||
-                    (minionId != null && characters.find((c) => (c as any).character_id === minionId)) ||
-                    characters.find((c) => c.uid === uid && c.monsterId === monsterId);
-
-                flushSync(() => {
-                    if (character) setActiveCharacterKey(getCharacterKey(character));
-                    // updateCurrentRound((prev) => {
-                    //     const baseRound = prev ?? game.currentRound;
-                    //     if (!baseRound) return prev;
-                    //     const idx = findTurnIndexByPriority(baseRound.turns, actor, [0, 1]);
-                    //     if (idx < 0) return baseRound;
-                    //     const newTurns = baseRound.turns.map((t, i) =>
-                    //         i === idx ? { ...t, status: 1 as const } : t
-                    //     );
-                    //     startedTurn = newTurns[idx];
-                    //     return { ...baseRound, turns: newTurns };
-                    // });
-                    setTurnRound({ name: "turnStart", data: phaseChanges.turnStart });
-                });
+                const character_id = getTurnActorId(actorSource, phaseChanges.currentRound);
+                const character = findCharacterById(character_id);
+                const turnRoundAlreadySet = turnStartAppliedSync; // already set in flushSync above
+                if (!turnRoundAlreadySet) {
+                    flushSync(() => {
+                        if (character) setActiveCharacterKey(getCharacterKey(character));
+                        setTurnRound({
+                            name: "turnStart",
+                            data: {
+                                ...phaseChanges.turnStart,
+                                ...(phaseChanges.currentRound && { currentRound: phaseChanges.currentRound }),
+                            },
+                        });
+                    });
+                }
                 if (character) {
                     const statusEffectChanges = phaseChanges.turnStart.statusEffectChanges;
                     if (statusEffectChanges?.characterState && character.stats) {
@@ -290,7 +329,11 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                             character.status = statusEffectChanges.characterState.status as "normal" | "stunned" | "dead";
                         }
                     }
-                    const turnForAnim = "turn" in turnStartData ? turnStartData.turn : (phaseChanges.turnStart as unknown as GameTurn);
+                    const rawTurn = "turn" in turnStartData ? turnStartData.turn : (phaseChanges.turnStart as unknown as GameTurn);
+                    const normalizedTurnCharacterId = getTurnActorId(rawTurn, phaseChanges.currentRound);
+                    const turnForAnim = normalizedTurnCharacterId
+                        ? ({ ...(rawTurn as any), character_id: normalizedTurnCharacterId } as GameTurn)
+                        : rawTurn;
                     const turnStartTimeline = await playTurnStart(
                         character,
                         turnForAnim,
@@ -311,7 +354,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                             });
                         });
                     }
-                    playTurnOn(turnForAnim, () => { });
+                    playTurnOn(turnForAnim, () => { }, { charactersOverride: charsForTurnStart });
                 }
             }
 
@@ -330,6 +373,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
             playTurnOn,
             setTurnRound,
             setActiveCharacterKey,
+            updateRuntimeGame,
             findTargetByIdentifierWrapper,
         ]
     );

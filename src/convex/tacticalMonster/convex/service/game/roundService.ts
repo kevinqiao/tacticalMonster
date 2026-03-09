@@ -2,7 +2,7 @@
  * 回合管理服务
  * 负责回合的创建、结束和管理
  */
-import { GameModel, GameTurn } from "../../types/gameTypes";
+import { GameModel, GameTurn, SummonedCharacter } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
 
 
@@ -22,7 +22,7 @@ export class RoundService {
             )
             .collect();
         return docs.length > 0
-            ? docs.reduce((a:any, b:any) => (a._creationTime > b._creationTime ? a : b))
+            ? docs.reduce((a: any, b: any) => (a._creationTime > b._creationTime ? a : b))
             : null;
     }
 
@@ -36,22 +36,22 @@ export class RoundService {
         roundNumber: number,
         game: GameModel
     ): Promise<boolean> {
-        // 收集所有角色（玩家队伍 + Boss + 小怪）
+        // 收集所有角色（玩家队伍 + Boss + 小怪），统一用 character_id 表示实例 id
         const allCharacters: Array<{
             uid: string;
+            character_id: string;
             monsterId: string;
-            bossId?: string;    // Boss主体的bossId（可选）
-            minionId?: string; // 小怪的minionId（可选，用于区分相同monsterId的小怪）
             speed: number;
             team: 'player' | 'boss';
         }> = [];
 
-        // 1. 添加玩家队伍角色（过滤已死亡的）
+        // 1. 玩家队伍（过滤已死亡）
         game.team.forEach((monster: GameMonster) => {
             const currentHp = monster.stats?.hp?.current ?? 0;
             if (currentHp > 0) {
                 allCharacters.push({
                     uid: monster.uid,
+                    character_id: (monster as any).character_id ?? monster.monsterId,
                     monsterId: monster.monsterId,
                     speed: monster.stats.speed,
                     team: 'player',
@@ -59,57 +59,47 @@ export class RoundService {
             }
         });
 
-        // 2. 添加Boss本体（过滤已死亡的）
+        // 2. Boss 本体
         const bossHp = game.boss.stats?.hp?.current ?? 0;
         if (bossHp > 0) {
             allCharacters.push({
                 uid: 'boss',
-                monsterId: game.boss.monsterId,
-                bossId: game.boss.bossId, // ✅ 添加 bossId 用于区分
+                character_id: game.boss.bossId,
+                monsterId: game.boss.monsterId ?? game.boss.bossId,
                 speed: game.boss.stats.speed,
                 team: 'boss',
             });
         }
 
-        // 3. 添加小怪（过滤已死亡的）
+        // 3. 小怪
         game.boss.minions.forEach((minion) => {
             const minionHp = minion.stats?.hp?.current ?? 0;
             if (minionHp > 0) {
                 allCharacters.push({
                     uid: 'boss',
-                    monsterId: minion.monsterId,
-                    minionId: minion.minionId, // ✅ 添加 minionId 用于区分相同 monsterId 的小怪
+                    character_id: minion.minionId,
+                    monsterId: minion.monsterId ?? minion.minionId,
                     speed: minion.stats.speed,
                     team: 'boss',
                 });
             }
         });
 
-        // 4. 按速度排序，速度相同时玩家优先
+        // 4. 按速度排序，同速时玩家优先；同队内按 monsterId，再按 character_id 稳定排序
         allCharacters.sort((a, b) => {
-            // 先按速度降序排序
-            if (a.speed !== b.speed) {
-                return b.speed - a.speed;
-            }
-            // 速度相同时，玩家优先（PVE中玩家应该有一定优势）
-            if (a.team === 'player' && b.team === 'boss') {
-                return -1; // a（玩家）排在前面
-            }
-            if (a.team === 'boss' && b.team === 'player') {
-                return 1; // b（玩家）排在前面
-            }
-            // 同队内速度相同时，按monsterId排序（保证排序稳定性）
-            return a.monsterId.localeCompare(b.monsterId);
+            if (a.speed !== b.speed) return b.speed - a.speed;
+            if (a.team === 'player' && b.team === 'boss') return -1;
+            if (a.team === 'boss' && b.team === 'player') return 1;
+            if (a.monsterId !== b.monsterId) return a.monsterId.localeCompare(b.monsterId);
+            return a.character_id.localeCompare(b.character_id);
         });
 
-        // 5. 转换为 GameTurn 数组（添加 order 属性标识次序）
+        // 5. 转换为 GameTurn 数组（仅 uid + character_id）
         const turns: GameTurn[] = allCharacters.map((char, index) => ({
             uid: char.uid,
-            monsterId: char.monsterId,
-            ...(char.bossId ? { bossId: char.bossId } : {}), // ✅ 如果是Boss主体，添加 bossId
-            ...(char.minionId ? { minionId: char.minionId } : {}), // ✅ 如果是小怪，添加 minionId
-            status: 0, // 0: open (等待中)
-            order: index + 1, // 次序（从 1 开始）
+            character_id: char.character_id,
+            status: 0,
+            order: index + 1,
         }));
 
         // 6. 创建回合记录（若已存在则跳过，防止重复）
@@ -129,6 +119,91 @@ export class RoundService {
         };
 
         await this.dbCtx.db.insert("mr_game_round", roundObj);
+        return true;
+    }
+
+    /**
+     * 用最新 game 状态重排指定回合 turns（按 speed 降序）。
+     * 用于 round_start 被动技能可能改变速度后，确保 roundStart 下发顺序是最新的。
+     */
+    async resortRoundTurnsBySpeed(
+        gameId: string,
+        roundNumber: number,
+        game: GameModel
+    ): Promise<boolean> {
+        const roundDoc = await this.getRoundDoc(gameId, roundNumber);
+        if (!roundDoc?.turns) return false;
+
+        const allCharacters: Array<{
+            uid: string;
+            character_id: string;
+            monsterId: string;
+            speed: number;
+            team: 'player' | 'boss';
+        }> = [];
+
+        game.team.forEach((monster: GameMonster) => {
+            const currentHp = monster.stats?.hp?.current ?? 0;
+            if (currentHp > 0) {
+                allCharacters.push({
+                    uid: monster.uid,
+                    character_id: (monster as any).character_id ?? monster.monsterId,
+                    monsterId: monster.monsterId,
+                    speed: monster.stats.speed,
+                    team: 'player',
+                });
+            }
+        });
+
+        const bossHp = game.boss.stats?.hp?.current ?? 0;
+        if (bossHp > 0) {
+            allCharacters.push({
+                uid: 'boss',
+                character_id: game.boss.bossId,
+                monsterId: game.boss.monsterId ?? game.boss.bossId,
+                speed: game.boss.stats.speed,
+                team: 'boss',
+            });
+        }
+
+        game.boss.minions.forEach((minion) => {
+            const minionHp = minion.stats?.hp?.current ?? 0;
+            if (minionHp > 0) {
+                allCharacters.push({
+                    uid: 'boss',
+                    character_id: minion.minionId,
+                    monsterId: minion.monsterId ?? minion.minionId,
+                    speed: minion.stats.speed,
+                    team: 'boss',
+                });
+            }
+        });
+
+        allCharacters.sort((a, b) => {
+            if (a.speed !== b.speed) return b.speed - a.speed;
+            if (a.team === 'player' && b.team === 'boss') return -1;
+            if (a.team === 'boss' && b.team === 'player') return 1;
+            if (a.monsterId !== b.monsterId) return a.monsterId.localeCompare(b.monsterId);
+            return a.character_id.localeCompare(b.character_id);
+        });
+
+        const existingMap = new Map<string, GameTurn>(
+            (roundDoc.turns as GameTurn[]).map((t) => [`${t.uid}::${t.character_id}`, t]),
+        );
+
+        const turns: GameTurn[] = allCharacters.map((char, index) => {
+            const key = `${char.uid}::${char.character_id}`;
+            const prev = existingMap.get(key);
+            return {
+                ...(prev ?? {}),
+                uid: char.uid,
+                character_id: char.character_id,
+                status: prev?.status ?? 0,
+                order: index + 1,
+            } as GameTurn;
+        });
+
+        await this.dbCtx.db.patch(roundDoc._id, { turns });
         return true;
     }
 
@@ -171,6 +246,56 @@ export class RoundService {
             roundDoc,
             currentTurn,
         };
+    }
+
+    /**
+     * 将召唤单位插入到当前回合的 turns 中，紧跟施法者之后
+     * 这样施法者行动结束后会轮到召唤单位，而不是跳到 Boss
+     */
+    async addSummonedTurnsToCurrentRound(
+        gameId: string,
+        game: GameModel,
+        summonedCharacters: SummonedCharacter[]
+    ): Promise<void> {
+        if (!summonedCharacters?.length) return;
+        const roundNumber = game.currentRound?.no ?? 0;
+        if (roundNumber <= 0) return;
+
+        const roundDoc = await this.getRoundDoc(gameId, roundNumber);
+        if (!roundDoc?.turns) return;
+
+        const currentTurn = roundDoc.turns.find((t: GameTurn) => t.status === 1);
+        const insertAfterOrder = currentTurn ? (currentTurn.order ?? 0) : 0;
+
+        const existingIds = new Set(roundDoc.turns.map((t: GameTurn) => t.character_id));
+        const newTurns: GameTurn[] = [];
+
+        for (let i = 0; i < summonedCharacters.length; i++) {
+            const u = summonedCharacters[i];
+            const character_id = u.character_id;
+            if (!character_id || existingIds.has(character_id)) continue;
+            existingIds.add(character_id);
+            newTurns.push({
+                uid: u.uid,
+                character_id,
+                status: 0,
+                order: insertAfterOrder + i + 1,
+            });
+        }
+
+        if (newTurns.length === 0) return;
+
+        const shiftBy = newTurns.length;
+        const shiftedTurns = roundDoc.turns.map((t: GameTurn) => {
+            const order = t.order ?? 0;
+            if (order > insertAfterOrder) {
+                return { ...t, order: order + shiftBy };
+            }
+            return t;
+        });
+
+        const insertedTurns = [...shiftedTurns, ...newTurns].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        await this.dbCtx.db.patch(roundDoc._id, { turns: insertedTurns });
     }
 }
 

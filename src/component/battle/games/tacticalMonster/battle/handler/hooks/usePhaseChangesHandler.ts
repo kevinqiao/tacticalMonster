@@ -10,16 +10,18 @@ import usePlaySkill from "../../../battle/animation/usePlaySkill";
 import usePlayWalk from "../../../battle/animation/usePlayWalk";
 import { useBossAIHandler } from "../../../battle3d/handler/useBossAIHandler";
 import { useCombatManager } from "../../../service/CombatManager";
+import { applyPhaseChangesToGame } from "../../../utils/applyPhaseChangesToGame";
 import { applyStateChanges } from "../../../utils/backendResponseUtils";
 import { findTargetByIdentifier, getTargetsFromAction } from "../../../utils/characterUtils";
+import { syncCharacterPositionsToGame } from "../../../utils/syncCharacterPositionsToGame";
 import type { CharacterIdentifier } from "../../../utils/typeAdapter";
 
 export const usePhaseChangesHandler = () => {
     const {
         game,
         characters,
-        groundCells
-        // ✅ 移除 updateGameState，改用 GSAP 直接更新 DOM（避免 React 重新渲染）
+        groundCells,
+        updateRuntimeGame,
     } = useCombatManager();
     const { openModal } = useModalManager();
     const { playSkill } = usePlaySkill();
@@ -53,14 +55,10 @@ export const usePhaseChangesHandler = () => {
 
         // 1. 处理回合结束
         if (phaseChanges.turnEnd) {
-            const { uid, monsterId, round } = phaseChanges.turnEnd;
-            if (game.currentRound) {
-                const currentTurn = game.currentRound.turns.find(
-                    (t) => t.uid === uid && t.monsterId === monsterId
-                );
-                if (currentTurn) {
-                    currentTurn.status = 2;
-                }
+            const { character_id } = phaseChanges.turnEnd;
+            if (game.currentRound && character_id) {
+                const currentTurn = game.currentRound.turns.find((t) => t.character_id === character_id);
+                if (currentTurn) currentTurn.status = 2;
             }
         }
 
@@ -81,17 +79,14 @@ export const usePhaseChangesHandler = () => {
             // 循环处理每个 Boss turn
             for (const bossAIActionItem of phaseChanges.bossAIActions) {
                 const { turnStart, decision, executionResults, phaseTransition } = bossAIActionItem;
-                const { uid, monsterId, round } = turnStart;
+                const { uid, character_id, round } = turnStart;
 
-                if (game.currentRound) {
-                    const currentTurn = game.currentRound.turns.find(
-                        (t) => t.uid === uid && t.monsterId === monsterId
-                    );
+                if (game.currentRound && character_id) {
+                    const currentTurn = game.currentRound.turns.find((t) => t.character_id === character_id);
                     if (currentTurn) {
-                        // 更新 turn 状态为完成（Boss AI 执行完成后自动完成）
                         currentTurn.status = 2;
 
-                        const character = characters.find(c => c.uid === uid && c.monsterId === monsterId);
+                        const character = characters.find((c) => c.character_id === character_id);
                         if (character && currentTurn) {
                             // ✅ 1. 先处理回合开始逻辑（被动技能触发和动画播放）
                             // 使用 bossAIActionItem.turnStart 中的被动技能信息（包含 triggeredPassiveSkills）
@@ -153,17 +148,14 @@ export const usePhaseChangesHandler = () => {
         // 5. 处理玩家回合开始
         // 注意：Boss turn 通过 bossAIActions 数组处理，不会进入此分支
         if (phaseChanges.turnStart) {
-            const { uid, monsterId, round } = phaseChanges.turnStart;
+            const { uid, character_id, round } = phaseChanges.turnStart;
 
-            // ✅ 只处理玩家 turn（Boss turn 通过 bossAIActions 处理）
-            if (uid !== "boss" && game.currentRound) {
-                const currentTurn = game.currentRound.turns.find(
-                    (t) => t.uid === uid && t.monsterId === monsterId
-                );
+            if (uid !== "boss" && game.currentRound && character_id) {
+                const currentTurn = game.currentRound.turns.find((t) => t.character_id === character_id);
                 if (currentTurn) {
                     currentTurn.status = 1;
 
-                    const character = characters.find(c => c.uid === uid && c.monsterId === monsterId);
+                    const character = characters.find((c) => c.character_id === character_id);
                     if (character && currentTurn) {
                         // ✅ 1. 先处理回合开始逻辑（被动技能触发和动画播放）
                         const turnStartTimeline = await playTurnStart(character, currentTurn, phaseChanges);
@@ -206,7 +198,19 @@ export const usePhaseChangesHandler = () => {
             // 打开游戏结束弹窗
             openModal("game_over", { gameId: game.gameId });
         }
-    }, [game, characters, groundCells, handleBossAIAction, openModal, playTurnStart, playTurnOn, findTargetByIdentifierWrapper]);
+
+        // 6. 处理召唤单位（基于 prev 合并，避免覆盖已有位置更新）
+        const hasSummoned = (phaseChanges.summonedCharacters?.length ?? 0) > 0;
+        if (hasSummoned && updateRuntimeGame) {
+            const runtimeChars = characters ?? [];
+            updateRuntimeGame((prev) =>
+                applyPhaseChangesToGame(
+                    syncCharacterPositionsToGame(prev ?? game, runtimeChars),
+                    phaseChanges
+                )
+            );
+        }
+    }, [game, characters, groundCells, handleBossAIAction, openModal, playTurnStart, playTurnOn, findTargetByIdentifierWrapper, updateRuntimeGame]);
 
     return { handlePhaseChanges };
 };

@@ -61,6 +61,7 @@ export const mainSchema = {
             // ========== 基础标识 ==========
             uid: v.string(),                   // 玩家UID
             monsterId: v.string(),            // 怪物配置ID
+            character_id: v.optional(v.string()),  // 实例ID（召唤单位必填；玩家初始怪物可选，默认可从 monsterId 推导）
 
             // ========== 从 PlayerMonster 组合的字段 ==========
             level: v.number(),                 // 等级
@@ -259,16 +260,15 @@ export const mainSchema = {
         gameId: v.string(),
         no: v.number(),  // 回合编号
         status: v.number(),  // 回合状态：0: 进行中, 1: 已完成, 2: 已结束
-        turns: v.array(v.object({  // GameTurn 数组
+        turns: v.array(v.object({  // GameTurn 数组；character_id 统一表示该 turn 对应角色的实例 id（玩家/Boss/小怪）
             uid: v.string(),
-            monsterId: v.string(),
-            bossId: v.optional(v.string()),    // ✅ Boss主体的bossId（可选，当uid="boss"且是Boss主体时使用）
-            minionId: v.optional(v.string()),  // ✅ 小怪的minionId（可选，当uid="boss"且是小怪时使用）
+            character_id: v.string(),
             skillSelect: v.optional(v.string()),
             status: v.number(),  // Turn 状态：0: OPEN, 1: IN_PROGRESS, 2: COMPLETED
             dueTime: v.optional(v.number()),
-            order: v.optional(v.number()),  // turn 的次序
-            stepsUsed: v.optional(v.number()),  // Braveland：本回合已用移动步数，用于多步移动后结束回合
+            order: v.optional(v.number()),
+            actionOrder: v.optional(v.number()),  // 实际出手顺序（完成时写入），用于 roundEnd.lastRound 排序
+            stepsUsed: v.optional(v.number()),
         })),
         startTime: v.optional(v.number()),
         endTime: v.optional(v.number()),

@@ -16,6 +16,7 @@ import "./styles.css";
 import TeamLayout3D from "./team3d/TeamLayout3D";
 import { GameModel } from "./types/gameTypes";
 import { Stage } from "./types/StageTypes";
+
 /** 设为 true 使用 3D 战斗视图，false 使用 2D */
 const USE_3D_BATTLE = true;
 
@@ -27,8 +28,8 @@ interface Props {
 
 const PlayGame: React.FC<Props> = ({
     game,
-    mode = 'play',  // ✅ 新增：默认 play 模式
-    initialPhaseChanges, // ✅ 初始 phaseChanges
+    mode = 'play',
+    initialPhaseChanges,
 }) => {
 
     const client = React.useMemo(() => new ConvexReactClient(URLS.tacticalMonster), [URLS.tacticalMonster]);
@@ -36,7 +37,12 @@ const PlayGame: React.FC<Props> = ({
     return (
         <div className="tactical-monster-game-container">
             <ConvexProvider client={client}>
-                <CombatManager key={game?.gameId ?? 'loading'} game={game} mode={mode === 'join' ? 'play' : mode} initialPhaseChanges={initialPhaseChanges}>
+                <CombatManager
+                    key={game?.gameId ?? 'loading'}
+                    game={game}
+                    mode={mode === 'join' ? 'play' : mode}
+                    initialPhaseChanges={initialPhaseChanges}
+                >
                     {USE_3D_BATTLE ? <BattlePlayer3D /> : <BattlePlayer />}
                 </CombatManager>
             </ConvexProvider>
@@ -157,7 +163,13 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
             {props.visible && stage && <TeamLayout3D stage={stage} onComplete={startJoin} />}
         </div>
         <div ref={playGameRef} className="play-tactical-monster-container">
-            {props.visible && game && <PlayGame game={game} mode={props.mode} initialPhaseChanges={initialPhaseChanges} />}
+            {props.visible && game && (
+                <PlayGame
+                    game={game}
+                    mode={props.mode}
+                    initialPhaseChanges={initialPhaseChanges}
+                />
+            )}
         </div>
         <div ref={loadingRef} className="play-tactical-monster-loading"><div className="play-tactical-monster-loading-text">Loading...</div></div>
     </>

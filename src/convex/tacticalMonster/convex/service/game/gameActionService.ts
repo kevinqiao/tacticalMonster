@@ -7,6 +7,7 @@ import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { getSkillConfig } from "../../data/skillConfigs";
 import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
+import { SkillEffectType } from "../../types/skillTypes";
 import { SkillManager } from "../skill/skillManager";
 import { CharacterPositionService } from "./characterPositionService";
 import { CharacterQueryService } from "./characterQueryService";
@@ -19,6 +20,7 @@ import { GameScoreService } from "./gameScoreService";
 import { RoundService } from "./roundService";
 import { sharedScoreService } from "./sharedScoreService";
 import { SkillTargetService } from "./skillTargetService";
+import * as SummonService from "./summonService";
 
 export class GameActionService {
     constructor(
@@ -34,6 +36,34 @@ export class GameActionService {
         private scoreService: GameScoreService,
         private roundService: RoundService
     ) { }
+
+    /**
+     * Boss/小怪 AI 执行动作前的回合兜底：
+     * 跨 mutation 时序下可能出现 validateTurn 读到上一条 status=1。
+     * 当执行者是 bossId/minionId 时，强制将其 turn 置为进行中并清理其他 status=1。
+     */
+    private async ensureBossActorTurnActive(
+        gameId: string,
+        game: any,
+        identifier: CharacterIdentifier
+    ): Promise<void> {
+        const actorId = identifier.bossId ?? identifier.minionId;
+        if (!actorId || !game?.currentRound?.no) return;
+
+        const roundNo = game.currentRound.no as number;
+        const roundDoc = await this.roundService.getRoundDoc(gameId, roundNo);
+        if (!roundDoc?.turns?.length) return;
+
+        const hasActor = roundDoc.turns.some((t: GameTurn) => t.character_id === actorId);
+        if (!hasActor) return;
+
+        const nextTurns = roundDoc.turns.map((t: GameTurn) => {
+            if (t.character_id === actorId) return { ...t, status: 1 };
+            if ((t.status ?? 0) === 1) return { ...t, status: 0 };
+            return t;
+        });
+        await this.dbCtx.db.patch(roundDoc._id, { turns: nextTurns });
+    }
 
     /**
      * 移动角色
@@ -74,6 +104,10 @@ export class GameActionService {
             return { success: false, message: "invalid_identifier" };
         }
 
+        if (bossId || minionId) {
+            await this.ensureBossActorTurnActive(gameId, game, identifier);
+        }
+
         const character = this.characterQueryService.getCharacter(monsterId, bossId, minionId);
         if (!character) return { success: false, message: "character_not_found" };
 
@@ -96,9 +130,15 @@ export class GameActionService {
             };
         }
         // console.log("validateAction identifier", identifier, stepsUsedBefore, thisWalkSteps, newStepsUsed, moveRange);
-        const validationResult = await this.validator.validateAction(identifier, {
+        let validationResult = await this.validator.validateAction(identifier, {
             validatePosition: { from, to }
         });
+        if (!validationResult.valid && (bossId || minionId)) {
+            await this.ensureBossActorTurnActive(gameId, game, identifier);
+            validationResult = await this.validator.validateAction(identifier, {
+                validatePosition: { from, to }
+            });
+        }
         if (!validationResult.valid) {
             console.error("Walk validation failed:", validationResult.message);
             return { success: false, message: validationResult.message ?? "validation_failed" };
@@ -141,11 +181,7 @@ export class GameActionService {
         if (roundInfo?.roundDoc && roundInfo?.currentTurn) {
             const ct = roundInfo.currentTurn as GameTurn;
             const turnIndex = roundInfo.roundDoc.turns.findIndex(
-                (t: GameTurn) =>
-                    t.uid === ct.uid &&
-                    t.monsterId === ct.monsterId &&
-                    (t.bossId ?? "") === (ct.bossId ?? "") &&
-                    (t.minionId ?? "") === (ct.minionId ?? "")
+                (t: GameTurn) => t.uid === ct.uid && t.character_id === ct.character_id
             );
             if (turnIndex >= 0) {
                 const updatedTurns = [...roundInfo.roundDoc.turns];
@@ -161,6 +197,53 @@ export class GameActionService {
         return {
             success: true,
             endTurn: false,
+        };
+    }
+
+    /**
+     * 原子操作：移动后攻击（walk + useSkill）
+     * 任一失败则整体回滚（Convex mutation 事务）
+     * @param gameId 游戏ID
+     * @param data 包含 to、steps、identifier、skillId、targets
+     */
+    async walkAndAttack(
+        gameId: string,
+        data: {
+            to: { q: number; r: number };
+            steps: number;
+            identifier: CharacterIdentifier;
+            skillId: string;
+            targets?: CharacterIdentifier[];
+        }
+    ): Promise<{
+        success: boolean;
+        message?: string;
+        phaseChanges?: PhaseChanges;
+        effects?: SkillEffectItem[];
+    }> {
+        const walkResult = await this.walk(gameId, data.to, data.identifier, {
+            steps: data.steps,
+        });
+        if (!walkResult.success) {
+            return {
+                success: false,
+                message: walkResult.message ?? "移动失败",
+            };
+        }
+
+        const skillResult = await this.useSkill(gameId, {
+            ...data.identifier,
+            skillId: data.skillId,
+            targets: data.targets,
+        });
+        if (!skillResult.success) {
+            throw new Error(skillResult.message ?? "技能使用失败");
+        }
+
+        return {
+            success: true,
+            phaseChanges: skillResult.phaseChanges,
+            effects: skillResult.effects,
         };
     }
 
@@ -206,7 +289,11 @@ export class GameActionService {
         (this.validator as any).game = game;
         console.log("attack data", data);
         // === 验证层 ===
-        const validationResult = await this.validator.validateAction(data.attacker);
+        let validationResult = await this.validator.validateAction(data.attacker);
+        if (!validationResult.valid && (data.attacker.bossId || data.attacker.minionId)) {
+            await this.ensureBossActorTurnActive(gameId, game, data.attacker);
+            validationResult = await this.validator.validateAction(data.attacker);
+        }
 
         if (!validationResult.valid) {
             console.error("Attack validation failed:", validationResult.message);
@@ -364,7 +451,11 @@ export class GameActionService {
         const characterIdentifier: CharacterIdentifier = { monsterId, bossId, minionId };
 
         // === 验证层 ===
-        const validationResult = await this.validator.validateAction(characterIdentifier);
+        let validationResult = await this.validator.validateAction(characterIdentifier);
+        if (!validationResult.valid && (bossId || minionId)) {
+            await this.ensureBossActorTurnActive(gameId, game, characterIdentifier);
+            validationResult = await this.validator.validateAction(characterIdentifier);
+        }
 
         if (!validationResult.valid) {
             return {
@@ -408,7 +499,8 @@ export class GameActionService {
             const calculatedTargets = this.skillTargetService.calculateTargetsBySkillRange(caster, skillId);
             // 转换格式：从 { uid, monsterId } 转换为 CharacterIdentifier
             finalTargets = calculatedTargets.map((t) => {
-                const params = this.characterQueryService.getCharacterParams(t.uid, t.monsterId);
+                const targetCharacterId = (t as any).character_id ?? t.monsterId;
+                const params = this.characterQueryService.getCharacterParams(t.uid, targetCharacterId);
                 return {
                     monsterId: params.monsterId,
                     bossId: params.bossId,
@@ -447,11 +539,11 @@ export class GameActionService {
         const targetSkillCooldownsBefore: Map<string, Record<string, number>> = new Map();
 
         targetMonsters.forEach(target => {
-            const key = target.monsterId;  // 使用 monsterId 作为唯一标识
+            const key = (target as any).character_id ?? target.monsterId;  // 实例 id，以支持同 monsterId 多目标（如召唤）
             targetHpBefore.set(key, target.stats?.hp?.current ?? 0);
 
             // 记录目标初始状态（用于计算 stateChanges）
-            const targetParams = this.characterQueryService.getCharacterParams(target.uid, target.monsterId);
+            const targetParams = this.characterQueryService.getCharacterParams(target.uid, key);
             targetStatesBefore.push({
                 identifier: {
                     monsterId: targetParams.monsterId,
@@ -480,6 +572,22 @@ export class GameActionService {
             return skillResult;
         }
 
+        // 4.5. 处理 SUMMON 效果：创建召唤单位并追加到 game
+        const skillConfig = getSkillConfig(skillId);
+        let summonedCharacters: import("../../types/gameTypes").SummonedCharacter[] = [];
+        if (skillConfig?.effects) {
+            for (const effect of skillConfig.effects) {
+                if (effect.type === SkillEffectType.SUMMON && effect.summonConfig) {
+                    const created = SummonService.createSummonedCharacters(game, caster, effect, finalTargets);
+                    summonedCharacters = summonedCharacters.concat(created);
+                }
+            }
+            if (summonedCharacters.length > 0) {
+                await SummonService.addSummonedCharactersToGame(this.dbCtx, gameId, game, summonedCharacters);
+                await this.roundService.addSummonedTurnsToCurrentRound(gameId, game, summonedCharacters);
+            }
+        }
+
         // 5. 更新数据库中的角色状态（使用角色更新服务）
         // 更新使用者状态
         await this.characterUpdateService.updateCharacterInDatabase(gameId, caster, game);
@@ -490,7 +598,7 @@ export class GameActionService {
 
         if (skillResult.effects && targetMonsters.length > 0) {
             for (const target of targetMonsters) {
-                const key = target.monsterId;
+                const key = (target as any).character_id ?? target.monsterId;
                 const beforeHp = targetHpBefore.get(key) || 0;
 
                 // 从技能效果中计算伤害后的HP
@@ -504,14 +612,13 @@ export class GameActionService {
 
                 const afterHp = Math.max(0, beforeHp - totalDamage);
 
-                // 检测是否击败（通过 uid 和 monsterId 判断）
+                // 检测是否击败（Boss 用 bossId，小怪用 minionId，玩家用实例 id）
                 if (beforeHp > 0 && afterHp <= 0) {
                     if (target.uid === "boss") {
-                        // 检查是Boss本体还是小怪
                         const boss = game?.boss;
-                        if (boss && boss.monsterId === target.monsterId) {
+                        if (boss && (target as any).bossId && boss.bossId === (target as any).bossId) {
                             killedBoss = true;
-                        } else if (boss?.minions?.some((m: any) => m.monsterId === target.monsterId)) {
+                        } else if (boss?.minions?.some((m: any) => m.minionId === (target as any).minionId)) {
                             killedMinion = true;
                         }
                     }
@@ -590,7 +697,7 @@ export class GameActionService {
                                     area_type: effect.area_type,              // 作用范围类型
                                     area_size: effect.area_size,              // 作用范围大小
                                 },
-                                targetId: caster.monsterId,
+                                targetId: (caster as any).character_id ?? caster.monsterId,
                                 applied,
                                 isPassive: true,  // ✅ 标记为被动技能效果
                                 passiveSkillId: passiveSkillId,  // ✅ 记录被动技能ID
@@ -791,6 +898,11 @@ export class GameActionService {
         // 将 effects 也放到 phaseChanges 顶层
         if (allEffects.length > 0) {
             phaseChanges.effects = allEffects;
+        }
+
+        // 将 summonedCharacters 放到 phaseChanges
+        if (summonedCharacters.length > 0) {
+            phaseChanges.summonedCharacters = summonedCharacters;
         }
 
         // 15. ✅ 创建技能使用事件（延后到 phaseChanges 完整构建后，确保事件包含完整数据供 watch/replay 使用）

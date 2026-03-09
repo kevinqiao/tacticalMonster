@@ -208,6 +208,29 @@ export class GameService implements CharacterGetter {
     }
 
     /**
+     * 原子操作：移动后攻击
+     * 委托给 GameActionService
+     */
+    async walkAndAttack(
+        gameId: string,
+        data: {
+            to: { q: number; r: number };
+            steps: number;
+            identifier: CharacterIdentifier;
+            skillId: string;
+            targets?: CharacterIdentifier[];
+        }
+    ): Promise<{
+        success: boolean;
+        message?: string;
+        phaseChanges?: PhaseChanges;
+        effects?: SkillEffectItem[];
+    }> {
+        await this.load(gameId);
+        return await this.getActionService().walkAndAttack(gameId, data);
+    }
+
+    /**
      * 移动角色
      * 更新角色在战场上的位置
      * 委托给 GameActionService
@@ -610,12 +633,12 @@ export const walk = mutation({
                     ? { endTurn, steps, forceEndTurn }
                     : undefined;
             const result = await gameManager.walk(gameId, to, identifier, options);
-            // console.log("walk result", result.success, result.phaseChanges ?? "");
             return {
                 ok: true,
                 success: result.success,
                 phaseChanges: result.phaseChanges,
                 endTurn: result.endTurn,
+                ...(result.success === false && result.message && { message: result.message }),
             };
         } catch (error) {
             console.error("walk error", error);
@@ -625,6 +648,59 @@ export const walk = mutation({
             };
         }
 
+    },
+});
+
+export const walkAndAttack = mutation({
+    args: {
+        gameId: v.string(),
+        to: v.object({ q: v.number(), r: v.number() }),
+        steps: v.number(),
+        identifier: v.object({
+            monsterId: v.optional(v.string()),
+            bossId: v.optional(v.string()),
+            minionId: v.optional(v.string()),
+        }),
+        skillId: v.string(),
+        targets: v.optional(
+            v.array(
+                v.object({
+                    monsterId: v.optional(v.string()),
+                    bossId: v.optional(v.string()),
+                    minionId: v.optional(v.string()),
+                })
+            )
+        ),
+    },
+    handler: async (ctx, { gameId, to, steps, identifier, skillId, targets }) => {
+        const gameManager = new GameService(ctx);
+        try {
+            const result = await gameManager.walkAndAttack(gameId, {
+                to,
+                steps,
+                identifier,
+                skillId,
+                targets,
+            });
+            if (result.success) {
+                return {
+                    ok: true,
+                    success: true,
+                    phaseChanges: result.phaseChanges,
+                    effects: result.effects,
+                };
+            }
+            return {
+                ok: false,
+                error: result.message ?? "移动或攻击失败",
+            };
+        } catch (error) {
+            console.error("walkAndAttack error", error);
+            return {
+                ok: false,
+                error: error instanceof Error ? error.message : "未知错误",
+            };
+        }
     },
 });
 
