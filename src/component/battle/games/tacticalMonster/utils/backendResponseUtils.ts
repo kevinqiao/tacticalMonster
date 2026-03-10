@@ -168,12 +168,14 @@ export function calculateKillScoreIfNeeded(
 /**
  * 处理后端响应错误
  * @param backendResponse - 后端响应（可能是失败的）
- * @param onError - 错误提示回调（可选）
+ * @param onError - 错误提示回调（可选），支持 (message, context?) 以便恢复 UI
+ * @param context - 可选上下文（如 { character }），用于错误后恢复可行走高亮等
  * @returns 错误消息（如果有）
  */
 export function handleBackendError(
     backendResponse: { ok: boolean; data?: { success?: boolean; message?: string }; error?: string },
-    onError?: (message: string) => void
+    onError?: (message: string, context?: { character?: any }) => void,
+    context?: { character?: any }
 ): string | null {
     if (backendResponse.ok && backendResponse.data?.success) {
         return null; // 没有错误
@@ -185,7 +187,7 @@ export function handleBackendError(
 
     // ✅ 显示错误提示
     if (onError) {
-        onError(errorMessage);
+        onError(errorMessage, context);
     } else {
         console.error("Backend operation failed", errorMessage);
     }

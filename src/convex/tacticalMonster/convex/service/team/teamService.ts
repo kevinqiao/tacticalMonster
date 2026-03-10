@@ -238,6 +238,50 @@ export class TeamService {
     }
 
     /**
+     * 设置队伍中怪物的位置（拖动到新格子的场景）
+     * 校验怪物在队伍中，目标坐标未被其他队员占用
+     */
+    static async setMonsterPosition(
+        ctx: any,
+        params: { uid: string; monsterId: string; q: number; r: number }
+    ) {
+        const { uid, monsterId, q, r } = params;
+
+        if (typeof q !== 'number' || typeof r !== 'number') {
+            throw new Error('坐标必须是数字');
+        }
+
+        const monster = await ctx.db
+            .query("mr_player_monsters")
+            .withIndex("by_uid_monsterId", (qIdx: any) => qIdx.eq("uid", uid).eq("monsterId", monsterId))
+            .first();
+
+        if (!monster) {
+            throw new Error(`玩家不拥有怪物: ${monsterId}`);
+        }
+        if (monster.inTeam !== 1) {
+            throw new Error(`怪物不在队伍中: ${monsterId}`);
+        }
+
+        const currentTeam = await this.getPlayerTeam(ctx, uid);
+        const existingAtPosition = currentTeam.find((m: any) => {
+            if (m.monsterId === monsterId) return false;
+            const pos = m.teamPosition;
+            return pos && pos.q === q && pos.r === r;
+        });
+        if (existingAtPosition) {
+            throw new Error(`位置 (Hex: ${q}, ${r}) 已被占用`);
+        }
+
+        await ctx.db.patch(monster._id, {
+            teamPosition: { q, r },
+            updatedAt: new Date().toISOString(),
+        });
+
+        return { ok: true, message: '位置已更新' };
+    }
+
+    /**
      * 从队伍中移除怪物
      */
     static async removeMonsterFromTeam(
@@ -469,6 +513,14 @@ export const addMonsterToTeam = mutation({
     handler: async (ctx, args) => {
         return await TeamService.addMonsterToTeam(ctx, args);
     },
+});
+
+/**
+ * 设置队伍中怪物的位置
+ */
+export const setMonsterPosition = mutation({
+    args: { uid: v.string(), monsterId: v.string(), q: v.number(), r: v.number() },
+    handler: async (ctx, args) => TeamService.setMonsterPosition(ctx, args),
 });
 
 /**

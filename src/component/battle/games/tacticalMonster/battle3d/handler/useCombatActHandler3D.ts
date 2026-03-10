@@ -3,8 +3,8 @@
  */
 
 import { useModalManager } from "@/service/ModalManager";
-import { useCallback } from "react";
 import { useConvex } from "convex/react";
+import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
 import { useScoreCalculation } from "../../battle/hooks/useScoreCalculation";
 import { useCombatManager } from "../../service/CombatManager";
@@ -45,10 +45,17 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
     });
     const { handlePassiveSkillAnimations } = usePassiveSkillAnimations(characters ?? [], playSkill);
 
-    const handleSkillError = useCallback((message: string) => {
-        console.error("技能使用失败:", message);
-        window.alert(`技能使用失败: ${message}`);
-    }, []);
+    const handleSkillError = useCallback(
+        (message: string, context?: { character?: any }) => {
+            console.error("技能使用失败:", message);
+            // window.alert(`技能使用失败: ${message}`);
+            if (context?.character && refreshWalkableFromPosition) {
+                const moveRange = (context.character as any).move_range ?? 3;
+                refreshWalkableFromPosition(context.character, moveRange, false);
+            }
+        },
+        [refreshWalkableFromPosition]
+    );
 
     const { setSkillSyncState } = useSkillSync(
         handlePhaseChanges,

@@ -9,13 +9,12 @@ import { TurnOrderBarDimension } from "../useTurnOrderBarDimension";
 
 export interface SeparatorProps {
     dimension: TurnOrderBarDimension | null;
-    separator: { ele: HTMLDivElement | null, nextRound: number, index: number };
+    separator: { ele: HTMLDivElement | null, txtEle: HTMLDivElement | null, nextRound: number, index: number };
 }
 
 export const SeparatorSprite: React.FC<SeparatorProps> = ({
     dimension, separator
 }) => {
-
     return (
         <div
             ref={ele => {
@@ -46,7 +45,11 @@ export const SeparatorSprite: React.FC<SeparatorProps> = ({
                 border: "none",
                 color: "white",
             }}>
-                <div>{separator.nextRound}</div>
+                <div ref={txtEle => {
+                    if (txtEle) {
+                        separator.txtEle = txtEle;
+                    }
+                }}>{separator.nextRound}</div>
             </div>
 
         </div >

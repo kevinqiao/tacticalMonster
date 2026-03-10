@@ -6,7 +6,7 @@
  */
 
 import gsap from "gsap";
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCombatManager } from "../../../service/CombatManager";
 import { usePlayTurnBar } from "../../animation/usePlayTurnBar";
 import { SeparatorSprite } from "./SeparatorSprite";
@@ -39,6 +39,12 @@ export const TurnOrderBar: React.FC = () => {
     const turnRoundQueueRef = useRef<{ status: number, turnRound: { name: string, data: any } }[]>([{ status: 0, turnRound: { name: "init", data: game?.currentRound } }]);
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
     const turnBarItemsMapRef = useRef<Map<string, TurnBarItem>>(new Map());
+    const [separator, setSeparator] = useState<{ ele: HTMLDivElement | null, txtEle: HTMLDivElement | null, nextRound: number, index: number }>({
+        ele: null,
+        txtEle: null,
+        nextRound: (game?.currentRound?.no ?? 0) + 1,
+        index: getSeparatorIndexFromRound(game?.currentRound),
+    });
     const dimension = useMemo(() => {
         if (!mapDimension) return null;
         const w = mapDimension.containerWidth / (8 + 1 + 0.5);
@@ -50,23 +56,8 @@ export const TurnOrderBar: React.FC = () => {
         return { itemWidth, itemHeight, separatorWidth };
     }, [mapDimension]);
 
-    const separatorRef = useRef<{ ele: HTMLDivElement | null, nextRound: number, index: number }>({
-        ele: null,
-        nextRound: (game?.currentRound?.no ?? 0) + 1,
-        index: getSeparatorIndexFromRound(game?.currentRound),
-    });
-    const separator = separatorRef.current;
     const trackRef = useRef<HTMLDivElement | null>(null);
 
-    // 保持 separator 对象稳定，避免 render 时重建导致 index 提前跳到目标位
-    useEffect(() => {
-        separator.nextRound = (game?.currentRound?.no ?? 0) + 1;
-    }, [game?.currentRound?.no, separator]);
-
-    // 新对局初始化时重置 separator index
-    useEffect(() => {
-        separator.index = getSeparatorIndexFromRound(game?.currentRound);
-    }, [game?.gameId, separator]);
     const { playInitTurn, playStartTurn, playStartRound } = usePlayTurnBar({
         dimension,
         itemsMapRef: turnBarItemsMapRef,
@@ -74,8 +65,6 @@ export const TurnOrderBar: React.FC = () => {
         trackRef,
         playbackSpeed,
     });
-
-
     useEffect(() => {
         if (!turnRound) return;
         const shouldQueue =
@@ -93,7 +82,7 @@ export const TurnOrderBar: React.FC = () => {
         const processEvent = () => {
             if (turnRoundQueueRef.current.length > 0 && (timelineRef.current === null || !timelineRef.current?.isActive())) {
                 const turn = turnRoundQueueRef.current[0];
-                console.log("turn round queue", JSON.parse(JSON.stringify(turnRoundQueueRef.current)));
+
                 if (turn.status === 2) {
                     turnRoundQueueRef.current.shift();
                     return;
@@ -132,11 +121,6 @@ export const TurnOrderBar: React.FC = () => {
         const intervalId = setInterval(processEvent, 500);
         return () => clearInterval(intervalId);
     }, [mode, playInitTurn, playStartTurn]);
-    // useEffect(() => {
-    //     console.log("characters", JSON.parse(JSON.stringify(characters)));
-    //     turnRoundQueueRef.current.push({ status: 0, turnRound: { name: "reorder", data: game?.currentRound } });
-
-    // }, [characters]);
 
     return (
         <div

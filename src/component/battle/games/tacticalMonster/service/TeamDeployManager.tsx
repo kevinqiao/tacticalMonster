@@ -1,5 +1,8 @@
+import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { BOSS_CONFIGS } from "@/convex/tacticalMonster/convex/data/bossConfigs";
-import { useTournamentManager } from "@/service/TournamentManager";
+import { URLS, useTournamentManager } from "@/service/TournamentManager";
+import { useUserManager } from "@/service/UserManager";
+import { ConvexHttpClient } from "convex/browser";
 import gsap from "gsap";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { pixelToHex } from "../team/utils/coordinateUtils";
@@ -89,6 +92,8 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
     const [askAddMonster, setAskAddMonster] = useState<{ q: number, r: number } | null>(null);
     const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
     const { monsters } = useTournamentManager();
+    const { user } = useUserManager();
+    const tacticalMonsterClient = useMemo(() => new ConvexHttpClient(URLS.tacticalMonster), []);
     const [playerMonsters, setPlayerMonsters] = useState<{ monsterId: string, teamPosition?: { q: number; r: number } }[]>([]);
 
     // 网格数据 - 依赖 mapDimension 中的动态行列
@@ -222,6 +227,24 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         return false;
     }, [playerMonsters, stage, boss]);
 
+    const syncPositionToBackend = useCallback(
+        async (monsterId: string, q: number, r: number) => {
+            const uid = user?.uid;
+            if (!uid) return;
+            try {
+                await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.setMonsterPosition, {
+                    uid,
+                    monsterId,
+                    q,
+                    r,
+                });
+            } catch (err) {
+                console.error("[TeamDeployManager] syncPositionToBackend failed:", err);
+            }
+        },
+        [user?.uid, tacticalMonsterClient]
+    );
+
     // 放置怪物（坐标统一为逻辑坐标）
     const placeMonster = useCallback((monsterId: string, position?: { q: number; r: number }) => {
         setPlayerMonsters(prev => {
@@ -236,7 +259,10 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
             }
             return [...prev];
         });
-    }, [monsters]);
+        if (position) {
+            syncPositionToBackend(monsterId, position.q, position.r);
+        }
+    }, [monsters, syncPositionToBackend]);
     const selectCanadidate = useCallback((monsterId: string) => {
         if (!askAddMonster || !monsters) {
             console.warn("[TeamDeployManager] selectCanadidate: askAddMonster 或 monsters 为空", { askAddMonster, monsters });
@@ -280,10 +306,10 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
                 }
                 return m;
             });
-            console.log("[TeamDeployManager] 移动怪物:", monsterId, "到逻辑坐标:", { q: logicQ, r: logicR });
             return updated;
         });
-    }, []);
+        syncPositionToBackend(monsterId, logicQ, logicR);
+    }, [syncPositionToBackend]);
 
     // 处理拖拽悬停
     const handleDragOver = useCallback((e: React.DragEvent) => {

@@ -28,7 +28,7 @@ export const useSkillSync = (
     ) => void,
     characters: any[],
     calculateActionScore: (params: any) => number,
-    onError?: (message: string) => void  // ✅ 错误提示回调（可选）
+    onError?: (message: string, context?: { character?: any }) => void  // ✅ 错误提示回调（可选），context 用于恢复可行走等高亮
 ) => {
     const [skillSyncState, setSkillSyncState] = useState<SkillSyncState | null>(null);
     const handlePhaseChangesRef = useRef(handlePhaseChanges);
@@ -64,13 +64,12 @@ export const useSkillSync = (
                 clearVisualFeedback(skillSyncState.character, skillSyncState.target);
             }
 
-            // ✅ 显示错误提示
+            // ✅ 显示错误提示，并传入 character 供调用方恢复可行走高亮
             if (onError) {
-                onError(errorMessage);
+                console.error("Use skill failed", errorMessage);
+                onError(errorMessage, { character: skillSyncState.character });
             } else {
                 console.error("Use skill failed", errorMessage);
-                // 可以添加 toast 提示（如果项目中有 toast 组件）
-                // toast.error(errorMessage);
             }
 
             // ✅ 清理状态
@@ -83,7 +82,7 @@ export const useSkillSync = (
             const processBothCompleted = async () => {
                 // ✅ 处理后端错误（如果有）
                 if (!backendResponse.ok || !backendResponse.data?.success) {
-                    handleBackendError(backendResponse, onError);
+                    handleBackendError(backendResponse, onError, { character });
                     // ✅ 清理状态
                     setSkillSyncState(null);
                     return;
