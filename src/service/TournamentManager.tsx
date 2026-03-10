@@ -26,18 +26,20 @@ export const URLS: { [k: string]: string } = {
 
 interface ITournamentContext {
   player: any;
-  // lastMatch: any;
   monsters: any[] | null;
   activeTournaments?: any[];
   joinTournament: (typeId: string, stageId: string) => Promise<any>;
+  updateMonsterPosition: (monsterId: string, q: number, r: number) => void;
+  updateMonsterRemove: (monsterId: string) => void;
 }
 
 const TournamentContext = createContext<ITournamentContext>({
   player: null,
-  // lastMatch: null,
   monsters: null,
   activeTournaments: [],
-  joinTournament: async (typeId: string, stageId: string) => { },
+  joinTournament: async () => { },
+  updateMonsterPosition: () => { },
+  updateMonsterRemove: () => { },
 });
 
 
@@ -65,17 +67,35 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
     }
     authenticate();
   }, [user, tournamentClient, tacticalMonsterClient]);
-  useEffect(() => {
+  const loadMonsters = React.useCallback(async () => {
+    if (!user?.uid || !tacticalMonsterClient) return;
+    const result = await tacticalMonsterClient.query(tacticalMonsterApi.service.monster.monsterService.getPlayerMonsters, { uid: user.uid });
+    setMonsters(result);
+  }, [user?.uid, tacticalMonsterClient]);
 
-    const loadMonster = async () => {
-      const result = await tacticalMonsterClient.query(tacticalMonsterApi.service.monster.monsterService.getPlayerMonsters, { uid: user?.uid });
-      setMonsters(result);
-    }
+  useEffect(() => {
     if (user?.uid && tacticalMonsterClient) {
-      console.log("start loadMonster");
-      loadMonster();
+      loadMonsters();
     }
-  }, [user, tacticalMonsterClient]);
+  }, [user?.uid, tacticalMonsterClient, loadMonsters]);
+
+  const updateMonsterPosition = useCallback((monsterId: string, q: number, r: number) => {
+    setMonsters((prev) => {
+      if (!prev) return prev;
+      return prev.map((m: any) =>
+        m.monsterId === monsterId ? { ...m, teamPosition: { q, r }, inTeam: 1 } : m
+      );
+    });
+  }, []);
+
+  const updateMonsterRemove = useCallback((monsterId: string) => {
+    setMonsters((prev) => {
+      if (!prev) return prev;
+      return prev.map((m: any) =>
+        m.monsterId === monsterId ? { ...m, teamPosition: undefined, inTeam: 0 } : m
+      );
+    });
+  }, []);
   useEffect(() => {
     if (!user?.uid) return;
     const loadTournaments = async () => {
@@ -145,7 +165,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
 
 
   return (
-    <TournamentContext.Provider value={{ player, monsters, activeTournaments, joinTournament }}>
+    <TournamentContext.Provider value={{ player, monsters, activeTournaments, joinTournament, updateMonsterPosition, updateMonsterRemove }}>
       {children}
     </TournamentContext.Provider>
   );

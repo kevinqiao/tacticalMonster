@@ -104,6 +104,64 @@
     color: white;
 }
 
+/* ============ 方案 B：选中怪物时的遮罩 + 底部控制条 ============ */
+.team-selection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    z-index: 100;
+    display: none;
+}
+
+.team-selection-control-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: rgba(30, 30, 40, 0.95);
+    border-radius: 12px 12px 0 0;
+    z-index: 101;
+    transform: translateY(100%);
+    pointer-events: auto;
+}
+
+.team-control-remove,
+.team-control-cancel {
+    padding: 10px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+}
+
+.team-control-remove {
+    background: #e53935;
+    color: white;
+}
+
+.team-control-remove:hover {
+    background: #c62828;
+}
+
+.team-control-cancel {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.team-control-cancel:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
 /* ============ 候选区域滚动条样式 ============ */
 .candidates-container {
     position: absolute;

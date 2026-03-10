@@ -8,6 +8,7 @@ import { useFrame } from "@react-three/fiber";
 import React, { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
+import { DEBUG_USE_MONSTER_NAME } from "../../../config/debugConfig";
 import type { CharacterRef3D, MonsterSprite } from "../../../types/CombatTypes";
 import { resolveAttackProfile } from "../../../utils/skillRangeUtils";
 import { getCharacterKey } from "../../utils/battle3DAdapter";
@@ -331,6 +332,153 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
     );
 };
 
+// ============================================================
+// 调试模式：仅显示角色名称（不加载 GLB）
+// ============================================================
+const BattleCharacterNameOnly: React.FC<BattleCharacter3DProps> = ({
+    character,
+    position,
+    width,
+    facing = 1,
+    isPortrait = false,
+    isActive = false,
+    onRefReady,
+}) => {
+    const groupRef = useRef<THREE.Group>(null);
+    const activeRingRef = useRef<THREE.Mesh>(null);
+
+    const playAnimation = useCallback(() => { }, []);
+    const refApi = useMemo<BattleCharacter3DRef>(
+        () => ({ groupRef, modelGroupRef: groupRef, playAnimation }),
+        [playAnimation]
+    );
+
+    useEffect(() => {
+        if (groupRef.current) {
+            character.ref3D = refApi as CharacterRef3D;
+            onRefReady?.(refApi);
+        }
+        return () => {
+            character.ref3D = undefined;
+        };
+    }, [character, onRefReady, refApi]);
+
+    useFrame(({ clock }) => {
+        if (activeRingRef.current && isActive) {
+            const pulse = 1 + Math.sin(clock.elapsedTime * 3) * 0.12;
+            activeRingRef.current.scale.set(pulse, pulse, 1);
+            activeRingRef.current.rotation.z = clock.elapsedTime * 0.5;
+        }
+    });
+
+    const hpPercent = character.stats?.hp
+        ? (character.stats.hp.current / character.stats.hp.max) * 100
+        : 100;
+    const attackRangeLabel = useMemo(() => {
+        const { attackRange } = resolveAttackProfile(character);
+        return attackRange;
+    }, [character]);
+
+    const upperRotation: [number, number, number] = isPortrait
+        ? [0, 0, facing >= 0 ? BODY_TILT_Z_PORTRAIT : -BODY_TILT_Z_PORTRAIT]
+        : [0, 0, 0];
+
+    return (
+        <group ref={groupRef} position={position}>
+            <group>
+                <mesh position={[0, 4, 0]} renderOrder={2}>
+                    <cylinderGeometry args={[width * 0.25, width * 0.3, 6, 6]} />
+                    <meshStandardMaterial
+                        color={character.uid === "boss" ? "#e91e63" : "#2196F3"}
+                        metalness={0.3}
+                        roughness={0.7}
+                        polygonOffset
+                        polygonOffsetFactor={-5}
+                        polygonOffsetUnits={-5}
+                    />
+                </mesh>
+                {isActive && (
+                    <mesh
+                        ref={activeRingRef}
+                        position={[0, 7.5, 0]}
+                        rotation={[-Math.PI / 2, 0, 0]}
+                        renderOrder={2}
+                    >
+                        <ringGeometry args={[width * 0.28, width * 0.42, 32]} />
+                        <meshStandardMaterial
+                            color="#FFD700"
+                            emissive="#FFD700"
+                            emissiveIntensity={2.5}
+                            transparent
+                            opacity={0.9}
+                            side={THREE.DoubleSide}
+                        />
+                    </mesh>
+                )}
+            </group>
+            <group rotation={upperRotation}>
+                <Html position={[0, 10, 0]} center style={{ pointerEvents: "none" }}>
+                    <div
+                        style={{
+                            fontSize: Math.round(width * 0.15),
+                            color: "#ffffff",
+                            textAlign: "center",
+                            textShadow: "1px 1px 2px #000, -1px -1px 2px #000",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {character.name}
+                    </div>
+                </Html>
+                {character.stats?.hp && (
+                    <Html position={[0, 35, 0]} center style={{ pointerEvents: "none" }}>
+                        <div
+                            style={{
+                                width: 60,
+                                height: 8,
+                                background: "rgba(0,0,0,0.6)",
+                                borderRadius: 4,
+                                overflow: "hidden",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: `${hpPercent}%`,
+                                    height: "100%",
+                                    background: hpPercent > 50 ? "#4caf50" : hpPercent > 25 ? "#ff9800" : "#f44336",
+                                    transition: "width 0.2s",
+                                }}
+                            />
+                        </div>
+                        <div
+                            style={{
+                                fontSize: 10,
+                                color: "#fff",
+                                textAlign: "center",
+                                marginTop: 2,
+                                textShadow: "1px 1px 2px #000",
+                            }}
+                        >
+                            {character.stats.hp.current}/{character.stats.hp.max}
+                        </div>
+                        <div
+                            style={{
+                                fontSize: 10,
+                                color: "#ffeb3b",
+                                textAlign: "center",
+                                marginTop: 2,
+                                textShadow: "1px 1px 2px #000",
+                            }}
+                        >
+                            AR: {attackRangeLabel}
+                        </div>
+                    </Html>
+                )}
+            </group>
+        </group>
+    );
+};
+
 const BattleCharacterPlaceholder: React.FC<{
     character: MonsterSprite;
     width: number;
@@ -374,7 +522,9 @@ const BattleCharacterPlaceholder: React.FC<{
 const BattleCharacter3DInnerMemo = React.memo(BattleCharacter3DInner, areEqual);
 
 export const BattleCharacter3DWithSuspense: React.FC<BattleCharacter3DProps> = (props) => {
-    
+    if (DEBUG_USE_MONSTER_NAME) {
+        return <BattleCharacterNameOnly {...props} />;
+    }
     return (
         <Suspense
             fallback={

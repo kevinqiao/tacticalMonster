@@ -302,8 +302,9 @@ export class TeamService {
             throw new Error(`玩家不拥有怪物: ${monsterId}`);
         }
 
-        if (monster.inTeam !== 1) {
-            throw new Error(`怪物不在队伍中: ${monsterId}`);
+        // 幂等：若已在队伍外且无位置，直接返回成功（前后端可能不同步，如 selectCanadidate 未同步 addMonsterToTeam）
+        if (monster.inTeam !== 1 && !monster.teamPosition) {
+            return { ok: true, message: `怪物已从队伍中移除` };
         }
 
         await ctx.db.patch(monster._id, {

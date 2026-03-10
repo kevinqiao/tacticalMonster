@@ -74,11 +74,13 @@
  *      progress === 100 表示当前已请求的资源全部加载完成（含 preload 的 GLB）。
  */
 
-import { useAnimations, useCursor, useGLTF } from "@react-three/drei";
+import { Html, useAnimations, useCursor, useGLTF } from "@react-three/drei";
 import { ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
+import { DEBUG_USE_MONSTER_NAME } from "../../config/debugConfig";
+import { MONSTER_CONFIGS_MAP } from "../../config/monsterConfigs";
 import { getMonsterModelPathWithFallback } from "../utils/modelPathMapper";
 
 interface MonsterCard3DProps {
@@ -89,6 +91,7 @@ interface MonsterCard3DProps {
     position: [number, number, number];
     monsterId: string;
     isDragging?: boolean;
+    isSelected?: boolean;
     onDragStart?: (monsterId: string) => void;
     onDragMove?: (monsterId: string, worldPos: THREE.Vector3) => void;
     onDragEnd?: (monsterId: string, worldPos: THREE.Vector3) => void;
@@ -100,6 +103,9 @@ interface MonsterCard3DProps {
     /** 是否竖屏，竖屏时朝向正上 + X 轴前倾（与 BattleCharacter3D 一致） */
     isPortrait?: boolean;
 }
+
+/** 短按与拖拽区分的移动阈值（屏幕像素） */
+const DRAG_THRESHOLD_PX = 8;
 
 /** 角色在场景中的整体放大系数 */
 const MODEL_SCALE_FACTOR = 1.6;
@@ -116,6 +122,7 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
     position,
     monsterId,
     isDragging: externalDragging = false,
+    isSelected = false,
     onDragStart,
     onDragMove,
     onDragEnd,
@@ -130,6 +137,8 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
     const [isHovered, setIsHovered] = useState(false);
     const [isLocalDragging, setIsLocalDragging] = useState(false);
     const [dragOffset, setDragOffset] = useState(new THREE.Vector3());
+    const pointerDownPosRef = useRef<{ clientX: number; clientY: number } | null>(null);
+    const dragOffsetAtDownRef = useRef(new THREE.Vector3());
     const { camera, gl, raycaster } = useThree();
 
     // 显示手型光标
@@ -254,51 +263,54 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
         return intersection;
     }, [camera, raycaster]);
 
-    // 拖拽开始
+    // 短按/拖拽区分：pointerDown 时仅记录，pointerMove 超过阈值才进入拖拽
     const handlePointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation();
-        setIsLocalDragging(true);
+        pointerDownPosRef.current = { clientX: event.clientX, clientY: event.clientY };
 
-        // 计算拖拽偏移量
         const worldPos = getWorldPosition(event);
         const currentPos = new THREE.Vector3(...position);
-        setDragOffset(currentPos.sub(worldPos));
+        dragOffsetAtDownRef.current.copy(currentPos.sub(worldPos));
 
-        // 捕获指针
         (event.target as HTMLElement).setPointerCapture(event.pointerId);
+    }, [getWorldPosition, position]);
 
-        onDragStart?.(monsterId);
-    }, [getWorldPosition, position, monsterId, onDragStart]);
-
-    // 拖拽移动
     const handlePointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
-        if (!isLocalDragging || !groupRef.current) return;
-
         event.stopPropagation();
-        const worldPos = getWorldPosition(event);
-        worldPos.add(dragOffset);
 
-        // 更新位置
-        groupRef.current.position.set(worldPos.x, position[1], worldPos.z);
+        if (pointerDownPosRef.current && !isLocalDragging) {
+            const dx = event.clientX - pointerDownPosRef.current.clientX;
+            const dy = event.clientY - pointerDownPosRef.current.clientY;
+            if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) {
+                setDragOffset(dragOffsetAtDownRef.current.clone());
+                setIsLocalDragging(true);
+                pointerDownPosRef.current = null;
+                onDragStart?.(monsterId);
+            }
+        }
 
-        onDragMove?.(monsterId, worldPos);
-    }, [isLocalDragging, getWorldPosition, dragOffset, position, monsterId, onDragMove]);
+        if (isLocalDragging && groupRef.current) {
+            const worldPos = getWorldPosition(event);
+            worldPos.add(dragOffset);
+            groupRef.current.position.set(worldPos.x, position[1], worldPos.z);
+            onDragMove?.(monsterId, worldPos);
+        }
+    }, [isLocalDragging, getWorldPosition, dragOffset, position, monsterId, onDragStart, onDragMove]);
 
-    // 拖拽结束
     const handlePointerUp = useCallback((event: ThreeEvent<PointerEvent>) => {
-        if (!isLocalDragging) return;
-
         event.stopPropagation();
-        setIsLocalDragging(false);
-
-        // 释放指针捕获
         (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+        pointerDownPosRef.current = null;
 
-        const worldPos = getWorldPosition(event);
-        worldPos.add(dragOffset);
-
-        onDragEnd?.(monsterId, worldPos);
-    }, [isLocalDragging, getWorldPosition, dragOffset, monsterId, onDragEnd]);
+        if (isLocalDragging) {
+            setIsLocalDragging(false);
+            const worldPos = getWorldPosition(event);
+            worldPos.add(dragOffset);
+            onDragEnd?.(monsterId, worldPos);
+        } else {
+            onClick?.();
+        }
+    }, [isLocalDragging, getWorldPosition, dragOffset, monsterId, onDragEnd, onClick]);
 
     // 鼠标悬停
     const handlePointerEnter = useCallback((event: ThreeEvent<PointerEvent>) => {
@@ -345,11 +357,13 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
 
     }, [modelClone]);
 
+    const baseColor = isDragging ? "#ff9900" : isSelected ? "#9C27B0" : isHovered ? "#64B5F6" : "#2196F3";
+    const emissiveColor = isSelected ? "#7B1FA2" : isHovered ? "#1565C0" : "#000000";
+
     return (
         <group
             ref={groupRef}
             position={position}
-            onClick={onClick}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -360,14 +374,14 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
             <mesh position={[0, 4, 0]}>
                 <cylinderGeometry args={[width * 0.25, width * 0.3, 6, 6]} />
                 <meshStandardMaterial
-                    color={isDragging ? "#ff9900" : isHovered ? "#64B5F6" : "#2196F3"}
+                    color={baseColor}
                     metalness={0.3}
                     roughness={0.7}
                     polygonOffset={true}
                     polygonOffsetFactor={-5}
                     polygonOffsetUnits={-5}
-                    emissive={isHovered ? "#1565C0" : "#000000"}
-                    emissiveIntensity={isHovered ? 0.3 : 0}
+                    emissive={emissiveColor}
+                    emissiveIntensity={isSelected || isHovered ? 0.3 : 0}
                 />
             </mesh>
 
@@ -384,6 +398,154 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
                     </group>
                 </group>
             )}
+        </group>
+    );
+};
+
+// ============================================================
+// 调试模式：仅显示怪物名称（不加载 GLB，便于快速调试）
+// ============================================================
+const MonsterCardNameOnly: React.FC<MonsterCard3DProps> = ({
+    position,
+    width,
+    monsterId,
+    isDragging: externalDragging = false,
+    isSelected = false,
+    isPortrait = false,
+    onDragStart,
+    onDragMove,
+    onDragEnd,
+    onClick,
+    onPointerEnter,
+    onPointerLeave,
+}) => {
+    const groupRef = useRef<THREE.Group>(null);
+    const [isHovered, setIsHovered] = useState(false);
+    const [isLocalDragging, setIsLocalDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState(new THREE.Vector3());
+    const pointerDownPosRef = useRef<{ clientX: number; clientY: number } | null>(null);
+    const dragOffsetAtDownRef = useRef(new THREE.Vector3());
+    const { camera, raycaster } = useThree();
+
+    useCursor(isHovered);
+    const isDragging = externalDragging || isLocalDragging;
+    const displayName = MONSTER_CONFIGS_MAP[monsterId]?.name ?? monsterId;
+
+    useEffect(() => {
+        if (groupRef.current && !isLocalDragging) {
+            groupRef.current.position.set(position[0], position[1], position[2]);
+        }
+    }, [position, isLocalDragging]);
+
+    const getWorldPosition = useCallback((event: ThreeEvent<PointerEvent>) => {
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const intersection = new THREE.Vector3();
+        raycaster.setFromCamera(event.pointer, camera);
+        raycaster.ray.intersectPlane(plane, intersection);
+        return intersection;
+    }, [camera, raycaster]);
+
+    const handlePointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation();
+        pointerDownPosRef.current = { clientX: event.clientX, clientY: event.clientY };
+        const worldPos = getWorldPosition(event);
+        const currentPos = new THREE.Vector3(...position);
+        dragOffsetAtDownRef.current.copy(currentPos.sub(worldPos));
+        (event.target as HTMLElement).setPointerCapture(event.pointerId);
+    }, [getWorldPosition, position]);
+
+    const handlePointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation();
+        if (pointerDownPosRef.current && !isLocalDragging) {
+            const dx = event.clientX - pointerDownPosRef.current.clientX;
+            const dy = event.clientY - pointerDownPosRef.current.clientY;
+            if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) {
+                setDragOffset(dragOffsetAtDownRef.current.clone());
+                setIsLocalDragging(true);
+                pointerDownPosRef.current = null;
+                onDragStart?.(monsterId);
+            }
+        }
+        if (isLocalDragging && groupRef.current) {
+            const worldPos = getWorldPosition(event);
+            worldPos.add(dragOffset);
+            groupRef.current.position.set(worldPos.x, position[1], worldPos.z);
+            onDragMove?.(monsterId, worldPos);
+        }
+    }, [isLocalDragging, getWorldPosition, dragOffset, position, monsterId, onDragStart, onDragMove]);
+
+    const handlePointerUp = useCallback((event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation();
+        (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+        pointerDownPosRef.current = null;
+        if (isLocalDragging) {
+            setIsLocalDragging(false);
+            const worldPos = getWorldPosition(event);
+            worldPos.add(dragOffset);
+            onDragEnd?.(monsterId, worldPos);
+        } else {
+            onClick?.();
+        }
+    }, [isLocalDragging, getWorldPosition, dragOffset, monsterId, onDragEnd, onClick]);
+
+    const handlePointerEnter = useCallback((event: ThreeEvent<PointerEvent>) => {
+        setIsHovered(true);
+        onPointerEnter?.();
+    }, [onPointerEnter]);
+
+    const handlePointerLeave = useCallback((event: ThreeEvent<PointerEvent>) => {
+        setIsHovered(false);
+        onPointerLeave?.();
+    }, [onPointerLeave]);
+
+    useFrame(({ clock }) => {
+        if (groupRef.current && isHovered && !isDragging) {
+            const baseY = position[1];
+            groupRef.current.position.y = baseY + Math.sin(clock.elapsedTime * 3) * 3;
+        }
+    });
+
+    const baseColor = isDragging ? "#ff9900" : isSelected ? "#9C27B0" : isHovered ? "#64B5F6" : "#2196F3";
+    const emissiveColor = isSelected ? "#7B1FA2" : isHovered ? "#1565C0" : "#000000";
+
+    return (
+        <group
+            ref={groupRef}
+            position={position}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+        >
+            <mesh position={[0, 4, 0]}>
+                <cylinderGeometry args={[width * 0.25, width * 0.3, 6, 6]} />
+                <meshStandardMaterial
+                    color={baseColor}
+                    metalness={0.3}
+                    roughness={0.7}
+                    polygonOffset
+                    polygonOffsetFactor={-5}
+                    polygonOffsetUnits={-5}
+                    emissive={emissiveColor}
+                    emissiveIntensity={isSelected || isHovered ? 0.3 : 0}
+                />
+            </mesh>
+            <group rotation={isPortrait ? [0, 0, BODY_TILT_Z_PORTRAIT] : [0, 0, 0]}>
+                <Html position={[0, 10, 0]} center style={{ pointerEvents: "none" }}>
+                    <div
+                        style={{
+                            fontSize: Math.round(width * 0.15),
+                            color: "#ffffff",
+                            textAlign: "center",
+                            textShadow: "1px 1px 2px #000, -1px -1px 2px #000",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {displayName}
+                    </div>
+                </Html>
+            </group>
         </group>
     );
 };
@@ -450,8 +612,12 @@ const MonsterCardPlaceholder: React.FC<{
 
 // ============================================================
 // 带 Suspense 的包裹组件：单卡级别加载，模型未就绪时显示旋转占位
+// 调试模式下直接渲染 MonsterCardNameOnly（不加载 GLB，无 Suspense）
 // ============================================================
 const MonsterCard3DWithSuspense: React.FC<MonsterCard3DProps> = (props) => {
+    if (DEBUG_USE_MONSTER_NAME) {
+        return <MonsterCardNameOnly {...props} />;
+    }
     return (
         <Suspense
             fallback={
@@ -469,5 +635,5 @@ const MonsterCard3DWithSuspense: React.FC<MonsterCard3DProps> = (props) => {
 // 预加载在布局层统一处理（见 TeamLayout3D 或 getAllMonsterGlbPaths）
 
 
-export { MonsterCard3D, MonsterCard3DWithSuspense, MonsterCardPlaceholder };
+export { MonsterCard3D, MonsterCard3DWithSuspense, MonsterCardNameOnly, MonsterCardPlaceholder };
 

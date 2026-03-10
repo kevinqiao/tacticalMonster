@@ -13,7 +13,7 @@ import { hexTo3DPosition } from "./utils/coordinate3DUtils";
 import { getSharedHexagonGeometry } from "./utils/geometryCache";
 
 const StageGrid3D: React.FC = () => {
-    const { stage, boss, mapDimension, deployables } = useTeamDeployManager();
+    const { stage, boss, mapDimension, deployables, isCellOccupied, askAdd } = useTeamDeployManager();
     const loadingContext = useContext(TeamLayoutLoadingContext);
 
     if (!stage || !mapDimension) {
@@ -76,13 +76,14 @@ const StageGrid3D: React.FC = () => {
         });
     }, [stage.map.disables, mapDimension, sharedGeometries]);
 
-    // 渲染可部署区域（3D 模式：直接用逻辑坐标）
+    // 渲染可部署区域（3D 模式：直接用逻辑坐标）；空格子显示 +
     const deployableCells = useMemo(() => {
         if (!deployables || deployables.length === 0) return [];
 
         return deployables.map((deployable, index) => {
             const position = hexTo3DPosition(deployable.q, deployable.r, mapDimension, 0.15);
             if (!position) return null;
+            const isEmpty = !isCellOccupied(deployable.q, deployable.r);
 
             return (
                 <HexCell3D
@@ -94,10 +95,12 @@ const StageGrid3D: React.FC = () => {
                     position={[position.x, position.y, position.z]}
                     geometry={sharedGeometries.deployable}
                     state="deployable"
+                    showPlus={isEmpty}
+                    onClick={isEmpty ? () => askAdd(deployable.q, deployable.r) : undefined}
                 />
             );
         });
-    }, [deployables, mapDimension, sharedGeometries]);
+    }, [deployables, mapDimension, sharedGeometries, isCellOccupied, askAdd]);
 
     // 渲染 Boss（3D 模式：直接用逻辑坐标，camera.up 处理竖屏旋转）
     const bossElement = useMemo(() => {

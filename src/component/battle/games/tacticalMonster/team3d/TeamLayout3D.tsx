@@ -235,13 +235,13 @@ const CanvasWithControls: React.FC<{
         </>
     );
 
-    // 竖屏：正交相机 + 俯视（camera.up 旋转 90°），禁用旋转
-    // 横屏：透视相机 + 球面坐标，允许旋转
+    // 竖屏：正交相机 + 俯视，无透视，无阴影
+    // 横屏：透视相机 + 球面坐标，保持立体效果（阴影 + 透视）
     return (
         <Canvas
             key={isPortrait ? "ortho" : "persp"}
             orthographic={isPortrait}
-            shadows
+            shadows={!isPortrait}
             style={{ width: "100%", height: "100%", background: "transparent" }}
             gl={{ antialias: true, alpha: true }}
             camera={
@@ -293,7 +293,13 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
         selectCanadidate,
         playerMonsters,
         boss,
+        selectedMonsterId,
+        selectMonster,
+        quitTeam,
     } = useTeamDeployManager();
+
+    const controlBarRef = useRef<HTMLDivElement>(null);
+    const overlayRef = useRef<HTMLDivElement>(null);
 
     // 预加载所有角色 GLB
     useEffect(() => {
@@ -452,6 +458,27 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
         onComplete();
     }, [onComplete]);
 
+    const handleDeselect = useCallback(() => {
+        if (!controlBarRef.current || !overlayRef.current) return;
+        gsap.to(overlayRef.current, { opacity: 0, duration: 0.2, ease: "power2.in" });
+        gsap.to(controlBarRef.current, { y: "100%", duration: 0.2, ease: "power2.in", onComplete: () => selectMonster(null) });
+    }, [selectMonster]);
+
+    const handleRemoveMonster = useCallback(() => {
+        if (selectedMonsterId) {
+            quitTeam(selectedMonsterId);
+            selectMonster(null);
+        }
+    }, [selectedMonsterId, quitTeam, selectMonster]);
+
+    useEffect(() => {
+        if (!selectedMonsterId || !controlBarRef.current || !overlayRef.current) return;
+        gsap.set(overlayRef.current, { opacity: 0, display: "block" });
+        gsap.set(controlBarRef.current, { y: "100%", display: "flex" });
+        gsap.to(overlayRef.current, { opacity: 1, duration: 0.25, ease: "power2.out" });
+        gsap.to(controlBarRef.current, { y: 0, duration: 0.25, ease: "power2.out" });
+    }, [selectedMonsterId]);
+
     return (
         <div
             ref={containerRef}
@@ -504,6 +531,29 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
                     </div>
                 </div>
             </div>
+
+            {/* 方案 B：选中怪物时的遮罩 + 底部控制条（置于顶层，高于 team-control-container） */}
+            {selectedMonsterId && (
+                <>
+                    <div
+                        ref={overlayRef}
+                        className="team-selection-overlay"
+                        onClick={handleDeselect}
+                        onKeyDown={(e) => e.key === "Escape" && handleDeselect()}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="取消选中"
+                    />
+                    <div ref={controlBarRef} className="team-selection-control-bar">
+                        <button type="button" className="team-control-remove" onClick={handleRemoveMonster}>
+                            移除
+                        </button>
+                        <button type="button" className="team-control-cancel" onClick={handleDeselect}>
+                            取消
+                        </button>
+                    </div>
+                </>
+            )}
 
             <div className="team-control-container">
                 <button className="team-join-button" onClick={join}>Join</button>

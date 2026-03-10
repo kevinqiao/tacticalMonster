@@ -3,11 +3,13 @@
  * Boss 的 3D 表示，按 MonsterCard3D 方式加载 GLB 模型并播放动画
  */
 
-import { useAnimations, useGLTF } from "@react-three/drei";
+import { Html, useAnimations, useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import React, { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
+import { MONSTER_CONFIGS_MAP } from "../../config/monsterConfigs";
+import { DEBUG_USE_MONSTER_NAME } from "../../config/debugConfig";
 import { getMonsterModelPathWithFallback } from "../utils/modelPathMapper";
 
 interface Boss3DProps {
@@ -162,6 +164,48 @@ const Boss3D: React.FC<Boss3DProps> = ({
 };
 
 // ============================================================
+// 调试模式：仅显示 Boss 名称（不加载 GLB）
+// ============================================================
+const Boss3DNameOnly: React.FC<Boss3DProps> = ({
+    position,
+    width,
+    monsterId,
+    isPortrait = false,
+    onClick,
+}) => {
+    const displayName = MONSTER_CONFIGS_MAP[monsterId]?.name ?? monsterId;
+    return (
+        <group position={position} onClick={onClick}>
+            <mesh position={[0, 4, 0]}>
+                <cylinderGeometry args={[width * 0.3, width * 0.35, 8, 6]} />
+                <meshStandardMaterial
+                    color="#B71C1C"
+                    metalness={0.3}
+                    roughness={0.7}
+                    emissive="#7F0000"
+                    emissiveIntensity={0.2}
+                />
+            </mesh>
+            <group rotation={isPortrait ? [0, 0, -BODY_TILT_Z_PORTRAIT] : [0, 0, 0]}>
+                <Html position={[0, 12, 0]} center style={{ pointerEvents: "none" }}>
+                    <div
+                        style={{
+                            fontSize: Math.round(width * 0.35),
+                            color: "#ffffff",
+                            textAlign: "center",
+                            textShadow: "1px 1px 2px #000, -1px -1px 2px #000",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {displayName}
+                    </div>
+                </Html>
+            </group>
+        </group>
+    );
+};
+
+// ============================================================
 // 加载中旋转占位（红色调，略大）
 // ============================================================
 const BossPlaceholder: React.FC<{
@@ -214,9 +258,12 @@ const BossPlaceholder: React.FC<{
 };
 
 // ============================================================
-// 带 Suspense 的包裹组件
+// 带 Suspense 的包裹组件（调试模式下直接渲染 Boss3DNameOnly）
 // ============================================================
 const Boss3DWithSuspense: React.FC<Boss3DProps> = (props) => {
+    if (DEBUG_USE_MONSTER_NAME) {
+        return <Boss3DNameOnly {...props} />;
+    }
     return (
         <Suspense
             fallback={
@@ -229,5 +276,5 @@ const Boss3DWithSuspense: React.FC<Boss3DProps> = (props) => {
 };
 
 export default Boss3DWithSuspense;
-export { Boss3D, Boss3DWithSuspense, BossPlaceholder };
+export { Boss3D, Boss3DNameOnly, Boss3DWithSuspense, BossPlaceholder };
 

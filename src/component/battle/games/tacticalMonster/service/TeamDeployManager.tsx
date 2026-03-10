@@ -33,6 +33,7 @@ export interface TeamContextValue {
     mapDimension: MapDimension | null;
     playerMonsters: { monsterId: string, teamPosition?: { q: number; r: number } }[];
     dragMonster: { monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null;
+    selectedMonsterId: string | null;
     groundCells: GridCellSprite[][];
     deployables: { q: number, r: number }[];
     stage: Stage | null;
@@ -56,6 +57,7 @@ export interface TeamContextValue {
     handleDrop: (e: React.DragEvent) => void;
     isCellOccupied: (q: number, r: number) => boolean;
     moveMonster: (monsterId: string, logicQ: number, logicR: number) => void;
+    selectMonster: (monsterId: string | null) => void;
 }
 
 // ============ Context 创建 ============
@@ -91,10 +93,11 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
 
     const [askAddMonster, setAskAddMonster] = useState<{ q: number, r: number } | null>(null);
     const [dragMonster, setDragMonster] = useState<{ monsterId: string, inited: number, teamPosition?: { q: number, r: number }, q: number, r: number } | null>(null);
-    const { monsters } = useTournamentManager();
+    const { monsters, updateMonsterPosition, updateMonsterRemove } = useTournamentManager();
     const { user } = useUserManager();
     const tacticalMonsterClient = useMemo(() => new ConvexHttpClient(URLS.tacticalMonster), []);
     const [playerMonsters, setPlayerMonsters] = useState<{ monsterId: string, teamPosition?: { q: number; r: number } }[]>([]);
+    const [selectedMonsterId, setSelectedMonsterId] = useState<string | null>(null);
 
     // 网格数据 - 依赖 mapDimension 中的动态行列
     const groundCells: GridCellSprite[][] = useMemo(() => {
@@ -238,11 +241,48 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
                     q,
                     r,
                 });
+                updateMonsterPosition(monsterId, q, r);
             } catch (err) {
                 console.error("[TeamDeployManager] syncPositionToBackend failed:", err);
             }
         },
-        [user?.uid, tacticalMonsterClient]
+        [user?.uid, tacticalMonsterClient, updateMonsterPosition]
+    );
+
+    const syncAddToBackend = useCallback(
+        async (monsterId: string, q: number, r: number) => {
+            const uid = user?.uid;
+            if (!uid) return;
+            try {
+                await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.addMonsterToTeam, {
+                    uid,
+                    monsterId,
+                    q,
+                    r,
+                });
+                updateMonsterPosition(monsterId, q, r);
+            } catch (err) {
+                console.error("[TeamDeployManager] syncAddToBackend failed:", err);
+            }
+        },
+        [user?.uid, tacticalMonsterClient, updateMonsterPosition]
+    );
+
+    const syncRemoveToBackend = useCallback(
+        async (monsterId: string) => {
+            const uid = user?.uid;
+            if (!uid) return;
+            try {
+                await tacticalMonsterClient.mutation(tacticalMonsterApi.service.team.teamService.removeMonsterFromTeam, {
+                    uid,
+                    monsterId,
+                });
+                updateMonsterRemove(monsterId);
+            } catch (err) {
+                console.error("[TeamDeployManager] syncRemoveToBackend failed:", err);
+            }
+        },
+        [user?.uid, tacticalMonsterClient, updateMonsterRemove]
     );
 
     // 放置怪物（坐标统一为逻辑坐标）
@@ -268,34 +308,33 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
             console.warn("[TeamDeployManager] selectCanadidate: askAddMonster 或 monsters 为空", { askAddMonster, monsters });
             return;
         }
+        const logicPosition = { q: askAddMonster.q, r: askAddMonster.r };
         setPlayerMonsters(prev => {
             const m = prev.find((p) => p.monsterId === monsterId);
             if (m) {
-                const monster = monsters.find((m) => m.monsterId === monsterId);
-                // askAddMonster 已经是逻辑坐标，直接使用
-                const logicPosition = { q: askAddMonster.q, r: askAddMonster.r };
+                const monster = monsters.find((mo) => mo.monsterId === monsterId);
                 if (monster) {
                     monster.teamPosition = logicPosition;
                 }
-                // teamPosition 应该存储逻辑坐标，不是视图坐标
                 m.teamPosition = logicPosition;
                 setAskAddMonster(null);
-                console.log(`✅ 选择怪物: ${monsterId} 逻辑坐标(${logicPosition.q}, ${logicPosition.r})`);
-                console.log("[TeamDeployManager] 更新后的 playerMonsters:", prev.map(p => ({
-                    monsterId: p.monsterId,
-                    teamPosition: p.teamPosition
-                })));
-            } else {
-                console.warn(`[TeamDeployManager] selectCanadidate: 未找到怪物 ${monsterId}`, { prev });
+                return [...prev];
             }
-            return [...prev];
+            console.warn(`[TeamDeployManager] selectCanadidate: 未找到怪物 ${monsterId}`, { prev });
+            return prev;
         });
-    }, [askAddMonster, monsters]);
+        syncAddToBackend(monsterId, logicPosition.q, logicPosition.r);
+    }, [askAddMonster, monsters, syncAddToBackend]);
+
+    const selectMonster = useCallback((monsterId: string | null) => {
+        setSelectedMonsterId(monsterId);
+    }, []);
 
     const quitTeam = useCallback((monsterId: string) => {
-        console.log("quitTeam", monsterId);
         placeMonster(monsterId, undefined);
-    }, [placeMonster]);
+        syncRemoveToBackend(monsterId);
+        setSelectedMonsterId((prev) => (prev === monsterId ? null : prev));
+    }, [placeMonster, syncRemoveToBackend]);
 
     // 移动怪物到新位置（接收逻辑坐标）
     const moveMonster = useCallback((monsterId: string, logicQ: number, logicR: number) => {
@@ -416,7 +455,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
 
             const mapped = ordered.map((monster: any, index: number) => {
                 const hasPosition = monster.teamPosition && monster.teamPosition.q !== undefined;
-                const defaultPosition = hasPosition ? monster.teamPosition : { q: index, r: 0 };
+                const defaultPosition = hasPosition ? monster.teamPosition : null;
                 return {
                     monsterId: monster.monsterId,
                     teamPosition: defaultPosition
@@ -434,6 +473,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         mapDimension,
         playerMonsters,
         dragMonster,
+        selectedMonsterId,
         groundCells,
         deployables,
         askAddMonster,
@@ -454,10 +494,12 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         handleDrop,
         isCellOccupied,
         moveMonster,
+        selectMonster,
     }), [
         mapDimension,
         playerMonsters,
         dragMonster,
+        selectedMonsterId,
         groundCells,
         askAddMonster,
         stage,
@@ -470,6 +512,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         handleDrop,
         isCellOccupied,
         moveMonster,
+        selectMonster,
     ]);
 
     return (

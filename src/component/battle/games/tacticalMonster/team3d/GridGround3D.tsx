@@ -20,6 +20,8 @@ const GridGround3D: React.FC = () => {
         dragMonster,
         playerMonsters,
         moveMonster,
+        selectedMonsterId,
+        selectMonster,
     } = useTeamDeployManager();
     const loadingContext = useContext(TeamLayoutLoadingContext);
 
@@ -244,6 +246,7 @@ const GridGround3D: React.FC = () => {
         if (!playerMonsters || !mapDimension) {
             return [];
         }
+
         const monstersWithPosition = playerMonsters.filter((monster) => monster.teamPosition);
 
         const renderedMonsters = monstersWithPosition
@@ -271,6 +274,8 @@ const GridGround3D: React.FC = () => {
                         position={[centerX, 0, centerZ]}
                         monsterId={monster.monsterId}
                         isDragging={isDragging}
+                        isSelected={selectedMonsterId === monster.monsterId}
+                        onClick={() => selectMonster(monster.monsterId)}
                         onDragStart={stableDragStart}
                         onDragMove={stableDragMove}
                         onDragEnd={stableDragEnd}
@@ -282,7 +287,7 @@ const GridGround3D: React.FC = () => {
             .filter((monster) => monster !== null);
 
         return renderedMonsters;
-    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, stableDragStart, stableDragMove, stableDragEnd]);
+    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, selectedMonsterId, selectMonster, stableDragStart, stableDragMove, stableDragEnd]);
 
     return (
         <group>

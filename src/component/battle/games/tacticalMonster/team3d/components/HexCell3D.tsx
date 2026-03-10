@@ -12,9 +12,10 @@ interface HexCell3DProps {
     r: number; // 行坐标（视图坐标）
     width: number; // 六边形宽度
     height: number; // 六边形高度
-    position: [number, number, number]; // 3D 位置 [x, y, z]
+    position: [number, number, number]; // 3D 位置（六边形左上角）
     geometry: THREE.ExtrudeGeometry; // 共享的几何体（从父组件传入）
     state?: "normal" | "highlighted" | "disabled" | "deployable"; // 单元格状态
+    showPlus?: boolean; // 是否在可添加的空格子上显示 +
     onClick?: () => void;
     onPointerEnter?: () => void;
     onPointerLeave?: () => void;
@@ -26,8 +27,9 @@ const HexCell3D: React.FC<HexCell3DProps> = ({
     width,
     height,
     position,
-    geometry, // 从父组件传入的共享几何体
+    geometry,
     state = "normal",
+    showPlus = false,
     onClick,
     onPointerEnter,
     onPointerLeave,
@@ -93,37 +95,48 @@ const HexCell3D: React.FC<HexCell3DProps> = ({
         });
     }, [state]);
 
-    // 动画：高亮状态时轻微上下浮动
+    // 动画：高亮状态时轻微上下浮动（mesh 在 group 内，group 已有 yOffset）
     useFrame(({ clock }) => {
         if (meshRef.current && state === "highlighted") {
-            const baseY = position[1] + yOffset;
-            meshRef.current.position.y = baseY + Math.sin(clock.elapsedTime * 2) * 0.02;
+            meshRef.current.position.y = Math.sin(clock.elapsedTime * 2) * 0.02;
         } else if (meshRef.current) {
-            // 确保非高亮状态时位置正确，包含 yOffset
-            meshRef.current.position.y = position[1] + yOffset;
+            meshRef.current.position.y = 0;
         }
     });
 
-    // 应用 yOffset 到位置
+    // 应用 yOffset 到位置；六边形中心在左上角 + (width/2, -height/2)（Z 轴向下为负）
     const adjustedPosition: [number, number, number] = [
         position[0],
         position[1] + yOffset,
         position[2]
     ];
-
     return (
-        <mesh
-            ref={meshRef}
-            position={adjustedPosition}
-            rotation={[-Math.PI / 2, 0, 0]} // 旋转使六边形平躺在 XZ 平面上
-            geometry={geometry}
-            material={material}
-            onClick={onClick}
-            onPointerEnter={onPointerEnter}
-            onPointerLeave={onPointerLeave}
-            receiveShadow
-            castShadow
-        />
+        <group position={adjustedPosition}>
+            <mesh
+                ref={meshRef}
+                position={[0, 0, 0]}
+                rotation={[-Math.PI / 2, 0, 0]}
+                geometry={geometry}
+                material={material}
+                onClick={onClick}
+                onPointerEnter={onPointerEnter}
+                onPointerLeave={onPointerLeave}
+                receiveShadow
+                castShadow
+            />
+            {showPlus && (
+                <group position={[width / 2, 8, -height / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <mesh>
+                        <boxGeometry args={[width * 0.2, width * 0.04, width * 0.02]} />
+                        <meshStandardMaterial color="white" emissive="white" emissiveIntensity={0.3} />
+                    </mesh>
+                    <mesh>
+                        <boxGeometry args={[width * 0.04, width * 0.2, width * 0.04]} />
+                        <meshStandardMaterial color="white" emissive="white" emissiveIntensity={0.3} />
+                    </mesh>
+                </group>
+            )}
+        </group>
     );
 };
 
