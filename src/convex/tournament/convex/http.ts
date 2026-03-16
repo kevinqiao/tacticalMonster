@@ -242,7 +242,7 @@ http.route({
     try {
       // 1. 解析请求体
       const body = await request.json();
-      const { gameId, finalScore } = body;
+      const { gameId, finalScore, isFirstClear } = body;
 
       // // 2. 参数验证
       // if (!gameId || !matchId) {
@@ -265,6 +265,7 @@ http.route({
       const result = await ctx.runMutation(internal.service.tournament.matchManager.submitScore, {
         gameId,
         finalScore: finalScore || 0,
+        isFirstClear: isFirstClear === true,
       });
 
       // 4. 返回结果

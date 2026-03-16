@@ -81,6 +81,21 @@ export const getTargetsInLine = (
     return targets;
 };
 
+const isSameSide = (caster: MonsterSprite, char: MonsterSprite): boolean =>
+    (caster.uid === "boss" && char.uid === "boss") ||
+    (caster.uid !== "boss" && char.uid !== "boss");
+
+const filterByTargetSide = (
+    targets: MonsterSprite[],
+    center: MonsterSprite,
+    targetSide?: "friend" | "foe" | "all"
+): MonsterSprite[] => {
+    if (!targetSide || targetSide === "all") return targets;
+    return targets.filter((c) =>
+        targetSide === "friend" ? isSameSide(center, c) : !isSameSide(center, c)
+    );
+};
+
 /**
  * 根据技能范围获取目标
  */
@@ -93,32 +108,32 @@ export const getTargetsInRange = (
     const centerPos = { q: center.q ?? 0, r: center.r ?? 0 };
     const range = skill.range?.distance || skill.range?.max_distance || 1;
 
+    let result: MonsterSprite[] = [];
+
     switch (skill.range?.area_type) {
-        case 'single':
-            // 单体目标
+        case "single":
             if (target) {
                 const distance = offsetHexDistance(centerPos, { q: target.q ?? 0, r: target.r ?? 0 });
                 if (distance <= range) {
-                    return [target];
+                    result = [target];
                 }
             }
-            return [];
+            break;
 
-        case 'circle':
-            // 圆形范围
-            return getTargetsInCircle(
+        case "circle":
+            result = getTargetsInCircle(
                 centerPos,
                 range,
                 allCharacters,
                 true,
                 center.uid
             );
+            break;
 
-        case 'line':
-            // 直线范围
+        case "line":
             if (target) {
                 const targetPos = { q: target.q ?? 0, r: target.r ?? 0 };
-                return getTargetsInLine(
+                result = getTargetsInLine(
                     centerPos,
                     targetPos,
                     range,
@@ -127,15 +142,15 @@ export const getTargetsInRange = (
                     center.uid
                 );
             }
-            return [];
+            break;
 
         default:
-            // 默认单体
             if (target) {
-                return [target];
+                result = [target];
             }
-            return [];
     }
+
+    return filterByTargetSide(result, center, skill.range?.target_side);
 };
 
 /**

@@ -25,6 +25,7 @@ export interface GameModel {
     gameId: string;
     matchId?: string;
     stageId: string;
+    ruleId?: string;  // 关卡规则 ID（用于星级评定等）
     uid: string;  // 玩家 UID
 
     // ========== 队伍和Boss数据 ==========
@@ -247,6 +248,12 @@ export interface GameReport {
     timeBonus?: number;
     completeBonus?: number;
     totalScore: number;
+    /** 过关星级（1-3），仅胜利时有效 */
+    star?: 1 | 2 | 3;
+    /** 星级对应的奖励倍率（重复挑战时使用） */
+    rewardMultiplier?: number;
+    /** 是否为首通（首次通关该 ruleId） */
+    isFirstClear?: boolean;
 }
 
 // ✅ CombatTurn 已移除，统一使用 GameTurn

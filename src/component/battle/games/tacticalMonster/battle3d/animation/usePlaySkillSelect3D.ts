@@ -4,7 +4,7 @@
  */
 
 import { useCallback } from "react";
-import { COMMON_SKILLS } from "../../config/skillConfigs";
+import { SKILL_CONFIGS } from "../../config/skillConfigs";
 import { useCombatManager } from "../../service/CombatManager";
 import { getAttackableNodes } from "../../utils/PathFind";
 
@@ -25,7 +25,7 @@ export const usePlaySkillSelect3D = () => {
             const isFlying = character.isFlying ?? false;
             const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
 
-            const skill = COMMON_SKILLS[skillId] ?? null;
+            const skill = SKILL_CONFIGS[skillId] ?? null;
             if (!skill) return;
 
             const grid = groundCells.map((row) =>

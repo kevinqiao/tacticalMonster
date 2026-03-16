@@ -174,6 +174,7 @@ export class MatchManager {
     static async submitScore(ctx: any, params: {
         gameId: string;
         finalScore: number;
+        isFirstClear?: boolean;
     }): Promise<{
         ok: boolean;
         error?: string;
@@ -190,11 +191,15 @@ export class MatchManager {
             throw new Error("玩家比赛记录不存在");
         }
 
-        await ctx.db.patch(playerMatch._id, {
+        const patchData: Record<string, any> = {
             score: params.finalScore || playerMatch.score || 0,
             status: TournamentStatus.COMPLETED,
             updatedAt: nowISO,
-        });
+        };
+        if (params.isFirstClear !== undefined) {
+            patchData.isFirstClear = params.isFirstClear;
+        }
+        await ctx.db.patch(playerMatch._id, patchData);
         const matchId = playerMatch.matchId;
         // 2. 检查 match 中所有游戏是否都结束
         const match = await ctx.db.get(matchId as Id<"matches">);
@@ -307,7 +312,7 @@ export class MatchManager {
             // });
 
             if (tournamentType.matchRules.matchType === "single_match") {
-                await settleTournament(ctx, match.tournamentId);
+                await settleTournament(ctx, match.tournamentId, params.matchId);
             }
         }
     }
@@ -365,6 +370,7 @@ export const submitScore = internalMutation({
     args: {
         gameId: v.string(),
         finalScore: v.number(),
+        isFirstClear: v.optional(v.boolean()),
     },
     handler: async (ctx: any, args: any): Promise<any> => {
         return await MatchManager.submitScore(ctx, args);

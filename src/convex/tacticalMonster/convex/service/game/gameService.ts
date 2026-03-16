@@ -250,10 +250,25 @@ export class GameService implements CharacterGetter {
         options?: { endTurn?: boolean; steps?: number; forceEndTurn?: boolean }
     ): Promise<{
         success: boolean;
+        message?: string;
         phaseChanges?: PhaseChanges;
         endTurn?: boolean;
     }> {
         return await this.getActionService().walk(gameId, to, identifier, options);
+    }
+
+    /**
+     * 执行防守
+     * 委托给 GameActionService
+     * @param gameId 游戏ID
+     * @param identifier 角色标识符
+     */
+    async defend(
+        gameId: string,
+        identifier: CharacterIdentifier
+    ): Promise<{ success: boolean; message?: string; phaseChanges?: PhaseChanges }> {
+        await this.load(gameId);
+        return await this.getActionService().executeDefend(gameId, identifier);
     }
 
     /**
@@ -774,6 +789,26 @@ export const useSkill = mutation({
         } else {
             return { ok: false, error: result.message || "技能使用失败" };
         }
+    },
+});
+
+export const defend = mutation({
+    args: {
+        gameId: v.string(),
+        identifier: v.object({
+            monsterId: v.optional(v.string()),
+            bossId: v.optional(v.string()),
+            minionId: v.optional(v.string()),
+        }),
+    },
+    handler: async (ctx, { gameId, identifier }) => {
+        const gameManager = new GameService(ctx);
+        await gameManager.load(gameId);
+        const result = await gameManager.defend(gameId, identifier);
+        if (result.success) {
+            return { ok: true, phaseChanges: result.phaseChanges };
+        }
+        return { ok: false, error: result.message ?? "防守失败" };
     },
 });
 

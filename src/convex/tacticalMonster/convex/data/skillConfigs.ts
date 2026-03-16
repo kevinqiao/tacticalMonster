@@ -189,6 +189,10 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
             area_type: "single",
             distance: 3,
         },
+        // 示例：可用性条件（目标距离 > 0，有目标时恒为真）
+        availabilityConditions: {
+            all: [{ fact: "targetDistance", operator: "greaterThan", value: 0 }],
+        },
         resource_cost: {},
         cooldown: 0,
         effects: [
@@ -199,6 +203,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
                 value: 80,
                 damage_type: "physical",
                 target_attribute: "hp",
+                damage_falloff: { full_damage_range: 2, min_damage_percent: 0.5 },
             },
         ],
     },
@@ -213,6 +218,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "single",
             distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 3,
@@ -239,6 +245,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "circle",
             max_distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 10,
@@ -268,6 +275,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "single",
             distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 5,
@@ -296,6 +304,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "single",
             distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 7,
@@ -325,6 +334,7 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         range: {
             area_type: "single",
             distance: 2,
+            target_side: "friend",
         },
         unlockConditions: {
             level: 7,
@@ -419,6 +429,10 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         triggerConditions: [
             {
                 trigger_type: "on_hit",
+                // 可选：json-rules-engine 条件，如 30% 概率触发（triggerChance 由调用方注入）
+                conditions: {
+                    all: [{ fact: "triggerChance", operator: "lessThan", value: 0.3 }],
+                },
                 effects: [
                     {
                         id: "counter_attack",
@@ -679,6 +693,107 @@ export const UNIQUE_SKILLS: Record<string, MonsterSkill> = {
                 name: "圣光治疗",
                 type: SkillEffectType.HEAL,
                 value: 200,
+                area_type: "circle",
+                area_size: 3,
+                target_attribute: "hp",
+            },
+        ],
+    },
+
+    // ========== 必杀技（Ultimate）- 消耗能量 ==========
+    griffin_ultimate: {
+        id: "griffin_ultimate",
+        name: "天罚利刃",
+        type: "ultimate",
+        description: "格里芬必杀技，造成巨额物理伤害",
+        priority: 5,
+        range: { area_type: "single", distance: 2 },
+        resource_cost: { energy: 100 },
+        cooldown: 0,
+        effects: [
+            {
+                id: "ultimate_damage",
+                name: "天罚伤害",
+                type: SkillEffectType.DAMAGE,
+                value: 400,
+                damage_type: "physical",
+                target_attribute: "hp",
+            },
+        ],
+    },
+    dragon_ultimate: {
+        id: "dragon_ultimate",
+        name: "灭世龙炎",
+        type: "ultimate",
+        description: "原始巨龙必杀技，扇形火焰伤害",
+        priority: 5,
+        range: { area_type: "line", min_distance: 1, distance: 4 },
+        resource_cost: { energy: 100 },
+        cooldown: 0,
+        effects: [
+            {
+                id: "ultimate_fire",
+                name: "灭世龙炎",
+                type: SkillEffectType.DAMAGE,
+                value: 350,
+                damage_type: "magical",
+                area_type: "line",
+                area_size: 4,
+                target_attribute: "hp",
+            },
+        ],
+    },
+    chaos_ultimate: {
+        id: "chaos_ultimate",
+        name: "混沌审判",
+        type: "ultimate",
+        description: "混沌领主必杀技，高额伤害+眩晕",
+        priority: 5,
+        range: { area_type: "single", distance: 2 },
+        resource_cost: { energy: 100 },
+        cooldown: 0,
+        effects: [
+            {
+                id: "ultimate_chaos",
+                name: "混沌审判伤害",
+                type: SkillEffectType.DAMAGE,
+                value: 450,
+                damage_type: "magical",
+                target_attribute: "hp",
+            },
+            {
+                id: "ultimate_stun",
+                name: "混沌眩晕",
+                type: SkillEffectType.STUN,
+                duration: 2,
+            },
+        ],
+    },
+    divine_ultimate: {
+        id: "divine_ultimate",
+        name: "神圣庇佑",
+        type: "ultimate",
+        description: "神圣守护者必杀技，全队护盾+治疗",
+        priority: 5,
+        range: { area_type: "circle", max_distance: 3 },
+        resource_cost: { energy: 100 },
+        cooldown: 0,
+        effects: [
+            {
+                id: "ultimate_shield",
+                name: "神圣护盾",
+                type: SkillEffectType.SHIELD,
+                value: 500,
+                duration: 5,
+                area_type: "circle",
+                area_size: 3,
+                target_attribute: "shield",
+            },
+            {
+                id: "ultimate_heal",
+                name: "神圣治疗",
+                type: SkillEffectType.HEAL,
+                value: 300,
                 area_type: "circle",
                 area_size: 3,
                 target_attribute: "hp",

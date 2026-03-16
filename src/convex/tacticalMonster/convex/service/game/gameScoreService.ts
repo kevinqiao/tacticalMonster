@@ -99,13 +99,38 @@ export class GameScoreService {
         const event = this.eventService.createGameEndEvent(gameId);
         await this.eventService.createEvent(event);
 
-        // ✅ 返回游戏报告
+        // 记录首通（关卡体力与奖励机制）
+        const ruleId = (game as any).ruleId;
+        const uid = (game as any).uid;
+        const stageId = (game as any).stageId;
+        let isFirstClear = false;
+        if (ruleId && gameResult.result === GameResult.WIN && uid && stageId) {
+            const existing = await this.dbCtx.db
+                .query("mr_player_first_clear")
+                .withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", ruleId))
+                .unique();
+            if (!existing) {
+                const now = new Date().toISOString();
+                await this.dbCtx.db.insert("mr_player_first_clear", {
+                    uid,
+                    ruleId,
+                    stageId,
+                    score: scoreResult.totalScore,
+                    performance: 3,  // 3 = 通关
+                    createdAt: now,
+                });
+                isFirstClear = true;
+            }
+        }
+
+        // 返回游戏报告（不再包含 star、rewardMultiplier）
         return {
             gameId,
             baseScore: scoreResult.baseScore,
             timeBonus: scoreResult.timeBonus,
             completeBonus: scoreResult.survivalBonus + scoreResult.resultScore,  // 兼容旧接口
             totalScore: scoreResult.totalScore,
+            isFirstClear,
         };
     }
 

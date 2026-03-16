@@ -11,7 +11,7 @@ import { mergeSummonedIntoGame } from "./mergeSummonedIntoGame";
  * 根据 PhaseChanges 计算下一个 GameModel
  * - gameInit: 完全替换
  * - summonedCharacters: 合并召唤单位到 team/boss
- * - 其他字段（roundStart/turnStart 等）由 setTurnRound 处理 currentRound，不在此修改
+ * - 其他字段（roundStart/turnStart 等）由 setPhaseChangeEvent 处理 currentRound，不在此修改
  */
 export function applyPhaseChangesToGame(
     prev: GameModel,

@@ -8,6 +8,7 @@ import { calculateGameMonster, MONSTER_CONFIGS_MAP } from "../../data/monsterCon
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { GameModel, GameRound, GameStatus } from "../../types/gameTypes";
 import { GameBoss, GameMinion, GameMonster, PlayerMonster } from "../../types/monsterTypes";
+import { GameRuleConfigService } from "./gameRuleConfigService";
 import { TeamService } from "../team/teamService";
 import { GameEventService } from "./gameEventService";
 import { RoundService } from "./roundService";
@@ -92,19 +93,34 @@ export class GameLifecycleService {
         // 5. 使用计算出的 teamPower（用于 Boss 缩放）
         const teamPower = totalTeamPower;
 
-        // 6. 根据 stage.difficulty 自适应 Boss 的属性
-        // difficulty 表示 "Boss Power / Player Team Power" 的比率
+        // 6. 根据 StageRuleConfig 决定 Boss 属性：固定数值 or 基于战力缩放
         const mergedBossConfig = getMergedBossConfig(stage.bossId);
         if (!mergedBossConfig) {
             throw new Error(`无法获取合并后的Boss配置: ${stage.bossId}`);
         }
 
-        // 计算基础 Boss Power
-        const baseBossPower = calculateBossPower(mergedBossConfig);
+        const stageRuleConfig = GameRuleConfigService.getGameRuleConfig(ruleId);
+        // 首通：无 mr_player_first_clear 记录时强制固定 Boss；挑战模式：使用配置
+        const firstClear = await this.dbCtx.db
+            .query("mr_player_first_clear")
+            .withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", ruleId))
+            .unique();
+        const isFirstClearAttempt = !firstClear;
+        const powerBasedScaling = isFirstClearAttempt
+            ? false
+            : (stageRuleConfig?.stageContent?.difficultyAdjustment?.powerBasedScaling !== false);
 
-        // 计算缩放倍数：scale = (playerPower * difficulty) / baseBossPower
-        const targetBossPower = teamPower * stage.difficulty;
-        const bossScale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
+        let bossScale: number;
+        if (powerBasedScaling) {
+            // 缩放模式：Boss Power = teamPower * difficulty
+            const baseBossPower = calculateBossPower(mergedBossConfig);
+            const targetBossPower = teamPower * stage.difficulty;
+            bossScale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
+        } else {
+            // 固定 Boss 基准 + 关卡难度系数：Boss 属性 = 基础值 × difficultyMultiplier
+            // 实现每关递进变难，tier 内 1→2→3→4→5 单调递增
+            bossScale = Math.max(0.5, Math.min(3.0, stage.difficulty ?? 1.0));
+        }
 
         // 应用缩放到 Boss 属性
         const scaledBossStats = {

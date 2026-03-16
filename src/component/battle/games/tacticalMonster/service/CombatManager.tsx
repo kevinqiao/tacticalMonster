@@ -35,12 +35,12 @@ export type TurnRoundData =
     | NonNullable<PhaseChanges["turnEnd"]>
 
 export type TurnRoundDataWithRound = TurnRoundData & {
-    /** 由前端 setTurnRound 注入的最新回合快照（用于 UI 同步，如 turnbar） */
+    /** 由前端 setPhaseChangeEvent 注入的最新回合快照（用于 UI 同步，如 turnbar） */
     currentRound?: GameRound;
 };
 
 export type TurnRoundPayload = {
-    name: "roundStart" | "turnStart" | "roundEnd" | "turnEnd" | "init";
+    name: "roundStart" | "turnStart" | "roundEnd" | "turnEnd" | "init" | "gameOver";
     data: TurnRoundDataWithRound;
 };
 // 注册 MotionPathPlugin
@@ -69,8 +69,8 @@ export interface ICombatContext {
     initialPhaseChanges?: PhaseChanges;
     /** 初始 phaseChanges 处理门：markProcessed 标记已处理，isProcessed 检查 */
     initialPhaseChangesGate: { markProcessed: () => void; isProcessed: () => boolean };
-    turnRound?: TurnRoundPayload;
-    setTurnRound: (payload: TurnRoundPayload) => void;
+    phaseChangeEvent?: TurnRoundPayload;
+    setPhaseChangeEvent: (payload: TurnRoundPayload) => void;
     /** 当前回合活跃角色（用于 3D 视图高亮指示）；由 derivation 与 setActiveCharacterKey 共同控制 */
     activeCharacterKey: string | null;
     setActiveCharacterKey: (key: string | null) => void;
@@ -92,8 +92,8 @@ export const CombatContext = createContext<ICombatContext>({
     mode: 'play',
     playbackSpeed: 1.0,
     initialPhaseChangesGate: { markProcessed: () => { }, isProcessed: () => false },
-    turnRound: undefined,
-    setTurnRound: () => { },
+    phaseChangeEvent: undefined,
+    setPhaseChangeEvent: () => { },
     activeCharacterKey: null,
     setActiveCharacterKey: () => { },
     animating: null,
@@ -214,9 +214,9 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 
     const initialPhaseChangesGate = useInitialPhaseChangesGate();
 
-    const [turnRound, setTurnRoundState] = useState<TurnRoundPayload | undefined>(undefined);
+    const [phaseChangeEvent, setPhaseChangeEventState] = useState<TurnRoundPayload | undefined>(undefined);
 
-    const setTurnRound = useCallback((payload: TurnRoundPayload) => {
+    const setPhaseChangeEvent = useCallback((payload: TurnRoundPayload) => {
         if (!effectiveGame) return;
         const { name, data } = payload;
         let nextPayload = payload;
@@ -360,25 +360,25 @@ const CombatManager: React.FC<CombatManagerProps> = ({
             }
         }
 
-        setTurnRoundState(nextPayload);
+        setPhaseChangeEventState(nextPayload);
     }, [effectiveGame]);
 
     // ✅ 当前回合活跃角色（命令式设置，确保 phase handler 中即时生效）
     const [activeCharacterKey, setActiveCharacterKey] = useState<string | null>(null);
 
-    // turnRound.currentRound 是前端动作链里最及时的回合快照（尤其是召唤/插队场景），
+    // phaseChangeEvent.currentRound 是前端动作链里最及时的回合快照（尤其是召唤/插队场景），
     // 通过 updateRuntimeGame 回写到 runtimeGame.currentRound，避免后续消费者读到旧回合。
     useEffect(() => {
-        const roundFromTurnRound = (turnRound?.data as any)?.currentRound as GameRound | undefined;
-        if (!roundFromTurnRound || roundFromTurnRound === lastSyncedRoundRef.current) return;
-        lastSyncedRoundRef.current = roundFromTurnRound;
-        updateRuntimeGame((prev) => ({ ...prev, currentRound: roundFromTurnRound }));
-    }, [turnRound, updateRuntimeGame]);
+        const roundFromPhaseChangeEvent = (phaseChangeEvent?.data as any)?.currentRound as GameRound | undefined;
+        if (!roundFromPhaseChangeEvent || roundFromPhaseChangeEvent === lastSyncedRoundRef.current) return;
+        lastSyncedRoundRef.current = roundFromPhaseChangeEvent;
+        updateRuntimeGame((prev) => ({ ...prev, currentRound: roundFromPhaseChangeEvent }));
+    }, [phaseChangeEvent, updateRuntimeGame]);
 
-    // ✅ 兜底同步：当 turnRound / game.currentRound 变化时，根据 status 1 的 turn 推导 activeCharacterKey，确保高亮不丢失
+    // ✅ 兜底同步：当 phaseChangeEvent / game.currentRound 变化时，根据 status 1 的 turn 推导 activeCharacterKey，确保高亮不丢失
     useEffect(() => {
-        const roundFromTurnRound = (turnRound?.data as any)?.currentRound as GameRound | undefined;
-        const round = roundFromTurnRound ?? effectiveGame?.currentRound;
+        const roundFromPhaseChangeEvent = (phaseChangeEvent?.data as any)?.currentRound as GameRound | undefined;
+        const round = roundFromPhaseChangeEvent ?? effectiveGame?.currentRound;
         const turns = round?.turns ?? [];
         const activeTurn = turns.find((t) => (t.status ?? 0) === 1);
         if (!activeTurn || !characters?.length) {
@@ -393,7 +393,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         } else {
             setActiveCharacterKey(null);
         }
-    }, [turnRound, effectiveGame?.currentRound, characters]);
+    }, [phaseChangeEvent, effectiveGame?.currentRound, characters]);
 
     // ✅ 动画中角色（2D/3D 行走等）：key + position 合一，避免动画期间被 React 覆盖 GSAP
     const [animating, setAnimatingState] = useState<{
@@ -439,8 +439,8 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         mode: mode,
         initialPhaseChanges,
         initialPhaseChangesGate,
-        turnRound,
-        setTurnRound,
+        phaseChangeEvent,
+        setPhaseChangeEvent,
         activeCharacterKey,
         setActiveCharacterKey,
         animating,

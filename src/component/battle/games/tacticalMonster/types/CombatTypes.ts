@@ -62,7 +62,8 @@ export type EventName =
     | "walk"            // 移动
     | "attack"          // 攻击
     | "use_skill"       // 使用技能
-    | "skillSelect";    // 选择技能
+    | "skillSelect"    // 选择技能
+    | "defend"
 
 /**
  * 事件数据 payload
@@ -242,6 +243,8 @@ export interface CharacterRef3D {
     /** 内层模型组，仅控制朝向 Y；行走时由 GSAP 驱动，避免被 React 覆盖 */
     modelGroupRef?: React.RefObject<{ rotation: { y: number } } | null>;
     playAnimation: (name: string) => void;
+    /** 在角色身上显示技能名称淡入淡出（主动/被动技能） */
+    showSkillName?: (skillName: string) => void;
 }
 
 /**

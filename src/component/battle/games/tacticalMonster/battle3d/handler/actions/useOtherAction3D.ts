@@ -64,9 +64,30 @@ export const useOtherAction3D = (
         // 待实现
     }, []);
 
-    const defend = useCallback(() => {
-        if (mode === 'watch' || mode === 'replay') return;
-    }, [mode]);
+    const defend = useCallback(async () => {
+        if (mode === "watch" || mode === "replay") return;
+        const validation = canPerformAction(mode, game, characters);
+        if (!validation.can || !validation.currentTurn || !game) return;
+        if (validation.currentTurn.uid === "boss") return;
+
+        const identifier = (() => {
+            const cid = validation.currentTurn.character_id ?? validation.currentTurn.monsterId;
+            const bid = validation.currentTurn.bossId;
+            const mid = validation.currentTurn.minionId;
+            if (bid) return { bossId: bid };
+            if (mid) return { minionId: mid };
+            return { monsterId: cid };
+        })();
+
+        try {
+            await convex.mutation((api as any).service.game.gameService.defend, {
+                gameId: game.gameId,
+                identifier,
+            });
+        } catch (error) {
+            console.error("Defend failed", error);
+        }
+    }, [mode, game, characters, convex]);
 
     const surrender = useCallback(async () => {
         // watch/replay 模式：禁止操作

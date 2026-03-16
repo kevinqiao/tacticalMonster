@@ -14,6 +14,7 @@ export interface SkillRange {
     distance?: number;                        // 最大距离（用于 single 和 line）
     min_distance?: number;                    // 最小距离（用于 line）
     max_distance?: number;                    // 最大距离（用于 circle）
+    target_side?: "friend" | "foe" | "all";   // 目标方：友方/敌方/全部，默认 all
 }
 
 /**
@@ -103,6 +104,7 @@ export interface SkillResourceCost {
     mp?: number;                    // 法力值消耗
     hp?: number;                    // 生命值消耗
     stamina?: number;               // 体力消耗
+    energy?: number;                // 能量消耗（必杀技）
 }
 
 /**
@@ -129,7 +131,7 @@ export interface SkillAnimation {
 export interface MonsterSkill {
     id: string;                      // 技能唯一标识符
     name: string;                    // 技能名称
-    type: "master" | "active" | "passive";  // 技能类型
+    type: "master" | "active" | "passive" | "ultimate";  // 技能类型
     description?: string;            // 技能描述
     animation?: SkillAnimation;      // 动画配置对象（可选，前端使用）
 

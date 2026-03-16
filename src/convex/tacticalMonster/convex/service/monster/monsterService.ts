@@ -21,6 +21,15 @@ const SYNTHESIS_SHARD_REQUIREMENTS: Record<string, number> = {
     Legendary: 100,
 };
 
+/** 开局赠送的怪物 ID（哥布林战士、弓箭手） */
+const STARTER_MONSTER_IDS = ["monster_037", "monster_039"] as const;
+
+/** 开局赠送怪物的队伍位置 */
+const STARTER_TEAM_POSITIONS: Array<{ q: number; r: number }> = [
+    { q: 0, r: 0 },
+    { q: 1, r: 2 },
+];
+
 /**
  * 重复角色转换为碎片数量
  */
@@ -224,6 +233,64 @@ export class MonsterService {
         });
 
         return { ok: true, monsterId: monsterId_record };
+    }
+
+    /**
+     * 登录时检查并创建开局赠送怪物（在 mr_player_monsters 表中）
+     * 若玩家队伍为空，则创建 monster_037、monster_039 并加入队伍
+     */
+    static async ensureStarterMonstersOnLogin(ctx: any, uid: string): Promise<{ created: number }> {
+        const teamMonsters = await ctx.db
+            .query("mr_player_monsters")
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .filter((q: any) => q.eq(q.field("inTeam"), 1))
+            .collect();
+
+        if (teamMonsters.length > 0) {
+            return { created: 0 };
+        }
+
+        const now = new Date().toISOString();
+        let created = 0;
+
+        for (let i = 0; i < STARTER_MONSTER_IDS.length; i++) {
+            const monsterId = STARTER_MONSTER_IDS[i];
+            const existing = await ctx.db
+                .query("mr_player_monsters")
+                .withIndex("by_uid_monsterId", (q: any) => q.eq("uid", uid).eq("monsterId", monsterId))
+                .first();
+
+            const position = STARTER_TEAM_POSITIONS[i] ?? { q: 0, r: 0 };
+
+            if (!existing) {
+                const config = this.getMonsterConfig(monsterId);
+                if (!config) continue;
+
+                await ctx.db.insert("mr_player_monsters", {
+                    uid,
+                    monsterId,
+                    level: 1,
+                    stars: 1,
+                    experience: 0,
+                    shards: 0,
+                    isUnlocked: true,
+                    unlockedSkills: [],
+                    inTeam: 1,
+                    teamPosition: position,
+                    obtainedAt: now,
+                    updatedAt: now,
+                });
+                created++;
+            } else {
+                await ctx.db.patch(existing._id, {
+                    inTeam: 1,
+                    teamPosition: position,
+                    updatedAt: now,
+                });
+            }
+        }
+
+        return { created };
     }
 
     /**
@@ -636,6 +703,16 @@ export const getPlayerMonster = query({
     handler: async (ctx, args) => {
         const monster = await MonsterService.getPlayerMonster(ctx, args.uid, args.monsterId);
         return monster;
+    },
+});
+
+/**
+ * 登录时检查并创建开局赠送怪物（mr_player_monsters 表）
+ */
+export const ensureStarterMonstersOnLogin = mutation({
+    args: { uid: v.string() },
+    handler: async (ctx, args) => {
+        return await MonsterService.ensureStarterMonstersOnLogin(ctx, args.uid);
     },
 });
 

@@ -45,7 +45,7 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
     const isProcessingRef = useRef<boolean>(false);
 
     const handleWatchModeActionEvent = useCallback(
-        (event: FrontendCombatEvent, onComplete: () => void) => {
+        async (event: FrontendCombatEvent, onComplete: () => void) => {
             if (!characters || !groundCells) {
                 onComplete();
                 return;
@@ -156,6 +156,16 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                     }
                     onComplete();
                 });
+            } else if (name === "defend") {
+                const phaseChanges = data?.phaseChanges;
+                const stateChanges = phaseChanges?.stateChanges;
+                if (stateChanges && characters) {
+                    applyStateChanges(stateChanges, characters);
+                }
+                if (phaseChanges) {
+                    await handlePhaseChanges(phaseChanges);
+                }
+                onComplete();
             } else {
                 onComplete();
             }
@@ -281,6 +291,7 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                 }
                 case "attack":
                 case "walk":
+                case "defend":
                 case "skillSelect":
                 case "use_skill":
                     if (isReplayMode || isWatchMode) {

@@ -1,11 +1,13 @@
 /**
  * 第一类：即时效果 - 直接伤害
  * 优先扣除护盾，再扣 HP；不写入 statusEffects
+ * 支持 damage_falloff：超出 full_damage_range 时按 min_damage_percent 衰减
  */
 
 import type { GameMonster } from "../../../../types/monsterTypes";
 import type { SkillEffect } from "../../../../types/skillTypes";
 import { SkillEffectType } from "../../../../types/skillTypes";
+import { offsetHexDistance } from "../../../../utils/hexUtils";
 import { calculateDamage } from "../../damageCalculator";
 import type { EffectApplyResult } from "../EffectHandler";
 
@@ -21,7 +23,20 @@ export class DamageHandler {
             return { applied: false };
         }
 
-        const damage = calculateDamage(effect.value, caster, target, effect);
+        let baseValue = effect.value;
+        if (effect.damage_falloff) {
+            const distance = offsetHexDistance(
+                { q: caster.q ?? 0, r: caster.r ?? 0 },
+                { q: target.q ?? 0, r: target.r ?? 0 }
+            );
+            if (distance > effect.damage_falloff.full_damage_range) {
+                const pct = effect.damage_falloff.min_damage_percent;
+                const factor = pct > 1 ? pct / 100 : pct;
+                baseValue = Math.round(baseValue * factor);
+            }
+        }
+
+        const damage = calculateDamage(baseValue, caster, target, effect);
         let remaining = damage;
         const currentHp = target.stats.hp?.current ?? 0;
 

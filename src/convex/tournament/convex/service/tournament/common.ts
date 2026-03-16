@@ -618,7 +618,7 @@ export async function findPlayerRank(ctx: any, params: { uid: string; tournament
     }
     return { rank, tournamentId };
 }
-export async function settleTournament(ctx: any, tournamentId: string) {
+export async function settleTournament(ctx: any, tournamentId: string, matchId?: string) {
     const tournament = await ctx.db.get(tournamentId as Id<"tournaments">);
     if (!tournament) {
         throw new Error("锦标赛不存在");
@@ -655,6 +655,33 @@ export async function settleTournament(ctx: any, tournamentId: string) {
         score: pt.score || 0,
     }));
 
+    // 获取 isFirstClear 与 performanceLevels（单人关卡）
+    let isFirstClear: Record<string, boolean> = {};
+    let performanceLevels: Record<string, string> = {};
+    const isSinglePlayer = tournamentConfig.matchRules?.minPlayers === 1 && tournamentConfig.matchRules?.maxPlayers === 1;
+    const effectiveMatchId = matchId || (tournament as any).matchId;
+    if (isSinglePlayer && effectiveMatchId) {
+        const playerMatches = await ctx.db
+            .query("player_matches")
+            .withIndex("by_match", (q: any) => q.eq("matchId", effectiveMatchId))
+            .collect();
+        for (const pm of playerMatches) {
+            if (pm.isFirstClear === true) {
+                isFirstClear[pm.uid] = true;
+            }
+        }
+        const thresholds = tournamentConfig.rewards?.performanceRewards?.scoreThresholds;
+        if (thresholds && thresholds.length > 0) {
+            const sorted = [...thresholds].sort((a, b) => b.minScore - a.minScore);
+            for (const r of rankings) {
+                const entry = sorted.find((t) => r.score >= t.minScore);
+                if (entry) {
+                    performanceLevels[r.uid] = entry.level;
+                }
+            }
+        }
+    }
+
     // 获取玩家订阅状态（用于计算订阅加成）
     const isSubscribed: Record<string, boolean> = {};
     for (const playerTournament of playerTournaments) {
@@ -670,8 +697,10 @@ export async function settleTournament(ctx: any, tournamentId: string) {
         tournamentConfig: tournamentConfig,
         rankings: rankings,
         gameId: `tournament_${tournamentId}`,
-        matchId: tournament.matchId || null,
+        matchId: effectiveMatchId || (tournament as any).matchId || null,
         isSubscribed: isSubscribed,
+        isFirstClear,
+        performanceLevels,
     });
 
     // 计算排名并分配积分

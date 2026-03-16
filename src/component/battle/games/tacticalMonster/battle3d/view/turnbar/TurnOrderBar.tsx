@@ -22,7 +22,8 @@ export type TurnBarItem = {
     character_id: string;
     index?: number;
     ele?: HTMLDivElement;
-    status?: number;
+    status: number;
+    order?: number;
     turnKey?: string;
 };
 
@@ -35,8 +36,8 @@ const getSeparatorIndexFromRound = (round: any): number => {
 };
 
 export const TurnOrderBar: React.FC = () => {
-    const { game, mapDimension, turnRound, characters, mode, playbackSpeed = 1.0 } = useCombatManager();
-    const turnRoundQueueRef = useRef<{ status: number, turnRound: { name: string, data: any } }[]>([{ status: 0, turnRound: { name: "init", data: game?.currentRound } }]);
+    const { game, mapDimension, phaseChangeEvent, characters, mode, playbackSpeed = 1.0 } = useCombatManager();
+    const phaseChangeEventQueueRef = useRef<{ status: number, phaseChangeEvent: { name: string, data: any } }[]>([{ status: 0, phaseChangeEvent: { name: "init", data: game?.currentRound } }]);
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
     const turnBarItemsMapRef = useRef<Map<string, TurnBarItem>>(new Map());
     const [separator, setSeparator] = useState<{ ele: HTMLDivElement | null, txtEle: HTMLDivElement | null, nextRound: number, index: number }>({
@@ -66,51 +67,54 @@ export const TurnOrderBar: React.FC = () => {
         playbackSpeed,
     });
     useEffect(() => {
-        if (!turnRound) return;
+        if (!phaseChangeEvent) return;
         const shouldQueue =
-            turnRound.name === "init" ||
-            turnRound.name === "turnStart" ||
-            turnRound.name === "roundEnd" ||
-            (turnRound.name === "roundStart");
+            phaseChangeEvent.name === "init" ||
+            phaseChangeEvent.name === "turnStart" ||
+            phaseChangeEvent.name === "roundEnd" ||
+            (phaseChangeEvent.name === "roundStart");
         if (shouldQueue) {
-            turnRoundQueueRef.current.push({ status: 0, turnRound });
+            phaseChangeEventQueueRef.current.push({ status: 0, phaseChangeEvent });
+
         }
-    }, [turnRound, mode]);
+    }, [phaseChangeEvent, mode]);
 
 
     useEffect(() => {
         const processEvent = () => {
-            if (turnRoundQueueRef.current.length > 0 && (timelineRef.current === null || !timelineRef.current?.isActive())) {
-                const turn = turnRoundQueueRef.current[0];
+            if (phaseChangeEventQueueRef.current.length > 0 && (timelineRef.current === null || !timelineRef.current?.isActive())) {
+                const turn = phaseChangeEventQueueRef.current[0];
 
                 if (turn.status === 2) {
-                    turnRoundQueueRef.current.shift();
+                    phaseChangeEventQueueRef.current.shift();
                     return;
                 }
 
                 if (turn.status === 0) {
+                    console.log("event:", turn.phaseChangeEvent);
                     turn.status = 1;
                     timelineRef.current = gsap.timeline({
                         onComplete: () => {
                             console.log("timeline complete");
+
                             timelineRef.current = null;
                         },
 
                     });
-                    if (turn.turnRound.name === "init") {
+                    if (turn.phaseChangeEvent.name === "init") {
                         playInitTurn(turn, timelineRef.current);
                         return;
                     }
-                    if (turn.turnRound.name === "turnStart") {
+                    if (turn.phaseChangeEvent.name === "turnStart") {
                         playStartTurn(turn, timelineRef.current);
                         return;
                     }
-                    if (turn.turnRound.name === "roundEnd") {
-
+                    if (turn.phaseChangeEvent.name === "roundEnd") {
                         turn.status = 2;
+                        timelineRef.current?.play();
                         return;
                     }
-                    if (turn.turnRound.name === "roundStart") {
+                    if (turn.phaseChangeEvent.name === "roundStart") {
                         playStartRound(turn, timelineRef.current);
                         return;
                     }
@@ -118,7 +122,7 @@ export const TurnOrderBar: React.FC = () => {
             }
         };
         processEvent();
-        const intervalId = setInterval(processEvent, 500);
+        const intervalId = setInterval(processEvent, 100);
         return () => clearInterval(intervalId);
     }, [mode, playInitTurn, playStartTurn]);
 

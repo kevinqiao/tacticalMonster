@@ -87,6 +87,16 @@ export interface StageRuleConfig {
         summonTestTeamPreset?: "default";
     };
 
+    // ============================================
+    // 体力与奖励（关卡体力与奖励机制设计）
+    // ============================================
+    staminaCost?: number;
+    recommendedPower?: number;
+    starRatingConfig?: {
+        threeStarMaxRounds?: number;
+        twoStarMinSurvivors?: number;
+    };
+    starRewardMultipliers?: Record<1 | 2 | 3, number>;
 
     // ============================================
     // 显示和排序

@@ -72,6 +72,7 @@ import type * as service_game_gameService from "../service/game/gameService.js";
 import type * as service_game_roundService from "../service/game/roundService.js";
 import type * as service_game_sharedScoreService from "../service/game/sharedScoreService.js";
 import type * as service_game_skillTargetService from "../service/game/skillTargetService.js";
+import type * as service_game_starRatingService from "../service/game/starRatingService.js";
 import type * as service_game_summonService from "../service/game/summonService.js";
 import type * as service_game_tests_challengeLevel_endToEndTest from "../service/game/tests/challengeLevel/endToEndTest.js";
 import type * as service_game_tests_combat_combatE2E from "../service/game/tests/combat/combatE2E.js";
@@ -112,6 +113,7 @@ import type * as service_stage_mapGenerationService from "../service/stage/mapGe
 import type * as service_stage_stageManagerService from "../service/stage/stageManagerService.js";
 import type * as service_stage_stageUtils from "../service/stage/stageUtils.js";
 import type * as service_stage_tests_testData from "../service/stage/tests/testData.js";
+import type * as service_stamina_staminaService from "../service/stamina/staminaService.js";
 import type * as service_task_taskIntegration from "../service/task/taskIntegration.js";
 import type * as service_team_teamService from "../service/team/teamService.js";
 import type * as service_tournament_tournamentProxyService from "../service/tournament/tournamentProxyService.js";
@@ -202,6 +204,7 @@ declare const fullApi: ApiFromModules<{
   "service/game/roundService": typeof service_game_roundService;
   "service/game/sharedScoreService": typeof service_game_sharedScoreService;
   "service/game/skillTargetService": typeof service_game_skillTargetService;
+  "service/game/starRatingService": typeof service_game_starRatingService;
   "service/game/summonService": typeof service_game_summonService;
   "service/game/tests/challengeLevel/endToEndTest": typeof service_game_tests_challengeLevel_endToEndTest;
   "service/game/tests/combat/combatE2E": typeof service_game_tests_combat_combatE2E;
@@ -242,6 +245,7 @@ declare const fullApi: ApiFromModules<{
   "service/stage/stageManagerService": typeof service_stage_stageManagerService;
   "service/stage/stageUtils": typeof service_stage_stageUtils;
   "service/stage/tests/testData": typeof service_stage_tests_testData;
+  "service/stamina/staminaService": typeof service_stamina_staminaService;
   "service/task/taskIntegration": typeof service_task_taskIntegration;
   "service/team/teamService": typeof service_team_teamService;
   "service/tournament/tournamentProxyService": typeof service_tournament_tournamentProxyService;

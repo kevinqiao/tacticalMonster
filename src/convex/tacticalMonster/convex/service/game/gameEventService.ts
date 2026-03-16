@@ -137,6 +137,22 @@ export class GameEventService {
     }
 
     /**
+     * 创建 defend 事件
+     */
+    createDefendEvent(
+        gameId: string,
+        identifier: { monsterId?: string; bossId?: string; minionId?: string }
+    ): CombatEvent {
+        return {
+            gameId,
+            name: "defend",
+            type: 4,
+            data: { identifier },
+            time: Date.now(),
+        };
+    }
+
+    /**
      * 创建 game_end 事件
      */
     createGameEndEvent(gameId: string): CombatEvent {

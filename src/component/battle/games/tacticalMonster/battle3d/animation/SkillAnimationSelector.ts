@@ -29,6 +29,7 @@ export class SkillAnimationSelector {
         [SkillEffectType.MP_DRAIN]: { name: "cast" },
         [SkillEffectType.MOVEMENT]: { name: "cast" },
         [SkillEffectType.TELEPORT]: { name: "cast" },
+        [SkillEffectType.SUMMON]: { name: "cast" },
     };
 
     /**

@@ -264,6 +264,8 @@ export const tournamentSchema = {
             v.literal("lose"),
             v.literal("draw")
         )),
+        /** 是否为首通（单人关卡首次通关该 ruleId） */
+        isFirstClear: v.optional(v.boolean()),
         dueTime: v.optional(v.string()),
         createdAt: v.string(),
         updatedAt: v.optional(v.string()),

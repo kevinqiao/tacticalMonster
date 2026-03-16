@@ -38,6 +38,10 @@ const getRotatedSeparatorIndex = (base: number, offsetSteps: number, total: numb
 
 export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, playbackSpeed = 1.0 }: UsePlayTurnBarOptions) => {
 
+    const getSortedTurnItems = useCallback((): TurnBarItem[] => {
+        const items = Array.from(itemsMapRef.current?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
+        return items.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    }, [itemsMapRef]);
 
     const calcCoordX = useCallback(
         (index: number, totalItems: number, separatorIndex: number, isSeparator: boolean = false) => {
@@ -52,41 +56,37 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             const offset = s > index ? 0 : itemWidth * 0.75 + GAP;
             return offset + itemWidth * 1.2 + itemWidth * (index - 1) + GAP * (index - 1);
         },
-        [dimension?.itemWidth]
+        [dimension]
     );
 
     const syncItemsToCurrentLayout = useCallback(() => {
-        const turnItems = getSortedTurnItems();
-        const total = turnItems.length;
-        separator.index = clampSeparatorIndex(separator.index, total);
+        const turnItems = Array.from(itemsMapRef.current?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
+        const size = turnItems.length;
         turnItems.forEach((item) => {
             if (!item.ele) return;
             const isCurrent = (item.index ?? 0) === 0;
+            const x = calcCoordX(item.index ?? 0, size, separator.index);
             gsap.set(item.ele, {
-                x: calcCoordX(item.index ?? 0, total, separator.index),
+                x,
                 scale: isCurrent ? 1.2 : 1,
                 boxShadow: isCurrent ? "0 0 0 2px white" : "none",
                 autoAlpha: 1,
             });
         });
         if (separator.ele) {
-            gsap.set(separator.ele, { x: calcCoordX(separator.index, total, separator.index, true) });
+            gsap.set(separator.ele, { x: calcCoordX(separator.index, size, separator.index, true) });
         }
-    }, [calcCoordX, itemsMapRef, separator]);
+    }, [calcCoordX, dimension, itemsMapRef, separator]);
 
-    const getSortedTurnItems = useCallback((): TurnBarItem[] => {
-        const items = Array.from(itemsMapRef.current?.values() ?? []);
-        items.forEach((i) => { if (i.index === undefined) i.index = -1; });
-        return [...items].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-    }, [itemsMapRef]);
+
 
     const applyRoundLayoutByIds = useCallback((orderIds: string[], separatorIndex?: number) => {
+        const size = orderIds.length;
+        if (size <= 0) return;
         orderIds.forEach((characterId, index) => {
             const item = itemsMapRef.current?.get(characterId);
             if (item) item.index = index;
         });
-        const size = orderIds.length;
-        if (size <= 0) return;
         if (separatorIndex !== undefined) {
             separator.index = clampSeparatorIndex(separatorIndex, size);
         }
@@ -120,84 +120,149 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
         }
         gsap.to(target, tweenVars);
     }, [syncItemsToCurrentLayout]);
-    const playStartTurn = useCallback((turn: { status: number; turnRound: { name: string; data: any } }, timeline?: gsap.core.Timeline) => {
-        const turnData = turn.turnRound.data as StartTurnPayload;
+
+    const playStartTurn = useCallback((turn: { status: number; phaseChangeEvent: { name: string; data: any } }, timeline?: gsap.core.Timeline) => {
+        if (!dimension) {
+            turn.status = 0;
+            timeline?.play();
+            return
+        }
+        const turnData = turn.phaseChangeEvent.data as StartTurnPayload;
         const currentRound = turnData.currentRound;
-        const turnItems = getSortedTurnItems();
-        if (turnItems.length !== (currentRound?.turns?.length ?? 0)) {
+        const activeCharacterId = turnData.turn?.character_id ?? turnData.character_id;
+        const turnItems = Array.from(itemsMapRef.current?.values() ?? []);
+        const renderCompleted = currentRound?.turns?.every((t, index) => {
+            const item = turnItems.find(i => i.character_id === t.character_id);
+            return item ? true : false;
+        });
+        if (!renderCompleted || !activeCharacterId) {
             turn.status = 0;
             timeline?.play();
             return;
         }
-        const activeCharacterId = turnData.turn?.character_id ?? turnData.character_id;
+        console.log("turnItems:", turnItems, currentRound?.turns);
 
-        if (turnItems.some((i) => (i.index ?? 0) < 0) && currentRound) {
-            getTurnOrderByRound(currentRound).forEach((t, index) => {
-                const item = itemsMapRef.current?.get(t.character_id);
-                if (item) item.index = index;
-            });
-            syncItemsToCurrentLayout();
+        const noChange = turnItems.every((item) => {
+            const turn = currentRound?.turns?.find(t => t.character_id === item.character_id);
+            if (turn && turn.status === item.status && turn.order === item.order) {
+                return true;
+            }
+            return false;
+        });
+
+        if (noChange) {
             turn.status = 2;
-            return;
-        }
-        if (!activeCharacterId) return;
-
-        const sorted = [...turnItems].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-        const oldOrderIds = sorted.map((i) => i.character_id);
-        const activeOldIndex = sorted.findIndex((i) => i.character_id === activeCharacterId);
-        const offsetSteps = Math.max(0, activeOldIndex);
-        const totalItems = turnItems.length;
-        const rotatedOrderIds = oldOrderIds.slice(offsetSteps).concat(oldOrderIds.slice(0, offsetSteps));
-        const expectedSeparatorIndex = getRotatedSeparatorIndex(
-            clampSeparatorIndex(separator.index, totalItems),
-            offsetSteps,
-            totalItems,
-        );
-
-        const finishTurn = () => {
-            turn.status = 2;
-            applyRoundLayoutByIds(rotatedOrderIds, expectedSeparatorIndex);
-            syncItemsToCurrentLayout();
-        };
-
-        if (offsetSteps <= 0) {
-            finishTurn();
             timeline?.play();
             return;
         }
 
-        const trackEl = trackRef?.current;
-        if (trackEl) {
-            const itemWidth = dimension?.itemWidth ?? 0;
-            const totalDistance = (itemWidth + GAP) * offsetSteps;
-            const tl = gsap.timeline({
-                timeScale: playbackSpeed,
-                onComplete: () => {
-                    gsap.set(trackEl, { x: 0 });
-                    finishTurn();
-                },
+        turnItems.forEach((item) => {
+            const turn = currentRound?.turns?.find(t => t.character_id === item.character_id);
+            if (turn) {
+                item.order = turn.order;
+            } else {
+                item.order = item.order && item.order > 0 ? -1 : -2;
+            }
+        });
+        const removes = turnItems.filter(i => i.order === -1);
+        const todos = turnItems.filter(i => i.order !== undefined && i.order >= 0 && i.status !== 2).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        const dones = turnItems.filter(i => i.order !== undefined && i.order >= 0 && i.status === 2).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        const turnOrderItems = [...todos, ...dones];
+        const isReordered = turnOrderItems.every((t: TurnBarItem, index: number) => t.index === index);
+        if (!isReordered) {
+            separator.index = todos.length;
+            const cl = gsap.timeline({ timeScale: playbackSpeed });
+            turnOrderItems.forEach((t: TurnBarItem, index: number) => {
+                t.index = index;
+                if (t.ele) {
+                    cl.to(t.ele, {
+                        autoAlpha: 1,
+                        x: calcCoordX(index, turnItems.length, separator.index),
+                        duration: 0.5,
+                        ease: "power2.out",
+                        overwrite: "auto",
+                    }, "<");
+                }
             });
-            timeline?.add(tl, ">");
-            tl.to(trackEl, { x: -totalDistance, duration: CONVEYOR_DURATION_PER_STEP * offsetSteps, ease: "none", overwrite: "auto" });
-            timeline?.play();
-            return;
+
+            cl.to(separator.ele, {
+                x: calcCoordX(separator.index, turnItems.length, separator.index, true),
+                duration: 0,
+                overwrite: "auto",
+            }, ">");
+            timeline?.add(cl);
+        }
+        if (removes.length > 0) {
+            separator.index = todos.length;
+            const dl = gsap.timeline({ timeScale: playbackSpeed });
+            removes.forEach((d: TurnBarItem) => {
+                if (d.ele) {
+                    dl.to(d.ele, { autoAlpha: 0, duration: 0.5, ease: "power2.out", overwrite: "auto" }, "<");
+                }
+            });
+            timeline?.add(dl, "<");
         }
 
-        finishTurn();
+
+        if (currentRound) {
+            const turnOrder = getTurnOrderByRound(currentRound);
+            const offsetSteps = turnItems.find(t => t.character_id === activeCharacterId)?.index ?? 0;
+            if (offsetSteps <= 0) {
+                syncItemsToCurrentLayout();
+                turn.status = 2;
+                timeline?.play();
+                return;
+            }
+
+            turnOrder.forEach((t: GameTurn, index: number) => {
+                const item = turnItems.find(i => i.character_id === t.character_id);
+                if (item) {
+                    item.index = index;
+                    item.status = t.status ?? 0;
+                }
+            });
+            const expectedSeparatorIndex = getRotatedSeparatorIndex(separator.index, offsetSteps, turnOrder.length);
+            separator.index = expectedSeparatorIndex;
+
+            const trackEl = trackRef?.current;
+            if (trackEl) {
+                const itemWidth = dimension?.itemWidth ?? 0;
+                const totalDistance = (itemWidth + GAP) * offsetSteps;
+                const tl = gsap.timeline({
+                    timeScale: playbackSpeed,
+                    onComplete: () => {
+                        gsap.set(trackEl, { x: 0 });
+                        syncItemsToCurrentLayout();
+                        turn.status = 2;
+                    },
+                });
+                timeline?.add(tl, ">");
+                tl.to(trackEl, { x: -totalDistance, duration: CONVEYOR_DURATION_PER_STEP * offsetSteps, ease: "none", overwrite: "auto" });
+                timeline?.play();
+                return;
+            }
+        }
+        timeline?.play();
+
+
     }, [applyRoundLayoutByIds, getSortedTurnItems, dimension?.itemWidth, itemsMapRef, playbackSpeed, separator, syncItemsToCurrentLayout, trackRef]);
     const playStartRound = useCallback(
         (
-            turn: { status: number, turnRound: { name: string, data: any } }, timeline?: gsap.core.Timeline
+            turn: { status: number, phaseChangeEvent: { name: string, data: any } }, timeline?: gsap.core.Timeline
         ) => {
-            const round = turn.turnRound.data.round;
+            const round = turn.phaseChangeEvent.data.round;
 
             const turnOrders = getTurnOrderByRound(round);
             turnOrders.forEach((turn, index) => {
                 const item = itemsMapRef.current?.get(turn.character_id);
-                if (item) item.index = index;
+                if (item) {
+                    item.order = turn.order;
+                    item.index = index;
+                    item.status = turn.status ?? 0;
+                }
             });
-            const turnItems = getSortedTurnItems();
-            const total = turnItems.length;
+
+            const total = turnOrders.length;
             separator.index = total;
             separator.nextRound = round.no + 1;
             if (separator.txtEle) {
@@ -211,7 +276,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
                     }
                 }
             );
-
+            const turnItems = getSortedTurnItems();
             turnItems.forEach((item) => {
                 if (!item.ele) return;
                 const isCurrent = (item.index ?? 0) === 0;
@@ -238,103 +303,82 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
     );
     const playInitTurn = useCallback(
         (
-            turn: { status: number; turnRound: { name: string; data: any } },
+            turn: { status: number; phaseChangeEvent: { name: string; data: any } },
             timeline?: gsap.core.Timeline
         ) => {
-            const round = turn.turnRound.data as GameRound;
-            const turnOrders = getTurnOrderByRound(round);
-            const visibleOrderIds = turnOrders
-                .map((t) => t.character_id)
-                .filter((id) => itemsMapRef.current?.has(id));
-            const size = visibleOrderIds.length;
-            if (size <= 0) {
+            if (!dimension) {
                 turn.status = 0;
                 timeline?.play();
-                return;
+                return
             }
-            const visibleTodosCount = turnOrders
-                .filter((t) => (t.status ?? 0) !== 2 && itemsMapRef.current?.has(t.character_id))
-                .length;
-            const separatorIndex = (visibleTodosCount === 0 || visibleTodosCount === size) ? size : visibleTodosCount;
-            applyRoundLayoutByIds(visibleOrderIds, separatorIndex);
+            const currentRound = turn.phaseChangeEvent.data as GameRound;
 
-            const turnItems = getSortedTurnItems()
-                .filter((i) => (i.index ?? -1) >= 0)
-                .sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-
-            const widthReady = (dimension?.itemWidth ?? 0) > 0;
-            if (!widthReady) {
+            const turnItems = Array.from(itemsMapRef.current?.values() ?? []);
+            const renderCompleted = currentRound.turns?.every((t, index) => {
+                const item = turnItems.find(i => i.character_id === t.character_id);
+                return item ? true : false;
+            });
+            if (!renderCompleted) {
                 turn.status = 0;
                 timeline?.play();
                 return;
             }
 
-            const sepIdx = clampSeparatorIndex(separatorIndex, size);
-            const itemByIndex = new Map<number, TurnBarItem>();
-            turnItems.forEach((item) => itemByIndex.set(item.index ?? -1, item));
-
-            const displayOrder: Array<{ ele: HTMLDivElement; index: number; isSeparator: boolean }> = [];
-            for (let pos = 0; pos < size; pos++) {
-                if (separator.index === pos && separator.ele) {
-                    displayOrder.push({ ele: separator.ele, index: pos, isSeparator: true });
+            turnItems.forEach((item) => {
+                const turn = currentRound.turns?.find(t => t.character_id === item.character_id);
+                if (turn) {
+                    item.status = turn.status ?? 0;
+                    item.order = turn.order;
+                } else {
+                    item.order = -1;
                 }
-                const item = itemByIndex.get(pos);
-                if (item?.ele) {
-                    displayOrder.push({ ele: item.ele, index: pos, isSeparator: false });
-                }
-            }
-            if (separator.index === size && separator.ele) {
-                displayOrder.push({ ele: separator.ele, index: size, isSeparator: true });
-            }
-            if (displayOrder.length <= 0) {
-                turn.status = 0;
-                timeline?.play();
-                return;
-            }
+            });
+            console.log("turnItems init:", turnItems, currentRound.turns);
+            const todos = turnItems.filter(i => i.order !== undefined && i.order >= 0 && i.status < 2).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            const dones = turnItems.filter(i => i.order !== undefined && i.order >= 0 && i.status === 2).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            [...todos, ...dones].forEach((t: TurnBarItem, index: number) => {
+                t.index = index;
+            });
+            separator.index = todos.length;
 
-            displayOrder.forEach(({ ele, index, isSeparator }) => {
-                gsap.set(ele, { autoAlpha: 1, zIndex: index * 3 + (isSeparator ? -1 : 0), x: 0 });
+            const tl = gsap.timeline({
+                timeScale: playbackSpeed,
+                onComplete: () => {
+                    console.log("init turn complete", itemsMapRef.current);
+                    turn.status = 2;
+                    // syncItemsToCurrentLayout();
+                }
             });
 
-            const targets = displayOrder.map((d) => d.ele);
-            const getTargetX = (i: number) => {
-                const d = displayOrder[i];
-                if (!d) return 0;
-                return calcCoordX(d.index, size, sepIdx, d.isSeparator);
-            };
+            turnItems.forEach((t: TurnBarItem, index: number) => {
+                if (t.ele) {
+                    const x = calcCoordX(index, turnItems.length, separator.index);
 
-            const tl = timeline ?? gsap.timeline({ timeScale: playbackSpeed });
-            if (!timeline) {
-                tl.timeScale(playbackSpeed);
-            }
-            if (targets.length > 0) {
-                tl.to(targets, {
-                    x: (i: number) => getTargetX(i),
-                    duration: 0.45,
-                    ease: "expo.out",
-                    stagger: { each: 0.04, from: "start", ease: "power2.out" },
-                    force3D: true,
+                    tl.to(t.ele, {
+                        x,
+                        scale: index === 0 ? 1.2 : 1,
+                        boxShadow: index === 0 ? "0 0 0 2px white" : "none",
+                        duration: 0.5,
+                        ease: "power2.out",
+                        overwrite: "auto",
+                    }, "<");
+                }
+            });
+            if (separator.ele) {
+                const x = calcCoordX(separator.index, turnItems.length, separator.index, true);
+                tl.to(separator.ele, {
+                    x,
+                    duration: 0.5,
+                    ease: "power2.out",
                     overwrite: "auto",
                 }, "<");
+                tl.to(separator.ele, { autoAlpha: 1, duration: 0.5, ease: "power2.out" }, ">");
             }
-            const firstItem = turnItems[0]?.ele;
-            if (firstItem) {
-                tl.to(firstItem, {
-                    scale: 1.2,
-                    boxShadow: "0 0 0 2px white",
-                    duration: 0.04,
-                    ease: "power4.out",
-                    force3D: true,
-                    overwrite: "auto",
-                }, ">=-0.08");
-            }
-            tl.add(() => {
-                turn.status = 2;
-                syncItemsToCurrentLayout();
-            }, ">");
+            timeline?.add(tl, ">");
+
             timeline?.play();
         },
-        [applyRoundLayoutByIds, calcCoordX, dimension?.itemWidth, itemsMapRef, playbackSpeed, separator, syncItemsToCurrentLayout]
+        [calcCoordX, dimension, itemsMapRef, playbackSpeed, separator, syncItemsToCurrentLayout]
     );
     useEffect(() => {
         syncItemsToCurrentLayout();

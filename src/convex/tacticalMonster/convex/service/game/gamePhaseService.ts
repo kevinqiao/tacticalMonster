@@ -92,6 +92,15 @@ export class GamePhaseService {
             this.characterQueryService.getCharacterParams(nextTurn.uid, nextTurn.character_id);
         const turnCharacter = this.characterQueryService.getCharacter(turnMonsterId, turnBossId, turnMinionId);
         if (turnCharacter) {
+            // 每回合开始：玩家角色 +5 能量
+            if (turnCharacter.uid !== "boss" && turnCharacter.stats) {
+                if (!turnCharacter.stats.energy) {
+                    turnCharacter.stats.energy = { current: 0, max: 100 };
+                }
+                const cur = turnCharacter.stats.energy.current ?? 0;
+                const max = turnCharacter.stats.energy.max ?? 100;
+                turnCharacter.stats.energy.current = Math.min(max, cur + 5);
+            }
             const tickResult = processStatusEffects(turnCharacter);
             if ((turnCharacter.stats?.hp?.current ?? 0) <= 0) turnCharacter.status = "dead";
             await this.characterUpdateService.updateCharacterInDatabase(gameId, turnCharacter, gameRef.current);
@@ -394,9 +403,13 @@ export class GamePhaseService {
             // 检查所有技能（skills 是 string[]）
             for (const skillId of character.skills) {
                 const skillIdStr = skillId;
+                const phaseContext = {
+                    roundNumber: currentGame?.currentRound?.no ?? 0,
+                    triggerChance: Math.random(),
+                };
 
                 // 检查是否应该触发被动技能
-                if (SkillManager.shouldTriggerPassiveSkill(skillIdStr, character, triggerType)) {
+                if (await SkillManager.shouldTriggerPassiveSkill(skillIdStr, character, triggerType, phaseContext)) {
                     // 获取被动技能效果
                     const effects = SkillManager.getPassiveSkillEffects(skillIdStr, triggerType);
 

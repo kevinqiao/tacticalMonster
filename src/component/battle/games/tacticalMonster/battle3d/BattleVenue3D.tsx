@@ -11,7 +11,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { COMMON_SKILLS } from "../config/skillConfigs";
+import { SKILL_CONFIGS } from "../config/skillConfigs";
 import { useCombatManager } from "../service/CombatManager";
 import { canPerformAction } from "../utils/validationUtils";
 import { BattleLoadingContext } from "./BattleLoadingContext";
@@ -243,8 +243,9 @@ const SkillPanel: React.FC<{
     selectSkill: (skill: import("../types/skillTypes").MonsterSkill) => void;
     useSkill: (skillId: string, target?: import("../types/CombatTypes").MonsterSprite) => Promise<void>;
     surrender: () => void;
+    defend: () => void;
     clearGrid: () => void;
-}> = ({ selectSkill, useSkill, surrender, clearGrid }) => {
+}> = ({ selectSkill, useSkill, surrender, defend, clearGrid }) => {
     const { game, mode, characters } = useCombatManager();
     const validation = canPerformAction(mode ?? "play", game, characters);
     const { can, currentTurn, character } = validation;
@@ -257,7 +258,7 @@ const SkillPanel: React.FC<{
     }, [turnKey]);
 
     const selectedSkillId = localSelectedSkillId ?? currentTurn?.skillSelect ?? null;
-    const selectedSkill = selectedSkillId ? COMMON_SKILLS[selectedSkillId] : null;
+    const selectedSkill = selectedSkillId ? SKILL_CONFIGS[selectedSkillId] : null;
     const isNoTargetSkill =
         selectedSkill?.effects?.some(
             (e: any) => e.type === "summon" && e.summonConfig?.position_mode === "caster_adjacent"
@@ -267,10 +268,12 @@ const SkillPanel: React.FC<{
         ? character.skills
         : (character as any)?.unlockSkills ?? ["basic_attack"];
     const activeSkills = (Array.isArray(skillIds) ? skillIds : [])
-        .map((id: string) => ({ id, skill: COMMON_SKILLS[id] }))
-        .filter(({ skill }: { skill: any }) => skill && (skill.type === "active" || skill.type === "master"));
+        .map((id: string) => ({ id, skill: SKILL_CONFIGS[id] }))
+        .filter(({ skill }: { skill: any }) => skill && (skill.type === "active" || skill.type === "master" || skill.type === "ultimate"));
 
     const mp = (character as any)?.stats?.mp?.current ?? 100;
+    const energy = (character as any)?.stats?.energy?.current ?? 0;
+    const energyMax = (character as any)?.stats?.energy?.max ?? 100;
     const cooldowns = (character as any)?.skillCooldowns ?? {};
 
     if (!can || mode === "watch" || mode === "replay") {
@@ -298,10 +301,27 @@ const SkillPanel: React.FC<{
 
     return (
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
+            {energyMax > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginRight: 4 }}>
+                    <span style={{ fontSize: 11 }}>能量</span>
+                    <div style={{ width: 60, height: 8, background: "#333", borderRadius: 4, overflow: "hidden" }}>
+                        <div
+                            style={{
+                                width: `${Math.min(100, (energy / energyMax) * 100)}%`,
+                                height: "100%",
+                                background: "linear-gradient(90deg, #ffd700, #ff8c00)",
+                                transition: "width 0.2s",
+                            }}
+                        />
+                    </div>
+                    <span style={{ fontSize: 10 }}>{energy}/{energyMax}</span>
+                </div>
+            )}
             {activeSkills.map(({ id, skill }: { id: string; skill: any }) => {
                 const cooldown = cooldowns[id] ?? 0;
                 const mpCost = skill.resource_cost?.mp ?? 0;
-                const disabled = cooldown > 0 || mp < mpCost;
+                const energyCost = skill.resource_cost?.energy ?? 0;
+                const disabled = cooldown > 0 || (mpCost > 0 && mp < mpCost) || (energyCost > 0 && energy < energyCost);
                 const isSelected = selectedSkillId === id;
                 return (
                     <div
@@ -313,7 +333,7 @@ const SkillPanel: React.FC<{
                             border: isSelected ? "2px solid #fff" : undefined,
                         }}
                         onClick={() => !disabled && handleSkillClick(skill)}
-                        title={`${skill.name}${cooldown > 0 ? ` (冷却${cooldown})` : ""}`}
+                        title={`${skill.name}${cooldown > 0 ? ` (冷却${cooldown})` : ""}${energyCost > 0 ? ` 消耗能量${energyCost}` : ""}`}
                     >
                         {skill.name}
                         {cooldown > 0 && <span style={{ fontSize: 10, marginLeft: 2 }}>CD{cooldown}</span>}
@@ -340,6 +360,17 @@ const SkillPanel: React.FC<{
                     </div>
                 );
             })()}
+            <div
+                className="action-panel-item"
+                onClick={() => {
+                    clearGrid();
+                    defend();
+                }}
+                style={{ backgroundColor: "rgb(70, 130, 180)" }}
+                title="防守"
+            >
+                防守
+            </div>
             <div className="action-panel-item" onClick={() => surrender()}>
                 GAME OVER
             </div>
@@ -356,7 +387,7 @@ export const BattleVenue3D: React.FC = () => {
         groundCells: contextGroundCells,
         initialPhaseChanges,
         initialPhaseChangesGate,
-        turnRound,
+        phaseChangeEvent,
         replay,
         eventQueue,
         mapDimension,
@@ -366,15 +397,15 @@ export const BattleVenue3D: React.FC = () => {
 
     useEventHandler3D({ gridState, mapDimension });
 
-    const { surrender, walk, attack, selectSkill, useSkill } = useCombatActHandler3D({ gridState, mapDimension });
+    const { surrender, defend, walk, attack, selectSkill, useSkill } = useCombatActHandler3D({ gridState, mapDimension });
 
     // 格子点击：参数为逻辑坐标 (logicQ, logicR)，所见即所点
     const handleCellClick = useCallback(
         (logicQ: number, logicR: number) => {
             if (!mapDimension || mode !== "play") return;
-            const turnRoundCurrentRound = (turnRound?.data as any)?.currentRound;
-            const effectiveGame = turnRoundCurrentRound
-                ? { ...game, currentRound: turnRoundCurrentRound }
+            const phaseChangeEventCurrentRound = (phaseChangeEvent?.data as any)?.currentRound;
+            const effectiveGame = phaseChangeEventCurrentRound
+                ? { ...game, currentRound: phaseChangeEventCurrentRound }
                 : game;
             const validation = canPerformAction(mode, effectiveGame, characters);
             if (!validation.can || !validation.character) {
@@ -408,7 +439,7 @@ export const BattleVenue3D: React.FC = () => {
                 }
             }
         },
-        [mapDimension, mode, gridState, walk, attack, useSkill, characters, game, turnRound]
+        [mapDimension, mode, gridState, walk, attack, useSkill, characters, game, phaseChangeEvent]
     );
 
     // ✅ 3D 阶段变化处理器（用于 initialPhaseChanges）
@@ -620,6 +651,7 @@ export const BattleVenue3D: React.FC = () => {
                         selectSkill={selectSkill}
                         useSkill={useSkill}
                         surrender={surrender}
+                        defend={defend}
                         clearGrid={() => gridState.clearAll()}
                     />
                 </div>

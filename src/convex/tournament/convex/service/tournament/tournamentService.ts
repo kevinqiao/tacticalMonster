@@ -175,7 +175,7 @@ export class TournamentService {
             throw new Error("锦标赛不存在");
         }
 
-        await settleTournament(ctx, tournament);
+        await settleTournament(ctx, tournamentId);
 
         return {
             success: true,

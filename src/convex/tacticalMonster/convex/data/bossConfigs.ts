@@ -17,10 +17,10 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         monsterId: "monster_001",  // 引用怪物配置ID（示例，需要根据实际怪物ID调整）
         difficulty: "easy",
         behaviorTree: {},
-        // 可选：覆盖基础属性
-        baseHp: 10000,  // 如果提供，覆盖角色配置的 baseHp
-        baseDamage: 100,
-        baseDefense: 50,
+        // 可选：覆盖基础属性（方案 A：首关友好，约 20-25 回合可结束）
+        baseHp: 3500,
+        baseDamage: 80,
+        baseDefense: 40,
         baseSpeed: 10,
         position: { q: 6, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
@@ -44,12 +44,12 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
     },
     boss_silver_1: {
         bossId: "boss_silver_1",
-        monsterId: "monster_003",
+        monsterId: "monster_003",  // 更高级怪物类型（Silver tier）
         difficulty: "medium",
         behaviorTree: {},
-        baseHp: 20000,
-        baseDamage: 200,
-        baseDefense: 100,
+        baseHp: 28000,
+        baseDamage: 280,
+        baseDefense: 140,
         baseSpeed: 12,
         position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
@@ -58,12 +58,12 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
     },
     boss_silver_2: {
         bossId: "boss_silver_2",
-        monsterId: "monster_004",
+        monsterId: "monster_004",  // 更高级怪物类型（Silver tier）
         difficulty: "medium",
         behaviorTree: {},
-        baseHp: 24000,
-        baseDamage: 240,
-        baseDefense: 120,
+        baseHp: 33600,
+        baseDamage: 336,
+        baseDefense: 168,
         baseSpeed: 12,
         position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
@@ -72,12 +72,12 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
     },
     boss_gold_1: {
         bossId: "boss_gold_1",
-        monsterId: "monster_005",
+        monsterId: "monster_005",  // 更高级怪物类型（Gold tier）
         difficulty: "hard",
         behaviorTree: {},
-        baseHp: 40000,
-        baseDamage: 400,
-        baseDefense: 200,
+        baseHp: 56000,
+        baseDamage: 560,
+        baseDefense: 280,
         baseSpeed: 15,
         position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],
@@ -86,12 +86,12 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
     },
     boss_gold_2: {
         bossId: "boss_gold_2",
-        monsterId: "monster_006",
+        monsterId: "monster_006",  // 更高级怪物类型（Gold tier）
         difficulty: "hard",
         behaviorTree: {},
-        baseHp: 48000,
-        baseDamage: 480,
-        baseDefense: 240,
+        baseHp: 67200,
+        baseDamage: 672,
+        baseDefense: 336,
         baseSpeed: 15,
         position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
         minions: [],

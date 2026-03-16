@@ -23,7 +23,7 @@ export const TurnItemSprite: React.FC<TurnItemSpriteProps> = ({
         const key = character.character_id;
         let item = itemsMapRef.current?.get(key);
         if (!item) {
-            item = { character_id: key };
+            item = { character_id: key, status: 0 };
             itemsMapRef.current?.set(key, item);
         }
         item.ele = ele ?? undefined;

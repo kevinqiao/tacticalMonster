@@ -4,14 +4,10 @@
  * 负责技能的解锁检查、可用性验证、资源消耗、冷却管理等
  */
 
-import {
-    MonsterSkill,
-    SkillEffect,
-    getSkillConfig,
-    skillExists
-} from "../../data/skillConfigs";
+import { Engine } from "json-rules-engine";
+import { getSkillConfig, skillExists } from "../../data/skillConfigs";
 import { GameMonster } from "../../types/monsterTypes";
-import { SkillEffectType } from "../../types/skillTypes";
+import { MonsterSkill, SkillEffect, SkillEffectType } from "../../types/skillTypes";
 import { EffectHandlerRegistry } from "./effects/EffectHandlerRegistry";
 
 /**
@@ -118,11 +114,11 @@ export class SkillManager {
      * @param context 上下文信息（用于条件检查，可选）
      * @returns 可用性检查结果
      */
-    static checkSkillAvailability(
+    static async checkSkillAvailability(
         skillId: string,
         monster: GameMonster,
         context?: Record<string, any>
-    ): SkillAvailabilityResult {
+    ): Promise<SkillAvailabilityResult> {
         const skill = getSkillConfig(skillId);
         if (!skill) {
             return {
@@ -159,13 +155,88 @@ export class SkillManager {
             return resourceCheck;
         }
 
-        // 检查可用性条件（使用 json-rules-engine，这里简化处理）
+        // 检查可用性条件（使用 json-rules-engine）
         if (skill.availabilityConditions) {
-            // TODO: 如果需要，可以集成 json-rules-engine 进行复杂条件检查
-            // 目前简化处理，假设条件满足
+            const facts = this.buildAvailabilityFacts(monster, context);
+            const engine = new Engine();
+            engine.addRule({
+                conditions: skill.availabilityConditions,
+                event: { type: "skillAvailable", params: {} },
+                priority: skill.priority ?? 0,
+            });
+            const { events } = await engine.run(facts);
+            const passed = events.some((e) => e.type === "skillAvailable");
+            if (!passed) {
+                return {
+                    available: false,
+                    reason: "不满足技能可用条件",
+                };
+            }
         }
 
         return { available: true };
+    }
+
+    /**
+     * 构建 availabilityConditions 所需的 facts
+     */
+    private static buildAvailabilityFacts(
+        monster: GameMonster,
+        context?: Record<string, any>
+    ): Record<string, any> {
+        const stats = monster.stats || {};
+        const hp = stats.hp;
+        const mp = stats.mp;
+        const characterHP =
+            hp && hp.max > 0 ? (hp.current ?? 0) / hp.max : 1;
+        const characterMP =
+            mp && mp.max > 0 ? (mp.current ?? 0) / mp.max : 1;
+
+        return {
+            characterHP,
+            characterMP,
+            roundNumber: context?.roundNumber ?? 0,
+            targetDistance: context?.targetDistance ?? 0,
+            hasValidTarget: context?.hasValidTarget ?? false,
+            completedQuests: context?.completedQuests ?? [],
+            ...stats,
+        };
+    }
+
+    /**
+     * 构建被动技能触发条件（triggerConditions.conditions）所需的 facts
+     * 供 json-rules-engine 使用，支持概率、血量阈值、攻击者/技能身份、状态效果等
+     */
+    private static buildTriggerFacts(
+        monster: GameMonster,
+        context?: Record<string, any>
+    ): Record<string, any> {
+        const stats = monster.stats || {};
+        const hp = stats.hp;
+        const mp = stats.mp;
+        const characterHP =
+            hp && hp.max > 0 ? (hp.current ?? 0) / hp.max : 1;
+        const characterMP =
+            mp && mp.max > 0 ? (mp.current ?? 0) / mp.max : 1;
+        const statusEffectIds = (monster.statusEffects || []).map((e) => e.id);
+
+        const caster = context?.caster as GameMonster | undefined;
+        const attackerId =
+            (caster as any)?.character_id ?? (caster as any)?.bossId ?? (caster as any)?.minionId ?? caster?.monsterId;
+
+        return {
+            characterHP,
+            characterMP,
+            roundNumber: context?.roundNumber ?? 0,
+            triggeringSkillId: context?.triggeringSkillId ?? "",
+            attackerId: attackerId ?? "",
+            attackerIsBoss: caster?.uid === "boss",
+            triggerChance: context?.triggerChance ?? 1,
+            passiveAlreadyTriggeredThisRound: context?.passiveAlreadyTriggeredThisRound ?? false,
+            triggerType: context?.triggerType ?? "",
+            statusEffectIds,
+            ...stats,
+        };
     }
 
     /**
@@ -218,6 +289,17 @@ export class SkillManager {
             }
         }
 
+        // 检查 Energy（必杀技）
+        if (resourceCost.energy) {
+            const currentEnergy = stats.energy?.current ?? 0;
+            if (currentEnergy < resourceCost.energy) {
+                return {
+                    available: false,
+                    reason: `能量不足，需要 ${resourceCost.energy}，当前 ${currentEnergy}`,
+                };
+            }
+        }
+
         return { available: true };
     }
 
@@ -230,9 +312,9 @@ export class SkillManager {
     static applyResourceCost(
         skill: MonsterSkill,
         monster: GameMonster
-    ): { mp?: number; hp?: number; stamina?: number } {
+    ): { mp?: number; hp?: number; stamina?: number; energy?: number } {
         const resourceCost = skill.resource_cost;
-        const consumed: { mp?: number; hp?: number; stamina?: number } = {};
+        const consumed: { mp?: number; hp?: number; stamina?: number; energy?: number } = {};
 
         if (!resourceCost || !monster.stats) {
             return consumed;
@@ -260,6 +342,14 @@ export class SkillManager {
             const newStamina = Math.max(0, currentStamina - resourceCost.stamina);
             monster.stats.stamina = newStamina;
             consumed.stamina = resourceCost.stamina;
+        }
+
+        // 消耗 Energy（必杀技）
+        if (resourceCost.energy && monster.stats.energy) {
+            const currentEnergy = monster.stats.energy.current ?? 0;
+            const newEnergy = Math.max(0, currentEnergy - resourceCost.energy);
+            monster.stats.energy.current = newEnergy;
+            consumed.energy = resourceCost.energy;
         }
 
         return consumed;
@@ -313,12 +403,12 @@ export class SkillManager {
      * @param context 上下文信息（可选）
      * @returns 使用结果，包含应用的效果信息
      */
-    static useSkill(
+    static async useSkill(
         skillId: string,
         monster: GameMonster,
         targets?: GameMonster[],
         context?: Record<string, any>
-    ): SkillUseResult {
+    ): Promise<SkillUseResult> {
         // 1. 检查技能是否存在
         if (!skillExists(skillId)) {
             return {
@@ -343,8 +433,8 @@ export class SkillManager {
             };
         }
 
-        // 3. 检查可用性（资源、冷却等）
-        const availability = this.checkSkillAvailability(skillId, monster, context);
+        // 3. 检查可用性（资源、冷却、availabilityConditions）
+        const availability = await this.checkSkillAvailability(skillId, monster, context);
         if (!availability.available) {
             return {
                 success: false,
@@ -424,13 +514,16 @@ export class SkillManager {
                 // 判断是单体还是群体效果
                 const isAreaEffect = effect.area_type && effect.area_type !== "single";
 
+                const damageMultipliers = (context?.damageMultipliers as Record<string, number>) || {};
                 if (isAreaEffect) {
                     // 群体效果：应用到所有有效目标；targetId 用实例 id 以支持同 monsterId 多目标（如召唤）
                     for (const target of validTargets) {
-                        const applied = this.applyEffectToTarget(effect, target, monster);
+                        const targetId = (target as any).character_id ?? (target as any).minionId ?? target.monsterId;
+                        const mult = damageMultipliers[targetId];
+                        const applied = this.applyEffectToTarget(effect, target, monster, mult);
                         appliedEffects.push({
                             effect,
-                            targetId: (target as any).character_id ?? target.monsterId,
+                            targetId,
                             applied,
                         });
                     }
@@ -438,10 +531,12 @@ export class SkillManager {
                     // 单体效果：应用到第一个有效目标
                     if (validTargets.length > 0) {
                         const target = validTargets[0];
-                        const applied = this.applyEffectToTarget(effect, target, monster);
+                        const targetId = (target as any).character_id ?? (target as any).minionId ?? target.monsterId;
+                        const mult = damageMultipliers[targetId];
+                        const applied = this.applyEffectToTarget(effect, target, monster, mult);
                         appliedEffects.push({
                             effect,
-                            targetId: (target as any).character_id ?? target.monsterId,
+                            targetId,
                             applied,
                         });
                     }
@@ -477,12 +572,14 @@ export class SkillManager {
      * @param effect 技能效果
      * @param target 目标怪物（会被修改）
      * @param caster 施法者怪物（用于计算效果值）
+     * @param damageMultiplier 伤害倍率（Block 时 0.5，可选）
      * @returns 是否成功应用
      */
     static applyEffectToTarget(
         effect: SkillEffect,
         target: GameMonster,
-        caster: GameMonster
+        caster: GameMonster,
+        damageMultiplier?: number
     ): boolean {
         if (!target.stats) {
             return false;
@@ -491,10 +588,15 @@ export class SkillManager {
             target.statusEffects = [];
         }
 
+        let effectiveEffect = effect;
+        if (effect.type === SkillEffectType.DAMAGE && damageMultiplier != null && effect.value != null) {
+            effectiveEffect = { ...effect, value: Math.round(effect.value * damageMultiplier) };
+        }
+
         const handler = EffectHandlerRegistry.getHandler(effect.type);
         if (!handler) return false;
 
-        const result = handler.apply(effect, target, caster);
+        const result = handler.apply(effectiveEffect, target, caster);
         if (result.applied && result.statusEffect) {
             target.statusEffects.push(result.statusEffect);
         }
@@ -544,15 +646,15 @@ export class SkillManager {
      * @param skillId 技能ID
      * @param monster 怪物实例
      * @param triggerType 触发类型（如 "on_attack", "on_hit", "round_start" 等）
-     * @param context 上下文信息（可选）
+     * @param context 上下文信息（可选）：caster, triggeringSkillId, roundNumber, triggerChance, passiveAlreadyTriggeredThisRound 等
      * @returns 是否应该触发
      */
-    static shouldTriggerPassiveSkill(
+    static async shouldTriggerPassiveSkill(
         skillId: string,
         monster: GameMonster,
         triggerType: string,
         context?: Record<string, any>
-    ): boolean {
+    ): Promise<boolean> {
         const skill = getSkillConfig(skillId);
         if (!skill || skill.type !== "passive") {
             return false;
@@ -572,12 +674,26 @@ export class SkillManager {
             return false;
         }
 
+        const triggerContext = { ...context, triggerType };
+
         // 查找匹配的触发条件
         for (const triggerCondition of skill.triggerConditions) {
             if (triggerCondition.trigger_type === triggerType) {
-                // TODO: 如果需要，可以使用 json-rules-engine 检查 conditions
-                // 目前简化处理，如果 trigger_type 匹配就返回 true
-                return true;
+                if (!triggerCondition.conditions) {
+                    return true;
+                }
+                const facts = this.buildTriggerFacts(monster, triggerContext);
+                const engine = new Engine();
+                engine.addRule({
+                    conditions: triggerCondition.conditions,
+                    event: { type: "passiveTrigger", params: {} },
+                    priority: 0,
+                });
+                const { events } = await engine.run(facts);
+                if (events.some((e) => e.type === "passiveTrigger")) {
+                    return true;
+                }
+                return false;
             }
         }
 
@@ -676,11 +792,11 @@ export class SkillManager {
      * @param context 上下文信息（可选）
      * @returns 可用技能配置列表
      */
-    static getAvailableSkills(
+    static async getAvailableSkills(
         monster: GameMonster,
         allSkillIds: string[],
         context?: Record<string, any>
-    ): MonsterSkill[] {
+    ): Promise<MonsterSkill[]> {
         const availableSkills: MonsterSkill[] = [];
 
         for (const skillId of allSkillIds) {
@@ -695,7 +811,7 @@ export class SkillManager {
             }
 
             // 检查可用性
-            const availability = this.checkSkillAvailability(skillId, monster, context);
+            const availability = await this.checkSkillAvailability(skillId, monster, context);
             if (availability.available) {
                 availableSkills.push(skill);
             }

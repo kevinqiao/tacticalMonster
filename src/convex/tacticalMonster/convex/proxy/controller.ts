@@ -1,8 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
-
-const tournament_url = "https://beloved-mouse-699.convex.site";
+import { getTournamentUrl, TOURNAMENT_CONFIG } from "../config/tournamentConfig";
 
 export const loadGame = action({
     args: {
@@ -34,7 +33,7 @@ export const loadGame = action({
                 };
             } else {
                 // 从 tournament 获取 match 信息
-                const matchURL = `${tournament_url}/findMatchGame`;
+                const matchURL = getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.FIND_MATCH_GAME);
                 const response = await fetch(matchURL, {
                     method: "POST",
                     body: JSON.stringify({ gameId }),
@@ -86,13 +85,22 @@ export const loadGame = action({
 });
 
 export const submitScore = action({
-    args: { gameId: v.string(), score: v.number() },
-    handler: async (ctx, { gameId, score }): Promise<any> => {
-        console.log("submitScore", gameId, score);
-        const submitURL = `${tournament_url}/submitGameScore`;
+    args: {
+        gameId: v.string(),
+        score: v.number(),
+        isFirstClear: v.optional(v.boolean()),
+    },
+    handler: async (ctx, { gameId, score, isFirstClear }): Promise<any> => {
+        console.log("submitScore", gameId, score, isFirstClear);
+        const submitURL = getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.SUBMIT_MATCH_SCORE);
         const response = await fetch(submitURL, {
             method: "POST",
-            body: JSON.stringify({ gameId, score }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                gameId,
+                finalScore: score,
+                isFirstClear: isFirstClear === true,
+            }),
         });
         const res = await response.json();
         console.log("submitScore res", res);

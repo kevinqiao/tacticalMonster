@@ -34,22 +34,20 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         },
 
         stageContent: {
-            bossConfig: {
-                bossId: "boss_bronze_1",
-            },
+            bossConfig: { bossId: "boss_bronze_1" },
             mapConfig: {
-                mapSize: { rows: 10, cols: 10 },
+                mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
             difficultyAdjustment: {
-                powerBasedScaling: true,
+                powerBasedScaling: false,  // 固定 Boss 数值
                 difficultyMultiplier: 1.0,
-                minMultiplier: 0.5,
-                maxMultiplier: 2.0,
             },
-            summonTestTeamPreset: "default",  // 召唤测试使用 SUMMON_TEST_TEAM_MONSTERS
+            summonTestTeamPreset: "default",
         },
 
+        staminaCost: 6,
+        recommendedPower: 1700,
         isVisible: true,
         sortOrder: 1,
     },
@@ -60,7 +58,6 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 2,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 2,
@@ -69,23 +66,16 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             unlockMode: "sequential",
             autoUnlockNext: true,
         },
-
         stageContent: {
-            bossConfig: {
-                bossId: "boss_bronze_2",
-            },
+            bossConfig: { bossId: "boss_bronze_1" },
             mapConfig: {
-                mapSize: { rows: 10, cols: 10 },
+                mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: {
-                powerBasedScaling: true,
-                difficultyMultiplier: 1.1,
-                minMultiplier: 0.5,
-                maxMultiplier: 2.0,
-            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.15 },
         },
-
+        staminaCost: 6,
+        recommendedPower: 250,
         isVisible: true,
         sortOrder: 2,
     },
@@ -96,7 +86,6 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 3,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 3,
@@ -105,23 +94,16 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             unlockMode: "sequential",
             autoUnlockNext: true,
         },
-
         stageContent: {
-            bossConfig: {
-                bossId: "boss_bronze_1",
-            },
+            bossConfig: { bossId: "boss_bronze_2" },
             mapConfig: {
-                mapSize: { rows: 10, cols: 10 },
+                mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: {
-                powerBasedScaling: true,
-                difficultyMultiplier: 1.2,
-                minMultiplier: 0.5,
-                maxMultiplier: 2.0,
-            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
         },
-
+        staminaCost: 6,
+        recommendedPower: 300,
         isVisible: true,
         sortOrder: 3,
     },
@@ -132,7 +114,6 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 4,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 4,
@@ -141,60 +122,313 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             unlockMode: "sequential",
             autoUnlockNext: true,
         },
-
         stageContent: {
-            bossConfig: {
-                bossId: "boss_bronze_2",
-            },
+            bossConfig: { bossId: "boss_bronze_2" },
             mapConfig: {
-                mapSize: { rows: 10, cols: 10 },
+                mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: {
-                powerBasedScaling: true,
-                difficultyMultiplier: 1.3,
-                minMultiplier: 0.5,
-                maxMultiplier: 2.0,
-            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.2 },
         },
-
+        staminaCost: 6,
+        recommendedPower: 350,
         isVisible: true,
         sortOrder: 4,
     },
 
-    // 关卡 5（最后一关）
+    // 关卡 5（Bronze 线末关，通关解锁 Silver 1）
     "monster_rumble_challenge_bronze_boss_5": {
         ruleId: "monster_rumble_challenge_bronze_boss_5",
         gameName: "tacticalMonster",
         stageType: "challenge",
         stageNumber: 5,
-
         stageChain: {
             chainId: "challenge_bronze",
             chainOrder: 5,
             previousLevels: ["monster_rumble_challenge_bronze_boss_4"],
+            nextLevels: ["monster_rumble_challenge_silver_boss_1"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_bronze_2" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.4 },
+        },
+        staminaCost: 6,
+        recommendedPower: 400,
+        isVisible: true,
+        sortOrder: 5,
+    },
+
+    // ============================================
+    // Silver Tier 挑战关卡配置（5个顺序关卡）
+    // ============================================
+    "monster_rumble_challenge_silver_boss_1": {
+        ruleId: "monster_rumble_challenge_silver_boss_1",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 1,
+        stageChain: {
+            chainId: "challenge_silver",
+            chainOrder: 1,
+            previousLevels: ["monster_rumble_challenge_bronze_boss_5"],
+            nextLevels: ["monster_rumble_challenge_silver_boss_2"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_silver_1" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+        },
+        staminaCost: 8,
+        recommendedPower: 500,
+        isVisible: true,
+        sortOrder: 6,
+    },
+    "monster_rumble_challenge_silver_boss_2": {
+        ruleId: "monster_rumble_challenge_silver_boss_2",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 2,
+        stageChain: {
+            chainId: "challenge_silver",
+            chainOrder: 2,
+            previousLevels: ["monster_rumble_challenge_silver_boss_1"],
+            nextLevels: ["monster_rumble_challenge_silver_boss_3"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_silver_1" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.15 },
+        },
+        staminaCost: 8,
+        recommendedPower: 600,
+        isVisible: true,
+        sortOrder: 7,
+    },
+    "monster_rumble_challenge_silver_boss_3": {
+        ruleId: "monster_rumble_challenge_silver_boss_3",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 3,
+        stageChain: {
+            chainId: "challenge_silver",
+            chainOrder: 3,
+            previousLevels: ["monster_rumble_challenge_silver_boss_2"],
+            nextLevels: ["monster_rumble_challenge_silver_boss_4"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_silver_2" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+        },
+        staminaCost: 8,
+        recommendedPower: 700,
+        isVisible: true,
+        sortOrder: 8,
+    },
+    "monster_rumble_challenge_silver_boss_4": {
+        ruleId: "monster_rumble_challenge_silver_boss_4",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 4,
+        stageChain: {
+            chainId: "challenge_silver",
+            chainOrder: 4,
+            previousLevels: ["monster_rumble_challenge_silver_boss_3"],
+            nextLevels: ["monster_rumble_challenge_silver_boss_5"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_silver_2" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.2 },
+        },
+        staminaCost: 8,
+        recommendedPower: 750,
+        isVisible: true,
+        sortOrder: 9,
+    },
+    "monster_rumble_challenge_silver_boss_5": {
+        ruleId: "monster_rumble_challenge_silver_boss_5",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 5,
+        stageChain: {
+            chainId: "challenge_silver",
+            chainOrder: 5,
+            previousLevels: ["monster_rumble_challenge_silver_boss_4"],
+            nextLevels: ["monster_rumble_challenge_gold_boss_1"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_silver_2" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.4 },
+        },
+        staminaCost: 8,
+        recommendedPower: 800,
+        isVisible: true,
+        sortOrder: 10,
+    },
+
+    // ============================================
+    // Gold Tier 挑战关卡配置（5个顺序关卡）
+    // ============================================
+    "monster_rumble_challenge_gold_boss_1": {
+        ruleId: "monster_rumble_challenge_gold_boss_1",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 1,
+        stageChain: {
+            chainId: "challenge_gold",
+            chainOrder: 1,
+            previousLevels: ["monster_rumble_challenge_silver_boss_5"],
+            nextLevels: ["monster_rumble_challenge_gold_boss_2"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_gold_1" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+        },
+        staminaCost: 10,
+        recommendedPower: 1000,
+        isVisible: true,
+        sortOrder: 11,
+    },
+    "monster_rumble_challenge_gold_boss_2": {
+        ruleId: "monster_rumble_challenge_gold_boss_2",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 2,
+        stageChain: {
+            chainId: "challenge_gold",
+            chainOrder: 2,
+            previousLevels: ["monster_rumble_challenge_gold_boss_1"],
+            nextLevels: ["monster_rumble_challenge_gold_boss_3"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_gold_1" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.15 },
+        },
+        staminaCost: 10,
+        recommendedPower: 1100,
+        isVisible: true,
+        sortOrder: 12,
+    },
+    "monster_rumble_challenge_gold_boss_3": {
+        ruleId: "monster_rumble_challenge_gold_boss_3",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 3,
+        stageChain: {
+            chainId: "challenge_gold",
+            chainOrder: 3,
+            previousLevels: ["monster_rumble_challenge_gold_boss_2"],
+            nextLevels: ["monster_rumble_challenge_gold_boss_4"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_gold_2" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+        },
+        staminaCost: 10,
+        recommendedPower: 1200,
+        isVisible: true,
+        sortOrder: 13,
+    },
+    "monster_rumble_challenge_gold_boss_4": {
+        ruleId: "monster_rumble_challenge_gold_boss_4",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 4,
+        stageChain: {
+            chainId: "challenge_gold",
+            chainOrder: 4,
+            previousLevels: ["monster_rumble_challenge_gold_boss_3"],
+            nextLevels: ["monster_rumble_challenge_gold_boss_5"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_gold_2" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.2 },
+        },
+        staminaCost: 10,
+        recommendedPower: 1300,
+        isVisible: true,
+        sortOrder: 14,
+    },
+    "monster_rumble_challenge_gold_boss_5": {
+        ruleId: "monster_rumble_challenge_gold_boss_5",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageNumber: 5,
+        stageChain: {
+            chainId: "challenge_gold",
+            chainOrder: 5,
+            previousLevels: ["monster_rumble_challenge_gold_boss_4"],
             unlockMode: "sequential",
             autoUnlockNext: false,
         },
-
         stageContent: {
-            bossConfig: {
-                bossId: "boss_bronze_1",
-            },
+            bossConfig: { bossId: "boss_gold_2" },
             mapConfig: {
-                mapSize: { rows: 10, cols: 10 },
+                mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: {
-                powerBasedScaling: true,
-                difficultyMultiplier: 1.5,
-                minMultiplier: 0.5,
-                maxMultiplier: 2.0,
-            },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.4 },
         },
-
+        staminaCost: 10,
+        recommendedPower: 1400,
         isVisible: true,
-        sortOrder: 5,
+        sortOrder: 15,
     },
     "monster_rumble_arena_bronze": {
         ruleId: "monster_rumble_arena_bronze",
@@ -205,7 +439,7 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 bossId: "boss_bronze_1",
             },
             mapConfig: {
-                mapSize: { rows: 10, cols: 10 },
+                mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
             difficultyAdjustment: {
@@ -218,6 +452,99 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
 
         isVisible: true,
         sortOrder: 5,
+    },
+
+    // ============================================
+    // 材料本
+    // ============================================
+    "monster_rumble_farm_bronze_boss_1": {
+        ruleId: "monster_rumble_farm_bronze_boss_1",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageChain: {
+            chainId: "farm_bronze",
+            chainOrder: 1,
+            previousLevels: ["monster_rumble_challenge_bronze_boss_3"],
+            unlockMode: "sequential",
+            autoUnlockNext: true,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_bronze_1" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: {
+                powerBasedScaling: true,
+                difficultyMultiplier: 1.0,
+                minMultiplier: 0.5,
+                maxMultiplier: 2.0,
+            },
+        },
+        isVisible: true,
+        sortOrder: 100,
+    },
+
+    // ============================================
+    // 每日 Boss
+    // ============================================
+    "monster_rumble_daily_boss": {
+        ruleId: "monster_rumble_daily_boss",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageChain: {
+            chainId: "daily",
+            chainOrder: 1,
+            previousLevels: [],
+            unlockMode: "sequential",
+            autoUnlockNext: false,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_bronze_1" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: {
+                powerBasedScaling: true,
+                difficultyMultiplier: 1.2,
+                minMultiplier: 0.5,
+                maxMultiplier: 2.0,
+            },
+        },
+        isVisible: true,
+        sortOrder: 101,
+    },
+
+    // ============================================
+    // 周常 Boss
+    // ============================================
+    "monster_rumble_weekly_boss": {
+        ruleId: "monster_rumble_weekly_boss",
+        gameName: "tacticalMonster",
+        stageType: "challenge",
+        stageChain: {
+            chainId: "weekly",
+            chainOrder: 1,
+            previousLevels: ["monster_rumble_challenge_bronze_boss_5"],
+            unlockMode: "sequential",
+            autoUnlockNext: false,
+        },
+        stageContent: {
+            bossConfig: { bossId: "boss_silver_1" },
+            mapConfig: {
+                mapSize: { rows: 7, cols: 8 },
+                templateId: "template_bronze_basic",
+            },
+            difficultyAdjustment: {
+                powerBasedScaling: true,
+                difficultyMultiplier: 1.3,
+                minMultiplier: 0.5,
+                maxMultiplier: 2.0,
+            },
+        },
+        isVisible: true,
+        sortOrder: 102,
     },
 };
 

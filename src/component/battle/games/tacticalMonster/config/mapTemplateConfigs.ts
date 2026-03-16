@@ -63,15 +63,15 @@ export const MAP_TEMPLATE_CONFIGS: Record<string, Omit<MapTemplate, "configVersi
             { q: 6, r: 6, type: 2, asset: "/assets/obstacles/tree.glb" },
             { q: 6, r: 5, type: 2, asset: "/assets/obstacles/tree.glb" },
         ],
-        // 限制区域
+        // 限制区域（适配 7 行 8 列）
         restrictedZones: [
             {
                 type: "player",
-                region: { minQ: 0, maxQ: 3, minR: 6, maxR: 9 },
+                region: { minQ: 0, maxQ: 3, minR: 5, maxR: 6 },
             },
             {
                 type: "boss",
-                region: { minQ: 6, maxQ: 9, minR: 0, maxR: 3 },
+                region: { minQ: 5, maxQ: 7, minR: 0, maxR: 3 },
             },
         ],
     },

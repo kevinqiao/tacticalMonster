@@ -94,6 +94,10 @@ export const mainSchema = {
                 })),
                 intelligence: v.optional(v.number()),
                 status_resistance: v.optional(v.number()),
+                energy: v.optional(v.object({
+                    current: v.number(),
+                    max: v.number(),
+                })),
             }),
             statusEffects: v.optional(v.array(statusEffectSchema)),  // 状态效果列表（与StatusEffect类型一致）
             skillCooldowns: v.optional(v.any()),          // 技能冷却时间
@@ -193,6 +197,15 @@ export const mainSchema = {
         .index("by_ruleId", ["ruleId"])  // ✅ 添加 by_ruleId 索引
         .index("by_power_attempts", ["powerLevel", "attempts"])
         .index("by_stage", ["stageId"]),
+    /** 玩家体力（关卡体力与奖励机制） */
+    mr_player_stamina: defineTable({
+        uid: v.string(),
+        current: v.number(),           // 当前体力
+        lastRecoveredAt: v.string(),  // 上次恢复时间（ISO）
+        maxStamina: v.optional(v.number()),  // 体力上限，默认 100
+    })
+        .index("by_uid", ["uid"]),
+
     mr_player_first_clear: defineTable({
         uid: v.string(),
         ruleId: v.string(),

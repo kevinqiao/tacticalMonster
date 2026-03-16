@@ -54,12 +54,12 @@ describe("useWalkAction", () => {
             gameId: "test_game_001",
             map: {
                 direction: 0,
-                cols: 10,
-                rows: 10,
+                cols: 8,
+                rows: 7,
             },
         };
         characters = [createTestCharacter()];
-        gridCells = Array(10).fill(null).map(() => Array(10).fill(null));
+        gridCells = Array(7).fill(null).map(() => Array(8).fill(null));
         mode = "play";
         convex = {
             mutation: vi.fn().mockResolvedValue({

@@ -4,7 +4,7 @@
 
 import gsap from "gsap";
 import { useCallback } from "react";
-import { COMMON_SKILLS } from "../../config/skillConfigs";
+import { getSkillConfig } from "../../config/skillConfigs";
 import { useCombatManager } from "../../service/CombatManager";
 import { MonsterSkill } from "../../types/skillTypes";
 import { getAttackableNodes } from "../../utils/PathFind";
@@ -25,7 +25,7 @@ const usePlaySkillSelect = () => {
         const isFlying = character.isFlying ?? false;
         const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
 
-        const skill: MonsterSkill | null = COMMON_SKILLS[character.selectedSkill ?? ""] ?? null;
+        const skill: MonsterSkill | null = getSkillConfig(character.selectedSkill ?? "") ?? null;
         if (!skill) return;
         const grid = groundCells.map((row) => row.map((cell) => {
             const char = character.q === cell.q && character.r === cell.r ? null : characters.find((c) => c.q === cell.q && c.r === cell.r)

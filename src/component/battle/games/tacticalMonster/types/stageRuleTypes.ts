@@ -85,6 +85,16 @@ export interface StageRuleConfig {
         };
     };
 
+    // ============================================
+    // 体力与奖励（关卡体力与奖励机制设计）
+    // ============================================
+    staminaCost?: number;               // 每次挑战消耗体力（0=不消耗）
+    recommendedPower?: number;          // 推荐战力（UI 展示）
+    starRatingConfig?: {
+        threeStarMaxRounds?: number;    // 3 星：全员存活 且 回合数 <= 此值
+        twoStarMinSurvivors?: number;   // 2 星最少存活数（默认 1）
+    };
+    starRewardMultipliers?: Record<1 | 2 | 3, number>;  // 3星100% 2星80% 1星60%
 
     // ============================================
     // 显示和排序

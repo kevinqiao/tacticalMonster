@@ -95,6 +95,11 @@ export class SkillTargetService {
             return char1.monsterId === char2.monsterId;
         };
 
+        // 辅助函数：检查是否同一方（玩家队伍 vs Boss方）
+        const isSameSide = (casterChar: GameMonster, targetChar: GameMonster): boolean =>
+            (casterChar.uid === "boss" && targetChar.uid === "boss") ||
+            (casterChar.uid !== "boss" && targetChar.uid !== "boss");
+
         switch (range.area_type) {
             case "single":
                 // 单体目标：需要提供主要目标
@@ -180,6 +185,21 @@ export class SkillTargetService {
                     targets.push(primaryTarget);
                 }
                 break;
+        }
+
+        // 按 target_side 过滤：friend=仅友方，foe=仅敌方，all 或未配置=不过滤
+        const targetSide = range.target_side ?? "all";
+        if (targetSide !== "all") {
+            const filtered: Array<{ uid: string; monsterId: string }> = [];
+            for (const t of targets) {
+                const targetId = (t as any).character_id ?? t.monsterId;
+                const params = this.characterQueryService.getCharacterParams(t.uid, targetId);
+                const targetChar = this.characterQueryService.getCharacter(params.monsterId, params.bossId, params.minionId);
+                if (targetChar && (targetSide === "friend" ? isSameSide(caster, targetChar) : !isSameSide(caster, targetChar))) {
+                    filtered.push(t);
+                }
+            }
+            return filtered;
         }
 
         return targets;

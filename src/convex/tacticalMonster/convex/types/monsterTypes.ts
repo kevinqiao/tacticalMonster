@@ -80,6 +80,7 @@ export interface GameMonster {
         shield?: { current: number; max: number };
         intelligence?: number;
         status_resistance?: number;
+        energy?: { current: number; max: number };  // 必杀技能量
     };
 
     // ========== 位置信息（战斗中）==========

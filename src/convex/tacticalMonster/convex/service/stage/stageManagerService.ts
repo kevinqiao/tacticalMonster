@@ -218,14 +218,14 @@ export class StageManagerService {
             } else {
                 // 最后的默认值
                 mapConfig = {
-                    mapSize: { rows: 10, cols: 10 },
+                    mapSize: { rows: 7, cols: 8 },
                 };
             }
         }
 
         // 确保 mapSize 存在
         if (!mapConfig.mapSize) {
-            mapConfig.mapSize = { rows: 10, cols: 10 };
+            mapConfig.mapSize = { rows: 7, cols: 8 };
         }
 
         // 7. 生成地图（依据 mapConfig.templateId 或随机生成）

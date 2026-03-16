@@ -19,6 +19,7 @@ import { GamePhaseService } from "./gamePhaseService";
 import { GameScoreService } from "./gameScoreService";
 import { RoundService } from "./roundService";
 import { sharedScoreService } from "./sharedScoreService";
+import { getNeighbors, offsetHexDistance } from "../../utils/hexUtils";
 import { SkillTargetService } from "./skillTargetService";
 import * as SummonService from "./summonService";
 
@@ -85,7 +86,7 @@ export class GameActionService {
         gameId: string,
         to: { q: number; r: number },
         identifier: CharacterIdentifier,
-        options?: { steps?: number; endTurn?: boolean; forceEndTurn?: boolean }
+        options?: { steps?: number; endTurn?: boolean; forceEndTurn?: boolean; deferTurnEnd?: boolean }
     ): Promise<{
         success: boolean;
         message?: string;
@@ -153,9 +154,11 @@ export class GameActionService {
         if (!success) return { success: false, message: "position_update_failed" };
 
         // 结束回合：步数用尽 或 第二次点击行走（stepsUsedBefore>0 表示已做过部分移动，本次为点击暗区）
+        // deferTurnEnd：由 walkAndAttack 传入，延迟推进回合（先执行 useSkill 再由 useSkill 内部推进）
         const stepsExhausted = newStepsUsed >= moveRange;
         const isSecondWalk = stepsUsedBefore > 0;
-        const endTurn = stepsExhausted || isSecondWalk;
+        const wouldEndTurn = stepsExhausted || isSecondWalk;
+        const endTurn = wouldEndTurn && !options?.deferTurnEnd;
 
         if (endTurn) {
             // 结束当前 turn，推进回合和阶段（自动处理 turnEnd, roundEnd, turnStart, Boss AI）
@@ -223,6 +226,7 @@ export class GameActionService {
     }> {
         const walkResult = await this.walk(gameId, data.to, data.identifier, {
             steps: data.steps,
+            deferTurnEnd: true,
         });
         if (!walkResult.success) {
             return {
@@ -245,6 +249,83 @@ export class GameActionService {
             phaseChanges: skillResult.phaseChanges,
             effects: skillResult.effects,
         };
+    }
+
+    /**
+     * 执行防守
+     * 为角色添加 defending 状态效果（持续 1 回合），然后结束当前回合
+     * @param gameId 游戏ID
+     * @param identifier 角色标识符（monsterId/bossId/minionId 三选一）
+     */
+    async executeDefend(
+        gameId: string,
+        identifier: CharacterIdentifier
+    ): Promise<{ success: boolean; message?: string; phaseChanges?: PhaseChanges }> {
+        const game = await this.lifecycleService.load(gameId);
+        if (!game) return { success: false, message: "game_not_found" };
+
+        this.characterQueryService.setGame(game);
+        (this.validator as any).game = game;
+
+        const { monsterId, bossId, minionId } = identifier;
+        const paramCount = [monsterId, bossId, minionId].filter(Boolean).length;
+        if (paramCount !== 1) {
+            return { success: false, message: "invalid_identifier" };
+        }
+
+        if (bossId || minionId) {
+            await this.ensureBossActorTurnActive(gameId, game, identifier);
+        }
+
+        let validationResult = await this.validator.validateAction(identifier);
+        if (!validationResult.valid && (bossId || minionId)) {
+            await this.ensureBossActorTurnActive(gameId, game, identifier);
+            validationResult = await this.validator.validateAction(identifier);
+        }
+        if (!validationResult.valid) {
+            return { success: false, message: validationResult.message ?? "validation_failed" };
+        }
+
+        const character = this.characterQueryService.getCharacter(monsterId, bossId, minionId);
+        if (!character) return { success: false, message: "character_not_found" };
+
+        const defendingEffect = {
+            id: "defending",
+            name: "防守",
+            type: SkillEffectType.BUFF,
+            duration: 1,
+            remaining_duration: 1,
+        };
+
+        const statusEffects = character.statusEffects ? [...character.statusEffects] : [];
+        statusEffects.push(defendingEffect);
+        (character as any).statusEffects = statusEffects;
+
+        const updateOk = await this.characterUpdateService.updateCharacterInDatabase(gameId, character, game);
+        if (!updateOk) return { success: false, message: "update_failed" };
+
+        const phaseChanges = await this.phaseService.advanceTurnAndRound(gameId, identifier, this.dbCtx);
+
+        const stateChanges = {
+            statusEffects: [{
+                characterIdentifier: identifier,
+                statusEffects: statusEffects,
+            }],
+        };
+        const phaseChangesWithState = {
+            ...phaseChanges,
+            stateChanges: {
+                ...(phaseChanges.stateChanges || {}),
+                ...stateChanges,
+            },
+        };
+
+        const event = this.eventService.createDefendEvent(gameId, identifier);
+        (event.data as any).phaseChanges = phaseChangesWithState;
+        await this.eventService.createEvent(event);
+        await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
+
+        return { success: true, phaseChanges: phaseChangesWithState };
     }
 
     /**
@@ -526,7 +607,49 @@ export class GameActionService {
             };
         }
 
-        // 3. ✅ 保存目标之前的状态（用于检测击败和计算 stateChanges）
+        // 构建 availabilityConditions 所需的 context
+        const roundNumber = game?.currentRound?.no ?? 0;
+        let targetDistance = 0;
+        if (targetMonsters.length > 0) {
+            const casterPos = { q: caster.q ?? 0, r: caster.r ?? 0 };
+            targetDistance = Math.min(
+                ...targetMonsters.map((t) =>
+                    offsetHexDistance(casterPos, { q: t.q ?? 0, r: t.r ?? 0 })
+                )
+            );
+        }
+        // 3.5 Block 检查：远程攻击时，攻击者邻格有敌方防守坦克则重定向目标且伤害×0.5
+        let effectiveTargetMonsters = targetMonsters;
+        const damageMultipliers: Record<string, number> = {};
+        const skillForBlock = getSkillConfig(skillId);
+        const isRanged =
+            skillForBlock?.effects?.some((e: any) => e.damage_falloff) ||
+            (skillForBlock?.range?.distance != null && (skillForBlock.range as any).distance > 1);
+        if (isRanged && targetMonsters.length > 0) {
+            const casterPos = { q: caster.q ?? 0, r: caster.r ?? 0 };
+            const allChars = this.characterQueryService.getAllCharacters();
+            const neighborCoords = getNeighbors(casterPos);
+            effectiveTargetMonsters = targetMonsters.map((target) => {
+                const dist = offsetHexDistance(casterPos, { q: target.q ?? 0, r: target.r ?? 0 });
+                if (dist <= 1) return target;
+                for (const nc of neighborCoords) {
+                    const neighbor = allChars.find(
+                        (c) => (c.q ?? 0) === nc.q && (c.r ?? 0) === nc.r
+                    );
+                    if (!neighbor || neighbor.uid === caster.uid) continue;
+                    const isDefending = neighbor.statusEffects?.some(
+                        (se: any) => se.id === "defending"
+                    );
+                    if (!isDefending) continue;
+                    const key = (neighbor as any).character_id ?? neighbor.monsterId ?? (neighbor as any).minionId;
+                    if (key) damageMultipliers[key] = 0.5;
+                    return neighbor;
+                }
+                return target;
+            });
+        }
+
+        // 3.6 ✅ 保存有效目标之前的状态（用于检测击败和计算 stateChanges，Block 后使用 effectiveTargetMonsters）
         const targetHpBefore = new Map<string, number>();
         const targetStatesBefore: Array<{
             identifier: CharacterIdentifier;
@@ -538,11 +661,10 @@ export class GameActionService {
         const targetStatusEffectsBefore: Map<string, any[]> = new Map();
         const targetSkillCooldownsBefore: Map<string, Record<string, number>> = new Map();
 
-        targetMonsters.forEach(target => {
-            const key = (target as any).character_id ?? target.monsterId;  // 实例 id，以支持同 monsterId 多目标（如召唤）
+        effectiveTargetMonsters.forEach(target => {
+            const key = (target as any).character_id ?? (target as any).minionId ?? target.monsterId;
             targetHpBefore.set(key, target.stats?.hp?.current ?? 0);
 
-            // 记录目标初始状态（用于计算 stateChanges）
             const targetParams = this.characterQueryService.getCharacterParams(target.uid, key);
             targetStatesBefore.push({
                 identifier: {
@@ -556,27 +678,57 @@ export class GameActionService {
                 status: target.status || 'normal',
             });
 
-            // 记录目标的状态效果和技能冷却
             targetStatusEffectsBefore.set(key, target.statusEffects ? [...target.statusEffects] : []);
             targetSkillCooldownsBefore.set(key, target.skillCooldowns ? { ...target.skillCooldowns } : {});
         });
 
+        const context = {
+            roundNumber,
+            targetDistance,
+            hasValidTarget: effectiveTargetMonsters.length > 0,
+            damageMultipliers,
+        };
+
         // 4. 使用技能（使用 SkillManager）
-        const skillResult = SkillManager.useSkill(
+        const skillResult = await SkillManager.useSkill(
             skillId,
             caster,
-            targetMonsters.length > 0 ? targetMonsters : undefined
+            effectiveTargetMonsters.length > 0 ? effectiveTargetMonsters : undefined,
+            context
         );
 
         if (!skillResult.success) {
             return skillResult;
         }
 
+        // 4.4. 能量获取（玩家角色：命中+10，击杀+30）
+        const ENERGY_ON_HIT = 10;
+        const ENERGY_ON_KILL = 30;
+        if (caster.uid !== "boss" && caster.stats && effectiveTargetMonsters.length > 0) {
+            if (!caster.stats.energy) {
+                caster.stats.energy = { current: 0, max: 100 };
+            }
+            let energyGain = 0;
+            for (const target of effectiveTargetMonsters) {
+                const key = (target as any).character_id ?? (target as any).minionId ?? target.monsterId;
+                const beforeHp = targetHpBefore.get(key) ?? 0;
+                const afterHp = target.stats?.hp?.current ?? 0;
+                if (beforeHp > 0) {
+                    energyGain += afterHp <= 0 ? ENERGY_ON_KILL : ENERGY_ON_HIT;
+                }
+            }
+            if (energyGain > 0) {
+                const cur = caster.stats.energy.current ?? 0;
+                const max = caster.stats.energy.max ?? 100;
+                caster.stats.energy.current = Math.min(max, cur + energyGain);
+            }
+        }
+
         // 4.5. 处理 SUMMON 效果：创建召唤单位并追加到 game
-        const skillConfig = getSkillConfig(skillId);
+        const skillForSummon = getSkillConfig(skillId);
         let summonedCharacters: import("../../types/gameTypes").SummonedCharacter[] = [];
-        if (skillConfig?.effects) {
-            for (const effect of skillConfig.effects) {
+        if (skillForSummon?.effects) {
+            for (const effect of skillForSummon.effects) {
                 if (effect.type === SkillEffectType.SUMMON && effect.summonConfig) {
                     const created = SummonService.createSummonedCharacters(game, caster, effect, finalTargets);
                     summonedCharacters = summonedCharacters.concat(created);
@@ -596,9 +748,9 @@ export class GameActionService {
         let killedBoss = false;
         let killedMinion = false;
 
-        if (skillResult.effects && targetMonsters.length > 0) {
-            for (const target of targetMonsters) {
-                const key = (target as any).character_id ?? target.monsterId;
+        if (skillResult.effects && effectiveTargetMonsters.length > 0) {
+            for (const target of effectiveTargetMonsters) {
+                const key = (target as any).character_id ?? (target as any).minionId ?? target.monsterId;
                 const beforeHp = targetHpBefore.get(key) || 0;
 
                 // 从技能效果中计算伤害后的HP
@@ -633,7 +785,7 @@ export class GameActionService {
         // 检查目标是否有被动技能需要触发（如反击）
         const passiveSkillEffects: SkillEffectItem[] = [];
 
-        if (skillResult.success && targetMonsters.length > 0) {
+        if (skillResult.success && effectiveTargetMonsters.length > 0) {
             const skill = getSkillConfig(skillId);
             const canTriggerCounter = skill?.canTriggerCounter ?? false;
 
@@ -642,7 +794,7 @@ export class GameActionService {
                 effect.effect?.type === 'damage'
             ) ?? false;
 
-            for (const target of targetMonsters) {
+            for (const target of effectiveTargetMonsters) {
                 // 只检查存活的目标
                 if (!target.stats || (target.stats.hp?.current ?? 0) <= 0) {
                     continue;
@@ -652,6 +804,13 @@ export class GameActionService {
                     continue;
                 }
 
+                const passiveContext = {
+                    caster,
+                    triggeringSkillId: skillId,
+                    roundNumber: game?.currentRound?.no ?? 0,
+                    triggerChance: Math.random(),
+                };
+
                 // 检查所有被动技能
                 for (const passiveSkillId of target.skills) {
                     // 检查是否应该触发被动技能
@@ -659,14 +818,14 @@ export class GameActionService {
 
                     // 如果技能可以触发反击，检查 on_skill_attacked
                     if (canTriggerCounter) {
-                        if (SkillManager.shouldTriggerPassiveSkill(passiveSkillId, target, 'on_skill_attacked')) {
+                        if (await SkillManager.shouldTriggerPassiveSkill(passiveSkillId, target, 'on_skill_attacked', passiveContext)) {
                             triggerType = 'on_skill_attacked';
                         }
                     }
 
                     // 如果造成伤害，检查 on_hit
                     if (hasDamage && !triggerType) {
-                        if (SkillManager.shouldTriggerPassiveSkill(passiveSkillId, target, 'on_hit')) {
+                        if (await SkillManager.shouldTriggerPassiveSkill(passiveSkillId, target, 'on_hit', { ...passiveContext, triggerChance: Math.random() })) {
                             triggerType = 'on_hit';
                         }
                     }

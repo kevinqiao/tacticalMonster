@@ -5,11 +5,11 @@
 
 import gsap from "gsap";
 import { useCallback, useMemo } from "react";
-import { COMMON_SKILLS, MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { getSkillConfig, MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
+import { SkillAnimationSelector } from "../../battle3d/animation/SkillAnimationSelector";
+import { useCombatManager } from "../../service/CombatManager";
 import { MonsterSprite } from "../../types/CombatTypes";
 import { SkillEffectType } from "../../types/skillTypes";
-import { useCombatManager } from "../../service/CombatManager";
-import { SkillAnimationSelector } from "./SkillAnimationSelector";
 
 const usePlaySkill = () => {
     const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
@@ -142,7 +142,7 @@ const usePlaySkill = () => {
         }
 
         // 获取技能配置
-        const skill: MonsterSkill | undefined = COMMON_SKILLS[skillId];
+        const skill: MonsterSkill | undefined = getSkillConfig(skillId);
         if (!skill) {
             console.warn(`Skill ${skillId} not found for character ${caster.character_id}`);
             Promise.resolve(onComplete()).catch(console.error);

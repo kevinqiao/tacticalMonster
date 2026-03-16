@@ -5,7 +5,8 @@
 
 import { Html, useAnimations, useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import React, { Suspense, useCallback, useEffect, useMemo, useRef } from "react";
+import gsap from "gsap";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
 import { DEBUG_USE_MONSTER_NAME } from "../../../config/debugConfig";
@@ -29,6 +30,8 @@ export interface BattleCharacter3DRef {
     groupRef: React.RefObject<THREE.Group | null>;
     modelGroupRef?: React.RefObject<THREE.Group | null>;
     playAnimation: (name: BattleAnimationState) => void;
+    /** 在角色身上显示技能名称淡入淡出（主动/被动技能） */
+    showSkillName?: (skillName: string) => void;
 }
 
 interface BattleCharacter3DProps {
@@ -56,9 +59,16 @@ function areEqual(prev: BattleCharacter3DProps, next: BattleCharacter3DProps): b
         prev.position[0] === next.position[0] &&
         prev.position[1] === next.position[1] &&
         prev.position[2] === next.position[2];
+    // ✅ 比较 HP/MP：applyStateChanges 原地修改 character.stats，需触发重渲染以更新 HP 条
+    const hpCur = prev.character.stats?.hp?.current;
+    const hpMax = prev.character.stats?.hp?.max;
+    const nextHpCur = next.character.stats?.hp?.current;
+    const nextHpMax = next.character.stats?.hp?.max;
+    const hpEqual = hpCur === nextHpCur && hpMax === nextHpMax;
     return (
         prev.character === next.character &&
         posEqual &&
+        hpEqual &&
         prev.width === next.width &&
         prev.height === next.height &&
         prev.facing === next.facing &&
@@ -175,6 +185,39 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
         [modelClone, names, actions, findAnimation]
     );
 
+    const [skillNameOverlay, setSkillNameOverlay] = useState<string | null>(null);
+    const skillNameOverlayRef = useRef<HTMLDivElement | null>(null);
+    const skillOverlayGroupRef = useRef<THREE.Group | null>(null);
+
+    const showSkillName = useCallback((skillName: string) => {
+        setSkillNameOverlay(skillName);
+    }, []);
+
+    const SKILL_NAME_BASE_Y = 48;
+    const SKILL_NAME_DURATION = 1.0;
+    useEffect(() => {
+        if (!skillNameOverlay) return;
+        const hideTimer = setTimeout(() => setSkillNameOverlay(null), SKILL_NAME_DURATION * 1000);
+        const el = skillNameOverlayRef.current;
+        const grp = skillOverlayGroupRef.current;
+        if (el) {
+            gsap.killTweensOf(el);
+            gsap.set(el, { opacity: 0 });
+            gsap.to(el, { opacity: 1, duration: 0.2, ease: "power2.out" });
+            gsap.to(el, { opacity: 0, duration: 0.25, ease: "power2.in", delay: 0.5 });
+        }
+        if (grp) {
+            gsap.killTweensOf(grp.position);
+            grp.position.y = SKILL_NAME_BASE_Y;
+            gsap.to(grp.position, { y: SKILL_NAME_BASE_Y + 40, duration: 0.25, ease: "power2.in", delay: 0.5 });
+        }
+        return () => {
+            clearTimeout(hideTimer);
+            if (el) gsap.killTweensOf(el);
+            if (grp) gsap.killTweensOf(grp.position);
+        };
+    }, [skillNameOverlay]);
+
     useEffect(() => {
         if (!modelClone || names.length === 0) return;
         playAnimation("idle");
@@ -185,8 +228,9 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
             groupRef,
             modelGroupRef,
             playAnimation,
+            showSkillName,
         }),
-        [playAnimation]
+        [playAnimation, showSkillName]
     );
 
     useEffect(() => {
@@ -327,6 +371,32 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
                         </div>
                     </Html>
                 )}
+                {skillNameOverlay && (
+                    <group ref={skillOverlayGroupRef} position={[0, SKILL_NAME_BASE_Y, 0]}>
+                        <Html position={[0, 0, 0]} center style={{ pointerEvents: "none", overflow: "visible" }}>
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    color: "#ffffff",
+                                    textAlign: "center",
+                                    textShadow: "1px 1px 2px #000, 0 0 8px rgba(255,235,100,0.6)",
+                                    whiteSpace: "nowrap",
+                                    padding: "2px 6px",
+                                    background: "rgba(0,0,0,0.5)",
+                                    borderRadius: 4,
+                                }}
+                            >
+                                <div
+                                    ref={(el) => {
+                                        (skillNameOverlayRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+                                    }}
+                                >
+                                    {skillNameOverlay}
+                                </div>
+                            </div>
+                        </Html>
+                    </group>
+                )}
             </group>
         </group>
     );
@@ -335,6 +405,34 @@ const BattleCharacter3DInner: React.FC<BattleCharacter3DProps> = ({
 // ============================================================
 // 调试模式：仅显示角色名称（不加载 GLB）
 // ============================================================
+
+/** Html 名字样式：根据 currentAnim 返回动画态样式 */
+function getAnimStyle(currentAnim: BattleAnimationState | null): React.CSSProperties {
+    switch (currentAnim) {
+        case "attack":
+            return {
+                color: "#ffffff",
+                textShadow: "0 0 10px rgba(255,235,100,0.9)",
+                transform: "scale(1.08)",
+            };
+        case "hurt":
+            return {
+                color: "#ff6666",
+                textShadow: "0 0 6px rgba(255,80,80,0.8)",
+                transition: "color 0.15s",
+            };
+        case "stand":
+        case "idle":
+        case "walk":
+        default:
+            return {
+                color: "#ffffff",
+                textShadow: "1px 1px 2px #000, -1px -1px 2px #000",
+                transform: "scale(1)",
+            };
+    }
+}
+
 const BattleCharacterNameOnly: React.FC<BattleCharacter3DProps> = ({
     character,
     position,
@@ -346,11 +444,100 @@ const BattleCharacterNameOnly: React.FC<BattleCharacter3DProps> = ({
 }) => {
     const groupRef = useRef<THREE.Group>(null);
     const activeRingRef = useRef<THREE.Mesh>(null);
+    const [currentAnim, setCurrentAnim] = useState<BattleAnimationState | null>(null);
+    const [skillNameOverlay, setSkillNameOverlay] = useState<string | null>(null);
+    const skillNameOverlayRef = useRef<HTMLDivElement | null>(null);
+    const skillOverlayGroupRef = useRef<THREE.Group | null>(null);
 
-    const playAnimation = useCallback(() => { }, []);
+    const showSkillName = useCallback((skillName: string) => {
+        setSkillNameOverlay(skillName);
+    }, []);
+
+    const SKILL_NAME_BASE_Y = 48;
+    const SKILL_NAME_DURATION = 1.0;
+    useEffect(() => {
+        if (!skillNameOverlay) return;
+        const hideTimer = setTimeout(() => setSkillNameOverlay(null), SKILL_NAME_DURATION * 1000);
+        const el = skillNameOverlayRef.current;
+        const grp = skillOverlayGroupRef.current;
+        if (el) {
+            gsap.killTweensOf(el);
+            gsap.set(el, { opacity: 0 });
+            gsap.to(el, { opacity: 1, duration: 0.2, ease: "power2.out" });
+            gsap.to(el, { opacity: 0, duration: 0.25, ease: "power2.in", delay: 0.5 });
+        }
+        if (grp) {
+            gsap.killTweensOf(grp.position);
+            grp.position.y = SKILL_NAME_BASE_Y;
+            gsap.to(grp.position, { y: SKILL_NAME_BASE_Y + 40, duration: 0.25, ease: "power2.in", delay: 0.5 });
+        }
+        return () => {
+            clearTimeout(hideTimer);
+            if (el) gsap.killTweensOf(el);
+            if (grp) gsap.killTweensOf(grp.position);
+        };
+    }, [skillNameOverlay]);
+
+    const playAnimation = useCallback((name: BattleAnimationState) => {
+        const group = groupRef.current;
+        if (!group) return;
+
+        setCurrentAnim(name);
+        gsap.killTweensOf(group.scale);
+
+        switch (name) {
+            case "attack":
+                gsap
+                    .timeline()
+                    .to(group.scale, {
+                        x: 1.15,
+                        y: 1.15,
+                        z: 1.15,
+                        duration: 0.2,
+                        ease: "power2.out",
+                    })
+                    .to(group.scale, {
+                        x: 1,
+                        y: 1,
+                        z: 1,
+                        duration: 0.2,
+                        ease: "power2.in",
+                    })
+                    .call(() => setCurrentAnim("stand"));
+                break;
+            case "hurt":
+                gsap
+                    .timeline()
+                    .to(group.scale, {
+                        x: 0.88,
+                        y: 0.88,
+                        z: 0.88,
+                        duration: 0.15,
+                        ease: "power2.in",
+                    })
+                    .to(group.scale, {
+                        x: 1,
+                        y: 1,
+                        z: 1,
+                        duration: 0.2,
+                        ease: "back.out(1.2)",
+                    })
+                    .call(() => setCurrentAnim("stand"));
+                break;
+            case "stand":
+            case "idle":
+                gsap.set(group.scale, { x: 1, y: 1, z: 1 });
+                setCurrentAnim(null);
+                break;
+            case "walk":
+                // no-op
+                break;
+        }
+    }, []);
+
     const refApi = useMemo<BattleCharacter3DRef>(
-        () => ({ groupRef, modelGroupRef: groupRef, playAnimation }),
-        [playAnimation]
+        () => ({ groupRef, modelGroupRef: groupRef, playAnimation, showSkillName }),
+        [playAnimation, showSkillName]
     );
 
     useEffect(() => {
@@ -360,6 +547,9 @@ const BattleCharacterNameOnly: React.FC<BattleCharacter3DProps> = ({
         }
         return () => {
             character.ref3D = undefined;
+            if (groupRef.current) {
+                gsap.killTweensOf(groupRef.current.scale);
+            }
         };
     }, [character, onRefReady, refApi]);
 
@@ -378,6 +568,12 @@ const BattleCharacterNameOnly: React.FC<BattleCharacter3DProps> = ({
         const { attackRange } = resolveAttackProfile(character);
         return attackRange;
     }, [character]);
+
+    const baseNameStyle: React.CSSProperties = {
+        fontSize: Math.round(width * 0.15),
+        textAlign: "center",
+        whiteSpace: "nowrap",
+    };
 
     const upperRotation: [number, number, number] = isPortrait
         ? [0, 0, facing >= 0 ? BODY_TILT_Z_PORTRAIT : -BODY_TILT_Z_PORTRAIT]
@@ -418,18 +614,36 @@ const BattleCharacterNameOnly: React.FC<BattleCharacter3DProps> = ({
             </group>
             <group rotation={upperRotation}>
                 <Html position={[0, 10, 0]} center style={{ pointerEvents: "none" }}>
-                    <div
-                        style={{
-                            fontSize: Math.round(width * 0.15),
-                            color: "#ffffff",
-                            textAlign: "center",
-                            textShadow: "1px 1px 2px #000, -1px -1px 2px #000",
-                            whiteSpace: "nowrap",
-                        }}
-                    >
+                    <div style={{ ...baseNameStyle, ...getAnimStyle(currentAnim) }}>
                         {character.name}
                     </div>
                 </Html>
+                {skillNameOverlay && (
+                    <group ref={skillOverlayGroupRef} position={[0, SKILL_NAME_BASE_Y, 0]}>
+                        <Html position={[0, 0, 0]} center style={{ pointerEvents: "none", overflow: "visible" }}>
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    color: "#ffffff",
+                                    textAlign: "center",
+                                    textShadow: "1px 1px 2px #000, 0 0 8px rgba(255,235,100,0.6)",
+                                    whiteSpace: "nowrap",
+                                    padding: "2px 6px",
+                                    background: "rgba(0,0,0,0.5)",
+                                    borderRadius: 4,
+                                }}
+                            >
+                                <div
+                                    ref={(el) => {
+                                        (skillNameOverlayRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+                                    }}
+                                >
+                                    {skillNameOverlay}
+                                </div>
+                            </div>
+                        </Html>
+                    </group>
+                )}
                 {character.stats?.hp && (
                     <Html position={[0, 35, 0]} center style={{ pointerEvents: "none" }}>
                         <div
@@ -521,7 +735,7 @@ const BattleCharacterPlaceholder: React.FC<{
 
 const BattleCharacter3DInnerMemo = React.memo(BattleCharacter3DInner, areEqual);
 
-export const BattleCharacter3DWithSuspense: React.FC<BattleCharacter3DProps> = (props) => {
+const BattleCharacter3DWithSuspense: React.FC<BattleCharacter3DProps> = (props) => {
     if (DEBUG_USE_MONSTER_NAME) {
         return <BattleCharacterNameOnly {...props} />;
     }
@@ -540,5 +754,5 @@ export const BattleCharacter3DWithSuspense: React.FC<BattleCharacter3DProps> = (
     );
 };
 
-export { BattleCharacter3DInner };
+export { BattleCharacter3DInner, BattleCharacter3DWithSuspense };
 

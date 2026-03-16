@@ -74,9 +74,16 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
   }, [user?.uid, tacticalMonsterClient]);
 
   useEffect(() => {
-    if (user?.uid && tacticalMonsterClient) {
+    if (!user?.uid || !tacticalMonsterClient) return;
+    const onLogin = async () => {
+      try {
+        await tacticalMonsterClient.mutation(tacticalMonsterApi.service.monster.monsterService.ensureStarterMonstersOnLogin, { uid: user.uid });
+      } catch (e) {
+        console.warn("ensureStarterMonstersOnLogin:", e);
+      }
       loadMonsters();
-    }
+    };
+    onLogin();
   }, [user?.uid, tacticalMonsterClient, loadMonsters]);
 
   const updateMonsterPosition = useCallback((monsterId: string, q: number, r: number) => {
