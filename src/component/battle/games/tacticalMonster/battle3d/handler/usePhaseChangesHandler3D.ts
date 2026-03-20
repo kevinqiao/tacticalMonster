@@ -46,7 +46,7 @@ const getTurnActorId = (actor: any, currentRound?: GameRound | null): string | n
 
 export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOptions) => {
     const { gridState, mapDimension, playbackSpeed = 1.0 } = options;
-    const { game, characters, groundCells, setActiveCharacterKey, setPhaseChangeEvent, updateRuntimeGame } = useCombatManager();
+    const { game, characters, groundCells, setActiveCharacterKey, addPhaseChangeEvent, updateRuntimeGame } = useCombatManager();
     const { openModal } = useModalManager();
 
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
@@ -171,9 +171,9 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                     if (hasTurnEndAndStart) {
                         setActiveCharacterKey(null);
                         gridState?.clearAll();
-                        setPhaseChangeEvent({ name: "turnEnd", data: phaseChanges.turnEnd });
+                        addPhaseChangeEvent({ name: "turnEnd", data: phaseChanges.turnEnd });
                     }
-                    setPhaseChangeEvent({
+                    addPhaseChangeEvent({
                         name: "turnStart",
                         data: {
                             ...phaseChanges.turnStart,
@@ -187,14 +187,21 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                 flushSync(() => {
                     setActiveCharacterKey(null);
                     gridState?.clearAll();
-                    setPhaseChangeEvent({ name: "turnEnd", data: phaseChanges.turnEnd });
+                    addPhaseChangeEvent({ name: "turnEnd", data: phaseChanges.turnEnd });
                 });
             }
 
             // ✅ 先处理 bossAIActions，完成当前 round 的 boss turn 更新；再处理 roundStart 避免覆盖
             if (phaseChanges.bossAIActions && phaseChanges.bossAIActions.length > 0) {
                 for (const bossAIActionItem of phaseChanges.bossAIActions) {
-                    const { turnStart, decision, executionResults, phaseTransition } = bossAIActionItem;
+                    const {
+                        turnStart,
+                        decision,
+                        executionResults,
+                        phaseTransition,
+                        currentRoundWhenTurnActive,
+                        currentRoundWhenTurnComplete,
+                    } = bossAIActionItem;
                     const actorSource = turnStart && "turn" in turnStart ? turnStart.turn : turnStart;
                     const actor: TurnActor = { uid: actorSource.uid, character_id: actorSource.character_id };
 
@@ -207,15 +214,23 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                     let startedTurn: GameTurn | null = null;
                     flushSync(() => {
                         if (character) setActiveCharacterKey(getCharacterKey(character));
-                        setPhaseChangeEvent({
-                            name: "turnStart",
-                            // bossAIActions 阶段只推进局部 turn 状态，避免过早注入最终 currentRound
-                            data: {
-                                ...turnStart,
+                        addPhaseChangeEvent(
+                            {
+                                name: "turnStart",
+                                data: {
+                                    ...turnStart,
+                                    ...(currentRoundWhenTurnActive && {
+                                        currentRound: currentRoundWhenTurnActive,
+                                    }),
+                                },
                             },
-                        });
+                            { authoritativeRound: !!currentRoundWhenTurnActive }
+                        );
                     });
-                    startedTurn = "turn" in turnStart ? turnStart.turn : (game?.currentRound?.turns.find((t) => isSameTurnActor(t, actor)) ?? null);
+                    startedTurn =
+                        currentRoundWhenTurnActive?.turns.find((t: GameTurn) => isSameTurnActor(t, actor)) ??
+                        ("turn" in turnStart ? turnStart.turn : null) ??
+                        (game?.currentRound?.turns.find((t: GameTurn) => isSameTurnActor(t, actor)) ?? null);
 
                     if (character && decision) {
                         const statusEffectChanges = turnStart.statusEffectChanges;
@@ -282,7 +297,18 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                     }
                     if (startedTurn) {
                         flushSync(() => {
-                            setPhaseChangeEvent({ name: "turnEnd", data: turnStart });
+                            addPhaseChangeEvent(
+                                {
+                                    name: "turnEnd",
+                                    data: {
+                                        ...turnStart,
+                                        ...(currentRoundWhenTurnComplete && {
+                                            currentRound: currentRoundWhenTurnComplete,
+                                        }),
+                                    },
+                                },
+                                { authoritativeRound: !!currentRoundWhenTurnComplete }
+                            );
                             setActiveCharacterKey(null);
                         });
                     }
@@ -294,7 +320,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                 const roundForTurnbar = phaseChanges.roundEnd.lastRound ?? game?.currentRound;
                 if (roundForTurnbar) {
                     flushSync(() => {
-                        setPhaseChangeEvent({
+                        addPhaseChangeEvent({
                             name: "roundEnd",
                             data: {
                                 ...phaseChanges.roundEnd,
@@ -308,7 +334,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
             if (phaseChanges.roundStart) {
                 const round = roundFromRoundStart as GameRound;
                 flushSync(() => {
-                    setPhaseChangeEvent({ name: "roundStart", data: { ...phaseChanges.roundStart, round } });
+                    addPhaseChangeEvent({ name: "roundStart", data: { ...phaseChanges.roundStart, round } });
                 });
             }
 
@@ -321,7 +347,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                 if (!phaseChangeEventAlreadySet) {
                     flushSync(() => {
                         if (character) setActiveCharacterKey(getCharacterKey(character));
-                        setPhaseChangeEvent({
+                        addPhaseChangeEvent({
                             name: "turnStart",
                             data: {
                                 ...phaseChanges.turnStart,
@@ -375,7 +401,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                 console.log("gameOver:", phaseChanges.gameOver);
                 flushSync(() => {
 
-                    setPhaseChangeEvent({
+                    addPhaseChangeEvent({
                         name: "gameOver",
                         data: phaseChanges.gameOver,
                     });
@@ -391,7 +417,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
             openModal,
             playTurnStart,
             playTurnOn,
-            setPhaseChangeEvent,
+            addPhaseChangeEvent,
             setActiveCharacterKey,
             updateRuntimeGame,
             findTargetByIdentifierWrapper,

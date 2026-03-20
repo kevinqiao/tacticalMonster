@@ -185,6 +185,10 @@ export interface BossAIActionItem {
     /** 执行结果；跳过时为 { skipped: true }，否则为 BossAIExecutionResults */
     executionResults: BossAIExecutionResults | { skipped: true };
     phaseTransition?: BossAIPhaseTransition;
+    /** patchTurnStatus 为进行中(1) 后从 mr_game_round 读取的快照，供前端 turnStart / turnbar */
+    currentRoundWhenTurnActive?: GameRound;
+    /** patchTurnStatus 为完成(2) 后从 mr_game_round 读取的快照，供前端 turnEnd / turnbar */
+    currentRoundWhenTurnComplete?: GameRound;
 }
 
 /**

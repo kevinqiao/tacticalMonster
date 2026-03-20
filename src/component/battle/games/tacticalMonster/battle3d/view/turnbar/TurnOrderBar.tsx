@@ -6,8 +6,9 @@
  */
 
 import gsap from "gsap";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCombatManager } from "../../../service/CombatManager";
+import type { QueueableTurnBarEventName, TurnBarPhaseEvent } from "../../../utils/turnBarQueueUtils";
 import { usePlayTurnBar } from "../../animation/usePlayTurnBar";
 import { SeparatorSprite } from "./SeparatorSprite";
 import { TurnItemSprite } from "./TurnItemSprite";
@@ -26,10 +27,6 @@ export type TurnBarItem = {
     order?: number;
     turnKey?: string;
 };
-type TurnBarPhaseEvent = { name: string, data: any };
-type TurnBarQueuedEvent = { status: number, phaseChangeEvent: TurnBarPhaseEvent };
-type QueueableTurnBarEventName = "init" | "turnStart" | "turnEnd" | "roundEnd" | "roundStart";
-
 const getSeparatorIndexFromRound = (round: any): number => {
     const size = round?.turns?.length ?? 0;
     const todos = round?.turns
@@ -37,46 +34,10 @@ const getSeparatorIndexFromRound = (round: any): number => {
         .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
     return (todos?.length === 0 || todos?.length === size) ? size : (todos?.length ?? 0);
 };
-const getPhaseEventKey = (evt: { name: string, data: any } | null | undefined): string => {
-    if (!evt) return "";
-    const data = evt.data ?? {};
-    if (evt.name === "turnStart") {
-        const turn = data.turn ?? data;
-        const roundNo = data.currentRound?.no ?? "";
-        const actorId = turn?.character_id ?? data.character_id ?? "";
-        const order = turn?.order ?? "";
-        return `${evt.name}:${roundNo}:${actorId}:${order}`;
-    }
-    if (evt.name === "roundStart") {
-        const roundNo = data.round?.no ?? data.round ?? "";
-        return `${evt.name}:${roundNo}`;
-    }
-    if (evt.name === "init") {
-        const roundNo = data?.no ?? "";
-        return `${evt.name}:${roundNo}`;
-    }
-    return `${evt.name}`;
-};
-const QUEUEABLE_EVENT_NAMES: QueueableTurnBarEventName[] = ["init", "turnStart", "turnEnd", "roundEnd", "roundStart"];
-const isQueueableTurnBarEvent = (evt: TurnBarPhaseEvent | null | undefined): evt is TurnBarPhaseEvent => {
-    if (!evt) return false;
-    return (QUEUEABLE_EVENT_NAMES as string[]).includes(evt.name);
-};
-const enqueueIfNotDuplicate = (queue: TurnBarQueuedEvent[], phaseChangeEvent: TurnBarPhaseEvent) => {
-    const nextKey = getPhaseEventKey(phaseChangeEvent);
-    const last = queue[queue.length - 1];
-    const lastKey = getPhaseEventKey(last?.phaseChangeEvent);
-    if (nextKey !== lastKey) {
-        queue.push({ status: 0, phaseChangeEvent });
-    }
-};
-
 export const TurnOrderBar: React.FC = () => {
-    const { game, mapDimension, phaseChangeEvent, characters, mode, playbackSpeed = 1.0 } = useCombatManager();
-    const phaseChangeEventQueueRef = useRef<TurnBarQueuedEvent[]>([]);
-    const initQueuedGameKeyRef = useRef<string | null>(null);
+    const { game, mapDimension, phaseChangeEventQueueRef, initQueuedGameKeyRef, characters, mode, playbackSpeed = 1.0 } = useCombatManager();
     const initProcessedRef = useRef(false);
-    const firstTurnStartAfterInitHandledRef = useRef(false);
+
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
     const turnBarItemsMapRef = useRef<Map<string, TurnBarItem>>(new Map());
     const [separator, setSeparator] = useState<{ ele: HTMLDivElement | null, txtEle: HTMLDivElement | null, nextRound: number, index: number }>({
@@ -105,37 +66,6 @@ export const TurnOrderBar: React.FC = () => {
         trackRef,
         playbackSpeed,
     });
-    const enqueuePhaseEvent = useCallback((evt: TurnBarPhaseEvent) => {
-        enqueueIfNotDuplicate(phaseChangeEventQueueRef.current, evt);
-    }, []);
-
-    // gameId 为空时重置“已入队 init”标记，保证新一局时门控生效
-    useEffect(() => {
-        if (game?.gameId == null || game?.gameId === "") {
-            initQueuedGameKeyRef.current = null;
-        }
-    }, [game?.gameId]);
-
-    // 仅在存在有效 gameId 且 currentRound 时入队一次 init；插入队列前端，确保先于已入队的 turnStart 执行
-    useEffect(() => {
-        const gameId = game?.gameId;
-        if (gameId == null || gameId === "" || !game?.currentRound) return;
-        const gameKey = String(gameId);
-        if (initQueuedGameKeyRef.current === gameKey) return;
-        initQueuedGameKeyRef.current = gameKey;
-        initProcessedRef.current = false;
-        firstTurnStartAfterInitHandledRef.current = false;
-        const queue = phaseChangeEventQueueRef.current;
-        const initEvt = { status: 0 as const, phaseChangeEvent: { name: "init" as const, data: game.currentRound } };
-        queue.unshift(initEvt);
-    }, [game?.gameId, game?.currentRound]);
-
-    useEffect(() => {
-        if (!isQueueableTurnBarEvent(phaseChangeEvent)) return;
-        if (phaseChangeEvent.name === "init") return;
-        enqueuePhaseEvent(phaseChangeEvent);
-    }, [enqueuePhaseEvent, phaseChangeEvent, mode]);
-
 
     // 依赖布局的回合事件：未为本局入队过 init 前不消费，避免先执行 turnStart 再 init 导致高亮错位
     const requiresLayoutEventNames: QueueableTurnBarEventName[] = ["turnStart", "roundStart"];
@@ -181,14 +111,8 @@ export const TurnOrderBar: React.FC = () => {
                     playInitTurn(turn, timelineRef.current);
                     return;
                 case "turnStart": {
-                    const skipHighlightForFirstTurnStartAfterInit =
-                        initProcessedRef.current && !firstTurnStartAfterInitHandledRef.current;
-                    if (skipHighlightForFirstTurnStartAfterInit) {
-                        firstTurnStartAfterInitHandledRef.current = true;
-                    }
-                    playStartTurn(turn, timelineRef.current, {
-                        animateHighlight: !skipHighlightForFirstTurnStartAfterInit,
-                    });
+
+                    playStartTurn(turn, timelineRef.current);
                     return;
                 }
                 case "turnEnd":

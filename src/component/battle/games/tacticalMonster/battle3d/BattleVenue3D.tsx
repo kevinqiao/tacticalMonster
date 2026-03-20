@@ -387,7 +387,6 @@ export const BattleVenue3D: React.FC = () => {
         groundCells: contextGroundCells,
         initialPhaseChanges,
         initialPhaseChangesGate,
-        phaseChangeEvent,
         replay,
         eventQueue,
         mapDimension,
@@ -403,10 +402,7 @@ export const BattleVenue3D: React.FC = () => {
     const handleCellClick = useCallback(
         (logicQ: number, logicR: number) => {
             if (!mapDimension || mode !== "play") return;
-            const phaseChangeEventCurrentRound = (phaseChangeEvent?.data as any)?.currentRound;
-            const effectiveGame = phaseChangeEventCurrentRound
-                ? { ...game, currentRound: phaseChangeEventCurrentRound }
-                : game;
+            const effectiveGame = game;
             const validation = canPerformAction(mode, effectiveGame, characters);
             if (!validation.can || !validation.character) {
                 gridState.clearAll();
@@ -439,7 +435,7 @@ export const BattleVenue3D: React.FC = () => {
                 }
             }
         },
-        [mapDimension, mode, gridState, walk, attack, useSkill, characters, game, phaseChangeEvent]
+        [mapDimension, mode, gridState, walk, attack, useSkill, characters, game]
     );
 
     // ✅ 3D 阶段变化处理器（用于 initialPhaseChanges）

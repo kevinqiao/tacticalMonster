@@ -51,6 +51,16 @@ export class GamePhaseService {
         return await this.roundService.getRoundDoc(gameId, roundNo);
     }
 
+    /** 与 advanceTurnAndRound 一致：从 DB 读当前轮 turns，供 phaseChanges 片段带权威快照 */
+    private async buildRoundSnapshot(gameId: string, roundNo: number): Promise<GameRound | undefined> {
+        const doc = await this.loadRoundDoc(gameId, roundNo);
+        if (!doc?.turns?.length) return undefined;
+        return {
+            no: roundNo,
+            turns: doc.turns.map((t: GameTurn) => ({ ...t })),
+        };
+    }
+
     /** 将匹配 turnToMatch 的回合状态改为 newStatus 并写回数据库；status=2 时写入 actionOrder 记录实际出手顺序 */
     private async patchTurnStatus(
         roundDoc: { _id: any; turns: GameTurn[] },
@@ -148,6 +158,8 @@ export class GamePhaseService {
         decision: any;
         executionResults: any;
         phaseTransition?: any;
+        currentRoundWhenTurnActive?: GameRound;
+        currentRoundWhenTurnComplete?: GameRound;
     }> {
         const turnStartInfo: any = {
             uid: nextTurn.uid,
@@ -183,6 +195,7 @@ export class GamePhaseService {
 
         // 标记 Boss 回合为进行中（status 1），否则 executeBossAction 内的 validateTurn 会失败
         await this.patchTurnStatus(roundDoc, nextTurn, 1);
+        const currentRoundWhenTurnActive = await this.buildRoundSnapshot(gameId, roundNo);
 
         const skipBossAI = turnCharacter && (turnCharacter.status === "dead" || turnCharacter.status === "stunned");
         let bossActionResult: any = null;
@@ -194,6 +207,7 @@ export class GamePhaseService {
         }
 
         await this.patchTurnStatus(roundDoc, nextTurn, 2);
+        const currentRoundWhenTurnComplete = await this.buildRoundSnapshot(gameId, roundNo);
 
         const bossTurnStart = { ...turnStartInfo };
         if (bossActionResult?.ok && bossActionResult.decision) {
@@ -202,12 +216,26 @@ export class GamePhaseService {
                 decision: bossActionResult.decision,
                 executionResults: bossActionResult.executionResults || { boss: { ok: true }, minions: [] },
                 phaseTransition: bossActionResult.phaseTransition,
+                currentRoundWhenTurnActive,
+                currentRoundWhenTurnComplete,
             };
         }
         if (skipBossAI && turnStartInfo.statusEffectChanges) {
-            return { turnStart: bossTurnStart, decision: null, executionResults: { skipped: true } };
+            return {
+                turnStart: bossTurnStart,
+                decision: null,
+                executionResults: { skipped: true },
+                currentRoundWhenTurnActive,
+                currentRoundWhenTurnComplete,
+            };
         }
-        return { turnStart: bossTurnStart, decision: null, executionResults: null };
+        return {
+            turnStart: bossTurnStart,
+            decision: null,
+            executionResults: null,
+            currentRoundWhenTurnActive,
+            currentRoundWhenTurnComplete,
+        };
     }
 
     /**
@@ -225,6 +253,8 @@ export class GamePhaseService {
             decision: any;
             executionResults: any;
             phaseTransition?: any;
+            currentRoundWhenTurnActive?: GameRound;
+            currentRoundWhenTurnComplete?: GameRound;
         }> = [];
         const maxBossTurns = 10;
 

@@ -193,11 +193,13 @@ export interface BossAIExecutionResults {
     skipped?: true;
 }
 
-/** bossAIActions 数组中单项的 turnStart 结构 */
+/** bossAIActions 数组中单项的 turnStart 结构（与 Convex BossAIActionTurnStart 对齐） */
 export interface BossAIActionTurnStart {
     uid: string;
-    monsterId: string;
+    character_id: string;
     round: number;
+    /** 兼容旧数据或展示用 */
+    monsterId?: string;
     bossId?: string;
     minionId?: string;
     triggeredPassiveSkills?: TriggeredPassiveSkill[];
@@ -210,20 +212,16 @@ export interface BossAIActionTurnStart {
 
 /** Boss AI 动作项（PhaseChanges.bossAIActions 数组元素） */
 export interface BossAIActionItem {
-    turnStart: {
-        turn: GameTurn;
-        triggeredPassiveSkills?: TriggeredPassiveSkill[];
-        statusEffectChanges?: {
-            expired: Array<{ id: string; type: string; name?: string }>;
-            ticked: Array<{ effectId: string; type: string; value: number }>;
-            characterState: { hp: number; mp?: number; status: string };
-        };
-    };
+    turnStart: BossAIActionTurnStart;
     /** 决策结果；跳过 AI 时可为 null */
     decision: BossAIDecision | null;
     /** 执行结果；跳过时为 { skipped: true }，否则为 BossAIExecutionResults */
     executionResults: BossAIExecutionResults | { skipped: true };
     phaseTransition?: BossAIPhaseTransition;
+    /** patchTurnStatus(1) 后服务端 mr_game_round 快照，供 turnStart / turnbar */
+    currentRoundWhenTurnActive?: GameRound;
+    /** patchTurnStatus(2) 后服务端 mr_game_round 快照，供 turnEnd / turnbar */
+    currentRoundWhenTurnComplete?: GameRound;
 }
 
 /**

@@ -12,7 +12,7 @@ import { BattleVenue3D } from "./BattleVenue3D";
 import GameOver from "./view/gameover/GameOver";
 
 const BattlePlayer3D: React.FC = () => {
-    const { game, replay, mode, phaseChangeEvent } = useCombatManager();
+    const { game, replay, mode, gameOverEvent } = useCombatManager();
     const [currentEventIndex, setCurrentEventIndex] = useState(0);
     const [allEvents, setAllEvents] = useState<any[]>([]);
 
@@ -38,7 +38,7 @@ const BattlePlayer3D: React.FC = () => {
                     currentEventIndex={currentEventIndex}
                 />
             )}
-            {phaseChangeEvent?.name === "gameOver" && <GameOver />}
+            {gameOverEvent != null && <GameOver />}
         </>
     );
 };

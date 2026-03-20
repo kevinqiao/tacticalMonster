@@ -28,7 +28,6 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
         characters,
         groundCells,
         mode = "play",
-        game,
     } = useCombatManager();
 
     const isReplayMode = mode === "replay";

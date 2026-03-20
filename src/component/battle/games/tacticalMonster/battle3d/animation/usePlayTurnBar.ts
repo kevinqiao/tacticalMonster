@@ -122,17 +122,6 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
 
     const playAddRemoveTurn = useCallback(
         ({ turnOrder, turnItems, timeline }: { turnOrder: GameTurn[], turnItems: TurnBarItem[], timeline?: gsap.core.Timeline }) => {
-            // 进入重排/移除动画前，先清掉所有缩放相关状态，避免元素带着高亮缩放参与位移。
-            // turnItems.forEach((item) => {
-            //     if (item.ele) {
-            //         gsap.killTweensOf(item.ele, "scale,boxShadow");
-            //         gsap.set(item.ele, {
-            //             scale: 1,
-            //             boxShadow: "none",
-            //             overwrite: "auto",
-            //         });
-            //     }
-            // });
 
             turnItems.forEach((item) => {
                 const turn = turnOrder.find(t => t.character_id === item.character_id);
@@ -189,8 +178,6 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             turnOrder,
             turnItems,
             timeline,
-            animateHighlight = true,
-            showHighlight = true,
         }: {
             turnOrder: GameTurn[],
             turnItems: TurnBarItem[],
@@ -203,7 +190,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             const firstItem = turnItems.find((t) => t.character_id === firstTurn?.character_id);
             const offsetSteps = firstItem?.index ?? 0;
             const moveOuts = turnItems.filter(i => i.index !== undefined && i.index < offsetSteps);
-            console.log("moveOuts", moveOuts, offsetSteps, turnItems.map((item) => item.character_id + ":" + item.index));
+            console.log("moveOuts", moveOuts, offsetSteps, firstItem, turnItems.map((item) => item.character_id + ":" + item.index + ":" + item.status));
             // 先按 turnOrder 同步状态；后续无论是否位移，都要统一落位并重置/重建高亮。
             turnOrder.forEach((t: GameTurn, index: number) => {
                 const item = turnItems.find(i => i.character_id === t.character_id);
@@ -285,7 +272,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
         const turnData = event.phaseChangeEvent.data as StartTurnPayload;
         const currentRound = turnData.currentRound;
         const turnOrder = getTurnOrderByRound(currentRound!!);
-
+        console.log("turnOrder", turnOrder, currentRound);
         const turnItems = checkTurnItems(turnOrder);
 
         if (!turnItems || turnItems.length === 0) {
