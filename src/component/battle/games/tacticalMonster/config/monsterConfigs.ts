@@ -903,7 +903,7 @@ export const MONSTER_CONFIGS: Array<Monster> = [
         baseDamage: 110,
         baseDefense: 60,
         baseSpeed: 85,
-        skillIds: getSkillsByClass("Archer"),
+        skillIds: [...getSkillsByClass("Archer"), "summon_minion"],
         growthRates: getGrowthRatesByClass("Archer", "Common"),
         moveRange: 3,
         attackRange: { min: 2, max: 5 },

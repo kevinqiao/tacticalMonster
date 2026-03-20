@@ -128,6 +128,38 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
             const hasTurnEndAndStart = hasTurnEnd && hasTurnStart && !hasBossAIActions;
             // ✅ 仅有 summon + turnStart（无 turnEnd / bossAI）时，同步提交 turnStart，确保 merged game 与 phaseChangeEvent 同帧可见
             const hasSummonedTurnStartOnly = hasSummoned && hasTurnStart && !hasTurnEnd && !hasBossAIActions;
+            const hasNonEmptyTurns = (turns: GameTurn[] | null | undefined): turns is GameTurn[] =>
+                Array.isArray(turns) && turns.length > 0;
+            const roundFromRoundStart = (() => {
+                if (!phaseChanges.roundStart) return null;
+                const roundPayload = phaseChanges.roundStart.round;
+                const roundNo = typeof roundPayload === "number" ? roundPayload : (roundPayload as GameRound)?.no ?? 1;
+                const payloadTurns = typeof roundPayload === "object" && roundPayload !== null && "turns" in roundPayload
+                    ? (roundPayload as GameRound).turns
+                    : null;
+                const currentRoundTurns = (phaseChanges.currentRound as GameRound | undefined)?.turns;
+                const gameCurrentTurns = game?.currentRound?.turns;
+                const resolvedTurns =
+                    (hasNonEmptyTurns(payloadTurns) && payloadTurns) ||
+                    (hasNonEmptyTurns(currentRoundTurns) && currentRoundTurns) ||
+                    (hasNonEmptyTurns(gameCurrentTurns) && gameCurrentTurns) ||
+                    null;
+                const syntheticTurns: GameTurn[] = resolvedTurns ?? [...characters]
+                    .sort((a, b) => ((b as any).stats?.speed ?? 0) - ((a as any).stats?.speed ?? 0))
+                    .map((c, i) => ({
+                        uid: c.uid,
+                        character_id: c.character_id,
+                        status: 0,
+                        order: i + 1,
+                    }));
+                return { no: roundNo, turns: syntheticTurns } as GameRound;
+            })();
+            const turnbarCurrentRound = (() => {
+                const currentRound = phaseChanges.currentRound as GameRound | undefined;
+                // 同一批 phase 同时有 roundStart + turnStart 时，优先用 roundStart 推导的回合，避免 currentRound 旧快照导致 turnbar 分界线回跳。
+                if (roundFromRoundStart) return roundFromRoundStart;
+                return currentRound;
+            })();
 
             let turnStartAppliedSync = false;
             if (hasTurnEndAndStart || hasSummonedTurnStartOnly) {
@@ -145,7 +177,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                         name: "turnStart",
                         data: {
                             ...phaseChanges.turnStart,
-                            ...(phaseChanges.currentRound && { currentRound: phaseChanges.currentRound }),
+                            ...(turnbarCurrentRound && { currentRound: turnbarCurrentRound }),
                         },
                     });
                     if (characterForSync) setActiveCharacterKey(getCharacterKey(characterForSync));
@@ -274,30 +306,10 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
             }
 
             if (phaseChanges.roundStart) {
-                // const hasAuthoritativeTurnStartRound = !!phaseChanges.turnStart && !!phaseChanges.currentRound;
-                // if (hasAuthoritativeTurnStartRound) {
-                //     // 同一批 phase 中若已带 turnStart + currentRound（包含唯一 status=1），
-                //     // 跳过 roundStart 覆盖，避免把 active turn 意外重置为全 0。
-                // }
-                const roundPayload = phaseChanges.roundStart.round;
-                const roundNo = typeof roundPayload === "number" ? roundPayload : (roundPayload as GameRound)?.no ?? 1;
-                const existingTurns = typeof roundPayload === "object" && roundPayload !== null && "turns" in roundPayload
-                    ? (roundPayload as GameRound).turns
-                    : null;
-                const syntheticTurns: GameTurn[] = existingTurns ?? [...characters]
-                    .sort((a, b) => ((b as any).stats?.speed ?? 0) - ((a as any).stats?.speed ?? 0))
-                    .map((c, i) => ({
-                        uid: c.uid,
-                        character_id: c.character_id,
-                        status: 0,
-                        order: i + 1,
-                    }));
-                const round: GameRound = { no: roundNo, turns: syntheticTurns };
-                // if (!hasAuthoritativeTurnStartRound) {
+                const round = roundFromRoundStart as GameRound;
                 flushSync(() => {
                     setPhaseChangeEvent({ name: "roundStart", data: { ...phaseChanges.roundStart, round } });
                 });
-                // }
             }
 
             if (phaseChanges.turnStart) {
@@ -313,7 +325,7 @@ export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOption
                             name: "turnStart",
                             data: {
                                 ...phaseChanges.turnStart,
-                                ...(phaseChanges.currentRound && { currentRound: phaseChanges.currentRound }),
+                                ...(turnbarCurrentRound && { currentRound: turnbarCurrentRound }),
                             },
                         });
                     });

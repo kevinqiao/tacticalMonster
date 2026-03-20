@@ -236,7 +236,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
             actor.minionId;
 
         // roundStart: 先同步 effectiveGame.currentRound（后端返回的 round.turns 已保证 uid="boss" 时含 bossId 或 minionId）
-        if (name === "roundStart" && "round" in data && data.round) {
+        if ((name === "roundStart" || name === "roundEnd") && "round" in data && data.round) {
             const round = data.round as GameRound;
             (effectiveGame as { currentRound?: GameRound }).currentRound = round;
         }
@@ -245,7 +245,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         if ((name === "turnStart" || name === "turnEnd") && effectiveGame.currentRound) {
             const dataWithRound = data as TurnRoundData & { currentRound?: GameRound };
             // 固定逻辑：后端每次 turnStart 都带 currentRound，直接整体替换以同步 order（含召唤等）
-            if (name === "turnStart" && dataWithRound.currentRound) {
+            if (dataWithRound.currentRound) {
                 const activeFromRound = dataWithRound.currentRound.turns.find((t) => (t.status ?? 0) === 1)?.character_id;
                 const resolvedActorId =
                     actor.character_id ??
