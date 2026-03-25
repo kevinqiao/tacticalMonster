@@ -476,6 +476,17 @@ export class GameService implements CharacterGetter {
     }
 
     /**
+     * 仿真专用：当前回合轮到 Boss 侧时执行 Boss AI 并标记该 turn 完成（与线上 phase 流程一致）。
+     */
+    async runSimulatorBossTurn(gameId: string): Promise<void> {
+        await this.gamePhaseService.resolveSimulatorBossTurn(gameId, this.ctx);
+    }
+
+    async ensureSimulatorRoundProgress(gameId: string): Promise<void> {
+        await this.gamePhaseService.ensureSimulatorRoundProgress(gameId, this.ctx);
+    }
+
+    /**
      * 通知游戏结束
      * 职责：
      * 1. 更新 TacticalMonster 本地游戏状态为 "ended"

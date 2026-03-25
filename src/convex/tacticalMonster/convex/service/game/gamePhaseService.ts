@@ -622,6 +622,74 @@ export class GamePhaseService {
 
         return changes;
     }
+
+    /**
+     * 战斗仿真：当前活跃 turn 为 Boss 侧（uid=boss, status=1）时，执行 handleBossTurn 并将该 turn 标为完成。
+     * 与 processBossTurn 中 Boss AI 段一致（不再重复 turn_start tick，因 turn 已在进行中）。
+     * 随后与 advanceTurnAndRound 一致：连续处理后续 Boss 回合直至玩家回合，并在整轮结束时进入下一轮。
+     */
+    async resolveSimulatorBossTurn(gameId: string, ctx: any): Promise<void> {
+        const game = await this.lifecycleService.load(gameId);
+        if (!game?.currentRound) return;
+
+        const roundNo = game.currentRound.no;
+        const roundDoc = await this.loadRoundDoc(gameId, roundNo);
+        if (!roundDoc?.turns?.length) return;
+
+        const activeTurn = roundDoc.turns.find((t: GameTurn) => (t.status ?? 0) === 1);
+        if (!activeTurn || activeTurn.uid !== "boss") return;
+
+        this.characterQueryService.setGame(game);
+
+        const { monsterId: turnMonsterId, bossId: turnBossId, minionId: turnMinionId } =
+            this.characterQueryService.getCharacterParams(activeTurn.uid, activeTurn.character_id);
+        const turnCharacter = this.characterQueryService.getCharacter(turnMonsterId, turnBossId, turnMinionId);
+        const skipBossAI = turnCharacter && (turnCharacter.status === "dead" || turnCharacter.status === "stunned");
+
+        if (ctx && !skipBossAI) {
+            await ctx.runMutation(internal.service.boss.ai.bossTurnHandler.handleBossTurn, {
+                gameId,
+                round: roundNo,
+            });
+        }
+
+        const freshRoundDoc = await this.loadRoundDoc(gameId, roundNo);
+        if (!freshRoundDoc) return;
+        const freshTurn = freshRoundDoc.turns.find(
+            (t: GameTurn) => t.uid === activeTurn.uid && t.character_id === activeTurn.character_id
+        );
+        if (freshTurn && (freshTurn.status ?? 0) !== 2) {
+            await this.patchTurnStatus(freshRoundDoc, freshTurn, 2);
+        }
+
+        await this.advanceSimulatorPhaseAfterBossHandled(gameId, roundNo, ctx);
+    }
+
+    /**
+     * 仿真：完成一次 Boss 侧处理后，与 advanceTurnAndRound 一致地推进到下一个玩家回合，并在整轮结束时进入下一轮。
+     */
+    private async advanceSimulatorPhaseAfterBossHandled(gameId: string, roundNo: number, ctx: any): Promise<void> {
+        let gameReloaded = await this.lifecycleService.load(gameId);
+        if (!gameReloaded?.currentRound) return;
+        const gameRef = { current: gameReloaded };
+        this.characterQueryService.setGame(gameReloaded);
+        const changes: PhaseChanges = {};
+        await this.processConsecutiveTurnsUntilPlayer(gameId, roundNo, gameRef, changes, ctx);
+
+        const roundAfterBoss = await this.loadRoundDoc(gameId, roundNo);
+        if (roundAfterBoss?.turns.every((t: GameTurn) => (t.status ?? 0) === 2)) {
+            await this.transitionToNextRound(gameId, roundNo, gameRef.current ?? gameReloaded, changes, ctx);
+        }
+    }
+
+    /**
+     * 战斗仿真：当 load 后无 status=1 的 turn 时（例如旧数据 round 未写回），尝试推进阶段直到出现玩家/Boss 活跃回合。
+     */
+    async ensureSimulatorRoundProgress(gameId: string, ctx: any): Promise<void> {
+        const game = await this.lifecycleService.load(gameId);
+        if (!game?.currentRound?.no) return;
+        await this.advanceSimulatorPhaseAfterBossHandled(gameId, game.currentRound.no, ctx);
+    }
 }
 
 

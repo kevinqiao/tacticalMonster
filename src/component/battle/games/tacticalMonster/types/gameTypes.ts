@@ -27,6 +27,8 @@ export interface GameModel {
     gameId: string;
     matchId?: string;
     stageId: string;
+    /** 与 TournamentConfig / stageRuleConfigs 的 ruleId 一致，用于教学与星级等 */
+    ruleId?: string;
     uid: string;  // 玩家 UID
 
     // ========== 队伍和Boss数据 ==========

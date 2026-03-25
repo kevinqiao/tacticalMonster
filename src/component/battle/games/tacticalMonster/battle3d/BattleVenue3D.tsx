@@ -11,8 +11,18 @@ import { Canvas, useThree } from "@react-three/fiber";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { useUserManager } from "service/UserManager";
+import { getStageRuleConfig } from "../config/stageRuleConfigs";
+import type { MonsterSprite } from "../types/CombatTypes";
+import {
+    getDynamicPedagogyGuideText,
+    phaseLabel,
+} from "../utils/pedagogyDynamicGuide";
+import { resolveAttackProfile } from "../utils/skillRangeUtils";
+import { MONSTER_CONFIGS_MAP } from "../config/monsterConfigs";
 import { SKILL_CONFIGS } from "../config/skillConfigs";
 import { useCombatManager } from "../service/CombatManager";
+import { filterSkillIdsForPedagogy } from "../utils/pedagogySkillFilter";
 import { canPerformAction } from "../utils/validationUtils";
 import { BattleLoadingContext } from "./BattleLoadingContext";
 import { useBattleGridState, type BattleCellState } from "./handler/useBattleGridState";
@@ -22,6 +32,7 @@ import { usePhaseChangesHandler3D } from "./handler/usePhaseChangesHandler3D";
 import "./style.css";
 import { BattleMapDimension, getGridCenter3D, getGridExtent3D } from "./utils/coordinate3DUtils";
 import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
+import { usePedagogyGuideFlow } from "./hooks/usePedagogyGuideFlow";
 import { TurnOrderBar } from "./view/turnbar/TurnOrderBar";
 
 const CAMERA_CONFIG = {
@@ -240,7 +251,7 @@ const CanvasWithControls: React.FC<{
  * 使用本地乐观状态：点击技能后立即显示选中与「使用」按钮，不等待后端 skillSelect 推送
  */
 const SkillPanel: React.FC<{
-    selectSkill: (skill: import("../types/skillTypes").MonsterSkill) => void;
+    selectSkill: (skill: import("../types/skillTypes").MonsterSkill) => void | Promise<void>;
     useSkill: (skillId: string, target?: import("../types/CombatTypes").MonsterSprite) => Promise<void>;
     surrender: () => void;
     defend: () => void;
@@ -264,9 +275,16 @@ const SkillPanel: React.FC<{
             (e: any) => e.type === "summon" && e.summonConfig?.position_mode === "caster_adjacent"
         ) ?? false;
 
-    const skillIds = character?.skills?.length
-        ? character.skills
-        : (character as any)?.unlockSkills ?? ["basic_attack"];
+    const rawSkillIds =
+        character?.skills?.length
+            ? character.skills
+            : (character as any)?.unlockSkills?.length
+                ? (character as any).unlockSkills
+                : (character as any)?.monsterId
+                    ? (MONSTER_CONFIGS_MAP[(character as any).monsterId]?.skillIds ?? ["basic_attack"])
+                    : ["basic_attack"];
+    const ruleKey = (game as { ruleId?: string; stageId?: string })?.ruleId ?? game?.stageId;
+    const skillIds = filterSkillIdsForPedagogy(ruleKey, Array.isArray(rawSkillIds) ? rawSkillIds : ["basic_attack"]);
     const activeSkills = (Array.isArray(skillIds) ? skillIds : [])
         .map((id: string) => ({ id, skill: SKILL_CONFIGS[id] }))
         .filter(({ skill }: { skill: any }) => skill && (skill.type === "active" || skill.type === "master" || skill.type === "ultimate"));
@@ -275,25 +293,36 @@ const SkillPanel: React.FC<{
     const energy = (character as any)?.stats?.energy?.current ?? 0;
     const energyMax = (character as any)?.stats?.energy?.max ?? 100;
     const cooldowns = (character as any)?.skillCooldowns ?? {};
+    const charLevel = (character as { level?: number })?.level ?? 1;
 
-    if (!can || mode === "watch" || mode === "replay") {
+    if (mode === "watch" || mode === "replay") {
         return (
             <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
                 <div className="action-panel-item" onClick={() => surrender()}>GAME OVER</div>
             </div>
         );
     }
+    if (!can) {
+        return (
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.8)" }}>
+                <span>{validation.reason ?? "等待回合..."}</span>
+                <div className="action-panel-item" onClick={() => surrender()}>GAME OVER</div>
+            </div>
+        );
+    }
 
-    const handleSkillClick = (skill: any) => {
+    const handleSkillClick = async (skill: any) => {
         setLocalSelectedSkillId(skill.id);
-        selectSkill(skill);
+        await Promise.resolve(selectSkill(skill));
     };
 
     const handleUseNoTarget = () => {
         if (!selectedSkillId || !isNoTargetSkill) return;
         const cooldown = cooldowns[selectedSkillId] ?? 0;
         const mpCost = selectedSkill?.resource_cost?.mp ?? 0;
-        if (cooldown > 0 || mp < mpCost) return; // 冷却或 MP 不足时不再发起请求
+        const reqLevel = selectedSkill?.unlockConditions?.level;
+        const levelLocked = reqLevel != null && charLevel < reqLevel;
+        if (levelLocked || cooldown > 0 || mp < mpCost) return; // 等级/冷却/MP 不足时不再发起请求
         setLocalSelectedSkillId(null);
         clearGrid();
         useSkill(selectedSkillId).catch((err: any) => console.error("[SkillPanel] useSkill error:", err));
@@ -321,8 +350,14 @@ const SkillPanel: React.FC<{
                 const cooldown = cooldowns[id] ?? 0;
                 const mpCost = skill.resource_cost?.mp ?? 0;
                 const energyCost = skill.resource_cost?.energy ?? 0;
-                const disabled = cooldown > 0 || (mpCost > 0 && mp < mpCost) || (energyCost > 0 && energy < energyCost);
+                const requiredLevel = skill.unlockConditions?.level;
+                const levelLocked = requiredLevel != null && charLevel < requiredLevel;
+                const disabled = levelLocked || cooldown > 0 || (mpCost > 0 && mp < mpCost) || (energyCost > 0 && energy < energyCost);
                 const isSelected = selectedSkillId === id;
+                const titleParts = [skill.name];
+                if (levelLocked) titleParts.push(`需要等级 ${requiredLevel}`);
+                if (cooldown > 0) titleParts.push(`(冷却${cooldown})`);
+                if (energyCost > 0) titleParts.push(`消耗能量${energyCost}`);
                 return (
                     <div
                         key={id}
@@ -333,7 +368,7 @@ const SkillPanel: React.FC<{
                             border: isSelected ? "2px solid #fff" : undefined,
                         }}
                         onClick={() => !disabled && handleSkillClick(skill)}
-                        title={`${skill.name}${cooldown > 0 ? ` (冷却${cooldown})` : ""}${energyCost > 0 ? ` 消耗能量${energyCost}` : ""}`}
+                        title={titleParts.join(" ")}
                     >
                         {skill.name}
                         {cooldown > 0 && <span style={{ fontSize: 10, marginLeft: 2 }}>CD{cooldown}</span>}
@@ -343,7 +378,9 @@ const SkillPanel: React.FC<{
             {isNoTargetSkill && (() => {
                 const cd = cooldowns[selectedSkillId ?? ""] ?? 0;
                 const cost = selectedSkill?.resource_cost?.mp ?? 0;
-                const useDisabled = cd > 0 || mp < cost;
+                const reqLvl = selectedSkill?.unlockConditions?.level;
+                const lvlLocked = reqLvl != null && charLevel < reqLvl;
+                const useDisabled = lvlLocked || cd > 0 || mp < cost;
                 return (
                     <div
                         className="action-panel-item"
@@ -354,7 +391,7 @@ const SkillPanel: React.FC<{
                             pointerEvents: useDisabled ? "none" : "auto",
                         }}
                         onClick={handleUseNoTarget}
-                        title={useDisabled ? (cd > 0 ? `技能冷却中，剩余 ${cd} 回合` : "MP 不足") : "使用"}
+                        title={useDisabled ? (lvlLocked ? `需要等级 ${reqLvl}` : cd > 0 ? `技能冷却中，剩余 ${cd} 回合` : "MP 不足") : "使用"}
                     >
                         使用
                     </div>
@@ -380,6 +417,7 @@ const SkillPanel: React.FC<{
 
 /** 3D 战斗场景。mapDimension、containerRef 从 CombatManager context 获取（CombatManager 内 useMapDimension 测量包装容器）。 */
 export const BattleVenue3D: React.FC = () => {
+    const { user } = useUserManager();
     const {
         game,
         mode,
@@ -392,11 +430,69 @@ export const BattleVenue3D: React.FC = () => {
         mapDimension,
     } = useCombatManager();
     const gridState = useBattleGridState();
+    const [skillError, setSkillError] = useState<string | null>(null);
+    const skillErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    const handleSkillErrorToast = useCallback((message: string) => {
+        setSkillError(message);
+        if (skillErrorTimerRef.current) clearTimeout(skillErrorTimerRef.current);
+        skillErrorTimerRef.current = setTimeout(() => {
+            setSkillError(null);
+            skillErrorTimerRef.current = null;
+        }, 3500);
+    }, []);
+
+    useEffect(() => () => {
+        if (skillErrorTimerRef.current) clearTimeout(skillErrorTimerRef.current);
+    }, []);
 
     useEventHandler3D({ gridState, mapDimension });
 
-    const { surrender, defend, walk, attack, selectSkill, useSkill } = useCombatActHandler3D({ gridState, mapDimension });
+    const { surrender, defend, walk, attack, selectSkill, useSkill } = useCombatActHandler3D({
+        gridState,
+        mapDimension,
+        onSkillError: handleSkillErrorToast,
+    });
+
+    const ruleKeyForPedagogy = (game as { ruleId?: string; stageId?: string })?.ruleId ?? game?.stageId;
+    const pedagogyHint = useMemo(() => {
+        const rid = game?.ruleId ?? game?.stageId;
+        if (!rid || mode !== "play") return null;
+        return getStageRuleConfig(rid)?.pedagogy;
+    }, [game?.ruleId, game?.stageId, game?.gameId, mode]);
+
+    const {
+        bannerActive: guideBannerActive,
+        currentStep: guideCurrentStep,
+        notify: notifyPedagogyGuide,
+        skip: skipPedagogyGuide,
+        stepIndex: guideStepIndex,
+        totalSteps: guideTotalSteps,
+        isDynamicGuide,
+    } = usePedagogyGuideFlow({
+        mode,
+        uid: user?.uid,
+        ruleId: ruleKeyForPedagogy,
+        gameId: game?.gameId,
+        steps: pedagogyHint?.guideFlow,
+        dynamicGuide: pedagogyHint?.dynamicGuide,
+        completionSkillId: pedagogyHint?.allowedSkillIds?.[0],
+    });
+
+    const dynamicGuidePayload = useMemo(() => {
+        if (!pedagogyHint?.dynamicGuide || !ruleKeyForPedagogy) return null;
+        return getDynamicPedagogyGuideText(ruleKeyForPedagogy, game, characters, gridState.cellStates);
+    }, [pedagogyHint?.dynamicGuide, ruleKeyForPedagogy, game, characters, gridState.cellStates]);
+
+    const showPedagogyGuidePanel =
+        guideBannerActive &&
+        (isDynamicGuide ? !!dynamicGuidePayload : !!guideCurrentStep);
+
+    /** 动态引导会话中不叠一行 tutorialNotes（含 Boss 回合仅 guideBannerActive、无面板时） */
+    const showPedagogyTutorialNotesStrip =
+        !!pedagogyHint &&
+        !showPedagogyGuidePanel &&
+        !(pedagogyHint.dynamicGuide && guideBannerActive);
 
     // 格子点击：参数为逻辑坐标 (logicQ, logicR)，所见即所点
     const handleCellClick = useCallback(
@@ -411,31 +507,42 @@ export const BattleVenue3D: React.FC = () => {
             const cellState = gridState.getCellState(logicQ, logicR);
             if (cellState === "walkable") {
                 gridState.clearAll();
-                walk({ q: logicQ, r: logicR }).catch((err: any) => {
-                    const message = String(err?.message ?? err ?? "");
-                    const expectedDuringTransition =
-                        message.includes("Walk action in progress") ||
-                        message.includes("no active turn") ||
-                        message.includes("turn changed before request") ||
-                        message.includes("不是当前回合");
-                    if (!expectedDuringTransition) {
-                        console.error("[handleCellClick] walk error:", err);
-                    }
-                });
+                walk({ q: logicQ, r: logicR })
+                    .catch((err: any) => {
+                        const message = String(err?.message ?? err ?? "");
+                        const expectedDuringTransition =
+                            message.includes("Walk action in progress") ||
+                            message.includes("no active turn") ||
+                            message.includes("turn changed before request") ||
+                            message.includes("不是当前回合");
+                        if (!expectedDuringTransition) {
+                            console.error("[handleCellClick] walk error:", err);
+                        }
+                    });
             } else if (cellState === "attackable") {
                 const enemy = characters?.find((c) => c.q === logicQ && c.r === logicR);
                 if (enemy) {
                     const selectedSkillId = effectiveGame?.currentRound?.turns?.find((t: any) => t.status === 1)?.skillSelect;
+                    const attacker = validation.character;
+                    const attackSkillId = resolveAttackProfile(attacker as MonsterSprite).skillId;
                     if (selectedSkillId) {
                         gridState.clearAll();
-                        useSkill(selectedSkillId, enemy).catch((err: any) => console.error("[handleCellClick] useSkill error:", err));
+                        useSkill(selectedSkillId, enemy)
+                            .then(() => {
+                                notifyPedagogyGuide({ type: "cast", skillId: selectedSkillId });
+                            })
+                            .catch((err: any) => console.error("[handleCellClick] useSkill error:", err));
                     } else {
-                        attack(enemy);
+                        attack(enemy)
+                            .then(() => {
+                                notifyPedagogyGuide({ type: "cast", skillId: attackSkillId });
+                            })
+                            .catch((err: any) => console.error("[handleCellClick] attack error:", err));
                     }
                 }
             }
         },
-        [mapDimension, mode, gridState, walk, attack, useSkill, characters, game]
+        [mapDimension, mode, gridState, walk, attack, useSkill, characters, game, notifyPedagogyGuide]
     );
 
     // ✅ 3D 阶段变化处理器（用于 initialPhaseChanges）
@@ -594,6 +701,105 @@ export const BattleVenue3D: React.FC = () => {
                 overflow: "hidden",
             }}
         >
+            {showPedagogyGuidePanel && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: skillError ? 44 : 10,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: 21,
+                        maxWidth: "92%",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: "rgba(20, 60, 100, 0.92)",
+                        color: "rgba(255,255,255,0.95)",
+                        fontSize: 12,
+                        lineHeight: 1.4,
+                        textAlign: "center",
+                        pointerEvents: "auto",
+                        boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
+                    }}
+                >
+                    <div>
+                        {isDynamicGuide && dynamicGuidePayload
+                            ? dynamicGuidePayload.text
+                            : guideCurrentStep?.text}
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 10, opacity: 0.85 }}>
+                        {isDynamicGuide && dynamicGuidePayload
+                            ? `当前阶段：${phaseLabel(dynamicGuidePayload.phase)}`
+                            : `步骤 ${guideStepIndex != null ? guideStepIndex + 1 : 0}/${guideTotalSteps}`}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={skipPedagogyGuide}
+                        style={{
+                            marginTop: 8,
+                            padding: "4px 12px",
+                            fontSize: 11,
+                            borderRadius: 4,
+                            border: "1px solid rgba(255,255,255,0.4)",
+                            background: "rgba(0,0,0,0.25)",
+                            color: "#fff",
+                            cursor: "pointer",
+                        }}
+                    >
+                        跳过引导
+                    </button>
+                </div>
+            )}
+            {showPedagogyTutorialNotesStrip &&
+                (pedagogyHint.tutorialNotes || (pedagogyHint.loanMonsterIds && pedagogyHint.loanMonsterIds.length > 0)) && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: skillError ? 44 : 10,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: 20,
+                        maxWidth: "92%",
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        background: "rgba(0,40,80,0.85)",
+                        color: "rgba(255,255,255,0.95)",
+                        fontSize: 11,
+                        lineHeight: 1.35,
+                        textAlign: "center",
+                        pointerEvents: "none",
+                    }}
+                >
+                    {pedagogyHint.tutorialNotes && <div>{pedagogyHint.tutorialNotes}</div>}
+                    {pedagogyHint.loanMonsterIds && pedagogyHint.loanMonsterIds.length > 0 && (
+                        <div style={{ marginTop: 4, opacity: 0.9 }}>
+                            试用角色（编队接入后可自动上场）: {pedagogyHint.loanMonsterIds.join(", ")}
+                        </div>
+                    )}
+                </div>
+            )}
+            {/* 技能失败提示 toast */}
+            {skillError && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: 12,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: 10,
+                        padding: "8px 16px",
+                        background: "rgba(180, 0, 0, 0.9)",
+                        color: "#fff",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        maxWidth: "90%",
+                        textAlign: "center",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                        pointerEvents: "none",
+                    }}
+                >
+                    技能使用失败: {skillError}
+                </div>
+            )}
             {/* 背景层：竖屏时旋转 90 度，不影响坐标 */}
             <div
                 style={{
@@ -638,11 +844,38 @@ export const BattleVenue3D: React.FC = () => {
 
 
             </div>
-            <div style={{ display: "flex", alignItems: "flex-end", position: "absolute", bottom: 0, left: 0, width: "100%", zIndex: 2 }}>
-                <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", width: "100%" }}>
+            {/* 底部 UI：Grid 布局，TurnOrderBar 优先占位，SkillPanel 使用剩余空间，不重叠 */}
+            <div
+                style={{
+                    position: "absolute",
+                    bottom: 8,
+                    left: 8,
+                    right: 8,
+                    zIndex: 2,
+                    pointerEvents: "auto",
+                    display: "grid",
+                    gridTemplateColumns: "minmax(120px, 55%) minmax(160px, 1fr)",
+                    gap: 12,
+                    alignItems: "end",
+                }}
+            >
+                <div style={{ minWidth: 0, overflow: "hidden" }}>
                     <TurnOrderBar />
                 </div>
-                <div>
+                <div
+                    style={{
+                        minWidth: 0,
+                        display: "flex",
+                        flexWrap: "wrap",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        alignContent: "flex-end",
+                        gap: 4,
+                        background: "linear-gradient(transparent, rgba(0,0,0,0.7))",
+                        padding: "4px 0 0 8px",
+                    }}
+                >
                     <SkillPanel
                         selectSkill={selectSkill}
                         useSkill={useSkill}

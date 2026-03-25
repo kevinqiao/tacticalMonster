@@ -17,7 +17,38 @@ export type GameName =
     | "arcade"          // 街机游戏
     | "tacticalMonster"; // 战术怪物（Monster Rumble）
 
+/**
+ * 3D 战斗内引导步骤事件（与前端 pedagogy 对齐）
+ */
+export type PedagogyGuideEventType =
+    | "move"
+    | "skillSelect"
+    | "targetSelect"
+    | "cast"
+    | "turnEnd";
 
+export interface PedagogyGuideStep {
+    id: string;
+    text: string;
+    eventType: PedagogyGuideEventType;
+    expectedSkillId?: string;
+}
+
+/**
+ * 教学 / 难度阶梯元数据（P/B 轴）
+ */
+export interface StagePedagogy {
+    playerTierAssumed: number;
+    playerTierTaught?: number;
+    bossMechanicTier: number;
+    bossMonsterId?: string;
+    counterFocus?: "none" | "range" | "role_tank" | "role_dps" | string;
+    tutorialNotes?: string;
+    loanMonsterIds?: string[];
+    allowedSkillIds?: string[];
+    guideFlow?: PedagogyGuideStep[];
+    dynamicGuide?: boolean;
+}
 
 /**
  * 关卡规则配置
@@ -103,6 +134,8 @@ export interface StageRuleConfig {
     // ============================================
     isVisible?: boolean;                 // 是否在关卡列表中显示（默认 true）
     sortOrder?: number;                  // 排序顺序
+
+    pedagogy?: StagePedagogy;
 }
 
 

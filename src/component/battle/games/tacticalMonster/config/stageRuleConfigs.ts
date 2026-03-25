@@ -5,6 +5,7 @@
 
 import { ChestTypeWeights } from "../types/chestTypes";
 import { StageRuleConfig } from "../types/stageRuleTypes";
+import { PEDAGOGY_BY_RULE_ID } from "./pedagogyByRuleId";
 
 /**
  * 关卡规则配置集合
@@ -325,13 +326,16 @@ export function registerStageRuleConfigs(configs: StageRuleConfig[]): void {
  * 获取关卡规则配置
  */
 export function getStageRuleConfigs(ruleIds: string[]): StageRuleConfig[] {
-    return ruleIds.map(ruleId => STAGE_RULE_CONFIGS[ruleId]);
+    return ruleIds.map(ruleId => getStageRuleConfig(ruleId)).filter(Boolean) as StageRuleConfig[];
 }
 /**
- * 获取关卡规则配置
+ * 获取关卡规则配置（合并 pedagogyByRuleId 教学元数据）
  */
 export function getStageRuleConfig(ruleId: string): StageRuleConfig | undefined {
-    return STAGE_RULE_CONFIGS[ruleId];
+    const base = STAGE_RULE_CONFIGS[ruleId];
+    if (!base) return undefined;
+    const pedagogy = PEDAGOGY_BY_RULE_ID[ruleId];
+    return pedagogy ? { ...base, pedagogy } : base;
 }
 
 /**

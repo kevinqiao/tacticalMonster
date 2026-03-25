@@ -137,17 +137,19 @@ export const TurnOrderBar: React.FC = () => {
         return () => clearInterval(intervalId);
     }, [mode, playInitTurn, playStartTurn, playStartRound]);
 
+    // 容器高度需留出 1.2 缩放空间，避免最左侧当前回合元素放大后被 overflow 裁剪
+    const containerHeight = dimension ? dimension.itemHeight * 1.2 : 1;
     return (
         <div
             style={{
                 position: "relative",
                 width: "100%",
-                height: dimension?.itemHeight ?? 1,
+                height: containerHeight,
             }}
         >
             <div
                 ref={trackRef}
-                style={{ position: "absolute", left: 0, bottom: 0, width: "100%", height: "100%" }}
+                style={{ position: "absolute", left: 0, bottom: 0, width: "100%", height: containerHeight, overflow: "visible" }}
             >
                 {characters?.map((char, index) =>
                     <TurnItemSprite

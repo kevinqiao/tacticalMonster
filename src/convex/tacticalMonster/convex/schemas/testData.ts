@@ -137,12 +137,12 @@ export function generatePlayerMonstersTestData(): Array<{
 
     const uids = getUIDs();
 
-    // 为每个玩家创建4个怪物（使用 monster_037 作为默认怪物）
+    // 为每个玩家创建4个怪物（含 monster_008 召唤技能）
     for (const uid of uids) {
         const playerMonsters = generatePlayerMonsters(
             uid,
-            ["monster_037", "monster_037", "monster_037", "monster_037"],
-            [1, 1, 1, 1],  // 默认等级1
+            ["monster_037", "monster_037", "monster_008", "monster_037"],  // monster_008 天界使者带召唤
+            [1, 1, 6, 1],  // monster_008 需 6 级解锁 summon_minion
             [1, 1, 1, 1],  // 默认星级1
             true  // 在队伍中
         );

@@ -21,13 +21,14 @@ const SYNTHESIS_SHARD_REQUIREMENTS: Record<string, number> = {
     Legendary: 100,
 };
 
-/** 开局赠送的怪物 ID（哥布林战士、弓箭手） */
-const STARTER_MONSTER_IDS = ["monster_037", "monster_039"] as const;
+/** 开局赠送的怪物 ID（哥布林战士、弓箭手、天界使者），每个类型不重复 */
+const STARTER_MONSTER_IDS = ["monster_037", "monster_039", "monster_008"] as const;
 
 /** 开局赠送怪物的队伍位置 */
 const STARTER_TEAM_POSITIONS: Array<{ q: number; r: number }> = [
     { q: 0, r: 0 },
     { q: 1, r: 2 },
+    { q: 0, r: 3 },
 ];
 
 /**

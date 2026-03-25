@@ -50,6 +50,7 @@ export async function setupCombatTestData(
         bossId?: string;
         teamMonsters?: Array<{ monsterId: string; level: number; stars: number }>;
         skipFirstTurn?: boolean;  // 是否跳过 startFirstTurn（用于测试初始状态）
+        difficultyOverride?: number;  // 仿真用：覆盖 difficultyMultiplier 创建 stage
     }
 ): Promise<{
     uid: string;
@@ -70,11 +71,11 @@ export async function setupCombatTestData(
     const bossId = params?.bossId || "boss_bronze_1";
     const skipFirstTurn = params?.skipFirstTurn || false;
 
-    // 2. 创建或获取测试玩家队伍
+    // 2. 创建或获取测试玩家队伍（含 monster_008 召唤技能）
     const teamMonsters = params?.teamMonsters || [
         { monsterId: "monster_001", level: 5, stars: 1 },
         { monsterId: "monster_002", level: 6, stars: 2 },
-        { monsterId: "monster_003", level: 7, stars: 1 },
+        { monsterId: "monster_008", level: 6, stars: 1 },  // Support，召唤随从
         { monsterId: "monster_004", level: 8, stars: 3 }
     ];
 
@@ -149,8 +150,8 @@ export async function setupCombatTestData(
             if (!ruleConfig) {
                 errors.push(`规则配置不存在: ${ruleId}`);
             } else {
-                // 使用默认难度创建 stage
-                const difficulty = ruleConfig.stageContent?.difficultyAdjustment?.difficultyMultiplier || 1.0;
+                // 使用默认难度或仿真传入的 difficultyOverride 创建 stage
+                const difficulty = params?.difficultyOverride ?? ruleConfig.stageContent?.difficultyAdjustment?.difficultyMultiplier ?? 1.0;
                 const stage = await StageManagerService.createStage(ctx, {
                     ruleId,
                     difficulty,
@@ -462,6 +463,7 @@ export const setupCombatTestDataMutation = internalMutation({
             stars: v.number(),
         }))),
         skipFirstTurn: v.optional(v.boolean()),
+        difficultyOverride: v.optional(v.number()),
     },
     handler: async (ctx, params) => {
         return await setupCombatTestData(ctx, params);
@@ -497,6 +499,7 @@ export const setupCombatTestDataAction = action({
             stars: v.number(),
         }))),
         skipFirstTurn: v.optional(v.boolean()),
+        difficultyOverride: v.optional(v.number()),
     },
     handler: async (ctx, params): Promise<any> => {
         return await ctx.runMutation(

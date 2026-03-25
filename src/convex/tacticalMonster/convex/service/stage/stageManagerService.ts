@@ -87,9 +87,11 @@ export class StageManagerService {
             }
         }
 
-        // 新建 stage
+        // 新建 stage（优先使用仿真 override 的难度）
         console.log("新建 stage", typeId);
-        const difficulty = ruleConfig.stageContent?.difficultyAdjustment?.difficultyMultiplier || 1.0;
+        const mergedConfig = await GameRuleConfigService.getGameRuleConfigWithOverrides(ctx, typeId);
+        const difficulty = mergedConfig?.stageContent?.difficultyAdjustment?.difficultyMultiplier
+            ?? ruleConfig.stageContent?.difficultyAdjustment?.difficultyMultiplier ?? 1.0;
         const stage = await this.createStage(ctx, {
             ruleId: typeId,
             difficulty,
@@ -132,8 +134,10 @@ export class StageManagerService {
             }
         }
 
-        // 新建 stage
-        const difficulty = ruleConfig.stageContent?.difficultyAdjustment?.difficultyMultiplier || 1.0;
+        // 新建 stage（优先使用仿真 override 的难度）
+        const mergedConfig = await GameRuleConfigService.getGameRuleConfigWithOverrides(ctx, typeId);
+        const difficulty = mergedConfig?.stageContent?.difficultyAdjustment?.difficultyMultiplier
+            ?? ruleConfig.stageContent?.difficultyAdjustment?.difficultyMultiplier ?? 1.0;
         const stage = await this.createStage(ctx, {
             ruleId: typeId,
             difficulty,

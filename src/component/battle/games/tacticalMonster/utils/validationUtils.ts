@@ -37,9 +37,10 @@ export const canPerformAction = (
         currentTurn.monsterId ??
         currentTurn.bossId ??
         currentTurn.minionId;
-    const character = characters.find(
-        c => c.character_id === turnActorId
-    );
+    let character = characters.find((c) => (c as any).character_id === turnActorId);
+    if (!character && turnActorId) {
+        character = characters.find((c) => (c as any).monsterId === turnActorId);
+    }
     if (!character) {
         return { can: false, currentTurn, reason: `active turn character not found: ${String(turnActorId)}` };
     }

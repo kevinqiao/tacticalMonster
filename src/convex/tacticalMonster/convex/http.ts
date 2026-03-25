@@ -665,8 +665,11 @@ http.route({
                 );
             }
 
-            const { GameRuleConfigService } = await import("./service/game/gameRuleConfigService");
-            const config = GameRuleConfigService.getGameRuleConfig(ruleId);
+            const { internal } = await import("./_generated/api");
+            const config = await ctx.runQuery(
+                internal.service.game.gameRuleConfigQueries.getGameRuleConfigWithOverrides,
+                { ruleId }
+            );
 
             return new Response(
                 JSON.stringify({

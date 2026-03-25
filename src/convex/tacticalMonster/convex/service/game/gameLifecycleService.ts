@@ -325,6 +325,7 @@ export class GameLifecycleService {
         const game: GameModel = {
             gameId,
             stageId,
+            ruleId,
             uid,
             teamPower,
             scoringConfigVersion: DEFAULT_SCORING_CONFIG_VERSION,  // ✅ 设置配置版本
@@ -376,6 +377,7 @@ export class GameLifecycleService {
                 gameId: game.gameId,
                 matchId: game.matchId,
                 stageId: game.stageId,
+                ruleId,
                 uid: game.uid,
                 teamPower: game.teamPower,
                 team: game.team.map(m => ({
@@ -418,8 +420,17 @@ export class GameLifecycleService {
                 return null;
             }
 
-            // 获取当前回合数
-            const roundNumber = (game as any).round || 0;
+            // 获取当前回合数（mr_games.round 可能未及时写入；从 mr_game_round 回退，否则 turns 为空导致仿真/客户端无活跃回合）
+            let roundNumber = (game as any).round ?? 0;
+            if (roundNumber === 0) {
+                const roundDocs = await this.dbCtx.db
+                    .query("mr_game_round")
+                    .withIndex("by_game_round", (q: any) => q.eq("gameId", gameId))
+                    .collect();
+                if (roundDocs.length > 0) {
+                    roundNumber = roundDocs.reduce((max: number, d: any) => Math.max(max, d.no), 0);
+                }
+            }
 
             // 从数据库读取 GameMonster 数组（统一使用stats，与GameBoss保持一致）
             const team: GameMonster[] = await Promise.all(
@@ -655,12 +666,14 @@ export class GameLifecycleService {
                 gameId: game.gameId,
                 matchId: game.matchId,
                 stageId: game.stageId,
+                ruleId: (game as any).ruleId,
                 uid: game.uid,
                 teamPower: game.teamPower,
                 team: team,  // 使用重建的 GameMonster 数组
                 boss: bossData,  // 使用重建的 GameBoss 对象
                 map: game.map,
-                status: game.status,
+                // 缺省视为进行中；避免 undefined 被误判为「已结束」
+                status: (game as any).status ?? 0,
                 score: game.score,
                 scoringConfigVersion: game.scoringConfigVersion,  // ✅ 加载配置版本
                 lastUpdate: game.lastUpdate,

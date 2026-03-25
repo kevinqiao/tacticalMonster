@@ -14,6 +14,39 @@ export class GameRuleConfigService {
     }
 
     /**
+     * 获取关卡规则配置（合并仿真 override）
+     * 当 mr_stage_simulation_overrides 存在 approved 记录时，用 suggestedRecommendedPower、suggestedDifficultyMultiplier 覆盖
+     */
+    static async getGameRuleConfigWithOverrides(ctx: { db: { query: (table: string) => any } }, ruleId: string): Promise<StageRuleConfig | undefined> {
+        const base = getStageRuleConfig(ruleId);
+        if (!base) return undefined;
+
+        const override = await ctx.db
+            .query("mr_stage_simulation_overrides")
+            .withIndex("by_ruleId", (q: any) => q.eq("ruleId", ruleId))
+            .first();
+
+        if (!override || override.status !== "approved") return base;
+
+        const merged = JSON.parse(JSON.stringify(base)) as StageRuleConfig;
+
+        if (override.suggestedRecommendedPower != null) {
+            merged.recommendedPower = override.suggestedRecommendedPower;
+        }
+        if (override.suggestedDifficultyMultiplier != null && merged.stageContent?.difficultyAdjustment) {
+            merged.stageContent = {
+                ...merged.stageContent,
+                difficultyAdjustment: {
+                    ...merged.stageContent.difficultyAdjustment,
+                    difficultyMultiplier: override.suggestedDifficultyMultiplier,
+                },
+            };
+        }
+
+        return merged;
+    }
+
+    /**
      * 获取宝箱类型权重配置
      * @param ruleId 规则ID
      * @param tier Tier（可选，用于后备默认配置）

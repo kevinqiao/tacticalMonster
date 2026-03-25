@@ -52,7 +52,13 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDefense: 140,
         baseSpeed: 12,
         position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
-        minions: [],
+        minions: [
+            {
+                minionId: "silver_escort_1",
+                monsterId: "monster_037",
+                position: { q: 6, r: 2 },
+            },
+        ],
         phases: [],
         configVersion: 1,
     },
@@ -80,7 +86,18 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDefense: 280,
         baseSpeed: 15,
         position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
-        minions: [],
+        minions: [
+            {
+                minionId: "gold_escort_1",
+                monsterId: "monster_037",
+                position: { q: 5, r: 2 },
+            },
+            {
+                minionId: "gold_escort_2",
+                monsterId: "monster_038",
+                position: { q: 7, r: 3 },
+            },
+        ],
         phases: [],
         configVersion: 1,
     },
@@ -94,8 +111,26 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDefense: 336,
         baseSpeed: 15,
         position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
-        minions: [],
-        phases: [],
+        minions: [
+            {
+                minionId: "gold2_escort_1",
+                monsterId: "monster_037",
+                position: { q: 5, r: 1 },
+            },
+            {
+                minionId: "gold2_escort_2",
+                monsterId: "monster_038",
+                position: { q: 6, r: 3 },
+            },
+        ],
+        phases: [
+            {
+                phaseName: "enrage",
+                hpThreshold: 0.55,
+                behaviorPattern: {},
+                skillPriorities: [],
+            },
+        ],
         configVersion: 1,
     },
     boss_platinum_1: {
@@ -108,8 +143,21 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         baseDefense: 400,
         baseSpeed: 18,
         position: { q: 8, r: 1 },  // Boss 默认位置（地图右上角区域）
-        minions: [],
-        phases: [],
+        minions: [
+            {
+                minionId: "plat_escort_1",
+                monsterId: "monster_037",
+                position: { q: 5, r: 2 },
+            },
+        ],
+        phases: [
+            {
+                phaseName: "secondWind",
+                hpThreshold: 0.5,
+                behaviorPattern: {},
+                skillPriorities: [],
+            },
+        ],
         configVersion: 1,
     },
     boss_platinum_2: {

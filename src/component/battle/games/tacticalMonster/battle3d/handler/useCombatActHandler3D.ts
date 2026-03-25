@@ -25,10 +25,12 @@ interface UseCombatActHandler3DOptions {
     gridState: UseBattleGridStateReturn | null;
     mapDimension: BattleMapDimension | null;
     playbackSpeed?: number;
+    /** 技能失败时额外回调（用于显示 toast 等用户可见提示） */
+    onSkillError?: (message: string) => void;
 }
 
 const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
-    const { gridState, mapDimension, playbackSpeed = 1.0 } = options;
+    const { gridState, mapDimension, playbackSpeed = 1.0, onSkillError } = options;
     const { playSkillSelect } = usePlaySkillSelect3D();
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
     const { playWalk } = usePlayWalk3D({ mapDimension, playbackSpeed });
@@ -48,13 +50,13 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
     const handleSkillError = useCallback(
         (message: string, context?: { character?: any }) => {
             console.error("技能使用失败:", message);
-            // window.alert(`技能使用失败: ${message}`);
+            onSkillError?.(message);
             if (context?.character && refreshWalkableFromPosition) {
                 const moveRange = (context.character as any).move_range ?? 3;
                 refreshWalkableFromPosition(context.character, moveRange, false);
             }
         },
-        [refreshWalkableFromPosition]
+        [refreshWalkableFromPosition, onSkillError]
     );
 
     const { setSkillSyncState } = useSkillSync(

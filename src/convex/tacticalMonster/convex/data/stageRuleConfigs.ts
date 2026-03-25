@@ -1,10 +1,16 @@
 /**
  * 关卡规则配置
  * 定义 TacticalMonster 游戏特定的关卡规则配置，通过 ruleId 与 TournamentConfig 关联
+ *
+ * 难度递进设计（每 tier 内单调递增）：
+ * - Bronze (1-5): difficultyMultiplier 1.0 → 1.60, recommendedPower 300 → 700
+ * - Silver (1-5): difficultyMultiplier 1.2 → 2.0,  recommendedPower 800 → 1200
+ * - Gold (1-5):   difficultyMultiplier 1.4 → 2.2,  recommendedPower 1300 → 1700
  */
 
 import { ChestTypeWeights } from "../types/chestTypes";
 import { StageRuleConfig } from "../types/stageRuleTypes";
+import { PEDAGOGY_BY_RULE_ID } from "./pedagogyByRuleId";
 
 /**
  * 关卡规则配置集合
@@ -47,7 +53,7 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
         },
 
         staminaCost: 6,
-        recommendedPower: 1700,
+        recommendedPower: 300,
         isVisible: true,
         sortOrder: 1,
     },
@@ -75,7 +81,7 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
             difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.15 },
         },
         staminaCost: 6,
-        recommendedPower: 250,
+        recommendedPower: 400,
         isVisible: true,
         sortOrder: 2,
     },
@@ -100,10 +106,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.30 },
         },
         staminaCost: 6,
-        recommendedPower: 300,
+        recommendedPower: 500,
         isVisible: true,
         sortOrder: 3,
     },
@@ -128,10 +134,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.2 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.45 },
         },
         staminaCost: 6,
-        recommendedPower: 350,
+        recommendedPower: 600,
         isVisible: true,
         sortOrder: 4,
     },
@@ -156,10 +162,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.4 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.60 },
         },
         staminaCost: 6,
-        recommendedPower: 400,
+        recommendedPower: 700,
         isVisible: true,
         sortOrder: 5,
     },
@@ -186,10 +192,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.20 },
         },
         staminaCost: 8,
-        recommendedPower: 500,
+        recommendedPower: 800,
         isVisible: true,
         sortOrder: 6,
     },
@@ -212,10 +218,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.15 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.40 },
         },
         staminaCost: 8,
-        recommendedPower: 600,
+        recommendedPower: 900,
         isVisible: true,
         sortOrder: 7,
     },
@@ -238,10 +244,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.60 },
         },
         staminaCost: 8,
-        recommendedPower: 700,
+        recommendedPower: 1000,
         isVisible: true,
         sortOrder: 8,
     },
@@ -264,10 +270,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.2 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.80 },
         },
         staminaCost: 8,
-        recommendedPower: 750,
+        recommendedPower: 1100,
         isVisible: true,
         sortOrder: 9,
     },
@@ -290,10 +296,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.4 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 2.00 },
         },
         staminaCost: 8,
-        recommendedPower: 800,
+        recommendedPower: 1200,
         isVisible: true,
         sortOrder: 10,
     },
@@ -320,10 +326,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.40 },
         },
         staminaCost: 10,
-        recommendedPower: 1000,
+        recommendedPower: 1300,
         isVisible: true,
         sortOrder: 11,
     },
@@ -346,10 +352,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.15 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.60 },
         },
         staminaCost: 10,
-        recommendedPower: 1100,
+        recommendedPower: 1400,
         isVisible: true,
         sortOrder: 12,
     },
@@ -372,10 +378,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.0 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.80 },
         },
         staminaCost: 10,
-        recommendedPower: 1200,
+        recommendedPower: 1500,
         isVisible: true,
         sortOrder: 13,
     },
@@ -398,10 +404,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.2 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 2.00 },
         },
         staminaCost: 10,
-        recommendedPower: 1300,
+        recommendedPower: 1600,
         isVisible: true,
         sortOrder: 14,
     },
@@ -423,10 +429,10 @@ export const STAGE_RULE_CONFIGS: Record<string, StageRuleConfig> = {
                 mapSize: { rows: 7, cols: 8 },
                 templateId: "template_bronze_basic",
             },
-            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 1.4 },
+            difficultyAdjustment: { powerBasedScaling: false, difficultyMultiplier: 2.20 },
         },
         staminaCost: 10,
-        recommendedPower: 1400,
+        recommendedPower: 1700,
         isVisible: true,
         sortOrder: 15,
     },
@@ -569,13 +575,16 @@ export function registerStageRuleConfigs(configs: StageRuleConfig[]): void {
  * 获取关卡规则配置
  */
 export function getStageRuleConfigs(ruleIds: string[]): StageRuleConfig[] {
-    return ruleIds.map(ruleId => STAGE_RULE_CONFIGS[ruleId]);
+    return ruleIds.map(ruleId => getStageRuleConfig(ruleId)).filter(Boolean) as StageRuleConfig[];
 }
 /**
- * 获取关卡规则配置
+ * 获取关卡规则配置（合并 pedagogyByRuleId）
  */
 export function getStageRuleConfig(ruleId: string): StageRuleConfig | undefined {
-    return STAGE_RULE_CONFIGS[ruleId];
+    const base = STAGE_RULE_CONFIGS[ruleId];
+    if (!base) return undefined;
+    const pedagogy = PEDAGOGY_BY_RULE_ID[ruleId];
+    return pedagogy ? { ...base, pedagogy } : base;
 }
 
 /**

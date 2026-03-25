@@ -140,7 +140,11 @@ export const mainSchema = {
                 }),
                 attack: v.number(),
                 defense: v.number(),
-                speed: v.number()
+                speed: v.number(),
+                shield: v.optional(v.object({
+                    current: v.number(),
+                    max: v.number()
+                })),
             }),
             statusEffects: v.optional(v.array(statusEffectSchema)),  // 状态效果列表（与StatusEffect类型一致）
             cooldowns: v.optional(v.any()),           // 技能冷却
@@ -269,6 +273,18 @@ export const mainSchema = {
         .index("by_game_stepTime", ["gameId", "stepTime"]),  // ✅ 新增索引：用于按 stepTime 排序
 
     // ✅ 游戏回合表：存储每个 round 的 turns 数据
+    mr_stage_simulation_overrides: defineTable({
+        ruleId: v.string(),
+        suggestedRecommendedPower: v.optional(v.number()),
+        suggestedDifficultyMultiplier: v.optional(v.number()),
+        expectedWinRate: v.optional(v.number()),
+        reasoning: v.optional(v.string()),
+        strategyId: v.string(),
+        teamPower: v.number(),
+        simulationRunAt: v.string(),
+        status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
+    }).index("by_ruleId", ["ruleId"]),
+
     mr_game_round: defineTable({
         gameId: v.string(),
         no: v.number(),  // 回合编号

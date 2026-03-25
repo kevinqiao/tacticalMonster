@@ -3,9 +3,13 @@
  * 路径节点始终为逻辑坐标 (q,r)，直接用 hexTo3DCenter 算 3D 位置。
  */
 import gsap from "gsap";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { GameRound, GameTurn } from "../../types/gameTypes";
+import { getPhaseEventKey } from "../../utils/turnBarQueueUtils";
 import type { TurnBarDimension, TurnBarItem } from "../view/turnbar/TurnOrderBar";
+
+/** 召唤等单位未及时渲染时，最多重试次数，超过后跳过以避免无限循环 */
+const MAX_DEFER_RETRIES = 50;
 
 interface UsePlayTurnBarOptions {
     dimension: TurnBarDimension | null;
@@ -35,6 +39,8 @@ const clampSeparatorIndex = (index: number, total: number) =>
     total <= 0 ? index : Math.max(1, Math.min(index, total));
 
 export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, playbackSpeed = 1.0 }: UsePlayTurnBarOptions) => {
+    const deferRetryCountRef = useRef(0);
+    const lastDeferredEventKeyRef = useRef<string>("");
 
     const getSortedTurnItems = useCallback((): TurnBarItem[] => {
         const items = Array.from(itemsMapRef.current?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
@@ -57,7 +63,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
     );
     const checkTurnItems = useCallback((turnOrder: GameTurn[]): TurnBarItem[] | null => {
         if (!dimension) return null;
-        const turnItems = Array.from(itemsMapRef.current?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
+        const turnItems = Array.from(itemsMapRef.current?.values() ?? []);
         const renderCompleted = turnOrder.every((t, index) => {
             const item = turnItems.find(i => i.character_id === t.character_id);
             return item ? true : false;
@@ -66,17 +72,6 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             return null;
         }
 
-        // const noChange = turnItems.every((item) => {
-        //     const turn = turnOrder.find(t => t.character_id === item.character_id);
-        //     if (turn && turn.status === item.status && turn.order === item.order) {
-        //         return true;
-        //     }
-        //     return false;
-        // });
-
-        // if (noChange) {
-        //     return [];
-        // }
         return turnItems;
     }, [itemsMapRef, dimension]);
 
@@ -258,6 +253,19 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
                 //     tl.to(firstItem.ele, { scale: 1.2, duration: 0.3, ease: "power2.out" }, "<=+0.5");
                 // }
 
+            } else {
+                // 无需移动轨道时，仍需确保最左侧（当前回合）元素有 1.2 缩放和高亮
+                const size = turnItems.length;
+                turnItems.forEach((item) => {
+                    if (item.ele) {
+                        const isFirstItem = firstItem?.character_id === item.character_id;
+                        gsap.set(item.ele, {
+                            scale: isFirstItem ? 1.2 : 1,
+                            boxShadow: isFirstItem ? "0 0 0 2px white" : "none",
+                            x: calcCoordX(item.index ?? 0, size, separator.index),
+                        });
+                    }
+                });
             }
 
         },
@@ -276,10 +284,27 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
         const turnItems = checkTurnItems(turnOrder);
 
         if (!turnItems || turnItems.length === 0) {
-            event.status = !turnItems ? 0 : 2;
+            const eventKey = getPhaseEventKey(event.phaseChangeEvent);
+            const isSameDeferred = lastDeferredEventKeyRef.current === eventKey;
+            if (isSameDeferred) {
+                deferRetryCountRef.current += 1;
+            } else {
+                lastDeferredEventKeyRef.current = eventKey;
+                deferRetryCountRef.current = 1;
+            }
+            if (deferRetryCountRef.current > MAX_DEFER_RETRIES) {
+                console.warn("[usePlayTurnBar] turnStart deferred too long (e.g. summoned char not rendered), skipping to unblock queue");
+                lastDeferredEventKeyRef.current = "";
+                deferRetryCountRef.current = 0;
+                event.status = 2;
+            } else {
+                event.status = 0;
+            }
             timeline?.play();
             return;
         }
+        lastDeferredEventKeyRef.current = "";
+        deferRetryCountRef.current = 0;
 
         const cl = gsap.timeline({ timeScale: playbackSpeed });
         playAddRemoveTurn({ turnOrder, turnItems, timeline: cl });
@@ -355,10 +380,27 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
                 return item ? true : false;
             });
             if (!renderCompleted) {
-                turn.status = 0;
+                const eventKey = getPhaseEventKey(turn.phaseChangeEvent);
+                const isSameDeferred = lastDeferredEventKeyRef.current === eventKey;
+                if (isSameDeferred) {
+                    deferRetryCountRef.current += 1;
+                } else {
+                    lastDeferredEventKeyRef.current = eventKey;
+                    deferRetryCountRef.current = 1;
+                }
+                if (deferRetryCountRef.current > MAX_DEFER_RETRIES) {
+                    console.warn("[usePlayTurnBar] init deferred too long (e.g. summoned char not rendered), skipping to unblock queue");
+                    lastDeferredEventKeyRef.current = "";
+                    deferRetryCountRef.current = 0;
+                    turn.status = 2;
+                } else {
+                    turn.status = 0;
+                }
                 timeline?.play();
                 return;
             }
+            lastDeferredEventKeyRef.current = "";
+            deferRetryCountRef.current = 0;
 
             Array.from(itemsMapRef.current?.values() ?? []).forEach((item) => {
                 const turn = currentRound.turns?.find(t => t.character_id === item.character_id);
@@ -429,7 +471,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
         [calcCoordX, dimension, itemsMapRef, playbackSpeed, separator]
     );
     useEffect(() => {
-        // syncItemsToCurrentLayout();
+        syncItemsToCurrentLayout();
     }, [syncItemsToCurrentLayout]);
     return { playStartTurn, playInitTurn, playStartRound, syncItemsToCurrentLayout };
 };

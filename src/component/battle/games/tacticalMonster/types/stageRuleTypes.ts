@@ -17,7 +17,53 @@ export type GameName =
     | "arcade"          // 街机游戏
     | "tacticalMonster"; // 战术怪物（Monster Rumble）
 
+/**
+ * 3D 战斗内引导步骤事件（与 BattleVenue3D 内通知一致）
+ */
+export type PedagogyGuideEventType =
+    | "move"
+    | "skillSelect"
+    | "targetSelect"
+    | "cast"
+    | "turnEnd";
 
+/**
+ * 单步引导配置
+ */
+export interface PedagogyGuideStep {
+    id: string;
+    text: string;
+    eventType: PedagogyGuideEventType;
+    /** skillSelect / cast 时可选；若设置则仅当 skillId 匹配时推进 */
+    expectedSkillId?: string;
+}
+
+/**
+ * 教学 / 难度阶梯元数据（P/B 轴），与 docs/pedagogy_stage_matrix.md 对齐
+ */
+export interface StagePedagogy {
+    /** 假定玩家已掌握的能力等级（P 轴） */
+    playerTierAssumed: number;
+    /** 本关教学目标（可选） */
+    playerTierTaught?: number;
+    /** Boss 机制等级（B 轴） */
+    bossMechanicTier: number;
+    /** 对应可养成怪物 ID（与 Boss 配置一致，便于掉落对齐） */
+    bossMonsterId?: string;
+    counterFocus?: "none" | "range" | "role_tank" | "role_dps" | string;
+    tutorialNotes?: string;
+    /** 试用怪（仅 UI 提示；注入队伍需编队系统配合） */
+    loanMonsterIds?: string[];
+    /** 若设置，技能面板仅显示列表中的技能（用于首关锁技能） */
+    allowedSkillIds?: string[];
+    /** 可选：按步骤推进的局内引导（仅 play 模式；完成/跳过后按 ruleId 持久化） */
+    guideFlow?: PedagogyGuideStep[];
+    /**
+     * 为 true 时由战场状态动态切换提示文案（移动/选技能/点人），与 guideFlow 静态步进二选一；
+     * 完成条件仍由 notify(cast) + allowedSkillIds 匹配。
+     */
+    dynamicGuide?: boolean;
+}
 
 /**
  * 关卡规则配置
@@ -101,6 +147,11 @@ export interface StageRuleConfig {
     // ============================================
     isVisible?: boolean;                 // 是否在关卡列表中显示（默认 true）
     sortOrder?: number;                  // 排序顺序
+
+    // ============================================
+    // 教学与难度阶梯（可选）
+    // ============================================
+    pedagogy?: StagePedagogy;
 }
 
 

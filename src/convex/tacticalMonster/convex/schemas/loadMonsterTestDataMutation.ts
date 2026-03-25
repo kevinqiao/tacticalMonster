@@ -14,6 +14,7 @@
  */
 
 import { v } from "convex/values";
+import { MONSTER_CONFIGS_MAP } from "../data/monsterConfigs";
 import { internalMutation } from "../_generated/server";
 
 const players = ["kevin1@gmail.com", "kevin2@gmail.com", "kevin3@gmail.com", "kevin4@gmail.com", "kevin5@gmail.com", "kevin6@gmail.com", "kevin7@gmail.com", "kevin8@gmail.com", "kevin9@gmail.com", "kevin10@gmail.com"];
@@ -235,18 +236,26 @@ function generatePlayerMonstersTestData(uidLength: number = 16): {
         冲突率: stats.collisions > 0 ? `${((stats.collisions / stats.total) * 100).toFixed(2)}%` : '0%'
     });
 
-    // 为每个玩家创建4个怪物（使用 monster_037 作为默认怪物）
+    // 为每个玩家创建4个怪物（第3位 monster_008 带召唤技能）
+    const teamConfig = [
+        { monsterId: "monster_037", level: 1, stars: 1 },
+        { monsterId: "monster_037", level: 1, stars: 1 },
+        { monsterId: "monster_008", level: 6, stars: 1 },  // Support，summon_minion 需 6 级
+        { monsterId: "monster_037", level: 1, stars: 1 },
+    ];
     for (const uid of uids) {
         for (let i = 0; i < 4; i++) {
+            const cfg = teamConfig[i];
+            const skillIds = MONSTER_CONFIGS_MAP[cfg.monsterId]?.skillIds ?? [];
             allMonsters.push({
                 uid,
-                monsterId: "monster_037",
-                level: 1,
-                stars: 1,
+                monsterId: cfg.monsterId,
+                level: cfg.level,
+                stars: cfg.stars,
                 experience: 0,
                 shards: 0,
                 isUnlocked: true,
-                unlockedSkills: [],
+                unlockedSkills: skillIds,
                 inTeam: 1,
                 teamPosition: DEFAULT_TEAM_POSITIONS[i],
                 obtainedAt: nowISO,
