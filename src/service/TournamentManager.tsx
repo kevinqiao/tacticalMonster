@@ -51,7 +51,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
   const [player, setPlayer] = useState<Player | null>(null);
   const [monsters, setMonsters] = useState<any[] | null>(null);
   const [tournaments, setTournaments] = useState<any[] | null>(null);
-  const [stageRules, setStageRules] = useState<any[] | null>(null);
+  const [ruleStatuses, setRuleStatuses] = useState<any[] | null>(null);
   // const [lastMatch, setLastMatch] = useState<any | null>(null);
   const { openModal } = useModalManager();
   const { user } = useUserManager();
@@ -118,7 +118,7 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
 
     const loadStageStatuses = async () => {
       const result = await tacticalMonsterClient.mutation(tacticalMonsterApi.service.tournament.tournamentService.getAllRuleStatuses, { uid: user?.uid });
-      setStageRules(result);
+      setRuleStatuses(result);
     }
     if (user?.uid && tacticalMonsterClient) {
       loadStageStatuses();
@@ -140,14 +140,20 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
 
 
   const activeTournaments = useMemo(() => {
-    if (!tournaments || !stageRules || !player) return;
+    if (!tournaments || !ruleStatuses || !player) return;
 
     const ts = tournaments.map((tournament: any) => {
-      const gameRule = tournament.config.gameRule;
-      const stageRule = stageRules.find((stageRule: any) => stageRule.ruleId === gameRule.ruleId);
-      const activeTournament: any = { unlocked: false, stageId: stageRule?.stageId || "" }
-      if (gameRule?.mode === "challenge") {
-        if (stageRule?.unlocked) {
+      const mr = tournament.config?.matchRules;
+      const legacy = tournament.config?.gameRule;
+      const ruleId = mr?.ruleId ?? legacy?.ruleId;
+      /** 教学链（tutorial）与旧版 gameRule.mode=challenge 走关卡解锁；其余走等级 */
+      const useStageChainUnlock =
+        mr?.modeType === "tutorial" ||
+        (!mr?.modeType && legacy?.mode === "challenge");
+      const status = ruleStatuses.find((s: any) => s.ruleId === ruleId);
+      const activeTournament: any = { unlocked: false, stageId: status?.stageId || "" }
+      if (useStageChainUnlock) {
+        if (status?.unlocked) {
           activeTournament.unlocked = true;
         }
       } else {
@@ -161,12 +167,23 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
     });
 
     return ts;
-  }, [player, tournaments, stageRules]);
+  }, [player, tournaments, ruleStatuses]);
 
   const joinTournament = useCallback(async (typeId: string, stageId: string) => {
-    if (!user?.uid || !tacticalMonsterClient) return;
+    if (!user?.uid || !tacticalMonsterClient) {
+      return { ok: false, errorCode: "CLIENT_NOT_READY" };
+    }
     const result = await tacticalMonsterClient.action(tacticalMonsterApi.service.tournament.tournamentService.join, { uid: user?.uid, typeId, stageId });
-    console.log("joinTournament result", result);
+    if (!result?.ok) {
+      console.error("[TournamentManager] joinTournament failed", {
+        typeId,
+        stageId,
+        errorCode: result?.errorCode,
+        result,
+      });
+    } else {
+      console.log("joinTournament result", result);
+    }
     return result;
   }, [user, tacticalMonsterClient]);
 

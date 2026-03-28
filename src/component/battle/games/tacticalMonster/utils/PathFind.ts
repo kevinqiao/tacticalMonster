@@ -10,6 +10,57 @@ import { MonsterSkill } from "../types/skillTypes";
 /** 寻路网格单元：至少含 q,r，非飞行时需 walkable */
 type WalkGridCell = HexNode & { walkable?: boolean };
 
+/**
+ * 单格是否可踏入：飞行/无视地形障碍时可越过障碍格，但永远不能穿过其他单位占用的格。
+ */
+export function isCellPassableForMovement(
+    cell: { disable?: boolean; obstacle?: number },
+    canIgnoreObstacles: boolean,
+    occupiedByOtherUnit: boolean
+): boolean {
+    if (occupiedByOtherUnit) return false;
+    const terrainBlocked = !!cell.disable || !!(cell as { obstacle?: number }).obstacle;
+    if (canIgnoreObstacles) {
+        return !cell.disable;
+    }
+    return !terrainBlocked;
+}
+
+type GridCellForWalk = { q: number; r: number; disable?: boolean; obstacle?: number };
+type CharacterPos = { q?: number; r?: number; uid: string; character_id: string };
+
+/**
+ * 与寻路一致的「可踏入」网格：飞行可越过地形障碍，但不能穿过其他单位所在格。
+ */
+export function buildWalkGridForMovement(
+    groundCells: GridCellForWalk[][],
+    chars: CharacterPos[],
+    currentCharacter: CharacterPos,
+    canIgnoreObstacles: boolean,
+    mapObstacles?: Array<{ q: number; r: number }>
+): WalkGridCell[][] {
+    return groundCells.map((row) =>
+        row.map((cell) => {
+            const occupiedByOther = chars.some(
+                (c) =>
+                    c.q === cell.q &&
+                    c.r === cell.r &&
+                    !(c.uid === currentCharacter.uid && c.character_id === currentCharacter.character_id)
+            );
+            const obstacleHit = mapObstacles?.find((o) => o.q === cell.q && o.r === cell.r);
+            const cellForRule: GridCellForWalk = {
+                ...cell,
+                obstacle: obstacleHit ? 1 : cell.obstacle,
+            };
+            return {
+                q: cell.q,
+                r: cell.r,
+                walkable: isCellPassableForMovement(cellForRule, canIgnoreObstacles, occupiedByOther),
+            };
+        })
+    );
+}
+
 /** Offset (even-r) 六边形距离，与网格步数、后端 offsetHexDistance 一致 */
 export const offsetHexDistance = (from: HexNode, to: HexNode): number => {
     const dq = Math.abs(from.q - to.q);
@@ -29,15 +80,19 @@ export const getOffsetNeighborDirs = (r: number): { dq: number; dr: number }[] =
             { dq: -1, dr: 0 }, { dq: 0, dr: 1 }, { dq: 1, dr: 1 },
         ];
 
-/** 飞行单位 BFS 寻路：可经过任意格，路径长度 = 步数 */
-const findPathBFS = (start: HexNode, goal: HexNode, grid: HexNode[][]): HexNode[] => {
+/** 飞行单位 BFS 寻路：步数与陆地一致，但必须遵守 grid 上的 walkable（含单位占用） */
+const findPathBFS = (start: HexNode, goal: HexNode, grid: WalkGridCell[][]): HexNode[] => {
     const rows = grid.length;
     const cols = grid[0]?.length ?? 0;
     const inBounds = (q: number, r: number) => r >= 0 && r < rows && q >= 0 && q < cols;
+    const isSteppable = (q: number, r: number) => {
+        if (!inBounds(q, r)) return false;
+        return grid[r][q].walkable ?? false;
+    };
     const getNeighbors = (pos: HexNode): HexNode[] =>
         getOffsetNeighborDirs(pos.r)
             .map((dir) => ({ q: pos.q + dir.dq, r: pos.r + dir.dr }))
-            .filter((n) => inBounds(n.q, n.r));
+            .filter((n) => isSteppable(n.q, n.r));
 
     const cameFrom = new Map<string, HexNode>();
     const queue: HexNode[] = [start];
@@ -165,13 +220,12 @@ export const getWalkableNodes = (
     const inBounds = (q: number, r: number) =>
         r >= 0 && r < rows && q >= 0 && q < cols;
 
-    // 飞行：BFS 按步数扩展，可越过障碍（扩展时经任意格），仅可落点加入结果；陆地：BFS 仅经 walkable 格
-    const getNeighbors = (pos: HexNode, flying: boolean): HexNode[] => {
+    // BFS 与寻路一致：仅经 walkable 格（含飞行单位不可穿过其他单位占格）
+    const getNeighbors = (pos: HexNode): HexNode[] => {
         return getOffsetNeighborDirs(pos.r)
             .map((dir) => ({ q: pos.q + dir.dq, r: pos.r + dir.dr }))
             .filter((neighbor) => {
                 if (!inBounds(neighbor.q, neighbor.r)) return false;
-                if (flying) return true;
                 return gridCells[neighbor.r][neighbor.q].walkable ?? false;
             });
     };
@@ -188,7 +242,7 @@ export const getWalkableNodes = (
         if (canLand) movableNodes.push({ ...node, distance });
 
         if (distance < moveRange) {
-            const neighbors = getNeighbors(node, !!canIgnoreObstacles);
+            const neighbors = getNeighbors(node);
             for (const neighbor of neighbors) {
                 const key = `${neighbor.q},${neighbor.r}`;
                 if (!visited.has(key)) {

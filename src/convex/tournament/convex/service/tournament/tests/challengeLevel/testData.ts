@@ -171,7 +171,7 @@ export async function createTestChallengeLevel(
             },
             rankRewards: config.rewards.rankRewards || [],
             tierBonus: config.rewards.tierBonus,
-            subscriptionBonus: config.rewards.subscriptionBonus,
+            subscribedPlayerExtraRewards: config.rewards.subscribedPlayerExtraRewards,
             participationReward: config.rewards.participationReward,
             performanceRewards: config.rewards.performanceRewards,
         },

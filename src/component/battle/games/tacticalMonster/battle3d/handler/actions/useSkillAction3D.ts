@@ -10,6 +10,7 @@ import type { MonsterSprite } from "../../../types/CombatTypes";
 import type { SkillSyncState } from "../../../types/skillTypes";
 import { createCharacterIdentifiers } from "../../../utils/characterUtils";
 import { canPerformAction } from "../../../utils/validationUtils";
+import type { PedagogyGuideNotifyEvent } from "../../../utils/pedagogyGuideFlow";
 
 /**
  * 3D 技能使用：不调用 applyVisualFeedback/clearVisualFeedback（3D 角色无 container）
@@ -27,7 +28,9 @@ export const useSkillAction3D = (
     ) => gsap.core.Timeline | null,
     handlePhaseChanges: (phaseChanges: any) => Promise<void>,
     setSkillSyncState: Dispatch<SetStateAction<SkillSyncState | null>>,
-    calculateActionScore: (params: any) => number
+    calculateActionScore: (params: any) => number,
+    /** 与教学 guideFlow 同步；未先点技能栏时会在 useSkill 前补 selectSkill */
+    onPedagogyNotify?: (event: PedagogyGuideNotifyEvent) => void
 ) => {
     const useSkill = useCallback(
         async (skillId: string, target?: MonsterSprite) => {
@@ -35,6 +38,20 @@ export const useSkillAction3D = (
             if (!validation.can || !validation.character) return;
             const { character } = validation;
             if (!game?.currentRound) return;
+
+            const currentTurn = game.currentRound.turns?.find((t: any) => t.status === 1);
+            if (currentTurn && (currentTurn as any).skillSelect !== skillId && game.gameId) {
+                try {
+                    await convex.mutation((api as any).service.game.gameService.selectSkill, {
+                        gameId: game.gameId,
+                        data: { skillId },
+                    });
+                    onPedagogyNotify?.({ type: "skillSelect", skillId });
+                } catch (e) {
+                    console.error("Select skill (auto) failed", e);
+                    return;
+                }
+            }
 
             const { casterIdentifier, targetIdentifiers } = createCharacterIdentifiers(
                 characters,
@@ -47,11 +64,11 @@ export const useSkillAction3D = (
                 setSkillSyncState((prev) =>
                     prev
                         ? {
-                            ...prev,
-                            animationCompleted: true,
-                            activeSkillTimeline:
-                                activeSkillTimeline || prev.activeSkillTimeline || undefined,
-                        }
+                              ...prev,
+                              animationCompleted: true,
+                              activeSkillTimeline:
+                                  activeSkillTimeline || prev.activeSkillTimeline || undefined,
+                          }
                         : null
                 );
             });
@@ -88,12 +105,12 @@ export const useSkillAction3D = (
                     setSkillSyncState((prev) =>
                         prev
                             ? {
-                                ...prev,
-                                backendResponse: {
-                                    ok: false,
-                                    error: error.message || "网络错误",
-                                },
-                            }
+                                  ...prev,
+                                  backendResponse: {
+                                      ok: false,
+                                      error: error.message || "网络错误",
+                                  },
+                              }
                             : null
                     );
                 });
@@ -107,6 +124,7 @@ export const useSkillAction3D = (
             handlePhaseChanges,
             setSkillSyncState,
             calculateActionScore,
+            onPedagogyNotify,
         ]
     );
 

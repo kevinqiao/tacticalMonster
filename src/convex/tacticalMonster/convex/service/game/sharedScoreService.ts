@@ -215,7 +215,13 @@ export class SharedScoreService {
             boss: GameBoss;
             createdAt: string;
         },
-        configVersion?: string
+        configVersion?: string,
+        options?: {
+            winOnBossKill?: boolean;
+            /** 仅教学关传入 */
+            tutorialWinMode?: "boss_only" | "boss_and_guide" | "guide_only";
+            tutorialGuideComplete?: boolean;
+        }
     ): GameResultCheck {
         const config = this.getConfig(configVersion);
         const timeLimit = config.timeLimit.totalTime;
@@ -255,11 +261,52 @@ export class SharedScoreService {
             minion => (minion.stats?.hp?.current ?? 0) > 0
         );
 
-        if (bossHp <= 0 && aliveMinions.length === 0) {
+        const mode = options?.tutorialWinMode;
+        const guideComplete = options?.tutorialGuideComplete ?? true;
+
+        if (mode === "guide_only") {
+            if (guideComplete) {
+                return {
+                    result: GameResult.WIN,
+                    reason: "完成教学引导",
+                    isGameOver: true
+                };
+            }
+            if (bossHp <= 0 && !guideComplete) {
+                return {
+                    result: GameResult.DRAW,
+                    reason: "击败Boss但未完成教学步骤",
+                    isGameOver: true
+                };
+            }
+        } else if (mode === "boss_and_guide") {
+            if (bossHp <= 0 && guideComplete && (options?.winOnBossKill || aliveMinions.length === 0)) {
+                return {
+                    result: GameResult.WIN,
+                    reason: "完成教学并击败Boss",
+                    isGameOver: true
+                };
+            }
+            if (bossHp <= 0 && !guideComplete) {
+                return {
+                    result: GameResult.DRAW,
+                    reason: "击败Boss但未完成教学步骤",
+                    isGameOver: true
+                };
+            }
+        } else if (bossHp <= 0 && (options?.winOnBossKill || aliveMinions.length === 0)) {
             return {
                 result: GameResult.WIN,
-                reason: '击败所有Boss角色，玩家胜利',
+                reason: options?.winOnBossKill ? "击败Boss，玩家胜利" : "击败所有Boss角色，玩家胜利",
                 isGameOver: true
+            };
+        }
+
+        if (mode === "guide_only" || mode === "boss_and_guide") {
+            return {
+                result: GameResult.DRAW,
+                reason: "游戏进行中",
+                isGameOver: false
             };
         }
 

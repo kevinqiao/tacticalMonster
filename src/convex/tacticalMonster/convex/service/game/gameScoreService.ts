@@ -5,9 +5,46 @@
 
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { GameReport, GameStatus } from "../../types/gameTypes";
+import type { RewardPolicyType, ScoreTierReward, StageRewardPolicy } from "../../types/stageRuleTypes";
+import { isTutorialGuideComplete } from "../../utils/tutorialProgressUtils";
 import { GameResult, sharedScoreService } from "./sharedScoreService";
 import { GameLifecycleService } from "./gameLifecycleService";
 import { GameEventService } from "./gameEventService";
+import { getModeTypeForRuleId } from "../../utils/tournamentModeType";
+import { GameRuleConfigService } from "./gameRuleConfigService";
+
+/** 未单独配置 scoreTiers 的 solo 关卡使用的默认档位 */
+const DEFAULT_SOLO_SCORE_TIERS: ScoreTierReward[] = [
+    { minScore: 4000, rewardKey: "solo_s", chestType: "purple" },
+    { minScore: 2500, rewardKey: "solo_a", chestType: "gold" },
+    { minScore: 1000, rewardKey: "solo_b", chestType: "silver" },
+    { minScore: 0, rewardKey: "solo_c", chestType: "bronze" },
+];
+
+function resolveEffectiveRewardPolicy(
+    modeType: string | undefined,
+    explicit: StageRewardPolicy | undefined
+): StageRewardPolicy | undefined {
+    if (explicit) {
+        if (explicit.type === "score_tiers" && (!explicit.scoreTiers || explicit.scoreTiers.length === 0)) {
+            return { ...explicit, scoreTiers: DEFAULT_SOLO_SCORE_TIERS };
+        }
+        return explicit;
+    }
+    if (modeType === "tutorial") return { type: "one_time_clear" };
+    if (modeType === "multiplayer_tournament") return { type: "ranking_or_match_result" };
+    if (modeType === "solo_challenge") return { type: "score_tiers", scoreTiers: DEFAULT_SOLO_SCORE_TIERS };
+    return undefined;
+}
+
+function pickScoreTier(totalScore: number, tiers: ScoreTierReward[] | undefined): ScoreTierReward | undefined {
+    if (!tiers?.length) return undefined;
+    const sorted = [...tiers].sort((a, b) => b.minScore - a.minScore);
+    for (const t of sorted) {
+        if (totalScore >= t.minScore) return t;
+    }
+    return undefined;
+}
 
 export class GameScoreService {
     constructor(
@@ -46,8 +83,27 @@ export class GameScoreService {
         // ✅ 获取游戏使用的配置版本
         const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
 
-        // ✅ 判断游戏结果
-        const gameResult = sharedScoreService.determineGameResult(game, configVersion);
+        const ruleId = (game as any).ruleId;
+        const stageRule = ruleId ? GameRuleConfigService.getGameRuleConfig(ruleId as string) : undefined;
+        const modeType = ruleId ? getModeTypeForRuleId(ruleId as string) : undefined;
+        const isTutorialMode = modeType === "tutorial";
+        const tutorialRoundLimit = stageRule?.starRatingConfig?.threeStarMaxRounds ?? 6;
+        const roundsUsed = game.currentRound?.no ?? 0;
+        const hitTutorialRoundLimit = isTutorialMode && roundsUsed >= tutorialRoundLimit;
+        // ✅ 判断游戏结果（教学关：击败 Boss 即胜利）
+        const pedagogy = stageRule?.pedagogy;
+        const tutorialWinMode = isTutorialMode ? (pedagogy?.tutorialWinMode ?? "boss_only") : undefined;
+        const tutorialGuideComplete = isTutorialMode
+            ? isTutorialGuideComplete(pedagogy, (game as any).tutorialProgress)
+            : true;
+
+        const gameResult = hitTutorialRoundLimit
+            ? { result: GameResult.DRAW, reason: `教学关回合上限（${tutorialRoundLimit}）已达到`, isGameOver: true }
+            : sharedScoreService.determineGameResult(game, configVersion, {
+                winOnBossKill: isTutorialMode,
+                tutorialWinMode,
+                tutorialGuideComplete,
+            });
 
         // 更新游戏状态
         let newStatus: GameStatus;
@@ -73,7 +129,6 @@ export class GameScoreService {
         const timeElapsed = Date.now() - gameStartTime;
 
         // ✅ 获取回合数
-        const roundsUsed = game.currentRound?.no ?? 0;
 
         // ✅ 计算角色存活统计
         const survivalStats = sharedScoreService.calculateSurvivalStats(game.team || []);
@@ -100,7 +155,6 @@ export class GameScoreService {
         await this.eventService.createEvent(event);
 
         // 记录首通（关卡体力与奖励机制）
-        const ruleId = (game as any).ruleId;
         const uid = (game as any).uid;
         const stageId = (game as any).stageId;
         let isFirstClear = false;
@@ -123,6 +177,27 @@ export class GameScoreService {
             }
         }
 
+        const policy = resolveEffectiveRewardPolicy(modeType, stageRule?.rewardPolicy);
+
+        let rewardPolicyType: RewardPolicyType | undefined;
+        let scoreTierHit: ScoreTierReward | undefined;
+        let rewardEligible: boolean | undefined;
+        let oneTimeRewardKey: string | undefined;
+
+        if (policy) {
+            rewardPolicyType = policy.type;
+            if (gameResult.result === GameResult.WIN) {
+                if (policy.type === "one_time_clear") {
+                    rewardEligible = isFirstClear;
+                    oneTimeRewardKey = policy.oneTimeRewardKey;
+                } else if (policy.type === "score_tiers") {
+                    scoreTierHit = pickScoreTier(scoreResult.totalScore, policy.scoreTiers);
+                    rewardEligible = scoreTierHit !== undefined;
+                }
+                // ranking_or_match_result：奖励由锦标赛/匹配结算处理，不在此标记 grant
+            }
+        }
+
         // 返回游戏报告（不再包含 star、rewardMultiplier）
         return {
             gameId,
@@ -131,6 +206,10 @@ export class GameScoreService {
             completeBonus: scoreResult.survivalBonus + scoreResult.resultScore,  // 兼容旧接口
             totalScore: scoreResult.totalScore,
             isFirstClear,
+            rewardPolicyType,
+            scoreTierHit,
+            rewardEligible,
+            oneTimeRewardKey,
         };
     }
 
@@ -146,7 +225,25 @@ export class GameScoreService {
         if (!game) return null;
 
         const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
-        const result = sharedScoreService.determineGameResult(game, configVersion);
+        const ruleId = (game as any).ruleId;
+        const stageRule = ruleId ? GameRuleConfigService.getGameRuleConfig(ruleId as string) : undefined;
+        const modeType = ruleId ? getModeTypeForRuleId(ruleId as string) : undefined;
+        const isTutorialMode = modeType === "tutorial";
+        const tutorialRoundLimit = stageRule?.starRatingConfig?.threeStarMaxRounds ?? 6;
+        const roundsUsed = game.currentRound?.no ?? 0;
+        const pedagogy = stageRule?.pedagogy;
+        const tutorialWinMode = isTutorialMode ? (pedagogy?.tutorialWinMode ?? "boss_only") : undefined;
+        const tutorialGuideComplete = isTutorialMode
+            ? isTutorialGuideComplete(pedagogy, (game as any).tutorialProgress)
+            : true;
+
+        const result = (isTutorialMode && roundsUsed >= tutorialRoundLimit)
+            ? { result: GameResult.DRAW, reason: `教学关回合上限（${tutorialRoundLimit}）已达到`, isGameOver: true }
+            : sharedScoreService.determineGameResult(game, configVersion, {
+                winOnBossKill: isTutorialMode,
+                tutorialWinMode,
+                tutorialGuideComplete,
+            });
 
         // 如果游戏结束，更新状态
         if (result.isGameOver) {

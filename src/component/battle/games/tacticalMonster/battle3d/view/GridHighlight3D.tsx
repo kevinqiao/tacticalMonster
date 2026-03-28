@@ -9,9 +9,17 @@ import { useCombatManager } from "../../service/CombatManager";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { hexTo3DPosition } from "../utils/coordinate3DUtils";
 import { createHexagonShape } from "../utils/hex3DUtils";
-import HexCell3D, { type BattleCellState } from "./components/HexCell3D";
+import { HexCell3D, type BattleCellState } from "./components/HexCell3D";
 
-const HIGHLIGHT_STATES: BattleCellState[] = ["walkable", "attackable", "path", "selected"];
+const HIGHLIGHT_STATES: BattleCellState[] = [
+    "walkable",
+    "walkable_dim",
+    "attackable",
+    "attackable_dim",
+    "attackable_focus",
+    "path",
+    "selected",
+];
 
 interface GridHighlight3DProps {
     mapDimension: BattleMapDimension | null;
@@ -19,6 +27,8 @@ interface GridHighlight3DProps {
     getWalkableDistance?: (q: number, r: number) => number | undefined;
     getWalkableMoveRange?: () => number | undefined;
     onCellClick?: (logicQ: number, logicR: number) => void;
+    /** 教学：施法步开始后约 1s 内加强 attackable_focus 脉冲 */
+    pedagogyAttackTargetPulseBoost?: boolean;
 }
 
 export const GridHighlight3D: React.FC<GridHighlight3DProps> = ({
@@ -27,6 +37,7 @@ export const GridHighlight3D: React.FC<GridHighlight3DProps> = ({
     getWalkableDistance,
     getWalkableMoveRange,
     onCellClick,
+    pedagogyAttackTargetPulseBoost,
 }) => {
     const { groundCells } = useCombatManager();
 
@@ -38,7 +49,10 @@ export const GridHighlight3D: React.FC<GridHighlight3DProps> = ({
         const flatGeoSelected = new THREE.ShapeGeometry(createHexagonShape(w, 0.90));
         return {
             walkable: flatGeo,
+            walkable_dim: flatGeo,
             attackable: flatGeo,
+            attackable_dim: flatGeo,
+            attackable_focus: flatGeo,
             path: flatGeo,
             selected: flatGeoSelected,
         };
@@ -59,10 +73,16 @@ export const GridHighlight3D: React.FC<GridHighlight3DProps> = ({
                 const pos = hexTo3DPosition(q, r, mapDimension, 0);
                 if (!pos) continue;
 
-                const geometry = sharedGeometries[state as keyof typeof sharedGeometries];
-                const isClickable = state === "walkable" || state === "attackable";
-                const walkableDistance = state === "walkable" ? getWalkableDistance?.(q, r) : undefined;
-                const moveRange = state === "walkable" ? getWalkableMoveRange?.() : undefined;
+                const geometry =
+                    sharedGeometries[state as keyof typeof sharedGeometries] ?? sharedGeometries.walkable;
+                const isClickable =
+                    state === "walkable" ||
+                    state === "attackable" ||
+                    state === "attackable_focus";
+                const walkableDistance =
+                    state === "walkable" || state === "walkable_dim" ? getWalkableDistance?.(q, r) : undefined;
+                const moveRange =
+                    state === "walkable" || state === "walkable_dim" ? getWalkableMoveRange?.() : undefined;
 
                 result.push(
                     <HexCell3D
@@ -76,6 +96,9 @@ export const GridHighlight3D: React.FC<GridHighlight3DProps> = ({
                         state={state}
                         walkableDistance={walkableDistance}
                         moveRange={moveRange}
+                        pedagogyPulseBoost={
+                            !!pedagogyAttackTargetPulseBoost && state === "attackable_focus"
+                        }
                         onClick={isClickable && onCellClick ? () => onCellClick(q, r) : undefined}
                     />
                 );
@@ -83,7 +106,16 @@ export const GridHighlight3D: React.FC<GridHighlight3DProps> = ({
         }
 
         return result;
-    }, [groundCells, mapDimension, sharedGeometries, getCellState, getWalkableDistance, getWalkableMoveRange, onCellClick]);
+    }, [
+        groundCells,
+        mapDimension,
+        sharedGeometries,
+        getCellState,
+        getWalkableDistance,
+        getWalkableMoveRange,
+        onCellClick,
+        pedagogyAttackTargetPulseBoost,
+    ]);
 
     return <group>{cells}</group>;
 };

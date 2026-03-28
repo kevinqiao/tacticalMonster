@@ -19,6 +19,9 @@ import { GamePhaseService } from "./gamePhaseService";
 import { GameScoreService } from "./gameScoreService";
 import { RoundService } from "./roundService";
 import { sharedScoreService } from "./sharedScoreService";
+import { GameRuleConfigService } from "./gameRuleConfigService";
+import { TutorialProgressService } from "./tutorialProgressService";
+import { eventFromUseSkill } from "../../utils/tutorialProgressUtils";
 import { getNeighbors, offsetHexDistance } from "../../utils/hexUtils";
 import { SkillTargetService } from "./skillTargetService";
 import * as SummonService from "./summonService";
@@ -161,6 +164,15 @@ export class GameActionService {
         const endTurn = wouldEndTurn && !options?.deferTurnEnd;
 
         if (endTurn) {
+            if (monsterId) {
+                const gMove = await this.lifecycleService.load(gameId);
+                if (gMove) {
+                    await TutorialProgressService.recordEvent(gameId, this.lifecycleService, this.scoreService, gMove, {
+                        type: "move",
+                    });
+                }
+            }
+
             // 结束当前 turn，推进回合和阶段（自动处理 turnEnd, roundEnd, turnStart, Boss AI）
             const phaseChanges = await this.phaseService.advanceTurnAndRound(
                 gameId,
@@ -196,6 +208,15 @@ export class GameActionService {
         event.data = { ...event.data, endTurn: false, stepsUsed: thisWalkSteps, stepsUsedTotal: newStepsUsed };
         await this.eventService.createEvent(event);
         await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
+
+        if (monsterId) {
+            const g = await this.lifecycleService.load(gameId);
+            if (g) {
+                await TutorialProgressService.recordEvent(gameId, this.lifecycleService, this.scoreService, g, {
+                    type: "move",
+                });
+            }
+        }
 
         return {
             success: true,
@@ -458,6 +479,14 @@ export class GameActionService {
         });
 
         await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
+
+        const g2 = await this.lifecycleService.load(gameId);
+        if (g2 && currentTurn.uid !== "boss") {
+            await TutorialProgressService.recordEvent(gameId, this.lifecycleService, this.scoreService, g2, {
+                type: "skillSelect",
+                skillId,
+            });
+        }
 
         return true;
     }
@@ -884,6 +913,25 @@ export class GameActionService {
         }
 
         this.characterQueryService.setGame(updatedGame);
+
+        if (caster.uid !== "boss") {
+            const rule = updatedGame.ruleId
+                ? GameRuleConfigService.getGameRuleConfig(updatedGame.ruleId)
+                : undefined;
+            const ev = eventFromUseSkill(
+                rule?.pedagogy,
+                updatedGame.tutorialProgress,
+                skillId,
+                effectiveTargetMonsters.length > 0
+            );
+            await TutorialProgressService.recordEvent(
+                gameId,
+                this.lifecycleService,
+                this.scoreService,
+                updatedGame,
+                ev
+            );
+        }
 
         // 8. ✅ 使用共享服务计算行动得分
         const configVersion = updatedGame.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;

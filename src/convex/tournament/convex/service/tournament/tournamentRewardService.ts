@@ -18,7 +18,8 @@ export interface RewardDecision {
         monsterShards?: Array<{ monsterId: string; quantity: number }>;
         energy?: number;
     }>;
-    subscriptionBonuses?: Record<string, {
+    /** 按 uid：订阅玩家在本场结算中多拿的固定奖励（来自 subscribedPlayerExtraRewards） */
+    subscribedPlayerExtraByUid?: Record<string, {
         coins?: number;
         monsterShards?: Array<{ monsterId: string; quantity: number }>;
         energy?: number;
@@ -103,15 +104,20 @@ export class TournamentRewardService {
             );
         }
 
-        // 计算订阅加成
-        if (rewardConfig.subscriptionBonus) {
-            decision.subscriptionBonuses = {};
+        // 订阅玩家额外固定奖励（加在基础/表现/排名奖励之上）
+        const extraRewards =
+            rewardConfig.subscribedPlayerExtraRewards ??
+            (rewardConfig as RewardConfig & { subscriptionBonus?: RewardConfig["subscribedPlayerExtraRewards"] })
+                .subscriptionBonus;
+        if (extraRewards) {
+            decision.subscribedPlayerExtraByUid = {};
+            const extra = extraRewards;
             for (const player of rankings) {
                 if (isSubscribed[player.uid]) {
-                    decision.subscriptionBonuses[player.uid] = {
-                        coins: rewardConfig.subscriptionBonus.coins || 0,
-                        monsterShards: rewardConfig.subscriptionBonus.monsterShards || [],
-                        energy: rewardConfig.subscriptionBonus.energy || 0
+                    decision.subscribedPlayerExtraByUid[player.uid] = {
+                        coins: extra.coins || 0,
+                        monsterShards: extra.monsterShards || [],
+                        energy: extra.energy || 0
                     };
                 }
             }

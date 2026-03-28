@@ -724,16 +724,16 @@ export async function settleTournament(ctx: any, tournamentId: string, matchId?:
                     // 合并所有金币奖励
                     coins: (rewardDecision.baseRewards[uid]?.coins || 0) +
                         (rewardDecision.rankRewards?.[uid]?.coins || 0) +
-                        (rewardDecision.subscriptionBonuses?.[uid]?.coins || 0) +
+                        (rewardDecision.subscribedPlayerExtraByUid?.[uid]?.coins || 0) +
                         (rewardDecision.firstClearRewards?.[uid]?.coins || 0),
                     // 合并其他奖励
                     energy: (rewardDecision.baseRewards[uid]?.energy || 0) +
                         (rewardDecision.rankRewards?.[uid]?.energy || 0) +
-                        (rewardDecision.subscriptionBonuses?.[uid]?.energy || 0) +
+                        (rewardDecision.subscribedPlayerExtraByUid?.[uid]?.energy || 0) +
                         (rewardDecision.firstClearRewards?.[uid]?.energy || 0),
                     monsterShards: [
                         ...(rewardDecision.rankRewards?.[uid]?.monsterShards || []),
-                        ...(rewardDecision.subscriptionBonuses?.[uid]?.monsterShards || []),
+                        ...(rewardDecision.subscribedPlayerExtraByUid?.[uid]?.monsterShards || []),
                         ...(rewardDecision.firstClearRewards?.[uid]?.monsterShards || [])
                     ],
                     monsters: rewardDecision.firstClearRewards?.[uid]?.monsters || [],
@@ -766,7 +766,7 @@ export async function settleTournament(ctx: any, tournamentId: string, matchId?:
                     tournamentPoints: 0,
                     coins: (rewardDecision.baseRewards[uid]?.coins || 0) +
                         (rewardDecision.rankRewards?.[uid]?.coins || 0) +
-                        (rewardDecision.subscriptionBonuses?.[uid]?.coins || 0) +
+                        (rewardDecision.subscribedPlayerExtraByUid?.[uid]?.coins || 0) +
                         (rewardDecision.firstClearRewards?.[uid]?.coins || 0),
                     chestInfo: rewardDecision.chestInfo[uid] || {
                         chestTriggered: false,

@@ -4,8 +4,8 @@
  * 重要说明：
  * - playerLevel: 玩家等级要求，在 EntryRequirements 中配置
  * - Power 范围（minTeamPower/maxTeamPower）在 GameRuleConfig.unlockConditions 中配置
- * - 通过 gameRule.ruleId 关联到 TacticalMonster 模块的 GameRuleConfig
- * - gameRule: 游戏规则配置，包含 description, mode (challenge/pvp/story), ruleId
+ * - TacticalMonster：matchRules.ruleId / modeType 与关卡配置关联
+ * - gameRule：旧版 Convex 文档可选保留；新配置使用 matchRules
  * - 单人关卡：当 matchRules.minPlayers === 1 && maxPlayers === 1 时，表示单人关卡
  *   单人关卡可以配置关卡进度、解锁条件、首次通关奖励等特殊属性
  */
@@ -17,7 +17,8 @@ export interface TournamentConfig {
     timeRange?: string;
     // 游戏配置
     gameType?: GameName;
-    gameRule?: GameRule;  // 游戏规则配置（包含 description, mode, ruleId）
+    /** @deprecated 新数据写入 matchRules；保留以兼容旧文档 */
+    gameRule?: GameRule;
     isActive: boolean;
     // 参赛条件
     entryRequirements?: EntryRequirements;
@@ -62,7 +63,7 @@ export type GameName =
  * 注意：
  * - playerLevel: 玩家等级要求（TacticalMonster 游戏使用）
  * - Power 范围（minTeamPower/maxTeamPower）在 GameRuleConfig.unlockConditions 中配置
- * - 通过 gameRule.ruleId 关联到 TacticalMonster 模块的 GameRuleConfig 获取 Power 范围
+ * - 通过 matchRules.ruleId 关联到 TacticalMonster 的 GameRuleConfig 获取 Power 范围
  */
 export interface EntryRequirements {
     // ============================================
@@ -86,13 +87,17 @@ export interface EntryRequirements {
 
 }
 
+/** 锦标赛关卡/对局模式（各 gameType 可扩展不同 union；TacticalMonster 使用 tutorial / solo_challenge / multiplayer_tournament） */
+export type TournamentModeType = "tutorial" | "solo_challenge" | "multiplayer_tournament";
+
 /**
  * 比赛规则
  */
 export interface MatchRules {
-    // 玩家数量
     minPlayers: number;
     maxPlayers: number;
+    ruleId?: string;
+    modeType?: TournamentModeType;
 }
 
 /**
@@ -144,9 +149,10 @@ export interface RewardConfig {
 
 
     // ============================================
-    // 订阅加成 - TacticalMonster 特定
+    // 订阅玩家额外奖励（固定加算，非倍率；与 base / rank / performance 叠加）
+    // 仅当结算时 isSubscribed[uid] === true 时记入该玩家
     // ============================================
-    subscriptionBonus?: {
+    subscribedPlayerExtraRewards?: {
         coins?: number;
         monsterShards?: Array<{ monsterId: string; quantity: number; }>;
         energy?: number;
@@ -235,11 +241,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "青铜挑战 - Boss 1",
         description: "青铜挑战 - Boss 1 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "青铜挑战 - Boss 1",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_bronze_boss_1",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -250,6 +251,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_bronze_boss_1",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 50, energy: 10 },
@@ -282,11 +285,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "青铜挑战 - Boss 2",
         description: "青铜挑战 - Boss 2 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "青铜挑战 - Boss 2",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_bronze_boss_2",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -297,6 +295,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_bronze_boss_2",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 60, energy: 11 },
@@ -316,11 +316,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "青铜挑战 - Boss 3",
         description: "青铜挑战 - Boss 3 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "青铜挑战 - Boss 3",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_bronze_boss_3",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -331,6 +326,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_bronze_boss_3",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 70, energy: 12 },
@@ -350,11 +347,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "青铜挑战 - Boss 4",
         description: "青铜挑战 - Boss 4 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "青铜挑战 - Boss 4",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_bronze_boss_4",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -365,6 +357,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_bronze_boss_4",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 80, energy: 13 },
@@ -384,11 +378,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "青铜挑战 - Boss 5",
         description: "青铜挑战 - Boss 5 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "青铜挑战 - Boss 5",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_bronze_boss_5",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -399,6 +388,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_bronze_boss_5",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 90, energy: 14 },
@@ -422,11 +413,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白银挑战 - Boss 1",
         description: "白银挑战 - Boss 1 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白银挑战 - Boss 1",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_silver_boss_1",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -437,6 +423,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_silver_boss_1",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 100, energy: 15 },
@@ -460,11 +448,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白银挑战 - Boss 2",
         description: "白银挑战 - Boss 2 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白银挑战 - Boss 2",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_silver_boss_2",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -475,6 +458,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_silver_boss_2",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 120, energy: 17 },
@@ -494,11 +479,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白银挑战 - Boss 3",
         description: "白银挑战 - Boss 3 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白银挑战 - Boss 3",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_silver_boss_3",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -509,6 +489,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_silver_boss_3",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 140, energy: 19 },
@@ -528,11 +510,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白银挑战 - Boss 4",
         description: "白银挑战 - Boss 4 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白银挑战 - Boss 4",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_silver_boss_4",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -543,6 +520,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_silver_boss_4",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 160, energy: 21 },
@@ -562,11 +541,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白银挑战 - Boss 5",
         description: "白银挑战 - Boss 5 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白银挑战 - Boss 5",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_silver_boss_5",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -577,6 +551,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_silver_boss_5",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 180, energy: 23 },
@@ -600,11 +576,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "黄金挑战 - Boss 1",
         description: "黄金挑战 - Boss 1 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "黄金挑战 - Boss 1",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_gold_boss_1",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -615,6 +586,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_gold_boss_1",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 200, energy: 20 },
@@ -638,11 +611,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "黄金挑战 - Boss 2",
         description: "黄金挑战 - Boss 2 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "黄金挑战 - Boss 2",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_gold_boss_2",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -653,6 +621,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_gold_boss_2",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 240, energy: 23 },
@@ -672,11 +642,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "黄金挑战 - Boss 3",
         description: "黄金挑战 - Boss 3 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "黄金挑战 - Boss 3",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_gold_boss_3",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -687,6 +652,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_gold_boss_3",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 280, energy: 26 },
@@ -706,11 +673,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "黄金挑战 - Boss 4",
         description: "黄金挑战 - Boss 4 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "黄金挑战 - Boss 4",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_gold_boss_4",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -721,6 +683,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_gold_boss_4",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 320, energy: 29 },
@@ -740,11 +704,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "黄金挑战 - Boss 5",
         description: "黄金挑战 - Boss 5 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "黄金挑战 - Boss 5",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_gold_boss_5",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -755,6 +714,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_gold_boss_5",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 360, energy: 32 },
@@ -778,11 +739,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白金挑战 - Boss 1",
         description: "白金挑战 - Boss 1 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白金挑战 - Boss 1",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_platinum_boss_1",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -793,6 +749,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_platinum_boss_1",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 500, energy: 30 },
@@ -816,11 +774,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白金挑战 - Boss 2",
         description: "白金挑战 - Boss 2 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白金挑战 - Boss 2",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_platinum_boss_2",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -831,6 +784,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_platinum_boss_2",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 600, energy: 35 },
@@ -850,11 +805,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白金挑战 - Boss 3",
         description: "白金挑战 - Boss 3 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白金挑战 - Boss 3",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_platinum_boss_3",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -865,6 +815,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_platinum_boss_3",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 700, energy: 40 },
@@ -884,11 +836,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白金挑战 - Boss 4",
         description: "白金挑战 - Boss 4 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白金挑战 - Boss 4",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_platinum_boss_4",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -899,6 +846,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_platinum_boss_4",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 800, energy: 45 },
@@ -918,11 +867,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "白金挑战 - Boss 5",
         description: "白金挑战 - Boss 5 - 自动生成",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "白金挑战 - Boss 5",
-            mode: "challenge",
-            ruleId: "monster_rumble_challenge_platinum_boss_5",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -933,6 +877,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_challenge_platinum_boss_5",
+            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 900, energy: 50 },
@@ -951,6 +897,36 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
     },
 
     // ============================================
+    // 竞技场（Arena）- solo_challenge
+    // ============================================
+    {
+        typeId: "monster_rumble_arena_bronze",
+        name: "青铜竞技场",
+        description: "竞技场模式，玩家编队，score_tiers 结算",
+        gameType: "tacticalMonster",
+        isActive: true,
+        timeRange: "permanent",
+        entryRequirements: {
+            isSubscribedRequired: false,
+            playerLevel: 1,
+            entryFee: { coins: 0, energy: 8 },
+        },
+        matchRules: {
+            minPlayers: 1,
+            maxPlayers: 1,
+            ruleId: "monster_rumble_arena_bronze",
+            modeType: "solo_challenge",
+        },
+        rewards: {
+            baseRewards: { coins: 40, energy: 5 },
+            performanceRewards: {
+                baseReward: { coins: 150 },
+            },
+        },
+        limits: { maxAttempts: 999, attemptCost: { energy: 8 } },
+    },
+
+    // ============================================
     // 材料本（Farm）- energy 为主，刷 Boss 碎片
     // ============================================
     {
@@ -958,11 +934,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "青铜材料 - Boss 1",
         description: "刷取 boss_bronze_1 对应怪物碎片",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "青铜材料本",
-            mode: "challenge",
-            ruleId: "monster_rumble_farm_bronze_boss_1",
-        },
         isActive: true,
         timeRange: "permanent",
         entryRequirements: {
@@ -970,7 +941,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1,
             entryFee: { coins: 0, energy: 10 },
         },
-        matchRules: { minPlayers: 1, maxPlayers: 1 },
+        matchRules: {
+            minPlayers: 1,
+            maxPlayers: 1,
+            ruleId: "monster_rumble_farm_bronze_boss_1",
+            modeType: "solo_challenge",
+        },
         rewards: {
             baseRewards: { coins: 50, energy: 5 },
             performanceRewards: {
@@ -991,11 +967,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "每日 Boss",
         description: "每日挑战，高价值奖励",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "每日 Boss",
-            mode: "challenge",
-            ruleId: "monster_rumble_daily_boss",
-        },
         isActive: true,
         timeRange: "daily",
         entryRequirements: {
@@ -1003,7 +974,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1,
             entryFee: { coins: 0, energy: 10 },
         },
-        matchRules: { minPlayers: 1, maxPlayers: 1 },
+        matchRules: {
+            minPlayers: 1,
+            maxPlayers: 1,
+            ruleId: "monster_rumble_daily_boss",
+            modeType: "solo_challenge",
+        },
         rewards: {
             baseRewards: { coins: 100, energy: 15 },
             performanceRewards: {
@@ -1031,11 +1007,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "周常 Boss",
         description: "每周挑战，稀有碎片奖励",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "周常 Boss",
-            mode: "challenge",
-            ruleId: "monster_rumble_weekly_boss",
-        },
         isActive: true,
         timeRange: "weekly",
         entryRequirements: {
@@ -1043,7 +1014,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11,
             entryFee: { coins: 0, energy: 20 },
         },
-        matchRules: { minPlayers: 1, maxPlayers: 1 },
+        matchRules: {
+            minPlayers: 1,
+            maxPlayers: 1,
+            ruleId: "monster_rumble_weekly_boss",
+            modeType: "solo_challenge",
+        },
         rewards: {
             baseRewards: { coins: 200, energy: 25 },
             performanceRewards: {
@@ -1069,11 +1045,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "Boss Rush - 青铜",
         description: "连续挑战多个 Boss，测试你的极限！",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "连续挑战多个 Boss，测试你的极限！",
-            mode: "challenge",
-            ruleId: "monster_rumble_boss_rush_bronze",
-        },
         isActive: true,
         timeRange: "permanent",
 
@@ -1089,6 +1060,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,  // ✅ 单人关卡标识
             maxPlayers: 1,  // ✅ 单人关卡标识
+            ruleId: "monster_rumble_boss_rush_bronze",
+            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1121,11 +1094,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "第一章 - 第二关",
         description: "继续你的冒险，挑战更强的 Boss！",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "继续你的冒险，挑战更强的 Boss！",
-            mode: "story",
-            ruleId: "monster_rumble_story_1_2",
-        },
         isActive: true,
         timeRange: "permanent",
 
@@ -1140,6 +1108,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_story_1_2",
+            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1168,11 +1138,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "第一章 - 第二关（路线A）",
         description: "选择路线A，挑战敏捷型 Boss！",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "选择路线A，挑战敏捷型 Boss！",
-            mode: "story",
-            ruleId: "monster_rumble_story_1_2a",
-        },
         isActive: true,
         timeRange: "permanent",
 
@@ -1187,6 +1152,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_story_1_2a",
+            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1211,11 +1178,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "第一章 - 第二关（路线B）",
         description: "选择路线B，挑战防御型 Boss！",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "选择路线B，挑战防御型 Boss！",
-            mode: "story",
-            ruleId: "monster_rumble_story_1_2b",
-        },
         isActive: true,
         timeRange: "permanent",
 
@@ -1230,6 +1192,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_story_1_2b",
+            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1255,11 +1219,6 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         name: "第一章 - 第三关（Boss战）",
         description: "两条路线汇合，挑战最终 Boss！",
         gameType: "tacticalMonster",
-        gameRule: {
-            description: "两条路线汇合，挑战最终 Boss！",
-            mode: "story",
-            ruleId: "monster_rumble_story_1_3",
-        },
         isActive: true,
         timeRange: "permanent",
 
@@ -1274,6 +1233,8 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
+            ruleId: "monster_rumble_story_1_3",
+            modeType: "solo_challenge",
         },
 
         rewards: {

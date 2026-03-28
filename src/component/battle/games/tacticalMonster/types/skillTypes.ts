@@ -37,6 +37,7 @@ export enum SkillEffectType {
     MOVEMENT = 'movement',    // 移动效果
     TELEPORT = 'teleport',    // 传送效果
     SUMMON = 'summon',        // 召唤单位
+    CLEANSE = 'cleanse',      // 净化：移除目标负面持续效果
 }
 
 /**

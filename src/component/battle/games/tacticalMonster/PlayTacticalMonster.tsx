@@ -13,9 +13,21 @@ import CombatManager from "./service/CombatManager";
 import BattlePlayer3D from "./battle3d/BattlePlayer3D";
 
 import "./styles.css";
+import { getStageRuleConfig } from "./config/stageRuleConfigs";
 import TeamLayout3D from "./team3d/TeamLayout3D";
+import type { StageModeType } from "./types/stageRuleTypes";
 import { GameModel } from "./types/gameTypes";
 import { Stage } from "./types/StageTypes";
+
+/** 教学关或显式 hideTeamLayout 时跳过编队界面（modeType 以后端/锦标赛 config 为准） */
+function shouldSkipTeamLayout(typeId?: string, matchType?: string, modeType?: StageModeType): boolean {
+    if (matchType && matchType !== "solo") return false;
+    if (!typeId) return false;
+    if (modeType === "tutorial") return true;
+    const rule = getStageRuleConfig(typeId);
+    if (rule?.uiRules?.hideTeamLayout) return true;
+    return false;
+}
 
 /** 设为 true 使用 3D 战斗视图，false 使用 2D */
 const USE_3D_BATTLE = true;
@@ -57,6 +69,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
     const [stage, setStage] = useState<Stage | null>(null);
     const [game, setGame] = useState<GameModel | null>(null);
     const [initialPhaseChanges, setInitialPhaseChanges] = useState<any>(null); // ✅ 保存初始 phaseChanges
+    const [joinError, setJoinError] = useState<string | null>(null);
     const loadingGameIdRef = useRef<string | null>(null); // 防止重复加载
     const { user } = useUserManager();
     const { joinTournament } = useTournamentManager();
@@ -66,9 +79,10 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
 
     const startJoin = useCallback(async () => {
         console.log("startJoin", props.mode, props.typeId, props.stageId);
-        if (props.mode === "join" && props.typeId && props.stageId) {
+        if (props.mode === "join" && props.typeId) {
+            setJoinError(null);
             playLoading();
-            const result = await joinTournament(props.typeId, props.stageId);
+            const result = await joinTournament(props.typeId, props.stageId || "");
             if (result.ok && result.game) {
                 setGame(result.game);
                 // ✅ 保存 phaseChanges（如果存在）
@@ -76,10 +90,21 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
                     setInitialPhaseChanges(result.phaseChanges);
                 }
                 openPlayGame();
+            } else {
+                const errorCode = result?.errorCode || "UNKNOWN_JOIN_ERROR";
+                console.error("[PlayTacticalMonster] join failed:", {
+                    typeId: props.typeId,
+                    stageId: props.stageId,
+                    errorCode,
+                    result,
+                });
+                setJoinError(`Join failed: ${errorCode}`);
+                // 回到初始态，避免一直卡在 loading
+                playInit();
             }
             console.log("join result", result);
         }
-    }, [props]);
+    }, [props, joinTournament, playLoading, openPlayGame, playInit]);
 
     useEffect(() => {
 
@@ -91,7 +116,11 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
             return;
         }
         if (props.mode === "join") {
-            openTeamLayout();
+            if (shouldSkipTeamLayout(props.typeId, props.matchType, props.modeType)) {
+                void startJoin();
+            } else {
+                openTeamLayout();
+            }
         } else {
             if (props.gameId && loadingGameIdRef.current !== props.gameId) {
                 loadingGameIdRef.current = props.gameId;
@@ -110,7 +139,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
             }
         }
 
-    }, [props, user?.uid, tacticalMonsterClient]);
+    }, [props, user?.uid, tacticalMonsterClient, startJoin, openTeamLayout, playLoading, openPlayGame, playInit]);
     useEffect(() => {
         // 使用 onUpdate 订阅数据更新
         if (!user?.uid || !tournamentClient || !tacticalMonsterClient || !props.visible) return;
@@ -171,7 +200,11 @@ const PlayTacticalMonster: React.FC<PlayProps> = (props) => {
                 />
             )}
         </div>
-        <div ref={loadingRef} className="play-tactical-monster-loading"><div className="play-tactical-monster-loading-text">Loading...</div></div>
+        <div ref={loadingRef} className="play-tactical-monster-loading">
+            <div className="play-tactical-monster-loading-text">
+                {joinError ? joinError : "Loading..."}
+            </div>
+        </div>
     </>
 };
 export default PlayTacticalMonster;

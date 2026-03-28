@@ -12,7 +12,10 @@ import { CharacterQueryService } from "./characterQueryService";
 import { CharacterUpdateService } from "./characterUpdateService";
 import { GameEventService } from "./gameEventService";
 import { GameLifecycleService } from "./gameLifecycleService";
+import { getModeTypeForRuleId } from "../../utils/tournamentModeType";
+import { GameRuleConfigService } from "./gameRuleConfigService";
 import { GameScoreService } from "./gameScoreService";
+import { TutorialProgressService } from "./tutorialProgressService";
 import { RoundService } from "./roundService";
 
 export class GamePhaseService {
@@ -371,6 +374,28 @@ export class GamePhaseService {
             changes.gameOver = { result: gameStatus.result, reason: gameStatus.reason };
             return null;
         }
+        // 教学关回合上限：默认 6 回合（可通过 starRatingConfig.threeStarMaxRounds 覆盖）
+        const latestAfterCheck = await this.lifecycleService.load(gameId);
+        const ruleId = (latestAfterCheck as any)?.ruleId;
+        if (ruleId) {
+            const ruleConfig = GameRuleConfigService.getGameRuleConfig(ruleId);
+            if (getModeTypeForRuleId(ruleId) === "tutorial") {
+                const tutorialRoundLimit = ruleConfig.starRatingConfig?.threeStarMaxRounds ?? 6;
+                if (roundNumber >= tutorialRoundLimit) {
+                    await this.lifecycleService.save(gameId, {
+                        status: 3,
+                        lastUpdate: new Date().toISOString(),
+                    });
+                    const eventService = new GameEventService(this.dbCtx);
+                    await eventService.createEvent(eventService.createGameEndEvent(gameId));
+                    changes.gameOver = {
+                        result: 3,
+                        reason: `教学关回合上限（${tutorialRoundLimit}）已达到`,
+                    };
+                    return null;
+                }
+            }
+        }
         const newRoundNo = roundNumber + 1;
         // 使用最新 game 创建新回合，避免漏掉召唤等本回合末写入的数据
         let latestGame = await this.lifecycleService.load(gameId);
@@ -594,6 +619,14 @@ export class GamePhaseService {
                 character_id: currentTurn.character_id,
                 round: roundNumber,
             };
+            if (currentTurn.uid !== "boss") {
+                const g = await this.lifecycleService.load(gameId);
+                if (g) {
+                    await TutorialProgressService.recordEvent(gameId, this.lifecycleService, this.scoreService, g, {
+                        type: "turnEnd",
+                    });
+                }
+            }
         }
 
         if (roundDoc.turns.every((turn: GameTurn) => turn.status === 2)) {

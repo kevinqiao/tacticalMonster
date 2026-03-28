@@ -1,5 +1,12 @@
 import { GameBoss, GameMonster } from "./monsterTypes";
 import { ObstacleCell } from "./obstacleTypes";
+import type { RewardPolicyType, ScoreTierReward, StageModeType } from "./stageRuleTypes";
+/** 教学关服务端可验证进度（存 mr_games.tutorialProgress） */
+export interface TutorialProgressState {
+    nextGuideStepIndex?: number;
+    dynamicGuideSatisfied?: boolean;
+}
+
 
 /**
  * 游戏状态枚举
@@ -26,6 +33,8 @@ export interface GameModel {
     matchId?: string;
     stageId: string;
     ruleId?: string;  // 关卡规则 ID（用于星级评定等）
+    /** 锦标赛 matchRules.modeType，开局写入 mr_games */
+    modeType?: StageModeType;
     uid: string;  // 玩家 UID
 
     // ========== 队伍和Boss数据 ==========
@@ -43,6 +52,8 @@ export interface GameModel {
     lastUpdate: string;  // ISO 字符串格式
     createdAt: string;  // ISO 字符串格式
     dueTime?: number;
+    /** 教学关引导进度（与 StagePedagogy.guideFlow / dynamicGuide 对齐） */
+    tutorialProgress?: TutorialProgressState;
     // ========== 运行时字段（不在数据库中，但用于代码逻辑）==========
     currentRound?: GameRound;
 }
@@ -258,6 +269,16 @@ export interface GameReport {
     rewardMultiplier?: number;
     /** 是否为首通（首次通关该 ruleId） */
     isFirstClear?: boolean;
+    /** 本局采用的奖励策略类型（来自 StageRuleConfig） */
+    rewardPolicyType?: RewardPolicyType;
+    /** score_tiers 策略下命中的最高档位 */
+    scoreTierHit?: ScoreTierReward;
+    /**
+     * 是否应发放「关卡内」策略奖励：one_time_clear 时等同首通胜利；
+     * score_tiers 时胜利且命中档位；ranking_or_match_result 由锦标赛侧处理，此处通常不设置
+     */
+    rewardEligible?: boolean;
+    oneTimeRewardKey?: string;
 }
 
 // ✅ CombatTurn 已移除，统一使用 GameTurn

@@ -450,6 +450,7 @@ export class SkillManager {
             if (effect.type === SkillEffectType.SUMMON) return false;
             return effect.type === SkillEffectType.DAMAGE ||
                 effect.type === SkillEffectType.HEAL ||
+                effect.type === SkillEffectType.CLEANSE ||
                 effect.type === SkillEffectType.DEBUFF ||
                 effect.type === SkillEffectType.STUN ||
                 effect.type === SkillEffectType.MP_DRAIN;

@@ -6,7 +6,8 @@
 import { getMergedBossConfig } from "../../../data/bossConfigs";
 import { MONSTER_CONFIGS_MAP } from "../../../data/monsterConfigs";
 import type { BossAction, BossAIDecision, CharacterIdentifier } from "../../../types/gameTypes";
-import { getNeighbors, offsetHexDistance } from "../../../utils/hexUtils";
+import { buildOccupiedCellKeysFromGame, pickBestNeighborTowardMelee } from "../../../utils/aiHexMovement";
+import { offsetHexDistance } from "../../../utils/hexUtils";
 import { SeededRandom } from "../../../utils/seededRandom";
 import { BehaviorTreeExecutor, ExecutionContext } from "./behaviorTreeExecutor";
 import { BossState, GameState } from "./conditionEvaluator";
@@ -213,12 +214,21 @@ export class BossAIService {
             `${behaviorSeed}_round_${params.round}`
         );
 
+        const occupiedCellKeys = buildOccupiedCellKeysFromGame(game);
+        const canIgnoreObstacles =
+            !!(bossMain as any).canIgnoreObstacles ||
+            !!(bossMain as any).isFlying ||
+            MONSTER_CONFIGS_MAP[bossConfig.monsterId]?.race === "Flying";
+
         const context: ExecutionContext = {
             bossState,
             gameState,
             targets,
             bossPosition,
             rng,
+            map: game.map,
+            occupiedCellKeys,
+            canIgnoreObstacles,
         };
 
         // 10. 执行行为树或使用阶段配置
@@ -259,31 +269,20 @@ export class BossAIService {
                         target: this.convertTargetToIdentifier(target),
                     };
                 } else if (moveRange >= 1) {
-                    // 向最近目标移动一步：在合法邻格中选离目标最近的一格
-                    const occupied = new Set(targets.map((t) => `${t.q},${t.r}`));
+                    // 向最近目标移动一步：最短步接敌（与前端近战走位一致）
                     const map = game.map;
                     const rows = map?.rows ?? 20;
                     const cols = map?.cols ?? 20;
-                    const obstacles = new Set(
-                        (map?.obstacles ?? []).map((o: { q: number; r: number }) => `${o.q},${o.r}`)
-                    );
-                    const disables = new Set(
-                        (map?.disables ?? []).map((d: { q: number; r: number }) => `${d.q},${d.r}`)
-                    );
-                    const targetPos = { q: target.q, r: target.r };
-                    const neighbors = getNeighbors(bossPosition);
-                    let best: { q: number; r: number } | null = null;
-                    let bestDist = Infinity;
-                    for (const cell of neighbors) {
-                        if (cell.q < 0 || cell.r < 0 || cell.q >= cols || cell.r >= rows) continue;
-                        const key = `${cell.q},${cell.r}`;
-                        if (obstacles.has(key) || disables.has(key) || occupied.has(key)) continue;
-                        const d = offsetHexDistance(cell, targetPos);
-                        if (d < bestDist) {
-                            bestDist = d;
-                            best = cell;
-                        }
-                    }
+                    const best = pickBestNeighborTowardMelee({
+                        from: bossPosition,
+                        target: { q: target.q, r: target.r },
+                        cols,
+                        rows,
+                        map,
+                        occupiedCellKeys,
+                        actorFrom: bossPosition,
+                        canIgnoreObstacles,
+                    });
                     if (best) {
                         bossAction = { type: "move", position: best };
                     } else {

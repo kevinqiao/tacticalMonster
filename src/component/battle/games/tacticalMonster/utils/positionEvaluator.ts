@@ -6,7 +6,7 @@
 import { GridCellSprite, MonsterSprite } from "../types/CombatTypes";
 import { getAllAllies, getAllEnemies } from "./characterFilterUtils";
 import { getNeighbors, offsetHexDistance } from "./hexUtil";
-import { findPath } from "./PathFind";
+import { buildWalkGridForMovement, findPath } from "./PathFind";
 
 /**
  * 评估位置的有利程度
@@ -203,7 +203,7 @@ function isPositionOccupied(
  * @param moveRange - 移动范围
  * @param gridCells - 地图格子
  * @param characters - 所有角色列表
- * @returns 所有可能的移动位置列表（按评分排序）
+ * @returns 所有可能的移动位置列表（先按最少行走步数，再按战术评分）
  */
 export function getMeleePossiblePositions(
     character: MonsterSprite,
@@ -212,9 +212,11 @@ export function getMeleePossiblePositions(
     moveRange: number,
     gridCells: GridCellSprite[][],
     characters: MonsterSprite[],
-    strategy: 'aggressive' | 'defensive' | 'balanced' = 'balanced'
+    strategy: 'aggressive' | 'defensive' | 'balanced' = 'balanced',
+    mapObstacles?: Array<{ q: number; r: number }>
 ): Array<{ q: number; r: number; score: number }> {
-    const possiblePositions: Array<{ q: number; r: number; score: number }> = [];
+    /** 含 pathSteps 仅用于排序：优先最少步数（与高亮「近亮远暗」一致，避免绕远接敌） */
+    const candidates: Array<{ q: number; r: number; score: number; pathSteps: number }> = [];
 
     // 1. 获取目标周围的所有位置（在攻击范围内）
     // console.log("attackRange", attackRange, " moveRange", moveRange);
@@ -222,41 +224,55 @@ export function getMeleePossiblePositions(
 
     const isNeighbor = targetNeighbors.some((pos) => pos.q === character.q && pos.r === character.r);
     if (isNeighbor) {
-        possiblePositions.push({ q: character.q ?? 0, r: character.r ?? 0, score: 100 });
-        return possiblePositions;
+        return [{ q: character.q ?? 0, r: character.r ?? 0, score: 100 }];
     }
 
-    // 2. 过滤出可到达的位置
+    const canIgnoreObstacles = character.canIgnoreObstacles ?? character.isFlying ?? false;
+    const walkGrid = buildWalkGridForMovement(
+        gridCells,
+        characters,
+        character,
+        canIgnoreObstacles,
+        mapObstacles
+    );
+
+    // 2. 过滤出可到达的位置（与 walkAndAttack / 后端 walk 使用同一套 walkable 与步数）
     for (const pos of targetNeighbors) {
         const isOccupied = characters.find((char) => char.q === pos.q && char.r === pos.r);
         if (isOccupied) {
             continue;
         }
-        // 检查路径是否可达（并基于实际步数过滤）
         const path = findPath(
-            gridCells,
+            walkGrid,
             { q: character.q ?? 0, r: character.r ?? 0 },
             { q: pos.q, r: pos.r },
-            character.canIgnoreObstacles || character.isFlying
+            canIgnoreObstacles
+        );
+        const last = path[path.length - 1];
+        const reached = last !== undefined && last.q === pos.q && last.r === pos.r;
+        const pathSteps = path.length - 1;
+        if (!reached || pathSteps > moveRange) {
+            continue;
+        }
+
+        const score = evaluatePosition(
+            pos,
+            character,
+            target,
+            gridCells,
+            characters,
+            strategy
         );
 
-        if (path && path.length - 1 <= moveRange) {
-            // 计算位置评分（使用传入的策略）
-            const score = evaluatePosition(
-                pos,
-                character,
-                target,
-                gridCells,
-                characters,
-                strategy
-            );
-
-            if (score > 0) {  // 只添加评分大于0的位置
-                possiblePositions.push({ ...pos, score });
-            }
+        if (score > 0) {
+            candidates.push({ ...pos, score, pathSteps });
         }
     }
 
-    // 3. 按评分排序（分数越高越有利）
-    return possiblePositions.sort((a, b) => b.score - a.score);
+    // 3. 先按实际行走步数升序（最近/最亮格优先），同步数再按战术评分降序
+    return candidates
+        .sort((a, b) =>
+            a.pathSteps !== b.pathSteps ? a.pathSteps - b.pathSteps : b.score - a.score
+        )
+        .map(({ q, r, score }) => ({ q, r, score }));
 }

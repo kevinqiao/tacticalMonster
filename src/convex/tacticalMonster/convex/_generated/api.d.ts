@@ -20,6 +20,7 @@ import type * as data_monsterSkillHelper from "../data/monsterSkillHelper.js";
 import type * as data_pedagogyByRuleId from "../data/pedagogyByRuleId.js";
 import type * as data_scoringConfigs from "../data/scoringConfigs.js";
 import type * as data_skillConfigs from "../data/skillConfigs.js";
+import type * as data_stageRuleConfigValidation from "../data/stageRuleConfigValidation.js";
 import type * as data_stageRuleConfigs from "../data/stageRuleConfigs.js";
 import type * as data_upgradeStrategyConfig from "../data/upgradeStrategyConfig.js";
 import type * as http from "../http.js";
@@ -80,11 +81,13 @@ import type * as service_game_gameRuleConfigQueries from "../service/game/gameRu
 import type * as service_game_gameRuleConfigService from "../service/game/gameRuleConfigService.js";
 import type * as service_game_gameScoreService from "../service/game/gameScoreService.js";
 import type * as service_game_gameService from "../service/game/gameService.js";
+import type * as service_game_pedagogyGuideUiService from "../service/game/pedagogyGuideUiService.js";
 import type * as service_game_roundService from "../service/game/roundService.js";
 import type * as service_game_sharedScoreService from "../service/game/sharedScoreService.js";
 import type * as service_game_skillTargetService from "../service/game/skillTargetService.js";
 import type * as service_game_starRatingService from "../service/game/starRatingService.js";
 import type * as service_game_summonService from "../service/game/summonService.js";
+import type * as service_game_teamPresetService from "../service/game/teamPresetService.js";
 import type * as service_game_tests_challengeLevel_endToEndTest from "../service/game/tests/challengeLevel/endToEndTest.js";
 import type * as service_game_tests_combat_combatE2E from "../service/game/tests/combat/combatE2E.js";
 import type * as service_game_tests_combat_combatIntegration from "../service/game/tests/combat/combatIntegration.js";
@@ -95,6 +98,7 @@ import type * as service_game_tests_combat_watchModeE2E from "../service/game/te
 import type * as service_game_tests_unit_characterQueryService from "../service/game/tests/unit/characterQueryService.js";
 import type * as service_game_tests_unit_gameActionValidator from "../service/game/tests/unit/gameActionValidator.js";
 import type * as service_game_tests_unit_testUtils from "../service/game/tests/unit/testUtils.js";
+import type * as service_game_tutorialProgressService from "../service/game/tutorialProgressService.js";
 import type * as service_monster_config_upgradeStrategyConfig from "../service/monster/config/upgradeStrategyConfig.js";
 import type * as service_monster_monsterService from "../service/monster/monsterService.js";
 import type * as service_monster_monsterUpgradeService from "../service/monster/monsterUpgradeService.js";
@@ -110,6 +114,7 @@ import type * as service_skill_effects_duration_DebuffHandler from "../service/s
 import type * as service_skill_effects_duration_DotHandler from "../service/skill/effects/duration/DotHandler.js";
 import type * as service_skill_effects_duration_HotHandler from "../service/skill/effects/duration/HotHandler.js";
 import type * as service_skill_effects_duration_StunHandler from "../service/skill/effects/duration/StunHandler.js";
+import type * as service_skill_effects_immediate_CleanseHandler from "../service/skill/effects/immediate/CleanseHandler.js";
 import type * as service_skill_effects_immediate_DamageHandler from "../service/skill/effects/immediate/DamageHandler.js";
 import type * as service_skill_effects_immediate_HealHandler from "../service/skill/effects/immediate/HealHandler.js";
 import type * as service_skill_effects_immediate_MovementHandler from "../service/skill/effects/immediate/MovementHandler.js";
@@ -139,10 +144,13 @@ import type * as types_obstacleTypes from "../types/obstacleTypes.js";
 import type * as types_skillTypes from "../types/skillTypes.js";
 import type * as types_stageRuleTypes from "../types/stageRuleTypes.js";
 import type * as types_upgradeStrategyTypes from "../types/upgradeStrategyTypes.js";
+import type * as utils_aiHexMovement from "../utils/aiHexMovement.js";
 import type * as utils_hashUtils from "../utils/hashUtils.js";
 import type * as utils_hexUtils from "../utils/hexUtils.js";
 import type * as utils_obstacleUtils from "../utils/obstacleUtils.js";
 import type * as utils_seededRandom from "../utils/seededRandom.js";
+import type * as utils_tournamentModeType from "../utils/tournamentModeType.js";
+import type * as utils_tutorialProgressUtils from "../utils/tutorialProgressUtils.js";
 
 import type {
   ApiFromModules,
@@ -163,6 +171,7 @@ declare const fullApi: ApiFromModules<{
   "data/pedagogyByRuleId": typeof data_pedagogyByRuleId;
   "data/scoringConfigs": typeof data_scoringConfigs;
   "data/skillConfigs": typeof data_skillConfigs;
+  "data/stageRuleConfigValidation": typeof data_stageRuleConfigValidation;
   "data/stageRuleConfigs": typeof data_stageRuleConfigs;
   "data/upgradeStrategyConfig": typeof data_upgradeStrategyConfig;
   http: typeof http;
@@ -223,11 +232,13 @@ declare const fullApi: ApiFromModules<{
   "service/game/gameRuleConfigService": typeof service_game_gameRuleConfigService;
   "service/game/gameScoreService": typeof service_game_gameScoreService;
   "service/game/gameService": typeof service_game_gameService;
+  "service/game/pedagogyGuideUiService": typeof service_game_pedagogyGuideUiService;
   "service/game/roundService": typeof service_game_roundService;
   "service/game/sharedScoreService": typeof service_game_sharedScoreService;
   "service/game/skillTargetService": typeof service_game_skillTargetService;
   "service/game/starRatingService": typeof service_game_starRatingService;
   "service/game/summonService": typeof service_game_summonService;
+  "service/game/teamPresetService": typeof service_game_teamPresetService;
   "service/game/tests/challengeLevel/endToEndTest": typeof service_game_tests_challengeLevel_endToEndTest;
   "service/game/tests/combat/combatE2E": typeof service_game_tests_combat_combatE2E;
   "service/game/tests/combat/combatIntegration": typeof service_game_tests_combat_combatIntegration;
@@ -238,6 +249,7 @@ declare const fullApi: ApiFromModules<{
   "service/game/tests/unit/characterQueryService": typeof service_game_tests_unit_characterQueryService;
   "service/game/tests/unit/gameActionValidator": typeof service_game_tests_unit_gameActionValidator;
   "service/game/tests/unit/testUtils": typeof service_game_tests_unit_testUtils;
+  "service/game/tutorialProgressService": typeof service_game_tutorialProgressService;
   "service/monster/config/upgradeStrategyConfig": typeof service_monster_config_upgradeStrategyConfig;
   "service/monster/monsterService": typeof service_monster_monsterService;
   "service/monster/monsterUpgradeService": typeof service_monster_monsterUpgradeService;
@@ -253,6 +265,7 @@ declare const fullApi: ApiFromModules<{
   "service/skill/effects/duration/DotHandler": typeof service_skill_effects_duration_DotHandler;
   "service/skill/effects/duration/HotHandler": typeof service_skill_effects_duration_HotHandler;
   "service/skill/effects/duration/StunHandler": typeof service_skill_effects_duration_StunHandler;
+  "service/skill/effects/immediate/CleanseHandler": typeof service_skill_effects_immediate_CleanseHandler;
   "service/skill/effects/immediate/DamageHandler": typeof service_skill_effects_immediate_DamageHandler;
   "service/skill/effects/immediate/HealHandler": typeof service_skill_effects_immediate_HealHandler;
   "service/skill/effects/immediate/MovementHandler": typeof service_skill_effects_immediate_MovementHandler;
@@ -282,10 +295,13 @@ declare const fullApi: ApiFromModules<{
   "types/skillTypes": typeof types_skillTypes;
   "types/stageRuleTypes": typeof types_stageRuleTypes;
   "types/upgradeStrategyTypes": typeof types_upgradeStrategyTypes;
+  "utils/aiHexMovement": typeof utils_aiHexMovement;
   "utils/hashUtils": typeof utils_hashUtils;
   "utils/hexUtils": typeof utils_hexUtils;
   "utils/obstacleUtils": typeof utils_obstacleUtils;
   "utils/seededRandom": typeof utils_seededRandom;
+  "utils/tournamentModeType": typeof utils_tournamentModeType;
+  "utils/tutorialProgressUtils": typeof utils_tutorialProgressUtils;
 }>;
 
 /**

@@ -20,6 +20,7 @@ import type { UseBattleGridStateReturn } from "./useBattleGridState";
 import { usePassiveSkillAnimations } from "./usePassiveSkillAnimations";
 import { usePhaseChangesHandler3D } from "./usePhaseChangesHandler3D";
 import { useSkillSync } from "./useSkillSync";
+import type { PedagogyGuideNotifyEvent } from "../../utils/pedagogyGuideFlow";
 
 interface UseCombatActHandler3DOptions {
     gridState: UseBattleGridStateReturn | null;
@@ -27,10 +28,12 @@ interface UseCombatActHandler3DOptions {
     playbackSpeed?: number;
     /** 技能失败时额外回调（用于显示 toast 等用户可见提示） */
     onSkillError?: (message: string) => void;
+    /** 教学 guideFlow 与技能栏 / 自动选技 同步 */
+    onPedagogyNotify?: (event: PedagogyGuideNotifyEvent) => void;
 }
 
 const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
-    const { gridState, mapDimension, playbackSpeed = 1.0, onSkillError } = options;
+    const { gridState, mapDimension, playbackSpeed = 1.0, onSkillError, onPedagogyNotify } = options;
     const { playSkillSelect } = usePlaySkillSelect3D();
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
     const { playWalk } = usePlayWalk3D({ mapDimension, playbackSpeed });
@@ -101,7 +104,8 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         playSkill,
         handlePhaseChanges,
         setSkillSyncState,
-        calculateActionScore
+        calculateActionScore,
+        onPedagogyNotify
     );
 
     const { selectSkill, standBy, defend, surrender, attack, positionSelectionUI } = useOtherAction3D(
@@ -114,7 +118,8 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         openModal,
         useSkill,
         walkAndAttack,
-        groundCells ?? []
+        groundCells ?? [],
+        handlePhaseChanges
     );
 
     return {

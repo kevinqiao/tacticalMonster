@@ -111,6 +111,14 @@ export const tournamentSchema = {
             minPlayers: v.number(),
             maxPlayers: v.number(),
 
+            // TacticalMonster：与 StageRuleConfig.ruleId 对齐；modeType 驱动结算与教学逻辑
+            ruleId: v.optional(v.string()),
+            modeType: v.optional(v.union(
+                v.literal("tutorial"),
+                v.literal("solo_challenge"),
+                v.literal("multiplayer_tournament")
+            )),
+
             // 排名规则
             matchPointsType: v.optional(v.union(
                 v.literal("by_score"),
@@ -149,7 +157,16 @@ export const tournamentSchema = {
                 chestTypeWeights: v.optional(ChestTypeWeightsSchema),
             }))),
 
-            // 订阅加成 - TacticalMonster 特定
+            // 订阅玩家额外奖励（固定加算；见 RewardConfig 注释）
+            subscribedPlayerExtraRewards: v.optional(v.object({
+                coins: v.optional(v.number()),
+                monsterShards: v.optional(v.array(v.object({
+                    monsterId: v.string(),
+                    quantity: v.number()
+                }))),
+                energy: v.optional(v.number()),
+            })),
+            /** @deprecated 与 subscribedPlayerExtraRewards 同义，旧数据迁移后可删 */
             subscriptionBonus: v.optional(v.object({
                 coins: v.optional(v.number()),
                 monsterShards: v.optional(v.array(v.object({

@@ -166,12 +166,22 @@ export const mainSchema = {
         }),
         stageId: v.string(),
         ruleId: v.string(),
+        /** 与 tournament_types.matchRules.modeType 一致，开局写入 */
+        modeType: v.optional(v.union(
+            v.literal("tutorial"),
+            v.literal("solo_challenge"),
+            v.literal("multiplayer_tournament")
+        )),
         matchId: v.optional(v.string()),
         gameId: v.string(),
         status: v.number(),
         score: v.number(),
         scoringConfigVersion: v.optional(v.string()),
         round: v.optional(v.number()),  // ✅ 当前回合编号（用于快速访问，GameModel.currentRound 是运行时构建的 GameRound 对象）
+        tutorialProgress: v.optional(v.object({
+            nextGuideStepIndex: v.optional(v.number()),
+            dynamicGuideSatisfied: v.optional(v.boolean()),
+        })),
         lastUpdate: v.string(),
         createdAt: v.string(),
         // Boss阶段管理（可选，也可以存储在 boss.currentPhase 中）
@@ -220,6 +230,17 @@ export const mainSchema = {
     })
         .index("by_uid_ruleId", ["uid", "ruleId"])
         .index("by_uid_ruleId_stageId", ["uid", "ruleId", "stageId"]),
+
+    /**
+     * 教学引导 UI：玩家「跳过引导」或完成引导后仅隐藏提示，不影响 mr_games.tutorialProgress 胜负条件。
+     * 用于跨设备同步；未登录可回退前端 localStorage。
+     */
+    mr_player_pedagogy_guide_ui: defineTable({
+        uid: v.string(),
+        ruleId: v.string(),
+        dismissedAt: v.string(),
+    })
+        .index("by_uid_ruleId", ["uid", "ruleId"]),
     mr_stage: defineTable({
         stageId: v.string(),
         bossId: v.string(),

@@ -25,6 +25,7 @@ const TournamentList: React.FC = () => {
             typeId: item.typeId,
             stageId: item.stageId,
             matchType: matchType,
+            modeType: item.config?.matchRules?.modeType,
         });
     }, [openModal]);
 

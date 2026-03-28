@@ -10,7 +10,7 @@ import { CharacterQueryService } from "../../game/characterQueryService";
 import { GameLifecycleService } from "../../game/gameLifecycleService";
 import { GameService } from "../../game/gameService";
 import { RoundService } from "../../game/roundService";
-import { offsetBfsStepDistance } from "../../../utils/hexUtils";
+import { buildOccupiedCellKeysFromGame, countWalkStepsBetween } from "../../../utils/aiHexMovement";
 import { BossAIService } from "./bossAIService";
 
 /**
@@ -197,7 +197,22 @@ export const executeBossAction = internalMutation({
                     const map = gameBefore?.map;
                     const cols = map?.cols ?? 20;
                     const rows = map?.rows ?? 20;
-                    const steps = offsetBfsStepDistance(from, action.position, cols, rows);
+                    const occupiedCellKeys = buildOccupiedCellKeysFromGame(gameBefore);
+                    const canIgnoreObstacles =
+                        !!(actor as any).canIgnoreObstacles || !!(actor as any).isFlying;
+                    const steps = countWalkStepsBetween({
+                        from,
+                        to: action.position,
+                        cols,
+                        rows,
+                        map,
+                        occupiedCellKeys,
+                        actorFrom: from,
+                        canIgnoreObstacles,
+                    });
+                    if (steps === Infinity) {
+                        return { ok: false, error: "move_unreachable" };
+                    }
                     actionResult = await gameManager.walk(
                         gameId,
                         action.position,

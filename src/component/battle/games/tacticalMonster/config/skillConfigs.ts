@@ -260,6 +260,32 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         ],
     },
 
+    cleanse: {
+        id: "cleanse",
+        name: "净化",
+        type: "active",
+        description: "移除目标身上的负面持续效果（debuff/dot/stun）",
+        priority: 3,
+        range: {
+            area_type: "single",
+            distance: 2,
+            target_side: "friend",
+        },
+        unlockConditions: {
+            level: 9,
+        },
+        resource_cost: { mp: 25 },
+        cooldown: 3,
+        effects: [
+            {
+                id: "cleanse_effect",
+                name: "净化",
+                type: SkillEffectType.CLEANSE,
+                value: 3,
+            },
+        ],
+    },
+
     // ========== 护盾技能 ==========
     shield: {
         id: "shield",

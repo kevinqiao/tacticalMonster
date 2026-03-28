@@ -9,7 +9,7 @@ import { flushSync } from "react-dom";
 import { api } from "../../../../../../../convex/tacticalMonster/convex/_generated/api";
 import { useCombatManager } from "../../../service/CombatManager";
 import { createCharacterIdentifiers } from "../../../utils/characterUtils";
-import { findPath } from "../../../utils/PathFind";
+import { findPath, isCellPassableForMovement } from "../../../utils/PathFind";
 import { canPerformAction } from "../../../utils/validationUtils";
 import { getCharacterKey } from "../../utils/battle3DAdapter";
 import type { BattleMapDimension } from "../../utils/coordinate3DUtils";
@@ -105,9 +105,7 @@ export const useWalkAction3D = (
                             c.r === cell.r &&
                             !(c.uid === character.uid && c.character_id === character.character_id)
                     );
-                    const walkable = canIgnoreObstacles
-                        ? !cell.disable
-                        : !cell.disable && !occupied;
+                    const walkable = isCellPassableForMovement(cell, canIgnoreObstacles, occupied);
                     return { q: cell.q, r: cell.r, walkable };
                 })
             );

@@ -9,7 +9,7 @@ import { getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/
 import { useCombatManager } from "../../service/CombatManager";
 import type { MonsterSprite } from "../../types/CombatTypes";
 import type { GameTurn } from "../../types/gameTypes";
-import { getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
+import { buildWalkGridForMovement, getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
 import { showDamageNumber } from "../../utils/damageNumberDisplay";
 import type { UseBattleGridStateReturn } from "../handler/useBattleGridState";
 import { usePlaySkill3D } from "./usePlaySkill3D";
@@ -126,17 +126,13 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
             const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
 
-            // 横竖屏统一用逻辑空间：高亮 = 可点击 = 与后端一致；竖屏时环在屏幕上可能略不齐，但所见即所点
-            const grid = groundCells.map((row) =>
-                row.map((cell) => {
-                    const char = chars.find((c) => c.q === cell.q && c.r === cell.r);
-                    const obstacle = map?.obstacles?.find((o) => o.q === cell.q && o.r === cell.r);
-                    return {
-                        q: cell.q,
-                        r: cell.r,
-                        walkable: char || obstacle || cell.disable ? false : true,
-                    };
-                })
+            // 横竖屏统一用逻辑空间：高亮 = 可点击 = 与寻路一致（飞行可越障，不可穿人）
+            const grid = buildWalkGridForMovement(
+                groundCells,
+                chars,
+                character,
+                canIgnoreObstacles,
+                map?.obstacles
             );
             console.log("[HexDebug] playTurnOn map", map);
             // 规则：部分移动后只显示暗区（distance=1，紧靠怪物的第一层），不显示亮区
@@ -237,12 +233,12 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
             const isFlying = character.isFlying ?? false;
             const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
-            const grid = groundCells.map((row) =>
-                row.map((cell) => {
-                    const char = characters.find((c) => c.q === cell.q && c.r === cell.r);
-                    const obstacle = map?.obstacles?.find((o) => o.q === cell.q && o.r === cell.r);
-                    return { q: cell.q, r: cell.r, walkable: char || obstacle || cell.disable ? false : true };
-                })
+            const grid = buildWalkGridForMovement(
+                groundCells,
+                characters,
+                character,
+                canIgnoreObstacles,
+                map?.obstacles
             );
             // 规则：部分移动后 remainingSteps=1，只显示暗区（distance=1）
             const effectiveRange = onlyFurthestLayer && remainingMove > 0 ? 1 : remainingMove;

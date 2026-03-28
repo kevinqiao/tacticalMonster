@@ -11,7 +11,10 @@ export type BattleCellState =
     | "highlighted"
     | "disabled"
     | "walkable"
+    | "walkable_dim"
     | "attackable"
+    | "attackable_dim"
+    | "attackable_focus"
     | "path"
     | "selected";
 
@@ -27,17 +30,20 @@ interface HexCell3DProps {
     walkableDistance?: number;
     /** 移动范围（与 walkableDistance 一起计算透明度） */
     moveRange?: number;
+    /** 教学：施法步开始后短时加强攻击格脉冲 */
+    pedagogyPulseBoost?: boolean;
     onClick?: () => void;
     onPointerEnter?: () => void;
     onPointerLeave?: () => void;
 }
 
-const HexCell3D: React.FC<HexCell3DProps> = ({
+export const HexCell3D: React.FC<HexCell3DProps> = ({
     position,
     geometry,
     state = "normal",
     walkableDistance,
     moveRange,
+    pedagogyPulseBoost,
     onClick,
     onPointerEnter,
     onPointerLeave,
@@ -53,15 +59,19 @@ const HexCell3D: React.FC<HexCell3DProps> = ({
             case "disabled":
                 return 1;
             case "walkable":
+            case "walkable_dim":
                 return 2;
             case "attackable":
+            case "attackable_dim":
                 return 3;
-            case "path":
+            case "attackable_focus":
                 return 4;
-            case "selected":
+            case "path":
                 return 5;
-            case "highlighted":
+            case "selected":
                 return 6;
+            case "highlighted":
+                return 7;
             default:
                 return 0;
         }
@@ -96,11 +106,39 @@ const HexCell3D: React.FC<HexCell3DProps> = ({
                 }
                 break;
             }
+            case "walkable_dim": {
+                metalness = 0.15;
+                roughness = 0.55;
+                if (moveRange != null && moveRange > 0 && walkableDistance != null) {
+                    const t = 1 - walkableDistance / moveRange;
+                    opacity = 0.08 + t * 0.22;
+                    const dark = new THREE.Color(0x37474f);
+                    const mid = new THREE.Color(0x546e7a);
+                    dark.lerp(mid, Math.min(1, t * 1.2));
+                    color = dark.getHex();
+                } else {
+                    color = 0x455a64;
+                    opacity = 0.22;
+                }
+                break;
+            }
             case "attackable":
                 color = 0xf44336;
                 opacity = 0.8;
                 metalness = 0.3;
                 roughness = 0.4;
+                break;
+            case "attackable_dim":
+                color = 0x8d4a4a;
+                opacity = 0.28;
+                metalness = 0.2;
+                roughness = 0.55;
+                break;
+            case "attackable_focus":
+                color = 0xff5252;
+                opacity = 0.95;
+                metalness = 0.35;
+                roughness = 0.35;
                 break;
             case "path":
                 color = 0xffeb3b;
@@ -133,7 +171,14 @@ const HexCell3D: React.FC<HexCell3DProps> = ({
                 roughness = 0.6;
         }
 
-        const isInteractive = state === "walkable" || state === "attackable" || state === "path" || state === "selected";
+        const isInteractive =
+            state === "walkable" ||
+            state === "walkable_dim" ||
+            state === "attackable" ||
+            state === "attackable_dim" ||
+            state === "attackable_focus" ||
+            state === "path" ||
+            state === "selected";
         const mat = new THREE.MeshStandardMaterial({
             color,
             opacity,
@@ -150,8 +195,26 @@ const HexCell3D: React.FC<HexCell3DProps> = ({
     useFrame(({ clock }) => {
         if (meshRef.current) {
             const baseY = position[1] + yOffset;
-            if (state === "walkable" || state === "attackable" || state === "path" || state === "selected") {
-                meshRef.current.position.y = baseY + Math.sin(clock.elapsedTime * 2) * 0.015;
+            if (
+                state === "walkable" ||
+                state === "walkable_dim" ||
+                state === "attackable" ||
+                state === "attackable_dim" ||
+                state === "attackable_focus" ||
+                state === "path" ||
+                state === "selected"
+            ) {
+                const amp =
+                    state === "attackable_focus"
+                        ? pedagogyPulseBoost
+                            ? 0.05
+                            : 0.028
+                        : state === "attackable_dim"
+                          ? 0.006
+                          : 0.015;
+                const speed =
+                    state === "attackable_focus" ? (pedagogyPulseBoost ? 3.5 : 2.8) : 2;
+                meshRef.current.position.y = baseY + Math.sin(clock.elapsedTime * speed) * amp;
             } else {
                 meshRef.current.position.y = baseY;
             }

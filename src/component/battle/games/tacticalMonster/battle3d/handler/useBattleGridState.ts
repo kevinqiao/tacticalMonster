@@ -13,7 +13,10 @@ export type BattleCellState =
     | "normal"
     | "disabled"
     | "walkable"
+    | "walkable_dim"
     | "attackable"
+    | "attackable_dim"
+    | "attackable_focus"
     | "path"
     | "selected"
     | "highlighted";

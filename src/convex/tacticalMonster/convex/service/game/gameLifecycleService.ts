@@ -6,12 +6,14 @@
 import { calculateBossPower, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
 import { calculateGameMonster, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
-import { GameModel, GameRound, GameStatus } from "../../types/gameTypes";
+import { GameModel, GameRound, GameStatus, TutorialProgressState } from "../../types/gameTypes";
 import { GameBoss, GameMinion, GameMonster, PlayerMonster } from "../../types/monsterTypes";
 import { GameRuleConfigService } from "./gameRuleConfigService";
 import { TeamService } from "../team/teamService";
+import { buildGameTeamFromStageRule } from "./teamPresetService";
 import { GameEventService } from "./gameEventService";
 import { RoundService } from "./roundService";
+import { getModeTypeForRuleId } from "../../utils/tournamentModeType";
 
 export class GameLifecycleService {
     private eventService: GameEventService;
@@ -38,12 +40,10 @@ export class GameLifecycleService {
         stageId: string
     ): Promise<GameModel | null> {
         console.log("createGame params", uid, gameId, ruleId, stageId);
+        const stageRuleConfig = GameRuleConfigService.getGameRuleConfig(ruleId);
+
         // 1. 根据 uid 获取玩家队伍（从 mr_player_monsters 表）
         const playerTeamMonsters = await TeamService.getPlayerTeam(this.dbCtx, uid);
-
-        if (!playerTeamMonsters || playerTeamMonsters.length === 0) {
-            throw new Error(`玩家 ${uid} 没有配置队伍`);
-        }
 
         // 2. 根据 stageId 获取数据库 mr_stage 的 stage 数据
         const stage = await this.dbCtx.db
@@ -55,33 +55,11 @@ export class GameLifecycleService {
             throw new Error(`Stage 不存在: ${stageId}`);
         }
 
-        // 3. 计算每个 monster 的完整 GameMonster 数据和 teamPower
-        let totalTeamPower = 0;
-        const team: GameMonster[] = await Promise.all(
-            playerTeamMonsters.map(async (playerMonster: any) => {
-                // 获取怪物配置（从配置文件读取）
-                const monsterConfig = MONSTER_CONFIGS_MAP[playerMonster.monsterId];
-
-                if (!monsterConfig) {
-                    throw new Error(`怪物配置不存在: ${playerMonster.monsterId}`);
-                }
-
-                // 使用 calculateGameMonster 构建完整的 GameMonster
-                const gameMonster = calculateGameMonster(
-                    playerMonster as PlayerMonster,
-                    monsterConfig,
-                    playerMonster.teamPosition || { q: 0, r: 0 }
-                );
-
-                // 计算 Power: (HP + Attack * 2 + Defense * 1.5) * StarMultiplier
-                const basePower = gameMonster.stats.hp.max +
-                    gameMonster.stats.attack * 2 +
-                    gameMonster.stats.defense * 1.5;
-                const monsterPower = Math.floor(basePower);
-                totalTeamPower += monsterPower;
-
-                return gameMonster;
-            })
+        // 3. 按关卡 teamPreset（none / override / merge）生成最终 team 与 teamPower
+        const { team, totalTeamPower } = await buildGameTeamFromStageRule(
+            uid,
+            playerTeamMonsters ?? [],
+            stageRuleConfig
         );
 
         // 4. 获取 Boss 配置
@@ -98,8 +76,17 @@ export class GameLifecycleService {
         if (!mergedBossConfig) {
             throw new Error(`无法获取合并后的Boss配置: ${stage.bossId}`);
         }
+        const stageBossOverrides = stageRuleConfig?.stageContent?.bossOverrides;
+        const effectiveBossConfig = stageBossOverrides
+            ? {
+                ...mergedBossConfig,
+                baseHp: stageBossOverrides.baseHp ?? mergedBossConfig.baseHp,
+                baseDamage: stageBossOverrides.baseDamage ?? mergedBossConfig.baseDamage,
+                baseDefense: stageBossOverrides.baseDefense ?? mergedBossConfig.baseDefense,
+                baseSpeed: stageBossOverrides.baseSpeed ?? mergedBossConfig.baseSpeed,
+            }
+            : mergedBossConfig;
 
-        const stageRuleConfig = GameRuleConfigService.getGameRuleConfig(ruleId);
         // 首通：无 mr_player_first_clear 记录时强制固定 Boss；挑战模式：使用配置
         const firstClear = await this.dbCtx.db
             .query("mr_player_first_clear")
@@ -113,7 +100,7 @@ export class GameLifecycleService {
         let bossScale: number;
         if (powerBasedScaling) {
             // 缩放模式：Boss Power = teamPower * difficulty
-            const baseBossPower = calculateBossPower(mergedBossConfig);
+            const baseBossPower = calculateBossPower(effectiveBossConfig);
             const targetBossPower = teamPower * stage.difficulty;
             bossScale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
         } else {
@@ -124,14 +111,14 @@ export class GameLifecycleService {
 
         // 应用缩放到 Boss 属性
         const scaledBossStats = {
-            hp: Math.floor((mergedBossConfig.baseHp ?? 0) * bossScale),
-            attack: Math.floor((mergedBossConfig.baseDamage ?? 0) * bossScale),
-            defense: Math.floor((mergedBossConfig.baseDefense ?? 0) * bossScale),
-            speed: Math.floor((mergedBossConfig.baseSpeed ?? 0) * bossScale),
+            hp: Math.floor((effectiveBossConfig.baseHp ?? 0) * bossScale),
+            attack: Math.floor((effectiveBossConfig.baseDamage ?? 0) * bossScale),
+            defense: Math.floor((effectiveBossConfig.baseDefense ?? 0) * bossScale),
+            speed: Math.floor((effectiveBossConfig.baseSpeed ?? 0) * bossScale),
         };
 
         // 8. 构建 Boss 数据（包括小怪）
-        const bossMainPosition = (bossConfig as any).position || { q: 0, r: 0 };
+        const bossMainPosition = stageBossOverrides?.position || (bossConfig as any).position || { q: 0, r: 0 };
 
         // 处理小怪数据（异步）
         const minionsData = await Promise.all(
@@ -208,7 +195,7 @@ export class GameLifecycleService {
         );
 
         // 获取Boss技能列表（从mergedBossConfig）
-        const bossSkills = mergedBossConfig.skills?.map((s: any) => s.skillId || s.id) || [];
+        const bossSkills = effectiveBossConfig.skills?.map((s: any) => s.skillId || s.id) || [];
 
         // 获取Boss配置（用于填充GameMonster必需字段）
         // bossConfig.monsterId 是角色配置ID（引用 monsterConfigs.ts）
@@ -257,6 +244,7 @@ export class GameLifecycleService {
 
         // 10. 创建 mr_games 记录（兼容现有 schema：从stats提取基础字段）
         const now = new Date().toISOString();
+        const modeType = getModeTypeForRuleId(ruleId);
         await this.dbCtx.db.insert("mr_games", {
             uid,
             teamPower,
@@ -312,6 +300,7 @@ export class GameLifecycleService {
             map: mapForGame,
             stageId,
             ruleId,
+            ...(modeType !== undefined ? { modeType } : {}),
             gameId,
             status: 0,  // 0: waiting
             score: 0,
@@ -326,6 +315,7 @@ export class GameLifecycleService {
             gameId,
             stageId,
             ruleId,
+            ...(modeType !== undefined ? { modeType } : {}),
             uid,
             teamPower,
             scoringConfigVersion: DEFAULT_SCORING_CONFIG_VERSION,  // ✅ 设置配置版本
@@ -667,6 +657,7 @@ export class GameLifecycleService {
                 matchId: game.matchId,
                 stageId: game.stageId,
                 ruleId: (game as any).ruleId,
+                modeType: (game as any).modeType,
                 uid: game.uid,
                 teamPower: game.teamPower,
                 team: team,  // 使用重建的 GameMonster 数组
@@ -678,6 +669,7 @@ export class GameLifecycleService {
                 scoringConfigVersion: game.scoringConfigVersion,  // ✅ 加载配置版本
                 lastUpdate: game.lastUpdate,
                 createdAt: game.createdAt,
+                tutorialProgress: (game as any).tutorialProgress,
                 currentRound,  // ✅ 包含完整的 turns 数据及其状态
             };
         } catch (error: any) {
@@ -698,11 +690,13 @@ export class GameLifecycleService {
         status?: GameStatus;
         score?: number;
         lastUpdate?: number | string;
+        tutorialProgress?: TutorialProgressState;
     }): Promise<void> {
         const updateData: any = {};
         if (data.status !== undefined) updateData.status = data.status;
         if (data.round !== undefined) updateData.round = data.round;
         if (data.score !== undefined) updateData.score = data.score;
+        if (data.tutorialProgress !== undefined) updateData.tutorialProgress = data.tutorialProgress;
         if (data.lastUpdate !== undefined) {
             updateData.lastUpdate = typeof data.lastUpdate === 'string'
                 ? data.lastUpdate

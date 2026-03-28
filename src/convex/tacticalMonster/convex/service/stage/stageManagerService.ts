@@ -20,8 +20,8 @@ import { StageUtils } from "./stageUtils";
  * Stage 管理服务
  */
 export class StageManagerService {
-    static async isStageUnlocked(ctx: any, uid: string, stageRule: StageRuleConfig): Promise<boolean> {
-        const previousLevels = stageRule.stageChain?.previousLevels || [];
+    static async isStageUnlocked(ctx: any, uid: string, ruleConfig: StageRuleConfig): Promise<boolean> {
+        const previousLevels = ruleConfig.stageChain?.previousLevels || [];
         if (previousLevels.length > 0) {
             for (const previousLevel of previousLevels) {
                 const firstClear = await ctx.db
@@ -34,11 +34,11 @@ export class StageManagerService {
         }
         return true;
     }
-    static async findCurrentStageId(ctx: any, uid: string, stageRule: StageRuleConfig) {
-        if (stageRule.stageType === "challenge") {
+    static async findCurrentStageId(ctx: any, uid: string, ruleConfig: StageRuleConfig) {
+        if (ruleConfig.stageType === "challenge") {
             const playerStage = await ctx.db
                 .query("mr_player_stages")
-                .withIndex("by_lastPlayAt", (q: any) => q.eq("uid", uid).eq("ruleId", stageRule.ruleId))
+                .withIndex("by_lastPlayAt", (q: any) => q.eq("uid", uid).eq("ruleId", ruleConfig.ruleId))
                 .order("desc")
                 .first();
             if (playerStage) {
@@ -46,10 +46,10 @@ export class StageManagerService {
             }
 
 
-        } else if (stageRule.stageType === "arena") {
+        } else if (ruleConfig.stageType === "arena") {
             const arenaStage = await ctx.db
                 .query("mr_arena_stage")
-                .withIndex("by_ruleId", (q: any) => q.eq("ruleId", stageRule.ruleId))
+                .withIndex("by_ruleId", (q: any) => q.eq("ruleId", ruleConfig.ruleId))
                 .order("desc")
                 .first();
             if (!arenaStage) {
@@ -499,15 +499,32 @@ export const createInitialRuleStages = internalMutation({
 });
 
 export const isStageUnlocked = internalQuery({
-    args: { uid: v.string(), stageRule: v.object({ ruleId: v.string(), stageType: v.string() }) },
+    args: { uid: v.string(), ruleConfig: v.object({ ruleId: v.string(), stageType: v.string() }) },
     handler: async (ctx: any, args: any) => {
-        return await StageManagerService.isStageUnlocked(ctx, args.uid, args.stageRule);
+        return await StageManagerService.isStageUnlocked(ctx, args.uid, args.ruleConfig);
     },
 });
 export const findCurrentStageId = internalQuery({
-    args: { uid: v.string(), stageRule: v.object({ ruleId: v.string(), stageType: v.string() }) },
+    args: { uid: v.string(), ruleConfig: v.object({ ruleId: v.string(), stageType: v.string() }) },
     handler: async (ctx: any, args: any) => {
-        return await StageManagerService.findCurrentStageId(ctx, args.uid, args.stageRule);
+        return await StageManagerService.findCurrentStageId(ctx, args.uid, args.ruleConfig);
+    },
+});
+export const ensureStageIdForRule = internalMutation({
+    args: { uid: v.string(), typeId: v.string() },
+    handler: async (ctx: any, args: any) => {
+        const { uid, typeId } = args;
+        const ruleConfig = GameRuleConfigService.getGameRuleConfig(typeId);
+        if (!ruleConfig) return null;
+        if (ruleConfig.stageType === "challenge") {
+            const stage = await StageManagerService.getOrCreateChallengeStage(ctx, uid, typeId, ruleConfig);
+            return stage?.stageId ?? null;
+        }
+        if (ruleConfig.stageType === "arena") {
+            const stage = await StageManagerService.getOrCreateArenaStage(ctx, typeId, ruleConfig);
+            return stage?.stageId ?? null;
+        }
+        return null;
     },
 });
 export const findStage = query({

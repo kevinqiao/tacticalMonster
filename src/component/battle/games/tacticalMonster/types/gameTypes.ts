@@ -1,6 +1,13 @@
 import { StateChanges } from "./backendResponseTypes";
 import { GameBoss, GameMonster } from "./monsterTypes";
 import { ObstacleCell } from "./obstacleTypes";
+import type { RewardPolicyType, ScoreTierReward, StageModeType } from "./stageRuleTypes";
+/** 教学关服务端可验证进度（存 mr_games.tutorialProgress） */
+export interface TutorialProgressState {
+    nextGuideStepIndex?: number;
+    dynamicGuideSatisfied?: boolean;
+}
+
 
 /**
  * 游戏状态枚举
@@ -29,6 +36,8 @@ export interface GameModel {
     stageId: string;
     /** 与 TournamentConfig / stageRuleConfigs 的 ruleId 一致，用于教学与星级等 */
     ruleId?: string;
+    /** 锦标赛 matchRules.modeType，由后端写入 mr_games */
+    modeType?: StageModeType;
     uid: string;  // 玩家 UID
 
     // ========== 队伍和Boss数据 ==========
@@ -46,6 +55,8 @@ export interface GameModel {
     lastUpdate: string;  // ISO 字符串格式
     createdAt: string;  // ISO 字符串格式
     dueTime?: number;
+    /** 教学关引导进度（与 StagePedagogy.guideFlow / dynamicGuide 对齐） */
+    tutorialProgress?: TutorialProgressState;
     // ========== 运行时字段（不在数据库中，但用于代码逻辑）==========
     currentRound?: GameRound;
 }
@@ -294,6 +305,11 @@ export interface GameReport {
     timeBonus?: number;
     completeBonus?: number;
     totalScore: number;
+    isFirstClear?: boolean;
+    rewardPolicyType?: RewardPolicyType;
+    scoreTierHit?: ScoreTierReward;
+    rewardEligible?: boolean;
+    oneTimeRewardKey?: string;
 }
 
 // ✅ CombatTurn 已移除，统一使用 GameTurn

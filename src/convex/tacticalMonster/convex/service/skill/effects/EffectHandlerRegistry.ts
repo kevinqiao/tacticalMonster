@@ -12,6 +12,7 @@ import { StunHandler } from "./duration/StunHandler";
 import type { EffectHandler } from "./EffectHandler";
 import { DamageHandler } from "./immediate/DamageHandler";
 import { HealHandler } from "./immediate/HealHandler";
+import { CleanseHandler } from "./immediate/CleanseHandler";
 import { MovementHandler } from "./immediate/MovementHandler";
 import { MpDrainHandler } from "./immediate/MpDrainHandler";
 import { MpRestoreHandler } from "./immediate/MpRestoreHandler";
@@ -40,6 +41,7 @@ export class EffectHandlerRegistry {
 
         this.register(new DamageHandler());
         this.register(new HealHandler());
+        this.register(new CleanseHandler());
         this.register(new ShieldHandler());
         this.register(new MpDrainHandler());
         this.register(new MpRestoreHandler());

@@ -1,5 +1,6 @@
 /**
- * 3D 战斗教学引导：按 ruleId 首次完成/跳过后不再显示（localStorage）
+ * 未登录（无 uid）时：引导横幅「完成/跳过」仅写 localStorage。
+ * 已登录时由 Convex mr_player_pedagogy_guide_ui + dismissGuideUi 同步跨设备。
  */
 
 export function getGuideStorageKey(uid: string | undefined, ruleId: string): string {

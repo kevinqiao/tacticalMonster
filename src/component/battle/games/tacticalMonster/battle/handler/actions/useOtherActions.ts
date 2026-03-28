@@ -166,7 +166,8 @@ export const useOtherActions = (
             remainingSteps,
             groundCells || [],
             characters || [],
-            settings.autoMoveStrategy
+            settings.autoMoveStrategy,
+            game?.map?.obstacles
         );
 
         if (possiblePositions.length === 0) {

@@ -37,6 +37,8 @@ export interface PedagogyGuideStep {
 /**
  * 教学 / 难度阶梯元数据（P/B 轴）
  */
+export type TutorialWinMode = "boss_only" | "boss_and_guide" | "guide_only";
+
 export interface StagePedagogy {
     playerTierAssumed: number;
     playerTierTaught?: number;
@@ -48,6 +50,59 @@ export interface StagePedagogy {
     allowedSkillIds?: string[];
     guideFlow?: PedagogyGuideStep[];
     dynamicGuide?: boolean;
+    dynamicGuideCompletionSkillId?: string;
+    tutorialWinMode?: TutorialWinMode;
+}
+
+export type StageModeType = "tutorial" | "solo_challenge" | "multiplayer_tournament";
+export type TeamPresetMode = "none" | "override" | "merge";
+
+export interface TeamPresetSlot {
+    monsterId: string;
+    level?: number;
+    stars?: number;
+    q?: number;
+    r?: number;
+    unlockSkills?: string[];
+}
+
+export interface StageTeamPresetConfig {
+    mode: TeamPresetMode;
+    slots: TeamPresetSlot[];
+}
+
+export type RewardPolicyType = "one_time_clear" | "score_tiers" | "ranking_or_match_result";
+
+export interface ScoreTierReward {
+    minScore: number;
+    rewardKey?: string;
+    chestType?: string;
+}
+
+export interface StageRewardPolicy {
+    type: RewardPolicyType;
+    scoreTiers?: ScoreTierReward[];
+    oneTimeRewardKey?: string;
+}
+
+export interface StageUiRules {
+    hideTeamLayout?: boolean;
+}
+
+export interface StageBossOverrides {
+    baseHp?: number;
+    baseDamage?: number;
+    baseDefense?: number;
+    baseSpeed?: number;
+    position?: { q: number; r: number };
+}
+
+export interface StagePlayerOverride {
+    monsterId: string;
+    hp?: number;
+    attack?: number;
+    defense?: number;
+    speed?: number;
 }
 
 /**
@@ -60,6 +115,9 @@ export interface StageRuleConfig {
     // ============================================
     ruleId: string;
     gameName?: GameName;
+    teamPreset?: StageTeamPresetConfig;
+    rewardPolicy?: StageRewardPolicy;
+    uiRules?: StageUiRules;
     // ============================================
     // 关卡类型和进度
     // ============================================
@@ -114,6 +172,10 @@ export interface StageRuleConfig {
             minMultiplier?: number;        // 最低难度倍数
             maxMultiplier?: number;        // 最高难度倍数
         };
+        // 关卡级 Boss 覆盖（用于教学关精准调参，不影响全局 Boss 模板）
+        bossOverrides?: StageBossOverrides;
+        // 关卡级玩家单位覆盖（用于教学关精准调参）
+        playerOverrides?: StagePlayerOverride[];
         // 用于召唤测试的队伍预设标识，测试逻辑可根据此选择 SUMMON_TEST_TEAM_MONSTERS
         summonTestTeamPreset?: "default";
     };

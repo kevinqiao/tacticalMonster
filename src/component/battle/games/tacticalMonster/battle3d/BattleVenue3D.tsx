@@ -6,8 +6,10 @@ import { CharacterGrid3D } from "@/component/battle/games/tacticalMonster/battle
 import { GridGround3D } from "@/component/battle/games/tacticalMonster/battle3d/view/GridGround3D";
 import { GridHighlight3D } from "@/component/battle/games/tacticalMonster/battle3d/view/GridHighlight3D";
 import { ObstacleGrid3D } from "@/component/battle/games/tacticalMonster/battle3d/view/ObstacleGrid3D";
+import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
+import { useMutation, useQuery } from "convex/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -23,6 +25,7 @@ import { MONSTER_CONFIGS_MAP } from "../config/monsterConfigs";
 import { SKILL_CONFIGS } from "../config/skillConfigs";
 import { useCombatManager } from "../service/CombatManager";
 import { filterSkillIdsForPedagogy } from "../utils/pedagogySkillFilter";
+import type { PedagogyGuideNotifyEvent } from "../utils/pedagogyGuideFlow";
 import { canPerformAction } from "../utils/validationUtils";
 import { BattleLoadingContext } from "./BattleLoadingContext";
 import { useBattleGridState, type BattleCellState } from "./handler/useBattleGridState";
@@ -33,6 +36,7 @@ import "./style.css";
 import { BattleMapDimension, getGridCenter3D, getGridExtent3D } from "./utils/coordinate3DUtils";
 import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
 import { usePedagogyGuideFlow } from "./hooks/usePedagogyGuideFlow";
+import { markGuideDone } from "../utils/pedagogyGuideStorage";
 import { TurnOrderBar } from "./view/turnbar/TurnOrderBar";
 
 const CAMERA_CONFIG = {
@@ -133,7 +137,24 @@ const CanvasWithControls: React.FC<{
     getWalkableDistance?: (q: number, r: number) => number | undefined;
     getWalkableMoveRange?: () => number | undefined;
     onCellClick?: (logicQ: number, logicR: number) => void;
-}> = ({ cameraPosition, target, mapDimension, minDistance, maxDistance, onProgress, onModelLoaded, isPortrait, orthoZoom, cameraUp, getCellState, getWalkableDistance, getWalkableMoveRange, onCellClick }) => {
+    pedagogyAttackTargetPulseBoost?: boolean;
+}> = ({
+    cameraPosition,
+    target,
+    mapDimension,
+    minDistance,
+    maxDistance,
+    onProgress,
+    onModelLoaded,
+    isPortrait,
+    orthoZoom,
+    cameraUp,
+    getCellState,
+    getWalkableDistance,
+    getWalkableMoveRange,
+    onCellClick,
+    pedagogyAttackTargetPulseBoost,
+}) => {
     const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
     // 稳定引用，供 onCreated 使用（避免闭包过期）
@@ -194,6 +215,7 @@ const CanvasWithControls: React.FC<{
                             getWalkableDistance={getWalkableDistance}
                             getWalkableMoveRange={getWalkableMoveRange}
                             onCellClick={onCellClick}
+                            pedagogyAttackTargetPulseBoost={pedagogyAttackTargetPulseBoost}
                         />
                     </>
                 )}
@@ -256,7 +278,29 @@ const SkillPanel: React.FC<{
     surrender: () => void;
     defend: () => void;
     clearGrid: () => void;
-}> = ({ selectSkill, useSkill, surrender, defend, clearGrid }) => {
+    onPedagogyNotify?: (event: PedagogyGuideNotifyEvent) => void;
+    disableDefend?: boolean;
+    /** 首关引导：移动步未完成前禁止点技能栏（与格子半强制一致） */
+    tutorialLockSkillPanel?: boolean;
+    onTutorialSkillPanelBlocked?: () => void;
+    onTutorialNudge?: (message: string) => void;
+    /** 首关引导：高亮目标技能（如 basic_attack） */
+    tutorialHighlightSkillId?: string | null;
+    tutorialHintText?: string;
+}> = ({
+    selectSkill,
+    useSkill,
+    surrender,
+    defend,
+    clearGrid,
+    onPedagogyNotify,
+    disableDefend,
+    tutorialLockSkillPanel,
+    onTutorialSkillPanelBlocked,
+    onTutorialNudge,
+    tutorialHighlightSkillId,
+    tutorialHintText,
+}) => {
     const { game, mode, characters } = useCombatManager();
     const validation = canPerformAction(mode ?? "play", game, characters);
     const { can, currentTurn, character } = validation;
@@ -267,6 +311,10 @@ const SkillPanel: React.FC<{
     useEffect(() => {
         setLocalSelectedSkillId(null);
     }, [turnKey]);
+    useEffect(() => {
+        // 引导步切换时清掉旧选择，避免第1步残留 selection 干扰第2步理解
+        setLocalSelectedSkillId(null);
+    }, [tutorialLockSkillPanel, tutorialHighlightSkillId]);
 
     const selectedSkillId = localSelectedSkillId ?? currentTurn?.skillSelect ?? null;
     const selectedSkill = selectedSkillId ? SKILL_CONFIGS[selectedSkillId] : null;
@@ -294,6 +342,10 @@ const SkillPanel: React.FC<{
     const energyMax = (character as any)?.stats?.energy?.max ?? 100;
     const cooldowns = (character as any)?.skillCooldowns ?? {};
     const charLevel = (character as { level?: number })?.level ?? 1;
+    /** 与后端 SkillManager.checkSkillAvailability 一致：unlockSkills 显式授予的技能跳过等级门槛 */
+    const unlockSkillIds = new Set((character as { unlockSkills?: string[] })?.unlockSkills ?? []);
+    const isLevelLockedForSkill = (skillId: string, requiredLevel: number | undefined) =>
+        requiredLevel != null && charLevel < requiredLevel && !unlockSkillIds.has(skillId);
 
     if (mode === "watch" || mode === "replay") {
         return (
@@ -311,21 +363,38 @@ const SkillPanel: React.FC<{
         );
     }
 
-    const handleSkillClick = async (skill: any) => {
+    const handleSkillClick = async (skill: any, isTutorialTarget: boolean) => {
+        if (tutorialLockSkillPanel) {
+            onTutorialSkillPanelBlocked?.();
+            return;
+        }
+        if (tutorialHighlightSkillId && !isTutorialTarget) {
+            const targetName = SKILL_CONFIGS[tutorialHighlightSkillId]?.name ?? tutorialHighlightSkillId;
+            onTutorialNudge?.(`当前推荐先选择「${targetName}」`);
+        }
         setLocalSelectedSkillId(skill.id);
         await Promise.resolve(selectSkill(skill));
+        onPedagogyNotify?.({ type: "skillSelect", skillId: skill.id });
     };
 
     const handleUseNoTarget = () => {
+        if (tutorialLockSkillPanel) {
+            onTutorialSkillPanelBlocked?.();
+            return;
+        }
         if (!selectedSkillId || !isNoTargetSkill) return;
         const cooldown = cooldowns[selectedSkillId] ?? 0;
         const mpCost = selectedSkill?.resource_cost?.mp ?? 0;
         const reqLevel = selectedSkill?.unlockConditions?.level;
-        const levelLocked = reqLevel != null && charLevel < reqLevel;
+        const levelLocked = isLevelLockedForSkill(selectedSkillId, reqLevel);
         if (levelLocked || cooldown > 0 || mp < mpCost) return; // 等级/冷却/MP 不足时不再发起请求
         setLocalSelectedSkillId(null);
         clearGrid();
-        useSkill(selectedSkillId).catch((err: any) => console.error("[SkillPanel] useSkill error:", err));
+        useSkill(selectedSkillId)
+            .then(() => {
+                onPedagogyNotify?.({ type: "cast", skillId: selectedSkillId });
+            })
+            .catch((err: any) => console.error("[SkillPanel] useSkill error:", err));
     };
 
     return (
@@ -351,10 +420,22 @@ const SkillPanel: React.FC<{
                 const mpCost = skill.resource_cost?.mp ?? 0;
                 const energyCost = skill.resource_cost?.energy ?? 0;
                 const requiredLevel = skill.unlockConditions?.level;
-                const levelLocked = requiredLevel != null && charLevel < requiredLevel;
-                const disabled = levelLocked || cooldown > 0 || (mpCost > 0 && mp < mpCost) || (energyCost > 0 && energy < energyCost);
+                const levelLocked = isLevelLockedForSkill(id, requiredLevel);
+                const disabled =
+                    levelLocked ||
+                    cooldown > 0 ||
+                    (mpCost > 0 && mp < mpCost) ||
+                    (energyCost > 0 && energy < energyCost);
                 const isSelected = selectedSkillId === id;
+                const isTutorialTarget = !!tutorialHighlightSkillId && tutorialHighlightSkillId === id;
+                const isTutorialSecondary = !!tutorialHighlightSkillId && !isTutorialTarget;
                 const titleParts = [skill.name];
+                if (tutorialLockSkillPanel) titleParts.unshift("请先移动到蓝色格子");
+                if (isTutorialTarget && tutorialHintText) titleParts.unshift(tutorialHintText);
+                if (isTutorialSecondary) {
+                    const targetName = SKILL_CONFIGS[tutorialHighlightSkillId!]?.name ?? tutorialHighlightSkillId!;
+                    titleParts.unshift(`建议优先选择：${targetName}`);
+                }
                 if (levelLocked) titleParts.push(`需要等级 ${requiredLevel}`);
                 if (cooldown > 0) titleParts.push(`(冷却${cooldown})`);
                 if (energyCost > 0) titleParts.push(`消耗能量${energyCost}`);
@@ -363,24 +444,46 @@ const SkillPanel: React.FC<{
                         key={id}
                         className={`action-panel-item ${isSelected ? "action-panel-item--selected" : ""}`}
                         style={{
-                            opacity: disabled ? 0.6 : 1,
+                            opacity: disabled || tutorialLockSkillPanel ? 0.55 : isTutorialSecondary ? 0.42 : 1,
                             pointerEvents: disabled ? "none" : "auto",
                             border: isSelected ? "2px solid #fff" : undefined,
+                            boxShadow: isTutorialTarget ? "0 0 0 2px rgba(255,214,10,0.95), 0 0 14px rgba(255,214,10,0.9)" : undefined,
+                            background: isTutorialTarget
+                                ? "linear-gradient(135deg, rgba(255,193,7,0.85), rgba(255,87,34,0.85))"
+                                : undefined,
+                            fontWeight: isTutorialTarget ? 700 : undefined,
                         }}
-                        onClick={() => !disabled && handleSkillClick(skill)}
+                        onClick={() => !disabled && handleSkillClick(skill, isTutorialTarget)}
                         title={titleParts.join(" ")}
                     >
                         {skill.name}
                         {cooldown > 0 && <span style={{ fontSize: 10, marginLeft: 2 }}>CD{cooldown}</span>}
+                        {isTutorialTarget && (
+                            <span style={{ fontSize: 10, marginLeft: 4, color: "#ffe082" }}>推荐</span>
+                        )}
                     </div>
                 );
             })}
+            {!!tutorialHintText && !!tutorialHighlightSkillId && !tutorialLockSkillPanel && (
+                <div
+                    style={{
+                        flexBasis: "100%",
+                        textAlign: "right",
+                        fontSize: 11,
+                        color: "rgba(255,230,140,0.98)",
+                        textShadow: "0 1px 2px rgba(0,0,0,0.55)",
+                    }}
+                >
+                    {tutorialHintText}
+                </div>
+            )}
             {isNoTargetSkill && (() => {
                 const cd = cooldowns[selectedSkillId ?? ""] ?? 0;
                 const cost = selectedSkill?.resource_cost?.mp ?? 0;
                 const reqLvl = selectedSkill?.unlockConditions?.level;
-                const lvlLocked = reqLvl != null && charLevel < reqLvl;
-                const useDisabled = lvlLocked || cd > 0 || mp < cost;
+                const lvlLocked =
+                    selectedSkillId != null ? isLevelLockedForSkill(selectedSkillId, reqLvl) : reqLvl != null && charLevel < reqLvl;
+                const useDisabled = lvlLocked || cd > 0 || mp < cost || !!tutorialLockSkillPanel;
                 return (
                     <div
                         className="action-panel-item"
@@ -388,10 +491,20 @@ const SkillPanel: React.FC<{
                             backgroundColor: "rgb(34, 139, 34)",
                             border: "2px solid #fff",
                             opacity: useDisabled ? 0.6 : 1,
-                            pointerEvents: useDisabled ? "none" : "auto",
+                            pointerEvents: useDisabled && !tutorialLockSkillPanel ? "none" : "auto",
                         }}
                         onClick={handleUseNoTarget}
-                        title={useDisabled ? (lvlLocked ? `需要等级 ${reqLvl}` : cd > 0 ? `技能冷却中，剩余 ${cd} 回合` : "MP 不足") : "使用"}
+                        title={
+                            tutorialLockSkillPanel
+                                ? "请先移动到蓝色格子"
+                                : useDisabled
+                                  ? lvlLocked
+                                      ? `需要等级 ${reqLvl}`
+                                      : cd > 0
+                                        ? `技能冷却中，剩余 ${cd} 回合`
+                                        : "MP 不足"
+                                  : "使用"
+                        }
                     >
                         使用
                     </div>
@@ -400,10 +513,15 @@ const SkillPanel: React.FC<{
             <div
                 className="action-panel-item"
                 onClick={() => {
+                    if (disableDefend) return;
                     clearGrid();
                     defend();
                 }}
-                style={{ backgroundColor: "rgb(70, 130, 180)" }}
+                style={{
+                    backgroundColor: "rgb(70, 130, 180)",
+                    opacity: disableDefend ? 0.55 : 1,
+                    pointerEvents: disableDefend ? "none" : "auto",
+                }}
                 title="防守"
             >
                 防守
@@ -448,18 +566,33 @@ export const BattleVenue3D: React.FC = () => {
 
     useEventHandler3D({ gridState, mapDimension });
 
-    const { surrender, defend, walk, attack, selectSkill, useSkill } = useCombatActHandler3D({
-        gridState,
-        mapDimension,
-        onSkillError: handleSkillErrorToast,
-    });
-
     const ruleKeyForPedagogy = (game as { ruleId?: string; stageId?: string })?.ruleId ?? game?.stageId;
     const pedagogyHint = useMemo(() => {
         const rid = game?.ruleId ?? game?.stageId;
         if (!rid || mode !== "play") return null;
         return getStageRuleConfig(rid)?.pedagogy;
     }, [game?.ruleId, game?.stageId, game?.gameId, mode]);
+
+    const tutorialWinMode = pedagogyHint?.tutorialWinMode ?? "boss_only";
+    const guideDismissedServer = useQuery(
+        tacticalMonsterApi.service.game.pedagogyGuideUiService.isGuideUiDismissed,
+        user?.uid && ruleKeyForPedagogy
+            ? { uid: user.uid, ruleId: ruleKeyForPedagogy }
+            : "skip"
+    );
+    const dismissGuideUiMutation = useMutation(
+        tacticalMonsterApi.service.game.pedagogyGuideUiService.dismissGuideUi
+    );
+    const guideUiReady = !user?.uid || guideDismissedServer !== undefined;
+    const guideUiDismissedLoggedIn = guideDismissedServer === true;
+    const persistGuideUiDismissed = useCallback(async () => {
+        if (!ruleKeyForPedagogy) return;
+        if (user?.uid) {
+            await dismissGuideUiMutation({ uid: user.uid, ruleId: ruleKeyForPedagogy });
+        } else {
+            markGuideDone(undefined, ruleKeyForPedagogy);
+        }
+    }, [ruleKeyForPedagogy, user?.uid, dismissGuideUiMutation]);
 
     const {
         bannerActive: guideBannerActive,
@@ -469,6 +602,7 @@ export const BattleVenue3D: React.FC = () => {
         stepIndex: guideStepIndex,
         totalSteps: guideTotalSteps,
         isDynamicGuide,
+        showSkipGuideButton,
     } = usePedagogyGuideFlow({
         mode,
         uid: user?.uid,
@@ -477,6 +611,17 @@ export const BattleVenue3D: React.FC = () => {
         steps: pedagogyHint?.guideFlow,
         dynamicGuide: pedagogyHint?.dynamicGuide,
         completionSkillId: pedagogyHint?.allowedSkillIds?.[0],
+        tutorialWinMode,
+        guideUiDismissed: guideUiDismissedLoggedIn,
+        guideUiReady,
+        persistGuideUiDismissed,
+    });
+
+    const { surrender, defend, walk, attack, selectSkill, useSkill } = useCombatActHandler3D({
+        gridState,
+        mapDimension,
+        onSkillError: handleSkillErrorToast,
+        onPedagogyNotify: notifyPedagogyGuide,
     });
 
     const dynamicGuidePayload = useMemo(() => {
@@ -487,6 +632,84 @@ export const BattleVenue3D: React.FC = () => {
     const showPedagogyGuidePanel =
         guideBannerActive &&
         (isDynamicGuide ? !!dynamicGuidePayload : !!guideCurrentStep);
+
+    const isBronzeBoss1GuideSession =
+        ruleKeyForPedagogy === "monster_rumble_challenge_bronze_boss_1" &&
+        !isDynamicGuide &&
+        guideBannerActive &&
+        guideStepIndex !== null;
+    const isBronzeBoss2GuideSession =
+        ruleKeyForPedagogy === "monster_rumble_challenge_bronze_boss_2" &&
+        !isDynamicGuide &&
+        guideBannerActive &&
+        guideStepIndex !== null;
+
+    const enforceMoveStep = isBronzeBoss1GuideSession && guideStepIndex === 0;
+    const enforceCastStep = isBronzeBoss1GuideSession && guideStepIndex === 1;
+    const enforceSkillSelectStepBoss2 = isBronzeBoss2GuideSession && guideStepIndex === 1;
+    const emphasizeCastStepBoss2 = isBronzeBoss2GuideSession && guideStepIndex === 2;
+    const tutorialHighlightSkillId = enforceCastStep ? "basic_attack" : null;
+    const tutorialHighlightSkillIdBoss2 = enforceSkillSelectStepBoss2
+        ? (pedagogyHint?.allowedSkillIds ?? []).find((s) => s !== "basic_attack") ?? "basic_attack"
+        : null;
+    const tutorialHintText = enforceMoveStep
+        ? "步骤提示：先移动到蓝色格子"
+        : enforceCastStep
+          ? "步骤提示：点击高亮的「普攻」并攻击红色目标格"
+          : enforceSkillSelectStepBoss2
+            ? "步骤提示：先在技能栏选择技能（推荐高亮技能）"
+            : emphasizeCastStepBoss2
+              ? "步骤提示：对红色目标格施放已选技能"
+              : undefined;
+    const tutorialSkillHighlight = tutorialHighlightSkillId ?? tutorialHighlightSkillIdBoss2;
+
+    /** 第2关施法步：进入后约 1s 加强攻击目标格脉冲（不限制操作） */
+    const [boss2CastTargetPulseBoost, setBoss2CastTargetPulseBoost] = useState(false);
+    useEffect(() => {
+        if (!emphasizeCastStepBoss2) {
+            setBoss2CastTargetPulseBoost(false);
+            return;
+        }
+        setBoss2CastTargetPulseBoost(true);
+        const t = window.setTimeout(() => setBoss2CastTargetPulseBoost(false), 1000);
+        return () => window.clearTimeout(t);
+    }, [emphasizeCastStepBoss2]);
+
+    /** 首关引导：当前步优先的高亮（可走亮、可打弱 / 可打亮、可走弱） */
+    const getPedagogyCellState = useCallback(
+        (q: number, r: number): BattleCellState => {
+            const base = gridState.getCellState(q, r);
+            if (!isBronzeBoss1GuideSession && !isBronzeBoss2GuideSession) return base;
+            if (enforceMoveStep) {
+                if (base === "attackable") return "attackable_dim";
+                return base;
+            }
+            if (enforceCastStep) {
+                if (base === "walkable") return "walkable_dim";
+                if (base === "attackable") return "attackable_focus";
+                return base;
+            }
+            if (enforceSkillSelectStepBoss2) {
+                if (base === "attackable") return "attackable_dim";
+                return base;
+            }
+            if (emphasizeCastStepBoss2) {
+                if (base === "walkable") return "walkable_dim";
+                if (base === "attackable") return "attackable_focus";
+                return base;
+            }
+            return base;
+        },
+        [
+            gridState,
+            isBronzeBoss1GuideSession,
+            isBronzeBoss2GuideSession,
+            enforceMoveStep,
+            enforceCastStep,
+            enforceSkillSelectStepBoss2,
+            emphasizeCastStepBoss2,
+        ]
+    );
 
     /** 动态引导会话中不叠一行 tutorialNotes（含 Boss 回合仅 guideBannerActive、无面板时） */
     const showPedagogyTutorialNotesStrip =
@@ -506,8 +729,15 @@ export const BattleVenue3D: React.FC = () => {
             }
             const cellState = gridState.getCellState(logicQ, logicR);
             if (cellState === "walkable") {
+                if (enforceCastStep) {
+                    handleSkillErrorToast("先完成攻击步骤，再移动");
+                    return;
+                }
                 gridState.clearAll();
                 walk({ q: logicQ, r: logicR })
+                    .then(() => {
+                        notifyPedagogyGuide({ type: "move" });
+                    })
                     .catch((err: any) => {
                         const message = String(err?.message ?? err ?? "");
                         const expectedDuringTransition =
@@ -520,9 +750,17 @@ export const BattleVenue3D: React.FC = () => {
                         }
                     });
             } else if (cellState === "attackable") {
+                if (enforceMoveStep) {
+                    handleSkillErrorToast("先移动到蓝色高亮格子");
+                    return;
+                }
                 const enemy = characters?.find((c) => c.q === logicQ && c.r === logicR);
                 if (enemy) {
                     const selectedSkillId = effectiveGame?.currentRound?.turns?.find((t: any) => t.status === 1)?.skillSelect;
+                    if (enforceSkillSelectStepBoss2 && !selectedSkillId) {
+                        handleSkillErrorToast("先在技能栏选择技能，再点击目标");
+                        return;
+                    }
                     const attacker = validation.character;
                     const attackSkillId = resolveAttackProfile(attacker as MonsterSprite).skillId;
                     if (selectedSkillId) {
@@ -542,7 +780,21 @@ export const BattleVenue3D: React.FC = () => {
                 }
             }
         },
-        [mapDimension, mode, gridState, walk, attack, useSkill, characters, game, notifyPedagogyGuide]
+        [
+            mapDimension,
+            mode,
+            gridState,
+            walk,
+            attack,
+            useSkill,
+            characters,
+            game,
+            notifyPedagogyGuide,
+            enforceMoveStep,
+            enforceCastStep,
+            enforceSkillSelectStepBoss2,
+            handleSkillErrorToast,
+        ]
     );
 
     // ✅ 3D 阶段变化处理器（用于 initialPhaseChanges）
@@ -731,22 +983,24 @@ export const BattleVenue3D: React.FC = () => {
                             ? `当前阶段：${phaseLabel(dynamicGuidePayload.phase)}`
                             : `步骤 ${guideStepIndex != null ? guideStepIndex + 1 : 0}/${guideTotalSteps}`}
                     </div>
-                    <button
-                        type="button"
-                        onClick={skipPedagogyGuide}
-                        style={{
-                            marginTop: 8,
-                            padding: "4px 12px",
-                            fontSize: 11,
-                            borderRadius: 4,
-                            border: "1px solid rgba(255,255,255,0.4)",
-                            background: "rgba(0,0,0,0.25)",
-                            color: "#fff",
-                            cursor: "pointer",
-                        }}
-                    >
-                        跳过引导
-                    </button>
+                    {showSkipGuideButton && (
+                        <button
+                            type="button"
+                            onClick={skipPedagogyGuide}
+                            style={{
+                                marginTop: 8,
+                                padding: "4px 12px",
+                                fontSize: 11,
+                                borderRadius: 4,
+                                border: "1px solid rgba(255,255,255,0.4)",
+                                background: "rgba(0,0,0,0.25)",
+                                color: "#fff",
+                                cursor: "pointer",
+                            }}
+                        >
+                            跳过引导
+                        </button>
+                    )}
                 </div>
             )}
             {showPedagogyTutorialNotesStrip &&
@@ -833,10 +1087,11 @@ export const BattleVenue3D: React.FC = () => {
                             isPortrait={isPortrait}
                             orthoZoom={orthoZoom}
                             cameraUp={cameraUp}
-                            getCellState={gridState.getCellState}
+                            getCellState={getPedagogyCellState}
                             getWalkableDistance={gridState.getWalkableDistance}
                             getWalkableMoveRange={gridState.getWalkableMoveRange}
                             onCellClick={handleCellClick}
+                            pedagogyAttackTargetPulseBoost={boss2CastTargetPulseBoost}
                         />
                     </div>
                 )}
@@ -882,6 +1137,15 @@ export const BattleVenue3D: React.FC = () => {
                         surrender={surrender}
                         defend={defend}
                         clearGrid={() => gridState.clearAll()}
+                        onPedagogyNotify={notifyPedagogyGuide}
+                        disableDefend={isBronzeBoss1GuideSession || isBronzeBoss2GuideSession}
+                        tutorialLockSkillPanel={enforceMoveStep}
+                        onTutorialSkillPanelBlocked={() =>
+                            handleSkillErrorToast("请先移动到蓝色高亮格子")
+                        }
+                        onTutorialNudge={handleSkillErrorToast}
+                        tutorialHighlightSkillId={tutorialSkillHighlight}
+                        tutorialHintText={tutorialHintText}
                     />
                 </div>
             </div>

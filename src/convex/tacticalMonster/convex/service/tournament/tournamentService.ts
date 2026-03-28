@@ -6,6 +6,7 @@ import { getStageRuleConfig, getStageRuleConfigs, STAGE_RULE_CONFIGS } from "../
 import { StageRuleConfig } from "../../types/stageRuleTypes";
 import { TacticalMonsterErrorCode } from "../errorCodes";
 import { StageManagerService } from "../stage/stageManagerService";
+import { estimateTeamPowerFromStageRule } from "../game/teamPresetService";
 
 
 
@@ -125,22 +126,34 @@ export class TournamentService {
         stageId: string;
     }) {
         const { uid, typeId, stageId } = params;
-        const stageRule = getStageRuleConfig(typeId) as StageRuleConfig;
-        const isUnlocked = await ctx.runQuery(internal.service.stage.stageManagerService.isStageUnlocked, { uid, stageRule: { ruleId: stageRule.ruleId, stageType: stageRule.stageType } });
+        const ruleConfig = getStageRuleConfig(typeId) as StageRuleConfig;
+        const isUnlocked = await ctx.runQuery((internal as any).service.stage.stageManagerService.isStageUnlocked, { uid, ruleConfig: { ruleId: ruleConfig.ruleId, stageType: ruleConfig.stageType } });
         if (!isUnlocked) {
             return { ok: false, errorCode: TacticalMonsterErrorCode.STAGE_NOT_UNLOCKED };
         }
-        const currentStageId = await ctx.runQuery(internal.service.stage.stageManagerService.findCurrentStageId, { uid, stageRule: { ruleId: stageRule.ruleId, stageType: stageRule.stageType } });
+        let currentStageId = await ctx.runQuery((internal as any).service.stage.stageManagerService.findCurrentStageId, { uid, ruleConfig: { ruleId: ruleConfig.ruleId, stageType: ruleConfig.stageType } });
+        // 首次进入某个已解锁关卡时可能尚无 player_stage 记录：这里按规则即时创建 stage
+        if (!currentStageId) {
+            currentStageId = await ctx.runMutation(
+                (internal as any).service.stage.stageManagerService.ensureStageIdForRule,
+                { uid, typeId }
+            );
+        }
         if (!currentStageId) {
             return { ok: false, errorCode: TacticalMonsterErrorCode.STAGE_NOT_FOUND };
         }
 
         try {
             // 使用 internal API 调用 getTeamPower query
-            const teamPower = await ctx.runQuery(
+            const teamPowerFromRoster = await ctx.runQuery(
                 (internal as any).service.team.teamService.getTeamPower,
                 { uid }
             );
+            const presetPower = estimateTeamPowerFromStageRule(ruleConfig);
+            const teamPower =
+                ruleConfig.teamPreset?.mode === "override" && presetPower > 0
+                    ? presetPower
+                    : teamPowerFromRoster;
 
             const response = await fetch(
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.JOIN_TOURNAMENT),
@@ -152,7 +165,8 @@ export class TournamentService {
                     body: JSON.stringify({
                         uid,
                         typeId,
-                        stageId,
+                        // 以后端判定的当前关卡 stageId 为准，避免前端传入旧值导致无法开局
+                        stageId: currentStageId,
                         teamPower,
                     }),
                 }
@@ -196,7 +210,7 @@ export class TournamentService {
         stageId: string;
     }>> {
         const { uid, ruleIds = [] } = params;
-        const stageRules = ruleIds.length > 0 ? getStageRuleConfigs(ruleIds) : Object.values(STAGE_RULE_CONFIGS);
+        const ruleConfigs = ruleIds.length > 0 ? getStageRuleConfigs(ruleIds) : Object.values(STAGE_RULE_CONFIGS);
 
 
         // 构建返回结果
@@ -206,15 +220,15 @@ export class TournamentService {
             stageId: string;
         }> = [];
 
-        for (const stageRule of stageRules) {
+        for (const ruleConfig of ruleConfigs) {
 
             let unlocked = false;
             let stageId = "";
-            if (stageRule.stageType === "arena") {
+            if (ruleConfig.stageType === "arena") {
                 // Arena 类型：只从 mr_arena_stage 获取最新的 stageId
                 const arenaStage = await ctx.db
                     .query("mr_arena_stage")
-                    .withIndex("by_ruleId", (q: any) => q.eq("ruleId", stageRule.ruleId))
+                    .withIndex("by_ruleId", (q: any) => q.eq("ruleId", ruleConfig.ruleId))
                     .order("desc")
                     .first();
                 stageId = arenaStage?.stageId ?? "";
@@ -222,12 +236,12 @@ export class TournamentService {
             } else {
 
                 // 判断是否解锁
-                unlocked = await StageManagerService.isStageUnlocked(ctx, uid, stageRule);
+                unlocked = await StageManagerService.isStageUnlocked(ctx, uid, ruleConfig);
                 // 只有解锁的关卡才获取 stageId
                 if (unlocked) {
                     // 获取 stageId：从 mr_player_stages 中获取最新的 stageId（使用 by_lastPlayAt 索引）
                     try {
-                        const stage = await StageManagerService.getOrCreateChallengeStage(ctx, uid, stageRule.ruleId, stageRule);
+                        const stage = await StageManagerService.getOrCreateChallengeStage(ctx, uid, ruleConfig.ruleId, ruleConfig);
                         if (stage) {
                             stageId = stage.stageId;
                         }
@@ -239,7 +253,7 @@ export class TournamentService {
             }
 
             ruleStatuses.push({
-                ruleId: stageRule.ruleId,
+                ruleId: ruleConfig.ruleId,
                 unlocked,
                 stageId,
             });

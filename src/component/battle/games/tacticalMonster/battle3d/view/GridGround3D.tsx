@@ -8,7 +8,7 @@ import { useCombatManager } from "../../service/CombatManager";
 import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { hexTo3DPosition } from "../utils/coordinate3DUtils";
 import { getSharedHexagonGeometry } from "../utils/geometryCache";
-import HexCell3D, { type BattleCellState } from "./components/HexCell3D";
+import { HexCell3D, type BattleCellState } from "./components/HexCell3D";
 
 interface GridGround3DProps {
     mapDimension: BattleMapDimension | null;
@@ -37,7 +37,10 @@ export const GridGround3D: React.FC<GridGround3DProps> = ({
         return {
             normal: getSharedHexagonGeometry(w, 2, 0.92),
             walkable: getSharedHexagonGeometry(w, 3, 0.90),
+            walkable_dim: getSharedHexagonGeometry(w, 3, 0.90),
             attackable: getSharedHexagonGeometry(w, 3, 0.90),
+            attackable_dim: getSharedHexagonGeometry(w, 3, 0.90),
+            attackable_focus: getSharedHexagonGeometry(w, 3, 0.90),
             path: getSharedHexagonGeometry(w, 3, 0.90),
             selected: getSharedHexagonGeometry(w, 4, 0.90),
             disabled: getSharedHexagonGeometry(w, 2, 0.90),
@@ -62,16 +65,29 @@ export const GridGround3D: React.FC<GridGround3DProps> = ({
                     : logicCell?.disable
                         ? "disabled"
                         : "normal";
-                const overlayStates: BattleCellState[] = ["walkable", "attackable", "path", "selected"];
+                const overlayStates: BattleCellState[] = [
+                    "walkable",
+                    "walkable_dim",
+                    "attackable",
+                    "attackable_dim",
+                    "attackable_focus",
+                    "path",
+                    "selected",
+                ];
                 const state: BattleCellState = overlayStates.includes(rawState) ? "normal" : rawState;
 
                 const geometry =
                     (state && sharedGeometries[state as keyof typeof sharedGeometries]) ||
                     sharedGeometries.normal;
 
-                const isClickable = state === "walkable" || state === "attackable";
-                const walkableDistance = state === "walkable" ? getWalkableDistance?.(q, r) : undefined;
-                const moveRange = state === "walkable" ? getWalkableMoveRange?.() : undefined;
+                const isClickable =
+                    state === "walkable" ||
+                    state === "attackable" ||
+                    state === "attackable_focus";
+                const walkableDistance =
+                    state === "walkable" || state === "walkable_dim" ? getWalkableDistance?.(q, r) : undefined;
+                const moveRange =
+                    state === "walkable" || state === "walkable_dim" ? getWalkableMoveRange?.() : undefined;
 
                 result.push(
                     <HexCell3D

@@ -10,6 +10,7 @@ import { MonsterSkill } from "../../../types/skillTypes";
 import { offsetHexDistance } from "../../../utils/hexUtil";
 import { getMeleePossiblePositions } from "../../../utils/positionEvaluator";
 import { resolveAttackProfile } from "../../../utils/skillRangeUtils";
+import { applyStateChanges } from "../../../utils/backendResponseUtils";
 import { canPerformAction } from "../../../utils/validationUtils";
 
 const getRemainingSteps = (character: MonsterSprite, currentTurn: any): number => {
@@ -31,7 +32,8 @@ export const useOtherAction3D = (
     openModal: (modalType: string, data?: any) => void,
     useSkill: (skillId: string, target?: MonsterSprite) => Promise<void>,
     walkAndAttack: (to: { q: number; r: number }, skillId: string, target: MonsterSprite) => Promise<void>,
-    groundCells: any[][]
+    groundCells: any[][],
+    handlePhaseChanges: (phaseChanges: any) => Promise<void>
 ) => {
     const { settings } = useGameSettings();
     const selectSkill = useCallback(async (skill: MonsterSkill) => {
@@ -80,14 +82,25 @@ export const useOtherAction3D = (
         })();
 
         try {
-            await convex.mutation((api as any).service.game.gameService.defend, {
+            const result = await convex.mutation((api as any).service.game.gameService.defend, {
                 gameId: game.gameId,
                 identifier,
             });
+            if (result?.ok && result.phaseChanges) {
+                const phaseChanges = result.phaseChanges;
+                if (phaseChanges.stateChanges) {
+                    applyStateChanges(phaseChanges.stateChanges, characters);
+                }
+                try {
+                    await handlePhaseChanges(phaseChanges);
+                } catch (phaseErr) {
+                    console.error("Defend: handlePhaseChanges failed", phaseErr);
+                }
+            }
         } catch (error) {
             console.error("Defend failed", error);
         }
-    }, [mode, game, characters, convex]);
+    }, [mode, game, characters, convex, handlePhaseChanges]);
 
     const surrender = useCallback(async () => {
         // watch/replay 模式：禁止操作
@@ -135,7 +148,8 @@ export const useOtherAction3D = (
             remainingSteps,
             groundCells || [],
             characters || [],
-            settings.autoMoveStrategy
+            settings.autoMoveStrategy,
+            game?.map?.obstacles
         );
 
         if (possiblePositions.length === 0) {

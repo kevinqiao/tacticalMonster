@@ -21,9 +21,13 @@ vi.mock("../../../../service/CombatManager", () => ({
     }),
 }));
 
-vi.mock("../../../../utils/PathFind", () => ({
-    findPath: vi.fn(),
-}));
+vi.mock("../../../../utils/PathFind", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../../../../utils/PathFind")>();
+    return {
+        ...actual,
+        findPath: vi.fn(),
+    };
+});
 
 const MAP_DIMENSION: BattleMapDimension = {
     hexWidth: 50,

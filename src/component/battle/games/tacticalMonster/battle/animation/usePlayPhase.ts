@@ -9,7 +9,7 @@ import { getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/
 import { MonsterSprite } from "../../types/CombatTypes";
 import { GameTurn } from "../../types/gameTypes";
 import { useCombatManager } from "../../service/CombatManager";
-import { getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
+import { buildWalkGridForMovement, getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
 import usePlaySkill from "./usePlaySkill";
 
 const usePlayPhase = () => {
@@ -143,22 +143,19 @@ const usePlayPhase = () => {
             return;
         }
 
-        // 1. 计算可移动范围
+        // 1. 计算可移动范围（与寻路一致：飞行可越障，不可穿人）
         const moveRange = character.move_range ?? 2;
         const stepsUsed = currentTurn.stepsUsed ?? 0;
         const remainingSteps = Math.max(0, moveRange - stepsUsed);
-        const grid = groundCells.map((row) => row.map((cell) => {
-            const char = characters.find((c) => c.q === cell.q && c.r === cell.r);
-            return {
-                q: cell.q,
-                r: cell.r,
-                walkable: char ? false : !cell.disable
-            };
-        }));
-
-        // 飞行单位可以忽略障碍物
         const isFlying = character.isFlying ?? false;
         const canIgnoreObstacles = character.canIgnoreObstacles ?? isFlying;
+        const grid = buildWalkGridForMovement(
+            groundCells,
+            characters,
+            character,
+            canIgnoreObstacles,
+            map?.obstacles
+        );
         const walkableNodes = getWalkableNodes(
             grid,
             { q: character.q ?? 0, r: character.r ?? 0 },

@@ -38,6 +38,9 @@ export interface PedagogyGuideStep {
     expectedSkillId?: string;
 }
 
+/** 教学关胜利条件（与后端 tutorialWinMode 一致） */
+export type TutorialWinMode = "boss_only" | "boss_and_guide" | "guide_only";
+
 /**
  * 教学 / 难度阶梯元数据（P/B 轴），与 docs/pedagogy_stage_matrix.md 对齐
  */
@@ -56,13 +59,77 @@ export interface StagePedagogy {
     loanMonsterIds?: string[];
     /** 若设置，技能面板仅显示列表中的技能（用于首关锁技能） */
     allowedSkillIds?: string[];
-    /** 可选：按步骤推进的局内引导（仅 play 模式；完成/跳过后按 ruleId 持久化） */
+    /** 可选：按步骤推进的局内引导（仅 play；横幅隐藏偏好已登录存后端，未登录存 localStorage） */
     guideFlow?: PedagogyGuideStep[];
     /**
-     * 为 true 时由战场状态动态切换提示文案（移动/选技能/点人），与 guideFlow 静态步进二选一；
-     * 完成条件仍由 notify(cast) + allowedSkillIds 匹配。
+     * 为 true 时由 pedagogyDynamicGuide 按战场状态切换提示，与 guideFlow 静态步进二选一；
+     * 新手关优先用 guideFlow（与后端 tutorialProgress 步进一致）。
      */
     dynamicGuide?: boolean;
+    /** dynamicGuide 完成时要求的技能（默认 basic_attack） */
+    dynamicGuideCompletionSkillId?: string;
+    /** 默认 boss_only */
+    tutorialWinMode?: TutorialWinMode;
+}
+
+/** 关卡运行模式：教学 / 单人挑战 / 多人锦标赛 */
+export type StageModeType = "tutorial" | "solo_challenge" | "multiplayer_tournament";
+
+/** 关卡队伍预设：不覆盖 / 完全覆盖玩家编队 / 合并追加 */
+export type TeamPresetMode = "none" | "override" | "merge";
+
+/** 预设队伍槽位（用于 override/merge） */
+export interface TeamPresetSlot {
+    monsterId: string;
+    level?: number;
+    stars?: number;
+    q?: number;
+    r?: number;
+    unlockSkills?: string[];
+}
+
+export interface StageTeamPresetConfig {
+    mode: TeamPresetMode;
+    slots: TeamPresetSlot[];
+}
+
+/** 奖励策略类型 */
+export type RewardPolicyType = "one_time_clear" | "score_tiers" | "ranking_or_match_result";
+
+/** 分数档奖励（minScore 越高档越优，结算时取满足的最高档） */
+export interface ScoreTierReward {
+    minScore: number;
+    /** 与现有奖励系统对齐的轻量描述，具体解析由发奖服务实现 */
+    rewardKey?: string;
+    chestType?: string;
+}
+
+export interface StageRewardPolicy {
+    type: RewardPolicyType;
+    scoreTiers?: ScoreTierReward[];
+    /** 首通一次性奖励标识 */
+    oneTimeRewardKey?: string;
+}
+
+export interface StageUiRules {
+    /** 为 true 时跳过编队界面（教学关常用） */
+    hideTeamLayout?: boolean;
+}
+
+export interface StageBossOverrides {
+    baseHp?: number;
+    baseDamage?: number;
+    baseDefense?: number;
+    baseSpeed?: number;
+    position?: { q: number; r: number };
+}
+
+export interface StagePlayerOverride {
+    monsterId: string;
+    hp?: number;
+    attack?: number;
+    defense?: number;
+    speed?: number;
 }
 
 /**
@@ -75,6 +142,12 @@ export interface StageRuleConfig {
     // ============================================
     ruleId: string;
     gameName?: GameName;
+    /** 开局队伍预设；tutorial 建议 override */
+    teamPreset?: StageTeamPresetConfig;
+    /** 通关/结算奖励策略 */
+    rewardPolicy?: StageRewardPolicy;
+    /** 前端 UI 规则 */
+    uiRules?: StageUiRules;
     // ============================================
     // 关卡类型和进度
     // ============================================
@@ -129,6 +202,10 @@ export interface StageRuleConfig {
             minMultiplier?: number;        // 最低难度倍数
             maxMultiplier?: number;        // 最高难度倍数
         };
+        /** 关卡级 Boss 覆盖（用于教学关精准调参，不影响全局模板） */
+        bossOverrides?: StageBossOverrides;
+        /** 关卡级玩家单位覆盖（用于教学关精准调参） */
+        playerOverrides?: StagePlayerOverride[];
     };
 
     // ============================================

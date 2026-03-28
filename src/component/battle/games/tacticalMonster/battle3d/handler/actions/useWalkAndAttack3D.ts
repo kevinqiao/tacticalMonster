@@ -12,7 +12,7 @@ import { useCombatManager } from "../../../service/CombatManager";
 import type { MonsterSprite } from "../../../types/CombatTypes";
 import type { SkillSyncState } from "../../../types/skillTypes";
 import { createCharacterIdentifiers } from "../../../utils/characterUtils";
-import { findPath } from "../../../utils/PathFind";
+import { findPath, isCellPassableForMovement } from "../../../utils/PathFind";
 import { canPerformAction } from "../../../utils/validationUtils";
 import { getCharacterKey } from "../../utils/battle3DAdapter";
 import type { BattleMapDimension } from "../../utils/coordinate3DUtils";
@@ -86,9 +86,7 @@ export const useWalkAndAttack3D = (
                             c.r === cell.r &&
                             !(c.uid === character.uid && c.character_id === character.character_id)
                     );
-                    const walkable = canIgnoreObstacles
-                        ? !cell.disable
-                        : !cell.disable && !occupied;
+                    const walkable = isCellPassableForMovement(cell, canIgnoreObstacles, occupied);
                     return { q: cell.q, r: cell.r, walkable };
                 })
             );
@@ -100,6 +98,15 @@ export const useWalkAndAttack3D = (
 
             const pathSteps = path.length - 1;
             const moveRange = character.move_range ?? 3;
+            const remainingSteps = Math.max(0, moveRange - backendStepsUsed);
+            if (pathSteps > remainingSteps) {
+                setCharacterAnimating(null);
+                return Promise.reject(
+                    new Error(
+                        `WalkAndAttack: path steps ${pathSteps} exceed remaining move ${remainingSteps} (moveRange=${moveRange}, stepsUsed=${backendStepsUsed})`
+                    )
+                );
+            }
             const finalPos = path[path.length - 1];
             const { casterIdentifier: characterIdentifier } = createCharacterIdentifiers(
                 characters,

@@ -1,6 +1,20 @@
+import path from 'path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+    resolve: {
+        alias: [
+            { find: /^convex\/(server|react|values|browser)$/, replacement: path.resolve(__dirname, 'node_modules/convex/$1') },
+            { find: /^convex\/(.+)$/, replacement: path.resolve(__dirname, 'src/convex/$1') },
+            { find: '@', replacement: path.resolve(__dirname, 'src') },
+            { find: 'util', replacement: path.resolve(__dirname, 'src/util') },
+            { find: 'service', replacement: path.resolve(__dirname, 'src/service') },
+            { find: 'model', replacement: path.resolve(__dirname, 'src/model') },
+            { find: 'component', replacement: path.resolve(__dirname, 'src/component') },
+            { find: 'components', replacement: path.resolve(__dirname, 'src/components') },
+            { find: 'animate', replacement: path.resolve(__dirname, 'src/animate') },
+        ],
+    },
     test: {
         globals: true,
         // 对于 React 组件测试使用 jsdom，对于纯函数测试使用 node
@@ -12,6 +26,7 @@ export default defineConfig({
             'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.test.tsx',
             'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.spec.ts',
             'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.spec.tsx',
+            'src/component/battle/games/tacticalMonster/__tests__/**/*.test.ts',
         ],
         exclude: [
             'node_modules',

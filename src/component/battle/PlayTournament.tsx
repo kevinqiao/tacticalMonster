@@ -1,5 +1,6 @@
 import { ModalProp } from "@/service/ModalManager";
 import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import type { StageModeType } from "./games/tacticalMonster/types/stageRuleTypes";
 import "./style.css";
 
 
@@ -20,6 +21,8 @@ export interface PlayProps {
   mode: 'join' | 'watch' | 'replay' | 'play';
   typeId?: string;
   stageId?: string;
+  /** 来自 `getAvailableTournaments` 的 config.matchRules.modeType；resume 时可由 loadGame 的 game.modeType 补齐 */
+  modeType?: StageModeType;
 }
 
 // 错误边界组件
@@ -94,6 +97,7 @@ const PlayTournament: React.FC<ModalProp> = ({ name, container, visible, data, c
       mode: data?.mode,
       typeId: data?.typeId,
       stageId: data?.stageId,
+      modeType: data?.modeType,
     };
   }, [data, visible]);
   useEffect(() => {
