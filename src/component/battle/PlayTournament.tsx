@@ -1,6 +1,5 @@
 import { ModalProp } from "@/service/ModalManager";
-import React, { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import type { StageModeType } from "./games/tacticalMonster/types/stageRuleTypes";
+import React, { lazy, Suspense, useMemo } from "react";
 import "./style.css";
 
 
@@ -14,15 +13,18 @@ const GAME_PROVIDERS: Record<string, string> = {
 };
 
 export interface PlayProps {
-  visible: boolean;
-  gameId?: string;
-  // gameType: string;
-  matchType?: 'solo' | 'multi_player';
-  mode: 'join' | 'watch' | 'replay' | 'play';
-  typeId?: string;
-  stageId?: string;
-  /** 来自 `getAvailableTournaments` 的 config.matchRules.modeType；resume 时可由 loadGame 的 game.modeType 补齐 */
-  modeType?: StageModeType;
+  gameType: string;//"tacticalMonster"
+  playMode: string;//"join" | "watch" | "replay" | "play";
+  gameData?: any;
+  close: () => void;
+  //gameId?: string;
+  // // gameType: string;
+  // matchType?: 'solo' | 'multi_player';
+  // mode: 'join' | 'watch' | 'replay' | 'play';
+  // typeId?: string;
+  // stageId?: string;
+  // /** 来自 `getAvailableTournaments` 的 config.modeType；resume 时可由 loadGame 的 game.modeType 补齐 */
+  // modeType?: StageModeType;
 }
 
 // 错误边界组件
@@ -79,46 +81,25 @@ const getCachedComponent = (path: string): React.ComponentType<PlayProps> => {
   return ComponentCache.get(path)!;
 };
 
+const loading = <div className="play-tournament-loading">Loading...</div>
 
-const PlayTournament: React.FC<ModalProp> = ({ name, container, visible, data, close }) => {
-  const [gameType, setGameType] = useState<string>("tacticalMonster");
+const PlayTournament: React.FC<ModalProp> = ({ visible, data, close }) => {
+
+  const { gameType, playMode, gameData } = (data ?? {}) as PlayProps;
   const SelectedComponent = useMemo(() => {
-    if (!gameType) return null;
-    const path = GAME_PROVIDERS[gameType] ?? '';
+    if (!data?.gameType) return null;
+    const path = GAME_PROVIDERS[data?.gameType] ?? '';
     if (path === '') return null;
     return getCachedComponent(path);
-  }, [gameType]);
-
-  const playProps = useMemo(() => {
-    return {
-      visible: visible,
-      gameId: data?.gameId,
-      matchType: data?.matchType,
-      mode: data?.mode,
-      typeId: data?.typeId,
-      stageId: data?.stageId,
-      modeType: data?.modeType,
-    };
-  }, [data, visible]);
-  useEffect(() => {
-
-    if (data && data.gameType) {
-      setGameType(data.gameType);
-    }
   }, [data]);
-
-
+  console.log("PlayTournament data", visible, data);
 
   return (
-    <div ref={(ele) => container.ele = ele} className="play-tournament-container">
-      <div className="play-mask"></div>
-      {SelectedComponent && <Suspense fallback={<div />}>
-        <SelectedComponent {...playProps} />
+    <>
+      {SelectedComponent && visible && <Suspense fallback={loading}>
+        <SelectedComponent close={close} gameType={gameType ?? 'tacticalMonster'} playMode={playMode ?? 'join'} gameData={gameData ?? {}} />
       </Suspense>}
-      <div ref={(ele) => container.closeEle = ele ?? undefined} className="play-tournament-close" onClick={close}>
-        X
-      </div>
-    </div>
+    </>
   );
 };
 export default PlayTournament;

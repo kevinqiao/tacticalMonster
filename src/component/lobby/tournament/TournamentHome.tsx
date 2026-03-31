@@ -1,13 +1,21 @@
+import { resolveTournamentModeType } from "@/convex/tournament/convex/data/tournamentConfigs";
 import { useModalManager } from "@/service/ModalManager";
 import { useTournamentManager } from "@/service/TournamentManager";
 import React, { useCallback } from "react";
 import "./tournamentList.css";
 
 const TournamentItem: React.FC<{ item: any; onJoin: (item: any) => void }> = ({ item, onJoin }) => {
+    /** 仅教学链展示「教学关已完成」；数据来自服务端 ruleStatuses.completed（mr_player_first_clear） */
+    const showTutorialCompleted = item.tutorialStageCompleted === true;
     return (
         <div className="tournament-list-item">
-            <div>{item.name}</div>
-            <button onClick={() => onJoin(item)}>{item.name}</button>
+            <div className="tournament-list-item-title">{item.name}</div>
+            {showTutorialCompleted && (
+                <span className="tournament-list-item-badge" title="该教学关卡已通关">
+                    教学关已完成
+                </span>
+            )}
+            <button type="button" onClick={() => onJoin(item)}>{item.name}</button>
         </div>
     );
 };
@@ -15,17 +23,18 @@ const TournamentItem: React.FC<{ item: any; onJoin: (item: any) => void }> = ({ 
 const TournamentList: React.FC = () => {
     const { openModal } = useModalManager();
     const { activeTournaments: tournaments } = useTournamentManager();
-
     const join = useCallback(async (item: any) => {
         console.log("join tournament", item);
         const matchType = item.config.matchRules.maxPlayers === 1 ? "solo" : "multi_player";
         openModal("play_tournament", {
-            mode: "join",
+            playMode: "join",
             gameType: item.gameType,
-            typeId: item.typeId,
-            stageId: item.stageId,
-            matchType: matchType,
-            modeType: item.config?.matchRules?.modeType,
+            gameData: {
+                typeId: item.typeId,
+                stageId: item.stageId,
+                matchType: matchType,
+                modeType: resolveTournamentModeType(item.config),
+            }
         });
     }, [openModal]);
 

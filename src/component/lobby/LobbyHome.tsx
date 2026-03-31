@@ -1,8 +1,6 @@
 import { PageProp } from "component/RenderApp";
 import gsap from "gsap";
 import React, { useCallback, useEffect, useRef } from "react";
-import { useGameCenterManager } from "service/GameCenterManager";
-import { usePageManager } from "service/PageManager";
 import LobbyNavControl from "./control/LobbyNavControl";
 import "./style.css";
 const LobbyHome: React.FC<PageProp> = ({ visible }) => {

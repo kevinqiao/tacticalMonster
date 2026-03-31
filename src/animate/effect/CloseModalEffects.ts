@@ -23,6 +23,8 @@ export const CloseModalEffects: CloseEffects = {
         timeline.to(container.ele,
             { autoAlpha: 0, duration: 0.7, ease: "power2.inOut" }
         )
+        if (container.mask)
+            timeline.to(container.mask, { autoAlpha: 0, duration: 0.7, ease: "power2.inOut" }, "<");
         timeline.play();
 
     },

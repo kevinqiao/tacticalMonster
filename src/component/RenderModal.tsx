@@ -61,33 +61,52 @@ const getCachedComponent = (path: string): React.ComponentType<ModalProp> => {
   return ComponentCache.get(path)!;
 };
 
-const ModalComponent: React.FC<{ modalContainer: ModalContainer }> = ({ modalContainer }) => {
-  const { openedModals, closeModal } = useModalManager();
+const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) => {
+  const { modals, closeModal } = useModalManager();
   const index = useMemo(() => {
-    return openedModals.findIndex((modal) => modal.name === modalContainer.name);
-  }, [openedModals]);
+    return modals.findIndex((modal) => modal.name === container.name);
+  }, [modals]);
 
   const close = useCallback(() => {
     CloseModalEffects["fadeOut"]({
-      container: modalContainer, onComplete: () => {
-        console.log("close modal", modalContainer.name);
+      container: container, onComplete: () => {
+        console.log("close modal", container.name);
         closeModal();
       }
     });
-  }, [modalContainer, closeModal]);
+  }, [container, closeModal]);
 
   const SelectedComponent = useMemo(() => {
-    return getCachedComponent(modalContainer.path);
-  }, [modalContainer.path]);
+    return getCachedComponent(container.path);
+  }, [container.path]);
   useEffect(() => {
+
     if (index >= 0) {
-      OpenModalEffects["fadeIn"]({ container: modalContainer, index: index });
+      OpenModalEffects["fadeIn"]({ container: container, index: index });
     } else {
-      CloseModalEffects["fadeOut"]({ container: modalContainer });
+      CloseModalEffects["fadeOut"]({ container: container });
     }
   }, [index]);
 
-  return <Suspense fallback={<div />}><SelectedComponent name={modalContainer.name as string} container={modalContainer} visible={index >= 0 ? true : false} data={openedModals[index]?.data} close={close} /></Suspense>;
+  return (
+    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 100 + index, backgroundColor: 'transparent', pointerEvents: 'none' }}>
+      <div className="modal-mask" ref={(ele) => container.mask = ele}></div>
+      <div
+        key={`${container.name}`}
+        id={`${container.name}`}
+        ref={(ele) => container.ele = ele}
+        className={container.class ?? 'modal-container'}
+        data-visible={index >= 0 ? true : false}
+        data-container-name={container.name}
+        data-init={container.init}
+      >
+        <Suspense fallback={<div />}><SelectedComponent name={container.name as string} container={container} visible={index >= 0 ? true : false} data={modals[index]?.data} close={close} /></Suspense>;
+      </div>
+      <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={close}>
+        X
+      </div>
+    </div>
+  )
 };
 
 
@@ -99,17 +118,17 @@ const RenderModal: React.FC = () => {
   // 优化的页面渲染
   const renderModals = useMemo(() => {
 
-    return Object.values(modalContainers).map((modal) => (
-      <Suspense key={modal.name} fallback={<div className="modal-loading" />}>
+    return Object.values(modalContainers).map((container, index) => (
+      <Suspense key={container.name} fallback={<div className="modal-loading" />}>
         <ModalComponent
-          key={modal.name}
-          modalContainer={modal}
+          key={container.name}
+          container={container}
         />
       </Suspense>
     ));
   }, [modalContainers]);
 
-  return <>{renderModals}</>;
+  return <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 20000, backgroundColor: 'transparent', pointerEvents: 'none' }}>{renderModals}</div>;
 };
 
 export default RenderModal;

@@ -30,6 +30,7 @@ const usePreGameAnimate = (teamLayoutRef: React.RefObject<HTMLDivElement>, loadi
         tl.play();
     }, []);
     const openPlayGame = useCallback(() => {
+        console.log("openPlayGame", playGameRef.current);
         const tl = gsap.timeline();
         tl.to(loadingRef.current, {
             autoAlpha: 0,

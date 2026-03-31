@@ -23,6 +23,8 @@ export enum TacticalMonsterErrorCode {
     // 比赛相关错误 (2000-2999)
     MATCH_NOT_FOUND = 2001,
     MATCH_ALREADY_COMPLETED = 2002,
+    /** play / watch 模式下对局已结束，不可再加载进行游玩或观战 */
+    GAME_OVER = 2005,
     INVALID_SCORE = 2003,
     GAME_DATA_INVALID = 2004,
 
@@ -50,6 +52,7 @@ export const ErrorMessages = {
         [TacticalMonsterErrorCode.PLAYER_LEVEL_NOT_ENOUGH]: '玩家等级不足，需要至少 {required} 级，当前为 {current} 级',
         [TacticalMonsterErrorCode.MATCH_NOT_FOUND]: '比赛不存在 (ID: {matchId})',
         [TacticalMonsterErrorCode.MATCH_ALREADY_COMPLETED]: '比赛已完成 (ID: {matchId})',
+        [TacticalMonsterErrorCode.GAME_OVER]: '对局已结束',
         [TacticalMonsterErrorCode.INVALID_SCORE]: '无效的分数 {score}，应在 {minScore}-{maxScore} 范围内',
         [TacticalMonsterErrorCode.GAME_DATA_INVALID]: '游戏数据无效: {reason}',
         [TacticalMonsterErrorCode.DATABASE_ERROR]: '数据库错误: {operation}',

@@ -1,14 +1,48 @@
 import { v } from "convex/values";
+import {
+    getTacticalMonsterRuleIdsFromTournamentConfigs,
+    getTournamentConfigByRuleId,
+    resolveTournamentModeType,
+} from "../../../../tournament/convex/data/tournamentConfigs";
 import { internal } from "../../_generated/api";
-import { action, mutation } from "../../_generated/server";
+import { action, mutation, query } from "../../_generated/server";
 import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
-import { getStageRuleConfig, getStageRuleConfigs, STAGE_RULE_CONFIGS } from "../../data/stageRuleConfigs";
-import { StageRuleConfig } from "../../types/stageRuleTypes";
+import { getStageRuleConfig, STAGE_RULE_CONFIGS } from "../../data/stageRuleConfigs";
+import type { StageModeType, StageRuleConfig } from "../../types/stageRuleTypes";
 import { TacticalMonsterErrorCode } from "../errorCodes";
-import { StageManagerService } from "../stage/stageManagerService";
 import { estimateTeamPowerFromStageRule } from "../game/teamPresetService";
+import { StageManagerService } from "../stage/stageManagerService";
 
+/** mr_games.status：0 进行中，1 胜 2 负 3 平（已结束） */
+function isMrGameEnded(game: { status?: number }): boolean {
+    const s = game.status;
+    return s === 1 || s === 2 || s === 3;
+}
 
+/**
+ * 同一 uid + ruleId 下未结束的对局；若有多条取 lastUpdate（回退 createdAt）最新的一条。
+ * 用于 solo_challenge 在 getRuleStatuses 中附带可续战的 gameId。
+ */
+async function findOngoingGameIdForRule(
+    ctx: any,
+    uid: string,
+    ruleId: string
+): Promise<string | undefined> {
+    const games = await ctx.db
+        .query("mr_games")
+        .withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", ruleId))
+        .collect();
+    const ongoing = games.filter((g: { status?: number }) => !isMrGameEnded(g));
+    if (ongoing.length === 0) return undefined;
+    ongoing.sort((a: { lastUpdate?: string; createdAt?: string }, b: { lastUpdate?: string; createdAt?: string }) => {
+        const ta = a.lastUpdate ?? a.createdAt ?? "";
+        const tb = b.lastUpdate ?? b.createdAt ?? "";
+        return tb.localeCompare(ta);
+    });
+    return (ongoing[0] as { gameId: string }).gameId;
+}
+
+export type TournamentLoadGamePlayMode = "play" | "watch" | "replay";
 
 /**
  * 统一锦标赛服务
@@ -20,10 +54,19 @@ export class TournamentService {
     static async loadGame(ctx: any, params: {
         uid: string;
         gameId: string;
+        /** 默认 play：play/watch 下若对局已结束则返回 GAME_OVER；replay 允许加载已结束局 */
+        playMode?: TournamentLoadGamePlayMode;
     }) {
         const { uid, gameId } = params;
+        const playMode: TournamentLoadGamePlayMode = params.playMode ?? "play";
         const game = await ctx.runQuery((internal as any).service.game.gameService.findGame, { gameId });
         if (game) {
+            if (
+                (playMode === "play" || playMode === "watch") &&
+                isMrGameEnded(game as { status?: number })
+            ) {
+                return { ok: false, errorCode: TacticalMonsterErrorCode.GAME_OVER };
+            }
             // 已存在的游戏：检查是否有活跃的玩家 turn，构造 phaseChanges 让前端统一处理
             let phaseChanges: any = undefined;
             const currentRound = (game as any).currentRound;
@@ -208,19 +251,60 @@ export class TournamentService {
         ruleId: string;
         unlocked: boolean;
         stageId: string;
+        /** 是否在 mr_player_first_clear 中有通关记录（performance≥2，与解锁链一致） */
+        completed: boolean;
+        /** 锦标赛 TournamentConfig.modeType：教学 / 单人挑战 / 多人（无配置时省略） */
+        modeType?: StageModeType;
+        /** modeType 为 solo_challenge 且存在未结束的 mr_games 时返回，便于续战 */
+        gameId?: string;
     }>> {
-        const { uid, ruleIds = [] } = params;
-        const ruleConfigs = ruleIds.length > 0 ? getStageRuleConfigs(ruleIds) : Object.values(STAGE_RULE_CONFIGS);
-
+        const { uid, ruleIds: ruleIdsFilter = [] } = params;
+        const fromStages = Object.keys(STAGE_RULE_CONFIGS);
+        const fromTournaments = getTacticalMonsterRuleIdsFromTournamentConfigs();
+        const merged = [...new Set([...fromStages, ...fromTournaments])].sort();
+        const targetRuleIds =
+            ruleIdsFilter.length > 0
+                ? merged.filter((id) => ruleIdsFilter.includes(id))
+                : merged;
 
         // 构建返回结果
         const ruleStatuses: Array<{
             ruleId: string;
             unlocked: boolean;
             stageId: string;
+            completed: boolean;
+            modeType?: StageModeType;
+            /** solo_challenge：存在进行中的 mr_games 时返回，供前端 loadGame 续战 */
+            gameId?: string;
         }> = [];
 
-        for (const ruleConfig of ruleConfigs) {
+        for (const ruleId of targetRuleIds) {
+            const ruleConfig = getStageRuleConfig(ruleId);
+            const tmCfg = getTournamentConfigByRuleId(ruleId);
+            const modeType = resolveTournamentModeType(tmCfg) as StageModeType | undefined;
+
+            const firstClear = await ctx.db
+                .query("mr_player_first_clear")
+                .withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", ruleId))
+                .unique();
+            const completed = !!firstClear && (firstClear.performance ?? 0) >= 2;
+
+            const soloOngoingGameId =
+                modeType === "solo_challenge"
+                    ? await findOngoingGameIdForRule(ctx, uid, ruleId)
+                    : undefined;
+
+            if (!ruleConfig) {
+                ruleStatuses.push({
+                    ruleId,
+                    unlocked: false,
+                    stageId: "",
+                    completed,
+                    ...(modeType !== undefined ? { modeType } : {}),
+                    ...(soloOngoingGameId ? { gameId: soloOngoingGameId } : {}),
+                });
+                continue;
+            }
 
             let unlocked = false;
             let stageId = "";
@@ -256,6 +340,9 @@ export class TournamentService {
                 ruleId: ruleConfig.ruleId,
                 unlocked,
                 stageId,
+                completed,
+                ...(modeType !== undefined ? { modeType } : {}),
+                ...(soloOngoingGameId ? { gameId: soloOngoingGameId } : {}),
             });
         }
 
@@ -266,9 +353,11 @@ export const loadGame = action({
     args: {
         uid: v.string(),
         gameId: v.string(),
+        playMode: v.optional(
+            v.union(v.literal("play"), v.literal("watch"), v.literal("replay"))
+        ),
     },
     handler: async (ctx: any, args: any) => {
-        // return { ok: true, args }
         const result = await TournamentService.loadGame(ctx, args);
         return result;
     },
@@ -297,9 +386,9 @@ export const surrender = action({
 });
 
 /**
- * 获取所有关卡的状态
+ * 获取所有关卡的状态（query：便于前端 useQuery 订阅，数据变更时自动推送）
  */
-export const getAllRuleStatuses = mutation({
+export const getAllRuleStatuses = query({
     args: {
         uid: v.string(),
     },

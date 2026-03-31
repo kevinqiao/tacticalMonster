@@ -166,7 +166,7 @@ export const mainSchema = {
         }),
         stageId: v.string(),
         ruleId: v.string(),
-        /** 与 tournament_types.matchRules.modeType 一致，开局写入 */
+        /** 与 tournament_types.modeType（或历史 matchRules.modeType）一致，开局写入 */
         modeType: v.optional(v.union(
             v.literal("tutorial"),
             v.literal("solo_challenge"),

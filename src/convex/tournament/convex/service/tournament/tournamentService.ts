@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
 import { internalMutation, mutation, query } from "../../_generated/server";
-import { getTournamentConfig, TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
+import { getTournamentConfig, resolveTournamentModeType, TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import {
     collectRewards,
     getPlayerAttempts,
@@ -12,6 +12,17 @@ import {
 import { TournamentErrorCode } from "./errorCodes";
 import { MatchManager } from "./matchManager";
 
+/** `player_matches.type` 与 `tournament_types.modeType` 对齐（schema 不含 "solo"） */
+function playerMatchTypeFromTournamentTypeDoc(tournamentTypeDoc: any): "tutorial" | "solo_tournament" | "multiplayer_tournament" {
+    const cfg = getTournamentConfig(tournamentTypeDoc.typeId);
+    const mode =
+        resolveTournamentModeType(cfg) ??
+        tournamentTypeDoc.modeType ??
+        (tournamentTypeDoc.matchRules as { modeType?: string } | undefined)?.modeType;
+    if (mode === "tutorial") return "tutorial";
+    if (mode === "multiplayer_tournament") return "multiplayer_tournament";
+    return "solo_tournament";
+}
 
 /**
  * 统一锦标赛服务
@@ -142,7 +153,10 @@ export class TournamentService {
                     typeId: tournamentType.typeId,
                     uids: [uid]
                 });
-                const playerMatch = await MatchManager.joinMatch(ctx, { uid, match: { ...match, type: "solo" } });
+                const playerMatch = await MatchManager.joinMatch(ctx, {
+                    uid,
+                    match: { ...match, type: playerMatchTypeFromTournamentTypeDoc(tournamentType) },
+                });
                 console.log("playerMatch:", stageId, teamPower);
                 return {
                     ok: true,

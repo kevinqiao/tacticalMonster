@@ -11,6 +11,8 @@ export interface TournamentConfig {
     timeRange?: string;
     gameType?: GameName;
     isActive: boolean;
+    /** TacticalMonster 等：tutorial / solo_challenge / multiplayer_tournament */
+    modeType?: TournamentModeType;
     entryRequirements?: EntryRequirements;
     matchRules: MatchRules;
     rewards: RewardConfig;
@@ -49,7 +51,6 @@ export interface MatchRules {
     maxPlayers: number;
     type?: "by_rank" | "by_performance";
     ruleId?: string;
-    modeType?: TournamentModeType;
 }
 
 export interface ChestTypeWeights {

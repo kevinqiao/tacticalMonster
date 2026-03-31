@@ -4,14 +4,14 @@
  * 回合 UI 显示由 initialPhaseChanges → handlePhaseChanges 统一处理
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ReplayControls } from "../battle/view/ReplayControls";
 import { ReplayScoreDisplay } from "../battle/view/ReplayScoreDisplay";
 import { useCombatManager } from "../service/CombatManager";
 import { BattleVenue3D } from "./BattleVenue3D";
 import GameOver from "./view/gameover/GameOver";
 
-const BattlePlayer3D: React.FC = () => {
+const BattlePlayer3D: React.FC<{ close?: () => void }> = ({ close }) => {
     const { game, replay, mode, gameOverEvent } = useCombatManager();
     const [currentEventIndex, setCurrentEventIndex] = useState(0);
     const [allEvents, setAllEvents] = useState<any[]>([]);
@@ -24,12 +24,15 @@ const BattlePlayer3D: React.FC = () => {
             }
         }
     }, [mode, replay?.state?.currentIndex, replay]);
-
+    const closeGameOver = useCallback(() => {
+        console.log("close game over");
+        close?.();
+    }, []);
     if (!game) return null;
 
     return (
         <>
-            <BattleVenue3D />
+            <BattleVenue3D close={closeGameOver} />
             {mode === "replay" && <ReplayControls />}
             {mode === "replay" && game && allEvents.length > 0 && (
                 <ReplayScoreDisplay

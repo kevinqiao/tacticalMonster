@@ -91,6 +91,13 @@ export const tournamentSchema = {
         })),
         isActive: v.boolean(),
 
+        /** TacticalMonster：与 TournamentConfig.modeType 一致；优先于 matchRules.modeType（历史行可仍仅存于 matchRules） */
+        modeType: v.optional(v.union(
+            v.literal("tutorial"),
+            v.literal("solo_challenge"),
+            v.literal("multiplayer_tournament")
+        )),
+
         // 参赛条件
         entryRequirements: v.optional(v.object({
             isSubscribedRequired: v.boolean(),
@@ -111,7 +118,7 @@ export const tournamentSchema = {
             minPlayers: v.number(),
             maxPlayers: v.number(),
 
-            // TacticalMonster：与 StageRuleConfig.ruleId 对齐；modeType 驱动结算与教学逻辑
+            // TacticalMonster：与 StageRuleConfig.ruleId 对齐；modeType 已提升至 tournament_types 顶层，此处仅兼容旧文档
             ruleId: v.optional(v.string()),
             modeType: v.optional(v.union(
                 v.literal("tutorial"),
@@ -258,8 +265,8 @@ export const tournamentSchema = {
         tournamentId: v.optional(v.id("tournaments")),
         tournamentType: v.optional(v.string()),
         type: v.union(
-            v.literal("solo"),
-            v.literal("multiplayer")
+            v.literal("tutorial"), v.literal("solo_tournament"),
+            v.literal("multiplayer_tournament")
         ),
         gameType: v.optional(v.string()),
         uid: v.string(),
@@ -281,8 +288,6 @@ export const tournamentSchema = {
             v.literal("lose"),
             v.literal("draw")
         )),
-        /** 是否为首通（单人关卡首次通关该 ruleId） */
-        isFirstClear: v.optional(v.boolean()),
         dueTime: v.optional(v.string()),
         createdAt: v.string(),
         updatedAt: v.optional(v.string()),

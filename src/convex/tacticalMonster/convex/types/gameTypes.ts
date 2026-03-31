@@ -33,7 +33,7 @@ export interface GameModel {
     matchId?: string;
     stageId: string;
     ruleId?: string;  // 关卡规则 ID（用于星级评定等）
-    /** 锦标赛 matchRules.modeType，开局写入 mr_games */
+    /** 锦标赛 tournament_types.modeType，开局写入 mr_games */
     modeType?: StageModeType;
     uid: string;  // 玩家 UID
 

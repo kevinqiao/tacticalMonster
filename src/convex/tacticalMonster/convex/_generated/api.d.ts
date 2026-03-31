@@ -132,6 +132,7 @@ import type * as service_stage_tests_testData from "../service/stage/tests/testD
 import type * as service_stamina_staminaService from "../service/stamina/staminaService.js";
 import type * as service_task_taskIntegration from "../service/task/taskIntegration.js";
 import type * as service_team_teamService from "../service/team/teamService.js";
+import type * as service_tournament_tournamentMatchNotify from "../service/tournament/tournamentMatchNotify.js";
 import type * as service_tournament_tournamentProxyService from "../service/tournament/tournamentProxyService.js";
 import type * as service_tournament_tournamentService from "../service/tournament/tournamentService.js";
 import type * as test_loadMonster from "../test/loadMonster.js";
@@ -283,6 +284,7 @@ declare const fullApi: ApiFromModules<{
   "service/stamina/staminaService": typeof service_stamina_staminaService;
   "service/task/taskIntegration": typeof service_task_taskIntegration;
   "service/team/teamService": typeof service_team_teamService;
+  "service/tournament/tournamentMatchNotify": typeof service_tournament_tournamentMatchNotify;
   "service/tournament/tournamentProxyService": typeof service_tournament_tournamentProxyService;
   "service/tournament/tournamentService": typeof service_tournament_tournamentService;
   "test/loadMonster": typeof test_loadMonster;

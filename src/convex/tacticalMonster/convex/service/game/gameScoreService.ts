@@ -3,6 +3,7 @@
  * 负责分数计算和管理
  */
 
+import { internal } from "../../_generated/api";
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { GameReport, GameStatus } from "../../types/gameTypes";
 import type { RewardPolicyType, ScoreTierReward, StageRewardPolicy } from "../../types/stageRuleTypes";
@@ -46,12 +47,61 @@ function pickScoreTier(totalScore: number, tiers: ScoreTierReward[] | undefined)
     return undefined;
 }
 
+/** 与 gameOver 中 calculateCompleteScore 入参一致，供首通写入复用 */
+function buildScoreResultForEndedGame(game: any, gameResult: GameResult) {
+    const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
+    const baseScore = game.score || 0;
+    const gameStartTime = game.createdAt ? new Date(game.createdAt).getTime() : Date.now();
+    const timeElapsed = Date.now() - gameStartTime;
+    const roundsUsed = game.currentRound?.no ?? 0;
+    const survivalStats = sharedScoreService.calculateSurvivalStats(game.team || []);
+    return sharedScoreService.calculateCompleteScore(
+        {
+            baseScore,
+            timeElapsed,
+            roundsUsed,
+            damageDealt: 0,
+            skillsUsed: 0,
+            gameResult,
+            survivalStats,
+        },
+        configVersion
+    );
+}
+
 export class GameScoreService {
     constructor(
         private dbCtx: any,
         private lifecycleService: GameLifecycleService,
         private eventService: GameEventService
     ) {}
+
+    /**
+     * 胜利时写入 mr_player_first_clear（正常对局结束走 checkAndUpdateGameStatus，必须在此路径也写入）
+     */
+    private async maybeInsertMrPlayerFirstClear(game: any, gameResult: GameResult): Promise<boolean> {
+        if (gameResult !== GameResult.WIN) return false;
+        const ruleId = (game as any).ruleId;
+        const uid = (game as any).uid;
+        const stageId = (game as any).stageId;
+        if (!ruleId || !uid || !stageId) return false;
+        const existing = await this.dbCtx.db
+            .query("mr_player_first_clear")
+            .withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", ruleId))
+            .unique();
+        if (existing) return false;
+        const scoreResult = buildScoreResultForEndedGame(game, gameResult);
+        const now = new Date().toISOString();
+        await this.dbCtx.db.insert("mr_player_first_clear", {
+            uid,
+            ruleId,
+            stageId,
+            score: scoreResult.totalScore,
+            performance: 3,
+            createdAt: now,
+        });
+        return true;
+    }
 
     /**
      * 更新分数
@@ -85,7 +135,8 @@ export class GameScoreService {
 
         const ruleId = (game as any).ruleId;
         const stageRule = ruleId ? GameRuleConfigService.getGameRuleConfig(ruleId as string) : undefined;
-        const modeType = ruleId ? getModeTypeForRuleId(ruleId as string) : undefined;
+        const modeTypeFromTournament = ruleId ? getModeTypeForRuleId(ruleId as string) : undefined;
+        const modeType = modeTypeFromTournament ?? (game as { modeType?: string }).modeType;
         const isTutorialMode = modeType === "tutorial";
         const tutorialRoundLimit = stageRule?.starRatingConfig?.threeStarMaxRounds ?? 6;
         const roundsUsed = game.currentRound?.no ?? 0;
@@ -119,30 +170,7 @@ export class GameScoreService {
                 break;
         }
 
-        // ✅ 获取基础得分
-        const baseScore = game.score || 0;
-
-        // ✅ 计算游戏时长
-        const gameStartTime = game.createdAt
-            ? new Date(game.createdAt).getTime()
-            : Date.now();
-        const timeElapsed = Date.now() - gameStartTime;
-
-        // ✅ 获取回合数
-
-        // ✅ 计算角色存活统计
-        const survivalStats = sharedScoreService.calculateSurvivalStats(game.team || []);
-
-        // ✅ 使用共享服务计算完整得分
-        const scoreResult = sharedScoreService.calculateCompleteScore({
-            baseScore,
-            timeElapsed,
-            roundsUsed,
-            damageDealt: 0,  // 可选，可以从事件中统计
-            skillsUsed: 0,    // 可选，可以从事件中统计
-            gameResult: gameResult.result,
-            survivalStats
-        }, configVersion);
+        const scoreResult = buildScoreResultForEndedGame(game, gameResult.result);
 
         // ✅ 保存游戏状态
         await this.lifecycleService.save(gameId, {
@@ -155,27 +183,7 @@ export class GameScoreService {
         await this.eventService.createEvent(event);
 
         // 记录首通（关卡体力与奖励机制）
-        const uid = (game as any).uid;
-        const stageId = (game as any).stageId;
-        let isFirstClear = false;
-        if (ruleId && gameResult.result === GameResult.WIN && uid && stageId) {
-            const existing = await this.dbCtx.db
-                .query("mr_player_first_clear")
-                .withIndex("by_uid_ruleId", (q: any) => q.eq("uid", uid).eq("ruleId", ruleId))
-                .unique();
-            if (!existing) {
-                const now = new Date().toISOString();
-                await this.dbCtx.db.insert("mr_player_first_clear", {
-                    uid,
-                    ruleId,
-                    stageId,
-                    score: scoreResult.totalScore,
-                    performance: 3,  // 3 = 通关
-                    createdAt: now,
-                });
-                isFirstClear = true;
-            }
-        }
+        const isFirstClear = await this.maybeInsertMrPlayerFirstClear(game, gameResult.result);
 
         const policy = resolveEffectiveRewardPolicy(modeType, stageRule?.rewardPolicy);
 
@@ -227,7 +235,8 @@ export class GameScoreService {
         const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
         const ruleId = (game as any).ruleId;
         const stageRule = ruleId ? GameRuleConfigService.getGameRuleConfig(ruleId as string) : undefined;
-        const modeType = ruleId ? getModeTypeForRuleId(ruleId as string) : undefined;
+        const modeTypeFromTournament = ruleId ? getModeTypeForRuleId(ruleId as string) : undefined;
+        const modeType = modeTypeFromTournament ?? (game as { modeType?: string }).modeType;
         const isTutorialMode = modeType === "tutorial";
         const tutorialRoundLimit = stageRule?.starRatingConfig?.threeStarMaxRounds ?? 6;
         const roundsUsed = game.currentRound?.no ?? 0;
@@ -268,6 +277,25 @@ export class GameScoreService {
             // 创建游戏结束事件
             const event = this.eventService.createGameEndEvent(gameId);
             await this.eventService.createEvent(event);
+
+            // 正常对局只调用 checkAndUpdateGameStatus，不经过 gameOver mutation；首通必须在此写入
+            if (result.result === GameResult.WIN) {
+                const isFirstClear = await this.maybeInsertMrPlayerFirstClear(game, result.result);
+                const scoreResult = buildScoreResultForEndedGame(game, result.result);
+                // 同步 Tournament 端 player_matches / matches（与 proxy submitScore 一致）
+                const sched = this.dbCtx?.scheduler;
+                if (sched?.runAfter) {
+                    await sched.runAfter(
+                        0,
+                        internal.service.tournament.tournamentMatchNotify.submitMatchScoreToTournament,
+                        {
+                            gameId,
+                            finalScore: scoreResult.totalScore,
+                            isFirstClear,
+                        }
+                    );
+                }
+            }
         }
 
         return result;

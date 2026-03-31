@@ -36,7 +36,7 @@ export interface GameModel {
     stageId: string;
     /** 与 TournamentConfig / stageRuleConfigs 的 ruleId 一致，用于教学与星级等 */
     ruleId?: string;
-    /** 锦标赛 matchRules.modeType，由后端写入 mr_games */
+    /** 锦标赛 tournament_types.modeType，由后端写入 mr_games */
     modeType?: StageModeType;
     uid: string;  // 玩家 UID
 

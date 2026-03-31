@@ -7,10 +7,10 @@ import { api } from "../../../../../../../convex/tacticalMonster/convex/_generat
 import { useGameSettings } from "../../../battle/hooks/useGameSettings";
 import { GameModel, MonsterSprite } from "../../../types/CombatTypes";
 import { MonsterSkill } from "../../../types/skillTypes";
+import { applyStateChanges } from "../../../utils/backendResponseUtils";
 import { offsetHexDistance } from "../../../utils/hexUtil";
 import { getMeleePossiblePositions } from "../../../utils/positionEvaluator";
 import { resolveAttackProfile } from "../../../utils/skillRangeUtils";
-import { applyStateChanges } from "../../../utils/backendResponseUtils";
 import { canPerformAction } from "../../../utils/validationUtils";
 
 const getRemainingSteps = (character: MonsterSprite, currentTurn: any): number => {
@@ -106,16 +106,17 @@ export const useOtherAction3D = (
         // watch/replay 模式：禁止操作
         if (mode === 'watch' || mode === 'replay') return;
         if (!game || !user?.uid) return;
-
-        try {
-            const result = await convex.action((api as any).service.tournament.tournamentService.surrender, {
-                uid: user.uid,
-                gameId: game.gameId,
-            });
-            if (result.ok) openModal("game_over", { gameId: game.gameId });
-        } catch (error) {
-            console.error("Surrender failed", error);
-        }
+        console.log("surrender...");
+        openModal("game_over", { gameId: game.gameId });
+        // try {
+        //     const result = await convex.action((api as any).service.tournament.tournamentService.surrender, {
+        //         uid: user.uid,
+        //         gameId: game.gameId,
+        //     });
+        //     if (result.ok) openModal("game_over", { gameId: game.gameId });
+        // } catch (error) {
+        //     console.error("Surrender failed", error);
+        // }
     }, [mode, game, user, convex, openModal]);
 
     const attack = useCallback(async (target: MonsterSprite) => {

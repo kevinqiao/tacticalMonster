@@ -4,7 +4,7 @@
  * 重要说明：
  * - playerLevel: 玩家等级要求，在 EntryRequirements 中配置
  * - Power 范围（minTeamPower/maxTeamPower）在 GameRuleConfig.unlockConditions 中配置
- * - TacticalMonster：matchRules.ruleId / modeType 与关卡配置关联
+ * - TacticalMonster：matchRules.ruleId；modeType 在 TournamentConfig 顶层（与 tournament_types.modeType 一致）
  * - gameRule：旧版 Convex 文档可选保留；新配置使用 matchRules
  * - 单人关卡：当 matchRules.minPlayers === 1 && maxPlayers === 1 时，表示单人关卡
  *   单人关卡可以配置关卡进度、解锁条件、首次通关奖励等特殊属性
@@ -20,6 +20,8 @@ export interface TournamentConfig {
     /** @deprecated 新数据写入 matchRules；保留以兼容旧文档 */
     gameRule?: GameRule;
     isActive: boolean;
+    /** TacticalMonster 等：tutorial / solo_challenge / multiplayer_tournament（与 tournament_types.modeType 一致） */
+    modeType?: TournamentModeType;
     // 参赛条件
     entryRequirements?: EntryRequirements;
 
@@ -97,7 +99,18 @@ export interface MatchRules {
     minPlayers: number;
     maxPlayers: number;
     ruleId?: string;
-    modeType?: TournamentModeType;
+}
+
+/**
+ * 读取关卡模式：优先顶层 `TournamentConfig.modeType`，兼容旧版 `matchRules.modeType` 与 DB 历史行。
+ */
+export function resolveTournamentModeType(
+    config: TournamentConfig | undefined | null
+): TournamentModeType | undefined {
+    if (!config) return undefined;
+    if (config.modeType) return config.modeType;
+    const legacy = (config.matchRules as unknown as { modeType?: TournamentModeType }).modeType;
+    return legacy;
 }
 
 /**
@@ -248,11 +261,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_bronze_boss_1",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 50, energy: 10 },
@@ -292,11 +306,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_bronze_boss_2",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 60, energy: 11 },
@@ -323,11 +338,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_bronze_boss_3",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 70, energy: 12 },
@@ -354,11 +370,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_bronze_boss_4",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 80, energy: 13 },
@@ -385,11 +402,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_bronze_boss_5",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 90, energy: 14 },
@@ -420,11 +438,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_silver_boss_1",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 100, energy: 15 },
@@ -455,11 +474,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_silver_boss_2",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 120, energy: 17 },
@@ -486,11 +506,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_silver_boss_3",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 140, energy: 19 },
@@ -517,11 +538,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_silver_boss_4",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 160, energy: 21 },
@@ -548,11 +570,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_silver_boss_5",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 180, energy: 23 },
@@ -583,11 +606,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_gold_boss_1",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 200, energy: 20 },
@@ -618,11 +642,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_gold_boss_2",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 240, energy: 23 },
@@ -649,11 +674,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_gold_boss_3",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 280, energy: 26 },
@@ -680,11 +706,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_gold_boss_4",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 320, energy: 29 },
@@ -711,11 +738,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_gold_boss_5",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 360, energy: 32 },
@@ -746,11 +774,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_platinum_boss_1",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 500, energy: 30 },
@@ -781,11 +810,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_platinum_boss_2",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 600, energy: 35 },
@@ -812,11 +842,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_platinum_boss_3",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 700, energy: 40 },
@@ -843,11 +874,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_platinum_boss_4",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 800, energy: 45 },
@@ -874,11 +906,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
+        modeType: "tutorial",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_challenge_platinum_boss_5",
-            modeType: "tutorial",
         },
         rewards: {
             baseRewards: { coins: 900, energy: 50 },
@@ -911,11 +944,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1,
             entryFee: { coins: 0, energy: 8 },
         },
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_arena_bronze",
-            modeType: "solo_challenge",
         },
         rewards: {
             baseRewards: { coins: 40, energy: 5 },
@@ -941,11 +975,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1,
             entryFee: { coins: 0, energy: 10 },
         },
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_farm_bronze_boss_1",
-            modeType: "solo_challenge",
         },
         rewards: {
             baseRewards: { coins: 50, energy: 5 },
@@ -974,11 +1009,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1,
             entryFee: { coins: 0, energy: 10 },
         },
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_daily_boss",
-            modeType: "solo_challenge",
         },
         rewards: {
             baseRewards: { coins: 100, energy: 15 },
@@ -1014,11 +1050,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11,
             entryFee: { coins: 0, energy: 20 },
         },
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_weekly_boss",
-            modeType: "solo_challenge",
         },
         rewards: {
             baseRewards: { coins: 200, energy: 25 },
@@ -1057,11 +1094,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,  // ✅ 单人关卡标识
             maxPlayers: 1,  // ✅ 单人关卡标识
             ruleId: "monster_rumble_boss_rush_bronze",
-            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1105,11 +1143,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_story_1_2",
-            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1149,11 +1188,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_story_1_2a",
-            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1189,11 +1229,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_story_1_2b",
-            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1230,11 +1271,12 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
+        modeType: "solo_challenge",
+
         matchRules: {
             minPlayers: 1,
             maxPlayers: 1,
             ruleId: "monster_rumble_story_1_3",
-            modeType: "solo_challenge",
         },
 
         rewards: {
@@ -1286,6 +1328,16 @@ function convertToSchemaFormat(config: any): TournamentConfig {
     delete converted.stageRule; // 兼容旧版本的 stageRule
     delete converted.priority; // schema 中无此字段
 
+    const mr = converted.matchRules as { modeType?: TournamentModeType } | undefined;
+    if (mr?.modeType && !converted.modeType) {
+        converted.modeType = mr.modeType;
+    }
+    if (converted.matchRules && typeof converted.matchRules === "object" && "modeType" in (converted.matchRules as object)) {
+        const mrClean = { ...(converted.matchRules as Record<string, unknown>) };
+        delete mrClean.modeType;
+        converted.matchRules = mrClean as unknown as MatchRules;
+    }
+
     return converted as TournamentConfig;
 }
 
@@ -1302,6 +1354,40 @@ export function getTournamentConfig(typeId: string): TournamentConfig | undefine
     }
 
     return config;
+}
+
+/**
+ * Tactical Monster：从锦标赛静态配置收集所有 matchRules.ruleId（教学 / Solo Challenge / Multiplayer 等），
+ * 与 stageRuleConfigs 取并集后由 getAllRuleStatuses 返回完整关卡状态。
+ */
+export function getTacticalMonsterRuleIdsFromTournamentConfigs(): string[] {
+    const ids = new Set<string>();
+    for (const raw of TOURNAMENT_CONFIGS) {
+        if (raw.gameType !== "tacticalMonster") continue;
+        const c = getTournamentConfig(raw.typeId);
+        if (!c) continue;
+        const rid = c.matchRules?.ruleId ?? (c as any).gameRule?.ruleId;
+        if (typeof rid === "string" && rid.length > 0) {
+            ids.add(rid);
+        }
+    }
+    return [...ids];
+}
+
+/**
+ * 按关卡 ruleId 解析锦标赛配置（用于 modeType 等）
+ */
+export function getTournamentConfigByRuleId(ruleId: string): TournamentConfig | undefined {
+    for (const raw of TOURNAMENT_CONFIGS) {
+        if (raw.gameType !== "tacticalMonster") continue;
+        const c = getTournamentConfig(raw.typeId);
+        if (!c) continue;
+        const rid = c.matchRules?.ruleId ?? (c as any).gameRule?.ruleId;
+        if (rid === ruleId) {
+            return c;
+        }
+    }
+    return undefined;
 }
 
 /**

@@ -11,32 +11,32 @@ import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useMutation, useQuery } from "convex/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useUserManager } from "service/UserManager";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { useUserManager } from "service/UserManager";
+import { MONSTER_CONFIGS_MAP } from "../config/monsterConfigs";
+import { SKILL_CONFIGS } from "../config/skillConfigs";
 import { getStageRuleConfig } from "../config/stageRuleConfigs";
+import { useCombatManager } from "../service/CombatManager";
 import type { MonsterSprite } from "../types/CombatTypes";
 import {
     getDynamicPedagogyGuideText,
     phaseLabel,
 } from "../utils/pedagogyDynamicGuide";
-import { resolveAttackProfile } from "../utils/skillRangeUtils";
-import { MONSTER_CONFIGS_MAP } from "../config/monsterConfigs";
-import { SKILL_CONFIGS } from "../config/skillConfigs";
-import { useCombatManager } from "../service/CombatManager";
-import { filterSkillIdsForPedagogy } from "../utils/pedagogySkillFilter";
 import type { PedagogyGuideNotifyEvent } from "../utils/pedagogyGuideFlow";
+import { markGuideDone } from "../utils/pedagogyGuideStorage";
+import { filterSkillIdsForPedagogy } from "../utils/pedagogySkillFilter";
+import { resolveAttackProfile } from "../utils/skillRangeUtils";
 import { canPerformAction } from "../utils/validationUtils";
 import { BattleLoadingContext } from "./BattleLoadingContext";
 import { useBattleGridState, type BattleCellState } from "./handler/useBattleGridState";
 import useCombatActHandler3D from "./handler/useCombatActHandler3D";
 import useEventHandler3D from "./handler/useEventHandler3D";
 import { usePhaseChangesHandler3D } from "./handler/usePhaseChangesHandler3D";
+import { usePedagogyGuideFlow } from "./hooks/usePedagogyGuideFlow";
 import "./style.css";
 import { BattleMapDimension, getGridCenter3D, getGridExtent3D } from "./utils/coordinate3DUtils";
 import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
-import { usePedagogyGuideFlow } from "./hooks/usePedagogyGuideFlow";
-import { markGuideDone } from "../utils/pedagogyGuideStorage";
 import { TurnOrderBar } from "./view/turnbar/TurnOrderBar";
 
 const CAMERA_CONFIG = {
@@ -155,118 +155,118 @@ const CanvasWithControls: React.FC<{
     onCellClick,
     pedagogyAttackTargetPulseBoost,
 }) => {
-    const controlsRef = useRef<OrbitControlsImpl | null>(null);
+        const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
-    // 稳定引用，供 onCreated 使用（避免闭包过期）
-    const cameraUpRef = useRef(cameraUp);
-    const targetRef = useRef(target);
-    const orthoZoomRef = useRef(orthoZoom);
-    cameraUpRef.current = cameraUp;
-    targetRef.current = target;
-    orthoZoomRef.current = orthoZoom;
+        // 稳定引用，供 onCreated 使用（避免闭包过期）
+        const cameraUpRef = useRef(cameraUp);
+        const targetRef = useRef(target);
+        const orthoZoomRef = useRef(orthoZoom);
+        cameraUpRef.current = cameraUp;
+        targetRef.current = target;
+        orthoZoomRef.current = orthoZoom;
 
-    // onCreated：Canvas 创建后、首帧渲染前设置 camera.up + lookAt + zoom
-    // R3F 自动根据画布尺寸管理 left/right/top/bottom，我们只需 zoom 控制可见范围
-    const handleCreated = useCallback(({ camera }: { camera: THREE.Camera }) => {
-        const up = cameraUpRef.current;
-        const t = targetRef.current;
-        if (up) {
-            camera.up.set(up[0], up[1], up[2]);
-        }
-        camera.lookAt(t[0], t[1], t[2]);
-        if (camera instanceof THREE.OrthographicCamera) {
-            camera.zoom = orthoZoomRef.current;
-            camera.updateProjectionMatrix();
-        }
-    }, []);
-
-    // 共用的场景内容
-    const sceneContent = (
-        <>
-            <TransparentBackground />
-            {/* <LoadingTracker onProgress={onProgress} /> */}
-            <CameraSync
-                cameraPosition={cameraPosition}
-                target={target}
-                controlsRef={controlsRef}
-                orthoZoom={isPortrait ? orthoZoom : undefined}
-                cameraUp={cameraUp}
-            />
-
-            <ambientLight intensity={0.8} />
-            <directionalLight position={[500, 500, 500]} intensity={1.2} castShadow />
-            <pointLight position={[0, 300, 0]} intensity={0.5} />
-
-            <BattleLoadingContext.Provider value={{ onModelLoaded }}>
-                {mapDimension && (
-                    <>
-                        <GridGround3D
-                            mapDimension={mapDimension}
-                            getCellState={getCellState}
-                            getWalkableDistance={getWalkableDistance}
-                            getWalkableMoveRange={getWalkableMoveRange}
-                            onCellClick={onCellClick}
-                        />
-                        <ObstacleGrid3D mapDimension={mapDimension} />
-                        <CharacterGrid3D mapDimension={mapDimension} />
-                        <GridHighlight3D
-                            mapDimension={mapDimension}
-                            getCellState={getCellState}
-                            getWalkableDistance={getWalkableDistance}
-                            getWalkableMoveRange={getWalkableMoveRange}
-                            onCellClick={onCellClick}
-                            pedagogyAttackTargetPulseBoost={pedagogyAttackTargetPulseBoost}
-                        />
-                    </>
-                )}
-            </BattleLoadingContext.Provider>
-        </>
-    );
-
-    // 竖屏：正交相机 + 俯视（camera.up 旋转 90°），禁用旋转
-    // 横屏：透视相机 + 球面坐标，允许旋转
-    return (
-        <Canvas
-            key={isPortrait ? "ortho" : "persp"}
-            orthographic={isPortrait}
-            shadows
-            style={{ width: "100%", height: "100%", background: "transparent" }}
-            gl={{ antialias: true, alpha: true }}
-            camera={
-                isPortrait
-                    ? {
-                        position: [target[0], 2000, target[2]],
-                        zoom: orthoZoom,
-                        near: 0.1,
-                        far: 5000,
-                    }
-                    : {
-                        position: cameraPosition,
-                        fov: CAMERA_CONFIG.fov,
-                        near: CAMERA_CONFIG.near,
-                        far: CAMERA_CONFIG.far,
-                    }
+        // onCreated：Canvas 创建后、首帧渲染前设置 camera.up + lookAt + zoom
+        // R3F 自动根据画布尺寸管理 left/right/top/bottom，我们只需 zoom 控制可见范围
+        const handleCreated = useCallback(({ camera }: { camera: THREE.Camera }) => {
+            const up = cameraUpRef.current;
+            const t = targetRef.current;
+            if (up) {
+                camera.up.set(up[0], up[1], up[2]);
             }
-            onCreated={handleCreated}
-        >
-            {sceneContent}
+            camera.lookAt(t[0], t[1], t[2]);
+            if (camera instanceof THREE.OrthographicCamera) {
+                camera.zoom = orthoZoomRef.current;
+                camera.updateProjectionMatrix();
+            }
+        }, []);
 
-            <OrbitControls
-                ref={controlsRef}
-                enablePan={isPortrait}
-                enableZoom={true}
-                enableRotate={false}
-                target={target}
-                minDistance={isPortrait ? undefined : minDistance}
-                maxDistance={isPortrait ? undefined : maxDistance}
-                minZoom={isPortrait ? orthoZoom * 0.5 : undefined}
-                maxZoom={isPortrait ? orthoZoom * 2 : undefined}
-                maxPolarAngle={isPortrait ? Math.PI / 2 : undefined}
-                minPolarAngle={isPortrait ? Math.PI / 2 : undefined}
-            />
-        </Canvas>
-    );
-};
+        // 共用的场景内容
+        const sceneContent = (
+            <>
+                <TransparentBackground />
+                {/* <LoadingTracker onProgress={onProgress} /> */}
+                <CameraSync
+                    cameraPosition={cameraPosition}
+                    target={target}
+                    controlsRef={controlsRef}
+                    orthoZoom={isPortrait ? orthoZoom : undefined}
+                    cameraUp={cameraUp}
+                />
+
+                <ambientLight intensity={0.8} />
+                <directionalLight position={[500, 500, 500]} intensity={1.2} castShadow />
+                <pointLight position={[0, 300, 0]} intensity={0.5} />
+
+                <BattleLoadingContext.Provider value={{ onModelLoaded }}>
+                    {mapDimension && (
+                        <>
+                            <GridGround3D
+                                mapDimension={mapDimension}
+                                getCellState={getCellState}
+                                getWalkableDistance={getWalkableDistance}
+                                getWalkableMoveRange={getWalkableMoveRange}
+                                onCellClick={onCellClick}
+                            />
+                            <ObstacleGrid3D mapDimension={mapDimension} />
+                            <CharacterGrid3D mapDimension={mapDimension} />
+                            <GridHighlight3D
+                                mapDimension={mapDimension}
+                                getCellState={getCellState}
+                                getWalkableDistance={getWalkableDistance}
+                                getWalkableMoveRange={getWalkableMoveRange}
+                                onCellClick={onCellClick}
+                                pedagogyAttackTargetPulseBoost={pedagogyAttackTargetPulseBoost}
+                            />
+                        </>
+                    )}
+                </BattleLoadingContext.Provider>
+            </>
+        );
+
+        // 竖屏：正交相机 + 俯视（camera.up 旋转 90°），禁用旋转
+        // 横屏：透视相机 + 球面坐标，允许旋转
+        return (
+            <Canvas
+                key={isPortrait ? "ortho" : "persp"}
+                orthographic={isPortrait}
+                shadows
+                style={{ width: "100%", height: "100%", background: "transparent" }}
+                gl={{ antialias: true, alpha: true }}
+                camera={
+                    isPortrait
+                        ? {
+                            position: [target[0], 2000, target[2]],
+                            zoom: orthoZoom,
+                            near: 0.1,
+                            far: 5000,
+                        }
+                        : {
+                            position: cameraPosition,
+                            fov: CAMERA_CONFIG.fov,
+                            near: CAMERA_CONFIG.near,
+                            far: CAMERA_CONFIG.far,
+                        }
+                }
+                onCreated={handleCreated}
+            >
+                {sceneContent}
+
+                <OrbitControls
+                    ref={controlsRef}
+                    enablePan={isPortrait}
+                    enableZoom={true}
+                    enableRotate={false}
+                    target={target}
+                    minDistance={isPortrait ? undefined : minDistance}
+                    maxDistance={isPortrait ? undefined : maxDistance}
+                    minZoom={isPortrait ? orthoZoom * 0.5 : undefined}
+                    maxZoom={isPortrait ? orthoZoom * 2 : undefined}
+                    maxPolarAngle={isPortrait ? Math.PI / 2 : undefined}
+                    minPolarAngle={isPortrait ? Math.PI / 2 : undefined}
+                />
+            </Canvas>
+        );
+    };
 
 /**
  * 技能面板 - 显示当前角色的主动技能，支持选择技能并执行
@@ -301,240 +301,240 @@ const SkillPanel: React.FC<{
     tutorialHighlightSkillId,
     tutorialHintText,
 }) => {
-    const { game, mode, characters } = useCombatManager();
-    const validation = canPerformAction(mode ?? "play", game, characters);
-    const { can, currentTurn, character } = validation;
+        const { game, mode, characters } = useCombatManager();
+        const validation = canPerformAction(mode ?? "play", game, characters);
+        const { can, currentTurn, character } = validation;
 
-    const [localSelectedSkillId, setLocalSelectedSkillId] = useState<string | null>(null);
-    const turnKey = `${currentTurn?.uid ?? ""}-${currentTurn?.character_id ?? ""}-${game?.currentRound?.no ?? 0}`;
+        const [localSelectedSkillId, setLocalSelectedSkillId] = useState<string | null>(null);
+        const turnKey = `${currentTurn?.uid ?? ""}-${currentTurn?.character_id ?? ""}-${game?.currentRound?.no ?? 0}`;
 
-    useEffect(() => {
-        setLocalSelectedSkillId(null);
-    }, [turnKey]);
-    useEffect(() => {
-        // 引导步切换时清掉旧选择，避免第1步残留 selection 干扰第2步理解
-        setLocalSelectedSkillId(null);
-    }, [tutorialLockSkillPanel, tutorialHighlightSkillId]);
+        useEffect(() => {
+            setLocalSelectedSkillId(null);
+        }, [turnKey]);
+        useEffect(() => {
+            // 引导步切换时清掉旧选择，避免第1步残留 selection 干扰第2步理解
+            setLocalSelectedSkillId(null);
+        }, [tutorialLockSkillPanel, tutorialHighlightSkillId]);
 
-    const selectedSkillId = localSelectedSkillId ?? currentTurn?.skillSelect ?? null;
-    const selectedSkill = selectedSkillId ? SKILL_CONFIGS[selectedSkillId] : null;
-    const isNoTargetSkill =
-        selectedSkill?.effects?.some(
-            (e: any) => e.type === "summon" && e.summonConfig?.position_mode === "caster_adjacent"
-        ) ?? false;
+        const selectedSkillId = localSelectedSkillId ?? currentTurn?.skillSelect ?? null;
+        const selectedSkill = selectedSkillId ? SKILL_CONFIGS[selectedSkillId] : null;
+        const isNoTargetSkill =
+            selectedSkill?.effects?.some(
+                (e: any) => e.type === "summon" && e.summonConfig?.position_mode === "caster_adjacent"
+            ) ?? false;
 
-    const rawSkillIds =
-        character?.skills?.length
-            ? character.skills
-            : (character as any)?.unlockSkills?.length
-                ? (character as any).unlockSkills
-                : (character as any)?.monsterId
-                    ? (MONSTER_CONFIGS_MAP[(character as any).monsterId]?.skillIds ?? ["basic_attack"])
-                    : ["basic_attack"];
-    const ruleKey = (game as { ruleId?: string; stageId?: string })?.ruleId ?? game?.stageId;
-    const skillIds = filterSkillIdsForPedagogy(ruleKey, Array.isArray(rawSkillIds) ? rawSkillIds : ["basic_attack"]);
-    const activeSkills = (Array.isArray(skillIds) ? skillIds : [])
-        .map((id: string) => ({ id, skill: SKILL_CONFIGS[id] }))
-        .filter(({ skill }: { skill: any }) => skill && (skill.type === "active" || skill.type === "master" || skill.type === "ultimate"));
+        const rawSkillIds =
+            character?.skills?.length
+                ? character.skills
+                : (character as any)?.unlockSkills?.length
+                    ? (character as any).unlockSkills
+                    : (character as any)?.monsterId
+                        ? (MONSTER_CONFIGS_MAP[(character as any).monsterId]?.skillIds ?? ["basic_attack"])
+                        : ["basic_attack"];
+        const ruleKey = (game as { ruleId?: string; stageId?: string })?.ruleId ?? game?.stageId;
+        const skillIds = filterSkillIdsForPedagogy(ruleKey, Array.isArray(rawSkillIds) ? rawSkillIds : ["basic_attack"]);
+        const activeSkills = (Array.isArray(skillIds) ? skillIds : [])
+            .map((id: string) => ({ id, skill: SKILL_CONFIGS[id] }))
+            .filter(({ skill }: { skill: any }) => skill && (skill.type === "active" || skill.type === "master" || skill.type === "ultimate"));
 
-    const mp = (character as any)?.stats?.mp?.current ?? 100;
-    const energy = (character as any)?.stats?.energy?.current ?? 0;
-    const energyMax = (character as any)?.stats?.energy?.max ?? 100;
-    const cooldowns = (character as any)?.skillCooldowns ?? {};
-    const charLevel = (character as { level?: number })?.level ?? 1;
-    /** 与后端 SkillManager.checkSkillAvailability 一致：unlockSkills 显式授予的技能跳过等级门槛 */
-    const unlockSkillIds = new Set((character as { unlockSkills?: string[] })?.unlockSkills ?? []);
-    const isLevelLockedForSkill = (skillId: string, requiredLevel: number | undefined) =>
-        requiredLevel != null && charLevel < requiredLevel && !unlockSkillIds.has(skillId);
+        const mp = (character as any)?.stats?.mp?.current ?? 100;
+        const energy = (character as any)?.stats?.energy?.current ?? 0;
+        const energyMax = (character as any)?.stats?.energy?.max ?? 100;
+        const cooldowns = (character as any)?.skillCooldowns ?? {};
+        const charLevel = (character as { level?: number })?.level ?? 1;
+        /** 与后端 SkillManager.checkSkillAvailability 一致：unlockSkills 显式授予的技能跳过等级门槛 */
+        const unlockSkillIds = new Set((character as { unlockSkills?: string[] })?.unlockSkills ?? []);
+        const isLevelLockedForSkill = (skillId: string, requiredLevel: number | undefined) =>
+            requiredLevel != null && charLevel < requiredLevel && !unlockSkillIds.has(skillId);
 
-    if (mode === "watch" || mode === "replay") {
+        if (mode === "watch" || mode === "replay") {
+            return (
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
+                    <div className="action-panel-item" onClick={() => surrender()}>GAME OVER</div>
+                </div>
+            );
+        }
+        if (!can) {
+            return (
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.8)" }}>
+                    <span>{validation.reason ?? "等待回合..."}</span>
+                    <div className="action-panel-item" onClick={() => surrender()}>GAME OVER</div>
+                </div>
+            );
+        }
+
+        const handleSkillClick = async (skill: any, isTutorialTarget: boolean) => {
+            if (tutorialLockSkillPanel) {
+                onTutorialSkillPanelBlocked?.();
+                return;
+            }
+            if (tutorialHighlightSkillId && !isTutorialTarget) {
+                const targetName = SKILL_CONFIGS[tutorialHighlightSkillId]?.name ?? tutorialHighlightSkillId;
+                onTutorialNudge?.(`当前推荐先选择「${targetName}」`);
+            }
+            setLocalSelectedSkillId(skill.id);
+            await Promise.resolve(selectSkill(skill));
+            onPedagogyNotify?.({ type: "skillSelect", skillId: skill.id });
+        };
+
+        const handleUseNoTarget = () => {
+            if (tutorialLockSkillPanel) {
+                onTutorialSkillPanelBlocked?.();
+                return;
+            }
+            if (!selectedSkillId || !isNoTargetSkill) return;
+            const cooldown = cooldowns[selectedSkillId] ?? 0;
+            const mpCost = selectedSkill?.resource_cost?.mp ?? 0;
+            const reqLevel = selectedSkill?.unlockConditions?.level;
+            const levelLocked = isLevelLockedForSkill(selectedSkillId, reqLevel);
+            if (levelLocked || cooldown > 0 || mp < mpCost) return; // 等级/冷却/MP 不足时不再发起请求
+            setLocalSelectedSkillId(null);
+            clearGrid();
+            useSkill(selectedSkillId)
+                .then(() => {
+                    onPedagogyNotify?.({ type: "cast", skillId: selectedSkillId });
+                })
+                .catch((err: any) => console.error("[SkillPanel] useSkill error:", err));
+        };
+
         return (
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
-                <div className="action-panel-item" onClick={() => surrender()}>GAME OVER</div>
-            </div>
-        );
-    }
-    if (!can) {
-        return (
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.8)" }}>
-                <span>{validation.reason ?? "等待回合..."}</span>
-                <div className="action-panel-item" onClick={() => surrender()}>GAME OVER</div>
-            </div>
-        );
-    }
-
-    const handleSkillClick = async (skill: any, isTutorialTarget: boolean) => {
-        if (tutorialLockSkillPanel) {
-            onTutorialSkillPanelBlocked?.();
-            return;
-        }
-        if (tutorialHighlightSkillId && !isTutorialTarget) {
-            const targetName = SKILL_CONFIGS[tutorialHighlightSkillId]?.name ?? tutorialHighlightSkillId;
-            onTutorialNudge?.(`当前推荐先选择「${targetName}」`);
-        }
-        setLocalSelectedSkillId(skill.id);
-        await Promise.resolve(selectSkill(skill));
-        onPedagogyNotify?.({ type: "skillSelect", skillId: skill.id });
-    };
-
-    const handleUseNoTarget = () => {
-        if (tutorialLockSkillPanel) {
-            onTutorialSkillPanelBlocked?.();
-            return;
-        }
-        if (!selectedSkillId || !isNoTargetSkill) return;
-        const cooldown = cooldowns[selectedSkillId] ?? 0;
-        const mpCost = selectedSkill?.resource_cost?.mp ?? 0;
-        const reqLevel = selectedSkill?.unlockConditions?.level;
-        const levelLocked = isLevelLockedForSkill(selectedSkillId, reqLevel);
-        if (levelLocked || cooldown > 0 || mp < mpCost) return; // 等级/冷却/MP 不足时不再发起请求
-        setLocalSelectedSkillId(null);
-        clearGrid();
-        useSkill(selectedSkillId)
-            .then(() => {
-                onPedagogyNotify?.({ type: "cast", skillId: selectedSkillId });
-            })
-            .catch((err: any) => console.error("[SkillPanel] useSkill error:", err));
-    };
-
-    return (
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
-            {energyMax > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginRight: 4 }}>
-                    <span style={{ fontSize: 11 }}>能量</span>
-                    <div style={{ width: 60, height: 8, background: "#333", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
+                {energyMax > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginRight: 4 }}>
+                        <span style={{ fontSize: 11 }}>能量</span>
+                        <div style={{ width: 60, height: 8, background: "#333", borderRadius: 4, overflow: "hidden" }}>
+                            <div
+                                style={{
+                                    width: `${Math.min(100, (energy / energyMax) * 100)}%`,
+                                    height: "100%",
+                                    background: "linear-gradient(90deg, #ffd700, #ff8c00)",
+                                    transition: "width 0.2s",
+                                }}
+                            />
+                        </div>
+                        <span style={{ fontSize: 10 }}>{energy}/{energyMax}</span>
+                    </div>
+                )}
+                {activeSkills.map(({ id, skill }: { id: string; skill: any }) => {
+                    const cooldown = cooldowns[id] ?? 0;
+                    const mpCost = skill.resource_cost?.mp ?? 0;
+                    const energyCost = skill.resource_cost?.energy ?? 0;
+                    const requiredLevel = skill.unlockConditions?.level;
+                    const levelLocked = isLevelLockedForSkill(id, requiredLevel);
+                    const disabled =
+                        levelLocked ||
+                        cooldown > 0 ||
+                        (mpCost > 0 && mp < mpCost) ||
+                        (energyCost > 0 && energy < energyCost);
+                    const isSelected = selectedSkillId === id;
+                    const isTutorialTarget = !!tutorialHighlightSkillId && tutorialHighlightSkillId === id;
+                    const isTutorialSecondary = !!tutorialHighlightSkillId && !isTutorialTarget;
+                    const titleParts = [skill.name];
+                    if (tutorialLockSkillPanel) titleParts.unshift("请先移动到蓝色格子");
+                    if (isTutorialTarget && tutorialHintText) titleParts.unshift(tutorialHintText);
+                    if (isTutorialSecondary) {
+                        const targetName = SKILL_CONFIGS[tutorialHighlightSkillId!]?.name ?? tutorialHighlightSkillId!;
+                        titleParts.unshift(`建议优先选择：${targetName}`);
+                    }
+                    if (levelLocked) titleParts.push(`需要等级 ${requiredLevel}`);
+                    if (cooldown > 0) titleParts.push(`(冷却${cooldown})`);
+                    if (energyCost > 0) titleParts.push(`消耗能量${energyCost}`);
+                    return (
                         <div
+                            key={id}
+                            className={`action-panel-item ${isSelected ? "action-panel-item--selected" : ""}`}
                             style={{
-                                width: `${Math.min(100, (energy / energyMax) * 100)}%`,
-                                height: "100%",
-                                background: "linear-gradient(90deg, #ffd700, #ff8c00)",
-                                transition: "width 0.2s",
+                                opacity: disabled || tutorialLockSkillPanel ? 0.55 : isTutorialSecondary ? 0.42 : 1,
+                                pointerEvents: disabled ? "none" : "auto",
+                                border: isSelected ? "2px solid #fff" : undefined,
+                                boxShadow: isTutorialTarget ? "0 0 0 2px rgba(255,214,10,0.95), 0 0 14px rgba(255,214,10,0.9)" : undefined,
+                                background: isTutorialTarget
+                                    ? "linear-gradient(135deg, rgba(255,193,7,0.85), rgba(255,87,34,0.85))"
+                                    : undefined,
+                                fontWeight: isTutorialTarget ? 700 : undefined,
                             }}
-                        />
-                    </div>
-                    <span style={{ fontSize: 10 }}>{energy}/{energyMax}</span>
-                </div>
-            )}
-            {activeSkills.map(({ id, skill }: { id: string; skill: any }) => {
-                const cooldown = cooldowns[id] ?? 0;
-                const mpCost = skill.resource_cost?.mp ?? 0;
-                const energyCost = skill.resource_cost?.energy ?? 0;
-                const requiredLevel = skill.unlockConditions?.level;
-                const levelLocked = isLevelLockedForSkill(id, requiredLevel);
-                const disabled =
-                    levelLocked ||
-                    cooldown > 0 ||
-                    (mpCost > 0 && mp < mpCost) ||
-                    (energyCost > 0 && energy < energyCost);
-                const isSelected = selectedSkillId === id;
-                const isTutorialTarget = !!tutorialHighlightSkillId && tutorialHighlightSkillId === id;
-                const isTutorialSecondary = !!tutorialHighlightSkillId && !isTutorialTarget;
-                const titleParts = [skill.name];
-                if (tutorialLockSkillPanel) titleParts.unshift("请先移动到蓝色格子");
-                if (isTutorialTarget && tutorialHintText) titleParts.unshift(tutorialHintText);
-                if (isTutorialSecondary) {
-                    const targetName = SKILL_CONFIGS[tutorialHighlightSkillId!]?.name ?? tutorialHighlightSkillId!;
-                    titleParts.unshift(`建议优先选择：${targetName}`);
-                }
-                if (levelLocked) titleParts.push(`需要等级 ${requiredLevel}`);
-                if (cooldown > 0) titleParts.push(`(冷却${cooldown})`);
-                if (energyCost > 0) titleParts.push(`消耗能量${energyCost}`);
-                return (
+                            onClick={() => !disabled && handleSkillClick(skill, isTutorialTarget)}
+                            title={titleParts.join(" ")}
+                        >
+                            {skill.name}
+                            {cooldown > 0 && <span style={{ fontSize: 10, marginLeft: 2 }}>CD{cooldown}</span>}
+                            {isTutorialTarget && (
+                                <span style={{ fontSize: 10, marginLeft: 4, color: "#ffe082" }}>推荐</span>
+                            )}
+                        </div>
+                    );
+                })}
+                {!!tutorialHintText && !!tutorialHighlightSkillId && !tutorialLockSkillPanel && (
                     <div
-                        key={id}
-                        className={`action-panel-item ${isSelected ? "action-panel-item--selected" : ""}`}
                         style={{
-                            opacity: disabled || tutorialLockSkillPanel ? 0.55 : isTutorialSecondary ? 0.42 : 1,
-                            pointerEvents: disabled ? "none" : "auto",
-                            border: isSelected ? "2px solid #fff" : undefined,
-                            boxShadow: isTutorialTarget ? "0 0 0 2px rgba(255,214,10,0.95), 0 0 14px rgba(255,214,10,0.9)" : undefined,
-                            background: isTutorialTarget
-                                ? "linear-gradient(135deg, rgba(255,193,7,0.85), rgba(255,87,34,0.85))"
-                                : undefined,
-                            fontWeight: isTutorialTarget ? 700 : undefined,
+                            flexBasis: "100%",
+                            textAlign: "right",
+                            fontSize: 11,
+                            color: "rgba(255,230,140,0.98)",
+                            textShadow: "0 1px 2px rgba(0,0,0,0.55)",
                         }}
-                        onClick={() => !disabled && handleSkillClick(skill, isTutorialTarget)}
-                        title={titleParts.join(" ")}
                     >
-                        {skill.name}
-                        {cooldown > 0 && <span style={{ fontSize: 10, marginLeft: 2 }}>CD{cooldown}</span>}
-                        {isTutorialTarget && (
-                            <span style={{ fontSize: 10, marginLeft: 4, color: "#ffe082" }}>推荐</span>
-                        )}
+                        {tutorialHintText}
                     </div>
-                );
-            })}
-            {!!tutorialHintText && !!tutorialHighlightSkillId && !tutorialLockSkillPanel && (
+                )}
+                {isNoTargetSkill && (() => {
+                    const cd = cooldowns[selectedSkillId ?? ""] ?? 0;
+                    const cost = selectedSkill?.resource_cost?.mp ?? 0;
+                    const reqLvl = selectedSkill?.unlockConditions?.level;
+                    const lvlLocked =
+                        selectedSkillId != null ? isLevelLockedForSkill(selectedSkillId, reqLvl) : reqLvl != null && charLevel < reqLvl;
+                    const useDisabled = lvlLocked || cd > 0 || mp < cost || !!tutorialLockSkillPanel;
+                    return (
+                        <div
+                            className="action-panel-item"
+                            style={{
+                                backgroundColor: "rgb(34, 139, 34)",
+                                border: "2px solid #fff",
+                                opacity: useDisabled ? 0.6 : 1,
+                                pointerEvents: useDisabled && !tutorialLockSkillPanel ? "none" : "auto",
+                            }}
+                            onClick={handleUseNoTarget}
+                            title={
+                                tutorialLockSkillPanel
+                                    ? "请先移动到蓝色格子"
+                                    : useDisabled
+                                        ? lvlLocked
+                                            ? `需要等级 ${reqLvl}`
+                                            : cd > 0
+                                                ? `技能冷却中，剩余 ${cd} 回合`
+                                                : "MP 不足"
+                                        : "使用"
+                            }
+                        >
+                            使用
+                        </div>
+                    );
+                })()}
                 <div
-                    style={{
-                        flexBasis: "100%",
-                        textAlign: "right",
-                        fontSize: 11,
-                        color: "rgba(255,230,140,0.98)",
-                        textShadow: "0 1px 2px rgba(0,0,0,0.55)",
+                    className="action-panel-item"
+                    onClick={() => {
+                        if (disableDefend) return;
+                        clearGrid();
+                        defend();
                     }}
+                    style={{
+                        backgroundColor: "rgb(70, 130, 180)",
+                        opacity: disableDefend ? 0.55 : 1,
+                        pointerEvents: disableDefend ? "none" : "auto",
+                    }}
+                    title="防守"
                 >
-                    {tutorialHintText}
+                    防守
                 </div>
-            )}
-            {isNoTargetSkill && (() => {
-                const cd = cooldowns[selectedSkillId ?? ""] ?? 0;
-                const cost = selectedSkill?.resource_cost?.mp ?? 0;
-                const reqLvl = selectedSkill?.unlockConditions?.level;
-                const lvlLocked =
-                    selectedSkillId != null ? isLevelLockedForSkill(selectedSkillId, reqLvl) : reqLvl != null && charLevel < reqLvl;
-                const useDisabled = lvlLocked || cd > 0 || mp < cost || !!tutorialLockSkillPanel;
-                return (
-                    <div
-                        className="action-panel-item"
-                        style={{
-                            backgroundColor: "rgb(34, 139, 34)",
-                            border: "2px solid #fff",
-                            opacity: useDisabled ? 0.6 : 1,
-                            pointerEvents: useDisabled && !tutorialLockSkillPanel ? "none" : "auto",
-                        }}
-                        onClick={handleUseNoTarget}
-                        title={
-                            tutorialLockSkillPanel
-                                ? "请先移动到蓝色格子"
-                                : useDisabled
-                                  ? lvlLocked
-                                      ? `需要等级 ${reqLvl}`
-                                      : cd > 0
-                                        ? `技能冷却中，剩余 ${cd} 回合`
-                                        : "MP 不足"
-                                  : "使用"
-                        }
-                    >
-                        使用
-                    </div>
-                );
-            })()}
-            <div
-                className="action-panel-item"
-                onClick={() => {
-                    if (disableDefend) return;
-                    clearGrid();
-                    defend();
-                }}
-                style={{
-                    backgroundColor: "rgb(70, 130, 180)",
-                    opacity: disableDefend ? 0.55 : 1,
-                    pointerEvents: disableDefend ? "none" : "auto",
-                }}
-                title="防守"
-            >
-                防守
-            </div>
-            <div className="action-panel-item" onClick={() => surrender()}>
-                GAME OVER
-            </div>
-        </div>
-    );
-};
+                <div className="action-panel-item" onClick={surrender}>
+                    GAME OVER
+                </div>
+            </div >
+        );
+    };
 
 /** 3D 战斗场景。mapDimension、containerRef 从 CombatManager context 获取（CombatManager 内 useMapDimension 测量包装容器）。 */
-export const BattleVenue3D: React.FC = () => {
+export const BattleVenue3D: React.FC<{ close?: () => void }> = ({ close }) => {
     const { user } = useUserManager();
     const {
         game,
@@ -655,12 +655,12 @@ export const BattleVenue3D: React.FC = () => {
     const tutorialHintText = enforceMoveStep
         ? "步骤提示：先移动到蓝色格子"
         : enforceCastStep
-          ? "步骤提示：点击高亮的「普攻」并攻击红色目标格"
-          : enforceSkillSelectStepBoss2
-            ? "步骤提示：先在技能栏选择技能（推荐高亮技能）"
-            : emphasizeCastStepBoss2
-              ? "步骤提示：对红色目标格施放已选技能"
-              : undefined;
+            ? "步骤提示：点击高亮的「普攻」并攻击红色目标格"
+            : enforceSkillSelectStepBoss2
+                ? "步骤提示：先在技能栏选择技能（推荐高亮技能）"
+                : emphasizeCastStepBoss2
+                    ? "步骤提示：对红色目标格施放已选技能"
+                    : undefined;
     const tutorialSkillHighlight = tutorialHighlightSkillId ?? tutorialHighlightSkillIdBoss2;
 
     /** 第2关施法步：进入后约 1s 加强攻击目标格脉冲（不限制操作） */
@@ -1005,32 +1005,32 @@ export const BattleVenue3D: React.FC = () => {
             )}
             {showPedagogyTutorialNotesStrip &&
                 (pedagogyHint.tutorialNotes || (pedagogyHint.loanMonsterIds && pedagogyHint.loanMonsterIds.length > 0)) && (
-                <div
-                    style={{
-                        position: "absolute",
-                        top: skillError ? 44 : 10,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        zIndex: 20,
-                        maxWidth: "92%",
-                        padding: "6px 10px",
-                        borderRadius: 6,
-                        background: "rgba(0,40,80,0.85)",
-                        color: "rgba(255,255,255,0.95)",
-                        fontSize: 11,
-                        lineHeight: 1.35,
-                        textAlign: "center",
-                        pointerEvents: "none",
-                    }}
-                >
-                    {pedagogyHint.tutorialNotes && <div>{pedagogyHint.tutorialNotes}</div>}
-                    {pedagogyHint.loanMonsterIds && pedagogyHint.loanMonsterIds.length > 0 && (
-                        <div style={{ marginTop: 4, opacity: 0.9 }}>
-                            试用角色（编队接入后可自动上场）: {pedagogyHint.loanMonsterIds.join(", ")}
-                        </div>
-                    )}
-                </div>
-            )}
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: skillError ? 44 : 10,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            zIndex: 20,
+                            maxWidth: "92%",
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            background: "rgba(0,40,80,0.85)",
+                            color: "rgba(255,255,255,0.95)",
+                            fontSize: 11,
+                            lineHeight: 1.35,
+                            textAlign: "center",
+                            pointerEvents: "none",
+                        }}
+                    >
+                        {pedagogyHint.tutorialNotes && <div>{pedagogyHint.tutorialNotes}</div>}
+                        {pedagogyHint.loanMonsterIds && pedagogyHint.loanMonsterIds.length > 0 && (
+                            <div style={{ marginTop: 4, opacity: 0.9 }}>
+                                试用角色（编队接入后可自动上场）: {pedagogyHint.loanMonsterIds.join(", ")}
+                            </div>
+                        )}
+                    </div>
+                )}
             {/* 技能失败提示 toast */}
             {skillError && (
                 <div
@@ -1134,7 +1134,7 @@ export const BattleVenue3D: React.FC = () => {
                     <SkillPanel
                         selectSkill={selectSkill}
                         useSkill={useSkill}
-                        surrender={surrender}
+                        surrender={close ?? (() => { })}
                         defend={defend}
                         clearGrid={() => gridState.clearAll()}
                         onPedagogyNotify={notifyPedagogyGuide}
