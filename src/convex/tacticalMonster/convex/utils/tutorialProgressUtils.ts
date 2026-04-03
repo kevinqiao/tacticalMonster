@@ -1,6 +1,12 @@
 /** 教学关 tutorialProgress（与前端 pedagogyGuideFlow 一致） */
 import type { TutorialProgressState } from "../types/gameTypes";
-import type { PedagogyGuideEventType, PedagogyGuideStep, StagePedagogy } from "../types/stageRuleTypes";
+import type {
+    DynamicGuideAtom,
+    DynamicGuideCompletionRule,
+    PedagogyGuideEventType,
+    PedagogyGuideStep,
+    StagePedagogy,
+} from "../types/stageRuleTypes";
 
 export type TutorialGuideNotifyEvent = {
     type: PedagogyGuideEventType;
@@ -16,8 +22,47 @@ function matchGuideStep(step: PedagogyGuideStep | undefined, event: TutorialGuid
     return true;
 }
 
-function defaultCompletionSkillId(pedagogy: StagePedagogy | undefined): string {
-    return pedagogy?.dynamicGuideCompletionSkillId ?? "basic_attack";
+/** 单条原子条件是否被本次事件满足 */
+export function matchesDynamicAtom(atom: DynamicGuideAtom, event: TutorialGuideNotifyEvent): boolean {
+    switch (atom.kind) {
+        case "cast_skill":
+            return event.type === "cast" && event.skillId === atom.skillId;
+        case "any_cast":
+            return event.type === "cast" && !!event.skillId;
+        case "move":
+            return event.type === "move";
+        case "turn_end":
+            return event.type === "turnEnd";
+        default:
+            return false;
+    }
+}
+
+function mergeDynamicAll(
+    rules: DynamicGuideAtom[],
+    prev: TutorialProgressState | undefined,
+    event: TutorialGuideNotifyEvent
+): Pick<TutorialProgressState, "dynamicAllProgress" | "dynamicGuideSatisfied"> {
+    const n = rules.length;
+    if (n === 0) {
+        return { dynamicGuideSatisfied: false };
+    }
+    let progress = prev?.dynamicAllProgress;
+    if (!progress || progress.length !== n) {
+        progress = Array(n).fill(false);
+    } else {
+        progress = [...progress];
+    }
+    for (let i = 0; i < n; i++) {
+        if (!progress[i] && matchesDynamicAtom(rules[i], event)) {
+            progress[i] = true;
+        }
+    }
+    const allDone = progress.every(Boolean);
+    return {
+        dynamicAllProgress: progress,
+        dynamicGuideSatisfied: allDone,
+    };
 }
 
 export function mergeTutorialProgress(
@@ -28,17 +73,40 @@ export function mergeTutorialProgress(
     const base: TutorialProgressState = {
         nextGuideStepIndex: prev?.nextGuideStepIndex ?? 0,
         dynamicGuideSatisfied: prev?.dynamicGuideSatisfied ?? false,
+        dynamicAllProgress: prev?.dynamicAllProgress,
     };
     if (!pedagogy) return base;
     const guideFlow = pedagogy.guideFlow;
     const hasLinear = (guideFlow?.length ?? 0) > 0;
+
     if (pedagogy.dynamicGuide && !hasLinear) {
-        if (event.type === "cast" && event.skillId === defaultCompletionSkillId(pedagogy)) {
-            return { ...base, dynamicGuideSatisfied: true };
+        const rule = pedagogy.dynamicGuideRule;
+        if (!rule) {
+            return { ...base, dynamicAllProgress: undefined };
         }
-        return base;
+        if (prev?.dynamicGuideSatisfied) {
+            return base;
+        }
+
+        if (rule.kind === "all") {
+            const merged = mergeDynamicAll(rule.rules, prev, event);
+            return {
+                ...base,
+                dynamicAllProgress: merged.dynamicAllProgress,
+                dynamicGuideSatisfied: merged.dynamicGuideSatisfied,
+            };
+        }
+
+        if (matchesDynamicAtom(rule, event)) {
+            return {
+                ...base,
+                dynamicGuideSatisfied: true,
+                dynamicAllProgress: undefined,
+            };
+        }
+        return { ...base, dynamicAllProgress: undefined };
     }
-    // 无线性步骤且非 dynamic：不推进（避免无 guide 时误匹配）
+
     if (!hasLinear) return base;
     const steps = guideFlow!;
     let idx = base.nextGuideStepIndex ?? 0;
@@ -70,7 +138,6 @@ export function isTutorialGuideComplete(
     if (!pedagogy) return true;
     const hasLinear = (pedagogy.guideFlow?.length ?? 0) > 0;
     if (pedagogy.dynamicGuide && !hasLinear) return progress?.dynamicGuideSatisfied === true;
-    // 未配置 guideFlow / dynamicGuide 时不视为「引导已完成」，否则 guide_only 会在首次胜负检查即判胜
     if (!hasLinear) return false;
     const n = pedagogy.guideFlow!.length;
     const idx = progress?.nextGuideStepIndex ?? 0;

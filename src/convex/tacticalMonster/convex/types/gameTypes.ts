@@ -5,6 +5,8 @@ import type { RewardPolicyType, ScoreTierReward, StageModeType } from "./stageRu
 export interface TutorialProgressState {
     nextGuideStepIndex?: number;
     dynamicGuideSatisfied?: boolean;
+    /** dynamicGuideRule.kind === "all" 时与 rules 等长，每项表示该子条件是否已达成 */
+    dynamicAllProgress?: boolean[];
 }
 
 
@@ -33,8 +35,8 @@ export interface GameModel {
     matchId?: string;
     stageId: string;
     ruleId?: string;  // 关卡规则 ID（用于星级评定等）
-    /** 锦标赛 tournament_types.modeType，开局写入 mr_games */
-    modeType?: StageModeType;
+    /** 与 tournament_types.mode 语义一致，由开局写入 mr_games（旧字段名 modeType 见 getMrGameStageMode） */
+    mode?: StageModeType;
     uid: string;  // 玩家 UID
 
     // ========== 队伍和Boss数据 ==========
@@ -56,6 +58,13 @@ export interface GameModel {
     tutorialProgress?: TutorialProgressState;
     // ========== 运行时字段（不在数据库中，但用于代码逻辑）==========
     currentRound?: GameRound;
+}
+
+/** 从 mr_games 文档读取关卡模式（新字段 `mode`，兼容旧字段 `modeType`） */
+export function getMrGameStageMode(
+    game: { mode?: StageModeType; modeType?: StageModeType }
+): StageModeType | undefined {
+    return game.mode ?? game.modeType;
 }
 
 export interface GameRound {

@@ -8,11 +8,13 @@ import { useCallback, useMemo } from "react";
 import { getSkillConfig, MonsterSkill } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { SkillAnimationSelector } from "../../battle3d/animation/SkillAnimationSelector";
 import { useCombatManager } from "../../service/CombatManager";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import { MonsterSprite } from "../../types/CombatTypes";
 import { SkillEffectType } from "../../types/skillTypes";
 
 const usePlaySkill = () => {
-    const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, groundCells, mapDimension, game, replay } = useCombatManager();
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
     const { map } = game || {};
     const selector = useMemo(() => new SkillAnimationSelector(), []);
 

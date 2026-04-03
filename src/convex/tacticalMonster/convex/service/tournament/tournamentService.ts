@@ -2,10 +2,10 @@ import { v } from "convex/values";
 import {
     getTacticalMonsterRuleIdsFromTournamentConfigs,
     getTournamentConfigByRuleId,
-    resolveTournamentModeType,
+    resolveTournamentMode,
 } from "../../../../tournament/convex/data/tournamentConfigs";
 import { internal } from "../../_generated/api";
-import { action, mutation, query } from "../../_generated/server";
+import { action, query } from "../../_generated/server";
 import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConfig";
 import { getStageRuleConfig, STAGE_RULE_CONFIGS } from "../../data/stageRuleConfigs";
 import type { StageModeType, StageRuleConfig } from "../../types/stageRuleTypes";
@@ -52,21 +52,16 @@ export type TournamentLoadGamePlayMode = "play" | "watch" | "replay";
  */
 export class TournamentService {
     static async loadGame(ctx: any, params: {
-        uid: string;
+
         gameId: string;
         /** 默认 play：play/watch 下若对局已结束则返回 GAME_OVER；replay 允许加载已结束局 */
         playMode?: TournamentLoadGamePlayMode;
     }) {
-        const { uid, gameId } = params;
-        const playMode: TournamentLoadGamePlayMode = params.playMode ?? "play";
+        const { gameId } = params;
+
         const game = await ctx.runQuery((internal as any).service.game.gameService.findGame, { gameId });
         if (game) {
-            if (
-                (playMode === "play" || playMode === "watch") &&
-                isMrGameEnded(game as { status?: number })
-            ) {
-                return { ok: false, errorCode: TacticalMonsterErrorCode.GAME_OVER };
-            }
+
             // 已存在的游戏：检查是否有活跃的玩家 turn，构造 phaseChanges 让前端统一处理
             let phaseChanges: any = undefined;
             const currentRound = (game as any).currentRound;
@@ -115,7 +110,7 @@ export class TournamentService {
 
 
         if (result.ok) {
-            const { tournamentType, stageId } = result.match;
+            const { uid, tournamentType, stageId } = result.match;
             console.log("match result", result.match);
             const gameResult = await ctx.runMutation((internal as any).service.game.gameService.createGame, {
                 uid,
@@ -253,9 +248,9 @@ export class TournamentService {
         stageId: string;
         /** 是否在 mr_player_first_clear 中有通关记录（performance≥2，与解锁链一致） */
         completed: boolean;
-        /** 锦标赛 TournamentConfig.modeType：教学 / 单人挑战 / 多人（无配置时省略） */
-        modeType?: StageModeType;
-        /** modeType 为 solo_challenge 且存在未结束的 mr_games 时返回，便于续战 */
+        /** 锦标赛 TournamentConfig.mode：教学 / 单人挑战 / 多人（无配置时省略） */
+        mode?: StageModeType;
+        /** mode 为 solo_challenge 且存在未结束的 mr_games 时返回，便于续战 */
         gameId?: string;
     }>> {
         const { uid, ruleIds: ruleIdsFilter = [] } = params;
@@ -273,7 +268,7 @@ export class TournamentService {
             unlocked: boolean;
             stageId: string;
             completed: boolean;
-            modeType?: StageModeType;
+            mode?: StageModeType;
             /** solo_challenge：存在进行中的 mr_games 时返回，供前端 loadGame 续战 */
             gameId?: string;
         }> = [];
@@ -281,7 +276,7 @@ export class TournamentService {
         for (const ruleId of targetRuleIds) {
             const ruleConfig = getStageRuleConfig(ruleId);
             const tmCfg = getTournamentConfigByRuleId(ruleId);
-            const modeType = resolveTournamentModeType(tmCfg) as StageModeType | undefined;
+            const mode = resolveTournamentMode(tmCfg) as StageModeType | undefined;
 
             const firstClear = await ctx.db
                 .query("mr_player_first_clear")
@@ -290,7 +285,7 @@ export class TournamentService {
             const completed = !!firstClear && (firstClear.performance ?? 0) >= 2;
 
             const soloOngoingGameId =
-                modeType === "solo_challenge"
+                mode === "solo_challenge"
                     ? await findOngoingGameIdForRule(ctx, uid, ruleId)
                     : undefined;
 
@@ -300,7 +295,7 @@ export class TournamentService {
                     unlocked: false,
                     stageId: "",
                     completed,
-                    ...(modeType !== undefined ? { modeType } : {}),
+                    ...(mode !== undefined ? { mode } : {}),
                     ...(soloOngoingGameId ? { gameId: soloOngoingGameId } : {}),
                 });
                 continue;
@@ -341,7 +336,7 @@ export class TournamentService {
                 unlocked,
                 stageId,
                 completed,
-                ...(modeType !== undefined ? { modeType } : {}),
+                ...(mode !== undefined ? { mode } : {}),
                 ...(soloOngoingGameId ? { gameId: soloOngoingGameId } : {}),
             });
         }
@@ -351,11 +346,7 @@ export class TournamentService {
 }
 export const loadGame = action({
     args: {
-        uid: v.string(),
-        gameId: v.string(),
-        playMode: v.optional(
-            v.union(v.literal("play"), v.literal("watch"), v.literal("replay"))
-        ),
+        gameId: v.string()
     },
     handler: async (ctx: any, args: any) => {
         const result = await TournamentService.loadGame(ctx, args);

@@ -4,7 +4,7 @@
  * 重要说明：
  * - playerLevel: 玩家等级要求，在 EntryRequirements 中配置
  * - Power 范围（minTeamPower/maxTeamPower）在 GameRuleConfig.unlockConditions 中配置
- * - TacticalMonster：matchRules.ruleId；modeType 在 TournamentConfig 顶层（与 tournament_types.modeType 一致）
+ * - TacticalMonster：matchRules.ruleId；mode 在 TournamentConfig 顶层（与 tournament_types.mode 一致）
  * - gameRule：旧版 Convex 文档可选保留；新配置使用 matchRules
  * - 单人关卡：当 matchRules.minPlayers === 1 && maxPlayers === 1 时，表示单人关卡
  *   单人关卡可以配置关卡进度、解锁条件、首次通关奖励等特殊属性
@@ -20,7 +20,9 @@ export interface TournamentConfig {
     /** @deprecated 新数据写入 matchRules；保留以兼容旧文档 */
     gameRule?: GameRule;
     isActive: boolean;
-    /** TacticalMonster 等：tutorial / solo_challenge / multiplayer_tournament（与 tournament_types.modeType 一致） */
+    /** TacticalMonster 等：tutorial / solo_challenge / multiplayer_tournament（与 tournament_types.mode 一致） */
+    mode?: TournamentModeType;
+    /** @deprecated 旧字段名，与 mode 同义 */
     modeType?: TournamentModeType;
     // 参赛条件
     entryRequirements?: EntryRequirements;
@@ -102,16 +104,23 @@ export interface MatchRules {
 }
 
 /**
- * 读取关卡模式：优先顶层 `TournamentConfig.modeType`，兼容旧版 `matchRules.modeType` 与 DB 历史行。
+ * 读取关卡模式：优先顶层 `TournamentConfig.mode`，兼容旧字段 modeType、matchRules.mode / matchRules.modeType。
  */
-export function resolveTournamentModeType(
+export function resolveTournamentMode(
     config: TournamentConfig | undefined | null
 ): TournamentModeType | undefined {
     if (!config) return undefined;
+    if (config.mode) return config.mode;
     if (config.modeType) return config.modeType;
-    const legacy = (config.matchRules as unknown as { modeType?: TournamentModeType }).modeType;
-    return legacy;
+    const mr = config.matchRules as unknown as {
+        mode?: TournamentModeType;
+        modeType?: TournamentModeType;
+    };
+    return mr?.mode ?? mr?.modeType;
 }
+
+/** @deprecated 使用 resolveTournamentMode */
+export const resolveTournamentModeType = resolveTournamentMode;
 
 /**
  * 宝箱类型权重配置
@@ -261,7 +270,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -306,7 +315,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -338,7 +347,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -370,7 +379,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -402,7 +411,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 6 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -438,7 +447,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -474,7 +483,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -506,7 +515,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -538,7 +547,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -570,7 +579,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 7 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -606,7 +615,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -642,7 +651,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -674,7 +683,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -706,7 +715,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -738,7 +747,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 31, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 8 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -774,7 +783,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -810,7 +819,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -842,7 +851,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -874,7 +883,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -906,7 +915,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 51, // 玩家等级要求（需根据实际需求调整）
             entryFee: { coins: 0, energy: 10 },
         },
-        modeType: "tutorial",
+        mode: "tutorial",
 
         matchRules: {
             minPlayers: 1,
@@ -944,7 +953,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1,
             entryFee: { coins: 0, energy: 8 },
         },
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,
@@ -975,7 +984,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1,
             entryFee: { coins: 0, energy: 10 },
         },
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,
@@ -1009,7 +1018,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 1,
             entryFee: { coins: 0, energy: 10 },
         },
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,
@@ -1050,7 +1059,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             playerLevel: 11,
             entryFee: { coins: 0, energy: 20 },
         },
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,
@@ -1094,7 +1103,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,  // ✅ 单人关卡标识
@@ -1143,7 +1152,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,
@@ -1188,7 +1197,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,
@@ -1229,7 +1238,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,
@@ -1271,7 +1280,7 @@ export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
             },
         },
 
-        modeType: "solo_challenge",
+        mode: "solo_challenge",
 
         matchRules: {
             minPlayers: 1,
@@ -1328,13 +1337,20 @@ function convertToSchemaFormat(config: any): TournamentConfig {
     delete converted.stageRule; // 兼容旧版本的 stageRule
     delete converted.priority; // schema 中无此字段
 
-    const mr = converted.matchRules as { modeType?: TournamentModeType } | undefined;
-    if (mr?.modeType && !converted.modeType) {
-        converted.modeType = mr.modeType;
+    const mr = converted.matchRules as {
+        mode?: TournamentModeType;
+        modeType?: TournamentModeType;
+    } | undefined;
+    if (mr?.mode && !converted.mode) {
+        converted.mode = mr.mode;
     }
-    if (converted.matchRules && typeof converted.matchRules === "object" && "modeType" in (converted.matchRules as object)) {
+    if (mr?.modeType && !converted.mode) {
+        converted.mode = mr.modeType;
+    }
+    if (converted.matchRules && typeof converted.matchRules === "object") {
         const mrClean = { ...(converted.matchRules as Record<string, unknown>) };
         delete mrClean.modeType;
+        delete mrClean.mode;
         converted.matchRules = mrClean as unknown as MatchRules;
     }
 
@@ -1375,7 +1391,7 @@ export function getTacticalMonsterRuleIdsFromTournamentConfigs(): string[] {
 }
 
 /**
- * 按关卡 ruleId 解析锦标赛配置（用于 modeType 等）
+ * 按关卡 ruleId 解析锦标赛配置（用于 mode 等）
  */
 export function getTournamentConfigByRuleId(ruleId: string): TournamentConfig | undefined {
     for (const raw of TOURNAMENT_CONFIGS) {

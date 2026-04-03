@@ -46,10 +46,18 @@ export const getPlayerChests = query({
             .withIndex("by_uid_status", (q: any) => q.eq("uid", args.uid).eq("status", "ready"))
             .collect();
 
+        const queueRows = await ctx.db
+            .query("mr_chest_queue")
+            .withIndex("by_uid", (q: any) => q.eq("uid", args.uid))
+            .collect();
+
+        queueRows.sort((a: any, b: any) => a._creationTime - b._creationTime);
+
         return {
             waiting: waitingChests,
             opening: openingChests,
             ready: readyChests,
+            queue: queueRows,
         };
     },
 });

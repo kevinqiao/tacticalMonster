@@ -41,6 +41,15 @@ export interface PedagogyGuideStep {
 /** 教学关胜利条件（与后端 tutorialWinMode 一致） */
 export type TutorialWinMode = "boss_only" | "boss_and_guide" | "guide_only";
 
+/** 与 convex 一致 */
+export type DynamicGuideAtom =
+    | { kind: "cast_skill"; skillId: string }
+    | { kind: "any_cast" }
+    | { kind: "move" }
+    | { kind: "turn_end" };
+
+export type DynamicGuideCompletionRule = DynamicGuideAtom | { kind: "all"; rules: DynamicGuideAtom[] };
+
 /**
  * 教学 / 难度阶梯元数据（P/B 轴），与 docs/pedagogy_stage_matrix.md 对齐
  */
@@ -66,8 +75,8 @@ export interface StagePedagogy {
      * 新手关优先用 guideFlow（与后端 tutorialProgress 步进一致）。
      */
     dynamicGuide?: boolean;
-    /** dynamicGuide 完成时要求的技能（默认 basic_attack） */
-    dynamicGuideCompletionSkillId?: string;
+    /** 与 dynamicGuide 同时使用且无 guideFlow 时必填 */
+    dynamicGuideRule?: DynamicGuideCompletionRule;
     /** 默认 boss_only */
     tutorialWinMode?: TutorialWinMode;
 }

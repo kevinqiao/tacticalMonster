@@ -49,6 +49,25 @@
     text-align: center;
 }
 
+.tournament-list-item-unlock {
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.tournament-list-item-unlock--yes {
+    background: rgba(80, 160, 255, 0.35);
+    border: 1px solid rgba(160, 210, 255, 0.55);
+    color: #e8f2ff;
+}
+
+.tournament-list-item-unlock--no {
+    background: rgba(120, 120, 120, 0.35);
+    border: 1px solid rgba(180, 180, 180, 0.45);
+    color: #ddd;
+}
+
 .tournament-list-item-badge {
     font-size: 12px;
     padding: 2px 10px;

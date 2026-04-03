@@ -67,7 +67,7 @@ export const testBatchSubmitScore = (mutation as any)({
     args: {},
     handler: async (ctx: any) => {
         const playerMatches = await ctx.db.query("player_matches").collect();
-        playerMatches.filter((match: any) => !match.completed).forEach(async (match: any, index: number) => {
+        playerMatches.filter((match: any) => match.status !== "settled").forEach(async (match: any, index: number) => {
             const score = Math.floor(Math.random() * 1000);
             const scores = [{ uid: match.uid, gameId: match.gameId, score, gameData: {} }]
             await MatchManager.submitScore(ctx, { scores });

@@ -10,11 +10,9 @@ import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { useGameReplay } from "../battle/hooks/useGameReplay";
-import { useWatchMode } from "../battle/hooks/useWatchMode";
 import { getCharacterKey } from "../battle3d/utils/battle3DAdapter";
-import type { GameModel } from "../types/CombatTypes";
+import type { GameModel, TurnOrderBarSprite } from "../types/CombatTypes";
 import {
-    FrontendCombatEvent,
     GameMode,
     GridCellSprite,
     MonsterSprite,
@@ -28,9 +26,12 @@ import {
     normalizeTurnRound,
     type TurnActor,
 } from "../utils/normalizeTurnRound";
+import type { TurnBarPhaseEvent, TurnBarQueuedEvent } from "../utils/turnBarQueueUtils";
 import { enqueueIfNotDuplicate, getPhaseEventKey } from "../utils/turnBarQueueUtils";
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
-import type { TurnBarPhaseEvent, TurnBarQueuedEvent } from "../utils/turnBarQueueUtils";
+import { useInitialPhaseChangesGate } from "./hooks/useInitialPhaseChangesGate";
+import type { MapDimension } from "./TeamDeployManager";
+import { useMapDimension } from "./useMapDimension";
 
 /** 服务端快照写入 runtime 前浅拷贝 turns，避免与后续 mutate 共享引用 */
 function cloneGameRoundForSync(round: GameRound): GameRound {
@@ -39,9 +40,6 @@ function cloneGameRoundForSync(round: GameRound): GameRound {
         turns: round.turns.map((t) => ({ ...t })),
     };
 }
-import { useInitialPhaseChangesGate } from "./hooks/useInitialPhaseChangesGate";
-import type { MapDimension } from "./TeamDeployManager";
-import { useMapDimension } from "./useMapDimension";
 
 export type TurnRoundData =
     | NonNullable<PhaseChanges["roundStart"]>
@@ -68,9 +66,6 @@ export interface ICombatContext {
     groundCells: GridCellSprite[][] | null;
     obstacleSprites?: ObstacleSprite[];
     characters?: MonsterSprite[];
-    eventQueue: FrontendCombatEvent[];
-
-    processedEvents?: FrontendCombatEvent[];  // Watch 模式：已处理的事件列表（用于实时计算分数）
 
     /** 由 CombatManager 通过 useMapDimension 测量容器得到，供 2D/3D 视图与动画使用 */
     mapDimension: MapDimension | null;
@@ -79,7 +74,6 @@ export interface ICombatContext {
     // containerRef: React.RefObject<HTMLDivElement | null>;
     mode?: GameMode;
     replay?: ReplayControls;
-    playbackSpeed?: number;
     // ✅ 初始 phaseChanges 由各视图层（2D/3D）自行处理
     initialPhaseChanges?: PhaseChanges;
     /** 初始 phaseChanges 处理门：markProcessed 标记已处理，isProcessed 检查 */
@@ -90,6 +84,8 @@ export interface ICombatContext {
     phaseChangeEventQueueRef: React.MutableRefObject<TurnBarQueuedEvent[]>;
     /** init 门控：入队过 init 的 gameKey，供 TurnOrderBar 消费前判断 */
     initQueuedGameKeyRef: React.MutableRefObject<string | null>;
+    /** 先攻条 DOM + 状态（TurnOrderBar 写入；换局时清空） */
+    turnOrderBarSpriteRef: React.MutableRefObject<TurnOrderBarSprite | null>;
     addPhaseChangeEvent: (
         payload: TurnRoundPayload,
         options?: { unshift?: boolean; authoritativeRound?: boolean }
@@ -108,16 +104,15 @@ export const CombatContext = createContext<ICombatContext>({
     updateRuntimeGame: undefined,
     groundCells: [],
     obstacleSprites: [],
-    eventQueue: [],
     mapDimension: null,
     // setMapDimension: () => null,
     // containerRef: { current: null },
     mode: 'play',
-    playbackSpeed: 1.0,
     initialPhaseChangesGate: { markProcessed: () => { }, isProcessed: () => false },
     gameOverEvent: undefined,
     phaseChangeEventQueueRef: { current: [] },
     initQueuedGameKeyRef: { current: null },
+    turnOrderBarSpriteRef: { current: null },
     addPhaseChangeEvent: () => { },
     activeCharacterKey: null,
     setActiveCharacterKey: () => { },
@@ -153,7 +148,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     initialPhaseChanges,
 }) => {
 
-    const eventQueueRef: React.MutableRefObject<FrontendCombatEvent[]> = useRef<FrontendCombatEvent[]>([]);
     const { containerRef, mapDimension } = useMapDimension();
 
     // runtimeGame: 运行时 game 状态，phase 变化由此单一写入，避免多处 mutation 导致状态漂移
@@ -186,29 +180,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     // 2. 创建 GameReplayManager 实例
     // 3. 提供播放控制方法（play/pause/stop/seekTo/setSpeed）
     const replay = useGameReplay(game?.gameId || null, mode);
-
-    // ✅ Watch 模式：处理实时事件查询和收集
-    const { processedEvents } = useWatchMode({
-        gameId: game?.gameId,
-        mode,
-        eventQueueRef
-    });
-
-    // ✅ 设置重播事件处理回调：将重播事件注入到 eventQueue
-    // 当 GameReplayManager 播放事件时，会调用此回调
-    // 回调将事件推入 eventQueue，由 useEventHandler 轮询处理
-    useEffect(() => {
-        if (mode === 'replay' && replay.setOnEventProcessed) {
-            replay.setOnEventProcessed((event: FrontendCombatEvent) => {
-                // 将重播事件注入到事件队列
-                // 注意：这里直接推入队列，不触发 React 重新渲染
-                // 事件处理由 useEventHandler 的轮询机制负责
-                eventQueueRef.current.push(event);
-            });
-        }
-    }, [mode, replay]);
-
-
 
     const characters = useMemo(() => {
         if (!effectiveGame?.team || !effectiveGame?.boss) return [];
@@ -246,16 +217,17 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     const [gameOverEvent, setGameOverEvent] = useState<TurnRoundPayload | undefined>(undefined);
     const phaseChangeEventQueueRef = useRef<TurnBarQueuedEvent[]>([]);
     const initQueuedGameKeyRef = useRef<string | null>(null);
+    const turnOrderBarSpriteRef = useRef<TurnOrderBarSprite | null>(null);
 
     const addPhaseChangeEvent = useCallback(
         (
             payload: TurnRoundPayload,
             options?: { unshift?: boolean; authoritativeRound?: boolean }
         ) => {
-            if (payload.name === "gameOver") {
-                setGameOverEvent(payload);
-                return;
-            }
+            // if (payload.name === "gameOver") {
+            //     setGameOverEvent(payload);
+            //     return;
+            // }
             if (!effectiveGame && payload.name !== "init") return;
 
             const { name, data } = payload;
@@ -342,6 +314,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     useEffect(() => {
         if (effectiveGame?.gameId == null || effectiveGame?.gameId === "") {
             initQueuedGameKeyRef.current = null;
+            turnOrderBarSpriteRef.current = null;
         }
     }, [effectiveGame?.gameId]);
 
@@ -415,8 +388,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         groundCells,
         obstacleSprites,
         characters: characters || [],
-        eventQueue: eventQueueRef.current,
-        processedEvents: mode === 'watch' ? processedEvents : undefined,
         mapDimension,
         // setMapDimension,
         // containerRef,
@@ -426,6 +397,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         gameOverEvent,
         phaseChangeEventQueueRef,
         initQueuedGameKeyRef,
+        turnOrderBarSpriteRef,
         addPhaseChangeEvent,
         activeCharacterKey,
         setActiveCharacterKey,
@@ -443,9 +415,8 @@ const CombatManager: React.FC<CombatManagerProps> = ({
             setSpeed: replay.setSpeed,   // 设置播放速度（0.5x, 1x, 2x）
             state: replay.replayState,   // 重播状态（isPlaying, currentIndex, totalEvents 等）
             getAllEvents: replay.getAllEvents,  // ✅ 获取所有事件（用于计分）
+            setOnEventProcessed: replay.setOnEventProcessed,
         } : undefined,
-        // ✅ 回放速度（用于同步动画速度）
-        playbackSpeed: mode === 'replay' ? (replay?.replayState?.playbackSpeed ?? 1.0) : 1.0,
     };
 
     return (

@@ -1,5 +1,5 @@
 import { Id } from "../../_generated/dataModel";
-import { getTournamentConfig } from "../../data/tournamentConfigs";
+import { getTournamentConfig, resolveTournamentMode } from "../../data/tournamentConfigs";
 import { TimeZoneUtils } from "../../util/TimeZoneUtils";
 import { TournamentErrorCode } from "./errorCodes";
 
@@ -254,6 +254,28 @@ export enum MatchStatus {
     COMPLETED = 1,
     CANCELLED = 2
 }
+
+/** player_matches.status：对局进行中 / 已交分待全场结算 / 已结算排名 */
+export const PlayerMatchStatus = {
+    open: "open",
+    finished: "finished",
+    settled: "settled",
+} as const;
+
+export function playerMatchModeFromTournamentTypeDoc(tournamentTypeDoc: any): "tutorial" | "solo_tournament" | "multiplayer_tournament" {
+    const cfg = getTournamentConfig(tournamentTypeDoc.typeId);
+    const mr = tournamentTypeDoc.matchRules as { mode?: string; modeType?: string } | undefined;
+    const mode =
+        resolveTournamentMode(cfg) ??
+        tournamentTypeDoc.mode ??
+        tournamentTypeDoc.modeType ??
+        mr?.mode ??
+        mr?.modeType;
+    if (mode === "tutorial") return "tutorial";
+    if (mode === "multiplayer_tournament") return "multiplayer_tournament";
+    return "solo_tournament";
+}
+
 export interface JoinResult {
     tournamentId: string;
     attemptNumber: number;
@@ -402,7 +424,13 @@ export async function joinMatch(ctx: any, params: {
             await ctx.db.insert("player_matches", {
                 matchId,
                 uid,
+                tournamentId: match.tournamentId,
                 tournamentType: match.tournamentType,
+                gameType: match.gameType,
+                mode: tournamentType ? playerMatchModeFromTournamentTypeDoc(tournamentType) : "multiplayer_tournament",
+                score: 0,
+                rank: -1,
+                status: PlayerMatchStatus.open,
                 createdAt: nowISO,
                 updatedAt: nowISO,
             });

@@ -2,24 +2,19 @@
  * 回合顺序条（先攻条）- Braveland 式全局排序展示
  * 左下角横排；展示 monsterId、血条、攻击范围；
  * 最左侧永远为当前 turn；完成时左移消失后在序列最右侧重新出现。
- * 动画由 GSAP 驱动，支持 playbackSpeed 同步。
+ * 动画由 GSAP 驱动；phase 队列消费见 BattleVenue3D 中的 usePhaseChangeEventHandler。
  */
 
-import gsap from "gsap";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useCombatManager } from "../../../service/CombatManager";
-import type { QueueableTurnBarEventName, TurnBarPhaseEvent } from "../../../utils/turnBarQueueUtils";
-import { usePlayTurnBar } from "../../animation/usePlayTurnBar";
+import type { GameModel, TurnOrderBarSprite } from "../../../types/CombatTypes";
 import { SeparatorSprite } from "./SeparatorSprite";
-import { TurnItemSprite } from "./TurnItemSprite";
+import { TurnItem } from "./TurnItem";
+import { computeTurnBarDimension } from "./turnBarLayout";
 
-export type TurnBarDimension = {
-    itemWidth: number;
-    itemHeight: number;
-    separatorWidth: number;
-};
+export type { TurnBarDimension } from "./turnBarLayout";
 
-export type TurnBarItem = {
+export type TurnBarItemSprite = {
     character_id: string;
     index?: number;
     ele?: HTMLDivElement;
@@ -27,117 +22,49 @@ export type TurnBarItem = {
     order?: number;
     turnKey?: string;
 };
-const getSeparatorIndexFromRound = (round: any): number => {
-    const size = round?.turns?.length ?? 0;
-    const todos = round?.turns
-        ?.filter((turn: any) => turn.status !== 2)
-        .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
-    return (todos?.length === 0 || todos?.length === size) ? size : (todos?.length ?? 0);
+
+const getSeparatorIndexFromRound = (round: unknown): number => {
+    const r = round as { turns?: { status?: number; order?: number }[] } | undefined;
+    const size = r?.turns?.length ?? 0;
+    const todos = r?.turns
+        ?.filter((turn) => turn.status !== 2)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    return todos?.length === 0 || todos?.length === size ? size : (todos?.length ?? 0);
 };
+
+function ensureTurnOrderBarSprite(
+    ref: React.MutableRefObject<TurnOrderBarSprite | null>,
+    game: GameModel | null | undefined
+): TurnOrderBarSprite {
+    if (!ref.current) {
+        ref.current = {
+            ele: null,
+            itemsMap: new Map(),
+            separator: {
+                ele: null,
+                txtEle: null,
+                nextRound: (game?.currentRound?.no ?? 0) + 1,
+                index: getSeparatorIndexFromRound(game?.currentRound),
+            },
+        };
+    }
+    return ref.current;
+}
+
 export const TurnOrderBar: React.FC = () => {
-    const { game, mapDimension, phaseChangeEventQueueRef, initQueuedGameKeyRef, characters, mode, playbackSpeed = 1.0 } = useCombatManager();
-    const initProcessedRef = useRef(false);
+    const { game, mapDimension, turnOrderBarSpriteRef, characters } = useCombatManager();
 
-    const timelineRef = useRef<gsap.core.Timeline | null>(null);
-    const turnBarItemsMapRef = useRef<Map<string, TurnBarItem>>(new Map());
-    const [separator, setSeparator] = useState<{ ele: HTMLDivElement | null, txtEle: HTMLDivElement | null, nextRound: number, index: number }>({
-        ele: null,
-        txtEle: null,
-        nextRound: (game?.currentRound?.no ?? 0) + 1,
-        index: getSeparatorIndexFromRound(game?.currentRound),
-    });
-    const dimension = useMemo(() => {
-        if (!mapDimension) return null;
-        const w = mapDimension.containerWidth / (8 + 1 + 0.5);
-        const h = w * 1.2;
-        const dh = ((mapDimension.containerHeight - mapDimension.height) / 2) + (mapDimension.topOffset ?? 0) - 10;
-        const itemHeight = Math.min(dh, h);
-        const itemWidth = itemHeight / 1.2;
-        const separatorWidth = itemWidth * 0.3;
-        return { itemWidth, itemHeight, separatorWidth };
-    }, [mapDimension]);
+    const dimension = useMemo(() => computeTurnBarDimension(mapDimension), [mapDimension]);
 
-    const trackRef = useRef<HTMLDivElement | null>(null);
-
-    const { playInitTurn, playStartTurn, playStartRound } = usePlayTurnBar({
-        dimension,
-        itemsMapRef: turnBarItemsMapRef,
-        separator,
-        trackRef,
-        playbackSpeed,
-    });
-
-    // 依赖布局的回合事件：未为本局入队过 init 前不消费，避免先执行 turnStart 再 init 导致高亮错位
-    const requiresLayoutEventNames: QueueableTurnBarEventName[] = ["turnStart", "roundStart"];
-    const headRequiresLayout = (evt: TurnBarPhaseEvent | undefined) =>
-        evt && (requiresLayoutEventNames as string[]).includes(evt.name);
+    ensureTurnOrderBarSprite(turnOrderBarSpriteRef, game);
+    const separator = turnOrderBarSpriteRef.current!.separator;
 
     useEffect(() => {
-        const processEvent = () => {
-            const queue = phaseChangeEventQueueRef.current;
-            const timelineActive = timelineRef.current !== null && timelineRef.current.isActive();
-            if (queue.length === 0 || timelineActive) return;
+        const root = ensureTurnOrderBarSprite(turnOrderBarSpriteRef, game);
+        root.separator.nextRound = (game?.currentRound?.no ?? 0) + 1;
+        root.separator.index = getSeparatorIndexFromRound(game?.currentRound);
+    }, [game?.gameId, game?.currentRound?.no, turnOrderBarSpriteRef, game]);
 
-            const turn = queue[0];
-            if (turn.status === 0 && headRequiresLayout(turn.phaseChangeEvent) && initQueuedGameKeyRef.current === null) {
-                return;
-            }
-            if (turn.status === 2) {
-                if (turn.phaseChangeEvent.name === "init") {
-                    initProcessedRef.current = true;
-                }
-                queue.shift();
-                return;
-            }
-
-            if (turn.status !== 0) return;
-
-            console.log("event:", turn.phaseChangeEvent);
-            turn.status = 1;
-            timelineRef.current = gsap.timeline({
-                onComplete: () => {
-                    console.log("timeline complete");
-                    timelineRef.current = null;
-                },
-            });
-
-            const completeImmediately = () => {
-                turn.status = 2;
-                timelineRef.current?.play();
-            };
-
-            switch (turn.phaseChangeEvent.name) {
-                case "init":
-                    playInitTurn(turn, timelineRef.current);
-                    return;
-                case "turnStart": {
-
-                    playStartTurn(turn, timelineRef.current);
-                    return;
-                }
-                case "turnEnd":
-                    console.log("turn end", turn.phaseChangeEvent);
-                    completeImmediately();
-                    return;
-                case "roundEnd":
-                    console.log("round end", turn.phaseChangeEvent);
-                    completeImmediately();
-                    return;
-                case "roundStart":
-                    console.log("round start", turn.phaseChangeEvent);
-                    playStartRound(turn, timelineRef.current);
-                    return;
-                default:
-                    completeImmediately();
-                    return;
-            }
-        };
-        processEvent();
-        const intervalId = setInterval(processEvent, 100);
-        return () => clearInterval(intervalId);
-    }, [mode, playInitTurn, playStartTurn, playStartRound]);
-
-    // 容器高度需留出 1.2 缩放空间，避免最左侧当前回合元素放大后被 overflow 裁剪
     const containerHeight = dimension ? dimension.itemHeight * 1.2 : 1;
     return (
         <div
@@ -148,17 +75,27 @@ export const TurnOrderBar: React.FC = () => {
             }}
         >
             <div
-                ref={trackRef}
-                style={{ position: "absolute", left: 0, bottom: 0, width: "100%", height: containerHeight, overflow: "visible" }}
+                ref={(el) => {
+                    const root = turnOrderBarSpriteRef.current ?? ensureTurnOrderBarSprite(turnOrderBarSpriteRef, game);
+                    root.ele = el;
+                }}
+                style={{
+                    position: "absolute",
+                    left: 0,
+                    bottom: 0,
+                    width: "100%",
+                    height: containerHeight,
+                    overflow: "visible",
+                }}
             >
-                {characters?.map((char, index) =>
-                    <TurnItemSprite
+                {characters?.map((char) => (
+                    <TurnItem
                         key={char.character_id}
                         character={char}
-                        itemsMapRef={turnBarItemsMapRef}
+                        turnOrderBarSpriteRef={turnOrderBarSpriteRef}
                         dimension={dimension}
                     />
-                )}
+                ))}
                 <SeparatorSprite dimension={dimension} separator={separator} />
             </div>
         </div>

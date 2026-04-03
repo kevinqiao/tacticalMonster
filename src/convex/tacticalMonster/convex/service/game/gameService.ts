@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
-import { CharacterIdentifier, CombatEvent, GameModel, GameReport, GameStatus, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
+import { CharacterIdentifier, CombatEvent, GameModel, GameStatus, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
 import { CharacterPositionService } from "./characterPositionService";
 import { CharacterQueryService } from "./characterQueryService";
@@ -441,16 +441,6 @@ export class GameService implements CharacterGetter {
     }
 
     /**
-     * 游戏结束
-     * 委托给 GameScoreService
-     * @param gameId 游戏ID
-     * @returns GameReport 或 null（如果失败）
-     */
-    async gameOver(gameId: string): Promise<GameReport | null> {
-        return await this.gameScoreService.gameOver(gameId);
-    }
-
-    /**
      * 检查并更新游戏状态
      * 委托给 GameScoreService
      */
@@ -621,18 +611,6 @@ export const getGameStatus = query({
         const gameManager = new GameService(ctx);
         const game = await gameManager.load(gameId);
         return { status: game?.status ?? -1 };
-    },
-});
-
-export const gameOver = mutation({
-    args: { gameId: v.string() },
-    handler: async (ctx, { gameId }) => {
-        const gameManager = new GameService(ctx);
-        const report = await gameManager.gameOver(gameId);
-        if (report) {
-            return { ok: true, data: report };
-        }
-        return { ok: false };
     },
 });
 

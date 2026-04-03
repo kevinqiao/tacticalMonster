@@ -11,7 +11,9 @@ export interface TournamentConfig {
     timeRange?: string;
     gameType?: GameName;
     isActive: boolean;
-    /** TacticalMonster 等：tutorial / solo_challenge / multiplayer_tournament */
+    /** TacticalMonster 等：tutorial / solo_challenge / multiplayer_tournament（与 tournament_types.mode 一致） */
+    mode?: TournamentModeType;
+    /** @deprecated 旧字段名，与 mode 同义 */
     modeType?: TournamentModeType;
     entryRequirements?: EntryRequirements;
     matchRules: MatchRules;

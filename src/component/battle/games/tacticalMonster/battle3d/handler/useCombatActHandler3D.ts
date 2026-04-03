@@ -8,6 +8,7 @@ import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
 import { useScoreCalculation } from "../../battle/hooks/useScoreCalculation";
 import { useCombatManager } from "../../service/CombatManager";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
 import { usePlaySkillSelect3D } from "../animation/usePlaySkillSelect3D";
 import { usePlayWalk3D } from "../animation/usePlayWalk3D";
@@ -25,7 +26,6 @@ import type { PedagogyGuideNotifyEvent } from "../../utils/pedagogyGuideFlow";
 interface UseCombatActHandler3DOptions {
     gridState: UseBattleGridStateReturn | null;
     mapDimension: BattleMapDimension | null;
-    playbackSpeed?: number;
     /** 技能失败时额外回调（用于显示 toast 等用户可见提示） */
     onSkillError?: (message: string) => void;
     /** 教学 guideFlow 与技能栏 / 自动选技 同步 */
@@ -33,12 +33,13 @@ interface UseCombatActHandler3DOptions {
 }
 
 const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
-    const { gridState, mapDimension, playbackSpeed = 1.0, onSkillError, onPedagogyNotify } = options;
+    const { gridState, mapDimension, onSkillError, onPedagogyNotify } = options;
+    const { game, characters, groundCells, mode = "play", replay } = useCombatManager();
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
     const { playSkillSelect } = usePlaySkillSelect3D();
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
     const { playWalk } = usePlayWalk3D({ mapDimension, playbackSpeed });
     const { user } = useUserManager();
-    const { game, characters, groundCells, mode = "play" } = useCombatManager();
     const convex = useConvex();
     const { openModal } = useModalManager();
 
@@ -46,7 +47,6 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
     const { handlePhaseChanges, refreshWalkableFromPosition } = usePhaseChangesHandler3D({
         gridState,
         mapDimension,
-        playbackSpeed,
     });
     const { handlePassiveSkillAnimations } = usePassiveSkillAnimations(characters ?? [], playSkill);
 

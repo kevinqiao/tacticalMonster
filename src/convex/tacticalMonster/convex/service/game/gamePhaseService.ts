@@ -622,9 +622,14 @@ export class GamePhaseService {
             if (currentTurn.uid !== "boss") {
                 const g = await this.lifecycleService.load(gameId);
                 if (g) {
-                    await TutorialProgressService.recordEvent(gameId, this.lifecycleService, this.scoreService, g, {
-                        type: "turnEnd",
-                    });
+                    await TutorialProgressService.recordEvent(
+                        gameId,
+                        this.lifecycleService,
+                        this.scoreService,
+                        g,
+                        { type: "turnEnd" },
+                        { skipCheckGameStatus: true }
+                    );
                 }
             }
         }

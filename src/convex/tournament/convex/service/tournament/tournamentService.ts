@@ -1,10 +1,11 @@
 import { v } from "convex/values";
 import { Id } from "../../_generated/dataModel";
 import { internalMutation, mutation, query } from "../../_generated/server";
-import { getTournamentConfig, resolveTournamentModeType, TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
+import { getTournamentConfig, TOURNAMENT_CONFIGS } from "../../data/tournamentConfigs";
 import {
     collectRewards,
     getPlayerAttempts,
+    playerMatchModeFromTournamentTypeDoc,
     settleTournament,
     TournamentStatus,
     validateJoinTournament
@@ -12,44 +13,32 @@ import {
 import { TournamentErrorCode } from "./errorCodes";
 import { MatchManager } from "./matchManager";
 
-/** `player_matches.type` 与 `tournament_types.modeType` 对齐（schema 不含 "solo"） */
-function playerMatchTypeFromTournamentTypeDoc(tournamentTypeDoc: any): "tutorial" | "solo_tournament" | "multiplayer_tournament" {
-    const cfg = getTournamentConfig(tournamentTypeDoc.typeId);
-    const mode =
-        resolveTournamentModeType(cfg) ??
-        tournamentTypeDoc.modeType ??
-        (tournamentTypeDoc.matchRules as { modeType?: string } | undefined)?.modeType;
-    if (mode === "tutorial") return "tutorial";
-    if (mode === "multiplayer_tournament") return "multiplayer_tournament";
-    return "solo_tournament";
-}
-
 /**
- * 统一锦标赛服务
+ * ç»Ÿä¸€é”¦æ ‡èµ›æœåŠ¡
  * 
- * 支持单人和多人锦标赛，使用远程游戏服务器
+ * æ”¯æŒå•äººå’Œå¤šäººé”¦æ ‡èµ›ï¼Œä½¿ç”¨è¿œç¨‹æ¸¸æˆæœåŠ¡å™¨
  * 
- * 新配置系统说明：
- * - 奖励配置从 TournamentConfig 读取（包括 rankRewards 和 performanceRewards）
- * - 单人关卡（minPlayers === 1 && maxPlayers === 1）支持 firstClearRewards
- * - 宝箱配置（chestTypeWeights）在 rankRewards 或 performanceRewards.levelRewards 中配置
- * - 限制配置支持 maxAttempts、attemptCost 和 unlimitedAttempts
+ * æ–°é…ç½®ç³»ç»Ÿè¯´æ˜Žï¼š
+ * - å¥–åŠ±é…ç½®ä»Ž TournamentConfig è¯»å–ï¼ˆåŒ…æ‹¬ rankRewards å’Œ performanceRewardsï¼‰
+ * - å•äººå…³å¡ï¼ˆminPlayers === 1 && maxPlayers === 1ï¼‰æ”¯æŒ firstClearRewards
+ * - å®ç®±é…ç½®ï¼ˆchestTypeWeightsï¼‰åœ¨ rankRewards æˆ– performanceRewards.levelRewards ä¸­é…ç½®
+ * - é™åˆ¶é…ç½®æ”¯æŒ maxAttemptsã€attemptCost å’Œ unlimitedAttempts
  * 
- * 非周期性的锦标赛("total"): 都是单场比赛(single_match)
- * 周期性的锦标赛(周期性的类型：daily、weekly、seasonal): 可以包含(single_match、multi_match、best_of_series、elimination)
+ * éžå‘¨æœŸæ€§çš„é”¦æ ‡èµ›("total"): éƒ½æ˜¯å•åœºæ¯”èµ›(single_match)
+ * å‘¨æœŸæ€§çš„é”¦æ ‡èµ›(å‘¨æœŸæ€§çš„ç±»åž‹ï¼šdailyã€weeklyã€seasonal): å¯ä»¥åŒ…å«(single_matchã€multi_matchã€best_of_seriesã€elimination)
  */
 export class TournamentService {
     /**
-     * 加载锦标赛配置到数据库
+     * åŠ è½½é”¦æ ‡èµ›é…ç½®åˆ°æ•°æ®åº“
      * 
-     * @param options.replaceExisting - 是否替换已存在的配置（默认 false）
+     * @param options.replaceExisting - æ˜¯å¦æ›¿æ¢å·²å­˜åœ¨çš„é…ç½®ï¼ˆé»˜è®¤ falseï¼‰
      */
     static async loadTournamentConfig(ctx: any, options?: {
         replaceExisting?: boolean;
     }) {
         const { replaceExisting = false } = options || {};
 
-        // 1. 清理现有配置（如果替换）
+        // 1. æ¸…ç†çŽ°æœ‰é…ç½®ï¼ˆå¦‚æžœæ›¿æ¢ï¼‰
         if (replaceExisting) {
             const preconfigs = await ctx.db.query("tournament_types").collect();
             for (const preconfig of preconfigs) {
@@ -57,13 +46,13 @@ export class TournamentService {
             }
         }
 
-        // 2. 加载静态配置
-        // 注意：TournamentConfig 现在需要手动配置，不再自动生成
+        // 2. åŠ è½½é™æ€é…ç½®
+        // æ³¨æ„ï¼šTournamentConfig çŽ°åœ¨éœ€è¦æ‰‹åŠ¨é…ç½®ï¼Œä¸å†è‡ªåŠ¨ç”Ÿæˆ
         for (const config of TOURNAMENT_CONFIGS) {
-            // 获取转换后的配置（处理旧格式）
+            // èŽ·å–è½¬æ¢åŽçš„é…ç½®ï¼ˆå¤„ç†æ—§æ ¼å¼ï¼‰
             const tournamentConfig = getTournamentConfig(config.typeId) || config;
 
-            // 检查是否已存在
+            // æ£€æŸ¥æ˜¯å¦å·²å­˜åœ¨
             if (!replaceExisting) {
                 const existing = await ctx.db
                     .query("tournament_types")
@@ -71,35 +60,35 @@ export class TournamentService {
                     .first();
 
                 if (existing) {
-                    continue;  // 跳过已存在的配置
+                    continue;  // è·³è¿‡å·²å­˜åœ¨çš„é…ç½®
                 }
             }
 
-            // 准备插入的数据（移除可能的旧字段）
+            // å‡†å¤‡æ’å…¥çš„æ•°æ®ï¼ˆç§»é™¤å¯èƒ½çš„æ—§å­—æ®µï¼‰
             const dataToInsert: any = {
                 ...tournamentConfig,
                 createdAt: tournamentConfig.createdAt || new Date().toISOString(),
                 updatedAt: tournamentConfig.updatedAt || new Date().toISOString(),
             };
 
-            // 移除旧格式字段（如果存在）
+            // ç§»é™¤æ—§æ ¼å¼å­—æ®µï¼ˆå¦‚æžœå­˜åœ¨ï¼‰
             delete dataToInsert.type;
-            delete dataToInsert.priority; // schema 中无此字段，避免校验失败
+            delete dataToInsert.priority; // schema ä¸­æ— æ­¤å­—æ®µï¼Œé¿å…æ ¡éªŒå¤±è´¥
 
             await ctx.db.insert("tournament_types", dataToInsert);
         }
     }
     /**
-     * 加入锦标赛
+     * åŠ å…¥é”¦æ ‡èµ›
      * 
-     * 对于单人关卡（minPlayers === 1 && maxPlayers === 1），直接创建比赛
-     * 对于多人比赛，加入匹配队列
+     * å¯¹äºŽå•äººå…³å¡ï¼ˆminPlayers === 1 && maxPlayers === 1ï¼‰ï¼Œç›´æŽ¥åˆ›å»ºæ¯”èµ›
+     * å¯¹äºŽå¤šäººæ¯”èµ›ï¼ŒåŠ å…¥åŒ¹é…é˜Ÿåˆ—
      * 
-     * @param params.uid - 玩家 UID
-     * @param params.typeId - 锦标赛类型 ID
-     * @param params.tournamentId - 可选的锦标赛 ID（如果未提供，会创建新的锦标赛）
-     * @param params.teamPower - 玩家队伍战力（TacticalMonster 游戏需要，用于匹配和创建游戏）
-     * @param params.stageId - 关卡 ID（单人关卡需要，用于创建游戏）
+     * @param params.uid - çŽ©å®¶ UID
+     * @param params.typeId - é”¦æ ‡èµ›ç±»åž‹ ID
+     * @param params.tournamentId - å¯é€‰çš„é”¦æ ‡èµ› IDï¼ˆå¦‚æžœæœªæä¾›ï¼Œä¼šåˆ›å»ºæ–°çš„é”¦æ ‡èµ›ï¼‰
+     * @param params.teamPower - çŽ©å®¶é˜Ÿä¼æˆ˜åŠ›ï¼ˆTacticalMonster æ¸¸æˆéœ€è¦ï¼Œç”¨äºŽåŒ¹é…å’Œåˆ›å»ºæ¸¸æˆï¼‰
+     * @param params.stageId - å…³å¡ IDï¼ˆå•äººå…³å¡éœ€è¦ï¼Œç”¨äºŽåˆ›å»ºæ¸¸æˆï¼‰
      */
     static async join(ctx: any, params: {
         uid: string,
@@ -111,11 +100,11 @@ export class TournamentService {
         const { uid, typeId, teamPower, stageId } = params;
         const tournamentType = await ctx.db.query("tournament_types").withIndex("by_typeId", (q: any) => q.eq("typeId", typeId)).first();
         if (!tournamentType) {
-            return { ok: false, message: "锦标赛类型不存在" };
+            return { ok: false, message: "é”¦æ ‡èµ›ç±»åž‹ä¸å­˜åœ¨" };
         }
         const validateResult = await validateJoinTournament(ctx, { uid, tournamentType });
         if (!validateResult || !validateResult.ok) {
-            return { ok: false, errorCode: validateResult?.errorCode || TournamentErrorCode.UNKNOWN_ERROR, message: validateResult?.message || "验证出错" };
+            return { ok: false, errorCode: validateResult?.errorCode || TournamentErrorCode.UNKNOWN_ERROR, message: validateResult?.message || "éªŒè¯å‡ºé”™" };
         }
         const tournament = {
             gameType: tournamentType.gameType,
@@ -124,9 +113,9 @@ export class TournamentService {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         }
-        // return { ok: true, message: "成功加入锦标赛..." };
+        // return { ok: true, message: "æˆåŠŸåŠ å…¥é”¦æ ‡èµ›..." };
         if (tournamentType.matchRules.maxPlayers > 1) {
-            // 多人比赛：加入匹配队列，传递 teamPower 用于匹配
+            // å¤šäººæ¯”èµ›ï¼šåŠ å…¥åŒ¹é…é˜Ÿåˆ—ï¼Œä¼ é€’ teamPower ç”¨äºŽåŒ¹é…
             // const metadata = teamPower !== undefined ? { teamPower } : undefined;
             // await TournamentMatchingService.joinMatchingQueue(ctx, {
             //     uid,
@@ -135,7 +124,7 @@ export class TournamentService {
             //     gameType: tournamentType.gameType,
             //     metadata
             // });
-            // return { ok: true, message: "成功加入匹配队列" };
+            // return { ok: true, message: "æˆåŠŸåŠ å…¥åŒ¹é…é˜Ÿåˆ—" };
         } else {
             const tournamentId = await ctx.db.insert("tournaments", tournament);
             if (tournamentId) {
@@ -155,12 +144,12 @@ export class TournamentService {
                 });
                 const playerMatch = await MatchManager.joinMatch(ctx, {
                     uid,
-                    match: { ...match, type: playerMatchTypeFromTournamentTypeDoc(tournamentType) },
+                    match: { ...match, mode: playerMatchModeFromTournamentTypeDoc(tournamentType) },
                 });
                 console.log("playerMatch:", stageId, teamPower);
                 return {
                     ok: true,
-                    message: "成功加入锦标赛",
+                    message: "æˆåŠŸåŠ å…¥é”¦æ ‡èµ›",
                     data: {
                         matchId: match.id,
                         gameId: playerMatch.gameId,
@@ -174,17 +163,17 @@ export class TournamentService {
     }
 
     /**
-     * 结算锦标赛
+     * ç»“ç®—é”¦æ ‡èµ›
      * 
-     * 计算奖励并更新玩家状态，但不发放奖励
-     * 奖励将在玩家主动 claim 时发放
+     * è®¡ç®—å¥–åŠ±å¹¶æ›´æ–°çŽ©å®¶çŠ¶æ€ï¼Œä½†ä¸å‘æ”¾å¥–åŠ±
+     * å¥–åŠ±å°†åœ¨çŽ©å®¶ä¸»åŠ¨ claim æ—¶å‘æ”¾
      * 
-     * @param tournamentId - 锦标赛 ID
+     * @param tournamentId - é”¦æ ‡èµ› ID
      */
     static async settle(ctx: any, tournamentId: string) {
         const tournament = await ctx.db.get(tournamentId as Id<"tournaments">);
         if (!tournament) {
-            throw new Error("锦标赛不存在");
+            throw new Error("é”¦æ ‡èµ›ä¸å­˜åœ¨");
         }
 
         await settleTournament(ctx, tournamentId);
@@ -192,22 +181,22 @@ export class TournamentService {
         return {
             success: true,
             tournamentId,
-            message: "锦标赛结算完成"
+            message: "é”¦æ ‡èµ›ç»“ç®—å®Œæˆ"
         };
     }
 
     /**
-     * 获取锦标赛排行榜
+     * èŽ·å–é”¦æ ‡èµ›æŽ’è¡Œæ¦œ
      * 
-     * @param args.tournamentId - 锦标赛 ID
-     * @param args.paginationOpts - 分页选项
+     * @param args.tournamentId - é”¦æ ‡èµ› ID
+     * @param args.paginationOpts - åˆ†é¡µé€‰é¡¹
      */
     static async getLeaderboard(ctx: any, args: { tournamentId: string, paginationOpts: any }) {
         const { tournamentId, paginationOpts } = args;
         console.log("getLeaderboard", tournamentId, paginationOpts)
         const tournament = await ctx.db.get(tournamentId as Id<"tournaments">);
         if (!tournament) {
-            throw new Error("锦标赛不存在");
+            throw new Error("é”¦æ ‡èµ›ä¸å­˜åœ¨");
         }
 
         const playerTournaments = await ctx.db.query("player_tournaments").withIndex("by_tournament_score", (q: any) => q.eq("tournamentId", tournamentId)).order("desc").paginate(paginationOpts);
@@ -219,44 +208,44 @@ export class TournamentService {
 
 
     /**
-     * 领取锦标赛奖励
+     * é¢†å–é”¦æ ‡èµ›å¥–åŠ±
      * 
-     * 发放积分、金币等奖励，并标记奖励已领取
-     * 注意：collectRewards 已经会更新状态为 COLLECTED，这里不需要再次更新
+     * å‘æ”¾ç§¯åˆ†ã€é‡‘å¸ç­‰å¥–åŠ±ï¼Œå¹¶æ ‡è®°å¥–åŠ±å·²é¢†å–
+     * æ³¨æ„ï¼šcollectRewards å·²ç»ä¼šæ›´æ–°çŠ¶æ€ä¸º COLLECTEDï¼Œè¿™é‡Œä¸éœ€è¦å†æ¬¡æ›´æ–°
      * 
-     * @param playerTournament - 玩家锦标赛记录
+     * @param playerTournament - çŽ©å®¶é”¦æ ‡èµ›è®°å½•
      */
     static async collect(ctx: any, playerTournament: any) {
         await collectRewards(ctx, playerTournament);
-        // collectRewards 已经会更新状态为 COLLECTED，无需再次更新
+        // collectRewards å·²ç»ä¼šæ›´æ–°çŠ¶æ€ä¸º COLLECTEDï¼Œæ— éœ€å†æ¬¡æ›´æ–°
     }
     /**
-     * 获取当前玩家可参与的锦标赛列表
+     * èŽ·å–å½“å‰çŽ©å®¶å¯å‚ä¸Žçš„é”¦æ ‡èµ›åˆ—è¡¨
      * 
-     * 根据新的配置系统：
-     * - 使用 limits.maxAttempts 作为最大尝试次数限制
-     * - 如果 limits.unlimitedAttempts === true，则不限制尝试次数
-     * - 订阅用户可以使用 limits.subscribed.maxAttempts（如果存在）
+     * æ ¹æ®æ–°çš„é…ç½®ç³»ç»Ÿï¼š
+     * - ä½¿ç”¨ limits.maxAttempts ä½œä¸ºæœ€å¤§å°è¯•æ¬¡æ•°é™åˆ¶
+     * - å¦‚æžœ limits.unlimitedAttempts === trueï¼Œåˆ™ä¸é™åˆ¶å°è¯•æ¬¡æ•°
+     * - è®¢é˜…ç”¨æˆ·å¯ä»¥ä½¿ç”¨ limits.subscribed.maxAttemptsï¼ˆå¦‚æžœå­˜åœ¨ï¼‰
      */
     static async getAvailableTournaments(ctx: any, params: {
         uid: string;
     }) {
         const { uid } = params;
 
-        // 获取所有活跃的锦标赛类型
+        // èŽ·å–æ‰€æœ‰æ´»è·ƒçš„é”¦æ ‡èµ›ç±»åž‹
         const tournamentTypes = await ctx.db
             .query("tournament_types")
             .withIndex("by_isActive", (q: any) => q.eq("isActive", true))
             .collect();
 
-        console.log("[getAvailableTournaments] 过滤 isActive=true 后的记录数:", tournamentTypes.length);
+        console.log("[getAvailableTournaments] è¿‡æ»¤ isActive=true åŽçš„è®°å½•æ•°:", tournamentTypes.length);
 
         const availableTournaments: any[] = [];
         for (const tournamentType of tournamentTypes) {
             try {
                 const participation = { attempts: 0 };
 
-                // // 检查尝试次数限制
+                // // æ£€æŸ¥å°è¯•æ¬¡æ•°é™åˆ¶
                 if (tournamentType.limits) {
                     const attempts = await getPlayerAttempts(ctx, { uid, tournamentType });
                     participation.attempts = attempts;
@@ -280,8 +269,8 @@ export class TournamentService {
                 });
 
             } catch (error) {
-                console.error(`检查锦标赛资格失败 (${tournamentType.typeId}):`, error);
-                // 继续检查其他锦标赛，不中断整个流程
+                console.error(`æ£€æŸ¥é”¦æ ‡èµ›èµ„æ ¼å¤±è´¥ (${tournamentType.typeId}):`, error);
+                // ç»§ç»­æ£€æŸ¥å…¶ä»–é”¦æ ‡èµ›ï¼Œä¸ä¸­æ–­æ•´ä¸ªæµç¨‹
             }
         }
 
@@ -330,10 +319,10 @@ export const collect = mutation({
         const { uid, tournamentId } = args;
         const playerTournament = await ctx.db.query("player_tournaments").withIndex("by_tournament_uid", (q: any) => q.eq("tournamentId", tournamentId).eq("uid", uid)).unique();
         if (!playerTournament) {
-            throw new Error("锦标赛不存在");
+            throw new Error("é”¦æ ‡èµ›ä¸å­˜åœ¨");
         }
         if (playerTournament.status >= TournamentStatus.SETTLED) {
-            throw new Error("锦标赛已领取");
+            throw new Error("é”¦æ ‡èµ›å·²é¢†å–");
         }
         const result = await TournamentService.collect(ctx, playerTournament);
         return result;
@@ -349,7 +338,7 @@ export const getAvailableTournaments = query({
             // console.log("getAvailableTournaments", result)
             return result;
         } catch (error) {
-            console.error("获取可参与的锦标赛失败:", error);
+            console.error("èŽ·å–å¯å‚ä¸Žçš„é”¦æ ‡èµ›å¤±è´¥:", error);
             return null;
         }
     },
@@ -357,7 +346,7 @@ export const getAvailableTournaments = query({
 
 export const loadTournamentConfig = internalMutation({
     args: {
-        replaceExisting: v.optional(v.boolean()),        // 是否替换已存在的配置
+        replaceExisting: v.optional(v.boolean()),        // æ˜¯å¦æ›¿æ¢å·²å­˜åœ¨çš„é…ç½®
     },
     handler: async (ctx: any, args: any) => {
         const result = await TournamentService.loadTournamentConfig(ctx, {
@@ -366,6 +355,8 @@ export const loadTournamentConfig = internalMutation({
         return result;
     },
 });
+
+
 
 
 

@@ -26,13 +26,19 @@ export const submitMatchScoreToTournament = internalAction({
             });
             const res = (await response.json()) as { ok?: boolean; error?: string };
             if (!response.ok || res?.ok !== true) {
-                console.error("[submitMatchScoreToTournament] tournament rejected", res);
+                console.error("[submitMatchScoreToTournament] tournament rejected", {
+                    url,
+                    gameId: args.gameId,
+                    status: response.status,
+                    res,
+                });
                 return { ok: false as const, error: res?.error ?? response.statusText };
             }
+            console.log("[submitMatchScoreToTournament] ok", { gameId: args.gameId, finalScore: args.finalScore });
             return { ok: true as const };
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
-            console.error("[submitMatchScoreToTournament] fetch failed", msg);
+            console.error("[submitMatchScoreToTournament] fetch failed", { url, gameId: args.gameId, msg });
             return { ok: false as const, error: msg };
         }
     },

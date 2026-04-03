@@ -11,11 +11,17 @@ const componentMap: Record<string, () => Promise<any>> = {
 const GAME_PROVIDERS: Record<string, string> = {
   'tacticalMonster': './games/tacticalMonster/PlayTacticalMonster',
 };
-
+export interface GameData {
+  game?: any;
+  mode: string;//"tutorial" | "solo_challenge" | "multiplayer_tournament";
+  phaseChanges?: any;
+  typeId?: string;
+  stageId?: string;
+}
 export interface PlayProps {
-  gameType: string;//"tacticalMonster"
+  gameType: "tacticalMonster" | string;//"tacticalMonster"
   playMode: string;//"join" | "watch" | "replay" | "play";
-  gameData?: any;
+  gameData: GameData;
   close: () => void;
   //gameId?: string;
   // // gameType: string;
@@ -23,8 +29,8 @@ export interface PlayProps {
   // mode: 'join' | 'watch' | 'replay' | 'play';
   // typeId?: string;
   // stageId?: string;
-  // /** 来自 `getAvailableTournaments` 的 config.modeType；resume 时可由 loadGame 的 game.modeType 补齐 */
-  // modeType?: StageModeType;
+  // /** 来自 `getAvailableTournaments` 的 config.mode；resume 时可由 loadGame 的 game.mode 补齐 */
+  // mode?: StageModeType;
 }
 
 // 错误边界组件

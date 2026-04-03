@@ -1,12 +1,16 @@
 /**
- * 3D 事件处理器 - 与 2D 事件路由一致，使用 3D 动画与 usePhaseChangesHandler3D
+ * 观战 / 重播：消费 useWatchEventIngest 持有的队列、播放 3D 动画与阶段变化。
+ * 重播事件由 replay.setOnEventProcessed 推入同一队列。
  */
 
+import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useRef } from "react";
+import { useWatchEventIngest } from "../../battle/hooks/useWatchEventIngest";
 import { useCombatManager } from "../../service/CombatManager";
 import type { FrontendCombatEvent } from "../../types/CombatTypes";
 import type { CharacterIdentifier } from "../../types/gameTypes";
 import { applyStateChanges } from "../../utils/backendResponseUtils";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import { findTargetByIdentifier } from "../../utils/characterUtils";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
 import { usePlayWalk3D } from "../animation/usePlayWalk3D";
@@ -15,20 +19,39 @@ import type { UseBattleGridStateReturn } from "./useBattleGridState";
 import { usePassiveSkillAnimations } from "./usePassiveSkillAnimations";
 import { usePhaseChangesHandler3D } from "./usePhaseChangesHandler3D";
 
-interface UseEventHandler3DOptions {
+export interface UseWatchOrReplayOptions {
     gridState: UseBattleGridStateReturn | null;
     mapDimension: BattleMapDimension | null;
-    playbackSpeed?: number;
 }
 
-const useEventHandler3D = (options: UseEventHandler3DOptions) => {
-    const { gridState, mapDimension, playbackSpeed = 1.0 } = options;
+export interface UseWatchOrReplayResult {
+    eventQueueRef: MutableRefObject<FrontendCombatEvent[]>;
+}
+
+const useWatchOrReplay = (options: UseWatchOrReplayOptions): UseWatchOrReplayResult => {
+    const { gridState, mapDimension } = options;
     const {
-        eventQueue,
         characters,
         groundCells,
         mode = "play",
+        game,
+        replay,
     } = useCombatManager();
+
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
+
+    const eventQueueRef = useWatchEventIngest({
+        gameId: game?.gameId,
+        mode,
+    });
+
+    useEffect(() => {
+        if (mode === "replay" && replay?.setOnEventProcessed) {
+            replay.setOnEventProcessed((event: FrontendCombatEvent) => {
+                eventQueueRef.current.push(event);
+            });
+        }
+    }, [mode, replay, eventQueueRef]);
 
     const isReplayMode = mode === "replay";
     const isWatchMode = mode === "watch";
@@ -37,7 +60,6 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
     const { handlePhaseChanges } = usePhaseChangesHandler3D({
         gridState,
         mapDimension,
-        playbackSpeed,
     });
     const { handlePassiveSkillAnimations } = usePassiveSkillAnimations(characters ?? [], playSkill);
 
@@ -65,7 +87,6 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                     { q: character.q ?? 0, r: character.r ?? 0 },
                     { q: to.q, r: to.r },
                 ];
-                // ✅ 从事件顶层获取 phaseChanges 和 stateChanges；Braveland 式：endTurn false 时无 phaseChanges，不推进回合
                 const walkPhaseChanges = data?.phaseChanges;
                 const walkStateChanges = data?.stateChanges;
                 const walkEndTurn = data?.endTurn !== false;
@@ -85,7 +106,6 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                 const skillId = data?.skillSelect ?? data?.skillId ?? "basic_attack";
                 const result = data?.result;
                 const targets = data?.targets || [];
-                // ✅ 从事件顶层获取完整的 phaseChanges 和 stateChanges（后端已完整写入）
                 const eventPhaseChanges = data?.phaseChanges;
                 const eventStateChanges = data?.stateChanges;
                 const attacker = identifier
@@ -132,13 +152,11 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                 }
                 let activeSkillTimeline: gsap.core.Timeline | null = null;
                 activeSkillTimeline = playSkill(attacker, skillId, targetSprites, async () => {
-                    // ✅ 应用状态变化：优先使用事件顶层 stateChanges，回退到 phaseChanges.stateChanges
                     const resolvedStateChanges = eventStateChanges ?? eventPhaseChanges?.stateChanges;
                     if (resolvedStateChanges) {
                         applyStateChanges(resolvedStateChanges, characters);
                     }
 
-                    // ✅ 处理被动技能动画：优先使用 phaseChanges.effects
                     const resolvedEffects = eventPhaseChanges?.effects || result?.effects;
                     if (resolvedEffects && activeSkillTimeline) {
                         handlePassiveSkillAnimations(
@@ -149,7 +167,6 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                         );
                     }
 
-                    // ✅ 处理完整的阶段变化（turnEnd → bossAIActions → turnStart → gameOver）
                     if (eventPhaseChanges) {
                         await handlePhaseChanges(eventPhaseChanges);
                     }
@@ -181,6 +198,7 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
 
     const processEvent = useCallback(() => {
         if (isProcessingRef.current) return;
+        const eventQueue = eventQueueRef.current;
         const event: FrontendCombatEvent | null =
             eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event) return;
@@ -296,7 +314,6 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
                     if (isReplayMode || isWatchMode) {
                         handleWatchModeActionEvent(event, onComplete);
                     } else {
-                        // play 模式：乐观更新由 mutation 响应处理；非乐观事件（如 Boss 行动）需动画并处理 phaseChanges
                         if (event.optimistic) {
                             onComplete();
                         } else {
@@ -310,10 +327,10 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
             }
         } catch {
             isProcessingRef.current = false;
-            eventQueue.shift();
+            eventQueueRef.current.shift();
         }
     }, [
-        eventQueue,
+        eventQueueRef,
         handlePhaseChanges,
         characters,
         isReplayMode,
@@ -326,6 +343,8 @@ const useEventHandler3D = (options: UseEventHandler3DOptions) => {
         const intervalId = setInterval(processEvent, 100);
         return () => clearInterval(intervalId);
     }, [characters, groundCells, mapDimension, processEvent, mode]);
+
+    return { eventQueueRef };
 };
 
-export default useEventHandler3D;
+export default useWatchOrReplay;

@@ -6,10 +6,12 @@ import gsap from "gsap";
 import { useCallback } from "react";
 import { MonsterSprite } from "../../types/CombatTypes";
 import { useCombatManager } from "../../service/CombatManager";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import { coordToPixel } from "../../utils/hexUtil";
 
 const usePlayWalk = () => {
-    const { characters, groundCells, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { characters, groundCells, mapDimension, game, replay } = useCombatManager();
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
     const { map } = game || {};
     const hexCell = mapDimension
         ? { width: mapDimension.hexWidth, height: mapDimension.hexHeight }

@@ -39,6 +39,16 @@ export interface PedagogyGuideStep {
  */
 export type TutorialWinMode = "boss_only" | "boss_and_guide" | "guide_only";
 
+/** 单条 dynamic 条件（可组合进 `all`） */
+export type DynamicGuideAtom =
+    | { kind: "cast_skill"; skillId: string }
+    | { kind: "any_cast" }
+    | { kind: "move" }
+    | { kind: "turn_end" };
+
+/** dynamicGuide 且无 guideFlow 时必填：`all` 表示需全部满足（顺序不限，可跨回合累积） */
+export type DynamicGuideCompletionRule = DynamicGuideAtom | { kind: "all"; rules: DynamicGuideAtom[] };
+
 export interface StagePedagogy {
     playerTierAssumed: number;
     playerTierTaught?: number;
@@ -50,7 +60,8 @@ export interface StagePedagogy {
     allowedSkillIds?: string[];
     guideFlow?: PedagogyGuideStep[];
     dynamicGuide?: boolean;
-    dynamicGuideCompletionSkillId?: string;
+    /** 与 dynamicGuide 同时使用且无 guideFlow 时必填 */
+    dynamicGuideRule?: DynamicGuideCompletionRule;
     tutorialWinMode?: TutorialWinMode;
 }
 

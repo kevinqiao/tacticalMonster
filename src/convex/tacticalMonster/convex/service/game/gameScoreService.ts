@@ -5,8 +5,7 @@
 
 import { internal } from "../../_generated/api";
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
-import { GameReport, GameStatus } from "../../types/gameTypes";
-import type { RewardPolicyType, ScoreTierReward, StageRewardPolicy } from "../../types/stageRuleTypes";
+import { GameStatus, getMrGameStageMode } from "../../types/gameTypes";
 import { isTutorialGuideComplete } from "../../utils/tutorialProgressUtils";
 import { GameResult, sharedScoreService } from "./sharedScoreService";
 import { GameLifecycleService } from "./gameLifecycleService";
@@ -14,40 +13,7 @@ import { GameEventService } from "./gameEventService";
 import { getModeTypeForRuleId } from "../../utils/tournamentModeType";
 import { GameRuleConfigService } from "./gameRuleConfigService";
 
-/** 未单独配置 scoreTiers 的 solo 关卡使用的默认档位 */
-const DEFAULT_SOLO_SCORE_TIERS: ScoreTierReward[] = [
-    { minScore: 4000, rewardKey: "solo_s", chestType: "purple" },
-    { minScore: 2500, rewardKey: "solo_a", chestType: "gold" },
-    { minScore: 1000, rewardKey: "solo_b", chestType: "silver" },
-    { minScore: 0, rewardKey: "solo_c", chestType: "bronze" },
-];
-
-function resolveEffectiveRewardPolicy(
-    modeType: string | undefined,
-    explicit: StageRewardPolicy | undefined
-): StageRewardPolicy | undefined {
-    if (explicit) {
-        if (explicit.type === "score_tiers" && (!explicit.scoreTiers || explicit.scoreTiers.length === 0)) {
-            return { ...explicit, scoreTiers: DEFAULT_SOLO_SCORE_TIERS };
-        }
-        return explicit;
-    }
-    if (modeType === "tutorial") return { type: "one_time_clear" };
-    if (modeType === "multiplayer_tournament") return { type: "ranking_or_match_result" };
-    if (modeType === "solo_challenge") return { type: "score_tiers", scoreTiers: DEFAULT_SOLO_SCORE_TIERS };
-    return undefined;
-}
-
-function pickScoreTier(totalScore: number, tiers: ScoreTierReward[] | undefined): ScoreTierReward | undefined {
-    if (!tiers?.length) return undefined;
-    const sorted = [...tiers].sort((a, b) => b.minScore - a.minScore);
-    for (const t of sorted) {
-        if (totalScore >= t.minScore) return t;
-    }
-    return undefined;
-}
-
-/** 与 gameOver 中 calculateCompleteScore 入参一致，供首通写入复用 */
+/** 终局计分（checkAndUpdateGameStatus / Tournament submit 复用） */
 function buildScoreResultForEndedGame(game: any, gameResult: GameResult) {
     const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
     const baseScore = game.score || 0;
@@ -104,6 +70,33 @@ export class GameScoreService {
     }
 
     /**
+     * 对局结束后通知 Tournament（HTTP /submitScore → player_matches 完结 / 可能 settleMatch）。
+     * 任意终局结果均需提交，否则锦标赛侧无法结算；仅胜利时 isFirstClear 可能为 true。
+     */
+    private async scheduleSubmitScoreToTournament(
+        gameId: string,
+        game: any,
+        gameResult: GameResult,
+        isFirstClear: boolean
+    ): Promise<void> {
+        const scoreResult = buildScoreResultForEndedGame(game, gameResult);
+        const sched = this.dbCtx?.scheduler;
+        if (!sched?.runAfter) {
+            console.warn("[GameScoreService] scheduler unavailable, skip tournament submitScore", gameId);
+            return;
+        }
+        await sched.runAfter(
+            0,
+            internal.service.tournament.tournamentMatchNotify.submitMatchScoreToTournament,
+            {
+                gameId,
+                finalScore: scoreResult.totalScore,
+                isFirstClear: isFirstClear === true,
+            }
+        );
+    }
+
+    /**
      * 更新分数
      * 增加或减少游戏分数
      * @param gameId 游戏ID
@@ -121,107 +114,6 @@ export class GameScoreService {
     }
 
     /**
-     * 游戏结束
-     * 计算最终分数并生成游戏报告
-     * @param gameId 游戏ID
-     * @returns GameReport 或 null（如果失败）
-     */
-    async gameOver(gameId: string): Promise<GameReport | null> {
-        const game = await this.lifecycleService.load(gameId);
-        if (!game) return null;
-
-        // ✅ 获取游戏使用的配置版本
-        const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
-
-        const ruleId = (game as any).ruleId;
-        const stageRule = ruleId ? GameRuleConfigService.getGameRuleConfig(ruleId as string) : undefined;
-        const modeTypeFromTournament = ruleId ? getModeTypeForRuleId(ruleId as string) : undefined;
-        const modeType = modeTypeFromTournament ?? (game as { modeType?: string }).modeType;
-        const isTutorialMode = modeType === "tutorial";
-        const tutorialRoundLimit = stageRule?.starRatingConfig?.threeStarMaxRounds ?? 6;
-        const roundsUsed = game.currentRound?.no ?? 0;
-        const hitTutorialRoundLimit = isTutorialMode && roundsUsed >= tutorialRoundLimit;
-        // ✅ 判断游戏结果（教学关：击败 Boss 即胜利）
-        const pedagogy = stageRule?.pedagogy;
-        const tutorialWinMode = isTutorialMode ? (pedagogy?.tutorialWinMode ?? "boss_only") : undefined;
-        const tutorialGuideComplete = isTutorialMode
-            ? isTutorialGuideComplete(pedagogy, (game as any).tutorialProgress)
-            : true;
-
-        const gameResult = hitTutorialRoundLimit
-            ? { result: GameResult.DRAW, reason: `教学关回合上限（${tutorialRoundLimit}）已达到`, isGameOver: true }
-            : sharedScoreService.determineGameResult(game, configVersion, {
-                winOnBossKill: isTutorialMode,
-                tutorialWinMode,
-                tutorialGuideComplete,
-            });
-
-        // 更新游戏状态
-        let newStatus: GameStatus;
-        switch (gameResult.result) {
-            case GameResult.WIN:
-                newStatus = 1;  // won
-                break;
-            case GameResult.LOSE:
-                newStatus = 2;  // lost
-                break;
-            case GameResult.DRAW:
-                newStatus = 3;  // draw（超时）
-                break;
-        }
-
-        const scoreResult = buildScoreResultForEndedGame(game, gameResult.result);
-
-        // ✅ 保存游戏状态
-        await this.lifecycleService.save(gameId, {
-            status: newStatus,
-            lastUpdate: new Date().toISOString()
-        });
-
-        // ✅ 创建游戏结束事件
-        const event = this.eventService.createGameEndEvent(gameId);
-        await this.eventService.createEvent(event);
-
-        // 记录首通（关卡体力与奖励机制）
-        const isFirstClear = await this.maybeInsertMrPlayerFirstClear(game, gameResult.result);
-
-        const policy = resolveEffectiveRewardPolicy(modeType, stageRule?.rewardPolicy);
-
-        let rewardPolicyType: RewardPolicyType | undefined;
-        let scoreTierHit: ScoreTierReward | undefined;
-        let rewardEligible: boolean | undefined;
-        let oneTimeRewardKey: string | undefined;
-
-        if (policy) {
-            rewardPolicyType = policy.type;
-            if (gameResult.result === GameResult.WIN) {
-                if (policy.type === "one_time_clear") {
-                    rewardEligible = isFirstClear;
-                    oneTimeRewardKey = policy.oneTimeRewardKey;
-                } else if (policy.type === "score_tiers") {
-                    scoreTierHit = pickScoreTier(scoreResult.totalScore, policy.scoreTiers);
-                    rewardEligible = scoreTierHit !== undefined;
-                }
-                // ranking_or_match_result：奖励由锦标赛/匹配结算处理，不在此标记 grant
-            }
-        }
-
-        // 返回游戏报告（不再包含 star、rewardMultiplier）
-        return {
-            gameId,
-            baseScore: scoreResult.baseScore,
-            timeBonus: scoreResult.timeBonus,
-            completeBonus: scoreResult.survivalBonus + scoreResult.resultScore,  // 兼容旧接口
-            totalScore: scoreResult.totalScore,
-            isFirstClear,
-            rewardPolicyType,
-            scoreTierHit,
-            rewardEligible,
-            oneTimeRewardKey,
-        };
-    }
-
-    /**
      * ✅ 检查并更新游戏状态
      */
     async checkAndUpdateGameStatus(gameId: string): Promise<{
@@ -232,11 +124,25 @@ export class GameScoreService {
         const game = await this.lifecycleService.load(gameId);
         if (!game) return null;
 
+        const existingStatus = (game as { status?: GameStatus }).status;
+        if (existingStatus !== 0 && existingStatus !== undefined) {
+            const resultByStatus: Record<number, GameResult> = {
+                1: GameResult.WIN,
+                2: GameResult.LOSE,
+                3: GameResult.DRAW,
+            };
+            return {
+                result: resultByStatus[existingStatus] ?? GameResult.DRAW,
+                reason: "游戏已结束",
+                isGameOver: true,
+            };
+        }
+
         const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
         const ruleId = (game as any).ruleId;
         const stageRule = ruleId ? GameRuleConfigService.getGameRuleConfig(ruleId as string) : undefined;
         const modeTypeFromTournament = ruleId ? getModeTypeForRuleId(ruleId as string) : undefined;
-        const modeType = modeTypeFromTournament ?? (game as { modeType?: string }).modeType;
+        const modeType = modeTypeFromTournament ?? getMrGameStageMode(game as { mode?: string; modeType?: string });
         const isTutorialMode = modeType === "tutorial";
         const tutorialRoundLimit = stageRule?.starRatingConfig?.threeStarMaxRounds ?? 6;
         const roundsUsed = game.currentRound?.no ?? 0;
@@ -278,24 +184,12 @@ export class GameScoreService {
             const event = this.eventService.createGameEndEvent(gameId);
             await this.eventService.createEvent(event);
 
-            // 正常对局只调用 checkAndUpdateGameStatus，不经过 gameOver mutation；首通必须在此写入
+            // 首通仅胜利写入；Tournament 任意终局结果都要 submit（教学关 DRAW/超时等同理）
+            let isFirstClear = false;
             if (result.result === GameResult.WIN) {
-                const isFirstClear = await this.maybeInsertMrPlayerFirstClear(game, result.result);
-                const scoreResult = buildScoreResultForEndedGame(game, result.result);
-                // 同步 Tournament 端 player_matches / matches（与 proxy submitScore 一致）
-                const sched = this.dbCtx?.scheduler;
-                if (sched?.runAfter) {
-                    await sched.runAfter(
-                        0,
-                        internal.service.tournament.tournamentMatchNotify.submitMatchScoreToTournament,
-                        {
-                            gameId,
-                            finalScore: scoreResult.totalScore,
-                            isFirstClear,
-                        }
-                    );
-                }
+                isFirstClear = await this.maybeInsertMrPlayerFirstClear(game, result.result);
             }
+            await this.scheduleSubmitScoreToTournament(gameId, game, result.result, isFirstClear);
         }
 
         return result;

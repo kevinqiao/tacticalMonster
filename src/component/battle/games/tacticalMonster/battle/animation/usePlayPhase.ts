@@ -9,11 +9,13 @@ import { getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/
 import { MonsterSprite } from "../../types/CombatTypes";
 import { GameTurn } from "../../types/gameTypes";
 import { useCombatManager } from "../../service/CombatManager";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import { buildWalkGridForMovement, getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
 import usePlaySkill from "./usePlaySkill";
 
 const usePlayPhase = () => {
-    const { groundCells, characters, mapDimension, game, playbackSpeed = 1.0 } = useCombatManager();
+    const { groundCells, characters, mapDimension, game, replay } = useCombatManager();
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
     const { map } = game || {};
     const { playSkill } = usePlaySkill();
 

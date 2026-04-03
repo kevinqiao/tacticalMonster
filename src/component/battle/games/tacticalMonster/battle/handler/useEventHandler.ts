@@ -3,6 +3,7 @@
  * 重构为单人 PVE 模式：只处理阶段事件（gameInit, roundStart 等），不再处理玩家操作事件
  */
 
+import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import usePlaySkill from "../../battle/animation/usePlaySkill";
 import usePlayWalk from "../../battle/animation/usePlayWalk";
@@ -10,20 +11,38 @@ import { usePassiveSkillAnimations } from "../../battle3d/handler/usePassiveSkil
 import type { FrontendCombatEvent } from "../../types/CombatTypes";
 import type { CharacterIdentifier } from "../../utils/typeAdapter";
 
+import { useWatchEventIngest } from "../hooks/useWatchEventIngest";
 import { useCombatManager } from "../../service/CombatManager";
 import { applyStateChanges } from "../../utils/backendResponseUtils";
 import { findTargetByIdentifier } from "../../utils/characterUtils";
 import { usePhaseChangesHandler } from "./hooks/usePhaseChangesHandler";
 
 
-const useEventHandler = () => {
+export interface UseEventHandlerResult {
+    eventQueueRef: MutableRefObject<FrontendCombatEvent[]>;
+}
+
+const useEventHandler = (): UseEventHandlerResult => {
     const {
-        eventQueue,
         characters,
         groundCells,
         mode = 'play',
-        game
+        game,
+        replay,
     } = useCombatManager();
+
+    const eventQueueRef = useWatchEventIngest({
+        gameId: game?.gameId,
+        mode,
+    });
+
+    useEffect(() => {
+        if (mode === "replay" && replay?.setOnEventProcessed) {
+            replay.setOnEventProcessed((event: FrontendCombatEvent) => {
+                eventQueueRef.current.push(event);
+            });
+        }
+    }, [mode, replay, eventQueueRef]);
 
     const isReplayMode = mode === 'replay';
     const isWatchMode = mode === 'watch';
@@ -186,6 +205,7 @@ const useEventHandler = () => {
         // 如果正在处理，跳过（严格的队列机制）
         if (isProcessingRef.current) return;
 
+        const eventQueue = eventQueueRef.current;
         const event: FrontendCombatEvent | null = eventQueue.length > 0 ? eventQueue[0] : null;
         if (!event) return;
 
@@ -350,9 +370,9 @@ const useEventHandler = () => {
             console.error(`Error processing event ${event.name}:`, error);
             // 错误时也要释放锁
             isProcessingRef.current = false;
-            eventQueue.shift();
+            eventQueueRef.current.shift();
         }
-    }, [eventQueue, handlePhaseChanges, game, characters, isReplayMode, isWatchMode, mode, handleWatchModeActionEvent]);
+    }, [eventQueueRef, handlePhaseChanges, game, characters, isReplayMode, isWatchMode, mode, handleWatchModeActionEvent]);
 
     useEffect(() => {
         // 所有模式都需要轮询处理事件队列
@@ -365,6 +385,8 @@ const useEventHandler = () => {
 
         return () => clearInterval(intervalId);
     }, [characters, groundCells, processEvent, mode]);
+
+    return { eventQueueRef };
 };
 
 export default useEventHandler;

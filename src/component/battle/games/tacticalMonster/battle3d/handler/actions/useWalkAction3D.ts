@@ -59,12 +59,12 @@ export const useWalkAction3D = (
                     !validation.can
                         ? (validation.reason ?? "validation.can is false")
                         : !validation.character
-                          ? "no character for current turn (e.g. summoned unit not in characters yet)"
-                          : !gridCells
-                            ? "no gridCells"
-                            : !game?.map
-                              ? "no map"
-                              : "no mapDimension";
+                            ? "no character for current turn (e.g. summoned unit not in characters yet)"
+                            : !gridCells
+                                ? "no gridCells"
+                                : !game?.map
+                                    ? "no map"
+                                    : "no mapDimension";
                 return Promise.reject(new Error(`Cannot perform walk action: ${reason}`));
             }
 
@@ -189,7 +189,6 @@ export const useWalkAction3D = (
                             character.q = finalPos.q;
                             character.r = finalPos.r;
                             clearAnimatingState(); // 动画已结束、逻辑位置已提交，先清除「正在移动」状态
-
                             // 后端结束回合时返回 phaseChanges（含 turnEnd），未结束时无 phaseChanges
                             if (result.phaseChanges) {
                                 await handlePhaseChanges(result.phaseChanges);

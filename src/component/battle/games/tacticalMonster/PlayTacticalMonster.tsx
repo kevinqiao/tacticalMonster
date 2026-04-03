@@ -4,24 +4,24 @@ import { URLS, useTournamentManager } from "@/service/TournamentManager";
 import { useUserManager } from "@/service/UserManager";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MatchStatus } from "../../MatchTypes";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { PlayProps } from "../../PlayTournament";
 import usePreGameAnimate from "./animation/usePreGameAnimate";
 import BattlePlayer from "./battle/BattlePlayer";
 import BattlePlayer3D from "./battle3d/BattlePlayer3D";
 import CombatManager from "./service/CombatManager";
 
+import { GameData } from "../../PlayTournament";
 import { getStageRuleConfig } from "./config/stageRuleConfigs";
 import "./styles.css";
 import TeamLayout3D from "./team3d/TeamLayout3D";
 import { GameModel } from "./types/gameTypes";
 import { Stage } from "./types/StageTypes";
 
-/** 教学关或显式 hideTeamLayout 时跳过编队界面（modeType 以后端/锦标赛 config 为准） */
-function shouldSkipTeamLayout(gameData: any): boolean {
-    const { typeId, modeType } = gameData;
-    if (modeType === "tutorial") return true;
+/** 教学关或显式 hideTeamLayout 时跳过编队界面（mode 以后端/锦标赛 config 为准） */
+function shouldSkipTeamLayout(gameData: GameData): boolean {
+    const { typeId, mode } = gameData;
+    if (mode === "tutorial" || !typeId) return true;
     const rule = getStageRuleConfig(typeId);
     if (rule?.uiRules?.hideTeamLayout) return true;
     return false;
@@ -32,18 +32,18 @@ const USE_3D_BATTLE = true;
 
 interface Props {
     game: GameModel;
-    mode: 'join' | 'play' | 'watch' | 'replay';
+    playMode: 'play' | 'watch' | 'replay';
     initialPhaseChanges?: any; // ✅ 初始 phaseChanges
     exit?: () => void;
 }
 
 const PlayGame: React.FC<Props> = ({
     game,
-    mode = 'play',
+    playMode = 'play',
     initialPhaseChanges,
     exit,
 }) => {
-    console.log("PlayGame props", game, mode, initialPhaseChanges);
+    console.log("PlayGame props", game, playMode, initialPhaseChanges);
     const client = React.useMemo(() => new ConvexReactClient(URLS.tacticalMonster), [URLS.tacticalMonster]);
 
     return (
@@ -52,7 +52,7 @@ const PlayGame: React.FC<Props> = ({
                 <CombatManager
                     key={game?.gameId ?? 'loading'}
                     game={game}
-                    mode={mode === 'join' ? 'play' : mode}
+                    mode={playMode}
                     initialPhaseChanges={initialPhaseChanges}
                 >
                     {USE_3D_BATTLE ? <BattlePlayer3D close={exit} /> : <BattlePlayer />}
@@ -61,7 +61,7 @@ const PlayGame: React.FC<Props> = ({
         </div>
     );
 };
-const PlayTacticalMonster: React.FC<PlayProps> = ({ close, gameType, playMode, gameData }) => {
+const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', gameData }) => {
 
     const loadingRef = useRef<HTMLDivElement>(null);
     const teamLayoutRef = useRef<HTMLDivElement>(null);
@@ -76,11 +76,6 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, gameType, playMode, g
     const tacticalMonsterClient = React.useMemo(() => { return new ConvexHttpClient(URLS.tacticalMonster) }, []);
     const { playInit, openTeamLayout, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
 
-    const loadGamePlayMode = useMemo((): "play" | "watch" | "replay" => {
-        if (playMode === "replay") return "replay";
-        if (playMode === "watch") return "watch";
-        return "play";
-    }, [playMode]);
 
     const startJoin = useCallback(async () => {
         const { typeId, stageId } = gameData;
@@ -135,20 +130,18 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, gameType, playMode, g
 
     /** join 且匹配异步落库时：订阅 OPEN 对局并 loadGame，与 startJoin 直返 game 互补 */
     useEffect(() => {
-        if (!user?.uid || playMode !== "join") return;
+        if (!user?.uid || playMode !== "join" || gameData.mode !== "multiplayer_tournament") return;
         const sub = tournamentClient.onUpdate(
             tournamentApi.service.tournament.matchManager.findNewMatch,
             { uid: user.uid },
             (match) => {
                 if (!match?.gameId) return;
-                if (match.status !== MatchStatus.OPEN) return;
+                if (match.status !== "open") return;
                 if (loadingGameIdRef.current === match.gameId) return;
                 loadingGameIdRef.current = match.gameId;
                 void tacticalMonsterClient
                     .action(tacticalMonsterApi.service.tournament.tournamentService.loadGame, {
-                        uid: user.uid,
                         gameId: match.gameId,
-                        playMode: loadGamePlayMode,
                     })
                     .then((res: any) => {
                         if (res?.ok && res.game) {
@@ -164,11 +157,9 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, gameType, playMode, g
             (err) => console.error("[PlayTacticalMonster] findNewMatch onUpdate", err)
         );
         return () => sub.unsubscribe();
-    }, [user?.uid, playMode, tournamentClient, tacticalMonsterClient, loadGamePlayMode, openPlayGame]);
+    }, [user?.uid, playMode, gameData, tournamentClient, tacticalMonsterClient, openPlayGame]);
 
-    useEffect(() => {
-        console.log("play tactical monster [props] changed", gameType);
-    }, [gameType]);
+
 
     useEffect(() => {
         if (!gameData || !gameData.stageId) return;
@@ -188,7 +179,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, gameType, playMode, g
             {game && (
                 <PlayGame
                     game={game}
-                    mode={playMode as Props["mode"]}
+                    playMode={playMode === 'join' ? 'play' : playMode as 'play' | 'watch' | 'replay'}
                     initialPhaseChanges={initialPhaseChanges}
                     exit={() => { console.log("exit"); close?.(); }}
                 />

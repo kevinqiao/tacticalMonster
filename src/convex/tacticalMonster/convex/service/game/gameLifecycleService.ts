@@ -6,7 +6,7 @@
 import { calculateBossPower, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
 import { calculateGameMonster, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
-import { GameModel, GameRound, GameStatus, TutorialProgressState } from "../../types/gameTypes";
+import { GameModel, GameRound, GameStatus, getMrGameStageMode, TutorialProgressState } from "../../types/gameTypes";
 import { GameBoss, GameMinion, GameMonster, PlayerMonster } from "../../types/monsterTypes";
 import { GameRuleConfigService } from "./gameRuleConfigService";
 import { TeamService } from "../team/teamService";
@@ -244,7 +244,7 @@ export class GameLifecycleService {
 
         // 10. 创建 mr_games 记录（兼容现有 schema：从stats提取基础字段）
         const now = new Date().toISOString();
-        const modeType = getModeTypeForRuleId(ruleId);
+        const stageMode = getModeTypeForRuleId(ruleId);
         await this.dbCtx.db.insert("mr_games", {
             uid,
             teamPower,
@@ -300,7 +300,7 @@ export class GameLifecycleService {
             map: mapForGame,
             stageId,
             ruleId,
-            ...(modeType !== undefined ? { modeType } : {}),
+            ...(stageMode !== undefined ? { mode: stageMode } : {}),
             gameId,
             status: 0,  // 0: waiting
             score: 0,
@@ -315,7 +315,7 @@ export class GameLifecycleService {
             gameId,
             stageId,
             ruleId,
-            ...(modeType !== undefined ? { modeType } : {}),
+            ...(stageMode !== undefined ? { mode: stageMode } : {}),
             uid,
             teamPower,
             scoringConfigVersion: DEFAULT_SCORING_CONFIG_VERSION,  // ✅ 设置配置版本
@@ -657,7 +657,7 @@ export class GameLifecycleService {
                 matchId: game.matchId,
                 stageId: game.stageId,
                 ruleId: (game as any).ruleId,
-                modeType: (game as any).modeType,
+                mode: getMrGameStageMode(game as any),
                 uid: game.uid,
                 teamPower: game.teamPower,
                 team: team,  // 使用重建的 GameMonster 数组

@@ -1,6 +1,6 @@
 /**
  * 关卡教学元数据（与 docs/pedagogy_stage_matrix.md、前端 pedagogyByRuleId 保持一致）
- * tutorialWinMode：bronze_boss_1/2 为 guide_only（guideFlow）；挑战链其余关为 boss_only（无 guideFlow 时击败 Boss 通关）。
+ * tutorialWinMode：bronze_boss_1/2 为 guide_only（线性 guideFlow）；bronze_boss_3 为 guide_only（dynamicGuide，无 guideFlow）；bronze_boss_4 起多为 boss_only。
  */
 import type { StagePedagogy } from "../types/stageRuleTypes";
 
@@ -44,7 +44,11 @@ export const PEDAGOGY_BY_RULE_ID: Record<string, StagePedagogy> = {
         ],
     },
     "monster_rumble_challenge_bronze_boss_3": {
-        tutorialWinMode: "boss_only",
+        /** guide_only + dynamicGuide（无 guideFlow）：胜负以「动态引导完成」为准 */
+        tutorialWinMode: "guide_only",
+        dynamicGuide: true,
+        /** 单条件；多条件示例：{ kind: "all", rules: [{ kind: "move" }, { kind: "cast_skill", skillId: "basic_attack" }] } */
+        dynamicGuideRule: { kind: "cast_skill", skillId: "basic_attack" },
         playerTierAssumed: 1,
         playerTierTaught: 2,
         bossMechanicTier: 1,

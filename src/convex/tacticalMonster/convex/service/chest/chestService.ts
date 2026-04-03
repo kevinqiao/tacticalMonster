@@ -8,6 +8,8 @@ import { getMonsterConfigsByRarity } from "../../data/monsterConfigs";
 import { ChestRewardsConfig, ChestType, ChestTypeWeights } from "../../types/chestTypes";
 import { SeededRandom } from "../../utils/seededRandom";
 
+/** 单玩家待入队宝箱上限（防止无限堆积） */
+const MAX_CHEST_QUEUE_LENGTH = 50;
 
 export class ChestService {
     /**
@@ -18,6 +20,9 @@ export class ChestService {
      * @param params.chestTriggered - 从 Tournament 传入的触发决策
      * @param params.chestTypeWeightsMap - 可选：玩家UID到宝箱类型权重的映射（从 TournamentConfig 获取）
      * @param params.stageRuleId - 关卡规则ID（用于查询特定关卡的宝箱配置）
+     *
+     * 栏位已满时新箱写入 `mr_chest_queue`（FIFO）；领取宝箱空槽后自动 `tryPromoteChestQueue`。
+     * 队列达上限（默认 50 条）时返回 `reason: "chest_queue_full"`。
      */
     static async processChestRewards(ctx: any, params: {
         gameId: string;
@@ -46,14 +51,14 @@ export class ChestService {
             const availableSlot = await this.findAvailableSlot(ctx, player.uid);
 
             if (!availableSlot) {
-                // 5. 槽位已满，处理智能覆盖（游戏特定逻辑）
-                const overrideResult = await this.handleChestOverride(ctx, {
+                // 5. 槽位已满：进入 FIFO 队列，有空槽后再移入栏位
+                const queueResult = await this.enqueueChestToQueue(ctx, {
                     uid: player.uid,
-                    newChestType: chestType,
+                    chestType: chestType,
                     gameId: params.gameId,
                     stageRuleId: params.stageRuleId,
                 });
-                results[player.uid] = overrideResult;
+                results[player.uid] = queueResult;
             } else {
                 // 6. 生成宝箱实例（游戏特定逻辑）
                 const chest = await this.generateChest(ctx, {
@@ -156,65 +161,91 @@ export class ChestService {
     }
 
     /**
-     * 智能覆盖逻辑（槽位已满时）
+     * 栏位已满时写入待入队表（FIFO）
      */
-    private static async handleChestOverride(ctx: any, params: {
+    private static async enqueueChestToQueue(ctx: any, params: {
         uid: string;
-        newChestType: ChestType;
+        chestType: ChestType;
         gameId: string;
         stageRuleId?: string;
     }) {
-        // 1. 获取当前所有宝箱（查询等待中和开启中的宝箱）
-        const waitingChests = await ctx.db
-            .query("mr_player_chests")
-            .withIndex("by_uid_status", (q: any) => q.eq("uid", params.uid).eq("status", "waiting"))
+        const existing = await ctx.db
+            .query("mr_chest_queue")
+            .withIndex("by_uid", (q: any) => q.eq("uid", params.uid))
             .collect();
 
-        const openingChests = await ctx.db
-            .query("mr_player_chests")
-            .withIndex("by_uid_status", (q: any) => q.eq("uid", params.uid).eq("status", "opening"))
-            .collect();
-
-        const playerChests = [...waitingChests, ...openingChests];
-
-        // 2. 找到价值最低的宝箱（用于覆盖）
-        const chestValues: Record<string, number> = { silver: 1, gold: 2, purple: 3, orange: 4 };
-        const lowestChest = playerChests.reduce((min, chest) => {
-            const currentValue = chestValues[chest.chestType as keyof typeof chestValues] || 0;
-            const minValue = chestValues[min.chestType as keyof typeof chestValues] || 0;
-            return currentValue < minValue ? chest : min;
-        });
-
-        // 3. 如果新宝箱价值更高，进行覆盖
-        const newValue = chestValues[params.newChestType as keyof typeof chestValues] || 0;
-        const oldValue = chestValues[lowestChest.chestType as keyof typeof chestValues] || 0;
-
-        if (newValue > oldValue) {
-            // 退还旧宝箱（TODO: 实现退款逻辑）
-            // await this.refundChest(ctx, lowestChest);
-
-            // 生成新宝箱
-            const newChest = await this.generateChest(ctx, {
-                uid: params.uid,
-                chestType: params.newChestType,
-                slotNumber: lowestChest.slotNumber,
-                gameId: params.gameId,
-                stageRuleId: params.stageRuleId,
-            });
-
+        if (existing.length >= MAX_CHEST_QUEUE_LENGTH) {
             return {
-                success: true,
-                chestId: newChest.chestId,
-                chestType: params.newChestType,
-                slotNumber: lowestChest.slotNumber,
-                overridden: true,
+                success: false,
+                reason: "chest_queue_full",
+                queueLength: existing.length,
             };
         }
 
+        const queueEntryId = crypto.randomUUID();
+        await ctx.db.insert("mr_chest_queue", {
+            queueEntryId,
+            uid: params.uid,
+            chestType: params.chestType,
+            gameId: params.gameId,
+            stageRuleId: params.stageRuleId,
+        });
+
         return {
-            success: false,
-            reason: "新宝箱价值不高于现有宝箱",
+            success: true,
+            queued: true,
+            queueEntryId,
+            chestType: params.chestType,
+            queueLength: existing.length + 1,
         };
+    }
+
+    private static async getOldestQueueEntry(ctx: any, uid: string) {
+        const rows = await ctx.db
+            .query("mr_chest_queue")
+            .withIndex("by_uid", (q: any) => q.eq("uid", uid))
+            .collect();
+        if (rows.length === 0) {
+            return null;
+        }
+        rows.sort((a: any, b: any) => a._creationTime - b._creationTime);
+        return rows[0];
+    }
+
+    /**
+     * 有空槽时按 FIFO 将队头移入栏位（可连续多次）
+     */
+    static async tryPromoteChestQueue(ctx: any, uid: string) {
+        const promoted: Array<{ chestId: string; chestType: string; slotNumber: number }> = [];
+
+        while (true) {
+            const slot = await this.findAvailableSlot(ctx, uid);
+            if (slot === null) {
+                break;
+            }
+            const next = await this.getOldestQueueEntry(ctx, uid);
+            if (!next) {
+                break;
+            }
+
+            const chest = await this.generateChest(ctx, {
+                uid,
+                chestType: next.chestType as ChestType,
+                slotNumber: slot,
+                gameId: next.gameId,
+                stageRuleId: next.stageRuleId,
+                rewardSeedExtra: next.queueEntryId,
+            });
+
+            await ctx.db.delete(next._id);
+            promoted.push({
+                chestId: chest.chestId,
+                chestType: chest.chestType,
+                slotNumber: slot,
+            });
+        }
+
+        return promoted;
     }
 
     /**
@@ -226,6 +257,8 @@ export class ChestService {
         slotNumber: number;
         gameId: string;
         stageRuleId?: string;
+        /** 入队再移入栏位时传入（如 queueEntryId），避免与直发宝箱共用同一随机种子 */
+        rewardSeedExtra?: string;
     }) {
         // 1. 从配置文件获取宝箱配置（优先特定关卡，后备通用配置）
         const chestConfig = getChestConfig(params.chestType, params.stageRuleId);
@@ -234,8 +267,10 @@ export class ChestService {
             throw new Error(`宝箱配置不存在: ${params.chestType} (stageRuleId: ${params.stageRuleId || "通用"})`);
         }
 
-        // 2. 生成确定性随机数种子（基于 gameId + uid，确保可复现）
-        const seed = `${params.gameId}_${params.uid}`;
+        // 2. 生成确定性随机数种子（基于 gameId + uid，确保可复现；队列移入时加后缀保证每箱独立）
+        const seed = params.rewardSeedExtra
+            ? `${params.gameId}_${params.uid}_${params.rewardSeedExtra}`
+            : `${params.gameId}_${params.uid}`;
 
         // 3. 预生成奖励（基于概率表和配置）
         const rewards = this.generateRewards(chestConfig.rewardsConfig, seed);
@@ -463,9 +498,13 @@ export class ChestService {
             claimedAt: now,
         });
 
+        // 6. 空出槽位后，将队列中的宝箱按 FIFO 移入栏位
+        const promotedFromQueue = await this.tryPromoteChestQueue(ctx, params.uid);
+
         return {
             ok: true,
             rewards: rewards,
+            promotedFromQueue,
         };
     }
 }

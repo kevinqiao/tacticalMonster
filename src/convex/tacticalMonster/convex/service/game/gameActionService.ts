@@ -167,9 +167,14 @@ export class GameActionService {
             if (monsterId) {
                 const gMove = await this.lifecycleService.load(gameId);
                 if (gMove) {
-                    await TutorialProgressService.recordEvent(gameId, this.lifecycleService, this.scoreService, gMove, {
-                        type: "move",
-                    });
+                    await TutorialProgressService.recordEvent(
+                        gameId,
+                        this.lifecycleService,
+                        this.scoreService,
+                        gMove,
+                        { type: "move" },
+                        { skipCheckGameStatus: true }
+                    );
                 }
             }
 
@@ -179,6 +184,7 @@ export class GameActionService {
                 identifier,
                 this.dbCtx
             );
+            await this.scoreService.checkAndUpdateGameStatus(gameId);
 
             const event = this.eventService.createWalkEvent(gameId, identifier, to);
             event.data = { ...event.data, endTurn: true, stepsUsed: thisWalkSteps, stepsUsedTotal: newStepsUsed, phaseChanges };
@@ -929,7 +935,8 @@ export class GameActionService {
                 this.lifecycleService,
                 this.scoreService,
                 updatedGame,
-                ev
+                ev,
+                { skipCheckGameStatus: true }
             );
         }
 
@@ -948,11 +955,12 @@ export class GameActionService {
             await this.scoreService.updateScore(gameId, scoreDelta);
         }
 
-        // 10. ✅ 检查游戏是否结束（事件创建延后到 phaseChanges 构建完成后）
-        await this.scoreService.checkAndUpdateGameStatus(gameId);
-
-        // 12. ✅ 推进回合和阶段（自动处理turnEnd, roundEnd, roundStart, turnStart, Boss AI）
+        // 10. ✅ 推进回合和阶段（自动处理 turnEnd、Boss AI 等）。必须在胜负判定之前，
+        //    否则 checkAndUpdateGameStatus 会把 status 置为非 0，嵌套的 handleBossTurn→attack 会校验失败。
         const phaseChanges = await this.phaseService.advanceTurnAndRound(gameId, { monsterId, bossId, minionId }, this.dbCtx);
+
+        // 11. ✅ 检查游戏是否结束（在 advance 之后，避免 Boss 回合同步 attack 时误判「游戏已结束」）
+        await this.scoreService.checkAndUpdateGameStatus(gameId);
 
         // ✅ 13. 计算 stateChanges（参考 executeBossAction 的实现）
         const casterAfter = this.characterQueryService.getCharacter(monsterId, bossId, minionId);

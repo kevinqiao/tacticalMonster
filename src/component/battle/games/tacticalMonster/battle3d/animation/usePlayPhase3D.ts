@@ -7,6 +7,7 @@ import gsap from "gsap";
 import { useCallback } from "react";
 import { getSkillConfig } from "../../../../../../convex/tacticalMonster/convex/data/skillConfigs";
 import { useCombatManager } from "../../service/CombatManager";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import type { MonsterSprite } from "../../types/CombatTypes";
 import type { GameTurn } from "../../types/gameTypes";
 import { buildWalkGridForMovement, getAttackableNodes, getWalkableNodes } from "../../utils/PathFind";
@@ -15,7 +16,8 @@ import type { UseBattleGridStateReturn } from "../handler/useBattleGridState";
 import { usePlaySkill3D } from "./usePlaySkill3D";
 
 export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
-    const { groundCells, characters, game, mapDimension, playbackSpeed = 1.0 } = useCombatManager();
+    const { groundCells, characters, game, mapDimension, replay } = useCombatManager();
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
     const { map } = game || {};
     const { playSkill } = usePlaySkill3D();
 

@@ -1,6 +1,6 @@
 /**
  * 3D 战斗主界面 - 替代 BattlePlayer 的 3D 版本
- * 事件处理、操作面板与位置选择 UI 由 BattleVenue3D 内 useEventHandler3D / useCombatActHandler3D 驱动
+ * 事件处理、操作面板与位置选择 UI 由 BattleVenue3D 内 useWatchOrReplay / useCombatActHandler3D 驱动
  * 回合 UI 显示由 initialPhaseChanges → handlePhaseChanges 统一处理
  */
 

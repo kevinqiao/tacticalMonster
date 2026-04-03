@@ -1,4 +1,4 @@
-import { resolveTournamentModeType } from "@/convex/tournament/convex/data/tournamentConfigs";
+import { resolveTournamentMode } from "@/convex/tournament/convex/data/tournamentConfigs";
 import { useModalManager } from "@/service/ModalManager";
 import { useTournamentManager } from "@/service/TournamentManager";
 import React, { useCallback } from "react";
@@ -7,9 +7,20 @@ import "./tournamentList.css";
 const TournamentItem: React.FC<{ item: any; onJoin: (item: any) => void }> = ({ item, onJoin }) => {
     /** 仅教学链展示「教学关已完成」；数据来自服务端 ruleStatuses.completed（mr_player_first_clear） */
     const showTutorialCompleted = item.tutorialStageCompleted === true;
+    const unlocked = item.unlocked === true;
     return (
         <div className="tournament-list-item">
             <div className="tournament-list-item-title">{item.name}</div>
+            <span
+                className={
+                    unlocked
+                        ? "tournament-list-item-unlock tournament-list-item-unlock--yes"
+                        : "tournament-list-item-unlock tournament-list-item-unlock--no"
+                }
+                title={unlocked ? "当前可进入该关卡" : "未满足解锁条件（如前置关卡或等级）"}
+            >
+                {unlocked ? "已解锁" : "未解锁"}
+            </span>
             {showTutorialCompleted && (
                 <span className="tournament-list-item-badge" title="该教学关卡已通关">
                     教学关已完成
@@ -33,7 +44,7 @@ const TournamentList: React.FC = () => {
                 typeId: item.typeId,
                 stageId: item.stageId,
                 matchType: matchType,
-                modeType: resolveTournamentModeType(item.config),
+                mode: resolveTournamentMode(item.config),
             }
         });
     }, [openModal]);

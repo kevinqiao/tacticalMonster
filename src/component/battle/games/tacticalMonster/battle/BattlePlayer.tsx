@@ -85,10 +85,9 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
         initialPhaseChanges,
         initialPhaseChangesGate,
         replay,
-        eventQueue,
     } = useCombatManager();
     const { containerRef, mapDimension } = useMapDimension();
-    useEventHandler();
+    const { eventQueueRef } = useEventHandler();
 
     // ✅ 2D 阶段变化处理器（处理 initialPhaseChanges）
     const { handlePhaseChanges } = usePhaseChangesHandler();
@@ -111,7 +110,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
                 return () => clearTimeout(timer);
             } else if (mode === 'watch' || mode === 'replay') {
                 const timer = setTimeout(() => {
-                    if (mode === 'watch' && eventQueue.length === 0) {
+                    if (mode === 'watch' && eventQueueRef.current.length === 0) {
                         initialPhaseChangesGate.markProcessed();
                         handlePhaseChanges(initialPhaseChanges).catch((error) => {
                             console.error("[BattleVenue 2D] Error handling initial phaseChanges (watch):", error);
@@ -126,7 +125,7 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
                 return () => clearTimeout(timer);
             }
         }
-    }, [game, initialPhaseChanges, mode, characters, contextGroundCells, handlePhaseChanges, initialPhaseChangesGate, eventQueue, replay]);
+    }, [game, initialPhaseChanges, mode, characters, contextGroundCells, handlePhaseChanges, initialPhaseChangesGate, eventQueueRef, replay]);
 
     useEffect(() => {
         if (!mapDimension) return;

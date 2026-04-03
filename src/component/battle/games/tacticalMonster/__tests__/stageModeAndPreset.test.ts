@@ -38,7 +38,7 @@ describe("stage mode & team preset (target state)", () => {
         for (const ruleId of TUTORIAL_RULE_IDS) {
             const r = getStageRuleConfig(ruleId);
             expect(r, ruleId).toBeTruthy();
-            expect(getTournamentConfig(ruleId)?.modeType, ruleId).toBe("tutorial");
+            expect(getTournamentConfig(ruleId)?.mode, ruleId).toBe("tutorial");
             expect(r?.uiRules?.hideTeamLayout, ruleId).toBe(true);
             expect(r?.rewardPolicy?.type, ruleId).toBe("one_time_clear");
             expect(r?.teamPreset?.mode, ruleId).toBe("override");
@@ -60,7 +60,7 @@ describe("stage mode & team preset (target state)", () => {
 
     it("solo challenge rules use score_tiers and teamPreset none", () => {
         const r = getStageRuleConfig("monster_rumble_arena_bronze");
-        expect(getTournamentConfig("monster_rumble_arena_bronze")?.modeType).toBe("solo_challenge");
+        expect(getTournamentConfig("monster_rumble_arena_bronze")?.mode).toBe("solo_challenge");
         expect(r?.teamPreset?.mode).toBe("none");
         expect(r?.rewardPolicy?.type).toBe("score_tiers");
         expect(r?.rewardPolicy?.scoreTiers?.length).toBeGreaterThan(0);

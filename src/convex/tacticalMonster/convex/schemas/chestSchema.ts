@@ -30,5 +30,14 @@ export const chestSchema = {
         .index("by_uid_status", ["uid", "status"])
         .index("by_readyAt", ["readyAt"])
         .index("by_uid_slot", ["uid", "slotNumber"]),
+
+    /** 栏位已满时待入队的宝箱（FIFO，领取或空槽后移入 mr_player_chests） */
+    mr_chest_queue: defineTable({
+        queueEntryId: v.string(),
+        uid: v.string(),
+        chestType: v.string(),
+        gameId: v.string(),
+        stageRuleId: v.optional(v.string()),
+    }).index("by_uid", ["uid"]),
 };
 

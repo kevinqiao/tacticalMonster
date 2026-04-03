@@ -1,4 +1,4 @@
-import { getTournamentConfig, resolveTournamentModeType } from "@/convex/tournament/convex/data/tournamentConfigs";
+import { getTournamentConfig, resolveTournamentMode } from "@/convex/tournament/convex/data/tournamentConfigs";
 import type { StageModeType, StageRuleConfig } from "../types/stageRuleTypes";
 
 /**
@@ -7,7 +7,7 @@ import type { StageModeType, StageRuleConfig } from "../types/stageRuleTypes";
  */
 export function validateStageRuleModeConstraints(rule: StageRuleConfig, modeType?: StageModeType): string[] {
     const errs: string[] = [];
-    const mode = modeType ?? resolveTournamentModeType(getTournamentConfig(rule.ruleId));
+    const mode = modeType ?? resolveTournamentMode(getTournamentConfig(rule.ruleId));
     const preset = rule.teamPreset;
 
     if (!mode) {

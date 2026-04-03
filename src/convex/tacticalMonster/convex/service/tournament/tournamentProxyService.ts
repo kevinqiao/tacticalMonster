@@ -65,7 +65,7 @@ export class TournamentProxyService {
     /**
      * 通知 Tournament 模块游戏结束
      * Tournament 模块会：
-     * - 更新 player_matches 状态为 COMPLETED
+     * - 更新 player_matches 状态为 finished / settled（经 HTTP submitScore）
      * - 检查 match 中所有游戏是否都结束
      * - 如果都结束，统一计算排名并处理奖励
      * - 返回奖励决策（如果 match 已完成）

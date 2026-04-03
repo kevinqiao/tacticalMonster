@@ -45,7 +45,9 @@ export const PEDAGOGY_BY_RULE_ID: Record<string, StagePedagogy> = {
         ],
     },
     "monster_rumble_challenge_bronze_boss_3": {
-        tutorialWinMode: "boss_only",
+        tutorialWinMode: "guide_only",
+        dynamicGuide: true,
+        dynamicGuideRule: { kind: "cast_skill", skillId: "basic_attack" },
         playerTierAssumed: 1,
         playerTierTaught: 2,
         bossMechanicTier: 1,

@@ -6,16 +6,16 @@ import gsap from "gsap";
 import { useCallback, useEffect, useRef } from "react";
 import type { GameRound, GameTurn } from "../../types/gameTypes";
 import { getPhaseEventKey } from "../../utils/turnBarQueueUtils";
-import type { TurnBarDimension, TurnBarItem } from "../view/turnbar/TurnOrderBar";
+import type { TurnOrderBarSprite } from "../../types/CombatTypes";
+import type { TurnBarDimension, TurnBarItemSprite as TurnBarItem } from "../view/turnbar/TurnOrderBar";
 
 /** 召唤等单位未及时渲染时，最多重试次数，超过后跳过以避免无限循环 */
 const MAX_DEFER_RETRIES = 50;
 
 interface UsePlayTurnBarOptions {
     dimension: TurnBarDimension | null;
-    itemsMapRef: React.RefObject<Map<string, TurnBarItem>>;
-    separator: { ele: HTMLDivElement | null, txtEle: HTMLDivElement | null, nextRound: number, index: number };
-    trackRef?: React.RefObject<HTMLDivElement | null>;
+    /** 轨道 ele、separator、itemsMap 均从此 ref 读取 */
+    turnOrderBarSpriteRef: React.MutableRefObject<TurnOrderBarSprite | null>;
     playbackSpeed?: number;
 }
 
@@ -38,32 +38,31 @@ const getTurnOrderByRound = (round: GameRound) => {
 const clampSeparatorIndex = (index: number, total: number) =>
     total <= 0 ? index : Math.max(1, Math.min(index, total));
 
-export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, playbackSpeed = 1.0 }: UsePlayTurnBarOptions) => {
+export const usePlayTurnBar = ({ dimension, turnOrderBarSpriteRef, playbackSpeed = 1.0 }: UsePlayTurnBarOptions) => {
     const deferRetryCountRef = useRef(0);
     const lastDeferredEventKeyRef = useRef<string>("");
 
     const getSortedTurnItems = useCallback((): TurnBarItem[] => {
-        const items = Array.from(itemsMapRef.current?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
+        const items = Array.from(turnOrderBarSpriteRef.current?.itemsMap?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
         return items.sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-    }, [itemsMapRef]);
+    }, [turnOrderBarSpriteRef]);
 
     const calcCoordX = useCallback(
         (index: number, totalItems: number, separatorIndex: number, isSeparator: boolean = false) => {
             const itemWidth = dimension?.itemWidth ?? 0;
             if (index < 0) return 0 - itemWidth - GAP;
             if (index === 0) return GAP / 2;
-            // const s = clampSeparatorIndex(separatorIndex, totalItems);
             if (isSeparator) {
                 return separatorIndex < 1 ? separatorIndex * itemWidth : itemWidth * 1.2 + itemWidth * (separatorIndex - 1) + GAP * (separatorIndex - 1);
             }
             const offset = separatorIndex < 0 || separatorIndex > index ? 0 : itemWidth * 0.75 + GAP;
             return offset + itemWidth * 1.2 + itemWidth * (index - 1) + GAP * (index - 1);
         },
-        [dimension, separator.index]
+        [dimension]
     );
     const checkTurnItems = useCallback((turnOrder: GameTurn[]): TurnBarItem[] | null => {
         if (!dimension) return null;
-        const turnItems = Array.from(itemsMapRef.current?.values() ?? []);
+        const turnItems = Array.from(turnOrderBarSpriteRef.current?.itemsMap?.values() ?? []);
         const renderCompleted = turnOrder.every((t, index) => {
             const item = turnItems.find(i => i.character_id === t.character_id);
             return item ? true : false;
@@ -73,10 +72,12 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
         }
 
         return turnItems;
-    }, [itemsMapRef, dimension]);
+    }, [turnOrderBarSpriteRef, dimension]);
 
     const syncItemsToCurrentLayout = useCallback(() => {
-        const turnItems = Array.from(itemsMapRef.current?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
+        const separator = turnOrderBarSpriteRef.current?.separator;
+        if (!separator) return;
+        const turnItems = Array.from(turnOrderBarSpriteRef.current?.itemsMap?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
         const size = turnItems.length;
         turnItems.forEach((item) => {
             if (item.ele) {
@@ -111,12 +112,14 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             gsap.set(separator.ele, { x: calcCoordX(separator.index, size, separator.index, true) });
         }
         tl.play();
-    }, [calcCoordX, dimension, itemsMapRef, separator]);
+    }, [calcCoordX, dimension, turnOrderBarSpriteRef, playbackSpeed]);
 
 
 
     const playAddRemoveTurn = useCallback(
         ({ turnOrder, turnItems, timeline }: { turnOrder: GameTurn[], turnItems: TurnBarItem[], timeline?: gsap.core.Timeline }) => {
+            const separator = turnOrderBarSpriteRef.current?.separator;
+            if (!separator) return;
 
             turnItems.forEach((item) => {
                 const turn = turnOrder.find(t => t.character_id === item.character_id);
@@ -155,17 +158,19 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
                         cl.to(d.ele, { autoAlpha: 0, duration: 0.5, ease: "power2.out", overwrite: "auto" }, "<");
                     }
                 });
-                cl.to(separator.ele, {
-                    x: calcCoordX(separator.index, turnItems.length, separator.index, true),
-                    duration: 0.5,
-                    ease: "power2.out",
-                    overwrite: "auto",
-                }, "<");
+                if (separator.ele) {
+                    cl.to(separator.ele, {
+                        x: calcCoordX(separator.index, turnItems.length, separator.index, true),
+                        duration: 0.5,
+                        ease: "power2.out",
+                        overwrite: "auto",
+                    }, "<");
+                }
                 timeline?.add(cl);
             }
 
         },
-        [dimension, calcCoordX, itemsMapRef, playbackSpeed, separator, trackRef]
+        [dimension, calcCoordX, turnOrderBarSpriteRef, playbackSpeed]
     );
 
     const playMoveTurn = useCallback(
@@ -180,6 +185,8 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             animateHighlight?: boolean,
             showHighlight?: boolean
         }) => {
+            const separator = turnOrderBarSpriteRef.current?.separator;
+            if (!separator) return;
 
             const firstTurn = turnOrder[0];
             const firstItem = turnItems.find((t) => t.character_id === firstTurn?.character_id);
@@ -201,7 +208,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             // separator 的真实位置始终由未完成数量决定，避免 roundStart 后被旋转公式拉到左侧。
             separator.index = todosCount;
             const isNewRound = shouldMoveTrack && separator.index > previousSeparatorIndex;
-            const trackEl = trackRef?.current;
+            const trackEl = turnOrderBarSpriteRef.current?.ele ?? null;
             const tl = gsap.timeline({
                 timeScale: playbackSpeed,
             });
@@ -247,7 +254,9 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
                         ml.to(item.ele, { autoAlpha: 1, duration: 0.3, ease: "power2.out" }, "<");
                     }
                 });
-                ml.to(separator.ele, { autoAlpha: 1, duration: 0.3, ease: "power2.out" }, "<");
+                if (separator.ele) {
+                    ml.to(separator.ele, { autoAlpha: 1, duration: 0.3, ease: "power2.out" }, "<");
+                }
                 tl.add(ml, ">=+0.3");
                 // if (firstItem?.ele) {
                 //     tl.to(firstItem.ele, { scale: 1.2, duration: 0.3, ease: "power2.out" }, "<=+0.5");
@@ -269,7 +278,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             }
 
         },
-        [dimension, calcCoordX, playbackSpeed, separator, trackRef]
+        [dimension, calcCoordX, playbackSpeed, turnOrderBarSpriteRef]
     );
     const playStartTurn = useCallback((
         event: { status: number; phaseChangeEvent: { name: string; data: any } },
@@ -327,11 +336,17 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
         timeline?.add(ml, ">");
         timeline?.play();
 
-    }, [dimension, itemsMapRef, playbackSpeed, trackRef, playAddRemoveTurn, playMoveTurn]);
+    }, [dimension, turnOrderBarSpriteRef, playbackSpeed, playAddRemoveTurn, playMoveTurn]);
     const playStartRound = useCallback(
         (
             event: { status: number, phaseChangeEvent: { name: string, data: any } }, timeline?: gsap.core.Timeline
         ) => {
+            const separator = turnOrderBarSpriteRef.current?.separator;
+            if (!separator) {
+                event.status = 2;
+                timeline?.play();
+                return;
+            }
             const round = event.phaseChangeEvent.data.round;
             const roundNo = typeof round === "object" && round !== null && "no" in round ? (round as { no: number }).no : 1;
             separator.nextRound = roundNo;
@@ -339,7 +354,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
                 separator.txtEle.textContent = String(roundNo);
             }
             const turnOrder = getTurnOrderByRound(round);
-            const turnItems = Array.from(itemsMapRef.current?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
+            const turnItems = Array.from(turnOrderBarSpriteRef.current?.itemsMap?.values() ?? []).filter((i: TurnBarItem) => i.order !== undefined && i.order >= 0);
             // turnItems.forEach((item) => {
             //     const turn = turnOrder.find(t => t.character_id === item.character_id);
             //     if (turn) {
@@ -360,7 +375,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             timeline?.play();
 
 
-        }, [dimension, itemsMapRef, playbackSpeed, playAddRemoveTurn, playMoveTurn, trackRef]
+        }, [dimension, turnOrderBarSpriteRef, playbackSpeed, playAddRemoveTurn, playMoveTurn]
     );
 
 
@@ -376,7 +391,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             }
             const currentRound = turn.phaseChangeEvent.data as GameRound;
             const renderCompleted = currentRound.turns?.every((t, index) => {
-                const item = itemsMapRef.current?.get(t.character_id);
+                const item = turnOrderBarSpriteRef.current?.itemsMap?.get(t.character_id);
                 return item ? true : false;
             });
             if (!renderCompleted) {
@@ -402,7 +417,14 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             lastDeferredEventKeyRef.current = "";
             deferRetryCountRef.current = 0;
 
-            Array.from(itemsMapRef.current?.values() ?? []).forEach((item) => {
+            const separator = turnOrderBarSpriteRef.current?.separator;
+            if (!separator) {
+                turn.status = 0;
+                timeline?.play();
+                return;
+            }
+
+            Array.from(turnOrderBarSpriteRef.current?.itemsMap?.values() ?? []).forEach((item) => {
                 const turn = currentRound.turns?.find(t => t.character_id === item.character_id);
                 if (turn) {
                     item.status = turn.status ?? 0;
@@ -423,7 +445,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
             const tl = gsap.timeline({
                 timeScale: playbackSpeed,
                 onComplete: () => {
-                    console.log("init turn complete", itemsMapRef.current);
+                    console.log("init turn complete", turnOrderBarSpriteRef.current?.itemsMap);
                     turn.status = 2;
                     // syncItemsToCurrentLayout();
                 }
@@ -468,7 +490,7 @@ export const usePlayTurnBar = ({ dimension, itemsMapRef, separator, trackRef, pl
 
             timeline?.play();
         },
-        [calcCoordX, dimension, itemsMapRef, playbackSpeed, separator]
+        [calcCoordX, dimension, turnOrderBarSpriteRef, playbackSpeed]
     );
     useEffect(() => {
         syncItemsToCurrentLayout();

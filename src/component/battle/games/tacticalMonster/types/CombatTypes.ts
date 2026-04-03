@@ -183,6 +183,8 @@ export interface ReplayControls {
     setSpeed: (speed: number) => void;
     state: ReplayState;
     getAllEvents?: () => CombatEvent[];  // ✅ 获取所有事件（用于计分）
+    /** 由 useGameReplay 提供；重播事件注入本地 eventQueue */
+    setOnEventProcessed?: (callback: (event: FrontendCombatEvent) => void) => void;
 }
 
 
@@ -220,6 +222,28 @@ export interface GridCellSprite {
     obstacle?: number;//0-无障碍物,>1-障碍物类型
     element?: SVGElement | null;
 }
+
+/** 先攻条单项（命令式注册，与 TurnOrderBarSprite.itemsMap 对应） */
+export type TurnOrderBarItemSprite = {
+    character_id: string;
+    index?: number;
+    ele?: HTMLDivElement;
+    status: number;
+    order?: number;
+    turnKey?: string;
+};
+
+/** 先攻条根：轨道 ele + 各角色项 + 分隔符 */
+export type TurnOrderBarSprite = {
+    ele: HTMLDivElement | null;
+    itemsMap: Map<string, TurnOrderBarItemSprite>;
+    separator: {
+        ele: HTMLDivElement | null;
+        txtEle: HTMLDivElement | null;
+        nextRound: number;
+        index: number;
+    };
+};
 
 
 export interface WalkableNode extends HexNode {

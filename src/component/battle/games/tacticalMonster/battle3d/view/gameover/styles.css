@@ -1,4 +1,4 @@
-.game-over-container {
+.game-report-container {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -8,13 +8,13 @@
     left: 50%;
     transform: translate(-50%, -50%);
     width: 50%;
-    min-height: 50%;
+    height: 50%;
     color: white;
     background-color: rgb(218, 15, 174);
     padding: 1rem;
 }
 
-.game-over-loading {
+.game-report-loading {
     margin-bottom: 1rem;
 }
 
@@ -30,6 +30,7 @@
     width: 120px;
     height: 45px;
 }
+
 .game-over-actions {
     display: flex;
     gap: 0.5rem;

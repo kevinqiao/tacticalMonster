@@ -166,7 +166,13 @@ export const mainSchema = {
         }),
         stageId: v.string(),
         ruleId: v.string(),
-        /** 与 tournament_types.modeType（或历史 matchRules.modeType）一致，开局写入 */
+        /** 与 tournament_types.mode 语义一致；新写入使用 `mode` */
+        mode: v.optional(v.union(
+            v.literal("tutorial"),
+            v.literal("solo_challenge"),
+            v.literal("multiplayer_tournament")
+        )),
+        /** @deprecated 旧字段名，与 `mode` 同义；迁移后可删 */
         modeType: v.optional(v.union(
             v.literal("tutorial"),
             v.literal("solo_challenge"),
@@ -181,6 +187,7 @@ export const mainSchema = {
         tutorialProgress: v.optional(v.object({
             nextGuideStepIndex: v.optional(v.number()),
             dynamicGuideSatisfied: v.optional(v.boolean()),
+            dynamicAllProgress: v.optional(v.array(v.boolean())),
         })),
         lastUpdate: v.string(),
         createdAt: v.string(),
