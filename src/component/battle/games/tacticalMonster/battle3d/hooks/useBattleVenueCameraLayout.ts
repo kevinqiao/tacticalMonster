@@ -1,9 +1,10 @@
 import { useMemo, type CSSProperties } from "react";
-import type { MapDimension } from "../../service/TeamDeployManager";
+import { useCombatManager } from "../../service/CombatManager";
 import { CAMERA_CONFIG, getViewportFitDistance, sphericalToPosition } from "../BattleCanvas3D";
 import { getGridCenter3D, getGridExtent3D } from "../utils/coordinate3DUtils";
 
-export function useBattleVenueCameraLayout(mapDimension: MapDimension | null) {
+export function useBattleVenueCameraLayout() {
+    const { mapDimension } = useCombatManager();
     const isPortrait = mapDimension?.isPortrait ?? false;
 
     const { cameraPosition, cameraTarget, minDistance, maxDistance, orthoZoom, cameraUp } = useMemo(() => {

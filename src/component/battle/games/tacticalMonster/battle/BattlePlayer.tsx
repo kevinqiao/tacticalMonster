@@ -15,6 +15,7 @@ import GridGround from "./view/GridGround";
 import ObstacleGrid from "./view/ObstacleGrid";
 import { ReplayControls } from "./view/ReplayControls";
 import { ReplayScoreDisplay } from "./view/ReplayScoreDisplay";
+import { useReplay } from "./view/replayContext";
 
 
 const CombatActPanel: React.FC = () => {
@@ -84,8 +85,8 @@ const BattleVenue: React.FC<{ assetType?: ASSET_TYPE }> = ({ assetType }) => {
         groundCells: contextGroundCells,
         initialPhaseChanges,
         initialPhaseChangesGate,
-        replay,
     } = useCombatManager();
+    const replay = useReplay();
     const { containerRef, mapDimension } = useMapDimension();
     const { eventQueueRef } = useEventHandler();
 
@@ -185,23 +186,8 @@ interface BattlePlayerProps {
 }
 
 const BattlePlayer: React.FC<BattlePlayerProps> = ({ assetType }) => {
-    const { game, replay, mode } = useCombatManager();
-    const [currentEventIndex, setCurrentEventIndex] = useState(0);
-    const [allEvents, setAllEvents] = useState<any[]>([]);
+    const { game, mode } = useCombatManager();
     const { positionSelectionUI } = useCombatActHandler();
-
-    // 监听重播状态变化，更新当前事件索引和事件列表
-    // turn UI 显示统一由 initialPhaseChanges → handlePhaseChanges 处理
-    useEffect(() => {
-        if (mode === 'replay' && replay?.state) {
-            setCurrentEventIndex(replay.state.currentIndex || 0);
-            // ✅ 获取所有事件用于计分计算
-            if (replay && 'getAllEvents' in replay && typeof replay.getAllEvents === 'function') {
-                const events = replay.getAllEvents();
-                setAllEvents(events);
-            }
-        }
-    }, [mode, replay?.state?.currentIndex, replay]);
 
     if (!game) return null;
 
@@ -213,13 +199,7 @@ const BattlePlayer: React.FC<BattlePlayerProps> = ({ assetType }) => {
             {/* ✅ 重播控制 UI（仅在 replay 模式显示） */}
             {mode === 'replay' && <ReplayControls />}
             {/* ✅ 重播计分显示（仅在 replay 模式显示） */}
-            {mode === 'replay' && game && allEvents.length > 0 && (
-                <ReplayScoreDisplay
-                    game={game}
-                    events={allEvents}
-                    currentEventIndex={currentEventIndex}
-                />
-            )}
+            <ReplayScoreDisplay />
         </>
     );
 };

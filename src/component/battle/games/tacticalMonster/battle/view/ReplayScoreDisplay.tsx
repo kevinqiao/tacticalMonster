@@ -1,20 +1,35 @@
 /**
- * 重播计分显示组件
+ * 重播计分 overlay：`game` 来自 CombatManager，`replay` 来自 replayContext。
+ * 3D：由 BattleVenue3DSpectator 挂载；2D：由 BattlePlayer 挂载。
  */
 import { getAllScoringConfigVersions } from '../../../../../../convex/tacticalMonster/convex/data/scoringConfigs';
+import { useCombatManager } from '../../service/CombatManager';
 import { useScoreCalculation } from '../hooks/useScoreCalculation';
+import { useReplay } from './replayContext';
 
-interface ReplayScoreDisplayProps {
-    game: any;
-    events: any[];
-    currentEventIndex: number;
-}
+export function ReplayScoreDisplay() {
+    const { game, mode } = useCombatManager();
+    const replay = useReplay();
 
-export function ReplayScoreDisplay({
-    game,
-    events,
-    currentEventIndex
-}: ReplayScoreDisplayProps) {
+    if (mode !== 'replay' || !game || !replay) {
+        return null;
+    }
+
+    const events = [
+        {
+            _id: "1",
+            time: 1000,
+        },
+        {
+            _id: "2",
+            time: 2000,
+        },
+    ];
+    const currentEventIndex = replay.state.currentIndex ?? 0;
+
+    if (events.length === 0) {
+        return null;
+    }
     const {
         eventScores,
         cumulativeScores,

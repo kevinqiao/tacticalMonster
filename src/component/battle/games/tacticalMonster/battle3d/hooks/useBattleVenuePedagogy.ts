@@ -1,27 +1,17 @@
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { User } from "service/UserManager";
+import { useUserManager } from "service/UserManager";
 import { getStageRuleConfig } from "../../config/stageRuleConfigs";
-import type { GameModel, GameMode, MonsterSprite } from "../../types/CombatTypes";
+import { useCombatManager } from "../../service/CombatManager";
 import { getDynamicPedagogyGuideText } from "../../utils/pedagogyDynamicGuide";
 import { markGuideDone } from "../../utils/pedagogyGuideStorage";
 import type { UseBattleGridStateReturn, BattleCellState } from "../handler/useBattleGridState";
 import { usePedagogyGuideFlow } from "./usePedagogyGuideFlow";
 
-export function useBattleVenuePedagogy({
-    user,
-    game,
-    mode,
-    characters,
-    gridState,
-}: {
-    user: User | null | undefined;
-    game: GameModel | null | undefined;
-    mode: GameMode | undefined;
-    characters: MonsterSprite[] | null | undefined;
-    gridState: UseBattleGridStateReturn;
-}) {
+export function useBattleVenuePedagogy({ gridState }: { gridState: UseBattleGridStateReturn }) {
+    const { user } = useUserManager();
+    const { game, mode, characters } = useCombatManager();
     const ruleKeyForPedagogy = (game as { ruleId?: string; stageId?: string })?.ruleId ?? game?.stageId;
 
     const pedagogyHint = useMemo(() => {

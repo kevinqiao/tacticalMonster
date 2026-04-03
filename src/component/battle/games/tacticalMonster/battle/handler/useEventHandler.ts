@@ -12,6 +12,7 @@ import type { FrontendCombatEvent } from "../../types/CombatTypes";
 import type { CharacterIdentifier } from "../../utils/typeAdapter";
 
 import { useWatchEventIngest } from "../hooks/useWatchEventIngest";
+import { useReplay } from "../view/replayContext";
 import { useCombatManager } from "../../service/CombatManager";
 import { applyStateChanges } from "../../utils/backendResponseUtils";
 import { findTargetByIdentifier } from "../../utils/characterUtils";
@@ -28,8 +29,8 @@ const useEventHandler = (): UseEventHandlerResult => {
         groundCells,
         mode = 'play',
         game,
-        replay,
     } = useCombatManager();
+    const replay = useReplay();
 
     const eventQueueRef = useWatchEventIngest({
         gameId: game?.gameId,

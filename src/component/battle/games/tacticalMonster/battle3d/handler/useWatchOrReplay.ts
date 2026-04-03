@@ -7,6 +7,7 @@ import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { useWatchEventIngest } from "../../battle/hooks/useWatchEventIngest";
 import { useCombatManager } from "../../service/CombatManager";
+import { useReplay } from "../../battle/view/replayContext";
 import type { FrontendCombatEvent } from "../../types/CombatTypes";
 import type { CharacterIdentifier } from "../../types/gameTypes";
 import { applyStateChanges } from "../../utils/backendResponseUtils";
@@ -14,14 +15,12 @@ import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import { findTargetByIdentifier } from "../../utils/characterUtils";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
 import { usePlayWalk3D } from "../animation/usePlayWalk3D";
-import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import type { UseBattleGridStateReturn } from "./useBattleGridState";
 import { usePassiveSkillAnimations } from "./usePassiveSkillAnimations";
 import { usePhaseChangesHandler3D } from "./usePhaseChangesHandler3D";
 
 export interface UseWatchOrReplayOptions {
     gridState: UseBattleGridStateReturn | null;
-    mapDimension: BattleMapDimension | null;
 }
 
 export interface UseWatchOrReplayResult {
@@ -29,14 +28,15 @@ export interface UseWatchOrReplayResult {
 }
 
 const useWatchOrReplay = (options: UseWatchOrReplayOptions): UseWatchOrReplayResult => {
-    const { gridState, mapDimension } = options;
+    const { gridState } = options;
     const {
         characters,
         groundCells,
         mode = "play",
         game,
-        replay,
+        mapDimension,
     } = useCombatManager();
+    const replay = useReplay();
 
     const playbackSpeed = getReplayPlaybackSpeed(replay);
 
@@ -57,10 +57,7 @@ const useWatchOrReplay = (options: UseWatchOrReplayOptions): UseWatchOrReplayRes
     const isWatchMode = mode === "watch";
     const { playWalk } = usePlayWalk3D({ mapDimension, playbackSpeed });
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
-    const { handlePhaseChanges } = usePhaseChangesHandler3D({
-        gridState,
-        mapDimension,
-    });
+    const { handlePhaseChanges } = usePhaseChangesHandler3D(gridState);
     const { handlePassiveSkillAnimations } = usePassiveSkillAnimations(characters ?? [], playSkill);
 
     const isProcessingRef = useRef<boolean>(false);

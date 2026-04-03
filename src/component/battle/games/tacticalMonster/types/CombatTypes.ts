@@ -244,6 +244,18 @@ export type TurnOrderBarSprite = {
         index: number;
     };
 };
+export type GameReportSprite = {
+    ele: HTMLDivElement | null;
+};
+/**
+ * 战斗 HUD 单例表：按 kind 字段各至多一条（无 Map key；与 turnOrder / gameReport 等字段名一一对应）。
+ */
+export type CombatHudByKind = {
+    turnOrder?: TurnOrderBarSprite;
+    gameReport?: GameReportSprite;
+    /** 预留其它 HUD */
+    otherBar?: unknown;
+};
 
 
 export interface WalkableNode extends HexNode {

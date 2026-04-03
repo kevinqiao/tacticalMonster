@@ -1,16 +1,10 @@
 import { useGLTF } from "@react-three/drei";
 import { useCallback, useEffect, useState } from "react";
-import type { MapDimension } from "../../service/TeamDeployManager";
-import type { GameModel } from "../../types/CombatTypes";
+import { useCombatManager } from "../../service/CombatManager";
 import { getAllMonsterGlbPaths } from "../utils/modelPathMapper";
 
-export function useBattleVenueModelLoading({
-    mapDimension,
-    game,
-}: {
-    mapDimension: MapDimension | null;
-    game: GameModel | null | undefined;
-}) {
+export function useBattleVenueModelLoading() {
+    const { mapDimension, game } = useCombatManager();
     useEffect(() => {
         getAllMonsterGlbPaths().forEach((path) => useGLTF.preload(path));
     }, []);

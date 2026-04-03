@@ -1,47 +1,28 @@
 /**
- * 3D 战斗主界面 - 替代 BattlePlayer 的 3D 版本
- * 事件处理、操作面板与位置选择 UI 由 BattleVenue3D 内 useWatchOrReplay / useCombatActHandler3D 驱动
- * 回合 UI 显示由 initialPhaseChanges → handlePhaseChanges 统一处理
+ * 3D 战斗主界面：按 mode 挂载游玩或观战/重播子树；全局 overlay（结束态）
+ * 观战/重播：BattleVenue3DSpectator（内含 ReplayControls + ReplayScoreDisplay）
  */
 
-import React, { useCallback, useEffect, useState } from "react";
-import { ReplayControls } from "../battle/view/ReplayControls";
-import { ReplayScoreDisplay } from "../battle/view/ReplayScoreDisplay";
+import React from "react";
 import { useCombatManager } from "../service/CombatManager";
-import { BattleVenue3D } from "./BattleVenue3D";
-import GameOver from "./view/gameover/GameOver";
+import { BattleVenue3DPlay } from "./BattleVenue3DPlay";
+import { BattleVenue3DSpectator } from "./BattleVenue3DSpectator";
+import "./style.css";
 
 const BattlePlayer3D: React.FC<{ close?: () => void }> = ({ close }) => {
-    const { game, replay, mode, gameOverEvent } = useCombatManager();
-    const [currentEventIndex, setCurrentEventIndex] = useState(0);
-    const [allEvents, setAllEvents] = useState<any[]>([]);
+    const { mode } = useCombatManager();
 
-    useEffect(() => {
-        if (mode === "replay" && replay?.state) {
-            setCurrentEventIndex(replay.state.currentIndex || 0);
-            if (replay && "getAllEvents" in replay && typeof replay.getAllEvents === "function") {
-                setAllEvents(replay.getAllEvents());
-            }
-        }
-    }, [mode, replay?.state?.currentIndex, replay]);
-    const closeGameOver = useCallback(() => {
-        console.log("close game over");
-        close?.();
-    }, []);
-    if (!game) return null;
+    const venue =
+        mode === "watch" || mode === "replay" ? (
+            <BattleVenue3DSpectator close={close} />
+        ) : (
+            <BattleVenue3DPlay close={close} />
+        );
 
     return (
         <>
-            <BattleVenue3D close={closeGameOver} />
-            {mode === "replay" && <ReplayControls />}
-            {mode === "replay" && game && allEvents.length > 0 && (
-                <ReplayScoreDisplay
-                    game={game}
-                    events={allEvents}
-                    currentEventIndex={currentEventIndex}
-                />
-            )}
-            {gameOverEvent != null && <GameOver />}
+            {venue}
+
         </>
     );
 };

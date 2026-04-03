@@ -12,6 +12,8 @@
     color: white;
     background-color: rgb(218, 15, 174);
     padding: 1rem;
+    visibility: hidden;
+    opacity: 0;
 }
 
 .game-report-loading {

@@ -9,14 +9,13 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import { useGameReplay } from "../battle/hooks/useGameReplay";
+import { ReplayProvider } from "../battle/view/replayContext";
 import { getCharacterKey } from "../battle3d/utils/battle3DAdapter";
-import type { GameModel, TurnOrderBarSprite } from "../types/CombatTypes";
+import type { CombatHudByKind, GameModel } from "../types/CombatTypes";
 import {
     GameMode,
     GridCellSprite,
     MonsterSprite,
-    ReplayControls
 } from "../types/CombatTypes";
 import type { GameRound } from "../types/gameTypes";
 import { PhaseChanges } from "../types/gameTypes";
@@ -73,7 +72,6 @@ export interface ICombatContext {
     /** 测量 mapDimension 的容器 ref，挂在 CombatManager 的包装 div 上 */
     // containerRef: React.RefObject<HTMLDivElement | null>;
     mode?: GameMode;
-    replay?: ReplayControls;
     // ✅ 初始 phaseChanges 由各视图层（2D/3D）自行处理
     initialPhaseChanges?: PhaseChanges;
     /** 初始 phaseChanges 处理门：markProcessed 标记已处理，isProcessed 检查 */
@@ -84,8 +82,8 @@ export interface ICombatContext {
     phaseChangeEventQueueRef: React.MutableRefObject<TurnBarQueuedEvent[]>;
     /** init 门控：入队过 init 的 gameKey，供 TurnOrderBar 消费前判断 */
     initQueuedGameKeyRef: React.MutableRefObject<string | null>;
-    /** 先攻条 DOM + 状态（TurnOrderBar 写入；换局时清空） */
-    turnOrderBarSpriteRef: React.MutableRefObject<TurnOrderBarSprite | null>;
+    /** 先攻条 / 战报等 HUD 的 DOM + 状态（按 CombatHudByKind 各字段单例；换局时清空对象） */
+    combatHudRef: React.MutableRefObject<CombatHudByKind>;
     addPhaseChangeEvent: (
         payload: TurnRoundPayload,
         options?: { unshift?: boolean; authoritativeRound?: boolean }
@@ -112,7 +110,7 @@ export const CombatContext = createContext<ICombatContext>({
     gameOverEvent: undefined,
     phaseChangeEventQueueRef: { current: [] },
     initQueuedGameKeyRef: { current: null },
-    turnOrderBarSpriteRef: { current: null },
+    combatHudRef: { current: {} },
     addPhaseChangeEvent: () => { },
     activeCharacterKey: null,
     setActiveCharacterKey: () => { },
@@ -174,13 +172,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
             return updater(base) ?? prev;
         });
     }, [game]);
-    // ✅ 重播功能（仅在 replay 模式）
-    // 在 replay 模式下，useGameReplay 会：
-    // 1. 加载所有历史事件（findAllEvents）
-    // 2. 创建 GameReplayManager 实例
-    // 3. 提供播放控制方法（play/pause/stop/seekTo/setSpeed）
-    const replay = useGameReplay(game?.gameId || null, mode);
-
     const characters = useMemo(() => {
         if (!effectiveGame?.team || !effectiveGame?.boss) return [];
         return getCharactersFromGameModel(effectiveGame.team, effectiveGame.boss);
@@ -217,7 +208,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     const [gameOverEvent, setGameOverEvent] = useState<TurnRoundPayload | undefined>(undefined);
     const phaseChangeEventQueueRef = useRef<TurnBarQueuedEvent[]>([]);
     const initQueuedGameKeyRef = useRef<string | null>(null);
-    const turnOrderBarSpriteRef = useRef<TurnOrderBarSprite | null>(null);
+    const combatHudRef = useRef<CombatHudByKind>({});
 
     const addPhaseChangeEvent = useCallback(
         (
@@ -314,7 +305,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     useEffect(() => {
         if (effectiveGame?.gameId == null || effectiveGame?.gameId === "") {
             initQueuedGameKeyRef.current = null;
-            turnOrderBarSpriteRef.current = null;
+            combatHudRef.current = {};
         }
     }, [effectiveGame?.gameId]);
 
@@ -397,33 +388,21 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         gameOverEvent,
         phaseChangeEventQueueRef,
         initQueuedGameKeyRef,
-        turnOrderBarSpriteRef,
+        combatHudRef,
         addPhaseChangeEvent,
         activeCharacterKey,
         setActiveCharacterKey,
         animating,
         setCharacterAnimating,
-        // ✅ 重播控制（仅在 replay 模式）
-        // 提供重播播放控制接口，子组件可通过 useCombatManager() 获取
-        // 例如：const { replay } = useCombatManager(); replay?.play();
-        replay: mode === 'replay' ? {
-            play: replay.play,           // 开始播放
-            pause: replay.pause,         // 暂停播放
-            stop: replay.stop,           // 停止播放
-            seekTo: replay.seekTo,      // 跳转到指定时间（毫秒）
-            seekToIndex: replay.seekToIndex,  // 跳转到指定事件索引
-            setSpeed: replay.setSpeed,   // 设置播放速度（0.5x, 1x, 2x）
-            state: replay.replayState,   // 重播状态（isPlaying, currentIndex, totalEvents 等）
-            getAllEvents: replay.getAllEvents,  // ✅ 获取所有事件（用于计分）
-            setOnEventProcessed: replay.setOnEventProcessed,
-        } : undefined,
     };
 
     return (
         <CombatContext.Provider value={value}>
-            <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
-                {children}
-            </div>
+            <ReplayProvider gameId={effectiveGame?.gameId ?? null} mode={mode}>
+                <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+                    {children}
+                </div>
+            </ReplayProvider>
         </CombatContext.Provider>
     );
 };

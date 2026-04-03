@@ -7,9 +7,9 @@
 
 import React, { useEffect, useMemo } from "react";
 import { useCombatManager } from "../../../service/CombatManager";
-import type { GameModel, TurnOrderBarSprite } from "../../../types/CombatTypes";
 import { SeparatorSprite } from "./SeparatorSprite";
 import { TurnItem } from "./TurnItem";
+import { createTurnOrderBarSpriteViewRef, ensureTurnOrderBarSprite } from "../../../utils/combatHudRegistry";
 import { computeTurnBarDimension } from "./turnBarLayout";
 
 export type { TurnBarDimension } from "./turnBarLayout";
@@ -32,38 +32,24 @@ const getSeparatorIndexFromRound = (round: unknown): number => {
     return todos?.length === 0 || todos?.length === size ? size : (todos?.length ?? 0);
 };
 
-function ensureTurnOrderBarSprite(
-    ref: React.MutableRefObject<TurnOrderBarSprite | null>,
-    game: GameModel | null | undefined
-): TurnOrderBarSprite {
-    if (!ref.current) {
-        ref.current = {
-            ele: null,
-            itemsMap: new Map(),
-            separator: {
-                ele: null,
-                txtEle: null,
-                nextRound: (game?.currentRound?.no ?? 0) + 1,
-                index: getSeparatorIndexFromRound(game?.currentRound),
-            },
-        };
-    }
-    return ref.current;
-}
-
 export const TurnOrderBar: React.FC = () => {
-    const { game, mapDimension, turnOrderBarSpriteRef, characters } = useCombatManager();
+    const { game, mapDimension, combatHudRef, characters } = useCombatManager();
 
     const dimension = useMemo(() => computeTurnBarDimension(mapDimension), [mapDimension]);
 
-    ensureTurnOrderBarSprite(turnOrderBarSpriteRef, game);
+    const turnOrderBarSpriteRef = useMemo(
+        () => createTurnOrderBarSpriteViewRef(combatHudRef),
+        [combatHudRef]
+    );
+
+    ensureTurnOrderBarSprite(combatHudRef, game);
     const separator = turnOrderBarSpriteRef.current!.separator;
 
     useEffect(() => {
-        const root = ensureTurnOrderBarSprite(turnOrderBarSpriteRef, game);
+        const root = ensureTurnOrderBarSprite(combatHudRef, game);
         root.separator.nextRound = (game?.currentRound?.no ?? 0) + 1;
         root.separator.index = getSeparatorIndexFromRound(game?.currentRound);
-    }, [game?.gameId, game?.currentRound?.no, turnOrderBarSpriteRef, game]);
+    }, [game?.gameId, game?.currentRound?.no, combatHudRef, game]);
 
     const containerHeight = dimension ? dimension.itemHeight * 1.2 : 1;
     return (
@@ -76,7 +62,7 @@ export const TurnOrderBar: React.FC = () => {
         >
             <div
                 ref={(el) => {
-                    const root = turnOrderBarSpriteRef.current ?? ensureTurnOrderBarSprite(turnOrderBarSpriteRef, game);
+                    const root = ensureTurnOrderBarSprite(combatHudRef, game);
                     root.ele = el;
                 }}
                 style={{

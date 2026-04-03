@@ -1,16 +1,12 @@
 import { useCallback } from "react";
-import type { MapDimension } from "../../service/TeamDeployManager";
-import type { GameModel, GameMode, MonsterSprite } from "../../types/CombatTypes";
+import { useCombatManager } from "../../service/CombatManager";
+import type { MonsterSprite } from "../../types/CombatTypes";
 import type { PedagogyGuideNotifyEvent } from "../../utils/pedagogyGuideFlow";
 import { resolveAttackProfile } from "../../utils/skillRangeUtils";
 import { canPerformAction } from "../../utils/validationUtils";
 import type { UseBattleGridStateReturn } from "../handler/useBattleGridState";
 
 export function useBattleVenueCellClick({
-    mapDimension,
-    mode,
-    game,
-    characters,
     gridState,
     walk,
     attack,
@@ -21,11 +17,7 @@ export function useBattleVenueCellClick({
     enforceSkillSelectStepBoss2,
     handleSkillErrorToast,
 }: {
-    mapDimension: MapDimension | null;
-    mode: GameMode | undefined;
-    game: GameModel | null | undefined;
-    characters: MonsterSprite[] | null | undefined;
-    gridState: UseBattleGridStateReturn;
+    gridState: UseBattleGridStateReturn | null;
     walk: (pos: { q: number; r: number }) => Promise<unknown>;
     attack: (enemy: MonsterSprite) => Promise<unknown>;
     useSkill: (skillId: string, target?: MonsterSprite) => Promise<unknown>;
@@ -35,9 +27,10 @@ export function useBattleVenueCellClick({
     enforceSkillSelectStepBoss2: boolean;
     handleSkillErrorToast: (message: string) => void;
 }) {
+    const { mapDimension, mode, game, characters } = useCombatManager();
     const handleCellClick = useCallback(
         (logicQ: number, logicR: number) => {
-            if (!mapDimension || mode !== "play") return;
+            if (!gridState || !mapDimension || mode !== "play") return;
             const effectiveGame = game;
             const validation = canPerformAction(mode, effectiveGame, characters);
             if (!validation.can || !validation.character) {

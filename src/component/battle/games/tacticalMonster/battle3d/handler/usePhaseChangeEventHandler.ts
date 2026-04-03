@@ -1,19 +1,14 @@
 import gsap from "gsap";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
-import type { GameMode, TurnOrderBarSprite } from "../../types/CombatTypes";
-import type { QueueableTurnBarEventName, TurnBarPhaseEvent, TurnBarQueuedEvent } from "../../utils/turnBarQueueUtils";
+import { useReplay } from "../../battle/view/replayContext";
+import { useCombatManager } from "../../service/CombatManager";
+import { createTurnOrderBarSpriteViewRef } from "../../utils/combatHudRegistry";
+import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
+import type { QueueableTurnBarEventName, TurnBarPhaseEvent } from "../../utils/turnBarQueueUtils";
+import { usePlayGameOver } from "../animation/usePlayGameOver";
 import { usePlayTurnBar } from "../animation/usePlayTurnBar";
-import type { TurnBarDimension } from "../view/turnbar/turnBarLayout";
-
-export type UsePhaseChangeEventHandlerOptions = {
-    dimension: TurnBarDimension | null;
-    turnOrderBarSpriteRef: React.MutableRefObject<TurnOrderBarSprite | null>;
-    playbackSpeed?: number;
-    phaseChangeEventQueueRef: React.MutableRefObject<TurnBarQueuedEvent[]>;
-    initQueuedGameKeyRef: React.MutableRefObject<string | null>;
-    mode?: GameMode;
-};
+import { computeTurnBarDimension } from "../view/turnbar/turnBarLayout";
 
 const REQUIRES_LAYOUT_EVENT_NAMES: QueueableTurnBarEventName[] = ["turnStart", "roundStart"];
 
@@ -21,19 +16,31 @@ function headRequiresLayout(evt: TurnBarPhaseEvent | undefined): boolean {
     return Boolean(evt && (REQUIRES_LAYOUT_EVENT_NAMES as string[]).includes(evt.name));
 }
 
-export function usePhaseChangeEventHandler({
-    dimension,
-    turnOrderBarSpriteRef,
-    playbackSpeed = 1,
-    phaseChangeEventQueueRef,
-    initQueuedGameKeyRef,
-    mode,
-}: UsePhaseChangeEventHandlerOptions): void {
+/** 消费 phase 队列并驱动回合条 GSAP；数据来自 CombatManager（含 mapDimension → 回合条布局）。 */
+export function usePhaseChangeEventHandler(): void {
+    const {
+        mode,
+        mapDimension,
+        phaseChangeEventQueueRef,
+        initQueuedGameKeyRef,
+        combatHudRef,
+    } = useCombatManager();
+    const replay = useReplay();
+
+    const playbackSpeed = getReplayPlaybackSpeed(replay);
+    const dimension = useMemo(() => computeTurnBarDimension(mapDimension), [mapDimension]);
+
+    const turnOrderBarSpriteRef = useMemo(
+        () => createTurnOrderBarSpriteViewRef(combatHudRef),
+        [combatHudRef]
+    );
+
     const { playInitTurn, playStartTurn, playStartRound } = usePlayTurnBar({
         dimension,
         turnOrderBarSpriteRef,
         playbackSpeed,
     });
+    const { playGameReport } = usePlayGameOver();
 
     const timelineRef = useRef<gsap.core.Timeline | null>(null);
     const initProcessedRef = useRef(false);
@@ -90,6 +97,10 @@ export function usePhaseChangeEventHandler({
                 case "roundStart":
                     playStartRound(turn, timelineRef.current);
                     return;
+                case "gameOver":
+                    playGameReport(timelineRef.current);
+                    console.log("gameOver:", turn.phaseChangeEvent.data);
+                    return;
                 default:
                     completeImmediately();
                     return;
@@ -106,5 +117,6 @@ export function usePhaseChangeEventHandler({
         playStartRound,
         phaseChangeEventQueueRef,
         initQueuedGameKeyRef,
+        turnOrderBarSpriteRef,
     ]);
 }

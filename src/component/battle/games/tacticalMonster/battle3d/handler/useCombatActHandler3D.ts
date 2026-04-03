@@ -8,11 +8,11 @@ import { useCallback } from "react";
 import { useUserManager } from "service/UserManager";
 import { useScoreCalculation } from "../../battle/hooks/useScoreCalculation";
 import { useCombatManager } from "../../service/CombatManager";
+import { useReplay } from "../../battle/view/replayContext";
 import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
 import { usePlaySkillSelect3D } from "../animation/usePlaySkillSelect3D";
 import { usePlayWalk3D } from "../animation/usePlayWalk3D";
-import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import { useOtherAction3D } from "./actions/useOtherAction3D";
 import { useSkillAction3D } from "./actions/useSkillAction3D";
 import { useWalkAction3D } from "./actions/useWalkAction3D";
@@ -22,19 +22,26 @@ import { usePassiveSkillAnimations } from "./usePassiveSkillAnimations";
 import { usePhaseChangesHandler3D } from "./usePhaseChangesHandler3D";
 import { useSkillSync } from "./useSkillSync";
 import type { PedagogyGuideNotifyEvent } from "../../utils/pedagogyGuideFlow";
+import { useBattleVenueCellClick } from "../hooks/useBattleVenueCellClick";
 
 interface UseCombatActHandler3DOptions {
     gridState: UseBattleGridStateReturn | null;
-    mapDimension: BattleMapDimension | null;
     /** 技能失败时额外回调（用于显示 toast 等用户可见提示） */
     onSkillError?: (message: string) => void;
     /** 教学 guideFlow 与技能栏 / 自动选技 同步 */
     onPedagogyNotify?: (event: PedagogyGuideNotifyEvent) => void;
+    /** 3D 战场格子点击的教学约束（与 onPedagogyNotify 一致时传入） */
+    cellClickPedagogy?: {
+        enforceMoveStep: boolean;
+        enforceCastStep: boolean;
+        enforceSkillSelectStepBoss2: boolean;
+    };
 }
 
 const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
-    const { gridState, mapDimension, onSkillError, onPedagogyNotify } = options;
-    const { game, characters, groundCells, mode = "play", replay } = useCombatManager();
+    const { gridState, onSkillError, onPedagogyNotify, cellClickPedagogy } = options;
+    const { game, characters, groundCells, mode = "play", mapDimension } = useCombatManager();
+    const replay = useReplay();
     const playbackSpeed = getReplayPlaybackSpeed(replay);
     const { playSkillSelect } = usePlaySkillSelect3D();
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
@@ -44,10 +51,7 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
     const { openModal } = useModalManager();
 
     const { calculateActionScore } = useScoreCalculation(game ?? null, [], mode);
-    const { handlePhaseChanges, refreshWalkableFromPosition } = usePhaseChangesHandler3D({
-        gridState,
-        mapDimension,
-    });
+    const { handlePhaseChanges, refreshWalkableFromPosition } = usePhaseChangesHandler3D(gridState);
     const { handlePassiveSkillAnimations } = usePassiveSkillAnimations(characters ?? [], playSkill);
 
     const handleSkillError = useCallback(
@@ -122,6 +126,20 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         handlePhaseChanges
     );
 
+    const noopPedagogyNotify = useCallback((_e: PedagogyGuideNotifyEvent) => {}, []);
+    const noopSkillToast = useCallback((_message: string) => {}, []);
+    const { handleCellClick } = useBattleVenueCellClick({
+        gridState,
+        walk,
+        attack,
+        useSkill,
+        notifyPedagogyGuide: onPedagogyNotify ?? noopPedagogyNotify,
+        enforceMoveStep: cellClickPedagogy?.enforceMoveStep ?? false,
+        enforceCastStep: cellClickPedagogy?.enforceCastStep ?? false,
+        enforceSkillSelectStepBoss2: cellClickPedagogy?.enforceSkillSelectStepBoss2 ?? false,
+        handleSkillErrorToast: onSkillError ?? noopSkillToast,
+    });
+
     return {
         walk,
         attack,
@@ -131,6 +149,7 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         useSkill,
         surrender,
         positionSelectionUI,
+        handleCellClick,
     };
 };
 

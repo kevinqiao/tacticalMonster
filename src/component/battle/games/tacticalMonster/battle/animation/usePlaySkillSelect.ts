@@ -6,12 +6,14 @@ import gsap from "gsap";
 import { useCallback } from "react";
 import { getSkillConfig } from "../../config/skillConfigs";
 import { useCombatManager } from "../../service/CombatManager";
+import { useReplay } from "../view/replayContext";
 import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 import { MonsterSkill } from "../../types/skillTypes";
 import { getAttackableNodes } from "../../utils/PathFind";
 
 const usePlaySkillSelect = () => {
-    const { characters, groundCells, mapDimension, game, replay } = useCombatManager();
+    const { characters, groundCells, mapDimension, game } = useCombatManager();
+    const replay = useReplay();
     const playbackSpeed = getReplayPlaybackSpeed(replay);
 
     const { map, currentRound } = game || {};

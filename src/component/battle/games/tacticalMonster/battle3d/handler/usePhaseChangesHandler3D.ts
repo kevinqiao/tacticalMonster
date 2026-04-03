@@ -6,6 +6,7 @@ import { useModalManager } from "@/service/ModalManager";
 import { useCallback } from "react";
 import { flushSync } from "react-dom";
 import { useCombatManager } from "../../service/CombatManager";
+import { useReplay } from "../../battle/view/replayContext";
 import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
 
 import type { CharacterIdentifier, GameRound, GameTurn } from "../../types/gameTypes";
@@ -18,14 +19,8 @@ import { usePlayPhase3D } from "../animation/usePlayPhase3D";
 import { usePlaySkill3D } from "../animation/usePlaySkill3D";
 import { usePlayWalk3D } from "../animation/usePlayWalk3D";
 import { getCharacterKey } from "../utils/battle3DAdapter";
-import type { BattleMapDimension } from "../utils/coordinate3DUtils";
 import type { UseBattleGridStateReturn } from "./useBattleGridState";
 import { useBossAIHandler } from "./useBossAIHandler";
-
-interface UsePhaseChangesHandler3DOptions {
-    gridState: UseBattleGridStateReturn | null;
-    mapDimension: BattleMapDimension | null;
-}
 
 type TurnActor = { uid?: string; character_id?: string };
 
@@ -44,10 +39,17 @@ const getTurnActorId = (actor: any, currentRound?: GameRound | null): string | n
     null;
 
 
-export const usePhaseChangesHandler3D = (options: UsePhaseChangesHandler3DOptions) => {
-    const { gridState, mapDimension } = options;
-    const { game, characters, groundCells, setActiveCharacterKey, addPhaseChangeEvent, updateRuntimeGame, replay } =
-        useCombatManager();
+export const usePhaseChangesHandler3D = (gridState: UseBattleGridStateReturn | null) => {
+    const {
+        game,
+        characters,
+        groundCells,
+        mapDimension,
+        setActiveCharacterKey,
+        addPhaseChangeEvent,
+        updateRuntimeGame,
+    } = useCombatManager();
+    const replay = useReplay();
     const playbackSpeed = getReplayPlaybackSpeed(replay);
     const { openModal } = useModalManager();
 
