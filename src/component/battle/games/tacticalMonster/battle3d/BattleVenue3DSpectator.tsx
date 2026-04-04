@@ -20,7 +20,7 @@ import { SkillPanel } from "./view/skill/SkillPanel";
 
 const noopAsync = async () => { };
 
-export const BattleVenue3DSpectator: React.FC<{ close?: () => void }> = ({ close }) => {
+export const BattleVenue3DSpectator: React.FC = () => {
     const {
         game,
         mode,

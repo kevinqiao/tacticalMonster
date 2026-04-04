@@ -1,41 +1,24 @@
-import React from "react";
-
-import { useCombatManager } from "../../../service/CombatManager";
-import { ensureGameReportSprite } from "../../../utils/combatHudRegistry";
-
+import React, { useCallback } from "react";
+import { usePlayGameOver } from "../../animation/usePlayGameOver";
+import GameReport from "./GameReport";
+import MatchReport from "./MatchReport";
 import "./styles.css";
 
 /** 3D 结算：仅用本地 game / gameOverEvent 展示；终局与 Tournament 由服务端 phase 流与 submitScore 路径处理，不再请求 gameOver mutation */
 const GameOver: React.FC = () => {
-    const { combatHudRef } = useCombatManager();
+    const { playGameReportClose, playMatchReport } = usePlayGameOver();
+    const onGameReportClose = useCallback(() => {
+        playGameReportClose({
+            onComplete: () => playMatchReport({}),
+        });
+    }, [playGameReportClose, playMatchReport]);
 
-    ensureGameReportSprite(combatHudRef);
 
     return (
-        <div
-            className="game-report-container"
-            ref={(el) => {
-                const root = ensureGameReportSprite(combatHudRef);
-                root.ele = el;
-            }}
-        >
-            {/* <div className="game-over-report">
-                <div>Score: {totalScore}</div>
-                {endReason ? <div>{endReason}</div> : null}
-            </div>
-            <div className="game-over-actions">
-                <button
-                    className="game-over-button"
-                    onClick={() => void handleSubmit()}
-                    disabled={submitting || submitted}
-                >
-                    {submitted ? "Submitted" : submitting ? "Submitting..." : "Submit Score (retry)"}
-                </button>
-                <button className="game-over-button" onClick={handleClose}>
-                    Close
-                </button>
-            </div> */}
-        </div>
+        <>
+            <GameReport onClose={onGameReportClose} />
+            <MatchReport />
+        </>
     );
 };
 export default GameOver;

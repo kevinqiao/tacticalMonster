@@ -16,7 +16,7 @@ import { useInitialPhaseChangesPlayBootstrap } from "./hooks/useInitialPhaseChan
 import { BattleVenue3DScene } from "./view/BattleVenue3DScene";
 import { SkillPanel } from "./view/skill/SkillPanel";
 
-export const BattleVenue3DPlay: React.FC<{ close?: () => void }> = ({ close }) => {
+export const BattleVenue3DPlay: React.FC = () => {
     const { mapDimension } = useCombatManager();
     const gridState = useBattleGridState();
     const { message: skillError, show: handleSkillErrorToast } = useAutoDismissMessage(3500);

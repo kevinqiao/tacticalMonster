@@ -76,8 +76,7 @@ export interface ICombatContext {
     initialPhaseChanges?: PhaseChanges;
     /** 初始 phaseChanges 处理门：markProcessed 标记已处理，isProcessed 检查 */
     initialPhaseChangesGate: { markProcessed: () => void; isProcessed: () => boolean };
-    /** gameOver 事件（仅用于 BattlePlayer3D 显示 GameOver 弹窗） */
-    gameOverEvent?: TurnRoundPayload;
+
     /** phase 事件队列 ref（供 TurnOrderBar 消费） */
     phaseChangeEventQueueRef: React.MutableRefObject<TurnBarQueuedEvent[]>;
     /** init 门控：入队过 init 的 gameKey，供 TurnOrderBar 消费前判断 */
@@ -95,6 +94,7 @@ export interface ICombatContext {
     animating: { key: string; position: [number, number, number] } | null;
     /** 开始动画：key + 可选 position；结束动画：setCharacterAnimating(null) */
     setCharacterAnimating: (key: string | null, position?: [number, number, number]) => void;
+    exit?: () => void;
 }
 
 export const CombatContext = createContext<ICombatContext>({
@@ -107,7 +107,6 @@ export const CombatContext = createContext<ICombatContext>({
     // containerRef: { current: null },
     mode: 'play',
     initialPhaseChangesGate: { markProcessed: () => { }, isProcessed: () => false },
-    gameOverEvent: undefined,
     phaseChangeEventQueueRef: { current: [] },
     initQueuedGameKeyRef: { current: null },
     combatHudRef: { current: {} },
@@ -137,6 +136,7 @@ interface CombatManagerProps {
     game: GameModel | null;
     mode?: GameMode;
     initialPhaseChanges?: PhaseChanges; // ✅ 初始 phaseChanges（从 loadGame 返回）
+    exit?: () => void;
 }
 
 const CombatManager: React.FC<CombatManagerProps> = ({
@@ -144,6 +144,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     game = null,
     mode = 'play',
     initialPhaseChanges,
+    exit,
 }) => {
 
     const { containerRef, mapDimension } = useMapDimension();
@@ -285,7 +286,9 @@ const CombatManager: React.FC<CombatManagerProps> = ({
                 phaseRoundMirrorRef.current = roundToSync;
                 updateRuntimeGame((prev) => ({ ...prev, currentRound: roundToSync! }));
             }
-
+            if (name === "gameOver" && updateRuntimeGame) {
+                updateRuntimeGame((prev) => ({ ...prev, gameOver: payload.data as any }));
+            }
             const queue = phaseChangeEventQueueRef.current;
             const evt: TurnBarPhaseEvent = { name, data: nextPayload.data };
             if (options?.unshift) {
@@ -385,7 +388,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         mode: mode,
         initialPhaseChanges,
         initialPhaseChangesGate,
-        gameOverEvent,
         phaseChangeEventQueueRef,
         initQueuedGameKeyRef,
         combatHudRef,
@@ -394,6 +396,7 @@ const CombatManager: React.FC<CombatManagerProps> = ({
         setActiveCharacterKey,
         animating,
         setCharacterAnimating,
+        exit,
     };
 
     return (

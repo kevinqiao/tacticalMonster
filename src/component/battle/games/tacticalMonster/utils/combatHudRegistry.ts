@@ -6,6 +6,7 @@ import type {
     CombatHudByKind,
     GameModel,
     GameReportSprite,
+    MatchReportSprite,
     TurnOrderBarSprite,
 } from "../types/CombatTypes";
 
@@ -107,6 +108,48 @@ export function createGameReportSpriteViewRef(
                 delete hudRef.current.gameReport;
             } else {
                 hudRef.current.gameReport = value;
+            }
+        },
+    };
+}
+
+/** 当前对局报告面板根（如赛事/匹配结算层） */
+export function getMatchReportSprite(
+    hudRef: MutableRefObject<CombatHudByKind>
+): MatchReportSprite | undefined {
+    return hudRef.current.matchReport;
+}
+
+/**
+ * 创建或返回单例 MatchReportSprite。
+ */
+export function ensureMatchReportSprite(
+    hudRef: MutableRefObject<CombatHudByKind>
+): MatchReportSprite {
+    const existing = hudRef.current.matchReport;
+    if (existing) {
+        return existing;
+    }
+    const sprite: MatchReportSprite = { ele: null };
+    hudRef.current.matchReport = sprite;
+    return sprite;
+}
+
+/**
+ * 命令式访问对局报告根节点（与 gameReport 同模式）。
+ */
+export function createMatchReportSpriteViewRef(
+    hudRef: MutableRefObject<CombatHudByKind>
+): MutableRefObject<MatchReportSprite | null> {
+    return {
+        get current(): MatchReportSprite | null {
+            return hudRef.current.matchReport ?? null;
+        },
+        set current(value: MatchReportSprite | null) {
+            if (value == null) {
+                delete hudRef.current.matchReport;
+            } else {
+                hudRef.current.matchReport = value;
             }
         },
     };

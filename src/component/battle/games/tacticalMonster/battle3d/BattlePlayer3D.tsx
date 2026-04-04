@@ -9,14 +9,14 @@ import { BattleVenue3DPlay } from "./BattleVenue3DPlay";
 import { BattleVenue3DSpectator } from "./BattleVenue3DSpectator";
 import "./style.css";
 
-const BattlePlayer3D: React.FC<{ close?: () => void }> = ({ close }) => {
-    const { mode } = useCombatManager();
+const BattlePlayer3D: React.FC = () => {
+    const { mode, exit } = useCombatManager();
 
     const venue =
         mode === "watch" || mode === "replay" ? (
-            <BattleVenue3DSpectator close={close} />
+            <BattleVenue3DSpectator />
         ) : (
-            <BattleVenue3DPlay close={close} />
+            <BattleVenue3DPlay />
         );
 
     return (

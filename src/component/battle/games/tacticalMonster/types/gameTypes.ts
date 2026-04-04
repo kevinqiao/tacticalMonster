@@ -60,6 +60,10 @@ export interface GameModel {
     tutorialProgress?: TutorialProgressState;
     // ========== 运行时字段（不在数据库中，但用于代码逻辑）==========
     currentRound?: GameRound;
+    gameOver?: {
+        result: any;
+        reason: string;
+    };
 }
 
 /** 从 mr_games / GameModel 读取关卡模式（新字段 `mode`，兼容旧字段 `modeType`） */

@@ -54,8 +54,9 @@ const PlayGame: React.FC<Props> = ({
                     game={game}
                     mode={playMode}
                     initialPhaseChanges={initialPhaseChanges}
+                    exit={exit}
                 >
-                    {USE_3D_BATTLE ? <BattlePlayer3D close={exit} /> : <BattlePlayer />}
+                    {USE_3D_BATTLE ? <BattlePlayer3D /> : <BattlePlayer />}
                 </CombatManager>
             </ConvexProvider>
         </div>

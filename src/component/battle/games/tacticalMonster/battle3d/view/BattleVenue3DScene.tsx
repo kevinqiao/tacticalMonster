@@ -163,7 +163,6 @@ export const BattleVenue3DScene: React.FC<BattleVenue3DSceneProps> = ({
                 height: "100%",
                 width: "100%",
                 zIndex: 5,
-                backgroundColor: "transparent",
                 pointerEvents: "none",
             }}
         >

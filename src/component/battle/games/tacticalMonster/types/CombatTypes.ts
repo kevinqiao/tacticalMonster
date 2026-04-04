@@ -247,12 +247,16 @@ export type TurnOrderBarSprite = {
 export type GameReportSprite = {
     ele: HTMLDivElement | null;
 };
+export type MatchReportSprite = {
+    ele: HTMLDivElement | null;
+};
 /**
- * 战斗 HUD 单例表：按 kind 字段各至多一条（无 Map key；与 turnOrder / gameReport 等字段名一一对应）。
+ * 战斗 HUD 单例表：按 kind 字段各至多一条（无 Map key；与 turnOrder / gameReport / matchReport 等字段名一一对应）。
  */
 export type CombatHudByKind = {
     turnOrder?: TurnOrderBarSprite;
     gameReport?: GameReportSprite;
+    matchReport?: MatchReportSprite;
     /** 预留其它 HUD */
     otherBar?: unknown;
 };
