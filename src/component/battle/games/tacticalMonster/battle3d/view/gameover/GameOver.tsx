@@ -13,7 +13,6 @@ const GameOver: React.FC = () => {
         });
     }, [playGameReportClose, playMatchReport]);
 
-
     return (
         <>
             <GameReport onClose={onGameReportClose} />

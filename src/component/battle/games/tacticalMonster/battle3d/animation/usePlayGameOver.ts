@@ -77,8 +77,8 @@ export const usePlayGameOver = () => {
             if (!matchReportSprite?.ele) return;
             const tl = timeline ?? gsap.timeline({ onComplete });
             tl.to(matchReportSprite.ele, {
-                autoAlpha: 0,
                 scale: 0.5,
+                autoAlpha: 0.4,
                 duration: 0.5,
                 ease: "power2.inOut",
             });
