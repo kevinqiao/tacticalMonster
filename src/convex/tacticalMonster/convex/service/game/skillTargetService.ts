@@ -4,9 +4,75 @@
  */
 
 import { getSkillConfig, skillExists } from "../../data/skillConfigs";
+import type { GameModel } from "../../types/gameTypes";
 import { GameBoss, GameMinion, GameMonster } from "../../types/monsterTypes";
-import { HexCoord, offsetHexDistance } from "../../utils/hexUtils";
+import { SkillEffectType } from "../../types/skillTypes";
+import {
+    getAliveAllies,
+    getAliveEnemies,
+    getMinStepsBetween,
+    getReachableCells,
+    isCellBlocked,
+} from "../../utils/boardReachability";
+import { getOffsetNeighbors, HexCoord, offsetHexDistance } from "../../utils/hexUtils";
 import { CharacterQueryService } from "./characterQueryService";
+
+function isSameBattleInstance(a: GameMonster, b: GameMonster): boolean {
+    if (a.uid !== b.uid) return false;
+    const aid =
+        (a as GameMonster & { character_id?: string }).character_id ??
+        (a as GameBoss).bossId ??
+        (a as GameMinion).minionId ??
+        a.monsterId;
+    const bid =
+        (b as GameMonster & { character_id?: string }).character_id ??
+        (b as GameBoss).bossId ??
+        (b as GameMinion).minionId ??
+        b.monsterId;
+    return aid === bid;
+}
+
+/** PVE：玩家侧 vs Boss 侧（与 skillRangeUtils.isSameBattleSide 一致） */
+function isSameBattleSide(a: GameMonster, b: GameMonster): boolean {
+    return (a.uid === "boss" && b.uid === "boss") || (a.uid !== "boss" && b.uid !== "boss");
+}
+
+function getTargetCandidatesForSide(
+    game: GameModel,
+    caster: GameMonster,
+    targetSide: "friend" | "foe" | "all"
+): GameMonster[] {
+    if (targetSide === "foe") return getAliveEnemies(game);
+    if (targetSide === "friend") {
+        return getAliveAllies(game).filter((m) => isSameBattleSide(m, caster));
+    }
+    const all = [...getAliveAllies(game), ...getAliveEnemies(game)];
+    return all.filter((m) => !isSameBattleInstance(m, caster));
+}
+
+/**
+ * 选技 / 棋盘可达校验：哪些效果类型意味着必须在战场上有可选目标（含护盾、增益等）。
+ * 需与 SkillManager.useSkill 的 needsTarget 保持同类效果覆盖；SUMMON 仍排除（由召唤逻辑单独处理）。
+ */
+function skillEffectsNeedTarget(skill: NonNullable<ReturnType<typeof getSkillConfig>>): boolean {
+    const effects = skill.effects || [];
+    return effects.some((effect) => {
+        if (effect.type === SkillEffectType.SUMMON) return false;
+        return (
+            effect.type === SkillEffectType.DAMAGE ||
+            effect.type === SkillEffectType.HEAL ||
+            effect.type === SkillEffectType.CLEANSE ||
+            effect.type === SkillEffectType.DEBUFF ||
+            effect.type === SkillEffectType.STUN ||
+            effect.type === SkillEffectType.MP_DRAIN ||
+            effect.type === SkillEffectType.SHIELD ||
+            effect.type === SkillEffectType.BUFF ||
+            effect.type === SkillEffectType.HOT ||
+            effect.type === SkillEffectType.DOT ||
+            effect.type === SkillEffectType.MP_RESTORE
+        );
+    });
+}
 
 export class SkillTargetService {
     constructor(
@@ -203,6 +269,111 @@ export class SkillTargetService {
         }
 
         return targets;
+    }
+
+    /**
+     * 当前棋盘下是否存在「剩余步数内可站位的某一格 + 技能距离」能命中的合法目标（与前端选技能高亮一致）。
+     * 用于 selectSkill：避免 basic_attack 等单体在无目标时仍写入 skillSelect。
+     */
+    hasSelectableTargetForSkill(
+        game: GameModel,
+        caster: GameMonster,
+        skillId: string,
+        remainingMoveSteps: number
+    ): boolean {
+        this.characterQueryService.setGame(game);
+        if (!skillExists(skillId)) return false;
+        const skill = getSkillConfig(skillId);
+        if (!skill?.range) return true;
+        if (!skillEffectsNeedTarget(skill)) return true;
+
+        const range = skill.range;
+        const targetSide = (range.target_side ?? "foe") as "friend" | "foe" | "all";
+
+        const candidates = getTargetCandidatesForSide(game, caster, targetSide);
+        if (candidates.length === 0) return false;
+
+        const startQ = caster.q ?? 0;
+        const startR = caster.r ?? 0;
+        const casterPos = { q: startQ, r: startR };
+        const canFly = caster.isFlying ?? caster.canIgnoreObstacles ?? false;
+        const passOpts = { ignoreTerrainObstacles: !!canFly };
+
+        const standPositions: { q: number; r: number }[] = [{ q: startQ, r: startR }];
+        const reachable = getReachableCells(
+            game,
+            casterPos,
+            remainingMoveSteps,
+            caster,
+            passOpts
+        );
+        for (const cell of reachable) {
+            standPositions.push({ q: cell.q, r: cell.r });
+        }
+
+        const areaType = range.area_type ?? "single";
+        const maxDist =
+            range.distance ??
+            range.max_distance ??
+            (caster as GameMonster & { attack_range?: { min?: number; max?: number } }).attack_range?.max ??
+            1;
+
+        if (areaType === "circle") {
+            const radius = range.max_distance ?? range.distance ?? maxDist;
+            for (const pos of standPositions) {
+                for (const t of candidates) {
+                    const d = offsetHexDistance(pos, { q: t.q ?? 0, r: t.r ?? 0 });
+                    if (d <= radius) return true;
+                }
+            }
+            return false;
+        }
+
+        if (areaType === "line") {
+            for (const pos of standPositions) {
+                const casterAt = { ...caster, q: pos.q, r: pos.r } as GameMonster;
+                for (const primary of candidates) {
+                    const primaryId =
+                        primary.uid === "boss"
+                            ? (primary as GameBoss).bossId ??
+                              (primary as GameMinion).minionId ??
+                              primary.monsterId
+                            : (primary as GameMonster & { character_id?: string }).character_id ??
+                              primary.monsterId;
+                    const list = this.calculateTargetsBySkillRange(casterAt, skillId, {
+                        uid: primary.uid,
+                        monsterId: primaryId,
+                    });
+                    if (list.length > 0) return true;
+                }
+            }
+            return false;
+        }
+
+        // single / default：与 PathFind.getAttackableNodes 一致
+        // - 近战 maxDist===1：可移动后再攻；敌方邻格须可站立且本回合内可走达；飞行可越地形障碍
+        // - 远程 maxDist>1：仅当前站位判距（不预览走后再打）
+        if (maxDist === 1) {
+            const { cols, rows } = game.map;
+            for (const enemy of candidates) {
+                const enemyPos = { q: enemy.q ?? 0, r: enemy.r ?? 0 };
+                if (offsetHexDistance(casterPos, enemyPos) <= 1) {
+                    return true;
+                }
+                const neighbors = getOffsetNeighbors(enemyPos, cols, rows);
+                for (const n of neighbors) {
+                    if (isCellBlocked(game, n, caster, passOpts)) continue;
+                    const steps = getMinStepsBetween(game, casterPos, n, caster, remainingMoveSteps, passOpts);
+                    if (steps <= remainingMoveSteps) return true;
+                }
+            }
+            return false;
+        }
+
+        for (const t of candidates) {
+            if (offsetHexDistance(casterPos, { q: t.q ?? 0, r: t.r ?? 0 }) <= maxDist) return true;
+        }
+        return false;
     }
 }
 

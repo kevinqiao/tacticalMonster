@@ -4,7 +4,7 @@
  */
 
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
-import { getSkillConfig } from "../../data/skillConfigs";
+import { getSkillConfig, skillExists } from "../../data/skillConfigs";
 import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
 import { SkillEffectType } from "../../types/skillTypes";
@@ -126,6 +126,13 @@ export class GameActionService {
         const roundNumber = game.currentRound?.no ?? 0;
         const roundInfo = await this.roundService.getCurrentRound(gameId, roundNumber);
         const stepsUsedBefore = (roundInfo?.currentTurn as any)?.stepsUsed ?? 0;
+        // 每回合仅允许一次 walk（walkAndAttack 内嵌的 walk 仅在 stepsUsedBefore===0 时发起）
+        if (stepsUsedBefore > 0) {
+            return {
+                success: false,
+                message: "already_moved_this_turn",
+            };
+        }
         const newStepsUsed = stepsUsedBefore + thisWalkSteps;
         if (newStepsUsed > moveRange) {
             return {
@@ -156,49 +163,8 @@ export class GameActionService {
         );
         if (!success) return { success: false, message: "position_update_failed" };
 
-        // 结束回合：步数用尽 或 第二次点击行走（stepsUsedBefore>0 表示已做过部分移动，本次为点击暗区）
-        // deferTurnEnd：由 walkAndAttack 传入，延迟推进回合（先执行 useSkill 再由 useSkill 内部推进）
-        const stepsExhausted = newStepsUsed >= moveRange;
-        const isSecondWalk = stepsUsedBefore > 0;
-        const wouldEndTurn = stepsExhausted || isSecondWalk;
-        const endTurn = wouldEndTurn && !options?.deferTurnEnd;
-
-        if (endTurn) {
-            if (monsterId) {
-                const gMove = await this.lifecycleService.load(gameId);
-                if (gMove) {
-                    await TutorialProgressService.recordEvent(
-                        gameId,
-                        this.lifecycleService,
-                        this.scoreService,
-                        gMove,
-                        { type: "move" },
-                        { skipCheckGameStatus: true }
-                    );
-                }
-            }
-
-            // 结束当前 turn，推进回合和阶段（自动处理 turnEnd, roundEnd, turnStart, Boss AI）
-            const phaseChanges = await this.phaseService.advanceTurnAndRound(
-                gameId,
-                identifier,
-                this.dbCtx
-            );
-            await this.scoreService.checkAndUpdateGameStatus(gameId);
-
-            const event = this.eventService.createWalkEvent(gameId, identifier, to);
-            event.data = { ...event.data, endTurn: true, stepsUsed: thisWalkSteps, stepsUsedTotal: newStepsUsed, phaseChanges };
-            await this.eventService.createEvent(event);
-            await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
-
-            return {
-                success: true,
-                phaseChanges,
-                endTurn: true,
-            };
-        }
-
-        // 未走满：更新当前 turn 的 stepsUsed，写 walk 事件，前端保持当前 turn
+        // 纯 walk 不推进回合：走满移动力后仍可在本回合 useSkill/defend（走满仅消耗步数，不 advanceTurn）
+        // walkAndAttack 内嵌 walk 使用 deferTurnEnd，此处统一不 advanceTurn；回合结束由 useSkill/defend 等处理
         if (roundInfo?.roundDoc && roundInfo?.currentTurn) {
             const ct = roundInfo.currentTurn as GameTurn;
             const turnIndex = roundInfo.roundDoc.turns.findIndex(
@@ -460,23 +426,111 @@ export class GameActionService {
      * @param data 技能数据
      * @returns 是否成功
      */
-    async selectSkill(gameId: string, data: { skillId: string }): Promise<boolean> {
+    async selectSkill(
+        gameId: string,
+        data: { skillId: string }
+    ): Promise<{ success: boolean; message?: string }> {
         const game = await this.lifecycleService.load(gameId);
-        if (!game || game.currentRound === undefined) return false;
+        if (!game || game.currentRound === undefined) {
+            return { success: false, message: "游戏不存在或回合无效" };
+        }
+
+        this.characterQueryService.setGame(game);
+        (this.validator as any).game = game;
 
         const { skillId } = data;
         const roundNumber = game.currentRound?.no ?? 0;
 
-        // 从数据库查询当前回合
         const roundDoc = await this.roundService.getRoundDoc(gameId, roundNumber);
+        if (!roundDoc) {
+            return { success: false, message: "回合数据不存在" };
+        }
 
-        if (!roundDoc) return false;
+        const currentTurn = roundDoc.turns?.find((turn: GameTurn) => turn.status === 1);
+        if (!currentTurn) {
+            return { success: false, message: "没有进行中的回合" };
+        }
 
-        const currentTurn = roundDoc.turns?.find(
-            (turn: GameTurn) => turn.status === 1
+        const params = this.characterQueryService.getCharacterParams(
+            currentTurn.uid,
+            currentTurn.character_id
         );
+        const characterIdentifier: CharacterIdentifier = {
+            monsterId: params.monsterId,
+            bossId: params.bossId,
+            minionId: params.minionId,
+        };
 
-        if (!currentTurn) return false;
+        let validationResult = await this.validator.validateAction(characterIdentifier);
+        if (!validationResult.valid && (characterIdentifier.bossId || characterIdentifier.minionId)) {
+            await this.ensureBossActorTurnActive(gameId, game, characterIdentifier);
+            validationResult = await this.validator.validateAction(characterIdentifier);
+        }
+        if (!validationResult.valid) {
+            return { success: false, message: validationResult.message || "验证失败" };
+        }
+
+        const caster = this.characterQueryService.getCharacter(
+            params.monsterId,
+            params.bossId,
+            params.minionId
+        );
+        if (!caster) {
+            return { success: false, message: "角色不存在" };
+        }
+
+        if (!skillExists(skillId)) {
+            return { success: false, message: `技能 ${skillId} 不存在` };
+        }
+        const skillCfg = getSkillConfig(skillId);
+        if (!skillCfg) {
+            return { success: false, message: "无法获取技能配置" };
+        }
+        if (skillCfg.type !== "active" && skillCfg.type !== "master") {
+            return { success: false, message: "该技能不可在战斗中选择" };
+        }
+
+        const rule = game.ruleId
+            ? GameRuleConfigService.getGameRuleConfig(game.ruleId)
+            : undefined;
+        const allowed = rule?.pedagogy?.allowedSkillIds;
+        if (
+            caster.uid !== "boss" &&
+            allowed &&
+            allowed.length > 0 &&
+            !allowed.includes(skillId)
+        ) {
+            return { success: false, message: "本关不允许使用该技能" };
+        }
+
+        const availability = await SkillManager.checkSkillAvailability(
+            skillId,
+            caster,
+            {
+                roundNumber,
+                pedagogyAllowedSkillIds: allowed && allowed.length > 0 ? allowed : undefined,
+            },
+            { skipAvailabilityConditions: true }
+        );
+        if (!availability.available) {
+            return { success: false, message: availability.reason || "技能不可用" };
+        }
+
+        const moveRange = caster.move_range ?? 3;
+        const stepsUsedForTurn = currentTurn.stepsUsed ?? 0;
+        const remainingSteps = Math.max(0, moveRange - stepsUsedForTurn);
+        // 已移动后本回合不可再走位：目标检测仅按当前格，不再用剩余步数预览「再走一步再打」
+        const effectiveMoveStepsForTargets = stepsUsedForTurn > 0 ? 0 : remainingSteps;
+        if (
+            !this.skillTargetService.hasSelectableTargetForSkill(
+                game,
+                caster,
+                skillId,
+                effectiveMoveStepsForTargets
+            )
+        ) {
+            return { success: false, message: "当前没有可用的技能目标" };
+        }
 
         currentTurn.skillSelect = skillId;
 
@@ -487,6 +541,10 @@ export class GameActionService {
         await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
 
         const g2 = await this.lifecycleService.load(gameId);
+        if (g2) {
+            this.characterQueryService.setGame(g2);
+            (this.validator as any).game = g2;
+        }
         if (g2 && currentTurn.uid !== "boss") {
             await TutorialProgressService.recordEvent(gameId, this.lifecycleService, this.scoreService, g2, {
                 type: "skillSelect",
@@ -494,7 +552,7 @@ export class GameActionService {
             });
         }
 
-        return true;
+        return { success: true };
     }
 
     /**
@@ -717,11 +775,15 @@ export class GameActionService {
             targetSkillCooldownsBefore.set(key, target.skillCooldowns ? { ...target.skillCooldowns } : {});
         });
 
+        const pedagogyAllowed =
+            game?.ruleId && GameRuleConfigService.getGameRuleConfig(game.ruleId)?.pedagogy?.allowedSkillIds;
         const context = {
             roundNumber,
             targetDistance,
             hasValidTarget: effectiveTargetMonsters.length > 0,
             damageMultipliers,
+            pedagogyAllowedSkillIds:
+                pedagogyAllowed && pedagogyAllowed.length > 0 ? pedagogyAllowed : undefined,
         };
 
         // 4. 使用技能（使用 SkillManager）

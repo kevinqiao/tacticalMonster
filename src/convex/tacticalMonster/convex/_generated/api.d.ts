@@ -146,6 +146,7 @@ import type * as types_skillTypes from "../types/skillTypes.js";
 import type * as types_stageRuleTypes from "../types/stageRuleTypes.js";
 import type * as types_upgradeStrategyTypes from "../types/upgradeStrategyTypes.js";
 import type * as utils_aiHexMovement from "../utils/aiHexMovement.js";
+import type * as utils_boardReachability from "../utils/boardReachability.js";
 import type * as utils_hashUtils from "../utils/hashUtils.js";
 import type * as utils_hexUtils from "../utils/hexUtils.js";
 import type * as utils_obstacleUtils from "../utils/obstacleUtils.js";
@@ -298,6 +299,7 @@ declare const fullApi: ApiFromModules<{
   "types/stageRuleTypes": typeof types_stageRuleTypes;
   "types/upgradeStrategyTypes": typeof types_upgradeStrategyTypes;
   "utils/aiHexMovement": typeof utils_aiHexMovement;
+  "utils/boardReachability": typeof utils_boardReachability;
   "utils/hashUtils": typeof utils_hashUtils;
   "utils/hexUtils": typeof utils_hexUtils;
   "utils/obstacleUtils": typeof utils_obstacleUtils;

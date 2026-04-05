@@ -28,9 +28,14 @@ export const useWalkAction3D = (
     ) => void,
     handlePhaseChanges: (phaseChanges: any) => Promise<void>,
     mapDimension: BattleMapDimension | null,
-    refreshWalkableFromPosition?: (character: any, moveRange: number, onlyFurthestLayer?: boolean) => void
+    refreshWalkableFromPosition?: (
+        character: any,
+        moveRange: number,
+        onlyFurthestLayer?: boolean,
+        options?: { skipWalkHighlight?: boolean }
+    ) => void
 ) => {
-    const { setCharacterAnimating } = useCombatManager();
+    const { setCharacterAnimating, updateRuntimeGame } = useCombatManager();
     const stepsUsedThisTurnRef = useRef(0);
     const lastTurnKeyRef = useRef<string | null>(null);
     const walkInFlightRef = useRef(false);
@@ -81,6 +86,10 @@ export const useWalkAction3D = (
             const backendStepsUsed = (currentTurn?.stepsUsed ?? 0) as number;
             if (backendStepsUsed > stepsUsedThisTurnRef.current) {
                 stepsUsedThisTurnRef.current = backendStepsUsed;
+            }
+            // 须用 ref：首次 walk 成功后本地已累加步数，Convex 订阅可能尚未写入 game.turns.stepsUsed
+            if (stepsUsedThisTurnRef.current > 0) {
+                return Promise.reject(new Error("already_moved_this_turn"));
             }
             const originalPos = { q: character.q ?? 0, r: character.r ?? 0 };
 
@@ -144,7 +153,7 @@ export const useWalkAction3D = (
                 character
             );
 
-            // 结束回合由后端根据 stepsUsedBefore>0（第二次点击行走）或步数用尽判定，前端不需传 endTurn/forceEndTurn
+            // 结束回合由后端根据步数是否用尽判定；每回合仅允许一次 walk（第二次 walk 由后端拒绝）
             const backendRequestPromise = convex.mutation(
                 (api as any).service.game.gameService.walk,
                 {
@@ -194,6 +203,25 @@ export const useWalkAction3D = (
                                 await handlePhaseChanges(result.phaseChanges);
                             } else {
                                 stepsUsedThisTurnRef.current += pathSteps;
+                                // 订阅可能晚于下一次点击：立刻把本回合 stepsUsed 写入 runtimeGame，避免 walk 后 walkAndAttack 读到旧的 stepsUsed
+                                if (updateRuntimeGame) {
+                                    updateRuntimeGame((prev) => {
+                                        if (!prev?.currentRound?.turns) return prev;
+                                        const turns = prev.currentRound.turns.map((t: any) => {
+                                            if (t.status === 1 && t.character_id === character.character_id) {
+                                                return {
+                                                    ...t,
+                                                    stepsUsed: (t.stepsUsed ?? 0) + pathSteps,
+                                                };
+                                            }
+                                            return t;
+                                        });
+                                        return {
+                                            ...prev,
+                                            currentRound: { ...prev.currentRound, turns },
+                                        };
+                                    });
+                                }
                                 const remainingAfter = moveRange - stepsUsedThisTurnRef.current;
                                 // 步数用尽时清除可行走高亮并结束回合 UI，避免出现「新的暗区」导致回合无法结束
                                 queueMicrotask(() =>
@@ -201,7 +229,9 @@ export const useWalkAction3D = (
                                         if (remainingAfter <= 0) {
                                             refreshWalkableFromPosition?.(character, 0, true);
                                         } else {
-                                            refreshWalkableFromPosition?.(character, 1, true);
+                                            refreshWalkableFromPosition?.(character, remainingAfter, true, {
+                                                skipWalkHighlight: true,
+                                            });
                                         }
                                     })
                                 );
@@ -218,7 +248,10 @@ export const useWalkAction3D = (
                                     refreshWalkableFromPosition?.(
                                         character,
                                         stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
+                                        stepsUsedThisTurnRef.current > 0,
                                         stepsUsedThisTurnRef.current > 0
+                                            ? { skipWalkHighlight: true }
+                                            : undefined
                                     )
                                 )
                             );
@@ -234,7 +267,10 @@ export const useWalkAction3D = (
                                 refreshWalkableFromPosition?.(
                                     character,
                                     stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
+                                    stepsUsedThisTurnRef.current > 0,
                                     stepsUsedThisTurnRef.current > 0
+                                        ? { skipWalkHighlight: true }
+                                        : undefined
                                 )
                             )
                         );
@@ -254,6 +290,7 @@ export const useWalkAction3D = (
             handlePhaseChanges,
             mapDimension,
             setCharacterAnimating,
+            updateRuntimeGame,
             refreshWalkableFromPosition,
         ]
     );

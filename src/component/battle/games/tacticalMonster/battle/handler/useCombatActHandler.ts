@@ -108,7 +108,8 @@ const useCombatActHandler = () => {
         openModal,
         useSkill,
         walk,
-        groundCells || []
+        groundCells || [],
+        handleSkillError
     );
 
     return {

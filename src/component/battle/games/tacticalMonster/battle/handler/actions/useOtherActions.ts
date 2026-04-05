@@ -4,6 +4,7 @@
 
 import { useCallback } from "react";
 import { api } from "../../../../../../../convex/tacticalMonster/convex/_generated/api";
+import { useCombatManager } from "../../../service/CombatManager";
 import { useGameSettings } from "../../../battle/hooks/useGameSettings";
 import { GameModel, MonsterSprite } from "../../../types/CombatTypes";
 import { MonsterSkill } from "../../../types/skillTypes";
@@ -83,34 +84,54 @@ export const useOtherActions = (
     openModal: (modalType: string, data?: any) => void,
     useSkill: (skillId: string, target?: MonsterSprite) => Promise<void>,
     walk: (to: { q: number; r: number }) => Promise<void>,
-    groundCells: any[][]
+    groundCells: any[][],
+    onSelectSkillRejected?: (message: string) => void
 ) => {
     const { settings } = useGameSettings();
+    const { updateRuntimeGame } = useCombatManager();
     const selectSkill = useCallback(async (skill: MonsterSkill) => {
         const validation = canPerformAction(mode, game, characters);
         if (!validation.can || !validation.currentTurn) return;
 
-        playSkillSelect(
-            {
-                uid: validation.currentTurn.uid,
-                character_id: validation.currentTurn.character_id,
-                skillId: skill.id
-            },
-            () => { }
-        );
-
         if (!game) return;
         try {
-            await convex.mutation((api as any).service.game.gameService.selectSkill, {
+            const res = await convex.mutation((api as any).service.game.gameService.selectSkill, {
                 gameId: game.gameId,
                 data: {
                     skillId: skill.id
                 }
             });
+            if (res?.ok === false) {
+                const msg = res?.error ?? "选择技能失败";
+                console.error("Select skill rejected", msg);
+                onSelectSkillRejected?.(msg);
+                return;
+            }
+            const actorId = validation.currentTurn.character_id;
+            if (updateRuntimeGame && actorId) {
+                updateRuntimeGame((prev) => {
+                    if (!prev?.currentRound?.turns) return prev;
+                    const turns = prev.currentRound.turns.map((t: any) => {
+                        if (t.status === 1 && t.character_id === actorId) {
+                            return { ...t, skillSelect: skill.id };
+                        }
+                        return t;
+                    });
+                    return { ...prev, currentRound: { ...prev.currentRound, turns } };
+                });
+            }
+            playSkillSelect(
+                {
+                    uid: validation.currentTurn.uid,
+                    character_id: validation.currentTurn.character_id,
+                    skillId: skill.id
+                },
+                () => { }
+            );
         } catch (error) {
             console.error("Select skill failed", error);
         }
-    }, [game, mode, characters, playSkillSelect, convex]);
+    }, [game, mode, characters, playSkillSelect, convex, onSelectSkillRejected, updateRuntimeGame]);
 
     const standBy = useCallback((character: MonsterSprite) => {
         // 待实现
@@ -142,7 +163,10 @@ export const useOtherActions = (
         if (!validation.can || !validation.character || !validation.currentTurn || !game?.currentRound) return;
 
         const { character, currentTurn } = validation;
-        const { skillId, attackRange, isMelee } = resolveAttackProfile(character);
+        const { skillId, attackRange, isMelee } = resolveAttackProfile(
+            character,
+            (currentTurn as { skillSelect?: string }).skillSelect
+        );
         const remainingSteps = getRemainingSteps(character, currentTurn);
         console.log("attack profile", { skillId, attackRange, isMelee });
         if (!isMelee) {

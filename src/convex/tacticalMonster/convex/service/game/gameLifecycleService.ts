@@ -4,7 +4,7 @@
  */
 
 import { calculateBossPower, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
-import { calculateGameMonster, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { calculateGameMonster, mergeDefaultBattleSkills, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { GameModel, GameRound, GameStatus, getMrGameStageMode, TutorialProgressState } from "../../types/gameTypes";
 import { GameBoss, GameMinion, GameMonster, PlayerMonster } from "../../types/monsterTypes";
@@ -486,8 +486,8 @@ export class GameLifecycleService {
                                 status: teamMember.status || 'normal',  // 确保类型正确：'normal' | 'stunned' | 'dead'
                                 move_range: teamMember.move_range ?? monsterConfig.moveRange ?? 3,
                                 attack_range: attackRange,
-                                // 技能系统（从数据库读取或使用 teamMember.skills）
-                                skills: dbPlayerMonster?.unlockedSkills || teamMember.skills || [],  // ✅ 从数据库读取或使用 teamMember.skills
+                                // 技能系统（从数据库读取或使用 teamMember.skills；含默认 basic_attack）
+                                skills: mergeDefaultBattleSkills(dbPlayerMonster?.unlockedSkills || teamMember.skills || []),
                                 unlockSkills: dbPlayerMonster?.unlockedSkills || teamMember.skills || [],  // ✅ 保持向后兼容
                                 // 特殊属性（从配置推断）
                                 isFlying: monsterConfig.race === "Flying",

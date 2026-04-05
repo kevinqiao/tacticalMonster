@@ -117,7 +117,8 @@ export class SkillManager {
     static async checkSkillAvailability(
         skillId: string,
         monster: GameMonster,
-        context?: Record<string, any>
+        context?: Record<string, any>,
+        options?: { skipAvailabilityConditions?: boolean }
     ): Promise<SkillAvailabilityResult> {
         const skill = getSkillConfig(skillId);
         if (!skill) {
@@ -127,9 +128,25 @@ export class SkillManager {
             };
         }
 
-        // 检查技能是否已解锁
+        // 须在角色携带的技能 ID 集合中（skills ∪ unlockSkills）。
+        // 教学关 pedagogy.allowedSkillIds 合并入内：编队/DB 的 skills 可能与关卡技能栏不一致。
+        const roster = new Set<string>([
+            ...(monster.skills ?? []),
+            ...(monster.unlockSkills ?? []),
+            ...((context?.pedagogyAllowedSkillIds as string[] | undefined) ?? []),
+        ]);
+        if (roster.size > 0 && !roster.has(skillId)) {
+            return {
+                available: false,
+                reason: "当前角色未携带该技能",
+            };
+        }
+
+        // 检查技能是否已解锁（教学关 pedagogy.allowedSkillIds 内的技能本局视为已解锁，不套用配置里的等级门槛）
+        const pedagogyAllowed = context?.pedagogyAllowedSkillIds as string[] | undefined;
+        const unlockedByPedagogy = pedagogyAllowed?.includes(skillId) ?? false;
         const unlockedSkills = monster.unlockSkills || [];
-        if (!unlockedSkills.includes(skillId)) {
+        if (!unlockedByPedagogy && !unlockedSkills.includes(skillId)) {
             const unlockResult = this.checkSkillUnlock(skillId, monster, context?.completedQuests);
             if (!unlockResult.unlocked) {
                 return {
@@ -155,8 +172,8 @@ export class SkillManager {
             return resourceCheck;
         }
 
-        // 检查可用性条件（使用 json-rules-engine）
-        if (skill.availabilityConditions) {
+        // 检查可用性条件（使用 json-rules-engine）；选技能阶段可跳过（依赖目标等事实尚未确定）
+        if (!options?.skipAvailabilityConditions && skill.availabilityConditions) {
             const facts = this.buildAvailabilityFacts(monster, context);
             const engine = new Engine();
             engine.addRule({
@@ -445,15 +462,21 @@ export class SkillManager {
         // 4. 验证目标有效性（在消耗资源之前）
         // 检查技能是否需要目标
         const effects = skill.effects || [];
-        const needsTarget = effects.some(effect => {
-            // 伤害、治疗、Debuff等效果通常需要目标；SUMMON 不需要目标
+        const needsTarget = effects.some((effect) => {
             if (effect.type === SkillEffectType.SUMMON) return false;
-            return effect.type === SkillEffectType.DAMAGE ||
+            return (
+                effect.type === SkillEffectType.DAMAGE ||
                 effect.type === SkillEffectType.HEAL ||
                 effect.type === SkillEffectType.CLEANSE ||
                 effect.type === SkillEffectType.DEBUFF ||
                 effect.type === SkillEffectType.STUN ||
-                effect.type === SkillEffectType.MP_DRAIN;
+                effect.type === SkillEffectType.MP_DRAIN ||
+                effect.type === SkillEffectType.SHIELD ||
+                effect.type === SkillEffectType.BUFF ||
+                effect.type === SkillEffectType.HOT ||
+                effect.type === SkillEffectType.DOT ||
+                effect.type === SkillEffectType.MP_RESTORE
+            );
         });
 
         if (needsTarget) {

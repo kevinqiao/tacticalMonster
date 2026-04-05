@@ -81,7 +81,8 @@ export const getTargetsInLine = (
     return targets;
 };
 
-const isSameSide = (caster: MonsterSprite, char: MonsterSprite): boolean =>
+/** 是否同阵营（玩家侧 vs Boss 侧），与后端 PVE 分队一致 */
+export const isSameBattleSide = (caster: MonsterSprite, char: MonsterSprite): boolean =>
     (caster.uid === "boss" && char.uid === "boss") ||
     (caster.uid !== "boss" && char.uid !== "boss");
 
@@ -92,9 +93,41 @@ const filterByTargetSide = (
 ): MonsterSprite[] => {
     if (!targetSide || targetSide === "all") return targets;
     return targets.filter((c) =>
-        targetSide === "friend" ? isSameSide(center, c) : !isSameSide(center, c)
+        targetSide === "friend" ? isSameBattleSide(center, c) : !isSameBattleSide(center, c)
     );
 };
+
+/**
+ * 单体技能攻击/施法预览的可选目标（供 PathFind.getAttackableNodes 遍历）。
+ * 旧写法用 `uid !== caster.uid` 会排掉所有同队友方，导致护盾等 target_side:friend 永远无高亮。
+ */
+export function getSkillPreviewTargetCandidates(
+    caster: Pick<MonsterSprite, "uid" | "character_id" | "q" | "r">,
+    allCharacters: Pick<MonsterSprite, "uid" | "character_id" | "q" | "r">[],
+    skill: MonsterSkill
+): { q: number; r: number; uid: string; character_id: string }[] {
+    const targetSide = skill.range?.target_side ?? "foe";
+    const isCaster = (c: Pick<MonsterSprite, "uid" | "character_id">) =>
+        c.uid === caster.uid && c.character_id === caster.character_id;
+
+    const filtered = allCharacters.filter((c) => {
+        if (targetSide === "friend") {
+            return isSameBattleSide(caster as MonsterSprite, c as MonsterSprite);
+        }
+        if (targetSide === "all") {
+            return !isCaster(c);
+        }
+        if (isCaster(c)) return false;
+        return !isSameBattleSide(caster as MonsterSprite, c as MonsterSprite);
+    });
+
+    return filtered.map((c) => ({
+        q: c.q ?? 0,
+        r: c.r ?? 0,
+        uid: c.uid,
+        character_id: c.character_id,
+    }));
+}
 
 /**
  * 根据技能范围获取目标
@@ -227,8 +260,14 @@ export type AttackProfile = {
     isMelee: boolean;
 };
 
-export const resolveAttackProfile = (character: MonsterSprite): AttackProfile => {
-    const skillId = character.selectedSkill || "basic_attack";
+/**
+ * @param turnSkillSelect 当前回合 `GameTurn.skillSelect`（selectSkill 后由后端写入）；优先于 sprite 上的 selectedSkill
+ */
+export const resolveAttackProfile = (
+    character: MonsterSprite,
+    turnSkillSelect?: string | null
+): AttackProfile => {
+    const skillId = turnSkillSelect || character.selectedSkill || "basic_attack";
     const skillConfig = getSkillConfig(skillId);
     // console.log("skillConfig", skillConfig);
     const attackRange =

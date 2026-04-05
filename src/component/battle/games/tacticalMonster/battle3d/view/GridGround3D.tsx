@@ -14,9 +14,8 @@ interface GridGround3DProps {
     mapDimension: BattleMapDimension | null;
     /** getCellState 接收逻辑坐标 (logicQ, logicR) */
     getCellState?: (q: number, r: number) => BattleCellState;
-    /** 可行走格距离（用于近深远浅）；仅 walkable 时有效 */
+    /** 可行走格 BFS 距离（可选；HexCell3D 可走现为单色） */
     getWalkableDistance?: (q: number, r: number) => number | undefined;
-    /** 当前可行走移动范围（用于计算透明度） */
     getWalkableMoveRange?: () => number | undefined;
     /** 格子点击回调，参数为逻辑坐标 (logicQ, logicR) */
     onCellClick?: (logicQ: number, logicR: number) => void;

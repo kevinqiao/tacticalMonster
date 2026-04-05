@@ -239,7 +239,7 @@ export class GameService implements CharacterGetter {
      * @param to 目标位置（Hex坐标）
      * @param identifier 角色标识符（monsterId/bossId/minionId 三选一）
      * @param options.steps 实际行走步数（路径长度），必填
-     * @param options.endTurn @deprecated 已忽略，由后端根据 stepsUsedBefore>0（第二次行走）或步数用尽自动判定
+     * @param options.endTurn @deprecated 已忽略，由后端根据步数是否用尽自动判定
      * @param options.forceEndTurn @deprecated 已忽略
      * @returns 移动结果，包含可能的阶段变化
      */
@@ -296,7 +296,10 @@ export class GameService implements CharacterGetter {
      * @param data 技能数据
      * @returns 是否成功
      */
-    async selectSkill(gameId: string, data: { skillId: string }): Promise<boolean> {
+    async selectSkill(
+        gameId: string,
+        data: { skillId: string }
+    ): Promise<{ success: boolean; message?: string }> {
         return await this.getActionService().selectSkill(gameId, data);
     }
 
@@ -746,7 +749,10 @@ export const selectSkill = mutation({
         const gameManager = new GameService(ctx);
         await gameManager.load(gameId);
         const result = await gameManager.selectSkill(gameId, data);
-        return { ok: result };
+        if (result.success) {
+            return { ok: true };
+        }
+        return { ok: false, error: result.message || "选择技能失败" };
     },
 });
 

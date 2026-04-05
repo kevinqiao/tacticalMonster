@@ -1,14 +1,17 @@
 /**
- * 3D 技能选择：仅计算并设置 attackables，无 2D DOM/GSAP 动画
- * 与 battle/animation/usePlaySkillSelect 同签名，供 useOtherActions 复用。
+ * 3D 技能选择：计算 attackables 并同步 gridState 高亮（与 usePlayPhase3D.playTurnOn 一致），
+ * 否则选技后格子仍为 normal，handleCellClick 无法进入施法。
  */
 
 import { useCallback } from "react";
 import { SKILL_CONFIGS } from "../../config/skillConfigs";
 import { useCombatManager } from "../../service/CombatManager";
+import type { MonsterSprite } from "../../types/CombatTypes";
+import type { UseBattleGridStateReturn } from "../handler/useBattleGridState";
 import { getAttackableNodes } from "../../utils/PathFind";
+import { getSkillPreviewTargetCandidates } from "../../utils/skillRangeUtils";
 
-export const usePlaySkillSelect3D = () => {
+export const usePlaySkillSelect3D = (gridState: UseBattleGridStateReturn | null) => {
     const { characters, groundCells, game } = useCombatManager();
     const { map, currentRound } = game || {};
 
@@ -42,14 +45,11 @@ export const usePlaySkillSelect3D = () => {
                 })
             );
 
-            const enemies = characters
-                .filter((c) => c.uid !== character.uid && c.character_id !== character.character_id)
-                .map((c) => ({
-                    uid: c.uid,
-                    character_id: c.character_id,
-                    q: c.q ?? 0,
-                    r: c.r ?? 0,
-                }));
+            const targetCandidates = getSkillPreviewTargetCandidates(
+                character as Pick<MonsterSprite, "uid" | "character_id" | "q" | "r">,
+                characters as Pick<MonsterSprite, "uid" | "character_id" | "q" | "r">[],
+                skill
+            );
 
             const attackableNodes = getAttackableNodes(
                 grid,
@@ -61,17 +61,27 @@ export const usePlaySkillSelect3D = () => {
                     moveRange: remainingSteps,
                     attackRange: character.attack_range || { min: 1, max: 2 },
                 },
-                enemies,
+                targetCandidates,
                 skill,
                 canIgnoreObstacles
             );
             character.attackables = attackableNodes;
+
+            if (gridState) {
+                gridState.clearAll();
+                const attackableCells = attackableNodes.map((n) => ({ q: n.q, r: n.r }));
+                if (attackableCells.length > 0) {
+                    gridState.highlightAttackable(attackableCells);
+                }
+                gridState.setSelected({ q: character.q ?? 0, r: character.r ?? 0 });
+            }
+
             const result = onComplete();
             if (result instanceof Promise) {
                 result.catch((err) => console.error("onComplete error:", err));
             }
         },
-        [characters, groundCells, map, currentRound]
+        [characters, groundCells, map, currentRound, gridState]
     );
 
     return { playSkillSelect };

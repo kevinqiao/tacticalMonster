@@ -3,14 +3,21 @@
  * 使用本地乐观状态：点击技能后立即显示选中与「使用」按钮，不等待后端 skillSelect 推送
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { MONSTER_CONFIGS_MAP } from "../../../config/monsterConfigs";
 import { SKILL_CONFIGS } from "../../../config/skillConfigs";
+import { getStageRuleConfig } from "../../../config/stageRuleConfigs";
 import { useCombatManager } from "../../../service/CombatManager";
 import type { MonsterSprite } from "../../../types/CombatTypes";
 import type { MonsterSkill } from "../../../types/skillTypes";
 import type { PedagogyGuideNotifyEvent } from "../../../utils/pedagogyGuideFlow";
 import { filterSkillIdsForPedagogy } from "../../../utils/pedagogySkillFilter";
+import {
+    hasAttackableTargetsForSkill,
+    isSkillCarriedByCharacter,
+    isSkillLevelLocked,
+    skillEffectsNeedBoardTarget,
+} from "../../../utils/skillPanelAvailability";
 import { canPerformAction } from "../../../utils/validationUtils";
 
 export const SkillPanel: React.FC<{
@@ -42,7 +49,7 @@ export const SkillPanel: React.FC<{
     tutorialHighlightSkillId,
     tutorialHintText,
 }) => {
-    const { game, mode, characters } = useCombatManager();
+    const { game, mode, characters, groundCells } = useCombatManager();
     const validation = canPerformAction(mode ?? "play", game, characters);
     const { can, currentTurn, character } = validation;
 
@@ -85,8 +92,17 @@ export const SkillPanel: React.FC<{
     const charLevel = (character as { level?: number })?.level ?? 1;
     /** 与后端 SkillManager.checkSkillAvailability 一致：unlockSkills 显式授予的技能跳过等级门槛 */
     const unlockSkillIds = new Set((character as { unlockSkills?: string[] })?.unlockSkills ?? []);
+    const pedagogyAllowedSkillIds = useMemo(() => {
+        const key = (game as { ruleId?: string; stageId?: string })?.ruleId ?? game?.stageId;
+        return key ? getStageRuleConfig(key)?.pedagogy?.allowedSkillIds : undefined;
+    }, [game?.ruleId, game?.stageId]);
+    const remainingMoveSteps = useMemo(() => {
+        const mr = character?.move_range ?? 3;
+        const used = currentTurn?.stepsUsed ?? 0;
+        return Math.max(0, mr - used);
+    }, [character?.move_range, currentTurn?.stepsUsed]);
     const isLevelLockedForSkill = (skillId: string, requiredLevel: number | undefined) =>
-        requiredLevel != null && charLevel < requiredLevel && !unlockSkillIds.has(skillId);
+        isSkillLevelLocked(skillId, requiredLevel, charLevel, unlockSkillIds, pedagogyAllowedSkillIds);
 
     if (mode === "watch" || mode === "replay") {
         return (
@@ -161,9 +177,27 @@ export const SkillPanel: React.FC<{
                 const mpCost = skill.resource_cost?.mp ?? 0;
                 const energyCost = skill.resource_cost?.energy ?? 0;
                 const requiredLevel = skill.unlockConditions?.level;
+                const notCarried =
+                    character && !isSkillCarriedByCharacter(character, id, ruleKey ?? undefined);
                 const levelLocked = isLevelLockedForSkill(id, requiredLevel);
+                const needsBoardTarget = skillEffectsNeedBoardTarget(skill);
+                const noTargets =
+                    !!character &&
+                    needsBoardTarget &&
+                    !notCarried &&
+                    !levelLocked &&
+                    (!groundCells?.length ||
+                        !hasAttackableTargetsForSkill(
+                            groundCells ?? null,
+                            characters ?? [],
+                            character,
+                            skill as MonsterSkill,
+                            remainingMoveSteps
+                        ));
                 const disabled =
+                    notCarried ||
                     levelLocked ||
+                    noTargets ||
                     cooldown > 0 ||
                     (mpCost > 0 && mp < mpCost) ||
                     (energyCost > 0 && energy < energyCost);
@@ -177,7 +211,9 @@ export const SkillPanel: React.FC<{
                     const targetName = SKILL_CONFIGS[tutorialHighlightSkillId!]?.name ?? tutorialHighlightSkillId!;
                     titleParts.unshift(`建议优先选择：${targetName}`);
                 }
+                if (notCarried) titleParts.push("未携带该技能");
                 if (levelLocked) titleParts.push(`需要等级 ${requiredLevel}`);
+                if (noTargets) titleParts.push("当前站位无可选目标");
                 if (cooldown > 0) titleParts.push(`(冷却${cooldown})`);
                 if (energyCost > 0) titleParts.push(`消耗能量${energyCost}`);
                 return (
@@ -186,7 +222,7 @@ export const SkillPanel: React.FC<{
                         className={`action-panel-item ${isSelected ? "action-panel-item--selected" : ""}`}
                         style={{
                             opacity: disabled || tutorialLockSkillPanel ? 0.55 : isTutorialSecondary ? 0.42 : 1,
-                            pointerEvents: disabled ? "none" : "auto",
+                            pointerEvents: disabled || tutorialLockSkillPanel ? "none" : "auto",
                             border: isSelected ? "2px solid #fff" : undefined,
                             boxShadow: isTutorialTarget ? "0 0 0 2px rgba(255,214,10,0.95), 0 0 14px rgba(255,214,10,0.9)" : undefined,
                             background: isTutorialTarget

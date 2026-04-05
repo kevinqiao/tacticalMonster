@@ -50,6 +50,17 @@ export const useWalkAction = (
             stepsUsedThisTurnRef.current = 0;
         }
 
+        const currentTurn = game?.currentRound?.turns?.find(
+            (t: any) => t.status === 1 && t.character_id === (character as any).character_id
+        );
+        const backendStepsUsed = (currentTurn?.stepsUsed ?? 0) as number;
+        if (backendStepsUsed > stepsUsedThisTurnRef.current) {
+            stepsUsedThisTurnRef.current = backendStepsUsed;
+        }
+        if (stepsUsedThisTurnRef.current > 0) {
+            return Promise.reject(new Error("already_moved_this_turn"));
+        }
+
         // ✅ 保存原始位置（用于回滚）
         const originalPos = { q: character.q ?? 0, r: character.r ?? 0 };
 

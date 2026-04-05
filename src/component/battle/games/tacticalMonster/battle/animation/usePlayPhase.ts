@@ -160,12 +160,16 @@ const usePlayPhase = () => {
             canIgnoreObstacles,
             map?.obstacles
         );
-        const walkableNodes = getWalkableNodes(
-            grid,
-            { q: character.q ?? 0, r: character.r ?? 0 },
-            remainingSteps,
-            canIgnoreObstacles
-        );
+        // 每回合仅一次 walk：已移动后不再提供可走范围（与 3D usePlayPhase3D 一致）
+        const walkableNodes =
+            stepsUsed > 0
+                ? []
+                : getWalkableNodes(
+                      grid,
+                      { q: character.q ?? 0, r: character.r ?? 0 },
+                      remainingSteps,
+                      canIgnoreObstacles
+                  );
         character.walkables = walkableNodes;
 
         // 2. 计算可攻击目标

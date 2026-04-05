@@ -97,7 +97,7 @@ export interface GameTurn {
     order?: number;   // 在 round 中的次序（从 1 开始），用于明确标识和 UI 显示
     actionOrder?: number;  // 实际出手顺序（完成时写入），用于 roundEnd.lastRound 按行动序排序
     dueTime?: number;
-    stepsUsed?: number;  // Braveland：本回合已用移动步数
+    stepsUsed?: number;  // 本回合已消耗移动步数；每回合仅允许一次 walk mutation
 }
 /**
  * 技能效果条目（包含效果详情 + 元信息）

@@ -11,6 +11,17 @@ export const calculatePower = (damage: number, defense: number, hp: number, mult
 }
 
 /**
+ * 合并运行时技能栏：全单位默认具备普攻（与 getSkillsByClass 中 baseSkills 一致）
+ */
+export function mergeDefaultBattleSkills(skillIds: string[] | undefined | null): string[] {
+    const out = [...(skillIds ?? [])];
+    if (!out.includes("basic_attack")) {
+        out.unshift("basic_attack");
+    }
+    return out;
+}
+
+/**
  * 从 PlayerMonster + Monster 计算 GameMonster
  * 这是组合关系，不是继承关系
  */
@@ -73,8 +84,8 @@ export function calculateGameMonster(
         q: position?.q,
         r: position?.r,
 
-        // 技能系统（从 unlockSkills 填充）
-        skills: playerMonster.unlockedSkills || [],  // ✅ 从 unlockSkills 填充技能列表
+        // 技能系统（从 unlockSkills 填充，并保证含 basic_attack）
+        skills: mergeDefaultBattleSkills(playerMonster.unlockedSkills || []),
         skillCooldowns: {},
 
         // 状态效果

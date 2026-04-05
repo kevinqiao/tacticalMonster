@@ -38,7 +38,12 @@ export const useWalkAndAttack3D = (
     setSkillSyncState: Dispatch<SetStateAction<SkillSyncState | null>>,
     handlePhaseChanges: (phaseChanges: any) => Promise<void>,
     mapDimension: BattleMapDimension | null,
-    refreshWalkableFromPosition?: (character: any, moveRange: number, onlyFurthestLayer?: boolean) => void
+    refreshWalkableFromPosition?: (
+        character: any,
+        moveRange: number,
+        onlyFurthestLayer?: boolean,
+        options?: { skipWalkHighlight?: boolean }
+    ) => void
 ) => {
     const { setCharacterAnimating } = useCombatManager();
     const stepsUsedThisTurnRef = useRef(0);
@@ -63,6 +68,9 @@ export const useWalkAndAttack3D = (
             const backendStepsUsed = (currentTurn?.stepsUsed ?? 0) as number;
             if (backendStepsUsed > stepsUsedThisTurnRef.current) {
                 stepsUsedThisTurnRef.current = backendStepsUsed;
+            }
+            if (stepsUsedThisTurnRef.current > 0) {
+                return Promise.reject(new Error("already_moved_this_turn"));
             }
             const originalPos = { q: character.q ?? 0, r: character.r ?? 0 };
 
@@ -190,7 +198,9 @@ export const useWalkAndAttack3D = (
                                     if (remainingAfter <= 0) {
                                         refreshWalkableFromPosition?.(character, 0, true);
                                     } else {
-                                        refreshWalkableFromPosition?.(character, 1, true);
+                                        refreshWalkableFromPosition?.(character, remainingAfter, true, {
+                                            skipWalkHighlight: true,
+                                        });
                                     }
                                 })
                             );
@@ -205,7 +215,10 @@ export const useWalkAndAttack3D = (
                                     refreshWalkableFromPosition?.(
                                         character,
                                         stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
+                                        stepsUsedThisTurnRef.current > 0,
                                         stepsUsedThisTurnRef.current > 0
+                                            ? { skipWalkHighlight: true }
+                                            : undefined
                                     )
                                 )
                             );
@@ -220,7 +233,10 @@ export const useWalkAndAttack3D = (
                                 refreshWalkableFromPosition?.(
                                     character,
                                     stepsUsedThisTurnRef.current > 0 ? 1 : moveRange - stepsUsedThisTurnRef.current,
+                                    stepsUsedThisTurnRef.current > 0,
                                     stepsUsedThisTurnRef.current > 0
+                                        ? { skipWalkHighlight: true }
+                                        : undefined
                                 )
                             )
                         );

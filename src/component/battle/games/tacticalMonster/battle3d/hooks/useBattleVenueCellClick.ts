@@ -6,11 +6,10 @@ import { resolveAttackProfile } from "../../utils/skillRangeUtils";
 import { canPerformAction } from "../../utils/validationUtils";
 import type { UseBattleGridStateReturn } from "../handler/useBattleGridState";
 
-export function useBattleVenueCellClick({
+function useBattleVenueCellClick({
     gridState,
     walk,
     attack,
-    useSkill,
     notifyPedagogyGuide,
     enforceMoveStep,
     enforceCastStep,
@@ -20,7 +19,6 @@ export function useBattleVenueCellClick({
     gridState: UseBattleGridStateReturn | null;
     walk: (pos: { q: number; r: number }) => Promise<unknown>;
     attack: (enemy: MonsterSprite) => Promise<unknown>;
-    useSkill: (skillId: string, target?: MonsterSprite) => Promise<unknown>;
     notifyPedagogyGuide: (event: PedagogyGuideNotifyEvent) => void;
     enforceMoveStep: boolean;
     enforceCastStep: boolean;
@@ -39,6 +37,14 @@ export function useBattleVenueCellClick({
             }
             const cellState = gridState.getCellState(logicQ, logicR);
             if (cellState === "walkable") {
+                const activeTurn = effectiveGame?.currentRound?.turns?.find(
+                    (t: { status?: number }) => t.status === 1
+                );
+                if (((activeTurn?.stepsUsed ?? 0) as number) > 0) {
+                    handleSkillErrorToast("本回合已移动，无法再次行走");
+                    gridState.clearAll();
+                    return;
+                }
                 if (enforceCastStep) {
                     handleSkillErrorToast("先完成攻击步骤，再移动");
                     return;
@@ -54,7 +60,8 @@ export function useBattleVenueCellClick({
                             message.includes("Walk action in progress") ||
                             message.includes("no active turn") ||
                             message.includes("turn changed before request") ||
-                            message.includes("不是当前回合");
+                            message.includes("不是当前回合") ||
+                            message.includes("already_moved_this_turn");
                         if (!expectedDuringTransition) {
                             console.error("[handleCellClick] walk error:", err);
                         }
@@ -73,21 +80,17 @@ export function useBattleVenueCellClick({
                         return;
                     }
                     const attacker = validation.character;
-                    const attackSkillId = resolveAttackProfile(attacker as MonsterSprite).skillId;
-                    if (selectedSkillId) {
-                        gridState.clearAll();
-                        useSkill(selectedSkillId, enemy)
-                            .then(() => {
-                                notifyPedagogyGuide({ type: "cast", skillId: selectedSkillId });
-                            })
-                            .catch((err: unknown) => console.error("[handleCellClick] useSkill error:", err));
-                    } else {
-                        attack(enemy)
-                            .then(() => {
-                                notifyPedagogyGuide({ type: "cast", skillId: attackSkillId });
-                            })
-                            .catch((err: unknown) => console.error("[handleCellClick] attack error:", err));
-                    }
+                    const attackSkillId = resolveAttackProfile(
+                        attacker as MonsterSprite,
+                        selectedSkillId
+                    ).skillId;
+                    // 必须走 attack()：含近战寻路 + walkAndAttack；若已选技能则直接 useSkill 会跳过移动
+                    gridState.clearAll();
+                    attack(enemy)
+                        .then(() => {
+                            notifyPedagogyGuide({ type: "cast", skillId: attackSkillId });
+                        })
+                        .catch((err: unknown) => console.error("[handleCellClick] attack error:", err));
                 }
             }
         },
@@ -97,7 +100,6 @@ export function useBattleVenueCellClick({
             gridState,
             walk,
             attack,
-            useSkill,
             characters,
             game,
             notifyPedagogyGuide,
@@ -110,3 +112,5 @@ export function useBattleVenueCellClick({
 
     return { handleCellClick };
 }
+
+export { useBattleVenueCellClick };

@@ -66,7 +66,10 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
     const sub = tacticalMonsterLiveClient.onUpdate(
       tacticalMonsterApi.service.tournament.tournamentService.getAllRuleStatuses,
       { uid: user.uid },
-      (rows) => setRuleStatuses(rows),
+      (rows) => {
+        console.log("getAllRuleStatuses onUpdate", rows);
+        setRuleStatuses(rows);
+      },
       (err) => console.error("[TournamentManager] getAllRuleStatuses onUpdate", err)
     );
     return () => sub.unsubscribe();

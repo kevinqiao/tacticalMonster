@@ -30,7 +30,9 @@ export const useSkillAction3D = (
     setSkillSyncState: Dispatch<SetStateAction<SkillSyncState | null>>,
     calculateActionScore: (params: any) => number,
     /** 与教学 guideFlow 同步；未先点技能栏时会在 useSkill 前补 selectSkill */
-    onPedagogyNotify?: (event: PedagogyGuideNotifyEvent) => void
+    onPedagogyNotify?: (event: PedagogyGuideNotifyEvent) => void,
+    /** 自动补 selectSkill 被后端拒绝时（与面板选技失败共用提示） */
+    onSelectSkillRejected?: (message: string) => void
 ) => {
     const useSkill = useCallback(
         async (skillId: string, target?: MonsterSprite) => {
@@ -42,10 +44,16 @@ export const useSkillAction3D = (
             const currentTurn = game.currentRound.turns?.find((t: any) => t.status === 1);
             if (currentTurn && (currentTurn as any).skillSelect !== skillId && game.gameId) {
                 try {
-                    await convex.mutation((api as any).service.game.gameService.selectSkill, {
+                    const res = await convex.mutation((api as any).service.game.gameService.selectSkill, {
                         gameId: game.gameId,
                         data: { skillId },
                     });
+                    if (res?.ok === false) {
+                        const msg = res?.error ?? "选择技能失败";
+                        console.error("Select skill (auto) rejected", msg);
+                        onSelectSkillRejected?.(msg);
+                        return;
+                    }
                     onPedagogyNotify?.({ type: "skillSelect", skillId });
                 } catch (e) {
                     console.error("Select skill (auto) failed", e);
@@ -125,6 +133,7 @@ export const useSkillAction3D = (
             setSkillSyncState,
             calculateActionScore,
             onPedagogyNotify,
+            onSelectSkillRejected,
         ]
     );
 

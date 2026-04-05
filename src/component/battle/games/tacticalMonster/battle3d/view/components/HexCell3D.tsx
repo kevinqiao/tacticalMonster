@@ -26,9 +26,8 @@ interface HexCell3DProps {
     position: [number, number, number];
     geometry: THREE.BufferGeometry;
     state?: BattleCellState;
-    /** 可行走格与角色距离（用于近深远浅，Braveland 式） */
+    /** 保留兼容 GridGround3D；可走格现为单色高亮，不再用于渐变 */
     walkableDistance?: number;
-    /** 移动范围（与 walkableDistance 一起计算透明度） */
     moveRange?: number;
     /** 教学：施法步开始后短时加强攻击格脉冲 */
     pedagogyPulseBoost?: boolean;
@@ -92,34 +91,15 @@ export const HexCell3D: React.FC<HexCell3DProps> = ({
             case "walkable": {
                 metalness = 0.2;
                 roughness = 0.5;
-                // Braveland 式：近深远浅，亮区更亮、暗区更暗，区分更明显
-                if (moveRange != null && moveRange > 0 && walkableDistance != null) {
-                    const t = 1 - walkableDistance / moveRange; // 0=最远(暗区), 1=最近(亮区)
-                    opacity = 0.2 + t * 0.75; // 暗区 0.2，亮区 0.95
-                    const dark = new THREE.Color(0x546e7a);
-                    const bright = new THREE.Color(0x2196f3);
-                    dark.lerp(bright, Math.min(1, t * 2)); // 暗区偏灰蓝，越近越亮蓝
-                    color = dark.getHex();
-                } else {
-                    color = 0x2196f3;
-                    opacity = 0.7;
-                }
+                color = 0x2196f3;
+                opacity = 0.58;
                 break;
             }
             case "walkable_dim": {
-                metalness = 0.15;
-                roughness = 0.55;
-                if (moveRange != null && moveRange > 0 && walkableDistance != null) {
-                    const t = 1 - walkableDistance / moveRange;
-                    opacity = 0.08 + t * 0.22;
-                    const dark = new THREE.Color(0x37474f);
-                    const mid = new THREE.Color(0x546e7a);
-                    dark.lerp(mid, Math.min(1, t * 1.2));
-                    color = dark.getHex();
-                } else {
-                    color = 0x455a64;
-                    opacity = 0.22;
-                }
+                metalness = 0.2;
+                roughness = 0.5;
+                color = 0x2196f3;
+                opacity = 0.4;
                 break;
             }
             case "attackable":
@@ -190,7 +170,7 @@ export const HexCell3D: React.FC<HexCell3DProps> = ({
             ...(isInteractive ? { depthTest: false, depthWrite: false } : {}),
         });
         return mat;
-    }, [state, walkableDistance, moveRange]);
+    }, [state]);
 
     useFrame(({ clock }) => {
         if (meshRef.current) {

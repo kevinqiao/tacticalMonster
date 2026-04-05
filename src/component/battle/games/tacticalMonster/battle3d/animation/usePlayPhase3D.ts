@@ -140,14 +140,13 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                 map?.obstacles
             );
             console.log("[HexDebug] playTurnOn map", map);
-            // 规则：部分移动后只显示暗区（distance=1，紧靠怪物的第一层），不显示亮区
-            const rangeForNodes = stepsUsed > 0 ? remainingSteps : moveRange;
-            const walkableNodes = getWalkableNodes(grid, startLogic, rangeForNodes, canIgnoreObstacles);
-            character.walkables =
+            // 每回合仅一次 walk：已移动后不再显示可走格（仍可显示可攻击预览）
+            const walkableNodes =
                 stepsUsed > 0
-                    ? walkableNodes.filter((n) => (n.distance ?? 0) === 1)
-                    : walkableNodes;
-            const walkableCells = character.walkables
+                    ? []
+                    : getWalkableNodes(grid, startLogic, moveRange, canIgnoreObstacles);
+            character.walkables = walkableNodes;
+            const walkableCells = walkableNodes
                 .filter((n) => (n.distance ?? 0) > 0)
                 .map((n) => ({ q: n.q, r: n.r, distance: n.distance ?? 0 }));
 
@@ -178,7 +177,7 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
 
             gridState.clearAll();
             const attackableCells = attackableNodes.map((n) => ({ q: n.q, r: n.r }));
-            const rangeForHighlight = stepsUsed > 0 ? 1 : moveRange;
+            const rangeForHighlight = moveRange;
             if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells, rangeForHighlight);
             if (attackableCells.length > 0) gridState.highlightAttackable(attackableCells);
 
@@ -228,11 +227,17 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
 
     /**
      * 从当前角色位置按剩余步数刷新可行走/可攻击高亮。
-     * @param remainingSteps 剩余步数（调用方传 moveRange - stepsUsed）
-     * @param onlyFurthestLayer 规则：部分移动后只显示暗区（distance=1，紧靠怪物的第一层），不显示亮区；true=只显示暗区，false=显示全范围（亮区+暗区）
+     * @param remainingSteps 剩余步数（调用方传 moveRange - stepsUsed），用于可攻击预览
+     * @param onlyFurthestLayer 已弃用：保留参数兼容旧调用
+     * @param options.skipWalkHighlight 本回合已移动后为 true，不再显示可走格（一次性移动）
      */
     const refreshWalkableFromPosition = useCallback(
-        (character: MonsterSprite, remainingSteps: number, onlyFurthestLayer: boolean = true) => {
+        (
+            character: MonsterSprite,
+            remainingSteps: number,
+            onlyFurthestLayer: boolean = true,
+            options?: { skipWalkHighlight?: boolean }
+        ) => {
             if (!characters || !groundCells || !map || !gridState) return;
             const remainingMove = Math.max(0, remainingSteps);
             const startLogic = { q: character.q ?? 0, r: character.r ?? 0 };
@@ -245,9 +250,11 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
                 canIgnoreObstacles,
                 map?.obstacles
             );
-            // 规则：部分移动后 remainingSteps=1，只显示暗区（distance=1）
-            const effectiveRange = onlyFurthestLayer && remainingMove > 0 ? 1 : remainingMove;
-            const allInRange = getWalkableNodes(grid, startLogic, effectiveRange, canIgnoreObstacles);
+            const skipWalk = options?.skipWalkHighlight === true;
+            const effectiveRange = skipWalk ? 0 : onlyFurthestLayer && remainingMove > 0 ? 1 : remainingMove;
+            const allInRange = skipWalk
+                ? []
+                : getWalkableNodes(grid, startLogic, effectiveRange, canIgnoreObstacles);
             const layer = allInRange;
             character.walkables = layer;
             const walkableCells = layer.map((n) => ({
@@ -274,7 +281,7 @@ export const usePlayPhase3D = (gridState: UseBattleGridStateReturn | null) => {
             );
             character.attackables = attackableNodes;
             gridState.clearAll();
-            const rangeForHighlight = effectiveRange;
+            const rangeForHighlight = skipWalk ? 0 : effectiveRange;
             if (walkableCells.length > 0) gridState.highlightWalkable(walkableCells, rangeForHighlight);
             const attackableCells = attackableNodes.map((n) => ({ q: n.q, r: n.r }));
             if (attackableCells.length > 0) gridState.highlightAttackable(attackableCells);

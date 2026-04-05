@@ -3,7 +3,7 @@
  * 禁用格从 CombatManager 的 groundCells 推导（与 groundCells 单一数据源一致）
  * 约定：highlightWalkable / highlightAttackable / highlightPath / setSelected 均使用逻辑坐标 (q, r)；
  * GridGround3D 按逻辑 (q,r) 遍历，getCellState(q,r) 与 onCellClick 均为逻辑坐标，横竖屏一致。
- * 可行走格支持按距离区分暗区（近深远浅，Braveland 式）。
+ * 可走格距离仍存入 distMap，供需要时使用；3D 可走高亮为单色（见 HexCell3D）。
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";

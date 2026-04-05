@@ -102,6 +102,7 @@ export interface GameTurn {
     status?: number;  // 回合状态：0: open, 1: in_progress, 2: completed
     order?: number;   // 在 round 中的次序（从 1 开始）
     dueTime?: number;
+    /** 本回合已消耗移动步数；每回合仅允许一次 walk */
     stepsUsed?: number;
 }
 /**

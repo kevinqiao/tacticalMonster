@@ -43,7 +43,7 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
     const { game, characters, groundCells, mode = "play", mapDimension } = useCombatManager();
     const replay = useReplay();
     const playbackSpeed = getReplayPlaybackSpeed(replay);
-    const { playSkillSelect } = usePlaySkillSelect3D();
+    const { playSkillSelect } = usePlaySkillSelect3D(gridState);
     const { playSkill } = usePlaySkill3D({ mapDimension, playbackSpeed });
     const { playWalk } = usePlayWalk3D({ mapDimension, playbackSpeed });
     const { user } = useUserManager();
@@ -60,10 +60,15 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
             onSkillError?.(message);
             if (context?.character && refreshWalkableFromPosition) {
                 const moveRange = (context.character as any).move_range ?? 3;
-                refreshWalkableFromPosition(context.character, moveRange, false);
+                const turn = game?.currentRound?.turns?.find((t: { status?: number }) => t.status === 1);
+                const stepsUsed = (turn?.stepsUsed ?? 0) as number;
+                const remaining = Math.max(0, moveRange - stepsUsed);
+                refreshWalkableFromPosition(context.character, remaining, false, {
+                    skipWalkHighlight: stepsUsed > 0,
+                });
             }
         },
-        [refreshWalkableFromPosition, onSkillError]
+        [refreshWalkableFromPosition, onSkillError, game]
     );
 
     const { setSkillSyncState } = useSkillSync(
@@ -109,7 +114,8 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         handlePhaseChanges,
         setSkillSyncState,
         calculateActionScore,
-        onPedagogyNotify
+        onPedagogyNotify,
+        onSkillError
     );
 
     const { selectSkill, standBy, defend, surrender, attack, positionSelectionUI } = useOtherAction3D(
@@ -123,7 +129,8 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         useSkill,
         walkAndAttack,
         groundCells ?? [],
-        handlePhaseChanges
+        handlePhaseChanges,
+        onSkillError
     );
 
     const noopPedagogyNotify = useCallback((_e: PedagogyGuideNotifyEvent) => {}, []);
@@ -132,7 +139,6 @@ const useCombatActHandler3D = (options: UseCombatActHandler3DOptions) => {
         gridState,
         walk,
         attack,
-        useSkill,
         notifyPedagogyGuide: onPedagogyNotify ?? noopPedagogyNotify,
         enforceMoveStep: cellClickPedagogy?.enforceMoveStep ?? false,
         enforceCastStep: cellClickPedagogy?.enforceCastStep ?? false,
