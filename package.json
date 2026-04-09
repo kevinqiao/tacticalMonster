@@ -73,7 +73,8 @@
     "test": "cross-env NODE_ENV=test jest",
     "test:vitest": "vitest",
     "test:vitest:ui": "vitest --ui",
-    "test:vitest:coverage": "vitest --coverage"
+    "test:vitest:coverage": "vitest --coverage",
+    "verify:tm-config-shims": "node scripts/verify-tactical-monster-config-shims.mjs"
   },
   "eslintConfig": {
     "extends": [

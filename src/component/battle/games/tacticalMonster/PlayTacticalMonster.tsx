@@ -75,7 +75,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
     const { joinTournament } = useTournamentManager();
     const tournamentClient = React.useMemo(() => { return new ConvexClient(URLS.tournament) }, []);
     const tacticalMonsterClient = React.useMemo(() => { return new ConvexHttpClient(URLS.tacticalMonster) }, []);
-    const { playInit, openTeamLayout, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
+    const { openTeamLayout, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
 
 
     const startJoin = useCallback(async () => {
@@ -106,7 +106,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
             }
 
         }
-    }, [gameData, joinTournament, openPlayGame, playInit]);
+    }, [gameData, joinTournament, openPlayGame]);
 
     useEffect(() => {
 
@@ -163,18 +163,58 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
 
 
     useEffect(() => {
-        if (!gameData || !gameData.stageId) return;
-        tacticalMonsterClient.query(tacticalMonsterApi.service.stage.stageManagerService.findStage, { stageId: gameData.stageId }).then((res) => {
-            console.log("getStage result", res);
-            if (res) {
-                setStage(res);
+        if (playMode !== "join" || shouldSkipTeamLayout(gameData)) {
+            setStage(null);
+            return;
+        }
+        const typeId = gameData?.typeId;
+        if (!typeId || !user?.uid) {
+            setStage(null);
+            return;
+        }
+
+        let cancelled = false;
+        setStage(null);
+
+        void (async () => {
+            try {
+                if (gameData.stageId) {
+                    const direct = await tacticalMonsterClient.query(
+                        tacticalMonsterApi.service.stage.stageManagerService.findStage,
+                        { stageId: gameData.stageId }
+                    );
+                    if (cancelled) return;
+                    if (direct) {
+                        setStage(direct);
+                        return;
+                    }
+                }
+
+                const ensured = await tacticalMonsterClient.mutation(
+                    tacticalMonsterApi.service.stage.stageManagerService.ensureChallengeStageForPlay,
+                    { uid: user.uid, typeId }
+                );
+                if (cancelled) return;
+                if (ensured?.ok && ensured.stage) {
+                    setStage(ensured.stage);
+                } else {
+                    console.error("[PlayTacticalMonster] ensureChallengeStageForPlay failed", ensured);
+                }
+            } catch (e) {
+                console.error("[PlayTacticalMonster] load stage for team layout", e);
             }
-        });
-    }, [gameData]);
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [playMode, gameData, user?.uid, tacticalMonsterClient]);
 
     return <>
         <div ref={teamLayoutRef} className="team-layout-container">
-            {stage && <TeamLayout3D stage={stage} onComplete={startJoin} />}
+
+            {stage && <TeamLayout3D stage={stage} typeId={gameData.typeId} onComplete={startJoin} />}
+
         </div>
         <div ref={playGameRef} className="play-tactical-monster-container">
             {game && (
@@ -188,7 +228,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
         </div>
         <div ref={loadingRef} className="play-tactical-monster-loading">
             <div className="play-tactical-monster-loading-text">
-                Loading Game...
+                Loading Tactical Monster...
             </div>
         </div>
     </>

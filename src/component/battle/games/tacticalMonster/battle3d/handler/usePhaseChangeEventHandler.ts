@@ -5,16 +5,9 @@ import { useReplay } from "../../battle/view/replayContext";
 import { useCombatManager } from "../../service/CombatManager";
 import { createTurnOrderBarSpriteViewRef } from "../../utils/combatHudRegistry";
 import { getReplayPlaybackSpeed } from "../../utils/replayPlaybackSpeed";
-import type { QueueableTurnBarEventName, TurnBarPhaseEvent } from "../../utils/turnBarQueueUtils";
 import { usePlayGameOver } from "../animation/usePlayGameOver";
 import { usePlayTurnBar } from "../animation/usePlayTurnBar";
 import { computeTurnBarDimension } from "../view/turnbar/turnBarLayout";
-
-const REQUIRES_LAYOUT_EVENT_NAMES: QueueableTurnBarEventName[] = ["turnStart", "roundStart"];
-
-function headRequiresLayout(evt: TurnBarPhaseEvent | undefined): boolean {
-    return Boolean(evt && (REQUIRES_LAYOUT_EVENT_NAMES as string[]).includes(evt.name));
-}
 
 /** 消费 phase 队列并驱动回合条 GSAP；数据来自 CombatManager（含 mapDimension → 回合条布局）。 */
 export function usePhaseChangeEventHandler(): void {
@@ -22,7 +15,6 @@ export function usePhaseChangeEventHandler(): void {
         mode,
         mapDimension,
         phaseChangeEventQueueRef,
-        initQueuedGameKeyRef,
         combatHudRef,
     } = useCombatManager();
     const replay = useReplay();
@@ -52,13 +44,6 @@ export function usePhaseChangeEventHandler(): void {
             if (queue.length === 0 || timelineActive) return;
 
             const turn = queue[0];
-            if (
-                turn.status === 0 &&
-                headRequiresLayout(turn.phaseChangeEvent) &&
-                initQueuedGameKeyRef.current === null
-            ) {
-                return;
-            }
             if (turn.status === 2) {
                 if (turn.phaseChangeEvent.name === "init") {
                     initProcessedRef.current = true;
@@ -116,7 +101,6 @@ export function usePhaseChangeEventHandler(): void {
         playStartTurn,
         playStartRound,
         phaseChangeEventQueueRef,
-        initQueuedGameKeyRef,
         turnOrderBarSpriteRef,
     ]);
 }

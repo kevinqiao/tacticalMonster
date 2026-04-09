@@ -87,9 +87,41 @@ export const useOtherAction3D = (
         }
     }, [game, mode, characters, playSkillSelect, convex, onSelectSkillRejected, updateRuntimeGame]);
 
-    const standBy = useCallback((character: MonsterSprite) => {
-        // 待实现
-    }, []);
+    const standBy = useCallback(async () => {
+        if (mode === "watch" || mode === "replay") return;
+        const validation = canPerformAction(mode, game, characters);
+        if (!validation.can || !validation.currentTurn || !game) return;
+        if (validation.currentTurn.uid === "boss") return;
+
+        const identifier = (() => {
+            const cid = validation.currentTurn.character_id ?? validation.currentTurn.monsterId;
+            const bid = validation.currentTurn.bossId;
+            const mid = validation.currentTurn.minionId;
+            if (bid) return { bossId: bid };
+            if (mid) return { minionId: mid };
+            return { monsterId: cid };
+        })();
+
+        try {
+            const result = await convex.mutation((api as any).service.game.gameService.standby, {
+                gameId: game.gameId,
+                identifier,
+            });
+            if (result?.ok && result.phaseChanges) {
+                const phaseChanges = result.phaseChanges;
+                if (phaseChanges.stateChanges) {
+                    applyStateChanges(phaseChanges.stateChanges, characters);
+                }
+                try {
+                    await handlePhaseChanges(phaseChanges);
+                } catch (phaseErr) {
+                    console.error("Standby: handlePhaseChanges failed", phaseErr);
+                }
+            }
+        } catch (error) {
+            console.error("Standby failed", error);
+        }
+    }, [mode, game, characters, convex, handlePhaseChanges]);
 
     const defend = useCallback(async () => {
         if (mode === "watch" || mode === "replay") return;

@@ -5,7 +5,8 @@
 
 import { v } from "convex/values";
 import { Stage } from "../../../../../component/battle/games/tacticalMonster/types/StageTypes";
-import { internalMutation, internalQuery, query } from "../../_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "../../_generated/server";
+import { bossScalingTuningFromDifficultyAdjustment } from "../../data/adaptiveBossScaling";
 import { calculateScaleBoss, getBossConfig } from "../../data/bossConfigs";
 import { getMapTemplateConfig, getMapTemplateConfigsByTier } from "../../data/mapTemplateConfigs";
 import { STAGE_RULE_CONFIGS } from "../../data/stageRuleConfigs";
@@ -534,10 +535,43 @@ export const findStage = query({
     },
 });
 
+/**
+ * 编队页：lobby 的 `stageId` 可能尚未同步；在已解锁前提下 getOrCreate 并返回 Stage。
+ */
+export const ensureChallengeStageForPlay = mutation({
+    args: { uid: v.string(), typeId: v.string() },
+    handler: async (ctx: any, args: { uid: string; typeId: string }) => {
+        const { uid, typeId } = args;
+        const ruleConfig = GameRuleConfigService.getGameRuleConfig(typeId);
+        if (!ruleConfig) {
+            return { ok: false as const, errorCode: "NO_RULE" };
+        }
+        if (ruleConfig.stageType === "challenge") {
+            const unlocked = await StageManagerService.isStageUnlocked(ctx, uid, ruleConfig);
+            if (!unlocked) {
+                return { ok: false as const, errorCode: "STAGE_NOT_UNLOCKED" };
+            }
+            const stage = await StageManagerService.getOrCreateChallengeStage(ctx, uid, typeId, ruleConfig);
+            if (!stage) {
+                return { ok: false as const, errorCode: "STAGE_NOT_FOUND" };
+            }
+            return { ok: true as const, stage };
+        }
+        if (ruleConfig.stageType === "arena") {
+            const stage = await StageManagerService.getOrCreateArenaStage(ctx, typeId, ruleConfig);
+            if (!stage) {
+                return { ok: false as const, errorCode: "STAGE_NOT_FOUND" };
+            }
+            return { ok: true as const, stage };
+        }
+        return { ok: false as const, errorCode: "NOT_CHALLENGE_OR_ARENA" };
+    },
+});
+
 export const findPowerStage = query({
-    args: { uid: v.string(), stageId: v.string() },
+    args: { uid: v.string(), stageId: v.string(), ruleId: v.optional(v.string()) },
     handler: async (ctx: any, args: any) => {
-        const { uid, stageId } = args;
+        const { uid, stageId, ruleId } = args;
         const stage = await StageManagerService.findStage(ctx, { stageId });
         if (!stage) {
             return null;
@@ -546,7 +580,16 @@ export const findPowerStage = query({
         if (!teamPower) {
             return null;
         }
-        const scaleBoss = calculateScaleBoss(stage.bossId, teamPower, stage.difficulty);
+        const ruleConfig = ruleId ? GameRuleConfigService.getGameRuleConfig(ruleId) : null;
+        const tuning = bossScalingTuningFromDifficultyAdjustment(
+            ruleConfig?.stageContent?.difficultyAdjustment
+        );
+        const scaleBoss = calculateScaleBoss({
+            bossId: stage.bossId,
+            playerPower: teamPower,
+            difficultyMultiplier: stage.difficulty,
+            tuning,
+        });
         if (!scaleBoss) {
             return null;
         }

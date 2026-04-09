@@ -33,6 +33,10 @@ export class BuffHandler {
     }
 
     tick(statusEffect: StatusEffect, _target: GameMonster): EffectTickResult {
+        // defending 由整轮结束时统一移除，不在此按回合 tick 掉
+        if (statusEffect.id === "defending" && statusEffect.defendRoundNo != null) {
+            return { expired: false };
+        }
         const remaining = (statusEffect.remaining_duration ?? 1) - 1;
         (statusEffect as StatusEffect).remaining_duration = remaining;
         return { expired: remaining <= 0 };

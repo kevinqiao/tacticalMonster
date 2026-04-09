@@ -63,6 +63,18 @@ export interface StagePedagogy {
     /** 与 dynamicGuide 同时使用且无 guideFlow 时必填 */
     dynamicGuideRule?: DynamicGuideCompletionRule;
     tutorialWinMode?: TutorialWinMode;
+    /**
+     * 若 true：整局不渲染「防守」按钮（与灰显互斥时以隐藏为准）。
+     * 用于教学关完全隐藏防守入口。
+     */
+    hideDefendButton?: boolean;
+    /** 若 true：整局显示但灰显「防守」按钮（仍占位，不可点） */
+    disableDefendAlways?: boolean;
+    /**
+     * 若 true：仅在 guideFlow 分步引导进行中（横幅 + 步骤，且非 dynamicGuide）时灰显「防守」。
+     * dynamicGuide 关卡不会生效；需隐藏请用 hideDefendButton，需整局灰显请用 disableDefendAlways。
+     */
+    disableDefendDuringGuideFlow?: boolean;
 }
 
 export type StageModeType = "tutorial" | "solo_challenge" | "multiplayer_tournament";
@@ -127,6 +139,11 @@ export interface StageRuleConfig {
     ruleId: string;
     gameName?: GameName;
     teamPreset?: StageTeamPresetConfig;
+    /**
+     * 若设置且 `soloDebugTeamProfiles` 中存在对应 key：开局与 join 战力使用该 profile 的合成队伍，而非 DB 编队。
+     * 正式关卡勿填；调试用 lab 关填写。
+     */
+    debugTeamProfileKey?: string;
     rewardPolicy?: StageRewardPolicy;
     uiRules?: StageUiRules;
     // ============================================
@@ -180,8 +197,16 @@ export interface StageRuleConfig {
             // 例如：1.0 表示Boss Power = Player Team Power（平衡）
             //       1.2 表示Boss Power = 1.2 × Player Team Power（Boss更强）
             difficultyMultiplier?: number;  // Boss Power / Player Team Power 的比率
-            minMultiplier?: number;        // 最低难度倍数
-            maxMultiplier?: number;        // 最高难度倍数
+            minMultiplier?: number;        // 对最终属性倍率的下限（见 adaptiveBossScaling）
+            maxMultiplier?: number;        // 对最终属性倍率的上限
+            /** 次线性：adjusted = referencePower * (playerPower/referencePower)^scalingExponent；默认 1=线性 */
+            scalingExponent?: number;
+            referencePower?: number;
+            /** 第一道夹逼，默认行为由 DEFAULT_BOSS_SCALING_TUNING 定义 */
+            scaleFloor?: number;
+            scaleCeiling?: number;
+            /** 与当前队伍战力取 max（防脱装备） */
+            playerPowerFloor?: number;
         };
         // 关卡级 Boss 覆盖（用于教学关精准调参，不影响全局 Boss 模板）
         bossOverrides?: StageBossOverrides;

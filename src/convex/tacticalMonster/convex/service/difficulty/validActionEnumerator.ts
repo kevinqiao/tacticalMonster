@@ -84,7 +84,11 @@ export class ValidActionEnumerator {
       if (!skill?.range) continue;
 
       const range = skill.range;
-      const dist = range.distance ?? range.max_distance ?? 1;
+      const dist =
+        range.distance ??
+        range.max_distance ??
+        (character as { attack_range?: { max?: number } }).attack_range?.max ??
+        1;
       const targetSide = range.target_side ?? "foe";
 
       if (range.area_type === "circle") {

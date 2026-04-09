@@ -247,7 +247,7 @@ export class GameService implements CharacterGetter {
         gameId: string,
         to: { q: number; r: number },
         identifier: CharacterIdentifier,
-        options?: { endTurn?: boolean; steps?: number; forceEndTurn?: boolean }
+        options?: { endTurn?: boolean; steps?: number; forceEndTurn?: boolean; deferTurnEnd?: boolean }
     ): Promise<{
         success: boolean;
         message?: string;
@@ -269,6 +269,17 @@ export class GameService implements CharacterGetter {
     ): Promise<{ success: boolean; message?: string; phaseChanges?: PhaseChanges }> {
         await this.load(gameId);
         return await this.getActionService().executeDefend(gameId, identifier);
+    }
+
+    /**
+     * 结束回合（待机，无防守 buff）
+     */
+    async standby(
+        gameId: string,
+        identifier: CharacterIdentifier
+    ): Promise<{ success: boolean; message?: string; phaseChanges?: PhaseChanges }> {
+        await this.load(gameId);
+        return await this.getActionService().executeStandby(gameId, identifier);
     }
 
     /**
@@ -804,6 +815,26 @@ export const defend = mutation({
             return { ok: true, phaseChanges: result.phaseChanges };
         }
         return { ok: false, error: result.message ?? "防守失败" };
+    },
+});
+
+export const standby = mutation({
+    args: {
+        gameId: v.string(),
+        identifier: v.object({
+            monsterId: v.optional(v.string()),
+            bossId: v.optional(v.string()),
+            minionId: v.optional(v.string()),
+        }),
+    },
+    handler: async (ctx, { gameId, identifier }) => {
+        const gameManager = new GameService(ctx);
+        await gameManager.load(gameId);
+        const result = await gameManager.standby(gameId, identifier);
+        if (result.success) {
+            return { ok: true, phaseChanges: result.phaseChanges };
+        }
+        return { ok: false, error: result.message ?? "结束回合失败" };
     },
 });
 

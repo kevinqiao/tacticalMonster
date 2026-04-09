@@ -44,6 +44,8 @@ export class TutorialProgressService {
         if (!ruleId) return;
 
         const stageRule = GameRuleConfigService.getGameRuleConfig(ruleId);
+        if (!stageRule) return;
+
         const modeType = getModeTypeForRuleId(ruleId) ?? getMrGameStageMode(game);
         if (modeType !== "tutorial") return;
 

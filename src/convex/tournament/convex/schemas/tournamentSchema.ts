@@ -207,6 +207,11 @@ export const tournamentSchema = {
                     }))),
                     energy: v.optional(v.number()),
                 }),
+                // å•äººå…³å¡ï¼šåˆ†æ•°é˜ˆå€¼ -> è¡¨çŽ°ç­‰çº§ï¼ˆè§ tournamentConfigTypes / common.tsï¼‰
+                scoreThresholds: v.optional(v.array(v.object({
+                    level: v.string(),
+                    minScore: v.number(),
+                }))),
                 // levelRewards ä½¿ç”¨ v.any() å› ä¸º Record ç±»åž‹
                 // æ¯ä¸ªè¡¨çŽ°ç­‰çº§å¯ä»¥åŒ…å«ï¼šcoins, monsterShards, energy, chestDropRate, chestTypeWeights
                 levelRewards: v.optional(v.any()),

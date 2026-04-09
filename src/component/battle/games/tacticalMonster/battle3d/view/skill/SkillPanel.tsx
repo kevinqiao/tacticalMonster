@@ -4,7 +4,6 @@
  */
 
 import React, { useEffect, useMemo, useState } from "react";
-import { MONSTER_CONFIGS_MAP } from "../../../config/monsterConfigs";
 import { SKILL_CONFIGS } from "../../../config/skillConfigs";
 import { getStageRuleConfig } from "../../../config/stageRuleConfigs";
 import { useCombatManager } from "../../../service/CombatManager";
@@ -13,11 +12,13 @@ import type { MonsterSkill } from "../../../types/skillTypes";
 import type { PedagogyGuideNotifyEvent } from "../../../utils/pedagogyGuideFlow";
 import { filterSkillIdsForPedagogy } from "../../../utils/pedagogySkillFilter";
 import {
+    getMergedSkillIdsForPanel,
     hasAttackableTargetsForSkill,
     isSkillCarriedByCharacter,
     isSkillLevelLocked,
     skillEffectsNeedBoardTarget,
 } from "../../../utils/skillPanelAvailability";
+import { isRangedUnitForMoveAttackRule } from "../../../utils/skillRangeUtils";
 import { canPerformAction } from "../../../utils/validationUtils";
 
 export const SkillPanel: React.FC<{
@@ -25,8 +26,13 @@ export const SkillPanel: React.FC<{
     useSkill: (skillId: string, target?: MonsterSprite) => Promise<void>;
     surrender: () => void;
     defend: () => void;
+    /** 待机（结束回合，无防守 buff）；未传入时不显示按钮 */
+    standby?: () => void | Promise<void>;
     clearGrid: () => void;
     onPedagogyNotify?: (event: PedagogyGuideNotifyEvent) => void;
+    /** 为 true 时不渲染「防守」按钮（pedagogy.hideDefendButton） */
+    hideDefend?: boolean;
+    /** 为 true 时渲染但灰显「防守」（pedagogy.disableDefend*）；hidden 时忽略 */
     disableDefend?: boolean;
     /** 首关引导：移动步未完成前禁止点技能栏（与格子半强制一致） */
     tutorialLockSkillPanel?: boolean;
@@ -40,8 +46,10 @@ export const SkillPanel: React.FC<{
     useSkill,
     surrender,
     defend,
+    standby,
     clearGrid,
     onPedagogyNotify,
+    hideDefend,
     disableDefend,
     tutorialLockSkillPanel,
     onTutorialSkillPanelBlocked,
@@ -71,14 +79,7 @@ export const SkillPanel: React.FC<{
             (e: any) => e.type === "summon" && e.summonConfig?.position_mode === "caster_adjacent"
         ) ?? false;
 
-    const rawSkillIds =
-        character?.skills?.length
-            ? character.skills
-            : (character as any)?.unlockSkills?.length
-                ? (character as any).unlockSkills
-                : (character as any)?.monsterId
-                    ? (MONSTER_CONFIGS_MAP[(character as any).monsterId]?.skillIds ?? ["basic_attack"])
-                    : ["basic_attack"];
+    const rawSkillIds = getMergedSkillIdsForPanel(character);
     const ruleKey = (game as { ruleId?: string; stageId?: string })?.ruleId ?? game?.stageId;
     const skillIds = filterSkillIdsForPedagogy(ruleKey, Array.isArray(rawSkillIds) ? rawSkillIds : ["basic_attack"]);
     const activeSkills = (Array.isArray(skillIds) ? skillIds : [])
@@ -101,6 +102,10 @@ export const SkillPanel: React.FC<{
         const used = currentTurn?.stepsUsed ?? 0;
         return Math.max(0, mr - used);
     }, [character?.move_range, currentTurn?.stepsUsed]);
+    const rangedMovedNoSkill =
+        !!character &&
+        isRangedUnitForMoveAttackRule(character) &&
+        (currentTurn?.stepsUsed ?? 0) > 0;
     const isLevelLockedForSkill = (skillId: string, requiredLevel: number | undefined) =>
         isSkillLevelLocked(skillId, requiredLevel, charLevel, unlockSkillIds, pedagogyAllowedSkillIds);
 
@@ -121,6 +126,7 @@ export const SkillPanel: React.FC<{
     }
 
     const handleSkillClick = async (skill: any, isTutorialTarget: boolean) => {
+        if (rangedMovedNoSkill) return;
         if (tutorialLockSkillPanel) {
             onTutorialSkillPanelBlocked?.();
             return;
@@ -135,6 +141,7 @@ export const SkillPanel: React.FC<{
     };
 
     const handleUseNoTarget = () => {
+        if (rangedMovedNoSkill) return;
         if (tutorialLockSkillPanel) {
             onTutorialSkillPanelBlocked?.();
             return;
@@ -195,6 +202,7 @@ export const SkillPanel: React.FC<{
                             remainingMoveSteps
                         ));
                 const disabled =
+                    rangedMovedNoSkill ||
                     notCarried ||
                     levelLocked ||
                     noTargets ||
@@ -221,8 +229,8 @@ export const SkillPanel: React.FC<{
                         key={id}
                         className={`action-panel-item ${isSelected ? "action-panel-item--selected" : ""}`}
                         style={{
-                            opacity: disabled || tutorialLockSkillPanel ? 0.55 : isTutorialSecondary ? 0.42 : 1,
-                            pointerEvents: disabled || tutorialLockSkillPanel ? "none" : "auto",
+                            opacity: disabled || tutorialLockSkillPanel || rangedMovedNoSkill ? 0.55 : isTutorialSecondary ? 0.42 : 1,
+                            pointerEvents: disabled || tutorialLockSkillPanel || rangedMovedNoSkill ? "none" : "auto",
                             border: isSelected ? "2px solid #fff" : undefined,
                             boxShadow: isTutorialTarget ? "0 0 0 2px rgba(255,214,10,0.95), 0 0 14px rgba(255,214,10,0.9)" : undefined,
                             background: isTutorialTarget
@@ -260,7 +268,8 @@ export const SkillPanel: React.FC<{
                 const reqLvl = selectedSkill?.unlockConditions?.level;
                 const lvlLocked =
                     selectedSkillId != null ? isLevelLockedForSkill(selectedSkillId, reqLvl) : reqLvl != null && charLevel < reqLvl;
-                const useDisabled = lvlLocked || cd > 0 || mp < cost || !!tutorialLockSkillPanel;
+                const useDisabled =
+                    rangedMovedNoSkill || lvlLocked || cd > 0 || mp < cost || !!tutorialLockSkillPanel;
                 return (
                     <div
                         className="action-panel-item"
@@ -287,22 +296,37 @@ export const SkillPanel: React.FC<{
                     </div>
                 );
             })()}
-            <div
-                className="action-panel-item"
-                onClick={() => {
-                    if (disableDefend) return;
-                    clearGrid();
-                    defend();
-                }}
-                style={{
-                    backgroundColor: "rgb(70, 130, 180)",
-                    opacity: disableDefend ? 0.55 : 1,
-                    pointerEvents: disableDefend ? "none" : "auto",
-                }}
-                title="防守"
-            >
-                防守
-            </div>
+            {!!standby && (
+                <div
+                    className="action-panel-item"
+                    onClick={() => {
+                        clearGrid();
+                        void standby();
+                    }}
+                    style={{ backgroundColor: "rgb(90, 90, 110)" }}
+                    title="待机：结束本回合（不获得防守加成）"
+                >
+                    待机
+                </div>
+            )}
+            {!hideDefend && (
+                <div
+                    className="action-panel-item"
+                    onClick={() => {
+                        if (disableDefend) return;
+                        clearGrid();
+                        defend();
+                    }}
+                    style={{
+                        backgroundColor: "rgb(70, 130, 180)",
+                        opacity: disableDefend ? 0.55 : 1,
+                        pointerEvents: disableDefend ? "none" : "auto",
+                    }}
+                    title={disableDefend ? "当前步骤不可防守" : "防守"}
+                >
+                    防守
+                </div>
+            )}
             <div className="action-panel-item" onClick={surrender}>
                 GAME OVER
             </div>

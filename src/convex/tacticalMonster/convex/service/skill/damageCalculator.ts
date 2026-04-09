@@ -37,14 +37,31 @@ export function getEffectiveStat(monster: GameMonster, statName: string): number
     return Math.floor(baseStat * multiplicative + additive);
 }
 
+/** 防守姿态：本轮内受到的技能伤害乘数（与 executeDefend.defendRoundNo 对齐） */
+export const DEFENDING_DAMAGE_TAKEN_FACTOR = 0.75;
+
+function getDefendingDamageFactor(target: GameMonster, currentRoundNo: number | undefined): number {
+    if (currentRoundNo == null || currentRoundNo <= 0 || !target.statusEffects?.length) {
+        return 1;
+    }
+    for (const se of target.statusEffects) {
+        if (se.id === "defending" && se.defendRoundNo === currentRoundNo) {
+            return DEFENDING_DAMAGE_TAKEN_FACTOR;
+        }
+    }
+    return 1;
+}
+
 /**
  * 计算实际伤害值（考虑攻击/防御、伤害类型，使用 getEffectiveStat 应用 BUFF/DEBUFF）
+ * @param currentRoundNo 当前轮次：若目标在本轮处于 defending，则额外应用 DEFENDING_DAMAGE_TAKEN_FACTOR
  */
 export function calculateDamage(
     baseValue: number,
     caster: GameMonster,
     target: GameMonster,
-    effect: SkillEffect
+    effect: SkillEffect,
+    currentRoundNo?: number
 ): number {
     let damage = baseValue;
 
@@ -60,5 +77,7 @@ export function calculateDamage(
         damage = Math.max(1, damage - magicDefense * 0.2);
     }
 
-    return Math.floor(damage);
+    damage = Math.floor(damage * getDefendingDamageFactor(target, currentRoundNo));
+
+    return Math.max(1, damage);
 }

@@ -11,12 +11,17 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { BattleMapDimension } from "../battle3d/utils/coordinate3DUtils";
 import { getGridCenter3D, getGridExtent3D } from "../battle3d/utils/coordinate3DUtils";
+import { bossScalingTuningFromDifficultyAdjustment } from "../config/bossConfigs";
+import { getStageRuleConfig } from "../config/stageRuleConfigs";
 import { TeamDeployProvider, useTeamDeployManager } from "../service/TeamDeployManager";
 import "../team/styles.css";
 import { Stage } from "../types/StageTypes";
 import CandidatesBox3D from "./CandidatesBox3D";
 import GridGround3D from "./GridGround3D";
 import StageGrid3D from "./StageGrid3D";
+import { TeamLayoutHoverOverlayProvider } from "./TeamLayoutHoverOverlayContext";
+import TeamLayoutHoverOverlayUI from "./TeamLayoutHoverOverlayUI";
+import TeamLayoutHoverScreenSync from "./TeamLayoutHoverScreenSync";
 import { TeamLayoutLoadingContext } from "./TeamLayoutLoadingContext";
 import { getAllMonsterGlbPaths } from "./utils/modelPathMapper";
 
@@ -215,6 +220,7 @@ const CanvasWithControls: React.FC<{
     const sceneContent = (
         <>
             <TransparentBackground />
+            <TeamLayoutHoverScreenSync />
             <LoadingTracker onProgress={onProgress} />
             <CameraSync
                 cameraPosition={cameraPosition}
@@ -497,19 +503,22 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
                 >
 
 
-                    {/* React Three Fiber Canvas */}
-                    <TeamLayoutLoadingContext.Provider value={loadingContextValue}>
-                        <CanvasWithControls
-                            cameraPosition={cameraPosition}
-                            target={cameraTarget}
-                            minDistance={minDistance}
-                            maxDistance={maxDistance}
-                            onProgress={handleProgress}
-                            isPortrait={isPortrait}
-                            orthoZoom={orthoZoom}
-                            cameraUp={cameraUp}
-                        />
-                    </TeamLayoutLoadingContext.Provider>
+                    {/* React Three Fiber Canvas + 画布外悬停面板（投影定位） */}
+                    <TeamLayoutHoverOverlayProvider>
+                        <TeamLayoutLoadingContext.Provider value={loadingContextValue}>
+                            <CanvasWithControls
+                                cameraPosition={cameraPosition}
+                                target={cameraTarget}
+                                minDistance={minDistance}
+                                maxDistance={maxDistance}
+                                onProgress={handleProgress}
+                                isPortrait={isPortrait}
+                                orthoZoom={orthoZoom}
+                                cameraUp={cameraUp}
+                            />
+                        </TeamLayoutLoadingContext.Provider>
+                        <TeamLayoutHoverOverlayUI />
+                    </TeamLayoutHoverOverlayProvider>
                 </div>
 
                 {/* 候选怪物列表（2D UI overlay） */}
@@ -533,7 +542,7 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
             </div>
 
             {/* 方案 B：选中怪物时的遮罩 + 底部控制条（置于顶层，高于 team-control-container） */}
-            {selectedMonsterId && (
+            {/* {selectedMonsterId && (
                 <>
                     <div
                         ref={overlayRef}
@@ -553,7 +562,7 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
                         </button>
                     </div>
                 </>
-            )}
+            )} */}
 
             <div className="team-control-container">
                 <button className="team-join-button" onClick={join}>Join</button>
@@ -563,12 +572,27 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
 };
 
 // 外部组件，包裹 Provider
-const TeamLayout3D: React.FC<{ stage?: Stage; onComplete: () => void }> = ({ stage, onComplete }) => {
+const TeamLayout3D: React.FC<{ stage: Stage | null; typeId?: string; onComplete: () => void }> = ({
+    stage,
+    typeId,
+    onComplete,
+}) => {
+    const bossScalingTuning = useMemo(
+        () =>
+            typeId
+                ? bossScalingTuningFromDifficultyAdjustment(
+                    getStageRuleConfig(typeId)?.stageContent?.difficultyAdjustment,
+                )
+                : undefined,
+        [typeId],
+    );
+
     return (
-        <TeamDeployProvider stage={stage}>
+        <TeamDeployProvider stage={stage} bossScalingTuning={bossScalingTuning}>
             <TeamLayoutContent3D onComplete={onComplete} />
         </TeamDeployProvider>
     );
 };
 
+export { TeamLayout3D };
 export default TeamLayout3D;

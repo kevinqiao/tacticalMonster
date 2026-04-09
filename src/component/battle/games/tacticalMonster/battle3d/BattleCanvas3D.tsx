@@ -129,115 +129,115 @@ export const CanvasWithControls: React.FC<{
     onCellClick,
     pedagogyAttackTargetPulseBoost,
 }) => {
-    const controlsRef = useRef<OrbitControlsImpl | null>(null);
+        const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
-    // 稳定引用，供 onCreated 使用（避免闭包过期）
-    const cameraUpRef = useRef(cameraUp);
-    const targetRef = useRef(target);
-    const orthoZoomRef = useRef(orthoZoom);
-    cameraUpRef.current = cameraUp;
-    targetRef.current = target;
-    orthoZoomRef.current = orthoZoom;
+        // 稳定引用，供 onCreated 使用（避免闭包过期）
+        const cameraUpRef = useRef(cameraUp);
+        const targetRef = useRef(target);
+        const orthoZoomRef = useRef(orthoZoom);
+        cameraUpRef.current = cameraUp;
+        targetRef.current = target;
+        orthoZoomRef.current = orthoZoom;
 
-    // onCreated：Canvas 创建后、首帧渲染前设置 camera.up + lookAt + zoom
-    // R3F 自动根据画布尺寸管理 left/right/top/bottom，我们只需 zoom 控制可见范围
-    const handleCreated = useCallback(({ camera }: { camera: THREE.Camera }) => {
-        const up = cameraUpRef.current;
-        const t = targetRef.current;
-        if (up) {
-            camera.up.set(up[0], up[1], up[2]);
-        }
-        camera.lookAt(t[0], t[1], t[2]);
-        if (camera instanceof THREE.OrthographicCamera) {
-            camera.zoom = orthoZoomRef.current;
-            camera.updateProjectionMatrix();
-        }
-    }, []);
-
-    // 共用的场景内容
-    const sceneContent = (
-        <>
-            <TransparentBackground />
-            {/* <LoadingTracker onProgress={onProgress} /> */}
-            <CameraSync
-                cameraPosition={cameraPosition}
-                target={target}
-                controlsRef={controlsRef}
-                orthoZoom={isPortrait ? orthoZoom : undefined}
-                cameraUp={cameraUp}
-            />
-
-            <ambientLight intensity={0.8} />
-            <directionalLight position={[500, 500, 500]} intensity={1.2} castShadow />
-            <pointLight position={[0, 300, 0]} intensity={0.5} />
-
-            <BattleLoadingContext.Provider value={{ onModelLoaded }}>
-                {mapDimension && (
-                    <>
-                        <GridGround3D
-                            mapDimension={mapDimension}
-                            getCellState={getCellState}
-                            getWalkableDistance={getWalkableDistance}
-                            getWalkableMoveRange={getWalkableMoveRange}
-                            onCellClick={onCellClick}
-                        />
-                        <ObstacleGrid3D mapDimension={mapDimension} />
-                        <CharacterGrid3D mapDimension={mapDimension} />
-                        <GridHighlight3D
-                            mapDimension={mapDimension}
-                            getCellState={getCellState}
-                            getWalkableDistance={getWalkableDistance}
-                            getWalkableMoveRange={getWalkableMoveRange}
-                            onCellClick={onCellClick}
-                            pedagogyAttackTargetPulseBoost={pedagogyAttackTargetPulseBoost}
-                        />
-                    </>
-                )}
-            </BattleLoadingContext.Provider>
-        </>
-    );
-
-    // 竖屏：正交相机 + 俯视（camera.up 旋转 90°），禁用旋转
-    // 横屏：透视相机 + 球面坐标，允许旋转
-    return (
-        <Canvas
-            key={isPortrait ? "ortho" : "persp"}
-            orthographic={isPortrait}
-            shadows
-            style={{ width: "100%", height: "100%", background: "transparent" }}
-            gl={{ antialias: true, alpha: true }}
-            camera={
-                isPortrait
-                    ? {
-                          position: [target[0], 2000, target[2]],
-                          zoom: orthoZoom,
-                          near: 0.1,
-                          far: 5000,
-                      }
-                    : {
-                          position: cameraPosition,
-                          fov: CAMERA_CONFIG.fov,
-                          near: CAMERA_CONFIG.near,
-                          far: CAMERA_CONFIG.far,
-                      }
+        // onCreated：Canvas 创建后、首帧渲染前设置 camera.up + lookAt + zoom
+        // R3F 自动根据画布尺寸管理 left/right/top/bottom，我们只需 zoom 控制可见范围
+        const handleCreated = useCallback(({ camera }: { camera: THREE.Camera }) => {
+            const up = cameraUpRef.current;
+            const t = targetRef.current;
+            if (up) {
+                camera.up.set(up[0], up[1], up[2]);
             }
-            onCreated={handleCreated}
-        >
-            {sceneContent}
+            camera.lookAt(t[0], t[1], t[2]);
+            if (camera instanceof THREE.OrthographicCamera) {
+                camera.zoom = orthoZoomRef.current;
+                camera.updateProjectionMatrix();
+            }
+        }, []);
 
-            <OrbitControls
-                ref={controlsRef}
-                enablePan={isPortrait}
-                enableZoom={true}
-                enableRotate={false}
-                target={target}
-                minDistance={isPortrait ? undefined : minDistance}
-                maxDistance={isPortrait ? undefined : maxDistance}
-                minZoom={isPortrait ? orthoZoom * 0.5 : undefined}
-                maxZoom={isPortrait ? orthoZoom * 2 : undefined}
-                maxPolarAngle={isPortrait ? Math.PI / 2 : undefined}
-                minPolarAngle={isPortrait ? Math.PI / 2 : undefined}
-            />
-        </Canvas>
-    );
-};
+        // 共用的场景内容
+        const sceneContent = (
+            <>
+                <TransparentBackground />
+                {/* <LoadingTracker onProgress={onProgress} /> */}
+                <CameraSync
+                    cameraPosition={cameraPosition}
+                    target={target}
+                    controlsRef={controlsRef}
+                    orthoZoom={isPortrait ? orthoZoom : undefined}
+                    cameraUp={cameraUp}
+                />
+
+                <ambientLight intensity={0.8} />
+                <directionalLight position={[500, 500, 500]} intensity={1.2} castShadow />
+                <pointLight position={[0, 300, 0]} intensity={0.5} />
+
+                <BattleLoadingContext.Provider value={{ onModelLoaded }}>
+                    {mapDimension && (
+                        <>
+                            <GridGround3D
+                                mapDimension={mapDimension}
+                                getCellState={getCellState}
+                                getWalkableDistance={getWalkableDistance}
+                                getWalkableMoveRange={getWalkableMoveRange}
+                                onCellClick={onCellClick}
+                            />
+                            <ObstacleGrid3D mapDimension={mapDimension} />
+                            <CharacterGrid3D mapDimension={mapDimension} />
+                            <GridHighlight3D
+                                mapDimension={mapDimension}
+                                getCellState={getCellState}
+                                getWalkableDistance={getWalkableDistance}
+                                getWalkableMoveRange={getWalkableMoveRange}
+                                onCellClick={onCellClick}
+                                pedagogyAttackTargetPulseBoost={pedagogyAttackTargetPulseBoost}
+                            />
+                        </>
+                    )}
+                </BattleLoadingContext.Provider>
+            </>
+        );
+
+        // 竖屏：正交相机 + 俯视（camera.up 旋转 90°），禁用旋转
+        // 横屏：透视相机 + 球面坐标，允许旋转
+        return (
+            <Canvas
+                key={isPortrait ? "ortho" : "persp"}
+                orthographic={isPortrait}
+                shadows
+                style={{ width: "100%", height: "100%", background: "transparent" }}
+                gl={{ antialias: true, alpha: true }}
+                camera={
+                    isPortrait
+                        ? {
+                            position: [target[0], 2000, target[2]],
+                            zoom: orthoZoom,
+                            near: 0.1,
+                            far: 5000,
+                        }
+                        : {
+                            position: cameraPosition,
+                            fov: CAMERA_CONFIG.fov,
+                            near: CAMERA_CONFIG.near,
+                            far: CAMERA_CONFIG.far,
+                        }
+                }
+                onCreated={handleCreated}
+            >
+                {sceneContent}
+
+                <OrbitControls
+                    ref={controlsRef}
+                    enablePan={isPortrait}
+                    enableZoom={true}
+                    enableRotate={false}
+                    target={target}
+                    minDistance={isPortrait ? undefined : minDistance}
+                    maxDistance={isPortrait ? undefined : maxDistance}
+                    minZoom={isPortrait ? orthoZoom * 0.5 : undefined}
+                    maxZoom={isPortrait ? orthoZoom * 2 : undefined}
+                    maxPolarAngle={isPortrait ? Math.PI / 2 : undefined}
+                    minPolarAngle={isPortrait ? Math.PI / 2 : undefined}
+                />
+            </Canvas>
+        );
+    };

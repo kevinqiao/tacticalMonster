@@ -36,7 +36,8 @@ export class DamageHandler {
             }
         }
 
-        const damage = calculateDamage(baseValue, caster, target, effect);
+        const roundNo = (effect as SkillEffect & { __damageContextRoundNo?: number }).__damageContextRoundNo;
+        const damage = calculateDamage(baseValue, caster, target, effect, roundNo);
         let remaining = damage;
         const currentHp = target.stats.hp?.current ?? 0;
 

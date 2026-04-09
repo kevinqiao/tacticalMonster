@@ -18,6 +18,8 @@ export enum ASSET_TYPE {
  */
 export interface StatusEffect extends SkillEffect {
     remaining_duration: number;  // 剩余持续时间（回合数，运行时更新）
+    /** 防守：在本 defendRoundNo 对应整轮内受技能伤害降低；回合结束时清除 */
+    defendRoundNo?: number;
 }
 
 /**
@@ -98,7 +100,8 @@ export interface GameMonster {
 
     // ========== 移动和战斗 ==========
     move_range?: number;             // 移动范围
-    attack_range?: { min: number; max: number };  // 攻击范围
+    /** Hex 攻击距离；与配表 Monster.attackRange 同步。max 为共享技能 basic_attack 的默认最远距离（技能未写 distance 时由前后端取 max） */
+    attack_range?: { min: number; max: number };
 
     // ========== 特殊属性（从 Monster.race 推断或配置）==========
     isFlying?: boolean;             // 是否为飞行单位（从 race 判断）
@@ -129,7 +132,11 @@ export interface Monster {
 
     // 移动和战斗范围配置
     moveRange?: number;               // 移动范围（Hex格子数），默认值：3
-    attackRange?: {                   // 攻击范围（Hex格子数），默认值：{ min: 1, max: 2 }
+    /**
+     * 普攻/走位相关 Hex 距离（写入 GameMonster.attack_range）。
+     * min/max：与 PathFind、选目标等一致；其中 max 即共享技能 basic_attack 的射程来源（skillConfigs 不写 distance）。
+     */
+    attackRange?: {
         min: number;
         max: number;
     };

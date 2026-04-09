@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { TutorialProgressState } from "../../types/gameTypes";
 import type { PedagogyGuideStep, TutorialWinMode } from "../../types/stageRuleTypes";
 import { advanceAfterMatch, matchGuideStep, type PedagogyGuideNotifyEvent } from "../../utils/pedagogyGuideFlow";
 import { isGuideDone } from "../../utils/pedagogyGuideStorage";
@@ -29,10 +30,8 @@ export function usePedagogyGuideFlow(opts: {
     ruleId: string | undefined;
     gameId: string | undefined;
     steps: PedagogyGuideStep[] | undefined;
-    /** 动态提示模式：不读 guideFlow 步进，仅用于完成态与 cast 结算 */
+    /** 动态提示模式：不读 guideFlow 步进；完成态依赖 tutorialProgress */
     dynamicGuide?: boolean;
-    /** 动态模式下 cast 完成引导的技能 id（默认 basic_attack） */
-    completionSkillId?: string;
     /** 与 pedagogy.tutorialWinMode 一致（boss_only / guide_only / boss_and_guide）；默认 boss_only */
     tutorialWinMode?: TutorialWinMode;
     /**
@@ -44,6 +43,8 @@ export function usePedagogyGuideFlow(opts: {
     guideUiReady: boolean;
     /** 持久化「不再显示横幅」（服务端 mutation 或 guest 的 localStorage） */
     persistGuideUiDismissed: () => void | Promise<void>;
+    /** 与 mr_games.tutorialProgress 同步；dynamicGuide 完成态以此为准（含 `all` 规则） */
+    tutorialProgress?: TutorialProgressState | null;
 }): {
     bannerActive: boolean;
     stepIndex: number | null;
@@ -62,11 +63,11 @@ export function usePedagogyGuideFlow(opts: {
         gameId,
         steps,
         dynamicGuide,
-        completionSkillId,
         tutorialWinMode = "boss_only",
         guideUiDismissed,
         guideUiReady,
         persistGuideUiDismissed,
+        tutorialProgress,
     } = opts;
     const [stepIndex, setStepIndex] = useState<number | null>(null);
     /** 动态引导 stepIndex 恒为 null；跳过/完成时需 bump 以立即收起横幅 */
@@ -121,16 +122,27 @@ export function usePedagogyGuideFlow(opts: {
         await Promise.resolve(persistGuideUiDismissed());
     }, [persistGuideUiDismissed]);
 
+    /** dynamicGuide：完成条件由服务端写入 tutorialProgress（含 dynamicGuideRule.kind === "all"） */
+    useEffect(() => {
+        if (!dynamicGuide || localGuideClosed || effectiveDismissed) return;
+        if (tutorialProgress?.dynamicGuideSatisfied) {
+            void persistDismiss();
+            setLocalGuideClosed(true);
+        }
+    }, [
+        dynamicGuide,
+        tutorialProgress?.dynamicGuideSatisfied,
+        localGuideClosed,
+        effectiveDismissed,
+        persistDismiss,
+    ]);
+
     const notify = useCallback(
         (event: PedagogyGuideNotifyEvent) => {
             if (!ruleId) return;
 
+            /** 动态引导完成由 tutorialProgress.dynamicGuideSatisfied 驱动（见上方 useEffect） */
             if (dynamicGuide) {
-                const want = completionSkillId ?? "basic_attack";
-                if (event.type === "cast" && event.skillId === want) {
-                    void persistDismiss();
-                    setLocalGuideClosed(true);
-                }
                 return;
             }
 
@@ -145,7 +157,7 @@ export function usePedagogyGuideFlow(opts: {
                 setStepIndex(nextIndex);
             }
         },
-        [stepIndex, steps, ruleId, dynamicGuide, completionSkillId, persistDismiss]
+        [stepIndex, steps, ruleId, dynamicGuide, persistDismiss]
     );
 
     const skip = useCallback(() => {

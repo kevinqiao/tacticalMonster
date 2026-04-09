@@ -1,6 +1,9 @@
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { api as tournamentApi } from "@/convex/tournament/convex/_generated/api";
-import { resolveTournamentMode } from "@/convex/tournament/convex/data/tournamentConfigs";
+import {
+  getTournamentConfig,
+  resolveTournamentMode,
+} from "@/convex/tournament/convex/data/tournamentConfigs";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useUserManager } from "./UserManager";
@@ -47,6 +50,17 @@ const tournamentLiveClient = new ConvexClient(URLS.tournament);
  * tacticalMonster：实时订阅 query（ConvexHttpClient 无 onUpdate，须用 ConvexClient）
  */
 const tacticalMonsterLiveClient = new ConvexClient(URLS.tacticalMonster);
+
+/** getAvailableTournaments 的 config 无顶层 mode，需用静态表按 typeId 补全（与 TournamentHome 一致）。 */
+function resolveTournamentModeWithStaticFallback(item: { typeId?: string; config?: any }) {
+  const fromApi = resolveTournamentMode(item.config);
+  if (fromApi) return fromApi;
+  if (item.typeId) {
+    const fromStatic = resolveTournamentMode(getTournamentConfig(item.typeId));
+    if (fromStatic) return fromStatic;
+  }
+  return undefined;
+}
 
 export const TournamentProvider = ({ children }: { children: React.ReactNode }) => {
   const tournamentHttpClient = React.useMemo(() => new ConvexHttpClient(URLS.tournament), []);
@@ -181,18 +195,22 @@ export const TournamentProvider = ({ children }: { children: React.ReactNode }) 
       const mr = tournament.config?.matchRules;
       const legacy = tournament.config?.gameRule;
       const ruleId = mr?.ruleId ?? legacy?.ruleId;
-      const resolvedMode = resolveTournamentMode(tournament.config);
-      const useStageChainUnlock =
-        resolvedMode === "tutorial" || (!resolvedMode && legacy?.mode === "challenge");
+      const resolvedMode = resolveTournamentModeWithStaticFallback(tournament);
+      const useBackendStageUnlock =
+        resolvedMode === "tutorial" ||
+        resolvedMode === "solo_challenge" ||
+        (!resolvedMode && legacy?.mode === "challenge");
       const status = ruleStatuses.find((s: any) => s.ruleId === ruleId);
-      const tutorialStageCompleted = useStageChainUnlock && status?.completed === true;
+      const tutorialStageCompleted =
+        (resolvedMode === "tutorial" || (!resolvedMode && legacy?.mode === "challenge")) &&
+        status?.completed === true;
       const activeTournament: any = {
         unlocked: false,
         stageId: status?.stageId || "",
         completed: status?.completed === true,
         tutorialStageCompleted,
       };
-      if (useStageChainUnlock) {
+      if (useBackendStageUnlock) {
         if (status?.unlocked) {
           activeTournament.unlocked = true;
         }

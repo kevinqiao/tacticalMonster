@@ -333,6 +333,10 @@ export const usePlayTurnBar = ({ dimension, turnOrderBarSpriteRef, playbackSpeed
             ml.to(firstItem.ele, { boxShadow: "0 0 0 2px white", duration: 0, ease: "none" }, ">");
         }
 
+        if (ml.duration() === 0) {
+            event.status = 2;
+        }
+
         timeline?.add(ml, ">");
         timeline?.play();
 
@@ -371,6 +375,9 @@ export const usePlayTurnBar = ({ dimension, turnOrderBarSpriteRef, playbackSpeed
             // if (firstItem && firstItem.ele) {
             //     ml.to(firstItem.ele, { scale: 1.2, boxShadow: "none", duration: 0.5, ease: "power2.out", overwrite: "auto" }, "<");
             // }
+            if (ml.duration() === 0) {
+                event.status = 2;
+            }
             timeline?.add(ml, ">");
             timeline?.play();
 
@@ -419,7 +426,22 @@ export const usePlayTurnBar = ({ dimension, turnOrderBarSpriteRef, playbackSpeed
 
             const separator = turnOrderBarSpriteRef.current?.separator;
             if (!separator) {
-                turn.status = 0;
+                const eventKey = `${getPhaseEventKey(turn.phaseChangeEvent)}:sep`;
+                const isSameDeferred = lastDeferredEventKeyRef.current === eventKey;
+                if (isSameDeferred) {
+                    deferRetryCountRef.current += 1;
+                } else {
+                    lastDeferredEventKeyRef.current = eventKey;
+                    deferRetryCountRef.current = 1;
+                }
+                if (deferRetryCountRef.current > MAX_DEFER_RETRIES) {
+                    console.warn("[usePlayTurnBar] init: separator missing, skipping to unblock queue");
+                    lastDeferredEventKeyRef.current = "";
+                    deferRetryCountRef.current = 0;
+                    turn.status = 2;
+                } else {
+                    turn.status = 0;
+                }
                 timeline?.play();
                 return;
             }

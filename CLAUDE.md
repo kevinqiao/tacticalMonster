@@ -50,7 +50,7 @@ The `convex/*` alias has special handling: `convex/server`, `convex/react`, `con
   - `battle/` — 2D battle system (Pixi.js, legacy)
   - `battle3d/` — 3D battle system (Three.js, active — `USE_3D_BATTLE = true`)
   - `team/` — Team selection and deployment UI
-  - `config/` — Monster, skill, boss, and stage configuration data
+  - `config/` — Monster, skill, boss, and stage configuration data; **`stageRuleConfigs` / `pedagogyByRuleId` / `stageRuleTypes` here re-export Convex** (`src/convex/tacticalMonster/convex/data/` and `types/`) to avoid duplicate static tables. Run `npm run verify:tm-config-shims` after editing shims.
   - `types/` — Frontend type definitions (CombatTypes, gameTypes, backendResponseTypes)
 - `src/convex/tacticalMonster/` — Backend services
   - `convex/service/game/` — Core game orchestration (GameService, GamePhaseService, GameActionService)

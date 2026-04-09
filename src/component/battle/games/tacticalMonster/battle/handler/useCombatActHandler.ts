@@ -109,7 +109,8 @@ const useCombatActHandler = () => {
         useSkill,
         walk,
         groundCells || [],
-        handleSkillError
+        handleSkillError,
+        handlePhaseChanges
     );
 
     return {

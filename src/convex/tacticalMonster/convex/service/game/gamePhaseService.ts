@@ -344,6 +344,29 @@ export class GamePhaseService {
         return true;
     }
 
+    /** 本轮结束时移除「仅在本轮生效」的防守减伤（defendRoundNo === 已结束轮号） */
+    private async stripDefendingBuffsForCompletedRound(gameId: string, completedRoundNo: number): Promise<void> {
+        const game = await this.lifecycleService.load(gameId);
+        if (!game) return;
+        this.characterQueryService.setGame(game);
+        const chars = this.characterQueryService.getAllCharacters();
+        let anyChanged = false;
+        for (const char of chars) {
+            if (!char.statusEffects?.length) continue;
+            const next = char.statusEffects.filter(
+                (se) => !(se.id === "defending" && se.defendRoundNo === completedRoundNo)
+            );
+            if (next.length !== char.statusEffects.length) {
+                char.statusEffects = next;
+                anyChanged = true;
+                await this.characterUpdateService.updateCharacterInDatabase(gameId, char, game);
+            }
+        }
+        if (anyChanged) {
+            await this.lifecycleService.save(gameId, { lastUpdate: new Date().toISOString() });
+        }
+    }
+
     /** 结束当前轮、创建新轮、round_start 事件与 changes.roundStart；若游戏结束则返回 null，否则返回新轮号。 */
     private async finishRoundAndStartNext(
         gameId: string,
@@ -368,6 +391,7 @@ export class GamePhaseService {
             }
             : undefined;
         await this.roundService.endRound(gameId, roundNumber);
+        await this.stripDefendingBuffsForCompletedRound(gameId, roundNumber);
         changes.roundEnd = { round: roundNumber, ...(lastRound && { lastRound }) };
         const gameStatus = await this.scoreService.checkAndUpdateGameStatus(gameId);
         if (gameStatus?.isGameOver) {
@@ -452,6 +476,8 @@ export class GamePhaseService {
             ? [targetCharacter]
             : this.characterQueryService.getAllCharacters().filter(char => (char.stats?.hp?.current ?? 0) > 0);
 
+        const passiveRoundNo = currentGame?.currentRound?.no ?? 0;
+
         for (const character of charactersToCheck) {
             if (!character.skills || !Array.isArray(character.skills)) continue;
 
@@ -459,7 +485,7 @@ export class GamePhaseService {
             for (const skillId of character.skills) {
                 const skillIdStr = skillId;
                 const phaseContext = {
-                    roundNumber: currentGame?.currentRound?.no ?? 0,
+                    roundNumber: passiveRoundNo,
                     triggerChance: Math.random(),
                 };
 
@@ -470,7 +496,7 @@ export class GamePhaseService {
 
                     // 应用效果到角色自身（被动技能通常作用于自身）
                     for (const effect of effects) {
-                        SkillManager.applyEffectToTarget(effect, character, character);
+                        SkillManager.applyEffectToTarget(effect, character, character, undefined, passiveRoundNo);
                     }
 
                     // ✅ 记录被触发的技能（用于前端播放动画）

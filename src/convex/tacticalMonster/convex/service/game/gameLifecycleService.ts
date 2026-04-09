@@ -3,14 +3,19 @@
  * 负责游戏的创建、加载、保存
  */
 
+import { bossScalingTuningFromDifficultyAdjustment, computeBossStatScale } from "../../data/adaptiveBossScaling";
 import { calculateBossPower, getBossConfig, getMergedBossConfig } from "../../data/bossConfigs";
-import { calculateGameMonster, mergeDefaultBattleSkills, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { calculateGameMonster, mergeBattleSkillsFromConfig, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { GameModel, GameRound, GameStatus, getMrGameStageMode, TutorialProgressState } from "../../types/gameTypes";
 import { GameBoss, GameMinion, GameMonster, PlayerMonster } from "../../types/monsterTypes";
 import { GameRuleConfigService } from "./gameRuleConfigService";
 import { TeamService } from "../team/teamService";
-import { buildGameTeamFromStageRule } from "./teamPresetService";
+import {
+    buildGameTeamFromStageRule,
+    getDebugTeamProfileSlots,
+    playerTeamRowsFromDebugProfile,
+} from "./teamPresetService";
 import { GameEventService } from "./gameEventService";
 import { RoundService } from "./roundService";
 import { getModeTypeForRuleId } from "../../utils/tournamentModeType";
@@ -42,8 +47,16 @@ export class GameLifecycleService {
         console.log("createGame params", uid, gameId, ruleId, stageId);
         const stageRuleConfig = GameRuleConfigService.getGameRuleConfig(ruleId);
 
-        // 1. 根据 uid 获取玩家队伍（从 mr_player_monsters 表）
-        const playerTeamMonsters = await TeamService.getPlayerTeam(this.dbCtx, uid);
+        // 1. 玩家队伍：优先 debugTeamProfileKey（soloDebugTeamProfiles），否则 mr_player_monsters
+        const debugSlots = getDebugTeamProfileSlots(stageRuleConfig);
+        let playerTeamMonsters: any[] = await TeamService.getPlayerTeam(this.dbCtx, uid);
+        if (debugSlots?.length) {
+            playerTeamMonsters = playerTeamRowsFromDebugProfile(
+                uid,
+                debugSlots,
+                stageRuleConfig?.pedagogy?.allowedSkillIds
+            );
+        }
 
         // 2. 根据 stageId 获取数据库 mr_stage 的 stage 数据
         const stage = await this.dbCtx.db
@@ -97,12 +110,14 @@ export class GameLifecycleService {
             ? false
             : (stageRuleConfig?.stageContent?.difficultyAdjustment?.powerBasedScaling !== false);
 
+        const scalingTuning = bossScalingTuningFromDifficultyAdjustment(
+            stageRuleConfig?.stageContent?.difficultyAdjustment
+        );
+
         let bossScale: number;
         if (powerBasedScaling) {
-            // 缩放模式：Boss Power = teamPower * difficulty
             const baseBossPower = calculateBossPower(effectiveBossConfig);
-            const targetBossPower = teamPower * stage.difficulty;
-            bossScale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
+            bossScale = computeBossStatScale(teamPower, baseBossPower, stage.difficulty, scalingTuning);
         } else {
             // 固定 Boss 基准 + 关卡难度系数：Boss 属性 = 基础值 × difficultyMultiplier
             // 实现每关递进变难，tier 内 1→2→3→4→5 单调递增
@@ -487,7 +502,10 @@ export class GameLifecycleService {
                                 move_range: teamMember.move_range ?? monsterConfig.moveRange ?? 3,
                                 attack_range: attackRange,
                                 // 技能系统（从数据库读取或使用 teamMember.skills；含默认 basic_attack）
-                                skills: mergeDefaultBattleSkills(dbPlayerMonster?.unlockedSkills || teamMember.skills || []),
+                                skills: mergeBattleSkillsFromConfig(
+                                    monsterConfig,
+                                    dbPlayerMonster?.unlockedSkills || teamMember.skills || []
+                                ),
                                 unlockSkills: dbPlayerMonster?.unlockedSkills || teamMember.skills || [],  // ✅ 保持向后兼容
                                 // 特殊属性（从配置推断）
                                 isFlying: monsterConfig.race === "Flying",

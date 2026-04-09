@@ -5,6 +5,8 @@ import { GROWTH_STRATEGY } from "./upgradeStrategyConfig";
  * 怪物配置数据
  * 基于 Camex Games Tactical Monster 的怪物设计
  * 包含90个怪物的基础属性配置
+ *
+ * attackRange：写入战斗单位 attack_range；其中 max 决定共享技能 basic_attack 的默认攻击距离（skillConfigs 中 basic_attack 不写 range.distance）。
  */
 export const calculatePower = (damage: number, defense: number, hp: number, multiplier: number = 1): number => {
     return (damage * 2 + defense * 1.5 + hp) * multiplier;
@@ -15,6 +17,32 @@ export const calculatePower = (damage: number, defense: number, hp: number, mult
  */
 export function mergeDefaultBattleSkills(skillIds: string[] | undefined | null): string[] {
     const out = [...(skillIds ?? [])];
+    if (!out.includes("basic_attack")) {
+        out.unshift("basic_attack");
+    }
+    return out;
+}
+
+/**
+ * 战斗内技能栏：怪物配置 skillIds（或职业默认）+ 玩家解锁表合并去重，并保证含 basic_attack。
+ * 避免仅 DB 未写 unlockedSkills 时栏里只有普攻、丢失弓箭手 ranged_attack 等职业技。
+ */
+export function mergeBattleSkillsFromConfig(
+    monsterConfig: Monster | undefined,
+    playerSkillIds: string[] | undefined | null
+): string[] {
+    const fromPlayer = [...(playerSkillIds ?? [])];
+    const fromConfig =
+        monsterConfig?.skillIds && monsterConfig.skillIds.length > 0
+            ? [...monsterConfig.skillIds]
+            : monsterConfig?.class
+              ? getSkillsByClass(monsterConfig.class)
+              : [];
+
+    const merged = new Set<string>();
+    for (const id of fromConfig) merged.add(id);
+    for (const id of fromPlayer) merged.add(id);
+    const out = Array.from(merged);
     if (!out.includes("basic_attack")) {
         out.unshift("basic_attack");
     }
@@ -84,8 +112,8 @@ export function calculateGameMonster(
         q: position?.q,
         r: position?.r,
 
-        // 技能系统（从 unlockSkills 填充，并保证含 basic_attack）
-        skills: mergeDefaultBattleSkills(playerMonster.unlockedSkills || []),
+        // 技能系统：配置默认技能 + 玩家解锁
+        skills: mergeBattleSkillsFromConfig(monsterConfig, playerMonster.unlockedSkills || []),
         skillCooldowns: {},
 
         // 状态效果

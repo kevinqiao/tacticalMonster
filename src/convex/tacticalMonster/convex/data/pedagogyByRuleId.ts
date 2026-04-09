@@ -7,6 +7,8 @@ import type { StagePedagogy } from "../types/stageRuleTypes";
 export const PEDAGOGY_BY_RULE_ID: Record<string, StagePedagogy> = {
     "monster_rumble_challenge_bronze_boss_1": {
         tutorialWinMode: "guide_only",
+        /** 首关完全隐藏「防守」；若改为灰显可见，可改 false 并配合 disableDefendDuringGuideFlow */
+        hideDefendButton: true,
         playerTierAssumed: 0,
         playerTierTaught: 0,
         bossMechanicTier: 0,
@@ -26,6 +28,8 @@ export const PEDAGOGY_BY_RULE_ID: Record<string, StagePedagogy> = {
     },
     "monster_rumble_challenge_bronze_boss_2": {
         tutorialWinMode: "guide_only",
+        hideDefendButton: true,
+        disableDefendDuringGuideFlow: true,
         playerTierAssumed: 1,
         playerTierTaught: 1,
         bossMechanicTier: 0,
@@ -46,17 +50,21 @@ export const PEDAGOGY_BY_RULE_ID: Record<string, StagePedagogy> = {
     "monster_rumble_challenge_bronze_boss_3": {
         /** guide_only + dynamicGuide（无 guideFlow）：胜负以「动态引导完成」为准 */
         tutorialWinMode: "guide_only",
+        /** dynamicGuide 下 disableDefendDuringGuideFlow 不生效，用隐藏或 disableDefendAlways */
+        hideDefendButton: true,
         dynamicGuide: true,
-        /** 单条件；多条件示例：{ kind: "all", rules: [{ kind: "move" }, { kind: "cast_skill", skillId: "basic_attack" }] } */
-        dynamicGuideRule: { kind: "cast_skill", skillId: "basic_attack" },
+        dynamicGuideRule: {
+            kind: "all",
+            rules: [{ kind: "move" }, { kind: "any_cast" }],
+        },
         playerTierAssumed: 1,
         playerTierTaught: 2,
         bossMechanicTier: 1,
         bossMonsterId: "monster_001",
         counterFocus: "none",
         tutorialNotes:
-            "本关编队已解锁远程、龙息与混沌打击等技能，可在技能栏切换尝试不同输出与范围。",
-        allowedSkillIds: ["basic_attack", "shield", "ranged_attack", "dragon_breath", "chaos_strike"],
+            "二人小队：前排开盾、输出用格里芬爪击。本关需各完成一次移动与施法（任意技能）；注意 Boss 贴脸压力。",
+        allowedSkillIds: ["basic_attack", "shield", "griffin_claw_attack"],
     },
     "monster_rumble_challenge_bronze_boss_4": {
         tutorialWinMode: "boss_only",

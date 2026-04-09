@@ -11,6 +11,8 @@ const statusEffectSchema = v.object({
     type: v.string(),                    // 效果类型（'buff' | 'debuff' | 'dot' | 'hot' | 'stun' | 'shield' | 'mp_drain' | 'mp_restore' | 'damage' | 'heal' | 'movement' | 'teleport'）
     duration: v.optional(v.number()),    // 持续时间（回合数，0表示立即生效）
     remaining_duration: v.number(),      // 剩余持续时间（运行时使用，必需）
+    /** 防守 buff：标记生效的整轮编号（与 gamePhaseService 回合结束清理一致） */
+    defendRoundNo: v.optional(v.number()),
 
     // 数值修改
     modifiers: v.optional(v.any()),      // 属性修改器 { [key: string]: number }

@@ -169,7 +169,7 @@ const useWatchOrReplay = (options: UseWatchOrReplayOptions): UseWatchOrReplayRes
                     }
                     onComplete();
                 });
-            } else if (name === "defend") {
+            } else if (name === "defend" || name === "standby") {
                 const phaseChanges = data?.phaseChanges;
                 const stateChanges = phaseChanges?.stateChanges;
                 if (stateChanges && characters) {
@@ -306,6 +306,7 @@ const useWatchOrReplay = (options: UseWatchOrReplayOptions): UseWatchOrReplayRes
                 case "attack":
                 case "walk":
                 case "defend":
+                case "standby":
                 case "skillSelect":
                 case "use_skill":
                     if (isReplayMode || isWatchMode) {

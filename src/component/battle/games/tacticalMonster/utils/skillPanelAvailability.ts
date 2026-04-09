@@ -3,12 +3,38 @@
  * 并与 usePlaySkillSelect3D 的高亮计算共用 PathFind.getAttackableNodes。
  */
 
+import { MONSTER_CONFIGS_MAP } from "../config/monsterConfigs";
 import type { GridCellSprite, MonsterSprite } from "../types/CombatTypes";
 import type { MonsterSkill } from "../types/skillTypes";
 import { SkillEffectType } from "../types/skillTypes";
 import { getStageRuleConfig } from "../config/stageRuleConfigs";
 import { getAttackableNodes } from "./PathFind";
 import { getSkillPreviewTargetCandidates } from "./skillRangeUtils";
+
+/**
+ * 技能栏展示的 ID 列表：怪物配置 skillIds + 运行时 skills/unlockSkills，并含 basic_attack。
+ * 与后端 mergeBattleSkillsFromConfig 对齐，避免仅 runtime 为 ["basic_attack"] 时缺职业技。
+ */
+export function getMergedSkillIdsForPanel(character: MonsterSprite | undefined): string[] {
+    if (!character) return ["basic_attack"];
+    const mid = character.monsterId;
+    const configIds =
+        mid && MONSTER_CONFIGS_MAP[mid]?.skillIds?.length
+            ? [...MONSTER_CONFIGS_MAP[mid].skillIds!]
+            : [];
+    const fromRuntime =
+        character.skills?.length
+            ? [...character.skills]
+            : (character as { unlockSkills?: string[] }).unlockSkills?.length
+              ? [...(character as { unlockSkills?: string[] }).unlockSkills!]
+              : [];
+    const merged = new Set<string>();
+    for (const id of configIds) merged.add(id);
+    for (const id of fromRuntime) merged.add(id);
+    if (merged.size === 0) merged.add("basic_attack");
+    else if (!merged.has("basic_attack")) merged.add("basic_attack");
+    return Array.from(merged);
+}
 
 /** 与后端 skillTargetService.skillEffectsNeedTarget 一致（需棋盘目标的技能） */
 export function skillEffectsNeedBoardTarget(skill: MonsterSkill): boolean {
@@ -43,6 +69,8 @@ export function isSkillCarriedByCharacter(
         ...(character.skills ?? []),
         ...((character as { unlockSkills?: string[] }).unlockSkills ?? []),
     ]);
+    const mid = (character as { monsterId?: string }).monsterId;
+    if (mid && MONSTER_CONFIGS_MAP[mid]?.skillIds?.includes(skillId)) return true;
     if (roster.has(skillId)) return true;
     const allowed = ruleId ? getStageRuleConfig(ruleId)?.pedagogy?.allowedSkillIds : undefined;
     if (allowed?.includes(skillId)) return true;

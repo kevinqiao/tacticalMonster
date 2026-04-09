@@ -113,6 +113,15 @@ export const usePlayWalk3D = ({ mapDimension, playbackSpeed = 1.0 }: UsePlayWalk
                 );
             }
 
+            // Boss 等无玩家收尾旋转时，可能没有任何 tween；空 timeline 在部分环境下 onComplete 不可靠，需直接收尾。
+            if (tl.duration() === 0) {
+                ref.playAnimation("stand");
+                character.scaleX = isPlayer ? 1 : initialFacing;
+                const result = onComplete();
+                if (result instanceof Promise) result.catch((err) => console.error("onComplete error:", err));
+                return;
+            }
+
             tl.play();
         },
         [mapDimension, playbackSpeed]

@@ -154,6 +154,7 @@ import { MonsterSkill, SkillEffectType } from "../types/skillTypes";
  */
 export const COMMON_SKILLS: Record<string, MonsterSkill> = {
     // ========== 基础攻击技能 ==========
+    /** 射程不写 distance：由怪物配表 attackRange.max → resolveAttackProfile / 格子高亮与后端一致 */
     basic_attack: {
         id: "basic_attack",
         name: "基础攻击",
@@ -162,7 +163,6 @@ export const COMMON_SKILLS: Record<string, MonsterSkill> = {
         priority: 1,
         range: {
             area_type: "single",
-            // distance: 1,
         },
         resource_cost: {},
         cooldown: 0,

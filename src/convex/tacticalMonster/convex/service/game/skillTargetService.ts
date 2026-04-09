@@ -74,6 +74,21 @@ function skillEffectsNeedTarget(skill: NonNullable<ReturnType<typeof getSkillCon
     });
 }
 
+/** 与前端 resolveAttackProfile 一致：技能未配置 distance 时用施法者 attack_range.max */
+function getEffectiveSkillMaxDistance(
+    skill: NonNullable<ReturnType<typeof getSkillConfig>>,
+    caster: GameMonster
+): number {
+    const range = skill.range;
+    if (!range) return 1;
+    return (
+        range.distance ??
+        range.max_distance ??
+        (caster as GameMonster & { attack_range?: { min?: number; max?: number } }).attack_range?.max ??
+        1
+    );
+}
+
 export class SkillTargetService {
     constructor(
         private characterQueryService: CharacterQueryService
@@ -170,7 +185,7 @@ export class SkillTargetService {
             case "single":
                 // 单体目标：需要提供主要目标
                 if (primaryTarget) {
-                    const distance = range.distance ?? 999;
+                    const distance = getEffectiveSkillMaxDistance(skill, caster);
                     const targetId = (primaryTarget as any).character_id ?? primaryTarget.monsterId;
                     const targetParams = this.characterQueryService.getCharacterParams(primaryTarget.uid, targetId);
                     const targetChar = this.characterQueryService.getCharacter(targetParams.monsterId, targetParams.bossId, targetParams.minionId);
@@ -312,11 +327,7 @@ export class SkillTargetService {
         }
 
         const areaType = range.area_type ?? "single";
-        const maxDist =
-            range.distance ??
-            range.max_distance ??
-            (caster as GameMonster & { attack_range?: { min?: number; max?: number } }).attack_range?.max ??
-            1;
+        const maxDist = getEffectiveSkillMaxDistance(skill, caster);
 
         if (areaType === "circle") {
             const radius = range.max_distance ?? range.distance ?? maxDist;

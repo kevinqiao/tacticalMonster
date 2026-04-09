@@ -28,6 +28,8 @@ function useBattleVenueCellClick({
     const { mapDimension, mode, game, characters } = useCombatManager();
     const handleCellClick = useCallback(
         (logicQ: number, logicR: number) => {
+            console.log("handleCellClick", logicQ, logicR);
+
             if (!gridState || !mapDimension || mode !== "play") return;
             const effectiveGame = game;
             const validation = canPerformAction(mode, effectiveGame, characters);
@@ -36,6 +38,7 @@ function useBattleVenueCellClick({
                 return;
             }
             const cellState = gridState.getCellState(logicQ, logicR);
+
             if (cellState === "walkable") {
                 const activeTurn = effectiveGame?.currentRound?.turns?.find(
                     (t: { status?: number }) => t.status === 1
@@ -114,3 +117,4 @@ function useBattleVenueCellClick({
 }
 
 export { useBattleVenueCellClick };
+

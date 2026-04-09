@@ -17,5 +17,12 @@ export function validateStageRuleModeConstraints(rule: StageRuleConfig): string[
             errs.push(`${rule.ruleId}: multiplayer_tournament 须 teamPreset.mode = "none"`);
         }
     }
+    if (mode === "solo_challenge") {
+        if (preset !== undefined) {
+            errs.push(
+                `${rule.ruleId}: solo_challenge 不应配置 teamPreset（玩家自编队；调试用 debugTeamProfileKey + soloDebugTeamProfiles）`
+            );
+        }
+    }
     return errs;
 }

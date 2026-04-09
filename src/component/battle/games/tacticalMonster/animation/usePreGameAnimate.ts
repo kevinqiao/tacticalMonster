@@ -8,12 +8,20 @@ const usePreGameAnimate = (teamLayoutRef: React.RefObject<HTMLDivElement>, loadi
         gsap.set(playGameRef.current, { autoAlpha: 0 });
     }, []);
     const openTeamLayout = useCallback(() => {
-        console.log("openTeamLayout", teamLayoutRef.current);
-        gsap.to(teamLayoutRef.current, {
+        gsap.set(playGameRef.current, { autoAlpha: 0 });
+        const tl = gsap.timeline();
+
+        tl.to(teamLayoutRef.current, {
             autoAlpha: 1,
             duration: 0.5,
             ease: "power2.inOut"
         });
+        tl.to(loadingRef.current, {
+            autoAlpha: 0,
+            duration: 0.5,
+            ease: "power2.inOut"
+        }, ">");
+        tl.play();
     }, []);
     const playLoading = useCallback(() => {
         const tl = gsap.timeline();
@@ -37,6 +45,11 @@ const usePreGameAnimate = (teamLayoutRef: React.RefObject<HTMLDivElement>, loadi
             duration: 0.5,
             ease: "power2.inOut"
         });
+        tl.to(teamLayoutRef.current, {
+            autoAlpha: 0,
+            duration: 0.5,
+            ease: "power2.inOut"
+        }, "<");
         tl.to(playGameRef.current, {
             autoAlpha: 1,
             duration: 0.5,

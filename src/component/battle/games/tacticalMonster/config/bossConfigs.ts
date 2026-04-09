@@ -1,5 +1,21 @@
 import { Boss, BossConfig } from "../types/bossTypes";
+import { computeBossStatScale, type BossScalingTuning } from "../../../../../convex/tacticalMonster/convex/data/adaptiveBossScaling";
 import { calculatePower, MONSTER_CONFIGS, MONSTER_CONFIGS_MAP } from "./monsterConfigs";
+
+export type CalculateScaleBossParams = {
+    bossId: string;
+    playerPower: number;
+    difficultyMultiplier: number;
+    tuning?: BossScalingTuning;
+};
+
+export type { BossScalingTuning };
+export {
+    bossScalingTuningFromDifficultyAdjustment,
+    computeBossStatScale,
+    DEFAULT_BOSS_SCALING_TUNING,
+    mergeBossScalingTuning,
+} from "../../../../../convex/tacticalMonster/convex/data/adaptiveBossScaling";
 
 /**
  * Boss 配置示例
@@ -192,16 +208,14 @@ export const getMergedBossConfig = (bossId: string): BossConfig | null => {
 
     return merged;
 }
-export const calculateScaleBoss = (bossId: string, power: number, difficulty: number): Boss | undefined => {
+export const calculateScaleBoss = (params: CalculateScaleBossParams): Boss | undefined => {
+    const { bossId, playerPower, difficultyMultiplier, tuning } = params;
     const bossConfig = getMergedBossConfig(bossId);
     if (!bossConfig || !bossConfig.baseHp || !bossConfig.baseDamage || !bossConfig.baseDefense || !bossConfig.baseSpeed || !bossConfig.name || !bossConfig.assetPath || !bossConfig.position || !bossConfig.minions) {
         throw new Error(`Boss配置不存在: ${bossId}`);
     }
-    // const baseBossPower = bossConfig.baseHp + bossConfig.baseDamage * 2 + bossConfig.baseDefense * 1.5;
     const baseBossPower = calculatePower(bossConfig.baseDamage, bossConfig.baseDefense, bossConfig.baseHp);
-    // 计算缩放倍数：scale = (playerPower * difficulty) / baseBossPower
-    const targetBossPower = power * difficulty;
-    const scale = Math.max(0.1, Math.min(10.0, targetBossPower / baseBossPower));
+    const scale = computeBossStatScale(playerPower, baseBossPower, difficultyMultiplier, tuning);
     const powerBoss: Boss = {
         bossId: bossConfig.bossId,
         name: bossConfig.name || "",

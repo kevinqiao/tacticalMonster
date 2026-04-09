@@ -58,12 +58,13 @@ describe("stage mode & team preset (target state)", () => {
         expect(r?.teamPreset?.slots?.length).toBe(1);
     });
 
-    it("solo challenge rules use score_tiers and teamPreset none", () => {
-        const r = getStageRuleConfig("monster_rumble_arena_bronze");
-        expect(getTournamentConfig("monster_rumble_arena_bronze")?.mode).toBe("solo_challenge");
-        expect(r?.teamPreset?.mode).toBe("none");
-        expect(r?.rewardPolicy?.type).toBe("score_tiers");
-        expect(r?.rewardPolicy?.scoreTiers?.length).toBeGreaterThan(0);
+    it("solo challenge omits teamPreset; may use debugTeamProfileKey on labs", () => {
+        const arena = getStageRuleConfig("monster_rumble_arena_bronze");
+        expect(arena?.teamPreset).toBeUndefined();
+        expect(arena?.rewardPolicy?.type).toBe("score_tiers");
+        const lab1 = getStageRuleConfig("monster_rumble_solo_lab_1");
+        expect(lab1?.teamPreset).toBeUndefined();
+        expect(lab1?.debugTeamProfileKey).toBe("default");
     });
 
     it("gold_2 closes P5 loop with cleanse", () => {

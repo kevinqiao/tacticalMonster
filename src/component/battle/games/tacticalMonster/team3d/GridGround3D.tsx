@@ -3,18 +3,22 @@
  * 3D 六边形网格地面，支持怪物拖拽移动
  */
 
-import React, { useCallback, useContext, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { useTournamentManager } from "@/service/TournamentManager";
 import { useTeamDeployManager } from "../service/TeamDeployManager";
 import HexCell3D from "./components/HexCell3D";
-import { MonsterCard3DWithSuspense } from "./components/MonsterCard3D";
+import { buildMonsterHoverStatLines } from "./components/teamLayoutHoverStats";
+import { PlacedMonsterRow3D } from "./PlacedMonsterRow3D";
 import { TeamLayoutLoadingContext } from "./TeamLayoutLoadingContext";
+import { useTeamLayoutHoverOverlay } from "./TeamLayoutHoverOverlayContext";
 import { getSharedHexagonGeometry } from "./utils/geometryCache";
 
 const GridGround3D: React.FC = () => {
     const {
         groundCells,
         mapDimension,
+        deployables,
         isCellOccupied,
         askAdd,
         dragMonster,
@@ -22,13 +26,48 @@ const GridGround3D: React.FC = () => {
         moveMonster,
         selectedMonsterId,
         selectMonster,
+        quitTeam,
     } = useTeamDeployManager();
+    const { monsters: rosterMonsters } = useTournamentManager();
     const loadingContext = useContext(TeamLayoutLoadingContext);
 
     const [hoveredCell, setHoveredCell] = useState<{ q: number; r: number } | null>(null);
     const [draggingMonsterId, setDraggingMonsterId] = useState<string | null>(null);
     const [dragHighlightCell, setDragHighlightCell] = useState<{ q: number; r: number } | null>(null);
     const [dragStartCell, setDragStartCell] = useState<{ q: number; r: number } | null>(null); // 拖拽起始位置
+    const hoverHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** 松手后须先 pointerleave 模型再 enter 才允许再开浮层（按 monsterId） */
+    const monsterHoverReenterGateRef = useRef<Set<string>>(new Set());
+    const { setHover } = useTeamLayoutHoverOverlay();
+
+    const cancelMonsterHoverHide = useCallback(() => {
+        if (hoverHideTimerRef.current) {
+            clearTimeout(hoverHideTimerRef.current);
+            hoverHideTimerRef.current = null;
+        }
+    }, []);
+
+    const scheduleMonsterHoverHide = useCallback(() => {
+        cancelMonsterHoverHide();
+        hoverHideTimerRef.current = setTimeout(() => {
+            setHover(null);
+            hoverHideTimerRef.current = null;
+        }, 450);
+    }, [cancelMonsterHoverHide, setHover]);
+
+    useEffect(() => () => cancelMonsterHoverHide(), [cancelMonsterHoverHide]);
+
+    const gateMonsterHoverAfterPointerUp = useCallback((monsterId: string) => {
+        monsterHoverReenterGateRef.current.add(monsterId);
+    }, []);
+
+    const clearMonsterHoverReenterGate = useCallback((monsterId: string) => {
+        monsterHoverReenterGateRef.current.delete(monsterId);
+    }, []);
+
+    const isMonsterHoverOpenBlocked = useCallback((monsterId: string) => {
+        return monsterHoverReenterGateRef.current.has(monsterId);
+    }, []);
 
     // ===== 性能优化：用 ref 保存频繁变化但不影响 placedMonsters 结构的值 =====
     const loadingContextRef = useRef(loadingContext);
@@ -48,12 +87,20 @@ const GridGround3D: React.FC = () => {
         };
     }, [mapDimension]);
 
-    // 处理单元格点击
+    const isEmptyDeployableCell = useCallback(
+        (q: number, r: number) => {
+            if (isCellOccupied(q, r)) return false;
+            return deployables.some((d) => d.q === q && d.r === r);
+        },
+        [deployables, isCellOccupied]
+    );
+
     const handleCellClick = useCallback(
         (q: number, r: number) => {
+            if (!isEmptyDeployableCell(q, r)) return;
             askAdd(q, r);
         },
-        [askAdd]
+        [askAdd, isEmptyDeployableCell]
     );
 
     // 处理鼠标悬停
@@ -208,6 +255,8 @@ const GridGround3D: React.FC = () => {
 
                 if (!geometry) return null;
 
+                const canClickToAdd = isEmptyDeployableCell(q, r);
+
                 return (
                     <HexCell3D
                         key={`cell-${q}-${r}`}
@@ -218,7 +267,7 @@ const GridGround3D: React.FC = () => {
                         position={[leftX, 0, topZ]}
                         geometry={geometry}
                         state={state}
-                        onClick={() => handleCellClick(q, r)}
+                        onClick={canClickToAdd ? () => handleCellClick(q, r) : undefined}
                         onPointerEnter={() => handleCellPointerEnter(q, r)}
                         onPointerLeave={handleCellPointerLeave}
                     />
@@ -239,6 +288,7 @@ const GridGround3D: React.FC = () => {
         handleCellClick,
         handleCellPointerEnter,
         handleCellPointerLeave,
+        isEmptyDeployableCell,
     ]);
 
     // 渲染已放置的怪物（3D 模式：直接用逻辑坐标定位，camera.up 处理竖屏旋转）
@@ -263,31 +313,58 @@ const GridGround3D: React.FC = () => {
                 const centerZ = topZ - mapDimension.hexHeight / 2;
 
                 const isDragging = dragMonster?.monsterId === monster.monsterId || draggingMonsterId === monster.monsterId;
+                const mid = monster.monsterId;
+                const statLines = buildMonsterHoverStatLines(mid, rosterMonsters);
+                const displayName = statLines[0]?.value ?? mid;
 
                 return (
-                    <MonsterCard3DWithSuspense
-                        key={`monster-${monster.monsterId}`}
+                    <PlacedMonsterRow3D
+                        key={`monster-wrap-${mid}`}
+                        monsterId={mid}
                         q={q}
                         r={r}
-                        width={mapDimension.hexWidth}
-                        height={mapDimension.hexHeight}
-                        position={[centerX, 0, centerZ]}
-                        monsterId={monster.monsterId}
+                        centerX={centerX}
+                        centerZ={centerZ}
+                        mapDimension={mapDimension}
                         isDragging={isDragging}
-                        isSelected={selectedMonsterId === monster.monsterId}
-                        onClick={() => selectMonster(monster.monsterId)}
+                        isSelected={selectedMonsterId === mid}
+                        statLines={statLines}
+                        displayName={displayName}
                         onDragStart={stableDragStart}
                         onDragMove={stableDragMove}
                         onDragEnd={stableDragEnd}
+                        onSelect={selectMonster}
                         onModelLoaded={loadingContextRef.current?.onModelLoaded}
-                        isPortrait={mapDimension.isPortrait}
+                        quitTeam={quitTeam}
+                        cancelHoverHide={cancelMonsterHoverHide}
+                        scheduleHoverHide={scheduleMonsterHoverHide}
+                        gateMonsterHoverAfterPointerUp={gateMonsterHoverAfterPointerUp}
+                        clearMonsterHoverReenterGate={clearMonsterHoverReenterGate}
+                        isMonsterHoverOpenBlocked={isMonsterHoverOpenBlocked}
                     />
                 );
             })
             .filter((monster) => monster !== null);
 
         return renderedMonsters;
-    }, [playerMonsters, mapDimension, dragMonster, draggingMonsterId, selectedMonsterId, selectMonster, stableDragStart, stableDragMove, stableDragEnd]);
+    }, [
+        playerMonsters,
+        mapDimension,
+        dragMonster,
+        draggingMonsterId,
+        selectedMonsterId,
+        selectMonster,
+        stableDragStart,
+        stableDragMove,
+        stableDragEnd,
+        rosterMonsters,
+        quitTeam,
+        cancelMonsterHoverHide,
+        scheduleMonsterHoverHide,
+        gateMonsterHoverAfterPointerUp,
+        clearMonsterHoverReenterGate,
+        isMonsterHoverOpenBlocked,
+    ]);
 
     return (
         <group>
@@ -297,4 +374,5 @@ const GridGround3D: React.FC = () => {
     );
 };
 
+export { GridGround3D };
 export default GridGround3D;

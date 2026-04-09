@@ -25,6 +25,44 @@
     font-size: 28px;
 }
 
+.tournament-mode-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 12px 10px 8px;
+    background: rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.tournament-mode-tab {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.2);
+    color: #e8f2ff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tournament-mode-tab:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.tournament-mode-tab--active {
+    background: rgba(255, 255, 255, 0.95);
+    color: #145ef1;
+    border-color: #fff;
+}
+
+.tournament-list-empty {
+    margin: 24px 16px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 15px;
+}
+
 .tournament-list-content {
     padding: 0 10px;
 }

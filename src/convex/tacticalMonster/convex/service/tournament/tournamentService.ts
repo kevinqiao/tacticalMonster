@@ -10,7 +10,11 @@ import { getTournamentUrl, TOURNAMENT_CONFIG } from "../../config/tournamentConf
 import { getStageRuleConfig, STAGE_RULE_CONFIGS } from "../../data/stageRuleConfigs";
 import type { StageModeType, StageRuleConfig } from "../../types/stageRuleTypes";
 import { TacticalMonsterErrorCode } from "../errorCodes";
-import { estimateTeamPowerFromStageRule } from "../game/teamPresetService";
+import {
+    estimateTeamPowerFromSlots,
+    estimateTeamPowerFromStageRule,
+    getDebugTeamProfileSlots,
+} from "../game/teamPresetService";
 import { StageManagerService } from "../stage/stageManagerService";
 
 /** mr_games.status：0 进行中，1 胜 2 负 3 平（已结束） */
@@ -188,10 +192,14 @@ export class TournamentService {
                 { uid }
             );
             const presetPower = estimateTeamPowerFromStageRule(ruleConfig);
+            const debugSlots = getDebugTeamProfileSlots(ruleConfig);
+            const debugPower = debugSlots?.length ? estimateTeamPowerFromSlots(debugSlots) : 0;
             const teamPower =
-                ruleConfig.teamPreset?.mode === "override" && presetPower > 0
-                    ? presetPower
-                    : teamPowerFromRoster;
+                debugPower > 0
+                    ? debugPower
+                    : ruleConfig.teamPreset?.mode === "override" && presetPower > 0
+                        ? presetPower
+                        : teamPowerFromRoster;
 
             const response = await fetch(
                 getTournamentUrl(TOURNAMENT_CONFIG.ENDPOINTS.JOIN_TOURNAMENT),

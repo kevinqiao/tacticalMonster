@@ -12,6 +12,7 @@ import { offsetHexDistance } from "../../../utils/hexUtil";
 import { findPath } from "../../../utils/PathFind";
 import { getMeleePossiblePositions } from "../../../utils/positionEvaluator";
 import { resolveAttackProfile } from "../../../utils/skillRangeUtils";
+import { applyStateChanges } from "../../../utils/backendResponseUtils";
 import { canPerformAction } from "../../../utils/validationUtils";
 
 const getRemainingSteps = (character: MonsterSprite, currentTurn: any): number => {
@@ -85,7 +86,8 @@ export const useOtherActions = (
     useSkill: (skillId: string, target?: MonsterSprite) => Promise<void>,
     walk: (to: { q: number; r: number }) => Promise<void>,
     groundCells: any[][],
-    onSelectSkillRejected?: (message: string) => void
+    onSelectSkillRejected?: (message: string) => void,
+    handlePhaseChanges?: (phaseChanges: any) => Promise<void>
 ) => {
     const { settings } = useGameSettings();
     const { updateRuntimeGame } = useCombatManager();
@@ -133,9 +135,41 @@ export const useOtherActions = (
         }
     }, [game, mode, characters, playSkillSelect, convex, onSelectSkillRejected, updateRuntimeGame]);
 
-    const standBy = useCallback((character: MonsterSprite) => {
-        // 待实现
-    }, []);
+    const standBy = useCallback(async () => {
+        if (mode === "watch" || mode === "replay") return;
+        const validation = canPerformAction(mode, game, characters);
+        if (!validation.can || !validation.currentTurn || !game) return;
+        if (validation.currentTurn.uid === "boss") return;
+
+        const identifier = (() => {
+            const cid = validation.currentTurn.character_id ?? validation.currentTurn.monsterId;
+            const bid = validation.currentTurn.bossId;
+            const mid = validation.currentTurn.minionId;
+            if (bid) return { bossId: bid };
+            if (mid) return { minionId: mid };
+            return { monsterId: cid };
+        })();
+
+        try {
+            const result = await convex.mutation((api as any).service.game.gameService.standby, {
+                gameId: game.gameId,
+                identifier,
+            });
+            if (result?.ok && result.phaseChanges) {
+                const phaseChanges = result.phaseChanges;
+                if (phaseChanges.stateChanges) {
+                    applyStateChanges(phaseChanges.stateChanges, characters);
+                }
+                try {
+                    await handlePhaseChanges?.(phaseChanges);
+                } catch (phaseErr) {
+                    console.error("Standby: handlePhaseChanges failed", phaseErr);
+                }
+            }
+        } catch (error) {
+            console.error("Standby failed", error);
+        }
+    }, [mode, game, characters, convex, handlePhaseChanges]);
 
     const defend = useCallback(() => {
         if (mode === 'watch' || mode === 'replay') return;

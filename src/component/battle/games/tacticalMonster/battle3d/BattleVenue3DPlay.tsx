@@ -25,7 +25,7 @@ export const BattleVenue3DPlay: React.FC = () => {
 
     const pedagogy = useBattleVenuePedagogy({ gridState });
 
-    const { defend, selectSkill, useSkill, handleCellClick } = useCombatActHandler3D({
+    const { defend, selectSkill, useSkill, handleCellClick, surrender, standBy } = useCombatActHandler3D({
         gridState,
         onSkillError: handleSkillErrorToast,
         onPedagogyNotify: pedagogy.notifyPedagogyGuide,
@@ -76,11 +76,13 @@ export const BattleVenue3DPlay: React.FC = () => {
                 <SkillPanel
                     selectSkill={selectSkill}
                     useSkill={useSkill}
-                    surrender={close ?? (() => { })}
+                    surrender={surrender}
+                    standby={standBy}
                     defend={defend}
                     clearGrid={() => gridState.clearAll()}
                     onPedagogyNotify={pedagogy.notifyPedagogyGuide}
-                    disableDefend={pedagogy.isBronzeBoss1GuideSession || pedagogy.isBronzeBoss2GuideSession}
+                    hideDefend={pedagogy.hideDefendButton}
+                    disableDefend={pedagogy.disableDefend}
                     tutorialLockSkillPanel={pedagogy.enforceMoveStep}
                     onTutorialSkillPanelBlocked={() =>
                         handleSkillErrorToast("请先移动到蓝色高亮格子")

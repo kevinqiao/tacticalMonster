@@ -525,6 +525,8 @@ export class SkillManager {
             applied: boolean;
         }> = [];
 
+        const roundNumber = (context?.roundNumber as number) ?? 0;
+
         if (targets && targets.length > 0) {
             // 过滤有效目标（只处理存活的目标）
             const validTargets = targets.filter(target =>
@@ -544,7 +546,7 @@ export class SkillManager {
                     for (const target of validTargets) {
                         const targetId = (target as any).character_id ?? (target as any).minionId ?? target.monsterId;
                         const mult = damageMultipliers[targetId];
-                        const applied = this.applyEffectToTarget(effect, target, monster, mult);
+                        const applied = this.applyEffectToTarget(effect, target, monster, mult, roundNumber);
                         appliedEffects.push({
                             effect,
                             targetId,
@@ -557,7 +559,7 @@ export class SkillManager {
                         const target = validTargets[0];
                         const targetId = (target as any).character_id ?? (target as any).minionId ?? target.monsterId;
                         const mult = damageMultipliers[targetId];
-                        const applied = this.applyEffectToTarget(effect, target, monster, mult);
+                        const applied = this.applyEffectToTarget(effect, target, monster, mult, roundNumber);
                         appliedEffects.push({
                             effect,
                             targetId,
@@ -573,7 +575,7 @@ export class SkillManager {
                 if (effect.type === SkillEffectType.SUMMON) continue;
 
                 // 对于不需要目标的技能，可以应用到施法者自己
-                const applied = this.applyEffectToTarget(effect, monster, monster);
+                const applied = this.applyEffectToTarget(effect, monster, monster, undefined, roundNumber);
                 appliedEffects.push({
                     effect,
                     targetId: (monster as any).character_id ?? monster.monsterId,
@@ -596,14 +598,16 @@ export class SkillManager {
      * @param effect 技能效果
      * @param target 目标怪物（会被修改）
      * @param caster 施法者怪物（用于计算效果值）
-     * @param damageMultiplier 伤害倍率（Block 时 0.5，可选）
+     * @param damageMultiplier 伤害倍率（可选）
+     * @param roundNumber 当前轮次：用于 defending 对本回合技能伤害的减伤
      * @returns 是否成功应用
      */
     static applyEffectToTarget(
         effect: SkillEffect,
         target: GameMonster,
         caster: GameMonster,
-        damageMultiplier?: number
+        damageMultiplier?: number,
+        roundNumber?: number
     ): boolean {
         if (!target.stats) {
             return false;
@@ -617,10 +621,18 @@ export class SkillManager {
             effectiveEffect = { ...effect, value: Math.round(effect.value * damageMultiplier) };
         }
 
+        let effectToApply: SkillEffect = effectiveEffect;
+        if (effect.type === SkillEffectType.DAMAGE && roundNumber != null && roundNumber > 0) {
+            effectToApply = {
+                ...effectiveEffect,
+                __damageContextRoundNo: roundNumber,
+            } as SkillEffect;
+        }
+
         const handler = EffectHandlerRegistry.getHandler(effect.type);
         if (!handler) return false;
 
-        const result = handler.apply(effectiveEffect, target, caster);
+        const result = handler.apply(effectToApply, target, caster);
         if (result.applied && result.statusEffect) {
             target.statusEffects.push(result.statusEffect);
         }

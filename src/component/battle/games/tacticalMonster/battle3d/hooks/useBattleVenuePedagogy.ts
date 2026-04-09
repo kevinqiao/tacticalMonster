@@ -55,11 +55,11 @@ export function useBattleVenuePedagogy({ gridState }: { gridState: UseBattleGrid
         gameId: game?.gameId,
         steps: pedagogyHint?.guideFlow,
         dynamicGuide: pedagogyHint?.dynamicGuide,
-        completionSkillId: pedagogyHint?.allowedSkillIds?.[0],
         tutorialWinMode,
         guideUiDismissed: guideUiDismissedLoggedIn,
         guideUiReady,
         persistGuideUiDismissed,
+        tutorialProgress: game?.tutorialProgress,
     });
 
     const dynamicGuidePayload = useMemo(() => {
@@ -80,6 +80,16 @@ export function useBattleVenuePedagogy({ gridState }: { gridState: UseBattleGrid
         !isDynamicGuide &&
         guideBannerActive &&
         guideStepIndex !== null;
+
+    const disableDefendDuringGuideFlowActive =
+        pedagogyHint?.disableDefendDuringGuideFlow === true &&
+        !isDynamicGuide &&
+        guideBannerActive &&
+        guideStepIndex !== null;
+    const disableDefend =
+        pedagogyHint?.disableDefendAlways === true || disableDefendDuringGuideFlowActive;
+
+    const hideDefendButton = pedagogyHint?.hideDefendButton === true;
 
     const enforceMoveStep = isBronzeBoss1GuideSession && guideStepIndex === 0;
     const enforceCastStep = isBronzeBoss1GuideSession && guideStepIndex === 1;
@@ -166,6 +176,8 @@ export function useBattleVenuePedagogy({ gridState }: { gridState: UseBattleGrid
         showPedagogyGuidePanel,
         isBronzeBoss1GuideSession,
         isBronzeBoss2GuideSession,
+        disableDefend,
+        hideDefendButton,
         enforceMoveStep,
         enforceCastStep,
         enforceSkillSelectStepBoss2,

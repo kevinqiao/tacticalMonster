@@ -93,10 +93,13 @@ export const BattleVenue3DSpectator: React.FC = () => {
                     <SkillPanel
                         selectSkill={noopAsync}
                         useSkill={noopAsync}
-                        surrender={close ?? (() => { })}
-                        defend={() => { }}
+                        surrender={() => {}}
+                        standby={() => {}}
+                        defend={() => {}}
                         clearGrid={() => gridState.clearAll()}
                         onPedagogyNotify={pedagogy.notifyPedagogyGuide}
+                        hideDefend={pedagogy.hideDefendButton}
+                        disableDefend={pedagogy.disableDefend}
                     />
                 }
             />

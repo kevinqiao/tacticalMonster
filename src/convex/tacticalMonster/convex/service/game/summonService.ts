@@ -3,7 +3,7 @@
  * 处理召唤技能：解析位置、创建召唤单位、追加到 game 并持久化
  */
 
-import { mergeDefaultBattleSkills, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { mergeBattleSkillsFromConfig, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
 import { CharacterIdentifier, GameModel, SummonedCharacter } from "../../types/gameTypes";
 import { GameMinion, GameMonster } from "../../types/monsterTypes";
 import { SkillEffect } from "../../types/skillTypes";
@@ -178,7 +178,7 @@ export function createSummonedCharacters(
         },
         statusEffects: [],
         skillCooldowns: {},
-        skills: mergeDefaultBattleSkills(monsterConfig.skillIds ?? []),
+        skills: mergeBattleSkillsFromConfig(monsterConfig, monsterConfig.skillIds ?? []),
     };
 
     return [summoned];

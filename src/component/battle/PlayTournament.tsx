@@ -93,7 +93,7 @@ const PlayTournament: React.FC<ModalProp> = ({ visible, data, close }) => {
 
   const { gameType, playMode, gameData } = (data ?? {}) as PlayProps;
   const SelectedComponent = useMemo(() => {
-    if (!data?.gameType) return null;
+    if (!data?.gameType || !visible) return null;
     const path = GAME_PROVIDERS[data?.gameType] ?? '';
     if (path === '') return null;
     return getCachedComponent(path);
@@ -102,7 +102,7 @@ const PlayTournament: React.FC<ModalProp> = ({ visible, data, close }) => {
 
   return (
     <>
-      {SelectedComponent && visible && <Suspense fallback={loading}>
+      {SelectedComponent && <Suspense fallback={loading}>
         <SelectedComponent close={close} gameType={gameType ?? 'tacticalMonster'} playMode={playMode ?? 'join'} gameData={gameData ?? {}} />
       </Suspense>}
     </>

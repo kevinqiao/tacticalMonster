@@ -260,6 +260,14 @@ export type AttackProfile = {
     isMelee: boolean;
 };
 
+/** 与后端 moveAttackRule：远程单位本回合移动后不可再使用技能 */
+export const isRangedUnitForMoveAttackRule = (
+    character: Pick<MonsterSprite, "attack_range">
+): boolean => {
+    const max = character.attack_range?.max ?? 1;
+    return max > 1;
+};
+
 /**
  * @param turnSkillSelect 当前回合 `GameTurn.skillSelect`（selectSkill 后由后端写入）；优先于 sprite 上的 selectedSkill
  */

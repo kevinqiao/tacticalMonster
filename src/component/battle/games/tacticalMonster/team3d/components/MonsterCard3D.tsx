@@ -81,6 +81,7 @@ import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
 import { DEBUG_USE_MONSTER_NAME } from "../../config/debugConfig";
 import { MONSTER_CONFIGS_MAP } from "../../config/monsterConfigs";
+import { useTeamLayoutHoverOverlay } from "../TeamLayoutHoverOverlayContext";
 import { getMonsterModelPathWithFallback } from "../utils/modelPathMapper";
 
 interface MonsterCard3DProps {
@@ -98,6 +99,10 @@ interface MonsterCard3DProps {
     onClick?: () => void;
     onPointerEnter?: () => void;
     onPointerLeave?: () => void;
+    /** 按下指针时调用（例如取消悬停浮层延迟关闭） */
+    onPointerDownClearHover?: () => void;
+    /** 在模型上松开指针后调用（编队：须离开模型再进入才再显示浮层） */
+    onPointerUpForHoverGate?: (monsterId: string) => void;
     /** 该卡 GLB 加载完成且已准备好渲染时调用（Suspense 落幕后、modelClone 就绪后触发一次） */
     onModelLoaded?: (monsterId: string) => void;
     /** 是否竖屏，竖屏时朝向正上 + X 轴前倾（与 BattleCharacter3D 一致） */
@@ -129,6 +134,8 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
     onClick,
     onPointerEnter,
     onPointerLeave,
+    onPointerDownClearHover,
+    onPointerUpForHoverGate,
     onModelLoaded,
     isPortrait = false,
 }) => {
@@ -136,10 +143,13 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
     const [modeLoaded, setModeLoaded] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isLocalDragging, setIsLocalDragging] = useState(false);
-    const [dragOffset, setDragOffset] = useState(new THREE.Vector3());
     const pointerDownPosRef = useRef<{ clientX: number; clientY: number } | null>(null);
+    /** 世界空间：怪物锚点 − 射线与 y=0 平面交点（pointerdown 时写入，拖拽全程用 ref） */
     const dragOffsetAtDownRef = useRef(new THREE.Vector3());
+    const tmpWorldDrag = useMemo(() => new THREE.Vector3(), []);
+    const tmpLocalDrag = useMemo(() => new THREE.Vector3(), []);
     const { camera, gl, raycaster } = useThree();
+    const { setHover } = useTeamLayoutHoverOverlay();
 
     // 显示手型光标
     useCursor(isHovered);
@@ -264,53 +274,64 @@ const MonsterCard3D: React.FC<MonsterCard3DProps> = ({
     }, [camera, raycaster]);
 
     // 短按/拖拽区分：pointerDown 时仅记录，pointerMove 超过阈值才进入拖拽
-    const handlePointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
-        event.stopPropagation();
-        pointerDownPosRef.current = { clientX: event.clientX, clientY: event.clientY };
+    const handlePointerDown = useCallback(
+        (event: ThreeEvent<PointerEvent>) => {
+            event.stopPropagation();
+            onPointerDownClearHover?.();
+            setHover(null);
+            pointerDownPosRef.current = { clientX: event.clientX, clientY: event.clientY };
+            if (!groupRef.current) return;
+            groupRef.current.getWorldPosition(tmpWorldDrag);
+            const planeHit = getWorldPosition(event);
+            dragOffsetAtDownRef.current.copy(tmpWorldDrag).sub(planeHit);
+            (event.target as HTMLElement).setPointerCapture(event.pointerId);
+        },
+        [getWorldPosition, tmpWorldDrag, setHover, onPointerDownClearHover]
+    );
 
-        const worldPos = getWorldPosition(event);
-        const currentPos = new THREE.Vector3(...position);
-        dragOffsetAtDownRef.current.copy(currentPos.sub(worldPos));
+    const handlePointerMove = useCallback(
+        (event: ThreeEvent<PointerEvent>) => {
+            event.stopPropagation();
 
-        (event.target as HTMLElement).setPointerCapture(event.pointerId);
-    }, [getWorldPosition, position]);
-
-    const handlePointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
-        event.stopPropagation();
-
-        if (pointerDownPosRef.current && !isLocalDragging) {
-            const dx = event.clientX - pointerDownPosRef.current.clientX;
-            const dy = event.clientY - pointerDownPosRef.current.clientY;
-            if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) {
-                setDragOffset(dragOffsetAtDownRef.current.clone());
-                setIsLocalDragging(true);
-                pointerDownPosRef.current = null;
-                onDragStart?.(monsterId);
+            if (pointerDownPosRef.current && !isLocalDragging) {
+                const dx = event.clientX - pointerDownPosRef.current.clientX;
+                const dy = event.clientY - pointerDownPosRef.current.clientY;
+                if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) {
+                    setIsLocalDragging(true);
+                    pointerDownPosRef.current = null;
+                    onDragStart?.(monsterId);
+                }
             }
-        }
 
-        if (isLocalDragging && groupRef.current) {
-            const worldPos = getWorldPosition(event);
-            worldPos.add(dragOffset);
-            groupRef.current.position.set(worldPos.x, position[1], worldPos.z);
-            onDragMove?.(monsterId, worldPos);
-        }
-    }, [isLocalDragging, getWorldPosition, dragOffset, position, monsterId, onDragStart, onDragMove]);
+            if (isLocalDragging && groupRef.current?.parent) {
+                const planeHit = getWorldPosition(event);
+                tmpWorldDrag.copy(planeHit).add(dragOffsetAtDownRef.current);
+                groupRef.current.parent.worldToLocal(tmpLocalDrag.copy(tmpWorldDrag));
+                groupRef.current.position.copy(tmpLocalDrag);
+                onDragMove?.(monsterId, tmpWorldDrag);
+            }
+        },
+        [isLocalDragging, getWorldPosition, tmpWorldDrag, tmpLocalDrag, monsterId, onDragStart, onDragMove]
+    );
 
-    const handlePointerUp = useCallback((event: ThreeEvent<PointerEvent>) => {
-        event.stopPropagation();
-        (event.target as HTMLElement).releasePointerCapture(event.pointerId);
-        pointerDownPosRef.current = null;
+    const handlePointerUp = useCallback(
+        (event: ThreeEvent<PointerEvent>) => {
+            event.stopPropagation();
+            (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+            pointerDownPosRef.current = null;
 
-        if (isLocalDragging) {
-            setIsLocalDragging(false);
-            const worldPos = getWorldPosition(event);
-            worldPos.add(dragOffset);
-            onDragEnd?.(monsterId, worldPos);
-        } else {
-            onClick?.();
-        }
-    }, [isLocalDragging, getWorldPosition, dragOffset, monsterId, onDragEnd, onClick]);
+            if (isLocalDragging) {
+                setIsLocalDragging(false);
+                const planeHit = getWorldPosition(event);
+                tmpWorldDrag.copy(planeHit).add(dragOffsetAtDownRef.current);
+                onDragEnd?.(monsterId, tmpWorldDrag.clone());
+            } else {
+                onClick?.();
+            }
+            onPointerUpForHoverGate?.(monsterId);
+        },
+        [isLocalDragging, getWorldPosition, tmpWorldDrag, monsterId, onDragEnd, onClick, onPointerUpForHoverGate]
+    );
 
     // 鼠标悬停
     const handlePointerEnter = useCallback((event: ThreeEvent<PointerEvent>) => {
@@ -418,14 +439,18 @@ const MonsterCardNameOnly: React.FC<MonsterCard3DProps> = ({
     onClick,
     onPointerEnter,
     onPointerLeave,
+    onPointerDownClearHover,
+    onPointerUpForHoverGate,
 }) => {
     const groupRef = useRef<THREE.Group>(null);
     const [isHovered, setIsHovered] = useState(false);
     const [isLocalDragging, setIsLocalDragging] = useState(false);
-    const [dragOffset, setDragOffset] = useState(new THREE.Vector3());
     const pointerDownPosRef = useRef<{ clientX: number; clientY: number } | null>(null);
     const dragOffsetAtDownRef = useRef(new THREE.Vector3());
+    const tmpWorldDrag = useMemo(() => new THREE.Vector3(), []);
+    const tmpLocalDrag = useMemo(() => new THREE.Vector3(), []);
     const { camera, raycaster } = useThree();
+    const { setHover } = useTeamLayoutHoverOverlay();
 
     useCursor(isHovered);
     const isDragging = externalDragging || isLocalDragging;
@@ -445,48 +470,61 @@ const MonsterCardNameOnly: React.FC<MonsterCard3DProps> = ({
         return intersection;
     }, [camera, raycaster]);
 
-    const handlePointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
-        event.stopPropagation();
-        pointerDownPosRef.current = { clientX: event.clientX, clientY: event.clientY };
-        const worldPos = getWorldPosition(event);
-        const currentPos = new THREE.Vector3(...position);
-        dragOffsetAtDownRef.current.copy(currentPos.sub(worldPos));
-        (event.target as HTMLElement).setPointerCapture(event.pointerId);
-    }, [getWorldPosition, position]);
+    const handlePointerDown = useCallback(
+        (event: ThreeEvent<PointerEvent>) => {
+            event.stopPropagation();
+            onPointerDownClearHover?.();
+            setHover(null);
+            pointerDownPosRef.current = { clientX: event.clientX, clientY: event.clientY };
+            if (!groupRef.current) return;
+            groupRef.current.getWorldPosition(tmpWorldDrag);
+            const planeHit = getWorldPosition(event);
+            dragOffsetAtDownRef.current.copy(tmpWorldDrag).sub(planeHit);
+            (event.target as HTMLElement).setPointerCapture(event.pointerId);
+        },
+        [getWorldPosition, tmpWorldDrag, setHover, onPointerDownClearHover]
+    );
 
-    const handlePointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
-        event.stopPropagation();
-        if (pointerDownPosRef.current && !isLocalDragging) {
-            const dx = event.clientX - pointerDownPosRef.current.clientX;
-            const dy = event.clientY - pointerDownPosRef.current.clientY;
-            if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) {
-                setDragOffset(dragOffsetAtDownRef.current.clone());
-                setIsLocalDragging(true);
-                pointerDownPosRef.current = null;
-                onDragStart?.(monsterId);
+    const handlePointerMove = useCallback(
+        (event: ThreeEvent<PointerEvent>) => {
+            event.stopPropagation();
+            if (pointerDownPosRef.current && !isLocalDragging) {
+                const dx = event.clientX - pointerDownPosRef.current.clientX;
+                const dy = event.clientY - pointerDownPosRef.current.clientY;
+                if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) {
+                    setIsLocalDragging(true);
+                    pointerDownPosRef.current = null;
+                    onDragStart?.(monsterId);
+                }
             }
-        }
-        if (isLocalDragging && groupRef.current) {
-            const worldPos = getWorldPosition(event);
-            worldPos.add(dragOffset);
-            groupRef.current.position.set(worldPos.x, position[1], worldPos.z);
-            onDragMove?.(monsterId, worldPos);
-        }
-    }, [isLocalDragging, getWorldPosition, dragOffset, position, monsterId, onDragStart, onDragMove]);
+            if (isLocalDragging && groupRef.current?.parent) {
+                const planeHit = getWorldPosition(event);
+                tmpWorldDrag.copy(planeHit).add(dragOffsetAtDownRef.current);
+                groupRef.current.parent.worldToLocal(tmpLocalDrag.copy(tmpWorldDrag));
+                groupRef.current.position.copy(tmpLocalDrag);
+                onDragMove?.(monsterId, tmpWorldDrag);
+            }
+        },
+        [isLocalDragging, getWorldPosition, tmpWorldDrag, tmpLocalDrag, monsterId, onDragStart, onDragMove]
+    );
 
-    const handlePointerUp = useCallback((event: ThreeEvent<PointerEvent>) => {
-        event.stopPropagation();
-        (event.target as HTMLElement).releasePointerCapture(event.pointerId);
-        pointerDownPosRef.current = null;
-        if (isLocalDragging) {
-            setIsLocalDragging(false);
-            const worldPos = getWorldPosition(event);
-            worldPos.add(dragOffset);
-            onDragEnd?.(monsterId, worldPos);
-        } else {
-            onClick?.();
-        }
-    }, [isLocalDragging, getWorldPosition, dragOffset, monsterId, onDragEnd, onClick]);
+    const handlePointerUp = useCallback(
+        (event: ThreeEvent<PointerEvent>) => {
+            event.stopPropagation();
+            (event.target as HTMLElement).releasePointerCapture(event.pointerId);
+            pointerDownPosRef.current = null;
+            if (isLocalDragging) {
+                setIsLocalDragging(false);
+                const planeHit = getWorldPosition(event);
+                tmpWorldDrag.copy(planeHit).add(dragOffsetAtDownRef.current);
+                onDragEnd?.(monsterId, tmpWorldDrag.clone());
+            } else {
+                onClick?.();
+            }
+            onPointerUpForHoverGate?.(monsterId);
+        },
+        [isLocalDragging, getWorldPosition, tmpWorldDrag, monsterId, onDragEnd, onClick, onPointerUpForHoverGate]
+    );
 
     const handlePointerEnter = useCallback((event: ThreeEvent<PointerEvent>) => {
         setIsHovered(true);
@@ -532,7 +570,12 @@ const MonsterCardNameOnly: React.FC<MonsterCard3DProps> = ({
                 />
             </mesh>
             <group rotation={isPortrait ? [0, 0, BODY_TILT_Z_PORTRAIT] : [0, 0, 0]}>
-                <Html position={[0, 10, 0]} center style={{ pointerEvents: "none" }}>
+                <Html
+                    position={[0, 10, 0]}
+                    center
+                    zIndexRange={[1, 200]}
+                    style={{ pointerEvents: "none" }}
+                >
                     <div
                         style={{
                             fontSize: Math.round(width * 0.15),

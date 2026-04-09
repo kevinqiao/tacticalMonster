@@ -152,6 +152,20 @@ export class GameEventService {
         };
     }
 
+    /** 结束回合（无防守 buff），与 defend 一样推进回合 */
+    createStandbyEvent(
+        gameId: string,
+        identifier: { monsterId?: string; bossId?: string; minionId?: string }
+    ): CombatEvent {
+        return {
+            gameId,
+            name: "standby",
+            type: 4,
+            data: { identifier },
+            time: Date.now(),
+        };
+    }
+
     /**
      * 创建 game_end 事件
      */

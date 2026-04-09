@@ -4,7 +4,7 @@
  */
 
 import { Html, useAnimations, useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import React, { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
@@ -21,6 +21,12 @@ interface Boss3DProps {
     bossId: string;
     monsterId: string;
     onClick?: () => void;
+    /**
+     * 指针进入 / 离开 Boss 命中区域（子 mesh 射线命中后冒泡到本 group）。
+     * 等价于 DOM 的 onMouseEnter / onMouseLeave；R3F 统一用 pointer 事件以兼容触摸笔。
+     */
+    onPointerEnter?: (e: ThreeEvent<PointerEvent>) => void;
+    onPointerLeave?: (e: ThreeEvent<PointerEvent>) => void;
     /** 该 Boss GLB 加载完成且已准备好渲染时调用 */
     onModelLoaded?: (monsterId: string) => void;
     /** 是否竖屏，竖屏时朝向正下 + X 轴前倾（与 BattleCharacter3D 一致） */
@@ -43,6 +49,8 @@ const Boss3D: React.FC<Boss3DProps> = ({
     bossId,
     monsterId,
     onClick,
+    onPointerEnter,
+    onPointerLeave,
     onModelLoaded,
     isPortrait = false,
 }) => {
@@ -133,7 +141,13 @@ const Boss3D: React.FC<Boss3DProps> = ({
     });
 
     return (
-        <group ref={groupRef} position={position} onClick={onClick}>
+        <group
+            ref={groupRef}
+            position={position}
+            onClick={onClick}
+            onPointerEnter={onPointerEnter}
+            onPointerLeave={onPointerLeave}
+        >
             {/* 底座 */}
             <mesh position={[0, 4, 0]}>
                 <cylinderGeometry args={[width * 0.3, width * 0.35, 8, 6]} />
@@ -172,10 +186,17 @@ const Boss3DNameOnly: React.FC<Boss3DProps> = ({
     monsterId,
     isPortrait = false,
     onClick,
+    onPointerEnter,
+    onPointerLeave,
 }) => {
     const displayName = MONSTER_CONFIGS_MAP[monsterId]?.name ?? monsterId;
     return (
-        <group position={position} onClick={onClick}>
+        <group
+            position={position}
+            onClick={onClick}
+            onPointerEnter={onPointerEnter}
+            onPointerLeave={onPointerLeave}
+        >
             <mesh position={[0, 4, 0]}>
                 <cylinderGeometry args={[width * 0.3, width * 0.35, 8, 6]} />
                 <meshStandardMaterial
@@ -187,7 +208,12 @@ const Boss3DNameOnly: React.FC<Boss3DProps> = ({
                 />
             </mesh>
             <group rotation={isPortrait ? [0, 0, -BODY_TILT_Z_PORTRAIT] : [0, 0, 0]}>
-                <Html position={[0, 12, 0]} center style={{ pointerEvents: "none" }}>
+                <Html
+                    position={[0, 12, 0]}
+                    center
+                    zIndexRange={[1, 200]}
+                    style={{ pointerEvents: "none" }}
+                >
                     <div
                         style={{
                             fontSize: Math.round(width * 0.35),

@@ -3,6 +3,7 @@
  */
 
 import { calculateGameMonster, calculatePower, MONSTER_CONFIGS_MAP } from "../../data/monsterConfigs";
+import { SOLO_DEBUG_TEAM_PROFILES } from "../../data/soloDebugTeamProfiles";
 import { GameMonster, PlayerMonster } from "../../types/monsterTypes";
 import { StagePlayerOverride, StageRuleConfig, TeamPresetSlot } from "../../types/stageRuleTypes";
 import { TeamService } from "../team/teamService";
@@ -123,6 +124,53 @@ function recalcTeamPower(team: GameMonster[]): number {
         const p = gm.stats.hp.max + gm.stats.attack * 2 + gm.stats.defense * 1.5;
         return sum + Math.floor(p);
     }, 0);
+}
+
+/**
+ * 解析关卡上的 debugTeamProfileKey，返回 profile 槽位（无效 key 返回 undefined）
+ */
+export function getDebugTeamProfileSlots(stageRule: StageRuleConfig | undefined): TeamPresetSlot[] | undefined {
+    const key = stageRule?.debugTeamProfileKey?.trim();
+    if (!key) return undefined;
+    const slots = SOLO_DEBUG_TEAM_PROFILES[key];
+    return slots?.length ? slots : undefined;
+}
+
+/**
+ * 将调试 profile 槽位转为与 `TeamService.getPlayerTeam` 行兼容的数据，供 `buildGameTeamFromStageRule` 在 mode=none 下使用
+ */
+export function playerTeamRowsFromDebugProfile(
+    uid: string,
+    slots: TeamPresetSlot[],
+    allowedSkillIds?: string[]
+): any[] {
+    return slots.slice(0, MAX_TEAM).map((s, i) => {
+        const pm = playerMonsterFromPresetSlot(uid, s, i, allowedSkillIds);
+        const config = MONSTER_CONFIGS_MAP[pm.monsterId];
+        return { ...pm, config: config ?? null };
+    });
+}
+
+/**
+ * 与 join 上报战力一致：按槽位估算战力（同 estimateTeamPowerFromStageRule 的 override 分支，无 playerOverrides）
+ */
+export function estimateTeamPowerFromSlots(slots: TeamPresetSlot[]): number {
+    let total = 0;
+    for (const slot of slots.slice(0, MAX_TEAM)) {
+        const config = MONSTER_CONFIGS_MAP[slot.monsterId];
+        if (!config) continue;
+        const level = slot.level ?? 1;
+        const stars = slot.stars ?? 1;
+        const hpGrowthRate = 0.15;
+        const damageGrowthRate = 0.1;
+        const defenseGrowthRate = 0.12;
+        const actualHp = config.baseHp * (1 + (level - 1) * hpGrowthRate);
+        const actualAttack = config.baseDamage * (1 + (level - 1) * damageGrowthRate);
+        const actualDefense = config.baseDefense * (1 + (level - 1) * defenseGrowthRate);
+        const starMultiplier = 1 + (stars - 1) * 0.1;
+        total += Math.floor(calculatePower(actualAttack, actualDefense, actualHp, starMultiplier));
+    }
+    return total;
 }
 
 /**

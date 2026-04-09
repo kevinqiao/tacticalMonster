@@ -1,5 +1,10 @@
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { BOSS_CONFIGS } from "@/convex/tacticalMonster/convex/data/bossConfigs";
+import {
+    calculateScaleBoss,
+    getMergedBossConfig,
+    type BossScalingTuning,
+} from "../config/bossConfigs";
 import { URLS, useTournamentManager } from "@/service/TournamentManager";
 import { useUserManager } from "@/service/UserManager";
 import { ConvexHttpClient } from "convex/browser";
@@ -7,7 +12,9 @@ import gsap from "gsap";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { pixelToHex } from "../team/utils/coordinateUtils";
 import { clearHighlight, setHighlight } from "../team/utils/dragHighlightUtils";
+import { computeDeployedTeamPowerLikeGame } from "../team3d/utils/teamLayoutTeamPower";
 import { GridCellSprite } from "../types/CombatTypes";
+import type { PlayerMonster } from "../types/monsterTypes";
 import { Boss, Stage } from "../types/StageTypes";
 import { useMapDimension } from "./useMapDimension";
 // ============ 类型定义 ============
@@ -38,6 +45,10 @@ export interface TeamContextValue {
     deployables: { q: number, r: number }[];
     stage: Stage | null;
     boss: Boss | null;
+    /** 当前编队部署战力（与开局缩放用公式一致，用于 Boss 预览） */
+    previewTeamPower: number;
+    /** Boss 合并配置上的起始四维（缩放前），用于与 boss 对比展示 */
+    bossBaseStats: { hp: number; damage: number; defense: number; speed: number } | null;
 
     // Refs
     dragPreviewContainerRef: React.RefObject<HTMLDivElement>;
@@ -78,11 +89,13 @@ export const useTeamDeployManager = (): TeamContextValue => {
 
 interface TeamProviderProps {
     stage?: Stage | null;
+    /** 与关卡 difficultyAdjustment 对齐，传给 computeBossStatScale */
+    bossScalingTuning?: BossScalingTuning;
     // onComplete?: () => void;
     children: React.ReactNode;
 }
 
-export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, children }) => {
+export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, bossScalingTuning, children }) => {
     // Refs
     const candidateContainerRef = useRef<HTMLDivElement | null>(null);
     const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -128,10 +141,64 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         }
         return deployables;
     }, [stage]);
+
+    const rosterAsPlayerMonsters = monsters as PlayerMonster[] | null | undefined;
+
+    const previewTeamPower = useMemo(
+        () => computeDeployedTeamPowerLikeGame(rosterAsPlayerMonsters, playerMonsters),
+        [rosterAsPlayerMonsters, playerMonsters],
+    );
+
+    const bossBaseStats = useMemo(() => {
+        if (!stage) return null;
+        const merged = getMergedBossConfig(stage.bossId);
+        if (!merged) return null;
+        return {
+            hp: merged.baseHp ?? 0,
+            damage: merged.baseDamage ?? 0,
+            defense: merged.baseDefense ?? 0,
+            speed: merged.baseSpeed ?? 0,
+        };
+    }, [stage]);
+
     const boss: Boss | null = useMemo(() => {
         if (!stage) return null;
         const bossConfig = BOSS_CONFIGS[stage.bossId];
         if (!bossConfig) return null;
+
+        try {
+            const scaled = calculateScaleBoss({
+                bossId: stage.bossId,
+                playerPower: previewTeamPower,
+                difficultyMultiplier: stage.difficulty,
+                tuning: bossScalingTuning,
+            });
+            if (scaled) {
+                return {
+                    bossId: scaled.bossId,
+                    monsterId: scaled.monsterId,
+                    name: scaled.name,
+                    assetPath: scaled.assetPath,
+                    skills: scaled.skills,
+                    hp: scaled.hp,
+                    damage: scaled.damage,
+                    defense: scaled.defense,
+                    speed: scaled.speed,
+                    position: scaled.position ?? { q: 0, r: 0 },
+                    minions: (scaled.minions ?? []).map((m) => ({
+                        monsterId: m.monsterId,
+                        hp: m.hp,
+                        damage: m.damage,
+                        defense: m.defense,
+                        speed: m.speed,
+                        position: m.position ?? { q: 0, r: 0 },
+                    })),
+                };
+            }
+        } catch {
+            console.warn("[TeamDeployManager] calculateScaleBoss fallback to raw config");
+        }
+
         const minions = bossConfig.minions?.map((minion) => ({
             minionId: minion.minionId,
             monsterId: minion.monsterId,
@@ -156,8 +223,7 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
             position: bossConfig.position || { q: 0, r: 0 },
             minions: minions || [],
         };
-
-    }, [stage]);
+    }, [stage, previewTeamPower, bossScalingTuning]);
 
     // ============ 方法 ============
 
@@ -479,6 +545,8 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         askAddMonster,
         stage: stage || null,
         boss: boss || null,
+        previewTeamPower,
+        bossBaseStats,
         dragPreviewContainerRef,
         candidateContainerRef,
         containerRef,
@@ -504,6 +572,8 @@ export const TeamDeployProvider: React.FC<TeamProviderProps> = ({ stage, childre
         askAddMonster,
         stage,
         boss,
+        previewTeamPower,
+        bossBaseStats,
         quitTeam,
         startDrag,
         endDrag,
