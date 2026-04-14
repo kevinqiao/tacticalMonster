@@ -315,6 +315,31 @@ export const mainSchema = {
         status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
     }).index("by_ruleId", ["ruleId"]),
 
+    /** Solo 小关 score_tiers 直发碎片/金币幂等（每局一次） */
+    mr_solo_stage_reward_claims: defineTable({
+        uid: v.string(),
+        gameId: v.string(),
+        ruleId: v.string(),
+        rewardKey: v.string(),
+        shardsGranted: v.number(),
+        coinsGranted: v.number(),
+        createdAt: v.string(),
+    })
+        .index("by_uid_gameId", ["uid", "gameId"]),
+
+    /** 章节通章奖励领取记录（每 uid 每 chapter 一次；整卡或通章宝箱） */
+    mr_player_chapter_rewards_claimed: defineTable({
+        uid: v.string(),
+        chapterId: v.number(),
+        /** 直发整卡时的怪 id；通章宝箱时省略 */
+        monsterId: v.optional(v.string()),
+        ruleId: v.string(),
+        createdAt: v.string(),
+        /** 若发放通章宝箱，对应 `chestConfigs` 的 `stageRuleId`（如 chapter_clear_1） */
+        chestStageRuleId: v.optional(v.string()),
+    })
+        .index("by_uid_chapterId", ["uid", "chapterId"]),
+
     mr_game_round: defineTable({
         gameId: v.string(),
         no: v.number(),  // 回合编号

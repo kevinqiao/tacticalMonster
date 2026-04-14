@@ -36,7 +36,7 @@
     z-index: 1500;
     /* background-color: rgb(248, 22, 22); */
     pointer-events: none;
-    opacity: 0;
+    /* opacity: 0; */
 }
 
 .head-left {

@@ -9,10 +9,10 @@ const Child1: React.FC<PageProp> = ({ visible, data }) => {
     style={{
       width: "100%",
       height: "100%",
-      backgroundColor: "transparent",
+      backgroundColor: "yellow",
     }}
   >
-    {visible && <TournamentHome />}
+    <TournamentHome />
   </div>);
 };
 

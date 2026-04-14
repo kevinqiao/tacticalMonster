@@ -11,11 +11,13 @@ import type {
 } from "./tournamentConfigTypes";
 import { TOURNAMENT_CONFIGS_MULTIPLAYER } from "./tournamentConfigsMultiplayer";
 import { TOURNAMENT_CONFIGS_SOLO_CHALLENGE } from "./tournamentConfigsSoloChallenge";
+import { TOURNAMENT_CONFIGS_SOLO_MAIN } from "./tournamentConfigsSoloMain";
 import { TOURNAMENT_CONFIGS_TUTORIAL } from "./tournamentConfigsTutorial";
 
 export const TOURNAMENT_CONFIGS: TournamentConfig[] = [
     ...TOURNAMENT_CONFIGS_TUTORIAL,
     ...TOURNAMENT_CONFIGS_SOLO_CHALLENGE,
+    ...TOURNAMENT_CONFIGS_SOLO_MAIN,
     ...TOURNAMENT_CONFIGS_MULTIPLAYER,
 ];
 

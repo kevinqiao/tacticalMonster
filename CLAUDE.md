@@ -33,6 +33,10 @@ npx convex dev
 
 ## Architecture
 
+### System design principles
+
+Cross-cutting product and implementation conventions are documented in [`docs/system-design-principles.md`](docs/system-design-principles.md): **player account level gating**, **loot / chest / stage design**, and **recommended client navigation / IA** (see also [`docs/tactical-monster-loot-and-chest-design.md`](docs/tactical-monster-loot-and-chest-design.md) for loot detail).
+
 ### Tech Stack
 - **Frontend:** React 18 + TypeScript, Three.js (via React Three Fiber/Drei), GSAP animations, Pixi.js (legacy 2D)
 - **Backend:** Convex (serverless functions, real-time subscriptions, database)

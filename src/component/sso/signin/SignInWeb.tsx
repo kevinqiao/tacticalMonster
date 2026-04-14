@@ -3,7 +3,7 @@ import { User, useUserManager } from "@/service/UserManager";
 import { useConvex } from "convex/react";
 import React, { useCallback } from "react";
 // const client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
-const SignInWeb: React.FC<{ cid: number }> = ({ cid }) => {
+const SignInWeb: React.FC<{ cid: number, onComplete: () => void }> = ({ cid, onComplete }) => {
     const { authComplete } = useUserManager();
 
     const convex = useConvex();
@@ -13,6 +13,7 @@ const SignInWeb: React.FC<{ cid: number }> = ({ cid }) => {
         console.log("WebAuthenticator", "res", res);
         if (res) {
             authComplete(res, 1);
+            onComplete();
         }
     }, [convex])
 

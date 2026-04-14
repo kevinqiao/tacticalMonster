@@ -130,16 +130,45 @@ export const findContainerByURI = (container: PageContainer, uri: string): PageC
     return null;
 }
 
+/**
+ * 在若干顶层容器组成的森林中按完整 uri 精确查找 PageContainer。
+ * 与 {@link findContainerByURI} 等价于对每个根依次做子树 DFS。
+ */
 export const findContainer = (containers: PageContainer[], uri: string): PageContainer | null => {
-
     for (const container of containers) {
-        if (container.uri === uri)
+        const found = findContainerByURI(container, uri);
+        if (found) return found;
+    }
+    return null;
+}
+/**
+ * 在容器树中查找持有指定 uri 的节点的父级 PageContainer（递归）。
+ * 若 uri 对应顶层列表中的节点，则返回 null。
+ */
+export const findParent = (containers: PageContainer[], uri: string): PageContainer | null => {
+    for (const container of containers) {
+        if (container.children?.some((c) => c.uri === uri)) {
             return container;
-        else if (container.children && Array.isArray(container.children)) {
-            const result = findContainer(container.children, uri);
-            if (result) {
-                return result;
-            }
+        }
+    }
+    for (const container of containers) {
+        if (!container.children?.length) continue;
+        const parent = findParent(container.children, uri);
+        if (parent !== null) {
+            return parent;
+        }
+    }
+    return null;
+}
+
+/**
+ * 在顶层容器森林中，查找持有指定 uri 的节点所在的**根** PageContainer（`containers` 数组中的那一项）。
+ * 若匹配发生在深层子节点，仍返回包含该子树的顶层根。
+ */
+export const findAncestor = (containers: PageContainer[], uri: string): PageContainer | null => {
+    for (const root of containers) {
+        if (findContainerByURI(root, uri) !== null) {
+            return root;
         }
     }
     return null;

@@ -218,6 +218,7 @@ export class TournamentService {
                 }
             );
             const result = await response.json();
+            console.log("join result", result);
             if (result.ok) {
                 const { gameId, matchId, stageId, teamPower } = result.data;
                 const gameResult = await ctx.runMutation((internal as any).service.game.gameService.createGame, {

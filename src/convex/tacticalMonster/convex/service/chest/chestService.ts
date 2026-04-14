@@ -81,6 +81,71 @@ export class ChestService {
     }
 
     /**
+     * 向玩家发放单个宝箱（栏位满则入队）。用于通章等非锦标赛来源。
+     */
+    static async grantChestToPlayer(
+        ctx: any,
+        params: {
+            uid: string;
+            chestType: ChestType;
+            stageRuleId?: string;
+            gameId: string;
+            /** 区分同局多次发箱时的种子后缀（如通章 stageRuleId） */
+            rewardSeedExtra?: string;
+        }
+    ): Promise<
+        | {
+              ok: true;
+              chestId: string;
+              chestType: ChestType;
+              slotNumber: number;
+          }
+        | {
+              ok: true;
+              queued: true;
+              queueEntryId: string;
+              chestType: ChestType;
+              queueLength: number;
+          }
+        | { ok: false; reason: string; queueLength?: number }
+    > {
+        const { uid, chestType, stageRuleId, gameId, rewardSeedExtra } = params;
+        const slot = await this.findAvailableSlot(ctx, uid);
+        if (slot === null) {
+            const q = await this.enqueueChestToQueue(ctx, {
+                uid,
+                chestType,
+                gameId,
+                stageRuleId,
+            });
+            if (!q.success) {
+                return { ok: false, reason: q.reason ?? "chest_queue_full", queueLength: q.queueLength };
+            }
+            return {
+                ok: true,
+                queued: true,
+                queueEntryId: q.queueEntryId!,
+                chestType,
+                queueLength: q.queueLength ?? 0,
+            };
+        }
+        const chest = await this.generateChest(ctx, {
+            uid,
+            chestType,
+            slotNumber: slot,
+            gameId,
+            stageRuleId,
+            rewardSeedExtra: rewardSeedExtra ?? stageRuleId,
+        });
+        return {
+            ok: true,
+            chestId: chest.chestId,
+            chestType,
+            slotNumber: slot,
+        };
+    }
+
+    /**
      * 根据配置的权重选择宝箱类型（使用确定性随机数）
      * 
      * @param chestTypeWeights - 宝箱类型权重配置（从 TournamentConfig 获取）

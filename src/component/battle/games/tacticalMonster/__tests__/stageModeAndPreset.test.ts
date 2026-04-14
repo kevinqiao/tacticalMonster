@@ -64,7 +64,11 @@ describe("stage mode & team preset (target state)", () => {
         expect(arena?.rewardPolicy?.type).toBe("score_tiers");
         const lab1 = getStageRuleConfig("monster_rumble_solo_lab_1");
         expect(lab1?.teamPreset).toBeUndefined();
-        expect(lab1?.debugTeamProfileKey).toBe("default");
+        const lab2 = getStageRuleConfig("monster_rumble_solo_lab_2");
+        expect(lab2?.debugTeamProfileKey).toBe("default");
+        const mainCh1 = getStageRuleConfig("monster_rumble_solo_main_ch1_s1");
+        expect(mainCh1?.chapter).toBe(1);
+        expect(mainCh1?.stageNumber).toBe(1);
     });
 
     it("gold_2 closes P5 loop with cleanse", () => {

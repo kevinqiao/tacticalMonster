@@ -26,6 +26,7 @@ import type * as data_tournamentConfigTypes from "../data/tournamentConfigTypes.
 import type * as data_tournamentConfigs from "../data/tournamentConfigs.js";
 import type * as data_tournamentConfigsMultiplayer from "../data/tournamentConfigsMultiplayer.js";
 import type * as data_tournamentConfigsSoloChallenge from "../data/tournamentConfigsSoloChallenge.js";
+import type * as data_tournamentConfigsSoloMain from "../data/tournamentConfigsSoloMain.js";
 import type * as data_tournamentConfigsTutorial from "../data/tournamentConfigsTutorial.js";
 import type * as data_tournamentConfigs_all from "../data/tournamentConfigs_all.js";
 import type * as http from "../http.js";
@@ -168,6 +169,7 @@ declare const fullApi: ApiFromModules<{
   "data/tournamentConfigs": typeof data_tournamentConfigs;
   "data/tournamentConfigsMultiplayer": typeof data_tournamentConfigsMultiplayer;
   "data/tournamentConfigsSoloChallenge": typeof data_tournamentConfigsSoloChallenge;
+  "data/tournamentConfigsSoloMain": typeof data_tournamentConfigsSoloMain;
   "data/tournamentConfigsTutorial": typeof data_tournamentConfigsTutorial;
   "data/tournamentConfigs_all": typeof data_tournamentConfigs_all;
   http: typeof http;

@@ -3,7 +3,7 @@
  * 负责Boss阶段的检测和转换
  */
 
-import { BossPhase } from "../../../data/bossConfigs";
+import type { BossPhase } from "../../../types/bossTypes";
 
 export interface PhaseCheckResult {
     shouldTransition: boolean;

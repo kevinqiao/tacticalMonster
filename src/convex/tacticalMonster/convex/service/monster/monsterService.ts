@@ -41,10 +41,31 @@ const DUPLICATE_TO_SHARD: Record<string, number> = {
     Legendary: 50,
 };
 
+/** 重复转化时，每比 1 星多 1 星增加的碎片（与稀有度挂钩） */
+const DUPLICATE_STAR_SHARD_PER_STAR: Record<string, number> = {
+    Common: 2,
+    Rare: 3,
+    Epic: 5,
+    Legendary: 8,
+};
+
 export class MonsterService {
     // ============================================
     // 怪物配置相关
     // ============================================
+
+    /**
+     * 整卡转碎片数量：稀有度基础 +（星级-1）× 每星加成（1 星起算）
+     */
+    static computeDuplicateConversionShardAmount(rarity: string, stars: number): number {
+        const base = DUPLICATE_TO_SHARD[rarity];
+        if (base === undefined) {
+            throw new Error(`未知的稀有度: ${rarity}`);
+        }
+        const perStar = DUPLICATE_STAR_SHARD_PER_STAR[rarity] ?? 2;
+        const s = Math.max(1, Math.floor(stars));
+        return base + Math.max(0, s - 1) * perStar;
+    }
 
     /**
      * 获取怪物配置（从配置文件）
@@ -583,11 +604,9 @@ export class MonsterService {
             throw new Error(`玩家不拥有该怪物，无法转换`);
         }
 
-        // 3. 获取转换碎片数量
-        const shardAmount = DUPLICATE_TO_SHARD[config.rarity];
-        if (!shardAmount) {
-            throw new Error(`未知的稀有度: ${config.rarity}`);
-        }
+        // 3. 获取转换碎片数量（稀有度基础 + 星级加成）
+        const stars = monster.stars ?? 1;
+        const shardAmount = this.computeDuplicateConversionShardAmount(config.rarity, stars);
 
         // 4. 添加碎片（如果记录存在但未解锁，会更新；如果不存在，会创建未解锁记录）
         await this.addShards(ctx, {

@@ -2,15 +2,21 @@ import { StageRuleConfig } from "../types/stageRuleTypes";
 import { DEFAULT_SOLO_SCORE_TIERS } from "./stageRuleConstants";
 
 /**
- * Solo Lab 系列（Solo Challenge 子集）：默认玩家自编队伍（不写 teamPreset）。
- * 可选 `debugTeamProfileKey` 指向 `soloDebugTeamProfiles`。
- * 材料本 / 每日 / 周常见 `stageRuleConfigsSoloOther.ts`。
+ * Solo **Lab**（`chainId: solo_lab`，`monster_rumble_solo_lab_1` … `_5`）
+ *
+ * **定位**：仅 **开发 / 测试与锦标赛入口**（与 [`tournamentConfigsSoloChallenge.ts`](../../../tournament/convex/data/tournamentConfigsSoloChallenge.ts) `SOLO_LAB_SPECS` 逐条对应；改体力请两边同步）。**不是**产品上的正式关卡进度或 Boss / 碎片节奏来源。
+ *
+ * **正式 Solo 主线（4×5、掉落与章节）** 见 [`stageRuleConfigsSoloMain.ts`](./stageRuleConfigsSoloMain.ts) + [`bossConfigs.ts`](./bossConfigs.ts)。
+ *
+ * 默认玩家自编队伍（不写 `teamPreset`）；可选 `debugTeamProfileKey` 指向 `soloDebugTeamProfiles`。材料本 / 每日 / 周常见 `stageRuleConfigsSoloOther.ts`。
+ *
+ * 机制上仍走 `score_tiers` + `bossId → monsterId`（与 `StageRewardSettlementService` / [`soloRewardResolve.ts`](./soloRewardResolve.ts) 一致），但 **勿用本链做经济表评审**。
  */
 export const STAGE_RULE_CONFIGS_SOLO_CHALLENGE: Record<string, StageRuleConfig> = {
     "monster_rumble_solo_lab_1": {
         ruleId: "monster_rumble_solo_lab_1",
         gameName: "tacticalMonster",
-        // debugTeamProfileKey: "default",
+        // 直发碎片怪：默认 = boss_bronze_1.monsterId（见 bossConfigs）；也可写 soloDirectRewardMonsterId 覆盖
         rewardPolicy: { type: "score_tiers", scoreTiers: [...DEFAULT_SOLO_SCORE_TIERS] },
         stageType: "challenge",
         stageChain: {

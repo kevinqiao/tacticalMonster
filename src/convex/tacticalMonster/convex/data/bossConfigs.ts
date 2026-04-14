@@ -18,15 +18,126 @@ export {
 } from "./adaptiveBossScaling";
 
 /**
- * Boss 配置示例
- * 
- * 注意：
- * - monsterId 引用 monsterConfigs.ts 配置文件中的怪物配置
- * - 基础属性（HP、攻击、防御等）从角色配置继承
- * - 可选覆盖属性可以覆盖继承的属性
- * - Boss 特有属性（behaviorTree、phases）只在此定义
- * - Monster 配置直接从配置文件读取，不存数据库
+ * Boss 配置（战斗内表现 + 与掉落经济的衔接）
+ *
+ * ## 与 `monsterConfigs`（必配）
+ * - **`monsterId`**：必须存在于 [`monsterConfigs.ts`](./monsterConfigs.ts)。Boss 外观、技能、**稀有度**（Common/Rare/Epic/Legendary）均来自该怪；**升星碎片需求**见 [`upgradeStrategyConfig`](../service/monster/config/upgradeStrategyConfig.ts)，与稀有度绑定。
+ * - **`minions[].monsterId`**：仅战斗单位，**不参与** Solo 结算直发碎片（结算只认关卡 `bossConfig.bossId` → 本表 **主 Boss** `monsterId`）。
+ *
+ * ## 与 Solo「分数档直掉碎片」（[`soloRewardResolve.ts`](./soloRewardResolve.ts)）
+ * - 关卡 `stageContent.bossConfig.bossId` 指向本表某 `boss_*`。
+ * - 未设置 `StageRuleConfig.soloDirectRewardMonsterId` 时，**直发碎片目标怪** = 本条 **`monsterId`**（与 Boss 战一致）。
+ * - 若策划希望「本关掉落碎片 ≠ 关底 Boss 模型」（例如剧情 Boss 与卡池怪不同），在 **关卡规则** 上设 `soloDirectRewardMonsterId`，**不要**在本表硬拆两条 bossId，除非确需两套 Boss 战斗。
+ * - **正式 Boss 轮换与碎片节奏** 以 [`stageRuleConfigsSoloMain.ts`](./stageRuleConfigsSoloMain.ts)（4×5 主线）为准。[`stageRuleConfigsSoloChallenge.ts`](./stageRuleConfigsSoloChallenge.ts) 的 `solo_lab` **仅测试/锦标赛管线**，不作产品节奏依据。
+ *
+ * ## 与「分数档宝箱类型」（[`stageRuleConstants.ts`](./stageRuleConstants.ts) `DEFAULT_SOLO_SCORE_TIERS`）
+ * - 每档有 **`chestType`**（silver/gold/purple…）；**开箱池**在 [`chestConfigs.ts`](./chestConfigs.ts) 的 `(chestType, stageRuleId?)`，**不在**本文件配置。
+ * - 若某关需要「高分档才出某池」，改 **score_tiers** / `chestConfigs` 行；Boss 本体不负责箱内随机池。
+ *
+ * ## 与「章节通章整卡」（[`chapterRewards.ts`](./chapterRewards.ts)）
+ * - 通章 **`CHAPTER_CLEAR_CHEST_BY_CHAPTER`** 宝箱池（`chestConfigs` 的 `chapter_clear_*`）与 **小关 Boss 定向碎片** 按设计应 **不同 monsterId**；填表前核对本表主 Boss `monsterId` 是否与通章池冲突。
+ *
+ * ## 与多人 / 锦标赛宝箱
+ * - 排名宝箱、`gameSpecificRewards` 在 Tournament 与 `chestService` 侧配置；本表仅影响 **局内 Boss 单位**。
+ *
+ * ## 配置顺序建议（对齐掉落设计）
+ * 1. 在 `monsterConfigs` 定好图鉴与稀有度。
+ * 2. 本表为每个 **`bossId`** 绑定 **`monsterId`** 与数值/minions/phases。
+ * 3. 关卡里引用 `bossId`；检查 `soloRewardResolve`、通章表、`chestConfigs` 行是否一致。
+ * 4. 改 `monsterId` 后跑 `npm run verify:tm-config-shims`（若动到前端 shim）及项目内 chest 校验。
+ *
+ * ## Solo 主线 20 Boss（`boss_main_ch{1-4}_s{1-5}`）
+ * - 由 `buildSoloMainBossConfigs()` 生成并合并进 `BOSS_CONFIGS`。
+ * - `monsterId` 与 [`chapterRewards.ts`](./chapterRewards.ts) 通章整卡错开（每章通章怪不出现在本章五关 Boss 上）。
  */
+/**
+ * Solo 主线：每关唯一 `bossId` + `monsterId`（20 个互不重复）。
+ * 行 = 章，列 = 关。通章整卡见 [`chapterRewards.ts`](./chapterRewards.ts)（Rare→Epic 递进）；本章五关的 `monsterId` 均避开该章通章 id。
+ *
+ * **稀有度进程**（与 `monsterConfigs.rarity` 对齐）：第 1 章 **Common**；第 2 章 **以 Epic 为主** + 1 关 **Rare**（补 Assassin，因 Epic 池内无刺客）；第 3 章 **Epic + Rare** 混排；第 4 章 **四 Legendary + 美杜莎 Epic** 作终章。通章未独占的怪由池子或其它玩法承接。
+ *
+ * **第 2～4 章职业覆盖**：在 **20 个 `monsterId` 全局不重复** 且 **各章五关避开该章通章整卡 id** 的前提下，尽量五关 **class** 互不重复；第 4 章 **002 与 005 均为 Mage**（图鉴仅 4 只 Legendary，第五关需 Epic 补位时无法避免双法师，可后续换图鉴或接受）。
+ *
+ * **第 1 章**：五关 **Common**，职业 Warrior / Tank / Archer / Mage / Support。
+ */
+const SOLO_MAIN_BOSS_GRID: readonly (readonly { bossId: string; monsterId: string }[])[] = [
+    [
+        { bossId: "boss_main_ch1_s1", monsterId: "monster_036" }, // Common · Warrior
+        { bossId: "boss_main_ch1_s2", monsterId: "monster_046" }, // Common · Tank
+        { bossId: "boss_main_ch1_s3", monsterId: "monster_039" }, // Common · Archer
+        { bossId: "boss_main_ch1_s4", monsterId: "monster_050" }, // Common · Mage
+        { bossId: "boss_main_ch1_s5", monsterId: "monster_079" }, // Common · Support
+    ],
+    [
+        { bossId: "boss_main_ch2_s1", monsterId: "monster_006" }, // Epic · Warrior
+        { bossId: "boss_main_ch2_s2", monsterId: "monster_008" }, // Epic · Support
+        { bossId: "boss_main_ch2_s3", monsterId: "monster_009" }, // Epic · Tank
+        { bossId: "boss_main_ch2_s4", monsterId: "monster_010" }, // Epic · Mage
+        { bossId: "boss_main_ch2_s5", monsterId: "monster_014" }, // Rare · Assassin
+    ],
+    [
+        { bossId: "boss_main_ch3_s1", monsterId: "monster_011" }, // Epic · Tank
+        { bossId: "boss_main_ch3_s2", monsterId: "monster_012" }, // Epic · Warrior
+        { bossId: "boss_main_ch3_s3", monsterId: "monster_013" }, // Epic · Mage
+        { bossId: "boss_main_ch3_s4", monsterId: "monster_016" }, // Rare · Archer
+        { bossId: "boss_main_ch3_s5", monsterId: "monster_017" }, // Rare · Support
+    ],
+    [
+        { bossId: "boss_main_ch4_s1", monsterId: "monster_001" }, // Legendary · Warrior
+        { bossId: "boss_main_ch4_s2", monsterId: "monster_002" }, // Legendary · Mage
+        { bossId: "boss_main_ch4_s3", monsterId: "monster_003" }, // Legendary · Assassin
+        { bossId: "boss_main_ch4_s4", monsterId: "monster_004" }, // Legendary · Tank
+        { bossId: "boss_main_ch4_s5", monsterId: "monster_005" }, // Epic · Mage（与 s2 同为 Mage，见上文）
+    ],
+];
+
+/** 供 [`stageRuleConfigsSoloMain.ts`](./stageRuleConfigsSoloMain.ts) 引用，避免 bossId 与下表漂移 */
+export const SOLO_MAIN_BOSS_ID_ROWS: readonly (readonly string[])[] = SOLO_MAIN_BOSS_GRID.map((row) =>
+    row.map((c) => c.bossId)
+);
+
+function soloMainDifficultyForChapter(chapter: number): BossConfig["difficulty"] {
+    if (chapter <= 1) return "easy";
+    if (chapter === 2) return "medium";
+    if (chapter === 3) return "hard";
+    return "expert";
+}
+
+function buildSoloMainBossConfigs(): Record<string, BossConfig> {
+    const out: Record<string, BossConfig> = {};
+    for (let ch = 1; ch <= 4; ch++) {
+        for (let st = 1; st <= 5; st++) {
+            const { bossId, monsterId } = SOLO_MAIN_BOSS_GRID[ch - 1][st - 1];
+            const globalIdx = (ch - 1) * 5 + (st - 1);
+            const t = globalIdx / 19;
+            const baseHp = Math.round(3500 + (96000 - 3500) * t);
+            const baseDamage = Math.round(80 + (960 - 80) * t);
+            const baseDefense = Math.round(40 + (480 - 40) * t);
+            const baseSpeed = Math.round(10 + (18 - 10) * t);
+
+            const entry: BossConfig = {
+                bossId,
+                monsterId,
+                difficulty: soloMainDifficultyForChapter(ch),
+                behaviorTree: {},
+                baseHp,
+                baseDamage,
+                baseDefense,
+                baseSpeed,
+                position: { q: 8, r: 1 },
+                minions: [],
+                phases: [],
+                configVersion: 1,
+            };
+            if (globalIdx === 0) {
+                entry.skills = [{ skillId: "summon_minion" }];
+            }
+            out[bossId] = entry;
+        }
+    }
+    return out;
+}
+
 export const BOSS_CONFIGS: Record<string, BossConfig> = {
     boss_bronze_1: {
         bossId: "boss_bronze_1",
@@ -190,6 +301,7 @@ export const BOSS_CONFIGS: Record<string, BossConfig> = {
         phases: [],
         configVersion: 1,
     },
+    ...buildSoloMainBossConfigs(),
 };
 
 /**

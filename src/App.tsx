@@ -1,18 +1,16 @@
-import RenderApp from "component/RenderApp";
-import SSOController from "component/sso/SSOController";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { useCallback, useEffect } from "react";
+import React, { useEffect } from "react";
 import PartnerProvider from "service/PartnerManager";
 import "./App.css";
-import { PageProvider, usePageManager } from "./service/PageManager";
+import { PageProvider } from "./service/PageManager";
 import TournamentProvider from "./service/TournamentManager";
 import { UserProvider } from "./service/UserManager";
 
-import { gsap } from "gsap";
-import { CSSPlugin } from "gsap/CSSPlugin";
+import RenderApp from "./component/RenderApp";
 import RenderModal from "./component/RenderModal";
+import BootLoadingOverlay from "./component/shell/BootLoadingOverlay";
 import { ModalProvider } from "./service/ModalManager";
-gsap.registerPlugin(CSSPlugin);
+// GSAP 在 RenderApp 等模块注册 CSSPlugin
 // 环境配置管理
 const getConvexClient = (): ConvexReactClient => {
   // Vite 使用 import.meta.env，同时支持 REACT_APP_ 前缀以保持兼容性
@@ -66,20 +64,13 @@ const usePerformanceMonitor = () => {
 
 // 优化的主应用组件
 const MainApp: React.FC = () => {
-  const { loadingBG, onLoad } = usePageManager();
-  const load = useCallback(
-    (ele: HTMLDivElement | null) => {
-      loadingBG.ele = ele;
-      onLoad();
-    },
-    [onLoad, loadingBG]
-  );
+
   return (
     <>
-      <div ref={load} style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "black", color: "white", fontSize: 20 }}>Loading...</div>
+      <BootLoadingOverlay />
       <RenderApp />
       <RenderModal />
-      <SSOController />
+      {/* <SSOController /> */}
     </>
   );
 };

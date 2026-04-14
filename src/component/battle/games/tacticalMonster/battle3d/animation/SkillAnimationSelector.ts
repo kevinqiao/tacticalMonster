@@ -30,6 +30,7 @@ export class SkillAnimationSelector {
         [SkillEffectType.MOVEMENT]: { name: "cast" },
         [SkillEffectType.TELEPORT]: { name: "cast" },
         [SkillEffectType.SUMMON]: { name: "cast" },
+        [SkillEffectType.CLEANSE]: { name: "cast" },
     };
 
     /**

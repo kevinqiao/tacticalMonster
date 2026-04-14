@@ -10,6 +10,12 @@
 
 import { ChestConfig, ChestType } from "../types/chestTypes";
 
+/** 与 score_tiers 历史值对齐：bronze 无独立池时按 silver 查配置 */
+export function normalizeChestTypeForLookup(raw: string): ChestType {
+    if (raw === "bronze") return "silver";
+    return raw as ChestType;
+}
+
 /**
  * 宝箱配置集合
  * 通过 (chestType, stageRuleId) 组合键查询对应的配置
@@ -511,6 +517,114 @@ export const CHEST_CONFIGS: ChestConfig[] = [
             },
         },
     },
+
+    // ============================================
+    // 通章宝箱（Solo 第 5 小关通关；池内二选一随机，见 chapterRewards.ts）
+    // ============================================
+    {
+        chestType: "gold",
+        stageRuleId: "chapter_clear_1",
+        name: "通章宝箱 · 第1章",
+        unlockTimeSeconds: 600,
+        gemAccelerateCost: 8,
+        rewardsConfig: {
+            baseRewards: {
+                coins: { min: 120, max: 220 },
+            },
+            monsterShards: {
+                rarityDistribution: {
+                    Rare: {
+                        weight: 1.0,
+                        minShards: 25,
+                        maxShards: 25,
+                        guarantee: false,
+                    },
+                },
+                monsterPools: {
+                    Rare: ["monster_021", "monster_020"],
+                },
+                totalShardsRange: { min: 25, max: 25 },
+            },
+        },
+    },
+    {
+        chestType: "purple",
+        stageRuleId: "chapter_clear_2",
+        name: "通章宝箱 · 第2章",
+        unlockTimeSeconds: 600,
+        gemAccelerateCost: 12,
+        rewardsConfig: {
+            baseRewards: {
+                coins: { min: 180, max: 320 },
+            },
+            monsterShards: {
+                rarityDistribution: {
+                    Epic: {
+                        weight: 1.0,
+                        minShards: 18,
+                        maxShards: 18,
+                        guarantee: false,
+                    },
+                },
+                monsterPools: {
+                    Epic: ["monster_007", "monster_013"],
+                },
+                totalShardsRange: { min: 18, max: 18 },
+            },
+        },
+    },
+    {
+        chestType: "purple",
+        stageRuleId: "chapter_clear_3",
+        name: "通章宝箱 · 第3章",
+        unlockTimeSeconds: 600,
+        gemAccelerateCost: 12,
+        rewardsConfig: {
+            baseRewards: {
+                coins: { min: 180, max: 320 },
+            },
+            monsterShards: {
+                rarityDistribution: {
+                    Epic: {
+                        weight: 1.0,
+                        minShards: 18,
+                        maxShards: 18,
+                        guarantee: false,
+                    },
+                },
+                monsterPools: {
+                    Epic: ["monster_008", "monster_007"],
+                },
+                totalShardsRange: { min: 18, max: 18 },
+            },
+        },
+    },
+    {
+        chestType: "purple",
+        stageRuleId: "chapter_clear_4",
+        name: "通章宝箱 · 第4章",
+        unlockTimeSeconds: 600,
+        gemAccelerateCost: 12,
+        rewardsConfig: {
+            baseRewards: {
+                coins: { min: 180, max: 320 },
+            },
+            monsterShards: {
+                rarityDistribution: {
+                    Epic: {
+                        weight: 1.0,
+                        minShards: 18,
+                        maxShards: 18,
+                        guarantee: false,
+                    },
+                },
+                monsterPools: {
+                    Epic: ["monster_009", "monster_007"],
+                },
+                totalShardsRange: { min: 18, max: 18 },
+            },
+        },
+    },
 ];
 
 /**
@@ -521,13 +635,14 @@ export const CHEST_CONFIGS: ChestConfig[] = [
  * @returns 宝箱配置，如果未找到则返回 undefined
  */
 export function getChestConfig(
-    chestType: ChestType,
+    chestType: ChestType | "bronze",
     stageRuleId?: string
 ): ChestConfig | undefined {
+    const normalized = normalizeChestTypeForLookup(chestType as string);
     // 1. 优先查询特定关卡的配置
     if (stageRuleId) {
         const specificConfig = CHEST_CONFIGS.find(
-            config => config.chestType === chestType && config.stageRuleId === stageRuleId
+            (config) => config.chestType === normalized && config.stageRuleId === stageRuleId
         );
         if (specificConfig) {
             return specificConfig;
@@ -536,7 +651,7 @@ export function getChestConfig(
 
     // 2. 查询通用配置（stageRuleId 为 undefined）
     return CHEST_CONFIGS.find(
-        config => config.chestType === chestType && config.stageRuleId === undefined
+        (config) => config.chestType === normalized && config.stageRuleId === undefined
     );
 }
 

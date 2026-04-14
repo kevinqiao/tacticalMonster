@@ -19,6 +19,8 @@ export async function validateJoinTournament(ctx: any, params: {
     const entryRequirements = tournamentType.entryRequirements;
     if (entryRequirements) {
         const minLevel = entryRequirements.playerLevel;
+        console.log("minLevel", minLevel);
+        console.log("player.level", player.level);
         if (player.level < minLevel) {
             return { ok: false, errorCode: TournamentErrorCode.PLAYER_LEVEL_NOT_ENOUGH, message: "玩家等级不足" };
         }

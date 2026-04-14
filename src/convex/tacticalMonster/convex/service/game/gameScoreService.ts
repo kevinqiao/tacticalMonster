@@ -12,6 +12,7 @@ import { GameLifecycleService } from "./gameLifecycleService";
 import { GameEventService } from "./gameEventService";
 import { getModeTypeForRuleId } from "../../utils/tournamentModeType";
 import { GameRuleConfigService } from "./gameRuleConfigService";
+import { StageRewardSettlementService } from "../reward/stageRewardSettlementService";
 
 /** 终局计分（checkAndUpdateGameStatus / Tournament submit 复用） */
 function buildScoreResultForEndedGame(game: any, gameResult: GameResult) {
@@ -188,6 +189,11 @@ export class GameScoreService {
             let isFirstClear = false;
             if (result.result === GameResult.WIN) {
                 isFirstClear = await this.maybeInsertMrPlayerFirstClear(game, result.result);
+                try {
+                    await StageRewardSettlementService.grantOnSoloWin(this.dbCtx, { gameId, game });
+                } catch (e) {
+                    console.error("[GameScoreService] StageRewardSettlementService.grantOnSoloWin failed", e);
+                }
             }
             await this.scheduleSubmitScoreToTournament(gameId, game, result.result, isFirstClear);
         }

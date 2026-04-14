@@ -2,7 +2,7 @@ import { StageRuleConfig } from "../types/stageRuleTypes";
 import { DEFAULT_SOLO_SCORE_TIERS } from "./stageRuleConstants";
 
 /**
- * Solo 向非 Lab 关卡：材料本、每日、周常（与 `stageRuleConfigsSoloChallenge` 中 Solo Lab 拆分）。
+ * Solo 向非 Lab 关卡：材料本、每日、周常（与 `stageRuleConfigsSoloChallenge` 中 **测试用** Solo Lab 链拆分）。
  */
 export const STAGE_RULE_CONFIGS_SOLO_OTHER: Record<string, StageRuleConfig> = {
     "monster_rumble_farm_bronze_boss_1": {

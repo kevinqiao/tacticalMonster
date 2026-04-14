@@ -100,6 +100,10 @@ export interface ScoreTierReward {
     minScore: number;
     rewardKey?: string;
     chestType?: string;
+    /** Solo score_tiers：命中该档时直发的 Boss 定向碎片数量 */
+    directShardQuantity?: number;
+    /** Solo score_tiers：命中该档时经 Tournament 发放的金币 */
+    coins?: number;
 }
 
 export interface StageRewardPolicy {
@@ -145,6 +149,11 @@ export interface StageRuleConfig {
      */
     debugTeamProfileKey?: string;
     rewardPolicy?: StageRewardPolicy;
+    /**
+     * Solo `score_tiers` 胜利结算时，直发碎片写入的怪物 ID（对应 monsterConfigs）。
+     * 不填则使用 `stageContent.bossConfig.bossId` → bossConfigs 的 `monsterId`（与 Boss 战一致）。
+     */
+    soloDirectRewardMonsterId?: string;
     uiRules?: StageUiRules;
     // ============================================
     // 关卡类型和进度

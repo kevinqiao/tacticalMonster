@@ -1,9 +1,9 @@
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
-import { CloseEffects } from "../animate/effect/CloseEffects";
 import "./render.css";
+import { usePageAnimate } from "./shell/usePageAnimate";
 
 // Register the plugin
 gsap.registerPlugin(CSSPlugin);
@@ -109,8 +109,8 @@ const usePageVisibility = (container: PageContainer, changeEvent: any, pageConta
 // 优化的页面组件
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
-  const isClosingRef = useRef(false);
-  const { pageUpdated, changeEvent, pageContainers, onLoad } = usePageManager();
+  const { pageEvent, onLoad } = usePageManager();
+  const { playInit } = usePageAnimate();
   // const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
 
   // 使用缓存的组件
@@ -119,140 +119,78 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
   }, [container.path]);
 
   // 优化的可见性计算
-  const visible = usePageVisibility(container, changeEvent, pageContainers, parent);
-
-
-  // 简化的关闭动画处理
-  const close = useCallback(async (): Promise<void> => {
-    // 防止重复点击
-    if (!container.close || isClosingRef.current) return;
-
-    isClosingRef.current = true;
-
-    try {
-      const closeEffect = CloseEffects[container.close.effect];
-
-      if (closeEffect) {
-        await new Promise<void>((resolve) => {
-          const tl = gsap.timeline({ onComplete: resolve });
-          const effect = closeEffect({ container, tl });
-          if (effect) {
-            effect.play();
-          } else {
-            resolve();
-          }
-        });
+  const visible = useMemo(() => {
+    if (!pageEvent) return 0;
+    if (pageEvent?.name === "pageOpen") {
+      const page = pageEvent?.page;
+      if (container.uri.startsWith(page?.uri) || page?.uri.startsWith(container.uri)) {
+        return 1;
       }
-    } catch (error) {
-      console.error('关闭动画错误:', error);
-    } finally {
-      isClosingRef.current = false;
+      const prePage = pageEvent?.prepage;
+      if (prePage?.uri === container.uri) {
+        return 1;
+      }
+    } else if (pageEvent?.name === "pageComplete") {
+      const prePage = pageEvent?.prepage;
+      if (prePage?.uri === container.uri) {
+        return 0;
+      }
     }
-  }, [container]);
+    return 0;
+  }, [container, pageEvent]);
 
-  // 优化的加载处理
-  const load = useCallback(
-    (ele: HTMLDivElement | null) => {
-      container.ele = ele;
+  const load = useCallback((ele: HTMLDivElement | null) => {
+    container.ele = ele;
+    if (container.ele) {
+      console.log("load", container);
+      playInit({
+        container
+      });
       onLoad();
-    },
-    [onLoad, container]
-  );
-
-  // 优化的全屏处理
-  const openFull = useCallback(() => {
-    return new Promise<void>((resolve) => {
-      if (container.ele) {
-        const tl = gsap.timeline({
-          onComplete: () => resolve()
-        });
-
-        tl.to(container.ele, {
-          width: "100%",
-          height: "100%",
-          duration: 0.5,
-          ease: "power2.out"
-        });
-      } else {
-        resolve();
-      }
-    });
-  }, [container]);
-  const closeOnClick = useCallback(async () => {
-    if (!isClosingRef.current && changeEvent?.prepage) {
-      await close();
-      history.back();
     }
-  }, [close, changeEvent]);
+  }, [container, playInit, onLoad]);
   // 数据更新处理
   useEffect(() => {
-    if (changeEvent?.page?.uri === container.uri) {
-      setData(changeEvent?.page?.data);
+    if (pageEvent?.name === "pageUpdate" && pageEvent?.page?.uri === container.uri) {
+      setData(pageEvent?.page?.data);
     }
-  }, [changeEvent, container.uri]);
+  }, [pageEvent, container.uri]);
 
-  useEffect(() => {
-    if (pageUpdated?.uri === container.uri) {
-      setData(pageUpdated.data);
-    }
-  }, [pageUpdated, container.uri]);
+  // useEffect(() => {
+  //   if (pageUpdated?.uri === container.uri) {
+  //     setData(pageUpdated.data);
+  //   }
+  // }, [pageUpdated, container.uri]);
 
   return (
     <>
-      {/* 遮罩层 */}
-      <div
-        ref={(ele) => container.mask = ele}
-        style={{
-          position: "fixed",
-          zIndex: 2000,
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          backgroundColor: "black",
-          opacity: 0,
-          visibility: "hidden"
-        }}
-        onClick={closeOnClick}
-      />
 
       {/* 页面容器 */}
       <div
         key={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
         id={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
-        ref={load}
+        ref={(ele) => load(ele)}
         className={container.class}
         data-visible={visible}
         data-container-name={container.name}
-        data-init={container.init}
       >
-        <Suspense fallback={<div className="page-loading" />}>
+        <Suspense fallback={<div />}>
           <SelectedComponent
             data={data}
             visible={visible}
-            close={close}
-            openFull={openFull}
           />
         </Suspense>
-
-        {/* 关闭按钮 */}
-        {container.close && container.close.type === 1 && (
-          <div
-            ref={(ele) => (container.closeEle = ele)}
-            className="exit-menu"
-            onClick={closeOnClick}
+        {/* 递归渲染子页面 */}
+        {container.children?.map((c: PageContainer) => (
+          <PageComponent
+            key={c.uri}
+            parent={container}
+            container={c}
           />
-        )}
+        ))}
       </div>
 
-      {/* 递归渲染子页面 */}
-      {container.children?.map((c: PageContainer) => (
-        <PageComponent
-          key={c.uri}
-          parent={container}
-          container={c}
-        />
-      ))}
+
     </>
   );
 };
