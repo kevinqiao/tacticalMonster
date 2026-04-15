@@ -9,7 +9,9 @@ import { UserProvider } from "./service/UserManager";
 import RenderApp from "./component/RenderApp";
 import RenderModal from "./component/RenderModal";
 import BootLoadingOverlay from "./component/shell/BootLoadingOverlay";
+import SSOController from "./component/sso/SSOController";
 import { ModalProvider } from "./service/ModalManager";
+import { SharedPageDataProvider } from "./service/SharedPageDataManager";
 // GSAP 在 RenderApp 等模块注册 CSSPlugin
 // 环境配置管理
 const getConvexClient = (): ConvexReactClient => {
@@ -28,18 +30,19 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     <ConvexProvider client={master_client}>
       <PartnerProvider>
         <UserProvider>
-
-          <PageProvider>
-            <ModalProvider>
-              <TournamentProvider>
-                {/* <PlatformProvider> */}
-                {/* <GameCenterProvider> */}
-                {children}
-                {/* </GameCenterProvider> */}
-                {/* </PlatformProvider> */}
-              </TournamentProvider>
-            </ModalProvider>
-          </PageProvider>
+          <SharedPageDataProvider>
+            <PageProvider>
+              <ModalProvider>
+                <TournamentProvider>
+                  {/* <PlatformProvider> */}
+                  {/* <GameCenterProvider> */}
+                  {children}
+                  {/* </GameCenterProvider> */}
+                  {/* </PlatformProvider> */}
+                </TournamentProvider>
+              </ModalProvider>
+            </PageProvider>
+          </SharedPageDataProvider>
 
         </UserProvider>
       </PartnerProvider>
@@ -70,7 +73,7 @@ const MainApp: React.FC = () => {
       <BootLoadingOverlay />
       <RenderApp />
       <RenderModal />
-      {/* <SSOController /> */}
+      <SSOController />
     </>
   );
 };

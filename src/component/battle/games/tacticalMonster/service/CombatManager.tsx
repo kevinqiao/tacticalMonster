@@ -206,7 +206,6 @@ const CombatManager: React.FC<CombatManagerProps> = ({
 
     const initialPhaseChangesGate = useInitialPhaseChangesGate();
 
-    const [gameOverEvent, setGameOverEvent] = useState<TurnRoundPayload | undefined>(undefined);
     const phaseChangeEventQueueRef = useRef<TurnBarQueuedEvent[]>([]);
     const initQueuedGameKeyRef = useRef<string | null>(null);
     const combatHudRef = useRef<CombatHudByKind>({});

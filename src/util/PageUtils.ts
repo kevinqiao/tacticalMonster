@@ -173,6 +173,22 @@ export const findAncestor = (containers: PageContainer[], uri: string): PageCont
     }
     return null;
 }
+export const isSibling = (containers: PageContainer[], uri: string, preUri: string): boolean => {
+    const parent = findParent(containers, uri);
+    const preParent = findParent(containers, preUri);
+    if (parent && preParent && parent?.uri === preParent?.uri) {
+        return true;
+    }
+    return false;
+}
+export const isSameTree = (containers: PageContainer[], uri: string, preUri: string): boolean => {
+    const ancestor = findAncestor(containers, uri);
+    const preAncestor = findAncestor(containers, preUri);
+    if (ancestor && preAncestor && ancestor?.uri === preAncestor?.uri) {
+        return true;
+    }
+    return false;
+}
 export const useUrlParams = () => {
     const params = useMemo(() => {
         const searchParams = new URLSearchParams(window.location.search);

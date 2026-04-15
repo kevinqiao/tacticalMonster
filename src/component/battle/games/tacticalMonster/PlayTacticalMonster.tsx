@@ -43,7 +43,7 @@ const PlayGame: React.FC<Props> = ({
     initialPhaseChanges,
     exit,
 }) => {
-    console.log("PlayGame props", game, playMode, initialPhaseChanges);
+
     const client = React.useMemo(() => new ConvexReactClient(URLS.tacticalMonster), [URLS.tacticalMonster]);
 
     return (

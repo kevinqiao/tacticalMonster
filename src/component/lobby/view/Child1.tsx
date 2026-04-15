@@ -4,7 +4,7 @@ import TournamentHome from "../tournament/TournamentHome";
 import "./style.css";
 
 const Child1: React.FC<PageProp> = ({ visible, data }) => {
-
+  console.log("Child1", visible, data);
   return (<div
     style={{
       width: "100%",
@@ -12,7 +12,7 @@ const Child1: React.FC<PageProp> = ({ visible, data }) => {
       backgroundColor: "yellow",
     }}
   >
-    <TournamentHome />
+    {visible > 0 && <TournamentHome />}
   </div>);
 };
 

@@ -4,8 +4,8 @@ import { useUserManager } from "service/UserManager";
 
 type BootPhase = "checking_session" | "loading_shell" | "ready";
 
-const TEXT_FADE_MS = 520;
-const BACKDROP_FADE_MS = 480;
+const TEXT_FADE_MS = 320;
+const BACKDROP_FADE_MS = 180;
 
 /**
  * 启动遮罩：会话判定 → 顶层页面容器挂载（containersLoaded）。

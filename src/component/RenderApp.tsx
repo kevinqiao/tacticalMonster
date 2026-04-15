@@ -1,3 +1,4 @@
+import { isSameTree } from "@/util/PageUtils";
 import { gsap } from "gsap";
 import { CSSPlugin } from "gsap/CSSPlugin";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
@@ -87,29 +88,12 @@ const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
 };
 
 
-// 优化的可见性计算 Hook
-const usePageVisibility = (container: PageContainer, changeEvent: any, pageContainers: PageContainer[], parent?: PageContainer) => {
-  return useMemo(() => {
-    // 获取当前页面的 URI
-    if (!changeEvent) return 0;
-    const currentUri = changeEvent?.page?.uri;
-
-    const containerUri = container.uri;
-    const parentUri = parent?.uri;
-    const containerParentUri = container.parentURI;
-
-    // 检查当前URI是否匹配容器URI（完全匹配或子路径匹配）
-    const isVisible = (currentUri === containerUri || currentUri.startsWith(containerUri + '/')) ||
-      currentUri === parentUri ||
-      (containerParentUri && currentUri === containerParentUri);
-    return isVisible ? 1 : 0;
-  }, [changeEvent?.page?.uri, container.uri, container.parentURI, parent?.uri]);
-};
-
 // 优化的页面组件
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
+  const [visible, setVisible] = useState(0);
   const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
-  const { pageEvent, onLoad } = usePageManager();
+  const { pageEvent, onLoad, pageContainers } = usePageManager();
+
   const { playInit } = usePageAnimate();
   // const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
 
@@ -118,49 +102,38 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     return getCachedComponent(container.path);
   }, [container.path]);
 
-  // 优化的可见性计算
-  const visible = useMemo(() => {
-    if (!pageEvent) return 0;
-    if (pageEvent?.name === "pageOpen") {
-      const page = pageEvent?.page;
-      if (container.uri.startsWith(page?.uri) || page?.uri.startsWith(container.uri)) {
-        return 1;
-      }
-      const prePage = pageEvent?.prepage;
-      if (prePage?.uri === container.uri) {
-        return 1;
-      }
-    } else if (pageEvent?.name === "pageComplete") {
-      const prePage = pageEvent?.prepage;
-      if (prePage?.uri === container.uri) {
-        return 0;
-      }
-    }
-    return 0;
-  }, [container, pageEvent]);
-
   const load = useCallback((ele: HTMLDivElement | null) => {
     container.ele = ele;
     if (container.ele) {
-      console.log("load", container);
       playInit({
         container
       });
       onLoad();
     }
   }, [container, playInit, onLoad]);
-  // 数据更新处理
-  useEffect(() => {
-    if (pageEvent?.name === "pageUpdate" && pageEvent?.page?.uri === container.uri) {
-      setData(pageEvent?.page?.data);
-    }
-  }, [pageEvent, container.uri]);
 
-  // useEffect(() => {
-  //   if (pageUpdated?.uri === container.uri) {
-  //     setData(pageUpdated.data);
-  //   }
-  // }, [pageUpdated, container.uri]);
+
+  useEffect(() => {
+    if (!pageEvent || !container) return;
+    const { name, page, prepage } = pageEvent;
+    if (name === "pageOpen") {
+      if (page?.uri.startsWith(container.uri)) {
+        setVisible(1);
+      }
+    } else if (name === "pageComplete") {
+      if (prepage) {
+        const isHerit = isSameTree(pageContainers, page.uri, prepage.uri);
+        if (isHerit) {
+          if (prepage.uri === container.uri) {
+            setVisible(0);
+          }
+        } else if (prepage.uri.startsWith(container.uri)) {
+          setVisible(0);
+        }
+      }
+    }
+
+  }, [pageEvent, container]);
 
   return (
     <>

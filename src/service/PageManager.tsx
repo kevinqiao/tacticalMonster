@@ -1,8 +1,9 @@
 import { usePageAnimate } from "@/component/shell/usePageAnimate";
+import { useSharedPageData } from "@/service/SharedPageDataManager";
 import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageStatus } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { findContainer, parseLocation } from "util/PageUtils";
+import { findContainer, isSameTree, parseLocation } from "util/PageUtils";
 import { useUserManager } from "./UserManager";
 
 export type App = {
@@ -28,6 +29,18 @@ export interface PageContainer extends PageConfig {
   mask?: HTMLDivElement | null;
   preventNavigation?: boolean;
 }
+
+const getNamespaceFromUri = (uri?: string | null): string | null => {
+  if (!uri) return null;
+  const segments = uri.split("/").filter(Boolean);
+  if (segments.length === 0) return null;
+  // 约定主路由为 /play/<namespace>/...
+  if (segments[0] === "play") {
+    return segments[1] ?? null;
+  }
+  return segments[0] ?? null;
+};
+
 interface IPageContext {
   histories: PageItem[];
   currentPage: PageItem | undefined | null;
@@ -60,18 +73,23 @@ const PageContext = createContext<IPageContext>({
   onLoad: () => null,
 });
 const PageHandler = ({ children }: { children: React.ReactNode }) => {
-  const { pageEvent } = usePageManager();
+  const { pageEvent, completePage } = usePageManager();
   const { playOpen } = usePageAnimate();
   useEffect(() => {
     if (pageEvent?.name === "pageOpen") {
-      console.log("pageEvent", pageEvent);
-      playOpen({ page: pageEvent.page, prepage: pageEvent.prepage });
+      playOpen({
+        page: pageEvent.page, prepage: pageEvent.prepage, onComplete: () => {
+          console.log("pageEvent complete", pageEvent);
+          completePage();
+        }
+      });
     }
-  }, [pageEvent, playOpen])
+  }, [pageEvent, playOpen, completePage])
   return <>{children}</>;
 };
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUserManager();
+  const { clearNamespace } = useSharedPageData();
   // const loadingBGRef = useRef<{ ele: HTMLDivElement | null; status: number }>({ ele: null, status: 1 });
   const historiesRef = useRef<PageItem[]>([]);
   const currentPageRef = useRef<PageItem | null>(null);
@@ -146,13 +164,24 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   }, [requireAuth, user]);
 
   const completePage = useCallback(() => {
+
     setPageEvent((prev) => {
       if (prev) {
         return { ...prev, name: "pageComplete" };
       }
       return null;
     });
-  }, [pageEvent]);
+  }, []);
+
+  useEffect(() => {
+    if (pageEvent?.name !== "pageComplete") return;
+    if (!pageEvent.prepage) return;
+    if (isSameTree(pageContainers, pageEvent.page.uri, pageEvent.prepage.uri)) return;
+    const namespace = getNamespaceFromUri(pageEvent.prepage.uri);
+    if (!namespace) return;
+    clearNamespace(namespace);
+  }, [pageEvent, pageContainers, clearNamespace]);
+
   const onLoad = useCallback(
     () => {
       // 仅校验 RenderApp 顶层挂载的容器（pageContainers 列表），子路由由各自 PageComponent 递归挂载，不在这里要求 child.ele
@@ -169,14 +198,12 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       if (currentPage) {
         const container = findContainer(pageContainers, currentPage.uri);
         if (container?.preventNavigation) {
-          console.log("preventNavigation", currentPage);
           const uri = currentPage.data ? currentPage.uri + "?" + Object.entries(currentPage.data).map(([key, value]) => `${key}=${value}`).join("&") : currentPage.uri;
           window.history.replaceState(null, "", uri);
           return;
         }
       }
       const page = parseLocation();
-      console.log("handlePopState", page);
       if (page) {
         const prepage = currentPageRef.current;
         setPageEvent({ name: "pageOpen", prepage, page });

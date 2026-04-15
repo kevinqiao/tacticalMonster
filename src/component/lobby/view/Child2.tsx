@@ -1,39 +1,51 @@
-import { URLS } from "@/service/TournamentManager";
 import { PageProp } from "component/RenderApp";
-import { ConvexHttpClient } from "convex/browser";
+import React from "react";
+import { useSharedValue } from "service/SharedPageDataManager";
 
-import React, { useEffect } from "react";
+const Header: React.FC = () => {
+  const lobbyHeadDimension = useSharedValue("lobby.head.dimension");
+  console.log("lobbyHeadDimension", lobbyHeadDimension);
+  if (lobbyHeadDimension == null) return null;
+  return (
+    <div id="header" style={{ width: lobbyHeadDimension.width, height: lobbyHeadDimension.height, backgroundColor: "red" }}></div>
+  )
+}
+const Footer: React.FC = () => {
+  const lobbyFooterDimension = useSharedValue("lobby.footer.dimension");
+  if (lobbyFooterDimension == null) return null;
+  return (
+    <div id="footer" style={{ width: lobbyFooterDimension.width, height: lobbyFooterDimension.height, backgroundColor: "green" }}></div>
+  )
+}
 
 const Child2: React.FC<PageProp> = ({ visible, data }) => {
-  // 开发环境：使用本地服务器；生产环境：使用远程服务器
-  const tacticalMonsterUrl = process.env.NODE_ENV === 'development'
-    ? URLS.tacticalMonster  // 本地开发服务器
-    : URLS.tacticalMonster;     // 远程服务器
+  const lobbyContentDimension = useSharedValue("lobby.content.dimension");
 
-  const tacticalMonsterClient = React.useMemo(() => {
-    console.log("tacticalMonsterUrl", tacticalMonsterUrl);
-    return new ConvexHttpClient(tacticalMonsterUrl)
-  }, [
-    tacticalMonsterUrl
-  ]);
-  useEffect(() => {
-
-    if (tacticalMonsterClient) {
-      // loadMonster();
-    }
-    console.log("tacticamonst")
-  }, [tacticalMonsterClient]);
   return (<div
     style={{
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
       width: "100%",
       height: "100%",
-      backgroundColor: "yellow",
     }}
   >
-    {/* <Character3DDemo /> */}
-    {/* <CharacterWalkDemo /> */}
-    {/* 仅播动画的独立 Canvas，用于排查 primitive 可见性：<AnimationPreview3D /> */}
-    {/* <AnimationPreview3D /> */}
+    <Header />
+    <div
+      id="content"
+      style={{
+        width: "100%",
+        height: "100%",
+        backgroundColor: "blue",
+        color: "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {lobbyContentDimension != null ? `lobby ratio(shared): ${lobbyContentDimension.width / lobbyContentDimension.height}` : "lobby ratio(shared): -"}
+    </div>
+    <Footer />
   </div>
   )
 };
