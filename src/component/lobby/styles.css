@@ -201,6 +201,7 @@
   display: flex;
   justify-content: space-around;
   align-items: center;
+  background-color: transparent;
 }
 
 .action-panel-item {

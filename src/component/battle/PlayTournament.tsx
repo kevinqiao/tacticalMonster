@@ -97,8 +97,8 @@ const PlayTournament: React.FC<ModalProp> = ({ visible, data, close }) => {
     const path = GAME_PROVIDERS[data?.gameType] ?? '';
     if (path === '') return null;
     return getCachedComponent(path);
-  }, [data]);
-  console.log("PlayTournament data", visible, data);
+  }, [data, visible]);
+  console.log("PlayTournament data", visible, data, SelectedComponent);
 
   return (
     <>

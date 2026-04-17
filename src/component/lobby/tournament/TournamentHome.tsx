@@ -96,7 +96,7 @@ const TournamentList: React.FC = () => {
                 matchType: matchType,
                 mode: resolveTournamentModeWithStaticFallback(item),
             }
-        });
+        }, { name: "swipeRight", args: { width: "100%" } });
     }, [openModal]);
 
     const effectiveTab = useMemo((): TournamentModeType => {

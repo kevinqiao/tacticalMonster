@@ -5,7 +5,7 @@
 
 import * as THREE from "three";
 import { MapDimension } from "../../service/TeamDeployManager";
-import { hexToPixel } from "../../team/utils/coordinateUtils";
+import { hexToPixel } from "../../utils/coordinateUtils";
 
 /**
  * 将六边形坐标转换为 Three.js 3D 世界坐标（返回六边形左上角位置）

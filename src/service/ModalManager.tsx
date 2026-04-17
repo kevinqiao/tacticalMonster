@@ -1,15 +1,15 @@
 import { ModalConfig, Modals } from "@/model/PageConfiguration";
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 export interface ModalProp {
-  name: string;
-  container: ModalContainer;
   visible: boolean;
   data?: any;
   close: () => void;
 }
 export interface ModalItem {
+  index?: number;
   name: string;
   data?: any;
+  effect?: { name: string, args?: any }
 }
 
 export interface ModalContainer extends ModalConfig {
@@ -22,15 +22,15 @@ export interface ModalContainer extends ModalConfig {
 interface IModalContext {
   modals: ModalItem[];
   modalContainers: { [key: string]: ModalContainer };
-  openModal: (name: string, data?: { [key: string]: any } | undefined) => void;
-  closeModal: () => void;
+  openModal: (name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } | undefined) => void;
+  closeModal: (name?: string) => void;
   closeAll: () => void;
 }
 const ModalContext = createContext<IModalContext>({
   modals: [],
   modalContainers: {},
   openModal: () => { },
-  closeModal: () => { },
+  closeModal: (_name?: string) => { },
   closeAll: () => { },
 });
 
@@ -40,23 +40,29 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
     return Modals
   }, []);
 
-  const openModal = useCallback((name: string, data?: { [key: string]: any } | undefined) => {
-    console.log("open modal", name, data);
+  const openModal = useCallback((name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } | undefined) => {
+
     setModals((prev) => {
       const pre = prev.find((modal) => modal.name === name)
-      console.log("open modal", pre);
-      const p = pre ? prev : [...prev, { name, data }];
+      // console.log("open modal", pre);
+      const p = pre ? prev : [...prev, { name, data, effect }];
       return p;
     });
+
   }, [])
   const value = {
     modals,
     modalContainers,
     openModal: openModal,
-    closeModal: useCallback(() => {
+    closeModal: useCallback((name?: string) => {
       setModals((prev) => {
-        const newModals = prev.slice(0, -1)
-        console.log("close modal", newModals);
+        if (!name) {
+          const newModals = prev.slice(0, -1);
+          console.log("close modal(last)", newModals);
+          return newModals;
+        }
+        const newModals = prev.filter((modal) => modal.name !== name);
+        // console.log("close modal", newModals);
         return newModals;
       })
     }, []),

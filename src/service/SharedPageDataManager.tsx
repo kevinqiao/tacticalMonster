@@ -1,3 +1,4 @@
+import { MapDimension } from "@/component/battle/games/tacticalMonster/service/TeamDeployManager";
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 /**
@@ -6,6 +7,8 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
  * 命名约定：使用 `domain.field`（例如 `lobby.contentRect`, `battle.cameraZoom`）。
  */
 export interface SharedPageDataSchema {
+  "lobby.layout.portrait": boolean | null;
+  "lobby.map.dimension": MapDimension | null;
   "lobby.dimension": { width: number; height: number; } | null;
   "lobby.head.dimension": { width: number; height: number; } | null;
   "lobby.footer.dimension": { width: number; height: number; } | null;

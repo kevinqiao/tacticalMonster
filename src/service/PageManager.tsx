@@ -3,7 +3,7 @@ import { useSharedPageData } from "@/service/SharedPageDataManager";
 import { AppsConfiguration, PageConfig } from "model/PageConfiguration";
 import { PageStatus } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { findContainer, isSameTree, parseLocation } from "util/PageUtils";
+import { findContainer, isSameTree, normalizePageUri, parseLocation } from "util/PageUtils";
 import { useUserManager } from "./UserManager";
 
 export type App = {
@@ -80,7 +80,13 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
       playOpen({
         page: pageEvent.page, prepage: pageEvent.prepage, onComplete: () => {
           console.log("pageEvent complete", pageEvent);
-          completePage();
+          /**
+           * 关键：不要在 pageOpen 同一 effect 周期内同步切成 pageComplete。
+           * 否则 RenderApp 子页面可能尚未消费到 pageOpen（visible/autoAlpha 未更新）就被覆盖，首屏出现黑底。
+           */
+          requestAnimationFrame(() => {
+            completePage();
+          });
         }
       });
     }
@@ -141,7 +147,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
 
   const openPage = useCallback((page: PageItem) => {
 
-    if (page.uri === currentPageRef.current?.uri) {
+    if (normalizePageUri(page.uri) === normalizePageUri(currentPageRef.current?.uri ?? "")) {
       setPageUpdated(page);
       return;
     }

@@ -17,9 +17,10 @@ export const PlayPlace =
             exit: "fadeOut",
             control: "./lobby/LobbyControl",
             children: [
-                { name: "child1", class: "child_container", init: "slide", path: "./lobby/view/Child1", uri: "c1", auth: 0, open: "slideIn" },
-                { name: "child2", class: "child_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 1, open: "slideIn" },
-                { name: "child3", class: "child_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
+                { name: "child1", class: "page_container", init: "slide", path: "./lobby/view/Child1", uri: "c1", auth: 0, open: "slideIn" },
+                /** 路由需 auth:0，否则未登录时 openPage 不会派发 pageOpen，大厅 slide 不会动；权限在 Child2 内处理 */
+                { name: "child2", class: "page_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 0, open: "slideIn" },
+                { name: "child3", class: "page_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
                 // { name: "child4", class: "pop-right", init: "pops1", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", close: { type: 2, effect: "popRightOut" } },
                 // { name: "center", class: "pop-center-large", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
                 // { name: "topNav", class: "pop-right", init: "pops1", path: "./lobby/control/NavControl", uri: "topNav", auth: 0, open: "popRightIn", close: { type: 1, effect: "popRightOut" } },
@@ -50,10 +51,16 @@ export const Modals: Record<string, ModalConfig> = {
         name: "play_tournament",
         path: "./battle/PlayTournament",
         auth: 0,
-        init: "fadeIn",
-        openEffect: "popCenterIn",
-        closeEffect: "popCenterOut",
-    }    // "game_over": {
+        effect: { name: "swipeBottom", args: { height: "100%" } },
+
+    },
+    "join_tournament": {
+        name: "join_tournament",
+        path: "./lobby/tournament/TournamentJoinList",
+        auth: 0,
+        effect: { name: "swipeRight", args: { width: "30%" } },
+
+    }  // "game_over": {
     //     name: "game_over",
     //     path: "./battle/GameOver",
     //     auth: 0,
@@ -96,8 +103,7 @@ export interface ModalConfig {
     auth?: number;
     init?: string;
     class?: string;
-    openEffect?: string;
-    closeEffect?: string;
+    effect?: { name: string, args?: any };
 }
 export const AppsConfiguration: AppConfig[] = [PlayPlace];
 

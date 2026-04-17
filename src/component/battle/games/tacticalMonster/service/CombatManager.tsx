@@ -9,6 +9,7 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
+import { useSharedValue } from "@/service/SharedPageDataManager";
 import { ReplayProvider } from "../battle/view/replayContext";
 import { getCharacterKey } from "../battle3d/utils/battle3DAdapter";
 import type { CombatHudByKind, GameModel } from "../types/CombatTypes";
@@ -30,7 +31,6 @@ import { enqueueIfNotDuplicate, getPhaseEventKey } from "../utils/turnBarQueueUt
 import { getCharactersFromGameModel } from "../utils/typeAdapter";
 import { useInitialPhaseChangesGate } from "./hooks/useInitialPhaseChangesGate";
 import type { MapDimension } from "./TeamDeployManager";
-import { useMapDimension } from "./useMapDimension";
 
 /** 服务端快照写入 runtime 前浅拷贝 turns，避免与后续 mutate 共享引用 */
 function cloneGameRoundForSync(round: GameRound): GameRound {
@@ -67,7 +67,7 @@ export interface ICombatContext {
     characters?: MonsterSprite[];
 
     /** 由 CombatManager 通过 useMapDimension 测量容器得到，供 2D/3D 视图与动画使用 */
-    mapDimension: MapDimension | null;
+    mapDimension?: MapDimension | null;
     // setMapDimension: React.Dispatch<React.SetStateAction<MapDimension | null>>;
     /** 测量 mapDimension 的容器 ref，挂在 CombatManager 的包装 div 上 */
     // containerRef: React.RefObject<HTMLDivElement | null>;
@@ -147,8 +147,8 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     exit,
 }) => {
 
-    const { containerRef, mapDimension } = useMapDimension();
-
+    // const { containerRef, mapDimension } = useMapDimension();
+    const mapDimension = useSharedValue("lobby.map.dimension");
     // runtimeGame: 运行时 game 状态，phase 变化由此单一写入，避免多处 mutation 导致状态漂移
     const [runtimeGame, setRuntimeGame] = useState<GameModel | null>(null);
     const gameIdRef = useRef<string | null>(null);
@@ -401,9 +401,9 @@ const CombatManager: React.FC<CombatManagerProps> = ({
     return (
         <CombatContext.Provider value={value}>
             <ReplayProvider gameId={effectiveGame?.gameId ?? null} mode={mode}>
-                <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
-                    {children}
-                </div>
+                {/* <div ref={containerRef} style={{ width: "100%", height: "100%" }}> */}
+                {children}
+                {/* </div> */}
             </ReplayProvider>
         </CombatContext.Provider>
     );

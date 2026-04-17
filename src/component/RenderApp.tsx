@@ -1,13 +1,8 @@
 import { isSameTree } from "@/util/PageUtils";
-import { gsap } from "gsap";
-import { CSSPlugin } from "gsap/CSSPlugin";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { PageContainer, usePageManager } from "service/PageManager";
 import "./render.css";
 import { usePageAnimate } from "./shell/usePageAnimate";
-
-// Register the plugin
-gsap.registerPlugin(CSSPlugin);
 
 export interface PageProp {
   data?: { [key: string]: any };
@@ -112,28 +107,75 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     }
   }, [container, playInit, onLoad]);
 
-
   useEffect(() => {
+
     if (!pageEvent || !container) return;
     const { name, page, prepage } = pageEvent;
     if (name === "pageOpen") {
-      if (page?.uri.startsWith(container.uri)) {
+      if (page?.uri?.startsWith(container.uri) || prepage?.uri?.startsWith(container.uri)) {
         setVisible(1);
-      }
+      } else
+        setVisible(0);
     } else if (name === "pageComplete") {
-      if (prepage) {
-        const isHerit = isSameTree(pageContainers, page.uri, prepage.uri);
-        if (isHerit) {
-          if (prepage.uri === container.uri) {
-            setVisible(0);
-          }
-        } else if (prepage.uri.startsWith(container.uri)) {
-          setVisible(0);
-        }
-      }
+      if (!prepage?.uri) return;
+      const sameTree = isSameTree(pageContainers, prepage.uri, page.uri);
+      // 同树：只收起「刚离开的」那一层（与 container.uri 精确一致）；跨树：收起仍挂在 pre 路径下的祖先/叶子。
+      const hide =
+        (sameTree && prepage.uri === container.uri) ||
+        (!sameTree && prepage.uri.startsWith(container.uri));
+      if (hide) setVisible(0);
     }
 
-  }, [pageEvent, container]);
+  }, [pageEvent, container, pageContainers]);
+  // useEffect(() => {
+  //   if (!pageEvent || !container) return;
+  //   const { name, page, prepage } = pageEvent;
+  //   if (name === "pageOpen") {
+  //     if (!page?.uri) return;
+  //     const p = normalizePageUri(page.uri);
+  //     const c = normalizePageUri(container.uri);
+  //     /**
+  //      * 叶子子页必须用「全路径相等」，不能用 startsWith(container.uri)：
+  //      * 否则从 c2 切到 c1 时 c2 仍为 visible=1（未命中 pageOpen），而 c1 也变为 1，
+  //      * 同树后序的 child2 盖住 child1，滑动后仍显示 Child2。
+  //      * 父级（含子路由的容器）用「自身 uri 或 uri/ 前缀」表示当前仍在其树下。
+  //      */
+  //     const hasChildRoutes = !!container.children?.length;
+  //     if (hasChildRoutes) {
+  //       if (p === c || p.startsWith(`${c}/`)) {
+  //         setVisible(1);
+  //       } else {
+  //         setVisible(0);
+  //       }
+  //     } else if (p === c) {
+  //       setVisible(1);
+  //     } else {
+  //       setVisible(0);
+  //     }
+  //   } else if (name === "pageComplete") {
+  //     if (prepage?.uri) {
+  //       const isHerit = isSameTree(pageContainers, page.uri, prepage.uri);
+  //       const p = normalizePageUri(page.uri);
+  //       const pre = normalizePageUri(prepage.uri);
+  //       const c = normalizePageUri(container.uri);
+  //       /** 必须用「等于」或「container/子路径」，避免裸 startsWith 误匹配 */
+  //       const preUnderContainer = pre === c || pre.startsWith(`${c}/`);
+  //       const pageUnderContainer = p === c || p.startsWith(`${c}/`);
+  //       if (isHerit) {
+  //         if (pre === c) {
+  //           setVisible(0);
+  //           /** slide 子页不再用 autoAlpha 收起，避免透明态竞态；仅靠 left 决定是否在视口内。 */
+  //         }
+  //       } else if (preUnderContainer && !pageUnderContainer) {
+  //         setVisible(0);
+  //         /** 离开树时仍由父容器显隐控制；slide 叶子不单独压暗。 */
+  //       }
+  //     }
+  //   }
+
+  // }, [pageEvent, container, pageContainers]);
+
+  /** 统一子页优先渲染，避免父层覆盖子层交互。 */
 
   return (
     <>
@@ -142,18 +184,11 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       <div
         key={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
         id={`${container.app}-${parent ? parent.name + "-" : ""}${container.name}`}
-        ref={(ele) => load(ele)}
+        ref={load}
         className={container.class}
         data-visible={visible}
         data-container-name={container.name}
       >
-        <Suspense fallback={<div />}>
-          <SelectedComponent
-            data={data}
-            visible={visible}
-          />
-        </Suspense>
-        {/* 递归渲染子页面 */}
         {container.children?.map((c: PageContainer) => (
           <PageComponent
             key={c.uri}
@@ -161,6 +196,12 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
             container={c}
           />
         ))}
+        <Suspense fallback={<div />}>
+          <SelectedComponent
+            data={data}
+            visible={visible}
+          />
+        </Suspense>
       </div>
 
 

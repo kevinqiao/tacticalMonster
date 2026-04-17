@@ -2,9 +2,9 @@
  * 坐标转换工具函数
  */
 
-import { MapDimension } from "../../service/TeamDeployManager";
-import { HexPoint } from "../../types/GridTypes";
-import { calculateHexPoints, isPointInHex } from "../../utils/gridUtils";
+import { MapDimension } from "../service/TeamDeployManager";
+import { HexPoint } from "../types/GridTypes";
+import { calculateHexPoints, isPointInHex } from "./gridUtils";
 
 /**
  * 计算地图比例

@@ -76,7 +76,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
     const tournamentClient = React.useMemo(() => { return new ConvexClient(URLS.tournament) }, []);
     const tacticalMonsterClient = React.useMemo(() => { return new ConvexHttpClient(URLS.tacticalMonster) }, []);
     const { openTeamLayout, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
-
+    console.log("PlayTacticalMonster", gameData);
 
     const startJoin = useCallback(async () => {
         const { typeId, stageId } = gameData;

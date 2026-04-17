@@ -50,6 +50,20 @@ const WebPanel1: React.FC<{ visible: number, onClose: () => void }> = ({ visible
         }
     }, [])
 
+    /** 初始放到屏外且禁用命中，避免 visible=0 时透明面板截获右侧滚动条拖拽。 */
+    useEffect(() => {
+        if (!containerRef.current || !maskRef.current) return;
+        gsap.set(maskRef.current, {
+            autoAlpha: 0,
+            pointerEvents: "none",
+        });
+        gsap.set(containerRef.current, {
+            autoAlpha: 0,
+            x: "100%",
+            pointerEvents: "none",
+        });
+    }, []);
+
     /** 首次挂载 visible=0 时不要执行收起动画，避免未展示就 to(x:"100%") */
     const visiblePrevRef = useRef<number | null>(null);
     useEffect(() => {
@@ -72,7 +86,7 @@ const WebPanel1: React.FC<{ visible: number, onClose: () => void }> = ({ visible
             backgroundColor: "black",
             opacity: 0,
             overflow: "hidden",
-            pointerEvents: "none"
+            pointerEvents: visible > 0 ? "auto" : "none"
         }} />
 
         {/* 滑动面板 */}
@@ -84,7 +98,7 @@ const WebPanel1: React.FC<{ visible: number, onClose: () => void }> = ({ visible
             height: "100%",
             minWidth: 350,
             maxWidth: 500,
-            pointerEvents: "auto",
+            pointerEvents: visible > 0 ? "auto" : "none",
             overflow: "hidden",
             opacity: 0,
             zIndex: 1

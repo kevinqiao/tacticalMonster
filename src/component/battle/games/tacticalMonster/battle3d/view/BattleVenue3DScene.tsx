@@ -11,7 +11,7 @@ export type BattleVenue3DSceneProps = {
     skillError: string | null;
     pedagogy: BattleVenuePedagogySnapshot;
     gridState: UseBattleGridStateReturn;
-    mapDimension: MapDimension | null;
+    mapDimension?: MapDimension | null;
     isPortrait: boolean;
     cameraPosition: [number, number, number];
     cameraTarget: [number, number, number];

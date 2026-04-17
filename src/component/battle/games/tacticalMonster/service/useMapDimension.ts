@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { calculateMapDimension } from "../team/utils/coordinateUtils";
+import { calculateMapDimension } from "../utils/coordinateUtils";
 import { MapDimension } from "./TeamDeployManager";
 
 /**

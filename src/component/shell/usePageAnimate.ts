@@ -1,33 +1,45 @@
-/**
- * 3D 技能动画 - 施法者面向目标 + 按技能类型选择动画
- * 可选 mapDimension：有则攻击前旋转施法者面向目标；HP 条由 applyStateChanges 更新
- */
+/** 页面切换动画（初始化定位 + 打开动画调度） */
 import { PageContainer, PageItem, usePageManager } from "@/service/PageManager";
-import { findContainer, findParent, isSameTree } from "@/util/PageUtils";
+import { findContainer, isSameTree, normalizePageUri } from "@/util/PageUtils";
 import gsap from "gsap";
 import { useCallback } from "react";
+import { childLeftPercent, resolveChildIndexByUri } from "./slideLobbyLeft";
 import { OpenNewEffects } from "./effect/OpenNewEffects";
 import { OpenUpdateEffects } from "./effect/OpenUpdateEffects";
 
 export const usePageAnimate = () => {
     const { pageContainers } = usePageManager();
     const playInit = useCallback(
-        ({ container, onComplete }: { container: PageContainer, onComplete?: () => void | Promise<void> }) => {
-
-            if (!container || !container.ele || !container.parentURI) return;
+        ({ container }: { container: PageContainer }) => {
+            if (!container || !container.ele) return;
+            const currentUri = normalizePageUri(window.location.pathname);
+            const containerUri = normalizePageUri(container.uri);
+            const currentUnderContainer =
+                currentUri === containerUri || currentUri.startsWith(`${containerUri}/`);
+            /**
+             * 首屏兜底：pageOpen 可能早于 ref 挂载，导致当次 autoAlpha 丢失。
+             * 在挂载时按当前 URL 修正可见性，避免首次进 /play/lobby/c1 或 /c2 黑底。
+             */
+            if (currentUnderContainer) {
+                gsap.set(container.ele, { autoAlpha: 1 });
+            }
+            if (!container.parentURI) return;
             if (container.init === "slide") {
                 const parent = findContainer(pageContainers, container.parentURI);
                 if (!parent || !parent.children) return;
                 const cindex = parent.children?.findIndex((c) => c.name === container.name);
                 if (cindex !== undefined && cindex >= 0) {
-                    const center = Math.floor(parent.children?.length / 2);
-                    const offset = cindex - center;
+                    const target = resolveChildIndexByUri(parent.children, currentUri);
+                    const targetIdx = target >= 0 ? target : Math.floor(parent.children.length / 2);
+                    const leftPct = childLeftPercent(cindex, targetIdx);
+                    /** slide 子页统一保持可见，仅靠 left 决定是否在视口内，避免 autoAlpha 竞态导致黑屏。 */
                     gsap.set(container.ele, {
+                        left: `${leftPct}%`,
+                        clearProps: "transform,x",
+                        willChange: "left",
                         autoAlpha: 1,
-                        left: `${offset * 100}%`,
-                        force3D: true, // 启用硬件加速
-                        willChange: "transform" // 提示浏览器优化
-                    })
+                        pointerEvents: currentUri === containerUri ? "auto" : "none",
+                    });
                 }
                 return;
             }
@@ -37,38 +49,23 @@ export const usePageAnimate = () => {
     );
     const playOpen = useCallback(
         ({ page, prepage, onComplete }: { page: PageItem, prepage?: PageItem | null, onComplete?: () => void | Promise<void> }) => {
-            if (page) {
-                if (prepage) {
-
-                    const isFamily = isSameTree(pageContainers, page.uri, prepage.uri);
-                    if (isFamily) {
-                        const parent = findParent(pageContainers, page.uri);
-                        OpenUpdateEffects.slide({ page, containers: pageContainers, onComplete });
-                        // const ancestor = findAncestor(pageContainers, page.uri);
-                        // const cindex = ancestor?.children?.findIndex((c) => c.uri === page.uri);
-                        // if (cindex !== undefined && cindex >= 0 && ancestor?.ele) {
-                        //     const offset = Math.floor((ancestor.children?.length ?? 0) / 2) - cindex;
-                        //     const tl = gsap.timeline({
-                        //         onComplete: () => {
-                        //             onComplete?.();
-                        //         }
-                        //     });
-                        //     ancestor.children?.forEach((c) => {
-                        //         if (c.ele) {
-                        //             tl.to(c.ele, {
-                        //                 x: `${offset * 100}%`,
-                        //                 duration: 0.5,
-                        //                 ease: "power2.inOut",
-                        //             }, "<")
-                        //         }
-                        //     })
-                        //     tl.play();
-
-                        // }
-                    }
+            if (!page) return;
+            if (prepage) {
+                const isFamily = isSameTree(pageContainers, page.uri, prepage.uri);
+                const currentContainer = findContainer(pageContainers, page.uri);
+                const prevContainer = findContainer(pageContainers, prepage.uri);
+                const sameSlideParent =
+                    !!currentContainer?.parentURI &&
+                    currentContainer.parentURI === prevContainer?.parentURI &&
+                    currentContainer.init === "slide" &&
+                    prevContainer?.init === "slide";
+                if (isFamily || sameSlideParent) {
+                    OpenUpdateEffects.slide({ page, containers: pageContainers, onComplete });
                 } else {
-                    OpenNewEffects.none({ page, containers: pageContainers, onComplete });
+                    onComplete?.();
                 }
+            } else {
+                OpenNewEffects.none({ page, containers: pageContainers, onComplete });
             }
         },
         [pageContainers]

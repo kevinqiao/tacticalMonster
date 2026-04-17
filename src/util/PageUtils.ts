@@ -110,9 +110,22 @@ export const getURIParam = (name: string): string | null => {
     const params = new URLSearchParams(urlObj.search);
     return params.get(name);
 }
+
+/**
+ * 与 PageConfig 生成的 uri 对齐（去掉尾部 `/` 等），避免 pathname 与 openPage 不一致时
+ * findContainer/findAncestor 返回 null → isSameTree 误判为 false → 整层 lobby 被 pageComplete 压暗（黑屏）且 slide 被跳过。
+ */
+export function normalizePageUri(uri: string): string {
+    if (!uri) return uri;
+    const t = uri.trim();
+    if (t === "/" || t === "") return "/";
+    return t.replace(/\/+$/, "");
+}
+
 export const findContainerByURI = (container: PageContainer, uri: string): PageContainer | null => {
+    const u = normalizePageUri(uri);
     // 如果当前节点的 id 匹配，返回当前节点
-    if (container.uri === uri) {
+    if (normalizePageUri(container.uri) === u) {
         return container;
     }
 
@@ -146,8 +159,9 @@ export const findContainer = (containers: PageContainer[], uri: string): PageCon
  * 若 uri 对应顶层列表中的节点，则返回 null。
  */
 export const findParent = (containers: PageContainer[], uri: string): PageContainer | null => {
+    const u = normalizePageUri(uri);
     for (const container of containers) {
-        if (container.children?.some((c) => c.uri === uri)) {
+        if (container.children?.some((c) => normalizePageUri(c.uri) === u)) {
             return container;
         }
     }
@@ -182,9 +196,10 @@ export const isSibling = (containers: PageContainer[], uri: string, preUri: stri
     return false;
 }
 export const isSameTree = (containers: PageContainer[], uri: string, preUri: string): boolean => {
+    if (!uri || !preUri) return false;
     const ancestor = findAncestor(containers, uri);
     const preAncestor = findAncestor(containers, preUri);
-    if (ancestor && preAncestor && ancestor?.uri === preAncestor?.uri) {
+    if (ancestor && preAncestor && normalizePageUri(ancestor.uri) === normalizePageUri(preAncestor.uri)) {
         return true;
     }
     return false;

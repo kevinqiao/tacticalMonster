@@ -6,7 +6,7 @@
 import gsap from "gsap";
 import React, { useEffect, useRef, useState } from "react";
 import { useTeamDeployManager } from "../service/TeamDeployManager";
-import { hexToPixel } from "./utils/coordinateUtils";
+import { hexToPixel } from "../utils/coordinateUtils";
 
 /**
  * 障碍物单元格

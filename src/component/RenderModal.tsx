@@ -1,8 +1,7 @@
-import { CloseModalEffects } from "@/animate/effect/CloseModalEffects";
-import { OpenModalEffects } from "@/animate/effect/OpenModalEffects";
-import { ModalContainer, ModalProp, useModalManager } from "@/service/ModalManager";
-import React, { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
+import { ModalContainer, ModalItem, ModalProp, useModalManager } from "@/service/ModalManager";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import "./render.css";
+import { useModalAnimate } from "./shell/useModalAnimate";
 
 
 // 组件路径映射 - 静态映射所有可能的组件
@@ -62,49 +61,72 @@ const getCachedComponent = (path: string): React.ComponentType<ModalProp> => {
 };
 
 const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) => {
+
+  const [modal, setModal] = useState<ModalItem | undefined>(undefined);
   const { modals, closeModal } = useModalManager();
-  const index = useMemo(() => {
-    return modals.findIndex((modal) => modal.name === container.name);
-  }, [modals]);
+  const { playOpen, playClose } = useModalAnimate();
+  const zIndex = useMemo(() => {
+    const index = modals.findIndex((modal) => modal.name === container.name);
+    if (index >= 0) {
+      return 500 + index;
+    } else {
+      return 0;
+    }
+  }, [modals, container.name]);
 
   const close = useCallback(() => {
-    CloseModalEffects["fadeOut"]({
-      container: container, onComplete: () => {
-        console.log("close modal", container.name);
-        closeModal();
+    if (!modal) return;
+    playClose({
+      container, modal, onComplete: () => {
+        console.log("close modal complete", container.name);
+        closeModal(container.name);
       }
     });
-  }, [container, closeModal]);
+
+  }, [container, modal, closeModal, playClose]);
 
   const SelectedComponent = useMemo(() => {
     return getCachedComponent(container.path);
   }, [container.path]);
-  useEffect(() => {
 
-    if (index >= 0) {
-      OpenModalEffects["fadeIn"]({ container: container, index: index });
+  useEffect(() => {
+    const m = modals.find((modal) => modal.name === container.name);
+    if (m) {
+      setModal((prev) => {
+        return prev ?? m ?? undefined;
+      });
     } else {
-      CloseModalEffects["fadeOut"]({ container: container });
+      setModal(undefined);
     }
-  }, [index]);
+  }, [modals, container.name]);
+  useEffect(() => {
+    if (modal) {
+      playOpen({
+        container, modal, onComplete: () => {
+          // console.log("open modal complete", container.name);
+        }
+      });
+    }
+  }, [modal, playOpen]);
 
   return (
-    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 100 + index, backgroundColor: 'transparent', pointerEvents: 'none' }}>
-      <div className="modal-mask" ref={(ele) => container.mask = ele}></div>
+    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex, backgroundColor: 'transparent', pointerEvents: modal ? 'auto' : 'none' }}>
+      <div className="modal-mask" ref={(ele) => container.mask = ele} onClick={close}></div>
       <div
         key={`${container.name}`}
         id={`${container.name}`}
         ref={(ele) => container.ele = ele}
-        className={container.class ?? 'modal-container'}
-        data-visible={index >= 0 ? true : false}
+        className={'modal-container'}
+        data-visible={modal ? true : false}
         data-container-name={container.name}
         data-init={container.init}
       >
-        <Suspense fallback={<div />}><SelectedComponent name={container.name as string} container={container} visible={index >= 0 ? true : false} data={modals[index]?.data} close={close} /></Suspense>;
+        <Suspense fallback={<div />}><SelectedComponent visible={modal ? true : false} data={modal?.data} close={close} /></Suspense>
+        <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={close}>
+          X
+        </div>
       </div>
-      <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={close}>
-        X
-      </div>
+
     </div>
   )
 };
@@ -128,7 +150,7 @@ const RenderModal: React.FC = () => {
     ));
   }, [modalContainers]);
 
-  return <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 20000, backgroundColor: 'transparent', pointerEvents: 'none' }}>{renderModals}</div>;
+  return <>{renderModals}</>;
 };
 
 export default RenderModal;
