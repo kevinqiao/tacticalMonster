@@ -1,8 +1,8 @@
 import { ModalContainer, ModalItem, ModalProp, useModalManager } from "@/service/ModalManager";
+import gsap from "gsap";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import "./render.css";
 import { useModalAnimate } from "./shell/useModalAnimate";
-
 
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
@@ -64,7 +64,7 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
 
   const [modal, setModal] = useState<ModalItem | undefined>(undefined);
   const { modals, closeModal } = useModalManager();
-  const { playOpen, playClose } = useModalAnimate();
+  const { playOpen, playClose, syncModalOpenLayout } = useModalAnimate();
   const zIndex = useMemo(() => {
     const index = modals.findIndex((modal) => modal.name === container.name);
     if (index >= 0) {
@@ -88,7 +88,17 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
   const SelectedComponent = useMemo(() => {
     return getCachedComponent(container.path);
   }, [container.path]);
-
+  useEffect(() => {
+    console.log("zIndex", zIndex);
+    if (container.ele && zIndex === 0) {
+      gsap.set(container.mask!, {
+        autoAlpha: 0,
+      });
+      gsap.set(container.ele!, {
+        autoAlpha: 0,
+      });
+    }
+  }, [zIndex, container.ele]);
   useEffect(() => {
     const m = modals.find((modal) => modal.name === container.name);
     if (m) {
@@ -107,7 +117,29 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
         }
       });
     }
-  }, [modal, playOpen]);
+  }, [container, modal, playOpen]);
+
+  /** 横竖屏 / 视口变化后重算 GSAP 布局，避免 transform 与百分比错位 */
+  useEffect(() => {
+    if (!modal) return;
+    let raf = 0;
+    const scheduleSync = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        syncModalOpenLayout({ container, modal });
+      });
+    };
+    window.addEventListener("resize", scheduleSync);
+    window.addEventListener("orientationchange", scheduleSync);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", scheduleSync);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", scheduleSync);
+      window.removeEventListener("orientationchange", scheduleSync);
+      vv?.removeEventListener("resize", scheduleSync);
+    };
+  }, [container, modal, syncModalOpenLayout]);
 
   return (
     <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex, backgroundColor: 'transparent', pointerEvents: modal ? 'auto' : 'none' }}>
@@ -122,10 +154,11 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
         data-init={container.init}
       >
         <Suspense fallback={<div />}><SelectedComponent visible={modal ? true : false} data={modal?.data} close={close} /></Suspense>
+        <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={close}>
+          X
+        </div>
       </div>
-      <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={close}>
-        X
-      </div>
+
     </div>
   )
 };

@@ -117,7 +117,7 @@ const LobbyHome: React.FC<PageProp> = ({ visible }) => {
   }, [setShared]);
 
   /** 与 RenderApp 中 lobby 子页先于 LobbyHome 配合：顶/底条在后渲染，叠在子页之上；中间无额外层 */
-  const stripH = "7%";
+  const stripH = "8%";
   return (
     <>
       <div

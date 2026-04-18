@@ -1,5 +1,6 @@
 import { ModalConfig, Modals } from "@/model/PageConfiguration";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useSharedValue } from "./SharedPageDataManager";
 import { useUserManager } from "./UserManager";
 export interface ModalProp {
   visible: boolean;
@@ -38,6 +39,7 @@ const ModalContext = createContext<IModalContext>({
 export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, authReq, askAuth } = useUserManager();
   const [modals, setModals] = useState<ModalItem[]>([]);
+  const isPortrait = useSharedValue("lobby.layout.portrait");
   const modalContainers: { [key: string]: ModalContainer } = useMemo(() => {
     return Modals
   }, []);
@@ -61,6 +63,10 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
       openModal(authReq.modal.name, authReq.modal.data, authReq.modal.effect);
     }
   }, [authReq, user, openModal]);
+  useEffect(() => {
+    setModals([]);
+  }, [isPortrait]);
+
   const value = {
     modals,
     modalContainers,
