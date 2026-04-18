@@ -44,7 +44,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/view/Child2': () => import('./lobby/view/Child2'),
   './lobby/view/Child3': () => import('./lobby/view/Child3'),
   './lobby/view/Child4': () => import('./lobby/view/Child4'),
-  './lobby/center/GameList': () => import('./lobby/center/GameList'),
   './lobby/tournament/PlayMatch': () => import('./lobby/tournament/PlayMatch'),
   './lobby/control/NavControl': () => import('./lobby/control/NavControl'),
   './www/W3Home': () => import('./www/W3Home'),

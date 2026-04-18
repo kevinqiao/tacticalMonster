@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useSharedValue } from "service/SharedPageDataManager";
 import { preloadImages } from "util/preloadAssets";
 import { child2CriticalAssets } from "./child2Assets";
-import LandscapeContent from "./play/LandScapeContent";
+import LandscapeContent from "./play/LandscapeContent";
 import PortraitContent from "./play/PortraitContent";
 
 

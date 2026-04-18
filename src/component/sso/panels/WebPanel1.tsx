@@ -87,7 +87,7 @@ const WebPanel1: React.FC<{ visible: number, onClose: () => void }> = ({ visible
             opacity: 0,
             overflow: "hidden",
             pointerEvents: visible > 0 ? "auto" : "none"
-        }} />
+        }} onClick={onComplete} />
 
         {/* 滑动面板 */}
         <div ref={containerRef} style={{

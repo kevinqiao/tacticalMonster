@@ -44,7 +44,7 @@ interface IUserContext {
   authReq: { page?: PageItem; modal?: ModalItem } | null;
   authComplete: (user: any, persist: number) => void;
   logout: () => Promise<void>;
-  updateUserData: (data: any) => Promise<void>;
+
 }
 
 const UserContext = createContext<IUserContext>({
@@ -54,16 +54,13 @@ const UserContext = createContext<IUserContext>({
   authReq: null,
   logout: async () => { },
   authComplete: (user: any, persist: number) => null,
-  updateUserData: async () => { },
+
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [authReq, setAuthReq] = useState<{ page?: PageItem; modal?: ModalItem } | null>(null);
 
-
-  // const [events, setEvents] = useState<Event[] | null>(null);
-  // const [lastUpdate, setLastUpdate] = useState<number | undefined>(user?.lastUpdate);
   const convex = useConvex();
 
   const askAuth = useCallback(({ page, modal }: { page?: PageItem; modal?: ModalItem }) => {
@@ -81,13 +78,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("user", JSON.stringify(u));
     setUser(u);
   }, []);
-  const updateUserData = useCallback(async (data: any) => {
-    console.log("updateUserData", user?.uid, user?.token, data);
-    if (user?.uid && user?.token) {
-      const result = await convex.action(api.service.AuthManager.updateData, { uid: user?.uid, token: user?.token, data })
-      // console.log("updateData result", result);
-    }
-  }, [user]);
+
 
   const logout = useCallback(async () => {
 
@@ -138,7 +129,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
 
 
-  const value = { user, authComplete, logout, updateUserData, askAuth, cancelAuth, authReq };
+  const value = { user, authComplete, logout, askAuth, cancelAuth, authReq };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

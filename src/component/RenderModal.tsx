@@ -89,7 +89,7 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
     return getCachedComponent(container.path);
   }, [container.path]);
   useEffect(() => {
-    console.log("zIndex", zIndex);
+
     if (container.ele && zIndex === 0) {
       gsap.set(container.mask!, {
         autoAlpha: 0,
