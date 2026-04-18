@@ -1,5 +1,6 @@
 import { ModalConfig, Modals } from "@/model/PageConfiguration";
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useUserManager } from "./UserManager";
 export interface ModalProp {
   visible: boolean;
   data?: any;
@@ -35,13 +36,18 @@ const ModalContext = createContext<IModalContext>({
 });
 
 export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user, authReq, askAuth } = useUserManager();
   const [modals, setModals] = useState<ModalItem[]>([]);
   const modalContainers: { [key: string]: ModalContainer } = useMemo(() => {
     return Modals
   }, []);
 
   const openModal = useCallback((name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } | undefined) => {
-
+    const container = modalContainers[name];
+    if (container && container.auth === 1 && !user?.uid) {
+      askAuth({ modal: { name, data, effect } });
+      return;
+    }
     setModals((prev) => {
       const pre = prev.find((modal) => modal.name === name)
       // console.log("open modal", pre);
@@ -49,7 +55,12 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
       return p;
     });
 
-  }, [])
+  }, [user, askAuth])
+  useEffect(() => {
+    if (authReq && authReq.modal && user?.uid) {
+      openModal(authReq.modal.name, authReq.modal.data, authReq.modal.effect);
+    }
+  }, [authReq, user, openModal]);
   const value = {
     modals,
     modalContainers,

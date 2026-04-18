@@ -16,20 +16,25 @@ const usePreGameAnimate = (teamLayoutRef: React.RefObject<HTMLDivElement>, loadi
             duration: 0.5,
             ease: "power2.inOut"
         });
+        tl.to(playGameRef.current, {
+            autoAlpha: 0,
+            duration: 0.5,
+            ease: "power2.inOut"
+        }, "<");
         tl.to(loadingRef.current, {
             autoAlpha: 0,
             duration: 0.5,
             ease: "power2.inOut"
-        }, ">");
+        }, "<");
         tl.play();
     }, []);
     const playLoading = useCallback(() => {
         const tl = gsap.timeline();
-        tl.to(teamLayoutRef.current, {
-            autoAlpha: 0,
-            duration: 0.5,
-            ease: "power2.inOut"
-        });
+        // tl.to(teamLayoutRef.current, {
+        //     autoAlpha: 0,
+        //     duration: 0.5,
+        //     ease: "power2.inOut"
+        // });
         tl.to(loadingRef.current, {
             autoAlpha: 0.6,
             duration: 0.5,

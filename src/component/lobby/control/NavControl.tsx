@@ -5,11 +5,11 @@ import { useUserManager } from "service/UserManager";
 import "./style.css";
 const NavControl: React.FC<PageProp> = ({ close }) => {
 
-  const { openPage, askAuth, changeEvent } = usePageManager();
-  const { user, logout } = useUserManager();
+  const { openPage } = usePageManager();
+  const { user, logout, askAuth } = useUserManager();
 
   const signIn = useCallback(() => {
-    askAuth({ params: { action: "signin" } });
+    askAuth({});
   }, [askAuth]);
   const signOut = useCallback(async () => {
     close?.()

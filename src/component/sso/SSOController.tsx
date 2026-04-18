@@ -37,8 +37,8 @@ const PANEL_LOADERS: Record<
 const SSOController: React.FC = () => {
   const [visible, setVisible] = useState(0);
   const [panelConfig, setPanelConfig] = useState<{ pid: string, name: string, path: string } | null>(null);
-  const { pageContainers, currentPage, authReq, cancelAuth } = usePageManager();
-  const { user } = useUserManager()
+  const { pageContainers, currentPage } = usePageManager();
+  const { user, cancelAuth, authReq } = useUserManager()
   const SelectedComponent = useMemo(() => {
     if (!panelConfig) return null;
     const load = PANEL_LOADERS[panelConfig.path];
@@ -62,14 +62,15 @@ const SSOController: React.FC = () => {
     }
   }, []);
   useEffect(() => {
-    if (!pageContainers || !currentPage || !user) return;
-    const container = findContainer(pageContainers, currentPage?.uri);
+    if (!pageContainers || !user) return;
+    const container = currentPage ? findContainer(pageContainers, currentPage.uri) : null;
+    if (!container) return;
     if (container && authReq) {
       //非强制认证 弹窗可关闭
       setVisible(1);
       return;
     }
-    if ((!container || container.auth === 1) && !user?.uid) {
+    if (container.auth === 1 && !user.uid) {
       //强制认证 弹窗不可关闭
       setVisible(2);
       return;

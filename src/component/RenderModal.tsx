@@ -122,11 +122,10 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
         data-init={container.init}
       >
         <Suspense fallback={<div />}><SelectedComponent visible={modal ? true : false} data={modal?.data} close={close} /></Suspense>
-        <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={close}>
-          X
-        </div>
       </div>
-
+      <div ref={(ele) => container.closeEle = ele ?? undefined} className="modal-close" onClick={close}>
+        X
+      </div>
     </div>
   )
 };

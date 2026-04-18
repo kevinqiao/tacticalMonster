@@ -14,7 +14,7 @@ import CombatManager from "./service/CombatManager";
 import { GameData } from "../../PlayTournament";
 import { getStageRuleConfig } from "./config/stageRuleConfigs";
 import "./styles.css";
-import TeamLayout3D from "./team3d/TeamLayout3D";
+import { TeamLayout3D } from "./team3d";
 import { GameModel } from "./types/gameTypes";
 import { Stage } from "./types/StageTypes";
 
@@ -76,7 +76,7 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
     const tournamentClient = React.useMemo(() => { return new ConvexClient(URLS.tournament) }, []);
     const tacticalMonsterClient = React.useMemo(() => { return new ConvexHttpClient(URLS.tacticalMonster) }, []);
     const { openTeamLayout, openPlayGame } = usePreGameAnimate(teamLayoutRef, loadingRef, playGameRef);
-    console.log("PlayTacticalMonster", gameData);
+
 
     const startJoin = useCallback(async () => {
         const { typeId, stageId } = gameData;
@@ -211,8 +211,8 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
     }, [playMode, gameData, user?.uid, tacticalMonsterClient]);
 
     return <>
-        <div ref={teamLayoutRef} className="team-layout-container">
-
+        <div ref={teamLayoutRef} className="play-tactical-monster-container">
+            {/* <div style={{ width: "100%", height: "100%", backgroundColor: "red" }}></div> */}
             {stage && <TeamLayout3D stage={stage} typeId={gameData.typeId} onComplete={startJoin} />}
 
         </div>

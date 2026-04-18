@@ -74,7 +74,8 @@
     color: white;
     opacity: 0;
     visibility: hidden;
-    background-color: transparent;
+    /* background-color: transparent; */
+    background-color: rgb(42, 24, 211);
 }
 
 .play-mask {

@@ -2,6 +2,8 @@
 import { useConvex } from "convex/react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "../convex/sso/convex/_generated/api";
+import { ModalItem } from "./ModalManager";
+import { PageItem } from "./PageManager";
 
 export interface User {
   uid?: string;
@@ -37,10 +39,9 @@ export interface UserEvent {
 }
 interface IUserContext {
   user: any;
-  // sessions: AppSession[];
-  // // updateLoaded: () => void;
-  // ssaAuthComplete: (ssa: string, player: any) => void;
-  // updateSession: (app: string, session: { token: string; status: number }) => void;
+  askAuth: ({ page, modal }: { page?: PageItem; modal?: ModalItem }) => void;
+  cancelAuth: () => void;
+  authReq: { page?: PageItem; modal?: ModalItem } | null;
   authComplete: (user: any, persist: number) => void;
   logout: () => Promise<void>;
   updateUserData: (data: any) => Promise<void>;
@@ -48,8 +49,9 @@ interface IUserContext {
 
 const UserContext = createContext<IUserContext>({
   user: null,
-  // sessions: [],
-  // ssaAuthComplete: () => null,
+  askAuth: () => { },
+  cancelAuth: () => { },
+  authReq: null,
   logout: async () => { },
   authComplete: (user: any, persist: number) => null,
   updateUserData: async () => { },
@@ -57,12 +59,22 @@ const UserContext = createContext<IUserContext>({
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [authReq, setAuthReq] = useState<{ page?: PageItem; modal?: ModalItem } | null>(null);
+
 
   // const [events, setEvents] = useState<Event[] | null>(null);
   // const [lastUpdate, setLastUpdate] = useState<number | undefined>(user?.lastUpdate);
   const convex = useConvex();
-  // const userEvents: UserEvent[] | undefined = useQuery(api.dao.eventDao.find, { uid: user?.uid ?? "", lastUpdate });
 
+  const askAuth = useCallback(({ page, modal }: { page?: PageItem; modal?: ModalItem }) => {
+    if (!user?.uid) {
+      setAuthReq({ page, modal })
+    }
+  }, [user]);
+
+  const cancelAuth = useCallback(() => {
+    setAuthReq(null);
+  }, [user, authReq]);
   const authComplete = useCallback((u: any, persist: number) => {
     console.log("authComplete", u);
     u.expire = u.expire + Date.now();
@@ -124,19 +136,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   }, []);
 
-  // useEffect(() => {
-  //   if (user?.uid && user?.token) {
-  //     setSessions(Object.keys(SSA_AUTH_URLS).map(key => {
-  //       return { app: key, status: AppSessionStatus.TO_BE_SIGNED_IN }
-  //     }))
-  //     localStorage.setItem("user", JSON.stringify(user));
-  //   } else {
-  //     setSessions([])
-  //     localStorage.removeItem("user");
-  //   }
-  // }, [user])
 
-  const value = { user, authComplete, logout, updateUserData };
+
+  const value = { user, authComplete, logout, updateUserData, askAuth, cancelAuth, authReq };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

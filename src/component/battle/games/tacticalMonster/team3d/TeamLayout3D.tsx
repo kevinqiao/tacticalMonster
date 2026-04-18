@@ -387,8 +387,8 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
         backgroundSize: "cover",
         backgroundPosition: "center",
         transform: isPortrait ? "translate(-50%, -50%) rotate(-90deg)" : "translate(-50%, -50%)",
-        pointerEvents: "none",
-        zIndex: 0,
+        // pointerEvents: "none",
+        // zIndex: 0,
     }), [isPortrait]);
 
     // 地图容器样式（与 BattleVenue3D 一致：居中 + offset 微调 + mapDimension 宽高）
@@ -468,15 +468,12 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
             {/* 背景层：竖屏时旋转 90 度，不影响坐标 */}
             <div style={bgStyle} />
 
-            <div className="team-editor-container" style={{ position: "relative", width: "100%", height: "100%", zIndex: 1 }}>
+            <div className="team-editor-container" style={{ position: "relative", width: "100%", height: "100%" }}>
                 <div
                     ref={mapContainerRef}
                     className="team-map-container"
                     style={mapContainerStyle}
                 >
-
-
-                    {/* React Three Fiber Canvas + 画布外悬停面板（投影定位） */}
                     <TeamLayoutHoverOverlayProvider>
                         <TeamLayoutLoadingContext.Provider value={loadingContextValue}>
                             <CanvasWithControls
@@ -494,7 +491,7 @@ const TeamLayoutContent3D: React.FC<{ onComplete: () => void }> = ({ onComplete 
                     </TeamLayoutHoverOverlayProvider>
                 </div>
 
-                {/* 候选怪物列表（2D UI overlay） */}
+
                 <div
                     ref={candidateContainerRef}
                     className="candidates-container"

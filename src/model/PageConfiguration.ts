@@ -4,11 +4,10 @@ export const PlayPlace =
     name: "playPlace",
     entry: "playcenter",
     context: "/play",
-    auth: 0,//0-public 1-consumer 2-worker 3-admin
     navs: [
         {
             name: "lobby",
-            auth: 0,
+            auth: 1,
             path: "./lobby/LobbyHome",
             uri: "lobby",
             child: "child2",
@@ -17,7 +16,7 @@ export const PlayPlace =
             exit: "fadeOut",
             control: "./lobby/LobbyControl",
             children: [
-                { name: "child1", class: "page_container", init: "slide", path: "./lobby/view/Child1", uri: "c1", auth: 0, open: "slideIn" },
+                { name: "child1", class: "page_container", init: "slide", path: "./lobby/view/Child1", uri: "c1", auth: 1, open: "slideIn" },
                 /** 路由需 auth:0，否则未登录时 openPage 不会派发 pageOpen，大厅 slide 不会动；权限在 Child2 内处理 */
                 { name: "child2", class: "page_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 0, open: "slideIn" },
                 { name: "child3", class: "page_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
@@ -57,7 +56,7 @@ export const Modals: Record<string, ModalConfig> = {
     "join_tournament": {
         name: "join_tournament",
         path: "./lobby/tournament/TournamentJoinList",
-        auth: 0,
+        auth: 1,
         effect: { name: "swipeRight", args: { width: "30%" } },
 
     }  // "game_over": {
@@ -80,7 +79,6 @@ export interface AppConfig {
     name: string;
     context: string;
     entry: string;
-    auth: number;
     navs: PageConfig[];
 }
 export interface PageConfig {

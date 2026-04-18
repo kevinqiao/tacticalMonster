@@ -111,6 +111,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
 
     if (!pageEvent || !container) return;
     const { name, page, prepage } = pageEvent;
+    // console.log("pageEvent", name, page, prepage);
     if (name === "pageOpen") {
       if (page?.uri?.startsWith(container.uri) || prepage?.uri?.startsWith(container.uri)) {
         setVisible(1);
@@ -127,55 +128,6 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
     }
 
   }, [pageEvent, container, pageContainers]);
-  // useEffect(() => {
-  //   if (!pageEvent || !container) return;
-  //   const { name, page, prepage } = pageEvent;
-  //   if (name === "pageOpen") {
-  //     if (!page?.uri) return;
-  //     const p = normalizePageUri(page.uri);
-  //     const c = normalizePageUri(container.uri);
-  //     /**
-  //      * 叶子子页必须用「全路径相等」，不能用 startsWith(container.uri)：
-  //      * 否则从 c2 切到 c1 时 c2 仍为 visible=1（未命中 pageOpen），而 c1 也变为 1，
-  //      * 同树后序的 child2 盖住 child1，滑动后仍显示 Child2。
-  //      * 父级（含子路由的容器）用「自身 uri 或 uri/ 前缀」表示当前仍在其树下。
-  //      */
-  //     const hasChildRoutes = !!container.children?.length;
-  //     if (hasChildRoutes) {
-  //       if (p === c || p.startsWith(`${c}/`)) {
-  //         setVisible(1);
-  //       } else {
-  //         setVisible(0);
-  //       }
-  //     } else if (p === c) {
-  //       setVisible(1);
-  //     } else {
-  //       setVisible(0);
-  //     }
-  //   } else if (name === "pageComplete") {
-  //     if (prepage?.uri) {
-  //       const isHerit = isSameTree(pageContainers, page.uri, prepage.uri);
-  //       const p = normalizePageUri(page.uri);
-  //       const pre = normalizePageUri(prepage.uri);
-  //       const c = normalizePageUri(container.uri);
-  //       /** 必须用「等于」或「container/子路径」，避免裸 startsWith 误匹配 */
-  //       const preUnderContainer = pre === c || pre.startsWith(`${c}/`);
-  //       const pageUnderContainer = p === c || p.startsWith(`${c}/`);
-  //       if (isHerit) {
-  //         if (pre === c) {
-  //           setVisible(0);
-  //           /** slide 子页不再用 autoAlpha 收起，避免透明态竞态；仅靠 left 决定是否在视口内。 */
-  //         }
-  //       } else if (preUnderContainer && !pageUnderContainer) {
-  //         setVisible(0);
-  //         /** 离开树时仍由父容器显隐控制；slide 叶子不单独压暗。 */
-  //       }
-  //     }
-  //   }
-
-  // }, [pageEvent, container, pageContainers]);
-
-  /** 统一子页优先渲染，避免父层覆盖子层交互。 */
 
   return (
     <>

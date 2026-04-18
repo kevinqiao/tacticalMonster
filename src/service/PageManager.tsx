@@ -49,9 +49,9 @@ interface IPageContext {
   app: App | null;
   pageContainers: PageContainer[];
   containersLoaded: number;
-  askAuth: ({ params, pageURI }: { params?: { [k: string]: string }; pageURI?: string }) => void;
-  cancelAuth: () => void;
-  authReq: { params?: { [k: string]: string }; pageURI?: string } | null;
+  // askAuth: ({ params, pageURI }: { params?: { [k: string]: string }; pageURI?: string }) => void;
+  // cancelAuth: () => void;
+  // authReq: { params?: { [k: string]: string }; pageURI?: string } | null;
   openPage: (page: PageItem) => void;
   completePage: () => void;
   onLoad: () => void;
@@ -63,11 +63,11 @@ const PageContext = createContext<IPageContext>({
   currentPage: null,
   pageUpdated: null,
   app: null,
-  authReq: null,
+  // authReq: null,
   pageContainers: [],
   containersLoaded: 0,
-  askAuth: () => null,
-  cancelAuth: () => null,
+  // askAuth: () => null,
+  // cancelAuth: () => null,
   openPage: (p: PageItem) => null,
   completePage: () => null,
   onLoad: () => null,
@@ -76,6 +76,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
   const { pageEvent, completePage } = usePageManager();
   const { playOpen } = usePageAnimate();
   useEffect(() => {
+    console.log("pageEvent", pageEvent);
     if (pageEvent?.name === "pageOpen") {
       playOpen({
         page: pageEvent.page, prepage: pageEvent.prepage, onComplete: () => {
@@ -94,7 +95,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useUserManager();
+  const { user, askAuth, cancelAuth, authReq } = useUserManager();
   const { clearNamespace } = useSharedPageData();
   // const loadingBGRef = useRef<{ ele: HTMLDivElement | null; status: number }>({ ele: null, status: 1 });
   const historiesRef = useRef<PageItem[]>([]);
@@ -104,7 +105,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   const [pageEvent, setPageEvent] = useState<PageEvent | null>(null);
   const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
-  const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; page?: PageItem; force?: boolean } | null>(null);
+  // const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; page?: PageItem; modal?: ModalItem } | null>(null);
   const pageContainers: PageContainer[] = useMemo(() => {
     const containers = AppsConfiguration.reduce<PageConfig[]>((acc, config) => {
       return acc.concat(
@@ -135,35 +136,37 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     const parent = container.parentURI ? findContainer(pageContainers, container.parentURI) : null;
     return (container?.auth === 1 || parent?.auth === 1) && (!user || !user.uid) ? true : false;
   }, [user, pageContainers]);
-  const askAuth = useCallback(({ params, page }: { params?: { [k: string]: string }; page?: PageItem }) => {
-    if (!user?.uid) {
-      setAuthReq({ params, page })
-    }
-  }, [user, pageContainers]);
+  // const askAuth = useCallback(({ params, page }: { params?: { [k: string]: string }; page?: PageItem }) => {
+  //   if (!user?.uid) {
+  //     setAuthReq({ params, page })
+  //   }
+  // }, [user, pageContainers]);
 
-  const cancelAuth = useCallback(() => {
-    setAuthReq(null);
-  }, [user, authReq, pageContainers]);
+  // const cancelAuth = useCallback(() => {
+  //   setAuthReq(null);
+  // }, [user, authReq, pageContainers]);
 
   const openPage = useCallback((page: PageItem) => {
-
+    const container = findContainer(pageContainers, page.uri);
+    if (!container) return;
     if (normalizePageUri(page.uri) === normalizePageUri(currentPageRef.current?.uri ?? "")) {
       setPageUpdated(page);
       return;
     }
     const authRequired = requireAuth(page);
     if (authRequired) {
-      setAuthReq({ page: page, force: true });
+      askAuth({ page: page });
       return;
     }
 
     // const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-    history.pushState({ index: 0 }, "", page.uri);
+    // history.pushState({ index: 0 }, "", page.uri);
+    window.history.replaceState(null, "", page.uri);
     historiesRef.current.push(page);
     if (historiesRef.current.length > 10) {
       historiesRef.current.shift();
     }
-
+    console.log("openPage", page);
     const prepage = currentPageRef.current;
     setPageEvent({ name: "pageOpen", prepage, page: page });
     currentPageRef.current = page;
@@ -222,6 +225,12 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       window.removeEventListener("popstate", handlePopState);
     };
   }, []);
+  useEffect(() => {
+    if (authReq && authReq.page && user?.uid) {
+      openPage(authReq.page);
+      cancelAuth();
+    }
+  }, [authReq, user, cancelAuth, openPage]);
 
   const value = {
     histories: historiesRef.current,
@@ -232,10 +241,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     containersLoaded,
     // initCompleted,
     app,
-    authReq,
-    // loadingBG: loadingBGRef.current,
-    askAuth,
-    cancelAuth,
+    // authReq,
+    // askAuth,
+    // cancelAuth,
     openPage,
     completePage,
     onLoad,

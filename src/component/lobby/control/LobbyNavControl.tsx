@@ -3,16 +3,17 @@ import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import "../styles.css";
 const LobbyControl: React.FC = () => {
-  const { openPage, askAuth } = usePageManager();
-  const { user, logout } = useUserManager();
+  const { openPage } = usePageManager();
+
+  const { user, logout, askAuth, cancelAuth } = useUserManager();
 
   const signIn = useCallback(() => {
-    askAuth({ params: { action: "signin" } });
+    askAuth({});
   }, [askAuth]);
   const signOut = useCallback(() => {
-    console.log("signOut");
+    cancelAuth();
     logout();
-  }, [logout]);
+  }, [logout, cancelAuth]);
   return (
     <>
 
