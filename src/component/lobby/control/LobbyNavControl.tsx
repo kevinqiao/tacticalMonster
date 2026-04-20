@@ -1,94 +1,37 @@
 import { useSharedValue } from "@/service/SharedPageDataManager";
-import React, { useCallback } from "react";
-import { usePageManager } from "service/PageManager";
-import { useUserManager } from "service/UserManager";
-import "../styles.css";
-import "./style.css";
-const PortraitControl: React.FC = () => {
-  const { openPage } = usePageManager();
-  const { user, logout, askAuth, cancelAuth } = useUserManager();
+import React from "react";
+import { LobbyNavBarDesktop } from "./LobbyNavBarDesktop";
+import { LobbyNavBarTouch } from "./LobbyNavBarTouch";
+import "./lobbyNavControl.css";
+import { useLobbyNavIsDesktop } from "./useLobbyNavIsDesktop";
 
-  const signIn = useCallback(() => {
-    askAuth({});
-  }, [askAuth]);
-  const signOut = useCallback(() => {
-    cancelAuth();
-    logout();
-  }, [logout, cancelAuth]);
-  return (
-    <div className="portrait-control">
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c1" })}>
-        Child1
-      </div>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c2" })}>
-        Child2
-      </div>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c3" })}>
-        Child3
-      </div>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c4" })}>
-        Child4
-      </div>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/map" })}>
-        Map
-      </div>
-
-      {user?.uid ? <div className="action-panel-item" onClick={signOut}>
-        Logout
-      </div> : <div className="action-panel-item" onClick={signIn}>
-        SignIn
-      </div>}
-
-    </div>
-  )
-}
-const LandscapeControl: React.FC = () => {
-  const { openPage } = usePageManager();
-  const { user, logout, askAuth, cancelAuth } = useUserManager();
-
-  const signIn = useCallback(() => {
-    askAuth({});
-  }, [askAuth]);
-  const signOut = useCallback(() => {
-    cancelAuth();
-    logout();
-  }, [logout, cancelAuth]);
-  return (
-    <div className="action-control" style={{ left: 0 }}>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c1" })}>
-        Child1
-      </div>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c2" })}>
-        Child2
-      </div>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c3" })}>
-        Child3
-      </div>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/lobby/c4" })}>
-        Child4
-      </div>
-      <div className="action-panel-item" onClick={() => openPage({ uri: "/play/map" })}>
-        Map
-      </div>
-
-      {user?.uid ? <div className="action-panel-item" onClick={signOut}>
-        Logout
-      </div> : <div className="action-panel-item" onClick={signIn}>
-        SignIn
-      </div>}
-
-    </div>
-  )
-}
-const LobbyControl: React.FC = () => {
+const LobbyNavBar: React.FC = () => {
+  const isDesktop = useLobbyNavIsDesktop();
   const isPortrait = useSharedValue("lobby.layout.portrait");
-  if (isPortrait == null) return null;
-  return (
-    <>
-      {isPortrait ? <PortraitControl /> : <LandscapeControl />}
-    </>
-  );
+  if (isDesktop || !isPortrait) return <LobbyNavBarDesktop />;
+  return <LobbyNavBarTouch />;
 };
 
+const PortraitControl: React.FC = () => (
+  <div className="lobby-nav-shell--portrait">
+    <LobbyNavBar />
+  </div>
+);
+
+const LandscapeControl: React.FC = () => (
+  <div className="lobby-nav-shell--landscape">
+    <LobbyNavBar />
+  </div>
+);
+
+const LobbyControl: React.FC = () => {
+  const portrait = useSharedValue("lobby.layout.portrait");
+  /** 仅在为 true 时用竖屏壳；null/undefined 时用横屏壳，避免未测量或与 modal 竞态时整栏不渲染 */
+  return (
+    <div className="lobby-nav-root">
+      {portrait === true ? <PortraitControl /> : <LandscapeControl />}
+    </div>
+  );
+};
 
 export default LobbyControl;

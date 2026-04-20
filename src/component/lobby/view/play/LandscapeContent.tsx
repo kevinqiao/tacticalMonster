@@ -16,7 +16,6 @@ const Content: React.FC = () => {
     const lobbyContentDimension = useSharedValue("lobby.content.dimension");
     const { openModal } = useModalManager();
 
-
     useEffect(() => {
         if (lobbyContentDimension == null) return;
         const { width, height } = lobbyContentDimension;
@@ -53,7 +52,12 @@ const Content: React.FC = () => {
             <div style={{ position: "relative", width: dimension?.rw, height: dimension?.height, backgroundColor: "red", marginRight: "50px" }}>
                 <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", position: "absolute", bottom: 0, left: 0, width: "100%", height: "60px" }}>
                     <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "blue", color: "white" }} onClick={() => openModal("join_tournament", undefined, { name: "swipeRight", args: { width: "30%" } })}>JOIN</div>
-                    <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "green", color: "white" }}>RECORD</div>
+                    <div
+                        style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "green", color: "white" }}
+                        onClick={() => openModal("tournament_history", undefined, { name: "swipeRight", args: { width: "30%" } })}
+                    >
+                        RECORD
+                    </div>
                 </div>
             </div>
 

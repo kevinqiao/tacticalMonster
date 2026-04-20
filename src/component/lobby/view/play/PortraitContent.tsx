@@ -11,8 +11,13 @@ const PortraitContent: React.FC = () => {
             <div style={{ position: "absolute", top: lobbyHeadDimension.height + 10, left: "50%", transform: "translateX(-50%)", width: "95%", height: "100%" }}>
                 <div style={{ position: "relative", height: "50%", width: "100%", backgroundColor: "red" }}>
                     <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", position: "absolute", bottom: 0, left: 0, width: "100%", height: "25%" }}>
-                        <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "blue", color: "white" }} onClick={() => openModal("join_tournament", undefined, { name: "swipeTop", args: { height: "90%" } })}>JOIN</div>
-                        <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "green", color: "white" }}>RECORD</div>
+                        <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "blue", color: "white" }} onClick={() => openModal("join_tournament", undefined, { name: "swipeTop", args: { height: "100%" } })}>JOIN</div>
+                        <div
+                            style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "green", color: "white" }}
+                            onClick={() => openModal("tournament_history", undefined, { name: "swipeBottom", args: { height: "100%" } })}
+                        >
+                            RECORD
+                        </div>
                     </div>
                 </div>
                 <div style={{ height: "25%", width: "100%", backgroundColor: "blue" }}></div>

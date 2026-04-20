@@ -2,7 +2,7 @@ import { PageProp } from "component/RenderApp";
 import React, { useCallback } from "react";
 import { PageItem, usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
-import "./style.css";
+import "./lobbyNavControl.css";
 const NavControl: React.FC<PageProp> = ({ close }) => {
 
   const { openPage } = usePageManager();

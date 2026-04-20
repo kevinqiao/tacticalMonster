@@ -59,14 +59,14 @@ export const Modals: Record<string, ModalConfig> = {
         auth: 1,
         effect: { name: "swipeRight", args: { width: "30%" } },
 
-    }  // "game_over": {
-    //     name: "game_over",
-    //     path: "./battle/GameOver",
-    //     auth: 0,
-    //     init: "fadeIn",
-    //     openEffect: "popCenterIn",
-    //     closeEffect: "popCenterOut",
-    // }
+    },
+    "tournament_history": {
+        name: "tournament_history",
+        path: "./lobby/tournament/TournamentHistory",
+        auth: 1,
+        effect: { name: "swipeRight", args: { width: "30%" } },
+
+    }
 }
 export const animates: { [k: number]: any } = {
     1: { autoAlpha: 1, duration: 1.2 },

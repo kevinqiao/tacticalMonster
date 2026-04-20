@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module "*.svg?raw" {
+  const src: string;
+  export default src;
+}
+
 interface ImportMetaEnv {
   readonly VITE_CONVEX_URL?: string;
   readonly REACT_APP_CONVEX_URL?: string; // 向后兼容

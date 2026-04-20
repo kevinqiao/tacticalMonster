@@ -180,6 +180,10 @@ export const useModalAnimate = () => {
 
       const tl = gsap.timeline({
         onComplete: () => {
+          // 关闭后复位位移，避免 swipeRight/Left 把容器长期留在屏外导致横向 overflow 与 fixed 元素错位。
+          if (container.ele) gsap.set(container.ele, { x: 0, y: 0, autoAlpha: 0 });
+          if (container.mask) gsap.set(container.mask, { autoAlpha: 0 });
+          if (container.closeEle) gsap.set(container.closeEle, { autoAlpha: 0 });
           onComplete?.();
         },
       });

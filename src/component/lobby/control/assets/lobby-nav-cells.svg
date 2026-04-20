@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 热区真源：可由美术从 Figma/AI 导出替换；须保留 id="lobby-nav-cell-0" … "-5" 与 viewBox -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 44" width="480" height="44">
+  <path id="lobby-nav-cell-0" fill="none" d="M 0 44 L 0 9.68 L 22.480000000000004 0 L 58.84 10.559999999999999 L 67.2 44 Z" />
+  <path id="lobby-nav-cell-1" fill="none" d="M 67.2 44 L 58.18 7.92 L 93.44800000000001 0 L 132 8.8 L 124.8 44 Z" />
+  <path id="lobby-nav-cell-2" fill="none" d="M 124.8 44 L 132 8.8 L 172.28000000000003 0 L 210.66000000000003 9.68 L 220.8 44 Z" />
+  <path id="lobby-nav-cell-3" fill="none" d="M 220.8 44 L 209.88000000000002 7.04 L 262.5 0 L 315.4 7.92 L 307.2 44 Z" />
+  <path id="lobby-nav-cell-4" fill="none" d="M 307.2 44 L 314.8 10.559999999999999 L 343.21 0 L 376.98 9.68 L 384 44 Z" />
+  <path id="lobby-nav-cell-5" fill="none" d="M 384 44 L 376.8 8.8 L 432.75 0 L 480 9.24 L 480 44 Z" />
+</svg>

@@ -1,13 +1,18 @@
 import { ModalContainer, ModalItem, ModalProp, useModalManager } from "@/service/ModalManager";
 import gsap from "gsap";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import "./render.css";
 import { useModalAnimate } from "./shell/useModalAnimate";
+
+const MODAL_Z_BASE = 200000;
 
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
   './battle/PlayTournament': () => import('./battle/PlayTournament'),
   './battle/GameOver': () => import('./battle/GameOver'),
+  './lobby/tournament/TournamentJoinList': () => import('./lobby/tournament/TournamentJoinList'),
+  './lobby/tournament/TournamentHistory': () => import('./lobby/tournament/TournamentHistory'),
 };
 
 // 错误边界组件
@@ -68,12 +73,11 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
   const zIndex = useMemo(() => {
     const index = modals.findIndex((modal) => modal.name === container.name);
     if (index >= 0) {
-      return 500 + index;
+      return MODAL_Z_BASE + index;
     } else {
       return 0;
     }
   }, [modals, container.name]);
-
   const close = useCallback(() => {
     if (!modal) return;
     playClose({
@@ -131,18 +135,15 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
     };
     window.addEventListener("resize", scheduleSync);
     window.addEventListener("orientationchange", scheduleSync);
-    const vv = window.visualViewport;
-    vv?.addEventListener("resize", scheduleSync);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", scheduleSync);
       window.removeEventListener("orientationchange", scheduleSync);
-      vv?.removeEventListener("resize", scheduleSync);
     };
   }, [container, modal, syncModalOpenLayout]);
 
-  return (
-    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex, backgroundColor: 'transparent', pointerEvents: modal ? 'auto' : 'none' }}>
+  const modalLayer = (
+    <div style={{ position: "fixed", inset: 0, zIndex, backgroundColor: "transparent", pointerEvents: modal ? "auto" : "none", overflow: "hidden" }}>
       <div className="modal-mask" ref={(ele) => container.mask = ele} onClick={close}></div>
       <div
         key={`${container.name}`}
@@ -160,7 +161,11 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
       </div>
 
     </div>
-  )
+  );
+  if (typeof document !== "undefined" && document.body) {
+    return createPortal(modalLayer, document.body);
+  }
+  return modalLayer;
 };
 
 
