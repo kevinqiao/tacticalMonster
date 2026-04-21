@@ -1,21 +1,21 @@
 import React, { useCallback, useId, useMemo } from "react";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
-import "./lobbyNavControl.css";
+import "./FooterNavControl.css";
 import navHoverSprite from "./assets/nav-hover-sprite.png";
-import lobbyNavCellsSvg from "./assets/lobby-nav-cells.svg?raw";
-import { LobbyNavHitPath } from "./LobbyNavHitPath";
-import { LOBBY_NAV_LABEL, LOBBY_NAV_URI } from "./lobbyNavShared";
-import { NAV_VIEWBOX, WIDTH_PCT, parseLobbyNavCellPathDs } from "./navCellLayout";
+import footerNavCellsSvg from "./assets/FooterNavCells.svg?raw";
+import { FooterNavHitPath } from "./FooterNavHitPath";
+import { FOOTER_NAV_LABEL, FOOTER_NAV_URI } from "./FooterNavShared";
+import { NAV_VIEWBOX, WIDTH_PCT, parseFooterNavCellPathDs } from "./FooterNavCellLayout";
 
-/** 触摸 / 平板：整栏条图 + SVG 热区 + LobbyNavHitPath */
-export const LobbyNavBarTouch: React.FC = () => {
+/** 触摸 / 平板：整栏条图 + SVG 热区 + FooterNavHitPath */
+export const FooterNavBarTouch: React.FC = () => {
   const { openPage } = usePageManager();
   const { user, logout, askAuth, cancelAuth } = useUserManager();
   const hoverPatternId = useId().replace(/:/g, "");
 
   const pathDs = useMemo(
-    () => parseLobbyNavCellPathDs(lobbyNavCellsSvg),
+    () => parseFooterNavCellPathDs(footerNavCellsSvg),
     []
   );
 
@@ -49,9 +49,9 @@ export const LobbyNavBarTouch: React.FC = () => {
   const patternFill = `url(#${hoverPatternId})`;
 
   return (
-    <div className="lobby-nav-strip">
+    <div className="footer-nav-strip">
       <svg
-        className="lobby-nav-svg"
+        className="footer-nav-svg"
         viewBox={NAV_VIEWBOX}
         preserveAspectRatio="none"
         role="presentation"
@@ -73,10 +73,10 @@ export const LobbyNavBarTouch: React.FC = () => {
         </defs>
         {cellPlacements.map(({ pathD, index }) => {
           if (index < 5) {
-            const uri = LOBBY_NAV_URI[index];
-            const label = LOBBY_NAV_LABEL[index];
+            const uri = FOOTER_NAV_URI[index];
+            const label = FOOTER_NAV_LABEL[index];
             return (
-              <LobbyNavHitPath
+              <FooterNavHitPath
                 key={uri}
                 d={pathD}
                 fill={patternFill}
@@ -87,7 +87,7 @@ export const LobbyNavBarTouch: React.FC = () => {
             );
           }
           return user?.uid ? (
-            <LobbyNavHitPath
+            <FooterNavHitPath
               key="logout"
               d={pathD}
               fill={patternFill}
@@ -96,7 +96,7 @@ export const LobbyNavBarTouch: React.FC = () => {
               onKeyDown={onPathKeyDown(signOut)}
             />
           ) : (
-            <LobbyNavHitPath
+            <FooterNavHitPath
               key="signin"
               d={pathD}
               fill={patternFill}
@@ -107,11 +107,11 @@ export const LobbyNavBarTouch: React.FC = () => {
           );
         })}
       </svg>
-      <div className="lobby-nav-label-layer">
+      <div className="footer-nav-label-layer">
         {cellPlacements.map(({ offsetPct, index }) => {
           const label =
             index < 5
-              ? LOBBY_NAV_LABEL[index]
+              ? FOOTER_NAV_LABEL[index]
               : user?.uid
                 ? "Logout"
                 : "SignIn";
@@ -119,18 +119,18 @@ export const LobbyNavBarTouch: React.FC = () => {
             <div
               key={
                 index < 5
-                  ? LOBBY_NAV_URI[index]
+                  ? FOOTER_NAV_URI[index]
                   : user?.uid
                     ? "logout"
                     : "signin"
               }
-              className="lobby-nav-label-slot"
+              className="footer-nav-label-slot"
               style={{
                 left: `${offsetPct}%`,
                 width: `${WIDTH_PCT[index]}%`,
               }}
             >
-              <span className="lobby-nav-hit__label">{label}</span>
+              <span className="footer-nav-hit__label">{label}</span>
             </div>
           );
         })}

@@ -1,11 +1,11 @@
 /**
- * 热区几何来自 **assets/lobby-nav-cells.svg**（`id="lobby-nav-cell-0"` … `"-5"` 的 `<path d>`）。
+ * 热区几何来自 **assets/FooterNavCells.svg**（`id="footer-nav-cell-0"` … `"-5"` 的 `<path d>`）。
  *
- * 程序侧集成：`LobbyNavControl` 用 `?raw` 读入 SVG，`parseLobbyNavCellPathDs` 提取 `d`。
+ * 程序侧集成：`FooterNavControl` 用 `?raw` 读入 SVG，`parseFooterNavCellPathDs` 提取 `d`。
  *
  * 与底图 PNG 的同步（二选一）：
  * - 改 **scripts/lobbyNavShape.mjs** 后运行：`node scripts/write-lobby-nav-cells-svg.mjs` 再运行 gen PNG 脚本；
- * - 美术 **直接替换** `lobby-nav-cells.svg` 时，请同时从同一稿导出 **nav-bar-bg.png / nav-hover-sprite.png** 覆盖 assets（否则不必跑 gen）。
+ * - 美术 **直接替换** `FooterNavCells.svg` 时，请同时从同一稿导出 **nav-bar-bg.png / nav-hover-sprite.png** 覆盖 assets（否则不必跑 gen）。
  */
 export const NAV_VIEWBOX_W = 480;
 export const NAV_VIEWBOX_H = 44;
@@ -15,13 +15,13 @@ export const NAV_VIEWBOX = `0 0 ${NAV_VIEWBOX_W} ${NAV_VIEWBOX_H}` as const;
 export const WIDTH_PCT = [14, 12, 20, 18, 16, 20] as const;
 
 const NAV_CELL_COUNT = 6;
-const CELL_ID = (i: number) => `lobby-nav-cell-${i}`;
+const CELL_ID = (i: number) => `footer-nav-cell-${i}`;
 
 /**
  * 从美术导出的 SVG 字符串解析 6 条 path 的 `d`（不依赖 DOM，SSR 安全）。
  * 支持 `id` 与 `d` 在同一 `<path>` 上任意顺序。
  */
-export function parseLobbyNavCellPathDs(svgMarkup: string): string[] {
+export function parseFooterNavCellPathDs(svgMarkup: string): string[] {
   const out: string[] = [];
   for (let i = 0; i < NAV_CELL_COUNT; i++) {
     out.push(extractPathDFromSvg(svgMarkup, CELL_ID(i)));
@@ -44,6 +44,6 @@ function extractPathDFromSvg(svg: string, id: string): string {
   const m2 = svg.match(reDFirst);
   if (m2) return m2[1];
   throw new Error(
-    `[navCellLayout] 缺少 <path id="${id}"> 或无法解析 d（请检查 lobby-nav-cells.svg）`
+    `[FooterNavCellLayout] 缺少 <path id="${id}"> 或无法解析 d（请检查 FooterNavCells.svg）`
   );
 }

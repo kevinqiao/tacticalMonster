@@ -30,7 +30,7 @@ type Props = {
 /**
  * SVG 热区（仅触摸设备场景）：GSAP 驱动 fill-opacity + scale；按下微缩。
  */
-export const LobbyNavHitPath: React.FC<Props> = ({
+export const FooterNavHitPath: React.FC<Props> = ({
   d,
   fill,
   ariaLabel,
@@ -141,7 +141,7 @@ export const LobbyNavHitPath: React.FC<Props> = ({
   return (
     <path
       ref={pathRef}
-      className="lobby-nav-hit-path"
+      className="footer-nav-hit-path"
       d={d}
       fill={fill}
       tabIndex={0}

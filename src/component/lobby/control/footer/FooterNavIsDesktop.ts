@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /** 精细指针 + 可 hover → 桌面图标栏；否则触摸条导航 */
-export function useLobbyNavIsDesktop(): boolean {
+export function useFooterNavIsDesktop(): boolean {
   const [yes, setYes] = useState(false);
 
   useEffect(() => {

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>placeholder avatar</title>
+  <defs>
+    <linearGradient id="hudAvBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color: hsl(32, 22%, 32%)"/>
+      <stop offset="100%" style="stop-color: hsl(270, 18%, 16%)"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="8" fill="url(#hudAvBg)"/>
+  <circle cx="32" cy="24" r="11" fill="hsl(45, 55%, 55%)" stroke="hsl(43, 70%, 40%)" stroke-width="1.5"/>
+  <ellipse cx="32" cy="50" rx="20" ry="16" fill="hsl(45, 50%, 48%)" stroke="hsl(43, 60%, 38%)" stroke-width="1.5"/>
+</svg>

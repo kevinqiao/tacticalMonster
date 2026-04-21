@@ -1,5 +1,5 @@
 /** Lobby 底栏导航：桌面与触摸共用 */
-export const LOBBY_NAV_URI = [
+export const FOOTER_NAV_URI = [
   "/play/lobby/c1",
   "/play/lobby/c2",
   "/play/lobby/c3",
@@ -7,7 +7,7 @@ export const LOBBY_NAV_URI = [
   "/play/map",
 ] as const;
 
-export const LOBBY_NAV_LABEL = [
+export const FOOTER_NAV_LABEL = [
   "Child1",
   "Child2",
   "Child3",
@@ -15,4 +15,4 @@ export const LOBBY_NAV_LABEL = [
   "Map",
 ] as const;
 
-export type LobbyNavUri = (typeof LOBBY_NAV_URI)[number];
+export type FooterNavUri = (typeof FOOTER_NAV_URI)[number];
