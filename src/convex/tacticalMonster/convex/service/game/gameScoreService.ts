@@ -7,7 +7,7 @@ import { internal } from "../../_generated/api";
 import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { GameStatus, getMrGameStageMode } from "../../types/gameTypes";
 import { isTutorialGuideComplete } from "../../utils/tutorialProgressUtils";
-import { GameResult, sharedScoreService } from "./sharedScoreService";
+import { buildEndGameScoreResult, GameResult, sharedScoreService } from "./sharedScoreService";
 import { GameLifecycleService } from "./gameLifecycleService";
 import { GameEventService } from "./gameEventService";
 import { getModeTypeForRuleId } from "../../utils/tournamentModeType";
@@ -16,24 +16,7 @@ import { StageRewardSettlementService } from "../reward/stageRewardSettlementSer
 
 /** 终局计分（checkAndUpdateGameStatus / Tournament submit 复用） */
 function buildScoreResultForEndedGame(game: any, gameResult: GameResult) {
-    const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
-    const baseScore = game.score || 0;
-    const gameStartTime = game.createdAt ? new Date(game.createdAt).getTime() : Date.now();
-    const timeElapsed = Date.now() - gameStartTime;
-    const roundsUsed = game.currentRound?.no ?? 0;
-    const survivalStats = sharedScoreService.calculateSurvivalStats(game.team || []);
-    return sharedScoreService.calculateCompleteScore(
-        {
-            baseScore,
-            timeElapsed,
-            roundsUsed,
-            damageDealt: 0,
-            skillsUsed: 0,
-            gameResult,
-            survivalStats,
-        },
-        configVersion
-    );
+    return buildEndGameScoreResult(game, gameResult);
 }
 
 export class GameScoreService {
@@ -176,8 +159,10 @@ export class GameScoreService {
                     break;
             }
 
+            const endScore = buildScoreResultForEndedGame(game, result.result);
             await this.lifecycleService.save(gameId, {
                 status: newStatus,
+                score: endScore.totalScore,
                 lastUpdate: new Date().toISOString()
             });
 

@@ -1,18 +1,23 @@
-import { PageProp } from "component/RenderApp";
-import React from "react";
+﻿import { PageProp } from "component/RenderApp";
+import { useFooterNavIsDesktop } from "component/lobby/control/footer/FooterNavIsDesktop";
+import React, { useRef } from "react";
+import { useLobbySlideChildSwipe } from "./useLobbySlideChildSwipe";
 
+const Child3: React.FC<PageProp> = () => {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const isDesktop = useFooterNavIsDesktop();
+  useLobbySlideChildSwipe(rootRef, { enabled: !isDesktop });
 
-const Child3: React.FC<PageProp> = ({ visible, data }) => {
-  return (<div
-    style={{
-      width: "100%",
-      height: "100%",
-      backgroundColor: "green",
-    }}
-  >
-
-  </div>
-  )
+  return (
+    <div
+      ref={rootRef}
+      style={{
+        width: "100%",
+        height: "100%",
+        backgroundColor: "green",
+      }}
+    />
+  );
 };
 
 export default Child3;

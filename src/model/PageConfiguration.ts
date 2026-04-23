@@ -65,6 +65,12 @@ export const Modals: Record<string, ModalConfig> = {
         auth: 1,
         effect: { name: "swipeRight", args: { width: "30%" } },
 
+    },
+    "chest_drop": {
+        name: "chest_drop",
+        path: "./lobby/view/play/ChestDrop",
+        auth: 1,
+        effect: { name: "popCenter", args: { width: "70%", height: "70%" } },
     }
 }
 export const animates: { [k: number]: any } = {

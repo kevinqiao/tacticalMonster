@@ -1,5 +1,5 @@
 // Dice.tsx
-import useCombatAct from 'component/ludo/battle/service/useCombatAct';
+import useCombatAct from '@/component/battle/games/ludo/battle/service/useCombatAct';
 import gsap from 'gsap';
 import React, { useEffect } from 'react';
 import { faceTransforms } from '../animation/useDiceAnimate';

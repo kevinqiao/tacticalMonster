@@ -80,23 +80,15 @@ export function useScoreCalculation(
         );
     }, [currentConfigVersion]);
 
-    // ✅ 计算最终得分（游戏结束时）
     const calculateFinalScore = useCallback((
-        baseScore: number,
-        timeElapsed: number,
         roundsUsed: number,
         gameResult: GameResult,
         survivalStats: CharacterSurvivalStats
     ): ScoreResult => {
-        return sharedScoreService.calculateCompleteScore({
-            baseScore,
-            timeElapsed,
-            roundsUsed,
-            damageDealt: 0,  // 可选
-            skillsUsed: 0,    // 可选
-            gameResult,
-            survivalStats
-        }, currentConfigVersion);
+        return sharedScoreService.calculateCompleteScore(
+            { roundsUsed, gameResult, survivalStats },
+            currentConfigVersion
+        );
     }, [currentConfigVersion]);
 
     // ✅ 判断游戏结果

@@ -24,14 +24,14 @@ export interface ModalContainer extends ModalConfig {
 interface IModalContext {
   modals: ModalItem[];
   modalContainers: { [key: string]: ModalContainer };
-  openModal: (name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } | undefined) => void;
+  openModal: ({ name, data, effect }: { name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } }) => void;
   closeModal: (name?: string) => void;
   closeAll: () => void;
 }
 const ModalContext = createContext<IModalContext>({
   modals: [],
   modalContainers: {},
-  openModal: () => { },
+  openModal: ({ name, data, effect }: { name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } }) => { },
   closeModal: (_name?: string) => { },
   closeAll: () => { },
 });
@@ -46,7 +46,7 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
     return Modals
   }, []);
 
-  const openModal = useCallback((name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } | undefined) => {
+  const openModal = useCallback(({ name, data, effect }: { name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } }) => {
     console.log("open modal", name, data, effect);
     const container = modalContainers[name];
     if (container && container.auth === 1 && !user?.uid) {
@@ -63,7 +63,7 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user, askAuth])
   useEffect(() => {
     if (authReq && authReq.modal && user?.uid) {
-      openModal(authReq.modal.name, authReq.modal.data, authReq.modal.effect);
+      openModal({ name: authReq.modal.name, data: authReq.modal.data, effect: authReq.modal.effect });
     }
   }, [authReq, user, openModal]);
   useEffect(() => {

@@ -1,12 +1,50 @@
 import { ModalProp } from "@/service/ModalManager";
 import React, { lazy, Suspense, useMemo } from "react";
 import "./style.css";
+import PlayTacticalMonster from "./games/tacticalMonster/PlayTacticalMonster";
+
+const isStaleChunkError = (error: unknown): boolean => {
+  const msg = String((error as Error)?.message ?? error ?? "");
+  return /Failed to fetch dynamically imported module|Loading chunk [\w-]+ failed|Importing a module script failed/i.test(msg);
+};
+
+const RELOAD_META_KEY = "__viteDynamicImportReloadMetaV2";
+
+const getChunkIdFromError = (error: unknown): string => {
+  const msg = String((error as Error)?.message ?? error ?? "");
+  const abs = msg.match(/https?:\/\/[^\s'")]+\.js/i)?.[0];
+  if (abs) return abs;
+  const rel = msg.match(/assets\/[^\s'")]+\.js/i)?.[0];
+  if (rel) return rel;
+  return msg.slice(0, 160);
+};
+
+const tryReloadForStaleChunk = (error: unknown): boolean => {
+  try {
+    if (typeof sessionStorage === "undefined") return false;
+    const now = Date.now();
+    const chunkId = getChunkIdFromError(error);
+    const raw = sessionStorage.getItem(RELOAD_META_KEY);
+    if (raw) {
+      const prev = JSON.parse(raw) as { chunkId?: string; at?: number };
+      if (prev.chunkId === chunkId && typeof prev.at === "number" && now - prev.at < 15000) {
+        return false;
+      }
+    }
+    sessionStorage.setItem(RELOAD_META_KEY, JSON.stringify({ chunkId, at: now }));
+    window.location.reload();
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 
 
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
-  './games/tacticalMonster/PlayTacticalMonster': () => import('./games/tacticalMonster/PlayTacticalMonster'),
+  "./games/tacticalMonster/PlayTacticalMonster": () =>
+    Promise.resolve({ default: PlayTacticalMonster }),
 };
 const GAME_PROVIDERS: Record<string, string> = {
   'tacticalMonster': './games/tacticalMonster/PlayTacticalMonster',
@@ -63,6 +101,9 @@ const getCachedComponent = (path: string): React.ComponentType<PlayProps> => {
         try {
           return await componentMap[normalizedPath]();
         } catch (error) {
+          if (isStaleChunkError(error) && tryReloadForStaleChunk(error)) {
+            return { default: () => null };
+          }
           console.error(`Failed to load component: ${normalizedPath}`, error);
           return {
             default: (props: PlayProps) => <ErrorComponent path={normalizedPath} error={error as Error} />
@@ -76,6 +117,9 @@ const getCachedComponent = (path: string): React.ComponentType<PlayProps> => {
         try {
           return await import(normalizedPath);
         } catch (error) {
+          if (isStaleChunkError(error) && tryReloadForStaleChunk(error)) {
+            return { default: () => null };
+          }
           console.error(`Failed to load component: ${normalizedPath}`, error);
           return {
             default: (props: PlayProps) => <ErrorComponent path={normalizedPath} error={error as Error} />

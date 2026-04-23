@@ -15,6 +15,42 @@ export interface PageProp {
 // 组件缓存
 const ComponentCache = new Map<string, React.ComponentType<PageProp>>();
 
+const isStaleChunkError = (error: unknown): boolean => {
+  const msg = String((error as Error)?.message ?? error ?? "");
+  return /Failed to fetch dynamically imported module|Loading chunk [\w-]+ failed|Importing a module script failed/i.test(msg);
+};
+
+const RELOAD_META_KEY = "__viteDynamicImportReloadMetaV2";
+
+const getChunkIdFromError = (error: unknown): string => {
+  const msg = String((error as Error)?.message ?? error ?? "");
+  const abs = msg.match(/https?:\/\/[^\s'")]+\.js/i)?.[0];
+  if (abs) return abs;
+  const rel = msg.match(/assets\/[^\s'")]+\.js/i)?.[0];
+  if (rel) return rel;
+  return msg.slice(0, 160);
+};
+
+const tryReloadForStaleChunk = (error: unknown): boolean => {
+  try {
+    if (typeof sessionStorage === "undefined") return false;
+    const now = Date.now();
+    const chunkId = getChunkIdFromError(error);
+    const raw = sessionStorage.getItem(RELOAD_META_KEY);
+    if (raw) {
+      const prev = JSON.parse(raw) as { chunkId?: string; at?: number };
+      if (prev.chunkId === chunkId && typeof prev.at === "number" && now - prev.at < 15000) {
+        return false;
+      }
+    }
+    sessionStorage.setItem(RELOAD_META_KEY, JSON.stringify({ chunkId, at: now }));
+    window.location.reload();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // 错误边界组件
 const ErrorComponent: React.FC<{ path: string; error?: Error }> = ({ path, error }) => (
   <div style={{
@@ -42,8 +78,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/view/Child2': () => import('./lobby/view/Child2'),
   './lobby/view/Child3': () => import('./lobby/view/Child3'),
   './lobby/view/Child4': () => import('./lobby/view/Child4'),
-  './lobby/tournament/PlayMatch': () => import('./lobby/tournament/PlayMatch'),
-  './www/W3Home': () => import('./www/W3Home'),
 };
 
 // 获取缓存的组件
@@ -56,6 +90,9 @@ const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
       ComponentCache.set(path, lazy(() => {
         // console.log(`Loading component from static map: ${normalizedPath}`);
         return componentMap[normalizedPath]().catch((error) => {
+          if (isStaleChunkError(error) && tryReloadForStaleChunk(error)) {
+            return { default: () => null };
+          }
           console.error(`Failed to load component: ${normalizedPath}`, error);
           return {
             default: (props: PageProp) => <ErrorComponent path={normalizedPath} error={error} />
@@ -67,6 +104,9 @@ const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
       ComponentCache.set(path, lazy(() => {
         console.log(`Loading component dynamically: ${normalizedPath}`);
         return import(normalizedPath).catch((error) => {
+          if (isStaleChunkError(error) && tryReloadForStaleChunk(error)) {
+            return { default: () => null };
+          }
           console.error(`Failed to load component: ${normalizedPath}`, error);
           return {
             default: (props: PageProp) => <ErrorComponent path={normalizedPath} error={error} />

@@ -268,10 +268,13 @@ export interface PhaseChanges {
 
 export interface GameReport {
     gameId: string;
-    baseScore: number;
-    timeBonus?: number;
-    completeBonus?: number;
     totalScore: number;
+    /** 终局：回合效率分 */
+    roundBonus?: number;
+    /** 终局：存活分 */
+    survivalBonus?: number;
+    /** 终局：胜败分 */
+    resultScore?: number;
     /** 过关星级（1-3），仅胜利时有效 */
     star?: 1 | 2 | 3;
     /** 星级对应的奖励倍率（重复挑战时使用） */

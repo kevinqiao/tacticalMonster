@@ -2,7 +2,7 @@
  * 重播计分 overlay：`game` 来自 CombatManager，`replay` 来自 replayContext。
  * 3D：由 BattleVenue3DSpectator 挂载；2D：由 BattlePlayer 挂载。
  */
-import { getAllScoringConfigVersions } from '../../../../../../convex/tacticalMonster/convex/data/scoringConfigs';
+import { getScoringConfigVersionsList } from '../../../../../../convex/tacticalMonster/convex/data/scoringConfigs';
 import { useCombatManager } from '../../service/CombatManager';
 import { useScoreCalculation } from '../hooks/useScoreCalculation';
 import { useReplay } from './replayContext';
@@ -45,7 +45,7 @@ export function ReplayScoreDisplay() {
         ? cumulativeScores.get(currentEvent._id || currentEvent.time.toString()) || 0
         : 0;
 
-    const availableVersions = getAllScoringConfigVersions();
+    const availableVersions = getScoringConfigVersionsList();
 
     return (
         <div className="replay-score-display" style={{
@@ -82,9 +82,9 @@ export function ReplayScoreDisplay() {
                         border: '1px solid #555'
                     }}
                 >
-                    {availableVersions.map(version => (
-                        <option key={version.version} value={version.version}>
-                            {version.version} - {version.description || ''}
+                    {availableVersions.map(({ version }) => (
+                        <option key={version} value={version}>
+                            {version}
                         </option>
                     ))}
                 </select>

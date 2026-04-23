@@ -1,11 +1,12 @@
-import { PageProp } from "component/RenderApp";
+﻿import { PageProp } from "component/RenderApp";
+import { useFooterNavIsDesktop } from "component/lobby/control/footer/FooterNavIsDesktop";
 import React, { useEffect, useRef, useState } from "react";
 import { useSharedValue } from "service/SharedPageDataManager";
 import { preloadImages } from "util/preloadAssets";
 import { child2CriticalAssets } from "./child2Assets";
 import LandscapeContent from "./play/LandscapeContent";
 import PortraitContent from "./play/PortraitContent";
-
+import { useLobbySlideChildSwipe } from "./useLobbySlideChildSwipe";
 
 const Child2: React.FC<PageProp> = ({ visible }) => {
   const contentRef = useRef<HTMLDivElement>(null);
@@ -13,6 +14,9 @@ const Child2: React.FC<PageProp> = ({ visible }) => {
   const loadTokenRef = useRef(0);
   const [assetsReady, setAssetsReady] = useState(false);
   const isPortrait = useSharedValue("lobby.layout.portrait");
+  const isDesktop = useFooterNavIsDesktop();
+
+  useLobbySlideChildSwipe(contentRef, { enabled: !isDesktop });
 
   useEffect(() => {
     if (visible <= 0) {
@@ -45,36 +49,38 @@ const Child2: React.FC<PageProp> = ({ visible }) => {
     });
   }, [showContent]);
 
-  return (<div
-    ref={contentRef}
-    style={{
-      position: "relative",
-      width: "100%",
-      height: "100%",
-      backgroundColor: "white",
-      overflowY: "auto",
-      overflowX: "hidden",
-    }}
-  >
-    {visible > 0 && !assetsReady && (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "white",
-          color: "#666",
-          fontSize: 14,
-        }}
-      >
-        Loading…
-      </div>
-    )}
-    {showContent ? (isPortrait ? <PortraitContent /> : <LandscapeContent />) : null}
-  </div>
-  )
+  return (
+    <div
+      ref={contentRef}
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        backgroundColor: "white",
+        overflowY: "auto",
+        overflowX: "hidden",
+      }}
+    >
+      {visible > 0 && !assetsReady && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "white",
+            color: "#666",
+            fontSize: 14,
+          }}
+        >
+          Loading…
+        </div>
+      )}
+      {showContent ? (isPortrait ? <PortraitContent /> : <LandscapeContent />) : null}
+    </div>
+  );
 };
+
 export default Child2;

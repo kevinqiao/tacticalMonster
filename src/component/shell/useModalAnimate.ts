@@ -9,6 +9,12 @@ function killModalTweens(container: ModalContainer) {
   gsap.killTweensOf([container.ele, container.mask, container.closeEle].filter(Boolean));
 }
 
+function toCssSize(value: unknown, fallback: string) {
+  if (typeof value === "number") return `${value}px`;
+  if (typeof value === "string" && value.trim().length > 0) return value;
+  return fallback;
+}
+
 /**
  * 打开动画结束后的稳定布局（与各 swipe* 的 gsap.set + 最后一帧 transform 一致）。
  * 在横竖屏切换、窗口缩放后重新套用，避免 GSAP 旧 transform 与百分比布局错位。
@@ -17,6 +23,28 @@ export function applyModalOpenRestLayout(container: ModalContainer, effect: Moda
   if (!container.ele) return;
   const el = container.ele;
   switch (effect.name) {
+    case "popCenter":
+    case "popCenterIn":
+      {
+        const width = toCssSize(effect.args?.width, "80%");
+        const height = toCssSize(effect.args?.height, "80%");
+        gsap.set(el, {
+          top: "50%",
+          left: "50%",
+          right: "auto",
+          bottom: "auto",
+          width,
+          height,
+          xPercent: -50,
+          yPercent: -50,
+          x: 0,
+          y: 0,
+          scale: 1,
+          transformOrigin: "center center",
+          autoAlpha: 1,
+        });
+      }
+      break;
     case "swipeRight":
       // 与 swipeLeft 镜像：靠右贴齐用 right + x，不用 left:100%（少一种 left/width 联算）
       gsap.set(el, {
@@ -74,7 +102,8 @@ export function applyModalOpenRestLayout(container: ModalContainer, effect: Moda
   if (container.closeEle) gsap.set(container.closeEle, { autoAlpha: 1 });
 }
 
-const SWIPE_EFFECTS = new Set(["swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
+const OPEN_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
+const CLOSE_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 
 export const useModalAnimate = () => {
   const syncModalOpenLayout = useCallback(
@@ -91,7 +120,7 @@ export const useModalAnimate = () => {
     ({ container, modal, onComplete }: { container: ModalContainer; modal: ModalItem; onComplete?: () => void | Promise<void> }) => {
       const effect = modal.effect ?? container.effect;
       if (!effect || !container.ele) return;
-      if (!SWIPE_EFFECTS.has(effect.name)) {
+      if (!OPEN_EFFECTS.has(effect.name)) {
         onComplete?.();
         return;
       }
@@ -105,6 +134,34 @@ export const useModalAnimate = () => {
       });
 
       switch (effect.name) {
+        case "popCenterIn":
+        case "popCenter":
+          {
+            const width = toCssSize(effect.args?.width, "80%");
+            const height = toCssSize(effect.args?.height, "80%");
+            gsap.set(container.ele, {
+              top: "50%",
+              left: "50%",
+              right: "auto",
+              bottom: "auto",
+              width,
+              height,
+              xPercent: -50,
+              yPercent: -50,
+              x: 0,
+              y: 0,
+              scale: 0.5,
+              transformOrigin: "center center",
+              autoAlpha: 0,
+            });
+          }
+          tl.to(container.ele, {
+            scale: 1,
+            autoAlpha: 1,
+            duration: 0.5,
+            ease: "power2.inOut",
+          });
+          break;
         case "swipeRight":
           gsap.set(container.ele, {
             top: 0,
@@ -172,7 +229,7 @@ export const useModalAnimate = () => {
     ({ container, modal, onComplete }: { container: ModalContainer; modal: ModalItem; onComplete?: () => void | Promise<void> }) => {
       const effect = modal.effect ?? container.effect;
       if (!effect || !container.ele) return;
-      if (!SWIPE_EFFECTS.has(effect.name)) {
+      if (!CLOSE_EFFECTS.has(effect.name)) {
         onComplete?.();
         return;
       }
@@ -188,6 +245,10 @@ export const useModalAnimate = () => {
         },
       });
       switch (effect.name) {
+        case "popCenterIn":
+        case "popCenter":
+          tl.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.5, ease: "power2.inOut" });
+          break;
         case "swipeTop":
           tl.to(container.ele, { y: "-100%", duration: 0.5, ease: "power2.inOut" });
           break;

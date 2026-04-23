@@ -314,10 +314,10 @@ export interface PhaseChanges {
 
 export interface GameReport {
     gameId: string;
-    baseScore: number;
-    timeBonus?: number;
-    completeBonus?: number;
     totalScore: number;
+    roundBonus?: number;
+    survivalBonus?: number;
+    resultScore?: number;
     isFirstClear?: boolean;
     rewardPolicyType?: RewardPolicyType;
     scoreTierHit?: ScoreTierReward;

@@ -9,7 +9,7 @@ import { useLobbyHomeChrome } from "./useLobbyHomeChrome";
 
 const LOBBY_CHROME_Z = 5200;
 /** dvh 跟动态可视区域，比 % 在 modal/移动浏览器下更稳 */
-const STRIP_H = "clamp(48px, 10dvh, 100px)";
+const STRIP_H = "clamp(48px, 8dvh, 100px)";
 
 const LobbyHome: React.FC<PageProp> = () => {
   const headRef = useRef<HTMLDivElement | null>(null);
@@ -57,7 +57,7 @@ const LobbyHome: React.FC<PageProp> = () => {
           zIndex: LOBBY_CHROME_Z,
           backgroundColor: "rgba(0, 0, 0, 0.5)",
           pointerEvents: "auto",
-          overflow: "hidden",
+          overflow: "visible",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >

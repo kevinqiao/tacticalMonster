@@ -4,7 +4,10 @@
 <head>
   <meta charset="utf-8" />
   <style>
-    html,body{background-color:#000!important}
+    html,
+    body {
+      background-color: #000 !important
+    }
   </style>
   <base href="/" />
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate">
@@ -17,6 +20,7 @@
       background-color: #000000;
       color-scheme: dark;
     }
+
     body,
     #root {
       margin: 0;
@@ -35,7 +39,8 @@
   <noscript>You need to enable JavaScript to run this app.</noscript>
   <div id="root" style="overflow:hidden;width:100%;height:100%;min-height:100vh;background-color:#000000;"></div>
   <!-- 与 #root 同级：不被 React createRoot 清空，覆盖「脚本下载～首帧」间隙；由 BootLoadingOverlay 挂载后移除 -->
-  <div id="static-boot-cover" aria-hidden="true" style="position:fixed;inset:0;background-color:#000;z-index:2147483646;pointer-events:none"></div>
+  <div id="static-boot-cover" aria-hidden="true"
+    style="position:fixed;inset:0;background-color:#000;z-index:2147483646;pointer-events:none"></div>
   <!-- 放在 body 末尾：避免阻塞 head 解析，否则 body 黑底与 static-boot-cover 会晚于长脚本执行才出现 -->
   <script>
     (function () {
@@ -79,9 +84,22 @@
         return containsAny(allText, SOURCE_MARKERS) || containsAny(allText, MESSAGE_MARKERS);
       }
 
+      function reportBootError(title, detail) {
+        try {
+          if (document.getElementById('__html-boot-error__')) return;
+          var box = document.createElement('div');
+          box.id = '__html-boot-error__';
+          box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;background:#1a1a1a;color:#fff;padding:10px 12px;border:1px solid rgba(255,255,255,.2);font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:45vh;overflow:auto';
+          box.textContent = String(title || 'Script error') + '\n' + String(detail || '');
+          document.body.appendChild(box);
+        } catch (_e) { }
+      }
+      window.__reportBootError = reportBootError;
+
       var originalErrorHandler = window.onerror;
       window.onerror = function (message, source, lineno, colno, error) {
         if (isExtensionError(source, message, error)) return true;
+        reportBootError('window.onerror', (error && (error.stack || error.message)) || (String(message || '') + ' @ ' + String(source || '') + ':' + String(lineno || 0) + ':' + String(colno || 0)));
         if (typeof originalErrorHandler === 'function') {
           return originalErrorHandler.call(this, message, source, lineno, colno, error);
         }
@@ -89,18 +107,87 @@
       };
 
       window.addEventListener('unhandledrejection', function (event) {
-        if (!isExtensionError('', '', event.reason)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
+        if (isExtensionError('', '', event.reason)) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          return;
+        }
+        reportBootError('unhandledrejection', String((event.reason && (event.reason.stack || event.reason.message)) || event.reason || 'unknown rejection'));
       }, true);
+    })();
+  </script>
+  <script>
+    (function () {
+      var host = window.location.hostname || "";
+      var isLocalHost =
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host === "::1" ||
+        /^10\./.test(host) ||
+        /^192\.168\./.test(host) ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+      if (!isLocalHost) return;
+      if (!("serviceWorker" in navigator)) return;
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        if (!regs || regs.length === 0) return;
+        regs.forEach(function (r) { r.unregister(); });
+      }).catch(function () { });
+      if ("caches" in window) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (k) { caches.delete(k); });
+        }).catch(function () { });
+      }
     })();
   </script>
   <!-- <div id="main-loader"
     style="position:fixed;z-index: 100000;top:0;left:0;width:100%;height:100vh;display:flex;justify-content: center;align-items: center;background-color: blueviolet;">
     <span style="color:white;font-size:20px"></span>
   </div> -->
-  <script type="module" src="/src/index.tsx"></script>
+  <script type="module" id="app-entry-script" src="/src/index.tsx"></script>
+  <script>
+    (function () {
+      window.__entryScriptStatus = "pending";
+      function show(title, detail) {
+        if (typeof window.__reportBootError === 'function') {
+          window.__reportBootError(title, detail);
+          return;
+        }
+        try {
+          if (document.getElementById('__html-boot-error__')) return;
+          var box = document.createElement('div');
+          box.id = '__html-boot-error__';
+          box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;background:#1a1a1a;color:#fff;padding:10px 12px;border:1px solid rgba(255,255,255,.2);font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:45vh;overflow:auto';
+          box.textContent = String(title || 'Script error') + '\n' + String(detail || '');
+          document.body.appendChild(box);
+        } catch (_e) { }
+      }
+
+      var entry = document.getElementById('app-entry-script');
+      if (entry) {
+        entry.addEventListener('load', function () {
+          window.__entryScriptStatus = "loaded";
+        }, true);
+        entry.addEventListener('error', function () {
+          window.__entryScriptStatus = "error";
+          show('entry-script-error', 'Failed to load/execute module script graph');
+        }, true);
+      }
+
+      window.setTimeout(function () {
+        var root = document.getElementById('root');
+        var cover = document.getElementById('static-boot-cover');
+        if (cover) cover.remove();
+        if (root && root.children.length === 0) {
+          var hasSwController = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+          show(
+            'bootstrap-timeout',
+            'Root is still empty after 8s\nentryStatus=' + String(window.__entryScriptStatus) + '\nserviceWorker.controller=' + String(hasSwController)
+          );
+        }
+      }, 8000);
+    })();
+  </script>
 </body>
 
 </html>

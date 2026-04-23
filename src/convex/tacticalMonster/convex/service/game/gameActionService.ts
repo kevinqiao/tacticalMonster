@@ -3,7 +3,6 @@
  * 负责执行游戏动作（walk, attack, useSkill, selectSkill）
  */
 
-import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { getSkillConfig, skillExists } from "../../data/skillConfigs";
 import { CharacterIdentifier, CombatEvent, GameTurn, PhaseChanges, SkillEffectItem } from "../../types/gameTypes";
 import { GameMonster } from "../../types/monsterTypes";
@@ -18,7 +17,6 @@ import { GameLifecycleService } from "./gameLifecycleService";
 import { GamePhaseService } from "./gamePhaseService";
 import { GameScoreService } from "./gameScoreService";
 import { RoundService } from "./roundService";
-import { sharedScoreService } from "./sharedScoreService";
 import { GameRuleConfigService } from "./gameRuleConfigService";
 import { TutorialProgressService } from "./tutorialProgressService";
 import { eventFromUseSkill } from "../../utils/tutorialProgressUtils";
@@ -1074,22 +1072,9 @@ export class GameActionService {
             );
         }
 
-        // 8. ✅ 使用共享服务计算行动得分
-        const configVersion = updatedGame.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
-        const actionType = skillId === "basic_attack" ? 'attack' : 'skill';
-        const scoreDelta = sharedScoreService.calculateActionScore({
-            actionType,
-            killed: killedBoss || killedMinion,
-            killedType: killedBoss ? 'boss' : (killedMinion ? 'minion' : undefined),
-            skillId: skillId === "basic_attack" ? undefined : skillId
-        }, configVersion);
+        // 8. 2.x 计分无局内过程分，终局在 gameScoreService 中结算
 
-        // 9. ✅ 更新 baseScore
-        if (scoreDelta > 0) {
-            await this.scoreService.updateScore(gameId, scoreDelta);
-        }
-
-        // 10. ✅ 推进回合和阶段（自动处理 turnEnd、Boss AI 等）。必须在胜负判定之前，
+        // 9. ✅ 推进回合和阶段（自动处理 turnEnd、Boss AI 等）。必须在胜负判定之前，
         //    否则 checkAndUpdateGameStatus 会把 status 置为非 0，嵌套的 handleBossTurn→attack 会校验失败。
         const phaseChanges = await this.phaseService.advanceTurnAndRound(gameId, { monsterId, bossId, minionId }, this.dbCtx);
 

@@ -3,12 +3,7 @@
  * 纯逻辑实现，不依赖数据库
  */
 
-import {
-    DEFAULT_SCORING_CONFIG_VERSION,
-    getDefaultScoringConfig,
-    getScoringConfig,
-    ScoringConfig
-} from "../../data/scoringConfigs";
+import { getDefaultScoringConfig, ScoringConfig } from "../../data/scoringConfigs";
 import { GameBoss, GameMonster } from "../../types/monsterTypes";
 
 /**
@@ -42,25 +37,15 @@ export interface CharacterSurvivalStats {
     perfectSurvival: boolean;
 }
 
-/**
- * 游戏统计数据
- */
-export interface GameStatistics {
-    baseScore: number;
-    timeElapsed: number;  // 毫秒
+/** 终局计分输入 */
+export interface EndGameScoreInput {
     roundsUsed: number;
-    damageDealt: number;
-    skillsUsed: number;
     gameResult: GameResult;
     survivalStats: CharacterSurvivalStats;
 }
 
-/**
- * 得分计算结果
- */
+/** 得分计算结果 */
 export interface ScoreResult {
-    baseScore: number;
-    timeBonus: number;
     roundBonus: number;
     survivalBonus: number;
     resultScore: number;
@@ -70,7 +55,6 @@ export interface ScoreResult {
         perfectSurvival: boolean;
         survivalRate: number;
         averageHp: number;
-        timeEfficiency: number;
         roundEfficiency: number;
     };
 }
@@ -88,85 +72,14 @@ export interface GameResultCheck {
  * 共享计分服务（前后端通用）
  */
 export class SharedScoreService {
-    private configCache: Map<string, ScoringConfig> = new Map();
-
-    /**
-     * 获取指定版本的配置（带缓存）
-     */
-    getConfig(version?: string): ScoringConfig {
-        const configVersion = version || DEFAULT_SCORING_CONFIG_VERSION;
-
-        // 检查缓存
-        if (this.configCache.has(configVersion)) {
-            return this.configCache.get(configVersion)!;
-        }
-
-        // 从配置文件读取
-        const config = getScoringConfig(configVersion);
-
-        if (!config) {
-            console.warn(`配置版本 ${configVersion} 不存在，使用默认配置`);
-            const defaultConfig = getDefaultScoringConfig();
-            this.configCache.set(configVersion, defaultConfig);
-            return defaultConfig;
-        }
-
-        // 缓存配置
-        this.configCache.set(configVersion, config);
-        return config;
+    /** 当前唯一计分表（`scoringConfigVersion` 仅作记录，不区分多版本） */
+    getConfig(_version?: string): ScoringConfig {
+        return getDefaultScoringConfig();
     }
 
-    /**
-     * 计算行动得分
-     */
-    calculateActionScore(
-        actionData: ActionData,
-        configVersion?: string
-    ): number {
-        const config = this.getConfig(configVersion);
-        return this.calculateActionScoreWithConfig(actionData, config);
-    }
-
-    /**
-     * 使用指定配置计算行动得分（内部方法）
-     */
-    private calculateActionScoreWithConfig(
-        actionData: ActionData,
-        config: ScoringConfig
-    ): number {
-        const { actionScores } = config;
-        let score = 0;
-
-        switch (actionData.actionType) {
-            case 'attack':
-                if (actionData.killed) {
-                    if (actionData.killedType === 'boss') {
-                        score += actionScores.defeatBoss;
-                    } else if (actionData.killedType === 'minion') {
-                        score += actionScores.defeatMinion;
-                    }
-                } else {
-                    score += actionScores.attack;
-                }
-                break;
-
-            case 'skill':
-                score += actionScores.skillUse;
-                if (actionData.killed) {
-                    if (actionData.killedType === 'boss') {
-                        score += actionScores.defeatBoss;
-                    } else if (actionData.killedType === 'minion') {
-                        score += actionScores.defeatMinion;
-                    }
-                }
-                break;
-
-            case 'walk':
-                score += actionScores.walk;
-                break;
-        }
-
-        return score;
+    /** 局内不按行动记分 */
+    calculateActionScore(_actionData: ActionData, _configVersion?: string): number {
+        return 0;
     }
 
     /**
@@ -318,42 +231,27 @@ export class SharedScoreService {
         };
     }
 
-    /**
-     * 计算完整得分
-     */
     calculateCompleteScore(
-        stats: GameStatistics,
+        stats: EndGameScoreInput,
         configVersion?: string
     ): ScoreResult {
         const config = this.getConfig(configVersion);
         return this.calculateCompleteScoreWithConfig(stats, config);
     }
 
-    /**
-     * 使用指定配置计算完整得分（内部方法）
-     */
     private calculateCompleteScoreWithConfig(
-        stats: GameStatistics,
+        stats: EndGameScoreInput,
         config: ScoringConfig
     ): ScoreResult {
-        const { baseScore, timeElapsed, roundsUsed, gameResult, survivalStats } = stats;
+        const { roundsUsed, gameResult, survivalStats } = stats;
         const { efficiency, survival, resultScores } = config;
 
-        // 时间效率奖励（仅胜利时）
-        let timeBonus = 0;
-        if (gameResult === GameResult.WIN) {
-            const timeRatio = Math.max(0, 1 - (timeElapsed / efficiency.targetTime));
-            timeBonus = Math.floor(timeRatio * efficiency.maxTimeBonus);
-        }
-
-        // 回合效率奖励（仅胜利时）
         let roundBonus = 0;
         if (gameResult === GameResult.WIN) {
             const roundRatio = Math.max(0, 1 - (roundsUsed / efficiency.targetRounds));
             roundBonus = Math.floor(roundRatio * efficiency.maxRoundBonus);
         }
 
-        // 存活奖励（仅胜利时）
         let survivalBonus = 0;
         if (gameResult === GameResult.WIN) {
             if (survivalStats.perfectSurvival) {
@@ -369,7 +267,6 @@ export class SharedScoreService {
             }
         }
 
-        // 结果得分
         let resultScore = 0;
         switch (gameResult) {
             case GameResult.WIN:
@@ -383,12 +280,9 @@ export class SharedScoreService {
                 break;
         }
 
-        // 计算总分
-        const totalScore = baseScore + timeBonus + roundBonus + survivalBonus + resultScore;
+        const totalScore = roundBonus + survivalBonus + resultScore;
 
         return {
-            baseScore,
-            timeBonus,
             roundBonus,
             survivalBonus,
             resultScore,
@@ -398,9 +292,6 @@ export class SharedScoreService {
                 perfectSurvival: survivalStats.perfectSurvival,
                 survivalRate: survivalStats.aliveCharacters / survivalStats.totalCharacters,
                 averageHp: survivalStats.averageHpPercentage,
-                timeEfficiency: gameResult === GameResult.WIN
-                    ? Math.max(0, 1 - (timeElapsed / efficiency.targetTime))
-                    : 0,
                 roundEfficiency: gameResult === GameResult.WIN
                     ? Math.max(0, 1 - (roundsUsed / efficiency.targetRounds))
                     : 0
@@ -451,38 +342,43 @@ export class SharedScoreService {
      * 重播时重新计算所有事件的得分
      */
     recalculateScoresForReplay(
-        events: Array<{ _id?: string; time: number; name: string; data?: any }>,
-        configVersion?: string
+        _events: Array<{ _id?: string; time: number; name: string; data?: any }>,
+        _configVersion?: string
     ): {
         eventScores: Map<string, number>;
         cumulativeScores: Map<string, number>;
         totalBaseScore: number;
     } {
-        const config = this.getConfig(configVersion);
-        const eventScores = new Map<string, number>();
-        const cumulativeScores = new Map<string, number>();
-        let cumulativeScore = 0;
-
-        for (const event of events) {
-            const actionData = this.extractActionDataFromEvent(event);
-
-            if (actionData) {
-                const score = this.calculateActionScoreWithConfig(actionData, config);
-                const eventKey = event._id || event.time.toString();
-                eventScores.set(eventKey, score);
-                cumulativeScore += score;
-                cumulativeScores.set(eventKey, cumulativeScore);
-            }
-        }
-
         return {
-            eventScores,
-            cumulativeScores,
-            totalBaseScore: cumulativeScore
+            eventScores: new Map(),
+            cumulativeScores: new Map(),
+            totalBaseScore: 0
         };
     }
 }
 
 // ✅ 导出单例实例（前后端共享）
 export const sharedScoreService = new SharedScoreService();
+
+/**
+ * 终局计分（与 `gameScoreService` / 结算处共用）
+ * 不使用 `game.score` 局内累加；总分仅含回合效率 + 存活 + 胜败。
+ */
+export function buildEndGameScoreResult(
+    game: {
+        scoringConfigVersion?: string;
+        currentRound?: { no: number };
+        team?: Array<{ stats?: { hp?: { current: number; max: number } } }>;
+    },
+    gameResult: GameResult
+): ScoreResult {
+    return sharedScoreService.calculateCompleteScore(
+        {
+            roundsUsed: game.currentRound?.no ?? 0,
+            gameResult,
+            survivalStats: sharedScoreService.calculateSurvivalStats(game.team || []),
+        },
+        game.scoringConfigVersion
+    );
+}
 

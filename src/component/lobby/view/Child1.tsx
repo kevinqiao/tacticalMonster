@@ -1,18 +1,27 @@
-import { PageProp } from "component/RenderApp";
-import React from "react";
+﻿import { PageProp } from "component/RenderApp";
+import { useFooterNavIsDesktop } from "component/lobby/control/footer/FooterNavIsDesktop";
+import React, { useRef } from "react";
 import TournamentHome from "../tournament/TournamentHome";
 import "./style.css";
+import { useLobbySlideChildSwipe } from "./useLobbySlideChildSwipe";
 
 const Child1: React.FC<PageProp> = () => {
-  return (<div
-    style={{
-      width: "100%",
-      height: "100%",
-      backgroundColor: "yellow",
-    }}
-  >
-    <TournamentHome />
-  </div>);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const isDesktop = useFooterNavIsDesktop();
+  useLobbySlideChildSwipe(rootRef, { enabled: !isDesktop });
+
+  return (
+    <div
+      ref={rootRef}
+      style={{
+        width: "100%",
+        height: "100%",
+        backgroundColor: "yellow",
+      }}
+    >
+      <TournamentHome />
+    </div>
+  );
 };
 
 export default Child1;

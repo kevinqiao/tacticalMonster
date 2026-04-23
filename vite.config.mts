@@ -1,12 +1,21 @@
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { fileURLToPath } from 'url';
 import { defineConfig, type Plugin } from 'vite';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function manualChunks(id: string): string | undefined {
-  if (!id.includes('node_modules')) return undefined;
+  if (!id.includes('node_modules')) {
+    // Keep tournament modal + tactical monster game in the same async chunk.
+    // This avoids stale nested dynamic imports like PlayTacticalMonster-*.js during preview/deploy swaps.
+    if (/[/\\]src[/\\]component[/\\]battle[/\\]PlayTournament\.tsx$/.test(id)) return 'modal-app';
+    if (/[/\\]src[/\\]component[/\\]battle[/\\]games[/\\]tacticalMonster[/\\]/.test(id)) return 'modal-app';
+    return undefined;
+  }
+  // Keep scheduler with React to avoid react-vendor <-> vendor circular runtime init issues.
+  if (/[/\\]node_modules[/\\]scheduler[/\\]/.test(id)) return 'react-vendor';
+  if (/[/\\]node_modules[/\\]use-sync-external-store[/\\]/.test(id)) return 'react-vendor';
   if (id.includes('three') || id.includes('@react-three') || id.includes('drei')) {
     return 'three-vendor';
   }
@@ -23,12 +32,12 @@ export default defineConfig({
   // 需要 React Fast Refresh 时再装回插件并改用 npm run dev:hmr（仍可能错行）。
   plugins: [
     process.env.ANALYZE === 'true' &&
-      visualizer({
-        filename: 'dist/stats.html',
-        gzipSize: true,
-        brotliSize: true,
-        open: true,
-      }),
+    visualizer({
+      filename: 'dist/stats.html',
+      gzipSize: true,
+      brotliSize: true,
+      open: true,
+    }),
   ].filter(Boolean) as Plugin[],
   resolve: {
     alias: [
@@ -74,6 +83,12 @@ export default defineConfig({
       external: (id) => {
         if (id.includes('jsonwebtoken') || id.includes('buffer-equal-constant-time')) {
           return true;
+        }
+        // Frontend imports shared score logic from convex service path.
+        // Never externalize it, otherwise Rollup may leave runtime imports to ../src/... in dist assets.
+        // Guarded by scripts/verify-dist-runtime-imports.mjs.
+        if (/sharedScoreService(\.[a-z]+)?$/i.test(id) || id.includes('sharedScoreService')) {
+          return false;
         }
         if (id.includes('/convex/') && (id.includes('/service/') || id.includes('/dao/'))) {
           return true;

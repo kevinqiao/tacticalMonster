@@ -20,8 +20,6 @@ export type BossScalingTuning = {
      */
     minMultiplier?: number;
     maxMultiplier?: number;
-    /** 与当前队战力取 max，用于防脱装备压战力；也可作账号保底 */
-    playerPowerFloor?: number;
 };
 
 const EPS = 1e-9;
@@ -46,7 +44,6 @@ export function bossScalingTuningFromDifficultyAdjustment(
         scaleCeiling?: number;
         minMultiplier?: number;
         maxMultiplier?: number;
-        playerPowerFloor?: number;
     } | null
 ): BossScalingTuning | undefined {
     if (!adj) return undefined;
@@ -57,7 +54,6 @@ export function bossScalingTuningFromDifficultyAdjustment(
     if (adj.scaleCeiling !== undefined) out.scaleCeiling = adj.scaleCeiling;
     if (adj.minMultiplier !== undefined) out.minMultiplier = adj.minMultiplier;
     if (adj.maxMultiplier !== undefined) out.maxMultiplier = adj.maxMultiplier;
-    if (adj.playerPowerFloor !== undefined) out.playerPowerFloor = adj.playerPowerFloor;
     return Object.keys(out).length ? out : undefined;
 }
 
@@ -87,8 +83,7 @@ export function computeBossStatScale(
     const sf = t.scaleFloor ?? DEFAULT_BOSS_SCALING_TUNING.scaleFloor;
     const sc = t.scaleCeiling ?? DEFAULT_BOSS_SCALING_TUNING.scaleCeiling;
 
-    const floor = t.playerPowerFloor ?? 0;
-    const p = Math.max(EPS, playerPower, floor);
+    const p = Math.max(EPS, playerPower);
     const refSafe = Math.max(EPS, ref);
     const adjustedPower = refSafe * Math.pow(p / refSafe, exp);
     const targetBossPower = adjustedPower * difficultyMultiplier;

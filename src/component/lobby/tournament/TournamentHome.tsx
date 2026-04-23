@@ -87,16 +87,18 @@ const TournamentList: React.FC = () => {
     const join = useCallback(async (item: any) => {
         console.log("join tournament", item);
         const matchType = item.config.matchRules.maxPlayers === 1 ? "solo" : "multi_player";
-        openModal("play_tournament", {
-            playMode: "join",
-            gameType: item.gameType,
-            gameData: {
-                typeId: item.typeId,
-                stageId: item.stageId,
-                matchType: matchType,
-                mode: resolveTournamentModeWithStaticFallback(item),
-            }
-        }, { name: "swipeRight", args: { width: "100%" } });
+        openModal({
+            name: "play_tournament", data: {
+                playMode: "join",
+                gameType: item.gameType,
+                gameData: {
+                    typeId: item.typeId,
+                    stageId: item.stageId,
+                    matchType: matchType,
+                    mode: resolveTournamentModeWithStaticFallback(item),
+                }
+            }, effect: { name: "swipeRight", args: { width: "100%" } }
+        });
     }, [openModal]);
 
     const effectiveTab = useMemo((): TournamentModeType => {

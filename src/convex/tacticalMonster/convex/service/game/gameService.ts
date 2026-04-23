@@ -12,7 +12,7 @@ import { GameLifecycleService } from "./gameLifecycleService";
 import { GamePhaseService } from "./gamePhaseService";
 import { GameScoreService } from "./gameScoreService";
 import { RoundService } from "./roundService";
-import { GameResult } from "./sharedScoreService";
+import { buildEndGameScoreResult, GameResult } from "./sharedScoreService";
 import { SkillTargetService } from "./skillTargetService";
 
 /**
@@ -581,19 +581,24 @@ export const findReport = query({
             return { ok: false };
         }
 
-        const baseScore = game.score || 0;
-        const timeBonus = 0; // 可以计算时间奖励
-        const completeBonus = game.status === 1 ? 500 : 0;
-        const totalScore = baseScore + timeBonus + completeBonus;
+        const st = (game as { status?: number }).status;
+        const gr: GameResult | null =
+            st === 1 ? GameResult.WIN : st === 2 ? GameResult.LOSE : st === 3 ? GameResult.DRAW : null;
+        const recomputed = gr != null ? buildEndGameScoreResult(game as any, gr) : null;
+        const persisted = (game as { score?: number }).score;
+        const totalScore =
+            gr != null
+                ? (typeof persisted === "number" ? persisted : (recomputed?.totalScore ?? 0))
+                : (persisted ?? 0);
 
         return {
             ok: true,
             data: {
                 gameId,
-                baseScore,
-                timeBonus,
-                completeBonus,
                 totalScore,
+                roundBonus: recomputed?.roundBonus,
+                survivalBonus: recomputed?.survivalBonus,
+                resultScore: recomputed?.resultScore,
             },
         };
     },

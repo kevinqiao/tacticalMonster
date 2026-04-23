@@ -312,11 +312,12 @@ export const HeadNavBarDesktop: React.FC = () => {
     );
 
   const onPortraitMenuItem = useCallback(
-    (item: { label: string, type: "page" | "modal", uri: string }) => {
+    (item: { label: string, type: "page" | "modal", uri: string, effect?: { name: string, args?: any } }) => {
+      console.log("onPortraitMenuItem", item);
       if (item.type === "page") {
         openPage({ uri: item.uri });
       } else {
-        openModal(item.uri);
+        openModal({ name: item.uri, effect: item.effect });
       }
       closeMenuAfterExit();
     },

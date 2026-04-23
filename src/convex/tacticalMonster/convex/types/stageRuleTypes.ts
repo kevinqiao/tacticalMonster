@@ -214,8 +214,6 @@ export interface StageRuleConfig {
             /** 第一道夹逼，默认行为由 DEFAULT_BOSS_SCALING_TUNING 定义 */
             scaleFloor?: number;
             scaleCeiling?: number;
-            /** 与当前队伍战力取 max（防脱装备） */
-            playerPowerFloor?: number;
         };
         // 关卡级 Boss 覆盖（用于教学关精准调参，不影响全局 Boss 模板）
         bossOverrides?: StageBossOverrides;

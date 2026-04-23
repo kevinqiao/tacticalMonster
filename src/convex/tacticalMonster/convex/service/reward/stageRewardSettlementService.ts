@@ -7,34 +7,16 @@
 
 import { CHAPTER_CLEAR_CHEST_BY_CHAPTER } from "../../data/chapterRewards";
 import { resolveSoloDirectShardMonsterId } from "../../data/soloRewardResolve";
-import { DEFAULT_SCORING_CONFIG_VERSION } from "../../data/scoringConfigs";
 import { ScoreTierReward, StageModeType } from "../../types/stageRuleTypes";
 import { getModeTypeForRuleId } from "../../utils/tournamentModeType";
 import { GameRuleConfigService } from "../game/gameRuleConfigService";
-import { GameResult, sharedScoreService } from "../game/sharedScoreService";
+import { buildEndGameScoreResult, GameResult } from "../game/sharedScoreService";
 import { ChestService } from "../chest/chestService";
 import { MonsterService } from "../monster/monsterService";
 import { TournamentProxyService } from "../tournament/tournamentProxyService";
 
 function buildScoreResultForEndedGame(game: any, gameResult: GameResult) {
-    const configVersion = game.scoringConfigVersion || DEFAULT_SCORING_CONFIG_VERSION;
-    const baseScore = game.score || 0;
-    const gameStartTime = game.createdAt ? new Date(game.createdAt).getTime() : Date.now();
-    const timeElapsed = Date.now() - gameStartTime;
-    const roundsUsed = game.currentRound?.no ?? 0;
-    const survivalStats = sharedScoreService.calculateSurvivalStats(game.team || []);
-    return sharedScoreService.calculateCompleteScore(
-        {
-            baseScore,
-            timeElapsed,
-            roundsUsed,
-            damageDealt: 0,
-            skillsUsed: 0,
-            gameResult,
-            survivalStats,
-        },
-        configVersion
-    );
+    return buildEndGameScoreResult(game, gameResult);
 }
 
 /** 取命中的最高档（minScore 降序第一个满足 finalScore >= minScore） */

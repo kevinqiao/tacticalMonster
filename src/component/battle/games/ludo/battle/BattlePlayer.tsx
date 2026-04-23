@@ -1,4 +1,4 @@
-import Dice from "component/ludo/battle/view/Dice";
+import Dice from "@/component/battle/games/ludo/battle/view/Dice";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SSAProvider } from "service/SSAManager";
 import "../map.css";

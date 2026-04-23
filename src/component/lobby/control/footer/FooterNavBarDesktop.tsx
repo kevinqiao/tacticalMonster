@@ -1,17 +1,18 @@
+import { useModalManager } from "@/service/ModalManager";
 import React, { useCallback } from "react";
 import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
+import { NAV_MENU_ITEMS } from "../NavShared";
 import "./FooterNavControl.css";
 import {
   FOOTER_NAV_DESKTOP_ICON_AUTH_LOGOUT,
   FOOTER_NAV_DESKTOP_ICON_AUTH_SIGNIN,
   FOOTER_NAV_DESKTOP_ICONS,
 } from "./FooterNavDesktopConfig";
-import { FOOTER_NAV_LABEL, FOOTER_NAV_URI } from "./FooterNavShared";
-
 /** 桌面：带框图标按钮（HUD 快捷栏，CSS hover/active） */
 export const FooterNavBarDesktop: React.FC = () => {
   const { openPage } = usePageManager();
+  const { openModal } = useModalManager();
   const { user, logout, askAuth, cancelAuth } = useUserManager();
 
   const signIn = useCallback(() => {
@@ -25,22 +26,28 @@ export const FooterNavBarDesktop: React.FC = () => {
   return (
     <nav className="footer-nav-desktop" aria-label="Lobby navigation">
       <ul className="footer-nav-desktop__list">
-        {FOOTER_NAV_URI.map((uri, i) => (
-          <li key={uri} className="footer-nav-desktop__item">
+        {NAV_MENU_ITEMS.map((item, index) => (
+          <li key={item.uri} className="footer-nav-desktop__item">
             <button
               type="button"
               className="footer-nav-desktop__btn"
-              aria-label={FOOTER_NAV_LABEL[i]}
-              onClick={() => openPage({ uri })}
+              aria-label={item.label}
+              onClick={() => {
+                if (item.type === "page") {
+                  openPage({ uri: item.uri });
+                } else {
+                  openModal({ name: item.uri, effect: item.effect });
+                }
+              }}
             >
               <img
                 className="footer-nav-desktop__icon"
-                src={FOOTER_NAV_DESKTOP_ICONS[i]}
+                src={FOOTER_NAV_DESKTOP_ICONS[index]}
                 alt=""
                 draggable={false}
               />
               <span className="footer-nav-desktop__caption">
-                {FOOTER_NAV_LABEL[i]}
+                {item.label}
               </span>
             </button>
           </li>

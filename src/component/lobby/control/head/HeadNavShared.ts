@@ -14,7 +14,7 @@ export const HEAD_NAV_LABEL = [
   "Child4",
   "Map",
 ] as const;
-export const HEAD_NAV_MENU_ITEMS: { label: string, type: "page" | "modal", uri: string }[] = [
+export const HEAD_NAV_MENU_ITEMS: { label: string, type: "page" | "modal", uri: string, effect?: { name: string, args?: any } }[] = [
   {
     label: "Child1",
     type: "page",
@@ -34,6 +34,7 @@ export const HEAD_NAV_MENU_ITEMS: { label: string, type: "page" | "modal", uri: 
     label: "Child4",
     type: "modal",
     uri: "tournament_history",
+    effect: { name: "swipeRight", args: { width: "50%" } },
   }]
 
 export type HeadNavUri = (typeof HEAD_NAV_URI)[number];

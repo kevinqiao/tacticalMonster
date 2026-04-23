@@ -2,12 +2,14 @@ import { useSharedValue } from "@/service/SharedPageDataManager";
 import React from "react";
 import { FooterNavBarDesktop } from "./FooterNavBarDesktop";
 import { FooterNavBarTouch } from "./FooterNavBarTouch";
+import { FooterNavBarTouchPortrait } from "./FooterNavBarTouchPortrait";
 import "./FooterNavControl.css";
 import { useFooterNavIsDesktop } from "./FooterNavIsDesktop";
 
 const FooterNavBar: React.FC = () => {
   const isDesktop = useFooterNavIsDesktop();
   const isPortrait = useSharedValue("lobby.layout.portrait");
+  if (!isDesktop && isPortrait) return <FooterNavBarTouchPortrait />;
   if (isDesktop || !isPortrait) return <FooterNavBarDesktop />;
   return <FooterNavBarTouch />;
 };

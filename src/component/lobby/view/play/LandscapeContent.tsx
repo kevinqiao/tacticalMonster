@@ -51,10 +51,10 @@ const Content: React.FC = () => {
             </div>
             <div style={{ position: "relative", width: dimension?.rw, height: dimension?.height, backgroundColor: "red", marginRight: "50px" }}>
                 <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", position: "absolute", bottom: 0, left: 0, width: "100%", height: "60px" }}>
-                    <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "blue", color: "white" }} onClick={() => openModal("join_tournament", undefined, { name: "swipeRight", args: { width: "30%" } })}>JOIN</div>
+                    <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "blue", color: "white" }} onClick={() => openModal({ name: "join_tournament", effect: { name: "swipeRight", args: { width: "30%" } } })}>JOIN</div>
                     <div
                         style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "green", color: "white" }}
-                        onClick={() => openModal("tournament_history", undefined, { name: "swipeRight", args: { width: "30%" } })}
+                        onClick={() => openModal({ name: "tournament_history", effect: { name: "swipeRight", args: { width: "30%" } } })}
                     >
                         RECORD
                     </div>
