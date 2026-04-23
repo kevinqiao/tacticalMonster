@@ -71,6 +71,12 @@ export const Modals: Record<string, ModalConfig> = {
         path: "./lobby/view/play/ChestDrop",
         auth: 1,
         effect: { name: "popCenter", args: { width: "70%", height: "70%" } },
+    },
+    "play_solitaire_solo": {
+        name: "play_solitaire_solo",
+        path: "./battle/games/solitaireSolo/battle/PlaySolitaireSolo",
+        auth: 1,
+        effect: { name: "popCenter", args: { width: "100%", height: "100%" } },
     }
 }
 export const animates: { [k: number]: any } = {

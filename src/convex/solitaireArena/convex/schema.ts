@@ -19,7 +19,7 @@ export default defineSchema({
             id: v.string(),
             type: v.string(),
         })),
-        actionStatus: v.string(),
+        actionStatus: v.optional(v.string()),
         status: v.number(),
         score: v.number(),
         moves: v.number(),

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { SoloGameEngine } from "../../../../component/battle/games/solitaireSolo/battle/service/SoloGameEngine";
-import { ActionStatus, Card, SoloGameState, SoloGameStatus } from "../../../../component/battle/games/solitaireSolo/battle/types/SoloTypes";
+import { Card, SoloGameState, SoloGameStatus } from "../../../../component/battle/games/solitaireSolo/battle/types/SoloTypes";
 import { createZones } from "../../../../component/battle/games/solitaireSolo/battle/Utils";
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
 export class GameManager {
@@ -43,7 +43,7 @@ export class GameManager {
         console.log("createGame", game, seed);
         const zones = createZones();
         const gameState: SoloGameState = {
-            ...game, gameId: gameId ?? "", zones, actionStatus: ActionStatus.IDLE
+            ...game, gameId: gameId ?? "", zones
         };
         const gid = await this.dbCtx.db.insert("game", gameState);
         if (gid) {
@@ -122,6 +122,35 @@ export const createGame = internalMutation({
 
     },
 });
+
+/** 客户端直接开新局（不依赖锦标赛 proxy）；与 internal createGame 逻辑一致 */
+export const createSoloGame = mutation({
+    args: {
+        seed: v.optional(v.string()),
+        gameId: v.optional(v.string()),
+    },
+    handler: async (ctx, { seed, gameId: requestedId }) => {
+        const gameId =
+            requestedId && String(requestedId).length > 0
+                ? String(requestedId)
+                : crypto.randomUUID();
+        const gameManager = new GameManager(ctx);
+        const game = await gameManager.createGame(seed, gameId);
+        if (!game) {
+            return { ok: false as const };
+        }
+        const initialGame = JSON.parse(JSON.stringify(game));
+        const dealedCards = SoloGameEngine.deal(game.cards);
+        await gameManager.save({ cards: dealedCards, status: SoloGameStatus.DEALED });
+        return {
+            ok: true as const,
+            gameId,
+            data: initialGame,
+            events: [{ name: "deal", cards: dealedCards }],
+        };
+    },
+});
+
 export const loadGame = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
