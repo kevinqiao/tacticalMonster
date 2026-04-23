@@ -4,10 +4,10 @@
  */
 
 import {
-    ActionStatus,
     ActMode,
     Card,
     CARD_VALUES,
+    GameInteractionPhase,
     SolitaireRule,
     SoloCard,
     SoloGameState,
@@ -19,9 +19,11 @@ import {
 
 export class SoloRuleManager implements SolitaireRule {
     private gameState: SoloGameState;
+    private interactionPhase: GameInteractionPhase;
 
-    constructor(gameState: SoloGameState) {
+    constructor(gameState: SoloGameState, interactionPhase: GameInteractionPhase) {
         this.gameState = gameState;
+        this.interactionPhase = interactionPhase;
     }
 
 
@@ -29,7 +31,7 @@ export class SoloRuleManager implements SolitaireRule {
     getActModes(card: Card): ActMode[] {
         const modes: ActMode[] = [];
 
-        if (this.gameState.actionStatus !== ActionStatus.IDLE || this.gameState.status !== SoloGameStatus.DEALED) {
+        if (this.interactionPhase !== GameInteractionPhase.idle || this.gameState.status !== SoloGameStatus.DEALED) {
             return modes;
         }
         if (!card.isRevealed && card.zone !== ZoneType.TALON) {

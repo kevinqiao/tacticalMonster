@@ -4,6 +4,7 @@ import {
     CARD_RANKS,
     CARD_SUITS,
     CARD_VALUES,
+    GameInteractionPhase,
     GameModel,
     SoloGameState,
     SoloGameStatus,
@@ -90,7 +91,7 @@ export class SoloGameEngine {
     public static recycle(gameState: SoloGameState): ActionResult {
         const result: ActionResult = { ok: false, data: {} };
         if (!gameState) return result;
-        const ruleManager = new SoloRuleManager(gameState);
+        const ruleManager = new SoloRuleManager(gameState, GameInteractionPhase.idle);
         if (!ruleManager.canRecycle()) return result;
         const wasteCards = gameState.cards.filter((c: Card) => c.zoneId === 'waste').sort((a: Card, b: Card) => b.zoneIndex - a.zoneIndex);
         const cards = wasteCards.map((c: Card, index: number) => {
@@ -104,7 +105,7 @@ export class SoloGameEngine {
         const result: ActionResult = { ok: false, data: {} };
         if (!gameState || !card) return result;
         console.log("enginemoveCard", card);
-        const ruleManager = new SoloRuleManager(gameState);
+        const ruleManager = new SoloRuleManager(gameState, GameInteractionPhase.idle);
         console.log("canMoveToZone", ruleManager.canMoveToZone(card, toZoneId));
         if (!ruleManager.canMoveToZone(card, toZoneId)) return result;
 
@@ -138,7 +139,7 @@ export class SoloGameEngine {
 
         const result: ActionResult = { ok: false, data: {} };
         if (!gameState) return result;
-        const ruleManager = new SoloRuleManager(gameState);
+        const ruleManager = new SoloRuleManager(gameState, GameInteractionPhase.idle);
         const canDraw = ruleManager.canDraw(cardId);
         if (!canDraw) return result;
         const card = gameState.cards.find((c: Card) => c.id === cardId);

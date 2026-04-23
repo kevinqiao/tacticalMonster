@@ -48,6 +48,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   './battle/PlayTournament': () => import('./battle/PlayTournament'),
   './lobby/tournament/TournamentJoinList': () => import('./lobby/tournament/TournamentJoinList'),
   './lobby/tournament/TournamentHistory': () => import('./lobby/tournament/TournamentHistory'),
+  './battle/games/solitaireSolo/battle/PlaySolitaireSolo': () => import('./battle/games/solitaireSolo/battle/PlaySolitaireSolo'),
 };
 
 // 错误边界组件

@@ -8,9 +8,9 @@ import React, { createContext, ReactNode, RefObject, useCallback, useContext, us
 import { api } from '../../../../../../convex/solitaireArena/convex/_generated/api';
 import { dealEffect } from '../animation/effects/dealEffect';
 import {
-    ActionStatus,
     Card,
     DEFAULT_GAME_CONFIG,
+    GameInteractionPhase,
     GameReport,
     SolitaireRule,
     SoloBoardDimension,
@@ -29,6 +29,8 @@ interface ISoloGameContext {
     boardDimensionRef: RefObject<SoloBoardDimension | null>;
     config: SoloGameConfig;
     ruleManager: SolitaireRule | null;
+    interactionPhase: GameInteractionPhase;
+    setInteractionPhase: (phase: GameInteractionPhase) => void;
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
     onGameOver: () => void;
     submitScore: (score: number) => void;
@@ -43,6 +45,8 @@ const SoloGameContext = createContext<ISoloGameContext>({
     boardDimensionRef: { current: null },
     config: DEFAULT_GAME_CONFIG,
     ruleManager: null,
+    interactionPhase: GameInteractionPhase.idle,
+    setInteractionPhase: () => { },
     updateBoardDimension: () => { },
     submitScore: () => { },
     onGameOver: () => { },
@@ -71,15 +75,16 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     const [gameReport, setGameReport] = useState<GameReport | null>(null);
     const [dealEvent, setDealEvent] = useState<{ cards: Card[], name: string } | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
+    const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
     const boardDimensionRef = useRef<SoloBoardDimension | null>(null);
     const timelinesRef = useRef<{ [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }>({});
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
-    // const fetchGame = useAction(api.proxy.controller.loadGame);
+
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
-        return new SoloRuleManager(gameState)
-    }, [gameState])
+        return new SoloRuleManager(gameState, interactionPhase);
+    }, [gameState, interactionPhase]);
 
 
     // 更新棋盘尺寸
@@ -133,14 +138,15 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
             if (!gameId) return;
             const res = await convex.action(api.proxy.controller.loadGame, { gameId });
             if (res.ok) {
-                // loadGame(res.game);
-                const game = { ...res.game, actionStatus: ActionStatus.ACTING };
-                const event = res.events?.find((event: any) => event.name === "deal");
-                // console.log("event", event);
-                if (event)
+                const raw = res.game as SoloGameState & { actionStatus?: string };
+                const { actionStatus: _drop, ...rest } = raw;
+                const game = rest as SoloGameState;
+                const event = res.events?.find((e: { name?: string }) => e.name === "deal");
+                if (event) {
                     setDealEvent(event);
-                else {
-                    game.actionStatus = ActionStatus.IDLE;
+                    setInteractionPhase(GameInteractionPhase.animating);
+                } else {
+                    setInteractionPhase(GameInteractionPhase.idle);
                 }
                 setGameState(game);
                 onGameLoadComplete?.();
@@ -170,9 +176,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
                                 card.zoneId = r.zoneId;
                                 card.zoneIndex = r.zoneIndex;
                             }
-                            // console.log('update card', card);
                         });
-                        gameState.actionStatus = ActionStatus.IDLE;
+                        setInteractionPhase(GameInteractionPhase.idle);
                     }
                 });
             }
@@ -190,6 +195,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         boardDimensionRef,
         config,
         ruleManager,
+        interactionPhase,
+        setInteractionPhase,
         updateBoardDimension,
         submitScore,
         onGameOver,

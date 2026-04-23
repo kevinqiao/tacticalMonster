@@ -44,9 +44,15 @@ const Content: React.FC = () => {
                         transformOrigin: "bottom left"
                     }}></div>
                     <div style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
                         width: "60%", height: "100%", backgroundColor: "red", transform: "scale(0.95)",
                         transformOrigin: "bottom right"
-                    }}></div>
+                    }}>
+                        <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "blue", color: "white" }} onClick={() => openModal({ name: "play_solitaire_solo", effect: { name: "popCenter", args: { width: "100%", height: "100%" } } })}>Solitaire</div>
+
+                    </div>
                 </div>
             </div>
             <div style={{ position: "relative", width: dimension?.rw, height: dimension?.height, backgroundColor: "red", marginRight: "50px" }}>

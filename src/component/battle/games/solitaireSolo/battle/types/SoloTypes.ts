@@ -10,10 +10,11 @@ export enum SoloGameStatus {
     COMPLETED = 3,
     CANCELLED = 4
 }
-export enum ActionStatus {
-    IDLE = 'idle',
-    ACTING = 'acting',
-    DROPPING = 'dropping',
+/** 客户端交互阶段（不持久化到 Convex game 文档） */
+export enum GameInteractionPhase {
+    idle = 'idle',
+    pointerDrag = 'pointerDrag',
+    animating = 'animating',
 }
 export enum ActMode {
     DRAG = 'drag',
@@ -70,7 +71,6 @@ export interface SoloGameState extends GameModel {
     // 统一卡牌管理
     cards: SoloCard[];
     zones: SoloZone[];
-    actionStatus: ActionStatus;
     reportElement?: HTMLDivElement | null;
 }
 
@@ -145,8 +145,9 @@ export interface SoloActionData {
     dropTarget?: SoloDropTarget | null;     // 序列中的所有卡牌（包括主卡牌）
     offsetX?: number;
     offsetY?: number;
-    lastPosition?: { x: number; y: number }; // Add this line
+    lastPosition?: { x: number; y: number };
     status?: 'acting' | 'dragging' | 'dropping' | 'cancelled' | 'finished';
+    pointerId?: number;
 }
 export interface ActionResult {
     ok: boolean;

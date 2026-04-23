@@ -1,4 +1,4 @@
-import { ActionResult, ActionStatus, ActMode, Card, SoloActionData, SoloCard, SoloGameStatus, ZoneType } from "component/battle/games/solitaireSolo";
+import { ActionResult, ActMode, Card, GameInteractionPhase, SoloActionData, SoloCard, SoloGameStatus, ZoneType } from "component/battle/games/solitaireSolo";
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
 import { api } from "../../../../../../../convex/solitaireArena/convex/_generated/api";
@@ -9,7 +9,7 @@ import { SoloGameEngine } from "../SoloGameEngine";
 
 const useActHandler = () => {
     const convex = useConvex();
-    const { timelines, ruleManager, gameState, boardDimension, boardDimensionRef } = useSoloGameManager();
+    const { timelines, ruleManager, gameState, boardDimension, boardDimensionRef, setInteractionPhase } = useSoloGameManager();
     const saveUpdate = useCallback((cards: Card[]) => {
         if (!gameState) return;
         cards.forEach((r: SoloCard) => {
@@ -20,7 +20,6 @@ const useActHandler = () => {
                 card.zoneId = r.zoneId;
                 card.zoneIndex = r.zoneIndex;
             }
-            // console.log('update card', card);
         });
 
     }, [gameState]);
@@ -29,11 +28,11 @@ const useActHandler = () => {
         if (!gameState || !ruleManager) return;
         const { dropTarget, card, actModes } = data;
         if (!card || !actModes?.includes(ActMode.DRAG)) {
-            gameState.actionStatus = ActionStatus.IDLE;
+            setInteractionPhase(GameInteractionPhase.idle);
             return;
         }
 
-        gameState.actionStatus = ActionStatus.DROPPING;
+        setInteractionPhase(GameInteractionPhase.animating);
         console.log("onDrop", data);
         if (dropTarget && ruleManager.canMoveToZone(card as Card, dropTarget.zoneId)) {
             moveCard(data);
@@ -41,12 +40,12 @@ const useActHandler = () => {
         }
         cancelDrag(data);
 
-    }, [gameState]);
+    }, [gameState, ruleManager, setInteractionPhase]);
     const onClickOrTouch = useCallback((data: SoloActionData) => {
         if (!ruleManager || !gameState) return;
         const { card } = data;
         if (!card) {
-            gameState.actionStatus = ActionStatus.IDLE;
+            setInteractionPhase(GameInteractionPhase.idle);
             return;
         }
         const target = ruleManager?.findTarget(card as Card);
@@ -57,18 +56,18 @@ const useActHandler = () => {
                 moveCard({ ...data, dropTarget: target });
             }
         } else {
-            gameState.actionStatus = ActionStatus.IDLE;
+            setInteractionPhase(GameInteractionPhase.idle);
         }
         return
-    }, [gameState]);
+    }, [gameState, ruleManager, setInteractionPhase]);
 
     const recycle = useCallback(async () => {
         if (!gameState) return;
-        gameState.actionStatus = ActionStatus.ACTING;
+        setInteractionPhase(GameInteractionPhase.animating);
 
         const result = SoloGameEngine.recycle(gameState);
         if (!result.ok) {
-            gameState.actionStatus = ActionStatus.IDLE;
+            setInteractionPhase(GameInteractionPhase.idle);
             return;
         }
         const cards = result.data?.update || [];
@@ -81,9 +80,8 @@ const useActHandler = () => {
                 })
                 .catch((error) => {
                     console.error('move card failed:', error);
-                    resolve(); // 失败时也 resolve，确保 Promise.all 继续执行
+                    resolve();
                 });
-            // }
         });
         const playPromise = new Promise<void>((resolve) => {
             PlayEffects.recycle({
@@ -91,19 +89,18 @@ const useActHandler = () => {
                 data: { gameState, boardDimensionRef, cards },
                 onComplete: () => {
                     saveUpdate(cards);
-                    gameState.actionStatus = ActionStatus.IDLE;
+                    setInteractionPhase(GameInteractionPhase.idle);
                 }
             });
         })
         await Promise.all([recyclePromise, playPromise]);
-        gameState.actionStatus = ActionStatus.IDLE;
+        setInteractionPhase(GameInteractionPhase.idle);
         return;
-    }, [gameState, boardDimension])
+    }, [gameState, boardDimensionRef, convex, timelines, saveUpdate, setInteractionPhase])
     const deal = useCallback(async (effectType: 'default' | 'fan' | 'spiral' | 'wave' | 'explosion' = 'default') => {
         if (!gameState) return;
-        gameState.actionStatus = ActionStatus.ACTING;
+        setInteractionPhase(GameInteractionPhase.animating);
         const dealResult = await convex.mutation(api.service.gameManager.deal, { gameId: gameState.gameId });
-        // console.log("dealResult", dealResult);
         if (dealResult && dealResult.ok) {
             const dealedCards = dealResult.data?.update || [];
             console.log("dealedCards", dealedCards, effectType);
@@ -114,36 +111,38 @@ const useActHandler = () => {
                 onComplete: () => {
                     saveUpdate(dealedCards);
                     gameState.status = SoloGameStatus.DEALED;
-                    gameState.actionStatus = ActionStatus.IDLE;
+                    setInteractionPhase(GameInteractionPhase.idle);
                 }
             });
+        } else {
+            setInteractionPhase(GameInteractionPhase.idle);
         }
-        // const dealedCards = SoloGameEngine.deal(gameState.cards);
 
-    }, [gameState, boardDimension]);
+    }, [gameState, boardDimension, convex, timelines, saveUpdate, setInteractionPhase]);
 
     const cancelDrag = useCallback((data: SoloActionData) => {
         console.log("cancelDrag", data);
         if (!data || !data.card) return;
+        setInteractionPhase(GameInteractionPhase.animating);
         PlayEffects.dragCancel({
             timelines,
             data: { cards: [data.card, ...(data.cards || [])], gameState, boardDimensionRef }, onComplete: () => {
-                if (gameState) {
-                    gameState.actionStatus = ActionStatus.IDLE;
-                }
+                setInteractionPhase(GameInteractionPhase.idle);
             }
         });
-    }, [gameState, boardDimensionRef]);
+    }, [gameState, boardDimensionRef, timelines, setInteractionPhase]);
     const drawCard = useCallback(async (data: SoloActionData) => {
 
         const { card } = data;
         if (!gameState || !ruleManager || !card) return;
-        // const canDraw = ruleManager.canDraw(card.id);
+        setInteractionPhase(GameInteractionPhase.animating);
         const drawResult = SoloGameEngine.drawCard(gameState, card.id);
         const drawedCard = drawResult.data?.draw?.[0];
-        if (!drawedCard) return;
+        if (!drawedCard) {
+            setInteractionPhase(GameInteractionPhase.idle);
+            return;
+        }
         let updateCards: SoloCard[] = [];
-        // 任务1: 手动控制 resolve 的查询 Promise
         const drawPromise = new Promise<void>((resolve) => {
             convex.mutation(api.service.gameManager.draw, { gameId: gameState.gameId, cardId: card.id })
                 .then((result: ActionResult) => {
@@ -156,14 +155,15 @@ const useActHandler = () => {
                             data: { card: revealedCard, gameState }, onComplete: () => {
                                 resolve();
                             }
-                        })
-                    } resolve();
+                        });
+                    } else {
+                        resolve();
+                    }
                 })
                 .catch((error) => {
                     console.error('move card failed:', error);
-                    resolve(); // 失败时也 resolve，确保 Promise.all 继续执行
+                    resolve();
                 });
-            // }
         });
         const playPromise = new Promise<void>((resolve) => {
             PlayEffects.drawCard({
@@ -176,9 +176,9 @@ const useActHandler = () => {
         await Promise.all([drawPromise, playPromise]);
         console.log("updateCards", updateCards);
         saveUpdate(updateCards);
-        gameState.actionStatus = ActionStatus.IDLE;
+        setInteractionPhase(GameInteractionPhase.idle);
         return;
-    }, [ruleManager, gameState, boardDimensionRef]);
+    }, [ruleManager, gameState, boardDimensionRef, convex, timelines, saveUpdate, setInteractionPhase]);
 
     const moveCard = useCallback(async (data: SoloActionData) => {
         const { card, cards, dropTarget } = data;
@@ -187,13 +187,12 @@ const useActHandler = () => {
         const result = SoloGameEngine.moveCard(gameState, card as Card, dropTarget.zoneId);
         console.log("moveCard result", result);
         if (!result.ok) {
-            gameState.actionStatus = ActionStatus.IDLE;
+            setInteractionPhase(GameInteractionPhase.idle);
             return;
         }
+        setInteractionPhase(GameInteractionPhase.animating);
         const movedCards = result.data?.move || [];
-        // const tasks: { task1: boolean, task2: boolean, task3: boolean } = { task1: true, task2: false, task3: false };
 
-        // 任务1: 手动控制 resolve 的查询 Promise
         const movePromise = new Promise<void>((resolve) => {
 
             convex.mutation(api.service.gameManager.move, { gameId: gameState.gameId, cardId: card.id, toZone: dropTarget.zoneId })
@@ -211,43 +210,30 @@ const useActHandler = () => {
                             onComplete: () => { saveUpdate(flipCards); resolve(); }
                         });
                     } else
-                        resolve(); // 成功时 resolve
+                        resolve();
                 })
                 .catch((error) => {
                     console.error('move card failed:', error);
-                    resolve(); // 失败时也 resolve，确保 Promise.all 继续执行
+                    resolve();
                 });
         });
 
-        // 任务2: 手动控制 resolve 的动画 Promise
         const playPromise = new Promise<void>((resolve) => {
             PlayEffects.moveCard({
                 timelines,
                 data: { boardDimensionRef, gameState, cards: movedCards },
-                onComplete: () => { saveUpdate(movedCards); resolve(); } // 动画完成时 resolve
+                onComplete: () => { saveUpdate(movedCards); resolve(); }
             });
         });
-        // 任务3: 手动控制 resolve 的 reset 动画 Promise
-        // const resetCards = gameState.cards.filter((c: SoloCard) => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex);
-        // console.log('resetCards', card, resetCards);
-        // const resetPromise = new Promise<void>((resolve) => {
-        //     PlayEffects.resetZone({
-        //         data: { cards: resetCards, boardDimension },
-        //         onComplete: () => { tasks.task3 = true; resolve(); }
-        //     });
-        // });
 
-        // 等待两个操作都完成
         await Promise.all([movePromise, playPromise]);
 
-        // onUpdate([...flipCards, ...(result.data?.update || [])]);
-        gameState.actionStatus = ActionStatus.IDLE;
-    }, [gameState, boardDimensionRef]);
+        setInteractionPhase(GameInteractionPhase.idle);
+    }, [gameState, boardDimensionRef, ruleManager, convex, timelines, saveUpdate, setInteractionPhase]);
 
 
-    return { onClickOrTouch, onDrop, recycle, deal };
+    return { onClickOrTouch, onDrop, recycle, deal, cancelDrag };
 };
 
 export default useActHandler;
-
 

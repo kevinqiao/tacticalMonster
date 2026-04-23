@@ -6,17 +6,15 @@
 import { useConvex } from 'convex/react';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useUserManager } from 'service/UserManager';
-import { SoloDnDCard } from '..';
-import { api } from '../../../../../convex/solitaireArena/convex/_generated/api';
-import { GameOverReport } from './GameOverReport';
 import { useEventManager } from './service/EventProvider';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
 import { SoloGameEngine } from './service/SoloGameEngine';
 import './style.css';
-import { ActionStatus, CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
+import { CARD_SUITS, GameInteractionPhase, SoloBoardDimension, SoloCard, SoloGameState, SUIT_ICONS } from './types/SoloTypes';
 import { createZones } from './Utils';
+import SoloDnDCard from './view/SoloDnDCard';
 
 const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -26,14 +24,15 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         boardDimension,
         updateBoardDimension,
         submitScore,
-        onGameOver
+        onGameOver,
+        interactionPhase
     } = useSoloGameManager();
     const { cards } = gameState || {};
 
     const { recycle, deal } = useActHandler();
     const { addEvent } = useEventManager();
     const { actionData } = useSoloDnDManager();
-    const { user, updateUserData } = useUserManager();
+    const { user } = useUserManager();
     // console.log("SoloPlayer", user);
     const convex = useConvex();
     // 响应式断点
@@ -242,11 +241,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
 
     }, [addEvent, gameState]);
 
-    const handleGameOver = useCallback(async () => {
-        if (!gameState?.gameId) return;
-        await convex.mutation(api.service.gameManager.gameOver, { gameId: gameState.gameId });
-        updateUserData({ game: {} });
-    }, [updateUserData, gameState]);
+
 
     const handleGameOpen = useCallback(async () => {
         console.log("openGame", user);
@@ -255,7 +250,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         //     loadGame(result);
         //     await updateUserData({ game: { name: 'solitaire', gameId: result.gameId } });
         // }
-    }, [user, convex, updateUserData]);
+    }, [user, convex]);
     const handleGameInit = useCallback(() => {
         console.log("handleGameInit");
         const game = SoloGameEngine.createGame();
@@ -272,12 +267,12 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
             // console.log('update card', card);
         });
         const zones = createZones();
-        const gameState: SoloGameState = { ...game, zones, actionStatus: ActionStatus.IDLE };
+        const gameState: SoloGameState = { ...game, zones };
         // loadGame(gameState);
     }, []);
 
     const cleanup = useCallback((event: any) => {
-        if (!gameState || gameState.actionStatus !== ActionStatus.IDLE) return;
+        if (!gameState || interactionPhase !== GameInteractionPhase.idle) return;
         event.stopPropagation();
         event.preventDefault();
         console.log("cleanup", actionData);
@@ -286,7 +281,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
             actionData.cards = undefined;
         }
         recycle();
-    }, [gameState, recycle]);
+    }, [gameState, recycle, interactionPhase, actionData]);
 
 
     // 渲染基础堆
@@ -568,18 +563,6 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
             {renderWaste()}
             {renderTableau()}
             {renderCards}
-            <GameOverReport />
-
-
-            {/* Three.js 3D弹跳图层 */}
-            {/* {boardDimension && (
-                <ThreeJsBounceLayer
-                    boardDimension={boardDimension}
-                    onAnimationComplete={() => {
-                        console.log('🎊 Three.js bounce animation completed');
-                    }}
-                />
-            )} */}
 
         </div>
     );

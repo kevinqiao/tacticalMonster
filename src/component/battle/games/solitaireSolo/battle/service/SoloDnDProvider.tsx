@@ -1,11 +1,10 @@
 /**
- * 单人纸牌游戏拖拽服务
- * 基于 solitaire 的多人版本，简化为单人玩法
+ * 单人纸牌游戏拖拽服务（Pointer Events + 会话 ref）
  */
 
 import gsap from 'gsap';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { ActionStatus, ActMode, SoloActionData, SoloBoardDimension, SoloCard, SoloDropTarget, SoloZone, ZoneType } from '../types/SoloTypes';
+import { ActMode, GameInteractionPhase, SoloActionData, SoloBoardDimension, SoloCard, SoloDropTarget, SoloZone, ZoneType } from '../types/SoloTypes';
 import { findBestDropTarget } from '../Utils';
 import { useSoloGameManager } from './GameManager';
 import useActHandler from './handler/useActHandler';
@@ -13,20 +12,15 @@ import useActHandler from './handler/useActHandler';
 interface ISoloDnDContext {
     actionData: SoloActionData | null;
     isTouchDevice: boolean;
-    onDragStart: (card: SoloCard, event: React.MouseEvent | React.TouchEvent) => void;
-    onDragMove: (event: React.MouseEvent | React.TouchEvent) => void;
-    onDragEnd: (event: React.MouseEvent | React.TouchEvent) => void;
-    // onDrop: (event: React.MouseEvent | React.TouchEvent) => void;
-    getDragPosition: (event: React.MouseEvent | React.TouchEvent) => { x: number; y: number };
+    onPointerDragStart: (card: SoloCard, event: React.PointerEvent) => void;
+    getClientPoint: (event: PointerEvent | React.PointerEvent) => { x: number; y: number };
 }
 
 const SoloDnDContext = createContext<ISoloDnDContext>({
     actionData: null,
     isTouchDevice: false,
-    onDragStart: () => { },
-    onDragMove: () => { },
-    onDragEnd: () => { },
-    getDragPosition: () => ({ x: 0, y: 0 })
+    onPointerDragStart: () => { },
+    getClientPoint: () => ({ x: 0, y: 0 })
 });
 
 export const useSoloDnDManager = () => {
@@ -41,20 +35,38 @@ interface SoloDnDProviderProps {
     children: ReactNode;
 }
 
+function clearActionData(target: SoloActionData) {
+    for (const k of Object.keys(target)) {
+        delete (target as Record<string, unknown>)[k];
+    }
+}
+
+/** GSAP x/y 相对 offsetParent；须用当前视口矩形换算 clientX/Y，不能用缓存的 boardDimension.left/top（滚动/弹层会错位） */
+function getBoardSurfaceOrigin(
+    cardEle: HTMLElement | null | undefined,
+    fallback: SoloBoardDimension | null
+): { left: number; top: number } {
+    if (!cardEle) {
+        return { left: fallback?.left ?? 0, top: fallback?.top ?? 0 };
+    }
+    const op = cardEle.offsetParent;
+    if (op instanceof HTMLElement) {
+        const r = op.getBoundingClientRect();
+        return { left: r.left, top: r.top };
+    }
+    return { left: fallback?.left ?? 0, top: fallback?.top ?? 0 };
+}
+
 export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) => {
 
     const actionDataRef = useRef<SoloActionData>({});
-    // const [currentTarget, setCurrentTarget] = useState<string | null>(null);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
-    // const [hoveredTarget, setHoveredTarget] = useState<string | null>(null);
     const startPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+    const [, bump] = useState(0);
 
-    // 获取游戏管理器
-    const { gameState, ruleManager, boardDimension } = useSoloGameManager();
-    const { onClickOrTouch, onDrop } = useActHandler();
+    const { gameState, ruleManager, boardDimension, setInteractionPhase } = useSoloGameManager();
+    const { onClickOrTouch, onDrop, cancelDrag } = useActHandler();
 
-
-    // 检测是否为触摸设备
     useEffect(() => {
         const checkTouchDevice = () => {
             setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -64,14 +76,8 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         return () => window.removeEventListener('resize', checkTouchDevice);
     }, []);
 
-    // 获取鼠标或触摸位置
-    const getDragPosition = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        if ('touches' in event) {
-            const touch = event.touches[0] || event.changedTouches[0];
-            return { x: touch.clientX, y: touch.clientY };
-        } else {
-            return { x: event.clientX, y: event.clientY };
-        }
+    const getClientPoint = useCallback((event: PointerEvent | React.PointerEvent) => {
+        return { x: event.clientX, y: event.clientY };
     }, []);
 
     const toggleDropTargetHighlight = useCallback((card: SoloCard, dropTarget: SoloDropTarget | null) => {
@@ -89,7 +95,7 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
             }
         }
     }, [gameState]);
-    // 清除目标高亮
+
     const clearDropTargetHighlight = useCallback(() => {
         if (actionDataRef.current && actionDataRef.current.dropTarget && gameState) {
             const prevZoneId = actionDataRef.current.dropTarget.zoneId;
@@ -100,65 +106,63 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
         }
     }, [gameState]);
 
-    // 开始拖拽
-    const onDragStart = useCallback((card: SoloCard, event: React.MouseEvent | React.TouchEvent) => {
+    const onPointerDragStart = useCallback((card: SoloCard, event: React.PointerEvent) => {
         const actModes = ruleManager?.getActModes(card) || [];
-        console.log("onDragStart", card, actModes);
+        console.log("onPointerDragStart", card, actModes);
         if (!ruleManager || !card.ele || !gameState || actModes.length === 0) return;
-        gameState.actionStatus = ActionStatus.ACTING;
+        setInteractionPhase(GameInteractionPhase.pointerDrag);
         event.preventDefault();
         event.stopPropagation();
-        const position = getDragPosition(event);
+        const position = getClientPoint(event);
         startPositionRef.current = position;
         const rect = card.ele.getBoundingClientRect();
         const cards = card.zone === ZoneType.TABLEAU ? gameState.cards.filter((c: SoloCard) => c.zoneId === card.zoneId && c.zoneIndex > card.zoneIndex).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex) : [];
-        // console.log('cards', card, cards);
         const dragData: SoloActionData = {
             card,
-            cards, // 包含整个序列
+            cards,
             actModes,
             offsetX: position.x - rect.left,
             offsetY: position.y - rect.top,
-            lastPosition: position, // 添加最后位置记录
-            status: 'acting'
+            lastPosition: position,
+            status: 'acting',
+            pointerId: event.pointerId
         };
+        clearActionData(actionDataRef.current);
         Object.assign(actionDataRef.current, dragData);
         gsap.set(card.ele, { zIndex: card.zoneIndex + 99999 });
         cards.forEach((c: SoloCard) => {
             if (c.ele)
                 gsap.set(c.ele, { zIndex: c.zoneIndex + 99999 });
         });
+        bump(n => n + 1);
+    }, [gameState, getClientPoint, ruleManager, setInteractionPhase]);
 
+    const onPointerMove = useCallback((event: PointerEvent) => {
+        const session = actionDataRef.current;
+        if (!session.card) return;
+        if (!session.actModes?.includes(ActMode.DRAG) || !boardDimension || !gameState) return;
+        if (session.pointerId !== undefined && event.pointerId !== session.pointerId) return;
 
-    }, [gameState, getDragPosition, boardDimension]);
-
-    // 拖拽移动 - 优化版本
-    const onDragMove = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-
-        if (!actionDataRef.current.actModes?.includes(ActMode.DRAG) || gameState?.actionStatus !== ActionStatus.ACTING || !boardDimension || !gameState) return;
-
-        const card = actionDataRef.current.card;
+        const card = session.card;
         if (!card || !card.ele) return;
-        const position = getDragPosition(event);
-        const { offsetX, offsetY, cards, lastPosition } = actionDataRef.current;
-        const { left, top } = boardDimension as SoloBoardDimension;
-        const x = position.x - left - (offsetX || 0);
-        const y = position.y - top - (offsetY || 0);
+        const position = getClientPoint(event);
+        const { offsetX, offsetY, cards, lastPosition } = session;
+        const { left: originLeft, top: originTop } = getBoardSurfaceOrigin(card.ele, boardDimension);
+        const x = position.x - originLeft - (offsetX || 0);
+        const y = position.y - originTop - (offsetY || 0);
 
-        // 只在位置变化较大时重新检测
         const distance = lastPosition ? Math.sqrt(
             Math.pow(position.x - lastPosition.x, 2) +
             Math.pow(position.y - lastPosition.y, 2)
         ) : 10;
 
-        if (distance > 10) { // 只在移动超过10像素时重新检测
+        if (distance > 10) {
             const dropTarget = findBestDropTarget(position, card, boardDimension);
             toggleDropTargetHighlight(card, dropTarget);
-            actionDataRef.current.dropTarget = dropTarget;
-            actionDataRef.current.lastPosition = position;
+            session.dropTarget = dropTarget;
+            session.lastPosition = position;
         }
 
-        // 更新卡牌位置
         gsap.set(card.ele, { x, y });
         if (cards) {
             cards.forEach((c: SoloCard, index: number) => {
@@ -167,101 +171,99 @@ export const SoloDnDProvider: React.FC<SoloDnDProviderProps> = ({ children }) =>
                     gsap.set(c.ele, { x, y: dy });
             });
         }
+    }, [getClientPoint, gameState, boardDimension, toggleDropTargetHighlight]);
 
-    }, [getDragPosition, gameState, boardDimension, clearDropTargetHighlight]);
+    const endPointerSession = useCallback((event: PointerEvent) => {
+        const session = actionDataRef.current;
+        if (!boardDimension || !gameState) return;
+        if (!session.card) return;
+        if (session.pointerId !== undefined && event.pointerId !== session.pointerId) return;
 
-    // 结束拖拽
-    const onDragEnd = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        if (!boardDimension || gameState?.actionStatus !== ActionStatus.ACTING) return;
-        // const { card, cards } = dragDataRef.current;
         event.preventDefault();
         event.stopPropagation();
 
-        const position = getDragPosition(event);
+        const position = getClientPoint(event);
         const distance = Math.sqrt(
             Math.pow(position.x - startPositionRef.current.x, 2) +
             Math.pow(position.y - startPositionRef.current.y, 2)
         );
-        console.log('distance', distance, gameState?.actionStatus, actionDataRef.current);
-        // 处理点击（移动距离太小）
-        gameState.actionStatus = ActionStatus.DROPPING;
+        console.log('pointer session end', distance, session);
+
+        const payload: SoloActionData = { ...session };
+        clearDropTargetHighlight();
+        clearActionData(actionDataRef.current);
+        document.body.style.cursor = 'default';
+        bump(n => n + 1);
+
         if (distance < 5) {
-            onClickOrTouch(actionDataRef.current);
+            onClickOrTouch(payload);
         } else {
-            clearDropTargetHighlight();
-            onDrop(actionDataRef.current);
+            onDrop(payload);
         }
-        // handleDrop();
+    }, [boardDimension, gameState, getClientPoint, clearDropTargetHighlight, onClickOrTouch, onDrop]);
 
-    }, [getDragPosition, boardDimension, gameState]);
+    const onPointerCancel = useCallback((event: PointerEvent) => {
+        const session = actionDataRef.current;
+        if (!session.card) return;
+        if (session.pointerId !== undefined && event.pointerId !== session.pointerId) return;
 
-    // 全局事件监听
+        const payload: SoloActionData = { ...session };
+        clearDropTargetHighlight();
+        clearActionData(actionDataRef.current);
+        document.body.style.cursor = 'default';
+        bump(n => n + 1);
+        cancelDrag(payload);
+    }, [clearDropTargetHighlight, cancelDrag]);
+
     useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (actionDataRef.current) {
+        const handlePointerMove = (e: PointerEvent) => {
+            if (actionDataRef.current.card) {
                 e.preventDefault();
-                e.stopPropagation();
-                onDragMove(e as any);
+                onPointerMove(e);
             }
         };
 
-        const handleMouseUp = (e: MouseEvent) => {
-
-            if (actionDataRef.current) {
-                document.body.style.cursor = 'default';
-                onDragEnd(e as any);
+        const handlePointerUp = (e: PointerEvent) => {
+            if (actionDataRef.current.card) {
+                endPointerSession(e);
             }
         };
 
-        const handleTouchMove = (e: TouchEvent) => {
-            if (actionDataRef.current) {
-                e.preventDefault();
-                onDragMove(e as any);
-            }
-        };
-
-        const handleTouchEnd = (e: TouchEvent) => {
-            if (actionDataRef.current) {
-                onDragEnd(e as any);
+        const handlePointerCancel = (e: PointerEvent) => {
+            if (actionDataRef.current.card) {
+                onPointerCancel(e);
             }
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (actionDataRef.current && e.key === 'Escape') {
-                console.log('Drag cancelled by ESC key');
-                // 创建一个模拟的取消事件
-                const cancelEvent = new MouseEvent('mouseup', {
-                    clientX: startPositionRef.current.x,
-                    clientY: startPositionRef.current.y,
-                    bubbles: true,
-                    cancelable: true
-                });
-                onDragEnd(cancelEvent as any);
+            if (actionDataRef.current.card && e.key === 'Escape') {
+                const payload: SoloActionData = { ...actionDataRef.current };
+                clearDropTargetHighlight();
+                clearActionData(actionDataRef.current);
+                document.body.style.cursor = 'default';
+                bump(n => n + 1);
+                cancelDrag(payload);
             }
         };
 
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', handleTouchEnd);
+        document.addEventListener('pointermove', handlePointerMove, { passive: false });
+        document.addEventListener('pointerup', handlePointerUp);
+        document.addEventListener('pointercancel', handlePointerCancel);
         document.addEventListener('keydown', handleKeyDown);
 
         return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-            document.removeEventListener('touchmove', handleTouchMove);
-            document.removeEventListener('touchend', handleTouchEnd);
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', handlePointerUp);
+            document.removeEventListener('pointercancel', handlePointerCancel);
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [actionDataRef, onDragMove, onDragEnd]);
+    }, [onPointerMove, endPointerSession, onPointerCancel, cancelDrag, clearDropTargetHighlight]);
 
     const value: ISoloDnDContext = {
         actionData: actionDataRef.current,
         isTouchDevice,
-        onDragStart,
-        onDragMove,
-        onDragEnd,
-        getDragPosition
+        onPointerDragStart,
+        getClientPoint
     };
 
     return (
