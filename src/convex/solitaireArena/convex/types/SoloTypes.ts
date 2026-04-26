@@ -23,8 +23,9 @@ export enum ActMode {
 export enum ActType {
     DRAW = 'draw',
     MOVE = 'move',
-    FLIP = 'flip',
-    RESET = 'reset',
+    FOUNDATION = 'foundation',
+    WASTE = 'waste',
+    UNDO = 'undo'
 }
 // 区域类型枚举
 export enum ZoneType {
@@ -158,7 +159,7 @@ export interface ActionResult {
     ok: boolean;
     code?: number;
     message?: string;
-    data?: { draw?: Card[], move?: Card[], flip?: Card[], reset?: Card[] };
+    data?: { draw?: Card[], move?: Card[], flip?: Card[], reset?: Card[], update?: Card[], create?: Card[], delete?: Card[] };
 }
 
 export interface SoloAnimationConfig {

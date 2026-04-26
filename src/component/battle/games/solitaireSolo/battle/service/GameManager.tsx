@@ -3,7 +3,6 @@
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
 import { useConvex } from 'convex/react';
-import gsap from 'gsap';
 import React, { createContext, ReactNode, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../../../convex/solitaireArena/convex/_generated/api';
 import { dealEffect } from '../animation/effects/dealEffect';
@@ -11,7 +10,6 @@ import {
     Card,
     DEFAULT_GAME_CONFIG,
     GameInteractionPhase,
-    GameReport,
     SolitaireRule,
     SoloBoardDimension,
     SoloCard,
@@ -22,9 +20,8 @@ import {
 import SoloRuleManager from './SoloRuleManager';
 
 interface ISoloGameContext {
-    timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } };
+    // timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } };
     gameState: SoloGameState | null;
-    gameReport: GameReport | null;
     boardDimension: SoloBoardDimension | null;
     boardDimensionRef: RefObject<SoloBoardDimension | null>;
     config: SoloGameConfig;
@@ -32,14 +29,14 @@ interface ISoloGameContext {
     interactionPhase: GameInteractionPhase;
     setInteractionPhase: (phase: GameInteractionPhase) => void;
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
-    onGameOver: () => void;
-    submitScore: (score: number) => void;
-    isPlaying: (card: SoloCard) => boolean;
+    loadGame: () => void;
+    // onGameOver: () => void;
+    // submitScore: (score: number) => void;
+    // isPlaying: (card: SoloCard) => boolean;
 }
 
 const SoloGameContext = createContext<ISoloGameContext>({
-    gameReport: null,
-    timelines: {},
+    // timelines: {},
     gameState: null,
     boardDimension: null,
     boardDimensionRef: { current: null },
@@ -48,9 +45,10 @@ const SoloGameContext = createContext<ISoloGameContext>({
     interactionPhase: GameInteractionPhase.idle,
     setInteractionPhase: () => { },
     updateBoardDimension: () => { },
-    submitScore: () => { },
-    onGameOver: () => { },
-    isPlaying: () => false
+    loadGame: () => { },
+    // submitScore: () => { },
+    // onGameOver: () => { },
+    // isPlaying: () => false
 
 });
 
@@ -72,7 +70,6 @@ interface SoloGameProviderProps {
 
 export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig, onGameLoadComplete, onGameSubmit }) => {
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
-    const [gameReport, setGameReport] = useState<GameReport | null>(null);
     const [dealEvent, setDealEvent] = useState<{ cards: Card[], name: string } | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
     const [interactionPhase, setInteractionPhase] = useState<GameInteractionPhase>(GameInteractionPhase.idle);
@@ -97,65 +94,29 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         boardDimensionRef.current = dimension;
         setBoardDimension(dimension);
     }, [timelinesRef]);
-
-
-
-    const onGameOver = useCallback(async () => {
-        if (gameState?.reportElement && convex) {
-            gsap.to(gameState.reportElement, {
-                opacity: 1,
-                visibility: 'visible',
-                duration: 1,
-                ease: 'power2.inOut'
-            });
-            const res = await convex.query(api.service.gameManager.findReport, { gameId: gameState.gameId });
-            if (res.ok) {
-                setGameReport(res.data as GameReport);
+    const loadGame = useCallback(async () => {
+        if (!gameId) return;
+        const res = await convex.action(api.proxy.controller.loadGame, { gameId });
+        if (res.ok) {
+            const raw = res.game as SoloGameState & { actionStatus?: string };
+            const { actionStatus: _drop, ...rest } = raw;
+            const game = rest as SoloGameState;
+            const event = res.events?.find((e: { name?: string }) => e.name === "deal");
+            // 仅当局仍为 OPEN 时才跑发牌动画；库中已是 DEALED 时若仍带 deal 事件，不应锁在 animating（否则 getActModes 永远为空）
+            if (event) {
+                setDealEvent(event);
+                setInteractionPhase(GameInteractionPhase.animating);
+            } else {
+                setDealEvent(null);
+                setInteractionPhase(GameInteractionPhase.idle);
             }
-        }
-    }, [gameState, convex]);
-    const submitScore = useCallback(async (score: number) => {
-        if (!gameState) return;
-        if (gameState.reportElement) {
-            gsap.to(gameState.reportElement, {
-                onComplete: () => {
-                    onGameSubmit?.();
-                },
-                autoAlpha: 0,
-                duration: 0.4,
-                ease: 'power2.inOut'
-            });
-        }
-        convex.action(api.proxy.controller.submitScore, { gameId: gameState.gameId, score }).then((res) => {
-            if (res.ok) {
-                console.log("score submitted", res);
-            }
-        });
-    }, [gameState, convex])
-    useEffect(() => {
-
-        const load = async () => {
-            if (!gameId) return;
-            const res = await convex.action(api.proxy.controller.loadGame, { gameId });
-            if (res.ok) {
-                const raw = res.game as SoloGameState & { actionStatus?: string };
-                const { actionStatus: _drop, ...rest } = raw;
-                const game = rest as SoloGameState;
-                const event = res.events?.find((e: { name?: string }) => e.name === "deal");
-                if (event) {
-                    setDealEvent(event);
-                    setInteractionPhase(GameInteractionPhase.animating);
-                } else {
-                    setInteractionPhase(GameInteractionPhase.idle);
-                }
-                setGameState(game);
-                onGameLoadComplete?.();
-            }
-        }
-        if (gameId && convex) {
-            load();
+            console.log("game loaded", game);
+            setGameState(game);
         }
     }, [convex, gameId]);
+    useEffect(() => {
+        loadGame();
+    }, [loadGame]);
     useEffect(() => {
 
         if (dealEvent && gameState?.status === SoloGameStatus.OPEN && boardDimension) {
@@ -164,7 +125,6 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
             if (ready) {
                 gameState.status = SoloGameStatus.DEALED
                 dealEffect({
-                    timelines: timelinesRef.current,
                     effectType: 'fan',
                     data: { cards: dealEvent.cards, gameState, boardDimensionRef },
                     onComplete: () => {
@@ -184,12 +144,11 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         }
     }, [dealEvent, gameState, boardDimension]);
 
-    const isPlaying = useCallback((card: SoloCard) => {
-        return Object.values(timelinesRef.current).some(tl => tl.timeline.isActive() && tl.cards.some(c => c.id === card.id));
-    }, []);
+    // const isPlaying = useCallback((card: SoloCard) => {
+    //     return Object.values(timelinesRef.current).some(tl => tl.timeline.isActive() && tl.cards.some(c => c.id === card.id));
+    // }, []);
     const value: ISoloGameContext = {
-        timelines: timelinesRef.current,
-        gameReport,
+        // timelines: timelinesRef.current,
         gameState,
         boardDimension,
         boardDimensionRef,
@@ -198,9 +157,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         interactionPhase,
         setInteractionPhase,
         updateBoardDimension,
-        submitScore,
-        onGameOver,
-        isPlaying
+        loadGame,
     };
 
     return (

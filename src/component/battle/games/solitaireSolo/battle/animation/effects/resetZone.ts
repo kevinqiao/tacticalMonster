@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { SoloCard } from "../../types/SoloTypes";
-import { getCoord } from "../../Utils";
+import { getCardCoord } from "../../Utils";
 export const resetZone = ({ timelines, data, onComplete }: { timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }, data: any; onComplete?: () => void }) => {
     const { cards, boardDimension } = data;
     const tl = gsap.timeline({
@@ -11,7 +11,7 @@ export const resetZone = ({ timelines, data, onComplete }: { timelines: { [k: st
     timelines.resetZone.timeline = tl;
     timelines.resetZone.cards = cards;
     cards.forEach((c: SoloCard) => {
-        const coord = getCoord(c, cards, boardDimension);
+        const coord = getCardCoord(c, cards, boardDimension);
         if (c.ele) {
             tl.to(c.ele, {
                 x: coord.x,

@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { SoloCard, ZoneType } from "../../../types/SoloTypes";
-import { getCoord } from "../../../Utils";
+import { getCardCoord } from "../../../Utils";
 import { popCard } from "../popCard";
 
 export const deal = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
@@ -25,7 +25,7 @@ export const deal = ({ data, onComplete }: { data: any; onComplete?: () => void 
 
             row.forEach((card: SoloCard) => {
                 const zoneCards = cards.filter((c: SoloCard) => c.zoneId === card.zoneId);
-                const { x, y } = getCoord(card, zoneCards, boardDimension);
+                const { x, y } = getCardCoord(card, zoneCards, boardDimension);
 
                 if (card.ele) {
 

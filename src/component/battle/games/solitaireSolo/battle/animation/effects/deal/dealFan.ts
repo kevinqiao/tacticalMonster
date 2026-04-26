@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { SoloCard } from "../../../types/SoloTypes";
-import { getCoord } from "../../../Utils";
+import { getCardCoord } from "../../../Utils";
 import { popCard } from "../popCard";
 
 /**
@@ -15,8 +15,12 @@ export const dealFan = ({ timelines, data, onComplete }: { timelines: { [k: stri
         }
     });
     timelines.dealFan = { timeline: tl, cards: cards };
-    const boardDimension = boardDimensionRef.current;
-    if (!boardDimension) return;
+    const boardDimension = boardDimensionRef?.current;
+    if (!boardDimension) {
+        delete timelines.dealFan;
+        onComplete?.();
+        return;
+    }
 
     const deckX = boardDimension.zones.talon.x;
     const deckY = boardDimension.zones.talon.y;
@@ -67,11 +71,11 @@ export const dealFan = ({ timelines, data, onComplete }: { timelines: { [k: stri
 
         tl.to(card.ele, {
             x: () => {
-                const { x } = getCoord(card, zoneCards, boardDimensionRef);
+                const { x } = getCardCoord(card, zoneCards, boardDimensionRef);
                 return x;
             },
             y: () => {
-                const { y } = getCoord(card, zoneCards, boardDimensionRef);
+                const { y } = getCardCoord(card, zoneCards, boardDimensionRef);
                 return y;
             },
             rotateZ: 0,

@@ -7,7 +7,6 @@ import { ConvexProvider, ConvexReactClient, useMutation } from 'convex/react';
 import React from 'react';
 import { api } from '../../../../../convex/solitaireArena/convex/_generated/api';
 import GamePlayer from './GamePlayer';
-import { EventProvider } from './service/EventProvider';
 import SoloGameProvider from './service/GameManager';
 import SoloDnDProvider from './service/SoloDnDProvider';
 import './style.css';
@@ -91,11 +90,11 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
             onGameLoadComplete={onGameLoadComplete}
             onGameSubmit={onGameSubmit}
         >
-            <EventProvider>
-                <SoloDnDProvider>
-                    <GamePlayer gameId={activeGameId} />
-                </SoloDnDProvider>
-            </EventProvider>
+            {/* <EventProvider> */}
+            <SoloDnDProvider>
+                <GamePlayer gameId={activeGameId} />
+            </SoloDnDProvider>
+            {/* </EventProvider> */}
         </SoloGameProvider>
     );
 };

@@ -87,6 +87,101 @@
     -ms-user-select: none;
 }
 
+/* 牌桌：统一 7 列网格，foundation / stock / tableau 列宽一致，供测量与 getCardCoord 对齐 */
+.solo-board-surface {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    box-sizing: border-box;
+    /* 预留：两行牌槽 + 间距 + padding；矮屏时按视口高度收窄整盘宽度，列变窄 → 牌变小 */
+    --solo-board-v-reserve: max(9.5rem, min(28dvh, 200px));
+    --solo-zone-gap: clamp(4px, 1.2vw, 14px);
+    padding: var(--solo-zone-gap);
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: auto auto minmax(120px, 1fr);
+    column-gap: var(--solo-zone-gap);
+    row-gap: var(--solo-zone-gap);
+    max-width: min(100%,
+            max(200px, calc((100dvh - var(--solo-board-v-reserve)) * 1.42)));
+    margin-inline: auto;
+    background-color: #000000;
+}
+
+.solo-foundation-spacer {
+    grid-row: 1;
+    grid-column: 1 / 4;
+    min-height: 1px;
+}
+
+.foundation-zone.foundation-slot {
+    grid-row: 1;
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 5 / 7;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    justify-self: stretch;
+    align-self: start;
+}
+
+.solo-stock-slot {
+    grid-row: 2;
+    grid-column: 1 / 2;
+    width: 100%;
+    aspect-ratio: 5 / 7;
+    justify-self: stretch;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.solo-waste-area {
+    grid-row: 2;
+    grid-column: 2 / 5;
+    width: 100%;
+    min-height: 44px;
+    align-self: stretch;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.06);
+    box-sizing: border-box;
+}
+
+.solo-board-surface .tableau-column {
+    grid-row: 3;
+    position: relative;
+    width: 100%;
+    /* 矮屏少占纵向，避免与两行牌槽抢高度 */
+    min-height: min(28dvh, 220px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2px, 0.35vw, 10px);
+    box-sizing: border-box;
+    justify-self: stretch;
+}
+
+/* 卡牌层叠在整面网格之上；不设 position，便于卡牌 absolute 的 offsetParent 落到 .solo-board-surface */
+.solo-board-cards-layer {
+    grid-row: 1 / -1;
+    grid-column: 1 / -1;
+    pointer-events: none;
+    z-index: 2;
+    min-height: 0;
+}
+
+.solo-board-cards-layer>* {
+    pointer-events: auto;
+}
+
 /* 卡牌样式 */
 .solo-card {
     transition: all 0.2s ease;

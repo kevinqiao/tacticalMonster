@@ -1,8 +1,8 @@
 import { v } from "convex/values";
-import { SoloGameEngine } from "../../../../component/battle/games/solitaireSolo/battle/service/SoloGameEngine";
-import { Card, SoloGameState, SoloGameStatus } from "../../../../component/battle/games/solitaireSolo/battle/types/SoloTypes";
-import { createZones } from "../../../../component/battle/games/solitaireSolo/battle/Utils";
+
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
+import { Card, SoloGameState, SoloGameStatus } from "../types/SoloTypes";
+import { createZones, SoloGameEngine } from "./SoloGameEngine";
 export class GameManager {
     private dbCtx: any;
     private game: any | null;
@@ -21,7 +21,7 @@ export class GameManager {
     async save(data: { cards?: Card[], status?: SoloGameStatus }) {
 
         if (!this.game) return;
-        console.log("save game", data);
+        // console.log("save game", data);
         if (data.cards) {
             for (const c of data.cards) {
                 const card: Card | undefined = this.game.cards.find((cc: Card) => cc.id === c.id);

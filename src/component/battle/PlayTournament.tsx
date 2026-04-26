@@ -1,7 +1,7 @@
 import { ModalProp } from "@/service/ModalManager";
 import React, { lazy, Suspense, useMemo } from "react";
-import "./style.css";
 import PlayTacticalMonster from "./games/tacticalMonster/PlayTacticalMonster";
+import "./style.css";
 
 const isStaleChunkError = (error: unknown): boolean => {
   const msg = String((error as Error)?.message ?? error ?? "");
@@ -142,7 +142,7 @@ const PlayTournament: React.FC<ModalProp> = ({ visible, data, close }) => {
     if (path === '') return null;
     return getCachedComponent(path);
   }, [data, visible]);
-  console.log("PlayTournament data", visible, data, SelectedComponent);
+  // console.log("PlayTournament data", visible, data, SelectedComponent);
 
   return (
     <>

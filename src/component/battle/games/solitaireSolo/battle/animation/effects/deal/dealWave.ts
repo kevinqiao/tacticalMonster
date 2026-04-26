@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { SoloCard, ZoneType } from "../../../types/SoloTypes";
-import { getCoord } from "../../../Utils";
+import { getCardCoord } from "../../../Utils";
 import { popCard } from "../popCard";
 
 /**
@@ -29,7 +29,7 @@ export const dealWave = ({ data, onComplete }: { data: any; onComplete?: () => v
             const card = gameState.cards.find((gc: SoloCard) => gc.id === c.id);
             if (!card) return;
 
-            const { x, y } = getCoord(c, columnCards, boardDimension);
+            const { x, y } = getCardCoord(c, columnCards, boardDimension);
             console.log("card", card, x, y);
             gsap.set(card.ele, { x: deckX, y: deckY - 200 }); // 从上方落下
 

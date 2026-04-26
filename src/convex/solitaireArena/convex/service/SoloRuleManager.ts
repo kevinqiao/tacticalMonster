@@ -16,7 +16,8 @@ import {
     SoloMove,
     ZoneType
 } from '../types/SoloTypes';
-import { createZones } from '../Utils';
+import { createZones } from './SoloGameEngine';
+
 
 export class SoloRuleManager implements SolitaireRule {
     private gameState: SoloGameState;
@@ -533,6 +534,7 @@ export class SoloRuleManager implements SolitaireRule {
         // 所有4个 foundation 堆都满了，游戏胜利
         return true;
     }
+
 }
 
 export default SoloRuleManager;

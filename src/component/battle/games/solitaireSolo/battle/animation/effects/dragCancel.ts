@@ -1,41 +1,74 @@
 import gsap from "gsap";
-import { SoloCard } from "../../types/SoloTypes";
-import { getCoord } from "../../Utils";
+import { SoloCard, ZoneType } from "../../types/SoloTypes";
+import { getCardCoord, tableauCardZIndex } from "../../Utils";
 
 export const dragCancel = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
-    const { cards, boardDimensionRef, gameState } = data;
+    const { cards: rawCards, boardDimensionRef, gameState } = data;
+    const cards = (rawCards as SoloCard[] | undefined)?.filter(Boolean) ?? [];
+
+    const finish = () => {
+        onComplete?.();
+    };
+
+    if (!gameState || !boardDimensionRef?.current || cards.length === 0 || !cards[0]?.zoneId) {
+        finish();
+        return;
+    }
+
+    const zoneId = cards[0].zoneId;
+    const zoneCards = gameState.cards
+        .filter((c: SoloCard) => c.zoneId === zoneId)
+        .sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
+
+    const snapStackToLayout = () => {
+        for (const c of cards) {
+            if (!c.ele) continue;
+            const { x, y } = getCardCoord(c, zoneCards, boardDimensionRef);
+            const z =
+                c.zone === ZoneType.TABLEAU
+                    ? tableauCardZIndex(c.zoneId, c.zoneIndex)
+                    : c.zoneIndex + 10;
+            gsap.set(c.ele, { x, y, zIndex: z });
+        }
+    };
+
     const tl = gsap.timeline({
         onComplete: () => {
-            // cards.forEach((c: SoloCard) => {
-            //      if (c && c.ele)
-            //         gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-            // });
-            onComplete?.();
-        }
+            snapStackToLayout();
+            finish();
+        },
     });
 
-    if (cards) {
-        const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === cards[0].zoneId).sort((a: SoloCard, b: SoloCard) => a.zoneIndex - b.zoneIndex);
-        console.log("dragCancel zoneCards", zoneCards, cards[0]);
-        cards.forEach((c: SoloCard, index: number) => {
-
-            if (c.ele) {
-                gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-                tl.to(c.ele, {
-                    x: () => {
-                        const { x } = getCoord(c, zoneCards, boardDimensionRef);
-                        return x;
-                    },
-                    y: () => {
-                        const { y } = getCoord(c, zoneCards, boardDimensionRef);
-                        return y;
-                    },
-                    duration: 0.5,
-                    ease: "ease.out"
-                }, "<");
-            }
-        });
+    try {
+        let added = false;
+        for (const c of cards) {
+            if (!c.ele) continue;
+            const z =
+                c.zone === ZoneType.TABLEAU
+                    ? tableauCardZIndex(c.zoneId, c.zoneIndex)
+                    : c.zoneIndex + 10;
+            gsap.set(c.ele, { zIndex: z });
+            tl.to(
+                c.ele,
+                {
+                    x: () => getCardCoord(c, zoneCards, boardDimensionRef).x,
+                    y: () => getCardCoord(c, zoneCards, boardDimensionRef).y,
+                    duration: 0.22,
+                    ease: "power2.out",
+                },
+                "<"
+            );
+            added = true;
+        }
+        if (!added) {
+            snapStackToLayout();
+            finish();
+            return;
+        }
+        tl.play();
+    } catch (e) {
+        console.error("dragCancel", e);
+        snapStackToLayout();
+        finish();
     }
-    tl.play();
-    return;
-}
+};

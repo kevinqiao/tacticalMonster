@@ -47,7 +47,7 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const openModal = useCallback(({ name, data, effect }: { name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } }) => {
-    console.log("open modal", name, data, effect);
+
     const container = modalContainers[name];
     if (container && container.auth === 1 && !user?.uid) {
       askAuth({ modal: { name, data, effect } });
@@ -99,7 +99,7 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
     }, []),
   }
 
-  console.log("modals", modals);
+
   return (
     <ModalContext.Provider value={value}>
       {children}

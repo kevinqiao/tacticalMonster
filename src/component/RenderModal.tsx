@@ -135,14 +135,17 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
     return getCachedComponent(container.path);
   }, [container.path]);
   useEffect(() => {
-
     if (container.ele && zIndex === 0) {
-      gsap.set(container.mask!, {
-        autoAlpha: 0,
-      });
-      gsap.set(container.ele!, {
-        autoAlpha: 0,
-      });
+      if (container.mask) {
+        gsap.set(container.mask, {
+          autoAlpha: 0,
+        });
+      }
+      if (container.ele) {
+        gsap.set(container.ele, {
+          autoAlpha: 0,
+        });
+      }
     }
   }, [zIndex, container.ele]);
   useEffect(() => {
@@ -157,6 +160,7 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
   }, [modals, container.name]);
   useEffect(() => {
     if (modal) {
+      console.log("playOpen", container.name, modal);
       playOpen({
         container, modal, onComplete: () => {
           // console.log("open modal complete", container.name);
@@ -166,23 +170,23 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
   }, [container, modal, playOpen]);
 
   /** 横竖屏 / 视口变化后重算 GSAP 布局，避免 transform 与百分比错位 */
-  useEffect(() => {
-    if (!modal) return;
-    let raf = 0;
-    const scheduleSync = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        syncModalOpenLayout({ container, modal });
-      });
-    };
-    window.addEventListener("resize", scheduleSync);
-    window.addEventListener("orientationchange", scheduleSync);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", scheduleSync);
-      window.removeEventListener("orientationchange", scheduleSync);
-    };
-  }, [container, modal, syncModalOpenLayout]);
+  // useEffect(() => {
+  //   if (!modal) return;
+  //   let raf = 0;
+  //   const scheduleSync = () => {
+  //     cancelAnimationFrame(raf);
+  //     raf = requestAnimationFrame(() => {
+  //       syncModalOpenLayout({ container, modal });
+  //     });
+  //   };
+  //   window.addEventListener("resize", scheduleSync);
+  //   window.addEventListener("orientationchange", scheduleSync);
+  //   return () => {
+  //     cancelAnimationFrame(raf);
+  //     window.removeEventListener("resize", scheduleSync);
+  //     window.removeEventListener("orientationchange", scheduleSync);
+  //   };
+  // }, [container, modal, syncModalOpenLayout]);
 
   const modalLayer = (
     <div style={{ position: "fixed", inset: 0, zIndex, backgroundColor: "transparent", pointerEvents: modal ? "auto" : "none", overflow: "hidden" }}>
@@ -218,7 +222,7 @@ const RenderModal: React.FC = () => {
 
   // 优化的页面渲染
   const renderModals = useMemo(() => {
-
+    console.log("renderModals", modalContainers);
     return Object.values(modalContainers).map((container, index) => (
       <Suspense key={container.name} fallback={<div className="modal-loading" />}>
         <ModalComponent

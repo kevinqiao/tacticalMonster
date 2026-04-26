@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { SoloCard, ZoneType } from "../../types/SoloTypes";
-import { getCoord } from "../../Utils";
+import { getCardCoord } from "../../Utils";
 import { popCard } from "./popCard";
 
 export const gameOverBomb = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
@@ -29,7 +29,7 @@ export const gameOverBomb = ({ data, onComplete }: { data: any; onComplete?: () 
         if (!card.ele) return;
 
         const zoneCards = cards.filter((c: SoloCard) => c.zoneId === card.zoneId);
-        const { x, y } = getCoord(card, zoneCards, boardDimension);
+        const { x, y } = getCardCoord(card, zoneCards, boardDimension);
 
         // 计算爆炸方向（从中心向外）
         const angle = Math.atan2(y - centerY, x - centerX);

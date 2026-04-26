@@ -1,6 +1,4 @@
-import gsap from "gsap";
-import { RefObject } from "react";
-import { CARD_SUITS, SoloBoardDimension, SoloCard, SoloGameState, ZoneType } from "./types/SoloTypes";
+import { SoloBoardDimension, SoloCard, ZoneType } from "../types/SoloTypes";
 
 /**
  * 接龙列在「最厚一摞」的牌间步长之和 + 单牌高度超过槽位可用高度时，按比例压紧垂距，避免整摞超出区底/屏底。
@@ -18,7 +16,7 @@ function getTableauVerticalStepScale(
     const H = Math.max(0, slotH - pad);
     if (H < h) return 0;
 
-    const baseStep = (c: SoloCard) => 0.2 * h;
+    const baseStep = (c: SoloCard) => (c.isRevealed ? 0.3 : 0.1) * h;
     let gMax = 0;
     for (let col = 0; col < 7; col++) {
         const zoneId = `tableau-${col}`;
@@ -42,102 +40,6 @@ export function tableauCardZIndex(zoneId: string, zoneIndex: number): number {
     const safeCol = Number.isNaN(col) ? 0 : col;
     return 3000 + safeCol * 200 + zoneIndex;
 }
-
-/** 按当前 gameState 重算所有区域卡牌的 z-index（修复拖拽临时 zIndex 与移动后叠放） */
-export function syncCardStackZIndexFromGameState(gameState: SoloGameState): void {
-    const byZone = new Map<string, SoloCard[]>();
-    for (const c of gameState.cards) {
-        if (!c.ele) continue;
-        const list = byZone.get(c.zoneId) ?? [];
-        list.push(c);
-        byZone.set(c.zoneId, list);
-    }
-    for (const [, list] of byZone) {
-        list.sort((a, b) => a.zoneIndex - b.zoneIndex);
-        for (const c of list) {
-            if (!c.ele) continue;
-            const z =
-                c.zone === ZoneType.TABLEAU
-                    ? tableauCardZIndex(c.zoneId, c.zoneIndex)
-                    : c.zoneIndex + 10;
-            gsap.set(c.ele, { zIndex: z });
-        }
-    }
-}
-
-/** `boardDimensionRef` 或发牌/特效里直接传入的 `boardDimension` 快照 */
-export type BoardDimensionSource =
-    | RefObject<SoloBoardDimension | null>
-    | SoloBoardDimension
-    | null
-    | undefined;
-
-function resolveBoardDimension(src: BoardDimensionSource): SoloBoardDimension | null {
-    if (src == null) return null;
-    if (typeof src === "object" && "current" in src) {
-        return (src as RefObject<SoloBoardDimension | null>).current ?? null;
-    }
-    return src as SoloBoardDimension;
-}
-
-export const getCardCoord = (card: SoloCard, zoneCards: SoloCard[], boardDimensionSource: BoardDimensionSource) => {
-    const boardDimension = resolveBoardDimension(boardDimensionSource);
-    if (!boardDimension) return { x: 0, y: 0 };
-    switch (card.zone) {
-        case ZoneType.TALON: {
-            const x = boardDimension.zones.talon.x
-            const y = boardDimension.zones.talon.y
-            return { x, y };
-        }
-        case ZoneType.WASTE: {
-            const wasteZone = boardDimension.zones.waste;
-            const cw = boardDimension.cardWidth;
-            const ch = boardDimension.cardHeight;
-
-            // 传统废牌：自左向右平铺，相邻牌水平重叠；张数多时自动缩小步长以落在 waste 区域内
-            const wastePile = [...zoneCards]
-                .filter((c) => c.zoneId === card.zoneId)
-                .sort((a, b) => a.zoneIndex - b.zoneIndex);
-            const idx = wastePile.findIndex((c) => c.id === card.id);
-            if (idx < 0) {
-                return { x: wasteZone.x, y: wasteZone.y };
-            }
-            const n = wastePile.length;
-            const maxStep = cw * 0.26;
-            const spread = Math.max(0, wasteZone.width - cw);
-            const step = n <= 1 ? 0 : Math.min(maxStep, spread / (n - 1));
-            const x = wasteZone.x + idx * step;
-            const y = wasteZone.y + Math.max(0, (wasteZone.height - ch) * 0.5);
-            return { x, y };
-        }
-        case ZoneType.TABLEAU: {
-            const colIndex = +card.zoneId.split('-')[1];
-            const xs = boardDimension.tableauColX;
-            const x =
-                Number.isInteger(colIndex) && colIndex >= 0 && colIndex < xs.length
-                    ? xs[colIndex]!
-                    : boardDimension.zones.tableau.x + colIndex * (boardDimension.cardWidth + boardDimension.spacing);
-            const h = boardDimension.cardHeight;
-
-            const vScale = getTableauVerticalStepScale(boardDimension, zoneCards);
-            let y = boardDimension.zones.tableau.y
-            y = y + card.zoneIndex * 0.2 * h * vScale;
-            return { x, y };
-        }
-        case ZoneType.FOUNDATION: {
-            const index = CARD_SUITS.findIndex(suit => suit === card.suit);
-            const fxs = boardDimension.foundationColX;
-            const x =
-                index >= 0 && index < fxs.length
-                    ? fxs[index]!
-                    : boardDimension.zones.foundations.x + index * (boardDimension.cardWidth + boardDimension.spacing);
-            const y = boardDimension.zones.foundations.y
-            return { x, y };
-        }
-        default:
-            return { x: 0, y: 0 };
-    }
-};
 
 // 获取区域优先级
 const getZonePriority = (zoneId: string, card: SoloCard) => {

@@ -1,37 +1,60 @@
 import gsap from "gsap";
 import { SoloCard } from "../../types/SoloTypes";
-import { getCoord } from "../../Utils";
+import { getCardCoord, syncCardStackZIndexFromGameState } from "../../Utils";
+import { SOLO_ANIMATION_CONFIG } from "../animationConfig";
 
-export const moveCard = ({ timelines, data, onComplete }: { timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }, data: any; onComplete?: () => void }) => {
+const { moveFlightBase, moveFlightStackOffset } = SOLO_ANIMATION_CONFIG.zIndex;
+const { normal: normalMoveDuration, autoFoundation: autoFoundationMoveDuration } = SOLO_ANIMATION_CONFIG.duration.move;
+const { normal: moveEaseNormal, autoFoundation: moveEaseAuto } = SOLO_ANIMATION_CONFIG.ease.move;
 
-    const { cards, gameState, boardDimensionRef } = data;
+export const moveCard = ({ data, onComplete }: { data: any; onComplete?: () => void }) => {
+
+    const { moveCards, targetZoneId, gameState, boardDimensionRef, autoFoundationMove } = data;
+    const moveDuration = autoFoundationMove ? autoFoundationMoveDuration : normalMoveDuration;
+    const moveEase = autoFoundationMove ? moveEaseAuto : moveEaseNormal;
+
+    const targetCards: SoloCard[] = gameState.cards.filter((c: SoloCard) => c.zoneId === targetZoneId);
+    const zoneCards: SoloCard[] = [...targetCards, ...moveCards];
+
+    const snapToLayout = () => {
+        for (const c of pile) {
+            if (!c.ele) continue;
+            const { x, y } = getCardCoord(c, zoneCards, boardDimensionRef);
+            // 与 layout 取整一致，避免末帧子像素 + z 重算时整卡闪一下
+            gsap.set(c.ele, { x: Math.round(x), y: Math.round(y), rotateZ: 0 });
+        }
+    };
 
     const tl = gsap.timeline({
         onComplete: () => {
-            cards.forEach((c: SoloCard) => {
-                if (c.ele)
-                    gsap.set(c.ele, { zIndex: c.zoneIndex + 10 });
-            });
+            snapToLayout();
             onComplete?.();
+            // 下一帧再统一下 z，避免与末帧 transform 同 tick 重绘产生抖动
+            requestAnimationFrame(() => {
+                syncCardStackZIndexFromGameState(gameState);
+            });
         }
     });
-    timelines.move = { timeline: tl, cards: cards };
-    const zoneCards = gameState.cards.filter((c: SoloCard) => c.zoneId === cards[0].zoneId);
-    const columnCards = [...zoneCards, ...cards];
-    cards.forEach((c: SoloCard) => {
+
+    const pile = moveCards.sort((a: SoloCard, b: SoloCard) => (a.zoneIndex ?? 0) - (b.zoneIndex ?? 0));
+    // 飞行阶段将整摞牌统一抬到全局最上层，避免与任意列交错时被遮挡
+    pile.forEach((c: SoloCard, i: number) => {
+        if (c.ele) gsap.set(c.ele, { zIndex: moveFlightBase + moveFlightStackOffset + i });
+    });
+    pile.forEach((c: SoloCard) => {
         if (c.ele) {
             tl.to(c.ele, {
                 x: () => {
-                    const { x } = getCoord(c, columnCards, boardDimensionRef);
+                    const { x } = getCardCoord(c, zoneCards, boardDimensionRef);
                     return x;
                 },
                 y: () => {
-                    const { y } = getCoord(c, columnCards, boardDimensionRef);
+                    const { y } = getCardCoord(c, zoneCards, boardDimensionRef);
                     return y;
                 },
                 rotateZ: 0,
-                duration: 0.6,
-                ease: "ease.in"
+                duration: moveDuration,
+                ease: moveEase
             }, "<");
         }
     });
