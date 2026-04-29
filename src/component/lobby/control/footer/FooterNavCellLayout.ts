@@ -11,8 +11,23 @@ export const NAV_VIEWBOX_W = 480;
 export const NAV_VIEWBOX_H = 44;
 export const NAV_VIEWBOX = `0 0 ${NAV_VIEWBOX_W} ${NAV_VIEWBOX_H}` as const;
 
-/** 仅用于文字条占位（与列宽大致一致）；热区以 SVG path 为准 */
+/** 仅用于文字条占位（与列宽大致一致）；触摸热区与 WIDTH_PCT 对齐占满整格 */
 export const WIDTH_PCT = [14, 12, 20, 18, 16, 20] as const;
+
+/** 与 WIDTH_PCT 列对齐、铺满 viewBox 高度的矩形 path（替代美术多边形，触摸命中/GSAP hover 顶满格） */
+export function footerNavCellRectPathD(cellIndex: number): string {
+  if (cellIndex < 0 || cellIndex >= WIDTH_PCT.length) {
+    throw new Error(
+      `[FooterNavCellLayout] footerNavCellRectPathD: invalid cellIndex ${cellIndex}`
+    );
+  }
+  const x =
+    (WIDTH_PCT.slice(0, cellIndex).reduce((a, b) => a + b, 0) / 100) *
+    NAV_VIEWBOX_W;
+  const w = (WIDTH_PCT[cellIndex] / 100) * NAV_VIEWBOX_W;
+  const h = NAV_VIEWBOX_H;
+  return `M ${x} 0 L ${x + w} 0 L ${x + w} ${h} L ${x} ${h} Z`;
+}
 
 const NAV_CELL_COUNT = 6;
 const CELL_ID = (i: number) => `footer-nav-cell-${i}`;

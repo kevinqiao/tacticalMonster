@@ -10,6 +10,14 @@
     overflow: hidden;
 }
 
+/* 横屏：#footer 与 header 同 STRIP_H；壳内 flex 负责条带内垂直居中 */
+.footer-nav-root:has(.footer-nav-shell--landscape) {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: visible;
+}
+
 .footer-nav-shell--portrait {
     display: flex;
     justify-content: center;
@@ -26,7 +34,7 @@
     container-name: lobby-footer-shell;
 }
 
-/* 触摸屏竖屏：触摸条贴紧下边，左右撑满（父级 #footer 已含 safe-area padding） */
+/* 触摸屏竖屏：触摸条贴紧下边，左右撑满 */
 .footer-nav-root--touch-portrait .footer-nav-shell--portrait {
     align-items: flex-end;
     justify-content: center;
@@ -49,16 +57,20 @@
     display: flex;
     /* 桌面底栏有 max-width，居中会在两侧留白；贴右与视口右缘对齐（仅留右 padding） */
     justify-content: flex-end;
-    align-items: stretch;
+    /* 竖直方向整块 HUD 在条带内居中（勿 stretch + height:100%，否则子项撑满条带，看不出居中） */
+    align-items: center;
     box-sizing: border-box;
     width: 100%;
     height: 100%;
     max-height: 100%;
     min-height: 0;
-    /* 屏变高时略收竖向留白，按钮更贴上/下沿 */
-    padding: clamp(2px, 0.45dvh, 5px) 2px clamp(2px, 0.45dvh, 5px) 10px;
+    padding-top: clamp(2px, 0.45dvh, 5px);
+    padding-right: 2px;
+    padding-bottom: clamp(2px, 0.45dvh, 5px);
+    padding-left: 10px;
     background-color: transparent;
-    overflow: hidden;
+    /* 勿 hidden：2px 边框 + 外阴影在垂直居中时易被裁切 */
+    overflow: visible;
     container-type: size;
     container-name: lobby-footer-shell;
 }
@@ -82,6 +94,13 @@
     aspect-ratio: 480 / 44;
     flex-shrink: 0;
     background: url("./assets/nav-bar-bg.png") center / 100% 100% no-repeat;
+}
+
+/* 触摸设备：条带占满可用宽度 */
+@media (pointer: coarse) {
+    .footer-nav-strip {
+        max-width: 100%;
+    }
 }
 
 .footer-nav-svg {
@@ -325,16 +344,15 @@
 .footer-nav-desktop {
     display: flex;
     justify-content: flex-end;
-    /* 条带变高时占满竖向空间，避免整行按钮在条带里上下居中悬空 */
-    align-items: stretch;
+    align-items: center;
     width: 100%;
     max-width: min(100%, 720px);
-    height: 100%;
+    height: auto;
     max-height: 100%;
     min-height: 0;
     flex-shrink: 0;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .footer-nav-desktop__list {
@@ -348,7 +366,7 @@
     margin: 0;
     padding: 0;
     list-style: none;
-    height: 100%;
+    height: auto;
     max-height: 100%;
     min-height: 0;
 }
@@ -395,7 +413,8 @@
     font-weight: 600;
     letter-spacing: 0.02em;
     box-sizing: border-box;
-    overflow: hidden;
+    /* 文案裁切交给 .footer-nav-desktop__caption；此处 visible 保留边框与阴影 */
+    overflow: visible;
     transition:
         transform 0.12s ease-out,
         box-shadow 0.15s ease-out,
@@ -446,6 +465,60 @@
     line-height: 1.15;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
     user-select: none;
+}
+
+/*
+ * 触摸横屏：与 HeadNavControl .head-nav-hud__qbtn / __qico 同源，用 dvh/dvw；不用 cqh 硬压尺寸（壳矮时会把按钮缩得过小）。
+ */
+@media (pointer: coarse) and (orientation: landscape) {
+    .footer-nav-shell--landscape {
+        --footer-nav-chip: clamp(34px, 8dvh, 62px);
+        /* 上下对称，避免「只有底 padding」导致整块视觉上贴顶 */
+        --footer-shell-pad-y: min(10px, max(2px, env(safe-area-inset-bottom, 0px)));
+        padding-top: var(--footer-shell-pad-y);
+        padding-inline: clamp(4px, 1.2dvw, 10px);
+        padding-bottom: var(--footer-shell-pad-y);
+        overflow: visible;
+    }
+
+    .footer-nav-shell--landscape .footer-nav-desktop {
+        height: auto;
+        max-height: 100%;
+        align-self: center;
+        align-items: center;
+        overflow: visible;
+    }
+
+    .footer-nav-shell--landscape .footer-nav-desktop__list {
+        height: auto;
+        max-height: 100%;
+        align-items: center;
+        align-content: center;
+        gap: clamp(4px, 1dvh, 9px) clamp(5px, 1.15dvw, 10px);
+    }
+
+    .footer-nav-shell--landscape .footer-nav-desktop__btn {
+        aspect-ratio: auto;
+        justify-content: center;
+        width: auto;
+        min-width: clamp(48px, 11dvw, 88px);
+        max-width: 96px;
+        max-height: 100%;
+        min-height: 0;
+        height: auto;
+        gap: clamp(2px, 0.45dvh, 5px);
+        padding:
+            clamp(3px, 0.5dvh, 6px)
+            clamp(5px, 1.05dvw, 9px)
+            clamp(3px, 0.45dvh, 6px);
+        font-size: clamp(8px, 1.65dvh, 11px);
+        overflow: visible;
+    }
+
+    .footer-nav-shell--landscape .footer-nav-desktop__icon {
+        width: clamp(22px, calc(var(--footer-nav-chip) * 0.56), 38px);
+        height: clamp(22px, calc(var(--footer-nav-chip) * 0.56), 38px);
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,10 +3,13 @@ import { usePageManager } from "service/PageManager";
 import { useUserManager } from "service/UserManager";
 import "./FooterNavControl.css";
 import navHoverSprite from "./assets/nav-hover-sprite.png";
-import footerNavCellsSvg from "./assets/FooterNavCells.svg?raw";
 import { FooterNavHitPath } from "./FooterNavHitPath";
 import { FOOTER_NAV_LABEL, FOOTER_NAV_URI } from "./FooterNavShared";
-import { NAV_VIEWBOX, WIDTH_PCT, parseFooterNavCellPathDs } from "./FooterNavCellLayout";
+import {
+  NAV_VIEWBOX,
+  WIDTH_PCT,
+  footerNavCellRectPathD,
+} from "./FooterNavCellLayout";
 
 /** 触摸 / 平板：整栏条图 + SVG 热区 + FooterNavHitPath */
 export const FooterNavBarTouch: React.FC = () => {
@@ -15,7 +18,7 @@ export const FooterNavBarTouch: React.FC = () => {
   const hoverPatternId = useId().replace(/:/g, "");
 
   const pathDs = useMemo(
-    () => parseFooterNavCellPathDs(footerNavCellsSvg),
+    () => WIDTH_PCT.map((_, index) => footerNavCellRectPathD(index)),
     []
   );
 

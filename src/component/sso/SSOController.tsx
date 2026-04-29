@@ -1,9 +1,13 @@
 import { useUserManager } from "@/service/UserManager";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePageManager } from "service/PageManager";
 import { findContainer, getURLParams } from "util/PageUtils";
 import { PANELS } from "./config";
 import "./signin.css";
+
+/** 须高于 LobbyHome 顶/底栏（z-index 5200）与 Head 汉堡菜单（约 5300），否则登录层留在 #root 内无法盖住 body 上的 chrome */
+const SSO_LAYER_Z = 6000;
 
 export interface AuthProvider {
   partnerId: number;
@@ -38,7 +42,7 @@ const SSOController: React.FC = () => {
   const [visible, setVisible] = useState(0);
   const [panelConfig, setPanelConfig] = useState<{ pid: string, name: string, path: string } | null>(null);
   const { pageContainers, currentPage } = usePageManager();
-  const { user, cancelAuth, authReq } = useUserManager()
+  const { user, cancelAuth, authReq } = useUserManager();
   const SelectedComponent = useMemo(() => {
     if (!panelConfig) return null;
     const load = PANEL_LOADERS[panelConfig.path];
@@ -79,17 +83,30 @@ const SSOController: React.FC = () => {
 
   }, [pageContainers, currentPage, user, authReq]);
 
-  return (
-    <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2000, width: "100%", height: "100%", backgroundColor: "transparent", pointerEvents: "none", overflow: "hidden" }}>
-
+  const layer = (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        zIndex: SSO_LAYER_Z,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "transparent",
+        pointerEvents: "none",
+        overflow: "hidden",
+      }}
+    >
       {SelectedComponent && (
         <Suspense fallback={<div />}>
           <SelectedComponent key={panelConfig?.path} visible={visible} onClose={onClose} />
         </Suspense>
       )}
-      {/* {platform?.pid === 0 && <div className="auth_check"><div style={{ color: "white", fontSize: "20px" }}>Not support</div></div>} */}
-    </div >
+    </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(layer, document.body);
 };
 
 export default SSOController;

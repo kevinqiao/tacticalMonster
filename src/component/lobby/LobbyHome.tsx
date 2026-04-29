@@ -8,8 +8,11 @@ import "./style.css";
 import { useLobbyHomeChrome } from "./useLobbyHomeChrome";
 
 const LOBBY_CHROME_Z = 5200;
-/** dvh 跟动态可视区域，比 % 在 modal/移动浏览器下更稳 */
-const STRIP_H = "clamp(48px, 8dvh, 100px)";
+/**
+ * 顶栏 / 底栏外框严格同高；略抬下限给底栏 HUD（图标+文案）留高，避免只能靠 cqh 把按钮压扁。
+ * 底部安全区由壳体样式控制，不把 #footer 总高加成高于 #header。
+ */
+const STRIP_H = "clamp(52px, 9dvh, 100px)";
 
 const LobbyHome: React.FC<PageProp> = () => {
   const headRef = useRef<HTMLDivElement | null>(null);
@@ -58,7 +61,7 @@ const LobbyHome: React.FC<PageProp> = () => {
           backgroundColor: "rgba(0, 0, 0, 0.5)",
           pointerEvents: "auto",
           overflow: "visible",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingBottom: 0,
         }}
       >
         <FooterNavControl />
