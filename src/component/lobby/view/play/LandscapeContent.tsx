@@ -25,9 +25,28 @@ const Content: React.FC = () => {
         setDimension({ lw: w * 0.6, rw: w * 0.4, height: h });
     }, [lobbyContentDimension])
 
+    const contentWidth = lobbyContentDimension?.width ?? 0;
+    const sidePadding = Math.min(48, Math.max(18, contentWidth * 0.02));
+    const contentGap = Math.min(36, Math.max(16, contentWidth * 0.03));
+
     return (
-        <div id="content" style={{ display: "flex", justifyContent: "space-around", alignItems: "center", width: lobbyContentDimension?.width, height: lobbyContentDimension?.height, backgroundColor: "white" }}>
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: dimension?.lw, height: dimension?.height, marginLeft: "30px" }}>
+        <div
+            id="content"
+            style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                width: lobbyContentDimension?.width,
+                height: lobbyContentDimension?.height,
+                backgroundColor: "white",
+                boxSizing: "border-box",
+                paddingLeft: sidePadding,
+                paddingRight: sidePadding,
+                gap: contentGap,
+                overflow: "hidden",
+            }}
+        >
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: dimension?.lw, height: dimension?.height, minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", height: "60%" }}>
                     <div style={{
                         width: "60%", height: "100%", backgroundColor: "yellow", transform: "scale(0.95)",
@@ -55,7 +74,7 @@ const Content: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <div style={{ position: "relative", width: dimension?.rw, height: dimension?.height, backgroundColor: "red", marginRight: "50px" }}>
+            <div style={{ position: "relative", width: dimension?.rw, height: dimension?.height, backgroundColor: "red", minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", position: "absolute", bottom: 0, left: 0, width: "100%", height: "60px" }}>
                     <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "blue", color: "white" }} onClick={() => openModal({ name: "join_tournament", effect: { name: "swipeRight", args: { width: "30%" } } })}>JOIN</div>
                     <div
@@ -72,12 +91,13 @@ const Content: React.FC = () => {
 }
 
 const LandscapeContent: React.FC = () => {
+    const previewHeight = "clamp(140px, 24vw, 300px)";
     return (
         <>
             <Header />
             <Content />
             {/* <Footer /> */}
-            <div style={{ position: "relative", top: -10, display: "flex", justifyContent: "space-around", alignItems: "flex-start", width: "100%", height: "300px" }}>
+            <div style={{ position: "relative", display: "flex", justifyContent: "space-around", alignItems: "flex-start", width: "100%", height: previewHeight }}>
                 <div style={{ width: "25%", maxWidth: 250, height: 150, backgroundColor: "red" }}></div>
                 <div style={{ width: "25%", maxWidth: 250, height: 150, backgroundColor: "blue" }}></div>
                 <div style={{ width: "25%", maxWidth: 250, height: 150, backgroundColor: "green" }}></div>
