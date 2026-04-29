@@ -22,7 +22,7 @@ const PortraitContent: React.FC = () => {
                 </div>
                 <div style={{ height: "25%", width: "100%", backgroundColor: "blue" }}>
                     <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "green", color: "white" }} onClick={() => openModal({ name: "play_solitaire_solo", effect: { name: "popCenter", args: { width: "100%", height: "100%" } } })}>Solitaire</div>
-
+                    <div style={{ cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", width: "80px", height: "45px", backgroundColor: "green", color: "white" }} onClick={() => openModal({ name: "play_block_blast", effect: { name: "popCenter", args: { width: "100%", height: "100%" } } })}>Block Blast</div>
                 </div>
                 <div style={{ height: "25%", width: "100%", backgroundColor: "green" }}></div>
                 <div style={{ height: "25%", width: "100%", backgroundColor: "yellow" }}></div>

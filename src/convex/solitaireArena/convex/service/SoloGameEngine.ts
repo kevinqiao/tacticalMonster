@@ -150,8 +150,11 @@ export class SoloGameEngine {
                 const scards = gameState.cards.filter((c: Card) => c.zoneId === card.zoneId && c.zoneIndex < card.zoneIndex).sort((a: Card, b: Card) => a.zoneIndex - b.zoneIndex);
                 if (scards.length > 0) {
                     const flipCard = scards[scards.length - 1];
-                    flipCard.isRevealed = true;
-                    result.data!.flip = [{ ...flipCard, isRevealed: true }];
+                    // 仅暗牌→明牌需要翻牌动画；已翻开则不改写、不返回 flip
+                    if (!flipCard.isRevealed) {
+                        flipCard.isRevealed = true;
+                        result.data!.flip = [{ ...flipCard, isRevealed: true }];
+                    }
                 }
             }
 

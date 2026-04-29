@@ -1,7 +1,7 @@
 import { ModalContainer, ModalItem, ModalProp, useModalManager } from "@/service/ModalManager";
-import gsap from "gsap";
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+
 import "./render.css";
 import { useModalAnimate } from "./shell/useModalAnimate";
 
@@ -49,6 +49,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/tournament/TournamentJoinList': () => import('./lobby/tournament/TournamentJoinList'),
   './lobby/tournament/TournamentHistory': () => import('./lobby/tournament/TournamentHistory'),
   './battle/games/solitaireSolo/battle/PlaySolitaireSolo': () => import('./battle/games/solitaireSolo/battle/PlaySolitaireSolo'),
+  './battle/games/blockBlast/battle/PlayBlockBlast': () => import('./battle/games/blockBlast/battle/PlayBlockBlast'),
 };
 
 // 错误边界组件
@@ -108,10 +109,10 @@ const getCachedComponent = (path: string): React.ComponentType<ModalProp> => {
 };
 
 const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) => {
-
+  const openRef = useRef<boolean>(false);
   const [modal, setModal] = useState<ModalItem | undefined>(undefined);
   const { modals, closeModal } = useModalManager();
-  const { playOpen, playClose, syncModalOpenLayout } = useModalAnimate();
+  const { playOpen, playClose } = useModalAnimate({ container, modal });
   const zIndex = useMemo(() => {
     const index = modals.findIndex((modal) => modal.name === container.name);
     if (index >= 0) {
@@ -120,73 +121,43 @@ const ModalComponent: React.FC<{ container: ModalContainer }> = ({ container }) 
       return 0;
     }
   }, [modals, container.name]);
+
   const close = useCallback(() => {
-    if (!modal) return;
+    if (!container) return;
     playClose({
-      container, modal, onComplete: () => {
+      onComplete: () => {
         console.log("close modal complete", container.name);
         closeModal(container.name);
+        openRef.current = false;
       }
     });
 
-  }, [container, modal, closeModal, playClose]);
-
+  }, [container, playClose, closeModal]);
   const SelectedComponent = useMemo(() => {
     return getCachedComponent(container.path);
   }, [container.path]);
-  useEffect(() => {
-    if (container.ele && zIndex === 0) {
-      if (container.mask) {
-        gsap.set(container.mask, {
-          autoAlpha: 0,
-        });
-      }
-      if (container.ele) {
-        gsap.set(container.ele, {
-          autoAlpha: 0,
-        });
-      }
-    }
-  }, [zIndex, container.ele]);
+
   useEffect(() => {
     const m = modals.find((modal) => modal.name === container.name);
-    if (m) {
-      setModal((prev) => {
-        return prev ?? m ?? undefined;
-      });
-    } else {
-      setModal(undefined);
-    }
-  }, [modals, container.name]);
+    setModal((prev) => {
+      if (!m)
+        return undefined;
+      else if (!prev)
+        return m;
+      else
+        return prev;
+    });
+  }, [modals, container]);
+
   useEffect(() => {
-    if (modal) {
-      console.log("playOpen", container.name, modal);
+    if (!openRef.current && modal) {
       playOpen({
-        container, modal, onComplete: () => {
-          // console.log("open modal complete", container.name);
+        onComplete: () => {
+          openRef.current = true;
         }
       });
     }
-  }, [container, modal, playOpen]);
-
-  /** 横竖屏 / 视口变化后重算 GSAP 布局，避免 transform 与百分比错位 */
-  // useEffect(() => {
-  //   if (!modal) return;
-  //   let raf = 0;
-  //   const scheduleSync = () => {
-  //     cancelAnimationFrame(raf);
-  //     raf = requestAnimationFrame(() => {
-  //       syncModalOpenLayout({ container, modal });
-  //     });
-  //   };
-  //   window.addEventListener("resize", scheduleSync);
-  //   window.addEventListener("orientationchange", scheduleSync);
-  //   return () => {
-  //     cancelAnimationFrame(raf);
-  //     window.removeEventListener("resize", scheduleSync);
-  //     window.removeEventListener("orientationchange", scheduleSync);
-  //   };
-  // }, [container, modal, syncModalOpenLayout]);
+  }, [modal, openRef, playOpen]);
 
   const modalLayer = (
     <div style={{ position: "fixed", inset: 0, zIndex, backgroundColor: "transparent", pointerEvents: modal ? "auto" : "none", overflow: "hidden" }}>
@@ -224,12 +195,10 @@ const RenderModal: React.FC = () => {
   const renderModals = useMemo(() => {
     console.log("renderModals", modalContainers);
     return Object.values(modalContainers).map((container, index) => (
-      <Suspense key={container.name} fallback={<div className="modal-loading" />}>
-        <ModalComponent
-          key={container.name}
-          container={container}
-        />
-      </Suspense>
+      <ModalComponent
+        key={container.name}
+        container={container}
+      />
     ));
   }, [modalContainers]);
 

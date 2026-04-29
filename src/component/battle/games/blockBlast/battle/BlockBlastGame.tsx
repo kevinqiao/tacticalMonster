@@ -1,13 +1,11 @@
 /**
- * Block Blast 游戏主入口组件
- * 基于 solitaireSolo 的架构模式
+ * Block Blast 入口（对齐 solitaireSolo SoloGame：ConvexProvider、可选 createBlockBlastGame 建局）
  */
-
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
+import { ConvexProvider, ConvexReactClient, useMutation } from 'convex/react';
 import React from 'react';
+import { api } from '../../../../../convex/blockBlast/convex/_generated/api';
 import GamePlayer from './GamePlayer';
 import BlockBlastDnDProvider from './service/BlockBlastDnDProvider';
-import { EventProvider } from './service/EventProvider';
 import BlockBlastGameProvider from './service/GameManager';
 import './style.css';
 import { BlockBlastGameConfig } from './types/BlockBlastTypes';
@@ -21,7 +19,80 @@ interface BlockBlastGameProps {
     onGameSubmit?: () => void;
 }
 
-const convex_url = "https://artful-chipmunk-59.convex.cloud"; // TODO: 更新为实际的 Convex URL
+/** Must match `CONVEX_URL` in `src/convex/blockBlast/.env.local` after `npx convex dev`. */
+const convex_url =
+    import.meta.env.VITE_CONVEX_URL_BLOCKBLAST ?? 'https://spotted-marten-367.convex.cloud';
+
+type CreateResult = { ok: true; gameId: string } | { ok: false };
+
+const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'style'>> = ({
+    gameId: propGameId,
+    config,
+    onGameLoadComplete,
+    onGameSubmit,
+}) => {
+    const [activeGameId, setActiveGameId] = React.useState<string | undefined>(() => propGameId);
+    const [createError, setCreateError] = React.useState<string | null>(null);
+    const createBlockBlastGame = useMutation(api.service.gameManager.createBlockBlastGame);
+
+    React.useEffect(() => {
+        if (propGameId) {
+            setActiveGameId(propGameId);
+            setCreateError(null);
+            return;
+        }
+        let cancelled = false;
+        setCreateError(null);
+        (async () => {
+            try {
+                const res = (await createBlockBlastGame({})) as CreateResult & { gameId?: string };
+                if (cancelled) return;
+                if (res?.ok && typeof res.gameId === 'string') {
+                    setActiveGameId(res.gameId);
+                } else {
+                    setCreateError('Failed to create game');
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    console.error(e);
+                    setCreateError(e instanceof Error ? e.message : 'createBlockBlastGame failed');
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [propGameId, createBlockBlastGame]);
+
+    if (createError) {
+        return (
+            <div className="blockblast-game-container" role="alert">
+                {createError}
+            </div>
+        );
+    }
+
+    if (!activeGameId) {
+        return (
+            <div className="blockblast-game-container">
+                Loading Block Blast…
+            </div>
+        );
+    }
+
+    return (
+        <BlockBlastGameProvider
+            config={config}
+            gameId={activeGameId}
+            onGameLoadComplete={onGameLoadComplete}
+            onGameSubmit={onGameSubmit}
+        >
+            <BlockBlastDnDProvider>
+                <GamePlayer />
+            </BlockBlastDnDProvider>
+        </BlockBlastGameProvider>
+    );
+};
 
 const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
     gameId,
@@ -29,29 +100,22 @@ const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
     className = '',
     style,
     onGameLoadComplete,
-    onGameSubmit
+    onGameSubmit,
 }) => {
-    const client = React.useMemo(() => new ConvexReactClient(convex_url), [convex_url]);
+    const client = React.useMemo(() => new ConvexReactClient(convex_url), []);
 
     return (
-        <div className={`blockblast-game-container ${className}`} style={style}>
+        <div className={`blockblast-game-container ${className}`.trim()} style={style}>
             <ConvexProvider client={client}>
-                <BlockBlastGameProvider
-                    config={config}
+                <BlockBlastGameInner
                     gameId={gameId}
+                    config={config}
                     onGameLoadComplete={onGameLoadComplete}
                     onGameSubmit={onGameSubmit}
-                >
-                    <EventProvider>
-                        <BlockBlastDnDProvider>
-                            <GamePlayer gameId={gameId} />
-                        </BlockBlastDnDProvider>
-                    </EventProvider>
-                </BlockBlastGameProvider>
+                />
             </ConvexProvider>
         </div>
     );
 };
 
 export default BlockBlastGame;
-

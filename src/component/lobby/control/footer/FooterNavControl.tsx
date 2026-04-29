@@ -8,9 +8,9 @@ import { useFooterNavIsDesktop } from "./FooterNavIsDesktop";
 
 const FooterNavBar: React.FC = () => {
   const isDesktop = useFooterNavIsDesktop();
-  const isPortrait = useSharedValue("lobby.layout.portrait");
-  if (!isDesktop && isPortrait) return <FooterNavBarTouchPortrait />;
-  if (isDesktop || !isPortrait) return <FooterNavBarDesktop />;
+  const orientation = useSharedValue("lobby.layout.orientation");
+  if (!isDesktop && orientation === "portrait") return <FooterNavBarTouchPortrait />;
+  if (isDesktop || orientation === "landscape") return <FooterNavBarDesktop />;
   return <FooterNavBarTouch />;
 };
 
@@ -27,10 +27,10 @@ const LandscapeControl: React.FC = () => (
 );
 
 const FooterNavControl: React.FC = () => {
-  const portrait = useSharedValue("lobby.layout.portrait");
+  const orientation = useSharedValue("lobby.layout.orientation");
   const isDesktop = useFooterNavIsDesktop();
   /** 触摸 + 竖屏：底栏条贴齐壳体下边（由 CSS 收紧 padding / 对齐） */
-  const touchPortrait = portrait === true && !isDesktop;
+  const touchPortrait = orientation === "portrait" && !isDesktop;
   /** 仅在为 true 时用竖屏壳；null/undefined 时用横屏壳，避免未测量或与 modal 竞态时整栏不渲染 */
   return (
     <div
@@ -40,7 +40,7 @@ const FooterNavControl: React.FC = () => {
           : "footer-nav-root"
       }
     >
-      {portrait === true ? <PortraitControl /> : <LandscapeControl />}
+      {orientation === "portrait" ? <PortraitControl /> : orientation === "landscape" ? <LandscapeControl /> : null}
     </div>
   );
 };

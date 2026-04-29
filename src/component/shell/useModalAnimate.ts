@@ -1,9 +1,9 @@
 /** 页面切换动画（初始化定位 + 打开动画调度） */
 import { ModalContainer, ModalItem } from "@/service/ModalManager";
+import { useSharedValue } from "@/service/SharedPageDataManager";
 import gsap from "gsap";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
-type ModalEffect = NonNullable<ModalItem["effect"]> | NonNullable<ModalContainer["effect"]>;
 
 function killModalTweens(container: ModalContainer) {
   gsap.killTweensOf([container.ele, container.mask, container.closeEle].filter(Boolean));
@@ -15,126 +15,113 @@ function toCssSize(value: unknown, fallback: string) {
   return fallback;
 }
 
-/**
- * 打开动画结束后的稳定布局（与各 swipe* 的 gsap.set + 最后一帧 transform 一致）。
- * 在横竖屏切换、窗口缩放后重新套用，避免 GSAP 旧 transform 与百分比布局错位。
- */
-export function applyModalOpenRestLayout(container: ModalContainer, effect: ModalEffect) {
-  if (!container.ele) return;
-  const el = container.ele;
-  switch (effect.name) {
-    case "popCenter":
-    case "popCenterIn":
-      {
-        const width = toCssSize(effect.args?.width, "80%");
-        const height = toCssSize(effect.args?.height, "80%");
-        gsap.set(el, {
-          top: "50%",
-          left: "50%",
-          right: "auto",
-          bottom: "auto",
-          width,
-          height,
-          xPercent: -50,
-          yPercent: -50,
-          x: 0,
-          y: 0,
-          scale: 1,
-          transformOrigin: "center center",
-          autoAlpha: 1,
-        });
-      }
-      break;
-    case "swipeRight":
-      // 与 swipeLeft 镜像：靠右贴齐用 right + x，不用 left:100%（少一种 left/width 联算）
-      gsap.set(el, {
-        top: 0,
-        height: "100%",
-        left: "auto",
-        right: 0,
-        width: effect.args?.width ? `${effect.args.width}` : "50%",
-        x: 0,
-        y: 0,
-        autoAlpha: 1,
-      });
-      break;
-    case "swipeLeft":
-      // 与 swipeRight 对称：只用 left + x
-      gsap.set(el, {
-        top: 0,
-        left: 0,
-        right: "auto",
-        height: "100%",
-        width: effect.args?.width ? `${effect.args.width}` : "50%",
-        x: 0,
-        y: 0,
-        autoAlpha: 1,
-      });
-      break;
-    case "swipeTop":
-      // 与 swipeBottom 对称：用 top + y，不用 bottom，避免与 height 百分比混算错位
-      gsap.set(el, {
-        top: 0,
-        left: 0,
-        width: "100%",
-        bottom: "auto",
-        height: effect.args?.height ? `${effect.args.height}` : "50%",
-        x: 0,
-        y: 0,
-        autoAlpha: 1,
-      });
-      break;
-    case "swipeBottom":
-      gsap.set(el, {
-        top: "100%",
-        left: 0,
-        width: "100%",
-        height: effect.args?.height ? `${effect.args.height}` : "50%",
-        x: 0,
-        y: "-100%",
-        autoAlpha: 1,
-      });
-      break;
-    default:
-      return;
-  }
-  if (container.mask) gsap.set(container.mask, { autoAlpha: 0.4 });
-  if (container.closeEle) gsap.set(container.closeEle, { autoAlpha: 1 });
-}
-
 const OPEN_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 const CLOSE_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 
-export const useModalAnimate = () => {
-  const syncModalOpenLayout = useCallback(
-    ({ container, modal }: { container: ModalContainer; modal: ModalItem }) => {
-      const effect = modal.effect ?? container.effect;
-      if (!effect || !container.ele) return;
+export const useModalAnimate = ({ container, modal }: { container: ModalContainer, modal?: ModalItem }) => {
+  const orientation = useSharedValue("lobby.layout.orientation");
+  const syncModalLayout = useCallback(
+    (orientation: string) => {
+      console.log("syncModalOpenLayout", orientation);
+      if (!container.ele) return;
+      const effect = container.effects?.find((effect) => effect.orientation === orientation) ?? container.effects?.[0];
+      if (!effect) return;
       killModalTweens(container);
-      applyModalOpenRestLayout(container, effect);
+      gsap.set(container.ele, { clearProps: "transform,transformOrigin" });
+      switch (effect.name) {
+        case "popCenter":
+          {
+            const width = toCssSize(effect.args?.width, "80%");
+            const height = toCssSize(effect.args?.height, "80%");
+            gsap.set(container.ele, {
+              top: "50%",
+              left: "50%",
+              right: "auto",
+              bottom: "auto",
+              width,
+              height,
+              xPercent: -50,
+              yPercent: -50,
+              x: 0,
+              y: 0,
+              scale: 1,
+              transformOrigin: "center center",
+            });
+          }
+          break;
+        case "swipeRight":
+          // 与 swipeLeft 镜像：靠右贴齐用 right + x，不用 left:100%（少一种 left/width 联算）
+
+          gsap.set(container.ele, {
+            top: 0,
+            left: "auto",
+            height: "100%",
+            right: 0,
+            width: effect.args?.width ? `${effect.args.width}` : "50%",
+            x: 0,
+            y: 0,
+          });
+          break;
+        case "swipeLeft":
+          // 与 swipeRight 对称：只用 left + x
+          gsap.set(container.ele, {
+            top: 0,
+            left: 0,
+            right: "auto",
+            height: "100%",
+            width: effect.args?.width ? `${effect.args.width}` : "50%",
+            x: 0,
+            y: 0,
+          });
+          break;
+        case "swipeTop":
+          // 与 swipeBottom 对称：用 top + y，不用 bottom，避免与 height 百分比混算错位
+          gsap.set(container.ele, {
+            top: 0,
+            left: 0,
+            width: "100%",
+            bottom: "auto",
+            height: effect.args?.height ? `${effect.args.height}` : "50%",
+            x: 0,
+            y: 0,
+          });
+          break;
+        case "swipeBottom":
+          gsap.set(container.ele, {
+            top: "100%",
+            left: 0,
+            width: "100%",
+            height: effect.args?.height ? `${effect.args.height}` : "50%",
+            x: 0,
+            y: "-100%",
+          });
+          break;
+        default:
+          return;
+      }
     },
-    []
+    [container]
   );
 
   const playOpen = useCallback(
-    ({ container, modal, onComplete }: { container: ModalContainer; modal: ModalItem; onComplete?: () => void | Promise<void> }) => {
-      const effect = modal.effect ?? container.effect;
-      if (!effect || !container.ele) return;
+    ({ onComplete }: { onComplete?: () => void | Promise<void> }) => {
+      if (!container.ele) return;
+      const effect = container.effects?.find((effect) => effect.orientation === orientation) ?? container.effects?.[0];
+      if (!effect) return;
       if (!OPEN_EFFECTS.has(effect.name)) {
         onComplete?.();
         return;
       }
       killModalTweens(container);
-
+      console.log("playOpen", container.name, effect);
       const tl = gsap.timeline({
         onComplete: () => {
-          applyModalOpenRestLayout(container, effect);
+          // applyModalOpenRestLayout(container, effect);
           onComplete?.();
         },
       });
-
+      gsap.set(container.ele, { clearProps: "transform,transformOrigin" });
       switch (effect.name) {
-        case "popCenterIn":
         case "popCenter":
           {
             const width = toCssSize(effect.args?.width, "80%");
@@ -151,7 +138,6 @@ export const useModalAnimate = () => {
               x: 0,
               y: 0,
               scale: 0.5,
-              transformOrigin: "center center",
               autoAlpha: 0,
             });
           }
@@ -163,6 +149,8 @@ export const useModalAnimate = () => {
           });
           break;
         case "swipeRight":
+          // 勿与 x 写在同一次 set：clearProps 会清掉 transform，导致起始 x 仍为 0、无滑动
+
           gsap.set(container.ele, {
             top: 0,
             height: "100%",
@@ -222,13 +210,14 @@ export const useModalAnimate = () => {
       }
       tl.play();
     },
-    []
+    [orientation, container]
   );
 
   const playClose = useCallback(
-    ({ container, modal, onComplete }: { container: ModalContainer; modal: ModalItem; onComplete?: () => void | Promise<void> }) => {
-      const effect = modal.effect ?? container.effect;
-      if (!effect || !container.ele) return;
+    ({ onComplete }: { onComplete?: () => void | Promise<void> }) => {
+      if (!container.ele) return;
+      const effect = container.effects?.find((effect) => effect.orientation === orientation) ?? container.effects?.[0];
+      if (!effect) return;
       if (!CLOSE_EFFECTS.has(effect.name)) {
         onComplete?.();
         return;
@@ -245,7 +234,6 @@ export const useModalAnimate = () => {
         },
       });
       switch (effect.name) {
-        case "popCenterIn":
         case "popCenter":
           tl.to(container.ele, { scale: 0.5, autoAlpha: 0, duration: 0.5, ease: "power2.inOut" });
           break;
@@ -263,6 +251,7 @@ export const useModalAnimate = () => {
           break;
       }
       if (container.mask) {
+        console.log("mask", container.mask);
         tl.to(container.mask, { autoAlpha: 0, duration: 0.5, ease: "power2.inOut" }, "<");
       }
       if (container.closeEle) {
@@ -270,8 +259,15 @@ export const useModalAnimate = () => {
       }
       tl.play();
     },
-    []
+    [orientation, container]
   );
 
-  return { playOpen, playClose, syncModalOpenLayout };
+  useEffect(() => {
+    if (orientation) {
+      // console.log("useEffect syncModalOpenLayout", orientation);
+      syncModalLayout(orientation);
+    }
+  }, [orientation, syncModalLayout]);
+
+  return { playOpen, playClose };
 };

@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Real-time PVE tactical RPG ("Tactical Monster") with a multi-game platform. Players build teams and battle bosses on hexagonal grids. The project includes a tournament/matchmaking system supporting multiple game types (solitaire, ludo, etc.).
 
+**Tactical Monster and the casual multi-game platform are separate products.** Economy, stamina, and tournament rules for the casual platform are documented in [`docs/casual-platform-economy-optimization.md`](docs/casual-platform-economy-optimization.md) only; do not conflate them with Tactical Monster’s `tacticalMonster` / `tournament` configs (coins, energy, stage stamina, etc.).
+
+**Casual platform default:** competitive modes are **PVE asynchronous tournaments** (same challenge, leaderboard by score/time — see §0.1 in that doc), not real-time PvP unless a feature is explicitly scoped as such.
+
 ## Commands
 
 ```bash

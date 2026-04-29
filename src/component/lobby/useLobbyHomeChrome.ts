@@ -103,7 +103,7 @@ export function useLobbyHomeChrome(
         foot: footWH,
         content: contentDimension,
       };
-      setShared("lobby.layout.portrait", mapDimension?.isPortrait ?? false);
+      setShared("lobby.layout.orientation", mapDimension?.isPortrait ? "portrait" : "landscape");
       setShared("lobby.map.dimension", mapDimension);
       setShared("lobby.dimension", lobbyWH);
       setShared("lobby.head.dimension", headWH);

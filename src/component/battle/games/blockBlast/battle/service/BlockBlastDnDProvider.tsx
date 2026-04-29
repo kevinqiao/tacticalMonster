@@ -1,35 +1,32 @@
 /**
- * Block Blast 拖拽服务
- * 基于 solitaireSolo 的 SoloDnDProvider 设计模式
+ * Block Blast 拖拽：Pointer Events + 会话 ref（对齐 solitaireSolo SoloDnDProvider）
  */
-
 import gsap from 'gsap';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { BLOCK_BLAST_ANIMATION_CONFIG } from '../animation/animationConfig';
 import {
-    ActionStatus,
+    ActMode,
     BlockBlastActionData,
     BoardDimension,
-    Shape
+    GameInteractionPhase,
+    Shape,
 } from '../types/BlockBlastTypes';
-import { useBlockBlastGameManager } from './GameManager';
+import { type GridCellRefs, useBlockBlastGameManager } from './GameManager';
 import useActHandler from './handler/useActHandler';
 
 interface IBlockBlastDnDContext {
     actionData: BlockBlastActionData | null;
     isTouchDevice: boolean;
-    onDragStart: (shape: Shape, event: React.MouseEvent | React.TouchEvent) => void;
-    onDragMove: (event: React.MouseEvent | React.TouchEvent) => void;
-    onDragEnd: (event: React.MouseEvent | React.TouchEvent) => void;
-    getDragPosition: (event: React.MouseEvent | React.TouchEvent) => { x: number; y: number };
+    onPointerDragStart: (shape: Shape, event: React.PointerEvent) => void;
+    getClientPoint: (event: PointerEvent | React.PointerEvent) => { x: number; y: number };
 }
 
 const BlockBlastDnDContext = createContext<IBlockBlastDnDContext>({
     actionData: null,
     isTouchDevice: false,
-    onDragStart: () => { },
-    onDragMove: () => { },
-    onDragEnd: () => { },
-    getDragPosition: () => ({ x: 0, y: 0 })
+    onPointerDragStart: () => {},
+    getClientPoint: () => ({ x: 0, y: 0 }),
 });
 
 export const useBlockBlastDnDManager = () => {
@@ -44,15 +41,90 @@ interface BlockBlastDnDProviderProps {
     children: ReactNode;
 }
 
+function clearActionData(target: BlockBlastActionData) {
+    for (const k of Object.keys(target)) {
+        delete (target as Record<string, unknown>)[k];
+    }
+}
+
+const DRAG_FLIGHT_BASE_Z = BLOCK_BLAST_ANIMATION_CONFIG.zIndex.dragFlightBase;
+
+/** Flight ghost cells match board grid cell pixel size (see ShapeBlock `data-preview-cell-size`). */
+function buildFlightTransformForBoard(el: HTMLElement, boardCellPx: number): string {
+    const raw = el.dataset.previewCellSize;
+    const previewPx = Math.max(1, Number.parseFloat(raw ?? '') || 1);
+    const scale = boardCellPx / previewPx;
+    return `translateZ(0.2px) scale(${scale})`;
+}
+
+/** Maps a screen point (usually top-left of a board cell region) to grid indices. */
+function screenPointToGridCell(
+    clientX: number,
+    clientY: number,
+    dim: BoardDimension
+): { row: number; col: number } | undefined {
+    const pad = dim.gridPadding;
+    const gx = clientX - dim.left - dim.grid.x - pad;
+    const gy = clientY - dim.top - dim.grid.y - pad;
+    const step = dim.cellSize + dim.spacing;
+    if (step <= 0) return undefined;
+    const col = Math.floor(gx / step);
+    const row = Math.floor(gy / step);
+    if (col >= 0 && col < 10 && row >= 0 && row < 10) {
+        return { row, col };
+    }
+    return undefined;
+}
+
+/**
+ * Placement anchor = shape matrix [0][0]. First DOM cell matches row-major index (0,0).
+ * Uses actual board cell rects—avoids border/subpixel/floor vs Grid CSS mismatch (−1 row/col drift).
+ */
+function shapeMatrixOriginToGridCell(
+    flyEl: HTMLElement,
+    gridRefs: React.RefObject<GridCellRefs | null>,
+    dim: BoardDimension
+): { row: number; col: number } | undefined {
+    const root =
+        flyEl.classList.contains('blockblast-shape')
+            ? flyEl
+            : (flyEl.querySelector('.blockblast-shape') as HTMLElement | null);
+    const gridRoot = root ?? flyEl;
+    const firstCell = gridRoot.children[0] as HTMLElement | undefined;
+    if (!firstCell) return undefined;
+    const br = firstCell.getBoundingClientRect();
+    const mx = (br.left + br.right) / 2;
+    const my = (br.top + br.bottom) / 2;
+
+    const matrix = gridRefs.current;
+    if (matrix) {
+        for (let row = 0; row < 10; row++) {
+            for (let col = 0; col < 10; col++) {
+                const cel = matrix[row]?.[col];
+                if (!cel) continue;
+                const cr = cel.getBoundingClientRect();
+                if (mx >= cr.left && mx < cr.right && my >= cr.top && my < cr.bottom) {
+                    return { row, col };
+                }
+            }
+        }
+    }
+
+    return screenPointToGridCell(br.left + 1, br.top + 1, dim);
+}
+
 export const BlockBlastDnDProvider: React.FC<BlockBlastDnDProviderProps> = ({ children }) => {
     const actionDataRef = useRef<BlockBlastActionData>({});
     const [isTouchDevice, setIsTouchDevice] = useState(false);
     const startPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+    const maxDragFromStartRef = useRef(0);
+    const [, bump] = useState(0);
+    const dragLayerRef = useRef<HTMLDivElement | null>(null);
 
-    const { gameState, ruleManager, boardDimension } = useBlockBlastGameManager();
-    const { onDrop } = useActHandler();
+    const { gameState, ruleManager, boardDimension, setInteractionPhase, gridCellRefs } =
+        useBlockBlastGameManager();
+    const { onDrop, onClickOrTouch, cancelDrag } = useActHandler();
 
-    // 检测是否为触摸设备
     useEffect(() => {
         const checkTouchDevice = () => {
             setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -62,132 +134,275 @@ export const BlockBlastDnDProvider: React.FC<BlockBlastDnDProviderProps> = ({ ch
         return () => window.removeEventListener('resize', checkTouchDevice);
     }, []);
 
-    // 获取鼠标或触摸位置
-    const getDragPosition = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        if ('touches' in event) {
-            const touch = event.touches[0] || event.changedTouches[0];
-            return { x: touch.clientX, y: touch.clientY };
-        } else {
-            return { x: event.clientX, y: event.clientY };
-        }
+    const getClientPoint = useCallback((event: PointerEvent | React.PointerEvent) => {
+        return { x: event.clientX, y: event.clientY };
     }, []);
 
-    // 开始拖拽
-    const onDragStart = useCallback((shape: Shape, event: React.MouseEvent | React.TouchEvent) => {
-        if (!ruleManager || !shape.ele || !gameState || gameState.actionStatus !== ActionStatus.IDLE) return;
-        gameState.actionStatus = ActionStatus.ACTING;
-        event.preventDefault();
-        event.stopPropagation();
-        const position = getDragPosition(event);
-        startPositionRef.current = position;
-        const rect = shape.ele.getBoundingClientRect();
-        const dragData: BlockBlastActionData = {
-            shape,
-            offsetX: position.x - rect.left,
-            offsetY: position.y - rect.top,
-            lastPosition: position,
-            status: 'acting'
+    const onPointerDragStart = useCallback(
+        (shape: Shape, event: React.PointerEvent) => {
+            const modes = ruleManager?.getActModes(shape) ?? [];
+            if (!ruleManager || !shape.ele || !gameState || modes.length === 0) return;
+            if (!boardDimension) return;
+            setInteractionPhase(GameInteractionPhase.pointerDrag);
+            event.preventDefault();
+            event.stopPropagation();
+            try {
+                event.currentTarget.setPointerCapture(event.pointerId);
+            } catch {
+                /* ignore */
+            }
+            const position = getClientPoint(event);
+            startPositionRef.current = position;
+            maxDragFromStartRef.current = 0;
+            const el = shape.ele;
+            const rect = el.getBoundingClientRect();
+            const flightTransform = buildFlightTransformForBoard(el, boardDimension.cellSize);
+            const ghost = el.cloneNode(true) as HTMLElement;
+            ghost.removeAttribute('id');
+            ghost.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+            ghost.setAttribute('aria-hidden', 'true');
+            ghost.classList.add('blockblast-shape--drag-ghost');
+            const layer = dragLayerRef.current ?? document.body;
+            layer.appendChild(ghost);
+            el.style.visibility = 'hidden';
+
+            gsap.killTweensOf(ghost);
+            ghost.style.position = 'fixed';
+            ghost.style.left = `${Math.round(rect.left)}px`;
+            ghost.style.top = `${Math.round(rect.top)}px`;
+            ghost.style.margin = '0';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.zIndex = String(DRAG_FLIGHT_BASE_Z + 100);
+            ghost.style.opacity = '1';
+            ghost.style.visibility = 'visible';
+            ghost.style.transformOrigin = '0 0';
+            ghost.style.transform = flightTransform;
+            void ghost.offsetHeight;
+            const gr = ghost.getBoundingClientRect();
+            const offsetX = position.x - gr.left;
+            const offsetY = position.y - gr.top;
+
+            const dragData: BlockBlastActionData = {
+                shape,
+                actModes: modes,
+                offsetX,
+                offsetY,
+                lastPosition: position,
+                status: 'acting',
+                pointerId: event.pointerId,
+                dragGhostEl: ghost,
+                dragGhostTransform: flightTransform,
+            };
+            clearActionData(actionDataRef.current);
+            Object.assign(actionDataRef.current, dragData);
+            bump((n) => n + 1);
+        },
+        [gameState, boardDimension, getClientPoint, ruleManager, setInteractionPhase]
+    );
+
+    const onPointerMove = useCallback(
+        (event: PointerEvent) => {
+            const session = actionDataRef.current;
+            if (!session.shape) return;
+            if (!session.actModes?.includes(ActMode.DRAG) || !boardDimension || !gameState) return;
+            if (session.pointerId !== undefined && event.pointerId !== session.pointerId) return;
+
+            const shape = session.shape;
+            const flyEl = session.dragGhostEl ?? shape.ele;
+            if (!flyEl) return;
+            const position = getClientPoint(event);
+            const fromStart = Math.hypot(
+                position.x - startPositionRef.current.x,
+                position.y - startPositionRef.current.y
+            );
+            maxDragFromStartRef.current = Math.max(maxDragFromStartRef.current, fromStart);
+
+            const { offsetX, offsetY } = session;
+            const left = position.x - (offsetX || 0);
+            const top = position.y - (offsetY || 0);
+            const flightTransform = session.dragGhostTransform ?? 'translateZ(0.2px)';
+            gsap.killTweensOf(flyEl);
+            flyEl.style.position = 'fixed';
+            flyEl.style.transformOrigin = '0 0';
+            flyEl.style.left = `${Math.round(left)}px`;
+            flyEl.style.top = `${Math.round(top)}px`;
+            flyEl.style.transform = flightTransform;
+            flyEl.style.zIndex = String(DRAG_FLIGHT_BASE_Z + 100);
+
+            void flyEl.offsetHeight;
+            const cell = shapeMatrixOriginToGridCell(flyEl, gridCellRefs, boardDimension);
+            if (cell && ruleManager?.canPlaceShape(shape, cell)) {
+                session.position = cell;
+            } else {
+                session.position = undefined;
+            }
+            session.lastPosition = position;
+        },
+        [getClientPoint, gameState, boardDimension, ruleManager, gridCellRefs]
+    );
+
+    const endPointerSession = useCallback(
+        (event: PointerEvent) => {
+            const session = actionDataRef.current;
+            if (!boardDimension || !gameState) {
+                if (session.shape) {
+                    clearActionData(actionDataRef.current);
+                    bump((n) => n + 1);
+                    setInteractionPhase(GameInteractionPhase.idle);
+                }
+                return;
+            }
+            if (!session.shape) return;
+            if (session.pointerId !== undefined && event.pointerId !== session.pointerId) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const position = getClientPoint(event);
+            const distance = Math.hypot(
+                position.x - startPositionRef.current.x,
+                position.y - startPositionRef.current.y
+            );
+            const maxD = maxDragFromStartRef.current;
+            const dragIntent =
+                session.actModes?.includes(ActMode.DRAG) && Math.max(distance, maxD) >= 5;
+
+            const flyEl = session.dragGhostEl;
+            if (flyEl && session.dragGhostTransform) {
+                const left = position.x - (session.offsetX || 0);
+                const top = position.y - (session.offsetY || 0);
+                flyEl.style.position = 'fixed';
+                flyEl.style.transformOrigin = '0 0';
+                flyEl.style.left = `${Math.round(left)}px`;
+                flyEl.style.top = `${Math.round(top)}px`;
+                flyEl.style.transform = session.dragGhostTransform;
+                void flyEl.offsetHeight;
+            }
+
+            let releasePosition: { row: number; col: number } | undefined;
+            if (flyEl && boardDimension && session.shape) {
+                const fromAnchor = shapeMatrixOriginToGridCell(flyEl, gridCellRefs, boardDimension);
+                if (
+                    fromAnchor !== undefined &&
+                    ruleManager?.canPlaceShape(session.shape, fromAnchor)
+                ) {
+                    releasePosition = fromAnchor;
+                }
+            }
+
+            const payload: BlockBlastActionData = {
+                ...session,
+                position: releasePosition,
+                maxDragFromStart: maxD,
+            };
+            maxDragFromStartRef.current = 0;
+            clearActionData(actionDataRef.current);
+            bump((n) => n + 1);
+
+            if (dragIntent) {
+                void onDrop({ ...payload });
+            } else {
+                void onClickOrTouch({ ...payload });
+            }
+        },
+        [
+            boardDimension,
+            gameState,
+            getClientPoint,
+            gridCellRefs,
+            onClickOrTouch,
+            onDrop,
+            ruleManager,
+            setInteractionPhase,
+        ]
+    );
+
+    const onPointerCancel = useCallback(
+        (event: PointerEvent) => {
+            const session = actionDataRef.current;
+            if (!session.shape) return;
+            if (session.pointerId !== undefined && event.pointerId !== session.pointerId) return;
+
+            const payload: BlockBlastActionData = {
+                ...session,
+                maxDragFromStart: maxDragFromStartRef.current,
+            };
+            maxDragFromStartRef.current = 0;
+            clearActionData(actionDataRef.current);
+            bump((n) => n + 1);
+            cancelDrag(payload);
+        },
+        [cancelDrag]
+    );
+
+    useEffect(() => {
+        const handlePointerMove = (e: PointerEvent) => {
+            if (actionDataRef.current.shape) {
+                e.preventDefault();
+                onPointerMove(e);
+            }
         };
-        Object.assign(actionDataRef.current, dragData);
-        if (shape.ele) {
-            gsap.set(shape.ele, { zIndex: 99999 });
-        }
-    }, [gameState, ruleManager, getDragPosition]);
-
-    // 拖拽移动
-    const onDragMove = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        if (gameState?.actionStatus !== ActionStatus.ACTING || !boardDimension || !gameState) return;
-
-        const shape = actionDataRef.current.shape;
-        if (!shape || !shape.ele) return;
-        const position = getDragPosition(event);
-        const { offsetX, offsetY, lastPosition } = actionDataRef.current;
-        const { left, top } = boardDimension as BoardDimension;
-
-        const x = position.x - left - (offsetX || 0);
-        const y = position.y - top - (offsetY || 0);
-
-        // 只在位置变化较大时重新检测
-        const distance = lastPosition ? Math.sqrt(
-            Math.pow(position.x - lastPosition.x, 2) +
-            Math.pow(position.y - lastPosition.y, 2)
-        ) : 10;
-
-        if (distance > 10) {
-            // 计算网格位置
-            const cellSize = boardDimension.cellSize;
-            const gridX = boardDimension.grid.x;
-            const gridY = boardDimension.grid.y;
-            const col = Math.floor((x - gridX) / cellSize);
-            const row = Math.floor((y - gridY) / cellSize);
-
-            // 验证是否可以放置
-            if (col >= 0 && col < 10 && row >= 0 && row < 10) {
-                const canPlace = ruleManager?.canPlaceShape(shape, { row, col }) || false;
-                actionDataRef.current.position = canPlace ? { row, col } : undefined;
-            } else {
-                actionDataRef.current.position = undefined;
+        const handlePointerUp = (e: PointerEvent) => {
+            if (actionDataRef.current.shape) {
+                endPointerSession(e);
             }
-        }
-
-        actionDataRef.current.lastPosition = position;
-        actionDataRef.current.status = 'dragging';
-
-        // 更新形状位置
-        if (shape.ele) {
-            gsap.set(shape.ele, {
-                x: x,
-                y: y,
-            });
-        }
-    }, [gameState, ruleManager, boardDimension, getDragPosition]);
-
-    // 拖拽结束
-    const onDragEnd = useCallback((event: React.MouseEvent | React.TouchEvent) => {
-        if (gameState?.actionStatus !== ActionStatus.ACTING || !gameState) return;
-
-        const shape = actionDataRef.current.shape;
-        const position = actionDataRef.current.position;
-
-        if (shape && position && ruleManager?.canPlaceShape(shape, position)) {
-            actionDataRef.current.status = 'dropping';
-            onDrop(shape, position);
-        } else {
-            // 取消拖拽，恢复位置
-            actionDataRef.current.status = 'cancelled';
-            if (shape?.ele) {
-                gsap.to(shape.ele, {
-                    x: 0,
-                    y: 0,
-                    duration: 0.3,
-                    ease: 'back.out',
-                    onComplete: () => {
-                        gameState.actionStatus = ActionStatus.IDLE;
-                    }
-                });
-            } else {
-                gameState.actionStatus = ActionStatus.IDLE;
+        };
+        const handlePointerCancel = (e: PointerEvent) => {
+            if (actionDataRef.current.shape) {
+                onPointerCancel(e);
             }
-        }
+        };
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (actionDataRef.current.shape && e.key === 'Escape') {
+                const payload: BlockBlastActionData = {
+                    ...actionDataRef.current,
+                    maxDragFromStart: maxDragFromStartRef.current,
+                };
+                maxDragFromStartRef.current = 0;
+                clearActionData(actionDataRef.current);
+                bump((n) => n + 1);
+                cancelDrag(payload);
+            }
+        };
 
-        actionDataRef.current = {};
-    }, [gameState, ruleManager, onDrop]);
+        document.addEventListener('pointermove', handlePointerMove, { passive: false });
+        document.addEventListener('pointerup', handlePointerUp);
+        document.addEventListener('pointercancel', handlePointerCancel);
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', handlePointerUp);
+            document.removeEventListener('pointercancel', handlePointerCancel);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onPointerMove, endPointerSession, onPointerCancel, cancelDrag]);
 
     const value: IBlockBlastDnDContext = {
         actionData: actionDataRef.current,
         isTouchDevice,
-        onDragStart,
-        onDragMove,
-        onDragEnd,
-        getDragPosition
+        onPointerDragStart,
+        getClientPoint,
     };
 
+    const dragPortal =
+        typeof document !== 'undefined'
+            ? createPortal(
+                  <div
+                      ref={dragLayerRef}
+                      className="blockblast-drag-layer"
+                      aria-hidden
+                  />,
+                  document.body
+              )
+            : null;
+
     return (
-        <BlockBlastDnDContext.Provider value={value}>
-            {children}
-        </BlockBlastDnDContext.Provider>
+        <>
+            {dragPortal}
+            <BlockBlastDnDContext.Provider value={value}>{children}</BlockBlastDnDContext.Provider>
+        </>
     );
 };
 
 export default BlockBlastDnDProvider;
-

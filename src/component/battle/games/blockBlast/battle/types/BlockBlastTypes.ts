@@ -1,60 +1,39 @@
 /**
- * Block Blast 游戏类型定义
- * 基于 solitaireSolo 的架构模式
+ * Block Blast 类型：共享部分与 `convex/blockBlast/convex/types/BlockBlastTypes` 一致；
+ * UI 专用字段在本文件扩展（与 solitaire 的 SoloTypes 在 convex、UI 扩展 同构）。
  */
+import type {
+    BlockBlastRule,
+    GameModel as SharedGameModel,
+    Shape as SharedShape,
+} from '@/convex/blockBlast/convex/types/BlockBlastTypes';
+import {
+    ActMode,
+    BlockBlastGameStatus,
+    GameInteractionPhase,
+} from '@/convex/blockBlast/convex/types/BlockBlastTypes';
 
-export enum BlockBlastGameStatus {
-    PLAYING = 0,
-    WON = 1,
-    LOST = 2,
-    COMPLETED = 3,
-    CANCELLED = 4,
-}
+export { ActMode, BlockBlastGameStatus, GameInteractionPhase };
+export type { BlockBlastRule };
 
-export enum ActionStatus {
-    IDLE = 'idle',
-    ACTING = 'acting',
-    DROPPING = 'dropping',
-}
-
-export enum ActMode {
-    DRAG = 'drag',
-    CLICK = 'click',
-}
-
-export interface Shape {
-    id: string;
-    shape: number[][]; // 形状矩阵，1=有块，0=空
-    color: number; // 颜色索引
+export interface Shape extends SharedShape {
     ele?: HTMLDivElement | null;
 }
 
-export interface GameModel {
-    gameId: string;
-    grid: number[][]; // 10x10 网格，0=空，1-7=颜色
-    shapes: Shape[]; // 当前可用形状
-    nextShapes: Shape[]; // 下一批形状
-    score: number;
-    lines: number;
-    status: BlockBlastGameStatus;
-    moves: number;
-    seed?: string;
-    lastUpdate?: number;
-}
+export type GameModel = SharedGameModel;
 
 export interface BlockBlastGameState extends GameModel {
-    actionStatus: ActionStatus;
     reportElement?: HTMLDivElement | null;
 }
 
 export interface BlockBlastGameConfig {
     scoring: {
-        lineScore: number; // 消除一行/列的得分
-        timeBonus: number; // 时间奖励
-        movePenalty: number; // 移动惩罚
+        lineScore: number;
+        timeBonus: number;
+        movePenalty: number;
     };
-    timeLimit?: number; // 时间限制（秒）
-    maxMoves?: number; // 最大移动次数
+    timeLimit?: number;
+    maxMoves?: number;
 }
 
 export interface BoardDimension {
@@ -64,6 +43,7 @@ export interface BoardDimension {
     height: number;
     cellSize: number;
     spacing: number;
+    gridPadding: number;
     grid: {
         x: number;
         y: number;
@@ -79,7 +59,7 @@ export interface BoardDimension {
 }
 
 export interface GameReport {
-    gameId: string;
+    gameId?: string;
     baseScore: number;
     linesBonus?: number;
     movesPenalty?: number;
@@ -93,9 +73,12 @@ export interface ActionResult {
     data?: {
         grid?: number[][];
         shapes?: Shape[];
+        nextShapes?: Shape[];
         score?: number;
         lines?: number;
         status?: BlockBlastGameStatus;
+        cleared?: { rows: number[]; cols: number[] };
+        shapeCounter?: number;
     };
 }
 
@@ -108,22 +91,18 @@ export enum ActionResultCode {
     OUT_OF_BOUNDS = 5,
 }
 
-// 游戏规则相关
-export interface BlockBlastRule {
-    canPlaceShape: (shape: Shape, position: { row: number, col: number }) => boolean;
-    findValidPositions: (shape: Shape) => { row: number, col: number }[];
-    checkLines: () => { rows: number[], cols: number[] };
-    isGameOver: () => boolean;
-    canPlaceAnyShape: () => boolean;
-}
-
 export interface BlockBlastActionData {
     shape?: Shape;
-    position?: { row: number, col: number };
+    actModes?: ActMode[];
+    position?: { row: number; col: number };
     offsetX?: number;
     offsetY?: number;
     lastPosition?: { x: number; y: number };
+    pointerId?: number;
+    maxDragFromStart?: number;
     status?: 'acting' | 'dragging' | 'dropping' | 'cancelled' | 'finished';
+    dragGhostEl?: HTMLElement | null;
+    dragGhostTransform?: string;
 }
 
 export const DEFAULT_GAME_CONFIG: BlockBlastGameConfig = {
@@ -134,14 +113,12 @@ export const DEFAULT_GAME_CONFIG: BlockBlastGameConfig = {
     },
 };
 
-// 颜色定义
 export const SHAPE_COLORS = [
-    '#FF6B6B', // 红色
-    '#4ECDC4', // 青色
-    '#45B7D1', // 蓝色
-    '#96CEB4', // 绿色
-    '#FFEAA7', // 黄色
-    '#DDA15E', // 橙色
-    '#A29BFE', // 紫色
+    '#FFE32A',
+    '#FF2D8B',
+    '#1EC8FF',
+    '#FF3B4A',
+    '#5EE14A',
+    '#FF9A1A',
+    '#D6E2F0',
 ];
-

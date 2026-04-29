@@ -231,9 +231,9 @@ export const HeadNavBarDesktop: React.FC = () => {
   const { openPage } = usePageManager();
   const { openModal } = useModalManager();
   const { user, askAuth } = useUserManager();
-  const portrait = useSharedValue("lobby.layout.portrait");
+  const orientation = useSharedValue("lobby.layout.orientation");
   /** 与 HeadNavControl 壳一致：仅 strict true 视为竖屏 HUD */
-  const isPortraitHud = portrait === true;
+  const isPortraitHud = orientation === "portrait";
 
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const [menuPortalOpen, setMenuPortalOpen] = useState(false);

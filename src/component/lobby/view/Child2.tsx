@@ -13,7 +13,7 @@ const Child2: React.FC<PageProp> = ({ visible }) => {
   const prevShowContentRef = useRef(false);
   const loadTokenRef = useRef(0);
   const [assetsReady, setAssetsReady] = useState(false);
-  const isPortrait = useSharedValue("lobby.layout.portrait");
+  const orientation = useSharedValue("lobby.layout.orientation");
   const isDesktop = useFooterNavIsDesktop();
 
   useLobbySlideChildSwipe(contentRef, { enabled: !isDesktop });
@@ -31,7 +31,7 @@ const Child2: React.FC<PageProp> = ({ visible }) => {
       if (token !== loadTokenRef.current) return;
       setAssetsReady(true);
     });
-  }, [visible, isPortrait]);
+  }, [visible, orientation]);
 
   const showContent = visible > 0 && assetsReady;
 
@@ -78,7 +78,7 @@ const Child2: React.FC<PageProp> = ({ visible }) => {
           Loading…
         </div>
       )}
-      {showContent ? (isPortrait ? <PortraitContent /> : <LandscapeContent />) : null}
+      {showContent ? (orientation === "portrait" ? <PortraitContent /> : orientation === "landscape" ? <LandscapeContent /> : null) : null}
     </div>
   );
 };

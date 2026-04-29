@@ -1,6 +1,5 @@
 import { ModalConfig, Modals } from "@/model/PageConfiguration";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useSharedValue } from "./SharedPageDataManager";
 import { useUserManager } from "./UserManager";
 export interface ModalProp {
   visible: boolean;
@@ -39,7 +38,7 @@ const ModalContext = createContext<IModalContext>({
 export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, authReq, askAuth } = useUserManager();
   const [modals, setModals] = useState<ModalItem[]>([]);
-  const isPortrait = useSharedValue("lobby.layout.portrait");
+  // const orientation = useSharedValue("lobby.layout.orientation");
   /** 仅在横竖屏 boolean 实际切换时关 modal；避免 portrait 短暂 undefined/null 时误清空 */
   const prevPortraitForModalClearRef = useRef<boolean | undefined>(undefined);
   const modalContainers: { [key: string]: ModalContainer } = useMemo(() => {
@@ -66,17 +65,17 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
       openModal({ name: authReq.modal.name, data: authReq.modal.data, effect: authReq.modal.effect });
     }
   }, [authReq, user, openModal]);
-  useEffect(() => {
-    if (typeof isPortrait !== "boolean") {
-      prevPortraitForModalClearRef.current = undefined;
-      return;
-    }
-    const prev = prevPortraitForModalClearRef.current;
-    if (prev !== undefined && prev !== isPortrait) {
-      setModals([]);
-    }
-    prevPortraitForModalClearRef.current = isPortrait;
-  }, [isPortrait]);
+  // useEffect(() => {
+  //   if (typeof isPortrait !== "boolean") {
+  //     prevPortraitForModalClearRef.current = undefined;
+  //     return;
+  //   }
+  //   const prev = prevPortraitForModalClearRef.current;
+  //   if (prev !== undefined && prev !== isPortrait) {
+  //     setModals([]);
+  //   }
+  //   prevPortraitForModalClearRef.current = isPortrait;
+  // }, [isPortrait]);
 
   const value = {
     modals,

@@ -1,10 +1,9 @@
 /**
- * Block Blast 网格视图
- * 渲染 10x10 的游戏网格
+ * Block Blast 网格视图：10×10 + 单元格 ref（供消除动画）
  */
-
 import React, { useEffect, useRef } from 'react';
 import { useBlockBlastGameManager } from '../service/GameManager';
+import { getBlockTileSurfaceStyle, getEmptyGridCellStyle } from '../utils/blockTileStyle';
 import { SHAPE_COLORS } from '../types/BlockBlastTypes';
 
 interface GridViewProps {
@@ -12,7 +11,7 @@ interface GridViewProps {
 }
 
 const GridView: React.FC<GridViewProps> = ({ className = '' }) => {
-    const { gameState, boardDimension } = useBlockBlastGameManager();
+    const { gameState, boardDimension, gridCellRefs } = useBlockBlastGameManager();
     const gridRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -25,9 +24,16 @@ const GridView: React.FC<GridViewProps> = ({ className = '' }) => {
         grid.style.height = `${boardDimension.grid.height}px`;
     }, [boardDimension]);
 
+    const setCellRef = (row: number, col: number, el: HTMLDivElement | null) => {
+        const matrix = gridCellRefs.current;
+        if (!matrix?.[row]) return;
+        matrix[row][col] = el;
+    };
+
     if (!gameState) return null;
 
-    const cellSize = boardDimension?.cellSize || 40;
+    const cellSize = boardDimension?.cellSize ?? 40;
+    const pad = boardDimension?.gridPadding ?? 10;
 
     return (
         <div
@@ -38,23 +44,28 @@ const GridView: React.FC<GridViewProps> = ({ className = '' }) => {
                 display: 'grid',
                 gridTemplateColumns: `repeat(10, ${cellSize}px)`,
                 gridTemplateRows: `repeat(10, ${cellSize}px)`,
-                gap: '2px',
+                gap: `${boardDimension?.spacing ?? 2}px`,
+                padding: `${pad}px`,
             }}
         >
             {gameState.grid.map((row, rowIndex) =>
                 row.map((cell, colIndex) => (
                     <div
                         key={`${rowIndex}-${colIndex}`}
-                        className="blockblast-grid-cell"
+                        ref={(el) => setCellRef(rowIndex, colIndex, el)}
+                        className={`blockblast-grid-cell ${cell === 0 ? 'blockblast-grid-cell--empty' : 'blockblast-grid-cell--filled'}`}
                         style={{
                             width: `${cellSize}px`,
                             height: `${cellSize}px`,
-                            backgroundColor: cell === 0 ? '#f0f0f0' : SHAPE_COLORS[cell - 1] || '#ccc',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            boxSizing: 'border-box',
+                            ...(cell === 0
+                                ? getEmptyGridCellStyle()
+                                : getBlockTileSurfaceStyle(
+                                      SHAPE_COLORS[cell - 1] || '#D6E2F0'
+                                  )),
                         }}
                     />
                 ))
@@ -64,4 +75,3 @@ const GridView: React.FC<GridViewProps> = ({ className = '' }) => {
 };
 
 export default GridView;
-

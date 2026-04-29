@@ -1,6 +1,5 @@
 /**
- * Block Blast 游戏样式
- * 基于 solitaireSolo 的样式设计
+ * Block Blast 视觉：天蓝/淡紫宇宙感底 + 高饱和塑料块（与参考图 Block-Blaster 系）
  */
 
 .blockblast-game-container {
@@ -13,7 +12,11 @@
     -moz-user-select: none;
     -ms-user-select: none;
     overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background:
+        radial-gradient(ellipse 90% 55% at 50% 0%, rgba(200, 190, 255, 0.4) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 50% at 85% 70%, rgba(150, 210, 255, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 40% at 10% 60%, rgba(180, 200, 255, 0.2) 0%, transparent 45%),
+        linear-gradient(168deg, #b8d4f2 0%, #9eb8f0 22%, #a8c4f5 45%, #b8b0eb 68%, #8ec0f0 100%);
 }
 
 .blockblast-player-container {
@@ -33,38 +36,127 @@
 }
 
 .blockblast-grid {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    background: rgba(6, 16, 40, 0.45);
+    border-radius: 10px;
     padding: 10px;
+    box-shadow:
+        inset 0 2px 16px rgba(0, 0, 0, 0.45),
+        0 4px 24px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .blockblast-grid-cell {
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.blockblast-grid-cell:hover {
-    transform: scale(1.05);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+.blockblast-grid-cell--empty:hover {
+    filter: brightness(1.08);
+}
+
+.blockblast-grid-cell--filled:hover {
+    transform: scale(1.04);
+    filter: brightness(1.04);
+    z-index: 1;
 }
 
 .blockblast-shape-preview {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    background: rgba(8, 20, 45, 0.55);
+    border-radius: 10px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.blockblast-shape-preview-scroll {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px 16px;
+    overflow: hidden;
     padding: 10px;
+    box-sizing: border-box;
+}
+
+.blockblast-shape-preview-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.blockblast-shape-preview-hand-shapes,
+.blockblast-shape-preview-next-shapes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* 竖屏：Hand / Next 上下两行（与横屏时左右两列对应） */
+.blockblast-shape-preview-scroll--stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+}
+
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: unset;
+}
+
+/* 竖屏：Hand / Next 各自一行内，形状横排撑满宽度 */
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-hand-shapes,
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-next-shapes {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-evenly;
+    width: 100%;
+    gap: 10px 12px;
+}
+
+.blockblast-drag-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    /* Above embed shells / modals so flight clone is never painted under #root */
+    z-index: 2147483000;
+    isolation: isolate;
+}
+
+.blockblast-shape--drag-ghost {
+    box-sizing: border-box;
+    visibility: visible !important;
+    opacity: 1 !important;
+    /* `.blockblast-shape` uses `transition: all` — animating left/top each frame breaks drag painting */
+    transition: none !important;
+    pointer-events: none;
+}
+
+.blockblast-tile {
+    flex-shrink: 0;
 }
 
 .blockblast-shape {
     position: relative;
     padding: 10px;
-    border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.2);
-    transition: all 0.2s ease;
+    border-radius: 10px;
+    background: rgba(6, 16, 40, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .blockblast-shape:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .blockblast-shape.dragging {
@@ -74,7 +166,55 @@
 }
 
 .blockblast-info {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: #e8f0ff;
+    border-radius: 10px;
+    background: rgba(8, 20, 45, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.blockblast-game-over {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100000;
+    min-width: 280px;
+    padding: 24px 28px;
+    border-radius: 12px;
+    background: rgba(8, 20, 45, 0.95);
+    color: #e8f0ff;
+    text-align: center;
+    visibility: hidden;
+    opacity: 0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.blockblast-game-over h1 {
+    margin: 0 0 12px;
+    font-size: 22px;
+}
+
+.blockblast-game-over-submit-container {
+    margin-top: 20px;
+}
+
+.blockblast-game-over-submit-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #3a7fff 0%, #2563d4 100%);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.blockblast-game-over-submit-btn:hover {
+    filter: brightness(1.05);
 }
 
 /* 响应式设计 */
@@ -83,7 +223,7 @@
         gap: 1px;
     }
 
-    .blockblast-shape-preview {
+    .blockblast-shape-preview-scroll {
         padding: 5px;
     }
 

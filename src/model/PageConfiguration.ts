@@ -49,34 +49,39 @@ export const Modals: Record<string, ModalConfig> = {
         name: "play_tournament",
         path: "./battle/PlayTournament",
         auth: 0,
-        effect: { name: "swipeBottom", args: { height: "100%" } },
+        effects: [{ name: "swipeBottom", args: { height: "100%" } }],
 
     },
     "join_tournament": {
         name: "join_tournament",
         path: "./lobby/tournament/TournamentJoinList",
         auth: 1,
-        effect: { name: "swipeRight", args: { width: "30%" } },
+        effects: [{ name: "popCenter", orientation: "portrait", args: { height: "100%", width: "100%" } }, { name: "swipeRight", orientation: "landscape", args: { width: "30%" } }],
 
     },
     "tournament_history": {
         name: "tournament_history",
         path: "./lobby/tournament/TournamentHistory",
         auth: 1,
-        effect: { name: "swipeRight", args: { width: "30%" } },
-
+        effects: [{ name: "swipeRight", orientation: "landscape", args: { width: "30%" } }, { name: "swipeRight", orientation: "portrait", args: { width: "100%" } }],
     },
     "chest_drop": {
         name: "chest_drop",
         path: "./lobby/view/play/ChestDrop",
         auth: 1,
-        effect: { name: "popCenter", args: { width: "70%", height: "70%" } },
+        effects: [{ name: "popCenter", args: { width: "70%", height: "70%" } }],
     },
     "play_solitaire_solo": {
         name: "play_solitaire_solo",
         path: "./battle/games/solitaireSolo/battle/PlaySolitaireSolo",
         auth: 1,
-        effect: { name: "popCenter", args: { width: "100%", height: "100%" } },
+        effects: [{ name: "popCenter", orientation: "portrait", args: { width: "100%", height: "100%" } }],
+    },
+    "play_block_blast": {
+        name: "play_block_blast",
+        path: "./battle/games/blockBlast/battle/PlayBlockBlast",
+        auth: 1,
+        effects: [{ name: "popCenter", orientation: "portrait", args: { width: "100%", height: "100%" } }],
     }
 }
 export const animates: { [k: number]: any } = {
@@ -105,6 +110,11 @@ export interface PageConfig {
     effect?: { enter?: string, exit?: string };
 
 }
+export interface ModalEffect {
+    name: string;
+    orientation?: "portrait" | "landscape" | "both";
+    args?: any;
+}
 export interface ModalConfig {
     name: string;
     data?: { [key: string]: any };
@@ -112,7 +122,7 @@ export interface ModalConfig {
     auth?: number;
     init?: string;
     class?: string;
-    effect?: { name: string, args?: any };
+    effects?: ModalEffect[];
 }
 export const AppsConfiguration: AppConfig[] = [PlayPlace];
 
