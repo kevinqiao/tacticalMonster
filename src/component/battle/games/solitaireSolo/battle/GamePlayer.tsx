@@ -319,7 +319,7 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                 top: 0,
                 display: 'flex',
                 flexDirection: 'column',
-                backgroundColor: '#0d5f0d',
+                // backgroundColor: 'blue',
                 overflow: 'visible'
             }}
         >

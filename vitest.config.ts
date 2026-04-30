@@ -27,6 +27,8 @@ export default defineConfig({
             'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.spec.ts',
             'src/component/battle/games/tacticalMonster/battle3d/__tests__/**/*.spec.tsx',
             'src/component/battle/games/tacticalMonster/__tests__/**/*.test.ts',
+            'src/service/__tests__/**/*.test.ts',
+            'src/service/__tests__/**/*.test.tsx',
         ],
         exclude: [
             'node_modules',

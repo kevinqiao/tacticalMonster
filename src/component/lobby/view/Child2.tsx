@@ -3,7 +3,7 @@ import { useFooterNavIsDesktop } from "component/lobby/control/footer/FooterNavI
 import React, { useEffect, useRef, useState } from "react";
 import { useSharedValue } from "service/SharedPageDataManager";
 import { preloadImages } from "util/preloadAssets";
-import { child2CriticalAssets } from "./child2Assets";
+import { getChild2CriticalAssets } from "./child2Assets";
 import LandscapeContent from "./play/LandscapeContent";
 import PortraitContent from "./play/PortraitContent";
 import { useLobbySlideChildSwipe } from "./useLobbySlideChildSwipe";
@@ -11,7 +11,8 @@ import { useLobbySlideChildSwipe } from "./useLobbySlideChildSwipe";
 const Child2: React.FC<PageProp> = ({ visible }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const prevShowContentRef = useRef(false);
-  const loadTokenRef = useRef(0);
+  /** 仅随 orientation 换批次预加载：`visible<=0` 时也会在后台跑，切回本页且朝向未变时可跳过 Loading */
+  const preloadGenerationRef = useRef(0);
   const [assetsReady, setAssetsReady] = useState(false);
   const orientation = useSharedValue("lobby.layout.orientation");
   const isDesktop = useFooterNavIsDesktop();
@@ -19,19 +20,14 @@ const Child2: React.FC<PageProp> = ({ visible }) => {
   useLobbySlideChildSwipe(contentRef, { enabled: !isDesktop });
 
   useEffect(() => {
-    if (visible <= 0) {
-      loadTokenRef.current += 1;
-      setAssetsReady(false);
-      return;
-    }
-
-    const token = ++loadTokenRef.current;
+    const generation = ++preloadGenerationRef.current;
     setAssetsReady(false);
-    preloadImages(child2CriticalAssets).then(() => {
-      if (token !== loadTokenRef.current) return;
+    const urls = getChild2CriticalAssets(orientation);
+    preloadImages(urls).then(() => {
+      if (generation !== preloadGenerationRef.current) return;
       setAssetsReady(true);
     });
-  }, [visible, orientation]);
+  }, [orientation]);
 
   const showContent = visible > 0 && assetsReady;
 

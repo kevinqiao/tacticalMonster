@@ -10,10 +10,7 @@ body,
   background-color: #000000;
 }
 
-/* 独立合成层，减轻与遮罩切换时的闪一下；背景保持黑 */
-#root {
-  isolation: isolate;
-}
+/* 勿对 #root 使用 isolation:isolate：会与 document.body 上的 fixed 启动遮罩（Boot portal）叠层错乱，出现「拆掉 HTML 静态层后长时间纯黑」。 */
 
 body {
   margin: 0;

@@ -54,6 +54,10 @@ scheduleIdle(() => {
   void import("./reportWebVitals").then((m) => m.default());
 });
 
+/** 仅兜底：避免在 React 从未挂载时永久盖住报错 UI；正常由 BootLoadingOverlay 摘掉静态层 */
 window.setTimeout(() => {
-  document.getElementById("static-boot-cover")?.remove();
+  const root = document.getElementById("root");
+  if (root && root.children.length > 0) {
+    document.getElementById("static-boot-cover")?.remove();
+  }
 }, 15_000);

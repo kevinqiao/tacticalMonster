@@ -1,13 +1,12 @@
 import { PageProp } from "component/RenderApp";
 import React, { useRef } from "react";
-import { createPortal } from "react-dom";
 import { useSharedPageData } from "service/SharedPageDataManager";
 import FooterNavControl from "./control/footer/FooterNavControl";
 import HeadNavControl from "./control/head/HeadNavControl";
 import "./style.css";
 import { useLobbyHomeChrome } from "./useLobbyHomeChrome";
 
-const LOBBY_CHROME_Z = 5200;
+const LOBBY_CHROME_Z = 1000;
 /**
  * 顶栏 / 底栏外框严格同高；略抬下限给底栏 HUD（图标+文案）留高，避免只能靠 cqh 把按钮压扁。
  * 底部安全区由壳体样式控制，不把 #footer 总高加成高于 #header。
@@ -69,9 +68,9 @@ const LobbyHome: React.FC<PageProp> = () => {
     </>
   );
 
-  if (typeof document !== "undefined" && document.body) {
-    return createPortal(chrome, document.body);
-  }
+  // if (typeof document !== "undefined" && document.body) {
+  //   return createPortal(chrome, document.body);
+  // }
   return chrome;
 };
 

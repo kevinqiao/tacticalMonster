@@ -1,5 +1,5 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react";
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import PartnerProvider from "service/PartnerManager";
 import "./App.css";
 import { PageProvider } from "./service/PageManager";
@@ -32,6 +32,7 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         <UserProvider>
           <SharedPageDataProvider>
             <PageProvider>
+              <BootLoadingOverlay />
               <ModalProvider>
                 <TournamentProvider>
                   {/* <PlatformProvider> */}
@@ -65,13 +66,14 @@ const usePerformanceMonitor = () => {
   }, []);
 };
 
-// 优化的主应用组件
+// 优化的主应用组件（须在 PageProvider 内：RenderApp 路由依赖 PageManager Context）
 const MainApp: React.FC = () => {
 
   return (
     <>
-      <BootLoadingOverlay />
-      <RenderApp />
+      <Suspense fallback={null}>
+        <RenderApp />
+      </Suspense>
       <RenderModal />
       <SSOController />
     </>

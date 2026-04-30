@@ -1,21 +1,19 @@
 import { api } from "@/convex/sso/convex/_generated/api";
-import { User, useUserManager } from "@/service/UserManager";
+import { User } from "@/service/UserManager";
 import { useConvex } from "convex/react";
 import React, { useCallback } from "react";
 // const client = new ConvexReactClient("https://cool-salamander-393.convex.cloud");
-const SignInWeb: React.FC<{ cid: number, onComplete: () => void }> = ({ cid, onComplete }) => {
-    const { authComplete } = useUserManager();
-
+const SignInWeb: React.FC<{ cid: number, onComplete: (user: User) => void }> = ({ cid, onComplete }) => {
     const convex = useConvex();
     const login = useCallback(async (email: string) => {
 
         const res: User | null = await convex.action(api.service.AuthManager.authenticate, { cid, data: { email, password: "12345" } });
         console.log("WebAuthenticator", "res", res);
         if (res) {
-            authComplete(res, 1);
-            onComplete();
+            // authComplete(res, 1);
+            onComplete(res);
         }
-    }, [convex])
+    }, [convex, onComplete])
 
 
     return (

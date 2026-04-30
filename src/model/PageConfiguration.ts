@@ -10,6 +10,8 @@ export const PlayPlace =
             auth: 1,
             path: "./lobby/LobbyHome",
             uri: "lobby",
+            /** 冷启动真实请求：`useColdBootPreload` + BootLoadingOverlay；可改成大厅首屏大图 CDN。手动看清加载阶段可在 DevTools → Network 选 Slow 3G。 */
+            bootCriticalAssetUrls: ["/logo192.png", "/icons/001-clock.svg"],
             child: "child2",
             class: "page_container",
             enter: "fadeIn",
@@ -84,12 +86,12 @@ export const Modals: Record<string, ModalConfig> = {
         effects: [{ name: "popCenter", orientation: "portrait", args: { width: "100%", height: "100%" } }],
     }
 }
-export const animates: { [k: number]: any } = {
-    1: { autoAlpha: 1, duration: 1.2 },
-    2: { autoAlpha: 0, duration: 1.2 },
-    3: [{ scale: 0.5, autoAlpha: 1 }, { scale: 1, duration: 0.7 }],
-    4: { scale: 0.5, autoAlpha: 0, duration: 0.7 }
-}
+// export const animates: { [k: number]: any } = {
+//     1: { autoAlpha: 1, duration: 1.2 },
+//     2: { autoAlpha: 0, duration: 1.2 },
+//     3: [{ scale: 0.5, autoAlpha: 1 }, { scale: 1, duration: 0.7 }],
+//     4: { scale: 0.5, autoAlpha: 0, duration: 0.7 }
+// }
 
 export interface AppConfig {
     name: string;
@@ -108,6 +110,11 @@ export interface PageConfig {
     class?: string;
     init?: string;
     effect?: { enter?: string, exit?: string };
+    /**
+     * 仅建议配置在 **AppsConfiguration 顶层 nav**（一棵顶层壳）上。
+     * 首屏落在该壳下时由 **`useColdBootPreload`** 拉取；**BootLoadingOverlay** 会等到该项列表对应的预加载结束后再淡出（无 URL 则跳过）。
+     */
+    bootCriticalAssetUrls?: readonly string[];
 
 }
 export interface ModalEffect {

@@ -63,6 +63,7 @@
     -moz-user-select: none;
     -ms-user-select: none;
     overflow: visible;
+    background-color: #51d81b;
 }
 
 .solo-game-loading {

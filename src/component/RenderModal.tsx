@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import "./render.css";
 import { useModalAnimate } from "./shell/useModalAnimate";
 
-const MODAL_Z_BASE = 200000;
+/** 须高于 `LobbyHome` 顶/底栏 portal（z-index 5200），否则 chrome 会压住 Modal（同为 body 子节点时按数值比较） */
+const MODAL_Z_BASE = 5500;
 
 const isStaleChunkError = (error: unknown): boolean => {
   const msg = String((error as Error)?.message ?? error ?? "");

@@ -16,6 +16,7 @@ export interface User {
   phone?: string;
   data?: { [k: string]: any };
   assets?: { [k: string]: number };
+  authReq?: { page?: PageItem; modal?: ModalItem } | null;
 }
 export enum AppSessionStatus {
   TO_BE_SIGNED_IN = 0,
@@ -41,7 +42,6 @@ interface IUserContext {
   user: any;
   askAuth: ({ page, modal }: { page?: PageItem; modal?: ModalItem }) => void;
   cancelAuth: () => void;
-  authReq: { page?: PageItem; modal?: ModalItem } | null;
   authComplete: (user: any, persist: number) => void;
   logout: () => Promise<void>;
 
@@ -51,7 +51,6 @@ const UserContext = createContext<IUserContext>({
   user: null,
   askAuth: () => { },
   cancelAuth: () => { },
-  authReq: null,
   logout: async () => { },
   authComplete: (user: any, persist: number) => null,
 
@@ -59,28 +58,41 @@ const UserContext = createContext<IUserContext>({
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [authReq, setAuthReq] = useState<{ page?: PageItem; modal?: ModalItem } | null>(null);
+  // const [authReq, setAuthReq] = useState<{ page?: PageItem; modal?: ModalItem } | null>(null);
 
   const convex = useConvex();
 
   const askAuth = useCallback(({ page, modal }: { page?: PageItem; modal?: ModalItem }) => {
-    if (!user?.uid) {
-      setAuthReq({ page, modal })
-    }
-  }, [user]);
+
+    // setAuthReq({ page, modal })
+    setUser((prev) => {
+      if (prev && !prev.uid && !prev.authReq) {
+        return { ...prev, authReq: { page, modal } };
+      }
+      return prev;
+    })
+
+  }, []);
 
   const cancelAuth = useCallback(() => {
-    setAuthReq(null);
-  }, [user, authReq]);
+    setUser((prev) => {
+      if (prev && prev.authReq) {
+        return { ...prev, authReq: null };
+      }
+      return prev;
+    })
+  }, []);
   const authComplete = useCallback((u: any, persist: number) => {
     console.log("authComplete", u);
     u.expire = u.expire + Date.now();
     localStorage.setItem("user", JSON.stringify(u));
+    // setAuthReq(null);
     setUser(u);
   }, []);
 
 
   const logout = useCallback(async () => {
+    console.log("logout", user);
 
     if (user?.uid && user?.token) {
       const result = await convex.action(api.service.AuthManager.signOut, { uid: user?.uid, token: user?.token })
@@ -129,7 +141,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
 
 
-  const value = { user, authComplete, logout, askAuth, cancelAuth, authReq };
+  const value = { user, authComplete, logout, askAuth, cancelAuth };
   return (<UserContext.Provider value={value}>{children}</UserContext.Provider>);
 };
 export const useUserManager = () => {

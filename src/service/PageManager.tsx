@@ -5,6 +5,18 @@ import { PageStatus } from "model/PageProps";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { findContainer, isSameTree, normalizePageUri, parseLocation } from "util/PageUtils";
 import { useUserManager } from "./UserManager";
+import {
+  collectRootBootCriticalUrls,
+  resolveColdBootRootShells,
+  useColdBootPreload,
+} from "./useColdBootPreload";
+
+export {
+  collectRootBootCriticalUrls,
+  resolveColdBootRootShells,
+  useColdBootPreload,
+};
+export type { UseColdBootPreloadResult } from "./useColdBootPreload";
 
 export type App = {
   name: string;
@@ -47,14 +59,16 @@ interface IPageContext {
   pageUpdated: PageItem | null;
   pageEvent: PageEvent | null;
   app: App | null;
+  /** 展平的顶层壳列表 */
   pageContainers: PageContainer[];
-  containersLoaded: number;
-  // askAuth: ({ params, pageURI }: { params?: { [k: string]: string }; pageURI?: string }) => void;
-  // cancelAuth: () => void;
-  // authReq: { params?: { [k: string]: string }; pageURI?: string } | null;
+  /**
+   * 首屏壳 `bootCriticalAssetUrls` 已跑完预加载（由 {@link useColdBootPreload} 驱动；无 URL 时为 true）。
+   * BootLoadingOverlay 与此项组合决定是否结束冷启动遮罩。
+   */
+  coldBootAssetsReady: boolean;
+  sumbitPage: (page: PageItem) => void;
   openPage: (page: PageItem) => void;
   completePage: () => void;
-  onLoad: () => void;
 }
 
 const PageContext = createContext<IPageContext>({
@@ -65,12 +79,11 @@ const PageContext = createContext<IPageContext>({
   app: null,
   // authReq: null,
   pageContainers: [],
-  containersLoaded: 0,
-  // askAuth: () => null,
+  coldBootAssetsReady: false,
+  sumbitPage: (p: PageItem) => null,
   // cancelAuth: () => null,
   openPage: (p: PageItem) => null,
   completePage: () => null,
-  onLoad: () => null,
 });
 const PageHandler = ({ children }: { children: React.ReactNode }) => {
   const { pageEvent, completePage } = usePageManager();
@@ -80,8 +93,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
     if (pageEvent?.name === "pageOpen") {
       playOpen({
         page: pageEvent.page, prepage: pageEvent.prepage, onComplete: () => {
-          console.log("pageEvent complete", pageEvent);
-          /**
+         /**
            * 关键：不要在 pageOpen 同一 effect 周期内同步切成 pageComplete。
            * 否则 RenderApp 子页面可能尚未消费到 pageOpen（visible/autoAlpha 未更新）就被覆盖，首屏出现黑底。
            */
@@ -95,7 +107,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 export const PageProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, askAuth, cancelAuth, authReq } = useUserManager();
+  const { user, askAuth } = useUserManager();
   const { clearNamespace } = useSharedPageData();
   // const loadingBGRef = useRef<{ ele: HTMLDivElement | null; status: number }>({ ele: null, status: 1 });
   const historiesRef = useRef<PageItem[]>([]);
@@ -103,7 +115,6 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
   // const [initCompleted, setInitCompleted] = useState(false);
   const [pageUpdated, setPageUpdated] = useState<PageItem | null>(null);
   const [pageEvent, setPageEvent] = useState<PageEvent | null>(null);
-  const [containersLoaded, setContainersLoaded] = useState<number>(0);
   const [app, setApp] = useState<App | null>(null);
   // const [authReq, setAuthReq] = useState<{ params?: { [k: string]: string }; page?: PageItem; modal?: ModalItem } | null>(null);
   const pageContainers: PageContainer[] = useMemo(() => {
@@ -130,22 +141,26 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     return containers;
   }, []);
 
+  const { coldBootAssetsReady } = useColdBootPreload(pageContainers);
+
   const requireAuth = useCallback((page: PageItem) => {
     const container = findContainer(pageContainers, page.uri);
     if (!container) return false;
     const parent = container.parentURI ? findContainer(pageContainers, container.parentURI) : null;
     return (container?.auth === 1 || parent?.auth === 1) && (!user || !user.uid) ? true : false;
   }, [user, pageContainers]);
-  // const askAuth = useCallback(({ params, page }: { params?: { [k: string]: string }; page?: PageItem }) => {
-  //   if (!user?.uid) {
-  //     setAuthReq({ params, page })
-  //   }
-  // }, [user, pageContainers]);
-
-  // const cancelAuth = useCallback(() => {
-  //   setAuthReq(null);
-  // }, [user, authReq, pageContainers]);
-
+  const sumbitPage = useCallback((page: PageItem) => {
+    if (currentPageRef.current?.uri === page.uri) return;
+    window.history.replaceState(null, "", page.uri);
+    historiesRef.current.push(page);
+    if (historiesRef.current.length > 10) {
+      historiesRef.current.shift();
+    }
+    console.log("openPage", page);
+    const prepage = currentPageRef.current;
+    setPageEvent({ name: "pageOpen", prepage, page: page });
+    currentPageRef.current = page;
+  }, [currentPageRef]);
   const openPage = useCallback((page: PageItem) => {
     const container = findContainer(pageContainers, page.uri);
     if (!container) return;
@@ -158,19 +173,9 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       askAuth({ page: page });
       return;
     }
+    sumbitPage(page);
+  }, [requireAuth, askAuth, requireAuth, sumbitPage]);
 
-    // const uri = page.data ? newPage.uri + "?" + Object.entries(page.data).map(([key, value]) => `${key}=${value}`).join("&") : newPage.uri;
-    // history.pushState({ index: 0 }, "", page.uri);
-    window.history.replaceState(null, "", page.uri);
-    historiesRef.current.push(page);
-    if (historiesRef.current.length > 10) {
-      historiesRef.current.shift();
-    }
-    console.log("openPage", page);
-    const prepage = currentPageRef.current;
-    setPageEvent({ name: "pageOpen", prepage, page: page });
-    currentPageRef.current = page;
-  }, [requireAuth, user]);
 
   const completePage = useCallback(() => {
 
@@ -186,32 +191,13 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     if (pageEvent?.name !== "pageComplete") return;
     if (!pageEvent.prepage) return;
     if (isSameTree(pageContainers, pageEvent.page.uri, pageEvent.prepage.uri)) return;
-    const namespace = getNamespaceFromUri(pageEvent.prepage.uri);
-    if (!namespace) return;
-    clearNamespace(namespace);
+    const prespace = getNamespaceFromUri(pageEvent.prepage.uri);
+    if (!prespace) return;
+    clearNamespace(prespace);
   }, [pageEvent, pageContainers, clearNamespace]);
-
-  const onLoad = useCallback(
-    () => {
-      // 仅校验 RenderApp 顶层挂载的容器（pageContainers 列表），子路由由各自 PageComponent 递归挂载，不在这里要求 child.ele
-      const loadCompleted = pageContainers.every((container) => !!container.ele);
-      if (loadCompleted) setContainersLoaded((pre) => (pre === 0 ? 1 : pre));
-    },
-    [pageContainers]
-  );
 
   useEffect(() => {
     const handlePopState = () => {
-      const currentPage = currentPageRef.current;
-      console.log("handlePopState", currentPage);
-      if (currentPage) {
-        const container = findContainer(pageContainers, currentPage.uri);
-        if (container?.preventNavigation) {
-          const uri = currentPage.data ? currentPage.uri + "?" + Object.entries(currentPage.data).map(([key, value]) => `${key}=${value}`).join("&") : currentPage.uri;
-          window.history.replaceState(null, "", uri);
-          return;
-        }
-      }
       const page = parseLocation();
       if (page) {
         const prepage = currentPageRef.current;
@@ -225,12 +211,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
       window.removeEventListener("popstate", handlePopState);
     };
   }, []);
-  useEffect(() => {
-    if (authReq && authReq.page && user?.uid) {
-      openPage(authReq.page);
-      cancelAuth();
-    }
-  }, [authReq, user, cancelAuth, openPage]);
+
 
   const value = {
     histories: historiesRef.current,
@@ -238,15 +219,12 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     pageUpdated,
     pageEvent,
     pageContainers,
-    containersLoaded,
+    coldBootAssetsReady,
     // initCompleted,
     app,
-    // authReq,
-    // askAuth,
-    // cancelAuth,
+    sumbitPage,
     openPage,
     completePage,
-    onLoad,
     // onInitCompleted,
   };
   return (<PageContext.Provider value={value}><PageHandler>{children}</PageHandler></PageContext.Provider>);

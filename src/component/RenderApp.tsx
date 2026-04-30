@@ -123,7 +123,7 @@ const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [visible, setVisible] = useState(0);
   const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
-  const { pageEvent, onLoad, pageContainers } = usePageManager();
+  const { pageEvent, pageContainers } = usePageManager();
 
   const { playInit } = usePageAnimate();
   // const { cleanupAnimation, setAnimationRef, clearAnimationRef } = useAnimationManager(container);
@@ -139,9 +139,8 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
       playInit({
         container
       });
-      onLoad();
     }
-  }, [container, playInit, onLoad]);
+  }, [container, playInit]);
 
   useEffect(() => {
 

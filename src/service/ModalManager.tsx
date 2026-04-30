@@ -1,5 +1,5 @@
 import { ModalConfig, Modals } from "@/model/PageConfiguration";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { useUserManager } from "./UserManager";
 export interface ModalProp {
   visible: boolean;
@@ -24,6 +24,7 @@ interface IModalContext {
   modals: ModalItem[];
   modalContainers: { [key: string]: ModalContainer };
   openModal: ({ name, data, effect }: { name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } }) => void;
+  submitModal: (modal: ModalItem) => void;
   closeModal: (name?: string) => void;
   closeAll: () => void;
 }
@@ -32,15 +33,16 @@ const ModalContext = createContext<IModalContext>({
   modalContainers: {},
   openModal: ({ name, data, effect }: { name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } }) => { },
   closeModal: (_name?: string) => { },
+  submitModal: (modal: ModalItem) => { },
   closeAll: () => { },
 });
 
 export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, authReq, askAuth } = useUserManager();
+  const { user, askAuth } = useUserManager();
   const [modals, setModals] = useState<ModalItem[]>([]);
   // const orientation = useSharedValue("lobby.layout.orientation");
   /** 仅在横竖屏 boolean 实际切换时关 modal；避免 portrait 短暂 undefined/null 时误清空 */
-  const prevPortraitForModalClearRef = useRef<boolean | undefined>(undefined);
+
   const modalContainers: { [key: string]: ModalContainer } = useMemo(() => {
     return Modals
   }, []);
@@ -60,26 +62,19 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
   }, [user, askAuth])
-  useEffect(() => {
-    if (authReq && authReq.modal && user?.uid) {
-      openModal({ name: authReq.modal.name, data: authReq.modal.data, effect: authReq.modal.effect });
-    }
-  }, [authReq, user, openModal]);
-  // useEffect(() => {
-  //   if (typeof isPortrait !== "boolean") {
-  //     prevPortraitForModalClearRef.current = undefined;
-  //     return;
-  //   }
-  //   const prev = prevPortraitForModalClearRef.current;
-  //   if (prev !== undefined && prev !== isPortrait) {
-  //     setModals([]);
-  //   }
-  //   prevPortraitForModalClearRef.current = isPortrait;
-  // }, [isPortrait]);
+  const submitModal = useCallback((modal: ModalItem) => {
+    setModals((prev) => {
+      const pre = prev.find((modal) => modal.name === modal.name)
+      const p = pre ? prev : [...prev, modal];
+      return p;
+    });
+  }, []);
+
 
   const value = {
     modals,
     modalContainers,
+    submitModal: submitModal,
     openModal: openModal,
     closeModal: useCallback((name?: string) => {
       setModals((prev) => {
