@@ -4,7 +4,6 @@
  */
 
 import { SoloGameEngine } from '@/convex/solitaireArena/convex/service/SoloGameEngine';
-import { useConvex } from 'convex/react';
 import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
@@ -21,6 +20,7 @@ import {
 } from './types/SoloTypes';
 import { tableauCardZIndex } from './Utils';
 import SoloDnDCard from './view/SoloDnDCard';
+import SoloGameHeader from './view/SoloGameHeader';
 
 const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -37,11 +37,11 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         loadGame,
     } = useSoloGameManager();
     const { cards } = gameState || {};
+    const displayScore = gameState != null ? gameState.score : null;
+    const displayMoves = gameState != null ? gameState.moves : null;
 
     const { recycle, runAutoCompleteToFoundation } = useActHandler();
     const { actionData } = useSoloDnDManager();
-    // console.log("SoloPlayer", user);
-    const convex = useConvex();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
@@ -323,32 +323,14 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                 overflow: 'visible'
             }}
         >
-            {showAutoComplete ? (
-                <button
-                    type="button"
-                    aria-label="自动将可收牌全部收到基础堆"
-                    onClick={() => {
-                        void runAutoCompleteToFoundation();
-                    }}
-                    style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        zIndex: 100,
-                        padding: '6px 12px',
-                        fontSize: 13,
-                        borderRadius: 8,
-                        cursor: 'pointer',
-                        border: '1px solid rgba(255,255,255,0.5)',
-                        background: 'rgba(255,255,255,0.95)',
-                        color: '#0d5f0d',
-                        fontWeight: 600,
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
-                    }}
-                >
-                    收到基础
-                </button>
-            ) : null}
+            <SoloGameHeader
+                displayScore={displayScore}
+                displayMoves={displayMoves}
+                showAutoComplete={showAutoComplete}
+                onAutoComplete={() => {
+                    void runAutoCompleteToFoundation();
+                }}
+            />
             {/* {renderControlPanel()} */}
             <div ref={boardSurfaceRef} className="solo-board-surface">
                 <div className="solo-foundation-spacer" aria-hidden />

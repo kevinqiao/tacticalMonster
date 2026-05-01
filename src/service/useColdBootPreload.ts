@@ -70,7 +70,7 @@ export const useColdBootPreload = (pageContainers: readonly PageContainer[]): Us
         console.log("preloadImages success");
         setTimeout(() => {
           setCriticalUrlsLoaded(true);
-        }, 1000);
+        }, 5000);
       };
     });
     return () => {

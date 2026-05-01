@@ -88,6 +88,130 @@
     -ms-user-select: none;
 }
 
+.solo-game-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    min-height: 44px;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, rgba(22, 22, 28, 0.98) 0%, rgba(14, 14, 18, 0.96) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.solo-game-header__player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.solo-game-header__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.solo-game-header__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.solo-game-header__avatar-fallback {
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1;
+}
+
+.solo-game-header__meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.solo-game-header__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: min(52vw, 220px);
+}
+
+.solo-game-header__stats {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.solo-game-header__score-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.solo-game-header__autocomplete {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.95);
+    color: #0d5f0d;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.2;
+    margin-bottom: 1px;
+}
+
+.solo-game-header__autocomplete:hover {
+    background: #fff;
+}
+
+.solo-game-header__autocomplete:active {
+    transform: translateY(1px);
+}
+
+.solo-game-header__stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.solo-game-header__stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+}
+
+.solo-game-header__stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #f0f4ff;
+    line-height: 1.1;
+}
+
 /* 牌桌：统一 7 列网格，foundation / stock / tableau 列宽一致，供测量与 getCardCoord 对齐 */
 .solo-board-surface {
     position: relative;

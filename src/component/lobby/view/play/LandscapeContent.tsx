@@ -34,7 +34,7 @@ const Content: React.FC = () => {
             id="content"
             style={{
                 display: "flex",
-                justifyContent: "center",
+                justifyContent: "space-around",
                 alignItems: "center",
                 width: lobbyContentDimension?.width,
                 height: lobbyContentDimension?.height,
