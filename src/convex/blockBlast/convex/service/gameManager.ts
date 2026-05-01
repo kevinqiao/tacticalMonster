@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
-import { BlockBlastGameEngine } from "./BlockBlastGameEngine";
+import { normalizeBlockBlastGridSize, type BlockBlastGridSize } from "../types/BlockBlastTypes";
+import { BlockBlastGameEngine, randomUuidCompat } from "./BlockBlastGameEngine";
 
 interface Shape {
     id: string;
@@ -11,6 +12,7 @@ interface Shape {
 interface GameState {
     _id?: string;
     gameId: string;
+    gridSize?: BlockBlastGridSize;
     grid: number[][];
     shapes: Shape[];
     nextShapes: Shape[];
@@ -47,6 +49,7 @@ export class BlockBlastGameManager {
         if (!this.game) return;
 
         if (data.grid) this.game.grid = data.grid;
+        if (data.gridSize !== undefined) this.game.gridSize = data.gridSize;
         if (data.shapes !== undefined) this.game.shapes = data.shapes;
         if (data.nextShapes !== undefined) this.game.nextShapes = data.nextShapes;
         if (data.score !== undefined) this.game.score = data.score;
@@ -58,6 +61,7 @@ export class BlockBlastGameManager {
 
         await this.dbCtx.db.patch(this.game._id, {
             grid: this.game.grid,
+            gridSize: this.game.gridSize,
             shapes: this.game.shapes,
             nextShapes: this.game.nextShapes,
             score: this.game.score,
@@ -69,11 +73,17 @@ export class BlockBlastGameManager {
         });
     }
 
-    async createGame(seed?: string, gameId?: string): Promise<GameState | null> {
+    async createGame(
+        seed?: string,
+        gameId?: string,
+        gridSizeArg?: BlockBlastGridSize | number
+    ): Promise<GameState | null> {
         const normalizedSeed = seed !== undefined ? String(seed) : undefined;
+        const gridSize = normalizeBlockBlastGridSize(gridSizeArg);
         const base = BlockBlastGameEngine.createInitialGame(
             gameId ?? `blockblast-${Date.now()}`,
-            normalizedSeed
+            normalizedSeed,
+            gridSize
         );
         const gameState: GameState = {
             ...base,
@@ -94,6 +104,7 @@ export class BlockBlastGameManager {
         const res = BlockBlastGameEngine.applyPlaceShape(
             {
                 grid: this.game.grid,
+                gridSize: this.game.gridSize,
                 shapes: this.game.shapes,
                 nextShapes: this.game.nextShapes,
                 score: this.game.score,
@@ -147,10 +158,11 @@ export const createGame = internalMutation({
     args: {
         seed: v.optional(v.string()),
         gameId: v.string(),
+        gridSize: v.optional(v.number()),
     },
-    handler: async (ctx, { seed, gameId }) => {
+    handler: async (ctx, { seed, gameId, gridSize }) => {
         const gameManager = new BlockBlastGameManager(ctx);
-        const game = await gameManager.createGame(seed, gameId);
+        const game = await gameManager.createGame(seed, gameId, gridSize);
         if (game) {
             return { ok: true, data: game };
         }
@@ -163,16 +175,18 @@ export const createBlockBlastGame = mutation({
     args: {
         seed: v.optional(v.string()),
         gameId: v.optional(v.string()),
+        gridSize: v.optional(v.number()),
     },
-    handler: async (ctx, { seed, gameId: requestedId }) => {
+    handler: async (ctx, { seed, gameId: requestedId, gridSize }) => {
         const gameId =
             requestedId && String(requestedId).length > 0
                 ? String(requestedId)
-                : crypto.randomUUID();
+                : randomUuidCompat();
         const gameManager = new BlockBlastGameManager(ctx);
         const game = await gameManager.createGame(
             seed !== undefined ? String(seed) : undefined,
-            gameId
+            gameId,
+            gridSize !== undefined ? normalizeBlockBlastGridSize(gridSize) : undefined
         );
         if (!game) {
             return { ok: false as const };

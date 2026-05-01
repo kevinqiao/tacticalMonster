@@ -3,18 +3,33 @@
  * UI 专用字段在本文件扩展（与 solitaire 的 SoloTypes 在 convex、UI 扩展 同构）。
  */
 import type {
+    BlockBlastGridPreset,
     BlockBlastRule,
     GameModel as SharedGameModel,
     Shape as SharedShape,
 } from '@/convex/blockBlast/convex/types/BlockBlastTypes';
 import {
     ActMode,
+    BLOCK_BLAST_DEFAULT_GRID_SIZE,
+    BLOCK_BLAST_GRID_PRESETS,
     BlockBlastGameStatus,
+    BlockBlastGridSize,
     GameInteractionPhase,
+    inferGridSizeFromGrid,
+    normalizeBlockBlastGridSize,
 } from '@/convex/blockBlast/convex/types/BlockBlastTypes';
 
-export { ActMode, BlockBlastGameStatus, GameInteractionPhase };
-export type { BlockBlastRule };
+export {
+    ActMode,
+    BLOCK_BLAST_DEFAULT_GRID_SIZE,
+    BLOCK_BLAST_GRID_PRESETS,
+    BlockBlastGameStatus,
+    BlockBlastGridSize,
+    GameInteractionPhase,
+    inferGridSizeFromGrid,
+    normalizeBlockBlastGridSize,
+};
+export type { BlockBlastGridPreset, BlockBlastRule };
 
 export interface Shape extends SharedShape {
     ele?: HTMLDivElement | null;
@@ -32,6 +47,8 @@ export interface BlockBlastGameConfig {
         timeBonus: number;
         movePenalty: number;
     };
+    /** 新建对局时棋盘边长（加载已有 gameId 时以存档为准） */
+    gridSize?: BlockBlastGridSize;
     timeLimit?: number;
     maxMoves?: number;
 }
@@ -41,6 +58,8 @@ export interface BoardDimension {
     top: number;
     width: number;
     height: number;
+    /** 与 gameState.grid 边长一致，供命中检测与 ref 矩阵维度 */
+    gridDimension: number;
     cellSize: number;
     spacing: number;
     gridPadding: number;
@@ -53,8 +72,10 @@ export interface BoardDimension {
     shapePreview: {
         x: number;
         y: number;
-        width: number;
-        height: number;
+        /** `intrinsic`：竖屏时由内容撑开宽度（水平居中） */
+        width: number | 'intrinsic';
+        /** `intrinsic`：竖屏时由 hand/next 内容撑开高度 */
+        height: number | 'intrinsic';
     };
 }
 
@@ -111,6 +132,7 @@ export const DEFAULT_GAME_CONFIG: BlockBlastGameConfig = {
         timeBonus: 1,
         movePenalty: -1,
     },
+    gridSize: BLOCK_BLAST_DEFAULT_GRID_SIZE,
 };
 
 export const SHAPE_COLORS = [

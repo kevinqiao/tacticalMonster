@@ -13,6 +13,7 @@ import type * as service_BlockBlastGameEngine from "../service/BlockBlastGameEng
 import type * as service_BlockBlastRuleManager from "../service/BlockBlastRuleManager.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as types_BlockBlastTypes from "../types/BlockBlastTypes.js";
+import type * as types_blockBlastGridConfig from "../types/blockBlastGridConfig.js";
 import type * as utils_gameRules from "../utils/gameRules.js";
 
 import type {
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   "service/BlockBlastRuleManager": typeof service_BlockBlastRuleManager;
   "service/gameManager": typeof service_gameManager;
   "types/BlockBlastTypes": typeof types_BlockBlastTypes;
+  "types/blockBlastGridConfig": typeof types_blockBlastGridConfig;
   "utils/gameRules": typeof utils_gameRules;
 }>;
 

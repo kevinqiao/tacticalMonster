@@ -99,7 +99,7 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
     );
 };
 
-const SoloGame: React.FC<SoloGameProps> = ({
+const SolitaireGame: React.FC<SoloGameProps> = ({
     gameId,
     config,
     className = '',
@@ -123,4 +123,4 @@ const SoloGame: React.FC<SoloGameProps> = ({
     );
 };
 
-export default SoloGame;
+export default SolitaireGame;

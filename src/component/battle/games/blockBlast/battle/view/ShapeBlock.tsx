@@ -1,7 +1,7 @@
 /**
  * 可拖拽形状块：Pointer Events（对齐 solitaireSolo SoloDnDCard）
  */
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useBlockBlastDnDManager } from '../service/BlockBlastDnDProvider';
 import { useBlockBlastGameManager } from '../service/GameManager';
 import { Shape, SHAPE_COLORS } from '../types/BlockBlastTypes';
@@ -31,6 +31,12 @@ const ShapeBlock: React.FC<ShapeBlockProps> = ({
             shape.ele = shapeRef.current;
         }
     }, [shape, gameState]);
+
+    /** 拖曳异常退出时原件可能残留 visibility:hidden；commit 后会换新 shape 引用（可能同 id），靠引用触发恢复 */
+    useLayoutEffect(() => {
+        const el = shapeRef.current;
+        if (el) el.style.visibility = '';
+    }, [shape]);
 
     const shapeStyle = useMemo(() => {
         const shapeMatrix = shape.shape;

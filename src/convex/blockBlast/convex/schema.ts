@@ -4,7 +4,9 @@ import { v } from "convex/values";
 export default defineSchema({
     blockBlast_game: defineTable({
         gameId: v.string(),
-        grid: v.array(v.array(v.number())), // 10x10，0=空，1–7=颜色块
+        /** 8 / 9 / 10；缺省视为由 grid 边长推断 */
+        gridSize: v.optional(v.number()),
+        grid: v.array(v.array(v.number())), // N×N，0=空，1–7=颜色块
         shapes: v.array(v.object({
             id: v.string(),
             shape: v.array(v.array(v.number())), // 形状定义（2D数组）

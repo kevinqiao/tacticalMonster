@@ -16,14 +16,16 @@ function collectClearedElements(
     gridCellRefs: (HTMLDivElement | null)[][]
 ): HTMLElement[] {
     const targets: HTMLElement[] = [];
+    const n = gridCellRefs.length;
+    if (n === 0) return targets;
     for (const row of rows) {
-        for (let c = 0; c < 10; c++) {
+        for (let c = 0; c < n; c++) {
             const el = gridCellRefs[row]?.[c];
             if (el) targets.push(el);
         }
     }
     for (const col of cols) {
-        for (let r = 0; r < 10; r++) {
+        for (let r = 0; r < n; r++) {
             const el = gridCellRefs[r]?.[col];
             if (el) targets.push(el);
         }

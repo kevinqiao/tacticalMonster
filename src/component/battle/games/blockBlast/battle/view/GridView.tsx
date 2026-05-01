@@ -1,5 +1,5 @@
 /**
- * Block Blast 网格视图：10×10 + 单元格 ref（供消除动画）
+ * Block Blast 网格视图：N×N（N 来自 gameState）+ 单元格 ref（供消除动画）
  */
 import React, { useEffect, useRef } from 'react';
 import { useBlockBlastGameManager } from '../service/GameManager';
@@ -32,8 +32,9 @@ const GridView: React.FC<GridViewProps> = ({ className = '' }) => {
 
     if (!gameState) return null;
 
+    const dim = boardDimension?.gridDimension ?? gameState.grid.length;
     const cellSize = boardDimension?.cellSize ?? 40;
-    const pad = boardDimension?.gridPadding ?? 10;
+    const pad = boardDimension?.gridPadding ?? 4;
 
     return (
         <div
@@ -41,9 +42,10 @@ const GridView: React.FC<GridViewProps> = ({ className = '' }) => {
             className={`blockblast-grid ${className}`}
             style={{
                 position: 'absolute',
+                boxSizing: 'border-box',
                 display: 'grid',
-                gridTemplateColumns: `repeat(10, ${cellSize}px)`,
-                gridTemplateRows: `repeat(10, ${cellSize}px)`,
+                gridTemplateColumns: `repeat(${dim}, ${cellSize}px)`,
+                gridTemplateRows: `repeat(${dim}, ${cellSize}px)`,
                 gap: `${boardDimension?.spacing ?? 2}px`,
                 padding: `${pad}px`,
             }}

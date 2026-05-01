@@ -13,6 +13,7 @@ import {
     ActMode,
     BlockBlastActionData,
     GameInteractionPhase,
+    inferGridSizeFromGrid,
 } from '../../types/BlockBlastTypes';
 import { useBlockBlastGameManager } from '../GameManager';
 
@@ -20,7 +21,7 @@ const SUBSTANTIAL_DRAG_PX = 6;
 
 const useActHandler = () => {
     const convex = useConvex();
-    const { gameState, ruleManager, gridCellRefs, setInteractionPhase, commitGameState } =
+    const { gameState, ruleManager, gridCellRefs, setInteractionPhase, commitGameState, config } =
         useBlockBlastGameManager();
 
     const cancelDrag = useCallback(
@@ -30,9 +31,14 @@ const useActHandler = () => {
                 return;
             }
             setInteractionPhase(GameInteractionPhase.animating);
+            const fallbackIdleMs = 900;
+            const tid = window.setTimeout(() => {
+                setInteractionPhase(GameInteractionPhase.idle);
+            }, fallbackIdleMs);
             PlayEffects.dragCancel({
                 data: { shape: data.shape, dragGhostEl: data.dragGhostEl },
                 onComplete: () => {
+                    window.clearTimeout(tid);
                     setInteractionPhase(GameInteractionPhase.idle);
                 },
             });
@@ -69,6 +75,22 @@ const useActHandler = () => {
 
             setInteractionPhase(GameInteractionPhase.animating);
             let handedOffToCancelDrag = false;
+            /** await 前快照；mutation 返回后闭包里的 gameState 可能已过时，禁止用来推导落子前盘面 */
+            const engineInput: ApplyPlaceShapeInput = {
+                grid: gameState.grid.map((row) => [...row]),
+                gridSize: gameState.gridSize ?? inferGridSizeFromGrid(gameState.grid),
+                shapes: gameState.shapes.map((s) => ({ ...s, shape: s.shape.map((r) => [...r]) })),
+                nextShapes: gameState.nextShapes.map((s) => ({
+                    ...s,
+                    shape: s.shape.map((r) => [...r]),
+                })),
+                score: gameState.score,
+                lines: gameState.lines,
+                moves: gameState.moves,
+                status: gameState.status,
+                seed: gameState.seed,
+                shapeCounter: gameState.shapeCounter,
+            };
             try {
                 const result = await convex.mutation(api.service.gameManager.placeShape, {
                     gameId: gameState.gameId,
@@ -79,28 +101,16 @@ const useActHandler = () => {
 
                 if (result.ok && result.data) {
                     if (dragGhostEl?.parentNode) dragGhostEl.remove();
+                    if (shape.ele) shape.ele.style.visibility = '';
                     const d = result.data;
-                    /** 与后端 `applyPlaceShape` 同源的落子前快照（勿在写入 d 之后构造） */
-                    const engineInput: ApplyPlaceShapeInput = {
-                        grid: gameState.grid.map((row) => [...row]),
-                        shapes: gameState.shapes.map((s) => ({ ...s, shape: s.shape.map((r) => [...r]) })),
-                        nextShapes: gameState.nextShapes.map((s) => ({
-                            ...s,
-                            shape: s.shape.map((r) => [...r]),
-                        })),
-                        score: gameState.score,
-                        lines: gameState.lines,
-                        moves: gameState.moves,
-                        status: gameState.status,
-                        seed: gameState.seed,
-                        shapeCounter: gameState.shapeCounter,
-                    };
 
-                    if (d.shapes) gameState.shapes = d.shapes;
-                    if (d.nextShapes) gameState.nextShapes = d.nextShapes;
-                    if (d.moves !== undefined) gameState.moves = d.moves;
-                    if (d.status !== undefined) gameState.status = d.status;
-                    if (d.shapeCounter !== undefined) gameState.shapeCounter = d.shapeCounter;
+                    const metaFromServer = {
+                        ...(Array.isArray(d.shapes) ? { shapes: d.shapes } : {}),
+                        ...(Array.isArray(d.nextShapes) ? { nextShapes: d.nextShapes } : {}),
+                        ...(d.moves !== undefined ? { moves: d.moves } : {}),
+                        ...(d.status !== undefined ? { status: d.status } : {}),
+                        ...(d.shapeCounter !== undefined ? { shapeCounter: d.shapeCounter } : {}),
+                    };
 
                     const cleared = d.cleared;
                     const hasClear =
@@ -122,9 +132,12 @@ const useActHandler = () => {
                         commitGameState({
                             grid: gridAfterPlace,
                             score:
-                                d.score !== undefined ? d.score - lineCount * 10 : undefined,
+                                d.score !== undefined
+                                    ? d.score - lineCount * config.scoring.lineScore
+                                    : undefined,
                             lines:
                                 d.lines !== undefined ? d.lines - lineCount : undefined,
+                            ...metaFromServer,
                         });
 
                         await new Promise<void>((resolve) => {
@@ -151,9 +164,13 @@ const useActHandler = () => {
                             });
                         }
                     } else {
-                        if (d.grid) gameState.grid = d.grid;
-                        if (d.score !== undefined) gameState.score = d.score;
-                        if (d.lines !== undefined) gameState.lines = d.lines;
+                        /** 无消除：一次性写入服务器终态（含手牌），禁止 await 后就地改闭包 gameState */
+                        commitGameState({
+                            ...(d.grid ? { grid: d.grid } : {}),
+                            ...(d.score !== undefined ? { score: d.score } : {}),
+                            ...(d.lines !== undefined ? { lines: d.lines } : {}),
+                            ...metaFromServer,
+                        });
                     }
                 } else {
                     handedOffToCancelDrag = true;
@@ -164,13 +181,21 @@ const useActHandler = () => {
                 handedOffToCancelDrag = true;
                 cancelDrag(data);
             } finally {
-                commitGameState();
                 if (!handedOffToCancelDrag) {
                     setInteractionPhase(GameInteractionPhase.idle);
                 }
             }
         },
-        [gameState, ruleManager, convex, gridCellRefs, setInteractionPhase, cancelDrag, commitGameState]
+        [
+            gameState,
+            ruleManager,
+            convex,
+            gridCellRefs,
+            setInteractionPhase,
+            cancelDrag,
+            commitGameState,
+            config.scoring.lineScore,
+        ]
     );
 
     return { onDrop, onClickOrTouch, cancelDrag };

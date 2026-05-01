@@ -53,9 +53,14 @@ export class BlockBlastRuleManager implements BlockBlastRule {
     findValidPositions(s: Shape): { row: number; col: number }[] {
         const valid: { row: number; col: number }[] = [];
         const shapeMatrix = s.shape;
-        for (let row = 0; row <= 10 - shapeMatrix.length; row++) {
-            for (let col = 0; col <= 10 - shapeMatrix[0].length; col++) {
-                if (canPlaceShapeLogic(this.gameState.grid, shapeMatrix, row, col)) {
+        const grid = this.gameState.grid;
+        const n = grid.length;
+        const sh = shapeMatrix.length;
+        const sw = shapeMatrix[0]?.length ?? 0;
+        if (n === 0 || sh === 0 || sw === 0) return valid;
+        for (let row = 0; row <= n - sh; row++) {
+            for (let col = 0; col <= n - sw; col++) {
+                if (canPlaceShapeLogic(grid, shapeMatrix, row, col)) {
                     valid.push({ row, col });
                 }
             }

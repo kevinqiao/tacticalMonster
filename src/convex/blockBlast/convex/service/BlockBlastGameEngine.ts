@@ -1,7 +1,14 @@
 /**
  * Block Blast 游戏引擎：与 solitaire SoloGameEngine 同层，纯状态推进，供 GameManager / 前端复用。
  */
-import { BlockBlastGameStatus, type GameModel, type Shape } from '../types/BlockBlastTypes';
+import {
+    BLOCK_BLAST_DEFAULT_GRID_SIZE,
+    BlockBlastGameStatus,
+    BlockBlastGridSize,
+    normalizeBlockBlastGridSize,
+    type GameModel,
+    type Shape,
+} from '../types/BlockBlastTypes';
 import {
     canPlaceAnyShape,
     canPlaceShape,
@@ -56,6 +63,23 @@ function createSeededRandom(seed: string | number): () => number {
     };
 }
 
+/** 部分环境（非 HTTPS、旧浏览器）无 `crypto.randomUUID`；Convex/浏览器共用 */
+export function randomUuidCompat(): string {
+    const c = typeof globalThis !== 'undefined' ? globalThis.crypto : undefined;
+    if (c && typeof c.randomUUID === 'function') {
+        return c.randomUUID();
+    }
+    if (c && typeof c.getRandomValues === 'function') {
+        const bytes = new Uint8Array(16);
+        c.getRandomValues(bytes);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    }
+    return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
 export function generateDeterministicId(seed: string, index: number): string {
     let hash = 0;
     const seedStr = `${seed}-${index}`;
@@ -70,7 +94,7 @@ export function generateDeterministicId(seed: string, index: number): string {
 
 export function generateShape(template: number[][], color: number, shapeIndex: number, seed?: string): Shape {
     return {
-        id: seed ? generateDeterministicId(seed, shapeIndex) : crypto.randomUUID(),
+        id: seed ? generateDeterministicId(seed, shapeIndex) : randomUuidCompat(),
         shape: template,
         color,
     };
@@ -109,7 +133,16 @@ export type PlaceShapeSuccess = {
 
 export type ApplyPlaceShapeInput = Pick<
     GameModel,
-    'grid' | 'shapes' | 'nextShapes' | 'score' | 'lines' | 'moves' | 'status' | 'seed' | 'shapeCounter'
+    | 'grid'
+    | 'gridSize'
+    | 'shapes'
+    | 'nextShapes'
+    | 'score'
+    | 'lines'
+    | 'moves'
+    | 'status'
+    | 'seed'
+    | 'shapeCounter'
 >;
 
 /** 落子并换手后、尚未检测/消除满行满列的盘面（与 `applyPlaceShape` 前半段同一实现） */
@@ -122,14 +155,22 @@ export type ThroughPlacementData = {
 
 export class BlockBlastGameEngine {
     /** 新开一局内存模型（写入 DB 由 GameManager 负责） */
-    static createInitialGame(gameId: string, seed?: string): Omit<GameModel, 'lastUpdate'> {
+    static createInitialGame(
+        gameId: string,
+        seed?: string,
+        gridSizeArg?: BlockBlastGridSize | number
+    ): Omit<GameModel, 'lastUpdate'> {
         const normalizedSeed = seed !== undefined ? String(seed) : undefined;
-        const grid = createEmptyGrid();
+        const gridSize = normalizeBlockBlastGridSize(
+            gridSizeArg ?? BLOCK_BLAST_DEFAULT_GRID_SIZE
+        );
+        const grid = createEmptyGrid(gridSize);
         const initialShapes = generateShapes(3, normalizedSeed, 0);
         const nextShapes = generateShapes(3, normalizedSeed, 3);
 
         return {
             gameId,
+            gridSize,
             grid,
             shapes: initialShapes,
             nextShapes,

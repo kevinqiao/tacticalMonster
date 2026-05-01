@@ -70,7 +70,8 @@ function screenPointToGridCell(
     if (step <= 0) return undefined;
     const col = Math.floor(gx / step);
     const row = Math.floor(gy / step);
-    if (col >= 0 && col < 10 && row >= 0 && row < 10) {
+    const n = dim.gridDimension;
+    if (col >= 0 && col < n && row >= 0 && row < n) {
         return { row, col };
     }
     return undefined;
@@ -97,9 +98,10 @@ function shapeMatrixOriginToGridCell(
     const my = (br.top + br.bottom) / 2;
 
     const matrix = gridRefs.current;
+    const n = dim.gridDimension;
     if (matrix) {
-        for (let row = 0; row < 10; row++) {
-            for (let col = 0; col < 10; col++) {
+        for (let row = 0; row < n; row++) {
+            for (let col = 0; col < n; col++) {
                 const cel = matrix[row]?.[col];
                 if (!cel) continue;
                 const cr = cel.getBoundingClientRect();
@@ -246,6 +248,9 @@ export const BlockBlastDnDProvider: React.FC<BlockBlastDnDProviderProps> = ({ ch
             const session = actionDataRef.current;
             if (!boardDimension || !gameState) {
                 if (session.shape) {
+                    const ghost = session.dragGhostEl;
+                    if (ghost?.parentNode) ghost.remove();
+                    if (session.shape.ele) session.shape.ele.style.visibility = '';
                     clearActionData(actionDataRef.current);
                     bump((n) => n + 1);
                     setInteractionPhase(GameInteractionPhase.idle);
@@ -288,6 +293,15 @@ export const BlockBlastDnDProvider: React.FC<BlockBlastDnDProviderProps> = ({ ch
                 ) {
                     releasePosition = fromAnchor;
                 }
+            }
+            /** pointerup 时幽灵位置可能与最后一帧 move 差 1px，命中检测失败；回退到上一帧合法落点 */
+            if (
+                releasePosition === undefined &&
+                session.position &&
+                session.shape &&
+                ruleManager?.canPlaceShape(session.shape, session.position)
+            ) {
+                releasePosition = session.position;
             }
 
             const payload: BlockBlastActionData = {

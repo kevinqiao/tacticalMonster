@@ -1,34 +1,66 @@
 /**
  * Block Blast 主界面（对齐 solitaireSolo：测量 board、结束战报、layout effect 触发 onGameOver）
  */
-import React, { useCallback, useLayoutEffect, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import GameOverReport from './GameOverReport';
 import { useBlockBlastGameManager } from './service/GameManager';
-import { BlockBlastGameStatus, BoardDimension } from './types/BlockBlastTypes';
+import {
+    BLOCK_BLAST_DEFAULT_GRID_SIZE,
+    BlockBlastGameStatus,
+    BoardDimension,
+    inferGridSizeFromGrid,
+} from './types/BlockBlastTypes';
+import BlockBlastStatusBar, {
+    blockBlastPortraitGridTopPx,
+    blockBlastStatusLandscapeRailPx,
+} from './view/BlockBlastStatusBar';
 import GridView from './view/GridView';
 import ShapePreview from './view/ShapePreview';
 
-const GRID_PADDING = 10;
+/** 棋盘深色底框内沿与格子网之间的留白（尽量小以放大格子） */
+const GRID_PADDING = 4;
 /** Gap between grid column and preview column (landscape), or grid row and preview row (portrait). */
 const SECTION_GAP = 24;
-/** 竖屏时上方为分数等预留，避免与网格重叠 */
-const PORTRAIT_TOP_RESERVE = 52;
+const MIN_CELL_PX = 18;
 
+/**
+ * 横屏：棋盘相对容器上、下各留的边距（单边像素）。
+ * 数值越大 → 可用垂直空间越小 → 棋盘能达到的最大高度越低。
+ */
+const LANDSCAPE_GRID_VERTICAL_MARGIN_PX = 8;
+
+/**
+ * 横屏：棋盘外框（含 `GRID_PADDING` 的整块目标区）最大允许高度（像素）。
+ * - `undefined`：不设上限，仅用 `容器高度 − 2 × LANDSCAPE_GRID_VERTICAL_MARGIN_PX`。
+ * - 设为数字（例如 `400`）：再高也不会超过该高度（大屏上下会留白，棋盘仍垂直居中）。
+ */
+const LANDSCAPE_GRID_MAX_BOX_HEIGHT_PX: number | undefined = 700;
 const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
     const containerRef = useRef<HTMLDivElement>(null);
+    const [isPortrait, setIsPortrait] = useState(
+        () => typeof window !== 'undefined' && window.innerHeight >= window.innerWidth
+    );
     const {
         gameState,
         updateBoardDimension,
         onGameOver,
     } = useBlockBlastGameManager();
 
+    const gridDimension =
+        gameState != null
+            ? gameState.gridSize ?? inferGridSizeFromGrid(gameState.grid)
+            : BLOCK_BLAST_DEFAULT_GRID_SIZE;
+
     const calculateBoardDimension = useCallback((): BoardDimension | null => {
+        const n = gridDimension;
+        const gapCount = Math.max(0, n - 1);
         if (!containerRef.current) {
             return {
                 left: 0,
                 top: 0,
                 width: 800,
                 height: 600,
+                gridDimension: n,
                 cellSize: 40,
                 spacing: 2,
                 gridPadding: GRID_PADDING,
@@ -39,10 +71,10 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                     height: 400,
                 },
                 shapePreview: {
-                    x: 500,
+                    x: 474,
                     y: 50,
-                    width: 300,
-                    height: 500,
+                    width: 200,
+                    height: 400,
                 },
             };
         }
@@ -55,29 +87,62 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
 
         if (isPortrait) {
             const hPad = 16;
+            const bottomPad = 12;
+            /** 抵消 round(预览高)、预览边框/安全区等，避免总高度超出容器触发页面滚动 */
+            const PORTRAIT_VERTICAL_SLACK_PX = 8;
             const maxBlockW = containerWidth - hPad * 2;
-            const availableHForGrid = containerHeight * 0.5 - PORTRAIT_TOP_RESERVE;
-            const maxBlockH = Math.max(120, availableHForGrid - SECTION_GAP * 0.5);
-            const cellFromW = (maxBlockW - 2 * GRID_PADDING - 9 * spacing) / 10;
-            const cellFromH = (maxBlockH - 2 * GRID_PADDING - 9 * spacing) / 10;
-            const cellSize = Math.max(18, Math.min(44, Math.floor(Math.min(cellFromW, cellFromH))));
-            const gridWidth = cellSize * 10 + 9 * spacing;
-            const gridHeight = cellSize * 10 + 9 * spacing;
-            const gridBoxW = gridWidth + GRID_PADDING * 2;
-            const gridBoxH = gridHeight + GRID_PADDING * 2;
-            const gridX = (containerWidth - gridBoxW) / 2;
-            const gridY = PORTRAIT_TOP_RESERVE;
+            const innerPad = 2 * GRID_PADDING;
+            const gutter = gapCount * spacing;
 
+            /** 顶栏高度随 cellSize 变化，与 GamePlayer 用同一公式迭代到不动点 */
+            let cellSize = 32;
+            for (let iter = 0; iter < 24; iter++) {
+                const gridTopCand = blockBlastPortraitGridTopPx(cellSize);
+                const verticalBudget =
+                    containerHeight - gridTopCand - SECTION_GAP - bottomPad - PORTRAIT_VERTICAL_SLACK_PX;
+                const maxGridBoxH = verticalBudget / 1.5;
+                const cellFromW = (maxBlockW - innerPad - gutter) / n;
+                const cellFromH = (maxGridBoxH - innerPad - gutter) / n;
+                const next = Math.max(
+                    MIN_CELL_PX,
+                    Math.min(56, Math.floor(Math.min(cellFromW, cellFromH)))
+                );
+                if (next === cellSize) break;
+                cellSize = next;
+            }
+
+            const gridTop = blockBlastPortraitGridTopPx(cellSize);
+
+            const computeBoxes = (cs: number) => {
+                const gw = cs * n + gutter;
+                const gh = cs * n + gutter;
+                const boxW = gw + innerPad;
+                const boxH = gh + innerPad;
+                const previewH = Math.max(1, Math.round(boxH / 2));
+                return { gridBoxW: boxW, gridBoxH: boxH, previewH };
+            };
+
+            let { gridBoxW, gridBoxH, previewH } = computeBoxes(cellSize);
+
+            while (
+                gridTop + gridBoxH + SECTION_GAP + previewH + bottomPad >
+                    containerHeight - PORTRAIT_VERTICAL_SLACK_PX &&
+                cellSize > 12
+            ) {
+                cellSize -= 1;
+                ({ gridBoxW, gridBoxH, previewH } = computeBoxes(cellSize));
+            }
+
+            const gridX = (containerWidth - gridBoxW) / 2;
+            const gridY = gridTop;
             const previewY = gridY + gridBoxH + SECTION_GAP;
-            const previewHeight = Math.max(120, containerHeight - previewY - 12);
-            const previewWidth = Math.min(containerWidth - hPad * 2, containerWidth * 0.96);
-            const previewX = (containerWidth - previewWidth) / 2;
 
             return {
                 left: rect.left,
                 top: rect.top,
                 width: containerWidth,
                 height: containerHeight,
+                gridDimension: n,
                 cellSize,
                 spacing,
                 gridPadding: GRID_PADDING,
@@ -88,32 +153,72 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                     height: gridBoxH,
                 },
                 shapePreview: {
-                    x: previewX,
+                    x: gridX,
                     y: previewY,
-                    width: previewWidth,
-                    height: previewHeight,
+                    width: gridBoxW,
+                    height: previewH,
                 },
             };
         }
 
-        const gridSize = Math.min(containerWidth * 0.58, containerHeight * 0.82);
-        const cellSize = Math.max(20, Math.floor(gridSize / 10));
-        const gridWidth = cellSize * 10 + 9 * spacing;
-        const gridHeight = cellSize * 10 + 9 * spacing;
-        const gridBoxW = gridWidth + GRID_PADDING * 2;
-        const gridBoxH = gridHeight + GRID_PADDING * 2;
+        let maxInnerH = Math.max(
+            120,
+            containerHeight - LANDSCAPE_GRID_VERTICAL_MARGIN_PX * 2
+        );
+        if (LANDSCAPE_GRID_MAX_BOX_HEIGHT_PX !== undefined) {
+            maxInnerH = Math.min(maxInnerH, LANDSCAPE_GRID_MAX_BOX_HEIGHT_PX);
+        }
 
-        const previewWidth = containerWidth * 0.34;
-        const previewHeight = containerHeight * 0.82;
+        const innerPad = 2 * GRID_PADDING;
+        const gutter = gapCount * spacing;
 
-        const gridX = (containerWidth - gridBoxW - previewWidth - SECTION_GAP) / 2;
+        const gridBoxFromCellSize = (cs: number) => {
+            const side = cs * n + gutter;
+            const box = side + innerPad;
+            return { gridBoxW: box, gridBoxH: box };
+        };
+
+        /** 侧栏宽度 = 1.5×cellSize，与 contentW 耦合，迭代至稳定 */
+        let rail = blockBlastStatusLandscapeRailPx(MIN_CELL_PX);
+        let cellSize = MIN_CELL_PX;
+        let gridBoxW = 0;
+        let gridBoxH = 0;
+        let previewWidth = 0;
+
+        for (let iter = 0; iter < 20; iter++) {
+            const contentW = containerWidth - rail;
+            if (contentW < 80) break;
+
+            cellSize = Math.floor((maxInnerH - innerPad - gutter) / n);
+            cellSize = Math.max(MIN_CELL_PX, cellSize);
+
+            ({ gridBoxW, gridBoxH } = gridBoxFromCellSize(cellSize));
+            previewWidth = Math.round(gridBoxW / 2);
+
+            while (gridBoxW + SECTION_GAP + previewWidth > contentW && cellSize > 12) {
+                cellSize -= 1;
+                ({ gridBoxW, gridBoxH } = gridBoxFromCellSize(cellSize));
+                previewWidth = Math.round(gridBoxW / 2);
+            }
+
+            const nextRail = blockBlastStatusLandscapeRailPx(cellSize);
+            if (nextRail === rail) break;
+            rail = nextRail;
+        }
+
+        const contentW = containerWidth - rail;
+        const clusterW = gridBoxW + SECTION_GAP + previewWidth;
+        const startX = rail + Math.max(0, (contentW - clusterW) / 2);
         const gridY = (containerHeight - gridBoxH) / 2;
+        const gridX = startX;
+        const previewX = startX + gridBoxW + SECTION_GAP;
 
         return {
             left: rect.left,
             top: rect.top,
             width: containerWidth,
             height: containerHeight,
+            gridDimension: n,
             cellSize,
             spacing,
             gridPadding: GRID_PADDING,
@@ -124,19 +229,48 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 height: gridBoxH,
             },
             shapePreview: {
-                x: gridX + gridBoxW + SECTION_GAP,
-                y: (containerHeight - previewHeight) / 2,
+                x: previewX,
+                y: gridY,
                 width: previewWidth,
-                height: previewHeight,
+                height: gridBoxH,
             },
         };
-    }, []);
+    }, [gridDimension]);
 
     useLayoutEffect(() => {
-        const run = () => {
+        let cancelled = false;
+        let rafOuter = 0;
+        let rafInner = 0;
+
+        const measureAndPublish = () => {
+            if (cancelled) return;
+            const el = containerRef.current;
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            if (r.width < 2 || r.height < 2) {
+                return;
+            }
+            setIsPortrait(r.height >= r.width);
             const d = calculateBoardDimension();
             if (d) updateBoardDimension(d);
         };
+
+        /** 父级 flex / 100% 链在首帧后常再稳定一帧；双 rAF 补测可修正横屏 gridY 初次不垂直居中 */
+        const schedulePostLayoutRemeasure = () => {
+            cancelAnimationFrame(rafOuter);
+            cancelAnimationFrame(rafInner);
+            rafOuter = requestAnimationFrame(() => {
+                rafInner = requestAnimationFrame(() => {
+                    if (!cancelled) measureAndPublish();
+                });
+            });
+        };
+
+        const run = () => {
+            measureAndPublish();
+            schedulePostLayoutRemeasure();
+        };
+
         run();
         const ro =
             typeof ResizeObserver !== 'undefined' && containerRef.current
@@ -149,12 +283,15 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         vv?.addEventListener('resize', onVv);
         vv?.addEventListener('scroll', onVv);
         return () => {
+            cancelled = true;
+            cancelAnimationFrame(rafOuter);
+            cancelAnimationFrame(rafInner);
             ro?.disconnect();
             window.removeEventListener('resize', run);
             vv?.removeEventListener('resize', onVv);
             vv?.removeEventListener('scroll', onVv);
         };
-    }, [calculateBoardDimension, updateBoardDimension, gameState?.gameId]);
+    }, [calculateBoardDimension, updateBoardDimension, gameState?.gameId, gridDimension]);
 
     useLayoutEffect(() => {
         if (!gameState || gameState.status === BlockBlastGameStatus.PLAYING) return;
@@ -180,23 +317,10 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 overflow: 'hidden',
             }}
         >
+            <BlockBlastStatusBar isPortrait={isPortrait} gameState={gameState} />
             <GridView />
             <ShapePreview />
             <GameOverReport />
-            <div
-                className="blockblast-info"
-                style={{
-                    position: 'absolute',
-                    top: '10px',
-                    left: '10px',
-                    padding: '10px 14px',
-                    fontSize: '14px',
-                }}
-            >
-                <div>Score: {gameState.score}</div>
-                <div>Lines: {gameState.lines}</div>
-                <div>Moves: {gameState.moves}</div>
-            </div>
         </div>
     );
 };

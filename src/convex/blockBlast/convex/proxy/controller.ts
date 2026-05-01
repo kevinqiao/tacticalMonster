@@ -21,9 +21,13 @@ export const loadGame = action({
             if (matchGameResult.ok) {
                 const data = matchGameResult.match;
                 const rawSeed = data?.seed ?? data?.gameId;
-                const createArgs: { seed?: string, gameId: string } = { gameId };
+                const createArgs: { seed?: string; gameId: string; gridSize?: number } = { gameId };
                 if (typeof rawSeed === "string") {
                     createArgs.seed = rawSeed;
+                }
+                const gs = data?.gridSize;
+                if (typeof gs === "number") {
+                    createArgs.gridSize = gs;
                 }
 
                 const gameResult = await ctx.runMutation(internal.service.gameManager.createGame, createArgs);

@@ -1,6 +1,6 @@
 import { ModalProp } from '@/service/ModalManager';
 import React from 'react';
-import SoloGame from './SoloGame';
+import SolitaireGame from './SolitaireGame';
 
 /**
  * 弹层内接龙入口：`RenderModal` 按路径懒加载本文件。
@@ -10,7 +10,7 @@ const PlaySolitaireSolo: React.FC<ModalProp> = ({ visible, data, close }) => {
     if (!visible) return null;
     const gameId = typeof data?.gameId === 'string' ? data.gameId : undefined;
     return (
-        <SoloGame
+        <SolitaireGame
             gameId={gameId}
             onGameSubmit={close}
         />

@@ -14,13 +14,37 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
     const previewRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!previewRef.current || !boardDimension) return;
-
         const preview = previewRef.current;
-        preview.style.left = `${boardDimension.shapePreview.x}px`;
-        preview.style.top = `${boardDimension.shapePreview.y}px`;
-        preview.style.width = `${boardDimension.shapePreview.width}px`;
-        preview.style.height = `${boardDimension.shapePreview.height}px`;
+        if (!preview || !boardDimension) return;
+
+        const sp = boardDimension.shapePreview;
+        const intrinsicW = sp.width === 'intrinsic';
+        const intrinsicH = sp.height === 'intrinsic';
+
+        preview.style.top = `${sp.y}px`;
+
+        if (intrinsicW) {
+            preview.style.left = '50%';
+            preview.style.transform = 'translateX(-50%)';
+            preview.style.width = 'max-content';
+            preview.style.maxWidth = `${Math.max(120, boardDimension.width - 32)}px`;
+        } else {
+            preview.style.left = `${sp.x}px`;
+            preview.style.transform = '';
+            preview.style.width = `${sp.width}px`;
+            preview.style.maxWidth = '';
+        }
+
+        if (intrinsicH) {
+            preview.style.height = 'auto';
+            preview.style.minHeight = '0';
+        } else {
+            preview.style.height = `${sp.height}px`;
+            preview.style.minHeight = '';
+        }
+
+        preview.classList.toggle('blockblast-shape-preview--intrinsic-width', intrinsicW);
+        preview.classList.toggle('blockblast-shape-preview--intrinsic-height', intrinsicH);
     }, [boardDimension]);
 
     if (!gameState) return null;
@@ -36,7 +60,7 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
     return (
         <div
             ref={previewRef}
-            className={`blockblast-shape-preview ${className}`}
+            className={`blockblast-shape-preview ${className}`.trim()}
             style={{
                 position: 'absolute',
             }}
@@ -46,10 +70,16 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
                     previewPortrait ? 'blockblast-shape-preview-scroll--stacked' : ''
                 }`.trim()}
             >
-                <div className="blockblast-shape-preview-col">
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>
+                <div className="blockblast-shape-preview-col blockblast-shape-preview-col--hand">
+                    <span
+                        className={`blockblast-shape-preview-label ${
+                            previewPortrait
+                                ? 'blockblast-shape-preview-label--portrait'
+                                : 'blockblast-shape-preview-label--landscape'
+                        }`.trim()}
+                    >
                         Hand
-                    </div>
+                    </span>
                     <div className="blockblast-shape-preview-hand-shapes">
                         {gameState.shapes.map((shape) => (
                             <ShapeBlock key={shape.id} shape={shape} cellSize={previewCellSize} />
@@ -58,9 +88,15 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
                 </div>
                 {gameState.nextShapes?.length ? (
                     <div className="blockblast-shape-preview-col blockblast-shape-preview-col--next">
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>
+                        <span
+                            className={`blockblast-shape-preview-label blockblast-shape-preview-label--next ${
+                                previewPortrait
+                                    ? 'blockblast-shape-preview-label--portrait'
+                                    : 'blockblast-shape-preview-label--landscape'
+                            }`.trim()}
+                        >
                             Next
-                        </div>
+                        </span>
                         <div className="blockblast-shape-preview-next-shapes">
                             {gameState.nextShapes.map((shape) => (
                                 <ShapeBlock

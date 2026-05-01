@@ -1,16 +1,20 @@
 /**
  * Block Blast 游戏规则（纯函数，无状态）
  * 前后端共享的核心逻辑
- * 此文件是前端 utils/gameRules.ts 的副本，供 Convex 后端使用
+ * 棋盘为 N×N，N 由 `grid.length` 推导（须与各行长度一致）
  */
+
+function gridDimension(grid: number[][]): number {
+    const n = grid.length;
+    if (n === 0 || !Array.isArray(grid[0])) return 0;
+    for (let i = 0; i < n; i++) {
+        if (!Array.isArray(grid[i]) || grid[i].length !== n) return 0;
+    }
+    return n;
+}
 
 /**
  * 检查形状是否可以放置在指定位置
- * @param grid 10x10 游戏网格
- * @param shape 形状矩阵（2D数组，1=有块，0=空）
- * @param row 起始行
- * @param col 起始列
- * @returns 是否可以放置
  */
 export function canPlaceShape(
     grid: number[][],
@@ -18,18 +22,18 @@ export function canPlaceShape(
     row: number,
     col: number
 ): boolean {
+    const n = gridDimension(grid);
+    if (n === 0) return false;
     for (let r = 0; r < shape.length; r++) {
         for (let c = 0; c < shape[r].length; c++) {
             if (shape[r][c] === 1) {
                 const gridRow = row + r;
                 const gridCol = col + c;
-                
-                // 检查边界
-                if (gridRow < 0 || gridRow >= 10 || gridCol < 0 || gridCol >= 10) {
+
+                if (gridRow < 0 || gridRow >= n || gridCol < 0 || gridCol >= n) {
                     return false;
                 }
-                
-                // 检查是否已被占用
+
                 if (grid[gridRow][gridCol] !== 0) {
                     return false;
                 }
@@ -40,12 +44,7 @@ export function canPlaceShape(
 }
 
 /**
- * 放置形状到网格上
- * @param grid 游戏网格（会被修改）
- * @param shape 形状矩阵
- * @param color 颜色索引（1-7）
- * @param row 起始行
- * @param col 起始列
+ * 放置形状到网格上（原地修改 grid）
  */
 export function placeShapeOnGrid(
     grid: number[][],
@@ -65,24 +64,22 @@ export function placeShapeOnGrid(
 
 /**
  * 检查哪些行/列已填满，需要消除
- * @param grid 游戏网格
- * @returns 需要消除的行和列索引
  */
-export function checkLines(grid: number[][]): { rows: number[], cols: number[] } {
+export function checkLines(grid: number[][]): { rows: number[]; cols: number[] } {
     const fullRows: number[] = [];
     const fullCols: number[] = [];
-    
-    // 检查行
-    for (let row = 0; row < 10; row++) {
-        if (grid[row].every(cell => cell !== 0)) {
+    const n = gridDimension(grid);
+    if (n === 0) return { rows: fullRows, cols: fullCols };
+
+    for (let row = 0; row < n; row++) {
+        if (grid[row].every((cell) => cell !== 0)) {
             fullRows.push(row);
         }
     }
-    
-    // 检查列
-    for (let col = 0; col < 10; col++) {
+
+    for (let col = 0; col < n; col++) {
         let isFull = true;
-        for (let row = 0; row < 10; row++) {
+        for (let row = 0; row < n; row++) {
             if (grid[row][col] === 0) {
                 isFull = false;
                 break;
@@ -92,48 +89,48 @@ export function checkLines(grid: number[][]): { rows: number[], cols: number[] }
             fullCols.push(col);
         }
     }
-    
+
     return { rows: fullRows, cols: fullCols };
 }
 
 /**
- * 清除指定的行和列
- * @param grid 游戏网格（会被修改）
- * @param rows 要清除的行索引数组
- * @param cols 要清除的列索引数组
+ * 清除指定的行和列（原地修改 grid）
  */
-export function clearLines(
-    grid: number[][],
-    rows: number[],
-    cols: number[]
-): void {
-    // 清除行
+export function clearLines(grid: number[][], rows: number[], cols: number[]): void {
+    const n = gridDimension(grid);
+    if (n === 0) return;
+
     for (const row of rows) {
-        grid[row].fill(0);
+        if (row >= 0 && row < n) {
+            grid[row].fill(0);
+        }
     }
-    
-    // 清除列
+
     for (const col of cols) {
-        for (let row = 0; row < 10; row++) {
-            grid[row][col] = 0;
+        if (col >= 0 && col < n) {
+            for (let row = 0; row < n; row++) {
+                grid[row][col] = 0;
+            }
         }
     }
 }
 
 /**
  * 检查是否有任何形状可以放置在网格上
- * @param grid 游戏网格
- * @param shapes 形状数组（每个形状包含 shape 属性）
- * @returns 是否可以放置任何形状
  */
 export function canPlaceAnyShape(
     grid: number[][],
     shapes: Array<{ shape: number[][] }>
 ): boolean {
+    const n = gridDimension(grid);
+    if (n === 0) return false;
+
     for (const shapeObj of shapes) {
         const shape = shapeObj.shape;
-        for (let row = 0; row <= 10 - shape.length; row++) {
-            for (let col = 0; col <= 10 - shape[0].length; col++) {
+        const sh = shape.length;
+        const sw = shape[0]?.length ?? 0;
+        for (let row = 0; row <= n - sh; row++) {
+            for (let col = 0; col <= n - sw; col++) {
                 if (canPlaceShape(grid, shape, row, col)) {
                     return true;
                 }
@@ -144,9 +141,9 @@ export function canPlaceAnyShape(
 }
 
 /**
- * 创建空的 10x10 网格
+ * 创建空的 N×N 网格
  */
-export function createEmptyGrid(): number[][] {
-    return Array.from({ length: 10 }, () => Array(10).fill(0));
+export function createEmptyGrid(size: number): number[][] {
+    const n = Math.max(1, Math.floor(size));
+    return Array.from({ length: n }, () => Array(n).fill(0));
 }
-

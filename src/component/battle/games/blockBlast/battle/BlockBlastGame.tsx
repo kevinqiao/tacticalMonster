@@ -8,7 +8,7 @@ import GamePlayer from './GamePlayer';
 import BlockBlastDnDProvider from './service/BlockBlastDnDProvider';
 import BlockBlastGameProvider from './service/GameManager';
 import './style.css';
-import { BlockBlastGameConfig } from './types/BlockBlastTypes';
+import { BlockBlastGameConfig, normalizeBlockBlastGridSize } from './types/BlockBlastTypes';
 
 interface BlockBlastGameProps {
     gameId?: string;
@@ -45,7 +45,10 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
         setCreateError(null);
         (async () => {
             try {
-                const res = (await createBlockBlastGame({})) as CreateResult & { gameId?: string };
+                const gridSizeArg = config?.gridSize;
+                const res = (await createBlockBlastGame({
+                    ...(gridSizeArg !== undefined ? { gridSize: normalizeBlockBlastGridSize(gridSizeArg) } : {}),
+                })) as CreateResult & { gameId?: string };
                 if (cancelled) return;
                 if (res?.ok && typeof res.gameId === 'string') {
                     setActiveGameId(res.gameId);
@@ -62,7 +65,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
         return () => {
             cancelled = true;
         };
-    }, [propGameId, createBlockBlastGame]);
+    }, [propGameId, createBlockBlastGame, config?.gridSize]);
 
     if (createError) {
         return (

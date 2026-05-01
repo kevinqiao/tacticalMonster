@@ -3,6 +3,18 @@
  * DOM 字段（Shape.ele、战报 DOM）仅在前端文件中扩展。
  */
 
+import type { BlockBlastGridSize } from './blockBlastGridConfig';
+
+export type { BlockBlastGridPreset } from './blockBlastGridConfig';
+export {
+    BLOCK_BLAST_DEFAULT_GRID_SIZE,
+    BlockBlastGridSize,
+    BLOCK_BLAST_GRID_PRESETS,
+    inferGridSizeFromGrid,
+    isBlockBlastGridSize,
+    normalizeBlockBlastGridSize,
+} from './blockBlastGridConfig';
+
 export enum BlockBlastGameStatus {
     PLAYING = 0,
     WON = 1,
@@ -32,6 +44,8 @@ export interface Shape {
 
 export interface GameModel {
     gameId: string;
+    /** 正方形边长；缺省时由 `inferGridSizeFromGrid(grid)` 兼容旧数据 */
+    gridSize?: BlockBlastGridSize;
     grid: number[][];
     shapes: Shape[];
     nextShapes: Shape[];

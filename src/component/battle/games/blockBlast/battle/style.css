@@ -12,6 +12,10 @@
     -moz-user-select: none;
     -ms-user-select: none;
     overflow: hidden;
+    overscroll-behavior: none;
+    /* 限制不超过视口高度，减轻竖屏下布局略超高一像素触发的整页滚动条（旧浏览器回退 100vh） */
+    max-height: 100vh;
+    max-height: 100dvh;
     background:
         radial-gradient(ellipse 90% 55% at 50% 0%, rgba(200, 190, 255, 0.4) 0%, transparent 55%),
         radial-gradient(ellipse 70% 50% at 85% 70%, rgba(150, 210, 255, 0.3) 0%, transparent 50%),
@@ -23,6 +27,8 @@
     width: 100%;
     height: 100%;
     position: relative;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .blockblast-loading {
@@ -36,13 +42,16 @@
 }
 
 .blockblast-grid {
+    box-sizing: border-box;
     background: rgba(6, 16, 40, 0.45);
     border-radius: 10px;
-    padding: 10px;
+    /* padding 由 GridView 内联设置，与 GamePlayer 尺寸公式一致；勿在此写死 padding */
+    padding: 0;
+    /* 用 inset 描边替代 border，避免 border 吃掉内宽导致格子相对背景框视觉不居中 */
     box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.1),
         inset 0 2px 16px rgba(0, 0, 0, 0.45),
         0 4px 24px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .blockblast-grid-cell {
@@ -69,6 +78,18 @@
     box-sizing: border-box;
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 20px rgba(0, 0, 0, 0.15);
+    overscroll-behavior: none;
+}
+
+/* 预览区不启用滚动，溢出裁剪（避免触控穿透到页面滚动） */
+.blockblast-shape-preview--intrinsic-height .blockblast-shape-preview-scroll {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.blockblast-shape-preview--intrinsic-width {
+    overflow: hidden;
 }
 
 .blockblast-shape-preview-scroll {
@@ -76,50 +97,131 @@
     min-height: 0;
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
-    gap: 12px 16px;
+    align-items: stretch;
+    gap: 10px 12px;
     overflow: hidden;
-    padding: 10px;
+    overscroll-behavior: none;
+    padding: 8px;
     box-sizing: border-box;
 }
 
-.blockblast-shape-preview-col {
-    flex: 1;
+/* 横屏：Hand / Next 列宽 3 : 2 */
+.blockblast-shape-preview-scroll:not(.blockblast-shape-preview-scroll--stacked) .blockblast-shape-preview-col--hand {
+    flex: 3 1 0;
+    min-width: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.blockblast-shape-preview-scroll:not(.blockblast-shape-preview-scroll--stacked) .blockblast-shape-preview-col--next {
+    flex: 2 1 0;
+    min-width: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 横屏：Hand / Next 文案叠在左上角，不占单独一行高度 */
+.blockblast-shape-preview-label--landscape {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    z-index: 2;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.92);
+    text-transform: uppercase;
+    pointer-events: none;
+    line-height: 1;
+}
+
+.blockblast-shape-preview-label--landscape.blockblast-shape-preview-label--next {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* 横屏：Hand / Next 内形状自上而下竖排，垂直方向均匀分布（避免 2、3 号横排成左右） */
+.blockblast-shape-preview-scroll:not(.blockblast-shape-preview-scroll--stacked) .blockblast-shape-preview-hand-shapes,
+.blockblast-shape-preview-scroll:not(.blockblast-shape-preview-scroll--stacked) .blockblast-shape-preview-next-shapes {
+    flex: 1 1 0;
+    min-height: 0;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: space-evenly;
+    align-items: center;
     gap: 8px;
+    padding: 16px 4px 6px;
+    box-sizing: border-box;
 }
 
-.blockblast-shape-preview-hand-shapes,
-.blockblast-shape-preview-next-shapes {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-/* 竖屏：Hand / Next 上下两行（与横屏时左右两列对应） */
+/* 竖屏：Hand 上 / Next 下，区域高度比 3 : 2 */
 .blockblast-shape-preview-scroll--stacked {
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
+    gap: 10px;
+    flex: 1;
+    min-height: 0;
 }
 
-.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col {
-    flex: 0 0 auto;
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col--hand {
+    flex: 3 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
     width: 100%;
-    min-width: unset;
 }
 
-/* 竖屏：Hand / Next 各自一行内，形状横排撑满宽度 */
+.blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col--next {
+    flex: 2 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+}
+
+/* 竖屏：文案竖排在侧，不占形状横向铺放宽度；Next 仍在下块、整行占满宽 */
+.blockblast-shape-preview-label--portrait {
+    flex: 0 0 22px;
+    width: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+.blockblast-shape-preview-label--portrait.blockblast-shape-preview-label--next {
+    color: rgba(255, 255, 255, 0.68);
+}
+
 .blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-hand-shapes,
 .blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-next-shapes {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    align-items: center;
     justify-content: space-evenly;
-    width: 100%;
-    gap: 10px 12px;
+    align-items: center;
+    align-content: center;
+    gap: 8px 10px;
+}
+
+.blockblast-shape-preview--intrinsic-width .blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col--hand,
+.blockblast-shape-preview--intrinsic-width .blockblast-shape-preview-scroll--stacked .blockblast-shape-preview-col--next {
+    max-width: 100%;
 }
 
 .blockblast-drag-layer {
@@ -138,6 +240,12 @@
     /* `.blockblast-shape` uses `transition: all` — animating left/top each frame breaks drag painting */
     transition: none !important;
     pointer-events: none;
+    /* 与预览区一致：飞行克隆不保留 .blockblast-shape 的外层矩形底框 */
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
 }
 
 .blockblast-tile {
@@ -165,12 +273,166 @@
     z-index: 99999;
 }
 
-.blockblast-info {
+/* 预览区内：去掉形状外层的 padding/边框/底，避免整块矩形框（拖拽幽灵用 .blockblast-shape--drag-ghost） */
+.blockblast-shape-preview .blockblast-shape {
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+.blockblast-shape-preview .blockblast-shape:hover {
+    box-shadow: none;
+}
+
+/* 状态栏（竖屏顶栏 / 横屏左侧竖栏） */
+.blockblast-status {
     color: #e8f0ff;
-    border-radius: 10px;
     background: rgba(8, 20, 45, 0.88);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 16px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 16px rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+    z-index: 12;
+}
+
+.blockblast-status--portrait {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    /* height 由 BlockBlastStatusBar 内联：1.5×cellSize */
+    padding: 8px 12px;
+    border-radius: 0 0 12px 12px;
+}
+
+.blockblast-status--landscape {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    /* width 由 BlockBlastStatusBar 内联：1.5×cellSize */
+    min-width: 1px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 6px 12px;
+    border-radius: 0 12px 12px 0;
+}
+
+.blockblast-status__player {
+    flex-shrink: 0;
+}
+
+.blockblast-status__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    background: rgba(30, 60, 120, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.blockblast-status--landscape .blockblast-status__avatar {
+    width: clamp(20px, calc(100% - 8px), 40px);
+    height: clamp(20px, calc(100% - 8px), 40px);
+}
+
+.blockblast-status__avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.blockblast-status__avatar-fallback {
+    font-size: 15px;
+    font-weight: 700;
+    color: #cfe0ff;
+}
+
+/* 竖屏顶栏右侧：计时、分数、统计同一行横排 */
+.blockblast-status__portrait-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px 16px;
+    min-width: 0;
+    flex: 1;
+}
+
+.blockblast-status__timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #bfe8ff;
+}
+
+.blockblast-status__score-main {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #fff;
+}
+
+.blockblast-status__secondary {
+    font-size: 11px;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
+.blockblast-status__landscape-top {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.blockblast-status__landscape-bottom {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.blockblast-status--portrait .blockblast-status__score-main {
+    flex-shrink: 0;
+}
+
+.blockblast-status--portrait .blockblast-status__secondary {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.blockblast-status--landscape .blockblast-status__timer {
+    font-size: 14px;
+}
+
+.blockblast-status--landscape .blockblast-status__score-main {
+    font-size: 17px;
+}
+
+.blockblast-status--landscape .blockblast-status__secondary {
+    font-size: 10px;
+    text-align: center;
 }
 
 .blockblast-game-over {
@@ -219,10 +481,6 @@
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-    .blockblast-grid {
-        gap: 1px;
-    }
-
     .blockblast-shape-preview-scroll {
         padding: 5px;
     }
