@@ -22,6 +22,8 @@ const GRID_PADDING = 4;
 /** Gap between grid column and preview column (landscape), or grid row and preview row (portrait). */
 const SECTION_GAP = 24;
 const MIN_CELL_PX = 18;
+/** 预览相对棋盘外框（目标区）：竖屏为预览高度比、横屏为预览宽度比 */
+const PREVIEW_SIZE_OF_GRID = 2 / 5;
 
 /**
  * 横屏：棋盘相对容器上、下各留的边距（单边像素）。
@@ -34,7 +36,7 @@ const LANDSCAPE_GRID_VERTICAL_MARGIN_PX = 8;
  * - `undefined`：不设上限，仅用 `容器高度 − 2 × LANDSCAPE_GRID_VERTICAL_MARGIN_PX`。
  * - 设为数字（例如 `400`）：再高也不会超过该高度（大屏上下会留白，棋盘仍垂直居中）。
  */
-const LANDSCAPE_GRID_MAX_BOX_HEIGHT_PX: number | undefined = 700;
+const LANDSCAPE_GRID_MAX_BOX_HEIGHT_PX: number | undefined = 600;
 const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPortrait, setIsPortrait] = useState(
@@ -100,7 +102,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 const gridTopCand = blockBlastPortraitGridTopPx(cellSize);
                 const verticalBudget =
                     containerHeight - gridTopCand - SECTION_GAP - bottomPad - PORTRAIT_VERTICAL_SLACK_PX;
-                const maxGridBoxH = verticalBudget / 1.5;
+                const maxGridBoxH = verticalBudget / (1 + PREVIEW_SIZE_OF_GRID);
                 const cellFromW = (maxBlockW - innerPad - gutter) / n;
                 const cellFromH = (maxGridBoxH - innerPad - gutter) / n;
                 const next = Math.max(
@@ -111,31 +113,37 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 cellSize = next;
             }
 
-            const gridTop = blockBlastPortraitGridTopPx(cellSize);
-
             const computeBoxes = (cs: number) => {
                 const gw = cs * n + gutter;
                 const gh = cs * n + gutter;
                 const boxW = gw + innerPad;
                 const boxH = gh + innerPad;
-                const previewH = Math.max(1, Math.round(boxH / 2));
+                const previewH = Math.max(1, Math.round(boxH * PREVIEW_SIZE_OF_GRID));
                 return { gridBoxW: boxW, gridBoxH: boxH, previewH };
             };
 
             let { gridBoxW, gridBoxH, previewH } = computeBoxes(cellSize);
 
-            while (
-                gridTop + gridBoxH + SECTION_GAP + previewH + bottomPad >
-                    containerHeight - PORTRAIT_VERTICAL_SLACK_PX &&
-                cellSize > 12
-            ) {
+            while (cellSize > 12) {
+                const gt = blockBlastPortraitGridTopPx(cellSize);
+                if (
+                    gt + gridBoxH + SECTION_GAP + previewH + bottomPad <=
+                    containerHeight - PORTRAIT_VERTICAL_SLACK_PX
+                ) {
+                    break;
+                }
                 cellSize -= 1;
                 ({ gridBoxW, gridBoxH, previewH } = computeBoxes(cellSize));
             }
 
+            const gridTopResolved = blockBlastPortraitGridTopPx(cellSize);
+            const tailRoom =
+                containerHeight - gridTopResolved - bottomPad - PORTRAIT_VERTICAL_SLACK_PX;
+            const clusterH = gridBoxH + SECTION_GAP + previewH;
+            const clusterTop = gridTopResolved + Math.max(0, (tailRoom - clusterH) / 2);
             const gridX = (containerWidth - gridBoxW) / 2;
-            const gridY = gridTop;
-            const previewY = gridY + gridBoxH + SECTION_GAP;
+            const gridY = clusterTop;
+            const previewY = clusterTop + gridBoxH + SECTION_GAP;
 
             return {
                 left: rect.left,
@@ -193,12 +201,12 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
             cellSize = Math.max(MIN_CELL_PX, cellSize);
 
             ({ gridBoxW, gridBoxH } = gridBoxFromCellSize(cellSize));
-            previewWidth = Math.round(gridBoxW / 2);
+            previewWidth = Math.round(gridBoxW * PREVIEW_SIZE_OF_GRID);
 
             while (gridBoxW + SECTION_GAP + previewWidth > contentW && cellSize > 12) {
                 cellSize -= 1;
                 ({ gridBoxW, gridBoxH } = gridBoxFromCellSize(cellSize));
-                previewWidth = Math.round(gridBoxW / 2);
+                previewWidth = Math.round(gridBoxW * PREVIEW_SIZE_OF_GRID);
             }
 
             const nextRail = blockBlastStatusLandscapeRailPx(cellSize);

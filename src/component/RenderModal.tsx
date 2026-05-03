@@ -47,8 +47,8 @@ const tryReloadForStaleChunk = (error: unknown): boolean => {
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
   './battle/PlayTournament': () => import('./battle/PlayTournament'),
-  './lobby/tournament/TournamentJoinList': () => import('./lobby/tournament/TournamentJoinList'),
-  './lobby/tournament/TournamentHistory': () => import('./lobby/tournament/TournamentHistory'),
+  './lobby/tactical/tournament/TournamentJoinList': () => import('./lobby/tactical/tournament/TournamentJoinList'),
+  './lobby/tactical/tournament/TournamentHistory': () => import('./lobby/tactical/tournament/TournamentHistory'),
   './battle/games/solitaireSolo/battle/PlaySolitaireSolo': () => import('./battle/games/solitaireSolo/battle/PlaySolitaireSolo'),
   './battle/games/blockBlast/battle/PlayBlockBlast': () => import('./battle/games/blockBlast/battle/PlayBlockBlast'),
 };

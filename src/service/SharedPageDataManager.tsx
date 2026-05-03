@@ -13,6 +13,13 @@ export interface SharedPageDataSchema {
   "lobby.head.dimension": { width: number; height: number; } | null;
   "lobby.footer.dimension": { width: number; height: number; } | null;
   "lobby.content.dimension": { width: number; height: number; } | null;
+  /** 休闲大厅 `/casual/lobby`，与 tactical 的 `lobby.*` 隔离 */
+  "casualLobby.layout.orientation": "portrait" | "landscape" | null;
+  "casualLobby.map.dimension": MapDimension | null;
+  "casualLobby.dimension": { width: number; height: number } | null;
+  "casualLobby.head.dimension": { width: number; height: number } | null;
+  "casualLobby.footer.dimension": { width: number; height: number } | null;
+  "casualLobby.content.dimension": { width: number; height: number } | null;
 }
 
 type SharedDataStore = Partial<SharedPageDataSchema>;

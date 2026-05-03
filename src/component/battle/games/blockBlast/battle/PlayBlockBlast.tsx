@@ -9,7 +9,15 @@ import BlockBlastGame from './BlockBlastGame';
 const PlayBlockBlast: React.FC<ModalProp> = ({ visible, data, close }) => {
     if (!visible) return null;
     const gameId = typeof data?.gameId === 'string' ? data.gameId : undefined;
-    return <BlockBlastGame gameId={gameId} onGameSubmit={close} />;
+    const casualTournamentId =
+        typeof data?.casualTournamentId === 'string' ? data.casualTournamentId : undefined;
+    return (
+        <BlockBlastGame
+            gameId={gameId}
+            casualTournamentId={casualTournamentId}
+            onGameSubmit={close}
+        />
+    );
 };
 
 export default PlayBlockBlast;

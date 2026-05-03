@@ -3,6 +3,7 @@ import React, { Suspense, useEffect } from "react";
 import PartnerProvider from "service/PartnerManager";
 import "./App.css";
 import { PageProvider } from "./service/PageManager";
+import CasualPlatformProvider from "./service/CasualPlatformManager";
 import TournamentProvider from "./service/TournamentManager";
 import { UserProvider } from "./service/UserManager";
 
@@ -35,11 +36,13 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
               <BootLoadingOverlay />
               <ModalProvider>
                 <TournamentProvider>
-                  {/* <PlatformProvider> */}
-                  {/* <GameCenterProvider> */}
-                  {children}
-                  {/* </GameCenterProvider> */}
-                  {/* </PlatformProvider> */}
+                  <CasualPlatformProvider>
+                    {/* <PlatformProvider> */}
+                    {/* <GameCenterProvider> */}
+                    {children}
+                    {/* </GameCenterProvider> */}
+                    {/* </PlatformProvider> */}
+                  </CasualPlatformProvider>
                 </TournamentProvider>
               </ModalProvider>
             </PageProvider>

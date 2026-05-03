@@ -28,6 +28,7 @@ import {
     Shape,
     inferGridSizeFromGrid,
 } from '../types/BlockBlastTypes';
+import { useCasualPlatformOptional } from '@/service/CasualPlatformManager';
 import BlockBlastRuleManager from './BlockBlastRuleManager';
 
 export type GridCellRefs = (HTMLDivElement | null)[][];
@@ -101,6 +102,7 @@ export const useBlockBlastGameManager = () => {
 interface BlockBlastGameProviderProps {
     children: ReactNode;
     gameId?: string;
+    casualTournamentId?: string;
     config?: Partial<BlockBlastGameConfig>;
     onGameLoadComplete?: () => void;
     onGameSubmit?: () => void;
@@ -109,6 +111,7 @@ interface BlockBlastGameProviderProps {
 export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     children,
     gameId,
+    casualTournamentId,
     config: customConfig,
     onGameLoadComplete,
     onGameSubmit,
@@ -126,6 +129,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     }
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
+    const casualPlatform = useCasualPlatformOptional();
 
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
@@ -257,11 +261,26 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 if (res.ok) {
                     console.log('score submitted', res);
                 }
+                if (
+                    casualTournamentId &&
+                    casualPlatform?.submitCasualRun &&
+                    casualPlatform.convexUrl
+                ) {
+                    const cr = await casualPlatform.submitCasualRun({
+                        tournamentId: casualTournamentId,
+                        gameId: 'block_blast',
+                        score,
+                        externalGameId: gameState.gameId,
+                    });
+                    if (!cr.ok) {
+                        console.warn('[BlockBlast] casual submitCasualRun', cr.error);
+                    }
+                }
             } catch (e) {
                 console.error('submitScore failed', e);
             }
         },
-        [gameState, convex, onGameSubmit]
+        [gameState, convex, onGameSubmit, casualTournamentId, casualPlatform]
     );
 
     const value: IBlockBlastGameContext = {

@@ -79,6 +79,9 @@
     position: absolute;
     left: 0;
     top: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
     background-color: #e7570350;
     /* background-color: #0d5f0d; */
     font-family: 'Arial', sans-serif;
@@ -210,6 +213,98 @@
     font-variant-numeric: tabular-nums;
     color: #f0f4ff;
     line-height: 1.1;
+}
+
+/* 横屏 + 触摸：顶栏改为左侧竖条，牌桌占剩余宽度（手机横握 / 小平板） */
+@media (orientation: landscape) and (hover: none) and (pointer: coarse),
+       (orientation: landscape) and (hover: none) and (max-height: 440px) {
+    .solo-player-container {
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .solo-game-header {
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 10px;
+        width: auto;
+        max-width: 108px;
+        height: 100%;
+        box-sizing: border-box;
+        min-height: 0;
+        border-bottom: none;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* 分数/步数/收到基础在上，头像与昵称在侧栏底部 */
+    .solo-game-header__stats {
+        order: 1;
+        flex-shrink: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .solo-game-header__player {
+        order: 2;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .solo-game-header__avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .solo-game-header__meta {
+        align-items: center;
+        width: 100%;
+    }
+
+    .solo-game-header__name {
+        max-width: 96px;
+        white-space: normal;
+        word-break: break-word;
+        font-size: 12px;
+        line-height: 1.25;
+        text-align: center;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .solo-game-header__score-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .solo-game-header__autocomplete {
+        width: 100%;
+        margin-bottom: 0;
+        padding: 8px 6px;
+        font-size: 11px;
+        white-space: normal;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .solo-game-header__stat {
+        align-items: center;
+        width: 100%;
+    }
+
+    .solo-board-surface {
+        flex: 1;
+        min-width: 0;
+    }
 }
 
 /* 牌桌：统一 7 列网格，foundation / stock / tableau 列宽一致，供测量与 getCardCoord 对齐 */

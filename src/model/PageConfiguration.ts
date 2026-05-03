@@ -1,14 +1,14 @@
 
-export const PlayPlace =
+export const TacticalPlace =
 {
-    name: "playPlace",
-    entry: "playcenter",
-    context: "/play",
+    name: "tacticalPlace",
+    entry: "tactical",
+    context: "/tactical",
     navs: [
         {
             name: "lobby",
             auth: 1,
-            path: "./lobby/LobbyHome",
+            path: "./lobby/tactical/LobbyHome",
             uri: "lobby",
             /** 冷启动真实请求：`useColdBootPreload` + BootLoadingOverlay；可改成大厅首屏大图 CDN。手动看清加载阶段可在 DevTools → Network 选 Slow 3G。 */
             bootCriticalAssetUrls: ["/logo192.png", "/icons/001-clock.svg"],
@@ -16,15 +16,43 @@ export const PlayPlace =
             class: "page_container",
             enter: "fadeIn",
             exit: "fadeOut",
-            control: "./lobby/LobbyControl",
+            control: "./lobby/tactical/LobbyControl",
             children: [
-                { name: "child1", class: "page_container", init: "slide", path: "./lobby/view/Child1", uri: "c1", auth: 1, open: "slideIn" },
+                { name: "child1", class: "page_container", init: "slide", path: "./lobby/tactical/view/Child1", uri: "c1", auth: 1, open: "slideIn" },
                 /** 路由需 auth:0，否则未登录时 openPage 不会派发 pageOpen，大厅 slide 不会动；权限在 Child2 内处理 */
-                { name: "child2", class: "page_container", init: "slide", path: "./lobby/view/Child2", uri: "c2", auth: 0, open: "slideIn" },
-                { name: "child3", class: "page_container", init: "slide", path: "./lobby/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
-                // { name: "child4", class: "pop-right", init: "pops1", path: "./lobby/view/Child4", uri: "c4", auth: 1, open: "popRightIn", close: { type: 2, effect: "popRightOut" } },
-                // { name: "center", class: "pop-center-large", init: "center", path: "./lobby/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
+                { name: "child2", class: "page_container", init: "slide", path: "./lobby/tactical/view/Child2", uri: "c2", auth: 0, open: "slideIn" },
+                { name: "child3", class: "page_container", init: "slide", path: "./lobby/tactical/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
+                // { name: "child4", class: "pop-right", init: "pops1", path: "./lobby/tactical/view/Child4", uri: "c4", auth: 1, open: "popRightIn", close: { type: 2, effect: "popRightOut" } },
+                // { name: "center", class: "pop-center-large", init: "center", path: "./lobby/tactical/center/GameList", uri: "center", auth: 0, enter: "none", open: "popCenterIn", close: { effect: "popCenterOut" } },
 
+            ]
+        }
+
+    ]
+
+}
+
+export const CasualPlace =
+{
+    name: "casualPlace",
+    entry: "casual",
+    context: "/casual",
+    navs: [
+        {
+            name: "lobby",
+            auth: 1,
+            path: "./lobby/casual/CasualHome",
+            uri: "lobby",
+            bootCriticalAssetUrls: ["/logo192.png", "/icons/001-clock.svg"],
+            child: "child2",
+            class: "page_container",
+            enter: "fadeIn",
+            exit: "fadeOut",
+            control: "./lobby/casual/LobbyControl",
+            children: [
+                { name: "child1", class: "page_container", init: "slide", path: "./lobby/casual/view/Child1", uri: "c1", auth: 1, open: "slideIn" },
+                { name: "child2", class: "page_container", init: "slide", path: "./lobby/casual/view/Child2", uri: "c2", auth: 0, open: "slideIn" },
+                { name: "child3", class: "page_container", init: "slide", path: "./lobby/casual/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
             ]
         }
 
@@ -56,20 +84,20 @@ export const Modals: Record<string, ModalConfig> = {
     },
     "join_tournament": {
         name: "join_tournament",
-        path: "./lobby/tournament/TournamentJoinList",
+        path: "./lobby/tactical/tournament/TournamentJoinList",
         auth: 1,
         effects: [{ name: "popCenter", orientation: "portrait", args: { height: "100%", width: "100%" } }, { name: "swipeRight", orientation: "landscape", args: { width: "30%" } }],
 
     },
     "tournament_history": {
         name: "tournament_history",
-        path: "./lobby/tournament/TournamentHistory",
+        path: "./lobby/tactical/tournament/TournamentHistory",
         auth: 1,
         effects: [{ name: "swipeRight", orientation: "landscape", args: { width: "30%" } }, { name: "swipeRight", orientation: "portrait", args: { width: "100%" } }],
     },
     "chest_drop": {
         name: "chest_drop",
-        path: "./lobby/view/play/ChestDrop",
+        path: "./lobby/tactical/view/play/ChestDrop",
         auth: 1,
         effects: [{ name: "popCenter", args: { width: "70%", height: "70%" } }],
     },
@@ -131,5 +159,5 @@ export interface ModalConfig {
     class?: string;
     effects?: ModalEffect[];
 }
-export const AppsConfiguration: AppConfig[] = [PlayPlace];
+export const AppsConfiguration: AppConfig[] = [TacticalPlace, CasualPlace];
 

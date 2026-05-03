@@ -1,5 +1,5 @@
 /**
- * 当前可放置形状 + 下一批预览（与后端 nextShapes 对齐）
+ * 当前可放置形状（Hand）预览
  */
 import React, { useEffect, useRef } from 'react';
 import { useBlockBlastGameManager } from '../service/GameManager';
@@ -71,44 +71,12 @@ const ShapePreview: React.FC<ShapePreviewProps> = ({ className = '' }) => {
                 }`.trim()}
             >
                 <div className="blockblast-shape-preview-col blockblast-shape-preview-col--hand">
-                    <span
-                        className={`blockblast-shape-preview-label ${
-                            previewPortrait
-                                ? 'blockblast-shape-preview-label--portrait'
-                                : 'blockblast-shape-preview-label--landscape'
-                        }`.trim()}
-                    >
-                        Hand
-                    </span>
                     <div className="blockblast-shape-preview-hand-shapes">
                         {gameState.shapes.map((shape) => (
                             <ShapeBlock key={shape.id} shape={shape} cellSize={previewCellSize} />
                         ))}
                     </div>
                 </div>
-                {gameState.nextShapes?.length ? (
-                    <div className="blockblast-shape-preview-col blockblast-shape-preview-col--next">
-                        <span
-                            className={`blockblast-shape-preview-label blockblast-shape-preview-label--next ${
-                                previewPortrait
-                                    ? 'blockblast-shape-preview-label--portrait'
-                                    : 'blockblast-shape-preview-label--landscape'
-                            }`.trim()}
-                        >
-                            Next
-                        </span>
-                        <div className="blockblast-shape-preview-next-shapes">
-                            {gameState.nextShapes.map((shape) => (
-                                <ShapeBlock
-                                    key={shape.id}
-                                    shape={shape}
-                                    cellSize={Math.floor(previewCellSize * 0.75)}
-                                    draggable={false}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                ) : null}
             </div>
         </div>
     );

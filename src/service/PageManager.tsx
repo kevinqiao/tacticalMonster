@@ -46,11 +46,20 @@ const getNamespaceFromUri = (uri?: string | null): string | null => {
   if (!uri) return null;
   const segments = uri.split("/").filter(Boolean);
   if (segments.length === 0) return null;
-  // 约定主路由为 /play/<namespace>/...
-  if (segments[0] === "play") {
+  // 约定：/tactical/<壳>/...、/casual/<壳>/...；兼容旧书签 /play/...
+  if (segments[0] === "play" || segments[0] === "tactical" || segments[0] === "casual") {
     return segments[1] ?? null;
   }
   return segments[0] ?? null;
+};
+
+/** SharedPageData 前缀：`lobby.*`（tactical）与 `casualLobby.*`（casual） */
+const getSharedDataNamespaceFromUri = (uri?: string | null): string | null => {
+  if (!uri) return null;
+  const root = uri.split("/").filter(Boolean)[0];
+  if (root === "casual") return "casualLobby";
+  if (root === "tactical" || root === "play") return "lobby";
+  return null;
 };
 
 interface IPageContext {
@@ -191,12 +200,18 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
     if (pageEvent?.name !== "pageComplete") return;
     if (!pageEvent.prepage) return;
     if (isSameTree(pageContainers, pageEvent.page.uri, pageEvent.prepage.uri)) return;
-    const prespace = getNamespaceFromUri(pageEvent.prepage.uri);
+    const prespace = getSharedDataNamespaceFromUri(pageEvent.prepage.uri);
     if (!prespace) return;
     clearNamespace(prespace);
   }, [pageEvent, pageContainers, clearNamespace]);
 
   useEffect(() => {
+    const path = window.location.pathname;
+    if (path === "/play" || path.startsWith("/play/")) {
+      const suffix = path.slice("/play".length);
+      const nextPath = `/tactical${suffix}`;
+      window.history.replaceState(null, "", `${nextPath}${window.location.search}${window.location.hash}`);
+    }
     const handlePopState = () => {
       const page = parseLocation();
       if (page) {

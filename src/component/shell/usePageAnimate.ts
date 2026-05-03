@@ -18,7 +18,7 @@ export const usePageAnimate = () => {
                 currentUri === containerUri || currentUri.startsWith(`${containerUri}/`);
             /**
              * 首屏兜底：pageOpen 可能早于 ref 挂载，导致当次 autoAlpha 丢失。
-             * 在挂载时按当前 URL 修正可见性，避免首次进 /play/lobby/c1 或 /c2 黑底。
+             * 在挂载时按当前 URL 修正可见性，避免首次进 /tactical/lobby/c1 或 /c2 黑底。
              */
             if (currentUnderContainer) {
                 gsap.set(container.ele, { autoAlpha: 1 });

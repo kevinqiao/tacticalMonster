@@ -1,0 +1,16 @@
+{
+  "name": "casual-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Convex backend for the casual multi-game platform (separate deployment)",
+  "scripts": {
+    "test": "echo \"No tests\" && exit 0"
+  },
+  "dependencies": {
+    "convex": "^1.24.8",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6"
+  }
+}

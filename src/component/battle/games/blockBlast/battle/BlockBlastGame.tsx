@@ -12,6 +12,8 @@ import { BlockBlastGameConfig, normalizeBlockBlastGridSize } from './types/Block
 
 interface BlockBlastGameProps {
     gameId?: string;
+    /** 若设置，局末在 Block Blast 原有上报之外调用 casualPlatform `submitScore`（Phase A） */
+    casualTournamentId?: string;
     config?: Partial<BlockBlastGameConfig>;
     className?: string;
     style?: React.CSSProperties;
@@ -27,6 +29,7 @@ type CreateResult = { ok: true; gameId: string } | { ok: false };
 
 const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'style'>> = ({
     gameId: propGameId,
+    casualTournamentId,
     config,
     onGameLoadComplete,
     onGameSubmit,
@@ -87,6 +90,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
         <BlockBlastGameProvider
             config={config}
             gameId={activeGameId}
+            casualTournamentId={casualTournamentId}
             onGameLoadComplete={onGameLoadComplete}
             onGameSubmit={onGameSubmit}
         >
@@ -99,6 +103,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
 
 const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
     gameId,
+    casualTournamentId,
     config,
     className = '',
     style,
@@ -112,6 +117,7 @@ const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
             <ConvexProvider client={client}>
                 <BlockBlastGameInner
                     gameId={gameId}
+                    casualTournamentId={casualTournamentId}
                     config={config}
                     onGameLoadComplete={onGameLoadComplete}
                     onGameSubmit={onGameSubmit}

@@ -73,11 +73,15 @@ const ErrorComponent: React.FC<{ path: string; error?: Error }> = ({ path, error
 // 组件路径映射 - 静态映射所有可能的组件
 const componentMap: Record<string, () => Promise<any>> = {
   './battle/BattlePlay': () => import('./battle/games/tacticalMonster/PlayTacticalMonster'),
-  './lobby/LobbyHome': () => import('./lobby/LobbyHome'),
-  './lobby/view/Child1': () => import('./lobby/view/Child1'),
-  './lobby/view/Child2': () => import('./lobby/view/Child2'),
-  './lobby/view/Child3': () => import('./lobby/view/Child3'),
-  './lobby/view/Child4': () => import('./lobby/view/Child4'),
+  './lobby/tactical/LobbyHome': () => import('./lobby/tactical/LobbyHome'),
+  './lobby/tactical/view/Child1': () => import('./lobby/tactical/view/Child1'),
+  './lobby/tactical/view/Child2': () => import('./lobby/tactical/view/Child2'),
+  './lobby/tactical/view/Child3': () => import('./lobby/tactical/view/Child3'),
+  './lobby/tactical/view/Child4': () => import('./lobby/tactical/view/Child4'),
+  './lobby/casual/CasualHome': () => import('./lobby/casual/CasualHome'),
+  './lobby/casual/view/Child1': () => import('./lobby/casual/view/Child1'),
+  './lobby/casual/view/Child2': () => import('./lobby/casual/view/Child2'),
+  './lobby/casual/view/Child3': () => import('./lobby/casual/view/Child3'),
 };
 
 // 获取缓存的组件
