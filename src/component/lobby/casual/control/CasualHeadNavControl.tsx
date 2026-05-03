@@ -1,4 +1,4 @@
-import { useSharedValue } from "@/service/SharedPageDataManager";
+import { useSharedValue } from "host/service/SharedPageDataManager";
 import React from "react";
 import "../../tactical/control/head/HeadNavControl.css";
 import { CasualHeadNavBarDesktop } from "./CasualHeadNavBarDesktop";

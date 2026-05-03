@@ -1,4 +1,4 @@
-import { ModalProp } from "@/service/ModalManager";
+import { ModalProp } from "host/service/ModalManager";
 import React, { useEffect } from "react";
 import TournamentHome from "./TournamentHome";
 import "./tournamentList.css";

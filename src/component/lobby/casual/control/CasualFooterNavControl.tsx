@@ -1,4 +1,4 @@
-import { useSharedValue } from "@/service/SharedPageDataManager";
+import { useSharedValue } from "host/service/SharedPageDataManager";
 import React from "react";
 import { useFooterNavIsDesktop } from "../../tactical/control/footer/FooterNavIsDesktop";
 import "../../tactical/control/footer/FooterNavControl.css";

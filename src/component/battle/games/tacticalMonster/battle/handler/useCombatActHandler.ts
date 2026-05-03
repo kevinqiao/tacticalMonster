@@ -6,9 +6,9 @@
  * 本文件整合了所有拆分后的模块，提供统一的战斗操作接口
  */
 
-import { useModalManager } from "@/service/ModalManager";
+import { useModalManager } from "host/service/ModalManager";
 import { useConvex } from "convex/react";
-import { useUserManager } from "service/UserManager";
+import { useUserManager } from "host/service/UserManager";
 
 import usePlaySkill from "../../battle/animation/usePlaySkill";
 import usePlaySkillSelect from "../../battle/animation/usePlaySkillSelect";

@@ -1,4 +1,4 @@
-import { ModalProp } from "@/service/ModalManager";
+import { ModalProp } from "host/service/ModalManager";
 import React, { lazy, Suspense, useMemo } from "react";
 import PlayTacticalMonster from "./games/tacticalMonster/PlayTacticalMonster";
 import "./style.css";

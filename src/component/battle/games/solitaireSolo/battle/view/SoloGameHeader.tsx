@@ -2,8 +2,8 @@
  * 单人纸牌顶栏：头像、昵称、分数、步数；可选「收到基础」紧挨分数。
  */
 
-import type { User } from '@/service/UserManager';
-import { useUserManager } from '@/service/UserManager';
+import type { User } from 'host/service/UserManager';
+import { useUserManager } from 'host/service/UserManager';
 import React, { useMemo } from 'react';
 
 function avatarPhotoUrlFromUser(u: User | null): string | undefined {

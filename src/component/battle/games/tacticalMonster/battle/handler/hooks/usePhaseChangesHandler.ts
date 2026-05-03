@@ -3,7 +3,7 @@
  * 所有模式（play/watch/replay）都使用此处理器
  */
 
-import { useModalManager } from "@/service/ModalManager";
+import { useModalManager } from "host/service/ModalManager";
 import { useCallback } from "react";
 import usePlayPhase from "../../../battle/animation/usePlayPhase";
 import usePlaySkill from "../../../battle/animation/usePlaySkill";

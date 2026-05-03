@@ -4,7 +4,7 @@ import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef
 // import useCombatAnimate from "../animation/useCombatAnimate_bak";
 import { getRoutePath } from "@/component/battle/games/ludo/util/mapUtils";
 import { useConvex, useQuery } from "convex/react";
-import { useUserManager } from "service/UserManager";
+import { useUserManager } from "host/service/UserManager";
 import { api } from "../../../../../../convex/ludo/convex/_generated/api";
 import { CombatEvent, GameModel, ICombatContext } from "../types/CombatTypes";
 import CombatEventHandler from "./CombatEventHandler";

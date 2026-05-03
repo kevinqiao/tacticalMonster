@@ -49,11 +49,12 @@ Cross-cutting product and implementation conventions are documented in [`docs/sy
 - **Styling:** TailwindCSS + styled-components
 
 ### Path Aliases (configured in vite.config.ts and tsconfig.json)
-`@` → `src/`, `util` → `src/util/`, `service` → `src/service/`, `model` → `src/model/`, `component` → `src/component/`, `animate` → `src/animate/`
+`@` → `src/`, `util` → `src/util/`, `service` → `src/service/`, `model` → `src/model/` (legacy alias; shell route config lives under `host/config/`), `component` → `src/component/`, `host` → `src/host/` (app shell: `RenderApp`, `RenderModal`, `config/`, `service/`, `BootLoadingOverlay`, `sso/`), `animate` → `src/animate/`
 
 The `convex/*` alias has special handling: `convex/server`, `convex/react`, `convex/values` resolve to the npm package; all other `convex/*` paths resolve to `src/convex/`.
 
 ### Key Directories
+- `src/host/` — App host UI (not game-specific): `config/` (`PageConfiguration`, `PageProps`, shared shell constants), `service/` (providers + `PageManager`), `RenderApp`, `RenderModal`, `render.css`, `BootLoadingOverlay`, `usePageAnimate` / `useModalAnimate` / `effect/*`, `slideLobbyLeft.ts`, and `sso/` (SSOController, sign-in panels)
 - `src/component/battle/games/tacticalMonster/` — Main game (battle, team deployment, configs, types)
   - `battle/` — 2D battle system (Pixi.js, legacy)
   - `battle3d/` — 3D battle system (Three.js, active — `USE_3D_BATTLE = true`)
@@ -65,7 +66,7 @@ The `convex/*` alias has special handling: `convex/server`, `convex/react`, `con
   - `convex/service/skill/` — Skill system (SkillManager, StatusEffectProcessor, damageCalculator, effects/)
   - `convex/dao/` — Data access objects
   - `convex/types/` — Backend type definitions
-- `src/service/` — Global React Context managers (PageManager, UserManager, TournamentManager, ModalManager)
+- `src/service/` — Remaining global managers (e.g. TournamentManager, CasualPlatformManager, useColdBootPreload). **App shell providers** (`PageManager`, `UserManager`, `ModalManager`, `SharedPageDataManager`, `PartnerManager`, `AppProviders` composition) live in `src/host/service/` next to host routing/animation.
 - `src/convex/` — All Convex backend code (tacticalMonster, tournament, solitaire, ludo, sso)
 
 ### Data Flow: Combat Loop
@@ -89,7 +90,7 @@ The `convex/*` alias has special handling: `convex/server`, `convex/react`, `con
 **Dual rendering:** 2D (Pixi.js) and 3D (Three.js) battle views share the same `CombatManager` and event processing. Toggle via `USE_3D_BATTLE` flag in `PlayTacticalMonster.tsx`.
 
 ### App Initialization
-`index.tsx` → `App.tsx` → nested providers (Convex → Clerk → PageManager → UserManager → ModalManager → TournamentManager) → `MainApp` → page routing via `PageManager`
+`index.tsx` → `App.tsx` → `ApplicationRoot` → `host/service/AppProviders` (Convex + Partner/User/SharedPageData/Page/Modal + `BootLoadingOverlay`) → `MainApp` → routing via `PageManager` context
 
 ### Testing
 Vitest is configured for tactical monster battle tests only (see `vitest.config.ts`). Test utilities in `battle/__tests__/testUtils.ts` provide `createTestCharacter()`, `createTestStateChanges()`, `createTestPhaseChanges()`. Convex backend tests require the Convex environment and are excluded from Vitest.

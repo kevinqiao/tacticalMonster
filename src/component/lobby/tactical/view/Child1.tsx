@@ -1,4 +1,4 @@
-﻿import { PageProp } from "component/RenderApp";
+﻿import { PageProp } from "host/RenderApp";
 import { useFooterNavIsDesktop } from "component/lobby/tactical/control/footer/FooterNavIsDesktop";
 import React, { useRef } from "react";
 import TournamentHome from "../tournament/TournamentHome";

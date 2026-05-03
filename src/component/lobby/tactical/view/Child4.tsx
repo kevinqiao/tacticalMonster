@@ -1,4 +1,4 @@
-import { PageProp } from "component/RenderApp";
+import { PageProp } from "host/RenderApp";
 import React from "react";
 
 const Child4: React.FC<PageProp> = () => {

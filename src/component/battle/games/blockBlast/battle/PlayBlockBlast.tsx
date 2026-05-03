@@ -1,4 +1,4 @@
-import type { ModalProp } from '@/service/ModalManager';
+import type { ModalProp } from 'host/service/ModalManager';
 import React from 'react';
 import BlockBlastGame from './BlockBlastGame';
 

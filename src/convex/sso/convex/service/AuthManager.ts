@@ -1,7 +1,7 @@
 "use node"
 import { v } from "convex/values";
 import jwt from "jsonwebtoken";
-import { User } from "../../../../service/UserManager";
+import type { User } from "../../../../host/service/UserManager";
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import { AuthenticatorFactory } from "./provider/AuthenticatorFactory";

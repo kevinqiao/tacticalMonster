@@ -1,8 +1,8 @@
 import { DEFAULT_CASUAL_TOURNAMENT_ID } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
-import { PageProp } from "component/RenderApp";
+import { PageProp } from "host/RenderApp";
 import { useFooterNavIsDesktop } from "component/lobby/tactical/control/footer/FooterNavIsDesktop";
 import React, { useRef } from "react";
-import { useModalManager } from "service/ModalManager";
+import { useModalManager } from "host/service/ModalManager";
 import "../style.css";
 import { useCasualLobbySlideChildSwipe } from "./useCasualLobbySlideChildSwipe";
 

@@ -1,6 +1,7 @@
 /**
  * Block Blast 游戏管理器（对齐 solitaireSolo：interactionPhase、loadGame、战报与提交）
  */
+import { useCasualPlatformOptional } from '@/component/lobby/casual/service/useCasualPlatformManager';
 import { useConvex } from 'convex/react';
 import gsap from 'gsap';
 import React, {
@@ -25,10 +26,9 @@ import {
     DEFAULT_GAME_CONFIG,
     GameInteractionPhase,
     GameReport,
-    Shape,
     inferGridSizeFromGrid,
+    Shape,
 } from '../types/BlockBlastTypes';
-import { useCasualPlatformOptional } from '@/service/CasualPlatformManager';
 import BlockBlastRuleManager from './BlockBlastRuleManager';
 
 export type GridCellRefs = (HTMLDivElement | null)[][];
@@ -83,12 +83,12 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     config: DEFAULT_GAME_CONFIG,
     ruleManager: null,
     interactionPhase: GameInteractionPhase.idle,
-    setInteractionPhase: () => {},
-    updateBoardDimension: () => {},
-    loadGame: () => {},
-    submitScore: () => {},
-    onGameOver: () => {},
-    commitGameState: () => {},
+    setInteractionPhase: () => { },
+    updateBoardDimension: () => { },
+    loadGame: () => { },
+    submitScore: () => { },
+    onGameOver: () => { },
+    commitGameState: () => { },
 });
 
 export const useBlockBlastGameManager = () => {

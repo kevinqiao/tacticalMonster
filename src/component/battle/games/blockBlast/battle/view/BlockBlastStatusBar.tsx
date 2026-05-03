@@ -1,8 +1,8 @@
 /**
  * Block Blast 状态栏：竖屏顶栏（左头像 · 右计时+分数）；横屏左侧竖栏（上计时与分数 · 下头像贴底）
  */
-import type { User } from '@/service/UserManager';
-import { useUserManager } from '@/service/UserManager';
+import type { User } from 'host/service/UserManager';
+import { useUserManager } from 'host/service/UserManager';
 import React, { useEffect, useMemo, useState } from 'react';
 import type { BlockBlastGameState } from '../types/BlockBlastTypes';
 import { useBlockBlastGameManager } from '../service/GameManager';

@@ -2,10 +2,10 @@
  * 3D 战斗操作处理器 - 使用 3D 动画与阶段处理器，复用 useOtherActions
  */
 
-import { useModalManager } from "@/service/ModalManager";
+import { useModalManager } from "host/service/ModalManager";
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
-import { useUserManager } from "service/UserManager";
+import { useUserManager } from "host/service/UserManager";
 import { useScoreCalculation } from "../../battle/hooks/useScoreCalculation";
 import { useCombatManager } from "../../service/CombatManager";
 import { useReplay } from "../../battle/view/replayContext";

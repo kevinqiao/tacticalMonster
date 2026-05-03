@@ -1,6 +1,6 @@
-import { PageProp } from "component/RenderApp";
+import { PageProp } from "host/RenderApp";
 import React, { useRef } from "react";
-import { useSharedPageData } from "service/SharedPageDataManager";
+import { useSharedPageData } from "host/service/SharedPageDataManager";
 import FooterNavControl from "./control/footer/FooterNavControl";
 import HeadNavControl from "./control/head/HeadNavControl";
 import "./style.css";

@@ -1,4 +1,4 @@
-import { ModalProp } from '@/service/ModalManager';
+import { ModalProp } from 'host/service/ModalManager';
 import React from 'react';
 import SolitaireGame from './SolitaireGame';
 

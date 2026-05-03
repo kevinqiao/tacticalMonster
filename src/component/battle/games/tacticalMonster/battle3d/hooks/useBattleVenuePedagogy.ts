@@ -1,7 +1,7 @@
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useUserManager } from "service/UserManager";
+import { useUserManager } from "host/service/UserManager";
 import { getStageRuleConfig } from "../../config/stageRuleConfigs";
 import { useCombatManager } from "../../service/CombatManager";
 import { getDynamicPedagogyGuideText } from "../../utils/pedagogyDynamicGuide";

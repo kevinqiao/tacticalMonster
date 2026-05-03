@@ -9,7 +9,7 @@ import gsap from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-import { useSharedValue } from "@/service/SharedPageDataManager";
+import { useSharedValue } from "host/service/SharedPageDataManager";
 import { ReplayProvider } from "../battle/view/replayContext";
 import { getCharacterKey } from "../battle3d/utils/battle3DAdapter";
 import type { CombatHudByKind, GameModel } from "../types/CombatTypes";

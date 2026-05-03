@@ -3,15 +3,15 @@
  * 3D 六边形网格地面，支持怪物拖拽移动
  */
 
+import { useTournamentManager } from "@/component/lobby/tactical/service/useTournamentManager";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { useTournamentManager } from "@/service/TournamentManager";
 import { useTeamDeployManager } from "../service/TeamDeployManager";
 import HexCell3D from "./components/HexCell3D";
 import { buildMonsterHoverStatLines } from "./components/teamLayoutHoverStats";
 import { PlacedMonsterRow3D } from "./PlacedMonsterRow3D";
-import { TeamLayoutLoadingContext } from "./TeamLayoutLoadingContext";
 import { useTeamLayoutHoverOverlay } from "./TeamLayoutHoverOverlayContext";
+import { TeamLayoutLoadingContext } from "./TeamLayoutLoadingContext";
 import { getSharedHexagonGeometry } from "./utils/geometryCache";
 
 const GridGround3D: React.FC = () => {

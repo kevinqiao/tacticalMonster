@@ -1,7 +1,8 @@
-import { PageProp } from "component/RenderApp";
 import { useFooterNavIsDesktop } from "component/lobby/tactical/control/footer/FooterNavIsDesktop";
+import { PageProp } from "host/RenderApp";
 import React, { useRef } from "react";
-import { useCasualPlatformOptional } from "service/CasualPlatformManager";
+
+import { useCasualPlatformOptional } from "../service/useCasualPlatformManager";
 import "../style.css";
 import { useCasualLobbySlideChildSwipe } from "./useCasualLobbySlideChildSwipe";
 

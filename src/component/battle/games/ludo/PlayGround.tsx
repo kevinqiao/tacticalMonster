@@ -1,6 +1,6 @@
-import { PageProp } from "component/RenderApp";
+import { PageProp } from "host/RenderApp";
 import React from "react";
-import { SSAProvider } from "service/SSAManager";
+
 import "./map.css";
 const PlayGroundMain: React.FC<PageProp> = (props) => {
 
@@ -17,9 +17,9 @@ const PlayGroundMain: React.FC<PageProp> = (props) => {
 };
 const PlayGround: React.FC<PageProp> = (props) => {
   return (
-    <SSAProvider app="tacticalMonster">
-      <PlayGroundMain {...props} />
-    </SSAProvider>
+
+    <PlayGroundMain {...props} />
+
   );
 };
 

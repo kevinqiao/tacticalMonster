@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { PageContainer } from "service/PageManager";
+import { PageContainer } from "host/service/PageManager";
 
 interface OpenEffect {
     (args: { container: PageContainer; parent?: PageContainer; containers?: PageContainer[]; duration?: number; tl?: gsap.core.Timeline }): gsap.core.Timeline | null;

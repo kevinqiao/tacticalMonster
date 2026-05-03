@@ -1,5 +1,5 @@
 import { api } from "@/convex/tacticalMonster/convex/_generated/api";
-import { useModalManager } from "@/service/ModalManager";
+import { useModalManager } from "host/service/ModalManager";
 import { useConvex, useQuery } from "convex/react";
 import React, { useCallback, useState } from "react";
 import { GameOverProps } from "../../GameOver";

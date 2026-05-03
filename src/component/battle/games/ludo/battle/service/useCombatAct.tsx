@@ -1,6 +1,6 @@
 import { useConvex } from "convex/react";
 import { useCallback } from "react";
-import { useUserManager } from "service/UserManager";
+import { useUserManager } from "host/service/UserManager";
 import { api } from "../../../../../../convex/ludo/convex/_generated/api";
 import { ACTION_TYPE } from "../types/CombatTypes";
 import { useCombatManager } from "./CombatManager";

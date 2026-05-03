@@ -1,7 +1,7 @@
+import { normalizePageUri, parseLocation } from "@/host/util/PageUtils";
 import { useFooterNavIsDesktop } from "component/lobby/tactical/control/footer/FooterNavIsDesktop";
+import { usePageManager } from "host/service/PageManager";
 import { useEffect, useRef } from "react";
-import { usePageManager } from "service/PageManager";
-import { normalizePageUri, parseLocation } from "util/PageUtils";
 
 const LOBBY_CHILD_URIS = ["/tactical/lobby/c1", "/tactical/lobby/c2", "/tactical/lobby/c3"] as const;
 const SWIPE_MIN_X = 56;

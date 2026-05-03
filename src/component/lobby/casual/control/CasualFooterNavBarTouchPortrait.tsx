@@ -1,10 +1,10 @@
+import { normalizePageUri, parseLocation } from "@/host/util/PageUtils";
+import { usePageManager } from "host/service/PageManager";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { normalizePageUri, parseLocation } from "util/PageUtils";
-import { usePageManager } from "service/PageManager";
+import "../../tactical/control/footer/FooterNavControl.css";
 import {
   FOOTER_NAV_DESKTOP_ICONS,
 } from "../../tactical/control/footer/FooterNavDesktopConfig";
-import "../../tactical/control/footer/FooterNavControl.css";
 import { CASUAL_FOOTER_NAV_LABEL, CASUAL_FOOTER_NAV_URI } from "./FooterNavCasual";
 
 const getActiveIndexFromLocation = (): number => {
@@ -85,12 +85,10 @@ export const CasualFooterNavBarTouchPortrait: React.FC = () => {
                 type="button"
                 className={
                   active
-                    ? `footer-nav-touch-portrait__btn footer-nav-touch-portrait__btn--active${
-                        pressed ? " footer-nav-touch-portrait__btn--pressed" : ""
-                      }`
-                    : `footer-nav-touch-portrait__btn${
-                        pressed ? " footer-nav-touch-portrait__btn--pressed" : ""
-                      }`
+                    ? `footer-nav-touch-portrait__btn footer-nav-touch-portrait__btn--active${pressed ? " footer-nav-touch-portrait__btn--pressed" : ""
+                    }`
+                    : `footer-nav-touch-portrait__btn${pressed ? " footer-nav-touch-portrait__btn--pressed" : ""
+                    }`
                 }
                 aria-label={item.label}
                 onClick={() => onOpen(index)}

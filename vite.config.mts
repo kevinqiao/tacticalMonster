@@ -48,6 +48,7 @@ export default defineConfig({
       { find: 'service', replacement: path.resolve(__dirname, 'src/service') },
       { find: 'model', replacement: path.resolve(__dirname, 'src/model') },
       { find: 'component', replacement: path.resolve(__dirname, 'src/component') },
+      { find: 'host', replacement: path.resolve(__dirname, 'src/host') },
       { find: 'components', replacement: path.resolve(__dirname, 'src/components') },
       { find: 'animate', replacement: path.resolve(__dirname, 'src/animate') },
     ],

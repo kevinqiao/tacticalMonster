@@ -1,4 +1,4 @@
-import { ModalContainer } from "@/service/ModalManager";
+import { ModalContainer } from "host/service/ModalManager";
 import gsap from "gsap";
 
 interface CloseEffect {

@@ -2,7 +2,7 @@
  * 3D 阶段变化处理器 - 与 2D 逻辑一致，使用 3D 动画 Hook
  */
 
-import { useModalManager } from "@/service/ModalManager";
+import { useModalManager } from "host/service/ModalManager";
 import { useCallback } from "react";
 import { flushSync } from "react-dom";
 import { useCombatManager } from "../../service/CombatManager";

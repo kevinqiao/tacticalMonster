@@ -1,9 +1,9 @@
+import { URLS, useTournamentManager } from "@/component/lobby/tactical/service/useTournamentManager";
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { BOSS_CONFIGS } from "@/convex/tacticalMonster/convex/data/bossConfigs";
-import { URLS, useTournamentManager } from "@/service/TournamentManager";
-import { useUserManager } from "@/service/UserManager";
 import { ConvexHttpClient } from "convex/browser";
 import gsap from "gsap";
+import { useUserManager } from "host/service/UserManager";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
     calculateScaleBoss,

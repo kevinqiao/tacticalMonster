@@ -1,6 +1,6 @@
 import React, { useCallback, useId, useMemo } from "react";
-import { usePageManager } from "service/PageManager";
-import { useUserManager } from "service/UserManager";
+import { usePageManager } from "host/service/PageManager";
+import { useUserManager } from "host/service/UserManager";
 import "../../tactical/control/footer/FooterNavControl.css";
 import navHoverSprite from "../../tactical/control/footer/assets/nav-hover-sprite.png";
 import { FooterNavHitPath } from "../../tactical/control/footer/FooterNavHitPath";

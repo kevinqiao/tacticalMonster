@@ -1,7 +1,7 @@
-import { useModalManager } from "@/service/ModalManager";
+import { useModalManager } from "host/service/ModalManager";
 import React, { useCallback } from "react";
-import { usePageManager } from "service/PageManager";
-import { useUserManager } from "service/UserManager";
+import { usePageManager } from "host/service/PageManager";
+import { useUserManager } from "host/service/UserManager";
 import { NAV_MENU_ITEMS } from "../NavShared";
 import "./FooterNavControl.css";
 import {

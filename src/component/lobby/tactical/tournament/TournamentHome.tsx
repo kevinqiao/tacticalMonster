@@ -3,9 +3,9 @@ import {
     resolveTournamentMode,
     type TournamentModeType,
 } from "@/convex/tournament/convex/data/tournamentConfigs";
-import { useModalManager } from "@/service/ModalManager";
-import { useTournamentManager } from "@/service/TournamentManager";
+import { useModalManager } from "host/service/ModalManager";
 import React, { useCallback, useMemo, useState } from "react";
+import { useTournamentManager } from "../service/useTournamentManager";
 import "./tournamentList.css";
 
 const MODE_TABS: { mode: TournamentModeType; label: string }[] = [

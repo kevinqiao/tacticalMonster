@@ -1,6 +1,6 @@
-import { useModalManager } from "@/service/ModalManager";
-import { useSharedValue } from "@/service/SharedPageDataManager";
-import { usePageManager } from "@/service/PageManager";
+import { useModalManager } from "host/service/ModalManager";
+import { useSharedValue } from "host/service/SharedPageDataManager";
+import { usePageManager } from "host/service/PageManager";
 import { useEffect, useState } from "react";
 
 const Header: React.FC = () => {

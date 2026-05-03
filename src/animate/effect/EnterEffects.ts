@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { PageContainer } from "service/PageManager";
+import { PageContainer } from "host/service/PageManager";
 
 interface EnterEffect {
     (args: { container: PageContainer; parent?: PageContainer; duration?: number; tl?: gsap.core.Timeline }): gsap.core.Timeline | null;

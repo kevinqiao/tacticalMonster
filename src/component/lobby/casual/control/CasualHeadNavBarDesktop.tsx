@@ -1,5 +1,5 @@
-import { useModalManager } from "@/service/ModalManager";
-import { useSharedValue } from "@/service/SharedPageDataManager";
+import { useModalManager } from "host/service/ModalManager";
+import { useSharedValue } from "host/service/SharedPageDataManager";
 import React, {
   useCallback,
   useEffect,
@@ -9,9 +9,9 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { usePageManager } from "service/PageManager";
-import type { User } from "service/UserManager";
-import { useUserManager } from "service/UserManager";
+import { usePageManager } from "host/service/PageManager";
+import type { User } from "host/service/UserManager";
+import { useUserManager } from "host/service/UserManager";
 import avatarPlaceholderUrl from "../../tactical/control/head/assets/avatar-placeholder.svg?url";
 import "../../tactical/control/head/HeadNavControl.css";
 import {

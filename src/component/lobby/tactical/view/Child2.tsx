@@ -1,8 +1,8 @@
-﻿import { PageProp } from "component/RenderApp";
+﻿import { preloadImages } from "@/host/util/preloadAssets";
 import { useFooterNavIsDesktop } from "component/lobby/tactical/control/footer/FooterNavIsDesktop";
+import { PageProp } from "host/RenderApp";
+import { useSharedValue } from "host/service/SharedPageDataManager";
 import React, { useEffect, useRef, useState } from "react";
-import { useSharedValue } from "service/SharedPageDataManager";
-import { preloadImages } from "util/preloadAssets";
 import { getChild2CriticalAssets } from "./child2Assets";
 import LandscapeContent from "./play/LandscapeContent";
 import PortraitContent from "./play/PortraitContent";

@@ -1,7 +1,6 @@
 import { api as tacticalMonsterApi } from "@/convex/tacticalMonster/convex/_generated/api";
 import { api as tournamentApi } from "@/convex/tournament/convex/_generated/api";
-import { URLS, useTournamentManager } from "@/service/TournamentManager";
-import { useUserManager } from "@/service/UserManager";
+import { useUserManager } from "host/service/UserManager";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -11,6 +10,7 @@ import BattlePlayer from "./battle/BattlePlayer";
 import BattlePlayer3D from "./battle3d/BattlePlayer3D";
 import CombatManager from "./service/CombatManager";
 
+import { URLS, useTournamentManager } from "@/component/lobby/tactical/service/useTournamentManager";
 import { GameData } from "../../PlayTournament";
 import { getStageRuleConfig } from "./config/stageRuleConfigs";
 import "./styles.css";
@@ -86,16 +86,22 @@ const PlayTacticalMonster: React.FC<PlayProps> = ({ close, playMode = 'join', ga
             // playLoading();
             const result = await joinTournament(typeId, stageId || "");
             console.log("join result", result);
-            if (result.ok && result.game) {
-                loadingGameIdRef.current = result.game.gameId;
-                setGame(result.game);
-                // ✅ 保存 phaseChanges（如果存在）
-                if (result.phaseChanges) {
-                    setInitialPhaseChanges(result.phaseChanges);
-                }
+            if (
+                result &&
+                result.ok === true &&
+                "game" in result &&
+                result.game != null &&
+                "phaseChanges" in result &&
+                result.phaseChanges != null
+            ) {
+                const { game, phaseChanges } = result;
+                loadingGameIdRef.current = game.gameId;
+                setGame(game);
+                setInitialPhaseChanges(phaseChanges);
                 openPlayGame();
             } else {
-                const errorCode = result?.errorCode || "UNKNOWN_JOIN_ERROR";
+                const errorCode =
+                    result && "errorCode" in result ? result.errorCode : "UNKNOWN_JOIN_ERROR";
                 console.error("[PlayTacticalMonster] join failed:", {
                     typeId: typeId,
                     stageId: stageId,

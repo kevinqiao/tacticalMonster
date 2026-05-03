@@ -1,5 +1,5 @@
 import React, { ReactNode, useCallback, useEffect } from "react";
-import { useUserManager } from "service/UserManager";
+import { useUserManager } from "host/service/UserManager";
 import useCountDownAnimate from "../animation/useCountDownAnimate";
 import useDiceAnimate from "../animation/useDiceAnimate";
 import useDynamicAnimate from "../animation/useDynamicAnimate";
