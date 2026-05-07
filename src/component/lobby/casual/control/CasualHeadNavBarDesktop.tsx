@@ -1,29 +1,21 @@
 import { useModalManager } from "host/service/ModalManager";
 import { useSharedValue } from "host/service/SharedPageDataManager";
-import React, {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePageManager } from "host/service/PageManager";
 import type { User } from "host/service/UserManager";
 import { useUserManager } from "host/service/UserManager";
 import avatarPlaceholderUrl from "../../tactical/control/head/assets/avatar-placeholder.svg?url";
 import "../../tactical/control/head/HeadNavControl.css";
+import { HEAD_NAV_DESKTOP_ICON_AUTH_SIGNIN } from "../../tactical/control/head/HeadNavDesktopConfig";
+import { useCasualPlatform } from "../service/useCasualPlatformManager";
+import { CasualHudCurrencyBars } from "./CasualHudCurrencyBars";
 import {
-  HEAD_NAV_DESKTOP_ICON_AUTH_SIGNIN,
-  HEAD_NAV_DESKTOP_ICONS,
-  HEAD_NAV_RES_CARD_PNG,
-} from "../../tactical/control/head/HeadNavDesktopConfig";
-import {
-  CASUAL_HEAD_NAV_LABEL,
+  CASUAL_BATTLE_PASS_MODAL_OPEN,
   CASUAL_HEAD_NAV_MENU_ITEMS,
-  CASUAL_HEAD_NAV_URI,
+  CASUAL_PLAYER_PROFILE_MODAL_OPEN,
 } from "./HeadNavSharedCasual";
+import "../style.css";
 
 function avatarPhotoUrlFromUser(u: User | null): string | undefined {
   if (!u) return undefined;
@@ -42,93 +34,6 @@ function avatarPhotoUrlFromUser(u: User | null): string | undefined {
 function levelFromUser(u: User | null): number {
   const lv = u?.data?.level;
   return typeof lv === "number" && !Number.isNaN(lv) ? Math.min(999, Math.max(0, Math.floor(lv))) : 1;
-}
-
-function formatResourceAmount(n: number | undefined): string {
-  if (n == null || Number.isNaN(n)) return "—";
-  if (n >= 1_000_000) return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
-  return n.toLocaleString("en-US");
-}
-
-/** 汉堡菜单示意（竖屏下单键替代三快捷） */
-/** 叠在长方形 PNG 上的装饰框（与底图同尺寸拉伸；每实例 id 独立） */
-function HeadHudResFrameSvg() {
-  const sid = useId().replace(/:/g, "");
-  const gid = `hhrfgl-${sid}`;
-  return (
-    <svg
-      className="head-nav-hud__res-frame"
-      viewBox="0 0 200 48"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fff" stopOpacity="0.14" />
-          <stop offset="100%" stopColor="#000" stopOpacity="0.28" />
-        </linearGradient>
-      </defs>
-      <rect
-        x="1"
-        y="1"
-        width="198"
-        height="46"
-        rx="8"
-        fill="none"
-        stroke="rgba(210, 175, 95, 0.55)"
-        strokeWidth="2"
-      />
-      <rect
-        x="3"
-        y="3"
-        width="194"
-        height="42"
-        rx="6"
-        fill={`url(#${gid})`}
-      />
-    </svg>
-  );
-}
-
-/** 金币/宝石：PNG 底 + 左类型图 + SVG 叠层 + 前景数字与 +（统一长方形条） */
-function HeadHudResourceChip({
-  amountLabel,
-  glyphSrc,
-  onAdd,
-  addAriaLabel,
-}: {
-  amountLabel: string;
-  glyphSrc: string;
-  onAdd: () => void;
-  addAriaLabel: string;
-}) {
-  return (
-    <div className="head-nav-hud__res" role="group">
-      <div className="head-nav-hud__res-card">
-        <img
-          className="head-nav-hud__res-png"
-          src={HEAD_NAV_RES_CARD_PNG}
-          alt=""
-          draggable={false}
-        />
-        <div className="head-nav-hud__res-glyph">
-          <img src={glyphSrc} alt="" draggable={false} />
-        </div>
-        <HeadHudResFrameSvg />
-        <div className="head-nav-hud__res-front">
-          <span className="head-nav-hud__res-amount">{amountLabel}</span>
-          <button
-            type="button"
-            className="head-nav-hud__res-add"
-            onClick={onAdd}
-            aria-label={addAriaLabel}
-          >
-            +
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function HeadNavMenuGlyph() {
@@ -163,7 +68,12 @@ function HeadNavPortraitMenuPortal({
   anchorRect: DOMRect | null;
   onPanelTransitionEnd: React.TransitionEventHandler<HTMLDivElement>;
   onBackdropPointerDown: () => void;
-  onItemPick: (item: { label: string, type: "page" | "modal", uri: string }) => void;
+  onItemPick: (item: {
+    label: string;
+    type: "page" | "modal";
+    uri: string;
+    effect?: { name: string; args?: any };
+  }) => void;
 }) {
   if (!open || typeof document === "undefined" || !anchorRect) {
     return null;
@@ -200,7 +110,7 @@ function HeadNavPortraitMenuPortal({
         aria-label="Lobby quick menu"
         onTransitionEnd={onPanelTransitionEnd}
       >
-        {CASUAL_HEAD_NAV_MENU_ITEMS.map((item: { label: string, type: "page" | "modal", uri: string }) => (
+        {CASUAL_HEAD_NAV_MENU_ITEMS.map((item) => (
           <button
             key={item.uri}
             type="button"
@@ -218,10 +128,11 @@ function HeadNavPortraitMenuPortal({
 }
 
 /**
- * 桌面：主城式顶栏 HUD（左玩家信息、中快捷、右资源），与参考主城的「顶栏+资源条」同构；完整还原需切图与经济数据接入。 */
+ * 休闲顶栏：左玩家 / 登录（点头像打开个人资料 Modal，内含 Logout）；货币区与 tactical 同款；右通行证。竖屏保留汉堡菜单。底栏负责 Tab 切换。 */
 export const CasualHeadNavBarDesktop: React.FC = () => {
   const { openPage } = usePageManager();
   const { openModal } = useModalManager();
+  const casual = useCasualPlatform();
   const { user, askAuth } = useUserManager();
   const orientation = useSharedValue("casualLobby.layout.orientation");
   /** 与 HeadNavControl 壳一致：仅 strict true 视为竖屏 HUD */
@@ -305,7 +216,6 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
 
   const onPortraitMenuItem = useCallback(
     (item: { label: string, type: "page" | "modal", uri: string, effect?: { name: string, args?: any } }) => {
-      console.log("onPortraitMenuItem", item);
       if (item.type === "page") {
         openPage({ uri: item.uri });
       } else {
@@ -324,16 +234,25 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
     openPortraitMenu();
   }, [menuPortalOpen, menuSlideIn, closeMenuAfterExit, openPortraitMenu]);
 
+  const openBattlePass = useCallback(() => {
+    openModal({
+      name: CASUAL_BATTLE_PASS_MODAL_OPEN.name,
+      effect: CASUAL_BATTLE_PASS_MODAL_OPEN.effect,
+    });
+  }, [openModal]);
+
+  const openPlayerProfile = useCallback(() => {
+    openModal({
+      name: CASUAL_PLAYER_PROFILE_MODAL_OPEN.name,
+      effect: CASUAL_PLAYER_PROFILE_MODAL_OPEN.effect,
+    });
+  }, [openModal]);
+
   const signIn = useCallback(() => {
     askAuth({});
   }, [askAuth]);
 
   const u: User | null = user?.uid ? (user as User) : null;
-  const gold = u?.uid ? u.assets?.gold : undefined;
-  const gemN = u?.uid
-    ? (u.assets as { gem?: number; gems?: number } | undefined)?.gems ??
-    (u.assets as { gem?: number } | undefined)?.gem
-    : undefined;
   const photoUrl = useMemo(() => avatarPhotoUrlFromUser(u), [user]);
   /** 无远程头像时走打包内静态图，保证顶栏立即可见、满框可验 */
   const resolvedAvatar = useMemo(
@@ -341,44 +260,55 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
     [photoUrl]
   );
 
-  const onAddResource = useCallback(() => {
-    if (!user?.uid) {
-      signIn();
-      return;
-    }
-    openPage({ uri: CASUAL_HEAD_NAV_URI[2] });
-  }, [user?.uid, openPage, signIn]);
-
   const level = useMemo(() => levelFromUser(u), [user]);
-  const quick = useMemo(
-    () =>
-      [0, 1, 2].map((i) => ({
-        i,
-        uri: CASUAL_HEAD_NAV_URI[i],
-        label: CASUAL_HEAD_NAV_LABEL[i],
-        src: HEAD_NAV_DESKTOP_ICONS[i],
-      })),
-    []
+
+  const currencyHud =
+    user?.uid ? <CasualHudCurrencyBars player={casual.casualPlayer} /> : null;
+
+  const stretch = <div className="head-nav-hud__stretch" aria-hidden />;
+
+  const battlePassEntry = (
+    <button
+      type="button"
+      className="head-nav-hud__casual-pass"
+      onClick={openBattlePass}
+      aria-label="打开赛季通行证"
+    >
+      <span className="head-nav-hud__casual-pass-accent" aria-hidden>
+        <span className="head-nav-hud__casual-pass-accent__a" />
+        <span className="head-nav-hud__casual-pass-accent__b" />
+        <span className="head-nav-hud__casual-pass-accent__c" />
+      </span>
+      <span className="head-nav-hud__casual-pass-text">通行证</span>
+    </button>
   );
 
   const leftCluster = (
     <div className="head-nav-hud__left">
       {user?.uid ? (
         <>
-          <div className="head-nav-hud__avatar" aria-hidden>
-            <div className="head-nav-hud__avatar-pic">
-              <img
-                className="head-nav-hud__avatar-fimg"
-                src={resolvedAvatar}
-                alt=""
-                draggable={false}
-              />
+          <button
+            type="button"
+            className="head-nav-hud__casual-avatarTap"
+            onClick={openPlayerProfile}
+            aria-label="个人资料"
+            aria-haspopup="dialog"
+            aria-controls="casual_player_profile"
+          >
+            <div className="head-nav-hud__avatar" aria-hidden>
+              <div className="head-nav-hud__avatar-pic">
+                <img
+                  className="head-nav-hud__avatar-fimg"
+                  src={resolvedAvatar}
+                  alt=""
+                  draggable={false}
+                />
+              </div>
+              <span className="head-nav-hud__level" aria-hidden>
+                {level}
+              </span>
             </div>
-            <span className="head-nav-hud__level" aria-label={`Level ${level}`}>
-              {level}
-            </span>
-          </div>
-
+          </button>
         </>
       ) : (
         <div className="head-nav-hud__guest">
@@ -401,31 +331,12 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
     </div>
   );
 
-  const currenciesCluster = (
-    <div className="head-nav-hud__currencies" aria-label="Currencies">
-      <HeadHudResourceChip
-        amountLabel={formatResourceAmount(
-          user?.uid ? (gold as number | undefined) : undefined
-        )}
-        glyphSrc={HEAD_NAV_DESKTOP_ICONS[0]}
-        onAdd={onAddResource}
-        addAriaLabel="Open store for gold"
-      />
-      <HeadHudResourceChip
-        amountLabel={formatResourceAmount(
-          user?.uid ? (gemN as number | undefined) : undefined
-        )}
-        glyphSrc={HEAD_NAV_DESKTOP_ICONS[1]}
-        onAdd={onAddResource}
-        addAriaLabel="Open store for gems"
-      />
-    </div>
-  );
-
   return (
     <nav
       className={
-        isPortraitHud ? "head-nav-hud head-nav-hud--portrait" : "head-nav-hud"
+        isPortraitHud
+          ? "head-nav-hud head-nav-hud--portrait head-nav-hud--casual"
+          : "head-nav-hud head-nav-hud--casual"
       }
       aria-label="Lobby top HUD"
     >
@@ -433,8 +344,10 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
         <>
           <div className="head-nav-hud__lead">
             {leftCluster}
-            {currenciesCluster}
+            {currencyHud}
           </div>
+          {stretch}
+          {battlePassEntry}
           <button
             ref={menuBtnRef}
             type="button"
@@ -458,27 +371,9 @@ export const CasualHeadNavBarDesktop: React.FC = () => {
       ) : (
         <>
           {leftCluster}
-          {currenciesCluster}
-          <ul className="head-nav-hud__quick" aria-label="Quick entries">
-            {quick.map((q) => (
-              <li key={q.uri} className="head-nav-hud__quick-item">
-                <button
-                  type="button"
-                  className="head-nav-hud__qbtn"
-                  aria-label={q.label}
-                  onClick={() => openPage({ uri: q.uri })}
-                >
-                  <img
-                    className="head-nav-hud__qico"
-                    src={q.src}
-                    alt=""
-                    draggable={false}
-                  />
-                  <span className="head-nav-hud__qcaption">{q.label}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {currencyHud}
+          {stretch}
+          {battlePassEntry}
         </>
       )}
     </nav>

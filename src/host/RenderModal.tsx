@@ -58,6 +58,8 @@ const componentMap: Record<string, () => Promise<any>> = {
   './battle/games/solitaireSolo/battle/PlaySolitaireSolo': () => import('component/battle/games/solitaireSolo/battle/PlaySolitaireSolo'),
   './battle/games/blockBlast/battle/PlayBlockBlast': () => import('component/battle/games/blockBlast/battle/PlayBlockBlast'),
   './lobby/tactical/view/play/ChestDrop': () => import('component/lobby/tactical/view/play/ChestDrop'),
+  './lobby/casual/view/battlePass/CasualBattlePassModal': () => import('component/lobby/casual/view/battlePass/CasualBattlePassModal'),
+  './lobby/casual/view/profile/CasualPlayerProfileModal': () => import('component/lobby/casual/view/profile/CasualPlayerProfileModal'),
 };
 
 // 错误边界组件

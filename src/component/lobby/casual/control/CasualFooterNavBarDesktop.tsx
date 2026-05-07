@@ -1,27 +1,12 @@
-import { useModalManager } from "host/service/ModalManager";
-import React, { useCallback } from "react";
+import React from "react";
 import { usePageManager } from "host/service/PageManager";
-import { useUserManager } from "host/service/UserManager";
 import "../../tactical/control/footer/FooterNavControl.css";
 import { CASUAL_NAV_MENU_ITEMS } from "./NavSharedCasual";
-import {
-  FOOTER_NAV_DESKTOP_ICON_AUTH_LOGOUT,
-  FOOTER_NAV_DESKTOP_ICON_AUTH_SIGNIN,
-  FOOTER_NAV_DESKTOP_ICONS,
-} from "../../tactical/control/footer/FooterNavDesktopConfig";
-/** 桌面：带框图标按钮（HUD 快捷栏，CSS hover/active） */
+import { FOOTER_NAV_DESKTOP_ICONS } from "../../tactical/control/footer/FooterNavDesktopConfig";
+
+/** 桌面：底栏仅 5 个 Tab（登出见顶栏） */
 export const CasualFooterNavBarDesktop: React.FC = () => {
   const { openPage } = usePageManager();
-  const { openModal } = useModalManager();
-  const { user, logout, askAuth, cancelAuth } = useUserManager();
-
-  const signIn = useCallback(() => {
-    askAuth({});
-  }, [askAuth]);
-  const signOut = useCallback(() => {
-    cancelAuth();
-    logout();
-  }, [logout, cancelAuth]);
 
   return (
     <nav className="footer-nav-desktop" aria-label="Lobby navigation">
@@ -35,8 +20,6 @@ export const CasualFooterNavBarDesktop: React.FC = () => {
               onClick={() => {
                 if (item.type === "page") {
                   openPage({ uri: item.uri });
-                } else {
-                  openModal({ name: item.uri, effect: item.effect });
                 }
               }}
             >
@@ -46,45 +29,10 @@ export const CasualFooterNavBarDesktop: React.FC = () => {
                 alt=""
                 draggable={false}
               />
-              <span className="footer-nav-desktop__caption">
-                {item.label}
-              </span>
+              <span className="footer-nav-desktop__caption">{item.label}</span>
             </button>
           </li>
         ))}
-        <li className="footer-nav-desktop__item">
-          {user?.uid ? (
-            <button
-              type="button"
-              className="footer-nav-desktop__btn footer-nav-desktop__btn--auth"
-              aria-label="Logout"
-              onClick={signOut}
-            >
-              <img
-                className="footer-nav-desktop__icon"
-                src={FOOTER_NAV_DESKTOP_ICON_AUTH_LOGOUT}
-                alt=""
-                draggable={false}
-              />
-              <span className="footer-nav-desktop__caption">Logout</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="footer-nav-desktop__btn footer-nav-desktop__btn--auth"
-              aria-label="Sign in"
-              onClick={signIn}
-            >
-              <img
-                className="footer-nav-desktop__icon"
-                src={FOOTER_NAV_DESKTOP_ICON_AUTH_SIGNIN}
-                alt=""
-                draggable={false}
-              />
-              <span className="footer-nav-desktop__caption">Sign in</span>
-            </button>
-          )}
-        </li>
       </ul>
     </nav>
   );

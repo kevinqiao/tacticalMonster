@@ -17,8 +17,9 @@ export const authenticate = internalMutation({
         token,
         coins: 1000,
         gems: 50,
-        stamina: 100,
         seasonXp: 0,
+        seasonVouchers: 0,
+        seasonChallengePoints: 0,
       });
     } else {
       await ctx.runMutation(internal.dao.casualPlayerDao.patchByUid, {

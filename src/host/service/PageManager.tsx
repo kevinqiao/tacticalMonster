@@ -89,7 +89,7 @@ const PageHandler = ({ children }: { children: React.ReactNode }) => {
     const { pageEvent, completePage } = usePageManager();
     const { playOpen } = usePageAnimate();
     useEffect(() => {
-        console.log("pageEvent", pageEvent);
+
         if (pageEvent?.name === "pageOpen") {
             playOpen({
                 page: pageEvent.page,
@@ -160,7 +160,7 @@ export const PageProvider = ({ children }: { children: React.ReactNode }) => {
         if (historiesRef.current.length > 10) {
             historiesRef.current.shift();
         }
-        console.log("openPage", page);
+
         const prepage = currentPageRef.current;
         setPageEvent({ name: "pageOpen", prepage, page: page });
         currentPageRef.current = page;

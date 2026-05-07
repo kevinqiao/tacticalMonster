@@ -7,8 +7,9 @@ export const create = internalMutation({
     token: v.optional(v.string()),
     coins: v.optional(v.number()),
     gems: v.optional(v.number()),
-    stamina: v.optional(v.number()),
     seasonXp: v.optional(v.number()),
+    seasonVouchers: v.optional(v.number()),
+    seasonChallengePoints: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -35,8 +36,9 @@ export const patchByUid = internalMutation({
     token: v.optional(v.string()),
     coins: v.optional(v.number()),
     gems: v.optional(v.number()),
-    stamina: v.optional(v.number()),
     seasonXp: v.optional(v.number()),
+    seasonVouchers: v.optional(v.number()),
+    seasonChallengePoints: v.optional(v.number()),
   },
   handler: async (ctx, { uid, ...rest }) => {
     const row = await ctx.db
@@ -48,8 +50,11 @@ export const patchByUid = internalMutation({
     if (rest.token !== undefined) patch.token = rest.token;
     if (rest.coins !== undefined) patch.coins = rest.coins;
     if (rest.gems !== undefined) patch.gems = rest.gems;
-    if (rest.stamina !== undefined) patch.stamina = rest.stamina;
     if (rest.seasonXp !== undefined) patch.seasonXp = rest.seasonXp;
+    if (rest.seasonVouchers !== undefined) patch.seasonVouchers = rest.seasonVouchers;
+    if (rest.seasonChallengePoints !== undefined) {
+      patch.seasonChallengePoints = rest.seasonChallengePoints;
+    }
     await ctx.db.patch(row._id, patch);
     return row._id;
   },

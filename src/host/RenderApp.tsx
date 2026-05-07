@@ -85,9 +85,14 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/tactical/view/Child3': () => import('component/lobby/tactical/view/Child3'),
   './lobby/tactical/view/Child4': () => import('component/lobby/tactical/view/Child4'),
   './lobby/casual/CasualHome': () => import('component/lobby/casual/CasualHome'),
-  './lobby/casual/view/Child1': () => import('component/lobby/casual/view/Child1'),
-  './lobby/casual/view/Child2': () => import('component/lobby/casual/view/Child2'),
-  './lobby/casual/view/Child3': () => import('component/lobby/casual/view/Child3'),
+  './lobby/casual/view/legacy/Child1': () => import('component/lobby/casual/view/legacy/Child1'),
+  './lobby/casual/view/legacy/Child2': () => import('component/lobby/casual/view/legacy/Child2'),
+  './lobby/casual/view/legacy/Child3': () => import('component/lobby/casual/view/legacy/Child3'),
+  './lobby/casual/view/shop/CasualShopTab': () => import('component/lobby/casual/view/shop/CasualShopTab'),
+  './lobby/casual/view/tasks/CasualTasksTab': () => import('component/lobby/casual/view/tasks/CasualTasksTab'),
+  './lobby/casual/view/play/CasualPlayTab': () => import('component/lobby/casual/view/play/CasualPlayTab'),
+  './lobby/casual/view/rewards/CasualRewardsTab': () => import('component/lobby/casual/view/rewards/CasualRewardsTab'),
+  './lobby/casual/view/leaderboards/CasualLeaderboardsTab': () => import('component/lobby/casual/view/leaderboards/CasualLeaderboardsTab'),
 };
 
 // 获取缓存的组件
@@ -132,7 +137,6 @@ const getCachedComponent = (path: string): React.ComponentType<PageProp> => {
 // 优化的页面组件
 const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer }> = ({ parent, container }) => {
   const [visible, setVisible] = useState(0);
-  const [data, setData] = useState<{ [key: string]: any } | undefined>(undefined);
   const { pageEvent, pageContainers } = usePageManager();
 
   const { playInit } = usePageAnimate();
@@ -194,10 +198,7 @@ const PageComponent: React.FC<{ parent?: PageContainer; container: PageContainer
           />
         ))}
         <Suspense fallback={<div />}>
-          <SelectedComponent
-            data={data}
-            visible={visible}
-          />
+          <SelectedComponent visible={visible} />
         </Suspense>
       </div>
 

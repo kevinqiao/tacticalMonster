@@ -4,6 +4,7 @@ import { useSharedPageData } from "host/service/SharedPageDataManager";
 import FooterNavControl from "./control/footer/FooterNavControl";
 import HeadNavControl from "./control/head/HeadNavControl";
 import "./style.css";
+import { LOBBY_CHROME_STRIP_HEIGHT_CSS } from "../lobbyChromeStrip";
 import { useLobbyHomeChrome } from "./useLobbyHomeChrome";
 
 const LOBBY_CHROME_Z = 1000;
@@ -11,7 +12,7 @@ const LOBBY_CHROME_Z = 1000;
  * 顶栏 / 底栏外框严格同高；略抬下限给底栏 HUD（图标+文案）留高，避免只能靠 cqh 把按钮压扁。
  * 底部安全区由壳体样式控制，不把 #footer 总高加成高于 #header。
  */
-const STRIP_H = "clamp(52px, 9dvh, 100px)";
+const STRIP_H = LOBBY_CHROME_STRIP_HEIGHT_CSS;
 
 const LobbyHome: React.FC<PageProp> = () => {
   const headRef = useRef<HTMLDivElement | null>(null);

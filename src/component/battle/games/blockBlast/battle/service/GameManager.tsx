@@ -1,7 +1,7 @@
 /**
  * Block Blast 游戏管理器（对齐 solitaireSolo：interactionPhase、loadGame、战报与提交）
  */
-import { useCasualPlatformOptional } from '@/component/lobby/casual/service/useCasualPlatformManager';
+import { useCasualPlatform } from '@/component/lobby/casual/service/useCasualPlatformManager';
 import { useConvex } from 'convex/react';
 import gsap from 'gsap';
 import React, {
@@ -129,7 +129,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     }
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
-    const casualPlatform = useCasualPlatformOptional();
+    const casualPlatform = useCasualPlatform();
 
     const ruleManager = useMemo(() => {
         if (!gameState) return null;

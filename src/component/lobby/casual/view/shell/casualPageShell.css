@@ -1,0 +1,111 @@
+/* 休闲 Tab 通用骨架：唯一纵向滚动在 __body，底栏 + safe-area 留白 */
+
+.casual-page-shell-root {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+}
+
+.casual-page-shell {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #f0f4fa;
+  color: #1a1a2e;
+}
+
+.casual-page-shell__offline {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  background: rgba(255, 193, 7, 0.18);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.casual-page-shell__offline code {
+  font-size: 12px;
+}
+
+.casual-page-shell__auth {
+  flex-shrink: 0;
+  margin: 12px 16px 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.casual-page-shell__auth p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.casual-page-shell__auth button {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 8px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #2d6cdf;
+  color: #fff;
+}
+
+.casual-page-shell__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* 高度与 LobbyHome/CasualHome STRIP_H 一致：见 TS `LOBBY_CHROME_STRIP_HEIGHT_CSS` */
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+.casual-page-shell__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.casual-page-shell__body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-top: 12px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: calc(
+    var(--casual-shell-footer-pad, 64px) + env(safe-area-inset-bottom, 0px) + 8px
+  );
+}
+
+.casual-page-shell__bodyInner {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* 触摸屏：把横向交给 JS 识别 Tab 横滑，纵向仍由 body 滚动（与 hook 内 touchAction 一致） */
+@media (any-pointer: coarse) {
+  .casual-page-shell-root {
+    touch-action: pan-y;
+  }
+
+  .casual-page-shell__body {
+    touch-action: pan-y;
+  }
+}

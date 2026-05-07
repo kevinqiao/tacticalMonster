@@ -39,12 +39,16 @@ export const authenticate = action({
         );
         if (player && typeof player === "object") {
           const p = player as Record<string, unknown>;
+          await ctx.runMutation(internal.service.casualTaskService.recordDailyLogin, {
+            uid,
+          });
           return {
             uid: p.uid,
             coins: p.coins,
             gems: p.gems,
-            stamina: p.stamina,
             seasonXp: p.seasonXp,
+            seasonVouchers: p.seasonVouchers,
+            seasonChallengePoints: p.seasonChallengePoints,
           };
         }
       }

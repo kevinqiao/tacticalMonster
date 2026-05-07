@@ -15,7 +15,7 @@ const getActiveIndexFromLocation = (): number => {
   return idx >= 0 ? idx : 0;
 };
 
-/** 竖屏触摸专用：与 tactical 同款底栏，休闲为 3tab + CSS 变体 */
+/** 竖屏触摸专用：与 tactical 同款底栏，休闲为 5 Tab + CSS 变体 */
 export const CasualFooterNavBarTouchPortrait: React.FC = () => {
   const { openPage, pageEvent } = usePageManager();
   const [activeIndex, setActiveIndex] = useState<number>(() =>

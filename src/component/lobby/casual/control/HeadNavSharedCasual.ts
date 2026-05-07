@@ -1,27 +1,44 @@
-/** Casual 顶栏 HUD：路由与竖屏菜单（与 tactical HeadNavShared 同构，URI 指向 `/casual/lobby`） */
+/** Casual 顶栏 HUD：路由与竖屏菜单（与 tactical HeadNavShared 同构） */
+
+/** 顶栏常驻「通行证」与竖屏菜单共用 */
+export const CASUAL_BATTLE_PASS_MODAL_OPEN = {
+  name: "casual_battle_pass",
+  effect: { name: "swipeRight", args: { width: "min(100%, 800px)" } },
+} as const;
+
+/** 头像打开个人资料（popCenter）；内含 Logout */
+export const CASUAL_PLAYER_PROFILE_MODAL_OPEN = {
+  name: "casual_player_profile",
+  effect: { name: "popCenter", args: { width: "88%", maxWidth: "400px", height: "auto" } },
+} as const;
 
 export const CASUAL_HEAD_NAV_URI = [
   "/casual/lobby/c1",
   "/casual/lobby/c2",
   "/casual/lobby/c3",
+  "/casual/lobby/c4",
+  "/casual/lobby/c5",
 ] as const;
 
-export const CASUAL_HEAD_NAV_LABEL = ["Solo", "Missions", "Tournaments"] as const;
+export const CASUAL_HEAD_NAV_LABEL = ["商店", "任务", "Play", "奖励", "排行榜"] as const;
 
+/** 竖屏汉堡菜单：五页；锦标历史入口在 Play Tab */
 export const CASUAL_HEAD_NAV_MENU_ITEMS: {
   label: string;
   type: "page" | "modal";
   uri: string;
   effect?: { name: string; args?: any };
 }[] = [
-  { label: "Solo", type: "page", uri: "/casual/lobby/c1" },
-  { label: "Missions", type: "page", uri: "/casual/lobby/c2" },
-  { label: "Tournaments", type: "page", uri: "/casual/lobby/c3" },
+  { label: "商店", type: "page", uri: "/casual/lobby/c1" },
+  { label: "任务", type: "page", uri: "/casual/lobby/c2" },
+  { label: "Play", type: "page", uri: "/casual/lobby/c3" },
+  { label: "奖励", type: "page", uri: "/casual/lobby/c4" },
+  { label: "排行榜", type: "page", uri: "/casual/lobby/c5" },
   {
-    label: "Tournament history",
+    label: "通行证",
     type: "modal",
-    uri: "tournament_history",
-    effect: { name: "swipeRight", args: { width: "50%" } },
+    uri: CASUAL_BATTLE_PASS_MODAL_OPEN.name,
+    effect: CASUAL_BATTLE_PASS_MODAL_OPEN.effect,
   },
 ];
 

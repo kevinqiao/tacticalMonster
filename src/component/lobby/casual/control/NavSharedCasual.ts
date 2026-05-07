@@ -1,4 +1,4 @@
-/** Casual 底栏桌面 HUD：与 tactical NavShared 同构 */
+/** Casual 底栏桌面 HUD：与 tactical NavShared 同构；锦标历史入口在 Play Tab 模态 */
 
 export const CASUAL_NAV_MENU_ITEMS: {
   label: string;
@@ -6,13 +6,9 @@ export const CASUAL_NAV_MENU_ITEMS: {
   uri: string;
   effect?: { name: string; args?: any };
 }[] = [
-  { label: "Solo", type: "page", uri: "/casual/lobby/c1" },
-  { label: "Missions", type: "page", uri: "/casual/lobby/c2" },
-  { label: "Tournaments", type: "page", uri: "/casual/lobby/c3" },
-  {
-    label: "History",
-    type: "modal",
-    uri: "tournament_history",
-    effect: { name: "popCenter", args: { width: "50%", height: "50%" } },
-  },
+  { label: "商店", type: "page", uri: "/casual/lobby/c1" },
+  { label: "任务", type: "page", uri: "/casual/lobby/c2" },
+  { label: "Play", type: "page", uri: "/casual/lobby/c3" },
+  { label: "奖励", type: "page", uri: "/casual/lobby/c4" },
+  { label: "排行榜", type: "page", uri: "/casual/lobby/c5" },
 ];

@@ -1,6 +1,5 @@
 import React, { useCallback, useId, useMemo } from "react";
 import { usePageManager } from "host/service/PageManager";
-import { useUserManager } from "host/service/UserManager";
 import "../../tactical/control/footer/FooterNavControl.css";
 import navHoverSprite from "../../tactical/control/footer/assets/nav-hover-sprite.png";
 import { FooterNavHitPath } from "../../tactical/control/footer/FooterNavHitPath";
@@ -11,24 +10,15 @@ import {
 } from "../../tactical/control/footer/FooterNavCellLayout";
 import { CASUAL_FOOTER_NAV_LABEL, CASUAL_FOOTER_NAV_URI } from "./FooterNavCasual";
 
-/** 横屏触摸：与 tactical 同款条带；前两格外为占位装饰格（无导航），末格为登录态 */
+/** 横屏触摸：与 tactical 同款条带；前 5 格为休闲 Tab，末格装饰（登出见顶栏） */
 export const CasualFooterNavBarTouch: React.FC = () => {
   const { openPage } = usePageManager();
-  const { user, logout, askAuth, cancelAuth } = useUserManager();
   const hoverPatternId = useId().replace(/:/g, "");
 
   const pathDs = useMemo(
     () => WIDTH_PCT.map((_, index) => footerNavCellRectPathD(index)),
     []
   );
-
-  const signIn = useCallback(() => {
-    askAuth({});
-  }, [askAuth]);
-  const signOut = useCallback(() => {
-    cancelAuth();
-    logout();
-  }, [logout, cancelAuth]);
 
   const cellPlacements = useMemo(() => {
     let offsetPct = 0;
@@ -75,7 +65,7 @@ export const CasualFooterNavBarTouch: React.FC = () => {
           </pattern>
         </defs>
         {cellPlacements.map(({ pathD, index }) => {
-          if (index < 3) {
+          if (index < 5) {
             const uri = CASUAL_FOOTER_NAV_URI[index];
             const label = CASUAL_FOOTER_NAV_LABEL[index];
             return (
@@ -89,59 +79,23 @@ export const CasualFooterNavBarTouch: React.FC = () => {
               />
             );
           }
-          if (index === 3 || index === 4) {
-            return (
-              <path
-                key={`casual-strip-dead-${index}`}
-                d={pathD}
-                fill="transparent"
-                style={{ pointerEvents: "none" }}
-                aria-hidden
-              />
-            );
-          }
-          return user?.uid ? (
-            <FooterNavHitPath
-              key="logout"
+          return (
+            <path
+              key="casual-strip-tail"
               d={pathD}
-              fill={patternFill}
-              ariaLabel="Logout"
-              onClick={signOut}
-              onKeyDown={onPathKeyDown(signOut)}
-            />
-          ) : (
-            <FooterNavHitPath
-              key="signin"
-              d={pathD}
-              fill={patternFill}
-              ariaLabel="Sign in"
-              onClick={signIn}
-              onKeyDown={onPathKeyDown(signIn)}
+              fill="transparent"
+              style={{ pointerEvents: "none" }}
+              aria-hidden
             />
           );
         })}
       </svg>
       <div className="footer-nav-label-layer">
         {cellPlacements.map(({ offsetPct, index }) => {
-          const label =
-            index < 3
-              ? CASUAL_FOOTER_NAV_LABEL[index]
-              : index < 5
-                ? ""
-                : user?.uid
-                  ? "Logout"
-                  : "SignIn";
+          const label = index < 5 ? CASUAL_FOOTER_NAV_LABEL[index] : "";
           return (
             <div
-              key={
-                index < 3
-                  ? CASUAL_FOOTER_NAV_URI[index]
-                  : index < 5
-                    ? `dead-${index}`
-                    : user?.uid
-                      ? "logout"
-                      : "signin"
-              }
+              key={index < 5 ? CASUAL_FOOTER_NAV_URI[index] : "tail"}
               className="footer-nav-label-slot"
               style={{
                 left: `${offsetPct}%`,

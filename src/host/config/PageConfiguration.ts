@@ -44,15 +44,17 @@ export const CasualPlace =
             path: "./lobby/casual/CasualHome",
             uri: "lobby",
             bootCriticalAssetUrls: ["/logo192.png", "/icons/001-clock.svg"],
-            child: "child2",
+            child: "child3",
             class: "page_container",
             enter: "fadeIn",
             exit: "fadeOut",
             control: "./lobby/casual/LobbyControl",
             children: [
-                { name: "child1", class: "page_container", init: "slide", path: "./lobby/casual/view/Child1", uri: "c1", auth: 1, open: "slideIn" },
-                { name: "child2", class: "page_container", init: "slide", path: "./lobby/casual/view/Child2", uri: "c2", auth: 0, open: "slideIn" },
-                { name: "child3", class: "page_container", init: "slide", path: "./lobby/casual/view/Child3", uri: "c3", auth: 0, open: "slideIn" },
+                { name: "child1", class: "page_container", init: "slide", path: "./lobby/casual/view/shop/CasualShopTab", uri: "c1", auth: 0, open: "slideIn" },
+                { name: "child2", class: "page_container", init: "slide", path: "./lobby/casual/view/tasks/CasualTasksTab", uri: "c2", auth: 0, open: "slideIn" },
+                { name: "child3", class: "page_container", init: "slide", path: "./lobby/casual/view/play/CasualPlayTab", uri: "c3", auth: 0, open: "slideIn" },
+                { name: "child4", class: "page_container", init: "slide", path: "./lobby/casual/view/rewards/CasualRewardsTab", uri: "c4", auth: 0, open: "slideIn" },
+                { name: "child5", class: "page_container", init: "slide", path: "./lobby/casual/view/leaderboards/CasualLeaderboardsTab", uri: "c5", auth: 0, open: "slideIn" },
             ]
         }
 
@@ -112,7 +114,20 @@ export const Modals: Record<string, ModalConfig> = {
         path: "./battle/games/blockBlast/battle/PlayBlockBlast",
         auth: 1,
         effects: [{ name: "popCenter", orientation: "portrait", args: { width: "100%", height: "100%" } }],
-    }
+    },
+    "casual_battle_pass": {
+        name: "casual_battle_pass",
+        path: "./lobby/casual/view/battlePass/CasualBattlePassModal",
+        auth: 0,
+        /** 自右侧滑入；高度满屏，宽度不超过 800px（窄屏为 100%） */
+        effects: [{ name: "swipeRight", args: { width: "min(100%, 800px)" } }],
+    },
+    "casual_player_profile": {
+        name: "casual_player_profile",
+        path: "./lobby/casual/view/profile/CasualPlayerProfileModal",
+        auth: 0,
+        effects: [{ name: "popCenter", args: { width: "88%", maxWidth: "400px", height: "auto" } }],
+    },
 }
 // export const animates: { [k: number]: any } = {
 //     1: { autoAlpha: 1, duration: 1.2 },

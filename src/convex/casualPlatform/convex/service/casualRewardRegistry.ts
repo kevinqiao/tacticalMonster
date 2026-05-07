@@ -13,7 +13,8 @@ export const grantCasualReward = internalMutation({
       v.literal("coins"),
       v.literal("gems"),
       v.literal("seasonXp"),
-      v.literal("seasonVoucher")
+      v.literal("seasonVoucher"),
+      v.literal("seasonChallengePoints")
     ),
     amount: v.number(),
   },
@@ -23,12 +24,21 @@ export const grantCasualReward = internalMutation({
     const delta = Math.max(0, Math.floor(amount));
     if (delta === 0) return { ok: true as const };
 
+    if (kind === "seasonXp") {
+      await ctx.runMutation(internal.service.casualSeasonService.addPassXpFromRun, {
+        uid,
+        deltaXp: delta,
+      });
+      return { ok: true as const };
+    }
     const patch: Record<string, number> = {};
     if (kind === "coins") patch.coins = (row.coins ?? 0) + delta;
     if (kind === "gems") patch.gems = (row.gems ?? 0) + delta;
-    if (kind === "seasonXp") patch.seasonXp = (row.seasonXp ?? 0) + delta;
     if (kind === "seasonVoucher") {
-      patch.gems = (row.gems ?? 0) + delta;
+      patch.seasonVouchers = (row.seasonVouchers ?? 0) + delta;
+    }
+    if (kind === "seasonChallengePoints") {
+      patch.seasonChallengePoints = (row.seasonChallengePoints ?? 0) + delta;
     }
     await ctx.db.patch(row._id, { ...patch, updatedAt: Date.now() });
     return { ok: true as const };
