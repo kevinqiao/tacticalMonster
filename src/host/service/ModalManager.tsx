@@ -1,5 +1,5 @@
-import { ModalConfig, Modals } from "../config/PageConfiguration";
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { ModalConfig, Modals } from "../config/PageConfiguration";
 import { useUserManager } from "./UserManager";
 export interface ModalProp {
   visible: boolean;
@@ -12,6 +12,10 @@ export interface ModalItem {
   data?: any;
   effect?: { name: string, args?: any }
 }
+export interface ModalEvent {
+  name?: "modalOpen" | "modalClose";
+  modals: string[];
+}
 
 export interface ModalContainer extends ModalConfig {
   ele?: HTMLDivElement | null;
@@ -21,6 +25,7 @@ export interface ModalContainer extends ModalConfig {
 }
 
 interface IModalContext {
+  modalEvent: ModalEvent | null;
   modals: ModalItem[];
   modalContainers: { [key: string]: ModalContainer };
   openModal: ({ name, data, effect }: { name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } }) => void;
@@ -29,6 +34,7 @@ interface IModalContext {
   closeAll: () => void;
 }
 const ModalContext = createContext<IModalContext>({
+  modalEvent: null,
   modals: [],
   modalContainers: {},
   openModal: ({ name, data, effect }: { name: string, data?: { [key: string]: any }, effect?: { name: string, args?: any } }) => { },
@@ -40,6 +46,7 @@ const ModalContext = createContext<IModalContext>({
 export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, askAuth } = useUserManager();
   const [modals, setModals] = useState<ModalItem[]>([]);
+  const [modalEvent, setModalEvent] = useState<ModalEvent | null>(null);
   // const orientation = useSharedValue("lobby.layout.orientation");
   /** 仅在横竖屏 boolean 实际切换时关 modal；避免 portrait 短暂 undefined/null 时误清空 */
 
@@ -55,10 +62,13 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     setModals((prev) => {
-      const pre = prev.find((modal) => modal.name === name)
-      // console.log("open modal", pre);
-      const p = pre ? prev : [...prev, { name, data, effect }];
-      return p;
+      const i = prev.findIndex((m) => m.name === name);
+      if (i >= 0) {
+        const next = [...prev];
+        next[i] = { name, data, effect };
+        return next;
+      }
+      return [...prev, { name, data, effect }];
     });
 
   }, [user, askAuth])
@@ -72,6 +82,7 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const value = {
+    modalEvent,
     modals,
     modalContainers,
     submitModal: submitModal,
@@ -80,16 +91,21 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
       setModals((prev) => {
         if (!name) {
           const newModals = prev.slice(0, -1);
-          console.log("close modal(last)", newModals);
           return newModals;
         }
+        setModalEvent({ name: "modalClose", modals: [name] });
         const newModals = prev.filter((modal) => modal.name !== name);
         // console.log("close modal", newModals);
         return newModals;
       })
     }, []),
     closeAll: useCallback(() => {
-      setModals([]);
+      setModals((prev) => {
+        if (prev && prev.length > 0) {
+          setModalEvent({ name: "modalClose", modals: prev.map((modal) => modal.name) });
+        }
+        return [];
+      })
     }, []),
   }
 

@@ -1,0 +1,8 @@
+.casual-tasks-modal {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
+  padding: 16px 14px 28px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  color: #1e293b;
+}

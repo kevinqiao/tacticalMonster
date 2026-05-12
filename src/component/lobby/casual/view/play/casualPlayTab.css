@@ -1,105 +1,84 @@
-/* Solitaire Cash–style tournament hub：深绿底、金强调、白卡片、绿色主 CTA */
+/* Play Hub：任务条 + 各游戏仅锦标赛入口（侧栏 swipeRight 由 Modal 配置） */
 
-.casual-play-tourney {
-  --sc-green-deep: #064e3b;
-  --sc-green-mid: #0f766e;
-  --sc-green-bright: #14b8a6;
-  --sc-gold: #fbbf24;
-  --sc-gold-deep: #d97706;
-  --sc-cta: #22c55e;
-  --sc-cta-press: #16a34a;
-  --sc-card: #ffffff;
-  --sc-ink: #0f172a;
-  --sc-muted: rgba(255, 255, 255, 0.82);
+.casual-play-hub {
+  --hub-green-deep: #064e3b;
+  --hub-green-mid: #0f766e;
+  --hub-gold: #fbbf24;
+  --hub-gold-deep: #d97706;
+  --hub-cta: #22c55e;
+  --hub-cta-press: #16a34a;
+  --hub-card: #ffffff;
+  --hub-ink: #0f172a;
+  --hub-muted: rgba(255, 255, 255, 0.82);
   box-sizing: border-box;
   width: 100%;
-  min-height: min(70vh, 640px);
+  min-height: min(72vh, 620px);
   margin: -16px -16px 0;
-  padding: 0 0 24px;
+  padding: 0 0 28px;
   background:
     radial-gradient(ellipse 120% 80% at 50% -20%, rgba(20, 184, 166, 0.35), transparent 55%),
-    linear-gradient(165deg, var(--sc-green-deep) 0%, #022c22 48%, #064e3b 100%);
-  color: var(--sc-muted);
+    linear-gradient(165deg, var(--hub-green-deep) 0%, #022c22 48%, #064e3b 100%);
+  color: var(--hub-muted);
   border-radius: 0 0 18px 18px;
   overflow: hidden;
 }
 
 @media (min-width: 480px) {
-  .casual-play-tourney {
+  .casual-play-hub {
     margin-left: 0;
     margin-right: 0;
     border-radius: 16px;
   }
 }
 
-/* 与「赛季专场」内按钮同宽同 padding，单独置顶一行 */
-.casual-play-tourney__topActions {
-  padding: 12px 14px 0;
-  box-sizing: border-box;
-}
-
-.casual-play-tourney__hero {
-  padding: 20px 16px 14px;
-  text-align: center;
-  position: relative;
-}
-
-.casual-play-tourney__heroTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.casual-play-tourney__history {
-  flex-shrink: 0;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(0, 0, 0, 0.2);
-  color: #ecfdf5;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.casual-play-tourney__history:active {
-  filter: brightness(0.92);
-}
-
-.casual-play-tourney__titleBlock {
-  flex: 1;
-  min-width: 0;
-}
-
-.casual-play-tourney__title {
-  margin: 0;
-  font-size: clamp(26px, 7vw, 34px);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
-}
-
-.casual-play-tourney__subtitle {
-  margin: 6px 0 0;
-  font-size: 13px;
-  font-weight: 500;
-  opacity: 0.9;
-  color: rgba(236, 253, 245, 0.95);
-}
-
-.casual-play-tourney__balances {
+.casual-play-hub__balances {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  margin-top: 14px;
+  padding: 14px 14px 4px;
 }
 
-.casual-play-tourney__chip {
+.casual-play-hub__ongoingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 14px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.casual-play-hub__ongoingRowText {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fef3c7;
+  line-height: 1.35;
+}
+
+.casual-play-hub__ongoingEnter {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 45%, #d97706 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.casual-play-hub__ongoingEnter:active {
+  filter: brightness(0.95);
+}
+
+.casual-play-hub__chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -112,27 +91,13 @@
   color: #fff;
 }
 
-.casual-play-tourney__chip b {
-  color: var(--sc-gold);
+.casual-play-hub__chip b {
+  color: var(--hub-gold);
   font-weight: 800;
 }
 
-.casual-play-tourney__list {
-  padding: 12px 12px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.casual-play-tourney__empty {
-  margin: 28px 16px;
-  text-align: center;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.casual-play-tourney__toast {
-  margin: 0 14px 10px;
+.casual-play-hub__toast {
+  margin: 10px 14px 0;
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(254, 243, 199, 0.95);
@@ -142,281 +107,182 @@
   border: 1px solid rgba(251, 191, 36, 0.6);
 }
 
-.casual-play-tourney__card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto auto;
-  gap: 8px 12px;
-  align-items: center;
-  padding: 14px 14px 12px;
-  border-radius: 14px;
-  background: var(--sc-card);
-  color: var(--sc-ink);
-  box-shadow:
-    0 4px 0 rgba(6, 78, 59, 0.35),
-    0 12px 28px rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(15, 118, 110, 0.12);
-}
-
-.casual-play-tourney__cardMain {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  min-width: 0;
-}
-
-.casual-play-tourney__cardBadge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(15, 118, 110, 0.12);
-  color: var(--sc-green-mid);
-  margin-bottom: 6px;
-}
-
-.casual-play-tourney__cardBadge--a {
-  background: rgba(34, 197, 94, 0.15);
-  color: #15803d;
-}
-
-.casual-play-tourney__cardBadge--b {
-  background: rgba(251, 191, 36, 0.2);
-  color: var(--sc-gold-deep);
-}
-
-.casual-play-tourney__cardBadge--c {
-  background: rgba(168, 85, 247, 0.15);
-  color: #7e22ce;
-}
-
-.casual-play-tourney__cardBadge--spot {
-  background: rgba(14, 165, 233, 0.14);
-  color: #0369a1;
-}
-
-.casual-play-tourney__cardTitle {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.25;
-  color: var(--sc-ink);
-}
-
-.casual-play-tourney__cardGame {
-  margin: 4px 0 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.casual-play-tourney__cardPrize {
-  grid-column: 1;
-  grid-row: 3;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--sc-gold-deep);
-}
-
-.casual-play-tourney__cardPrize span {
-  color: #78716c;
-  font-weight: 600;
-  font-size: 11px;
-  margin-right: 6px;
-}
-
-.casual-play-tourney__cardEntry {
-  grid-column: 2;
-  grid-row: 1;
-  text-align: right;
+.casual-play-hub__ongoing {
+  margin: 6px 0 8px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.22);
+  color: #fef3c7;
   font-size: 11px;
   font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  line-height: 1.3;
+  border: 1px solid rgba(251, 191, 36, 0.35);
 }
 
-.casual-play-tourney__cardEntryFee {
-  grid-column: 2;
-  grid-row: 2;
-  text-align: right;
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--sc-ink);
+.casual-play-hub__row {
+  padding: 16px 14px 0;
 }
 
-.casual-play-tourney__feeLine {
-  display: inline-flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.casual-play-tourney__feeStrike {
-  text-decoration: line-through;
-  font-weight: 700;
-  color: #94a3b8;
-  font-size: 13px;
-}
-
-.casual-play-tourney__feeArrow {
-  font-weight: 800;
-  color: #0f766e;
-  font-size: 13px;
-}
-
-.casual-play-tourney__feeNow {
-  color: #047857;
-  font-weight: 900;
-}
-
-.casual-play-tourney__enter {
-  grid-column: 2;
-  grid-row: 3;
-  justify-self: end;
-  min-width: 108px;
-  padding: 10px 18px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #4ade80 0%, var(--sc-cta) 45%, var(--sc-cta-press) 100%);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 4px 0 #14532d,
-    0 8px 16px rgba(22, 163, 74, 0.35);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
-}
-
-.casual-play-tourney__enter:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.casual-play-tourney__enter:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    0 2px 0 #14532d,
-    0 4px 10px rgba(22, 163, 74, 0.3);
-}
-
-.casual-play-tourney__section {
-  padding: 8px 14px 4px;
-  margin-top: 8px;
-}
-
-.casual-play-tourney__sectionTitle {
+.casual-play-hub__rowTitle {
   margin: 0 0 10px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
-  color: #fff;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(236, 253, 245, 0.55);
 }
 
-.casual-play-tourney__sectionHint {
-  margin: -4px 0 10px;
-  font-size: 12px;
-  color: rgba(236, 253, 245, 0.75);
-  line-height: 1.4;
-}
-
-.casual-play-tourney__seasonChallengeGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.casual-play-tourney__spotBtn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  background: linear-gradient(135deg, rgba(120, 53, 15, 0.55) 0%, rgba(30, 20, 10, 0.75) 100%);
-  color: #fffbeb;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  text-align: left;
-}
-
-.casual-play-tourney__spotBtn:active {
-  filter: brightness(0.95);
-}
-
-.casual-play-tourney__spotBtn small {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.casual-play-tourney__spotBtnChev {
-  flex-shrink: 0;
-  font-size: 18px;
-  opacity: 0.7;
-}
-
-.casual-play-tourney__practice {
+.casual-play-hub__taskStrip {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   width: 100%;
-  padding: 16px 16px;
+  padding: 14px 16px;
   border-radius: 14px;
-  border: 2px solid rgba(59, 130, 246, 0.55);
-  background: linear-gradient(135deg, rgba(30, 58, 138, 0.65) 0%, rgba(15, 23, 42, 0.9) 100%);
-  color: #e0e7ff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.22);
+  color: #ecfdf5;
   cursor: pointer;
   text-align: left;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
-.casual-play-tourney__practice:active {
-  filter: brightness(0.96);
+.casual-play-hub__taskStrip:active {
+  filter: brightness(0.94);
 }
 
-.casual-play-tourney__practice strong {
+.casual-play-hub__taskStripTitle {
   display: block;
   font-size: 16px;
   font-weight: 800;
-  color: #fff;
 }
 
-.casual-play-tourney__practice span {
+.casual-play-hub__taskStripSub {
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  opacity: 0.88;
-  line-height: 1.35;
+  font-weight: 600;
+  opacity: 0.82;
 }
 
-.casual-play-tourney__practicePlay {
+.casual-play-hub__taskStripChev {
   flex-shrink: 0;
-  padding: 10px 16px;
-  border-radius: 10px;
-  border: none;
-  background: #3b82f6;
-  color: #fff;
-  font-weight: 800;
-  font-size: 13px;
-  cursor: pointer;
+  font-size: 22px;
+  opacity: 0.65;
+  font-weight: 300;
 }
 
-.casual-play-tourney__offline {
+.casual-play-hub__gameGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.casual-play-hub__modeCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 190px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--hub-card);
+  color: var(--hub-ink);
+  box-shadow:
+    0 4px 0 rgba(6, 78, 59, 0.28),
+    0 10px 22px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(15, 118, 110, 0.12);
+}
+
+.casual-play-hub__modeTitle {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.casual-play-hub__tileVisual {
+  width: 100%;
+  height: 74px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.casual-play-hub__tileVisual--solitaire {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(145deg, #ecfdf5 0%, #d1fae5 45%, #a7f3d0 100%);
+  border: 1px solid rgba(15, 118, 110, 0.15);
+}
+
+.casual-play-hub__suit {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.casual-play-hub__suit--red {
+  color: #dc2626;
+}
+
+.casual-play-hub__suit--black {
+  color: #0f172a;
+}
+
+.casual-play-hub__tileVisual--blast {
+  background:
+    linear-gradient(135deg, rgba(56, 189, 248, 0.35) 0%, transparent 50%),
+    linear-gradient(225deg, rgba(167, 139, 250, 0.35) 0%, transparent 45%),
+    linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.casual-play-hub__gameHint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.casual-play-hub__modeBtn {
+  margin-top: auto;
+  min-height: 40px;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #4ade80 0%, var(--hub-cta) 45%, var(--hub-cta-press) 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 3px 0 #14532d,
+    0 6px 12px rgba(22, 163, 74, 0.3);
+}
+
+.casual-play-hub__modeBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.casual-play-hub__modeBtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.casual-play-hub__modeBtn--secondary {
+  background: #fff;
+  color: #0f766e;
+  border: 1px solid rgba(15, 118, 110, 0.25);
+  box-shadow: 0 3px 0 rgba(15, 118, 110, 0.2);
+}
+
+.casual-play-hub__offline {
   padding: 20px 16px;
   text-align: center;
   font-size: 14px;
@@ -424,7 +290,7 @@
   line-height: 1.5;
 }
 
-.casual-play-tourney__offline code {
+.casual-play-hub__offline code {
   font-size: 12px;
   color: #fef08a;
 }

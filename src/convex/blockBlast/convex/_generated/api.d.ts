@@ -11,6 +11,7 @@
 import type * as proxy_controller from "../proxy/controller.js";
 import type * as service_BlockBlastGameEngine from "../service/BlockBlastGameEngine.js";
 import type * as service_BlockBlastRuleManager from "../service/BlockBlastRuleManager.js";
+import type * as service_casualBridgeEnv from "../service/casualBridgeEnv.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as types_BlockBlastTypes from "../types/BlockBlastTypes.js";
 import type * as types_blockBlastGridConfig from "../types/blockBlastGridConfig.js";
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   "proxy/controller": typeof proxy_controller;
   "service/BlockBlastGameEngine": typeof service_BlockBlastGameEngine;
   "service/BlockBlastRuleManager": typeof service_BlockBlastRuleManager;
+  "service/casualBridgeEnv": typeof service_casualBridgeEnv;
   "service/gameManager": typeof service_gameManager;
   "types/BlockBlastTypes": typeof types_BlockBlastTypes;
   "types/blockBlastGridConfig": typeof types_blockBlastGridConfig;

@@ -1,6 +1,6 @@
 import {
-  SEASON_SHELF_SKUS,
   seasonShelfPriceHint,
+  seasonShelfSkusForSeasonId,
   type SeasonShelfSku,
 } from "@/convex/casualPlatform/convex/data/casualSeasonShelfCatalog";
 import { PageProp } from "host/RenderApp";
@@ -138,18 +138,30 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
     [casual.activities]
   );
 
-  const seasonShelfRows = useMemo(
-    () => (casual.seasonShelfSkus.length > 0 ? casual.seasonShelfSkus : SEASON_SHELF_SKUS),
-    [casual.seasonShelfSkus]
+  const activeSeasonIdForShelf = useMemo(
+    () =>
+      casual.seasons.find((s) => s.active)?.seasonId ??
+      casual.seasons[0]?.seasonId ??
+      "casual_s1",
+    [casual.seasons]
   );
+
+  const seasonShelfRows = useMemo(() => {
+    if (casual.seasonShelfSkus.length > 0) return casual.seasonShelfSkus;
+    return seasonShelfSkusForSeasonId(activeSeasonIdForShelf);
+  }, [casual.seasonShelfSkus, activeSeasonIdForShelf]);
 
   const walletSeason = useMemo(
     () => ({
-      vouchers: casual.casualPlayer?.seasonVouchers ?? 0,
-      challengePts: casual.casualPlayer?.seasonChallengePoints ?? 0,
+      vouchers:
+        casual.passProgress?.seasonVouchers ?? casual.casualPlayer?.seasonVouchers ?? 0,
+      challengePts:
+        casual.passProgress?.seasonChallengePoints ??
+        casual.casualPlayer?.seasonChallengePoints ??
+        0,
       gems: casual.casualPlayer?.gems ?? 0,
     }),
-    [casual.casualPlayer]
+    [casual.casualPlayer, casual.passProgress]
   );
 
   const canRedeemSeasonShelf = Boolean(user?.uid && casual.convexUrl);
@@ -281,11 +293,14 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
           <div className="casual-shop__seasonHead">
             <div>
               <h2 id="casual-shop-season-shelf" className="casual-shop__seasonTitle">
-                赛季专属
+                赛季专属货架
               </h2>
               <p className="casual-shop__seasonHint">
-                纪念箱 / 补给 / 解锁礼包等与 Play「赛季专场」同源；每张卡下方列出<strong>与本 SKU 同时命中</strong>
-                的限时活动（与后端扣券上下文一致）。券价预览以服务端为准。每账号每 SKU 限兑 1 次。
+                当前赛季 <code className="casual-shop__seasonCode">{activeSeasonIdForShelf}</code>
+                ：纪念箱 / 补给 / 解锁礼包与 Play「赛季专场」同源；卡片的 SKU 与后端
+                <code className="casual-shop__seasonCode"> listSeasonShelf </code>
+                一致（非 S1 赛季会自动映射 <code className="casual-shop__seasonCode">_s2</code> 等后缀）。
+                每张卡下列出<strong>与本 SKU 同时命中</strong>的限时活动。每账号每 SKU 限兑 1 次。
               </p>
             </div>
             <button
@@ -310,6 +325,12 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
             </div>
           ) : null}
           <div className="casual-shop__grid casual-shop__grid--season">
+            {seasonShelfRows.length === 0 ? (
+              <p className="casual-shop__seasonEmpty" role="status">
+                本赛季暂无货架配表。请检查 Convex 是否已部署 <code>listSeasonShelf</code>，以及{' '}
+                <code>casualSeasonShelfCatalog</code> 中模板 SKU。
+              </p>
+            ) : null}
             {seasonShelfRows.map((sku) => {
               const shelfMatchedActs = listActivitiesMatchingShelfRedeem(casual.activities, sku.skuId);
               let effectiveVoucher: number | undefined;

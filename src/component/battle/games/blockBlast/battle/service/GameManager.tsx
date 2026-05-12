@@ -1,7 +1,7 @@
 /**
  * Block Blast 游戏管理器（对齐 solitaireSolo：interactionPhase、loadGame、战报与提交）
  */
-import { useCasualPlatform } from '@/component/lobby/casual/service/useCasualPlatformManager';
+import { useUserManager } from 'host/service/UserManager';
 import { useConvex } from 'convex/react';
 import gsap from 'gsap';
 import React, {
@@ -129,7 +129,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     }
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
-    const casualPlatform = useCasualPlatform();
+    const { user } = useUserManager();
 
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
@@ -147,7 +147,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         if (!gameId) return;
         terminalReportKeyRef.current = null;
         const res = await convex.action(api.proxy.controller.loadGame, { gameId });
-        if (res.ok && res.game) {
+        if (!res.ok) {
+            console.error('[BlockBlastGameProvider] loadGame failed', (res as { error?: string }).error, res);
+            return;
+        }
+        if (res.game) {
             const inferredSize = inferGridSizeFromGrid(res.game.grid);
             const game: BlockBlastGameState = {
                 ...res.game,
@@ -243,6 +247,10 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const submitScore = useCallback(
         async (score: number) => {
             if (!gameState) return;
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                typeof gameState.gameId === 'string' &&
+                gameState.gameId.startsWith('game_');
             if (gameState.reportElement) {
                 gsap.to(gameState.reportElement, {
                     onComplete: () => {
@@ -254,6 +262,16 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 });
             }
             try {
+                if (isCasualRun && user?.token) {
+                    const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
+                        token: user.token,
+                        gameId: gameState.gameId,
+                    })) as { ok?: boolean; error?: string };
+                    if (!cr.ok) {
+                        console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
+                    }
+                    return;
+                }
                 const res = await convex.action(api.proxy.controller.submitScore, {
                     gameId: gameState.gameId,
                     score,
@@ -261,26 +279,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 if (res.ok) {
                     console.log('score submitted', res);
                 }
-                if (
-                    casualTournamentId &&
-                    casualPlatform?.submitCasualRun &&
-                    casualPlatform.convexUrl
-                ) {
-                    const cr = await casualPlatform.submitCasualRun({
-                        tournamentId: casualTournamentId,
-                        gameId: 'block_blast',
-                        score,
-                        externalGameId: gameState.gameId,
-                    });
-                    if (!cr.ok) {
-                        console.warn('[BlockBlast] casual submitCasualRun', cr.error);
-                    }
-                }
             } catch (e) {
                 console.error('submitScore failed', e);
             }
         },
-        [gameState, convex, onGameSubmit, casualTournamentId, casualPlatform]
+        [gameState, convex, onGameSubmit, casualTournamentId, user?.token]
     );
 
     const value: IBlockBlastGameContext = {

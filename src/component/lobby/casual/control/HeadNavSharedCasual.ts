@@ -20,7 +20,7 @@ export const CASUAL_HEAD_NAV_URI = [
   "/casual/lobby/c5",
 ] as const;
 
-export const CASUAL_HEAD_NAV_LABEL = ["商店", "任务", "Play", "奖励", "排行榜"] as const;
+export const CASUAL_HEAD_NAV_LABEL = ["商店", "历史", "Play", "奖励", "排行榜"] as const;
 
 /** 竖屏汉堡菜单：五页；锦标历史入口在 Play Tab */
 export const CASUAL_HEAD_NAV_MENU_ITEMS: {
@@ -30,7 +30,7 @@ export const CASUAL_HEAD_NAV_MENU_ITEMS: {
   effect?: { name: string; args?: any };
 }[] = [
   { label: "商店", type: "page", uri: "/casual/lobby/c1" },
-  { label: "任务", type: "page", uri: "/casual/lobby/c2" },
+  { label: "历史", type: "page", uri: "/casual/lobby/c2" },
   { label: "Play", type: "page", uri: "/casual/lobby/c3" },
   { label: "奖励", type: "page", uri: "/casual/lobby/c4" },
   { label: "排行榜", type: "page", uri: "/casual/lobby/c5" },

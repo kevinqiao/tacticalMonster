@@ -192,6 +192,41 @@
     transform: translateY(1px);
 }
 
+.solo-game-header__autocomplete:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.solo-game-header__end-game {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 193, 120, 0.55);
+    background: rgba(90, 36, 8, 0.45);
+    color: #ffe8cc;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.2;
+    margin-bottom: 1px;
+}
+
+.solo-game-header__end-game:hover:not(:disabled) {
+    background: rgba(110, 44, 10, 0.55);
+}
+
+.solo-game-header__end-game:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.solo-game-header__end-game:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .solo-game-header__stat {
     display: flex;
     flex-direction: column;
@@ -287,6 +322,16 @@
     }
 
     .solo-game-header__autocomplete {
+        width: 100%;
+        margin-bottom: 0;
+        padding: 8px 6px;
+        font-size: 11px;
+        white-space: normal;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .solo-game-header__end-game {
         width: 100%;
         margin-bottom: 0;
         padding: 8px 6px;

@@ -40,6 +40,7 @@ export function seasonShelfPriceHint(sku: SeasonShelfSku): string {
   }
 }
 
+/** 模板行：skuId / chestId 均以 `_s{n}` 结尾；其它赛季由 `seasonShelfSkusForSeasonId` 替换后缀 */
 export const SEASON_SHELF_SKUS: SeasonShelfSku[] = [
   {
     skuId: "season_challenge_memorial_chest_s1",
@@ -64,6 +65,47 @@ export const SEASON_SHELF_SKUS: SeasonShelfSku[] = [
     chestId: "chest_ss_title_s1",
   },
 ];
+
+const RE_S_SUFFIX = /_s\d+$/i;
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** 从 `casual_s2` → `_s2`；无法解析时 `_s1` */
+export function seasonShelfSuffixFromSeasonId(seasonId: string): string {
+  const m = /^casual_s(\d+)$/i.exec(seasonId.trim());
+  return m ? `_s${m[1]}` : "_s1";
+}
+
+/** 当前激活赛季对应的货架 SKU（数值与 S1 相同；兑奖与 `casual_season_shelf_redemptions` 按完整 skuId 区分赛季） */
+export function seasonShelfSkusForSeasonId(seasonId: string): SeasonShelfSku[] {
+  const suffix = seasonShelfSuffixFromSeasonId(seasonId);
+  if (suffix === "_s1") {
+    return SEASON_SHELF_SKUS;
+  }
+  const repl = (id: string) => id.replace(RE_S_SUFFIX, suffix);
+  return SEASON_SHELF_SKUS.map(
+    (sku) =>
+      ({
+        ...sku,
+        skuId: repl(sku.skuId),
+        ...(sku.chestId ? { chestId: repl(sku.chestId) } : {}),
+      }) as SeasonShelfSku
+  );
+}
+
+/** 赛季货架关联 chest 禁止 `openFixedChest` 直开（任意 `_s{n}` 后缀） */
+export function isSeasonShelfLinkedChestId(chestId: string): boolean {
+  for (const s of SEASON_SHELF_SKUS) {
+    if (!s.chestId) continue;
+    const stem = s.chestId.replace(RE_S_SUFFIX, "");
+    if (new RegExp(`^${escapeRegExp(stem)}_s\\d+$`, "i").test(chestId)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export interface SeasonChallengeMatchRow {
   matchId: string;
@@ -98,3 +140,19 @@ export const FIXED_CHEST_TABLES: Record<
     { kind: "seasonXp", amount: 80 },
   ],
 };
+
+export type FixedChestGrant = Array<{
+  kind: "coins" | "gems" | "seasonVoucher" | "seasonXp";
+  amount: number;
+}>;
+
+/** 未单独配 `chest_*_s2` 等表时，回退到同 stem 的 `_s1` 奖池 */
+export function resolveFixedChestTable(chestId: string): FixedChestGrant | undefined {
+  const direct = FIXED_CHEST_TABLES[chestId];
+  if (direct) return direct;
+  const canonical = chestId.replace(RE_S_SUFFIX, "_s1");
+  if (canonical !== chestId) {
+    return FIXED_CHEST_TABLES[canonical];
+  }
+  return undefined;
+}

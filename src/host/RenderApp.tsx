@@ -89,7 +89,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/casual/view/legacy/Child2': () => import('component/lobby/casual/view/legacy/Child2'),
   './lobby/casual/view/legacy/Child3': () => import('component/lobby/casual/view/legacy/Child3'),
   './lobby/casual/view/shop/CasualShopTab': () => import('component/lobby/casual/view/shop/CasualShopTab'),
-  './lobby/casual/view/tasks/CasualTasksTab': () => import('component/lobby/casual/view/tasks/CasualTasksTab'),
+  './lobby/casual/view/history/CasualHistoryTab': () => import('component/lobby/casual/view/history/CasualHistoryTab'),
   './lobby/casual/view/play/CasualPlayTab': () => import('component/lobby/casual/view/play/CasualPlayTab'),
   './lobby/casual/view/rewards/CasualRewardsTab': () => import('component/lobby/casual/view/rewards/CasualRewardsTab'),
   './lobby/casual/view/leaderboards/CasualLeaderboardsTab': () => import('component/lobby/casual/view/leaderboards/CasualLeaderboardsTab'),

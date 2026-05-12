@@ -1,0 +1,158 @@
+.casual-game-tour {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
+  padding: 16px 14px 24px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  color: #1e293b;
+}
+
+.casual-game-tour__head {
+  margin-bottom: 12px;
+}
+
+.casual-game-tour__title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.casual-game-tour__sub {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.casual-game-tour__note {
+  margin: 0 0 12px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.casual-game-tour__resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+}
+
+.casual-game-tour__resumeText {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: #92400e;
+  line-height: 1.35;
+}
+
+.casual-game-tour__resumeBtn {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 45%, #d97706 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.casual-game-tour__resumeBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.casual-game-tour__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.casual-game-tour__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.casual-game-tour__badge {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.casual-game-tour__badge--a {
+  background: rgba(34, 197, 94, 0.2);
+  color: #15803d;
+}
+
+.casual-game-tour__badge--b {
+  background: rgba(251, 191, 36, 0.28);
+  color: #b45309;
+}
+
+.casual-game-tour__badge--c {
+  background: rgba(168, 85, 247, 0.2);
+  color: #7e22ce;
+}
+
+.casual-game-tour__badge--season {
+  background: rgba(14, 165, 233, 0.2);
+  color: #0369a1;
+}
+
+.casual-game-tour__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.casual-game-tour__itemTitle {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.casual-game-tour__meta {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.casual-game-tour__play {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 50%, #16a34a 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.casual-game-tour__play:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}

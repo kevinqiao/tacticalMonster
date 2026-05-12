@@ -30,6 +30,10 @@ export function passClaimErrorMessage(code: string | undefined): string {
       return "该等级暂无配置奖励";
     case "no_auth":
       return "请先登录";
+    case "no_player":
+      return "未找到玩家档案，请先完成登录同步";
+    case "no_active_season":
+      return "当前无激活赛季，赛季资源暂不可用";
     case "claim_failed":
       return "领取失败，请重试";
     default:
@@ -127,6 +131,8 @@ export function missionClaimErrorMessage(code: string | undefined): string {
       return "当前无赛季上下文，赛季任务暂不可领";
     case "no_auth":
       return "请先登录";
+    case "no_player":
+      return "未找到玩家档案，请先完成登录同步";
     case "claim_failed":
       return "领取失败，请重试";
     default:

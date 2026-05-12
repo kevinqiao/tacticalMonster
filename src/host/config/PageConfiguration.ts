@@ -51,7 +51,7 @@ export const CasualPlace =
             control: "./lobby/casual/LobbyControl",
             children: [
                 { name: "child1", class: "page_container", init: "slide", path: "./lobby/casual/view/shop/CasualShopTab", uri: "c1", auth: 0, open: "slideIn" },
-                { name: "child2", class: "page_container", init: "slide", path: "./lobby/casual/view/tasks/CasualTasksTab", uri: "c2", auth: 0, open: "slideIn" },
+                { name: "child2", class: "page_container", init: "slide", path: "./lobby/casual/view/history/CasualHistoryTab", uri: "c2", auth: 0, open: "slideIn" },
                 { name: "child3", class: "page_container", init: "slide", path: "./lobby/casual/view/play/CasualPlayTab", uri: "c3", auth: 0, open: "slideIn" },
                 { name: "child4", class: "page_container", init: "slide", path: "./lobby/casual/view/rewards/CasualRewardsTab", uri: "c4", auth: 0, open: "slideIn" },
                 { name: "child5", class: "page_container", init: "slide", path: "./lobby/casual/view/leaderboards/CasualLeaderboardsTab", uri: "c5", auth: 0, open: "slideIn" },
@@ -107,13 +107,44 @@ export const Modals: Record<string, ModalConfig> = {
         name: "play_solitaire_solo",
         path: "./battle/games/solitaireSolo/battle/PlaySolitaireSolo",
         auth: 1,
-        effects: [{ name: "popCenter", orientation: "portrait", args: { width: "100%", height: "100%" } }],
+        /** 默认横屏 35% / 竖屏全宽侧栏；其它入口可 `openModal({ effect: { name: "popCenter", ... } })` 覆盖 */
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
+    "solitaire_settle_confirm": {
+        name: "solitaire_settle_confirm",
+        path: "./battle/games/solitaireSolo/battle/SolitaireSettleConfirmModal",
+        auth: 1,
+        effects: [{ name: "popCenter", args: { width: "min(92%, 400px)", height: "auto" } }],
     },
     "play_block_blast": {
         name: "play_block_blast",
         path: "./battle/games/blockBlast/battle/PlayBlockBlast",
         auth: 1,
-        effects: [{ name: "popCenter", orientation: "portrait", args: { width: "100%", height: "100%" } }],
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
+    "casual_tasks_sheet": {
+        name: "casual_tasks_sheet",
+        path: "./lobby/casual/view/tasks/CasualTasksModal",
+        auth: 0,
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
+    "casual_game_tournaments": {
+        name: "casual_game_tournaments",
+        path: "./lobby/casual/view/play/CasualTournamentLobbyModal",
+        auth: 0,
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
     },
     "casual_battle_pass": {
         name: "casual_battle_pass",

@@ -6,18 +6,30 @@ import { popCard } from "../popCard";
 /**
  * 扇形展开发牌效果 - 魔术师风格
  */
-export const dealFan = ({ timelines, data, onComplete }: { timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } }, data: any; onComplete?: () => void }) => {
+type TimelinesMap = { [k: string]: { timeline: GSAPTimeline; cards: SoloCard[] } };
+
+export const dealFan = ({
+    timelines,
+    data,
+    onComplete,
+}: {
+    timelines?: TimelinesMap;
+    data: any;
+    onComplete?: () => void;
+}) => {
     const { cards, gameState, boardDimensionRef } = data;
     const tl = gsap.timeline({
         onComplete: () => {
             console.log("dealFan complete");
             onComplete?.();
-        }
+        },
     });
-    timelines.dealFan = { timeline: tl, cards: cards };
+    if (timelines) {
+        timelines.dealFan = { timeline: tl, cards: cards };
+    }
     const boardDimension = boardDimensionRef?.current;
     if (!boardDimension) {
-        delete timelines.dealFan;
+        if (timelines) delete timelines.dealFan;
         onComplete?.();
         return;
     }

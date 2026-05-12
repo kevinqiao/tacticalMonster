@@ -59,3 +59,55 @@ export function weeklyPeriodKey(nowMs: number): string {
 export function seasonPeriodKey(seasonId: string): string {
   return `s:${seasonId}`;
 }
+
+const HOUR_MS = 3600000;
+
+/** 当前运营日周期 `[startsAt, endsAt]`（与 `dailyPeriodKey` 一致），用于周期锦标日桶。 */
+export function dailyWindowMsShanghai(nowMs: number): {
+  instanceKey: string;
+  startsAt: number;
+  endsAt: number;
+} {
+  const key = dailyPeriodKey(nowMs);
+  let lo = nowMs - 48 * HOUR_MS;
+  while (dailyPeriodKey(lo) !== key) {
+    lo += HOUR_MS;
+    if (lo > nowMs + 48 * HOUR_MS) {
+      return { instanceKey: key, startsAt: nowMs - 24 * HOUR_MS, endsAt: nowMs + 24 * HOUR_MS };
+    }
+  }
+  while (lo > nowMs - 72 * HOUR_MS && dailyPeriodKey(lo - HOUR_MS) === key) {
+    lo -= HOUR_MS;
+  }
+  let hi = lo + HOUR_MS;
+  while (dailyPeriodKey(hi) === key) {
+    hi += HOUR_MS;
+    if (hi > lo + 72 * HOUR_MS) break;
+  }
+  return { instanceKey: key, startsAt: lo, endsAt: hi - 1 };
+}
+
+/** 当前运营周周期 `[startsAt, endsAt]`（与 `weeklyPeriodKey` 一致）。 */
+export function weeklyWindowMsShanghai(nowMs: number): {
+  instanceKey: string;
+  startsAt: number;
+  endsAt: number;
+} {
+  const key = weeklyPeriodKey(nowMs);
+  let lo = nowMs - 14 * 24 * HOUR_MS;
+  while (weeklyPeriodKey(lo) !== key) {
+    lo += HOUR_MS;
+    if (lo > nowMs + 14 * 24 * HOUR_MS) {
+      return { instanceKey: key, startsAt: nowMs - 7 * 24 * HOUR_MS, endsAt: nowMs + 7 * 24 * HOUR_MS };
+    }
+  }
+  while (lo > nowMs - 21 * 24 * HOUR_MS && weeklyPeriodKey(lo - HOUR_MS) === key) {
+    lo -= HOUR_MS;
+  }
+  let hi = lo + HOUR_MS;
+  while (weeklyPeriodKey(hi) === key) {
+    hi += HOUR_MS;
+    if (hi > lo + 21 * 24 * HOUR_MS) break;
+  }
+  return { instanceKey: key, startsAt: lo, endsAt: hi - 1 };
+}

@@ -14,6 +14,7 @@ interface BlockBlastGameProps {
     gameId?: string;
     /** 若设置，局末在 Block Blast 原有上报之外调用 casualPlatform `submitScore`（Phase A） */
     casualTournamentId?: string;
+    casualMatchGameId?: string;
     config?: Partial<BlockBlastGameConfig>;
     className?: string;
     style?: React.CSSProperties;
@@ -30,17 +31,26 @@ type CreateResult = { ok: true; gameId: string } | { ok: false };
 const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'style'>> = ({
     gameId: propGameId,
     casualTournamentId,
+    casualMatchGameId,
     config,
     onGameLoadComplete,
     onGameSubmit,
 }) => {
-    const [activeGameId, setActiveGameId] = React.useState<string | undefined>(() => propGameId);
+    /** 与 Solitaire：`game_${matchId}_${uid}` 由 `proxy.controller.loadGame` action 从 casual 拉 seed 后建局，勿在此 mutation 重复 insert */
+    const [activeGameId, setActiveGameId] = React.useState<string | undefined>(
+        () => propGameId ?? casualMatchGameId ?? undefined
+    );
     const [createError, setCreateError] = React.useState<string | null>(null);
     const createBlockBlastGame = useMutation(api.service.gameManager.createBlockBlastGame);
 
     React.useEffect(() => {
         if (propGameId) {
             setActiveGameId(propGameId);
+            setCreateError(null);
+            return;
+        }
+        if (casualMatchGameId) {
+            setActiveGameId(casualMatchGameId);
             setCreateError(null);
             return;
         }
@@ -68,7 +78,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
         return () => {
             cancelled = true;
         };
-    }, [propGameId, createBlockBlastGame, config?.gridSize]);
+    }, [propGameId, casualMatchGameId, createBlockBlastGame, config?.gridSize]);
 
     if (createError) {
         return (
@@ -104,6 +114,7 @@ const BlockBlastGameInner: React.FC<Omit<BlockBlastGameProps, 'className' | 'sty
 const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
     gameId,
     casualTournamentId,
+    casualMatchGameId,
     config,
     className = '',
     style,
@@ -118,6 +129,7 @@ const BlockBlastGame: React.FC<BlockBlastGameProps> = ({
                 <BlockBlastGameInner
                     gameId={gameId}
                     casualTournamentId={casualTournamentId}
+                    casualMatchGameId={casualMatchGameId}
                     config={config}
                     onGameLoadComplete={onGameLoadComplete}
                     onGameSubmit={onGameSubmit}

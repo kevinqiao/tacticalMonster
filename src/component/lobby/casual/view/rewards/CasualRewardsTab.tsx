@@ -17,6 +17,21 @@ import {
   type CasualFreeRewardsMockState,
 } from "./casualFreeRewardsMock";
 
+/** 当前 7 日奖周期内已点亮的档位数（与 `casual_checkin_streaks.streakCount` 一致） */
+function checkinFilledSlots(streakCount: number): number {
+  if (streakCount <= 0) return 0;
+  const r = streakCount % 7;
+  return r === 0 ? 7 : r;
+}
+
+/** 下一档待签索引 0..6；当日已领取则不高亮「今日」 */
+function resolveCheckinTodaySlotIndex(streakCount: number, claimedToday: boolean): number | null {
+  if (claimedToday) return null;
+  const filled = checkinFilledSlots(streakCount);
+  if (filled >= 7) return 0;
+  return filled;
+}
+
 /** 奖励 Tab：免费获取入口（签到、邀请、广告等）；赛季通行证在独立 Modal */
 const CasualRewardsTab: React.FC<PageProp> = ({ visible }) => {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -59,12 +74,22 @@ const CasualRewardsTab: React.FC<PageProp> = ({ visible }) => {
     () => missionRewardChipsFromTemplate(dailySignInTemplate),
     [dailySignInTemplate]
   );
-  const checkInDoneDays = dailySignInMission?.claimed ? 1 : 0;
+
+  const checkInClaimedToday = Boolean(dailySignInMission?.claimed);
+  const checkInStreakCount = dailySignInMission
+    ? (casual.checkinStreak?.streakCount ?? 0)
+    : mock.checkInStreak;
+  const checkInFilledSlots = checkinFilledSlots(checkInStreakCount);
+  const todayCheckinSlotIndex = resolveCheckinTodaySlotIndex(
+    checkInStreakCount,
+    dailySignInMission ? checkInClaimedToday : mock.checkInClaimedToday
+  );
+
   const checkInTodayState = !dailySignInMission
     ? mock.checkInClaimedToday
       ? "今日已签"
       : "待签到"
-    : dailySignInMission.claimed
+    : checkInClaimedToday
       ? "今日已签"
       : dailySignInMission.completed
         ? "可领取"
@@ -72,9 +97,24 @@ const CasualRewardsTab: React.FC<PageProp> = ({ visible }) => {
   const canClaimCheckIn = Boolean(
     dailySignInMission &&
       dailySignInMission.completed &&
-      !dailySignInMission.claimed &&
+      !checkInClaimedToday &&
       !claimingCheckIn
   );
+
+  useEffect(() => {
+    if (!visible) return;
+    if (!user?.uid) return;
+    if (!dailySignInMission) return;
+    if (dailySignInMission.completed || checkInClaimedToday) return;
+    void casual.touchDailyLoginMission();
+  }, [
+    visible,
+    user?.uid,
+    dailySignInMission?.completed,
+    dailySignInMission?.claimed,
+    dailySignInMission?.taskId,
+    casual,
+  ]);
 
   const handleClaimCheckIn = async () => {
     if (!dailySignInMission) {
@@ -95,7 +135,11 @@ const CasualRewardsTab: React.FC<PageProp> = ({ visible }) => {
       } else {
         setToast({ ok: false, text: missionClaimErrorMessage(r.error) });
       }
-      await casual.refreshCasualPlayer();
+      await Promise.all([
+        casual.refreshCasualPlayer(),
+        casual.refreshSeasonMissions(),
+        casual.refreshCheckinStreak(),
+      ]);
     } finally {
       setClaimingCheckIn(false);
     }
@@ -158,8 +202,8 @@ const CasualRewardsTab: React.FC<PageProp> = ({ visible }) => {
           </div>
           <div className="casual-freeRw__checkinStrip" aria-label="每日签到面板">
             {Array.from({ length: 7 }, (_, i) => {
-              const done = i < checkInDoneDays;
-              const today = i === checkInDoneDays;
+              const done = i < checkInFilledSlots;
+              const today = todayCheckinSlotIndex !== null && i === todayCheckinSlotIndex;
               return (
                 <div
                   key={`checkin-day-${i + 1}`}
@@ -189,7 +233,7 @@ const CasualRewardsTab: React.FC<PageProp> = ({ visible }) => {
             {claimingCheckIn
               ? "领取中…"
               : dailySignInMission
-                ? dailySignInMission.claimed
+                ? checkInClaimedToday
                   ? "今日已签"
                   : dailySignInMission.completed
                     ? "领取今日签到"

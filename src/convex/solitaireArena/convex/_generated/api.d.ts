@@ -11,6 +11,7 @@
 import type * as proxy_controller from "../proxy/controller.js";
 import type * as service_SoloGameEngine from "../service/SoloGameEngine.js";
 import type * as service_SoloRuleManager from "../service/SoloRuleManager.js";
+import type * as service_casualBridgeEnv from "../service/casualBridgeEnv.js";
 import type * as service_gameManager from "../service/gameManager.js";
 import type * as types_SoloTypes from "../types/SoloTypes.js";
 import type * as utils_Utils from "../utils/Utils.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   "proxy/controller": typeof proxy_controller;
   "service/SoloGameEngine": typeof service_SoloGameEngine;
   "service/SoloRuleManager": typeof service_SoloRuleManager;
+  "service/casualBridgeEnv": typeof service_casualBridgeEnv;
   "service/gameManager": typeof service_gameManager;
   "types/SoloTypes": typeof types_SoloTypes;
   "utils/Utils": typeof utils_Utils;

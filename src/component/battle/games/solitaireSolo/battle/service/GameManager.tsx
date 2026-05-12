@@ -20,7 +20,6 @@ import {
 import SoloRuleManager from './SoloRuleManager';
 
 interface ISoloGameContext {
-    // timelines: { [k: string]: { timeline: GSAPTimeline, cards: SoloCard[] } };
     gameState: SoloGameState | null;
     boardDimension: SoloBoardDimension | null;
     boardDimensionRef: RefObject<SoloBoardDimension | null>;
@@ -30,13 +29,11 @@ interface ISoloGameContext {
     setInteractionPhase: (phase: GameInteractionPhase) => void;
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
     loadGame: () => void;
-    // onGameOver: () => void;
-    // submitScore: (score: number) => void;
-    // isPlaying: (card: SoloCard) => boolean;
+    casualTournamentId?: string;
+    onGameSubmit?: () => void;
 }
 
 const SoloGameContext = createContext<ISoloGameContext>({
-    // timelines: {},
     gameState: null,
     boardDimension: null,
     boardDimensionRef: { current: null },
@@ -46,10 +43,8 @@ const SoloGameContext = createContext<ISoloGameContext>({
     setInteractionPhase: () => { },
     updateBoardDimension: () => { },
     loadGame: () => { },
-    // submitScore: () => { },
-    // onGameOver: () => { },
-    // isPlaying: () => false
-
+    casualTournamentId: undefined,
+    onGameSubmit: undefined,
 });
 
 export const useSoloGameManager = () => {
@@ -63,12 +58,20 @@ export const useSoloGameManager = () => {
 interface SoloGameProviderProps {
     children: ReactNode;
     gameId?: string;
+    casualTournamentId?: string;
     config?: Partial<SoloGameConfig>;
     onGameLoadComplete?: () => void;
     onGameSubmit?: () => void;
 }
 
-export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, gameId, config: customConfig, onGameLoadComplete, onGameSubmit }) => {
+export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
+    children,
+    gameId,
+    casualTournamentId,
+    config: customConfig,
+    onGameLoadComplete,
+    onGameSubmit,
+}) => {
     const [gameState, setGameState] = useState<SoloGameState | null>(null);
     const [dealEvent, setDealEvent] = useState<{ cards: Card[], name: string } | null>(null);
     const [boardDimension, setBoardDimension] = useState<SoloBoardDimension | null>(null);
@@ -97,22 +100,24 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     const loadGame = useCallback(async () => {
         if (!gameId) return;
         const res = await convex.action(api.proxy.controller.loadGame, { gameId });
-        if (res.ok) {
-            const raw = res.game as SoloGameState & { actionStatus?: string };
-            const { actionStatus: _drop, ...rest } = raw;
-            const game = rest as SoloGameState;
-            const event = res.events?.find((e: { name?: string }) => e.name === "deal");
-            // 仅当局仍为 OPEN 时才跑发牌动画；库中已是 DEALED 时若仍带 deal 事件，不应锁在 animating（否则 getActModes 永远为空）
-            if (event) {
-                setDealEvent(event);
-                setInteractionPhase(GameInteractionPhase.animating);
-            } else {
-                setDealEvent(null);
-                setInteractionPhase(GameInteractionPhase.idle);
-            }
-            console.log("game loaded", game);
-            setGameState(game);
+        if (!res.ok) {
+            console.error('[SoloGameProvider] loadGame failed', (res as { error?: string }).error, res);
+            return;
         }
+        const raw = res.game as SoloGameState & { actionStatus?: string };
+        const { actionStatus: _drop, ...rest } = raw;
+        const game = rest as SoloGameState;
+        const event = res.events?.find((e: { name?: string }) => e.name === "deal");
+        // 仅当局仍为 OPEN 时才跑发牌动画；库中已是 DEALED 时若仍带 deal 事件，不应锁在 animating（否则 getActModes 永远为空）
+        if (event) {
+            setDealEvent(event);
+            setInteractionPhase(GameInteractionPhase.animating);
+        } else {
+            setDealEvent(null);
+            setInteractionPhase(GameInteractionPhase.idle);
+        }
+        console.log("game loaded", game);
+        setGameState(game);
     }, [convex, gameId]);
     useEffect(() => {
         loadGame();
@@ -126,6 +131,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
                 gameState.status = SoloGameStatus.DEALED
                 dealEffect({
                     effectType: 'fan',
+                    timelines: timelinesRef.current,
                     data: { cards: dealEvent.cards, gameState, boardDimensionRef },
                     onComplete: () => {
                         dealEvent.cards.forEach((r: SoloCard) => {
@@ -148,7 +154,6 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
     //     return Object.values(timelinesRef.current).some(tl => tl.timeline.isActive() && tl.cards.some(c => c.id === card.id));
     // }, []);
     const value: ISoloGameContext = {
-        // timelines: timelinesRef.current,
         gameState,
         boardDimension,
         boardDimensionRef,
@@ -158,6 +163,8 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({ children, ga
         setInteractionPhase,
         updateBoardDimension,
         loadGame,
+        casualTournamentId,
+        onGameSubmit,
     };
 
     return (

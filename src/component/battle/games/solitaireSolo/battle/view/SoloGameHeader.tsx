@@ -32,6 +32,9 @@ export interface SoloGameHeaderProps {
     displayMoves: number | null;
     showAutoComplete: boolean;
     onAutoComplete: () => void;
+    /** 主动结束本局并按当前分数触发上报（锦标 / proxy） */
+    onEndGame?: () => void;
+    endGameDisabled?: boolean;
 }
 
 const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
@@ -39,6 +42,8 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
     displayMoves,
     showAutoComplete,
     onAutoComplete,
+    onEndGame,
+    endGameDisabled,
 }) => {
     const { user } = useUserManager();
     const avatarUrl = useMemo(() => avatarPhotoUrlFromUser(user as User | null), [user]);
@@ -71,12 +76,26 @@ const SoloGameHeader: React.FC<SoloGameHeaderProps> = ({
                         type="button"
                         className="solo-game-header__autocomplete"
                         aria-label="自动将可收牌全部收到基础堆"
+                        disabled={!showAutoComplete}
                         onClick={() => {
                             onAutoComplete();
                         }}
                     >
                         收到基础
                     </button>
+                    {onEndGame ? (
+                        <button
+                            type="button"
+                            className="solo-game-header__end-game"
+                            aria-label="以当前分数结束本局并结算"
+                            disabled={endGameDisabled}
+                            onClick={() => {
+                                onEndGame();
+                            }}
+                        >
+                            结束并结算
+                        </button>
+                    ) : null}
                     <div className="solo-game-header__stat">
                         <span className="solo-game-header__stat-label">分数</span>
                         <span className="solo-game-header__stat-value">

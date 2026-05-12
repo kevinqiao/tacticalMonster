@@ -24,10 +24,7 @@ export default defineSchema({
     token: v.optional(v.string()),
     coins: v.optional(v.number()),
     gems: v.optional(v.number()),
-    seasonXp: v.optional(v.number()),
-    seasonVouchers: v.optional(v.number()),
-    /** 赛季挑战产出；用于专场货架解锁/直购（赛季末可清零，见产品公示） */
-    seasonChallengePoints: v.optional(v.number()),
+    /** 遗留字段：赛季资源已迁至 `casual_pass_progress`，勿在新代码写入；保留仅为旧文档通过校验 */
     updatedAt: v.optional(v.number()),
   }).index("by_uid", ["uid"]),
 
@@ -40,18 +37,152 @@ export default defineSchema({
     endsAt: v.optional(v.number()),
   }).index("by_tournamentId", ["tournamentId"]),
 
-  casual_entries: defineTable({
-    uid: v.string(),
-    tournamentId: v.string(),
-    score: v.optional(v.number()),
-    submittedAt: v.optional(v.number()),
-    externalGameId: v.optional(v.string()),
-    entryStatus: v.optional(
-      v.union(v.literal("joined"), v.literal("submitted"))
+  /**
+   * 周期型锦标时间桶（日/周/季）：同一 `templateId` + `instanceKey` 唯一；`single_match` 不写此表。
+   */
+  casual_tournament_instances: defineTable({
+    templateId: v.string(),
+    instanceKey: v.string(),
+    startsAt: v.number(),
+    endsAt: v.number(),
+    status: v.union(v.literal("open"), v.literal("closed")),
+    /** 建桶时固化，收尾排行用 */
+    scoreAggregation: v.union(
+      v.literal("single_match"),
+      v.literal("best_score"),
+      v.literal("sum_scores")
     ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   })
-    .index("by_uid_tournament", ["uid", "tournamentId"])
-    .index("by_tournament_score", ["tournamentId", "score"]),
+    .index("by_template_instanceKey", ["templateId", "instanceKey"])
+    .index("by_template_status_endsAt", ["templateId", "status", "endsAt"]),
+
+  /**
+   * 单场异步 run：与 tournament 模块「tournaments + matches + player_matches」同构。
+   * `templateId` = 配表 id（如 casual_async_a_solitaire）；每局一条新 tournament / match。
+   * 周期型：`instanceId` 指向当前开放桶；`single_match` 省略。
+   */
+  casual_run_tournaments: defineTable({
+    templateId: v.string(),
+    gameType: v.string(),
+    status: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    instanceId: v.optional(v.id("casual_tournament_instances")),
+  })
+    .index("by_templateId", ["templateId"])
+    .index("by_instanceId", ["instanceId"]),
+
+  /** 玩家在某一周期实例内的聚合分与周期结束待领奖励 */
+  casual_instance_player_state: defineTable({
+    instanceId: v.id("casual_tournament_instances"),
+    uid: v.string(),
+    /** `per_instance` 时仅首局扣入场 */
+    entryFeeCharged: v.boolean(),
+    bestScore: v.optional(v.number()),
+    sumScore: v.optional(v.number()),
+    matchCount: v.number(),
+    /** 实例收尾后写入，供历史页领取 */
+    pendingInstanceRewards: v.optional(
+      v.object({
+        coins: v.optional(v.number()),
+        gems: v.optional(v.number()),
+        seasonChallengePoints: v.optional(v.number()),
+        seasonVoucher: v.optional(v.number()),
+      })
+    ),
+    instanceRewardsClaimedAt: v.optional(v.number()),
+    /** 收尾时写入（展示） */
+    finalRank: v.optional(v.number()),
+    aggregatedScore: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_instance_uid", ["instanceId", "uid"])
+    .index("by_uid", ["uid"]),
+
+  casual_run_player_tournaments: defineTable({
+    uid: v.string(),
+    tournamentId: v.id("casual_run_tournaments"),
+    templateId: v.string(),
+    score: v.optional(v.number()),
+    status: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    /** 结算后待用户在历史页领取的金币/钻/赛季挑战类奖励（异步 run 路径） */
+    pendingRunRewards: v.optional(
+      v.object({
+        coins: v.optional(v.number()),
+        gems: v.optional(v.number()),
+        seasonChallengePoints: v.optional(v.number()),
+        seasonVoucher: v.optional(v.number()),
+      })
+    ),
+    runRewardsClaimedAt: v.optional(v.number()),
+  })
+    .index("by_tournament_uid", ["tournamentId", "uid"])
+    .index("by_uid_template", ["uid", "templateId"])
+    /** 统计单场 run 真人报名数（`gameHistory`） */
+    .index("by_tournament", ["tournamentId"]),
+
+  casual_run_matches: defineTable({
+    tournamentId: v.id("casual_run_tournaments"),
+    templateId: v.string(),
+    gameType: v.string(),
+    completed: v.boolean(),
+    minPlayers: v.number(),
+    maxPlayers: v.number(),
+    /** 开局时真人数量（用于 Solitaire 虚拟对手数 = maxPlayers - humanPlayerCount） */
+    humanPlayerCount: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_tournament", ["tournamentId"]),
+
+  /**
+   * 异步锦标匹配队列：`joinTournament`（非赛季专场）先入队，由 `tryCasualMatchmakingForTemplate` 凑齐人后建局。
+   */
+  casual_match_queue: defineTable({
+    uid: v.string(),
+    /** 配表 tournamentId */
+    templateId: v.string(),
+    /** `claiming`：已被某次匹配事务预留，防止并发 join 对同一行双重扣费 */
+    status: v.union(v.literal("waiting"), v.literal("claiming"), v.literal("matched")),
+    matchedRunTournamentId: v.optional(v.id("casual_run_tournaments")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_template_status", ["templateId", "status"])
+    .index("by_uid_template_status", ["uid", "templateId", "status"]),
+
+  casual_run_player_matches: defineTable({
+    matchId: v.string(),
+    tournamentId: v.string(),
+    templateId: v.string(),
+    uid: v.string(),
+    /** TM 对齐：`game_${matchId}_${uid}`，用于结算查找 */
+    gameId: v.string(),
+    gameType: v.string(),
+    externalGameId: v.optional(v.string()),
+    score: v.optional(v.number()),
+    rank: v.optional(v.number()),
+    status: v.union(
+      v.literal("open"),
+      v.literal("finished"),
+      v.literal("settled")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_gameId", ["gameId"])
+    .index("by_match_uid", ["matchId", "uid"])
+    .index("by_uid_template", ["uid", "templateId"])
+    .index("by_uid", ["uid"])
+    .index("by_templateId", ["templateId"])
+    .index("by_template_external", ["templateId", "externalGameId"])
+    .index("by_run_uid", ["tournamentId", "uid"])
+    /** `gameHistory` 本场总人数（真人 + 机器人） */
+    .index("by_run_tournament", ["tournamentId"]),
 
   casual_seasons: defineTable({
     seasonId: v.string(),
@@ -61,11 +192,14 @@ export default defineSchema({
     active: v.boolean(),
   }).index("by_seasonId", ["seasonId"]),
 
+  /** 单赛季档案：Pass 进度 + 当季券/挑战点（均按 seasonId 隔离） */
   casual_pass_progress: defineTable({
     uid: v.string(),
     seasonId: v.string(),
     level: v.number(),
     xp: v.number(),
+    seasonVouchers: v.optional(v.number()),
+    seasonChallengePoints: v.optional(v.number()),
     tracksPurchased: v.optional(
       v.object({
         standard: v.optional(v.boolean()),

@@ -84,7 +84,8 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
         seasonRange,
         maxPassLevel: casual.passProgress.level,
         xp: casual.passProgress.xp,
-        seasonVouchers: casual.casualPlayer?.seasonVouchers ?? 0,
+        seasonVouchers:
+          casual.passProgress.seasonVouchers ?? casual.casualPlayer?.seasonVouchers ?? 0,
         tracks: casual.passProgress.tracksPurchased ?? {},
         claimedSet,
       };
@@ -182,7 +183,6 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
               </div>
             </div>
           </div>
-          、
         </header>
 
         <div className="cbp__body">
@@ -299,7 +299,10 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
                             } else {
                               setToast({ ok: false, text: passClaimErrorMessage(r.error) });
                             }
-                            await casual.refreshCasualPlayer();
+                            await Promise.all([
+                              casual.refreshCasualPlayer(),
+                              casual.refreshPassProgress(),
+                            ]);
                           } else {
                             setMockState((prev) => {
                               const k = claimKey(track, row.level);
@@ -341,6 +344,10 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
                         ? { ok: true, text: "已解锁标准轨（开发）" }
                         : { ok: false, text: "解锁失败" }
                     );
+                    await Promise.all([
+                      casual.refreshCasualPlayer(),
+                      casual.refreshPassProgress(),
+                    ]);
                   }}
                 >
                   解锁标准轨 (dev)
@@ -358,6 +365,10 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
                         ? { ok: true, text: "已解锁豪华轨（开发）" }
                         : { ok: false, text: "解锁失败" }
                     );
+                    await Promise.all([
+                      casual.refreshCasualPlayer(),
+                      casual.refreshPassProgress(),
+                    ]);
                   }}
                 >
                   解锁豪华轨 (dev)

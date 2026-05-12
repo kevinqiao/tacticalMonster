@@ -1,4 +1,4 @@
-import type { CasualRewardKind } from "../service/reward/casualRewardTypes";
+import type { CasualRewardKind } from "../service/reward/casualRewardTypes.js";
 
 export interface PassGrant {
   kind: CasualRewardKind;

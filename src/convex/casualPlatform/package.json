@@ -4,6 +4,7 @@
   "private": true,
   "description": "Convex backend for the casual multi-game platform (separate deployment)",
   "scripts": {
+    "dev": "convex dev",
     "test": "echo \"No tests\" && exit 0"
   },
   "dependencies": {

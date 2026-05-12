@@ -3,6 +3,47 @@ import { internalMutation, internalQuery, mutation, query } from "../_generated/
 import { normalizeBlockBlastGridSize, type BlockBlastGridSize } from "../types/BlockBlastTypes";
 import { BlockBlastGameEngine, randomUuidCompat } from "./BlockBlastGameEngine";
 
+/** 同 `gameId` 多行时取最新；`collect`+排序避免依赖 `.order().first()` 在重复索引上的 `unique` 异常 */
+function latestBlockBlastGameRow<T extends { _creationTime: number }>(rows: T[]): T | undefined {
+    if (rows.length === 0) return undefined;
+    return [...rows].sort((a, b) => b._creationTime - a._creationTime)[0];
+}
+
+/**
+ * 按 `gameId` 拉取局文档。避免 `withIndex("by_gameId", …)`：同一 `gameId` 存在多行时，
+ * 部分环境下索引等值读会触发 `unique() query returned more than one result`。
+ */
+async function collectBlockBlastGamesByGameId(ctx: { db: any }, gameId: string): Promise<any[]> {
+    return await ctx.db
+        .query("blockBlast_game")
+        .filter((q: any) => q.eq(q.field("gameId"), gameId))
+        .collect();
+}
+
+/** 保留最新一行并删除同 `gameId` 的其余行 */
+async function healDuplicateBlockBlastGamesForGameId(ctx: { db: any }, gameId: string): Promise<void> {
+    const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+    if (rows.length <= 1) return;
+    const sorted = [...rows].sort((a, b) => b._creationTime - a._creationTime);
+    for (const r of sorted.slice(1)) {
+        await ctx.db.delete(r._id);
+    }
+}
+
+/**
+ * 供 `proxy/controller` action：单事务内去重后返回当前局（不再走 internalQuery，避免索引路径 `unique`）。
+ */
+export const loadGameRowAfterHeal = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const game = latestBlockBlastGameRow(rows);
+        if (!game) return null;
+        return { ...game, _creationTime: undefined };
+    },
+});
+
 interface Shape {
     id: string;
     shape: number[][];
@@ -35,10 +76,8 @@ export class BlockBlastGameManager {
     }
 
     async load(gameId: string): Promise<GameState | undefined> {
-        const game = await this.dbCtx.db
-            .query("blockBlast_game")
-            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
-            .unique();
+        const rows = await collectBlockBlastGamesByGameId(this.dbCtx, gameId);
+        const game = latestBlockBlastGameRow(rows);
         if (!game) return;
 
         this.game = { ...game, _creationTime: undefined } as GameState;
@@ -161,6 +200,12 @@ export const createGame = internalMutation({
         gridSize: v.optional(v.number()),
     },
     handler: async (ctx, { seed, gameId, gridSize }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const keep = latestBlockBlastGameRow(rows);
+        if (keep) {
+            return { ok: true as const, data: { ...keep, _creationTime: undefined } };
+        }
         const gameManager = new BlockBlastGameManager(ctx);
         const game = await gameManager.createGame(seed, gameId, gridSize);
         if (game) {
@@ -182,6 +227,12 @@ export const createBlockBlastGame = mutation({
             requestedId && String(requestedId).length > 0
                 ? String(requestedId)
                 : randomUuidCompat();
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        const keep = latestBlockBlastGameRow(rows);
+        if (keep) {
+            return { ok: true as const, gameId, data: keep };
+        }
         const gameManager = new BlockBlastGameManager(ctx);
         const game = await gameManager.createGame(
             seed !== undefined ? String(seed) : undefined,
@@ -224,6 +275,7 @@ export const placeShape = mutation({
         col: v.number(),
     },
     handler: async (ctx, { gameId, shapeId, row, col }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
         const gameManager = new BlockBlastGameManager(ctx);
         await gameManager.load(gameId);
         return await gameManager.placeShape(shapeId, row, col);
@@ -233,6 +285,7 @@ export const placeShape = mutation({
 export const gameOver = mutation({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
         const gameManager = new BlockBlastGameManager(ctx);
         await gameManager.load(gameId);
         return await gameManager.gameOver();

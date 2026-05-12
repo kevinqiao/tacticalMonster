@@ -11,10 +11,13 @@ const PlayBlockBlast: React.FC<ModalProp> = ({ visible, data, close }) => {
     const gameId = typeof data?.gameId === 'string' ? data.gameId : undefined;
     const casualTournamentId =
         typeof data?.casualTournamentId === 'string' ? data.casualTournamentId : undefined;
+    const casualMatchGameId =
+        typeof data?.casualMatchGameId === 'string' ? data.casualMatchGameId : undefined;
     return (
         <BlockBlastGame
             gameId={gameId}
             casualTournamentId={casualTournamentId}
+            casualMatchGameId={casualMatchGameId}
             onGameSubmit={close}
         />
     );

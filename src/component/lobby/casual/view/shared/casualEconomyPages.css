@@ -124,6 +124,16 @@
   line-height: 1.45;
 }
 
+.casual-shop__seasonHint .casual-shop__seasonCode {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(15, 118, 110, 0.12);
+  color: #115e59;
+}
+
 .casual-shop__seasonWallet {
   display: flex;
   flex-wrap: wrap;
@@ -135,6 +145,22 @@
 
 .casual-shop__seasonWallet b {
   color: #115e59;
+}
+
+.casual-shop__seasonEmpty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--econ-muted);
+  background: rgba(15, 118, 110, 0.06);
+  border-radius: var(--econ-radius-lg);
+  border: 1px dashed rgba(13, 148, 136, 0.28);
+}
+
+.casual-shop__seasonEmpty code {
+  font-size: 12px;
 }
 
 .casual-shop__card--season {

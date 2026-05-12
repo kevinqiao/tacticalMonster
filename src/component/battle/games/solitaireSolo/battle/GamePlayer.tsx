@@ -39,8 +39,10 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
     const { cards } = gameState || {};
     const displayScore = gameState != null ? gameState.score : null;
     const displayMoves = gameState != null ? gameState.moves : null;
+    /** 动画中禁用「结束」，终局仍允许点击以便结算失败时重试 */
+    const endGameDisabled = interactionPhase !== GameInteractionPhase.idle;
 
-    const { recycle, runAutoCompleteToFoundation } = useActHandler();
+    const { recycle, runAutoCompleteToFoundation, settleManuallyAndExit } = useActHandler();
     const { actionData } = useSoloDnDManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -199,6 +201,8 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
     /** 与 `useActHandler.runAutoCompleteToFoundation` 同条件：已发牌、空闲、开启配置且引擎判定可贪心收齐 */
     const showAutoComplete = useMemo(() => {
         if (!gameState || !config.autoComplete) return false;
+        const st = Number(gameState.status);
+        if (st === SoloGameStatus.COMPLETED || st === SoloGameStatus.CANCELLED) return false;
         const dealt =
             gameState.status === SoloGameStatus.DEALED || Number(gameState.status) === SoloGameStatus.DEALED;
         if (!dealt || interactionPhase !== GameInteractionPhase.idle) return false;
@@ -216,6 +220,8 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
 
     const cleanup = useCallback((event: any) => {
         if (!gameState || interactionPhase !== GameInteractionPhase.idle) return;
+        const st = Number(gameState.status);
+        if (st === SoloGameStatus.COMPLETED || st === SoloGameStatus.CANCELLED) return;
         event.stopPropagation();
         event.preventDefault();
         console.log("cleanup", actionData);
@@ -325,6 +331,10 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
                 showAutoComplete={showAutoComplete}
                 onAutoComplete={() => {
                     void runAutoCompleteToFoundation();
+                }}
+                endGameDisabled={endGameDisabled}
+                onEndGame={() => {
+                    void settleManuallyAndExit();
                 }}
             />
             {/* {renderControlPanel()} */}

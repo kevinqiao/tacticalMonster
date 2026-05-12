@@ -4,10 +4,16 @@ import { useSharedValue } from "host/service/SharedPageDataManager";
 import gsap from "gsap";
 import { useCallback, useEffect } from "react";
 
+import type { ModalEffect } from "./config/PageConfiguration";
 
 function killModalTweens(container: ModalContainer) {
   gsap.killTweensOf([container.ele, container.mask, container.closeEle].filter(Boolean));
 }
+
+const SWIPE_OPEN_DUR = 0.52;
+const SWIPE_CLOSE_DUR = 0.46;
+const SWIPE_OPEN_EASE = "power2.out";
+const SWIPE_CLOSE_EASE = "power2.inOut";
 
 function toCssSize(value: unknown, fallback: string) {
   if (typeof value === "number") return `${value}px`;
@@ -18,13 +24,25 @@ function toCssSize(value: unknown, fallback: string) {
 const OPEN_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 const CLOSE_EFFECTS = new Set(["popCenter", "popCenterIn", "swipeRight", "swipeLeft", "swipeTop", "swipeBottom"]);
 
+function resolveModalEffect(
+  container: ModalContainer,
+  modal: ModalItem | undefined,
+  orientation: string
+): ModalEffect | undefined {
+  const ov = modal?.effect;
+  if (ov?.name && OPEN_EFFECTS.has(ov.name)) {
+    return { name: ov.name, args: ov.args };
+  }
+  return container.effects?.find((e) => e.orientation === orientation) ?? container.effects?.[0];
+}
+
 export const useModalAnimate = ({ container, modal }: { container: ModalContainer, modal?: ModalItem }) => {
   const orientation = useSharedValue("lobby.layout.orientation");
   const syncModalLayout = useCallback(
     (orientation: string) => {
       console.log("syncModalOpenLayout", orientation);
       if (!container.ele) return;
-      const effect = container.effects?.find((effect) => effect.orientation === orientation) ?? container.effects?.[0];
+      const effect = resolveModalEffect(container, modal, orientation);
       if (!effect) return;
       killModalTweens(container);
       gsap.set(container.ele, { clearProps: "transform,transformOrigin" });
@@ -100,13 +118,13 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
           return;
       }
     },
-    [container]
+    [container, modal]
   );
 
   const playOpen = useCallback(
     ({ onComplete }: { onComplete?: () => void | Promise<void> }) => {
       if (!container.ele) return;
-      const effect = container.effects?.find((effect) => effect.orientation === orientation) ?? container.effects?.[0];
+      const effect = resolveModalEffect(container, modal, orientation ?? "portrait");
       if (!effect) return;
       if (!OPEN_EFFECTS.has(effect.name)) {
         onComplete?.();
@@ -121,6 +139,13 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
         },
       });
       gsap.set(container.ele, { clearProps: "transform,transformOrigin" });
+      if (container.ele) {
+        gsap.set(container.ele, {
+          force3D: true,
+          willChange: "transform,opacity",
+          backfaceVisibility: "hidden",
+        });
+      }
       switch (effect.name) {
         case "popCenter":
           {
@@ -161,7 +186,7 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
             y: 0,
             autoAlpha: 1,
           });
-          tl.to(container.ele, { x: 0, duration: 0.5, ease: "power2.inOut" });
+          tl.to(container.ele, { x: 0, duration: SWIPE_OPEN_DUR, ease: SWIPE_OPEN_EASE });
           break;
         case "swipeLeft":
           gsap.set(container.ele, {
@@ -203,21 +228,28 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
           break;
       }
       if (container.mask) {
-        tl.to(container.mask, { autoAlpha: 0.4, duration: 0.5, ease: "power2.inOut" }, "<");
+        gsap.set(container.mask, { force3D: true, willChange: "opacity" });
+        tl.to(container.mask, { autoAlpha: 0.38, duration: SWIPE_OPEN_DUR, ease: SWIPE_OPEN_EASE }, "<");
       }
       if (container.closeEle) {
-        tl.to(container.closeEle, { autoAlpha: 1, duration: 0.8, ease: "power2.inOut" }, ">=+1.0");
+        tl.to(container.closeEle, { autoAlpha: 1, duration: 0.2, ease: "power2.out" }, "<+0.16");
       }
       tl.play();
     },
-    [orientation, container]
+    [orientation, container, modal]
   );
 
   const playClose = useCallback(
     ({ onComplete }: { onComplete?: () => void | Promise<void> }) => {
-      if (!container.ele) return;
-      const effect = container.effects?.find((effect) => effect.orientation === orientation) ?? container.effects?.[0];
-      if (!effect) return;
+      if (!container.ele) {
+        onComplete?.();
+        return;
+      }
+      const effect = resolveModalEffect(container, modal, orientation ?? "portrait");
+      if (!effect) {
+        onComplete?.();
+        return;
+      }
       if (!CLOSE_EFFECTS.has(effect.name)) {
         onComplete?.();
         return;
@@ -244,7 +276,7 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
           tl.to(container.ele, { y: 0, duration: 0.5, ease: "power2.inOut" });
           break;
         case "swipeRight":
-          tl.to(container.ele, { x: "100%", duration: 0.5, ease: "power2.inOut" });
+          tl.to(container.ele, { x: "100%", duration: SWIPE_CLOSE_DUR, ease: SWIPE_CLOSE_EASE });
           break;
         case "swipeLeft":
           tl.to(container.ele, { x: "-100%", duration: 0.5, ease: "power2.inOut" });
@@ -252,14 +284,14 @@ export const useModalAnimate = ({ container, modal }: { container: ModalContaine
       }
       if (container.mask) {
         console.log("mask", container.mask);
-        tl.to(container.mask, { autoAlpha: 0, duration: 0.5, ease: "power2.inOut" }, "<");
+        tl.to(container.mask, { autoAlpha: 0, duration: SWIPE_CLOSE_DUR, ease: SWIPE_CLOSE_EASE }, "<");
       }
       if (container.closeEle) {
-        tl.to(container.closeEle, { autoAlpha: 0, duration: 0.8, ease: "power2.inOut" }, "<");
+        tl.to(container.closeEle, { autoAlpha: 0, duration: 0.18, ease: "power2.in" }, "<");
       }
       tl.play();
     },
-    [orientation, container]
+    [orientation, container, modal]
   );
 
   useEffect(() => {

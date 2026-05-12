@@ -1,8 +1,33 @@
 import { v } from "convex/values";
 
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
-import { Card, SoloGameState, SoloGameStatus } from "../types/SoloTypes";
+import {
+    Card,
+    GameInteractionPhase,
+    SoloGameState,
+    SoloGameStatus,
+} from "../types/SoloTypes";
 import { createZones, SoloGameEngine } from "./SoloGameEngine";
+import { SoloRuleManager } from "./SoloRuleManager";
+
+const SOLITAIRE_WIN_SCORE_BONUS = 100;
+
+/** 与客户端 `SoloRuleManager.calculateMoveScore` 对齐（foundation/tableau/waste + 步数时间项） */
+function scoreDeltaForStep(
+    moveType: "foundation" | "move" | "waste",
+    movesBefore: number
+): number {
+    let base = 0;
+    if (moveType === "foundation") base = 10;
+    else if (moveType === "move") base = 5;
+    const timePart = Math.max(0, 100 - movesBefore * 10);
+    return base + Math.floor(timePart / 10);
+}
+
+function inferMoveScoringKind(toZone: string): "foundation" | "move" {
+    return toZone.startsWith("foundation-") ? "foundation" : "move";
+}
+
 export class GameManager {
     private dbCtx: any;
     private game: any | null;
@@ -18,10 +43,13 @@ export class GameManager {
         this.game = { ...game, _creationTime: undefined } as SoloGameState;
         return this.game;
     }
-    async save(data: { cards?: Card[], status?: SoloGameStatus }) {
-
+    async save(data: {
+        cards?: Card[];
+        status?: SoloGameStatus;
+        moves?: number;
+        score?: number;
+    }) {
         if (!this.game) return;
-        // console.log("save game", data);
         if (data.cards) {
             for (const c of data.cards) {
                 const card: Card | undefined = this.game.cards.find((cc: Card) => cc.id === c.id);
@@ -34,13 +62,27 @@ export class GameManager {
                 }
             }
         }
-        if (data.status)
-            this.game.status = data.status;
-        await this.dbCtx.db.patch(this.game._id, { cards: this.game.cards, status: this.game.status });
+        if (data.status !== undefined) this.game.status = data.status;
+        if (data.moves !== undefined) this.game.moves = data.moves;
+        if (data.score !== undefined) this.game.score = data.score;
+        await this.dbCtx.db.patch(this.game._id, {
+            cards: this.game.cards,
+            status: this.game.status,
+            moves: this.game.moves,
+            score: this.game.score,
+        });
+    }
+
+    progressSnapshot(): { score: number; moves: number; gameStatus: number } {
+        return {
+            score: this.game?.score ?? 0,
+            moves: this.game?.moves ?? 0,
+            gameStatus: this.game?.status ?? -1,
+        };
     }
     async createGame(seed?: string | number, gameId?: string): Promise<any> {
         const game = SoloGameEngine.createGame(seed);
-        console.log("createGame", game, seed);
+        // console.log("createGame", game, seed);
         const zones = createZones();
         const gameState: SoloGameState = {
             ...game, gameId: gameId ?? "", zones
@@ -51,7 +93,7 @@ export class GameManager {
             if (gameState.seed) {
                 patchData.seed = gameState.seed;
             }
-            console.log("documentId...", gid);
+            // console.log("documentId...", gid);
             // if (patchData.length > 0)
             //     await this.dbCtx.db.patch(gid, patchData);
             this.game = { ...gameState, _id: gid, _creationTime: undefined } as any;
@@ -62,7 +104,7 @@ export class GameManager {
         const game = await this.load(gameId);
         if (!game) return;
         const cards = SoloGameEngine.deal(game.cards);
-        console.log('deal cards', cards);
+        // console.log('deal cards', cards);
         await this.save({ cards, status: SoloGameStatus.DEALED });
         return { ok: true, data: { update: cards } };
     }
@@ -70,9 +112,14 @@ export class GameManager {
         if (!this.game) return { ok: false };
         const result = SoloGameEngine.drawCard(this.game, cardId);
         if (!result.ok) return result;
-        console.log("draw result", result);
-        await this.save({ cards: result.data?.draw });
-        return result;
+        const movesBefore = this.game.moves ?? 0;
+        const delta = scoreDeltaForStep("waste", movesBefore);
+        await this.save({
+            cards: result.data?.draw,
+            moves: movesBefore + 1,
+            score: (this.game.score ?? 0) + delta,
+        });
+        return { ...result, ...this.progressSnapshot() };
     }
     async move(cardId: string, toZone: string): Promise<any> {
         // console.log("manager move", cardId, toZone);
@@ -85,21 +132,53 @@ export class GameManager {
         // console.log("manager move result", result);
         if (!result.ok) return result;
         const updateCards = [...(result.data?.move || []), ...(result.data?.flip || [])];
-        await this.save({ cards: updateCards });
-        // await this.dbCtx.db.patch(this.game.id, { cards: this.game.cards });
-        return result;
+        const kind = inferMoveScoringKind(toZone);
+        const movesBefore = this.game.moves ?? 0;
+        const delta = scoreDeltaForStep(kind, movesBefore);
+        await this.save({
+            cards: updateCards,
+            moves: movesBefore + 1,
+            score: (this.game.score ?? 0) + delta,
+        });
+        const rm = new SoloRuleManager(this.game as SoloGameState, GameInteractionPhase.idle);
+        if (rm.isGameWon()) {
+            await this.save({
+                status: SoloGameStatus.COMPLETED,
+                score: (this.game.score ?? 0) + SOLITAIRE_WIN_SCORE_BONUS,
+            });
+        }
+        return { ...result, ...this.progressSnapshot() };
     }
     async recycle() {
         const result = SoloGameEngine.recycle(this.game);
         if (!result.ok) return result;
         const cards = result.data?.update || [];
-        await this.save({ cards });
-        return result;
+        const movesBefore = this.game.moves ?? 0;
+        const delta = scoreDeltaForStep("waste", movesBefore);
+        await this.save({
+            cards,
+            moves: movesBefore + 1,
+            score: (this.game.score ?? 0) + delta,
+        });
+        return { ...result, ...this.progressSnapshot() };
     }
     async gameOver() {
         if (!this.game) return { ok: false };
         await this.save({ status: 3 });
         return { ok: true };
+    }
+
+    /** 玩家主动结束：标记放弃，保留当前分数供上报 */
+    async concedeGame(): Promise<
+        ({ ok: true } & ReturnType<GameManager["progressSnapshot"]>) | { ok: false }
+    > {
+        if (!this.game) return { ok: false };
+        const st = this.game.status as number;
+        if (st === SoloGameStatus.COMPLETED || st === SoloGameStatus.CANCELLED) {
+            return { ok: true, ...this.progressSnapshot() };
+        }
+        await this.save({ status: SoloGameStatus.CANCELLED });
+        return { ok: true, ...this.progressSnapshot() };
     }
 }
 // Convex 函数接口
@@ -123,33 +202,7 @@ export const createGame = internalMutation({
     },
 });
 
-/** 客户端直接开新局（不依赖锦标赛 proxy）；与 internal createGame 逻辑一致 */
-export const createSoloGame = mutation({
-    args: {
-        seed: v.optional(v.string()),
-        gameId: v.optional(v.string()),
-    },
-    handler: async (ctx, { seed, gameId: requestedId }) => {
-        const gameId =
-            requestedId && String(requestedId).length > 0
-                ? String(requestedId)
-                : crypto.randomUUID();
-        const gameManager = new GameManager(ctx);
-        const game = await gameManager.createGame(seed, gameId);
-        if (!game) {
-            return { ok: false as const };
-        }
-        const initialGame = JSON.parse(JSON.stringify(game));
-        const dealedCards = SoloGameEngine.deal(game.cards);
-        await gameManager.save({ cards: dealedCards, status: SoloGameStatus.DEALED });
-        return {
-            ok: true as const,
-            gameId,
-            data: initialGame,
-            events: [{ name: "deal", cards: dealedCards }],
-        };
-    },
-});
+/** 建局请统一走 `api.proxy.controller.loadGame`（action）；不在此暴露公开 mutation。 */
 
 export const loadGame = query({
     args: { gameId: v.string() },
@@ -178,7 +231,22 @@ export const findGame = internalQuery({
 export const findReport = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {
-        return { ok: true, data: { baseScore: 100, timeBonus: 0, completeBonus: 0, totalScore: 100 } };
+        const gameManager = new GameManager(ctx);
+        const game = await gameManager.load(gameId);
+        if (!game) {
+            return { ok: false as const };
+        }
+        const total = game.score ?? 0;
+        return {
+            ok: true as const,
+            data: {
+                gameId,
+                baseScore: total,
+                timeBonus: 0,
+                completeBonus: 0,
+                totalScore: total,
+            },
+        };
     },
 });
 export const getGame = query({
@@ -201,6 +269,15 @@ export const gameOver = mutation({
     handler: async (ctx, { gameId }) => {
         const gameManager = new GameManager(ctx);
         return await gameManager.gameOver();
+    },
+});
+
+export const concedeGame = mutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const gameManager = new GameManager(ctx);
+        await gameManager.load(gameId);
+        return await gameManager.concedeGame();
     },
 });
 export const deal = mutation({
@@ -236,7 +313,8 @@ export const recycle = mutation({
         const gameManager = new GameManager(ctx);
         await gameManager.load(gameId);
         const result = await gameManager.recycle();
-        return { ok: result.ok };
+        if (!result.ok) return { ok: false as const };
+        return { ok: true as const, ...gameManager.progressSnapshot() };
     },
 });
 

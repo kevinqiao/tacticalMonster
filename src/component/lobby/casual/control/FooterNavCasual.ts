@@ -8,6 +8,6 @@ export const CASUAL_FOOTER_NAV_URI = [
   "/casual/lobby/c5",
 ] as const;
 
-export const CASUAL_FOOTER_NAV_LABEL = ["商店", "任务", "Play", "奖励", "排行榜"] as const;
+export const CASUAL_FOOTER_NAV_LABEL = ["商店", "历史", "Play", "奖励", "排行榜"] as const;
 
 export type CasualFooterNavUri = (typeof CASUAL_FOOTER_NAV_URI)[number];
