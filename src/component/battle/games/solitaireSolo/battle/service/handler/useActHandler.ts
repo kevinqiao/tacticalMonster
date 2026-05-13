@@ -89,6 +89,7 @@ const useActHandler = () => {
                         casualRunSubmittedRef.current = false;
                         return;
                     }
+                    console.log("submitCasualPlatformRun success");
                     onGameSubmit?.();
                     return;
                 }

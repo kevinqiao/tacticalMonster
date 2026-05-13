@@ -314,6 +314,36 @@
     flex: 1;
 }
 
+.blockblast-status__end-game {
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 193, 120, 0.45);
+    background: rgba(90, 36, 8, 0.45);
+    color: #ffe8cc;
+    flex-shrink: 0;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.blockblast-status__end-game:hover:not(:disabled) {
+    background: rgba(110, 44, 10, 0.55);
+}
+
+.blockblast-status__end-game:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.blockblast-status__end-game--landscape {
+    width: 100%;
+    max-width: 100%;
+    padding: 4px 2px;
+    font-size: 10px;
+}
+
 .blockblast-status__timer {
     font-variant-numeric: tabular-nums;
     font-size: 17px;

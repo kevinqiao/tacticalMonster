@@ -18,11 +18,14 @@ import {
     SUIT_ICONS,
     ZoneType
 } from './types/SoloTypes';
+import { layoutAllSoloCardsFromModel } from './soloCardLayout';
 import { tableauCardZIndex } from './Utils';
 import SoloDnDCard from './view/SoloDnDCard';
 import SoloGameHeader from './view/SoloGameHeader';
 
-const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
+const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
+    /** 整局在 animating+DEALED 下只批量补跑一次牌位（与原先各 SoloDnDCard 的 postDealLayoutOnce 等价）。 */
+    const postDealBatchLayoutDoneRef = useRef(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const boardSurfaceRef = useRef<HTMLDivElement>(null);
     const talonZoneRef = useRef<HTMLDivElement | undefined>(undefined);
@@ -35,6 +38,8 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         updateBoardDimension,
         interactionPhase,
         loadGame,
+        boardDimension,
+        boardDimensionRef,
     } = useSoloGameManager();
     const { cards } = gameState || {};
     const displayScore = gameState != null ? gameState.score : null;
@@ -196,6 +201,34 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
         };
     }, [measureBoardDimension, updateBoardDimension, gameState?.gameId]);
 
+    useLayoutEffect(() => {
+        postDealBatchLayoutDoneRef.current = false;
+    }, [gameState?.gameId]);
+
+    useLayoutEffect(() => {
+        if (!gameState || !boardDimension || !boardDimensionRef.current) return;
+        if (interactionPhase === GameInteractionPhase.pointerDrag) return;
+
+        const st = gameState.status as SoloGameStatus | number | undefined;
+        const isDealed = st === SoloGameStatus.DEALED || Number(st) === SoloGameStatus.DEALED;
+        const allMounted =
+            gameState.cards.length > 0 && gameState.cards.every((c) => c.ele != null);
+        const allowWhileAnimatingDeal =
+            interactionPhase === GameInteractionPhase.animating &&
+            isDealed &&
+            !postDealBatchLayoutDoneRef.current &&
+            allMounted;
+
+        if (interactionPhase !== GameInteractionPhase.idle && !allowWhileAnimatingDeal) {
+            return;
+        }
+
+        layoutAllSoloCardsFromModel(gameState, boardDimension, boardDimensionRef);
+
+        if (allowWhileAnimatingDeal) {
+            postDealBatchLayoutDoneRef.current = true;
+        }
+    }, [gameState, boardDimension, boardDimensionRef, interactionPhase]);
 
 
     /** 与 `useActHandler.runAutoCompleteToFoundation` 同条件：已发牌、空闲、开启配置且引擎判定可贪心收齐 */
@@ -311,7 +344,6 @@ const SoloPlayer: React.FC<{ gameId?: string }> = ({ gameId }) => {
     }, [cards]);
 
     // 渲染控制面板
-
 
     return (
         <div

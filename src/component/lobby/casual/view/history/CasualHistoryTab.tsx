@@ -2,6 +2,7 @@ import { PageProp } from "host/RenderApp";
 import { useUserManager } from "host/service/UserManager";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 
+import type { CasualGameHistoryRow } from "../../service/useCasualPlatformManager";
 import { useCasualPlatform } from "../../service/useCasualPlatformManager";
 import CasualPageShell from "../shell/CasualPageShell";
 import "../shared/casualEconomyPages.css";
@@ -40,64 +41,41 @@ function formatPendingRewardsSummary(row: {
   return parts.length ? parts.join(" · ") : null;
 }
 
-function formatInstanceRewardsSummary(row: {
-  pendingInstanceRewards?: {
-    coins?: number;
-    gems?: number;
-    seasonChallengePoints?: number;
-    seasonVoucher?: number;
-  };
-}): string | null {
-  const p = row.pendingInstanceRewards;
-  if (!p) return null;
-  const parts: string[] = [];
-  if ((p.coins ?? 0) > 0) parts.push(`${p.coins} 金币`);
-  if ((p.gems ?? 0) > 0) parts.push(`${p.gems} 钻`);
-  if ((p.seasonChallengePoints ?? 0) > 0) parts.push(`${p.seasonChallengePoints} 挑战点`);
-  if ((p.seasonVoucher ?? 0) > 0) parts.push(`${p.seasonVoucher} 赛季券`);
-  return parts.length ? parts.join(" · ") : null;
-}
-
 const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
   const rootRef = useRef<HTMLDivElement>(null);
-  const { gameHistory, instancePendingClaims, claimCasualRunRewards, claimCasualInstanceRewards } =
-    useCasualPlatform();
+  const {
+    gameHistory,
+    claimCasualRunRewards,
+    claimCasualScoreTierPendingRewardsBatch,
+    claimCasualInstanceRewards,
+  } = useCasualPlatform();
   const { user } = useUserManager();
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimErrorId, setClaimErrorId] = useState<string | null>(null);
-  const [claimingInstId, setClaimingInstId] = useState<string | null>(null);
-  const [claimInstErrId, setClaimInstErrId] = useState<string | null>(null);
-
-  const onClaimInstance = useCallback(
-    async (instancePlayerStateId: string) => {
-      setClaimInstErrId(null);
-      setClaimingInstId(instancePlayerStateId);
-      try {
-        const r = await claimCasualInstanceRewards(instancePlayerStateId);
-        if (!r.ok) {
-          setClaimInstErrId(instancePlayerStateId);
-        }
-      } finally {
-        setClaimingInstId(null);
-      }
-    },
-    [claimCasualInstanceRewards]
-  );
 
   const onClaim = useCallback(
-    async (playerTournamentId: string) => {
+    async (row: CasualGameHistoryRow) => {
       setClaimErrorId(null);
-      setClaimingId(playerTournamentId);
+      setClaimingId(row.entryId);
       try {
-        const r = await claimCasualRunRewards(playerTournamentId);
+        let r: { ok: boolean; error?: string };
+        if (row.historyRewardKind === "score_tier_pending") {
+          r = await claimCasualScoreTierPendingRewardsBatch(
+            row.scoreTierPendingIds ?? [row.entryId]
+          );
+        } else if (row.historyRewardKind === "instance_close_pending") {
+          r = await claimCasualInstanceRewards(row.entryId);
+        } else {
+          r = await claimCasualRunRewards(row.entryId);
+        }
         if (!r.ok) {
-          setClaimErrorId(playerTournamentId);
+          setClaimErrorId(row.entryId);
         }
       } finally {
         setClaimingId(null);
       }
     },
-    [claimCasualRunRewards]
+    [claimCasualRunRewards, claimCasualScoreTierPendingRewardsBatch, claimCasualInstanceRewards]
   );
 
   const emptyText = useMemo(() => {
@@ -114,70 +92,44 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
       showHeader
     >
       <section className="casual-econ casual-history-tab">
-        {instancePendingClaims.length > 0 ? (
-          <div className="casual-history-tab__instance-claims" style={{ marginBottom: "1.25rem" }}>
-            <h3 className="casual-history-tab__subhead">周期锦标奖励</h3>
-            <ul className="casual-history-tab__list">
-              {instancePendingClaims.map((row) => {
-                const hint = formatInstanceRewardsSummary(row);
-                return (
-                  <li key={row.instancePlayerStateId} className="casual-history-tab__item">
-                    <div className="casual-history-tab__head">
-                      <strong>{row.title}</strong>
-                      <span>桶 {row.instanceKey}</span>
-                    </div>
-                    <div className="casual-history-tab__meta">
-                      <span>周期总榜名次：{row.finalRank != null ? row.finalRank : "-"}</span>
-                      <span>聚合分：{row.aggregatedScore != null ? row.aggregatedScore : "-"}</span>
-                    </div>
-                    {row.canClaim ? (
-                      <div className="casual-history-tab__claim">
-                        {hint ? <p className="casual-history-tab__reward-hint">{hint}</p> : null}
-                        <button
-                          type="button"
-                          className="casual-history-tab__claim-btn"
-                          disabled={claimingInstId === row.instancePlayerStateId}
-                          onClick={() => void onClaimInstance(row.instancePlayerStateId)}
-                        >
-                          {claimingInstId === row.instancePlayerStateId ? "领取中…" : "领取周期奖励"}
-                        </button>
-                        {claimInstErrId === row.instancePlayerStateId ? (
-                          <span className="casual-history-tab__claim-err">领取失败，请稍后重试</span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : null}
-        {gameHistory.length === 0 && instancePendingClaims.length === 0 ? (
+        {gameHistory.length === 0 ? (
           <div className="casual-history-tab__empty">{emptyText}</div>
         ) : null}
         {gameHistory.length > 0 ? (
           <ul className="casual-history-tab__list">
             {gameHistory.map((row) => {
               const rewardHint = formatPendingRewardsSummary(row);
+              const isTier = row.historyRewardKind === "score_tier_pending";
+              const isInstanceClose = row.historyRewardKind === "instance_close_pending";
+              const claimLabel = isTier
+                ? "领取分档奖励"
+                : isInstanceClose
+                  ? "领取周期奖励"
+                  : "领取奖励";
               return (
-                <li key={row.entryId} className="casual-history-tab__item">
+                <li
+                  key={`${row.historyRewardKind ?? "run_pending"}-${row.entryId}`}
+                  className="casual-history-tab__item"
+                >
                   <div className="casual-history-tab__head">
                     <strong>{row.title}</strong>
                     <span>{formatMatchType(row.matchType)}</span>
                   </div>
                   <div className="casual-history-tab__meta">
                     <span>游戏：{row.gameId}</span>
-                    {row.periodTournament ? (
-                      <span>
-                        周期场
-                        {row.periodInstanceKey ? `（${row.periodInstanceKey}）` : ""}
-                        · 榜与金币等奖励在周期结束后统一结算
-                      </span>
-                    ) : null}
                     <span>分数：{row.score ?? "-"}</span>
                     <span>名次：{row.rank != null ? row.rank : "-"}</span>
                     <span>参与人数：{row.participantCount ?? "-"}</span>
                     <span>状态：{row.entryStatus === "submitted" ? "已提交" : "进行中"}</span>
+                    {(isTier || isInstanceClose) && row.periodInstanceKey != null ? (
+                      <span>桶：{row.periodInstanceKey}</span>
+                    ) : null}
+                    {isTier && row.matchGameId ? (
+                      <span>对局 gameId：{row.matchGameId}</span>
+                    ) : null}
+                    {isInstanceClose && row.submittedAt != null ? (
+                      <span>周期结束：{new Date(row.submittedAt).toLocaleString()}</span>
+                    ) : null}
                     <span>
                       开场：
                       {row.runStartedAt != null
@@ -186,7 +138,11 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
                     </span>
                     <span>
                       提交：
-                      {row.submittedAt ? new Date(row.submittedAt).toLocaleString() : "-"}
+                      {row.submittedAt && !isInstanceClose
+                        ? new Date(row.submittedAt).toLocaleString()
+                        : row.submittedAt && isInstanceClose
+                          ? "—"
+                          : "-"}
                     </span>
                   </div>
                   {row.canClaimReward ? (
@@ -196,16 +152,26 @@ const CasualHistoryTab: React.FC<PageProp> = ({ visible }) => {
                         type="button"
                         className="casual-history-tab__claim-btn"
                         disabled={claimingId === row.entryId}
-                        onClick={() => void onClaim(row.entryId)}
+                        onClick={() => void onClaim(row)}
                       >
-                        {claimingId === row.entryId ? "领取中…" : "Claim reward"}
+                        {claimingId === row.entryId ? "领取中…" : claimLabel}
                       </button>
                       {claimErrorId === row.entryId ? (
                         <span className="casual-history-tab__claim-err">领取失败，请稍后重试</span>
                       ) : null}
                     </div>
                   ) : null}
-                  {!row.canClaimReward && row.rewardsClaimedAt != null && !rewardHint ? (
+                  {isInstanceClose && !row.canClaimReward ? (
+                    row.rewardsClaimedAt != null ? (
+                      <div className="casual-history-tab__claimed-hint">周期奖励已领取</div>
+                    ) : (
+                      <div className="casual-history-tab__claimed-hint">本周期结算完成（无待领奖励）</div>
+                    )
+                  ) : null}
+                  {!isInstanceClose &&
+                  !row.canClaimReward &&
+                  row.rewardsClaimedAt != null &&
+                  !rewardHint ? (
                     <div className="casual-history-tab__claimed-hint">奖励已领取</div>
                   ) : null}
                 </li>

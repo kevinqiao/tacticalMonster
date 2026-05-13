@@ -146,6 +146,15 @@ export const Modals: Record<string, ModalConfig> = {
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
         ],
     },
+    "casual_daily_solo_leaderboard": {
+        name: "casual_daily_solo_leaderboard",
+        path: "./lobby/casual/view/play/CasualDailySoloLeaderboardModal",
+        auth: 0,
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
     "casual_battle_pass": {
         name: "casual_battle_pass",
         path: "./lobby/casual/view/battlePass/CasualBattlePassModal",

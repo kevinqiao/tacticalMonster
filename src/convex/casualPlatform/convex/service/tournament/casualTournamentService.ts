@@ -21,6 +21,7 @@ import {
   applyPeriodMatchScoreToInstanceState,
   ensureInstancePlayerStateRow,
   getOrCreateOpenInstance,
+  grantCasualScoreTierRewardsOnEachRunSettled,
   leaderboardRowsFromInstance,
 } from "./casualInstanceService";
 import {
@@ -528,21 +529,184 @@ export const solitaireSessionStandings = query({
 });
 
 /**
- * 游戏历史：按「每场异步 run」一条记录，数据源为 `casual_run_player_tournaments`
- *（与 `casual_run_tournaments` 1:1 对应同一 join 会话），不再按 `casual_run_player_matches` 拆行。
+ * 游戏历史：非周期型异步 run 一条 `casual_run_player_tournaments`；
+ * 周期型分档预发奖：同一局结算写入的多条 `casual_score_tier_pending`（同 instance+run+matchGame+createdAt）合并为一条；
+ * 周期桶关桶后的 base/名次奖并入 `historyRewardKind: "instance_close_pending"`（与上两类同一列表）。
  */
 export const gameHistory = query({
   args: { uid: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, { uid, limit }) => {
     const n = Math.min(Math.max(limit ?? 30, 1), 100);
+
     const pts = await ctx.db
       .query("casual_run_player_tournaments")
       .withIndex("by_uid_template", (q) => q.eq("uid", uid))
       .collect();
     pts.sort((a, b) => (b.updatedAt ?? b._creationTime) - (a.updatedAt ?? a._creationTime));
-    const sliced = pts.slice(0, n);
 
-    const rows = await Promise.all(
+    const tierPendings = await ctx.db
+      .query("casual_score_tier_pending")
+      .withIndex("by_uid", (q) => q.eq("uid", uid))
+      .collect();
+    tierPendings.sort((a, b) => b.createdAt - a.createdAt);
+
+    const scoreTierBundleKey = (tr: Doc<"casual_score_tier_pending">) =>
+      `${String(tr.instanceId)}|${String(tr.runTournamentId)}|${tr.matchGameId}|${String(tr.createdAt)}`;
+
+    const bundleMap = new Map<string, Doc<"casual_score_tier_pending">[]>();
+    for (const tr of tierPendings) {
+      const k = scoreTierBundleKey(tr);
+      const arr = bundleMap.get(k) ?? [];
+      arr.push(tr);
+      bundleMap.set(k, arr);
+    }
+    const tierGroups = [...bundleMap.values()].map((arr) => {
+      arr.sort((a, b) => a.minScore - b.minScore);
+      return arr;
+    });
+    tierGroups.sort((a, b) => b[0].createdAt - a[0].createdAt);
+
+    const runCache = new Map<string, Doc<"casual_run_tournaments"> | null>();
+    for (const group of tierGroups) {
+      for (const tr of group) {
+        const rid = String(tr.runTournamentId);
+        if (!runCache.has(rid)) {
+          runCache.set(rid, await ctx.db.get(tr.runTournamentId));
+        }
+      }
+    }
+
+    const tierRows = await Promise.all(
+      tierGroups.map(async (group) => {
+        const tr = group[0];
+        const run = runCache.get(String(tr.runTournamentId)) ?? null;
+        const pt = await ctx.db
+          .query("casual_run_player_tournaments")
+          .withIndex("by_tournament_uid", (q) =>
+            q.eq("tournamentId", tr.runTournamentId).eq("uid", uid)
+          )
+          .unique();
+        const def = getTournamentDefinition(tr.templateId);
+        const inst = run?.instanceId ? await ctx.db.get(run.instanceId) : null;
+        const runIdStr = String(tr.runTournamentId);
+        const pmForRun = await ctx.db
+          .query("casual_run_player_matches")
+          .withIndex("by_run_tournament", (q) => q.eq("tournamentId", runIdStr))
+          .collect();
+        const participantCount = pmForRun.length;
+        const isMulti = group.length > 1;
+        const sortedMinScores = [...new Set(group.map((g) => g.minScore))].sort((a, b) => a - b);
+        const pendingOnly = group.filter((g) => g.status === "pending");
+        const sumCoins = pendingOnly.reduce((s, g) => s + Math.max(0, Math.floor(g.coins ?? 0)), 0);
+        const sumGems = pendingOnly.reduce((s, g) => s + Math.max(0, Math.floor(g.gems ?? 0)), 0);
+        const pr = prunePendingWalletRewards({
+          coins: sumCoins,
+          gems: sumGems,
+          seasonChallengePoints: 0,
+          seasonVoucher: 0,
+        });
+        const canClaimReward = Boolean(pendingOnly.length && pr);
+        const allClaimed = group.every((g) => g.status === "claimed");
+        const rewardsClaimedAt = allClaimed
+          ? Math.max(...group.map((g) => (g.claimedAt != null ? g.claimedAt : g.createdAt)))
+          : null;
+        const submittedAt = allClaimed
+          ? Math.max(...group.map((g) => (g.claimedAt != null ? g.claimedAt : g.createdAt)))
+          : tr.createdAt;
+        const ptDone = pt?.status === RUN_PLAYER_TOURNAMENT_COMPLETED;
+        const idKeys = [...group]
+          .sort((a, b) => String(a._id).localeCompare(String(b._id)))
+          .map((g) => String(g._id));
+        const entryId = isMulti ? `score_tier_bundle:${idKeys.join(":")}` : String(tr._id);
+        const titleTiers = sortedMinScores.map((m) => `≥${m}`).join("、");
+        const pendingSortedIds = [...pendingOnly]
+          .sort((a, b) => String(a._id).localeCompare(String(b._id)))
+          .map((g) => String(g._id));
+        return {
+          entryId,
+          historyRewardKind: "score_tier_pending" as const,
+          runTournamentId: String(tr.runTournamentId),
+          tournamentId: tr.templateId,
+          title: `${def?.title ?? tr.templateId} · 分档 ${titleTiers}`,
+          gameId: tr.gameType,
+          matchType: def?.matchType ?? "unknown",
+          score: pt?.score ?? null,
+          submittedAt,
+          entryStatus: ptDone ? ("submitted" as const) : ("joined" as const),
+          runStartedAt: run?.createdAt ?? tr.createdAt,
+          rank: null as number | null,
+          participantCount,
+          canClaimReward,
+          pendingRunRewards: pr ?? null,
+          rewardsClaimedAt,
+          periodTournament: true,
+          periodInstanceKey: inst?.instanceKey,
+          matchGameId: tr.matchGameId,
+          scoreTierMinScore: isMulti ? undefined : tr.minScore,
+          scoreTierMinScores: isMulti ? sortedMinScores : undefined,
+          scoreTierPendingIds: isMulti && pendingSortedIds.length > 0 ? pendingSortedIds : undefined,
+        };
+      })
+    );
+
+    const mine = await ctx.db
+      .query("casual_instance_player_state")
+      .withIndex("by_uid", (q) => q.eq("uid", uid))
+      .collect();
+    const instanceCloseRows: Array<{
+      entryId: string;
+      historyRewardKind: "instance_close_pending";
+      tournamentId: string;
+      title: string;
+      gameId: string;
+      matchType: string;
+      score: number | null;
+      submittedAt: number;
+      entryStatus: "submitted";
+      runStartedAt: number;
+      rank: number | null;
+      canClaimReward: boolean;
+      pendingRunRewards: ReturnType<typeof prunePendingWalletRewards> | null;
+      rewardsClaimedAt: number | null;
+      periodTournament: boolean;
+      periodInstanceKey: string | undefined;
+    }> = [];
+    for (const s of mine) {
+      if (s.matchCount <= 0) continue;
+      const inst = await ctx.db.get(s.instanceId);
+      if (!inst) continue;
+      const def = getTournamentDefinition(inst.templateId);
+      if (!def || !isPeriodScopedTournament(def)) continue;
+      if (inst.status !== "closed") continue;
+      const pr = prunePendingWalletRewards({
+        coins: s.pendingInstanceRewards?.coins,
+        gems: s.pendingInstanceRewards?.gems,
+        seasonChallengePoints: s.pendingInstanceRewards?.seasonChallengePoints,
+        seasonVoucher: s.pendingInstanceRewards?.seasonVoucher,
+      });
+      const canClaimReward = Boolean(pr && s.instanceRewardsClaimedAt == null);
+      instanceCloseRows.push({
+        entryId: String(s._id),
+        historyRewardKind: "instance_close_pending",
+        tournamentId: inst.templateId,
+        title: `${def.title ?? inst.templateId} · 周期结算`,
+        gameId: def.gameId,
+        matchType: def.matchType ?? "unknown",
+        score: s.aggregatedScore ?? null,
+        submittedAt: inst.endsAt,
+        entryStatus: "submitted",
+        runStartedAt: inst.startsAt ?? inst.endsAt,
+        rank: s.finalRank ?? null,
+        canClaimReward,
+        pendingRunRewards: pr ?? null,
+        rewardsClaimedAt: s.instanceRewardsClaimedAt ?? null,
+        periodTournament: true,
+        periodInstanceKey: inst.instanceKey,
+      });
+    }
+
+    const sliced = pts.slice(0, n * 2);
+    const runRows = await Promise.all(
       sliced.map(async (pt) => {
         const run = await ctx.db.get(pt.tournamentId);
         const def = getTournamentDefinition(pt.templateId);
@@ -554,7 +718,6 @@ export const gameHistory = query({
           .query("casual_run_player_matches")
           .withIndex("by_run_tournament", (q) => q.eq("tournamentId", runIdStr))
           .collect();
-        /** 本场总人数：与 `casual_run_player_matches` 行数一致（含 Solitaire 虚拟对手） */
         const participantCount = pmForRun.length;
 
         const rank = completed
@@ -585,7 +748,7 @@ export const gameHistory = query({
 
         return {
           entryId: String(pt._id),
-          /** 本场 run 实例 id（`casual_run_tournaments`） */
+          historyRewardKind: "run_pending" as const,
           runTournamentId: String(pt.tournamentId),
           tournamentId: pt.templateId,
           title: def?.title ?? pt.templateId,
@@ -594,7 +757,6 @@ export const gameHistory = query({
           score: pt.score ?? null,
           submittedAt: completed ? (pt.updatedAt ?? null) : null,
           entryStatus: completed ? ("submitted" as const) : ("joined" as const),
-          /** Run 开场时间（来自 `casual_run_tournaments.createdAt`） */
           runStartedAt: run?.createdAt ?? pt.createdAt,
           rank,
           participantCount,
@@ -606,7 +768,14 @@ export const gameHistory = query({
         };
       })
     );
-    return rows;
+    const filteredRunRows = runRows.filter((r) => !r.periodTournament);
+
+    const merged = [...filteredRunRows, ...tierRows, ...instanceCloseRows].sort((a, b) => {
+      const ta = a.submittedAt ?? a.runStartedAt ?? 0;
+      const tb = b.submittedAt ?? b.runStartedAt ?? 0;
+      return tb - ta;
+    });
+    return merged.slice(0, n);
   },
 });
 
@@ -879,6 +1048,15 @@ export const submitCasualRunScoreCore = internalMutation({
           now,
           def,
         });
+        await grantCasualScoreTierRewardsOnEachRunSettled(ctx, {
+          instanceId: runRow.instanceId,
+          runTournamentId: runTid,
+          uid,
+          def,
+          now,
+          matchGameId: pm.gameId,
+          gameType: def.gameId,
+        });
         await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
           uid,
           matchType: def.matchType,
@@ -975,6 +1153,15 @@ export const submitCasualRunScoreCore = internalMutation({
           matchScore: hp.score,
           now,
           def,
+        });
+        await grantCasualScoreTierRewardsOnEachRunSettled(ctx, {
+          instanceId: runRow.instanceId,
+          runTournamentId: runTid,
+          uid: hp.uid,
+          def,
+          now,
+          matchGameId: hp.gameId,
+          gameType: def.gameId,
         });
         await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
           uid: hp.uid,
@@ -1089,6 +1276,147 @@ export const claimCasualRunRewards = mutation({
       runRewardsClaimedAt: now,
       updatedAt: now,
     });
+    return { ok: true as const };
+  },
+});
+
+/** 周期场分档预发奖：领取 `casual_score_tier_pending` 写入钱包 */
+export const claimCasualScoreTierPendingReward = mutation({
+  args: {
+    uid: v.string(),
+    pendingRewardId: v.id("casual_score_tier_pending"),
+  },
+  handler: async (ctx, { uid, pendingRewardId }) => {
+    const row = await ctx.db.get(pendingRewardId);
+    if (!row || row.uid !== uid) {
+      return { ok: false as const, error: "forbidden" as const };
+    }
+    if (row.status !== "pending") {
+      return { ok: false as const, error: "already_claimed" as const };
+    }
+    const pr = prunePendingWalletRewards({
+      coins: row.coins,
+      gems: row.gems,
+      seasonChallengePoints: 0,
+      seasonVoucher: 0,
+    });
+    if (!pr) {
+      return { ok: false as const, error: "nothing_to_claim" as const };
+    }
+    const now = Date.now();
+    if ((pr.coins ?? 0) > 0) {
+      const gr = await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
+        uid,
+        kind: "coins",
+        amount: pr.coins!,
+      });
+      if (!gr.ok) {
+        return { ok: false as const, error: "grant_failed" as const };
+      }
+    }
+    if ((pr.gems ?? 0) > 0) {
+      const gr = await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
+        uid,
+        kind: "gems",
+        amount: pr.gems!,
+      });
+      if (!gr.ok) {
+        return { ok: false as const, error: "grant_failed" as const };
+      }
+    }
+    await ctx.db.patch(row._id, {
+      status: "claimed",
+      claimedAt: now,
+    });
+    return { ok: true as const };
+  },
+});
+
+const SCORE_TIER_PENDING_BATCH_MAX = 16;
+
+/** 同一局结算多档合并领取：须为同一 `instanceId + runTournamentId + matchGameId + createdAt` 批次 */
+export const claimCasualScoreTierPendingRewardsBatch = mutation({
+  args: {
+    uid: v.string(),
+    pendingRewardIds: v.array(v.id("casual_score_tier_pending")),
+  },
+  handler: async (ctx, { uid, pendingRewardIds }) => {
+    if (pendingRewardIds.length === 0) {
+      return { ok: false as const, error: "empty_batch" as const };
+    }
+    if (pendingRewardIds.length > SCORE_TIER_PENDING_BATCH_MAX) {
+      return { ok: false as const, error: "batch_too_large" as const };
+    }
+    if (new Set(pendingRewardIds.map(String)).size !== pendingRewardIds.length) {
+      return { ok: false as const, error: "duplicate_ids" as const };
+    }
+    const rows = (await Promise.all(pendingRewardIds.map((id) => ctx.db.get(id)))).filter(
+      (row): row is NonNullable<typeof row> => row != null
+    );
+    if (rows.length !== pendingRewardIds.length) {
+      return { ok: false as const, error: "forbidden" as const };
+    }
+    for (const row of rows) {
+      if (row.uid !== uid) {
+        return { ok: false as const, error: "forbidden" as const };
+      }
+      if (row.status !== "pending") {
+        return { ok: false as const, error: "already_claimed" as const };
+      }
+    }
+    const r0 = rows[0];
+    for (const row of rows) {
+      if (
+        String(row.instanceId) !== String(r0.instanceId) ||
+        String(row.runTournamentId) !== String(r0.runTournamentId) ||
+        row.matchGameId !== r0.matchGameId ||
+        row.createdAt !== r0.createdAt
+      ) {
+        return { ok: false as const, error: "batch_mismatch" as const };
+      }
+    }
+    let sumCoins = 0;
+    let sumGems = 0;
+    for (const row of rows) {
+      sumCoins += Math.max(0, Math.floor(row.coins ?? 0));
+      sumGems += Math.max(0, Math.floor(row.gems ?? 0));
+    }
+    const pr = prunePendingWalletRewards({
+      coins: sumCoins,
+      gems: sumGems,
+      seasonChallengePoints: 0,
+      seasonVoucher: 0,
+    });
+    if (!pr) {
+      return { ok: false as const, error: "nothing_to_claim" as const };
+    }
+    const now = Date.now();
+    if ((pr.coins ?? 0) > 0) {
+      const gr = await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
+        uid,
+        kind: "coins",
+        amount: pr.coins!,
+      });
+      if (!gr.ok) {
+        return { ok: false as const, error: "grant_failed" as const };
+      }
+    }
+    if ((pr.gems ?? 0) > 0) {
+      const gr = await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
+        uid,
+        kind: "gems",
+        amount: pr.gems!,
+      });
+      if (!gr.ok) {
+        return { ok: false as const, error: "grant_failed" as const };
+      }
+    }
+    for (const row of rows) {
+      await ctx.db.patch(row._id, {
+        status: "claimed",
+        claimedAt: now,
+      });
+    }
     return { ok: true as const };
   },
 });

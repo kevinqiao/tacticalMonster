@@ -1,6 +1,11 @@
 import type { CasualPlatformRewardConfig } from "./casualTournamentRewardTypes";
 
-export type { CasualPlatformRewardConfig, CasualRankRewardEntry } from "./casualTournamentRewardTypes";
+export type {
+  CasualPlatformRewardConfig,
+  CasualRankRewardEntry,
+  CasualScoreTierRewardEntry,
+  CasualScoreTierRewardsGrantTiming,
+} from "./casualTournamentRewardTypes";
 
 /** 静态锦标配置；join / submit 结算与 DB 种子共用 */
 
@@ -44,7 +49,14 @@ export interface CasualTournamentDefinition {
   seasonPointsMultiplier: number;
   /** 真 · 专场可不展示异步排行榜（仍写入 score 供运营/扩展） */
   hideLeaderboard?: boolean;
+  /** 仅「单人挑战」等入口 join，不出现在多人竞技锦标列表 */
+  omitFromPlayLobby?: boolean;
 }
+
+/** Play「单人挑战」日榜最高分 · Solitaire */
+export const CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID = "casual_daily_solo_challenge_solitaire" as const;
+/** Play「单人挑战」日榜最高分 · Block Blast */
+export const CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID = "casual_daily_solo_challenge_block_blast" as const;
 
 export function effectiveInstanceScope(def: CasualTournamentDefinition): CasualInstanceScope {
   return def.instanceScope ?? "single_match";
@@ -187,10 +199,45 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     seasonXpOnSettle: 28,
     seasonPointsMultiplier: 2,
   },
-  /** 演示：日周期 + 最高分聚合 + 按实例收一次入场（多局仅记榜，钱包奖励在周期结束时统一结算） */
   {
-    tournamentId: "casual_daily_agg_bb",
-    title: "Daily · Block Blast（周期最高分）",
+    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
+    title: "Daily · Solitaire 单人最高分",
+    gameId: "solitaire",
+    matchType: "tournament_a",
+    status: "open",
+    instanceScope: "daily",
+    scoreAggregation: "best_score",
+    entryBilling: "per_instance",
+    instanceTimezone: "UTC",
+    maxPlayers: 1,
+    matchmakingMinHumans: 1,
+    entry: { kind: "none" },
+    rewards: {
+      type: "by_performance",
+      baseRewards: { coins: 10, gems: 0 },
+      /** 日榜周期收尾：按当日桶内名次叠加（与 `scoreTierRewards` 独立，结算时合并） */
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, coins: 80, gems: 0 },
+        { rankRange: [2, 3], multiplier: 1, coins: 50, gems: 0 },
+        { rankRange: [4, 10], multiplier: 1, coins: 30, gems: 0 },
+        { rankRange: [11, 50], multiplier: 1, coins: 15, gems: 0 },
+        { rankRange: [51, 999_999], multiplier: 1, coins: 5, gems: 0 },
+      ],
+      scoreTierRewardsGrantTiming: "on_each_run_settled",
+      scoreTierRewards: [
+        { minScore: 5000, coins: 40, gems: 0 },
+        { minScore: 3000, coins: 25, gems: 0 },
+        { minScore: 1500, coins: 15, gems: 0 },
+        { minScore: 500, coins: 5, gems: 0 },
+      ],
+    },
+    seasonXpOnSettle: 8,
+    seasonPointsMultiplier: 0.5,
+    omitFromPlayLobby: true,
+  },
+  {
+    tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
+    title: "Daily · Block Blast 单人最高分",
     gameId: "block_blast",
     matchType: "tournament_a",
     status: "open",
@@ -198,15 +245,31 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     scoreAggregation: "best_score",
     entryBilling: "per_instance",
     instanceTimezone: "UTC",
-    maxPlayers: 3,
+    maxPlayers: 1,
     matchmakingMinHumans: 1,
-    entry: { kind: "coins", amount: 10 },
+    entry: { kind: "none" },
     rewards: {
       type: "by_performance",
-      baseRewards: { coins: 15, gems: 0 },
+      baseRewards: { coins: 10, gems: 0 },
+      /** 日榜周期收尾：按名次叠加（与 Solitaire 日榜可分别调数值） */
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, coins: 100, gems: 0 },
+        { rankRange: [2, 3], multiplier: 1, coins: 60, gems: 0 },
+        { rankRange: [4, 10], multiplier: 1, coins: 35, gems: 0 },
+        { rankRange: [11, 50], multiplier: 1, coins: 18, gems: 0 },
+        { rankRange: [51, 999_999], multiplier: 1, coins: 6, gems: 0 },
+      ],
+      scoreTierRewardsGrantTiming: "on_each_run_settled",
+      scoreTierRewards: [
+        { minScore: 100_000, coins: 50, gems: 0 },
+        { minScore: 50_000, coins: 35, gems: 0 },
+        { minScore: 20_000, coins: 20, gems: 0 },
+        { minScore: 5000, coins: 8, gems: 0 },
+      ],
     },
-    seasonXpOnSettle: 10,
+    seasonXpOnSettle: 8,
     seasonPointsMultiplier: 0.5,
+    omitFromPlayLobby: true,
   },
   /** 赛季专场：锦标模型 join → submitScore，入场扣赛季券，结算 Pass XP（无赛季积分榜展示） */
   {
@@ -252,7 +315,9 @@ export function listPlayCasualTournaments(): Array<{
   scoreAggregation?: CasualScoreAggregation;
   entryBilling?: CasualEntryBilling;
 }> {
-  return TOURNAMENT_DEFS.filter((t) => t.matchType !== "season_challenge").map((t) => ({
+  return TOURNAMENT_DEFS.filter(
+    (t) => t.matchType !== "season_challenge" && !t.omitFromPlayLobby
+  ).map((t) => ({
     tournamentId: t.tournamentId,
     title: t.title,
     gameId: t.gameId,

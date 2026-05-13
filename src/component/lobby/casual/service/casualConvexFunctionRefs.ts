@@ -15,6 +15,12 @@ export const casualTournamentFns = {
   claimCasualRunRewards: makeFunctionReference<"mutation">(
     "service/tournament/casualTournamentService:claimCasualRunRewards"
   ),
+  claimCasualScoreTierPendingReward: makeFunctionReference<"mutation">(
+    "service/tournament/casualTournamentService:claimCasualScoreTierPendingReward"
+  ),
+  claimCasualScoreTierPendingRewardsBatch: makeFunctionReference<"mutation">(
+    "service/tournament/casualTournamentService:claimCasualScoreTierPendingRewardsBatch"
+  ),
 } as const;
 
 export const casualInstanceFns = {

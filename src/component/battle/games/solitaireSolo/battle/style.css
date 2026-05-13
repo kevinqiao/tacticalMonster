@@ -63,14 +63,23 @@
     -moz-user-select: none;
     -ms-user-select: none;
     overflow: visible;
-    background-color: #51d81b;
 }
 
 .solo-game-loading {
     width: 100%;
     height: 100%;
-    position: relative;
+    position: absolute;
+    z-index: 1000;
+    left: 0;
+    top: 0;
     font-family: 'Arial', sans-serif;
+    background-color: #000000;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .solo-player-container {
@@ -252,7 +261,7 @@
 
 /* 横屏 + 触摸：顶栏改为左侧竖条，牌桌占剩余宽度（手机横握 / 小平板） */
 @media (orientation: landscape) and (hover: none) and (pointer: coarse),
-       (orientation: landscape) and (hover: none) and (max-height: 440px) {
+(orientation: landscape) and (hover: none) and (max-height: 440px) {
     .solo-player-container {
         flex-direction: row;
         align-items: stretch;

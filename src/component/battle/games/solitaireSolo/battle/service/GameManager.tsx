@@ -5,7 +5,6 @@
 import { useConvex } from 'convex/react';
 import React, { createContext, ReactNode, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../../../../convex/solitaireArena/convex/_generated/api';
-import { dealEffect } from '../animation/effects/dealEffect';
 import {
     Card,
     DEFAULT_GAME_CONFIG,
@@ -116,38 +115,37 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
             setDealEvent(null);
             setInteractionPhase(GameInteractionPhase.idle);
         }
-        console.log("game loaded", game);
+        onGameLoadComplete?.();
         setGameState(game);
-    }, [convex, gameId]);
+    }, [convex, gameId, onGameLoadComplete]);
     useEffect(() => {
         loadGame();
     }, [loadGame]);
     useEffect(() => {
+        if (!dealEvent || gameState?.status !== SoloGameStatus.OPEN || !boardDimension) return;
 
-        if (dealEvent && gameState?.status === SoloGameStatus.OPEN && boardDimension) {
+        const ready = gameState.cards.every((card) => card.ele !== null) || false;
+        if (!ready) return;
 
-            const ready = gameState?.cards.every(card => card.ele !== null) || false;
-            if (ready) {
-                gameState.status = SoloGameStatus.DEALED
-                dealEffect({
-                    effectType: 'fan',
-                    timelines: timelinesRef.current,
-                    data: { cards: dealEvent.cards, gameState, boardDimensionRef },
-                    onComplete: () => {
-                        dealEvent.cards.forEach((r: SoloCard) => {
-                            const card = gameState.cards.find((c: SoloCard) => c.id === r.id);
-                            if (card) {
-                                card.isRevealed = r.isRevealed;
-                                card.zone = r.zone;
-                                card.zoneId = r.zoneId;
-                                card.zoneIndex = r.zoneIndex;
-                            }
-                        });
-                        setInteractionPhase(GameInteractionPhase.idle);
-                    }
-                });
-            }
-        }
+        setGameState((prev) => {
+            if (!prev || prev.status !== SoloGameStatus.OPEN) return prev;
+            const byId = new Map(dealEvent.cards.map((r: Card) => [r.id, r]));
+            const cards = prev.cards.map((c: SoloCard) => {
+                const r = byId.get(c.id);
+                if (!r) return c;
+                return {
+                    ...c,
+                    isRevealed: r.isRevealed,
+                    zone: r.zone,
+                    zoneId: r.zoneId,
+                    zoneIndex: r.zoneIndex,
+                };
+            });
+            return { ...prev, status: SoloGameStatus.DEALED, cards };
+        });
+        setDealEvent(null);
+        /** 必须回到 idle：`SoloDnDCard` 在 animating 时默认不跑 `initCard`（避免走子动画期间被旧 state 抢写 GSAP），idle 后才把牌摆到棋盘。 */
+        setInteractionPhase(GameInteractionPhase.idle);
     }, [dealEvent, gameState, boardDimension]);
 
     // const isPlaying = useCallback((card: SoloCard) => {

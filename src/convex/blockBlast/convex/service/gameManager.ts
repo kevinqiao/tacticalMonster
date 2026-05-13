@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "../_generated/server";
-import { normalizeBlockBlastGridSize, type BlockBlastGridSize } from "../types/BlockBlastTypes";
+import {
+    BlockBlastGameStatus,
+    normalizeBlockBlastGridSize,
+    type BlockBlastGridSize,
+} from "../types/BlockBlastTypes";
 import { BlockBlastGameEngine, randomUuidCompat } from "./BlockBlastGameEngine";
 
 /** 同 `gameId` 多行时取最新；`collect`+排序避免依赖 `.order().first()` 在重复索引上的 `unique` 异常 */
@@ -191,6 +195,32 @@ export class BlockBlastGameManager {
         await this.save({ status: 2 });
         return { ok: true };
     }
+
+    /** 玩家主动结束：标记放弃，保留当前分数供上报（对齐 solitaireArena `concedeGame`） */
+    async concedeGame(): Promise<
+        | { ok: true; score: number; lines: number; moves: number; gameStatus: number }
+        | { ok: false }
+    > {
+        if (!this.game) return { ok: false };
+        const st = this.game.status;
+        if (st !== BlockBlastGameStatus.PLAYING) {
+            return {
+                ok: true,
+                score: this.game.score,
+                lines: this.game.lines,
+                moves: this.game.moves,
+                gameStatus: st,
+            };
+        }
+        await this.save({ status: BlockBlastGameStatus.CANCELLED });
+        return {
+            ok: true,
+            score: this.game.score,
+            lines: this.game.lines,
+            moves: this.game.moves,
+            gameStatus: BlockBlastGameStatus.CANCELLED,
+        };
+    }
 }
 
 export const createGame = internalMutation({
@@ -289,6 +319,16 @@ export const gameOver = mutation({
         const gameManager = new BlockBlastGameManager(ctx);
         await gameManager.load(gameId);
         return await gameManager.gameOver();
+    },
+});
+
+export const concedeGame = mutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        await healDuplicateBlockBlastGamesForGameId(ctx, gameId);
+        const gameManager = new BlockBlastGameManager(ctx);
+        await gameManager.load(gameId);
+        return await gameManager.concedeGame();
     },
 });
 

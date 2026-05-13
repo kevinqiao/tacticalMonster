@@ -14,8 +14,12 @@ import {
   MOCK_TOURNAMENT_LEADERBOARD,
 } from "./casualLeaderboardsMock";
 import CasualPageShell from "../shell/CasualPageShell";
+import {
+  CASUAL_LEADERBOARDS_SESSION_TAB_KEY,
+  type CasualLeaderboardsNavTab,
+} from "./casualLeaderboardNavIntent";
 
-type BoardTab = "tournament" | "mainSeason" | "cArena";
+type BoardTab = CasualLeaderboardsNavTab;
 
 type TourRow = { rank: number; uid: string; score: number; submittedAt?: number };
 type PtsRow = { rank: number; uid: string; points: number };
@@ -41,6 +45,19 @@ const CasualLeaderboardsTab: React.FC<PageProp> = ({ visible }) => {
   const [board, setBoard] = useState<TourRow[]>([]);
   const [mainLb, setMainLb] = useState<PtsRow[]>([]);
   const [cLb, setCLb] = useState<PtsRow[]>([]);
+
+  useEffect(() => {
+    if (!visible) return;
+    try {
+      const raw = sessionStorage.getItem(CASUAL_LEADERBOARDS_SESSION_TAB_KEY);
+      if (raw === "tournament" || raw === "mainSeason" || raw === "cArena") {
+        setTab(raw);
+        sessionStorage.removeItem(CASUAL_LEADERBOARDS_SESSION_TAB_KEY);
+      }
+    } catch {
+      /* private mode / quota */
+    }
+  }, [visible]);
 
   const demoId = DEFAULT_CASUAL_TOURNAMENT_ID;
   const activeSeason = casual.seasons.find((s) => s.active) ?? casual.seasons[0];

@@ -60,9 +60,17 @@ function formatElapsed(totalSec: number): string {
 export interface BlockBlastStatusBarProps {
     isPortrait: boolean;
     gameState: BlockBlastGameState;
+    /** 与 solitaire「结束并结算」一致 */
+    onEndGame?: () => void;
+    endGameDisabled?: boolean;
 }
 
-const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({ isPortrait, gameState }) => {
+const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({
+    isPortrait,
+    gameState,
+    onEndGame,
+    endGameDisabled,
+}) => {
     const { user } = useUserManager();
     const { boardDimension } = useBlockBlastGameManager();
     const cellSizeForChrome = boardDimension?.cellSize ?? 24;
@@ -122,6 +130,19 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({ isPortrait, g
             >
                 <div className="blockblast-status__player">{avatarEl}</div>
                 <div className="blockblast-status__portrait-row">
+                    {onEndGame ? (
+                        <button
+                            type="button"
+                            className="blockblast-status__end-game"
+                            aria-label="以当前分数结束本局并结算"
+                            disabled={endGameDisabled}
+                            onClick={() => {
+                                void onEndGame();
+                            }}
+                        >
+                            结束并结算
+                        </button>
+                    ) : null}
                     <time className="blockblast-status__timer" dateTime={`PT${elapsedSec}S`}>
                         {timerText}
                     </time>
@@ -139,6 +160,19 @@ const BlockBlastStatusBar: React.FC<BlockBlastStatusBarProps> = ({ isPortrait, g
             style={{ width: landscapeRailPx }}
         >
             <div className="blockblast-status__landscape-top">
+                {onEndGame ? (
+                    <button
+                        type="button"
+                        className="blockblast-status__end-game blockblast-status__end-game--landscape"
+                        aria-label="以当前分数结束本局并结算"
+                        disabled={endGameDisabled}
+                        onClick={() => {
+                            void onEndGame();
+                        }}
+                    >
+                        结束
+                    </button>
+                ) : null}
                 <time className="blockblast-status__timer" dateTime={`PT${elapsedSec}S`}>
                     {timerText}
                 </time>

@@ -8,6 +8,7 @@ import {
     BLOCK_BLAST_DEFAULT_GRID_SIZE,
     BlockBlastGameStatus,
     BoardDimension,
+    GameInteractionPhase,
     inferGridSizeFromGrid,
 } from './types/BlockBlastTypes';
 import BlockBlastStatusBar, {
@@ -46,6 +47,8 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         gameState,
         updateBoardDimension,
         onGameOver,
+        settleManuallyAndExit,
+        interactionPhase,
     } = useBlockBlastGameManager();
 
     const gridDimension =
@@ -314,6 +317,8 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         );
     }
 
+    const endGameDisabled = interactionPhase !== GameInteractionPhase.idle;
+
     return (
         <div
             ref={containerRef}
@@ -325,7 +330,14 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 overflow: 'hidden',
             }}
         >
-            <BlockBlastStatusBar isPortrait={isPortrait} gameState={gameState} />
+            <BlockBlastStatusBar
+                isPortrait={isPortrait}
+                gameState={gameState}
+                endGameDisabled={endGameDisabled}
+                onEndGame={() => {
+                    void settleManuallyAndExit();
+                }}
+            />
             <GridView />
             <ShapePreview />
             <GameOverReport />

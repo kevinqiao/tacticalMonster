@@ -17,7 +17,10 @@ import {
   isPeriodScopedTournament,
   seasonPointsFromScore,
 } from "../../data/casualTournamentConfigs";
-import type { CasualRankRewardEntry } from "../../data/casualTournamentRewardTypes";
+import type {
+  CasualRankRewardEntry,
+  CasualScoreTierRewardEntry,
+} from "../../data/casualTournamentRewardTypes";
 
 export async function activeSeasonWindowForCtx(
   ctx: MutationCtx | QueryCtx
@@ -137,6 +140,70 @@ export async function applyPeriodMatchScoreToInstanceState(
   }
 }
 
+/**
+ * 周期型且 `scoreTierRewardsGrantTiming === on_each_run_settled`：
+ * 须在 `applyPeriodMatchScoreToInstanceState` 之后调用；对本局新达成且本桶未建档的各 `minScore` 档写入 `casual_score_tier_pending`（历史页手动领取）。
+ */
+export async function grantCasualScoreTierRewardsOnEachRunSettled(
+  ctx: MutationCtx,
+  args: {
+    instanceId: Id<"casual_tournament_instances">;
+    runTournamentId: Id<"casual_run_tournaments">;
+    uid: string;
+    def: CasualTournamentDefinition;
+    now: number;
+    /** `casual_run_player_matches.gameId`，与 Play `casualMatchGameId` 一致 */
+    matchGameId: string;
+    /** `solitaire` | `block_blast`，与 `CasualTournamentDefinition.gameId` 一致 */
+    gameType: string;
+  }
+): Promise<void> {
+  if (args.def.rewards.scoreTierRewardsGrantTiming !== "on_each_run_settled") {
+    return;
+  }
+  const tiers = args.def.rewards.scoreTierRewards;
+  if (!tiers?.length) return;
+
+  const inst = await ctx.db.get(args.instanceId);
+  if (!inst) return;
+
+  const agg = instanceAggregationForRanking(inst.scoreAggregation);
+  const row = await ctx.db
+    .query("casual_instance_player_state")
+    .withIndex("by_instance_uid", (q) => q.eq("instanceId", args.instanceId).eq("uid", args.uid))
+    .first();
+  if (!row) return;
+
+  const newAgg = aggregatedScoreForInstanceRow(row, agg);
+  const issued = await ctx.db
+    .query("casual_score_tier_pending")
+    .withIndex("by_instance_uid", (q) => q.eq("instanceId", args.instanceId).eq("uid", args.uid))
+    .collect();
+  const previouslyClaimed = new Set(issued.map((r) => r.minScore));
+  const sortedTiers = [...tiers].sort((a, b) => a.minScore - b.minScore);
+  const toGrant = sortedTiers.filter(
+    (t) => newAgg >= t.minScore && !previouslyClaimed.has(t.minScore)
+  );
+  for (const t of toGrant) {
+    const tc = t.coins != null ? Math.max(0, Math.floor(t.coins)) : 0;
+    const tg = t.gems != null ? Math.max(0, Math.floor(t.gems)) : 0;
+    if (tc === 0 && tg === 0) continue;
+    await ctx.db.insert("casual_score_tier_pending", {
+      uid: args.uid,
+      instanceId: args.instanceId,
+      runTournamentId: args.runTournamentId,
+      templateId: args.def.tournamentId,
+      minScore: t.minScore,
+      matchGameId: args.matchGameId,
+      gameType: args.gameType,
+      coins: tc,
+      gems: tg,
+      status: "pending",
+      createdAt: args.now,
+    });
+  }
+}
+
 function prunePendingWalletRewards(p: {
   coins?: number;
   gems?: number;
@@ -174,6 +241,16 @@ function findRankRewardEntry(
   });
 }
 
+/** 按 `minScore` 从高到低，命中首个 `score >= minScore`（最高满足档）。 */
+function findScoreTierRewardEntry(
+  tiers: CasualScoreTierRewardEntry[] | undefined,
+  score: number
+): CasualScoreTierRewardEntry | undefined {
+  if (!tiers?.length) return undefined;
+  const sorted = [...tiers].sort((a, b) => b.minScore - a.minScore);
+  return sorted.find((t) => score >= t.minScore);
+}
+
 function aggregatedScoreForInstanceRow(
   row: { bestScore?: number; sumScore?: number; matchCount: number },
   agg: "best_score" | "sum_scores"
@@ -181,6 +258,13 @@ function aggregatedScoreForInstanceRow(
   if (row.matchCount <= 0) return 0;
   if (agg === "sum_scores") return row.sumScore ?? 0;
   return row.bestScore ?? 0;
+}
+
+/** 实例表 `scoreAggregation` 含 `single_match`；周期榜排行与 `aggregatedScoreForInstanceRow` 仅区分求和 vs 取高 */
+function instanceAggregationForRanking(
+  stored: "single_match" | "best_score" | "sum_scores"
+): "best_score" | "sum_scores" {
+  return stored === "sum_scores" ? "sum_scores" : "best_score";
 }
 
 export async function leaderboardRowsFromInstance(
@@ -200,7 +284,7 @@ export async function leaderboardRowsFromInstance(
     .query("casual_instance_player_state")
     .withIndex("by_instance_uid", (q) => q.eq("instanceId", instanceId))
     .collect();
-  const agg = inst.scoreAggregation;
+  const agg = instanceAggregationForRanking(inst.scoreAggregation);
   const scored = rows
     .filter((r) => r.matchCount > 0)
     .map((r) => ({
@@ -217,6 +301,132 @@ export async function leaderboardRowsFromInstance(
   }));
 }
 
+/**
+ * 将「仍为 open」的 `casual_tournament_instances` 做周期收尾（与到期 cron 同一套排行/发奖/关桶逻辑）。
+ * 调用方需保证业务上允许提前关桶（例如仍有进行中的 run，玩家仍可交分直至 match 逻辑处理完毕；本函数不主动取消 open run）。
+ */
+async function settleOpenCasualTournamentInstanceCore(
+  ctx: MutationCtx,
+  inst: {
+    _id: Id<"casual_tournament_instances">;
+    templateId: string;
+    status: "open" | "closed";
+    scoreAggregation: "single_match" | "best_score" | "sum_scores";
+  },
+  now: number
+): Promise<void> {
+  if (inst.status !== "open") return;
+  const def = getTournamentDefinition(inst.templateId);
+  if (!def || !isPeriodScopedTournament(def)) {
+    await ctx.db.patch(inst._id, { status: "closed", updatedAt: now });
+    return;
+  }
+  const players = await ctx.db
+    .query("casual_instance_player_state")
+    .withIndex("by_instance_uid", (q) => q.eq("instanceId", inst._id))
+    .collect();
+  const activePlayers = players.filter((p) => p.matchCount > 0);
+  const agg = instanceAggregationForRanking(inst.scoreAggregation);
+  const ranked = [...activePlayers].sort(
+    (a, b) =>
+      aggregatedScoreForInstanceRow(b, agg) - aggregatedScoreForInstanceRow(a, agg) ||
+      (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  );
+  const seasonIdRow = await activeSeasonWindowForCtx(ctx);
+  const seasonId = seasonIdRow?.seasonId ?? null;
+
+  let rankCounter = 0;
+  for (const p of ranked) {
+    rankCounter++;
+    const rank = rankCounter;
+    const aggScore = aggregatedScoreForInstanceRow(p, agg);
+    const pending: {
+      coins?: number;
+      gems?: number;
+      seasonChallengePoints?: number;
+      seasonVoucher?: number;
+    } = {};
+    const baseCoins = casualSettleBaseCoins(def);
+    const baseGems = casualSettleBaseGems(def);
+    if (baseCoins > 0) pending.coins = (pending.coins ?? 0) + baseCoins;
+    if (baseGems > 0) pending.gems = (pending.gems ?? 0) + baseGems;
+    const rr = findRankRewardEntry(def.rewards.rankRewards, rank);
+    if (rr) {
+      const mult = (rr as { multiplier?: number }).multiplier ?? 1;
+      const rc = rr.coins != null ? Math.floor(rr.coins * mult) : 0;
+      const rg = rr.gems != null ? Math.floor(rr.gems * mult) : 0;
+      if (rc > 0) pending.coins = (pending.coins ?? 0) + rc;
+      if (rg > 0) pending.gems = (pending.gems ?? 0) + rg;
+    }
+    const tierTiming = def.rewards.scoreTierRewardsGrantTiming ?? "period_instance_close";
+    if (tierTiming !== "on_each_run_settled") {
+      const st = findScoreTierRewardEntry(def.rewards.scoreTierRewards, aggScore);
+      if (st) {
+        const tc = st.coins != null ? Math.max(0, Math.floor(st.coins)) : 0;
+        const tg = st.gems != null ? Math.max(0, Math.floor(st.gems)) : 0;
+        if (tc > 0) pending.coins = (pending.coins ?? 0) + tc;
+        if (tg > 0) pending.gems = (pending.gems ?? 0) + tg;
+      }
+    }
+    const pruned = prunePendingWalletRewards(pending);
+
+    if (seasonId) {
+      const pointsDelta = seasonPointsFromScore(aggScore, def.seasonPointsMultiplier);
+      if (pointsDelta > 0) {
+        const stat = await ctx.db
+          .query("casual_player_season_stats")
+          .withIndex("by_season_uid", (q) => q.eq("seasonId", seasonId).eq("uid", p.uid))
+          .unique();
+        const addMain = pointsDelta;
+        const addC = def.matchType === "tournament_c" ? pointsDelta : 0;
+        if (!stat) {
+          await ctx.db.insert("casual_player_season_stats", {
+            uid: p.uid,
+            seasonId,
+            mainSeasonPoints: addMain,
+            cArenaPoints: addC,
+            updatedAt: now,
+          });
+        } else {
+          await ctx.db.patch(stat._id, {
+            mainSeasonPoints: stat.mainSeasonPoints + addMain,
+            cArenaPoints: stat.cArenaPoints + addC,
+            updatedAt: now,
+          });
+        }
+      }
+    }
+
+    let passXpDelta = def.seasonXpOnSettle;
+    if (def.seasonXpOnSettle > 0) {
+      const xpMods = await ctx.runQuery(
+        internal.service.activity.casualActivityService.resolveSeasonActivityModifiers,
+        { tournamentId: inst.templateId }
+      );
+      passXpDelta = applyPassXpFromModifiers(
+        def.seasonXpOnSettle,
+        xpMods.passXpMultiplier,
+        xpMods.passXpDelta
+      );
+    }
+    if (passXpDelta > 0) {
+      await ctx.runMutation(internal.service.season.casualSeasonService.addPassXpFromRun, {
+        uid: p.uid,
+        deltaXp: passXpDelta,
+      });
+    }
+
+    await ctx.db.patch(p._id, {
+      finalRank: rank,
+      aggregatedScore: aggScore,
+      ...(pruned ? { pendingInstanceRewards: pruned } : {}),
+      updatedAt: now,
+    });
+  }
+
+  await ctx.db.patch(inst._id, { status: "closed", updatedAt: now });
+}
+
 export const finalizeExpiredCasualTournamentInstances = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -225,110 +435,53 @@ export const finalizeExpiredCasualTournamentInstances = internalMutation({
     const due = all.filter((i) => i.status === "open" && i.endsAt < now);
     let closed = 0;
     for (const inst of due) {
-      const def = getTournamentDefinition(inst.templateId);
-      if (!def || !isPeriodScopedTournament(def)) {
-        await ctx.db.patch(inst._id, { status: "closed", updatedAt: now });
-        closed++;
-        continue;
-      }
-      const players = await ctx.db
-        .query("casual_instance_player_state")
-        .withIndex("by_instance_uid", (q) => q.eq("instanceId", inst._id))
-        .collect();
-      const activePlayers = players.filter((p) => p.matchCount > 0);
-      const agg = inst.scoreAggregation;
-      const ranked = [...activePlayers].sort(
-        (a, b) =>
-          aggregatedScoreForInstanceRow(b, agg) - aggregatedScoreForInstanceRow(a, agg) ||
-          (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
-      );
-      const seasonIdRow = await activeSeasonWindowForCtx(ctx);
-      const seasonId = seasonIdRow?.seasonId ?? null;
-
-      let rankCounter = 0;
-      for (const p of ranked) {
-        rankCounter++;
-        const rank = rankCounter;
-        const aggScore = aggregatedScoreForInstanceRow(p, agg);
-        const pending: {
-          coins?: number;
-          gems?: number;
-          seasonChallengePoints?: number;
-          seasonVoucher?: number;
-        } = {};
-        const baseCoins = casualSettleBaseCoins(def);
-        const baseGems = casualSettleBaseGems(def);
-        if (baseCoins > 0) pending.coins = (pending.coins ?? 0) + baseCoins;
-        if (baseGems > 0) pending.gems = (pending.gems ?? 0) + baseGems;
-        const rr = findRankRewardEntry(def.rewards.rankRewards, rank);
-        if (rr) {
-          const mult = (rr as { multiplier?: number }).multiplier ?? 1;
-          const rc = rr.coins != null ? Math.floor(rr.coins * mult) : 0;
-          const rg =
-            rr.gems != null ? Math.floor(rr.gems * mult) : 0;
-          if (rc > 0) pending.coins = (pending.coins ?? 0) + rc;
-          if (rg > 0) pending.gems = (pending.gems ?? 0) + rg;
-        }
-        const pruned = prunePendingWalletRewards(pending);
-
-        if (seasonId) {
-          const pointsDelta = seasonPointsFromScore(aggScore, def.seasonPointsMultiplier);
-          if (pointsDelta > 0) {
-            const stat = await ctx.db
-              .query("casual_player_season_stats")
-              .withIndex("by_season_uid", (q) => q.eq("seasonId", seasonId).eq("uid", p.uid))
-              .unique();
-            const addMain = pointsDelta;
-            const addC = def.matchType === "tournament_c" ? pointsDelta : 0;
-            if (!stat) {
-              await ctx.db.insert("casual_player_season_stats", {
-                uid: p.uid,
-                seasonId,
-                mainSeasonPoints: addMain,
-                cArenaPoints: addC,
-                updatedAt: now,
-              });
-            } else {
-              await ctx.db.patch(stat._id, {
-                mainSeasonPoints: stat.mainSeasonPoints + addMain,
-                cArenaPoints: stat.cArenaPoints + addC,
-                updatedAt: now,
-              });
-            }
-          }
-        }
-
-        let passXpDelta = def.seasonXpOnSettle;
-        if (def.seasonXpOnSettle > 0) {
-          const xpMods = await ctx.runQuery(
-            internal.service.activity.casualActivityService.resolveSeasonActivityModifiers,
-            { tournamentId: inst.templateId }
-          );
-          passXpDelta = applyPassXpFromModifiers(
-            def.seasonXpOnSettle,
-            xpMods.passXpMultiplier,
-            xpMods.passXpDelta
-          );
-        }
-        if (passXpDelta > 0) {
-          await ctx.runMutation(internal.service.season.casualSeasonService.addPassXpFromRun, {
-            uid: p.uid,
-            deltaXp: passXpDelta,
-          });
-        }
-
-        await ctx.db.patch(p._id, {
-          finalRank: rank,
-          aggregatedScore: aggScore,
-          ...(pruned ? { pendingInstanceRewards: pruned } : {}),
-          updatedAt: now,
-        });
-      }
-
-      await ctx.db.patch(inst._id, { status: "closed", updatedAt: now });
+      await settleOpenCasualTournamentInstanceCore(ctx, inst, now);
       closed++;
     }
     return { ok: true as const, closed };
+  },
+});
+
+/**
+ * 后台强制结算：未到 `endsAt` 仍为 `open` 的周期型实例，或显式指定实例 id。
+ * 仅 `internalMutation`，在 Convex Dashboard 或 `npx convex run` 调用；勿对前端暴露。
+ */
+export const forceFinalizeCasualTournamentInstances = internalMutation({
+  args: {
+    instanceIds: v.optional(v.array(v.id("casual_tournament_instances"))),
+    /** 为 true 时结算所有「open 且 endsAt >= now」且模板为周期型的桶（慎用） */
+    allOpenNotExpiredPeriodScoped: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    let settled = 0;
+    const ids = args.instanceIds;
+    if (ids && ids.length > 0) {
+      for (const id of ids) {
+        const inst = await ctx.db.get(id);
+        if (!inst || inst.status !== "open") continue;
+        const def = getTournamentDefinition(inst.templateId);
+        if (!def || !isPeriodScopedTournament(def)) continue;
+        await settleOpenCasualTournamentInstanceCore(ctx, inst, now);
+        settled++;
+      }
+      return { ok: true as const, settled };
+    }
+    if (args.allOpenNotExpiredPeriodScoped) {
+      const all = await ctx.db.query("casual_tournament_instances").collect();
+      for (const inst of all) {
+        if (inst.status !== "open" || inst.endsAt < now) continue;
+        const def = getTournamentDefinition(inst.templateId);
+        if (!def || !isPeriodScopedTournament(def)) continue;
+        await settleOpenCasualTournamentInstanceCore(ctx, inst, now);
+        settled++;
+      }
+      return { ok: true as const, settled };
+    }
+    return {
+      ok: false as const,
+      error: "specify_instance_ids_or_allOpenNotExpiredPeriodScoped" as const,
+    };
   },
 });
 
@@ -397,6 +550,10 @@ export const claimCasualInstanceRewards = mutation({
   },
 });
 
+/**
+ * 周期型锦标：仅「实例已关闭且已参与至少一局」的桶级记录（结算后一条），
+ * 含待领取与已领取，供历史页展示；非周期玩法请用 `gameHistory`。
+ */
 export const listInstancePendingRewards = query({
   args: { uid: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, { uid, limit }) => {
@@ -410,35 +567,43 @@ export const listInstancePendingRewards = query({
       templateId: string;
       title: string;
       instanceKey: string;
+      matchType: string;
       finalRank: number | null;
       aggregatedScore: number | null;
       canClaim: boolean;
       pendingInstanceRewards: ReturnType<typeof prunePendingWalletRewards>;
+      rewardsClaimedAt: number | null;
+      periodEndedAt: number;
     }> = [];
     for (const s of mine) {
+      if (s.matchCount <= 0) continue;
       const inst = await ctx.db.get(s.instanceId);
       if (!inst) continue;
       const def = getTournamentDefinition(inst.templateId);
+      if (!def || !isPeriodScopedTournament(def)) continue;
+      if (inst.status !== "closed") continue;
       const pr = prunePendingWalletRewards({
         coins: s.pendingInstanceRewards?.coins,
         gems: s.pendingInstanceRewards?.gems,
         seasonChallengePoints: s.pendingInstanceRewards?.seasonChallengePoints,
         seasonVoucher: s.pendingInstanceRewards?.seasonVoucher,
       });
-      const canClaim = Boolean(pr && s.instanceRewardsClaimedAt == null && inst.status === "closed");
-      if (!canClaim) continue;
+      const canClaim = Boolean(pr && s.instanceRewardsClaimedAt == null);
       out.push({
         instancePlayerStateId: String(s._id),
         templateId: inst.templateId,
         title: def?.title ?? inst.templateId,
         instanceKey: inst.instanceKey,
+        matchType: def.matchType,
         finalRank: s.finalRank ?? null,
         aggregatedScore: s.aggregatedScore ?? null,
         canClaim,
         pendingInstanceRewards: pr ?? undefined,
+        rewardsClaimedAt: s.instanceRewardsClaimedAt ?? null,
+        periodEndedAt: inst.endsAt,
       });
     }
-    out.sort((a, b) => (b.finalRank ?? 0) - (a.finalRank ?? 0));
+    out.sort((a, b) => b.periodEndedAt - a.periodEndedAt);
     return out.slice(0, n);
   },
 });

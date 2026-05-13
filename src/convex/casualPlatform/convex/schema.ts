@@ -102,6 +102,27 @@ export default defineSchema({
     .index("by_instance_uid", ["instanceId", "uid"])
     .index("by_uid", ["uid"]),
 
+  /**
+   * 周期场分档预发奖：每档一条文档，领取前钱包不落账；`gameHistory` 将同一局同批多档合并为一行展示。
+   * `matchGameId` = `casual_run_player_matches.gameId`（`game_${matchId}_${uid}`）。
+   */
+  casual_score_tier_pending: defineTable({
+    uid: v.string(),
+    instanceId: v.id("casual_tournament_instances"),
+    runTournamentId: v.id("casual_run_tournaments"),
+    templateId: v.string(),
+    minScore: v.number(),
+    matchGameId: v.string(),
+    gameType: v.string(),
+    coins: v.number(),
+    gems: v.number(),
+    status: v.union(v.literal("pending"), v.literal("claimed")),
+    createdAt: v.number(),
+    claimedAt: v.optional(v.number()),
+  })
+    .index("by_uid", ["uid"])
+    .index("by_instance_uid", ["instanceId", "uid"]),
+
   casual_run_player_tournaments: defineTable({
     uid: v.string(),
     tournamentId: v.id("casual_run_tournaments"),

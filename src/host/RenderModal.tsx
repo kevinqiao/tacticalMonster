@@ -63,6 +63,7 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/casual/view/profile/CasualPlayerProfileModal': () => import('component/lobby/casual/view/profile/CasualPlayerProfileModal'),
   './lobby/casual/view/tasks/CasualTasksModal': () => import('component/lobby/casual/view/tasks/CasualTasksModal'),
   './lobby/casual/view/play/CasualTournamentLobbyModal': () => import('component/lobby/casual/view/play/CasualTournamentLobbyModal'),
+  './lobby/casual/view/play/CasualDailySoloLeaderboardModal': () => import('component/lobby/casual/view/play/CasualDailySoloLeaderboardModal'),
 };
 
 // 错误边界组件

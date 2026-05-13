@@ -10,8 +10,8 @@
 
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 
-import React from 'react';
-
+import gsap from 'gsap';
+import React, { useCallback, useRef } from 'react';
 import GamePlayer from './GamePlayer';
 
 import SoloGameProvider from './service/GameManager';
@@ -26,10 +26,6 @@ import { SoloGameConfig } from './types/SoloTypes';
 
 interface SoloGameProps {
 
-    /** 若省略，则使用 `casualMatchGameId` 或由客户端生成 id，再由 `loadGame` action 建局 */
-
-    gameId?: string;
-
     /** Casual 异步锦标模板 id */
 
     casualTournamentId?: string;
@@ -43,112 +39,74 @@ interface SoloGameProps {
     className?: string;
 
     style?: React.CSSProperties;
-
-    onGameLoadComplete?: () => void;
-
     onGameSubmit?: () => void;
-
 }
 
 
 
 /** Must match `CONVEX_URL` for `src/convex/solitaireArena` (`npx convex dev` from that folder). */
 const convex_url =
-  import.meta.env.VITE_CONVEX_URL_SOLITAIRE ?? "https://artful-chipmunk-59.convex.cloud";
+    import.meta.env.VITE_CONVEX_URL_SOLITAIRE ?? "https://artful-chipmunk-59.convex.cloud";
 
 
 
 const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
-
-    gameId: propGameId,
 
     casualTournamentId,
 
     casualMatchGameId,
 
     config,
-
-    onGameLoadComplete,
-
     onGameSubmit,
-
 }) => {
+    const loadingRef = useRef<HTMLDivElement | null>(null)
+    const playerRef = useRef<HTMLDivElement | null>(null)
+    const onGameLoadComplete = useCallback(() => {
 
-    const [activeGameId, setActiveGameId] = React.useState<string | undefined>(() =>
-
-        propGameId ?? casualMatchGameId ?? undefined
-
-    );
-
-
-
-    React.useEffect(() => {
-
-        if (propGameId) {
-
-            setActiveGameId(propGameId);
-
-            return;
-
-        }
-
-        if (casualMatchGameId) {
-
-            setActiveGameId(casualMatchGameId);
-
-            return;
-
-        }
-
-        setActiveGameId((prev) => prev ?? crypto.randomUUID());
-
-    }, [propGameId, casualMatchGameId]);
-
-
-
-    if (!activeGameId) {
-
-        return (
-
-            <div className="solo-game-container">
-
-                Loading Solo Game…
-
-            </div>
-
-        );
-
-    }
-
-
-
+        const tl = gsap.timeline();
+        tl.to(loadingRef.current, {
+            autoAlpha: 0,
+            duration: 0.5,
+            ease: "power2.inOut"
+        })
+        tl.to(playerRef.current, {
+            autoAlpha: 1,
+            duration: 1,
+            ease: "power2.inOut"
+        }, "<")
+        tl.play();
+    }, []);
     return (
+        <>
+            <div ref={playerRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
+                <SoloGameProvider
 
-        <SoloGameProvider
+                    config={config}
 
-            config={config}
+                    gameId={casualMatchGameId}
 
-            gameId={activeGameId}
+                    casualTournamentId={casualTournamentId}
+                    onGameLoadComplete={onGameLoadComplete}
 
-            casualTournamentId={casualTournamentId}
+                    onGameSubmit={onGameSubmit}
+                >
 
-            onGameLoadComplete={onGameLoadComplete}
+                    {/* <EventProvider> */}
 
-            onGameSubmit={onGameSubmit}
+                    <SoloDnDProvider>
 
-        >
+                        <GamePlayer onGameLoadComplete={onGameLoadComplete} />
 
-            {/* <EventProvider> */}
+                    </SoloDnDProvider>
 
-            <SoloDnDProvider>
+                    {/* </EventProvider> */}
 
-                <GamePlayer gameId={activeGameId} />
-
-            </SoloDnDProvider>
-
-            {/* </EventProvider> */}
-
-        </SoloGameProvider>
+                </SoloGameProvider>
+            </div>
+            <div className="solo-game-loading" ref={loadingRef}>
+                Loading Solo Game…
+            </div>
+        </>
 
     );
 
@@ -157,8 +115,6 @@ const SoloGameInner: React.FC<Omit<SoloGameProps, 'className' | 'style'>> = ({
 
 
 const SolitaireGame: React.FC<SoloGameProps> = ({
-
-    gameId,
 
     casualTournamentId,
 
@@ -169,10 +125,8 @@ const SolitaireGame: React.FC<SoloGameProps> = ({
     className = '',
 
     style,
-
-    onGameLoadComplete,
-
     onGameSubmit,
+
 
 }) => {
 
@@ -188,15 +142,11 @@ const SolitaireGame: React.FC<SoloGameProps> = ({
 
                 <SoloGameInner
 
-                    gameId={gameId}
-
                     casualTournamentId={casualTournamentId}
 
                     casualMatchGameId={casualMatchGameId}
 
                     config={config}
-
-                    onGameLoadComplete={onGameLoadComplete}
 
                     onGameSubmit={onGameSubmit}
 

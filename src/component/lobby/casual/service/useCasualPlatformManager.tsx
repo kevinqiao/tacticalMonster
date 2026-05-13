@@ -77,14 +77,25 @@ export interface CasualGameHistoryRow {
   periodInstanceKey?: string;
   /** 周期型锦标模板 */
   periodTournament?: boolean;
+  /** `score_tier_pending`：单条 `claimCasualScoreTierPendingReward`，多档合并行 `claimCasualScoreTierPendingRewardsBatch`；`instance_close_pending`：`claimCasualInstanceRewards`；否则 `claimCasualRunRewards` */
+  historyRewardKind?: "run_pending" | "score_tier_pending" | "instance_close_pending";
+  /** 分档阈值（仅单档一行 `score_tier_pending`） */
+  scoreTierMinScore?: number;
+  /** 多档合并行：各档阈值（与 `title` 中分档文案一致） */
+  scoreTierMinScores?: number[];
+  /** 多档合并行待领：对应 `casual_score_tier_pending` 文档 id（一次性领取）；单档行省略 */
+  scoreTierPendingIds?: string[];
+  /** 对局 `gameId`（`game_${matchId}_${uid}`），仅 `score_tier_pending` */
+  matchGameId?: string;
 }
 
-/** `listInstancePendingRewards`：周期结束后待领（`casual_instance_player_state`） */
+/** @deprecated 周期关桶记录已并入 `gameHistory`（`historyRewardKind === "instance_close_pending"`）；仍可从 Convex `listInstancePendingRewards` 查询。 */
 export interface CasualInstanceClaimRow {
   instancePlayerStateId: string;
   templateId: string;
   title: string;
   instanceKey: string;
+  matchType?: string;
   finalRank: number | null;
   aggregatedScore: number | null;
   canClaim: boolean;
@@ -94,6 +105,10 @@ export interface CasualInstanceClaimRow {
     seasonChallengePoints?: number;
     seasonVoucher?: number;
   };
+  /** 已领取周期奖励的时间（毫秒） */
+  rewardsClaimedAt?: number | null;
+  /** 该周期桶结束时间（与实例 `endsAt` 一致） */
+  periodEndedAt?: number;
 }
 
 export interface CasualPlatformValue {
@@ -158,10 +173,8 @@ export interface CasualPlatformValue {
     lastClaimPeriodKey?: string;
     upcomingDayInCycle: number;
   } | null;
-  /** `service.tournament.casualTournamentService.gameHistory`（按 `casual_run_player_tournaments` / run 实例）实时订阅 */
+  /** `service.tournament.casualTournamentService.gameHistory`：非周期 run、周期分档预发奖、周期桶关桶待领（同一列表） */
   gameHistory: CasualGameHistoryRow[];
-  /** 周期型锦标周期结束待领奖励 */
-  instancePendingClaims: CasualInstanceClaimRow[];
   refreshCasualPlayer: () => Promise<void>;
   /** HTTP 拉取通行证进度（领取后订阅偶发滞后时用） */
   refreshPassProgress: () => Promise<void>;
@@ -205,6 +218,14 @@ export interface CasualPlatformValue {
   /** 历史页领取异步 run 结算奖励（`casual_run_player_tournaments.pendingRunRewards`） */
   claimCasualRunRewards: (
     playerTournamentId: string
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** 历史页领取周期场分档预发奖（`casual_score_tier_pending`，单条） */
+  claimCasualScoreTierPendingReward: (
+    pendingRewardId: string
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** 历史页同一局多档合并领取 */
+  claimCasualScoreTierPendingRewardsBatch: (
+    pendingRewardIds: string[]
   ) => Promise<{ ok: boolean; error?: string }>;
   claimCasualInstanceRewards: (
     instancePlayerStateId: string
@@ -275,7 +296,6 @@ type CasualDataSnapshot = Pick<
   | "shopSkus"
   | "seasonShelfSkus"
   | "gameHistory"
-  | "instancePendingClaims"
 >;
 
 function emptyData(): CasualDataSnapshot {
@@ -291,7 +311,6 @@ function emptyData(): CasualDataSnapshot {
     shopSkus: [],
     seasonShelfSkus: [],
     gameHistory: [],
-    instancePendingClaims: [],
   };
 }
 
@@ -376,7 +395,6 @@ function startLiveSubscriptions(uid: string | undefined) {
       seasonShelfSkus: [],
       activities: [],
       gameHistory: [],
-      instancePendingClaims: [],
     });
     return;
   }
@@ -462,22 +480,12 @@ function startLiveSubscriptions(uid: string | undefined) {
         }),
       "gameHistory"
     );
-    sub(
-      casualInstanceFns.listInstancePendingRewards,
-      { uid, limit: 20 },
-      (rows) =>
-        patchData({
-          instancePendingClaims: Array.isArray(rows) ? (rows as CasualInstanceClaimRow[]) : [],
-        }),
-      "listInstancePendingRewards"
-    );
   } else {
     patchData({
       passProgress: null,
       missions: [],
       checkinStreak: null,
       gameHistory: [],
-      instancePendingClaims: [],
     });
   }
 }
@@ -644,6 +652,51 @@ export function useCasualPlatform(): CasualPlatformValue {
         return r?.ok ? { ok: true as const } : { ok: false as const, error: r?.error ?? "claim_failed" };
       } catch (e) {
         console.error("[CasualPlatform] claimCasualRunRewards", e);
+        return { ok: false as const, error: "claim_failed" };
+      }
+    },
+    [user?.uid, refreshCasualPlayer]
+  );
+
+  const claimCasualScoreTierPendingRewardsBatch = useCallback(
+    async (pendingRewardIds: string[]) => {
+      const http = getCasualHttpClient();
+      if (!http || !user?.uid) return { ok: false as const, error: "no_auth" };
+      if (pendingRewardIds.length === 0) return { ok: false as const, error: "empty_batch" };
+      try {
+        const res = await http.mutation(casualTournamentFns.claimCasualScoreTierPendingRewardsBatch, {
+          uid: user.uid,
+          pendingRewardIds: pendingRewardIds as Id<"casual_score_tier_pending">[],
+        });
+        const r = res as { ok?: boolean; error?: string };
+        if (r?.ok) {
+          void refreshCasualPlayer();
+        }
+        return r?.ok ? { ok: true as const } : { ok: false as const, error: r?.error ?? "claim_failed" };
+      } catch (e) {
+        console.error("[CasualPlatform] claimCasualScoreTierPendingRewardsBatch", e);
+        return { ok: false as const, error: "claim_failed" };
+      }
+    },
+    [user?.uid, refreshCasualPlayer]
+  );
+
+  const claimCasualScoreTierPendingReward = useCallback(
+    async (pendingRewardId: string) => {
+      const http = getCasualHttpClient();
+      if (!http || !user?.uid) return { ok: false as const, error: "no_auth" };
+      try {
+        const res = await http.mutation(casualTournamentFns.claimCasualScoreTierPendingReward, {
+          uid: user.uid,
+          pendingRewardId: pendingRewardId as Id<"casual_score_tier_pending">,
+        });
+        const r = res as { ok?: boolean; error?: string };
+        if (r?.ok) {
+          void refreshCasualPlayer();
+        }
+        return r?.ok ? { ok: true as const } : { ok: false as const, error: r?.error ?? "claim_failed" };
+      } catch (e) {
+        console.error("[CasualPlatform] claimCasualScoreTierPendingReward", e);
         return { ok: false as const, error: "claim_failed" };
       }
     },
@@ -865,6 +918,8 @@ export function useCasualPlatform(): CasualPlatformValue {
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
       claimCasualRunRewards,
+      claimCasualScoreTierPendingReward,
+      claimCasualScoreTierPendingRewardsBatch,
       claimCasualInstanceRewards,
       fetchMainSeasonLeaderboard,
       fetchCArenaLeaderboard,
@@ -890,6 +945,8 @@ export function useCasualPlatform(): CasualPlatformValue {
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
       claimCasualRunRewards,
+      claimCasualScoreTierPendingReward,
+      claimCasualScoreTierPendingRewardsBatch,
       claimCasualInstanceRewards,
       fetchMainSeasonLeaderboard,
       fetchCArenaLeaderboard,

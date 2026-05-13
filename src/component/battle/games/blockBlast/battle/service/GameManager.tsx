@@ -2,6 +2,7 @@
  * Block Blast 游戏管理器（对齐 solitaireSolo：interactionPhase、loadGame、战报与提交）
  */
 import { useUserManager } from 'host/service/UserManager';
+import { useModalManager } from 'host/service/ModalManager';
 import { useConvex } from 'convex/react';
 import gsap from 'gsap';
 import React, {
@@ -30,6 +31,10 @@ import {
     Shape,
 } from '../types/BlockBlastTypes';
 import BlockBlastRuleManager from './BlockBlastRuleManager';
+
+function isTerminalBlockBlastStatus(status: number | undefined): boolean {
+    return status !== undefined && status !== BlockBlastGameStatus.PLAYING;
+}
 
 export type GridCellRefs = (HTMLDivElement | null)[][];
 
@@ -72,6 +77,9 @@ interface IBlockBlastGameContext {
      * 触发棋盘重绘。await 后必须用 patch 写入服务器返回字段，禁止就地修改闭包捕获的旧 gameState。
      */
     commitGameState: (patch?: GameStateCommitPatch) => void;
+    /** 与 solitaire「结束并结算」一致：确认弹窗 → concede → 上报 / 关闭弹层 */
+    settleManuallyAndExit: () => Promise<void>;
+    casualTournamentId?: string;
 }
 
 const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
@@ -89,6 +97,8 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     submitScore: () => { },
     onGameOver: () => { },
     commitGameState: () => { },
+    settleManuallyAndExit: async () => { },
+    casualTournamentId: undefined,
 });
 
 export const useBlockBlastGameManager = () => {
@@ -130,6 +140,24 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
     const { user } = useUserManager();
+    const { openModal } = useModalManager();
+
+    const casualRunSubmittedRef = useRef(false);
+    const settleInFlightRef = useRef(false);
+    const gameStateRef = useRef<BlockBlastGameState | null>(null);
+    const interactionPhaseRef = useRef<GameInteractionPhase>(GameInteractionPhase.idle);
+
+    useEffect(() => {
+        gameStateRef.current = gameState ?? null;
+    }, [gameState]);
+
+    useEffect(() => {
+        interactionPhaseRef.current = interactionPhase;
+    }, [interactionPhase]);
+
+    useEffect(() => {
+        casualRunSubmittedRef.current = false;
+    }, [gameState?.gameId]);
 
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
@@ -244,9 +272,103 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         });
     }, []);
 
+    const runBlockBlastSettlement = useCallback(
+        async (scoreArg?: number) => {
+            const gs = gameStateRef.current;
+            if (!gs || casualRunSubmittedRef.current) return;
+            const score = Math.max(0, Math.floor(scoreArg !== undefined ? scoreArg : (gs.score ?? 0)));
+            casualRunSubmittedRef.current = true;
+            try {
+                if (
+                    casualTournamentId &&
+                    typeof gs.gameId === 'string' &&
+                    gs.gameId.startsWith('game_') &&
+                    user?.token
+                ) {
+                    const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
+                        token: user.token,
+                        gameId: gs.gameId,
+                    })) as { ok?: boolean; error?: string };
+                    if (!cr.ok) {
+                        console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
+                        casualRunSubmittedRef.current = false;
+                        return;
+                    }
+                    onGameSubmit?.();
+                    return;
+                }
+                let proxyOk = false;
+                try {
+                    const sr = await convex.action(api.proxy.controller.submitScore, {
+                        gameId: gs.gameId,
+                        score,
+                    });
+                    proxyOk = Boolean((sr as { ok?: boolean })?.ok);
+                    if (!proxyOk) {
+                        console.warn('[BlockBlast] proxy submitScore skipped or failed', sr);
+                    }
+                } catch (e) {
+                    console.warn('[BlockBlast] proxy submitScore error', e);
+                }
+                if (!proxyOk) {
+                    casualRunSubmittedRef.current = false;
+                    return;
+                }
+                onGameSubmit?.();
+            } catch (e) {
+                console.error('[BlockBlast] runBlockBlastSettlement', e);
+                casualRunSubmittedRef.current = false;
+            }
+        },
+        [convex, casualTournamentId, user?.token, onGameSubmit]
+    );
+
+    const settleManuallyAndExit = useCallback(async () => {
+        if (!gameState || casualRunSubmittedRef.current || settleInFlightRef.current) return;
+        if (interactionPhase !== GameInteractionPhase.idle) return;
+
+        if (isTerminalBlockBlastStatus(gameState.status)) {
+            const score = Math.max(0, Math.floor(gameState.score ?? 0));
+            await runBlockBlastSettlement(score);
+            return;
+        }
+
+        openModal({
+            name: 'solitaire_settle_confirm',
+            data: {
+                message: '确定以当前分数结束本局并结算？未使用的形状将按当前得分上报。',
+                onConfirm: async () => {
+                    const gs = gameStateRef.current;
+                    if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
+                    if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
+                    settleInFlightRef.current = true;
+                    try {
+                        const res = (await convex.mutation(api.service.gameManager.concedeGame, {
+                            gameId: gs.gameId,
+                        })) as
+                            | { ok: true; score: number; lines: number; moves: number; gameStatus: number }
+                            | { ok: false };
+                        if (!res || !('ok' in res) || !res.ok) return;
+                        commitGameState({
+                            score: res.score,
+                            lines: res.lines,
+                            moves: res.moves,
+                            status: res.gameStatus,
+                        });
+                        await runBlockBlastSettlement(res.score);
+                    } catch (e) {
+                        console.error('[BlockBlast] settleManuallyAndExit', e);
+                    } finally {
+                        settleInFlightRef.current = false;
+                    }
+                },
+            },
+        });
+    }, [gameState, interactionPhase, convex, commitGameState, runBlockBlastSettlement, openModal]);
+
     const submitScore = useCallback(
         async (score: number) => {
-            if (!gameState) return;
+            if (!gameState || casualRunSubmittedRef.current) return;
             const isCasualRun =
                 Boolean(casualTournamentId) &&
                 typeof gameState.gameId === 'string' &&
@@ -269,7 +391,9 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     })) as { ok?: boolean; error?: string };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
+                        return;
                     }
+                    casualRunSubmittedRef.current = true;
                     return;
                 }
                 const res = await convex.action(api.proxy.controller.submitScore, {
@@ -301,6 +425,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         submitScore,
         onGameOver,
         commitGameState,
+        settleManuallyAndExit,
+        casualTournamentId,
     };
 
     return (
