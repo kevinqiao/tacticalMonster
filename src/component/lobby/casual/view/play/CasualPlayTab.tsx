@@ -421,7 +421,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                       })
                     }
                   >
-                    当日排行榜
+                    今日战况
                   </button>
                 </div>
               </div>
@@ -459,7 +459,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                       })
                     }
                   >
-                    当日排行榜
+                    今日战况
                   </button>
                 </div>
               </div>

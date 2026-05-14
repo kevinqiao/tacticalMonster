@@ -7,6 +7,9 @@ import { makeFunctionReference } from "convex/server";
 export const casualTournamentFns = {
   listTournaments: makeFunctionReference<"query">("service/tournament/casualTournamentService:listTournaments"),
   leaderboard: makeFunctionReference<"query">("service/tournament/casualTournamentService:leaderboard"),
+  periodInstanceSelfStanding: makeFunctionReference<"query">(
+    "service/tournament/casualTournamentService:periodInstanceSelfStanding"
+  ),
   gameHistory: makeFunctionReference<"query">("service/tournament/casualTournamentService:gameHistory"),
   listOpenCasualRunAssignments: makeFunctionReference<"query">(
     "service/tournament/casualTournamentService:listOpenCasualRunAssignments"

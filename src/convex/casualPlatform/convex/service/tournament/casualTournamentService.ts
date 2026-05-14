@@ -19,6 +19,7 @@ import { internalMutation, internalQuery, mutation, query } from "../../_generat
 import {
   activeSeasonWindowForCtx,
   applyPeriodMatchScoreToInstanceState,
+  computePeriodInstanceSelfStanding,
   ensureInstancePlayerStateRow,
   getOrCreateOpenInstance,
   grantCasualScoreTierRewardsOnEachRunSettled,
@@ -500,6 +501,40 @@ export const leaderboard = query({
       score: r.score,
       submittedAt: r.submittedAt,
     }));
+  },
+});
+
+/** 当前周期桶内「我的」聚合分与名次（与 `leaderboard` 同实例解析；不依赖 Top N 是否含本人）。 */
+export const periodInstanceSelfStanding = query({
+  args: {
+    tournamentId: v.string(),
+    uid: v.string(),
+  },
+  handler: async (ctx, { tournamentId, uid }) => {
+    const defLb = getTournamentDefinition(tournamentId);
+    if (!defLb || defLb.hideLeaderboard || !isPeriodScopedTournament(defLb)) {
+      return { instanceKey: null, myBestScore: null, myRank: null };
+    }
+    const season = await activeSeasonWindowForCtx(ctx);
+    const win = resolveInstanceWindow(defLb, Date.now(), season);
+    if (!win) {
+      return { instanceKey: null, myBestScore: null, myRank: null };
+    }
+    const inst = await ctx.db
+      .query("casual_tournament_instances")
+      .withIndex("by_template_instanceKey", (q) =>
+        q.eq("templateId", tournamentId).eq("instanceKey", win.instanceKey)
+      )
+      .first();
+    if (!inst) {
+      return { instanceKey: win.instanceKey, myBestScore: null, myRank: null };
+    }
+    const self = await computePeriodInstanceSelfStanding(ctx, inst._id, uid);
+    return {
+      instanceKey: inst.instanceKey,
+      myBestScore: self?.score ?? null,
+      myRank: self?.rank ?? null,
+    };
   },
 });
 

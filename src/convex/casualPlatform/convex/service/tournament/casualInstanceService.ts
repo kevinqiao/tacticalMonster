@@ -302,6 +302,37 @@ export async function leaderboardRowsFromInstance(
 }
 
 /**
+ * 与 `leaderboardRowsFromInstance` 同一聚合与排序；在完整榜中定位 `uid` 的名次与分数。
+ * 仅 `matchCount > 0` 计入；实例非 open 时返回 null（与缺省榜查询一致）。
+ */
+export async function computePeriodInstanceSelfStanding(
+  ctx: QueryCtx,
+  instanceId: Id<"casual_tournament_instances">,
+  uid: string
+): Promise<{ rank: number; score: number } | null> {
+  const inst = await ctx.db.get(instanceId);
+  if (!inst || inst.status !== "open") {
+    return null;
+  }
+  const rows = await ctx.db
+    .query("casual_instance_player_state")
+    .withIndex("by_instance_uid", (q) => q.eq("instanceId", instanceId))
+    .collect();
+  const agg = instanceAggregationForRanking(inst.scoreAggregation);
+  const scored = rows
+    .filter((r) => r.matchCount > 0)
+    .map((r) => ({
+      uid: r.uid,
+      score: aggregatedScoreForInstanceRow(r, agg),
+      submittedAt: r.updatedAt ?? r._creationTime,
+    }));
+  scored.sort((a, b) => b.score - a.score || (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
+  const idx = scored.findIndex((r) => r.uid === uid);
+  if (idx < 0) return null;
+  return { rank: idx + 1, score: scored[idx]!.score };
+}
+
+/**
  * 将「仍为 open」的 `casual_tournament_instances` 做周期收尾（与到期 cron 同一套排行/发奖/关桶逻辑）。
  * 调用方需保证业务上允许提前关桶（例如仍有进行中的 run，玩家仍可交分直至 match 逻辑处理完毕；本函数不主动取消 open run）。
  */

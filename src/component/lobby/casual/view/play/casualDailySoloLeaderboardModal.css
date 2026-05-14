@@ -72,6 +72,173 @@
   font-weight: 600;
 }
 
+.casual-daily-lb__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 12px;
+}
+
+.casual-daily-lb__summary {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.casual-daily-lb__summaryText {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.casual-daily-lb__summaryK {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.casual-daily-lb__summaryV {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.casual-daily-lb__summarySep {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.casual-daily-lb__summaryBucket {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.casual-daily-lb__sectionTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f766e;
+  letter-spacing: 0.02em;
+}
+
+.casual-daily-lb__tiers {
+  flex-shrink: 0;
+}
+
+.casual-daily-lb__tierList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.casual-daily-lb__tierRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.casual-daily-lb__tierMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.casual-daily-lb__tierScore {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.casual-daily-lb__tierReward {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.casual-daily-lb__tierBadge {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.casual-daily-lb__tierBadge--ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.casual-daily-lb__tierBadge--no {
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.casual-daily-lb__tierBadge--claimed {
+  background: rgba(226, 232, 240, 0.95);
+  color: #475569;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+}
+
+.casual-daily-lb__tierClaimBtn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid rgba(14, 165, 233, 0.45);
+  background: linear-gradient(180deg, rgba(224, 242, 254, 0.95), #fff);
+  color: #0369a1;
+}
+
+.casual-daily-lb__tierClaimBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.casual-daily-lb__tierClaimBtn:active:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+.casual-daily-lb__tierFoot {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.casual-daily-lb__board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.casual-daily-lb__board .casual-daily-lb__empty {
+  margin: 12px 0;
+}
+
 .casual-daily-lb__list {
   list-style: none;
   margin: 0;

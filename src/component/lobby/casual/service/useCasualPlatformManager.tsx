@@ -228,6 +228,15 @@ export interface CasualPlatformValue {
     limit?: number,
     instanceKey?: string
   ) => Promise<Array<{ rank: number; uid: string; score: number; submittedAt?: number }>>;
+  /** 当前周期桶内本人聚合分与名次（周期型模板；与榜同源） */
+  fetchPeriodInstanceSelfStanding: (
+    tournamentId: string,
+    uid: string
+  ) => Promise<{
+    instanceKey: string | null;
+    myBestScore: number | null;
+    myRank: number | null;
+  }>;
   fetchGameHistory: (limit?: number) => Promise<CasualGameHistoryRow[]>;
   /** 历史页领取异步 run 结算奖励（`casual_run_player_tournaments.pendingRunRewards`） */
   claimCasualRunRewards: (
@@ -697,6 +706,35 @@ export function useCasualPlatform(): CasualPlatformValue {
     }
   }, []);
 
+  const fetchPeriodInstanceSelfStanding = useCallback(
+    async (tournamentId: string, uid: string) => {
+      const http = getCasualHttpClient();
+      if (!http) {
+        return { instanceKey: null, myBestScore: null, myRank: null };
+      }
+      try {
+        const row = await http.query(casualTournamentFns.periodInstanceSelfStanding, {
+          tournamentId,
+          uid,
+        });
+        const r = row as {
+          instanceKey?: string | null;
+          myBestScore?: number | null;
+          myRank?: number | null;
+        };
+        return {
+          instanceKey: r?.instanceKey ?? null,
+          myBestScore: typeof r?.myBestScore === "number" ? r.myBestScore : null,
+          myRank: typeof r?.myRank === "number" ? r.myRank : null,
+        };
+      } catch (e) {
+        console.error("[CasualPlatform] periodInstanceSelfStanding", e);
+        return { instanceKey: null, myBestScore: null, myRank: null };
+      }
+    },
+    []
+  );
+
   const fetchGameHistory = useCallback(async (limit?: number) => {
     const http = getCasualHttpClient();
     if (!http || !user?.uid) return [];
@@ -1004,6 +1042,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       joinTournament,
       fetchJoinEntryChargePreview,
       fetchLeaderboard,
+      fetchPeriodInstanceSelfStanding,
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
       claimCasualRunRewards,
@@ -1032,6 +1071,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       joinTournament,
       fetchJoinEntryChargePreview,
       fetchLeaderboard,
+      fetchPeriodInstanceSelfStanding,
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
       claimCasualRunRewards,
