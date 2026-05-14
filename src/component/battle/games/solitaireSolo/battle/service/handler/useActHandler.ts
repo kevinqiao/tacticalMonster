@@ -67,10 +67,11 @@ const useActHandler = () => {
     }, [gameState?.gameId]);
 
     const runSolitaireSettlement = useCallback(
-        async (score: number) => {
+        async (score: number, opts?: { deferHostNotify?: boolean }): Promise<boolean> => {
             const gs = gameStateRef.current;
-            if (!gs || casualRunSubmittedRef.current) return;
+            if (!gs || casualRunSubmittedRef.current) return false;
             casualRunSubmittedRef.current = true;
+            const deferHost = Boolean(opts?.deferHostNotify);
             try {
                 /** 权威分数走 solitaire `proxy.controller.submitCasualPlatformRun` → casual `/internal/casual-run-ingest`（不信任前端 score） */
                 if (
@@ -86,11 +87,13 @@ const useActHandler = () => {
                     if (!cr.ok) {
                         console.warn("[Solitaire] submitCasualPlatformRun", cr.error);
                         casualRunSubmittedRef.current = false;
-                        return;
+                        return false;
                     }
                     console.log("submitCasualPlatformRun success");
-                    onGameSubmit?.();
-                    return;
+                    if (!deferHost) {
+                        onGameSubmit?.();
+                    }
+                    return true;
                 }
 
                 let proxyOk = false;
@@ -109,12 +112,16 @@ const useActHandler = () => {
 
                 if (!proxyOk) {
                     casualRunSubmittedRef.current = false;
-                    return;
+                    return false;
                 }
-                onGameSubmit?.();
+                if (!deferHost) {
+                    onGameSubmit?.();
+                }
+                return true;
             } catch (e) {
                 console.error("[Solitaire] runSolitaireSettlement", e);
                 casualRunSubmittedRef.current = false;
+                return false;
             }
         },
         [convex, casualTournamentId, user?.token, onGameSubmit]
@@ -131,26 +138,41 @@ const useActHandler = () => {
         setSettleConfirmOpen(false);
     }, []);
 
+    const finishManualSettleSuccess = useCallback(() => {
+        setSettleConfirmOpen(false);
+        onGameSubmit?.();
+    }, [onGameSubmit]);
+
     const confirmSettleAndExit = useCallback(async () => {
         const gs = gameStateRef.current;
-        if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
-        if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
-        setSettleConfirmOpen(false);
+        if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) {
+            throw new Error("当前无法结算");
+        }
+        if (interactionPhaseRef.current !== GameInteractionPhase.idle) {
+            throw new Error("当前无法结算");
+        }
         settleInFlightRef.current = true;
         try {
             const res = await convex.mutation(api.service.gameManager.concedeGame, {
                 gameId: gs.gameId,
             });
-            if (!res?.ok) return;
+            if (!res?.ok) {
+                throw new Error("认输失败，请重试");
+            }
             mergeServerProgress(gs, {
                 score: res.score,
                 moves: res.moves,
                 gameStatus: res.gameStatus,
             });
             const score = Math.max(0, Math.floor(gs.score ?? 0));
-            await runSolitaireSettlement(score);
+            const settled = await runSolitaireSettlement(score, { deferHostNotify: true });
+            if (!settled) {
+                throw new Error("结算提交失败，请重试");
+            }
         } catch (e) {
             console.error("[Solitaire] confirmSettleAndExit", e);
+            if (e instanceof Error) throw e;
+            throw new Error("结算失败，请稍后重试");
         } finally {
             settleInFlightRef.current = false;
         }
@@ -534,6 +556,7 @@ const useActHandler = () => {
         settleConfirmOpen,
         cancelSettleConfirm,
         confirmSettleAndExit,
+        finishManualSettleSuccess,
     };
 };
 

@@ -10,6 +10,7 @@ import { PageProp } from "host/RenderApp";
 import { useModalManager } from "host/service/ModalManager";
 import { usePageManager } from "host/service/PageManager";
 import React, { useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   assignmentMatchesGameKind,
@@ -415,42 +416,54 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
             </div>
           </section>
 
-          {soloCostConfirm ? (
-            <div className="casual-play-hub__costConfirm" role="dialog" aria-modal="true" aria-labelledby="casual-solo-cost-title">
-              <button
-                type="button"
-                className="casual-play-hub__costConfirmBackdrop"
-                aria-label="关闭"
-                onClick={() => setSoloCostConfirm(null)}
-              />
-              <div className="casual-play-hub__costConfirmCard">
-                <h3 id="casual-solo-cost-title" className="casual-play-hub__costConfirmTitle">
-                  确认入场消耗
-                </h3>
-                <p className="casual-play-hub__costConfirmSub">
-                  {soloCostConfirm.kind === "solitaire" ? "Solitaire" : "Block Blast"} · 日榜最高分
-                </p>
-                <ul className="casual-play-hub__costConfirmList">
-                  {soloCostConfirm.lines.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-                <div className="casual-play-hub__costConfirmActions">
-                  <button type="button" className="casual-play-hub__costConfirmBtn casual-play-hub__costConfirmBtn--ghost" onClick={() => setSoloCostConfirm(null)}>
-                    取消
-                  </button>
+          {typeof document !== "undefined" && soloCostConfirm
+            ? createPortal(
+                <div
+                  className="casual-play-hub__costConfirm"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="casual-solo-cost-title"
+                >
                   <button
                     type="button"
-                    className="casual-play-hub__costConfirmBtn casual-play-hub__costConfirmBtn--primary"
-                    disabled={joiningSolo !== null}
-                    onClick={() => void confirmSoloCostAndJoin()}
-                  >
-                    {joiningSolo !== null ? "加入中…" : "确定并开始"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
+                    className="casual-play-hub__costConfirmBackdrop"
+                    aria-label="关闭"
+                    onClick={() => setSoloCostConfirm(null)}
+                  />
+                  <div className="casual-play-hub__costConfirmCard">
+                    <h3 id="casual-solo-cost-title" className="casual-play-hub__costConfirmTitle">
+                      确认入场消耗
+                    </h3>
+                    <p className="casual-play-hub__costConfirmSub">
+                      {soloCostConfirm.kind === "solitaire" ? "Solitaire" : "Block Blast"} · 日榜最高分
+                    </p>
+                    <ul className="casual-play-hub__costConfirmList">
+                      {soloCostConfirm.lines.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                    <div className="casual-play-hub__costConfirmActions">
+                      <button
+                        type="button"
+                        className="casual-play-hub__costConfirmBtn casual-play-hub__costConfirmBtn--ghost"
+                        onClick={() => setSoloCostConfirm(null)}
+                      >
+                        取消
+                      </button>
+                      <button
+                        type="button"
+                        className="casual-play-hub__costConfirmBtn casual-play-hub__costConfirmBtn--primary"
+                        disabled={joiningSolo !== null}
+                        onClick={() => void confirmSoloCostAndJoin()}
+                      >
+                        {joiningSolo !== null ? "加入中…" : "确定并开始"}
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )
+            : null}
         </div>
       )}
     </CasualPageShell>

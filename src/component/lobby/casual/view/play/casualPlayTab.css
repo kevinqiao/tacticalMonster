@@ -347,7 +347,7 @@
   color: #fef08a;
 }
 
-/* 日榜入场消耗确认 */
+/* 日榜入场消耗确认（DOM 经 createPortal 挂到 document.body，避免被 shell __body overflow 与 hub overflow 裁剪） */
 .casual-play-hub__costConfirm {
   position: fixed;
   inset: 0;

@@ -81,6 +81,8 @@ interface IBlockBlastGameContext {
     settleConfirmOpen: boolean;
     cancelSettleConfirm: () => void;
     confirmSettleAndExit: () => Promise<void>;
+    /** 局内「成功结算」展示结束后：关确认层并通知宿主（如关棋盘弹层） */
+    finishManualSettleSuccess: () => void;
     casualTournamentId?: string;
 }
 
@@ -103,6 +105,7 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     settleConfirmOpen: false,
     cancelSettleConfirm: () => { },
     confirmSettleAndExit: async () => { },
+    finishManualSettleSuccess: () => { },
     casualTournamentId: undefined,
 });
 
@@ -278,11 +281,15 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     }, []);
 
     const runBlockBlastSettlement = useCallback(
-        async (scoreArg?: number) => {
+        async (
+            scoreArg?: number,
+            opts?: { deferHostNotify?: boolean }
+        ): Promise<boolean> => {
             const gs = gameStateRef.current;
-            if (!gs || casualRunSubmittedRef.current) return;
+            if (!gs || casualRunSubmittedRef.current) return false;
             const score = Math.max(0, Math.floor(scoreArg !== undefined ? scoreArg : (gs.score ?? 0)));
             casualRunSubmittedRef.current = true;
+            const deferHost = Boolean(opts?.deferHostNotify);
             try {
                 if (
                     casualTournamentId &&
@@ -297,10 +304,12 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
                         casualRunSubmittedRef.current = false;
-                        return;
+                        return false;
                     }
-                    onGameSubmit?.();
-                    return;
+                    if (!deferHost) {
+                        onGameSubmit?.();
+                    }
+                    return true;
                 }
                 let proxyOk = false;
                 try {
@@ -317,16 +326,25 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 }
                 if (!proxyOk) {
                     casualRunSubmittedRef.current = false;
-                    return;
+                    return false;
                 }
-                onGameSubmit?.();
+                if (!deferHost) {
+                    onGameSubmit?.();
+                }
+                return true;
             } catch (e) {
                 console.error('[BlockBlast] runBlockBlastSettlement', e);
                 casualRunSubmittedRef.current = false;
+                return false;
             }
         },
         [convex, casualTournamentId, user?.token, onGameSubmit]
     );
+
+    const finishManualSettleSuccess = useCallback(() => {
+        setSettleConfirmOpen(false);
+        onGameSubmit?.();
+    }, [onGameSubmit]);
 
     const cancelSettleConfirm = useCallback(() => {
         setSettleConfirmOpen(false);
@@ -334,9 +352,12 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
 
     const confirmSettleAndExit = useCallback(async () => {
         const gs = gameStateRef.current;
-        if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
-        if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
-        setSettleConfirmOpen(false);
+        if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) {
+            throw new Error('当前无法结算');
+        }
+        if (interactionPhaseRef.current !== GameInteractionPhase.idle) {
+            throw new Error('当前无法结算');
+        }
         settleInFlightRef.current = true;
         try {
             const res = (await convex.mutation(api.service.gameManager.concedeGame, {
@@ -344,16 +365,23 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             })) as
                 | { ok: true; score: number; lines: number; moves: number; gameStatus: number }
                 | { ok: false };
-            if (!res || !('ok' in res) || !res.ok) return;
+            if (!res || !('ok' in res) || !res.ok) {
+                throw new Error('认输失败，请重试');
+            }
             commitGameState({
                 score: res.score,
                 lines: res.lines,
                 moves: res.moves,
                 status: res.gameStatus,
             });
-            await runBlockBlastSettlement(res.score);
+            const settled = await runBlockBlastSettlement(res.score, { deferHostNotify: true });
+            if (!settled) {
+                throw new Error('结算提交失败，请重试');
+            }
         } catch (e) {
             console.error('[BlockBlast] confirmSettleAndExit', e);
+            if (e instanceof Error) throw e;
+            throw new Error('结算失败，请稍后重试');
         } finally {
             settleInFlightRef.current = false;
         }
@@ -435,6 +463,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         settleConfirmOpen,
         cancelSettleConfirm,
         confirmSettleAndExit,
+        finishManualSettleSuccess,
         casualTournamentId,
     };
 

@@ -55,6 +55,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         settleConfirmOpen,
         cancelSettleConfirm,
         confirmSettleAndExit,
+        finishManualSettleSuccess,
         interactionPhase,
     } = useBlockBlastGameManager();
 
@@ -353,6 +354,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST}
                 onCancel={cancelSettleConfirm}
                 onConfirm={confirmSettleAndExit}
+                onSuccessClose={finishManualSettleSuccess}
             />
         </div>
     );
