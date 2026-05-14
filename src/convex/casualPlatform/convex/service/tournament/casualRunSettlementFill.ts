@@ -1,6 +1,6 @@
 /**
- * Post-score / settlement helpers: synthetic opponents for session-sized leaderboards (Solitaire).
- * Swap implementations here for richer bots, other gameIds, or server-driven sims.
+ * Post-score / settlement helpers: synthetic opponents for session-sized async leaderboards
+ *（Solitaire / Block Blast 共用：按 `maxPlayers` 与开局真人数量补虚拟 `casual_run_player_matches`）。
  */
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
@@ -11,9 +11,15 @@ import { internalMutation } from "../../_generated/server";
 
 /** `uid` 前缀；本场虚拟对手，不参与全局异步榜 */
 export const CASUAL_SOLITAIRE_BOT_UID_PREFIX = "__vp_solitaire:";
+/** Block Blast 异步场虚拟对手（与接龙分列前缀，便于排查） */
+export const CASUAL_BLOCK_BLAST_BOT_UID_PREFIX = "__vp_block_blast:";
 
+/** 真人以外：异步虚拟补位行（接龙 + Block Blast） */
 export function isCasualSolitaireVirtualUid(uid: string): boolean {
-  return uid.startsWith(CASUAL_SOLITAIRE_BOT_UID_PREFIX);
+  return (
+    uid.startsWith(CASUAL_SOLITAIRE_BOT_UID_PREFIX) ||
+    uid.startsWith(CASUAL_BLOCK_BLAST_BOT_UID_PREFIX)
+  );
 }
 
 /** Slots to fill with virtual rows = maxPlayers − planned humans (≥1 human slot). */
@@ -71,20 +77,36 @@ export const seedSolitaireVirtualOpponents = internalMutation({
     externalGameId: v.string(),
     humanScore: v.number(),
     botCount: v.number(),
+    /** 与 `casual_run_player_matches.gameType` 一致；决定虚拟行 `uid` 前缀与 `gameType` 字段 */
+    matchGameType: v.union(v.literal("solitaire"), v.literal("block_blast")),
   },
   handler: async (ctx, args) => {
-    const { templateId, runTournamentId, matchId, externalGameId, humanScore, botCount } = args;
+    const {
+      templateId,
+      runTournamentId,
+      matchId,
+      externalGameId,
+      humanScore,
+      botCount,
+      matchGameType,
+    } = args;
     const n = Math.min(Math.max(botCount, 0), 50);
     const seedBase = hashSessionSeed(`${templateId}|${externalGameId}`);
+    const spreadCap = matchGameType === "block_blast" ? 120_000 : 8000;
     const spread = Math.max(
       200,
-      Math.min(Math.floor(humanScore * 0.35 + 280), 8000)
+      Math.min(Math.floor(humanScore * 0.35 + 280), spreadCap)
     );
     const now = Date.now();
+    const uidPrefix =
+      matchGameType === "block_blast"
+        ? CASUAL_BLOCK_BLAST_BOT_UID_PREFIX
+        : CASUAL_SOLITAIRE_BOT_UID_PREFIX;
     for (let i = 0; i < n; i++) {
-      const uid = `${CASUAL_SOLITAIRE_BOT_UID_PREFIX}${externalGameId}:${i}`;
-      /** 勿使用 `game_*` 前缀，以免 solitaire `loadGame` 误判为休闲 run */
-      const gameId = `vp_${matchId}_${i}`;
+      const uid = `${uidPrefix}${externalGameId}:${i}`;
+      /** 勿使用 `game_*` 前缀，以免客户端 `loadGame` 误判为休闲 run；接龙保留旧 `vp_${matchId}_${i}` 以兼容已存数据 */
+      const gameId =
+        matchGameType === "block_blast" ? `vp_${matchId}_bb_${i}` : `vp_${matchId}_${i}`;
       const existing = await ctx.db
         .query("casual_run_player_matches")
         .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
@@ -99,7 +121,7 @@ export const seedSolitaireVirtualOpponents = internalMutation({
         templateId,
         uid,
         gameId,
-        gameType: "solitaire",
+        gameType: matchGameType,
         externalGameId,
         score,
         status: "settled",
@@ -130,7 +152,8 @@ export async function fillSolitaireVirtualLeaderboardAndRerankHumans(
     args.def.maxPlayers,
     args.humanCountPlanned
   );
-  if (args.def.gameId !== "solitaire" || botCount <= 0 || !args.sessionExternalId) return;
+  const gt = args.def.gameId;
+  if ((gt !== "solitaire" && gt !== "block_blast") || botCount <= 0 || !args.sessionExternalId) return;
 
   await ctx.runMutation(internal.service.tournament.casualRunSettlementFill.seedSolitaireVirtualOpponents, {
     templateId: args.templateId,
@@ -139,6 +162,7 @@ export async function fillSolitaireVirtualLeaderboardAndRerankHumans(
     externalGameId: args.sessionExternalId,
     humanScore: args.referenceHumanScore,
     botCount,
+    matchGameType: gt,
   });
 
   for (const hp of args.humanRows) {

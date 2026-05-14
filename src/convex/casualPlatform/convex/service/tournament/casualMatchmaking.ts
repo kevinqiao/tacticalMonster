@@ -10,8 +10,10 @@ import { internalMutation } from "../../_generated/server";
 import { getOrCreateOpenInstance } from "./casualInstanceService";
 import {
   applyCasualJoinEntryChargeWithInstance,
+  computeJoinEntryWillCharge,
   insertCasualRunDocumentsForHumans,
   refundCasualJoinEntryCharge,
+  requiresDailySoloPlayCostAck,
 } from "./casualTournamentJoinCore";
 import type { JoinCasualRunResult } from "./casualTournamentTypes";
 
@@ -170,8 +172,9 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
   args: {
     uid: v.string(),
     tournamentId: v.string(),
+    dailySoloCostAck: v.optional(v.literal(true)),
   },
-  handler: async (ctx, { uid, tournamentId }): Promise<JoinCasualRunResult> => {
+  handler: async (ctx, { uid, tournamentId, dailySoloCostAck }): Promise<JoinCasualRunResult> => {
     const def = getTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
@@ -186,6 +189,15 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
         gameId: existingOpen.gameId,
         templateId: tournamentId,
       };
+    }
+
+    const now = Date.now();
+    const preview = await computeJoinEntryWillCharge(ctx, uid, tournamentId, now);
+    if (!preview.ok) {
+      return { ok: false as const, error: preview.error };
+    }
+    if (requiresDailySoloPlayCostAck(tournamentId, preview.willChargeEntry) && dailySoloCostAck !== true) {
+      return { ok: false as const, error: "needs_cost_ack" };
     }
 
     const dupWaiting = await ctx.db

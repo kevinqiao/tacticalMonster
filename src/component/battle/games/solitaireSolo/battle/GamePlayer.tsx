@@ -9,6 +9,10 @@ import { useSoloGameManager } from './service/GameManager';
 import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
 
+import {
+    MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE,
+    ManualSettleConfirmOverlay,
+} from '../../shared/ManualSettleConfirmOverlay';
 import './style.css';
 import {
     CARD_SUITS,
@@ -47,7 +51,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     /** 动画中禁用「结束」，终局仍允许点击以便结算失败时重试 */
     const endGameDisabled = interactionPhase !== GameInteractionPhase.idle;
 
-    const { recycle, runAutoCompleteToFoundation, settleManuallyAndExit } = useActHandler();
+    const { recycle, runAutoCompleteToFoundation, settleManuallyAndExit, settleConfirmOpen, cancelSettleConfirm, confirmSettleAndExit } = useActHandler();
     const { actionData } = useSoloDnDManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -381,6 +385,12 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 {renderTableau()}
                 <div className="solo-board-cards-layer">{renderCards}</div>
             </div>
+            <ManualSettleConfirmOverlay
+                open={settleConfirmOpen}
+                defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE}
+                onCancel={cancelSettleConfirm}
+                onConfirm={confirmSettleAndExit}
+            />
         </div>
     );
     // return <div ref={containerRef} className="solo-player-container"></div>

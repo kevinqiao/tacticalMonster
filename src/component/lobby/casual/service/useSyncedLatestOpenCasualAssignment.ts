@@ -14,7 +14,6 @@ const REFETCH_ON_MODAL_CLOSE = new Set([
   "play_solitaire_solo",
   "play_block_blast",
   "casual_game_tournaments",
-  "solitaire_settle_confirm",
 ]);
 
 function shouldRefetchAfterModalClose(modalEvent: { name?: "modalOpen" | "modalClose"; modals: string[] }): boolean {

@@ -1,3 +1,28 @@
+.msc-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  z-index: 2147483646;
+  pointer-events: auto;
+}
+
+.msc-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.msc-dialog {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: min(92vw, 400px);
+}
+
 .ssc {
   box-sizing: border-box;
   width: 100%;

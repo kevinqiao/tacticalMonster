@@ -1,9 +1,8 @@
 import { SoloGameEngine } from "@/convex/solitaireArena/convex/service/SoloGameEngine";
 import { useUserManager } from "host/service/UserManager";
-import { useModalManager } from "host/service/ModalManager";
 import { useConvex } from "convex/react";
 import gsap from "gsap";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../../../../../../convex/solitaireArena/convex/_generated/api";
 import { SOLO_ANIMATION_CONFIG } from "../../animation/animationConfig";
 import { dealEffect } from "../../animation/effects/dealEffect";
@@ -38,7 +37,7 @@ function isTerminalSoloStatus(status: SoloGameStatus | number | undefined): bool
 const useActHandler = () => {
     const convex = useConvex();
     const { user } = useUserManager();
-    const { openModal } = useModalManager();
+    const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
     const casualRunSubmittedRef = useRef(false);
     const settleInFlightRef = useRef(false);
     const gameStateRef = useRef<SoloGameState | null>(null);
@@ -128,6 +127,35 @@ const useActHandler = () => {
         await runSolitaireSettlement(score);
     }, [gameState, runSolitaireSettlement]);
 
+    const cancelSettleConfirm = useCallback(() => {
+        setSettleConfirmOpen(false);
+    }, []);
+
+    const confirmSettleAndExit = useCallback(async () => {
+        const gs = gameStateRef.current;
+        if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
+        if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
+        setSettleConfirmOpen(false);
+        settleInFlightRef.current = true;
+        try {
+            const res = await convex.mutation(api.service.gameManager.concedeGame, {
+                gameId: gs.gameId,
+            });
+            if (!res?.ok) return;
+            mergeServerProgress(gs, {
+                score: res.score,
+                moves: res.moves,
+                gameStatus: res.gameStatus,
+            });
+            const score = Math.max(0, Math.floor(gs.score ?? 0));
+            await runSolitaireSettlement(score);
+        } catch (e) {
+            console.error("[Solitaire] confirmSettleAndExit", e);
+        } finally {
+            settleInFlightRef.current = false;
+        }
+    }, [convex, runSolitaireSettlement]);
+
     const settleManuallyAndExit = useCallback(async () => {
         if (!gameState || casualRunSubmittedRef.current || settleInFlightRef.current) return;
         if (interactionPhase !== GameInteractionPhase.idle) return;
@@ -138,35 +166,8 @@ const useActHandler = () => {
             return;
         }
 
-        openModal({
-            name: "solitaire_settle_confirm",
-            data: {
-                onConfirm: async () => {
-                    const gs = gameStateRef.current;
-                    if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
-                    if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
-                    settleInFlightRef.current = true;
-                    try {
-                        const res = await convex.mutation(api.service.gameManager.concedeGame, {
-                            gameId: gs.gameId,
-                        });
-                        if (!res?.ok) return;
-                        mergeServerProgress(gs, {
-                            score: res.score,
-                            moves: res.moves,
-                            gameStatus: res.gameStatus,
-                        });
-                        const score = Math.max(0, Math.floor(gs.score ?? 0));
-                        await runSolitaireSettlement(score);
-                    } catch (e) {
-                        console.error("[Solitaire] settleManuallyAndExit", e);
-                    } finally {
-                        settleInFlightRef.current = false;
-                    }
-                },
-            },
-        });
-    }, [gameState, interactionPhase, convex, runSolitaireSettlement, openModal]);
+        setSettleConfirmOpen(true);
+    }, [gameState, interactionPhase, runSolitaireSettlement]);
     const saveUpdate = useCallback((cards: Card[]) => {
         if (!gameState) return;
         cards.forEach((r: SoloCard) => {
@@ -530,6 +531,9 @@ const useActHandler = () => {
         cancelDrag,
         runAutoCompleteToFoundation,
         settleManuallyAndExit,
+        settleConfirmOpen,
+        cancelSettleConfirm,
+        confirmSettleAndExit,
     };
 };
 

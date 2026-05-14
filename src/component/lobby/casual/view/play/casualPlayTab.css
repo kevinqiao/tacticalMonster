@@ -346,3 +346,95 @@
   font-size: 12px;
   color: #fef08a;
 }
+
+/* 日榜入场消耗确认 */
+.casual-play-hub__costConfirm {
+  position: fixed;
+  inset: 0;
+  z-index: 5400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  box-sizing: border-box;
+}
+
+.casual-play-hub__costConfirmBackdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.casual-play-hub__costConfirmCard {
+  position: relative;
+  width: min(100%, 360px);
+  padding: 20px 18px 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ecfdf5 0%, #fff 38%);
+  border: 1px solid rgba(15, 118, 110, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  color: #0f172a;
+}
+
+.casual-play-hub__costConfirmTitle {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 800;
+  color: #064e3b;
+}
+
+.casual-play-hub__costConfirmSub {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.casual-play-hub__costConfirmList {
+  margin: 0 0 18px;
+  padding-left: 1.1rem;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #1e293b;
+}
+
+.casual-play-hub__costConfirmList li {
+  margin-bottom: 6px;
+}
+
+.casual-play-hub__costConfirmActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.casual-play-hub__costConfirmBtn {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+.casual-play-hub__costConfirmBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.casual-play-hub__costConfirmBtn--ghost {
+  background: #fff;
+  color: #0f766e;
+  border: 1px solid rgba(15, 118, 110, 0.35);
+}
+
+.casual-play-hub__costConfirmBtn--primary {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 50%, #16a34a 100%);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}

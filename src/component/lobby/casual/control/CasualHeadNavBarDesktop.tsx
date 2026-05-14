@@ -1,21 +1,21 @@
 import { useModalManager } from "host/service/ModalManager";
-import { useSharedValue } from "host/service/SharedPageDataManager";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { usePageManager } from "host/service/PageManager";
+import { useSharedValue } from "host/service/SharedPageDataManager";
 import type { User } from "host/service/UserManager";
 import { useUserManager } from "host/service/UserManager";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import avatarPlaceholderUrl from "../../tactical/control/head/assets/avatar-placeholder.svg?url";
-import "../../tactical/control/head/HeadNavControl.css";
 import { HEAD_NAV_DESKTOP_ICON_AUTH_SIGNIN } from "../../tactical/control/head/HeadNavDesktopConfig";
 import { useCasualPlatform } from "../service/useCasualPlatformManager";
+import "../style.css";
 import { CasualHudCurrencyBars } from "./CasualHudCurrencyBars";
+import "./HeadNavControl.css";
 import {
   CASUAL_BATTLE_PASS_MODAL_OPEN,
   CASUAL_HEAD_NAV_MENU_ITEMS,
   CASUAL_PLAYER_PROFILE_MODAL_OPEN,
 } from "./HeadNavSharedCasual";
-import "../style.css";
 
 function avatarPhotoUrlFromUser(u: User | null): string | undefined {
   if (!u) return undefined;

@@ -113,12 +113,6 @@ export const Modals: Record<string, ModalConfig> = {
             { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
         ],
     },
-    "solitaire_settle_confirm": {
-        name: "solitaire_settle_confirm",
-        path: "./battle/games/solitaireSolo/battle/SolitaireSettleConfirmModal",
-        auth: 1,
-        effects: [{ name: "popCenter", args: { width: "min(92%, 400px)", height: "auto" } }],
-    },
     "play_block_blast": {
         name: "play_block_blast",
         path: "./battle/games/blockBlast/battle/PlayBlockBlast",

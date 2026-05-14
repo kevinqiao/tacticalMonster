@@ -2,7 +2,6 @@
  * Block Blast 游戏管理器（对齐 solitaireSolo：interactionPhase、loadGame、战报与提交）
  */
 import { useUserManager } from 'host/service/UserManager';
-import { useModalManager } from 'host/service/ModalManager';
 import { useConvex } from 'convex/react';
 import gsap from 'gsap';
 import React, {
@@ -77,8 +76,11 @@ interface IBlockBlastGameContext {
      * 触发棋盘重绘。await 后必须用 patch 写入服务器返回字段，禁止就地修改闭包捕获的旧 gameState。
      */
     commitGameState: (patch?: GameStateCommitPatch) => void;
-    /** 与 solitaire「结束并结算」一致：确认弹窗 → concede → 上报 / 关闭弹层 */
+    /** 非终局时打开局内确认层；终局则直接结算 */
     settleManuallyAndExit: () => Promise<void>;
+    settleConfirmOpen: boolean;
+    cancelSettleConfirm: () => void;
+    confirmSettleAndExit: () => Promise<void>;
     casualTournamentId?: string;
 }
 
@@ -98,6 +100,9 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     onGameOver: () => { },
     commitGameState: () => { },
     settleManuallyAndExit: async () => { },
+    settleConfirmOpen: false,
+    cancelSettleConfirm: () => { },
+    confirmSettleAndExit: async () => { },
     casualTournamentId: undefined,
 });
 
@@ -140,7 +145,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const config = { ...DEFAULT_GAME_CONFIG, ...customConfig };
     const convex = useConvex();
     const { user } = useUserManager();
-    const { openModal } = useModalManager();
+    const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
 
     const casualRunSubmittedRef = useRef(false);
     const settleInFlightRef = useRef(false);
@@ -323,6 +328,37 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         [convex, casualTournamentId, user?.token, onGameSubmit]
     );
 
+    const cancelSettleConfirm = useCallback(() => {
+        setSettleConfirmOpen(false);
+    }, []);
+
+    const confirmSettleAndExit = useCallback(async () => {
+        const gs = gameStateRef.current;
+        if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
+        if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
+        setSettleConfirmOpen(false);
+        settleInFlightRef.current = true;
+        try {
+            const res = (await convex.mutation(api.service.gameManager.concedeGame, {
+                gameId: gs.gameId,
+            })) as
+                | { ok: true; score: number; lines: number; moves: number; gameStatus: number }
+                | { ok: false };
+            if (!res || !('ok' in res) || !res.ok) return;
+            commitGameState({
+                score: res.score,
+                lines: res.lines,
+                moves: res.moves,
+                status: res.gameStatus,
+            });
+            await runBlockBlastSettlement(res.score);
+        } catch (e) {
+            console.error('[BlockBlast] confirmSettleAndExit', e);
+        } finally {
+            settleInFlightRef.current = false;
+        }
+    }, [convex, commitGameState, runBlockBlastSettlement]);
+
     const settleManuallyAndExit = useCallback(async () => {
         if (!gameState || casualRunSubmittedRef.current || settleInFlightRef.current) return;
         if (interactionPhase !== GameInteractionPhase.idle) return;
@@ -333,38 +369,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             return;
         }
 
-        openModal({
-            name: 'solitaire_settle_confirm',
-            data: {
-                message: '确定以当前分数结束本局并结算？未使用的形状将按当前得分上报。',
-                onConfirm: async () => {
-                    const gs = gameStateRef.current;
-                    if (!gs || casualRunSubmittedRef.current || settleInFlightRef.current) return;
-                    if (interactionPhaseRef.current !== GameInteractionPhase.idle) return;
-                    settleInFlightRef.current = true;
-                    try {
-                        const res = (await convex.mutation(api.service.gameManager.concedeGame, {
-                            gameId: gs.gameId,
-                        })) as
-                            | { ok: true; score: number; lines: number; moves: number; gameStatus: number }
-                            | { ok: false };
-                        if (!res || !('ok' in res) || !res.ok) return;
-                        commitGameState({
-                            score: res.score,
-                            lines: res.lines,
-                            moves: res.moves,
-                            status: res.gameStatus,
-                        });
-                        await runBlockBlastSettlement(res.score);
-                    } catch (e) {
-                        console.error('[BlockBlast] settleManuallyAndExit', e);
-                    } finally {
-                        settleInFlightRef.current = false;
-                    }
-                },
-            },
-        });
-    }, [gameState, interactionPhase, convex, commitGameState, runBlockBlastSettlement, openModal]);
+        setSettleConfirmOpen(true);
+    }, [gameState, interactionPhase, runBlockBlastSettlement]);
 
     const submitScore = useCallback(
         async (score: number) => {
@@ -426,6 +432,9 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         onGameOver,
         commitGameState,
         settleManuallyAndExit,
+        settleConfirmOpen,
+        cancelSettleConfirm,
+        confirmSettleAndExit,
         casualTournamentId,
     };
 

@@ -12,6 +12,9 @@ export const casualTournamentFns = {
     "service/tournament/casualTournamentService:listOpenCasualRunAssignments"
   ),
   joinTournament: makeFunctionReference<"mutation">("service/tournament/casualTournamentService:joinTournament"),
+  previewJoinEntryCharge: makeFunctionReference<"query">(
+    "service/tournament/casualTournamentService:previewJoinEntryCharge"
+  ),
   claimCasualRunRewards: makeFunctionReference<"mutation">(
     "service/tournament/casualTournamentService:claimCasualRunRewards"
   ),

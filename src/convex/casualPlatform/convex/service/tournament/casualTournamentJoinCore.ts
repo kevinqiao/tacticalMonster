@@ -3,19 +3,29 @@
  * Keep mutation endpoints in `tournament/casualTournamentService`; this module is plain helpers only.
  */
 import { internal } from "../../_generated/api";
-import type { MutationCtx } from "../../_generated/server";
 import type { Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import {
+  CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
+  CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
   applyScaledCurrencyCost,
   applyVoucherCost,
   effectiveEntryBilling,
+  getTournamentDefinition,
   isPeriodScopedTournament,
   type CasualTournamentDefinition,
   type EntryCost,
 } from "../../data/casualTournamentConfigs";
-import {
-  ensureInstancePlayerStateRow,
-} from "./casualInstanceService";
+import { resolveInstanceWindow } from "../../data/casualInstanceWindow";
+import { activeSeasonWindowForCtx, ensureInstancePlayerStateRow } from "./casualInstanceService";
+
+export function requiresDailySoloPlayCostAck(tournamentId: string, willChargeEntry: boolean): boolean {
+  if (!willChargeEntry) return false;
+  return (
+    tournamentId === CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID ||
+    tournamentId === CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID
+  );
+}
 
 export const RUN_TOURNAMENT_OPEN = 0;
 export const RUN_TOURNAMENT_COMPLETED = 1;
@@ -44,7 +54,7 @@ function applyEntryCostToPlayerPatch(
 }
 
 async function resolveJoinEntryCost(
-  ctx: MutationCtx,
+  ctx: MutationCtx | QueryCtx,
   tournamentId: string,
   def: CasualTournamentDefinition
 ): Promise<EntryCost> {
@@ -327,5 +337,118 @@ export async function insertCasualRunDocumentsForHumans(
     coinsCharged: args.coinsCharged,
     gemsCharged: args.gemsCharged,
     activityIds: args.activityIds,
+  };
+}
+
+export type JoinEntryChargePreview =
+  | {
+      ok: true;
+      willChargeEntry: boolean;
+      dueCoins: number;
+      dueGems: number;
+      dueVouchers: number;
+      entryKind: EntryCost["kind"];
+    }
+  | { ok: false; error: string };
+
+/**
+ * 与 `applyCasualJoinEntryChargeWithInstance` 对齐：本次 join 是否会扣入场（供 Play 确认窗 / join 校验 `dailySoloCostAck`）。
+ * 只读，不建桶、不写库。
+ */
+export async function computeJoinEntryWillCharge(
+  ctx: MutationCtx | QueryCtx,
+  uid: string,
+  tournamentId: string,
+  now: number
+): Promise<JoinEntryChargePreview> {
+  const def = getTournamentDefinition(tournamentId);
+  if (!def) {
+    return { ok: false as const, error: "unknown_tournament" };
+  }
+
+  const entryCost = await resolveJoinEntryCost(ctx, tournamentId, def);
+  if (entryCost.kind === "none") {
+    return {
+      ok: true as const,
+      willChargeEntry: false,
+      dueCoins: 0,
+      dueGems: 0,
+      dueVouchers: 0,
+      entryKind: "none",
+    };
+  }
+
+  const dues = (): { c: number; g: number; v: number } => ({
+    c: entryCost.kind === "coins" ? entryCost.amount : 0,
+    g: entryCost.kind === "gems" ? entryCost.amount : 0,
+    v: entryCost.kind === "seasonVouchers" ? entryCost.amount : 0,
+  });
+
+  if (!isPeriodScopedTournament(def)) {
+    const d = dues();
+    return {
+      ok: true as const,
+      willChargeEntry: true,
+      dueCoins: d.c,
+      dueGems: d.g,
+      dueVouchers: d.v,
+      entryKind: entryCost.kind,
+    };
+  }
+
+  const activeSeason = await activeSeasonWindowForCtx(ctx);
+  const win = resolveInstanceWindow(def, now, activeSeason);
+  if (!win) {
+    return { ok: false as const, error: "period_unavailable" };
+  }
+
+  const inst = await ctx.db
+    .query("casual_tournament_instances")
+    .withIndex("by_template_instanceKey", (q) =>
+      q.eq("templateId", tournamentId).eq("instanceKey", win.instanceKey)
+    )
+    .first();
+
+  if (inst?.status === "closed") {
+    return { ok: false as const, error: "period_unavailable" };
+  }
+
+  const d = dues();
+  const entryKind = entryCost.kind;
+
+  if (!inst) {
+    return {
+      ok: true as const,
+      willChargeEntry: true,
+      dueCoins: d.c,
+      dueGems: d.g,
+      dueVouchers: d.v,
+      entryKind,
+    };
+  }
+
+  const st = await ctx.db
+    .query("casual_instance_player_state")
+    .withIndex("by_instance_uid", (q) => q.eq("instanceId", inst._id).eq("uid", uid))
+    .first();
+
+  if (effectiveEntryBilling(def) === "per_instance" && st?.entryFeeCharged) {
+    return {
+      ok: true as const,
+      willChargeEntry: false,
+      dueCoins: 0,
+      dueGems: 0,
+      dueVouchers: 0,
+      entryKind,
+    };
+  }
+
+  return {
+    ok: true as const,
+    willChargeEntry: true,
+    dueCoins: d.c,
+    dueGems: d.g,
+    dueVouchers: d.v,
+    entryKind,
   };
 }

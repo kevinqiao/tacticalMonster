@@ -80,7 +80,7 @@ export const ModalProvider = ({ children }: { children: React.ReactNode }) => {
     });
   }, []);
 
-
+  console.log("modals", modals);
   const value = {
     modalEvent,
     modals,

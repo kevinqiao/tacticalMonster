@@ -4,7 +4,7 @@ export type {
   CasualPlatformRewardConfig,
   CasualRankRewardEntry,
   CasualScoreTierRewardEntry,
-  CasualScoreTierRewardsGrantTiming,
+  CasualScoreTierRewardsGrantTiming
 } from "./casualTournamentRewardTypes";
 
 /** 静态锦标配置；join / submit 结算与 DB 种子共用 */
@@ -211,7 +211,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     instanceTimezone: "UTC",
     maxPlayers: 1,
     matchmakingMinHumans: 1,
-    entry: { kind: "none" },
+    entry: { kind: "coins", amount: 5 },
     rewards: {
       type: "by_performance",
       baseRewards: { coins: 10, gems: 0 },
@@ -228,7 +228,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
         { minScore: 5000, coins: 40, gems: 0 },
         { minScore: 3000, coins: 25, gems: 0 },
         { minScore: 1500, coins: 15, gems: 0 },
-        { minScore: 500, coins: 5, gems: 0 },
+        { minScore: 200, coins: 5, gems: 0 },
       ],
     },
     seasonXpOnSettle: 8,
@@ -247,7 +247,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     instanceTimezone: "UTC",
     maxPlayers: 1,
     matchmakingMinHumans: 1,
-    entry: { kind: "none" },
+    entry: { kind: "coins", amount: 5 },
     rewards: {
       type: "by_performance",
       baseRewards: { coins: 10, gems: 0 },
@@ -264,7 +264,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
         { minScore: 100_000, coins: 50, gems: 0 },
         { minScore: 50_000, coins: 35, gems: 0 },
         { minScore: 20_000, coins: 20, gems: 0 },
-        { minScore: 5000, coins: 8, gems: 0 },
+        { minScore: 200, coins: 8, gems: 0 },
       ],
     },
     seasonXpOnSettle: 8,

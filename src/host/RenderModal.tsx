@@ -56,7 +56,6 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/tactical/tournament/TournamentJoinList': () => import('component/lobby/tactical/tournament/TournamentJoinList'),
   './lobby/tactical/tournament/TournamentHistory': () => import('component/lobby/tactical/tournament/TournamentHistory'),
   './battle/games/solitaireSolo/battle/PlaySolitaireSolo': () => import('component/battle/games/solitaireSolo/battle/PlaySolitaireSolo'),
-  './battle/games/solitaireSolo/battle/SolitaireSettleConfirmModal': () => import('component/battle/games/solitaireSolo/battle/SolitaireSettleConfirmModal'),
   './battle/games/blockBlast/battle/PlayBlockBlast': () => import('component/battle/games/blockBlast/battle/PlayBlockBlast'),
   './lobby/tactical/view/play/ChestDrop': () => import('component/lobby/tactical/view/play/ChestDrop'),
   './lobby/casual/view/battlePass/CasualBattlePassModal': () => import('component/lobby/casual/view/battlePass/CasualBattlePassModal'),

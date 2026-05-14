@@ -16,7 +16,7 @@ const PlayBlockBlast: React.FC<ModalProp> = ({ visible, data, close }) => {
         <BlockBlastGame
             casualTournamentId={casualTournamentId}
             casualMatchGameId={casualMatchGameId}
-        // onGameSubmit={close}
+            onGameSubmit={close}
         />
     );
 };

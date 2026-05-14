@@ -11,6 +11,10 @@ import {
     GameInteractionPhase,
     inferGridSizeFromGrid,
 } from './types/BlockBlastTypes';
+import {
+    MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST,
+    ManualSettleConfirmOverlay,
+} from '../../shared/ManualSettleConfirmOverlay';
 import BlockBlastStatusBar, {
     blockBlastPortraitGridTopPx,
     blockBlastStatusLandscapeRailPx,
@@ -48,6 +52,9 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         updateBoardDimension,
         onGameOver,
         settleManuallyAndExit,
+        settleConfirmOpen,
+        cancelSettleConfirm,
+        confirmSettleAndExit,
         interactionPhase,
     } = useBlockBlastGameManager();
 
@@ -341,6 +348,12 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
             <GridView />
             <ShapePreview />
             <GameOverReport />
+            <ManualSettleConfirmOverlay
+                open={settleConfirmOpen}
+                defaultMessage={MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST}
+                onCancel={cancelSettleConfirm}
+                onConfirm={confirmSettleAndExit}
+            />
         </div>
     );
 };

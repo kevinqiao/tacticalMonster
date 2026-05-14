@@ -181,7 +181,8 @@ export interface CasualPlatformValue {
   refreshSeasonMissions: () => Promise<void>;
   refreshCheckinStreak: () => Promise<void>;
   joinTournament: (
-    tournamentId: string
+    tournamentId: string,
+    opts?: { dailySoloCostAck?: true }
   ) => Promise<
     | {
         ok: true;
@@ -196,6 +197,19 @@ export interface CasualPlatformValue {
       }
     | { ok: true; queued: true; templateId: string }
     | { ok: false; error?: string }
+    | null
+  >;
+  /** 与 join 一致的入场扣费预览（有消耗时 Play 先弹窗） */
+  fetchJoinEntryChargePreview: (tournamentId: string) => Promise<
+    | {
+        ok: true;
+        willChargeEntry: boolean;
+        dueCoins: number;
+        dueGems: number;
+        dueVouchers: number;
+        entryKind: "none" | "coins" | "gems" | "seasonVouchers";
+      }
+    | { ok: false; error: string }
     | null
   >;
   /** 匹配队列已开出对局时拉取 `gameId`（轮询直至出现 `open` 行） */
@@ -578,17 +592,35 @@ export function useCasualPlatform(): CasualPlatformValue {
   }, [user?.uid]);
 
   const joinTournament = useCallback(
-    async (tournamentId: string) => {
+    async (tournamentId: string, opts?: { dailySoloCostAck?: true }) => {
       const http = getCasualHttpClient();
       if (!http || !user?.uid) return null;
       try {
         return await http.mutation(casualTournamentFns.joinTournament, {
           uid: user.uid,
           tournamentId,
+          ...(opts?.dailySoloCostAck ? { dailySoloCostAck: true as const } : {}),
         });
       } catch (e) {
         console.error("[CasualPlatform] joinTournament", e);
         return { ok: false as const, error: "join_failed" };
+      }
+    },
+    [user?.uid]
+  );
+
+  const fetchJoinEntryChargePreview = useCallback(
+    async (tournamentId: string) => {
+      const http = getCasualHttpClient();
+      if (!http || !user?.uid) return null;
+      try {
+        return await http.query(casualTournamentFns.previewJoinEntryCharge, {
+          uid: user.uid,
+          tournamentId,
+        });
+      } catch (e) {
+        console.error("[CasualPlatform] previewJoinEntryCharge", e);
+        return { ok: false as const, error: "preview_failed" };
       }
     },
     [user?.uid]
@@ -914,6 +946,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       refreshSeasonMissions,
       refreshCheckinStreak,
       joinTournament,
+      fetchJoinEntryChargePreview,
       fetchLeaderboard,
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
@@ -941,6 +974,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       refreshSeasonMissions,
       refreshCheckinStreak,
       joinTournament,
+      fetchJoinEntryChargePreview,
       fetchLeaderboard,
       fetchGameHistory,
       fetchOpenCasualRunAssignments,

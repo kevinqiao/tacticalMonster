@@ -26,7 +26,9 @@ import {
 } from "./casualInstanceService";
 import {
   applyCasualJoinEntryChargeWithInstance,
+  computeJoinEntryWillCharge,
   insertCasualRunDocumentsForHumans,
+  requiresDailySoloPlayCostAck,
   RUN_PLAYER_TOURNAMENT_COMPLETED,
   RUN_TOURNAMENT_COMPLETED,
 } from "./casualTournamentJoinCore";
@@ -41,6 +43,7 @@ import {
 
 /** Re-exports for backward compatibility with imports from this module path */
 export {
+  CASUAL_BLOCK_BLAST_BOT_UID_PREFIX,
   CASUAL_SOLITAIRE_BOT_UID_PREFIX,
   isCasualSolitaireVirtualUid,
   seedSolitaireVirtualOpponents,
@@ -64,7 +67,7 @@ async function resolveRunHistoryRank(
     return null;
   }
 
-  if (opts.gameId === "solitaire" && pm.externalGameId) {
+  if ((opts.gameId === "solitaire" || opts.gameId === "block_blast") && pm.externalGameId) {
     return computeSolitaireRankForSession(ctx, opts.templateId, pm.externalGameId, opts.uid);
   }
 
@@ -313,7 +316,7 @@ async function applyCasualTemplateScoreEffects(
 
   if (
     !args.skipSolitaireBotSeed &&
-    def.gameId === "solitaire" &&
+    (def.gameId === "solitaire" || def.gameId === "block_blast") &&
     externalGameId &&
     matchId &&
     runTournamentId
@@ -328,6 +331,7 @@ async function applyCasualTemplateScoreEffects(
         externalGameId,
         humanScore: score,
         botCount: vp,
+        matchGameType: def.gameId,
       });
     }
   }
@@ -532,6 +536,8 @@ export const solitaireSessionStandings = query({
  * 游戏历史：非周期型异步 run 一条 `casual_run_player_tournaments`；
  * 周期型分档预发奖：同一局结算写入的多条 `casual_score_tier_pending`（同 instance+run+matchGame+createdAt）合并为一条；
  * 周期桶关桶后的 base/名次奖并入 `historyRewardKind: "instance_close_pending"`（与上两类同一列表）。
+ * 周期场（如日榜）：`run_pending` 不入列表；未达任何有奖励分档时不出现；仅当结算写入分档待领（各档每桶首次达成）或关桶结算行才展示。
+ * 列表合并后仅按 `historySortAt`（新→旧）排序，同毫秒用 `entryId` 稳定次序；不混入其它排序键。
  */
 export const gameHistory = query({
   args: { uid: v.string(), limit: v.optional(v.number()) },
@@ -622,7 +628,9 @@ export const gameHistory = query({
         const pendingSortedIds = [...pendingOnly]
           .sort((a, b) => String(a._id).localeCompare(String(b._id)))
           .map((g) => String(g._id));
+        const historySortAt = Math.min(...group.map((g) => g.createdAt));
         return {
+          historySortAt,
           entryId,
           historyRewardKind: "score_tier_pending" as const,
           runTournamentId: String(tr.runTournamentId),
@@ -654,6 +662,7 @@ export const gameHistory = query({
       .withIndex("by_uid", (q) => q.eq("uid", uid))
       .collect();
     const instanceCloseRows: Array<{
+      historySortAt: number;
       entryId: string;
       historyRewardKind: "instance_close_pending";
       tournamentId: string;
@@ -686,6 +695,7 @@ export const gameHistory = query({
       });
       const canClaimReward = Boolean(pr && s.instanceRewardsClaimedAt == null);
       instanceCloseRows.push({
+        historySortAt: inst.endsAt,
         entryId: String(s._id),
         historyRewardKind: "instance_close_pending",
         tournamentId: inst.templateId,
@@ -746,7 +756,11 @@ export const gameHistory = query({
           periodTournament = isPeriodScopedTournament(def);
         }
 
+        const historySortAt = completed
+          ? (pt.updatedAt ?? run?.createdAt ?? pt.createdAt)
+          : (run?.createdAt ?? pt.createdAt);
         return {
+          historySortAt,
           entryId: String(pt._id),
           historyRewardKind: "run_pending" as const,
           runTournamentId: String(pt.tournamentId),
@@ -771,11 +785,13 @@ export const gameHistory = query({
     const filteredRunRows = runRows.filter((r) => !r.periodTournament);
 
     const merged = [...filteredRunRows, ...tierRows, ...instanceCloseRows].sort((a, b) => {
-      const ta = a.submittedAt ?? a.runStartedAt ?? 0;
-      const tb = b.submittedAt ?? b.runStartedAt ?? 0;
-      return tb - ta;
+      const d = b.historySortAt - a.historySortAt;
+      if (d !== 0) return d;
+      return String(a.entryId).localeCompare(String(b.entryId));
     });
-    return merged.slice(0, n);
+    return merged
+      .slice(0, n)
+      .map(({ historySortAt: _historySortAt, ...row }) => row);
   },
 });
 
@@ -825,14 +841,23 @@ export const joinCasualRunCore = internalMutation({
   args: {
     uid: v.string(),
     tournamentId: v.string(),
+    dailySoloCostAck: v.optional(v.literal(true)),
   },
-  handler: async (ctx, { uid, tournamentId }): Promise<JoinCasualRunResult> => {
+  handler: async (ctx, { uid, tournamentId, dailySoloCostAck }): Promise<JoinCasualRunResult> => {
     const def = getTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
     }
 
     const now = Date.now();
+    const preview = await computeJoinEntryWillCharge(ctx, uid, tournamentId, now);
+    if (!preview.ok) {
+      return { ok: false as const, error: preview.error };
+    }
+    if (requiresDailySoloPlayCostAck(tournamentId, preview.willChargeEntry) && dailySoloCostAck !== true) {
+      return { ok: false as const, error: "needs_cost_ack" };
+    }
+
     const instanceId = await getOrCreateOpenInstance(ctx, { templateId: tournamentId, def, now });
     if (isPeriodScopedTournament(def) && !instanceId) {
       return { ok: false as const, error: "period_unavailable" };
@@ -873,12 +898,21 @@ export const joinCasualRunCore = internalMutation({
   },
 });
 
+/** 本次 join 是否会扣入场费（只读，与 join 路径一致） */
+export const previewJoinEntryCharge = query({
+  args: { uid: v.string(), tournamentId: v.string() },
+  handler: async (ctx, { uid, tournamentId }) => {
+    return await computeJoinEntryWillCharge(ctx, uid, tournamentId, Date.now());
+  },
+});
+
 export const joinTournament = mutation({
   args: {
     uid: v.string(),
     tournamentId: v.string(),
+    dailySoloCostAck: v.optional(v.literal(true)),
   },
-  handler: async (ctx, { uid, tournamentId }): Promise<JoinCasualRunResult> => {
+  handler: async (ctx, { uid, tournamentId, dailySoloCostAck }): Promise<JoinCasualRunResult> => {
     const def = getTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
@@ -887,11 +921,13 @@ export const joinTournament = mutation({
       return await ctx.runMutation(internal.service.tournament.casualTournamentService.joinCasualRunCore, {
         uid,
         tournamentId,
+        dailySoloCostAck,
       });
     }
     return await ctx.runMutation(internal.service.tournament.casualMatchmaking.enqueueCasualMatchmakingAndTryMatch, {
       uid,
       tournamentId,
+      dailySoloCostAck,
     });
   },
 });
