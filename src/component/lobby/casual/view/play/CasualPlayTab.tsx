@@ -1,6 +1,8 @@
 import {
   CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
   CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
+  casualSettleBaseCoins,
+  casualSettleBaseGems,
   effectiveEntryBilling,
   getTournamentDefinition,
 } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
@@ -59,6 +61,88 @@ function buildSoloCostConfirmLines(
   return lines;
 }
 
+type SoloDetailSection = { heading: string; bullets: string[] };
+
+function dailySoloTournamentId(kind: CasualGameKind): string {
+  return kind === "solitaire"
+    ? CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID
+    : CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID;
+}
+
+/** 单人挑战「详情」弹窗：玩法 / 成本 / 奖励（与 `casualTournamentConfigs` 对齐的简述） */
+function buildDailySoloDetailSections(tournamentId: string): SoloDetailSection[] | null {
+  const def = getTournamentDefinition(tournamentId);
+  if (!def) return null;
+
+  const gameplay: string[] = [
+    "本模式为「日榜最高分」异步挑战：以自然日（UTC）为周期桶；当天内多次对局时，仅取你本人最高一次分数参与排名与相关奖励判定。",
+    "每局为独立单人局，结算后分数上报至当前日榜桶。",
+  ];
+
+  const entry: string[] = [];
+  if (def.entry.kind === "none") {
+    entry.push("当前配置为免费入场（不扣金币 / 钻 / 赛季券）。");
+  } else if (def.entry.kind === "coins") {
+    entry.push(`标价：每处入场 ${def.entry.amount} 金币。`);
+    if (effectiveEntryBilling(def) === "per_instance") {
+      entry.push("扣费方式：同一日榜周期桶内仅首场对局扣除上述入场费；同桶内再开不重复扣该项。");
+    } else {
+      entry.push("扣费方式：每场加入时按配置扣除。");
+    }
+  } else if (def.entry.kind === "gems") {
+    entry.push(`标价：${def.entry.amount} 钻。`);
+    if (effectiveEntryBilling(def) === "per_instance") {
+      entry.push("同一日榜桶内仅首场扣除；同桶内再开不重复扣该项。");
+    }
+  } else {
+    entry.push(`标价：${def.entry.amount} 赛季券（走赛季钱包）。`);
+  }
+
+  const rewards: string[] = [];
+  const baseC = casualSettleBaseCoins(def);
+  const baseG = casualSettleBaseGems(def);
+  if (baseC > 0 || baseG > 0) {
+    rewards.push(
+      `每局结算参与奖（以服端为准）：约 ${baseC} 金币${baseG > 0 ? `、${baseG} 钻` : ""}。`
+    );
+  }
+  rewards.push(
+    `结算可获得赛季 Pass XP（配置 seasonXpOnSettle=${def.seasonXpOnSettle}，挑战点系数 seasonPointsMultiplier=${def.seasonPointsMultiplier}，以服端为准）。`
+  );
+
+  const rr = def.rewards.rankRewards;
+  if (rr?.length) {
+    rewards.push("日榜周期收尾时按桶内名次发放名次奖（区间如下，以服端结算为准）：");
+    for (const row of rr) {
+      const [a, b] = row.rankRange;
+      const rankLabel = a === b ? `第 ${a} 名` : `第 ${a}–${b} 名`;
+      rewards.push(
+        `${rankLabel}：${row.coins ?? 0} 金币${(row.gems ?? 0) > 0 ? `、${row.gems} 钻` : ""}。`
+      );
+    }
+  }
+
+  const tiers = def.rewards.scoreTierRewards;
+  if (tiers?.length) {
+    const timing =
+      def.rewards.scoreTierRewardsGrantTiming === "on_each_run_settled"
+        ? "分数档在每局结算后按本作分数命中对应档位（可多条累计；领取入口以游戏内历史 / 待领为准）。"
+        : "分数档在日榜桶收尾时按你在桶内聚合最高分命中最高满足的一档。";
+    rewards.push(`分数档奖励：${timing}`);
+    for (const t of tiers) {
+      rewards.push(
+        `分数 ≥ ${t.minScore}：${t.coins ?? 0} 金币${(t.gems ?? 0) > 0 ? `、${t.gems} 钻` : ""}。`
+      );
+    }
+  }
+
+  return [
+    { heading: "玩法机制", bullets: gameplay },
+    { heading: "进入成本", bullets: entry },
+    { heading: "奖励规则", bullets: rewards },
+  ];
+}
+
 /** Play：任务列表 · 按「单人挑战 / 多人竞技」分组，各含 Solitaire 与 Block Blast */
 const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -77,6 +161,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     tournamentId: string;
     lines: string[];
   } | null>(null);
+  const [soloDetailKind, setSoloDetailKind] = useState<CasualGameKind | null>(null);
 
   const coins = casual.casualPlayer?.coins;
   const gems = casual.casualPlayer?.gems;
@@ -131,8 +216,8 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
             (a) => a.templateId === tournamentId && assignmentMatchesGameKind(a, kind)
           );
           if (hit) {
-            openGame(hit.gameId);
             await casual.refreshCasualPlayer();
+            openGame(hit.gameId);
             return true;
           }
         }
@@ -141,8 +226,8 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
         return false;
       }
       if ("gameId" in r && r.gameId) {
-        openGame(r.gameId);
         await casual.refreshCasualPlayer();
+        openGame(r.gameId);
         return true;
       }
       return false;
@@ -231,6 +316,9 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
 
   const playBusy = joiningSolo !== null || soloCostConfirm !== null;
 
+  const soloDetailSections =
+    soloDetailKind != null ? buildDailySoloDetailSections(dailySoloTournamentId(soloDetailKind)) : null;
+
   return (
     <CasualPageShell
       title="Play"
@@ -305,18 +393,27 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                 <p className="casual-play-hub__gameHint">
                   {soloEntryHintLine(CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID)}
                 </p>
-                <div className="casual-play-hub__soloBtnRow">
+                <div className="casual-play-hub__soloBtnRow casual-play-hub__soloBtnRow--withDetail">
                   <button
                     type="button"
-                    className="casual-play-hub__modeBtn"
+                    className="casual-play-hub__modeBtn casual-play-hub__soloGridPlay"
                     disabled={!!latestOpenAssignment || playBusy}
                     onClick={() => void joinSoloDailyChallenge("solitaire")}
                   >
                     {joiningSolo === "solitaire" ? "…" : "Play"}
                   </button>
+                  <div className="casual-play-hub__soloGridDetailSlot">
+                    <button
+                      type="button"
+                      className="casual-play-hub__modeBtn--detailInline"
+                      onClick={() => setSoloDetailKind("solitaire")}
+                    >
+                      详情
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank casual-play-hub__soloGridRank"
                     onClick={() =>
                       openModal({
                         name: "casual_daily_solo_leaderboard",
@@ -334,18 +431,27 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                 <p className="casual-play-hub__gameHint">
                   {soloEntryHintLine(CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID)}
                 </p>
-                <div className="casual-play-hub__soloBtnRow">
+                <div className="casual-play-hub__soloBtnRow casual-play-hub__soloBtnRow--withDetail">
                   <button
                     type="button"
-                    className="casual-play-hub__modeBtn"
+                    className="casual-play-hub__modeBtn casual-play-hub__soloGridPlay"
                     disabled={!!latestOpenAssignment || playBusy}
                     onClick={() => void joinSoloDailyChallenge("block_blast")}
                   >
                     {joiningSolo === "block_blast" ? "…" : "Play"}
                   </button>
+                  <div className="casual-play-hub__soloGridDetailSlot">
+                    <button
+                      type="button"
+                      className="casual-play-hub__modeBtn--detailInline"
+                      onClick={() => setSoloDetailKind("block_blast")}
+                    >
+                      详情
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
+                    className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank casual-play-hub__soloGridRank"
                     onClick={() =>
                       openModal({
                         name: "casual_daily_solo_leaderboard",
@@ -458,6 +564,55 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                       >
                         {joiningSolo !== null ? "加入中…" : "确定并开始"}
                       </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )
+            : null}
+          {typeof document !== "undefined" && soloDetailKind
+            ? createPortal(
+                <div
+                  className="casual-play-hub__soloDetail"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="casual-solo-detail-title"
+                >
+                  <button
+                    type="button"
+                    className="casual-play-hub__soloDetailBackdrop"
+                    aria-label="关闭"
+                    onClick={() => setSoloDetailKind(null)}
+                  />
+                  <div className="casual-play-hub__soloDetailShell">
+                    <div className="casual-play-hub__soloDetailHeader">
+                      <h3 id="casual-solo-detail-title" className="casual-play-hub__soloDetailTitle">
+                        {soloDetailKind === "solitaire" ? "Solitaire" : "Block Blast"} · 日榜说明
+                      </h3>
+                      <button
+                        type="button"
+                        className="casual-play-hub__soloDetailClose"
+                        aria-label="关闭"
+                        onClick={() => setSoloDetailKind(null)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="casual-play-hub__soloDetailBody">
+                      {soloDetailSections ? (
+                        soloDetailSections.map((sec) => (
+                          <section key={sec.heading} className="casual-play-hub__soloDetailSection">
+                            <h4 className="casual-play-hub__soloDetailSectionTitle">{sec.heading}</h4>
+                            <ul className="casual-play-hub__soloDetailList">
+                              {sec.bullets.map((line, i) => (
+                                <li key={`${sec.heading}-${i}`}>{line}</li>
+                              ))}
+                            </ul>
+                          </section>
+                        ))
+                      ) : (
+                        <p className="casual-play-hub__soloDetailEmpty">暂无该专场的配置说明。</p>
+                      )}
                     </div>
                   </div>
                 </div>,

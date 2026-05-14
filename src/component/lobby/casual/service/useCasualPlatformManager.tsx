@@ -355,6 +355,41 @@ function patchData(partial: Partial<CasualDataSnapshot>) {
   emitStore();
 }
 
+/**
+ * Join mutation 已扣费且返回 `coinsCharged` 等时，下一次 `authenticate` 拉取前先把本地 HUD/Play 余额对齐，
+ * 避免「已确认扣费但界面仍是旧数」的观感（尤其 `openModal` 遮挡前的一帧）。
+ */
+function applyLocalWalletAfterJoinDeduction(meta: {
+  coinsCharged?: number;
+  gemsCharged?: number;
+  vouchersCharged?: number;
+}) {
+  const { casualPlayer: prev, passProgress: pp } = getDataSnapshot();
+  if (prev) {
+    const nextPlayer = { ...prev };
+    let playerDirty = false;
+    if (typeof meta.coinsCharged === "number" && meta.coinsCharged > 0) {
+      nextPlayer.coins = Math.max(0, (nextPlayer.coins ?? 0) - meta.coinsCharged);
+      playerDirty = true;
+    }
+    if (typeof meta.gemsCharged === "number" && meta.gemsCharged > 0) {
+      nextPlayer.gems = Math.max(0, (nextPlayer.gems ?? 0) - meta.gemsCharged);
+      playerDirty = true;
+    }
+    if (playerDirty) {
+      patchData({ casualPlayer: nextPlayer });
+    }
+  }
+  if (pp && typeof meta.vouchersCharged === "number" && meta.vouchersCharged > 0) {
+    patchData({
+      passProgress: {
+        ...pp,
+        seasonVouchers: Math.max(0, (pp.seasonVouchers ?? 0) - meta.vouchersCharged),
+      },
+    });
+  }
+}
+
 /** 串行化 `authenticate` action，避免并发写同一 `casual_players` 触发 OCC */
 let casualAuthenticateChain: Promise<void> = Promise.resolve();
 
@@ -596,11 +631,32 @@ export function useCasualPlatform(): CasualPlatformValue {
       const http = getCasualHttpClient();
       if (!http || !user?.uid) return null;
       try {
-        return await http.mutation(casualTournamentFns.joinTournament, {
+        const result = await http.mutation(casualTournamentFns.joinTournament, {
           uid: user.uid,
           tournamentId,
           ...(opts?.dailySoloCostAck ? { dailySoloCostAck: true as const } : {}),
         });
+        if (
+          result &&
+          typeof result === "object" &&
+          "ok" in result &&
+          result.ok === true &&
+          !("queued" in result && (result as { queued?: boolean }).queued)
+        ) {
+          const m = result as {
+            coinsCharged?: number;
+            gemsCharged?: number;
+            vouchersCharged?: number;
+          };
+          if (
+            (typeof m.coinsCharged === "number" && m.coinsCharged > 0) ||
+            (typeof m.gemsCharged === "number" && m.gemsCharged > 0) ||
+            (typeof m.vouchersCharged === "number" && m.vouchersCharged > 0)
+          ) {
+            applyLocalWalletAfterJoinDeduction(m);
+          }
+        }
+        return result;
       } catch (e) {
         console.error("[CasualPlatform] joinTournament", e);
         return { ok: false as const, error: "join_failed" };
