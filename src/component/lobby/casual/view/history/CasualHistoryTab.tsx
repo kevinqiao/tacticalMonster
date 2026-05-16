@@ -27,7 +27,6 @@ function formatPendingRewardsSummary(row: {
   pendingRunRewards?: {
     coins?: number;
     gems?: number;
-    seasonChallengePoints?: number;
     seasonVoucher?: number;
   } | null;
 }): string | null {
@@ -36,7 +35,6 @@ function formatPendingRewardsSummary(row: {
   const parts: string[] = [];
   if ((p.coins ?? 0) > 0) parts.push(`${p.coins} 金币`);
   if ((p.gems ?? 0) > 0) parts.push(`${p.gems} 钻`);
-  if ((p.seasonChallengePoints ?? 0) > 0) parts.push(`${p.seasonChallengePoints} 挑战点`);
   if ((p.seasonVoucher ?? 0) > 0) parts.push(`${p.seasonVoucher} 赛季券`);
   return parts.length ? parts.join(" · ") : null;
 }

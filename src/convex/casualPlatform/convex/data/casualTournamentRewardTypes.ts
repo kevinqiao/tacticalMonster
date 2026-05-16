@@ -7,6 +7,8 @@ import type { RewardConfig as TacticalMonsterRewardConfig } from "../../../tourn
 export type CasualRankRewardEntry =
   NonNullable<TacticalMonsterRewardConfig["rankRewards"]>[number] & {
     gems?: number;
+    /** 多人一局按名次结算赛季分（可负）；单机/周期日榜仍用 `seasonPointsMultiplier × 分数`。 */
+    seasonPoints?: number;
   };
 
 /**
@@ -40,4 +42,9 @@ export type CasualPlatformRewardConfig = Omit<
    */
   scoreTierRewards?: CasualScoreTierRewardEntry[];
   scoreTierRewardsGrantTiming?: CasualScoreTierRewardsGrantTiming;
+  /**
+   * 多人结算且传了最终名次时，若名次未落入任何含 `seasonPoints` 的 `rankRewards` 行，
+   * 使用本值（可负）；缺省为 0。
+   */
+  seasonPointsRankMissPenalty?: number;
 };

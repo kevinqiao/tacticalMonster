@@ -30,6 +30,7 @@ import {
     Shape,
 } from '../types/BlockBlastTypes';
 import BlockBlastRuleManager from './BlockBlastRuleManager';
+import type { CasualAsyncTableSummaryUI, ManualSettleConfirmExtras } from '../../../shared/casualAsyncTableSummaryUI';
 
 function isTerminalBlockBlastStatus(status: number | undefined): boolean {
     return status !== undefined && status !== BlockBlastGameStatus.PLAYING;
@@ -80,7 +81,7 @@ interface IBlockBlastGameContext {
     settleManuallyAndExit: () => Promise<void>;
     settleConfirmOpen: boolean;
     cancelSettleConfirm: () => void;
-    confirmSettleAndExit: () => Promise<void>;
+    confirmSettleAndExit: () => Promise<void | ManualSettleConfirmExtras>;
     /** 局内「成功结算」展示结束后：关确认层并通知宿主（如关棋盘弹层） */
     finishManualSettleSuccess: () => void;
     casualTournamentId?: string;
@@ -284,9 +285,9 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         async (
             scoreArg?: number,
             opts?: { deferHostNotify?: boolean }
-        ): Promise<boolean> => {
+        ): Promise<{ ok: true; tableSummary?: CasualAsyncTableSummaryUI } | { ok: false }> => {
             const gs = gameStateRef.current;
-            if (!gs || casualRunSubmittedRef.current) return false;
+            if (!gs || casualRunSubmittedRef.current) return { ok: false };
             const score = Math.max(0, Math.floor(scoreArg !== undefined ? scoreArg : (gs.score ?? 0)));
             casualRunSubmittedRef.current = true;
             const deferHost = Boolean(opts?.deferHostNotify);
@@ -300,16 +301,16 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
                         token: user.token,
                         gameId: gs.gameId,
-                    })) as { ok?: boolean; error?: string };
+                    })) as { ok?: boolean; error?: string; tableSummary?: CasualAsyncTableSummaryUI };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
                         casualRunSubmittedRef.current = false;
-                        return false;
+                        return { ok: false };
                     }
                     if (!deferHost) {
                         onGameSubmit?.();
                     }
-                    return true;
+                    return { ok: true, ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}) };
                 }
                 let proxyOk = false;
                 try {
@@ -326,16 +327,16 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 }
                 if (!proxyOk) {
                     casualRunSubmittedRef.current = false;
-                    return false;
+                    return { ok: false };
                 }
                 if (!deferHost) {
                     onGameSubmit?.();
                 }
-                return true;
+                return { ok: true };
             } catch (e) {
                 console.error('[BlockBlast] runBlockBlastSettlement', e);
                 casualRunSubmittedRef.current = false;
-                return false;
+                return { ok: false };
             }
         },
         [convex, casualTournamentId, user?.token, onGameSubmit]
@@ -375,9 +376,12 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 status: res.gameStatus,
             });
             const settled = await runBlockBlastSettlement(res.score, { deferHostNotify: true });
-            if (!settled) {
+            if (!settled.ok) {
                 throw new Error('结算提交失败，请重试');
             }
+            const out: ManualSettleConfirmExtras = {};
+            if (settled.tableSummary) out.tableSummary = settled.tableSummary;
+            return out;
         } catch (e) {
             console.error('[BlockBlast] confirmSettleAndExit', e);
             if (e instanceof Error) throw e;
@@ -393,7 +397,10 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
 
         if (isTerminalBlockBlastStatus(gameState.status)) {
             const score = Math.max(0, Math.floor(gameState.score ?? 0));
-            await runBlockBlastSettlement(score);
+            const r = await runBlockBlastSettlement(score);
+            if (!r.ok) {
+                console.warn('[BlockBlast] settleManuallyAndExit terminal submit failed');
+            }
             return;
         }
 

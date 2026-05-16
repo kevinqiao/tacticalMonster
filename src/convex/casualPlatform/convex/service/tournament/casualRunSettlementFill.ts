@@ -69,6 +69,77 @@ export async function computeSolitaireRankForSession(
   return idx >= 0 ? idx + 1 : null;
 }
 
+/** 本桌一行（真人/机器人同一套展示字段） */
+export type CasualAsyncTableLeaderboardRow = {
+  rank: number;
+  score: number;
+  /** 已本地化：「你」或「同桌 n」，不暴露 uid */
+  displayLabel: string;
+  isYou: boolean;
+};
+
+/** 本会话异步桌结算结果（赛后 UI：完整名次表） */
+export type CasualAsyncTableSummary = {
+  maxPlayers: number;
+  rows: CasualAsyncTableLeaderboardRow[];
+};
+
+export function casualTableSummarySolo(maxPlayers: number, score: number): CasualAsyncTableSummary {
+  return {
+    maxPlayers,
+    rows: [{ rank: 1, score, displayLabel: "你", isYou: true }],
+  };
+}
+
+export async function buildCasualAsyncTableSummary(
+  ctx: QueryCtx,
+  args: {
+    templateId: string;
+    sessionExternalId: string;
+    uid: string;
+    maxPlayers: number;
+  }
+): Promise<CasualAsyncTableSummary | null> {
+  const { templateId, sessionExternalId, uid, maxPlayers } = args;
+  if (!sessionExternalId.trim()) return null;
+
+  const rows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_template_external", (q) =>
+      q.eq("templateId", templateId).eq("externalGameId", sessionExternalId)
+    )
+    .collect();
+
+  const withScore = rows
+    .filter((r) => r.score != null && Number.isFinite(r.score))
+    .map((r) => ({ uid: r.uid, score: r.score as number }));
+  if (withScore.length === 0) return null;
+
+  withScore.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.uid.localeCompare(b.uid);
+  });
+
+  if (withScore.findIndex((e) => e.uid === uid) < 0) return null;
+
+  let peerIdx = 0;
+  const outRows: CasualAsyncTableLeaderboardRow[] = withScore.map((e, index) => {
+    const isYou = e.uid === uid;
+    const displayLabel = isYou ? "你" : `同桌 ${++peerIdx}`;
+    return {
+      rank: index + 1,
+      score: e.score,
+      displayLabel,
+      isYou,
+    };
+  });
+
+  return {
+    maxPlayers,
+    rows: outRows,
+  };
+}
+
 export const seedSolitaireVirtualOpponents = internalMutation({
   args: {
     templateId: v.string(),

@@ -32,7 +32,6 @@ export function activityAt(ymdOrYmdHms: string): number {
 export type CasualActivityTarget =
   | { type: "global" }
   | { type: "tournament_match"; tournamentId?: string }
-  | { type: "season_shelf_sku"; shelfSkuId?: string }
   | { type: "casual_shop_sku"; shopSkuId?: string };
 
 export interface CasualActivitySeed {

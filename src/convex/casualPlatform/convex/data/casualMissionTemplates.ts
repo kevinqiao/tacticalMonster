@@ -9,10 +9,7 @@ export type MissionObjectiveKind =
   | "submit_any_score"
   | "submit_async_score"
   | "submit_spotlight_score"
-  | "earn_spotlight_challenge_points"
-  | "submit_spotlight_rating_at_least";
-
-export type SpotlightRating = "S" | "A" | "B" | "C";
+  | "earn_spotlight_season_board_points";
 
 export interface CasualMissionTemplate {
   taskId: string;
@@ -24,14 +21,9 @@ export interface CasualMissionTemplate {
   rewardVouchers?: number;
   rewardSeasonXp?: number;
   rewardCoins?: number;
-  /** 领取时发放赛季挑战点（货架/解锁用 `seasonChallengePoints`） */
-  rewardSeasonChallengePoints?: number;
-  /** 专场档位阈值（仅 objectiveKind = submit_spotlight_rating_at_least 生效） */
-  minSpotlightRating?: SpotlightRating;
 }
 
 export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
-  // —— 每日（含签到）——
   {
     taskId: "daily_sign_in",
     title: "每日签到",
@@ -66,7 +58,6 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     objectiveKind: "submit_any_score",
     rewardSeasonXp: 60,
   },
-  // —— 每周 ——
   {
     taskId: "weekly_async_8",
     title: "本周完成异步锦标结算 8 次",
@@ -84,22 +75,12 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     rewardVouchers: 3,
   },
   {
-    taskId: "weekly_spotlight_rating_a_2",
-    title: "本周专场结算达到 A 档及以上 2 次",
-    target: 2,
-    tier: "weekly",
-    objectiveKind: "submit_spotlight_rating_at_least",
-    minSpotlightRating: "A",
-    rewardVouchers: 1,
-    rewardSeasonXp: 100,
-  },
-  {
-    taskId: "weekly_challenge_points_20",
-    title: "本周通过专场累计获得 20 赛季点",
+    taskId: "weekly_spotlight_season_pts_20",
+    title: "本周专场对局累计获得 20 赛季分（仅正分计入）",
     target: 20,
     tier: "weekly",
-    objectiveKind: "earn_spotlight_challenge_points",
-    rewardSeasonChallengePoints: 6,
+    objectiveKind: "earn_spotlight_season_board_points",
+    rewardSeasonXp: 80,
   },
   {
     taskId: "weekly_runs_15",
@@ -110,7 +91,6 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     rewardVouchers: 2,
     rewardSeasonXp: 120,
   },
-  // —— 赛季 ——
   {
     taskId: "season_join_tournament_1",
     title: "本赛季首次加入任意锦标赛",
@@ -126,25 +106,17 @@ export const CASUAL_MISSION_TEMPLATES: CasualMissionTemplate[] = [
     target: 10,
     tier: "season",
     objectiveKind: "submit_spotlight_score",
-    rewardSeasonChallengePoints: 10,
+    rewardVouchers: 3,
+    rewardSeasonXp: 200,
   },
   {
-    taskId: "season_spotlight_rating_s_3",
-    title: "本赛季专场结算达到 S 档 3 次",
-    target: 3,
-    tier: "season",
-    objectiveKind: "submit_spotlight_rating_at_least",
-    minSpotlightRating: "S",
-    rewardSeasonChallengePoints: 12,
-    rewardVouchers: 2,
-  },
-  {
-    taskId: "season_challenge_points_80",
-    title: "本赛季通过专场累计获得 80 赛季点",
+    taskId: "season_spotlight_season_pts_80",
+    title: "本赛季专场对局累计获得 80 赛季分（仅正分计入）",
     target: 80,
     tier: "season",
-    objectiveKind: "earn_spotlight_challenge_points",
+    objectiveKind: "earn_spotlight_season_board_points",
     rewardVouchers: 5,
+    rewardSeasonXp: 400,
   },
   {
     taskId: "season_runs_60",

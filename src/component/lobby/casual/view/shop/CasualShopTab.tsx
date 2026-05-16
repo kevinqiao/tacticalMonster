@@ -1,14 +1,8 @@
-import {
-  seasonShelfPriceHint,
-  seasonShelfSkusForSeasonId,
-  type SeasonShelfSku,
-} from "@/convex/casualPlatform/convex/data/casualSeasonShelfCatalog";
 import { PageProp } from "host/RenderApp";
 import { usePageManager } from "host/service/PageManager";
 import { useUserManager } from "host/service/UserManager";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import { CASUAL_FOOTER_NAV_URI } from "../../control/FooterNavCasual";
 import {
   getMockCasualShopPromotionActivities,
   shouldUseMockCasualActivities,
@@ -18,12 +12,10 @@ import { useCasualPlatform } from "../../service/useCasualPlatformManager";
 import "../shared/casualEconomyPages.css";
 import {
   formatActivityEffectChips,
-  listActivitiesMatchingShelfRedeem,
   listActivitiesMatchingShopPurchase,
   previewCoinsCost,
   previewGemsCost,
   previewIapGrantGems,
-  previewVoucherCost,
   resolveActivityTitlesById,
 } from "../shared/casualActivityUi";
 import { shopErrorMessage } from "../shared/casualEconomyUi";
@@ -52,59 +44,6 @@ function skuEmoji(skuId: string): string {
   if (skuId.includes("coin")) return "🪙";
   if (skuId.includes("gem")) return "💎";
   return "🛒";
-}
-
-function seasonShelfEmoji(skuId: string): string {
-  if (skuId.includes("memorial")) return "📦";
-  if (skuId.includes("supply")) return "🧰";
-  if (skuId.includes("title")) return "🏅";
-  return "✨";
-}
-
-function shelfRedeemErrorMessage(code: string | undefined): string {
-  switch (code) {
-    case "insufficient_vouchers":
-      return "赛季券不足";
-    case "insufficient_challenge_points":
-      return "挑战点不足";
-    case "insufficient_unlock_points":
-      return "挑战点未达解锁门槛";
-    case "insufficient_gems":
-      return "钻石不足";
-    case "already_redeemed":
-      return "本赛季已兑换过";
-    case "unknown_sku":
-      return "商品不存在";
-    case "no_player":
-      return "未找到玩家档案";
-    case "no_auth":
-      return "请先登录";
-    case "redeem_failed":
-      return "兑换失败，请重试";
-    default:
-      return code ? `兑换：${code}` : "兑换失败";
-  }
-}
-
-function seasonShelfGrantHint(sku: SeasonShelfSku): string {
-  return sku.chestId ? `开启固定箱 · ${sku.chestId}` : "即时到账";
-}
-
-function seasonShelfAffordable(
-  sku: SeasonShelfSku,
-  balances: { vouchers: number; challengePts: number; gems: number },
-  effectiveVoucherCost?: number,
-  effectiveGemsCost?: number
-): boolean {
-  if (sku.paymentMode === "voucher_only") {
-    const cost = effectiveVoucherCost ?? sku.voucherCost;
-    return balances.vouchers >= cost;
-  }
-  if (sku.paymentMode === "challenge_points_only") {
-    return balances.challengePts >= sku.challengePointsCost;
-  }
-  const gemsNeed = effectiveGemsCost ?? sku.priceGems;
-  return balances.challengePts >= sku.unlockPointsRequired && balances.gems >= gemsNeed;
 }
 
 interface ShopViewModel {
@@ -137,34 +76,6 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
     () => casual.activities.filter((a) => a.target.type === "global").length,
     [casual.activities]
   );
-
-  const activeSeasonIdForShelf = useMemo(
-    () =>
-      casual.seasons.find((s) => s.active)?.seasonId ??
-      casual.seasons[0]?.seasonId ??
-      "casual_s1",
-    [casual.seasons]
-  );
-
-  const seasonShelfRows = useMemo(() => {
-    if (casual.seasonShelfSkus.length > 0) return casual.seasonShelfSkus;
-    return seasonShelfSkusForSeasonId(activeSeasonIdForShelf);
-  }, [casual.seasonShelfSkus, activeSeasonIdForShelf]);
-
-  const walletSeason = useMemo(
-    () => ({
-      vouchers:
-        casual.passProgress?.seasonVouchers ?? casual.casualPlayer?.seasonVouchers ?? 0,
-      challengePts:
-        casual.passProgress?.seasonChallengePoints ??
-        casual.casualPlayer?.seasonChallengePoints ??
-        0,
-      gems: casual.casualPlayer?.gems ?? 0,
-    }),
-    [casual.casualPlayer, casual.passProgress]
-  );
-
-  const canRedeemSeasonShelf = Boolean(user?.uid && casual.convexUrl);
 
   const view: ShopViewModel = useMemo(() => {
     if (ordinaryShopPurchasesLive) {
@@ -289,152 +200,6 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
           </div>
         ) : null}
 
-        <section className="casual-shop__seasonSection" aria-labelledby="casual-shop-season-shelf">
-          <div className="casual-shop__seasonHead">
-            <div>
-              <h2 id="casual-shop-season-shelf" className="casual-shop__seasonTitle">
-                赛季专属货架
-              </h2>
-              <p className="casual-shop__seasonHint">
-                当前赛季 <code className="casual-shop__seasonCode">{activeSeasonIdForShelf}</code>
-                ：纪念箱 / 补给 / 解锁礼包与 Play「赛季专场」同源；卡片的 SKU 与后端
-                <code className="casual-shop__seasonCode"> listSeasonShelf </code>
-                一致（非 S1 赛季会自动映射 <code className="casual-shop__seasonCode">_s2</code> 等后缀）。
-                每张卡下列出<strong>与本 SKU 同时命中</strong>的限时活动。每账号每 SKU 限兑 1 次。
-              </p>
-            </div>
-            <button
-              type="button"
-              className="casual-econ__textBtn"
-              onClick={() => openPage({ uri: CASUAL_FOOTER_NAV_URI[2] })}
-            >
-              去 Play
-            </button>
-          </div>
-          {casual.casualPlayer ? (
-            <div className="casual-shop__seasonWallet" aria-label="赛季资产">
-              <span>
-                赛季券 <b>{walletSeason.vouchers}</b>
-              </span>
-              <span>
-                挑战点 <b>{walletSeason.challengePts}</b>
-              </span>
-              <span>
-                钻 <b>{walletSeason.gems}</b>
-              </span>
-            </div>
-          ) : null}
-          <div className="casual-shop__grid casual-shop__grid--season">
-            {seasonShelfRows.length === 0 ? (
-              <p className="casual-shop__seasonEmpty" role="status">
-                本赛季暂无货架配表。请检查 Convex 是否已部署 <code>listSeasonShelf</code>，以及{' '}
-                <code>casualSeasonShelfCatalog</code> 中模板 SKU。
-              </p>
-            ) : null}
-            {seasonShelfRows.map((sku) => {
-              const shelfMatchedActs = listActivitiesMatchingShelfRedeem(casual.activities, sku.skuId);
-              let effectiveVoucher: number | undefined;
-              let effectiveGems: number | undefined;
-              let priceLabel = seasonShelfPriceHint(sku);
-              let voucherPromo = false;
-              let gemsPromo = false;
-              if (sku.paymentMode === "voucher_only") {
-                const pv = previewVoucherCost(casual.activities, { skuId: sku.skuId }, sku.voucherCost);
-                effectiveVoucher = pv.effective;
-                voucherPromo = pv.changed;
-                priceLabel = pv.changed
-                  ? `${sku.voucherCost}→${pv.effective} 赛季券（活动）`
-                  : seasonShelfPriceHint(sku);
-              } else if (sku.paymentMode === "unlock_points_and_gems") {
-                const pg = previewGemsCost(casual.activities, { skuId: sku.skuId }, sku.priceGems);
-                effectiveGems = pg.effective;
-                gemsPromo = pg.changed;
-                priceLabel = pg.changed
-                  ? `持有≥${sku.unlockPointsRequired} 挑战点 · ${sku.priceGems}→${pg.effective} 钻（活动）`
-                  : seasonShelfPriceHint(sku);
-              }
-              const affordable = seasonShelfAffordable(sku, walletSeason, effectiveVoucher, effectiveGems);
-              const loading = busySku === sku.skuId;
-              const canGo = canRedeemSeasonShelf && affordable;
-              let btnLabel = "兑换";
-              if (!canRedeemSeasonShelf) {
-                btnLabel = casual.convexUrl ? "请先登录" : "需配置后端";
-              } else if (!affordable) {
-                btnLabel = "条件不足";
-              }
-              return (
-                <article
-                  key={sku.skuId}
-                  className={`casual-shop__card casual-shop__card--season${voucherPromo || gemsPromo ? " casual-shop__card--seasonVoucherPromo" : ""}`}
-                >
-                  <div className="casual-shop__cardIcon" aria-hidden>
-                    {seasonShelfEmoji(sku.skuId)}
-                  </div>
-                  <h3 className="casual-shop__cardTitle">{sku.title}</h3>
-                  <div className="casual-shop__price">
-                    <span className="casual-shop__priceTag">{priceLabel}</span>
-                  </div>
-                  {shelfMatchedActs.length > 0 ? (
-                    <div className="casual-shop__seasonActBox" role="group" aria-label="与本货架相关的限时活动">
-                      <div className="casual-shop__seasonActLabel">活动关联 · {shelfMatchedActs.length}</div>
-                      <ul className="casual-shop__seasonActList">
-                        {shelfMatchedActs.map((a) => {
-                          const fxChips = formatActivityEffectChips(a);
-                          return (
-                            <li key={a.activityId} className="casual-shop__seasonActRow">
-                              <span className="casual-shop__seasonActTitle">{a.title}</span>
-                              {fxChips.length > 0 ? (
-                                <span className="casual-shop__seasonActFx">{fxChips.join(" · ")}</span>
-                              ) : (
-                                <span className="casual-shop__seasonActFx casual-shop__seasonActFx--muted">
-                                  计入兑换上下文（无数值摘要）
-                                </span>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ) : null}
-                  <p className="casual-shop__grant">{seasonShelfGrantHint(sku)}</p>
-                  <button
-                    type="button"
-                    className={`casual-shop__buy${loading ? " casual-shop__buy--busy" : ""}`}
-                    disabled={loading || !canGo}
-                    onClick={async () => {
-                      if (!canRedeemSeasonShelf || !affordable) return;
-                      setBusySku(sku.skuId);
-                      try {
-                        const r = await casual.redeemSeasonShelfSku(sku.skuId);
-                        const actTitles = r.ok ? resolveActivityTitlesById(casual.activities, r.activityIds) : [];
-                        const chargeHint =
-                          r.ok && sku.paymentMode === "voucher_only"
-                            ? ` · 扣券 ${r.vouchersCharged ?? "—"}`
-                            : r.ok && sku.paymentMode === "challenge_points_only"
-                              ? ` · 扣点 ${r.challengePointsCharged ?? "—"}`
-                              : r.ok && sku.paymentMode === "unlock_points_and_gems"
-                                ? ` · 扣钻 ${r.gemsCharged ?? "—"}`
-                                : "";
-                        const actHint = actTitles.length ? ` · ${actTitles.join("、")}` : "";
-                        setToast(
-                          r.ok
-                            ? { ok: true, text: `已兑换「${sku.title}」${chargeHint}${actHint}` }
-                            : { ok: false, text: shelfRedeemErrorMessage(r.error) }
-                        );
-                        await casual.refreshCasualPlayer();
-                      } finally {
-                        setBusySku(null);
-                      }
-                    }}
-                  >
-                    {loading ? "处理中…" : btnLabel}
-                  </button>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-
         {!view.isLive ? (
           <>
             <div className="casual-econ__mockBanner" role="note">
@@ -463,7 +228,7 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
 
         <div className="casual-econ__linkRow">
           <span style={{ fontSize: 13, color: "var(--econ-muted, rgba(26,26,46,0.55))" }}>
-            赛季通行证领奖在「奖励」
+            赛季通行证与各轨进度请在底栏打开「通行证」
           </span>
           <button
             type="button"

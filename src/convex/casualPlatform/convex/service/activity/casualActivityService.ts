@@ -78,7 +78,7 @@ function foldEffectsIntoModifiers(
 
 function targetMatches(
   target: Doc<"casual_activities">["target"],
-  args: { matchId?: string; skuId?: string; tournamentId?: string; shopSkuId?: string }
+  args: { matchId?: string; tournamentId?: string; shopSkuId?: string }
 ): boolean {
   if (target.type === "global") return true;
   if (target.type === "tournament_match") {
@@ -86,11 +86,6 @@ function targetMatches(
     if (!tid) return false;
     const bound = target.tournamentId;
     return !bound || bound === tid;
-  }
-  if (target.type === "season_shelf_sku") {
-    if (!args.skuId) return false;
-    const bound = target.shelfSkuId;
-    return !bound || bound === args.skuId;
   }
   if (target.type === "casual_shop_sku") {
     if (!args.shopSkuId) return false;
@@ -141,11 +136,10 @@ export const resolveSeasonActivityModifiers = internalQuery({
   args: {
     matchId: v.optional(v.string()),
     tournamentId: v.optional(v.string()),
-    skuId: v.optional(v.string()),
     shopSkuId: v.optional(v.string()),
     nowMs: v.optional(v.number()),
   },
-  handler: async (ctx, { matchId, tournamentId, skuId, shopSkuId, nowMs }) => {
+  handler: async (ctx, { matchId, tournamentId, shopSkuId, nowMs }) => {
     const now = nowMs ?? Date.now();
     const active = await loadActiveCasualActivities(ctx, now);
 
@@ -164,7 +158,7 @@ export const resolveSeasonActivityModifiers = internalQuery({
     };
 
     for (const r of active) {
-      if (!targetMatches(r.target, { matchId, skuId, tournamentId, shopSkuId })) continue;
+      if (!targetMatches(r.target, { matchId, tournamentId, shopSkuId })) continue;
       out.activityIds.push(r.activityId);
       foldEffectsIntoModifiers(out, r.effects);
     }

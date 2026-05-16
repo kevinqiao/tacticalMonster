@@ -5,28 +5,30 @@ import {
   internalQuery,
   mutation,
   query,
+  type MutationCtx,
   type QueryCtx,
 } from "../../_generated/server";
 import {
   PASS_LEVEL_REWARDS,
+  PASS_MAX_LEVEL,
   passRewardForLevel,
 } from "../../data/casualPassRewards.js";
 
-async function seasonStatsLeaderboard(
+async function gameSeasonStatsLeaderboard(
   ctx: QueryCtx,
   seasonId: string,
-  limit: number,
-  sortKey: "mainSeasonPoints" | "cArenaPoints"
+  gameId: string,
+  limit: number
 ) {
   const rows = await ctx.db
     .query("casual_player_season_stats")
-    .withIndex("by_season_uid", (q) => q.eq("seasonId", seasonId))
+    .withIndex("by_season_game_uid", (q) => q.eq("seasonId", seasonId).eq("gameId", gameId))
     .collect();
-  const sorted = [...rows].sort((a, b) => b[sortKey] - a[sortKey]);
+  const sorted = [...rows].sort((a, b) => b.seasonPoints - a.seasonPoints);
   return sorted.slice(0, limit).map((r, i) => ({
     rank: i + 1,
     uid: r.uid,
-    points: r[sortKey],
+    points: r.seasonPoints,
   }));
 }
 
@@ -150,7 +152,6 @@ export const getPassProgress = query({
         level: 1,
         xp: 0,
         seasonVouchers: 0,
-        seasonChallengePoints: 0,
         tracksPurchased: { standard: false, deluxe: false },
         claimed,
       };
@@ -161,14 +162,13 @@ export const getPassProgress = query({
       level: row.level,
       xp: row.xp,
       seasonVouchers: row.seasonVouchers ?? 0,
-      seasonChallengePoints: row.seasonChallengePoints ?? 0,
       tracksPurchased: row.tracksPurchased ?? { standard: false, deluxe: false },
       claimed,
     };
   },
 });
 
-/** `casual_pass_progress` 当季快照：Pass XP + 赛季券/挑战点（authenticate 一次读出） */
+/** `casual_pass_progress` 当季快照：authenticate 一次读出 */
 export const seasonEconomySnapshotForAuth = internalQuery({
   args: { uid: v.string() },
   handler: async (ctx, { uid }) => {
@@ -177,7 +177,6 @@ export const seasonEconomySnapshotForAuth = internalQuery({
       return {
         seasonXp: 0,
         seasonVouchers: 0,
-        seasonChallengePoints: 0,
       };
     }
     const row = await ctx.db
@@ -187,22 +186,19 @@ export const seasonEconomySnapshotForAuth = internalQuery({
     return {
       seasonXp: row?.xp ?? 0,
       seasonVouchers: row?.seasonVouchers ?? 0,
-      seasonChallengePoints: row?.seasonChallengePoints ?? 0,
     };
   },
 });
 
-/** 在当前激活赛季的 `casual_pass_progress` 上增减券/挑战点（可 upsert 行） */
+/** 在当前激活赛季的 `casual_pass_progress` 上增减当季券（可 upsert） */
 export const applySeasonWalletBalanceDelta = internalMutation({
   args: {
     uid: v.string(),
     deltaVouchers: v.optional(v.number()),
-    deltaChallengePoints: v.optional(v.number()),
   },
-  handler: async (ctx, { uid, deltaVouchers = 0, deltaChallengePoints = 0 }) => {
+  handler: async (ctx, { uid, deltaVouchers = 0 }) => {
     const dv = Math.trunc(deltaVouchers);
-    const dc = Math.trunc(deltaChallengePoints);
-    if (dv === 0 && dc === 0) return { ok: true as const };
+    if (dv === 0) return { ok: true as const };
 
     const season = await resolveActiveSeason(ctx);
     if (!season) return { ok: false as const, error: "no_season" as const };
@@ -213,11 +209,8 @@ export const applySeasonWalletBalanceDelta = internalMutation({
       .unique();
 
     const baseV = row?.seasonVouchers ?? 0;
-    const baseC = row?.seasonChallengePoints ?? 0;
     const nextV = baseV + dv;
-    const nextC = baseC + dc;
     if (nextV < 0) return { ok: false as const, error: "insufficient_vouchers" as const };
-    if (nextC < 0) return { ok: false as const, error: "insufficient_challenge_points" as const };
 
     const now = Date.now();
     if (!row) {
@@ -227,38 +220,84 @@ export const applySeasonWalletBalanceDelta = internalMutation({
         level: 1,
         xp: 0,
         seasonVouchers: nextV,
-        seasonChallengePoints: nextC,
         updatedAt: now,
       });
     } else {
-      const patch: {
-        updatedAt: number;
-        seasonVouchers?: number;
-        seasonChallengePoints?: number;
-      } = { updatedAt: now };
-      if (dv !== 0) patch.seasonVouchers = nextV;
-      if (dc !== 0) patch.seasonChallengePoints = nextC;
-      await ctx.db.patch(row._id, patch);
+      await ctx.db.patch(row._id, {
+        updatedAt: now,
+        seasonVouchers: nextV,
+      });
     }
     return { ok: true as const };
   },
 });
 
-export const mainSeasonLeaderboard = query({
-  args: { seasonId: v.string(), limit: v.optional(v.number()) },
-  handler: async (ctx, { seasonId, limit }) => {
+/** 指定游戏在本赛季的累计积分榜（与 `casual_player_season_stats` 写入一致） */
+export const gameSeasonLeaderboard = query({
+  args: {
+    /** 省略或空字符串时使用当前激活赛季（与结算 `activeSeasonId` 语义一致） */
+    seasonId: v.optional(v.string()),
+    gameId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { seasonId, gameId, limit }) => {
     const n = Math.min(Math.max(limit ?? 50, 1), 200);
-    return await seasonStatsLeaderboard(ctx, seasonId, n, "mainSeasonPoints");
+    const trimmed = seasonId?.trim();
+    const resolved =
+      trimmed && trimmed.length > 0
+        ? trimmed
+        : ((await resolveActiveSeason(ctx))?.seasonId ?? null);
+    if (!resolved) {
+      return [];
+    }
+    return await gameSeasonStatsLeaderboard(ctx, resolved, gameId, n);
   },
 });
 
-export const cArenaLeaderboard = query({
-  args: { seasonId: v.string(), limit: v.optional(v.number()) },
-  handler: async (ctx, { seasonId, limit }) => {
-    const n = Math.min(Math.max(limit ?? 50, 1), 200);
-    return await seasonStatsLeaderboard(ctx, seasonId, n, "cArenaPoints");
-  },
-});
+async function autoClaimPassLevelsUpTo(
+  ctx: MutationCtx,
+  uid: string,
+  seasonId: string,
+  maxLevel: number
+): Promise<void> {
+  const progress = await ctx.db
+    .query("casual_pass_progress")
+    .withIndex("by_uid_season", (q) => q.eq("uid", uid).eq("seasonId", seasonId))
+    .unique();
+  const tracksPurchased = progress?.tracksPurchased ?? {};
+  const tracks: Array<"free" | "standard" | "deluxe"> = ["free"];
+  if (tracksPurchased.standard) tracks.push("standard");
+  if (tracksPurchased.deluxe) tracks.push("deluxe");
+
+  const cap = Math.min(Math.max(1, maxLevel), PASS_MAX_LEVEL);
+  for (let level = 1; level <= cap; level++) {
+    for (const track of tracks) {
+      const existingClaim = await ctx.db
+        .query("casual_pass_claims")
+        .withIndex("by_uid_season_track_level", (q) =>
+          q.eq("uid", uid).eq("seasonId", seasonId).eq("track", track).eq("level", level)
+        )
+        .unique();
+      if (existingClaim) continue;
+      const reward = passRewardForLevel(track, level);
+      if (!reward || reward.grants.length === 0) continue;
+      for (const g of reward.grants) {
+        await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
+          uid,
+          kind: g.kind,
+          amount: g.amount,
+        });
+      }
+      await ctx.db.insert("casual_pass_claims", {
+        uid,
+        seasonId,
+        track,
+        level,
+        claimedAt: Date.now(),
+      });
+    }
+  }
+}
 
 export const addPassXpFromRun = internalMutation({
   args: { uid: v.string(), deltaXp: v.number() },
@@ -273,7 +312,7 @@ export const addPassXpFromRun = internalMutation({
       .unique();
     const now = Date.now();
     const nextXp = (row?.xp ?? 0) + d;
-    const nextLevel = 1 + Math.floor(nextXp / 1000);
+    const nextLevel = Math.min(PASS_MAX_LEVEL, 1 + Math.floor(nextXp / 1000));
     if (!row) {
       await ctx.db.insert("casual_pass_progress", {
         uid,
@@ -289,6 +328,7 @@ export const addPassXpFromRun = internalMutation({
         updatedAt: now,
       });
     }
+    await autoClaimPassLevelsUpTo(ctx, uid, season.seasonId, nextLevel);
     return { ok: true as const };
   },
 });
@@ -385,11 +425,12 @@ export const devUnlockPassTrack = mutation({
       ...(row?.tracksPurchased ?? {}),
       [track]: true,
     };
+    const passLevelAfter = !row ? 1 : Math.max(1, row.level ?? 1);
     if (!row) {
       await ctx.db.insert("casual_pass_progress", {
         uid,
         seasonId,
-        level: 1,
+        level: passLevelAfter,
         xp: 0,
         tracksPurchased: nextTracks,
         updatedAt: now,
@@ -400,6 +441,7 @@ export const devUnlockPassTrack = mutation({
         updatedAt: now,
       });
     }
+    await autoClaimPassLevelsUpTo(ctx, uid, seasonId, passLevelAfter);
     return { ok: true as const };
   },
 });

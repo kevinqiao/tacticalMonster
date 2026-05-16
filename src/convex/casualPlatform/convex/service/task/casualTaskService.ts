@@ -3,7 +3,6 @@ import {
   CASUAL_MISSION_TEMPLATES,
   type CasualMissionTemplate,
   type MissionTier,
-  type SpotlightRating,
 } from "../../data/casualMissionTemplates";
 import { internal } from "../../_generated/api";
 import type { MutationCtx } from "../../_generated/server";
@@ -11,12 +10,6 @@ import { dailyPeriodKey, seasonPeriodKey, weeklyPeriodKey } from "../../utils/ca
 import { internalMutation, mutation, query } from "../../_generated/server";
 
 const ASYNC_MATCH_TYPES = new Set(["tournament_a", "tournament_b", "tournament_c"]);
-const SPOTLIGHT_RATING_ORDER: Record<SpotlightRating, number> = {
-  S: 4,
-  A: 3,
-  B: 2,
-  C: 1,
-};
 type TaskEventType =
   | "task_progressed"
   | "task_completed"
@@ -36,7 +29,6 @@ async function writeTaskEvent(
     progress?: number;
     target?: number;
     matchType?: string;
-    challengePointsEarned?: number;
     errorCode?: string;
   }
 ) {
@@ -51,7 +43,6 @@ async function writeTaskEvent(
     progress: input.progress,
     target: input.target,
     matchType: input.matchType,
-    challengePointsEarned: input.challengePointsEarned,
     errorCode: input.errorCode,
     createdAt: Date.now(),
   });
@@ -83,8 +74,6 @@ async function upsertTaskProgress(
   delta: number,
   meta?: {
     matchType?: string;
-    challengePointsEarned?: number;
-    spotlightRating?: SpotlightRating;
   }
 ) {
   const existing = await ctx.db
@@ -126,7 +115,6 @@ async function upsertTaskProgress(
       progress: next,
       target,
       matchType: meta?.matchType,
-      challengePointsEarned: meta?.challengePointsEarned,
     });
   }
   if (base < target && next >= target) {
@@ -140,7 +128,6 @@ async function upsertTaskProgress(
       progress: next,
       target,
       matchType: meta?.matchType,
-      challengePointsEarned: meta?.challengePointsEarned,
     });
   }
 }
@@ -149,8 +136,8 @@ function deltaForObjective(
   template: CasualMissionTemplate,
   args: {
     matchType: string;
-    challengePointsEarned: number;
-    spotlightRating?: SpotlightRating;
+    /** 专场单场结算写入 `casual_player_season_stats` 的正向赛季分增量（已含日顶等，仅 >0 累计） */
+    spotlightSeasonBoardGain: number;
   }
 ): number {
   const isAsync = ASYNC_MATCH_TYPES.has(args.matchType);
@@ -162,14 +149,8 @@ function deltaForObjective(
       return isAsync ? 1 : 0;
     case "submit_spotlight_score":
       return isSpotlight ? 1 : 0;
-    case "earn_spotlight_challenge_points":
-      return isSpotlight ? Math.max(0, Math.floor(args.challengePointsEarned)) : 0;
-    case "submit_spotlight_rating_at_least": {
-      if (!isSpotlight || !template.minSpotlightRating || !args.spotlightRating) return 0;
-      const got = SPOTLIGHT_RATING_ORDER[args.spotlightRating];
-      const need = SPOTLIGHT_RATING_ORDER[template.minSpotlightRating];
-      return got >= need ? 1 : 0;
-    }
+    case "earn_spotlight_season_board_points":
+      return isSpotlight ? Math.max(0, Math.floor(args.spotlightSeasonBoardGain)) : 0;
     default:
       return 0;
   }
@@ -470,7 +451,7 @@ async function claimMissionCore(
   const now = Date.now();
 
   const rewardGrants: Array<{
-    kind: "coins" | "seasonXp" | "seasonVoucher" | "seasonChallengePoints";
+    kind: "coins" | "seasonXp" | "seasonVoucher";
     amount: number;
   }> = [];
   if (template.rewardCoins && template.rewardCoins > 0) {
@@ -481,9 +462,6 @@ async function claimMissionCore(
   }
   if (template.rewardVouchers && template.rewardVouchers > 0) {
     rewardGrants.push({ kind: "seasonVoucher", amount: template.rewardVouchers });
-  }
-  if (template.rewardSeasonChallengePoints && template.rewardSeasonChallengePoints > 0) {
-    rewardGrants.push({ kind: "seasonChallengePoints", amount: template.rewardSeasonChallengePoints });
   }
   for (const g of rewardGrants) {
     const gr = await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
@@ -580,22 +558,22 @@ export const notifyTournamentJoined = internalMutation({
   },
 });
 
-/** `applyScore` 有效结算后调用（已与 dedupe 分支分离） */
+/** 对局有效结算后调用，驱动任务进度。 */
 export const notifyScoreSubmitted = internalMutation({
   args: {
     uid: v.string(),
     matchType: v.string(),
-    challengePointsEarned: v.number(),
-    spotlightRating: v.optional(v.union(v.literal("S"), v.literal("A"), v.literal("B"), v.literal("C"))),
+    /** 赛季专场：`casual_player_season_stats` 本局正向赛季分增量（负局传 0） */
+    spotlightSeasonBoardGain: v.optional(v.number()),
   },
-  handler: async (ctx, { uid, matchType, challengePointsEarned, spotlightRating }) => {
+  handler: async (ctx, { uid, matchType, spotlightSeasonBoardGain = 0 }) => {
     const now = Date.now();
     const dailyPk = dailyPeriodKey(now);
     const weeklyPk = weeklyPeriodKey(now);
     const sid = await activeSeasonId(ctx);
     const seasonPk = sid ? seasonPeriodKey(sid) : null;
 
-    const args = { matchType, challengePointsEarned, spotlightRating };
+    const args = { matchType, spotlightSeasonBoardGain: Math.max(0, spotlightSeasonBoardGain) };
 
     for (const t of CASUAL_MISSION_TEMPLATES) {
       if (
@@ -609,11 +587,7 @@ export const notifyScoreSubmitted = internalMutation({
       const pk =
         t.tier === "daily" ? dailyPk : t.tier === "weekly" ? weeklyPk : seasonPk;
       if (!pk) continue;
-      await upsertTaskProgress(ctx, t, uid, t.taskId, pk, delta, {
-        matchType,
-        challengePointsEarned,
-        spotlightRating,
-      });
+      await upsertTaskProgress(ctx, t, uid, t.taskId, pk, delta, { matchType });
     }
     return { ok: true as const };
   },

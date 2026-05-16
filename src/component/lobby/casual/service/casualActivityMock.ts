@@ -1,5 +1,5 @@
 /**
- * 静态活动数据：覆盖 Play 活动条、锦标 Pass XP/赛季券预览、货架券预览、普通商店钻→币价预览与 IAP 档位文案示例、商店横幅等 UI。
+ * 静态活动数据：覆盖 Play 活动条、锦标 Pass XP/赛季券预览、普通商店钻→币价预览与 IAP 档位文案示例、商店横幅等 UI。
  *
  * 默认：`import.meta.env.DEV` 下开启静态活动（便于本地看全量 UI）。
  * 覆盖：`VITE_CASUAL_MOCK_ACTIVITIES=1` / `true` 强制开启；`0` / `false` 强制关闭（本地对接真实 Convex 活动列表时用）。
@@ -60,48 +60,12 @@ export function getMockCasualActivitiesForUiDemo(): CasualActivityPublicRow[] {
       effects: { passXpDelta: 2 },
     },
     {
-      activityId: "mock_ui_memorial_shelf_minus2",
-      title: "纪念箱券价 −2（演示）",
-      target: { type: "season_shelf_sku", shelfSkuId: "season_challenge_memorial_chest_s1" },
-      seasonId: "casual_s1",
-      startsAt,
-      endsAt,
-      effects: { voucherCostDelta: -2 },
-    },
-    {
-      activityId: "mock_ui_all_voucher_shelf_092",
-      title: "全部券兑 SKU ×0.92（通配·演示）",
-      target: { type: "season_shelf_sku" },
-      seasonId: "casual_s1",
-      startsAt,
-      endsAt,
-      effects: { voucherCostMultiplier: 0.92 },
-    },
-    {
-      activityId: "mock_ui_strip_only_unknown_sku",
-      title: "货架定向（演示·永不命中真实 SKU）",
-      target: { type: "season_shelf_sku", shelfSkuId: "demo_sku_only_for_strip_never_matches" },
-      seasonId: "casual_s1",
-      startsAt,
-      endsAt,
-      effects: { voucherCostMultiplier: 0.1, voucherCostDelta: -99 },
-    },
-    {
       activityId: "mock_ui_strip_empty_effect_summary",
       title: "占位活动（无效果摘要字段）",
       target: { type: "global" },
       startsAt,
       endsAt,
       effects: {},
-    },
-    {
-      activityId: "mock_ui_title_bundle_gems_minus50",
-      title: "称号套钻石支付 −50（演示）",
-      target: { type: "season_shelf_sku", shelfSkuId: "season_challenge_title_bundle_ss_s1" },
-      seasonId: "casual_s1",
-      startsAt,
-      endsAt,
-      effects: { gemsCostDelta: -50 },
     },
     {
       activityId: "mock_ui_shop_coin_tier_1_gem_08",

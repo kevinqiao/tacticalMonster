@@ -16,8 +16,6 @@ import {
   type CasualTournamentDefinition,
   type EntryCost,
 } from "../../data/casualTournamentConfigs";
-import { resolveInstanceWindow } from "../../data/casualInstanceWindow";
-import { activeSeasonWindowForCtx, ensureInstancePlayerStateRow } from "./casualInstanceService";
 
 export function requiresDailySoloPlayCostAck(tournamentId: string, willChargeEntry: boolean): boolean {
   if (!willChargeEntry) return false;
@@ -26,6 +24,8 @@ export function requiresDailySoloPlayCostAck(tournamentId: string, willChargeEnt
     tournamentId === CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID
   );
 }
+import { resolveInstanceWindow } from "../../data/casualInstanceWindow";
+import { activeSeasonWindowForCtx, ensureInstancePlayerStateRow } from "./casualInstanceService";
 
 export const RUN_TOURNAMENT_OPEN = 0;
 export const RUN_TOURNAMENT_COMPLETED = 1;
@@ -352,7 +352,7 @@ export type JoinEntryChargePreview =
   | { ok: false; error: string };
 
 /**
- * 与 `applyCasualJoinEntryChargeWithInstance` 对齐：本次 join 是否会扣入场（供 Play 确认窗 / join 校验 `dailySoloCostAck`）。
+ * 与 `applyCasualJoinEntryChargeWithInstance` 对齐：本次 join 是否会扣入场（供客户端预览）。
  * 只读，不建桶、不写库。
  */
 export async function computeJoinEntryWillCharge(

@@ -1,20 +1,14 @@
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
-import {
-  isSeasonShelfLinkedChestId,
-  resolveFixedChestTable,
-} from "../../data/casualSeasonShelfCatalog";
+import { resolveFixedChestTable } from "../../data/casualFixedChestCatalog";
 import { mutation } from "../../_generated/server";
 
 /**
- * 固定箱直开（Pass/任务等）；**货架关联 chest 必须先走 `redeemSeasonShelfSku`**。
+ * 固定箱直开（Pass/任务等奖池见 `casualFixedChestCatalog`）。
  */
 export const openFixedChest = mutation({
   args: { uid: v.string(), chestId: v.string() },
   handler: async (ctx, { uid, chestId }) => {
-    if (isSeasonShelfLinkedChestId(chestId)) {
-      return { ok: false as const, error: "chest_via_shelf_redeem_only" };
-    }
     const table = resolveFixedChestTable(chestId);
     if (!table) return { ok: false as const, error: "unknown_chest" };
     const opened = await ctx.db

@@ -203,7 +203,7 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
 
           <h2 className="casual-econ__sectionTitle">赛季通行证</h2>
           <p className="casual-econ__sectionHint">
-            参与对局与任务可获得赛季 XP；每 1000 XP 升一级。免费轨始终可用，标准/豪华轨需解锁后领取对应奖励。
+            参与对局与任务可获得赛季 XP；每 1000 XP 升一级。免费轨始终可用；开通标准/豪华轨后，已达成等级的对应奖励会与升级一同自动发放到账户。
           </p>
 
           <section
@@ -238,7 +238,7 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
             </div>
           </section>
 
-          <h3 className="casual-rewards__passTitle">等级奖励 · 手动领取</h3>
+          <h3 className="casual-rewards__passTitle">等级奖励一览</h3>
           {PASS_LEVEL_REWARDS.map((row) => (
             <div
               key={row.level}
@@ -247,7 +247,7 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
               <div className="casual-rewards__levelHead">
                 <span className="casual-rewards__levelBadge">L{row.level}</span>
                 <span className="casual-rewards__levelHint">
-                  {row.level > view.maxPassLevel ? "等级未达成" : "可领取对应轨道奖励"}
+                  {row.level > view.maxPassLevel ? "等级未达成" : "已达等级 · 轨道奖励自动发放"}
                 </span>
               </div>
               <div className="casual-rewards__trackCols">
@@ -259,8 +259,7 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
                   ] as const
                 ).map(([track, label, grants]) => {
                   const st = claimState(track, row.level);
-                  const disabled = st !== "claim";
-                  const labelBtn =
+                  const previewLabelBtn =
                     st === "claimed"
                       ? "已领"
                       : st === "locked_level"
@@ -268,6 +267,16 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
                         : st === "locked_track"
                           ? "未解锁"
                           : "领取";
+
+                  const liveStatusLabel =
+                    st === "claimed"
+                      ? "已发放"
+                      : st === "locked_level"
+                        ? "未达成"
+                        : st === "locked_track"
+                          ? "未解锁轨"
+                          : "待同步";
+
                   return (
                     <div key={track} className="casual-rewards__trackCol">
                       <div className="casual-rewards__trackLabel">{label}</div>
@@ -278,32 +287,52 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
                           </span>
                         ))}
                       </div>
-                      <button
-                        type="button"
-                        className={`casual-rewards__claim${st === "claimed"
-                            ? " casual-rewards__claim--done"
-                            : st !== "claim"
-                              ? " casual-rewards__claim--muted"
-                              : ""
-                          }`}
-                        disabled={disabled}
-                        onClick={async () => {
-                          if (view.isLive) {
-                            const r = await casual.claimPassLevel({
-                              seasonId: view.seasonId,
-                              track,
-                              level: row.level,
-                            });
-                            if (r.ok) {
-                              setToast({ ok: true, text: `已领取 ${label} L${row.level}` });
-                            } else {
-                              setToast({ ok: false, text: passClaimErrorMessage(r.error) });
-                            }
-                            await Promise.all([
-                              casual.refreshCasualPlayer(),
-                              casual.refreshPassProgress(),
-                            ]);
-                          } else {
+                      {view.isLive ? (
+                        st === "claim" ? (
+                          <button
+                            type="button"
+                            className="casual-rewards__claim"
+                            onClick={async () => {
+                              const r = await casual.claimPassLevel({
+                                seasonId: view.seasonId,
+                                track,
+                                level: row.level,
+                              });
+                              if (r.ok) {
+                                setToast({ ok: true, text: `已补发 ${label} L${row.level}` });
+                              } else {
+                                setToast({ ok: false, text: passClaimErrorMessage(r.error) });
+                              }
+                              await Promise.all([
+                                casual.refreshCasualPlayer(),
+                                casual.refreshPassProgress(),
+                              ]);
+                            }}
+                          >
+                            补领
+                          </button>
+                        ) : (
+                          <span
+                            role="status"
+                            className={`casual-rewards__claim casual-rewards__passPillStatic${st === "claimed"
+                                ? " casual-rewards__claim--done"
+                                : " casual-rewards__claim--muted"
+                              }`}
+                          >
+                            {liveStatusLabel}
+                          </span>
+                        )
+                      ) : (
+                        <button
+                          type="button"
+                          className={`casual-rewards__claim${st === "claimed"
+                              ? " casual-rewards__claim--done"
+                              : st !== "claim"
+                                ? " casual-rewards__claim--muted"
+                                : ""
+                            }`}
+                          disabled={st !== "claim"}
+                          onClick={async () => {
                             setMockState((prev) => {
                               const k = claimKey(track, row.level);
                               if (prev.claimed.some((c) => claimKey(c.track, c.level) === k)) {
@@ -315,11 +344,11 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
                               ok: true,
                               text: `预览：已领取 ${label} L${row.level}（仅本页演示，未写入服务器）`,
                             });
-                          }
-                        }}
-                      >
-                        {labelBtn}
-                      </button>
+                          }}
+                        >
+                          {previewLabelBtn}
+                        </button>
+                      )}
                     </div>
                   );
                 })}

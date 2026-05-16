@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
 
+import type { ManualSettleConfirmExtras } from './casualAsyncTableSummaryUI';
+import { CasualTableSummaryPanel } from './CasualTableSummaryPanel';
 import './manualSettleConfirmOverlay.css';
 
 export const MANUAL_SETTLE_DEFAULT_TITLE = '结束本局';
@@ -10,8 +12,6 @@ export const MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE =
 export const MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST =
   '确定以当前分数结束本局并结算？未使用的形状将按当前得分上报。';
 
-const DEFAULT_SUCCESS_HOLD_MS = 1400;
-
 type FlowPhase = 'prompt' | 'settling' | 'success' | 'error';
 
 export type ManualSettleConfirmOverlayProps = {
@@ -20,20 +20,21 @@ export type ManualSettleConfirmOverlayProps = {
   message?: string;
   defaultMessage: string;
   onCancel: () => void;
-  /** 须在后端整条链路成功时 resolve；失败请 reject 或 throw，以便回到错误态。 */
-  onConfirm: () => Promise<void>;
-  /** 展示「成功结算」约 `successHoldMs` 后调用，用于关闭本层遮罩（宿主可在此同时关棋盘/弹层）。 */
+  /** 须在后端整条链路成功时 resolve；可返回 `ManualSettleConfirmExtras` 以在成功态展示同桌摘要。 */
+  onConfirm: () => Promise<void | ManualSettleConfirmExtras>;
+  /** 用户点击成功态「继续」后调用，用于关闭本层遮罩（宿主可在此同时关棋盘/弹层）。 */
   onSuccessClose: () => void;
   settlingTitle?: string;
   settlingBody?: string;
   successTitle?: string;
   successBody?: string;
-  successHoldMs?: number;
+  /** 成功态主按钮文案 */
+  successConfirmLabel?: string;
 };
 
 /**
  * In-game fixed overlay for manual settle confirmation (no host ModalManager).
- * 流程：确认 → 正在结算 → 成功结算（短暂停留）→ onSuccessClose。
+ * 流程：确认 → 正在结算 → 成功结算 → 用户点击继续 → onSuccessClose。
  */
 export const ManualSettleConfirmOverlay: React.FC<ManualSettleConfirmOverlayProps> = ({
   open,
@@ -47,32 +48,23 @@ export const ManualSettleConfirmOverlay: React.FC<ManualSettleConfirmOverlayProp
   settlingBody = '请稍候，正在提交本局结果…',
   successTitle = '成功结算',
   successBody = '本局已成功提交。',
-  successHoldMs = DEFAULT_SUCCESS_HOLD_MS,
+  successConfirmLabel = '继续',
 }) => {
   const titleId = useId();
-  const successTimerRef = useRef<number | null>(null);
   const [phase, setPhase] = useState<FlowPhase>('prompt');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successExtras, setSuccessExtras] = useState<ManualSettleConfirmExtras | null>(null);
 
   const promptBody =
     typeof message === 'string' && message.trim() ? message.trim() : defaultMessage;
 
-  const clearSuccessTimer = useCallback(() => {
-    if (successTimerRef.current != null) {
-      window.clearTimeout(successTimerRef.current);
-      successTimerRef.current = null;
-    }
-  }, []);
-
   useEffect(() => {
     if (!open) {
-      clearSuccessTimer();
       setPhase('prompt');
       setErrorMsg(null);
+      setSuccessExtras(null);
     }
-  }, [open, clearSuccessTimer]);
-
-  useEffect(() => () => clearSuccessTimer(), [clearSuccessTimer]);
+  }, [open]);
 
   const handleBackdrop = useCallback(() => {
     if (phase !== 'prompt') return;
@@ -84,13 +76,25 @@ export const ManualSettleConfirmOverlay: React.FC<ManualSettleConfirmOverlayProp
     setPhase('settling');
     setErrorMsg(null);
     try {
-      await onConfirm();
+      const maybe = await onConfirm();
+      if (maybe && typeof maybe === 'object') {
+        const m = maybe as ManualSettleConfirmExtras;
+        const ts = m.tableSummary;
+        const hasTable =
+          ts != null &&
+          typeof ts === 'object' &&
+          Array.isArray(ts.rows) &&
+          ts.rows.length > 0;
+        const hasExtra = hasTable || m.pendingOthers === true;
+        setSuccessExtras(
+          hasExtra
+            ? { tableSummary: hasTable ? ts : undefined, pendingOthers: m.pendingOthers }
+            : null
+        );
+      } else {
+        setSuccessExtras(null);
+      }
       setPhase('success');
-      clearSuccessTimer();
-      successTimerRef.current = window.setTimeout(() => {
-        successTimerRef.current = null;
-        onSuccessClose();
-      }, successHoldMs);
     } catch (e) {
       const msg =
         e instanceof Error && e.message.trim()
@@ -99,7 +103,12 @@ export const ManualSettleConfirmOverlay: React.FC<ManualSettleConfirmOverlayProp
       setErrorMsg(msg);
       setPhase('error');
     }
-  }, [phase, onConfirm, onSuccessClose, successHoldMs, clearSuccessTimer]);
+  }, [phase, onConfirm]);
+
+  const handleSuccessContinue = useCallback(() => {
+    if (phase !== 'success') return;
+    onSuccessClose();
+  }, [phase, onSuccessClose]);
 
   const handleErrorAck = useCallback(() => {
     setPhase('prompt');
@@ -163,6 +172,23 @@ export const ManualSettleConfirmOverlay: React.FC<ManualSettleConfirmOverlayProp
                 {successTitle}
               </h2>
               <p className="ssc__body">{successBody}</p>
+              {successExtras?.tableSummary &&
+              successExtras.tableSummary.rows.length > 0 ? (
+                <CasualTableSummaryPanel s={successExtras.tableSummary} />
+              ) : successExtras?.pendingOthers ? (
+                <p className="ssc__body msc-pendingPeersNote">
+                  成绩已提交。同桌全部完成后，将产生本桌名次与分差。
+                </p>
+              ) : null}
+              <div className="ssc__actions">
+                <button
+                  type="button"
+                  className="ssc__btn ssc__btn--primary"
+                  onClick={handleSuccessContinue}
+                >
+                  {successConfirmLabel}
+                </button>
+              </div>
             </>
           ) : null}
 

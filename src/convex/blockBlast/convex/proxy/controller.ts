@@ -23,6 +23,43 @@ function isTerminalBlockBlast(status: number): boolean {
   );
 }
 
+function casualTableSummaryFromParsed(v: unknown):
+  | {
+      maxPlayers: number;
+      rows: Array<{
+        rank: number;
+        score: number;
+        displayLabel: string;
+        isYou: boolean;
+      }>;
+    }
+  | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const o = v as Record<string, unknown>;
+  if (typeof o.maxPlayers !== "number" || !Array.isArray(o.rows)) return undefined;
+  const rows: Array<{ rank: number; score: number; displayLabel: string; isYou: boolean }> = [];
+  for (const item of o.rows) {
+    if (!item || typeof item !== "object") return undefined;
+    const r = item as Record<string, unknown>;
+    if (
+      typeof r.rank !== "number" ||
+      typeof r.score !== "number" ||
+      typeof r.displayLabel !== "string" ||
+      typeof r.isYou !== "boolean"
+    ) {
+      return undefined;
+    }
+    rows.push({
+      rank: r.rank,
+      score: r.score,
+      displayLabel: r.displayLabel,
+      isYou: r.isYou,
+    });
+  }
+  if (rows.length === 0) return undefined;
+  return { maxPlayers: o.maxPlayers, rows };
+}
+
 /** 与 solitaireArena `proxy/controller:loadGame` 对齐：休闲 run 走 casual `/internal/find-match-by-game` + bridge secret */
 export const loadGame = action({
   args: { gameId: v.string() },
@@ -188,10 +225,17 @@ export const submitCasualPlatformRun = action({
       return { ok: false as const, error: "casual_unreachable" };
     }
 
-    let parsed: { ok?: boolean; error?: string } = {};
+    let parsed: { ok?: boolean; error?: string; tableSummary?: unknown; pendingOthers?: boolean } = {};
     try {
       const text = await res.text();
-      if (text) parsed = JSON.parse(text) as { ok?: boolean; error?: string };
+      if (text) {
+        parsed = JSON.parse(text) as {
+          ok?: boolean;
+          error?: string;
+          tableSummary?: unknown;
+          pendingOthers?: boolean;
+        };
+      }
     } catch {
       parsed = {};
     }
@@ -203,6 +247,12 @@ export const submitCasualPlatformRun = action({
       };
     }
 
-    return { ok: true as const };
+    const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
+    const pendingOthers = parsed.pendingOthers === true;
+    return {
+      ok: true as const,
+      ...(tableSummary ? { tableSummary } : {}),
+      ...(pendingOthers ? { pendingOthers: true as const } : {}),
+    };
   },
 });

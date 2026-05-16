@@ -210,14 +210,14 @@ const CasualTasksPanel: React.FC = () => {
 
       <div className="casual-econ__linkRow">
         <span style={{ fontSize: 13, color: "var(--econ-muted, rgba(26,26,46,0.55))" }}>
-          通行证等级奖励在「奖励」
+          通行证等级与轨道奖励在底栏「通行证」
         </span>
         <button
           type="button"
           className="casual-econ__textBtn"
-          onClick={() => openPage({ uri: "/casual/lobby/c4" })}
+          onClick={() => openPage({ uri: "/casual/lobby/c5" })}
         >
-          去奖励
+          去通行证
         </button>
       </div>
 

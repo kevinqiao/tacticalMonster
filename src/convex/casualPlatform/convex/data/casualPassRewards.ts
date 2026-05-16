@@ -12,43 +12,40 @@ export interface PassLevelRewardRow {
   deluxe: PassGrant[];
 }
 
-/** 示例配表：豪华 ≥ 标准 ≥ 免费（券） */
-export const PASS_LEVEL_REWARDS: PassLevelRewardRow[] = [
-  {
-    level: 1,
-    free: [{ kind: "seasonVoucher", amount: 1 }],
-    standard: [
-      { kind: "seasonVoucher", amount: 2 },
-      { kind: "coins", amount: 50 },
-    ],
-    deluxe: [
-      { kind: "seasonVoucher", amount: 3 },
-      { kind: "coins", amount: 120 },
-      { kind: "gems", amount: 2 },
-    ],
-  },
-  {
-    level: 2,
-    free: [{ kind: "coins", amount: 30 }],
-    standard: [
-      { kind: "seasonVoucher", amount: 1 },
-      { kind: "gems", amount: 1 },
-    ],
-    deluxe: [
-      { kind: "seasonVoucher", amount: 2 },
-      { kind: "gems", amount: 3 },
-    ],
-  },
-  {
-    level: 3,
-    free: [{ kind: "seasonXp", amount: 50 }],
-    standard: [{ kind: "seasonVoucher", amount: 2 }],
-    deluxe: [
-      { kind: "seasonVoucher", amount: 4 },
-      { kind: "coins", amount: 200 },
-    ],
-  },
-];
+function buildPassLevels(maxLevel: number): PassLevelRewardRow[] {
+  const rows: PassLevelRewardRow[] = [];
+  for (let level = 1; level <= maxLevel; level++) {
+    const free: PassGrant[] = [];
+    const standard: PassGrant[] = [];
+    const deluxe: PassGrant[] = [];
+
+    if (level % 5 === 1) {
+      free.push({ kind: "seasonVoucher", amount: 1 });
+      standard.push({ kind: "seasonVoucher", amount: 2 });
+      deluxe.push({ kind: "seasonVoucher", amount: 3 });
+    }
+    if (level % 3 === 0) {
+      free.push({ kind: "coins", amount: 20 + level * 2 });
+      standard.push({ kind: "coins", amount: 40 + level * 3 });
+      deluxe.push({ kind: "coins", amount: 80 + level * 4 });
+    }
+    if (level % 4 === 2) {
+      standard.push({ kind: "gems", amount: 1 });
+      deluxe.push({ kind: "gems", amount: 2 });
+    }
+    if (level % 10 === 0) {
+      deluxe.push({ kind: "gems", amount: 5 });
+    }
+
+    rows.push({ level, free, standard, deluxe });
+  }
+  return rows;
+}
+
+/** Pass 1～20 级；豪华 ≥ 标准 ≥ 免费 */
+export const PASS_LEVEL_REWARDS: PassLevelRewardRow[] = buildPassLevels(20);
+
+export const PASS_MAX_LEVEL = PASS_LEVEL_REWARDS.length;
 
 export function passRewardForLevel(
   track: "free" | "standard" | "deluxe",
@@ -56,5 +53,6 @@ export function passRewardForLevel(
 ): { grants: PassGrant[] } | null {
   const row = PASS_LEVEL_REWARDS.find((r) => r.level === level);
   if (!row) return null;
-  return { grants: row[track] };
+  const grants = row[track];
+  return grants.length > 0 ? { grants } : null;
 }

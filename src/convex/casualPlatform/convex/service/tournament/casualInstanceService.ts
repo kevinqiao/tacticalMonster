@@ -207,25 +207,21 @@ export async function grantCasualScoreTierRewardsOnEachRunSettled(
 function prunePendingWalletRewards(p: {
   coins?: number;
   gems?: number;
-  seasonChallengePoints?: number;
   seasonVoucher?: number;
 }):
   | {
       coins?: number;
       gems?: number;
-      seasonChallengePoints?: number;
       seasonVoucher?: number;
     }
   | undefined {
   const o: {
     coins?: number;
     gems?: number;
-    seasonChallengePoints?: number;
     seasonVoucher?: number;
   } = {};
   if ((p.coins ?? 0) > 0) o.coins = p.coins;
   if ((p.gems ?? 0) > 0) o.gems = p.gems;
-  if ((p.seasonChallengePoints ?? 0) > 0) o.seasonChallengePoints = p.seasonChallengePoints;
   if ((p.seasonVoucher ?? 0) > 0) o.seasonVoucher = p.seasonVoucher;
   return Object.keys(o).length > 0 ? o : undefined;
 }
@@ -374,7 +370,6 @@ async function settleOpenCasualTournamentInstanceCore(
     const pending: {
       coins?: number;
       gems?: number;
-      seasonChallengePoints?: number;
       seasonVoucher?: number;
     } = {};
     const baseCoins = casualSettleBaseCoins(def);
@@ -404,24 +399,24 @@ async function settleOpenCasualTournamentInstanceCore(
     if (seasonId) {
       const pointsDelta = seasonPointsFromScore(aggScore, def.seasonPointsMultiplier);
       if (pointsDelta > 0) {
+        const gameId = def.gameId;
         const stat = await ctx.db
           .query("casual_player_season_stats")
-          .withIndex("by_season_uid", (q) => q.eq("seasonId", seasonId).eq("uid", p.uid))
+          .withIndex("by_season_game_uid", (q) =>
+            q.eq("seasonId", seasonId).eq("gameId", gameId).eq("uid", p.uid)
+          )
           .unique();
-        const addMain = pointsDelta;
-        const addC = def.matchType === "tournament_c" ? pointsDelta : 0;
         if (!stat) {
           await ctx.db.insert("casual_player_season_stats", {
             uid: p.uid,
             seasonId,
-            mainSeasonPoints: addMain,
-            cArenaPoints: addC,
+            gameId,
+            seasonPoints: pointsDelta,
             updatedAt: now,
           });
         } else {
           await ctx.db.patch(stat._id, {
-            mainSeasonPoints: stat.mainSeasonPoints + addMain,
-            cArenaPoints: stat.cArenaPoints + addC,
+            seasonPoints: stat.seasonPoints + pointsDelta,
             updatedAt: now,
           });
         }
@@ -533,7 +528,6 @@ export const claimCasualInstanceRewards = mutation({
     const pr = prunePendingWalletRewards({
       coins: pending?.coins,
       gems: pending?.gems,
-      seasonChallengePoints: pending?.seasonChallengePoints,
       seasonVoucher: pending?.seasonVoucher,
     });
     if (!pr) {
@@ -553,14 +547,6 @@ export const claimCasualInstanceRewards = mutation({
         uid,
         kind: "gems",
         amount: pr.gems!,
-      });
-      if (!gr.ok) return { ok: false as const, error: "grant_failed" as const };
-    }
-    if ((pr.seasonChallengePoints ?? 0) > 0) {
-      const gr = await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
-        uid,
-        kind: "seasonChallengePoints",
-        amount: pr.seasonChallengePoints!,
       });
       if (!gr.ok) return { ok: false as const, error: "grant_failed" as const };
     }
@@ -616,7 +602,6 @@ export const listInstancePendingRewards = query({
       const pr = prunePendingWalletRewards({
         coins: s.pendingInstanceRewards?.coins,
         gems: s.pendingInstanceRewards?.gems,
-        seasonChallengePoints: s.pendingInstanceRewards?.seasonChallengePoints,
         seasonVoucher: s.pendingInstanceRewards?.seasonVoucher,
       });
       const canClaim = Boolean(pr && s.instanceRewardsClaimedAt == null);

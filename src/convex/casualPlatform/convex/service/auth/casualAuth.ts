@@ -39,7 +39,6 @@ export const authenticate = action({
           const snap: {
             seasonXp: number;
             seasonVouchers: number;
-            seasonChallengePoints: number;
           } = await ctx.runQuery(internal.service.season.casualSeasonService.seasonEconomySnapshotForAuth, {
             uid,
           });
@@ -49,7 +48,6 @@ export const authenticate = action({
             gems: p.gems,
             seasonXp: snap.seasonXp,
             seasonVouchers: snap.seasonVouchers,
-            seasonChallengePoints: snap.seasonChallengePoints,
           };
         }
       }

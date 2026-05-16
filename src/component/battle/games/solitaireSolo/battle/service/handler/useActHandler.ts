@@ -20,8 +20,13 @@ import {
 } from "../../types/SoloTypes";
 import { getCardCoord, syncCardStackZIndexFromGameState, tableauCardZIndex } from "../../Utils";
 import { useSoloGameManager } from "../GameManager";
+import type { CasualAsyncTableSummaryUI, ManualSettleConfirmExtras } from "../../../../shared/casualAsyncTableSummaryUI";
 
 type ServerProgress = { score?: number; moves?: number; gameStatus?: number };
+
+type CasualRunSubmitOutcome =
+    | { ok: true; tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean }
+    | { ok: false };
 
 function mergeServerProgress(gs: SoloGameState, p: ServerProgress) {
     if (typeof p.score === "number") gs.score = p.score;
@@ -38,6 +43,11 @@ const useActHandler = () => {
     const convex = useConvex();
     const { user } = useUserManager();
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
+    const [postCasualSummaryOpen, setPostCasualSummaryOpen] = useState(false);
+    const [postCasualTableSummary, setPostCasualTableSummary] = useState<CasualAsyncTableSummaryUI | null>(
+        null
+    );
+    const [postCasualWaitingForPeers, setPostCasualWaitingForPeers] = useState(false);
     const casualRunSubmittedRef = useRef(false);
     const settleInFlightRef = useRef(false);
     const gameStateRef = useRef<SoloGameState | null>(null);
@@ -64,12 +74,15 @@ const useActHandler = () => {
 
     useEffect(() => {
         casualRunSubmittedRef.current = false;
+        setPostCasualSummaryOpen(false);
+        setPostCasualTableSummary(null);
+        setPostCasualWaitingForPeers(false);
     }, [gameState?.gameId]);
 
     const runSolitaireSettlement = useCallback(
-        async (score: number, opts?: { deferHostNotify?: boolean }): Promise<boolean> => {
+        async (score: number, opts?: { deferHostNotify?: boolean }): Promise<CasualRunSubmitOutcome> => {
             const gs = gameStateRef.current;
-            if (!gs || casualRunSubmittedRef.current) return false;
+            if (!gs || casualRunSubmittedRef.current) return { ok: false };
             casualRunSubmittedRef.current = true;
             const deferHost = Boolean(opts?.deferHostNotify);
             try {
@@ -83,17 +96,26 @@ const useActHandler = () => {
                     const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
                         token: user.token,
                         gameId: gs.gameId,
-                    })) as { ok?: boolean; error?: string };
+                    })) as {
+                        ok?: boolean;
+                        error?: string;
+                        tableSummary?: CasualAsyncTableSummaryUI;
+                        pendingOthers?: boolean;
+                    };
                     if (!cr.ok) {
                         console.warn("[Solitaire] submitCasualPlatformRun", cr.error);
                         casualRunSubmittedRef.current = false;
-                        return false;
+                        return { ok: false };
                     }
                     console.log("submitCasualPlatformRun success");
                     if (!deferHost) {
                         onGameSubmit?.();
                     }
-                    return true;
+                    return {
+                        ok: true,
+                        ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
+                        ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+                    };
                 }
 
                 let proxyOk = false;
@@ -112,16 +134,16 @@ const useActHandler = () => {
 
                 if (!proxyOk) {
                     casualRunSubmittedRef.current = false;
-                    return false;
+                    return { ok: false };
                 }
                 if (!deferHost) {
                     onGameSubmit?.();
                 }
-                return true;
+                return { ok: true };
             } catch (e) {
                 console.error("[Solitaire] runSolitaireSettlement", e);
                 casualRunSubmittedRef.current = false;
-                return false;
+                return { ok: false };
             }
         },
         [convex, casualTournamentId, user?.token, onGameSubmit]
@@ -131,8 +153,30 @@ const useActHandler = () => {
         if (!gameState || casualRunSubmittedRef.current) return;
         if (!isTerminalSoloStatus(gameState.status)) return;
         const score = Math.max(0, Math.floor(gameState.score ?? 0));
-        await runSolitaireSettlement(score);
-    }, [gameState, runSolitaireSettlement]);
+        const r = await runSolitaireSettlement(score, { deferHostNotify: true });
+        if (!r.ok) {
+            console.warn("[Solitaire] completeCasualSolitaireRun submit failed");
+            return;
+        }
+        const isCasualRun =
+            Boolean(casualTournamentId) &&
+            typeof gameState.gameId === "string" &&
+            gameState.gameId.startsWith("game_");
+        if (isCasualRun) {
+            setPostCasualTableSummary(r.tableSummary ?? null);
+            setPostCasualWaitingForPeers(Boolean(r.pendingOthers));
+            setPostCasualSummaryOpen(true);
+        } else {
+            onGameSubmit?.();
+        }
+    }, [gameState, runSolitaireSettlement, casualTournamentId, onGameSubmit]);
+
+    const dismissPostCasualSummary = useCallback(() => {
+        setPostCasualSummaryOpen(false);
+        setPostCasualTableSummary(null);
+        setPostCasualWaitingForPeers(false);
+        onGameSubmit?.();
+    }, [onGameSubmit]);
 
     const cancelSettleConfirm = useCallback(() => {
         setSettleConfirmOpen(false);
@@ -166,9 +210,13 @@ const useActHandler = () => {
             });
             const score = Math.max(0, Math.floor(gs.score ?? 0));
             const settled = await runSolitaireSettlement(score, { deferHostNotify: true });
-            if (!settled) {
+            if (!settled.ok) {
                 throw new Error("结算提交失败，请重试");
             }
+            const out: ManualSettleConfirmExtras = {};
+            if (settled.tableSummary) out.tableSummary = settled.tableSummary;
+            if (settled.pendingOthers) out.pendingOthers = true;
+            return out;
         } catch (e) {
             console.error("[Solitaire] confirmSettleAndExit", e);
             if (e instanceof Error) throw e;
@@ -184,12 +232,27 @@ const useActHandler = () => {
 
         if (isTerminalSoloStatus(gameState.status)) {
             const score = Math.max(0, Math.floor(gameState.score ?? 0));
-            await runSolitaireSettlement(score);
+            const r = await runSolitaireSettlement(score, { deferHostNotify: true });
+            if (!r.ok) {
+                console.warn("[Solitaire] settleManuallyAndExit terminal submit failed");
+                return;
+            }
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                typeof gameState.gameId === "string" &&
+                gameState.gameId.startsWith("game_");
+            if (isCasualRun) {
+                setPostCasualTableSummary(r.tableSummary ?? null);
+                setPostCasualWaitingForPeers(Boolean(r.pendingOthers));
+                setPostCasualSummaryOpen(true);
+            } else {
+                onGameSubmit?.();
+            }
             return;
         }
 
         setSettleConfirmOpen(true);
-    }, [gameState, interactionPhase, runSolitaireSettlement]);
+    }, [gameState, interactionPhase, runSolitaireSettlement, casualTournamentId, onGameSubmit]);
     const saveUpdate = useCallback((cards: Card[]) => {
         if (!gameState) return;
         cards.forEach((r: SoloCard) => {
@@ -557,6 +620,10 @@ const useActHandler = () => {
         cancelSettleConfirm,
         confirmSettleAndExit,
         finishManualSettleSuccess,
+        postCasualSummaryOpen,
+        postCasualTableSummary,
+        postCasualWaitingForPeers,
+        dismissPostCasualSummary,
     };
 };
 

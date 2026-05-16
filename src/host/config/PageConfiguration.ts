@@ -54,7 +54,7 @@ export const CasualPlace =
                 { name: "child2", class: "page_container", init: "slide", path: "./lobby/casual/view/history/CasualHistoryTab", uri: "c2", auth: 0, open: "slideIn" },
                 { name: "child3", class: "page_container", init: "slide", path: "./lobby/casual/view/play/CasualPlayTab", uri: "c3", auth: 0, open: "slideIn" },
                 { name: "child4", class: "page_container", init: "slide", path: "./lobby/casual/view/rewards/CasualRewardsTab", uri: "c4", auth: 0, open: "slideIn" },
-                { name: "child5", class: "page_container", init: "slide", path: "./lobby/casual/view/leaderboards/CasualLeaderboardsTab", uri: "c5", auth: 0, open: "slideIn" },
+                { name: "child5", class: "page_container", init: "slide", path: "./lobby/casual/view/battlePass/CasualBattlePassTab", uri: "c5", auth: 0, open: "slideIn" },
             ]
         }
 
@@ -143,6 +143,15 @@ export const Modals: Record<string, ModalConfig> = {
     "casual_daily_solo_leaderboard": {
         name: "casual_daily_solo_leaderboard",
         path: "./lobby/casual/view/play/CasualDailySoloLeaderboardModal",
+        auth: 0,
+        effects: [
+            { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },
+            { name: "swipeRight", orientation: "portrait", args: { width: "100%" } },
+        ],
+    },
+    "casual_season_leaderboard": {
+        name: "casual_season_leaderboard",
+        path: "./lobby/casual/view/play/CasualSeasonLeaderboardModal",
         auth: 0,
         effects: [
             { name: "swipeRight", orientation: "landscape", args: { width: "35%" } },

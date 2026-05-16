@@ -1,4 +1,4 @@
-import type { CasualPlatformRewardConfig } from "./casualTournamentRewardTypes";
+import type { CasualPlatformRewardConfig, CasualRankRewardEntry } from "./casualTournamentRewardTypes";
 
 export type {
   CasualPlatformRewardConfig,
@@ -13,7 +13,7 @@ export type EntryCost =
   | { kind: "none" }
   | { kind: "coins"; amount: number }
   | { kind: "gems"; amount: number }
-  /** 赛季专场入场：走 `joinCasualRunCore` / run 表，扣 `seasonVouchers`（活动修正见 join） */
+  /** 赛季专场入场：与同模板异步匹配，`joinTournament` 入队后扣 `seasonVouchers`（活动修正见 join） */
   | { kind: "seasonVouchers"; amount: number };
 
 export type CasualInstanceScope = "single_match" | "daily" | "weekly" | "season";
@@ -44,19 +44,21 @@ export interface CasualTournamentDefinition {
   entry: EntryCost;
   /** 与 TacticalMonster 锦标赛 `RewardConfig` 同构；休闲扩展见 `CasualPlatformRewardConfig` */
   rewards: CasualPlatformRewardConfig;
-  /** Pass / 赛季积分（TM 奖励模型外，休闲赛季专用） */
+  /** 每场结算固定 Pass XP（含 A/B/C/专场/日榜；不受当日钱包递减影响） */
   seasonXpOnSettle: number;
   seasonPointsMultiplier: number;
   /** 真 · 专场可不展示异步排行榜（仍写入 score 供运营/扩展） */
   hideLeaderboard?: boolean;
-  /** 仅「单人挑战」等入口 join，不出现在多人竞技锦标列表 */
+  /** 日榜单人挑战等：仅 Play 专区入口，不出现在多人竞技列表 */
   omitFromPlayLobby?: boolean;
 }
 
-/** Play「单人挑战」日榜最高分 · Solitaire */
-export const CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID = "casual_daily_solo_challenge_solitaire" as const;
-/** Play「单人挑战」日榜最高分 · Block Blast */
-export const CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID = "casual_daily_solo_challenge_block_blast" as const;
+/** Play「日榜单人挑战」· Solitaire */
+export const CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID =
+  "casual_daily_solo_challenge_solitaire" as const;
+/** Play「日榜单人挑战」· Block Blast */
+export const CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID =
+  "casual_daily_solo_challenge_block_blast" as const;
 
 export function effectiveInstanceScope(def: CasualTournamentDefinition): CasualInstanceScope {
   return def.instanceScope ?? "single_match";
@@ -68,6 +70,17 @@ export function effectiveScoreAggregation(def: CasualTournamentDefinition): Casu
 
 export function effectiveEntryBilling(def: CasualTournamentDefinition): CasualEntryBilling {
   return def.entryBilling ?? "per_match";
+}
+
+export function findCasualRankRewardEntry(
+  rankRewards: CasualRankRewardEntry[] | undefined,
+  rank: number
+): CasualRankRewardEntry | undefined {
+  if (!rankRewards?.length) return undefined;
+  return rankRewards.find((rw) => {
+    const [minR, maxR] = rw.rankRange;
+    return rank >= minR && rank <= maxR;
+  });
 }
 
 export function isPeriodScopedTournament(def: CasualTournamentDefinition): boolean {
@@ -84,8 +97,10 @@ export function casualSettleBaseGems(def: CasualTournamentDefinition): number {
   return Math.max(0, def.rewards.baseRewards.gems ?? 0);
 }
 
-/** Block Blast 默认赛季挑战专场 tournamentId */
+/** Block Blast 赛季专场 tournamentId */
 export const CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID = "season_challenge_bb_1";
+/** Solitaire 赛季专场 tournamentId */
+export const CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID = "season_challenge_solitaire_1";
 
 /** 通用：`floor(base * multiplier + delta)`，下限 0（入场券 / Pass XP / 金币钻扣除共用） */
 export function applyScaledCurrencyCost(base: number, multiplier: number, delta: number): number {
@@ -101,7 +116,7 @@ export function applyPassXpFromModifiers(base: number, multiplier: number, delta
   return applyScaledCurrencyCost(base, multiplier, delta);
 }
 
-/** 测试方便：Play 异步场 A/B/C 档 `maxPlayers` 暂为 3 / 4 / 5（BB 与 Solitaire 对齐）；赛季专场仍为单人。 */
+/** Play 异步 A/B/C：`maxPlayers` 3 / 4 / 5；多人赛季分按名次 `rankRewards.seasonPoints`（可负）；日榜单机仍用 `seasonPointsMultiplier`。 */
 const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
     tournamentId: "casual_async_a_bb",
@@ -111,13 +126,18 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     status: "open",
     maxPlayers: 3,
     matchmakingMinHumans: 1,
-    entry: { kind: "coins", amount: 25 },
+    entry: { kind: "coins", amount: 30 },
     rewards: {
-      type: "by_performance",
-      baseRewards: { coins: 25, gems: 0 },
+      type: "by_rank",
+      baseRewards: { coins: 22, gems: 0 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 6 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 2 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: -3 },
+      ],
     },
     seasonXpOnSettle: 12,
-    seasonPointsMultiplier: 0.8,
+    seasonPointsMultiplier: 0,
   },
   {
     tournamentId: "casual_async_b_bb",
@@ -129,11 +149,17 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchmakingMinHumans: 1,
     entry: { kind: "coins", amount: 40 },
     rewards: {
-      type: "by_performance",
-      baseRewards: { coins: 70, gems: 1 },
+      type: "by_rank",
+      baseRewards: { coins: 58, gems: 1 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 10 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 5 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: 2 },
+        { rankRange: [4, 4], multiplier: 1, seasonPoints: -5 },
+      ],
     },
     seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 1.2,
+    seasonPointsMultiplier: 0,
   },
   {
     tournamentId: "casual_async_c_bb",
@@ -145,11 +171,18 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchmakingMinHumans: 1,
     entry: { kind: "gems", amount: 5 },
     rewards: {
-      type: "by_performance",
+      type: "by_rank",
       baseRewards: { coins: 0, gems: 8 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 14 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 8 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: 5 },
+        { rankRange: [4, 4], multiplier: 1, seasonPoints: 2 },
+        { rankRange: [5, 5], multiplier: 1, seasonPoints: -8 },
+      ],
     },
     seasonXpOnSettle: 28,
-    seasonPointsMultiplier: 2,
+    seasonPointsMultiplier: 0,
   },
   {
     tournamentId: "casual_async_a_solitaire",
@@ -159,13 +192,18 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     status: "open",
     maxPlayers: 3,
     matchmakingMinHumans: 1,
-    entry: { kind: "coins", amount: 25 },
+    entry: { kind: "coins", amount: 30 },
     rewards: {
-      type: "by_performance",
-      baseRewards: { coins: 25, gems: 0 },
+      type: "by_rank",
+      baseRewards: { coins: 22, gems: 0 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 6 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 2 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: -3 },
+      ],
     },
     seasonXpOnSettle: 12,
-    seasonPointsMultiplier: 0.8,
+    seasonPointsMultiplier: 0,
   },
   {
     tournamentId: "casual_async_b_solitaire",
@@ -177,11 +215,17 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchmakingMinHumans: 1,
     entry: { kind: "coins", amount: 40 },
     rewards: {
-      type: "by_performance",
-      baseRewards: { coins: 70, gems: 1 },
+      type: "by_rank",
+      baseRewards: { coins: 58, gems: 1 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 10 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 5 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: 2 },
+        { rankRange: [4, 4], multiplier: 1, seasonPoints: -5 },
+      ],
     },
     seasonXpOnSettle: 18,
-    seasonPointsMultiplier: 1.2,
+    seasonPointsMultiplier: 0,
   },
   {
     tournamentId: "casual_async_c_solitaire",
@@ -193,15 +237,22 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchmakingMinHumans: 1,
     entry: { kind: "gems", amount: 5 },
     rewards: {
-      type: "by_performance",
+      type: "by_rank",
       baseRewards: { coins: 0, gems: 8 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 14 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 8 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: 5 },
+        { rankRange: [4, 4], multiplier: 1, seasonPoints: 2 },
+        { rankRange: [5, 5], multiplier: 1, seasonPoints: -8 },
+      ],
     },
     seasonXpOnSettle: 28,
-    seasonPointsMultiplier: 2,
+    seasonPointsMultiplier: 0,
   },
   {
     tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID,
-    title: "Daily · Solitaire 单人最高分",
+    title: "Daily · Solitaire 日榜最高分",
     gameId: "solitaire",
     matchType: "tournament_a",
     status: "open",
@@ -211,11 +262,10 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     instanceTimezone: "UTC",
     maxPlayers: 1,
     matchmakingMinHumans: 1,
-    entry: { kind: "coins", amount: 5 },
+    entry: { kind: "none" },
     rewards: {
       type: "by_performance",
       baseRewards: { coins: 10, gems: 0 },
-      /** 日榜周期收尾：按当日桶内名次叠加（与 `scoreTierRewards` 独立，结算时合并） */
       rankRewards: [
         { rankRange: [1, 1], multiplier: 1, coins: 80, gems: 0 },
         { rankRange: [2, 3], multiplier: 1, coins: 50, gems: 0 },
@@ -237,7 +287,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   },
   {
     tournamentId: CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID,
-    title: "Daily · Block Blast 单人最高分",
+    title: "Daily · Block Blast 日榜最高分",
     gameId: "block_blast",
     matchType: "tournament_a",
     status: "open",
@@ -247,11 +297,10 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     instanceTimezone: "UTC",
     maxPlayers: 1,
     matchmakingMinHumans: 1,
-    entry: { kind: "coins", amount: 5 },
+    entry: { kind: "none" },
     rewards: {
       type: "by_performance",
       baseRewards: { coins: 10, gems: 0 },
-      /** 日榜周期收尾：按名次叠加（与 Solitaire 日榜可分别调数值） */
       rankRewards: [
         { rankRange: [1, 1], multiplier: 1, coins: 100, gems: 0 },
         { rankRange: [2, 3], multiplier: 1, coins: 60, gems: 0 },
@@ -271,21 +320,50 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     seasonPointsMultiplier: 0.5,
     omitFromPlayLobby: true,
   },
-  /** 赛季专场：锦标模型 join → submitScore，入场扣赛季券，结算 Pass XP（无赛季积分榜展示） */
+  /** 赛季专场：赛季券入场、异步匹配同档 4 人桌；赛季分按名次，不参与挑战点/代金券档位 */
   {
     tournamentId: CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID,
     title: "专场对局 · Block Blast",
     gameId: "block_blast",
     matchType: "season_challenge",
     status: "open",
-    maxPlayers: 1,
+    maxPlayers: 4,
     matchmakingMinHumans: 1,
     entry: { kind: "seasonVouchers", amount: 2 },
     rewards: {
-      type: "by_performance",
-      baseRewards: {},
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 0 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 12 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 7 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: 3 },
+        { rankRange: [4, 4], multiplier: 1, seasonPoints: -6 },
+      ],
     },
-    seasonXpOnSettle: 15,
+    seasonXpOnSettle: 18,
+    seasonPointsMultiplier: 0,
+    hideLeaderboard: true,
+  },
+  {
+    tournamentId: CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID,
+    title: "专场对局 · Solitaire",
+    gameId: "solitaire",
+    matchType: "season_challenge",
+    status: "open",
+    maxPlayers: 4,
+    matchmakingMinHumans: 1,
+    entry: { kind: "seasonVouchers", amount: 2 },
+    rewards: {
+      type: "by_rank",
+      baseRewards: { coins: 0, gems: 0 },
+      rankRewards: [
+        { rankRange: [1, 1], multiplier: 1, seasonPoints: 12 },
+        { rankRange: [2, 2], multiplier: 1, seasonPoints: 7 },
+        { rankRange: [3, 3], multiplier: 1, seasonPoints: 3 },
+        { rankRange: [4, 4], multiplier: 1, seasonPoints: -6 },
+      ],
+    },
+    seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
     hideLeaderboard: true,
   },
@@ -346,10 +424,15 @@ export function listSeasonChallengeMatchCatalog(): Array<{
   }));
 }
 
-export function seasonPointsFromScore(
-  score: number,
-  multiplier: number
-): number {
+/**
+ * 赛季累计积分：与 `casual_player_season_stats` 写入一致。
+ * 高分仍按「千分位 × 倍率」拉开差距；终局分 < 1000 时原先恒为 0，赛季榜会长期空白，
+ * 故在「有正分且倍率 > 0」且 floor 为 0 时记 1 点，保证每场有贡献的结算都会上榜。
+ */
+export function seasonPointsFromScore(score: number, multiplier: number): number {
   const clamped = Math.max(0, Math.min(score, 10_000_000));
-  return Math.floor((clamped / 1000) * multiplier);
+  const mult = Math.max(0, multiplier);
+  if (clamped <= 0 || mult <= 0) return 0;
+  const floored = Math.floor((clamped / 1000) * mult);
+  return floored > 0 ? floored : 1;
 }

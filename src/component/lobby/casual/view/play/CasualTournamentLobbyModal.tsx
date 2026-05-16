@@ -1,5 +1,6 @@
 import {
   CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID,
+  CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID,
   getDefaultCasualTournaments,
   getTournamentDefinition,
   type CasualTournamentDefinition,
@@ -93,11 +94,14 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
           periodHint,
         };
       });
-    if (targetGameKind !== "block_blast") return baseRows;
+    const seasonTournamentId =
+      targetGameKind === "solitaire"
+        ? CASUAL_SEASON_CHALLENGE_SOLITAIRE_ID
+        : CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID;
     const hasSeasonChallenge = baseRows.some((row) => row.matchType === "season_challenge");
     if (hasSeasonChallenge) return baseRows;
-    const seasonDef = getTournamentDefinition(CASUAL_SEASON_CHALLENGE_BB_TOURNAMENT_ID);
-    if (!seasonDef || seasonDef.gameId !== "block_blast") return baseRows;
+    const seasonDef = getTournamentDefinition(seasonTournamentId);
+    if (!seasonDef || seasonDef.gameId !== targetGameKind) return baseRows;
     return [
       ...baseRows,
       {

@@ -1,6 +1,5 @@
-import type { SeasonShelfSku } from "@/convex/casualPlatform/convex/data/casualSeasonShelfCatalog";
-import type { Id } from "@/convex/casualPlatform/convex/_generated/dataModel";
 import { api as casualPlatformApi } from "@/convex/casualPlatform/convex/_generated/api";
+import type { Id } from "@/convex/casualPlatform/convex/_generated/dataModel";
 import { ConvexClient, ConvexHttpClient } from "convex/browser";
 import { useUserManager } from "host/service/UserManager";
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
@@ -21,7 +20,6 @@ export interface CasualPlayerSummary {
   gems?: number;
   seasonXp?: number;
   seasonVouchers?: number;
-  seasonChallengePoints?: number;
 }
 
 function casualPlayerSummaryFromAuth(result: unknown): CasualPlayerSummary | null {
@@ -38,7 +36,6 @@ function casualPlayerSummaryFromAuth(result: unknown): CasualPlayerSummary | nul
     gems: pickNum("gems"),
     seasonXp: pickNum("seasonXp"),
     seasonVouchers: pickNum("seasonVouchers"),
-    seasonChallengePoints: pickNum("seasonChallengePoints"),
   };
 }
 
@@ -69,7 +66,6 @@ export interface CasualGameHistoryRow {
   pendingRunRewards?: {
     coins?: number;
     gems?: number;
-    seasonChallengePoints?: number;
     seasonVoucher?: number;
   } | null;
   rewardsClaimedAt?: number | null;
@@ -102,7 +98,6 @@ export interface CasualInstanceClaimRow {
   pendingInstanceRewards?: {
     coins?: number;
     gems?: number;
-    seasonChallengePoints?: number;
     seasonVoucher?: number;
   };
   /** 已领取周期奖励的时间（毫秒） */
@@ -139,7 +134,6 @@ export interface CasualPlatformValue {
     xp: number;
     /** 当季赛事券余额（`casual_pass_progress`，与 authenticate 快照一致） */
     seasonVouchers?: number;
-    seasonChallengePoints?: number;
     tracksPurchased?: { standard?: boolean; deluxe?: boolean };
     claimed?: Array<{ track: "free" | "standard" | "deluxe"; level: number }>;
   } | null;
@@ -153,8 +147,6 @@ export interface CasualPlatformValue {
     grantCoins?: number;
     grantGems?: number;
   }>;
-  /** Convex `listSeasonShelf`（按激活赛季映射 `_s{n}` SKU；前端离线兜底见 `seasonShelfSkusForSeasonId`） */
-  seasonShelfSkus: SeasonShelfSku[];
   missions: Array<{
     taskId: string;
     title: string;
@@ -261,6 +253,12 @@ export interface CasualPlatformValue {
     seasonId: string,
     limit?: number
   ) => Promise<Array<{ rank: number; uid: string; points: number }>>;
+  /** 指定 `gameId` 在本赛季的累计积分榜（`seasonId` 可省略，用当前激活赛季） */
+  fetchGameSeasonLeaderboard: (
+    seasonId: string | undefined,
+    gameId: string,
+    limit?: number
+  ) => Promise<Array<{ rank: number; uid: string; points: number }>>;
   /** 已禁用：run 结算仅允许各游戏 Convex `submitCasualPlatformRun` → casual ingest */
   submitCasualRun: (input: {
     tournamentId: string;
@@ -291,14 +289,6 @@ export interface CasualPlatformValue {
     baseGems?: number;
     activityIds?: string[];
   }>;
-  redeemSeasonShelfSku: (skuId: string) => Promise<{
-    ok: boolean;
-    error?: string;
-    activityIds?: string[];
-    vouchersCharged?: number;
-    challengePointsCharged?: number;
-    gemsCharged?: number;
-  }>;
   openFixedChest: (chestId: string) => Promise<{ ok: boolean; error?: string; grants?: unknown }>;
   devUnlockPassTrack: (input: {
     seasonId: string;
@@ -317,7 +307,6 @@ type CasualDataSnapshot = Pick<
   | "missions"
   | "checkinStreak"
   | "shopSkus"
-  | "seasonShelfSkus"
   | "gameHistory"
 >;
 
@@ -332,7 +321,6 @@ function emptyData(): CasualDataSnapshot {
     missions: [],
     checkinStreak: null,
     shopSkus: [],
-    seasonShelfSkus: [],
     gameHistory: [],
   };
 }
@@ -450,7 +438,6 @@ function startLiveSubscriptions(uid: string | undefined) {
       missions: [],
       checkinStreak: null,
       shopSkus: [],
-      seasonShelfSkus: [],
       activities: [],
       gameHistory: [],
     });
@@ -498,13 +485,6 @@ function startLiveSubscriptions(uid: string | undefined) {
     {},
     (rows) => patchData({ activities: (rows as CasualActivityPublicRow[]) ?? [] }),
     "listActiveActivities"
-  );
-
-  sub(
-    casualPlatformApi.service.season.casualSeasonShelfService.listSeasonShelf,
-    {},
-    (rows) => patchData({ seasonShelfSkus: (rows as SeasonShelfSku[]) ?? [] }),
-    "listSeasonShelf"
   );
 
   if (uid) {
@@ -858,29 +838,54 @@ export function useCasualPlatform(): CasualPlatformValue {
     const http = getCasualHttpClient();
     if (!http) return [];
     try {
-      return await http.query(casualPlatformApi.service.season.casualSeasonService.mainSeasonLeaderboard, {
+      return await http.query(casualPlatformApi.service.season.casualSeasonService.gameSeasonLeaderboard, {
         seasonId,
+        gameId: "block_blast",
         limit,
       });
     } catch (e) {
-      console.error("[CasualPlatform] mainSeasonLeaderboard", e);
+      console.error("[CasualPlatform] gameSeasonLeaderboard (main BB season stats)", e);
       return [];
     }
   }, []);
 
-  const fetchCArenaLeaderboard = useCallback(async (seasonId: string, limit?: number) => {
+  const fetchCArenaLeaderboard = useCallback(async (_seasonId: string, limit?: number) => {
     const http = getCasualHttpClient();
     if (!http) return [];
     try {
-      return await http.query(casualPlatformApi.service.season.casualSeasonService.cArenaLeaderboard, {
-        seasonId,
+      const rows = await http.query(casualTournamentFns.leaderboard, {
+        tournamentId: "casual_async_c_bb",
         limit,
       });
+      const list = rows as Array<{ rank?: number; uid: string; score: number }>;
+      return list.map((r, i) => ({
+        rank: typeof r.rank === "number" ? r.rank : i + 1,
+        uid: r.uid,
+        points: r.score,
+      }));
     } catch (e) {
-      console.error("[CasualPlatform] cArenaLeaderboard", e);
+      console.error("[CasualPlatform] leaderboard (C arena template)", e);
       return [];
     }
   }, []);
+
+  const fetchGameSeasonLeaderboard = useCallback(
+    async (seasonId: string | undefined, gameId: string, limit?: number) => {
+      const http = getCasualHttpClient();
+      if (!http) return [];
+      try {
+        return await http.query(casualPlatformApi.service.season.casualSeasonService.gameSeasonLeaderboard, {
+          seasonId: seasonId?.trim() ? seasonId : undefined,
+          gameId,
+          limit,
+        });
+      } catch (e) {
+        console.error("[CasualPlatform] gameSeasonLeaderboard", e);
+        return [];
+      }
+    },
+    []
+  );
 
   const submitCasualRun = useCallback(async (_input: {
     tournamentId: string;
@@ -976,23 +981,6 @@ export function useCasualPlatform(): CasualPlatformValue {
     [user?.uid]
   );
 
-  const redeemSeasonShelfSku = useCallback(
-    async (skuId: string) => {
-      const http = getCasualHttpClient();
-      if (!http || !user?.uid) return { ok: false, error: "no_auth" };
-      try {
-        return await http.mutation((casualPlatformApi.service.season.casualSeasonShelfService as any).redeemSeasonShelfSku, {
-          uid: user.uid,
-          skuId,
-        });
-      } catch (e) {
-        console.error("[CasualPlatform] redeemSeasonShelfSku", e);
-        return { ok: false, error: "redeem_failed" };
-      }
-    },
-    [user?.uid]
-  );
-
   const openFixedChest = useCallback(
     async (chestId: string) => {
       const http = getCasualHttpClient();
@@ -1051,13 +1039,13 @@ export function useCasualPlatform(): CasualPlatformValue {
       claimCasualInstanceRewards,
       fetchMainSeasonLeaderboard,
       fetchCArenaLeaderboard,
+      fetchGameSeasonLeaderboard,
       submitCasualRun,
       claimSeasonMission,
       touchDailyLoginMission,
       claimPassLevel,
       purchaseShopSku,
       fulfillIapShopPurchase,
-      redeemSeasonShelfSku,
       openFixedChest,
       devUnlockPassTrack,
     }),
@@ -1080,13 +1068,13 @@ export function useCasualPlatform(): CasualPlatformValue {
       claimCasualInstanceRewards,
       fetchMainSeasonLeaderboard,
       fetchCArenaLeaderboard,
+      fetchGameSeasonLeaderboard,
       submitCasualRun,
       claimSeasonMission,
       touchDailyLoginMission,
       claimPassLevel,
       purchaseShopSku,
       fulfillIapShopPurchase,
-      redeemSeasonShelfSku,
       openFixedChest,
       devUnlockPassTrack,
     ]

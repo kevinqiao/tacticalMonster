@@ -9,10 +9,6 @@ const casualActivityTarget = v.union(
     tournamentId: v.optional(v.string()),
   }),
   v.object({
-    type: v.literal("season_shelf_sku"),
-    shelfSkuId: v.optional(v.string()),
-  }),
-  v.object({
     type: v.literal("casual_shop_sku"),
     shopSkuId: v.optional(v.string()),
   })
@@ -88,7 +84,6 @@ export default defineSchema({
       v.object({
         coins: v.optional(v.number()),
         gems: v.optional(v.number()),
-        seasonChallengePoints: v.optional(v.number()),
         seasonVoucher: v.optional(v.number()),
       })
     ),
@@ -131,12 +126,11 @@ export default defineSchema({
     status: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-    /** 结算后待用户在历史页领取的金币/钻/赛季挑战类奖励（异步 run 路径） */
+    /** 结算后待用户在历史页领取的金币/钻/赛季券等奖励（异步 run 路径） */
     pendingRunRewards: v.optional(
       v.object({
         coins: v.optional(v.number()),
         gems: v.optional(v.number()),
-        seasonChallengePoints: v.optional(v.number()),
         seasonVoucher: v.optional(v.number()),
       })
     ),
@@ -213,14 +207,13 @@ export default defineSchema({
     active: v.boolean(),
   }).index("by_seasonId", ["seasonId"]),
 
-  /** 单赛季档案：Pass 进度 + 当季券/挑战点（均按 seasonId 隔离） */
+  /** 单赛季档案：Pass 进度 + 当季券（按 seasonId 隔离） */
   casual_pass_progress: defineTable({
     uid: v.string(),
     seasonId: v.string(),
     level: v.number(),
     xp: v.number(),
     seasonVouchers: v.optional(v.number()),
-    seasonChallengePoints: v.optional(v.number()),
     tracksPurchased: v.optional(
       v.object({
         standard: v.optional(v.boolean()),
@@ -255,6 +248,17 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_uid", ["uid"]),
 
+  /** 运营日计奖场次计数（历史；当场结算路径已停用递减/日顶） */
+  casual_payout_daily_counters: defineTable({
+    uid: v.string(),
+    periodKey: v.string(),
+    bucket: v.string(),
+    settledCount: v.number(),
+    coinsGrantedToday: v.number(),
+    seasonPointsGrantedToday: v.number(),
+    updatedAt: v.number(),
+  }).index("by_uid_period_bucket", ["uid", "periodKey", "bucket"]),
+
   /** 任务生命周期埋点（progress/completed/claimed/claim_failed） */
   casual_task_events: defineTable({
     uid: v.string(),
@@ -272,7 +276,6 @@ export default defineSchema({
     progress: v.optional(v.number()),
     target: v.optional(v.number()),
     matchType: v.optional(v.string()),
-    challengePointsEarned: v.optional(v.number()),
     errorCode: v.optional(v.string()),
     createdAt: v.number(),
   })
@@ -292,13 +295,14 @@ export default defineSchema({
     claimedAt: v.number(),
   }).index("by_uid_season_track_level", ["uid", "seasonId", "track", "level"]),
 
+  /** 每赛季、每游戏（solitaire / block_blast）一条：跨对局累加赛季积分（与 C 场分榜无关） */
   casual_player_season_stats: defineTable({
     uid: v.string(),
     seasonId: v.string(),
-    mainSeasonPoints: v.number(),
-    cArenaPoints: v.number(),
+    gameId: v.string(),
+    seasonPoints: v.number(),
     updatedAt: v.number(),
-  }).index("by_season_uid", ["seasonId", "uid"]),
+  }).index("by_season_game_uid", ["seasonId", "gameId", "uid"]),
 
   casual_shop_skus: defineTable({
     skuId: v.string(),
@@ -320,12 +324,6 @@ export default defineSchema({
     createdAt: v.number(),
     payloadJson: v.string(),
   }).index("by_season_kind", ["seasonId", "kind"]),
-
-  casual_season_shelf_redemptions: defineTable({
-    uid: v.string(),
-    skuId: v.string(),
-    redeemedAt: v.number(),
-  }).index("by_uid_sku", ["uid", "skuId"]),
 
   casual_fixed_chest_opens: defineTable({
     uid: v.string(),

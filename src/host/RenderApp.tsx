@@ -92,7 +92,9 @@ const componentMap: Record<string, () => Promise<any>> = {
   './lobby/casual/view/history/CasualHistoryTab': () => import('component/lobby/casual/view/history/CasualHistoryTab'),
   './lobby/casual/view/play/CasualPlayTab': () => import('component/lobby/casual/view/play/CasualPlayTab'),
   './lobby/casual/view/rewards/CasualRewardsTab': () => import('component/lobby/casual/view/rewards/CasualRewardsTab'),
-  './lobby/casual/view/leaderboards/CasualLeaderboardsTab': () => import('component/lobby/casual/view/leaderboards/CasualLeaderboardsTab'),
+  './lobby/casual/view/leaderboards/CasualLeaderboardsTab': () =>
+    import('component/lobby/casual/view/leaderboards/CasualLeaderboardsTab'),
+  './lobby/casual/view/battlePass/CasualBattlePassTab': () => import('component/lobby/casual/view/battlePass/CasualBattlePassTab'),
 };
 
 // 获取缓存的组件

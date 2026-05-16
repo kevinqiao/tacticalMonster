@@ -10,6 +10,9 @@ import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
 
 import {
+    CasualPostSettleSummaryOverlay,
+} from '../../shared/CasualPostSettleSummaryOverlay';
+import {
     MANUAL_SETTLE_DEFAULT_MESSAGE_SOLITAIRE,
     ManualSettleConfirmOverlay,
 } from '../../shared/ManualSettleConfirmOverlay';
@@ -51,7 +54,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     /** 动画中禁用「结束」，终局仍允许点击以便结算失败时重试 */
     const endGameDisabled = interactionPhase !== GameInteractionPhase.idle;
 
-    const { recycle, runAutoCompleteToFoundation, settleManuallyAndExit, settleConfirmOpen, cancelSettleConfirm, confirmSettleAndExit, finishManualSettleSuccess } = useActHandler();
+    const { recycle, runAutoCompleteToFoundation, settleManuallyAndExit, settleConfirmOpen, cancelSettleConfirm, confirmSettleAndExit, finishManualSettleSuccess, postCasualSummaryOpen, postCasualTableSummary, postCasualWaitingForPeers, dismissPostCasualSummary } = useActHandler();
     const { actionData } = useSoloDnDManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -391,6 +394,12 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 onCancel={cancelSettleConfirm}
                 onConfirm={confirmSettleAndExit}
                 onSuccessClose={finishManualSettleSuccess}
+            />
+            <CasualPostSettleSummaryOverlay
+                open={postCasualSummaryOpen}
+                summary={postCasualTableSummary}
+                waitingForPeers={postCasualWaitingForPeers}
+                onDismiss={dismissPostCasualSummary}
             />
         </div>
     );

@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useCasualPlatform } from "../../service/useCasualPlatformManager";
 import CasualPageShell from "../shell/CasualPageShell";
 
-type Tab = "tournaments" | "mainLb" | "cLb" | "shop" | "seasonChallenge";
+type Tab = "tournaments" | "mainLb" | "shop" | "seasonChallenge";
 
 /** PVE 异步锦标赛、榜单、商店、专场（通用骨架） */
 const Child3: React.FC<PageProp> = ({ visible }) => {
@@ -19,13 +19,12 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
     Array<{ rank: number; uid: string; score: number; submittedAt?: number }>
   >([]);
   const [mainLb, setMainLb] = useState<Array<{ rank: number; uid: string; points: number }>>([]);
-  const [cLb, setCLb] = useState<Array<{ rank: number; uid: string; points: number }>>([]);
   const [note, setNote] = useState<string | null>(null);
 
   const demoId = DEFAULT_CASUAL_TOURNAMENT_ID;
   const activeSeason = casual.seasons.find((s) => s.active) ?? casual.seasons[0];
   const seasonId =
-    casual.passProgress?.seasonId ?? activeSeason?.seasonId ?? "casual_s1";
+    activeSeason?.seasonId ?? casual.passProgress?.seasonId ?? "casual_s1";
 
   const loadBoard = useCallback(async () => {
     const rows = await casual.fetchLeaderboard(demoId, 20);
@@ -33,14 +32,9 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
   }, [casual, demoId]);
 
   const loadMainLb = useCallback(async () => {
-    const rows = await casual.fetchMainSeasonLeaderboard(seasonId, 30);
+    const rows = await casual.fetchGameSeasonLeaderboard(undefined, "solitaire", 30);
     setMainLb(rows);
-  }, [casual, seasonId]);
-
-  const loadCLb = useCallback(async () => {
-    const rows = await casual.fetchCArenaLeaderboard(seasonId, 30);
-    setCLb(rows);
-  }, [casual, seasonId]);
+  }, [casual]);
 
   useEffect(() => {
     void loadBoard();
@@ -48,8 +42,7 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
 
   useEffect(() => {
     if (tab === "mainLb") void loadMainLb();
-    if (tab === "cLb") void loadCLb();
-  }, [tab, loadMainLb, loadCLb, casual.seasons]);
+  }, [tab, loadMainLb, casual.seasons]);
 
   const tabBtn = (id: Tab, label: string) => (
     <button
@@ -79,8 +72,7 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
         <>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
             {tabBtn("tournaments", "Tournaments")}
-            {tabBtn("mainLb", "Main season")}
-            {tabBtn("cLb", "C arena")}
+            {tabBtn("mainLb", "Season (Solitaire)")}
             {tabBtn("shop", "Shop")}
             {tabBtn("seasonChallenge", "Season challenge")}
           </div>
@@ -143,7 +135,7 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
 
           {tab === "mainLb" && (
             <>
-              <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>Main season points ({seasonId})</h3>
+              <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>Season points · solitaire · {seasonId}</h3>
               <button
                 type="button"
                 onClick={() => void loadMainLb()}
@@ -156,30 +148,6 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
                   <li style={{ opacity: 0.7 }}>No entries yet</li>
                 ) : (
                   mainLb.map((r) => (
-                    <li key={`${r.rank}-${r.uid}`}>
-                      #{r.rank} {r.uid.slice(0, 8)}… — {r.points} pts
-                    </li>
-                  ))
-                )}
-              </ol>
-            </>
-          )}
-
-          {tab === "cLb" && (
-            <>
-              <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>C arena only ({seasonId})</h3>
-              <button
-                type="button"
-                onClick={() => void loadCLb()}
-                style={{ marginBottom: 8, padding: "4px 10px", borderRadius: 6, border: "1px solid #ccc" }}
-              >
-                Refresh
-              </button>
-              <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14 }}>
-                {cLb.length === 0 ? (
-                  <li style={{ opacity: 0.7 }}>No C runs yet</li>
-                ) : (
-                  cLb.map((r) => (
                     <li key={`${r.rank}-${r.uid}`}>
                       #{r.rank} {r.uid.slice(0, 8)}… — {r.points} pts
                     </li>
@@ -209,7 +177,7 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
           {tab === "seasonChallenge" && (
             <div style={{ fontSize: 14 }}>
               <p style={{ margin: "0 0 8px", opacity: 0.85 }}>
-                赛季挑战专场：`joinTournament`（`season_challenge`）+ `submitCasualRun`，与挑战点档位同源结算。
+                赛季专场：`joinTournament` 入队异步匹配 + `submitCasualRun`；赛季分按本局名次，不再发放挑战点/代金券档位。
               </p>
               <button
                 type="button"
@@ -225,17 +193,6 @@ const Child3: React.FC<PageProp> = ({ visible }) => {
                 }}
               >
                 Join season challenge (2 vouchers)
-              </button>
-              <button
-                type="button"
-                style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ccc" }}
-                onClick={async () => {
-                  const r = await casual.redeemSeasonShelfSku("season_challenge_memorial_chest_s1");
-                  setNote(r.ok ? "Redeemed memorial shelf" : `Shelf: ${r.error ?? "fail"}`);
-                  await casual.refreshCasualPlayer();
-                }}
-              >
-                Redeem memorial shelf (5 vouchers)
               </button>
             </div>
           )}

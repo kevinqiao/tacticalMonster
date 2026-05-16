@@ -93,11 +93,11 @@ export const MISSION_TITLE_ZH: Record<string, string> = {
   daily_runs_3: "当日累计完成 3 局有效结算",
   weekly_async_8: "本周完成异步锦标结算 8 次",
   weekly_spotlight_3: "本周完成赛季专场结算 3 次",
-  weekly_challenge_points_20: "本周通过专场累计获得 20 赛季点",
+  weekly_spotlight_season_pts_20: "本周专场对局累计获得 20 赛季分（仅正分计入）",
   weekly_runs_15: "本周累计有效结算 15 局",
   season_join_tournament_1: "本赛季首次加入任意锦标赛",
   season_spotlight_10: "本赛季累计完成赛季专场结算 10 次",
-  season_challenge_points_80: "本赛季通过专场累计获得 80 赛季点",
+  season_spotlight_season_pts_80: "本赛季专场对局累计获得 80 赛季分（仅正分计入）",
   season_runs_60: "本赛季累计有效结算 60 局",
   mock_preview_mission_claimed: "赛季：累计邀请 3 位好友（示例）",
 };

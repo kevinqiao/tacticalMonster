@@ -80,7 +80,7 @@ const CasualPageShell: React.FC<CasualPageShellProps> = ({
 
         {!authed ? (
           <div className="casual-page-shell__auth">
-            <p>登录后可同步赛季进度、任务与排行榜。</p>
+            <p>登录后可同步赛季进度、任务与通行证。</p>
             <button type="button" onClick={() => askAuth({})}>
               登录同步
             </button>

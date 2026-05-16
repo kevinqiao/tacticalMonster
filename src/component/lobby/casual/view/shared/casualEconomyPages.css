@@ -538,6 +538,17 @@
   color: var(--econ-muted);
 }
 
+/* Pass 通行证：服务端自动发奖档位，用只读块状标签替代按钮 */
+.casual-rewards__passPillStatic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: default;
+  pointer-events: none;
+}
+
 .casual-rewards__chestCard--spaced {
   margin-top: 20px;
 }
@@ -1538,6 +1549,35 @@
 }
 
 .casual-lb__tab--active {
+  border-color: rgba(45, 108, 223, 0.45);
+  background: rgba(45, 108, 223, 0.1);
+  color: #143a7a;
+}
+
+.casual-lb__seasonGamePick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.casual-lb__chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--econ-card-border);
+  background: var(--econ-card-bg);
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+}
+
+.casual-lb__chip:hover {
+  border-color: rgba(45, 108, 223, 0.35);
+  color: var(--econ-primary);
+}
+
+.casual-lb__chip--active {
   border-color: rgba(45, 108, 223, 0.45);
   background: rgba(45, 108, 223, 0.1);
   color: #143a7a;

@@ -11,7 +11,7 @@ export type { CasualActivityPublicRow, CasualActivityTarget };
 /** 与后端 `targetMatches` 一致（前端预览用） */
 export function targetMatchesActivity(
   target: CasualActivityTarget,
-  ctx: { tournamentId?: string; matchId?: string; skuId?: string; shopSkuId?: string }
+  ctx: { tournamentId?: string; matchId?: string; shopSkuId?: string }
 ): boolean {
   if (target.type === "global") return true;
   if (target.type === "tournament_match") {
@@ -20,25 +20,12 @@ export function targetMatchesActivity(
     const bound = target.tournamentId;
     return !bound || bound === tid;
   }
-  if (target.type === "season_shelf_sku") {
-    if (!ctx.skuId) return false;
-    const bound = target.shelfSkuId;
-    return !bound || bound === ctx.skuId;
-  }
   if (target.type === "casual_shop_sku") {
     if (!ctx.shopSkuId) return false;
     const bound = target.shopSkuId;
     return !bound || bound === ctx.shopSkuId;
   }
   return false;
-}
-
-/** 与货架券兑换 `resolveSeasonActivityModifiers({ skuId })` 命中集合一致（仅 target 匹配） */
-export function listActivitiesMatchingShelfRedeem(
-  activities: CasualActivityPublicRow[],
-  skuId: string
-): CasualActivityPublicRow[] {
-  return activities.filter((a) => targetMatchesActivity(a.target, { skuId }));
 }
 
 /** `purchaseSku` 上下文：`resolveSeasonActivityModifiers({ shopSkuId })` */
@@ -51,7 +38,7 @@ export function listActivitiesMatchingShopPurchase(
 
 export function foldVoucherModifiers(
   activities: CasualActivityPublicRow[],
-  ctx: { tournamentId?: string; skuId?: string }
+  ctx: { tournamentId?: string }
 ): { multiplier: number; delta: number } {
   let multiplier = 1;
   let delta = 0;
@@ -66,7 +53,7 @@ export function foldVoucherModifiers(
 
 export function foldCoinsModifiers(
   activities: CasualActivityPublicRow[],
-  ctx: { tournamentId?: string; skuId?: string; shopSkuId?: string }
+  ctx: { tournamentId?: string; shopSkuId?: string }
 ): { multiplier: number; delta: number } {
   let multiplier = 1;
   let delta = 0;
@@ -81,7 +68,7 @@ export function foldCoinsModifiers(
 
 export function foldGemsModifiers(
   activities: CasualActivityPublicRow[],
-  ctx: { tournamentId?: string; skuId?: string; shopSkuId?: string }
+  ctx: { tournamentId?: string; shopSkuId?: string }
 ): { multiplier: number; delta: number } {
   let multiplier = 1;
   let delta = 0;
@@ -127,7 +114,7 @@ export function foldPassXpModifiers(
 
 export function previewVoucherCost(
   activities: CasualActivityPublicRow[],
-  ctx: { tournamentId?: string; skuId?: string },
+  ctx: { tournamentId?: string },
   base: number
 ): { effective: number; changed: boolean } {
   const { multiplier, delta } = foldVoucherModifiers(activities, ctx);
@@ -137,7 +124,7 @@ export function previewVoucherCost(
 
 export function previewCoinsCost(
   activities: CasualActivityPublicRow[],
-  ctx: { tournamentId?: string; skuId?: string; shopSkuId?: string },
+  ctx: { tournamentId?: string; shopSkuId?: string },
   base: number
 ): { effective: number; changed: boolean } {
   const { multiplier, delta } = foldCoinsModifiers(activities, ctx);
@@ -147,7 +134,7 @@ export function previewCoinsCost(
 
 export function previewGemsCost(
   activities: CasualActivityPublicRow[],
-  ctx: { tournamentId?: string; skuId?: string; shopSkuId?: string },
+  ctx: { tournamentId?: string; shopSkuId?: string },
   base: number
 ): { effective: number; changed: boolean } {
   const { multiplier, delta } = foldGemsModifiers(activities, ctx);
@@ -217,7 +204,6 @@ export function formatTargetScopeShort(row: CasualActivityPublicRow): string {
   const t = row.target;
   if (t.type === "global") return "全局";
   if (t.type === "tournament_match") return t.tournamentId ? `锦标 · ${t.tournamentId}` : "全部锦标";
-  if (t.type === "season_shelf_sku") return t.shelfSkuId ? `货架 · ${t.shelfSkuId}` : "全部券兑 SKU";
   return t.shopSkuId ? `商店 · ${t.shopSkuId}` : "全部商店 SKU";
 }
 

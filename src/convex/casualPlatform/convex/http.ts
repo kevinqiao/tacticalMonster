@@ -69,7 +69,21 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify({ ok: true }), {
+    const okBody: Record<string, unknown> = { ok: true };
+    const r = result as Record<string, unknown>;
+    if (r.tableSummary != null) {
+      okBody.tableSummary = r.tableSummary;
+    }
+    if (r.pendingOthers === true) {
+      okBody.pendingOthers = true;
+    }
+    if (r.deduped === true) {
+      okBody.deduped = true;
+    }
+    if (r.periodSettled === true) {
+      okBody.periodSettled = true;
+    }
+    return new Response(JSON.stringify(okBody), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

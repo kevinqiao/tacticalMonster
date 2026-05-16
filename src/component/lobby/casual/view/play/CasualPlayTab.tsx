@@ -6,11 +6,8 @@ import {
   effectiveEntryBilling,
   getTournamentDefinition,
 } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
-import { CASUAL_FOOTER_NAV_URI } from "component/lobby/casual/control/FooterNavCasual";
-import { setCasualLeaderboardsNavIntent } from "component/lobby/casual/view/leaderboards/casualLeaderboardNavIntent";
 import { PageProp } from "host/RenderApp";
 import { useModalManager } from "host/service/ModalManager";
-import { usePageManager } from "host/service/PageManager";
 import React, { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -107,7 +104,7 @@ function buildDailySoloDetailSections(tournamentId: string): SoloDetailSection[]
     );
   }
   rewards.push(
-    `结算可获得赛季 Pass XP（配置 seasonXpOnSettle=${def.seasonXpOnSettle}，挑战点系数 seasonPointsMultiplier=${def.seasonPointsMultiplier}，以服端为准）。`
+    `结算可获得赛季 Pass XP（配置 seasonXpOnSettle=${def.seasonXpOnSettle}，赛季积分榜系数 seasonPointsMultiplier=${def.seasonPointsMultiplier}，以服端为准）。`
   );
 
   const rr = def.rewards.rankRewards;
@@ -148,7 +145,6 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const casual = useCasualPlatform();
   const { openModal } = useModalManager();
-  const { openPage } = usePageManager();
   const latestOpenAssignment = useSyncedLatestOpenCasualAssignment({
     enabled: visible !== 0 && Boolean(casual.convexUrl),
     fetchAssignments: casual.fetchOpenCasualRunAssignments,
@@ -179,9 +175,11 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     });
   };
 
-  const openSeasonLeaderboards = () => {
-    setCasualLeaderboardsNavIntent("mainSeason");
-    openPage({ uri: CASUAL_FOOTER_NAV_URI[4] });
+  const openSeasonLeaderboard = (gameId: "solitaire" | "block_blast") => {
+    openModal({
+      name: "casual_season_leaderboard",
+      data: { gameId },
+    });
   };
 
   const runJoinSoloAfterPreview = useCallback(
@@ -491,7 +489,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
-                    onClick={openSeasonLeaderboards}
+                    onClick={() => openSeasonLeaderboard("solitaire")}
                   >
                     赛季排行榜
                   </button>
@@ -513,7 +511,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
-                    onClick={openSeasonLeaderboards}
+                    onClick={() => openSeasonLeaderboard("block_blast")}
                   >
                     赛季排行榜
                   </button>

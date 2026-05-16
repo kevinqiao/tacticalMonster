@@ -47,7 +47,7 @@ export async function tryCasualMatchmakingForTemplateCore(
   templateId: string
 ): Promise<void> {
   const def = getTournamentDefinition(templateId);
-  if (!def || def.matchType === "season_challenge") return;
+  if (!def) return;
 
   const minH = Math.max(1, def.matchmakingMinHumans);
   const maxP = Math.max(1, def.maxPlayers);

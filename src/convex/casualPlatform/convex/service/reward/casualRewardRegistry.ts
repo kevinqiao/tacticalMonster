@@ -4,7 +4,7 @@ import { internalMutation } from "../../_generated/server";
 
 /**
  * 休闲奖励分发：`coins`/`gems` 写入 `casual_players`；
- * `seasonXp`/赛季券/挑战点写入当前激活赛季的 `casual_pass_progress`。
+ * `seasonXp`/赛季券写入当前激活赛季的 `casual_pass_progress`。
  */
 type GrantCasualRewardResult =
   | { ok: true }
@@ -12,7 +12,7 @@ type GrantCasualRewardResult =
 
 type SeasonWalletDeltaMutationResult =
   | { ok: true }
-  | { ok: false; error: "no_season" | "insufficient_vouchers" | "insufficient_challenge_points" };
+  | { ok: false; error: "no_season" | "insufficient_vouchers" };
 
 export const grantCasualReward = internalMutation({
   args: {
@@ -21,8 +21,7 @@ export const grantCasualReward = internalMutation({
       v.literal("coins"),
       v.literal("gems"),
       v.literal("seasonXp"),
-      v.literal("seasonVoucher"),
-      v.literal("seasonChallengePoints")
+      v.literal("seasonVoucher")
     ),
     amount: v.number(),
   },
@@ -43,18 +42,6 @@ export const grantCasualReward = internalMutation({
       const r = (await ctx.runMutation(
         internal.service.season.casualSeasonService.applySeasonWalletBalanceDelta,
         { uid, deltaVouchers: delta }
-      )) as SeasonWalletDeltaMutationResult;
-      return r.ok
-        ? { ok: true as const }
-        : {
-            ok: false as const,
-            error: r.error === "no_season" ? ("no_active_season" as const) : ("claim_failed" as const),
-          };
-    }
-    if (kind === "seasonChallengePoints") {
-      const r = (await ctx.runMutation(
-        internal.service.season.casualSeasonService.applySeasonWalletBalanceDelta,
-        { uid, deltaChallengePoints: delta }
       )) as SeasonWalletDeltaMutationResult;
       return r.ok
         ? { ok: true as const }
