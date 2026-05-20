@@ -2,6 +2,11 @@
  * 单人纸牌游戏样式
  * 基于 solitaire 的多人版本，简化为单人玩法
  */
+@import "../../shared/visualTheme/gameVisualPalettes.css";
+
+.solo-player-container {
+  background: var(--card-table-bg, transparent);
+}
 
 .game-over {
     position: absolute;

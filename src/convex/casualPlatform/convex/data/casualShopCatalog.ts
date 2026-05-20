@@ -6,12 +6,15 @@
 export interface CasualShopSkuSeed {
   skuId: string;
   title: string;
-  skuKind?: "virtual" | "iap";
+  skuKind?: "virtual" | "iap" | "skin";
   iapPriceLabel?: string;
   priceCoins?: number;
   priceGems?: number;
   grantCoins?: number;
   grantGems?: number;
+  grantSkinId?: string;
+  /** 发放再战令数量 */
+  grantReplayTokenCount?: number;
 }
 
 /** 三档钻→币 + 三档法币→钻（展示）；运营改价改量只改此表后重新 deploy + 必要时迁移 DB */
@@ -58,6 +61,20 @@ export const CASUAL_SHOP_SKU_CATALOG: CasualShopSkuSeed[] = [
     iapPriceLabel: "¥98",
     grantGems: 1200,
   },
+  {
+    skuId: "shop_skin_steam_punk",
+    title: "Steam Punk Card Skin",
+    skuKind: "skin",
+    priceGems: 280,
+    grantSkinId: "shop_steam_punk",
+  },
+  {
+    skuId: "shop_replay_pass_3pack",
+    title: "Replay Pass × 3",
+    skuKind: "virtual",
+    priceGems: 15,
+    grantReplayTokenCount: 3,
+  },
 ];
 
 export function mapCasualShopSkuRow(r: CasualShopSkuSeed) {
@@ -70,5 +87,7 @@ export function mapCasualShopSkuRow(r: CasualShopSkuSeed) {
     priceGems: r.priceGems,
     grantCoins: r.grantCoins,
     grantGems: r.grantGems,
+    grantSkinId: r.grantSkinId,
+    grantReplayTokenCount: r.grantReplayTokenCount,
   };
 }

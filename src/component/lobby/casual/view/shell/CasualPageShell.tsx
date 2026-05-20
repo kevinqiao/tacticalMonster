@@ -4,6 +4,7 @@ import { useUserManager } from "host/service/UserManager";
 import React, { useLayoutEffect, useMemo, useRef } from "react";
 
 import { useCasualPlatform } from "../../service/useCasualPlatformManager";
+import { useCasualUiTheme } from "../../theme/useCasualUiTheme";
 import { useCasualLobbySlideChildSwipe } from "../shared/useCasualLobbySlideChildSwipe";
 import "./casualPageShell.css";
 
@@ -44,6 +45,7 @@ const CasualPageShell: React.FC<CasualPageShellProps> = ({
   children,
 }) => {
   const casual = useCasualPlatform();
+  useCasualUiTheme();
   const { user, askAuth } = useUserManager();
   const footerDim = useSharedValue("casualLobby.footer.dimension");
   const localRef = useRef<HTMLDivElement>(null);

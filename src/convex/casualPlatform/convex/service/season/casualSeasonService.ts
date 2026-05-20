@@ -13,24 +13,12 @@ import {
   PASS_MAX_LEVEL,
   passRewardForLevel,
 } from "../../data/casualPassRewards.js";
-
-async function gameSeasonStatsLeaderboard(
-  ctx: QueryCtx,
-  seasonId: string,
-  gameId: string,
-  limit: number
-) {
-  const rows = await ctx.db
-    .query("casual_player_season_stats")
-    .withIndex("by_season_game_uid", (q) => q.eq("seasonId", seasonId).eq("gameId", gameId))
-    .collect();
-  const sorted = [...rows].sort((a, b) => b.seasonPoints - a.seasonPoints);
-  return sorted.slice(0, limit).map((r, i) => ({
-    rank: i + 1,
-    uid: r.uid,
-    points: r.seasonPoints,
-  }));
-}
+import {
+  buildSeasonLadderSnapshot,
+  seasonLadderLeaderboardRows,
+} from "./casualSeasonLadder.js";
+import { CASUAL_LADDER_TIER_THRESHOLDS } from "../../data/casualSeasonLadderConfig.js";
+import { deluxeInstantSkinIds } from "../../data/casualSkinCatalog.js";
 
 /** 当前激活赛季（无则退回首条），用于 Pass 子表读写的单一入口 */
 async function resolveActiveSeason(ctx: QueryCtx) {
@@ -168,6 +156,14 @@ export const getPassProgress = query({
   },
 });
 
+export const activeSeasonIdForAuth = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const season = await resolveActiveSeason(ctx);
+    return season ? { seasonId: season.seasonId } : null;
+  },
+});
+
 /** `casual_pass_progress` 当季快照：authenticate 一次读出 */
 export const seasonEconomySnapshotForAuth = internalQuery({
   args: { uid: v.string() },
@@ -232,15 +228,13 @@ export const applySeasonWalletBalanceDelta = internalMutation({
   },
 });
 
-/** 指定游戏在本赛季的累计积分榜（与 `casual_player_season_stats` 写入一致） */
-export const gameSeasonLeaderboard = query({
+/** 平台赛季竞技积分榜（`(seasonId, uid)` 一条；`gameId` 保留兼容，不参与过滤） */
+export const seasonLadderLeaderboard = query({
   args: {
-    /** 省略或空字符串时使用当前激活赛季（与结算 `activeSeasonId` 语义一致） */
     seasonId: v.optional(v.string()),
-    gameId: v.string(),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { seasonId, gameId, limit }) => {
+  handler: async (ctx, { seasonId, limit }) => {
     const n = Math.min(Math.max(limit ?? 50, 1), 200);
     const trimmed = seasonId?.trim();
     const resolved =
@@ -250,8 +244,53 @@ export const gameSeasonLeaderboard = query({
     if (!resolved) {
       return [];
     }
-    return await gameSeasonStatsLeaderboard(ctx, resolved, gameId, n);
+    return await seasonLadderLeaderboardRows(ctx, resolved, n);
   },
+});
+
+/** @deprecated 请用 `seasonLadderLeaderboard`；`gameId` 已忽略 */
+export const gameSeasonLeaderboard = query({
+  args: {
+    seasonId: v.optional(v.string()),
+    gameId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { seasonId, limit }) => {
+    const n = Math.min(Math.max(limit ?? 50, 1), 200);
+    const trimmed = seasonId?.trim();
+    const resolved =
+      trimmed && trimmed.length > 0
+        ? trimmed
+        : ((await resolveActiveSeason(ctx))?.seasonId ?? null);
+    if (!resolved) {
+      return [];
+    }
+    const rows = await seasonLadderLeaderboardRows(ctx, resolved, n);
+    return rows.map(({ rank, uid, points }) => ({ rank, uid, points }));
+  },
+});
+
+/** 当前玩家赛季竞技快照：积分 · 段位 · 段位内名次（同源读模型） */
+export const getSeasonLadderSnapshot = query({
+  args: {
+    uid: v.optional(v.string()),
+    seasonId: v.optional(v.string()),
+  },
+  handler: async (ctx, { uid, seasonId }) => {
+    if (!uid) return null;
+    const trimmed = seasonId?.trim();
+    const resolved =
+      trimmed && trimmed.length > 0
+        ? trimmed
+        : ((await resolveActiveSeason(ctx))?.seasonId ?? null);
+    if (!resolved) return null;
+    return await buildSeasonLadderSnapshot(ctx, resolved, uid);
+  },
+});
+
+export const listLadderTierThresholds = query({
+  args: {},
+  handler: async () => CASUAL_LADDER_TIER_THRESHOLDS,
 });
 
 async function autoClaimPassLevelsUpTo(
@@ -388,6 +427,10 @@ export const claimPassLevel = mutation({
         uid,
         kind: g.kind,
         amount: g.amount,
+        skinId: g.skinId,
+        skinToken: g.skinToken,
+        seasonId,
+        source: g.kind === "skin" ? ("pass" as const) : undefined,
       });
       if (!gr.ok) {
         return {
@@ -442,6 +485,16 @@ export const devUnlockPassTrack = mutation({
       });
     }
     await autoClaimPassLevelsUpTo(ctx, uid, seasonId, passLevelAfter);
+    if (track === "deluxe") {
+      for (const skinId of deluxeInstantSkinIds(seasonId)) {
+        await ctx.runMutation(internal.service.skin.casualSkinService.grantSkin, {
+          uid,
+          skinId,
+          source: "pass",
+          seasonId,
+        });
+      }
+    }
     return { ok: true as const };
   },
 });

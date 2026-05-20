@@ -1,23 +1,19 @@
 /* Play Hub：任务条 + 单人挑战 / 多人竞技（各含 Solitaire、Block Blast） */
 
 .casual-play-hub {
-  --hub-green-deep: #064e3b;
-  --hub-green-mid: #0f766e;
-  --hub-gold: #fbbf24;
-  --hub-gold-deep: #d97706;
-  --hub-cta: #22c55e;
-  --hub-cta-press: #16a34a;
-  --hub-card: #ffffff;
-  --hub-ink: #0f172a;
-  --hub-muted: rgba(255, 255, 255, 0.82);
   box-sizing: border-box;
   width: 100%;
   min-height: min(72vh, 620px);
   margin: -16px -16px 0;
   padding: 0 0 28px;
   background:
-    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(20, 184, 166, 0.35), transparent 55%),
-    linear-gradient(165deg, var(--hub-green-deep) 0%, #022c22 48%, #064e3b 100%);
+    radial-gradient(ellipse 120% 80% at 50% -20%, var(--hub-glow-a), transparent 55%),
+    linear-gradient(
+      165deg,
+      var(--hub-green-deep) 0%,
+      var(--hub-gradient-mid) 48%,
+      var(--hub-gradient-end) 100%
+    );
   color: var(--hub-muted);
   border-radius: 0 0 18px 18px;
   overflow: hidden;
@@ -37,6 +33,52 @@
   justify-content: center;
   gap: 8px;
   padding: 14px 14px 4px;
+}
+
+.casual-play-hub__ladder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 14px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--hub-ladder-bg);
+  border: 1px solid var(--hub-ladder-border);
+}
+
+.casual-play-hub__ladderStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  min-width: 0;
+}
+
+.casual-play-hub__ladderStat {
+  font-size: 12px;
+  color: var(--hub-muted);
+}
+
+.casual-play-hub__ladderStat b {
+  color: var(--hub-stat-strong);
+  font-weight: 800;
+}
+
+.casual-play-hub__ladderStatMuted {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.casual-play-hub__ladderRankBtn {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .casual-play-hub__ongoingRow {
@@ -61,20 +103,140 @@
   line-height: 1.35;
 }
 
-.casual-play-hub__ongoingEnter {
+.casual-play-hub__ongoingRow--queue {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(96, 165, 250, 0.38);
+}
+
+.casual-play-hub__ongoingRow--queue .casual-play-hub__ongoingRowText {
+  color: #dbeafe;
+}
+
+.casual-play-hub__ongoingEnter,
+.casual-play-hub__ongoingLeave {
   flex-shrink: 0;
   min-height: 36px;
   padding: 0 16px;
   border: none;
   border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.casual-play-hub__ongoingEnter {
   background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 45%, #d97706 100%);
   color: #fff;
-  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
 }
 
 .casual-play-hub__ongoingEnter:active {
+  filter: brightness(0.95);
+}
+
+.casual-play-hub__ongoingLeave {
+  background: rgba(15, 23, 42, 0.55);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+}
+
+.casual-play-hub__ongoingLeave:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.casual-play-hub__ongoingLeave:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.casual-play-hub__taskStrip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Play 匹配 / 开桌全屏遮罩（CasualPlayMatchOverlay → createPortal document.body） */
+.casual-play-match-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5350;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+
+.casual-play-match-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.casual-play-match-overlay__panel {
+  position: relative;
+  width: min(100%, 340px);
+  padding: 28px 22px 24px;
+  border-radius: 16px;
+  background: linear-gradient(165deg, #1e3a8a 0%, #0f172a 55%, #020617 100%);
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  color: #e2e8f0;
+}
+
+.casual-play-match-overlay__spinner {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  border: 3px solid rgba(148, 163, 184, 0.35);
+  border-top-color: #60a5fa;
+  animation: casual-play-match-spin 0.85s linear infinite;
+}
+
+@keyframes casual-play-match-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.casual-play-match-overlay__title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #f8fafc;
+  line-height: 1.3;
+}
+
+.casual-play-match-overlay__sub {
+  margin: 0 0 22px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.casual-play-match-overlay__leave {
+  min-height: 42px;
+  min-width: 140px;
+  padding: 0 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(15, 23, 42, 0.65);
+  color: #f1f5f9;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.casual-play-match-overlay__leave:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.casual-play-match-overlay__leave:active:not(:disabled) {
   filter: brightness(0.95);
 }
 

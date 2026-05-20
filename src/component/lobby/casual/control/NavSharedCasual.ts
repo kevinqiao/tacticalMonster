@@ -10,5 +10,5 @@ export const CASUAL_NAV_MENU_ITEMS: {
   { label: "历史", type: "page", uri: "/casual/lobby/c2" },
   { label: "Play", type: "page", uri: "/casual/lobby/c3" },
   { label: "奖励", type: "page", uri: "/casual/lobby/c4" },
-  { label: "通行证", type: "page", uri: "/casual/lobby/c5" },
+  { label: "My Town", type: "page", uri: "/casual/lobby/c5" },
 ];

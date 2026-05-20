@@ -14,6 +14,11 @@ export type CasualPostSettleSummaryOverlayProps = {
   waitingForPeers?: boolean;
   onDismiss: () => void;
   dismissLabel?: string;
+  /** 近失且持有再战令时展示 */
+  replayAvailable?: boolean;
+  replayLabel?: string;
+  onReplay?: () => void;
+  replayBusy?: boolean;
 };
 
 /**
@@ -27,6 +32,10 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   waitingForPeers = false,
   onDismiss,
   dismissLabel = '继续',
+  replayAvailable = false,
+  replayLabel = '再战',
+  onReplay,
+  replayBusy = false,
 }) => {
   const titleId = useId();
   const showTable = Boolean(summary?.rows?.length);
@@ -71,6 +80,16 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
             </p>
           ) : null}
           <div className="ssc__actions">
+            {replayAvailable && onReplay ? (
+              <button
+                type="button"
+                className="ssc__btn ssc__btn--secondary"
+                disabled={replayBusy}
+                onClick={onReplay}
+              >
+                {replayBusy ? '匹配中…' : replayLabel}
+              </button>
+            ) : null}
             <button type="button" className="ssc__btn ssc__btn--primary" onClick={onDismiss}>
               {dismissLabel}
             </button>

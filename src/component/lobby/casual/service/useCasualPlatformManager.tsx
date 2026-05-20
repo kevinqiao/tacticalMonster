@@ -6,7 +6,8 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 import type { CasualActivityPublicRow } from "./casualActivityTypes";
 import { getMockCasualActivitiesForUiDemo, shouldUseMockCasualActivities } from "./casualActivityMock";
-import { casualInstanceFns, casualTournamentFns } from "./casualConvexFunctionRefs";
+import type { OpenCasualRunAssignment } from "./casualOpenRunAssignment";
+import { casualInstanceFns, casualSkinFns, casualTournamentFns } from "./casualConvexFunctionRefs";
 
 const _casualUrlRaw = import.meta.env.VITE_CONVEX_URL_CASUAL;
 const CASUAL_CONVEX_URL =
@@ -137,6 +138,14 @@ export interface CasualPlatformValue {
     tracksPurchased?: { standard?: boolean; deluxe?: boolean };
     claimed?: Array<{ track: "free" | "standard" | "deluxe"; level: number }>;
   } | null;
+  /** 赛季竞技：积分 · 段位 · 段位内名次（`casual_player_season_ladder`） */
+  seasonLadderSnapshot: {
+    seasonId: string;
+    points: number;
+    tierId: string;
+    rankInTier: number;
+    tierSize: number;
+  } | null;
   shopSkus: Array<{
     skuId: string;
     title: string;
@@ -167,6 +176,14 @@ export interface CasualPlatformValue {
   } | null;
   /** `service.tournament.casualTournamentService.gameHistory`：非周期 run、周期分档预发奖、周期桶关桶待领（同一列表） */
   gameHistory: CasualGameHistoryRow[];
+  /** `listOpenCasualRunAssignments`：Convex live 订阅，匹配开出 `open` 对局时自动更新 */
+  openRunAssignments: OpenCasualRunAssignment[];
+  /** `listCasualMatchQueueForUid`：匹配排队中（`waiting` / `claiming`） */
+  matchQueueEntries: Array<{
+    templateId: string;
+    status: "waiting" | "claiming";
+    createdAt: number;
+  }>;
   refreshCasualPlayer: () => Promise<void>;
   /** HTTP 拉取通行证进度（领取后订阅偶发滞后时用） */
   refreshPassProgress: () => Promise<void>;
@@ -204,17 +221,12 @@ export interface CasualPlatformValue {
     | { ok: false; error: string }
     | null
   >;
-  /** 匹配队列已开出对局时拉取 `gameId`（轮询直至出现 `open` 行） */
-  fetchOpenCasualRunAssignments: () => Promise<
-    Array<{
-      templateId: string;
-      gameId: string;
-      gameType?: string;
-      matchId: string;
-      runTournamentId: string;
-      createdAt: number;
-    }>
-  >;
+  /** 一次性 HTTP 读开放 run（并写入 store）；日常请用 `openRunAssignments` 订阅 */
+  fetchOpenCasualRunAssignments: () => Promise<OpenCasualRunAssignment[]>;
+  /** 退出匹配队列（仅 `waiting`；`claiming` 时返回 `cannot_leave_claiming`） */
+  leaveCasualMatchQueue: (
+    templateId?: string
+  ) => Promise<{ ok: true; removed?: number } | { ok: false; error: string }>;
   fetchLeaderboard: (
     tournamentId: string,
     limit?: number,
@@ -294,6 +306,33 @@ export interface CasualPlatformValue {
     seasonId: string;
     track: "standard" | "deluxe";
   }) => Promise<{ ok: boolean; error?: string }>;
+  skinState: CasualPlayerSkinState | null;
+  equipSkin: (input: { slot: string; skinId: string }) => Promise<{ ok: boolean; error?: string }>;
+  refreshSkinState: () => Promise<void>;
+}
+
+export interface CasualSkinEntitlements {
+  seasonId: string;
+  uiTier: "free" | "standard" | "deluxe";
+  townLayer: "none" | "env" | "accent" | "facade" | "full";
+  townVariant: "standard" | "deluxe";
+  passLevel: number;
+  cssThemeKey: string;
+}
+
+export interface CasualPlayerSkinState {
+  seasonId: string;
+  owned: Array<{ skinId: string; grantedAt: number; source: string; seasonId?: string }>;
+  effectiveOwned: string[];
+  equipped: Record<string, string>;
+  entitlements: CasualSkinEntitlements;
+  catalog: Array<{
+    skinId: string;
+    name: string;
+    type: string;
+    seasonId?: string;
+    appliesToGameIds: string[];
+  }>;
 }
 
 type CasualDataSnapshot = Pick<
@@ -304,10 +343,14 @@ type CasualDataSnapshot = Pick<
   | "tournaments"
   | "seasons"
   | "passProgress"
+  | "seasonLadderSnapshot"
   | "missions"
   | "checkinStreak"
   | "shopSkus"
   | "gameHistory"
+  | "openRunAssignments"
+  | "matchQueueEntries"
+  | "skinState"
 >;
 
 function emptyData(): CasualDataSnapshot {
@@ -318,10 +361,14 @@ function emptyData(): CasualDataSnapshot {
     tournaments: [],
     seasons: [],
     passProgress: null,
+    seasonLadderSnapshot: null,
     missions: [],
     checkinStreak: null,
     shopSkus: [],
     gameHistory: [],
+    openRunAssignments: [],
+    matchQueueEntries: [],
+    skinState: null,
   };
 }
 
@@ -440,6 +487,9 @@ function startLiveSubscriptions(uid: string | undefined) {
       shopSkus: [],
       activities: [],
       gameHistory: [],
+      openRunAssignments: [],
+      matchQueueEntries: [],
+      skinState: null,
     });
     return;
   }
@@ -495,6 +545,15 @@ function startLiveSubscriptions(uid: string | undefined) {
       "getPassProgress"
     );
     sub(
+      casualPlatformApi.service.season.casualSeasonService.getSeasonLadderSnapshot,
+      { uid },
+      (row) =>
+        patchData({
+          seasonLadderSnapshot: (row as CasualPlatformValue["seasonLadderSnapshot"]) ?? null,
+        }),
+      "getSeasonLadderSnapshot"
+    );
+    sub(
       casualPlatformApi.service.task.casualTaskService.listSeasonMissions,
       { uid },
       (rows) => patchData({ missions: (rows as CasualPlatformValue["missions"]) ?? [] }),
@@ -518,12 +577,41 @@ function startLiveSubscriptions(uid: string | undefined) {
         }),
       "gameHistory"
     );
+    sub(
+      casualTournamentFns.listOpenCasualRunAssignments,
+      { uid },
+      (rows) =>
+        patchData({
+          openRunAssignments: Array.isArray(rows) ? (rows as OpenCasualRunAssignment[]) : [],
+        }),
+      "listOpenCasualRunAssignments"
+    );
+    sub(
+      casualTournamentFns.listCasualMatchQueueForUid,
+      { uid },
+      (rows) =>
+        patchData({
+          matchQueueEntries: Array.isArray(rows)
+            ? (rows as CasualPlatformValue["matchQueueEntries"])
+            : [],
+        }),
+      "listCasualMatchQueueForUid"
+    );
+    sub(
+      casualSkinFns.getPlayerSkinState,
+      { uid },
+      (row) => patchData({ skinState: (row as CasualPlayerSkinState) ?? null }),
+      "getPlayerSkinState"
+    );
   } else {
     patchData({
       passProgress: null,
       missions: [],
       checkinStreak: null,
       gameHistory: [],
+      openRunAssignments: [],
+      matchQueueEntries: [],
+      skinState: null,
     });
   }
 }
@@ -733,14 +821,45 @@ export function useCasualPlatform(): CasualPlatformValue {
     const http = getCasualHttpClient();
     if (!http || !user?.uid) return [];
     try {
-      return await http.query(casualTournamentFns.listOpenCasualRunAssignments, {
+      const rows = await http.query(casualTournamentFns.listOpenCasualRunAssignments, {
         uid: user.uid,
       });
+      const list = Array.isArray(rows) ? (rows as OpenCasualRunAssignment[]) : [];
+      patchData({ openRunAssignments: list });
+      return list;
     } catch (e) {
       console.error("[CasualPlatform] listOpenCasualRunAssignments", e);
       return [];
     }
   }, [user?.uid]);
+
+  const leaveCasualMatchQueue = useCallback(
+    async (templateId?: string) => {
+      const http = getCasualHttpClient();
+      if (!http || !user?.uid) return { ok: false as const, error: "no_auth" };
+      try {
+        const res = await http.mutation(casualTournamentFns.leaveCasualMatchQueue, {
+          uid: user.uid,
+          ...(templateId?.trim() ? { templateId: templateId.trim() } : {}),
+        });
+        const r = res as { ok?: boolean; error?: string; removed?: number };
+        if (r?.ok) {
+          const scope = templateId?.trim();
+          patchData({
+            matchQueueEntries: getDataSnapshot().matchQueueEntries.filter(
+              (e) => e.status !== "waiting" || (scope ? e.templateId !== scope : false)
+            ),
+          });
+          return { ok: true as const, removed: r.removed };
+        }
+        return { ok: false as const, error: r?.error ?? "leave_failed" };
+      } catch (e) {
+        console.error("[CasualPlatform] leaveCasualMatchQueue", e);
+        return { ok: false as const, error: "leave_failed" };
+      }
+    },
+    [user?.uid]
+  );
 
   const claimCasualRunRewards = useCallback(
     async (playerTournamentId: string) => {
@@ -838,13 +957,17 @@ export function useCasualPlatform(): CasualPlatformValue {
     const http = getCasualHttpClient();
     if (!http) return [];
     try {
-      return await http.query(casualPlatformApi.service.season.casualSeasonService.gameSeasonLeaderboard, {
-        seasonId,
-        gameId: "block_blast",
-        limit,
-      });
+      const rows = await http.query(
+        casualPlatformApi.service.season.casualSeasonService.seasonLadderLeaderboard,
+        { seasonId, limit }
+      );
+      return (rows as Array<{ rank: number; uid: string; points: number }>).map((r) => ({
+        rank: r.rank,
+        uid: r.uid,
+        points: r.points,
+      }));
     } catch (e) {
-      console.error("[CasualPlatform] gameSeasonLeaderboard (main BB season stats)", e);
+      console.error("[CasualPlatform] seasonLadderLeaderboard", e);
       return [];
     }
   }, []);
@@ -870,17 +993,24 @@ export function useCasualPlatform(): CasualPlatformValue {
   }, []);
 
   const fetchGameSeasonLeaderboard = useCallback(
-    async (seasonId: string | undefined, gameId: string, limit?: number) => {
+    async (seasonId: string | undefined, _gameId: string, limit?: number) => {
       const http = getCasualHttpClient();
       if (!http) return [];
       try {
-        return await http.query(casualPlatformApi.service.season.casualSeasonService.gameSeasonLeaderboard, {
-          seasonId: seasonId?.trim() ? seasonId : undefined,
-          gameId,
-          limit,
-        });
+        const rows = await http.query(
+          casualPlatformApi.service.season.casualSeasonService.seasonLadderLeaderboard,
+          {
+            seasonId: seasonId?.trim() ? seasonId : undefined,
+            limit,
+          }
+        );
+        return (rows as Array<{ rank: number; uid: string; points: number }>).map((r) => ({
+          rank: r.rank,
+          uid: r.uid,
+          points: r.points,
+        }));
       } catch (e) {
-        console.error("[CasualPlatform] gameSeasonLeaderboard", e);
+        console.error("[CasualPlatform] seasonLadderLeaderboard", e);
         return [];
       }
     },
@@ -1015,6 +1145,41 @@ export function useCasualPlatform(): CasualPlatformValue {
     [user?.uid]
   );
 
+  const refreshSkinState = useCallback(async () => {
+    const http = getCasualHttpClient();
+    if (!http || !user?.uid) {
+      patchData({ skinState: null });
+      return;
+    }
+    try {
+      const row = await http.query(casualSkinFns.getPlayerSkinState, { uid: user.uid });
+      patchData({ skinState: (row as CasualPlayerSkinState) ?? null });
+    } catch (e) {
+      console.error("[CasualPlatform] getPlayerSkinState refresh", e);
+    }
+  }, [user?.uid]);
+
+  const equipSkin = useCallback(
+    async (input: { slot: string; skinId: string }) => {
+      const http = getCasualHttpClient();
+      if (!http || !user?.uid) return { ok: false, error: "no_auth" };
+      try {
+        const res = await http.mutation(casualSkinFns.equipSkin, {
+          uid: user.uid,
+          slot: input.slot,
+          skinId: input.skinId,
+        });
+        const r = res as { ok?: boolean; error?: string };
+        if (r?.ok) void refreshSkinState();
+        return r?.ok ? { ok: true } : { ok: false, error: r?.error ?? "equip_failed" };
+      } catch (e) {
+        console.error("[CasualPlatform] equipSkin", e);
+        return { ok: false, error: "equip_failed" };
+      }
+    },
+    [user?.uid, refreshSkinState]
+  );
+
   const activitiesView = shouldUseMockCasualActivities()
     ? getMockCasualActivitiesForUiDemo()
     : snap.activities;
@@ -1033,6 +1198,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       fetchPeriodInstanceSelfStanding,
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
+      leaveCasualMatchQueue,
       claimCasualRunRewards,
       claimCasualScoreTierPendingReward,
       claimCasualScoreTierPendingRewardsBatch,
@@ -1048,6 +1214,8 @@ export function useCasualPlatform(): CasualPlatformValue {
       fulfillIapShopPurchase,
       openFixedChest,
       devUnlockPassTrack,
+      equipSkin,
+      refreshSkinState,
     }),
     [
       snap,
@@ -1062,6 +1230,7 @@ export function useCasualPlatform(): CasualPlatformValue {
       fetchPeriodInstanceSelfStanding,
       fetchGameHistory,
       fetchOpenCasualRunAssignments,
+      leaveCasualMatchQueue,
       claimCasualRunRewards,
       claimCasualScoreTierPendingReward,
       claimCasualScoreTierPendingRewardsBatch,
@@ -1077,6 +1246,8 @@ export function useCasualPlatform(): CasualPlatformValue {
       fulfillIapShopPurchase,
       openFixedChest,
       devUnlockPassTrack,
+      equipSkin,
+      refreshSkinState,
     ]
   );
 }

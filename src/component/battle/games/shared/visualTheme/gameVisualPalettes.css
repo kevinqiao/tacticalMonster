@@ -1,0 +1,56 @@
+/* 玩法外观：由 data-game-visual-key 驱动 CSS 变量 */
+
+[data-game-visual-key="classic"] {
+  --card-back-fill: #1a3c34;
+  --card-back-pattern: #5a8a82;
+  --card-face-red: #c0392b;
+  --card-face-black: #1a1a2e;
+  --card-table-bg: #0d4a3f;
+  --bb-board-bg: #0f1923;
+  --bb-piece-1: #3b82f6;
+  --bb-piece-2: #22c55e;
+  --bb-piece-3: #f59e0b;
+}
+
+[data-game-visual-key="s1_midnight"],
+[data-game-visual-key="s1_midnight_deluxe"] {
+  --card-back-fill: #1a2a3a;
+  --card-back-pattern: #c8d8f0;
+  --card-face-red: #f87171;
+  --card-face-black: #e8f0fc;
+  --card-table-bg: #0d1a2e;
+  --bb-board-bg: #0d1a2e;
+  --bb-piece-1: #7dd3fc;
+  --bb-piece-2: #c8d8f0;
+  --bb-piece-3: #ffd700;
+}
+
+[data-game-visual-key="s1_midnight_deluxe"] {
+  --card-back-fill: #243448;
+  --card-face-red: #fca5a5;
+}
+
+[data-game-visual-key="s2_edo"],
+[data-game-visual-key="s2_edo_deluxe"] {
+  --card-back-fill: #fdf0f4;
+  --card-back-pattern: #a0522d;
+  --card-face-red: #dc2626;
+  --card-face-black: #5c4033;
+  --card-table-bg: #f5e6ea;
+  --bb-board-bg: #fdf0f4;
+  --bb-piece-1: #4a90d9;
+  --bb-piece-2: #7a9e7e;
+  --bb-piece-3: #d97706;
+}
+
+[data-game-visual-key="steam_punk"] {
+  --card-back-fill: #2c1810;
+  --card-back-pattern: #cd853f;
+  --card-face-red: #e67e22;
+  --card-face-black: #888780;
+  --card-table-bg: #2c1810;
+  --bb-board-bg: #2c1810;
+  --bb-piece-1: #cd853f;
+  --bb-piece-2: #888780;
+  --bb-piece-3: #e67e22;
+}

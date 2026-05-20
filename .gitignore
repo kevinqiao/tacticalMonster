@@ -34,9 +34,9 @@ yarn-error.log*
 
 .env.local
 
-# 忽略非 TypeScript/JavaScript 文件
+# 忽略非 TypeScript/JavaScript 文件（仅放行 docs/CLAUDE.md）
 *.md
-!CLAUDE.md
+!docs/CLAUDE.md
 *.txt
 *.pdf
 *.doc
@@ -52,6 +52,8 @@ yarn-error.log*
 *.tmp
 *.temp
 
-# 忽略特定目录
+# 忽略特定目录；docs 下仅放行 CLAUDE.md
 doc/
-docs/
+docs/**
+!docs/
+!docs/CLAUDE.md

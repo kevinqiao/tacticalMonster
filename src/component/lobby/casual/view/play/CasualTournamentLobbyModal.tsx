@@ -6,14 +6,18 @@ import {
   type CasualTournamentDefinition,
 } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
 import { ModalProp, useModalManager } from "host/service/ModalManager";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 
 import {
-  assignmentMatchesGameKind,
   hasAnyOpenCasualRunAssignment,
   inferCasualGameKindFromAssignment,
   type CasualGameKind,
+  type OpenCasualRunAssignment,
 } from "../../service/casualOpenRunAssignment";
+import {
+  type AwaitOpenCasualRunMatchWatch,
+  useAwaitOpenCasualRunAssignment,
+} from "../../service/useAwaitOpenCasualRunAssignment";
 import { useSyncedLatestOpenCasualAssignment } from "../../service/useSyncedLatestOpenCasualAssignment";
 import { useCasualPlatform } from "../../service/useCasualPlatformManager";
 import {
@@ -52,10 +56,11 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [resumeOpening, setResumeOpening] = useState(false);
-  const fetchOpenAssignments = casual.fetchOpenCasualRunAssignments;
+  const [awaitingMatch, setAwaitingMatch] = useState<AwaitOpenCasualRunMatchWatch | null>(null);
+  const [leavingMatch, setLeavingMatch] = useState(false);
   const latestOpenAssignment = useSyncedLatestOpenCasualAssignment({
     enabled: visible && Boolean(casual.convexUrl),
-    fetchAssignments: fetchOpenAssignments,
+    openRunAssignments: casual.openRunAssignments,
   });
   const targetGameKind: CasualGameKind = data?.gameId === "solitaire" ? "solitaire" : "block_blast";
   const gameTitle =
@@ -137,57 +142,110 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     });
   };
 
+  const openMatchedAssignment = useCallback(
+    (hit: OpenCasualRunAssignment, templateId: string) => {
+      const kind = inferCasualGameKindFromAssignment(hit);
+      setNote("已入场，正在进入对局...");
+      openAfterClose(kind === "solitaire" ? "play_solitaire_solo" : "play_block_blast", {
+        casualTournamentId: templateId,
+        casualMatchGameId: hit.gameId,
+      });
+      void casual.refreshCasualPlayer();
+    },
+    [casual.refreshCasualPlayer, openAfterClose]
+  );
+
+  useAwaitOpenCasualRunAssignment({
+    watch: awaitingMatch,
+    openRunAssignments: casual.openRunAssignments,
+    onMatched: (hit) => {
+      if (!awaitingMatch) return;
+      setAwaitingMatch(null);
+      setJoiningId(null);
+      openMatchedAssignment(hit, awaitingMatch.templateId);
+    },
+    onTimeout: () => {
+      setAwaitingMatch(null);
+      setJoiningId(null);
+      setNote("仍在排队或匹配超时，请稍后重试。");
+      void casual.refreshCasualPlayer();
+    },
+  });
+
+  const queue = casual.matchQueueEntries;
+  const queueWaiting = queue.some((e) => e.status === "waiting");
+  const queueClaiming = queue.some((e) => e.status === "claiming");
+  const hasOpenRun = latestOpenAssignment != null;
+  const playBlocked = hasOpenRun || queueWaiting || queueClaiming;
+  const primaryQueueEntry = queue[0];
+  const primaryQueueTitle = primaryQueueEntry
+    ? getTournamentDefinition(primaryQueueEntry.templateId)?.title ?? primaryQueueEntry.templateId
+    : "";
+
+  const handleLeaveMatchQueue = async () => {
+    if (leavingMatch || !queueWaiting) return;
+    setLeavingMatch(true);
+    try {
+      const res = await casual.leaveCasualMatchQueue(primaryQueueEntry?.templateId);
+      setAwaitingMatch(null);
+      setJoiningId(null);
+      if (res.ok) {
+        setNote(null);
+      } else if (res.error === "cannot_leave_claiming") {
+        setNote("正在创建对局，请稍候…");
+      } else if (res.error === "not_in_queue") {
+        setNote("当前不在匹配队列中。");
+      } else {
+        setNote(`退出失败：${res.error}`);
+      }
+    } finally {
+      setLeavingMatch(false);
+    }
+  };
+
   const handlePlay = async (row: TournamentRow) => {
-    const gate = (await casual.fetchOpenCasualRunAssignments()) as OpenCasualRunAssignment[];
-    if (hasAnyOpenCasualRunAssignment(gate)) {
+    if (hasAnyOpenCasualRunAssignment(casual.openRunAssignments)) {
       setNote("有未结束的锦标对局，请先完成后再加入新场。");
       return;
     }
+    if (playBlocked && !queueWaiting) {
+      setNote("正在匹配或对局创建中，请稍候。");
+      return;
+    }
+    if (queueWaiting) {
+      setNote("已在匹配队列中，请先退出匹配或等待开桌。");
+      return;
+    }
     setJoiningId(row.tournamentId);
+    setAwaitingMatch(null);
     try {
       const r = await casual.joinTournament(row.tournamentId);
       if (r?.ok && "queued" in r && r.queued) {
-        setNote("匹配中，正在为你创建对局…");
-        const deadline = Date.now() + 90_000;
-        while (Date.now() < deadline) {
-          await new Promise((res) => window.setTimeout(res, 450));
-          const assigns = (await casual.fetchOpenCasualRunAssignments()) as OpenCasualRunAssignment[];
-          const hit = assigns.find(
-            (a) =>
-              a.templateId === row.tournamentId && assignmentMatchesGameKind(a, targetGameKind)
-          );
-          if (hit) {
-            setNote("已入场，正在进入对局...");
-            openAfterClose(
-              targetGameKind === "solitaire" ? "play_solitaire_solo" : "play_block_blast",
-              {
-                casualTournamentId: row.tournamentId,
-                casualMatchGameId: hit.gameId,
-              }
-            );
-            await casual.refreshCasualPlayer();
-            return;
-          }
-        }
-        setNote("仍在排队或匹配超时，请稍后重试。");
-        await casual.refreshCasualPlayer();
+        setAwaitingMatch({ templateId: row.tournamentId, gameKind: targetGameKind });
+        setJoiningId(null);
+        close();
         return;
       }
       if (r?.ok && "gameId" in r && r.gameId) {
-        setNote("已入场，正在进入对局...");
-        openAfterClose(
-          targetGameKind === "solitaire" ? "play_solitaire_solo" : "play_block_blast",
+        openMatchedAssignment(
           {
-            casualTournamentId: row.tournamentId,
-            casualMatchGameId: r.gameId,
-          }
+            templateId: row.tournamentId,
+            gameId: r.gameId,
+            matchId: r.matchId,
+            runTournamentId: r.runTournamentId,
+            createdAt: Date.now(),
+          },
+          row.tournamentId
         );
+        setJoiningId(null);
       } else {
         setNote(`加入失败：${(r as { error?: string })?.error ?? "未知错误"}`);
+        await casual.refreshCasualPlayer();
+        setJoiningId(null);
       }
-      await casual.refreshCasualPlayer();
-    } finally {
+    } catch {
       setJoiningId(null);
+      setAwaitingMatch(null);
     }
   };
 
@@ -199,7 +257,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
         <p className="casual-game-tour__sub">A / B / C 专场列表</p>
       </div>
       {note ? <p className="casual-game-tour__note">{note}</p> : null}
-      {latestOpenAssignment ? (
+      {hasOpenRun ? (
         <div className="casual-game-tour__resume" role="status">
           <p className="casual-game-tour__resumeText">有一场正在进行中的对局</p>
           <button
@@ -209,6 +267,25 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
             onClick={handleOngoingEnter}
           >
             {resumeOpening ? "…" : "进入"}
+          </button>
+        </div>
+      ) : queueClaiming ? (
+        <div className="casual-game-tour__resume casual-game-tour__resume--queue" role="status">
+          <p className="casual-game-tour__resumeText">正在创建对局，请稍候…</p>
+        </div>
+      ) : queueWaiting ? (
+        <div className="casual-game-tour__resume casual-game-tour__resume--queue" role="status">
+          <p className="casual-game-tour__resumeText">
+            正在匹配中
+            {primaryQueueTitle ? `（${primaryQueueTitle}）` : ""}
+          </p>
+          <button
+            type="button"
+            className="casual-game-tour__resumeBtn casual-game-tour__resumeBtn--leave"
+            disabled={leavingMatch || joiningId !== null}
+            onClick={() => void handleLeaveMatchQueue()}
+          >
+            {leavingMatch ? "…" : "退出匹配"}
           </button>
         </div>
       ) : null}
@@ -224,7 +301,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
             <button
               type="button"
               className="casual-game-tour__play"
-              disabled={joiningId === row.tournamentId || latestOpenAssignment !== null}
+              disabled={joiningId === row.tournamentId || playBlocked}
               onClick={() => void handlePlay(row)}
             >
               {joiningId === row.tournamentId ? "..." : "Play"}

@@ -3,7 +3,9 @@ import { internal } from "../../_generated/api";
 import {
   CASUAL_SHOP_SKU_CATALOG,
   mapCasualShopSkuRow,
+  type CasualShopSkuSeed,
 } from "../../data/casualShopCatalog";
+import { grantReplayTokens } from "../tournament/casualBotDifficultyService";
 import { applyScaledCurrencyCost } from "../../data/casualTournamentConfigs";
 import { internalMutation, mutation, query } from "../../_generated/server";
 
@@ -23,6 +25,7 @@ export const listActiveShopSkus = query({
           priceGems: r.priceGems,
           grantCoins: r.grantCoins,
           grantGems: r.grantGems,
+          grantSkinId: r.grantSkinId,
         })
       );
     }
@@ -45,6 +48,8 @@ export const seedShopSkusIfEmpty = internalMutation({
         priceGems: s.priceGems,
         grantCoins: s.grantCoins,
         grantGems: s.grantGems,
+        grantSkinId: s.grantSkinId,
+        grantReplayTokenCount: s.grantReplayTokenCount,
         active: true,
       });
     }
@@ -98,6 +103,31 @@ export const purchaseSku = mutation({
       );
     }
 
+    if (sku.skuKind === "skin" && sku.grantSkinId) {
+      const pcSkin = player.coins ?? 0;
+      const pgSkin = player.gems ?? 0;
+      if (priceGems != null && pgSkin < priceGems) {
+        return { ok: false as const, error: "insufficient_gems" };
+      }
+      if (priceCoins != null && pcSkin < priceCoins) {
+        return { ok: false as const, error: "insufficient_coins" };
+      }
+      await ctx.runMutation(internal.dao.casualPlayerDao.patchByUid, {
+        uid,
+        coins: priceCoins != null ? pcSkin - priceCoins : pcSkin,
+        gems: priceGems != null ? pgSkin - priceGems : pgSkin,
+      });
+      const gr = await ctx.runMutation(internal.service.reward.casualRewardRegistry.grantCasualReward, {
+        uid,
+        kind: "skin",
+        amount: 0,
+        skinId: sku.grantSkinId,
+        source: "shop",
+      });
+      if (!gr.ok) return { ok: false as const, error: "skin_grant_failed" };
+      return { ok: true as const, activityIds: modifiers.activityIds };
+    }
+
     const pc = player.coins ?? 0;
     const pg = player.gems ?? 0;
     if (priceCoins != null && pc < priceCoins) {
@@ -128,6 +158,12 @@ export const purchaseSku = mutation({
         kind: "gems",
         amount: sku.grantGems,
       });
+    }
+    const catalogRow = CASUAL_SHOP_SKU_CATALOG.find((s) => s.skuId === skuId);
+    const replayGrant =
+      sku.grantReplayTokenCount ?? catalogRow?.grantReplayTokenCount ?? 0;
+    if (replayGrant > 0) {
+      await grantReplayTokens(ctx, uid, replayGrant);
     }
     return { ok: true as const, activityIds: modifiers.activityIds };
   },

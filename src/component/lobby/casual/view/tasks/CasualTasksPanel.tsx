@@ -1,8 +1,9 @@
 import { CASUAL_MISSION_TEMPLATES } from "@/convex/casualPlatform/convex/data/casualMissionTemplates";
-import { usePageManager } from "host/service/PageManager";
+import { useModalManager } from "host/service/ModalManager";
 import { useUserManager } from "host/service/UserManager";
 import React, { useEffect, useMemo, useState } from "react";
 
+import { CASUAL_BATTLE_PASS_MODAL_OPEN } from "../../control/HeadNavSharedCasual";
 import {
   useCasualPlatform,
   type CasualPlatformValue,
@@ -27,7 +28,7 @@ type MissionRow = CasualPlatformValue["missions"][number];
 const CasualTasksPanel: React.FC = () => {
   const casual = useCasualPlatform();
   const { user } = useUserManager();
-  const { openPage } = usePageManager();
+  const { openModal } = useModalManager();
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
 
@@ -210,12 +211,12 @@ const CasualTasksPanel: React.FC = () => {
 
       <div className="casual-econ__linkRow">
         <span style={{ fontSize: 13, color: "var(--econ-muted, rgba(26,26,46,0.55))" }}>
-          通行证等级与轨道奖励在底栏「通行证」
+          通行证等级与轨道奖励在顶栏「通行证」
         </span>
         <button
           type="button"
           className="casual-econ__textBtn"
-          onClick={() => openPage({ uri: "/casual/lobby/c5" })}
+          onClick={() => openModal(CASUAL_BATTLE_PASS_MODAL_OPEN)}
         >
           去通行证
         </button>

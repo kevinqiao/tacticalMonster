@@ -54,7 +54,7 @@ export const CasualPlace =
                 { name: "child2", class: "page_container", init: "slide", path: "./lobby/casual/view/history/CasualHistoryTab", uri: "c2", auth: 0, open: "slideIn" },
                 { name: "child3", class: "page_container", init: "slide", path: "./lobby/casual/view/play/CasualPlayTab", uri: "c3", auth: 0, open: "slideIn" },
                 { name: "child4", class: "page_container", init: "slide", path: "./lobby/casual/view/rewards/CasualRewardsTab", uri: "c4", auth: 0, open: "slideIn" },
-                { name: "child5", class: "page_container", init: "slide", path: "./lobby/casual/view/battlePass/CasualBattlePassTab", uri: "c5", auth: 0, open: "slideIn" },
+                { name: "child5", class: "page_container", init: "slide", path: "./lobby/casual/view/town/CasualTownTab", uri: "c5", auth: 0, open: "slideIn" },
             ]
         }
 

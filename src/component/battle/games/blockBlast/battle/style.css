@@ -1,6 +1,11 @@
 /**
  * Block Blast 视觉：天蓝/淡紫宇宙感底 + 高饱和塑料块（与参考图 Block-Blaster 系）
  */
+@import "../../shared/visualTheme/gameVisualPalettes.css";
+
+.blockblast-player-container[data-game-visual-key] .blockblast-grid {
+  background: color-mix(in srgb, var(--bb-board-bg, #0f1923) 72%, transparent);
+}
 
 .blockblast-game-container {
     width: 100%;

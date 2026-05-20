@@ -106,7 +106,8 @@ export async function applyCasualJoinEntryCharge(
   ctx: MutationCtx,
   uid: string,
   tournamentId: string,
-  def: CasualTournamentDefinition
+  def: CasualTournamentDefinition,
+  opts?: { skipEntryCharge?: boolean }
 ): Promise<
   | {
       ok: true;
@@ -120,6 +121,13 @@ export async function applyCasualJoinEntryCharge(
   const player = await ctx.runQuery(internal.dao.casualPlayerDao.findByUid, { uid });
   if (!player) {
     return { ok: false as const, error: "no_player" };
+  }
+  if (opts?.skipEntryCharge) {
+    const modifiers = await ctx.runQuery(
+      internal.service.activity.casualActivityService.resolveSeasonActivityModifiers,
+      { tournamentId }
+    );
+    return { ok: true as const, activityIds: modifiers.activityIds };
   }
   const entryCost = await resolveJoinEntryCost(ctx, tournamentId, def);
 
@@ -184,7 +192,8 @@ export async function applyCasualJoinEntryChargeWithInstance(
   uid: string,
   tournamentId: string,
   def: CasualTournamentDefinition,
-  instanceId: Id<"casual_tournament_instances"> | null
+  instanceId: Id<"casual_tournament_instances"> | null,
+  opts?: { skipEntryCharge?: boolean }
 ): Promise<
   | {
       ok: true;
@@ -196,7 +205,7 @@ export async function applyCasualJoinEntryChargeWithInstance(
   | { ok: false; error: string }
 > {
   if (!instanceId || !isPeriodScopedTournament(def)) {
-    return applyCasualJoinEntryCharge(ctx, uid, tournamentId, def);
+    return applyCasualJoinEntryCharge(ctx, uid, tournamentId, def, opts);
   }
   const now = Date.now();
   const stId = await ensureInstancePlayerStateRow(ctx, { instanceId, uid, now });
@@ -214,7 +223,7 @@ export async function applyCasualJoinEntryChargeWithInstance(
       activityIds: modifiers.activityIds,
     };
   }
-  const ch = await applyCasualJoinEntryCharge(ctx, uid, tournamentId, def);
+  const ch = await applyCasualJoinEntryCharge(ctx, uid, tournamentId, def, opts);
   if (!ch.ok) {
     return ch;
   }

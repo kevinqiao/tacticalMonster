@@ -3,6 +3,8 @@ import type { CasualRewardKind } from "../service/reward/casualRewardTypes.js";
 export interface PassGrant {
   kind: CasualRewardKind;
   amount: number;
+  skinId?: string;
+  skinToken?: string;
 }
 
 export interface PassLevelRewardRow {
@@ -35,6 +37,24 @@ function buildPassLevels(maxLevel: number): PassLevelRewardRow[] {
     }
     if (level % 10 === 0) {
       deluxe.push({ kind: "gems", amount: 5 });
+    }
+
+    if (level === 10) {
+      standard.push({ kind: "skin", amount: 0, skinToken: "town_accent_standard" });
+      deluxe.push({ kind: "skin", amount: 0, skinToken: "town_accent_deluxe" });
+    }
+    if (level === 20) {
+      standard.push({ kind: "skin", amount: 0, skinToken: "visual_bundle_standard" });
+    }
+    if (level === 25) {
+      standard.push({ kind: "skin", amount: 0, skinToken: "ui_standard" });
+      deluxe.push({ kind: "skin", amount: 0, skinToken: "ui_deluxe" });
+      standard.push({ kind: "skin", amount: 0, skinToken: "town_facade_standard" });
+      deluxe.push({ kind: "skin", amount: 0, skinToken: "town_facade_deluxe" });
+    }
+    if (level === 40) {
+      standard.push({ kind: "skin", amount: 0, skinToken: "town_full_standard" });
+      deluxe.push({ kind: "skin", amount: 0, skinToken: "town_full_deluxe" });
     }
 
     rows.push({ level, free, standard, deluxe });

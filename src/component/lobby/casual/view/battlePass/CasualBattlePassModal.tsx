@@ -356,6 +356,40 @@ const CasualBattlePassModal: React.FC<ModalProp> = ({ visible }) => {
             </div>
           ))}
 
+          {casual.skinState && casual.skinState.effectiveOwned.length > 0 ? (
+            <section className="casual-econ__skinPanel" aria-label="已解锁皮肤">
+              <h3 className="casual-econ__sectionTitle">外观收藏</h3>
+              <p className="casual-econ__sectionHint">
+                UI 分档：{casual.skinState.entitlements.uiTier} · Town 层：
+                {casual.skinState.entitlements.townLayer}
+              </p>
+              <ul className="casual-econ__skinList">
+                {casual.skinState.catalog
+                  .filter((c) => casual.skinState!.effectiveOwned.includes(c.skinId))
+                  .slice(0, 12)
+                  .map((c) => (
+                    <li key={c.skinId} className="casual-econ__skinChip">
+                      <span>{c.name}</span>
+                      {c.appliesToGameIds.length > 0 ? (
+                        <button
+                          type="button"
+                          className="casual-econ__textBtn"
+                          onClick={() =>
+                            void casual.equipSkin({
+                              slot: `game:${c.appliesToGameIds[0]}`,
+                              skinId: c.skinId,
+                            })
+                          }
+                        >
+                          装备 {c.appliesToGameIds[0]}
+                        </button>
+                      ) : null}
+                    </li>
+                  ))}
+              </ul>
+            </section>
+          ) : null}
+
           {view.isLive ? (
             <details className="casual-rewards__dev">
               <summary>开发者选项</summary>

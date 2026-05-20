@@ -20,9 +20,9 @@ export const CASUAL_HEAD_NAV_URI = [
   "/casual/lobby/c5",
 ] as const;
 
-export const CASUAL_HEAD_NAV_LABEL = ["商店", "历史", "Play", "奖励", "通行证"] as const;
+export const CASUAL_HEAD_NAV_LABEL = ["商店", "历史", "Play", "奖励", "My Town"] as const;
 
-/** 竖屏汉堡菜单：五页；赛季通行证全页为 c5；顶栏右侧另有侧栏快捷入口 */
+/** 竖屏汉堡菜单：五页；c5 为 My Town；通行证见顶栏侧栏弹窗 */
 export const CASUAL_HEAD_NAV_MENU_ITEMS: {
   label: string;
   type: "page" | "modal";
@@ -33,7 +33,7 @@ export const CASUAL_HEAD_NAV_MENU_ITEMS: {
   { label: "历史", type: "page", uri: "/casual/lobby/c2" },
   { label: "Play", type: "page", uri: "/casual/lobby/c3" },
   { label: "奖励", type: "page", uri: "/casual/lobby/c4" },
-  { label: "通行证", type: "page", uri: "/casual/lobby/c5" },
+  { label: "My Town", type: "page", uri: "/casual/lobby/c5" },
 ];
 
 export type CasualHeadNavUri = (typeof CASUAL_HEAD_NAV_URI)[number];

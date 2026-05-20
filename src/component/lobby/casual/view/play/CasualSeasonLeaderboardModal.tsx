@@ -7,7 +7,8 @@ import { leaderboardDisplayName } from "../leaderboards/casualLeaderboardsMock";
 import "./casualSeasonLeaderboardModal.css";
 
 export type CasualSeasonLeaderboardModalData = {
-  gameId: "solitaire" | "block_blast";
+  /** 保留兼容；平台赛季榜不再按玩法分轨 */
+  gameId?: "solitaire" | "block_blast";
 };
 
 type PtsRow = { rank: number; uid: string; points: number };
@@ -22,15 +23,11 @@ function rowLabel(uid: string, selfUid: string | undefined): string {
   return leaderboardDisplayName(uid);
 }
 
-function gameTitle(id: "solitaire" | "block_blast"): string {
-  return id === "solitaire" ? "Solitaire" : "Block Blast";
-}
-
 const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, data }) => {
   const casual = useCasualPlatform();
   const { user } = useUserManager();
   const payload = data as CasualSeasonLeaderboardModalData | undefined;
-  const gameId = payload?.gameId === "block_blast" ? "block_blast" : "solitaire";
+  void payload?.gameId;
 
   const activeSeason = casual.seasons.find((s) => s.active) ?? casual.seasons[0];
   const seasonLabel =
@@ -51,7 +48,7 @@ const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, dat
     setLoading(true);
     setError(null);
     try {
-      const list = (await casual.fetchGameSeasonLeaderboard(undefined, gameId, 50)) as PtsRow[];
+      const list = (await casual.fetchGameSeasonLeaderboard(undefined, "solitaire", 50)) as PtsRow[];
       setRows(Array.isArray(list) ? list : []);
     } catch {
       setError("加载失败");
@@ -59,7 +56,7 @@ const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, dat
     } finally {
       setLoading(false);
     }
-  }, [casual.convexUrl, casual.fetchGameSeasonLeaderboard, gameId]);
+  }, [casual.convexUrl, casual.fetchGameSeasonLeaderboard]);
 
   useEffect(() => {
     if (!visible) return;
@@ -76,10 +73,8 @@ const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, dat
     <div className="casual-season-lb">
       <header className="casual-season-lb__head">
         <div>
-          <h1 className="casual-season-lb__title">
-            {gameTitle(gameId)} · 赛季榜
-          </h1>
-          <p className="casual-season-lb__sub">赛季累计积分 · {seasonLabel}</p>
+          <h1 className="casual-season-lb__title">赛季竞技榜</h1>
+          <p className="casual-season-lb__sub">平台累计积分（全玩法合计）· {seasonLabel}</p>
         </div>
         <button type="button" className="casual-season-lb__close" onClick={close} aria-label="关闭">
           关闭
@@ -89,7 +84,7 @@ const CasualSeasonLeaderboardModal: React.FC<ModalProp> = ({ visible, close, dat
       {error ? <p className="casual-season-lb__note casual-season-lb__note--err">{error}</p> : null}
       {showEmptyHint ? (
         <p className="casual-season-lb__hint" role="note">
-          暂无上榜记录（当前激活赛季下尚无该游戏的赛季积分数据）。
+          暂无上榜记录（当前激活赛季下尚无赛季竞技积分数据）。
         </p>
       ) : null}
 

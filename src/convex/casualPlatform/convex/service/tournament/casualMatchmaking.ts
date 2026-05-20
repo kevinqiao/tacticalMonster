@@ -6,7 +6,7 @@ import { v } from "convex/values";
 import type { Id } from "../../_generated/dataModel";
 import { getTournamentDefinition, isPeriodScopedTournament } from "../../data/casualTournamentConfigs";
 import type { MutationCtx } from "../../_generated/server";
-import { internalMutation } from "../../_generated/server";
+import { internalMutation, mutation, query } from "../../_generated/server";
 import { getOrCreateOpenInstance } from "./casualInstanceService";
 import {
   applyCasualJoinEntryChargeWithInstance,
@@ -16,6 +16,14 @@ import {
   requiresDailySoloPlayCostAck,
 } from "./casualTournamentJoinCore";
 import type { JoinCasualRunResult } from "./casualTournamentTypes";
+import {
+  computeConsecutiveLossStreak,
+  shouldPreferSoloBotTable,
+} from "./casualBotDifficultyService";
+import {
+  consumeReplayTokenForJoin,
+  findOldestUnusedReplayTokenId,
+} from "./casualReplayPassService";
 
 export async function findOpenCasualAssignmentForUidTemplate(
   ctx: MutationCtx,
@@ -42,6 +50,73 @@ export async function findOpenCasualAssignmentForUidTemplate(
  * - 先把 FIFO 队列行 `waiting → claiming`，利用 Convex 文档级 OCC，保证同一行不会被两个 mutation 同时扣费；
  * - 只对 `claiming` 行扣费；凑不齐 `matchmakingMinHumans` 则退款（若已扣）并把行恢复 `waiting`，或删行（余额不足）。
  */
+/** 连续失败玩家：单独开 1 真人桌（全 bot 补位 + 规则引擎） */
+export async function tryOpenSoloBotTableForUid(
+  ctx: MutationCtx,
+  uid: string,
+  templateId: string,
+  opts?: { skipEntryCharge?: boolean }
+): Promise<boolean> {
+  const def = getTournamentDefinition(templateId);
+  if (!def) return false;
+  const streak = await computeConsecutiveLossStreak(ctx, uid);
+  if (!shouldPreferSoloBotTable(def, streak)) return false;
+
+  const row = await ctx.db
+    .query("casual_match_queue")
+    .withIndex("by_uid_template_status", (q) =>
+      q.eq("uid", uid).eq("templateId", templateId).eq("status", "waiting")
+    )
+    .first();
+  if (!row) return false;
+
+  const now = Date.now();
+  const fresh = await ctx.db.get(row._id);
+  if (!fresh || fresh.status !== "waiting") return false;
+  await ctx.db.patch(fresh._id, { status: "claiming", updatedAt: now });
+
+  const instanceId = await getOrCreateOpenInstance(ctx, {
+    templateId,
+    def,
+    now,
+  });
+  if (instanceId === null && isPeriodScopedTournament(def)) {
+    await ctx.db.patch(fresh._id, { status: "waiting", updatedAt: now });
+    return false;
+  }
+
+  const ch = await applyCasualJoinEntryChargeWithInstance(
+    ctx,
+    uid,
+    templateId,
+    def,
+    instanceId,
+    { skipEntryCharge: opts?.skipEntryCharge }
+  );
+  if (!ch.ok) {
+    await ctx.db.delete(fresh._id);
+    return false;
+  }
+
+  const inserted = await insertCasualRunDocumentsForHumans(ctx, {
+    uids: [uid],
+    templateId,
+    def,
+    ...(instanceId ? { instanceId } : {}),
+    vouchersCharged: ch.vouchersCharged,
+    coinsCharged: ch.coinsCharged,
+    gemsCharged: ch.gemsCharged,
+    activityIds: ch.activityIds,
+  });
+
+  await ctx.db.patch(fresh._id, {
+    status: "matched",
+    matchedRunTournamentId: inserted.runTournamentId as Id<"casual_run_tournaments">,
+    updatedAt: now,
+  });
+  return true;
+}
+
 export async function tryCasualMatchmakingForTemplateCore(
   ctx: MutationCtx,
   templateId: string
@@ -173,8 +248,9 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     uid: v.string(),
     tournamentId: v.string(),
     dailySoloCostAck: v.optional(v.literal(true)),
+    replayTokenId: v.optional(v.id("casual_replay_tokens")),
   },
-  handler: async (ctx, { uid, tournamentId, dailySoloCostAck }): Promise<JoinCasualRunResult> => {
+  handler: async (ctx, { uid, tournamentId, dailySoloCostAck, replayTokenId }): Promise<JoinCasualRunResult> => {
     const def = getTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
@@ -218,6 +294,23 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
       });
     }
 
+    let skipEntryCharge = false;
+    if (replayTokenId) {
+      if (def.entry.kind === "seasonVouchers") {
+        return { ok: false as const, error: "replay_not_for_season_voucher" };
+      }
+      const consumed = await consumeReplayTokenForJoin(ctx, {
+        uid,
+        tokenId: replayTokenId,
+        tournamentId,
+      });
+      if (!consumed.ok) {
+        return { ok: false as const, error: consumed.error };
+      }
+      skipEntryCharge = true;
+    }
+
+    await tryOpenSoloBotTableForUid(ctx, uid, tournamentId, { skipEntryCharge });
     await tryCasualMatchmakingForTemplateCore(ctx, tournamentId);
 
     const assigned = await findOpenCasualAssignmentForUidTemplate(ctx, uid, tournamentId);
@@ -232,5 +325,57 @@ export const enqueueCasualMatchmakingAndTryMatch = internalMutation({
     }
 
     return { ok: true as const, queued: true as const, templateId: tournamentId };
+  },
+});
+
+/** Play / Lobby：当前用户是否在匹配队列中（waiting 或 claiming） */
+export const listCasualMatchQueueForUid = query({
+  args: { uid: v.string() },
+  handler: async (ctx, { uid }) => {
+    const rows = await ctx.db
+      .query("casual_match_queue")
+      .withIndex("by_uid", (q) => q.eq("uid", uid))
+      .collect();
+    return rows
+      .filter((r) => r.status === "waiting" || r.status === "claiming")
+      .map((r) => ({
+        templateId: r.templateId,
+        status: r.status as "waiting" | "claiming",
+        createdAt: r.createdAt,
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+/** 退出匹配：仅删除 `waiting` 行（未扣入场费）；存在 `claiming` 时拒绝 */
+export const leaveCasualMatchQueue = mutation({
+  args: {
+    uid: v.string(),
+    templateId: v.optional(v.string()),
+  },
+  handler: async (ctx, { uid, templateId }) => {
+    const rows = await ctx.db
+      .query("casual_match_queue")
+      .withIndex("by_uid", (q) => q.eq("uid", uid))
+      .collect();
+
+    const scopeTemplateId = templateId?.trim();
+    const inScope = (rowTemplateId: string) =>
+      !scopeTemplateId || rowTemplateId === scopeTemplateId;
+
+    const claiming = rows.filter((r) => r.status === "claiming" && inScope(r.templateId));
+    const waiting = rows.filter((r) => r.status === "waiting" && inScope(r.templateId));
+
+    if (claiming.length > 0 && waiting.length === 0) {
+      return { ok: false as const, error: "cannot_leave_claiming" as const };
+    }
+    if (waiting.length === 0) {
+      return { ok: false as const, error: "not_in_queue" as const };
+    }
+
+    for (const row of waiting) {
+      await ctx.db.delete(row._id);
+    }
+    return { ok: true as const, removed: waiting.length };
   },
 });

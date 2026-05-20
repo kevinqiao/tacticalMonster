@@ -219,7 +219,7 @@ const CasualLeaderboardsTab: React.FC<PageProp> = ({ visible }) => {
             ) : null}
             <div className="casual-lb__panelHead">
               <h2 id="casual-lb-main-title" className="casual-econ__sectionTitle" style={{ margin: 0 }}>
-                主赛季积分 · {seasonId}
+                赛季竞技积分（全玩法）· {seasonId}
               </h2>
               {casual.convexUrl ? (
                 <button type="button" className="casual-econ__textBtn" onClick={() => void loadMainLb()}>

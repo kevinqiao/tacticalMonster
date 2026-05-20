@@ -36,7 +36,9 @@ const CasualFooterNavControl: React.FC = () => {
   return (
     <div
       className={
-        touchPortrait ? "footer-nav-root footer-nav-root--touch-portrait" : "footer-nav-root"
+        touchPortrait
+          ? "footer-nav-root footer-nav-root--casual footer-nav-root--touch-portrait"
+          : "footer-nav-root footer-nav-root--casual"
       }
     >
       {orientation === "portrait" ? (

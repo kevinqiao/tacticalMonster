@@ -10,6 +10,9 @@ import useActHandler from './service/handler/useActHandler';
 import { useSoloDnDManager } from './service/SoloDnDProvider';
 
 import {
+    CasualGameScoreReportOverlay,
+} from '../../shared/CasualGameScoreReportOverlay';
+import {
     CasualPostSettleSummaryOverlay,
 } from '../../shared/CasualPostSettleSummaryOverlay';
 import {
@@ -27,10 +30,12 @@ import {
 } from './types/SoloTypes';
 import { layoutAllSoloCardsFromModel } from './soloCardLayout';
 import { tableauCardZIndex } from './Utils';
+import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
 import SoloDnDCard from './view/SoloDnDCard';
 import SoloGameHeader from './view/SoloGameHeader';
 
 const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadComplete }) => {
+    const visualTheme = useGameVisualTheme('solitaire');
     /** 整局在 animating+DEALED 下只批量补跑一次牌位（与原先各 SoloDnDCard 的 postDealLayoutOnce 等价）。 */
     const postDealBatchLayoutDoneRef = useRef(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -54,7 +59,22 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
     /** 动画中禁用「结束」，终局仍允许点击以便结算失败时重试 */
     const endGameDisabled = interactionPhase !== GameInteractionPhase.idle;
 
-    const { recycle, runAutoCompleteToFoundation, settleManuallyAndExit, settleConfirmOpen, cancelSettleConfirm, confirmSettleAndExit, finishManualSettleSuccess, postCasualSummaryOpen, postCasualTableSummary, postCasualWaitingForPeers, dismissPostCasualSummary } = useActHandler();
+    const {
+        recycle,
+        runAutoCompleteToFoundation,
+        settleManuallyAndExit,
+        settleConfirmOpen,
+        cancelSettleConfirm,
+        confirmSettleAndExit,
+        finishManualSettleSuccess,
+        postCasualScoreReportOpen,
+        postCasualScoreReport,
+        dismissPostCasualScoreReport,
+        postCasualSummaryOpen,
+        postCasualTableSummary,
+        postCasualWaitingForPeers,
+        dismissPostCasualSummary,
+    } = useActHandler();
     const { actionData } = useSoloDnDManager();
     // 响应式断点
     const [screenSize, setScreenSize] = React.useState<'mobile' | 'tablet' | 'desktop'>('desktop');
@@ -356,6 +376,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         <div
             ref={containerRef}
             className="solo-player-container"
+            data-game-visual-key={visualTheme.visualKey}
             style={{
                 width: '100%',
                 height: '100%',
@@ -395,8 +416,14 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 onConfirm={confirmSettleAndExit}
                 onSuccessClose={finishManualSettleSuccess}
             />
+            <CasualGameScoreReportOverlay
+                open={postCasualScoreReportOpen}
+                report={postCasualScoreReport}
+                onConfirm={dismissPostCasualScoreReport}
+            />
             <CasualPostSettleSummaryOverlay
                 open={postCasualSummaryOpen}
+                title="同桌成绩"
                 summary={postCasualTableSummary}
                 waitingForPeers={postCasualWaitingForPeers}
                 onDismiss={dismissPostCasualSummary}

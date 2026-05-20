@@ -1,3 +1,5 @@
+@import "./theme/casualUiThemes.css";
+
 .casual-lobby-strip {
   position: fixed;
   left: 0;
@@ -32,8 +34,8 @@
   height: 100%;
   padding: clamp(60px, 12dvh, 120px) 16px;
   overflow: auto;
-  background: #f0f4fa;
-  color: #1a1a2e;
+  background: var(--shell-bg-page, #f0f4fa);
+  color: var(--shell-ink, #1a1a2e);
 }
 
 /* 货币区与 tactical 共用 HeadNavControl.css（`head-nav-hud__currencies` / `__res`） */

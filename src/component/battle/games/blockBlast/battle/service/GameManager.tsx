@@ -30,6 +30,11 @@ import {
     Shape,
 } from '../types/BlockBlastTypes';
 import BlockBlastRuleManager from './BlockBlastRuleManager';
+import {
+    buildBlockBlastScoreReport,
+    shouldOpenCasualTableSummaryAfterScoreReport,
+    type CasualGameScoreReportUI,
+} from '../../../shared/casualGameScoreReportUI';
 import type { CasualAsyncTableSummaryUI, ManualSettleConfirmExtras } from '../../../shared/casualAsyncTableSummaryUI';
 
 function isTerminalBlockBlastStatus(status: number | undefined): boolean {
@@ -82,8 +87,15 @@ interface IBlockBlastGameContext {
     settleConfirmOpen: boolean;
     cancelSettleConfirm: () => void;
     confirmSettleAndExit: () => Promise<void | ManualSettleConfirmExtras>;
-    /** 局内「成功结算」展示结束后：关确认层并通知宿主（如关棋盘弹层） */
-    finishManualSettleSuccess: () => void;
+    /** 局内「成功结算」确定后：进入得分明细 → 同桌榜流程 */
+    finishManualSettleSuccess: (extras?: ManualSettleConfirmExtras) => void;
+    postCasualScoreReportOpen: boolean;
+    postCasualScoreReport: CasualGameScoreReportUI | null;
+    dismissPostCasualScoreReport: () => void;
+    postCasualSummaryOpen: boolean;
+    postCasualTableSummary: CasualAsyncTableSummaryUI | null;
+    postCasualWaitingForPeers: boolean;
+    dismissPostCasualSummary: () => void;
     casualTournamentId?: string;
 }
 
@@ -107,6 +119,13 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     cancelSettleConfirm: () => { },
     confirmSettleAndExit: async () => { },
     finishManualSettleSuccess: () => { },
+    postCasualScoreReportOpen: false,
+    postCasualScoreReport: null,
+    dismissPostCasualScoreReport: () => { },
+    postCasualSummaryOpen: false,
+    postCasualTableSummary: null,
+    postCasualWaitingForPeers: false,
+    dismissPostCasualSummary: () => { },
     casualTournamentId: undefined,
 });
 
@@ -150,6 +169,15 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
     const convex = useConvex();
     const { user } = useUserManager();
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
+    const [postCasualScoreReportOpen, setPostCasualScoreReportOpen] = useState(false);
+    const [postCasualScoreReport, setPostCasualScoreReport] = useState<CasualGameScoreReportUI | null>(
+        null
+    );
+    const [postCasualSummaryOpen, setPostCasualSummaryOpen] = useState(false);
+    const [postCasualTableSummary, setPostCasualTableSummary] = useState<CasualAsyncTableSummaryUI | null>(
+        null
+    );
+    const [postCasualWaitingForPeers, setPostCasualWaitingForPeers] = useState(false);
 
     const casualRunSubmittedRef = useRef(false);
     const settleInFlightRef = useRef(false);
@@ -166,7 +194,80 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
 
     useEffect(() => {
         casualRunSubmittedRef.current = false;
+        setPostCasualScoreReportOpen(false);
+        setPostCasualScoreReport(null);
+        setPostCasualSummaryOpen(false);
+        setPostCasualTableSummary(null);
+        setPostCasualWaitingForPeers(false);
     }, [gameState?.gameId]);
+
+    const resolveBlockBlastScoreReport = useCallback(
+        async (gameId: string, fallbackScore: number): Promise<CasualGameScoreReportUI> => {
+            if (gameReport) {
+                return buildBlockBlastScoreReport(gameReport);
+            }
+            try {
+                const res = (await convex.query(api.service.gameManager.findReport, { gameId })) as {
+                    ok?: boolean;
+                    data?: GameReport;
+                };
+                if (res?.ok && res.data) {
+                    return buildBlockBlastScoreReport(res.data);
+                }
+            } catch (e) {
+                console.warn('[BlockBlast] findReport', e);
+            }
+            return {
+                gameLabel: 'Block Blast',
+                lines: [{ label: '本局得分', value: fallbackScore }],
+                totalScore: fallbackScore,
+            };
+        },
+        [convex, gameReport]
+    );
+
+    const beginCasualPostSettleFlow = useCallback(
+        async (
+            gameId: string,
+            fallbackScore: number,
+            settle: { tableSummary?: CasualAsyncTableSummaryUI | null; pendingOthers?: boolean }
+        ) => {
+            if (gameStateRef.current?.reportElement) {
+                gsap.set(gameStateRef.current.reportElement, { autoAlpha: 0 });
+            }
+            const report = await resolveBlockBlastScoreReport(gameId, fallbackScore);
+            setPostCasualScoreReport(report);
+            setPostCasualTableSummary(settle.tableSummary ?? null);
+            setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+            setPostCasualScoreReportOpen(true);
+        },
+        [resolveBlockBlastScoreReport]
+    );
+
+    const dismissPostCasualScoreReport = useCallback(() => {
+        setPostCasualScoreReportOpen(false);
+        setPostCasualScoreReport(null);
+        if (
+            shouldOpenCasualTableSummaryAfterScoreReport(
+                casualTournamentId,
+                postCasualTableSummary,
+                postCasualWaitingForPeers
+            )
+        ) {
+            setPostCasualSummaryOpen(true);
+        } else {
+            setPostCasualTableSummary(null);
+            setPostCasualWaitingForPeers(false);
+            onGameSubmit?.();
+        }
+    }, [casualTournamentId, postCasualTableSummary, postCasualWaitingForPeers, onGameSubmit]);
+
+    const dismissPostCasualSummary = useCallback(() => {
+        setPostCasualSummaryOpen(false);
+        setPostCasualTableSummary(null);
+        setPostCasualWaitingForPeers(false);
+        onGameSubmit?.();
+    }, [onGameSubmit]);
 
     const ruleManager = useMemo(() => {
         if (!gameState) return null;
@@ -285,7 +386,10 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         async (
             scoreArg?: number,
             opts?: { deferHostNotify?: boolean }
-        ): Promise<{ ok: true; tableSummary?: CasualAsyncTableSummaryUI } | { ok: false }> => {
+        ): Promise<
+            | { ok: true; tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean }
+            | { ok: false }
+        > => {
             const gs = gameStateRef.current;
             if (!gs || casualRunSubmittedRef.current) return { ok: false };
             const score = Math.max(0, Math.floor(scoreArg !== undefined ? scoreArg : (gs.score ?? 0)));
@@ -301,7 +405,12 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
                         token: user.token,
                         gameId: gs.gameId,
-                    })) as { ok?: boolean; error?: string; tableSummary?: CasualAsyncTableSummaryUI };
+                    })) as {
+                        ok?: boolean;
+                        error?: string;
+                        tableSummary?: CasualAsyncTableSummaryUI;
+                        pendingOthers?: boolean;
+                    };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
                         casualRunSubmittedRef.current = false;
@@ -310,7 +419,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                     if (!deferHost) {
                         onGameSubmit?.();
                     }
-                    return { ok: true, ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}) };
+                    return {
+                        ok: true,
+                        ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
+                        ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+                    };
                 }
                 let proxyOk = false;
                 try {
@@ -342,10 +455,27 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         [convex, casualTournamentId, user?.token, onGameSubmit]
     );
 
-    const finishManualSettleSuccess = useCallback(() => {
-        setSettleConfirmOpen(false);
-        onGameSubmit?.();
-    }, [onGameSubmit]);
+    const finishManualSettleSuccess = useCallback(
+        (extras?: ManualSettleConfirmExtras) => {
+            setSettleConfirmOpen(false);
+            const gs = gameStateRef.current;
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                gs &&
+                typeof gs.gameId === 'string' &&
+                gs.gameId.startsWith('game_');
+            if (!isCasualRun || !gs) {
+                onGameSubmit?.();
+                return;
+            }
+            const score = Math.max(0, Math.floor(gs.score ?? 0));
+            void beginCasualPostSettleFlow(gs.gameId, score, {
+                tableSummary: extras?.tableSummary ?? undefined,
+                pendingOthers: extras?.pendingOthers,
+            });
+        },
+        [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
+    );
 
     const cancelSettleConfirm = useCallback(() => {
         setSettleConfirmOpen(false);
@@ -397,15 +527,32 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
 
         if (isTerminalBlockBlastStatus(gameState.status)) {
             const score = Math.max(0, Math.floor(gameState.score ?? 0));
-            const r = await runBlockBlastSettlement(score);
+            const r = await runBlockBlastSettlement(score, { deferHostNotify: true });
             if (!r.ok) {
                 console.warn('[BlockBlast] settleManuallyAndExit terminal submit failed');
+                return;
+            }
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                typeof gameState.gameId === 'string' &&
+                gameState.gameId.startsWith('game_');
+            if (isCasualRun) {
+                await beginCasualPostSettleFlow(gameState.gameId, score, r);
+            } else {
+                onGameSubmit?.();
             }
             return;
         }
 
         setSettleConfirmOpen(true);
-    }, [gameState, interactionPhase, runBlockBlastSettlement]);
+    }, [
+        gameState,
+        interactionPhase,
+        runBlockBlastSettlement,
+        casualTournamentId,
+        onGameSubmit,
+        beginCasualPostSettleFlow,
+    ]);
 
     const submitScore = useCallback(
         async (score: number) => {
@@ -414,28 +561,37 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 Boolean(casualTournamentId) &&
                 typeof gameState.gameId === 'string' &&
                 gameState.gameId.startsWith('game_');
-            if (gameState.reportElement) {
-                gsap.to(gameState.reportElement, {
-                    onComplete: () => {
-                        onGameSubmit?.();
-                    },
-                    autoAlpha: 0,
-                    duration: 0.4,
-                    ease: 'power2.inOut',
-                });
-            }
             try {
                 if (isCasualRun && user?.token) {
                     const cr = (await convex.action(api.proxy.controller.submitCasualPlatformRun, {
                         token: user.token,
                         gameId: gameState.gameId,
-                    })) as { ok?: boolean; error?: string };
+                    })) as {
+                        ok?: boolean;
+                        error?: string;
+                        tableSummary?: CasualAsyncTableSummaryUI;
+                        pendingOthers?: boolean;
+                    };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
                         return;
                     }
                     casualRunSubmittedRef.current = true;
+                    await beginCasualPostSettleFlow(gameState.gameId, score, {
+                        tableSummary: cr.tableSummary,
+                        pendingOthers: cr.pendingOthers,
+                    });
                     return;
+                }
+                if (gameState.reportElement) {
+                    gsap.to(gameState.reportElement, {
+                        onComplete: () => {
+                            onGameSubmit?.();
+                        },
+                        autoAlpha: 0,
+                        duration: 0.4,
+                        ease: 'power2.inOut',
+                    });
                 }
                 const res = await convex.action(api.proxy.controller.submitScore, {
                     gameId: gameState.gameId,
@@ -448,7 +604,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                 console.error('submitScore failed', e);
             }
         },
-        [gameState, convex, onGameSubmit, casualTournamentId, user?.token]
+        [gameState, convex, onGameSubmit, casualTournamentId, user?.token, beginCasualPostSettleFlow]
     );
 
     const value: IBlockBlastGameContext = {
@@ -471,6 +627,13 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         cancelSettleConfirm,
         confirmSettleAndExit,
         finishManualSettleSuccess,
+        postCasualScoreReportOpen,
+        postCasualScoreReport,
+        dismissPostCasualScoreReport,
+        postCasualSummaryOpen,
+        postCasualTableSummary,
+        postCasualWaitingForPeers,
+        dismissPostCasualSummary,
         casualTournamentId,
     };
 

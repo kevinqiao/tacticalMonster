@@ -15,7 +15,6 @@ import {
   effectiveScoreAggregation,
   getTournamentDefinition,
   isPeriodScopedTournament,
-  seasonPointsFromScore,
 } from "../../data/casualTournamentConfigs";
 import type {
   CasualRankRewardEntry,
@@ -395,33 +394,6 @@ async function settleOpenCasualTournamentInstanceCore(
       }
     }
     const pruned = prunePendingWalletRewards(pending);
-
-    if (seasonId) {
-      const pointsDelta = seasonPointsFromScore(aggScore, def.seasonPointsMultiplier);
-      if (pointsDelta > 0) {
-        const gameId = def.gameId;
-        const stat = await ctx.db
-          .query("casual_player_season_stats")
-          .withIndex("by_season_game_uid", (q) =>
-            q.eq("seasonId", seasonId).eq("gameId", gameId).eq("uid", p.uid)
-          )
-          .unique();
-        if (!stat) {
-          await ctx.db.insert("casual_player_season_stats", {
-            uid: p.uid,
-            seasonId,
-            gameId,
-            seasonPoints: pointsDelta,
-            updatedAt: now,
-          });
-        } else {
-          await ctx.db.patch(stat._id, {
-            seasonPoints: stat.seasonPoints + pointsDelta,
-            updatedAt: now,
-          });
-        }
-      }
-    }
 
     let passXpDelta = def.seasonXpOnSettle;
     if (def.seasonXpOnSettle > 0) {

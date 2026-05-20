@@ -1,0 +1,526 @@
+/* ================================================================
+   CasualTown — Clash Royale 风格村庄场景
+   ================================================================ */
+
+.casual-town {
+  padding: 12px 12px 16px;
+  border-radius: 16px;
+  overflow: hidden;
+  color: #f0f4ff;
+  background: linear-gradient(180deg, #1a2840 0%, #243652 100%);
+}
+
+/* ── 顶部等级区 ── */
+.casual-town__header {
+  margin-bottom: 10px;
+}
+
+.casual-town__level-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.casual-town__stage-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.casual-town__title {
+  margin: 0 0 5px;
+  font-size: 17px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #fff;
+}
+
+.casual-town__level-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: rgba(123, 111, 232, 0.35);
+  color: #b8afff;
+}
+
+/* 进度条 */
+.casual-town__progress-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+
+.casual-town__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #e8a820, #ffd84a, #e8a820);
+  box-shadow: 0 0 6px rgba(255, 216, 74, 0.5);
+}
+
+.casual-town__progress-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* 阶段路标 */
+.casual-town__stages {
+  display: flex;
+  gap: 6px;
+}
+
+.casual-town__stage-pip {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+
+.casual-town__stage-pip.is-reached {
+  opacity: 0.65;
+}
+
+.casual-town__stage-pip.is-current {
+  opacity: 1;
+  border-color: #7b6fe8;
+  background: rgba(123, 111, 232, 0.2);
+  box-shadow: 0 0 8px rgba(123, 111, 232, 0.4);
+}
+
+/* ── Tab ── */
+.casual-town__tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.casual-town__tab {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.casual-town__tab.is-active {
+  color: #ffd84a;
+  border-bottom-color: #e8a820;
+}
+
+/* ── 城镇地图（方案 A：单图热区） ── */
+.casual-town__map-wrap {
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  border: 3px solid #d4a82a;
+  background: linear-gradient(180deg, #7ec8f8 0%, #7ec8f8 22%, #6ec448 22%, #4a9e32 100%);
+  box-shadow:
+    0 0 0 2px #5c3d0f,
+    0 8px 0 #3d2808,
+    0 12px 28px rgba(0, 0, 0, 0.45),
+    inset 0 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+.casual-town__map-wrap--illustration {
+  padding: 8px;
+  background: #2d4a28;
+  border-color: #c88e10;
+  box-shadow:
+    0 0 0 2px #5c3d0f,
+    0 6px 0 #3d2808,
+    0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+.town-scene {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #7ec8f8 0%, #7ec8f8 24%, #6ec448 24%, #5aad38 100%) !important;
+}
+
+.town-scene--cr .town-scene__world,
+.town-scene--recommended .town-scene__world {
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.12));
+}
+
+.town-scene--recommended .town-scene__ground {
+  opacity: 0.35;
+}
+
+.town-scene__sun {
+  position: absolute;
+  top: 12px;
+  right: 18%;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff9c0 0%, #ffe566 45%, rgba(255, 229, 102, 0) 72%);
+  box-shadow: 0 0 24px rgba(255, 230, 100, 0.75);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.town-scene__clouds {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.town-scene__cloud {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  opacity: 0.92;
+  filter: blur(0.5px);
+}
+
+.town-scene__cloud--a {
+  width: 36px;
+  height: 12px;
+  top: 14%;
+  left: 8%;
+  box-shadow: 18px 0 0 -2px #fff, 32px 2px 0 -4px #fff;
+}
+
+.town-scene__cloud--b {
+  width: 28px;
+  height: 10px;
+  top: 22%;
+  right: 12%;
+  box-shadow: 14px 0 0 -2px #fff, 24px 1px 0 -3px #fff;
+}
+
+.town-scene__cloud--c {
+  width: 22px;
+  height: 8px;
+  top: 10%;
+  left: 42%;
+  opacity: 0.75;
+  box-shadow: 12px 0 0 -2px #fff;
+}
+
+.town-scene__ground {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 整图等距地面（草地 + 主路 + 广场，非格子拼接） */
+.town-scene__ground-plate {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+  display: block;
+}
+
+.town-scene__viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.town-scene__world {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform-origin: top center;
+}
+
+.town-scene__anchor {
+  position: absolute;
+  transform: translate(-50%, -78%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.town-scene__building--decor-only.town-scene__anchor,
+.town-scene__anchor.town-scene__building--decor-only {
+  transform: translate(-50%, -90%);
+}
+
+.town-scene__building--center .town-scene__decor {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
+}
+
+.town-scene__decor {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
+}
+
+.town-scene__building {
+  pointer-events: auto;
+}
+
+.town-scene__hit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.town-scene__hit img {
+  display: block;
+}
+
+.town-scene__decor-wrap {
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.town-scene__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 3px 8px 3px 5px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #3d2808;
+  background: linear-gradient(180deg, #ffe566 0%, #e8a820 100%);
+  border: 1px solid #c88e10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.town-scene__label-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.town-scene__select-ring {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 52px;
+  height: 20px;
+  transform: translate(-50%, -50%) rotateX(55deg);
+  border: 2px solid #ffd84a;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255, 216, 74, 0.8), inset 0 0 6px rgba(255, 240, 160, 0.4);
+  animation: town-select-pulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.town-scene__building.is-selected .town-scene__decor {
+  animation: town-decor-bounce 0.35s ease;
+}
+
+.town-scene__building--legendary:not(.is-locked) .town-scene__decor {
+  animation: town-legend-glow 2.2s ease-in-out infinite;
+}
+
+.town-scene__building.is-locked .town-scene__decor-wrap {
+  filter: grayscale(0.9) brightness(0.7) saturate(0.6);
+  opacity: 0.85;
+}
+
+.town-scene__ambient {
+  pointer-events: none;
+}
+
+@keyframes town-select-pulse {
+  0%, 100% {
+    opacity: 0.75;
+    transform: translate(-50%, -50%) rotateX(55deg) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotateX(55deg) scale(1.08);
+  }
+}
+
+@keyframes town-legend-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(180, 120, 255, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(255, 220, 100, 0.85)) drop-shadow(0 0 8px rgba(200, 140, 255, 0.6));
+  }
+}
+
+@keyframes town-decor-bounce {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+.casual-town__map-hint {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 8px 0;
+}
+
+/* ── 建筑详情面板 ── */
+.town-detail {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.town-detail--locked {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.town-detail__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.town-detail__icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.town-detail__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.town-detail__legendary {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 99px;
+  background: #f0c040;
+  color: #5a3e00;
+}
+
+.town-detail__tagline {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 2px;
+}
+
+.town-detail__desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+
+.town-detail__unlock {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #f0c040;
+  opacity: 0.9;
+}
+
+/* ── 建设点来源 ── */
+.casual-town__economy-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.casual-town__economy-tip {
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(83, 74, 183, 0.2);
+  border-left: 3px solid #7b6fe8;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.casual-town__economy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.casual-town__economy-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 8px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.casual-town__economy-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.casual-town__economy-pts {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8be88b;
+  grid-column: 2;
+  grid-row: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.casual-town__economy-detail {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.4;
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.casual-town__economy-item--daily      { border-left: 3px solid #1d9e75; }
+.casual-town__economy-item--rank       { border-left: 3px solid #7b6fe8; }
+.casual-town__economy-item--tournament { border-left: 3px solid #c88e28; }
+.casual-town__economy-item--season     { border-left: 3px solid #2667b5; }
+.casual-town__economy-item--achievement{ border-left: 3px solid #c84040; }
+
+.casual-town__economy-pace {
+  font-size: 11px;
+  line-height: 1.55;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.5);
+}

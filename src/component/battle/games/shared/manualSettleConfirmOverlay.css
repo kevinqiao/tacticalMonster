@@ -130,6 +130,41 @@
   border: 1px solid #e2e8f0;
 }
 
+.msc-scoreReportSub {
+  margin-bottom: 12px;
+}
+
+.msc-scoreReportList {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.msc-scoreReportList__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.msc-scoreReportList__row--total {
+  font-weight: 800;
+  color: #0f172a;
+  background: #f8fafc;
+  border-bottom: none;
+}
+
+.msc-scoreReportList__val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
 .msc-tableSummary__foot {
   margin: 10px 0 0;
   font-size: 12px;

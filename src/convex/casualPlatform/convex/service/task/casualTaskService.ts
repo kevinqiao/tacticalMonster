@@ -136,7 +136,7 @@ function deltaForObjective(
   template: CasualMissionTemplate,
   args: {
     matchType: string;
-    /** 专场单场结算写入 `casual_player_season_stats` 的正向赛季分增量（已含日顶等，仅 >0 累计） */
+    /** 专场单场结算写入 `casual_player_season_ladder` 的实际增量（已含累计分不低于 0 的裁剪） */
     spotlightSeasonBoardGain: number;
   }
 ): number {

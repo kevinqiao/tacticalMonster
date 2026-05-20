@@ -6,21 +6,27 @@ import {
   effectiveEntryBilling,
   getTournamentDefinition,
 } from "@/convex/casualPlatform/convex/data/casualTournamentConfigs";
+import CasualSkinEquipPanel from "component/battle/games/shared/visualTheme/CasualSkinEquipPanel";
 import { PageProp } from "host/RenderApp";
 import { useModalManager } from "host/service/ModalManager";
+import { usePageManager } from "host/service/PageManager";
 import React, { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
-  assignmentMatchesGameKind,
   hasAnyOpenCasualRunAssignment,
   inferCasualGameKindFromAssignment,
   type CasualGameKind,
-  type OpenCasualRunAssignment,
 } from "../../service/casualOpenRunAssignment";
+import {
+  type AwaitOpenCasualRunMatchWatch,
+  useAwaitOpenCasualRunAssignment,
+} from "../../service/useAwaitOpenCasualRunAssignment";
 import { useCasualPlatform } from "../../service/useCasualPlatformManager";
+import { casualLadderTierLabel } from "./casualSeasonLadderLabels";
 import { useSyncedLatestOpenCasualAssignment } from "../../service/useSyncedLatestOpenCasualAssignment";
 import CasualPageShell from "../shell/CasualPageShell";
+import CasualPlayMatchOverlay from "./CasualPlayMatchOverlay";
 import "./casualPlayTab.css";
 
 function soloEntryHintLine(tournamentId: string): string {
@@ -145,12 +151,14 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const casual = useCasualPlatform();
   const { openModal } = useModalManager();
+  const { openPage } = usePageManager();
   const latestOpenAssignment = useSyncedLatestOpenCasualAssignment({
     enabled: visible !== 0 && Boolean(casual.convexUrl),
-    fetchAssignments: casual.fetchOpenCasualRunAssignments,
+    openRunAssignments: casual.openRunAssignments,
   });
 
   const [joiningSolo, setJoiningSolo] = useState<CasualGameKind | null>(null);
+  const [awaitingSoloMatch, setAwaitingSoloMatch] = useState<AwaitOpenCasualRunMatchWatch | null>(null);
   const [soloNote, setSoloNote] = useState<string | null>(null);
   const [soloCostConfirm, setSoloCostConfirm] = useState<{
     kind: CasualGameKind;
@@ -158,11 +166,13 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     lines: string[];
   } | null>(null);
   const [soloDetailKind, setSoloDetailKind] = useState<CasualGameKind | null>(null);
+  const [leavingMatch, setLeavingMatch] = useState(false);
 
   const coins = casual.casualPlayer?.coins;
   const gems = casual.casualPlayer?.gems;
   const vouchers =
     casual.passProgress?.seasonVouchers ?? casual.casualPlayer?.seasonVouchers;
+  const ladder = casual.seasonLadderSnapshot;
 
   const openTasksSheet = () => {
     openModal({ name: "casual_tasks_sheet" });
@@ -175,62 +185,72 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     });
   };
 
-  const openSeasonLeaderboard = (gameId: "solitaire" | "block_blast") => {
+  const openSeasonLeaderboard = () => {
     openModal({
       name: "casual_season_leaderboard",
-      data: { gameId },
+      data: {},
     });
   };
+
+  const openSoloGame = useCallback(
+    (kind: CasualGameKind, tournamentId: string, gameId: string) => {
+      openModal({
+        name: kind === "solitaire" ? "play_solitaire_solo" : "play_block_blast",
+        data: {
+          casualTournamentId: tournamentId,
+          casualMatchGameId: gameId,
+        },
+      });
+    },
+    [openModal]
+  );
+
+  useAwaitOpenCasualRunAssignment({
+    watch: awaitingSoloMatch,
+    openRunAssignments: casual.openRunAssignments,
+    onMatched: (hit) => {
+      if (!awaitingSoloMatch) return;
+      setAwaitingSoloMatch(null);
+      setJoiningSolo(null);
+      setSoloNote(null);
+      void casual.refreshCasualPlayer();
+      openSoloGame(awaitingSoloMatch.gameKind, awaitingSoloMatch.templateId, hit.gameId);
+    },
+    onTimeout: () => {
+      setAwaitingSoloMatch(null);
+      setJoiningSolo(null);
+      setSoloNote("匹配超时，请稍后重试。");
+      void casual.refreshCasualPlayer();
+    },
+  });
 
   const runJoinSoloAfterPreview = useCallback(
     async (
       kind: CasualGameKind,
       tournamentId: string,
       withCostAck: boolean
-    ): Promise<boolean> => {
-      const openGame = (gameId: string) => {
-        openModal({
-          name: kind === "solitaire" ? "play_solitaire_solo" : "play_block_blast",
-          data: {
-            casualTournamentId: tournamentId,
-            casualMatchGameId: gameId,
-          },
-        });
-      };
+    ): Promise<"ok" | "queued" | "failed"> => {
       const r = await casual.joinTournament(
         tournamentId,
         withCostAck ? { dailySoloCostAck: true } : undefined
       );
       if (!r?.ok) {
         setSoloNote(`加入失败：${(r as { error?: string })?.error ?? "未知错误"}`);
-        return false;
+        return "failed";
       }
       if ("queued" in r && r.queued) {
-        const deadline = Date.now() + 90_000;
-        while (Date.now() < deadline) {
-          await new Promise((res) => window.setTimeout(res, 450));
-          const assigns = (await casual.fetchOpenCasualRunAssignments()) as OpenCasualRunAssignment[];
-          const hit = assigns.find(
-            (a) => a.templateId === tournamentId && assignmentMatchesGameKind(a, kind)
-          );
-          if (hit) {
-            await casual.refreshCasualPlayer();
-            openGame(hit.gameId);
-            return true;
-          }
-        }
-        setSoloNote("匹配超时，请稍后重试。");
-        await casual.refreshCasualPlayer();
-        return false;
+        setSoloNote("匹配中，正在为你创建对局…");
+        setAwaitingSoloMatch({ templateId: tournamentId, gameKind: kind });
+        return "queued";
       }
       if ("gameId" in r && r.gameId) {
         await casual.refreshCasualPlayer();
-        openGame(r.gameId);
-        return true;
+        openSoloGame(kind, tournamentId, r.gameId);
+        return "ok";
       }
-      return false;
+      return "failed";
     },
-    [casual.fetchOpenCasualRunAssignments, casual.joinTournament, casual.refreshCasualPlayer, openModal]
+    [casual.joinTournament, casual.refreshCasualPlayer, openSoloGame]
   );
 
   const joinSoloDailyChallenge = useCallback(
@@ -242,13 +262,21 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
         kind === "solitaire"
           ? CASUAL_DAILY_SOLO_CHALLENGE_SOLITAIRE_ID
           : CASUAL_DAILY_SOLO_CHALLENGE_BLOCK_BLAST_ID;
-      const gate = (await casual.fetchOpenCasualRunAssignments()) as OpenCasualRunAssignment[];
-      if (hasAnyOpenCasualRunAssignment(gate)) {
+      if (hasAnyOpenCasualRunAssignment(casual.openRunAssignments)) {
         setSoloNote("有未结束的锦标对局，请先完成后再开始新挑战。");
+        return;
+      }
+      if (
+        casual.matchQueueEntries.some(
+          (e) => e.status === "waiting" || e.status === "claiming"
+        )
+      ) {
+        setSoloNote("正在匹配或对局创建中，请稍候或先退出匹配。");
         return;
       }
 
       setJoiningSolo(kind);
+      setAwaitingSoloMatch(null);
       try {
         const pv = await casual.fetchJoinEntryChargePreview(tournamentId);
         if (!pv || !pv.ok) {
@@ -270,15 +298,20 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
           return;
         }
 
-        await runJoinSoloAfterPreview(kind, tournamentId, false);
-      } finally {
+        const outcome = await runJoinSoloAfterPreview(kind, tournamentId, false);
+        if (outcome !== "queued") {
+          setJoiningSolo(null);
+        }
+      } catch {
         setJoiningSolo(null);
+        setAwaitingSoloMatch(null);
       }
     },
     [
       casual.convexUrl,
       casual.fetchJoinEntryChargePreview,
-      casual.fetchOpenCasualRunAssignments,
+      casual.openRunAssignments,
+      casual.matchQueueEntries,
       runJoinSoloAfterPreview,
     ]
   );
@@ -288,11 +321,16 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
     if (!c) return;
     setSoloCostConfirm(null);
     setJoiningSolo(c.kind);
+    setAwaitingSoloMatch(null);
     setSoloNote(null);
     try {
-      await runJoinSoloAfterPreview(c.kind, c.tournamentId, true);
-    } finally {
+      const outcome = await runJoinSoloAfterPreview(c.kind, c.tournamentId, true);
+      if (outcome !== "queued") {
+        setJoiningSolo(null);
+      }
+    } catch {
       setJoiningSolo(null);
+      setAwaitingSoloMatch(null);
     }
   }, [soloCostConfirm, runJoinSoloAfterPreview]);
 
@@ -308,6 +346,39 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
       },
     });
   }, [latestOpenAssignment, openModal]);
+
+  const queue = casual.matchQueueEntries;
+  const queueWaiting = queue.some((e) => e.status === "waiting");
+  const queueClaiming = queue.some((e) => e.status === "claiming");
+  const hasOpenRun = latestOpenAssignment != null;
+  const playBlocked = hasOpenRun || queueWaiting || queueClaiming;
+  const primaryQueueEntry = queue[0];
+  const primaryQueueTitle = primaryQueueEntry
+    ? getTournamentDefinition(primaryQueueEntry.templateId)?.title ?? primaryQueueEntry.templateId
+    : "";
+
+  const leaveMatchQueueErrorText = (error: string): string => {
+    if (error === "cannot_leave_claiming") return "正在创建对局，请稍候…";
+    if (error === "not_in_queue") return "当前不在匹配队列中。";
+    return `退出失败：${error}`;
+  };
+
+  const handleLeaveMatchQueue = useCallback(async () => {
+    if (leavingMatch || !queueWaiting) return;
+    setLeavingMatch(true);
+    try {
+      const res = await casual.leaveCasualMatchQueue(primaryQueueEntry?.templateId);
+      setAwaitingSoloMatch(null);
+      setJoiningSolo(null);
+      if (res.ok) {
+        setSoloNote(null);
+      } else {
+        setSoloNote(leaveMatchQueueErrorText(res.error));
+      }
+    } finally {
+      setLeavingMatch(false);
+    }
+  }, [casual.leaveCasualMatchQueue, leavingMatch, primaryQueueEntry?.templateId, queueWaiting]);
 
   const missionSummary =
     casual.missions.length > 0 ? `${casual.missions.length} 项进行中` : "查看赛季任务与进度";
@@ -351,7 +422,34 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
             ) : null}
           </div>
 
-          {latestOpenAssignment ? (
+          <CasualSkinEquipPanel gameId="solitaire" />
+
+          {ladder ? (
+            <div className="casual-play-hub__ladder" aria-label="赛季竞技">
+              <div className="casual-play-hub__ladderStats">
+                <span className="casual-play-hub__ladderStat">
+                  积分 <b>{ladder.points.toLocaleString()}</b>
+                </span>
+                <span className="casual-play-hub__ladderStat">
+                  段位 <b>{casualLadderTierLabel(ladder.tierId)}</b>
+                </span>
+                <span className="casual-play-hub__ladderStat">
+                  段内 <b>第 {ladder.rankInTier}</b>
+                  <span className="casual-play-hub__ladderStatMuted"> / {ladder.tierSize}</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                className="casual-play-hub__ladderRankBtn"
+                disabled={playBlocked}
+                onClick={openSeasonLeaderboard}
+              >
+                赛季榜
+              </button>
+            </div>
+          ) : null}
+
+          {hasOpenRun ? (
             <div className="casual-play-hub__ongoingRow" role="status">
               <p className="casual-play-hub__ongoingRowText">有一场正在进行中的对局</p>
               <button type="button" className="casual-play-hub__ongoingEnter" onClick={openOngoingGame}>
@@ -360,11 +458,24 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
             </div>
           ) : null}
 
+          <CasualPlayMatchOverlay
+            open={visible !== 0 && !hasOpenRun && (queueWaiting || queueClaiming)}
+            phase={queueClaiming ? "claiming" : "waiting"}
+            tournamentTitle={primaryQueueTitle || undefined}
+            leaving={leavingMatch}
+            onLeave={queueWaiting ? () => void handleLeaveMatchQueue() : undefined}
+          />
+
           <section className="casual-play-hub__row" aria-labelledby="casual-play-hub-task-row">
             <h2 id="casual-play-hub-task-row" className="casual-play-hub__rowTitle">
               任务
             </h2>
-            <button type="button" className="casual-play-hub__taskStrip" onClick={openTasksSheet}>
+            <button
+              type="button"
+              className="casual-play-hub__taskStrip"
+              disabled={playBlocked || playBusy}
+              onClick={openTasksSheet}
+            >
               <span className="casual-play-hub__taskStripMain">
                 <span className="casual-play-hub__taskStripTitle">任务列表</span>
                 <span className="casual-play-hub__taskStripSub">{missionSummary}</span>
@@ -395,7 +506,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__soloGridPlay"
-                    disabled={!!latestOpenAssignment || playBusy}
+                    disabled={playBlocked || playBusy}
                     onClick={() => void joinSoloDailyChallenge("solitaire")}
                   >
                     {joiningSolo === "solitaire" ? "…" : "Play"}
@@ -404,6 +515,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                     <button
                       type="button"
                       className="casual-play-hub__modeBtn--detailInline"
+                      disabled={playBlocked || playBusy}
                       onClick={() => setSoloDetailKind("solitaire")}
                     >
                       详情
@@ -412,6 +524,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank casual-play-hub__soloGridRank"
+                    disabled={playBlocked || playBusy}
                     onClick={() =>
                       openModal({
                         name: "casual_daily_solo_leaderboard",
@@ -433,7 +546,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__soloGridPlay"
-                    disabled={!!latestOpenAssignment || playBusy}
+                    disabled={playBlocked || playBusy}
                     onClick={() => void joinSoloDailyChallenge("block_blast")}
                   >
                     {joiningSolo === "block_blast" ? "…" : "Play"}
@@ -442,6 +555,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                     <button
                       type="button"
                       className="casual-play-hub__modeBtn--detailInline"
+                      disabled={playBlocked || playBusy}
                       onClick={() => setSoloDetailKind("block_blast")}
                     >
                       详情
@@ -450,6 +564,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank casual-play-hub__soloGridRank"
+                    disabled={playBlocked || playBusy}
                     onClick={() =>
                       openModal({
                         name: "casual_daily_solo_leaderboard",
@@ -481,7 +596,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--secondary"
-                    disabled={!!latestOpenAssignment}
+                    disabled={playBlocked}
                     onClick={() => openGameTournaments("solitaire", "Solitaire")}
                   >
                     Enter
@@ -489,7 +604,8 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
-                    onClick={() => openSeasonLeaderboard("solitaire")}
+                    disabled={playBlocked}
+                    onClick={openSeasonLeaderboard}
                   >
                     赛季排行榜
                   </button>
@@ -503,7 +619,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--secondary"
-                    disabled={!!latestOpenAssignment}
+                    disabled={playBlocked}
                     onClick={() => openGameTournaments("block_blast", "Block Blast")}
                   >
                     Enter
@@ -511,7 +627,8 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
                   <button
                     type="button"
                     className="casual-play-hub__modeBtn casual-play-hub__modeBtn--rank"
-                    onClick={() => openSeasonLeaderboard("block_blast")}
+                    disabled={playBlocked}
+                    onClick={openSeasonLeaderboard}
                   >
                     赛季排行榜
                   </button>

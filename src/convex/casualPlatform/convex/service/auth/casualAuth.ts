@@ -42,6 +42,16 @@ export const authenticate = action({
           } = await ctx.runQuery(internal.service.season.casualSeasonService.seasonEconomySnapshotForAuth, {
             uid,
           });
+          const activeSeason: { seasonId: string } | null = await ctx.runQuery(
+            internal.service.season.casualSeasonService.activeSeasonIdForAuth,
+            {}
+          );
+          if (activeSeason?.seasonId) {
+            await ctx.runMutation(internal.service.skin.casualSkinService.ensureDefaultSkinsForPlayer, {
+              uid,
+              seasonId: activeSeason.seasonId,
+            });
+          }
           return {
             uid: p.uid,
             coins: p.coins,

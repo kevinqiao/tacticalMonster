@@ -5,6 +5,7 @@ import CasualFooterNavControl from "./control/CasualFooterNavControl";
 import CasualHeadNavControl from "./control/CasualHeadNavControl";
 import "./style.css";
 import { LOBBY_CHROME_STRIP_HEIGHT_CSS } from "../lobbyChromeStrip";
+import { useCasualUiTheme } from "./theme/useCasualUiTheme";
 import { useCasualLobbyChrome } from "./useCasualLobbyChrome";
 
 const LOBBY_CHROME_Z = 1000;
@@ -18,6 +19,9 @@ const CasualHome: React.FC<PageProp> = () => {
   const footerRef = useRef<HTMLDivElement | null>(null);
   const { setShared } = useSharedPageData();
   useCasualLobbyChrome(headRef, footerRef, setShared);
+  useCasualUiTheme();
+
+  const chromeBg = "var(--ui-chrome-scrim, rgba(0, 0, 0, 0.5))";
 
   return (
     <>
@@ -34,7 +38,7 @@ const CasualHome: React.FC<PageProp> = () => {
           maxWidth: "100vw",
           height: STRIP_H,
           zIndex: LOBBY_CHROME_Z,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backgroundColor: chromeBg,
           pointerEvents: "none",
           boxSizing: "border-box",
         }}
@@ -56,7 +60,7 @@ const CasualHome: React.FC<PageProp> = () => {
           margin: 0,
           boxSizing: "border-box",
           zIndex: LOBBY_CHROME_Z,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          backgroundColor: chromeBg,
           pointerEvents: "auto",
           overflow: "visible",
           paddingBottom: 0,

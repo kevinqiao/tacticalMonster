@@ -9,8 +9,8 @@ import {
   isPeriodScopedTournament,
   listPlayCasualTournaments,
   listTournamentDefinitions,
-  seasonPointsFromScore,
 } from "../../data/casualTournamentConfigs";
+import { applyCasualTemplateLadderDelta } from "../season/casualSeasonLadder";
 import type { CasualTournamentDefinition } from "../../data/casualTournamentConfigs";
 import { resolveInstanceWindow } from "../../data/casualInstanceWindow";
 import type { Doc, Id } from "../../_generated/dataModel";
@@ -159,6 +159,34 @@ function prunePendingWalletRewards(p: {
   return Object.keys(o).length > 0 ? o : undefined;
 }
 
+/** 结算待发奖写入 `casual_run_player_tournaments.pendingRunRewards`，由历史页 `claimCasualRunRewards` 领取 */
+async function persistPendingRunRewards(
+  ctx: MutationCtx,
+  runTournamentId: Id<"casual_run_tournaments"> | string,
+  uid: string,
+  rewards:
+    | {
+        coins?: number;
+        gems?: number;
+        seasonVoucher?: number;
+      }
+    | undefined
+): Promise<void> {
+  const pruned = rewards ? prunePendingWalletRewards(rewards) : undefined;
+  if (!pruned) return;
+  const pt = await ctx.db
+    .query("casual_run_player_tournaments")
+    .withIndex("by_tournament_uid", (q) =>
+      q.eq("tournamentId", runTournamentId as Id<"casual_run_tournaments">).eq("uid", uid)
+    )
+    .unique();
+  if (!pt) return;
+  await ctx.db.patch(pt._id, {
+    pendingRunRewards: pruned,
+    updatedAt: Date.now(),
+  });
+}
+
 async function applyCasualTemplateScoreEffects(
   ctx: MutationCtx,
   def: CasualTournamentDefinition,
@@ -189,7 +217,8 @@ async function applyCasualTemplateScoreEffects(
   };
 }> {
   const { uid, tournamentId, gameId, score, externalGameId, matchId, runTournamentId } = args;
-  const deferWallet = Boolean(args.deferWalletRewards);
+  /** 默认待发奖：金币/钻须玩家在历史页手动领取 */
+  const deferWallet = args.deferWalletRewards !== false;
   const pendingWallet: {
     coins?: number;
     gems?: number;
@@ -200,53 +229,30 @@ async function applyCasualTemplateScoreEffects(
   const seasonId = await activeSeasonId(ctx);
   let pointsDelta = 0;
   if (seasonId) {
-    const mpRank = args.multiplayerFinalRank;
-    if (typeof mpRank === "number" && mpRank >= 1) {
-      const rr = findCasualRankRewardEntry(def.rewards.rankRewards, mpRank);
-      const rawSigned =
-        rr && typeof rr.seasonPoints === "number"
-          ? rr.seasonPoints
-          : (def.rewards.seasonPointsRankMissPenalty ?? 0);
-      if (rawSigned > 0) {
-        pointsDelta = rawSigned;
-      } else if (rawSigned < 0) {
-        pointsDelta = rawSigned;
-      }
-    } else {
-      const rawPointsDelta = seasonPointsFromScore(score, def.seasonPointsMultiplier);
-      if (rawPointsDelta > 0) {
-        pointsDelta = rawPointsDelta;
-      }
-    }
-
-    if (pointsDelta !== 0) {
-      const gameIdStat = def.gameId;
-      const stat = await ctx.db
-        .query("casual_player_season_stats")
-        .withIndex("by_season_game_uid", (q) =>
-          q.eq("seasonId", seasonId).eq("gameId", gameIdStat).eq("uid", uid)
-        )
-        .unique();
-      const nextTotal = Math.max(0, (stat?.seasonPoints ?? 0) + pointsDelta);
-      if (!stat) {
-        await ctx.db.insert("casual_player_season_stats", {
-          uid,
-          seasonId,
-          gameId: gameIdStat,
-          seasonPoints: nextTotal,
-          updatedAt: now,
-        });
-      } else {
-        await ctx.db.patch(stat._id, {
-          seasonPoints: nextTotal,
-          updatedAt: now,
-        });
-      }
-    }
+    pointsDelta = await applyCasualTemplateLadderDelta(ctx, seasonId, def, {
+      uid,
+      score,
+      multiplayerFinalRank: args.multiplayerFinalRank,
+    });
   }
   /** 当场软币/钻按配表足额；门票 + 名次赛季分 ± 约束刷币，不再做当日递减/软币日顶（`casual-platform-design-adjustments.md` §5）。 */
   const settleCoins = casualSettleBaseCoins(def);
   const settleGems = casualSettleBaseGems(def);
+  const mpRank = args.multiplayerFinalRank;
+  if (typeof mpRank === "number" && mpRank >= 1) {
+    const rr = findCasualRankRewardEntry(def.rewards.rankRewards, mpRank);
+    if (rr) {
+      const mult = rr.multiplier ?? 1;
+      if (rr.coins != null) {
+        const rc = Math.floor(rr.coins * mult);
+        if (rc > 0) pendingWallet.coins = (pendingWallet.coins ?? 0) + rc;
+      }
+      if (rr.gems != null) {
+        const rg = Math.floor(rr.gems * mult);
+        if (rg > 0) pendingWallet.gems = (pendingWallet.gems ?? 0) + rg;
+      }
+    }
+  }
   if (settleCoins > 0) {
     if (deferWallet) {
       pendingWallet.coins = (pendingWallet.coins ?? 0) + settleCoins;
@@ -290,35 +296,13 @@ async function applyCasualTemplateScoreEffects(
   }
 
   const appliedSeasonPointsForTask =
-    def.matchType === "season_challenge" ? Math.max(0, pointsDelta) : 0;
+    def.matchType === "season_challenge" ? pointsDelta : 0;
 
   await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
     uid,
     matchType: def.matchType,
     spotlightSeasonBoardGain: appliedSeasonPointsForTask,
   });
-
-  if (
-    !args.skipSolitaireBotSeed &&
-    (def.gameId === "solitaire" || def.gameId === "block_blast") &&
-    externalGameId &&
-    matchId &&
-    runTournamentId
-  ) {
-    const matchRow = await ctx.db.get(matchId as Id<"casual_run_matches">);
-    const vp = casualSolitaireVirtualOpponentCount(def.maxPlayers, matchRow?.humanPlayerCount ?? 1);
-    if (vp > 0) {
-      await ctx.runMutation(internal.service.tournament.casualRunSettlementFill.seedSolitaireVirtualOpponents, {
-        templateId: tournamentId,
-        runTournamentId,
-        matchId,
-        externalGameId,
-        humanScore: score,
-        botCount: vp,
-        matchGameType: def.gameId,
-      });
-    }
-  }
 
   const pendingPruned = deferWallet ? prunePendingWalletRewards(pendingWallet) : undefined;
   return {
@@ -922,8 +906,9 @@ export const joinTournament = mutation({
     uid: v.string(),
     tournamentId: v.string(),
     dailySoloCostAck: v.optional(v.literal(true)),
+    replayTokenId: v.optional(v.id("casual_replay_tokens")),
   },
-  handler: async (ctx, { uid, tournamentId, dailySoloCostAck }): Promise<JoinCasualRunResult> => {
+  handler: async (ctx, { uid, tournamentId, dailySoloCostAck, replayTokenId }): Promise<JoinCasualRunResult> => {
     const def = getTournamentDefinition(tournamentId);
     if (!def) {
       return { ok: false as const, error: "unknown_tournament" };
@@ -932,6 +917,7 @@ export const joinTournament = mutation({
       uid,
       tournamentId,
       dailySoloCostAck,
+      replayTokenId,
     });
   },
 });
@@ -1063,7 +1049,8 @@ export const submitCasualRunScoreCore = internalMutation({
     const skipPeriodWallet = Boolean(isPeriodScopedTournament(def) && runRow?.instanceId);
     const canonicalSessionId = canonicalCasualRunSessionExternalId(String(pm.matchId));
 
-    if (humanCountPlanned <= 1) {
+    /** 仅真正单人桌（`maxPlayers === 1`，如日榜）走简路；A/B/C 即使仅 1 真人也需虚拟对手 + 名次赛季分 */
+    if (def.maxPlayers <= 1) {
       await ctx.db.patch(pm._id, {
         status: "settled",
         rank: 1,
@@ -1114,10 +1101,20 @@ export const submitCasualRunScoreCore = internalMutation({
           matchGameId: pm.gameId,
           gameType: def.gameId,
         });
+        const seasonIdPeriod = await activeSeasonId(ctx);
+        let periodLadderDelta = 0;
+        if (seasonIdPeriod) {
+          periodLadderDelta = await applyCasualTemplateLadderDelta(ctx, seasonIdPeriod, def, {
+            uid,
+            score,
+            multiplayerFinalRank: 1,
+          });
+        }
         await ctx.runMutation(internal.service.task.casualTaskService.notifyScoreSubmitted, {
           uid,
           matchType: def.matchType,
-          spotlightSeasonBoardGain: 0,
+          spotlightSeasonBoardGain:
+            def.matchType === "season_challenge" ? periodLadderDelta : 0,
         });
         const tableSummaryPeriodSolo = casualTableSummarySolo(def.maxPlayers, score);
         return {
@@ -1135,8 +1132,9 @@ export const submitCasualRunScoreCore = internalMutation({
         externalGameId: canonicalSessionId,
         matchId: pm.matchId,
         runTournamentId: pm.tournamentId,
-        deferWalletRewards: false,
+        multiplayerFinalRank: 1,
       });
+      await persistPendingRunRewards(ctx, runTid, uid, extra.pendingWalletRewards);
 
       const tableBuilt = await buildCasualAsyncTableSummary(ctx, {
         templateId: pm.templateId,
@@ -1198,8 +1196,9 @@ export const submitCasualRunScoreCore = internalMutation({
         runTournamentId: pm.tournamentId,
         sessionExternalId: canonicalSessionId,
         humanCountPlanned,
-        referenceHumanScore: maxScore,
-        humanRows: humanPms.map((h) => ({ _id: h._id, uid: h.uid })),
+        humanRows: humanPms
+          .filter((h) => h.score != null)
+          .map((h) => ({ _id: h._id, uid: h.uid, score: h.score as number })),
         updatedAt: now,
       });
     }
@@ -1265,10 +1264,10 @@ export const submitCasualRunScoreCore = internalMutation({
         externalGameId: canonicalSessionId,
         matchId: pm.matchId,
         runTournamentId: pm.tournamentId,
-        deferWalletRewards: false,
         skipSolitaireBotSeed: true,
         ...(typeof finalRank === "number" && finalRank >= 1 ? { multiplayerFinalRank: finalRank } : {}),
       });
+      await persistPendingRunRewards(ctx, runTid, hp.uid, extra.pendingWalletRewards);
       lastExtra = extra;
     }
 
@@ -1537,6 +1536,7 @@ export const applyScore = internalMutation({
       matchId: anchor.matchId,
       runTournamentId: anchor.tournamentId,
     });
+    await persistPendingRunRewards(ctx, anchor.tournamentId, uid, extra.pendingWalletRewards);
 
     return {
       ok: true as const,

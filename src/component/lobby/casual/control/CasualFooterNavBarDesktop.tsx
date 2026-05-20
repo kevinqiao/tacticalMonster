@@ -9,7 +9,7 @@ export const CasualFooterNavBarDesktop: React.FC = () => {
   const { openPage } = usePageManager();
 
   return (
-    <nav className="footer-nav-desktop" aria-label="Lobby navigation">
+    <nav className="footer-nav-desktop footer-nav-desktop--casual" aria-label="Lobby navigation">
       <ul className="footer-nav-desktop__list">
         {CASUAL_NAV_MENU_ITEMS.map((item, index) => (
           <li key={item.uri} className="footer-nav-desktop__item">

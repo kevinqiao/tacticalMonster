@@ -11,7 +11,9 @@ interface CardSVGProps {
 export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps) => {
 
   const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
-  const color = isRed ? 'red' : 'black';
+  const color = isRed
+    ? 'var(--card-face-red, #c0392b)'
+    : 'var(--card-face-black, #1a1a2e)';
 
   return (
     <>
@@ -20,8 +22,8 @@ export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps)
         <rect
           width="100%"
           height="100%"
-          fill="#1a3c34"
-          stroke="#555" // 描边颜色变浅，更明显
+          fill="var(--card-back-fill, #1a3c34)"
+          stroke="var(--card-back-pattern, #555)"
           strokeWidth="2" // 描边加粗
           rx="5"
           ry="5"
@@ -41,7 +43,7 @@ export const CardSVG = ({ card, width = '100%', height = '100%' }: CardSVGProps)
             y1="0"
             x2="0"
             y2="8"
-            stroke="#5a8a82" // 提高颜色对比度
+            stroke="var(--card-back-pattern, #5a8a82)"
             strokeWidth="2"
           />
         </pattern>

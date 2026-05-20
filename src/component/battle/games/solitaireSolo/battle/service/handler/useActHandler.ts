@@ -20,7 +20,14 @@ import {
 } from "../../types/SoloTypes";
 import { getCardCoord, syncCardStackZIndexFromGameState, tableauCardZIndex } from "../../Utils";
 import { useSoloGameManager } from "../GameManager";
+import { CasualGameScoreReportOverlay } from "../../../../shared/CasualGameScoreReportOverlay";
+import {
+    buildSolitaireScoreReport,
+    shouldOpenCasualTableSummaryAfterScoreReport,
+    type CasualGameScoreReportUI,
+} from "../../../../shared/casualGameScoreReportUI";
 import type { CasualAsyncTableSummaryUI, ManualSettleConfirmExtras } from "../../../../shared/casualAsyncTableSummaryUI";
+import type { GameReport } from "../../types/SoloTypes";
 
 type ServerProgress = { score?: number; moves?: number; gameStatus?: number };
 
@@ -43,6 +50,8 @@ const useActHandler = () => {
     const convex = useConvex();
     const { user } = useUserManager();
     const [settleConfirmOpen, setSettleConfirmOpen] = useState(false);
+    const [postCasualScoreReportOpen, setPostCasualScoreReportOpen] = useState(false);
+    const [postCasualScoreReport, setPostCasualScoreReport] = useState<CasualGameScoreReportUI | null>(null);
     const [postCasualSummaryOpen, setPostCasualSummaryOpen] = useState(false);
     const [postCasualTableSummary, setPostCasualTableSummary] = useState<CasualAsyncTableSummaryUI | null>(
         null
@@ -74,10 +83,49 @@ const useActHandler = () => {
 
     useEffect(() => {
         casualRunSubmittedRef.current = false;
+        setPostCasualScoreReportOpen(false);
+        setPostCasualScoreReport(null);
         setPostCasualSummaryOpen(false);
         setPostCasualTableSummary(null);
         setPostCasualWaitingForPeers(false);
     }, [gameState?.gameId]);
+
+    const loadSolitaireScoreReport = useCallback(
+        async (gameId: string, fallbackScore: number): Promise<CasualGameScoreReportUI> => {
+            try {
+                const res = (await convex.query(api.service.gameManager.findReport, { gameId })) as {
+                    ok?: boolean;
+                    data?: GameReport;
+                };
+                if (res?.ok && res.data) {
+                    return buildSolitaireScoreReport(res.data);
+                }
+            } catch (e) {
+                console.warn("[Solitaire] findReport", e);
+            }
+            return {
+                gameLabel: "Solitaire",
+                lines: [{ label: "本局得分", value: fallbackScore }],
+                totalScore: fallbackScore,
+            };
+        },
+        [convex]
+    );
+
+    const beginCasualPostSettleFlow = useCallback(
+        async (
+            gameId: string,
+            fallbackScore: number,
+            settle: { tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean }
+        ) => {
+            const report = await loadSolitaireScoreReport(gameId, fallbackScore);
+            setPostCasualScoreReport(report);
+            setPostCasualTableSummary(settle.tableSummary ?? null);
+            setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+            setPostCasualScoreReportOpen(true);
+        },
+        [loadSolitaireScoreReport]
+    );
 
     const runSolitaireSettlement = useCallback(
         async (score: number, opts?: { deferHostNotify?: boolean }): Promise<CasualRunSubmitOutcome> => {
@@ -163,13 +211,29 @@ const useActHandler = () => {
             typeof gameState.gameId === "string" &&
             gameState.gameId.startsWith("game_");
         if (isCasualRun) {
-            setPostCasualTableSummary(r.tableSummary ?? null);
-            setPostCasualWaitingForPeers(Boolean(r.pendingOthers));
-            setPostCasualSummaryOpen(true);
+            await beginCasualPostSettleFlow(gameState.gameId, score, r);
         } else {
             onGameSubmit?.();
         }
-    }, [gameState, runSolitaireSettlement, casualTournamentId, onGameSubmit]);
+    }, [gameState, runSolitaireSettlement, casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]);
+
+    const dismissPostCasualScoreReport = useCallback(() => {
+        setPostCasualScoreReportOpen(false);
+        setPostCasualScoreReport(null);
+        if (
+            shouldOpenCasualTableSummaryAfterScoreReport(
+                casualTournamentId,
+                postCasualTableSummary,
+                postCasualWaitingForPeers
+            )
+        ) {
+            setPostCasualSummaryOpen(true);
+        } else {
+            setPostCasualTableSummary(null);
+            setPostCasualWaitingForPeers(false);
+            onGameSubmit?.();
+        }
+    }, [casualTournamentId, postCasualTableSummary, postCasualWaitingForPeers, onGameSubmit]);
 
     const dismissPostCasualSummary = useCallback(() => {
         setPostCasualSummaryOpen(false);
@@ -182,10 +246,27 @@ const useActHandler = () => {
         setSettleConfirmOpen(false);
     }, []);
 
-    const finishManualSettleSuccess = useCallback(() => {
-        setSettleConfirmOpen(false);
-        onGameSubmit?.();
-    }, [onGameSubmit]);
+    const finishManualSettleSuccess = useCallback(
+        (extras?: ManualSettleConfirmExtras) => {
+            setSettleConfirmOpen(false);
+            const gs = gameStateRef.current;
+            const isCasualRun =
+                Boolean(casualTournamentId) &&
+                gs &&
+                typeof gs.gameId === "string" &&
+                gs.gameId.startsWith("game_");
+            if (!isCasualRun || !gs) {
+                onGameSubmit?.();
+                return;
+            }
+            const score = Math.max(0, Math.floor(gs.score ?? 0));
+            void beginCasualPostSettleFlow(gs.gameId, score, {
+                tableSummary: extras?.tableSummary ?? undefined,
+                pendingOthers: extras?.pendingOthers,
+            });
+        },
+        [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
+    );
 
     const confirmSettleAndExit = useCallback(async () => {
         const gs = gameStateRef.current;
@@ -242,9 +323,8 @@ const useActHandler = () => {
                 typeof gameState.gameId === "string" &&
                 gameState.gameId.startsWith("game_");
             if (isCasualRun) {
-                setPostCasualTableSummary(r.tableSummary ?? null);
-                setPostCasualWaitingForPeers(Boolean(r.pendingOthers));
-                setPostCasualSummaryOpen(true);
+                const score = Math.max(0, Math.floor(gameState.score ?? 0));
+                await beginCasualPostSettleFlow(gameState.gameId, score, r);
             } else {
                 onGameSubmit?.();
             }
@@ -252,7 +332,14 @@ const useActHandler = () => {
         }
 
         setSettleConfirmOpen(true);
-    }, [gameState, interactionPhase, runSolitaireSettlement, casualTournamentId, onGameSubmit]);
+    }, [
+        gameState,
+        interactionPhase,
+        runSolitaireSettlement,
+        casualTournamentId,
+        onGameSubmit,
+        beginCasualPostSettleFlow,
+    ]);
     const saveUpdate = useCallback((cards: Card[]) => {
         if (!gameState) return;
         cards.forEach((r: SoloCard) => {
@@ -620,6 +707,9 @@ const useActHandler = () => {
         cancelSettleConfirm,
         confirmSettleAndExit,
         finishManualSettleSuccess,
+        postCasualScoreReportOpen,
+        postCasualScoreReport,
+        dismissPostCasualScoreReport,
         postCasualSummaryOpen,
         postCasualTableSummary,
         postCasualWaitingForPeers,

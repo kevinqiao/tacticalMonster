@@ -138,6 +138,7 @@ export default defineSchema({
   })
     .index("by_tournament_uid", ["tournamentId", "uid"])
     .index("by_uid_template", ["uid", "templateId"])
+    .index("by_uid_updatedAt", ["uid", "updatedAt"])
     /** 统计单场 run 真人报名数（`gameHistory`） */
     .index("by_tournament", ["tournamentId"]),
 
@@ -168,6 +169,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_template_status", ["templateId", "status"])
+    .index("by_uid", ["uid"])
     .index("by_uid_template_status", ["uid", "templateId", "status"]),
 
   casual_run_player_matches: defineTable({
@@ -304,17 +306,32 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_season_game_uid", ["seasonId", "gameId", "uid"]),
 
+  /**
+   * 赛季竞技天梯：每玩家每赛季一条 `(seasonId, uid)`；累计分下限 0（单场 Δ 仍可为负）。
+   * 段位与段位内名次为读模型派生，不在此表单独存储。
+   */
+  casual_player_season_ladder: defineTable({
+    uid: v.string(),
+    seasonId: v.string(),
+    points: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_season_uid", ["seasonId", "uid"])
+    .index("by_season", ["seasonId"]),
+
   casual_shop_skus: defineTable({
     skuId: v.string(),
     title: v.string(),
     /** `iap`：仅展示法币价；到账须走支付/SDK，`purchaseSku` 会直接拒绝 */
-    skuKind: v.optional(v.union(v.literal("virtual"), v.literal("iap"))),
+    skuKind: v.optional(v.union(v.literal("virtual"), v.literal("iap"), v.literal("skin"))),
+    grantSkinId: v.optional(v.string()),
     /** 法币展示价（例 ¥6），由运营配置；不参与虚拟货币结算 */
     iapPriceLabel: v.optional(v.string()),
     priceCoins: v.optional(v.number()),
     priceGems: v.optional(v.number()),
     grantCoins: v.optional(v.number()),
     grantGems: v.optional(v.number()),
+    grantReplayTokenCount: v.optional(v.number()),
     active: v.boolean(),
   }).index("by_skuId", ["skuId"]),
 
@@ -340,6 +357,45 @@ export default defineSchema({
     activityIdsJson: v.optional(v.string()),
     fulfilledAt: v.number(),
   }).index("by_paymentRef", ["paymentRef"]),
+
+  /** 玩家已拥有皮肤（幂等发放） */
+  casual_player_skins: defineTable({
+    uid: v.string(),
+    skinId: v.string(),
+    grantedAt: v.number(),
+    source: v.union(
+      v.literal("pass"),
+      v.literal("shop"),
+      v.literal("achievement"),
+      v.literal("season_auto")
+    ),
+    seasonId: v.optional(v.string()),
+  })
+    .index("by_uid", ["uid"])
+    .index("by_uid_skinId", ["uid", "skinId"]),
+
+  /** 玩家当前装备槽 */
+  casual_player_skin_equip: defineTable({
+    uid: v.string(),
+    slot: v.string(),
+    skinId: v.string(),
+    updatedAt: v.number(),
+  }).index("by_uid_slot", ["uid", "slot"]),
+
+  /** Town 布局（v1 默认布局 + 可选编辑） */
+  casual_player_town_state: defineTable({
+    uid: v.string(),
+    layoutJson: v.string(),
+    updatedAt: v.number(),
+  }).index("by_uid", ["uid"]),
+
+  /** 再战令：消耗后 `joinTournament` 免 coins/gems 入场（seasonVouchers 场不可用） */
+  casual_replay_tokens: defineTable({
+    uid: v.string(),
+    createdAt: v.number(),
+    usedAt: v.optional(v.number()),
+    usedForTournamentId: v.optional(v.string()),
+  }).index("by_uid", ["uid"]),
 
   casual_activities: defineTable({
     activityId: v.string(),

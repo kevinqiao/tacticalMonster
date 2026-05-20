@@ -73,6 +73,21 @@
   cursor: not-allowed;
 }
 
+.casual-game-tour__resume--queue {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.casual-game-tour__resume--queue .casual-game-tour__resumeText {
+  color: #1e40af;
+}
+
+.casual-game-tour__resumeBtn--leave {
+  background: #fff;
+  color: #1e3a8a;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+}
+
 .casual-game-tour__list {
   display: flex;
   flex-direction: column;

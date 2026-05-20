@@ -14,6 +14,12 @@ export const casualTournamentFns = {
   listOpenCasualRunAssignments: makeFunctionReference<"query">(
     "service/tournament/casualTournamentService:listOpenCasualRunAssignments"
   ),
+  listCasualMatchQueueForUid: makeFunctionReference<"query">(
+    "service/tournament/casualMatchmaking:listCasualMatchQueueForUid"
+  ),
+  leaveCasualMatchQueue: makeFunctionReference<"mutation">(
+    "service/tournament/casualMatchmaking:leaveCasualMatchQueue"
+  ),
   joinTournament: makeFunctionReference<"mutation">("service/tournament/casualTournamentService:joinTournament"),
   previewJoinEntryCharge: makeFunctionReference<"query">(
     "service/tournament/casualTournamentService:previewJoinEntryCharge"
@@ -27,6 +33,13 @@ export const casualTournamentFns = {
   claimCasualScoreTierPendingRewardsBatch: makeFunctionReference<"mutation">(
     "service/tournament/casualTournamentService:claimCasualScoreTierPendingRewardsBatch"
   ),
+} as const;
+
+export const casualSkinFns = {
+  getSkinCatalog: makeFunctionReference<"query">("service/skin/casualSkinService:getSkinCatalog"),
+  getPlayerSkinState: makeFunctionReference<"query">("service/skin/casualSkinService:getPlayerSkinState"),
+  equipSkin: makeFunctionReference<"mutation">("service/skin/casualSkinService:equipSkin"),
+  unequipSkin: makeFunctionReference<"mutation">("service/skin/casualSkinService:unequipSkin"),
 } as const;
 
 export const casualInstanceFns = {

@@ -11,6 +11,9 @@ import {
     GameInteractionPhase,
     inferGridSizeFromGrid,
 } from './types/BlockBlastTypes';
+import { useGameVisualTheme } from '../../shared/visualTheme/useGameVisualTheme';
+import { CasualGameScoreReportOverlay } from '../../shared/CasualGameScoreReportOverlay';
+import { CasualPostSettleSummaryOverlay } from '../../shared/CasualPostSettleSummaryOverlay';
 import {
     MANUAL_SETTLE_DEFAULT_MESSAGE_BLOCK_BLAST,
     ManualSettleConfirmOverlay,
@@ -43,6 +46,7 @@ const LANDSCAPE_GRID_VERTICAL_MARGIN_PX = 8;
  */
 const LANDSCAPE_GRID_MAX_BOX_HEIGHT_PX: number | undefined = 600;
 const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
+    const visualTheme = useGameVisualTheme('block_blast');
     const containerRef = useRef<HTMLDivElement>(null);
     const [isPortrait, setIsPortrait] = useState(
         () => typeof window !== 'undefined' && window.innerHeight >= window.innerWidth
@@ -56,6 +60,13 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         cancelSettleConfirm,
         confirmSettleAndExit,
         finishManualSettleSuccess,
+        postCasualScoreReportOpen,
+        postCasualScoreReport,
+        dismissPostCasualScoreReport,
+        postCasualSummaryOpen,
+        postCasualTableSummary,
+        postCasualWaitingForPeers,
+        dismissPostCasualSummary,
         interactionPhase,
     } = useBlockBlastGameManager();
 
@@ -331,6 +342,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         <div
             ref={containerRef}
             className="blockblast-player-container"
+            data-game-visual-key={visualTheme.visualKey}
             style={{
                 width: '100%',
                 height: '100%',
@@ -355,6 +367,18 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 onCancel={cancelSettleConfirm}
                 onConfirm={confirmSettleAndExit}
                 onSuccessClose={finishManualSettleSuccess}
+            />
+            <CasualGameScoreReportOverlay
+                open={postCasualScoreReportOpen}
+                report={postCasualScoreReport}
+                onConfirm={dismissPostCasualScoreReport}
+            />
+            <CasualPostSettleSummaryOverlay
+                open={postCasualSummaryOpen}
+                title="同桌成绩"
+                summary={postCasualTableSummary}
+                waitingForPeers={postCasualWaitingForPeers}
+                onDismiss={dismissPostCasualSummary}
             />
         </div>
     );

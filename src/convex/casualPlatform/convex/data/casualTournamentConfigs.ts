@@ -116,6 +116,28 @@ export function applyPassXpFromModifiers(base: number, multiplier: number, delta
   return applyScaledCurrencyCost(base, multiplier, delta);
 }
 
+/**
+ * 异步 A/B/C 名次赛季分：同档位跨 `solitaire` / `block_blast` 必须一致（避免 A 场末名有时 -1 有时 -3）。
+ */
+const CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P: CasualRankRewardEntry[] = [
+  { rankRange: [1, 1], multiplier: 1, seasonPoints: 6 },
+  { rankRange: [2, 2], multiplier: 1, seasonPoints: 2 },
+  { rankRange: [3, 3], multiplier: 1, seasonPoints: -3 },
+];
+const CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P: CasualRankRewardEntry[] = [
+  { rankRange: [1, 1], multiplier: 1, seasonPoints: 10 },
+  { rankRange: [2, 2], multiplier: 1, seasonPoints: 5 },
+  { rankRange: [3, 3], multiplier: 1, seasonPoints: 2 },
+  { rankRange: [4, 4], multiplier: 1, seasonPoints: -5 },
+];
+const CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P: CasualRankRewardEntry[] = [
+  { rankRange: [1, 1], multiplier: 1, seasonPoints: 14 },
+  { rankRange: [2, 2], multiplier: 1, seasonPoints: 8 },
+  { rankRange: [3, 3], multiplier: 1, seasonPoints: 5 },
+  { rankRange: [4, 4], multiplier: 1, seasonPoints: 2 },
+  { rankRange: [5, 5], multiplier: 1, seasonPoints: -8 },
+];
+
 /** Play 异步 A/B/C：`maxPlayers` 3 / 4 / 5；多人赛季分按名次 `rankRewards.seasonPoints`（可负）；日榜单机仍用 `seasonPointsMultiplier`。 */
 const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
   {
@@ -130,11 +152,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 22, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 6 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 2 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: -3 },
-      ],
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
     },
     seasonXpOnSettle: 12,
     seasonPointsMultiplier: 0,
@@ -146,17 +164,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
-    matchmakingMinHumans: 1,
+    matchmakingMinHumans: 2,
     entry: { kind: "coins", amount: 40 },
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 58, gems: 1 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 10 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 5 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: 2 },
-        { rankRange: [4, 4], multiplier: 1, seasonPoints: -5 },
-      ],
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
     },
     seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
@@ -173,13 +186,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 0, gems: 8 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 14 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 8 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: 5 },
-        { rankRange: [4, 4], multiplier: 1, seasonPoints: 2 },
-        { rankRange: [5, 5], multiplier: 1, seasonPoints: -8 },
-      ],
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
     },
     seasonXpOnSettle: 28,
     seasonPointsMultiplier: 0,
@@ -196,11 +203,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 22, gems: 0 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 6 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 2 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: -3 },
-      ],
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_A_3P],
     },
     seasonXpOnSettle: 12,
     seasonPointsMultiplier: 0,
@@ -212,17 +215,12 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
-    matchmakingMinHumans: 1,
+    matchmakingMinHumans: 2,
     entry: { kind: "coins", amount: 40 },
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 58, gems: 1 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 10 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 5 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: 2 },
-        { rankRange: [4, 4], multiplier: 1, seasonPoints: -5 },
-      ],
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_B_4P],
     },
     seasonXpOnSettle: 18,
     seasonPointsMultiplier: 0,
@@ -239,13 +237,7 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     rewards: {
       type: "by_rank",
       baseRewards: { coins: 0, gems: 8 },
-      rankRewards: [
-        { rankRange: [1, 1], multiplier: 1, seasonPoints: 14 },
-        { rankRange: [2, 2], multiplier: 1, seasonPoints: 8 },
-        { rankRange: [3, 3], multiplier: 1, seasonPoints: 5 },
-        { rankRange: [4, 4], multiplier: 1, seasonPoints: 2 },
-        { rankRange: [5, 5], multiplier: 1, seasonPoints: -8 },
-      ],
+      rankRewards: [...CASUAL_ASYNC_RANK_SEASON_POINTS_C_5P],
     },
     seasonXpOnSettle: 28,
     seasonPointsMultiplier: 0,
@@ -425,7 +417,7 @@ export function listSeasonChallengeMatchCatalog(): Array<{
 }
 
 /**
- * 赛季累计积分：与 `casual_player_season_stats` 写入一致。
+ * 赛季竞技积分增量（日榜 `seasonPointsMultiplier` 路径）；持久化见 `casual_player_season_ladder`。
  * 高分仍按「千分位 × 倍率」拉开差距；终局分 < 1000 时原先恒为 0，赛季榜会长期空白，
  * 故在「有正分且倍率 > 0」且 floor 为 0 时记 1 点，保证每场有贡献的结算都会上榜。
  */
