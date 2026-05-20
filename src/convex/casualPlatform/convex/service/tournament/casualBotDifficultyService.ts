@@ -241,7 +241,7 @@ export function generateNeutralGapBotScores(args: {
   return botFills;
 }
 
-/** solo_bot：围绕唯一真人目标名次生成各 bot 分数 */
+/** solo_bot：为每个非真人名次槽生成分数（优于真人 / 劣于真人），供直接写 rank */
 export function generateSoloBotScores(args: {
   humanUid: string;
   humanScore: number;
@@ -251,36 +251,46 @@ export function generateSoloBotScores(args: {
   gameType: CasualGameIdForBot;
   sessionSeed: number;
 }): Array<{ rank: number; score: number }> {
-  const {
-    humanUid,
-    humanScore,
-    effectiveRank,
-    rankMinScores,
-    maxPlayers,
-    gameType,
-    sessionSeed,
-  } = args;
-
-  const occupants: Occupant[] = [
-    {
-      uid: humanUid,
-      score: humanScore,
-      assignedRank: effectiveRank,
-      isBot: false,
-    },
-  ];
+  const { humanScore, effectiveRank, rankMinScores, maxPlayers, gameType, sessionSeed } =
+    args;
+  const eps = scoreEpsilon(gameType);
+  const span = gameType === "block_blast" ? 5000 : 500;
 
   const fills: Array<{ rank: number; score: number }> = [];
   let botIdx = 0;
   for (let r = 1; r <= maxPlayers; r++) {
     if (r === effectiveRank) continue;
-    const { low, high } = boundsForRankSlot(r, occupants, rankMinScores, gameType);
+    const minS = rankMinScores[r] ?? 0;
+    let low: number;
+    let high: number;
+    if (r < effectiveRank) {
+      low = Math.max(minS, humanScore + eps);
+      high = low + Math.max(eps * 20, span);
+    } else {
+      low = minS;
+      high = Math.max(minS + eps, humanScore - eps);
+      if (high <= low) high = low + eps;
+    }
     const score = scoreForRankSlot(low, high, botIdx, sessionSeed, gameType);
     fills.push({ rank: r, score });
-    occupants.push({ uid: `__bot_${r}`, score, assignedRank: r, isBot: true });
     botIdx++;
   }
   return fills;
+}
+
+/** solo 桌按规划名次写 rank（勿用 assignRanksWithMinScores，否则会挤掉前排 bot） */
+export function buildSoloTableRankMap(args: {
+  humanUid: string;
+  effectiveRank: number;
+  botFills: Array<{ rank: number }>;
+  botUidForSlot: (slotRank: number) => string;
+}): Map<string, number> {
+  const out = new Map<string, number>();
+  out.set(args.humanUid, args.effectiveRank);
+  for (const fill of args.botFills) {
+    out.set(args.botUidForSlot(fill.rank), fill.rank);
+  }
+  return out;
 }
 
 export function hashSessionSeed(s: string): number {

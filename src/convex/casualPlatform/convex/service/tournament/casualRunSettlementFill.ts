@@ -3,7 +3,6 @@
  *（Solitaire / Block Blast 共用：按 `maxPlayers` 与开局真人数量补虚拟 `casual_run_player_matches`）。
  */
 import { v } from "convex/values";
-import { internal } from "../../_generated/api";
 import type { CasualTournamentDefinition } from "../../data/casualTournamentConfigs";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
@@ -11,12 +10,12 @@ import { internalMutation } from "../../_generated/server";
 import { getCasualRankMinScores } from "../../data/casualBotDifficultyConfig";
 import {
   assignRanksWithMinScores,
+  buildSoloTableRankMap,
   clampTargetRank,
   evaluateBotDifficultyRules,
   generateNeutralGapBotScores,
   generateSoloBotScores,
   hashSessionSeed,
-  resolveCasualTableMode,
   resolvePlayerBotStrategyContext,
   sampleTargetRank,
 } from "./casualBotDifficultyService";
@@ -76,8 +75,9 @@ export async function computeSolitaireRankForSession(
 export type CasualAsyncTableLeaderboardRow = {
   rank: number;
   score: number;
-  /** 已本地化：「你」或「同桌 n」，不暴露 uid */
+  /** 已本地化：「你」/「同桌 n」（真人）/「补位 n」（系统对手），不暴露 uid */
   displayLabel: string;
+  isBot?: boolean;
   isYou: boolean;
 };
 
@@ -101,17 +101,28 @@ export async function buildCasualAsyncTableSummary(
     sessionExternalId: string;
     uid: string;
     maxPlayers: number;
+    /** 优先按 match 拉全桌（真人 externalGameId 可能与 bot 的 casual_sess 不一致） */
+    matchId?: string;
   }
 ): Promise<CasualAsyncTableSummary | null> {
-  const { templateId, sessionExternalId, uid, maxPlayers } = args;
-  if (!sessionExternalId.trim()) return null;
+  const { templateId, sessionExternalId, uid, maxPlayers, matchId } = args;
 
-  const rows = await ctx.db
-    .query("casual_run_player_matches")
-    .withIndex("by_template_external", (q) =>
-      q.eq("templateId", templateId).eq("externalGameId", sessionExternalId)
-    )
-    .collect();
+  let rows;
+  if (matchId && matchId.trim().length > 0) {
+    rows = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
+      .collect();
+  } else if (sessionExternalId.trim().length > 0) {
+    rows = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_template_external", (q) =>
+        q.eq("templateId", templateId).eq("externalGameId", sessionExternalId)
+      )
+      .collect();
+  } else {
+    return null;
+  }
 
   const withScore = rows
     .filter((r) => r.score != null && Number.isFinite(r.score))
@@ -130,15 +141,25 @@ export async function buildCasualAsyncTableSummary(
 
   if (withScore.findIndex((e) => e.uid === uid) < 0) return null;
 
-  let peerIdx = 0;
+  let humanPeerIdx = 0;
+  let botPeerIdx = 0;
   const outRows: CasualAsyncTableLeaderboardRow[] = withScore.map((e) => {
     const isYou = e.uid === uid;
-    const displayLabel = isYou ? "你" : `同桌 ${++peerIdx}`;
+    const isBot = isCasualSolitaireVirtualUid(e.uid);
+    let displayLabel: string;
+    if (isYou) {
+      displayLabel = "你";
+    } else if (isBot) {
+      displayLabel = `补位 ${++botPeerIdx}`;
+    } else {
+      displayLabel = `同桌 ${++humanPeerIdx}`;
+    }
     return {
       rank: e.rank < 999 ? e.rank : withScore.indexOf(e) + 1,
       score: e.score,
       displayLabel,
       isYou,
+      ...(isBot ? { isBot: true as const } : {}),
     };
   });
 
@@ -148,6 +169,120 @@ export async function buildCasualAsyncTableSummary(
   };
 }
 
+/** 终检补位后构建同桌榜（dedupe / 并发提交共用） */
+export async function finalizeCasualAsyncTableSummaryForPlayer(
+  ctx: MutationCtx,
+  args: {
+    def: CasualTournamentDefinition;
+    templateId: string;
+    matchId: string;
+    runTournamentId: string;
+    sessionExternalId: string;
+    uid: string;
+    updatedAt: number;
+  }
+): Promise<CasualAsyncTableSummary | null> {
+  if (args.def.maxPlayers > 1 && args.sessionExternalId.trim().length > 0) {
+    await ensureAsyncMatchRosterFull(ctx, {
+      def: args.def,
+      templateId: args.templateId,
+      matchId: args.matchId,
+      runTournamentId: args.runTournamentId,
+      sessionExternalId: args.sessionExternalId,
+      updatedAt: args.updatedAt,
+    });
+  }
+  return await buildCasualAsyncTableSummary(ctx, {
+    templateId: args.templateId,
+    sessionExternalId: args.sessionExternalId,
+    uid: args.uid,
+    maxPlayers: args.def.maxPlayers,
+    matchId: args.matchId,
+  });
+}
+
+export type SeedVirtualOpponentArgs = {
+  templateId: string;
+  runTournamentId: string;
+  matchId: string;
+  externalGameId: string;
+  matchGameType: "solitaire" | "block_blast";
+  /** 每个 bot 的目标名次槽与分数 */
+  botFills: Array<{ rank: number; score: number }>;
+  updatedAt: number;
+  /** 默认 true：先删本 match 全部虚拟行再写入；false：仅 upsert 传入槽位（供 topUp 追加） */
+  replaceAllVirtual?: boolean;
+};
+
+/** 同 mutation 内写入虚拟对手（勿 `runMutation`，否则父事务读榜可能缺行） */
+export async function seedSolitaireVirtualOpponentsCore(
+  ctx: MutationCtx,
+  args: SeedVirtualOpponentArgs
+): Promise<void> {
+  const {
+    templateId,
+    runTournamentId,
+    matchId,
+    externalGameId,
+    matchGameType,
+    botFills,
+    updatedAt,
+    replaceAllVirtual = true,
+  } = args;
+  const uidPrefix =
+    matchGameType === "block_blast"
+      ? CASUAL_BLOCK_BLAST_BOT_UID_PREFIX
+      : CASUAL_SOLITAIRE_BOT_UID_PREFIX;
+
+  if (replaceAllVirtual) {
+    const prior = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_match_uid", (q) => q.eq("matchId", matchId))
+      .collect();
+    for (const row of prior) {
+      if (isCasualSolitaireVirtualUid(row.uid)) {
+        await ctx.db.delete(row._id);
+      }
+    }
+  }
+
+  for (const fill of botFills) {
+    const slot = fill.rank;
+    const score = fill.score;
+    const uid = `${uidPrefix}${matchId}:r${slot}`;
+    const gameId =
+      matchGameType === "block_blast"
+        ? `vp_${matchId}_bb_r${slot}`
+        : `vp_${matchId}_r${slot}`;
+    const existing = await ctx.db
+      .query("casual_run_player_matches")
+      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        score,
+        status: "settled",
+        externalGameId,
+        updatedAt,
+      });
+      continue;
+    }
+    await ctx.db.insert("casual_run_player_matches", {
+      matchId,
+      tournamentId: runTournamentId,
+      templateId,
+      uid,
+      gameId,
+      gameType: matchGameType,
+      externalGameId,
+      score,
+      status: "settled",
+      createdAt: updatedAt,
+      updatedAt,
+    });
+  }
+}
+
 export const seedSolitaireVirtualOpponents = internalMutation({
   args: {
     templateId: v.string(),
@@ -155,44 +290,255 @@ export const seedSolitaireVirtualOpponents = internalMutation({
     matchId: v.string(),
     externalGameId: v.string(),
     matchGameType: v.union(v.literal("solitaire"), v.literal("block_blast")),
-    /** 按槽位写入的 bot 分数（与 `rank` 顺序一致，仅分数用于入库） */
-    botScores: v.array(v.number()),
+    botFills: v.array(v.object({ rank: v.number(), score: v.number() })),
+    updatedAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const { templateId, runTournamentId, matchId, externalGameId, matchGameType, botScores } =
-      args;
-    const now = Date.now();
-    const uidPrefix =
-      matchGameType === "block_blast"
-        ? CASUAL_BLOCK_BLAST_BOT_UID_PREFIX
-        : CASUAL_SOLITAIRE_BOT_UID_PREFIX;
-    for (let i = 0; i < botScores.length; i++) {
-      const score = botScores[i]!;
-      const uid = `${uidPrefix}${externalGameId}:${i}`;
-      const gameId =
-        matchGameType === "block_blast" ? `vp_${matchId}_bb_${i}` : `vp_${matchId}_${i}`;
-      const existing = await ctx.db
-        .query("casual_run_player_matches")
-        .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
-        .unique();
-      if (existing) continue;
-      await ctx.db.insert("casual_run_player_matches", {
-        matchId,
-        tournamentId: runTournamentId,
-        templateId,
-        uid,
-        gameId,
-        gameType: matchGameType,
-        externalGameId,
-        score,
-        status: "settled",
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
+    await seedSolitaireVirtualOpponentsCore(ctx, args);
     return { ok: true as const };
   },
 });
+
+type BotFill = { rank: number; score: number };
+
+type SoloBotPlan = { humanUid: string; effectiveRank: number };
+
+type BotFillBuildResult = {
+  botFills: BotFill[];
+  soloPlan?: SoloBotPlan;
+};
+
+function botUidForMatchSlot(
+  matchGameType: "solitaire" | "block_blast",
+  matchId: string,
+  slotRank: number
+): string {
+  const prefix =
+    matchGameType === "block_blast"
+      ? CASUAL_BLOCK_BLAST_BOT_UID_PREFIX
+      : CASUAL_SOLITAIRE_BOT_UID_PREFIX;
+  return `${prefix}${matchId}:r${slotRank}`;
+}
+
+function padBotFillsToCount(args: {
+  fills: BotFill[];
+  botCount: number;
+  maxPlayers: number;
+  rankMinScores: ReturnType<typeof getCasualRankMinScores>;
+  gameType: "solitaire" | "block_blast";
+}): BotFill[] {
+  const sorted = [...args.fills].sort((a, b) => a.rank - b.rank);
+  const occupied = new Set(sorted.map((f) => f.rank));
+  const eps = args.gameType === "block_blast" ? 50 : 5;
+  for (let r = 1; r <= args.maxPlayers && sorted.length < args.botCount; r++) {
+    if (occupied.has(r)) continue;
+    const low = args.rankMinScores[r] ?? 0;
+    sorted.push({ rank: r, score: low + eps });
+    occupied.add(r);
+  }
+  return sorted.slice(0, args.botCount);
+}
+
+async function buildBotFillsForAsyncMatch(
+  ctx: MutationCtx,
+  args: {
+    def: CasualTournamentDefinition;
+    templateId: string;
+    sessionExternalId: string;
+    humanRows: Array<{ uid: string; score: number }>;
+    rankMinScores: ReturnType<typeof getCasualRankMinScores>;
+    botCount: number;
+  }
+): Promise<BotFillBuildResult> {
+  const gt =
+    args.def.gameId === "block_blast" || args.def.gameId === "solitaire"
+      ? args.def.gameId
+      : "solitaire";
+  const sessionSeed = hashSessionSeed(`${args.templateId}|${args.sessionExternalId}`);
+  let botFills: BotFill[];
+  let soloPlan: SoloBotPlan | undefined;
+
+  if (args.humanRows.length === 1) {
+    const human = args.humanRows[0]!;
+    const profile = await resolvePlayerBotStrategyContext(ctx, {
+      uid: human.uid,
+      templateId: args.templateId,
+      def: args.def,
+    });
+    const dist = evaluateBotDifficultyRules(profile);
+    const target = sampleTargetRank(dist, args.def.maxPlayers, sessionSeed);
+    const effectiveRank = clampTargetRank(
+      target,
+      human.score,
+      args.rankMinScores,
+      args.def.maxPlayers
+    );
+    soloPlan = { humanUid: human.uid, effectiveRank };
+    botFills = generateSoloBotScores({
+      humanUid: human.uid,
+      humanScore: human.score,
+      effectiveRank,
+      rankMinScores: args.rankMinScores,
+      maxPlayers: args.def.maxPlayers,
+      gameType: gt,
+      sessionSeed,
+    });
+  } else {
+    botFills = generateNeutralGapBotScores({
+      humanScores: args.humanRows.map((h) => ({ uid: h.uid, score: h.score })),
+      rankMinScores: args.rankMinScores,
+      maxPlayers: args.def.maxPlayers,
+      gameType: gt,
+      sessionSeed,
+    });
+  }
+
+  return {
+    botFills: padBotFillsToCount({
+      fills: botFills,
+      botCount: args.botCount,
+      maxPlayers: args.def.maxPlayers,
+      rankMinScores: args.rankMinScores,
+      gameType: gt,
+    }),
+    soloPlan,
+  };
+}
+
+async function patchRanksForAsyncMatch(
+  ctx: MutationCtx,
+  args: {
+    matchId: string;
+    sessionExternalId: string;
+    def: CasualTournamentDefinition;
+    rankMinScores: ReturnType<typeof getCasualRankMinScores>;
+    updatedAt: number;
+    soloPlan?: SoloBotPlan;
+    botFills?: BotFill[];
+  }
+): Promise<number> {
+  const rows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId))
+    .collect();
+
+  const gt =
+    args.def.gameId === "block_blast" || args.def.gameId === "solitaire"
+      ? args.def.gameId
+      : "solitaire";
+
+  let rankMap: Map<string, number>;
+  if (args.soloPlan && args.botFills?.length) {
+    rankMap = buildSoloTableRankMap({
+      humanUid: args.soloPlan.humanUid,
+      effectiveRank: args.soloPlan.effectiveRank,
+      botFills: args.botFills,
+      botUidForSlot: (slotRank) => botUidForMatchSlot(gt, args.matchId, slotRank),
+    });
+  } else {
+    const entities = rows
+      .filter((r) => r.score != null && Number.isFinite(r.score))
+      .map((r) => ({
+        uid: r.uid,
+        score: r.score as number,
+        isBot: isCasualSolitaireVirtualUid(r.uid),
+      }));
+    rankMap = assignRanksWithMinScores({
+      entities,
+      rankMinScores: args.rankMinScores,
+      maxPlayers: args.def.maxPlayers,
+    });
+  }
+
+  for (const row of rows) {
+    const rr = rankMap.get(row.uid);
+    const patch: { rank?: number; externalGameId?: string; updatedAt: number } = {
+      updatedAt: args.updatedAt,
+    };
+    if (rr != null) patch.rank = rr;
+    if (row.externalGameId !== args.sessionExternalId) {
+      patch.externalGameId = args.sessionExternalId;
+    }
+    if (patch.rank != null || patch.externalGameId != null) {
+      await ctx.db.patch(row._id, patch);
+    }
+  }
+
+  return rows.filter((r) => r.score != null && Number.isFinite(r.score)).length;
+}
+
+/** 终检：真人 + 补位 bot 计分行数必须达到 maxPlayers */
+export async function ensureAsyncMatchRosterFull(
+  ctx: MutationCtx,
+  args: {
+    def: CasualTournamentDefinition;
+    templateId: string;
+    matchId: string;
+    runTournamentId: string;
+    sessionExternalId: string;
+    updatedAt: number;
+  }
+): Promise<void> {
+  const gt =
+    args.def.gameId === "block_blast" || args.def.gameId === "solitaire"
+      ? args.def.gameId
+      : null;
+  if (!gt || args.def.maxPlayers <= 1) return;
+
+  const rankMinScores = getCasualRankMinScores(args.def);
+  const rows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId))
+    .collect();
+
+  const humansWithScore = rows.filter(
+    (r) => !isCasualSolitaireVirtualUid(r.uid) && r.score != null && Number.isFinite(r.score)
+  );
+  const virtualWithScore = rows.filter(
+    (r) => isCasualSolitaireVirtualUid(r.uid) && r.score != null && Number.isFinite(r.score)
+  );
+  const needBots = args.def.maxPlayers - humansWithScore.length;
+  if (needBots <= 0) return;
+
+  const totalScored = humansWithScore.length + virtualWithScore.length;
+  if (virtualWithScore.length >= needBots && totalScored >= args.def.maxPlayers) {
+    return;
+  }
+
+  const humanRows = humansWithScore.map((r) => ({
+    uid: r.uid,
+    score: r.score as number,
+  }));
+  const { botFills, soloPlan } = await buildBotFillsForAsyncMatch(ctx, {
+    def: args.def,
+    templateId: args.templateId,
+    sessionExternalId: args.sessionExternalId,
+    humanRows,
+    rankMinScores,
+    botCount: needBots,
+  });
+
+  await seedSolitaireVirtualOpponentsCore(ctx, {
+    templateId: args.templateId,
+    runTournamentId: args.runTournamentId,
+    matchId: args.matchId,
+    externalGameId: args.sessionExternalId,
+    matchGameType: gt,
+    botFills,
+    updatedAt: args.updatedAt,
+    replaceAllVirtual: true,
+  });
+
+  await patchRanksForAsyncMatch(ctx, {
+    matchId: args.matchId,
+    sessionExternalId: args.sessionExternalId,
+    def: args.def,
+    rankMinScores,
+    updatedAt: args.updatedAt,
+    soloPlan,
+    botFills,
+  });
+}
 
 /** 多人结算：规则引擎 / 中性槽位填 bot，再按 rankMinScores 定全员名次。 */
 export async function fillSolitaireVirtualLeaderboardAndRerankHumans(
@@ -212,86 +558,62 @@ export async function fillSolitaireVirtualLeaderboardAndRerankHumans(
   if (gt !== "solitaire" && gt !== "block_blast") return;
   if (!args.sessionExternalId) return;
 
-  const botCount = casualSolitaireVirtualOpponentCount(
-    args.def.maxPlayers,
-    args.humanCountPlanned
-  );
+  /** 以 DB 为准重读真人分，避免并发提交传入过时的 humanRows */
+  const matchRows = await ctx.db
+    .query("casual_run_player_matches")
+    .withIndex("by_match_uid", (q) => q.eq("matchId", args.matchId))
+    .collect();
+  const humanRows = matchRows
+    .filter(
+      (r) =>
+        !isCasualSolitaireVirtualUid(r.uid) &&
+        r.score != null &&
+        Number.isFinite(r.score)
+    )
+    .map((r) => ({ uid: r.uid, score: r.score as number }));
+
+  const actualHumanCount = Math.max(1, humanRows.length);
+  const botCount = casualSolitaireVirtualOpponentCount(args.def.maxPlayers, actualHumanCount);
   if (botCount <= 0) return;
 
   const rankMinScores = getCasualRankMinScores(args.def);
-  const sessionSeed = hashSessionSeed(`${args.templateId}|${args.sessionExternalId}`);
-  const tableMode = resolveCasualTableMode(args.humanCountPlanned);
+  const { botFills, soloPlan } = await buildBotFillsForAsyncMatch(ctx, {
+    def: args.def,
+    templateId: args.templateId,
+    sessionExternalId: args.sessionExternalId,
+    humanRows,
+    rankMinScores,
+    botCount,
+  });
 
-  let botFills: Array<{ rank: number; score: number }>;
-
-  if (tableMode === "solo_bot" && args.humanRows.length === 1) {
-    const human = args.humanRows[0]!;
-    const profile = await resolvePlayerBotStrategyContext(ctx, {
-      uid: human.uid,
-      templateId: args.templateId,
-      def: args.def,
-    });
-    const dist = evaluateBotDifficultyRules(profile);
-    const target = sampleTargetRank(dist, args.def.maxPlayers, sessionSeed);
-    const effectiveRank = clampTargetRank(
-      target,
-      human.score,
-      rankMinScores,
-      args.def.maxPlayers
-    );
-    botFills = generateSoloBotScores({
-      humanUid: human.uid,
-      humanScore: human.score,
-      effectiveRank,
-      rankMinScores,
-      maxPlayers: args.def.maxPlayers,
-      gameType: gt,
-      sessionSeed,
-    });
-  } else {
-    botFills = generateNeutralGapBotScores({
-      humanScores: args.humanRows.map((h) => ({ uid: h.uid, score: h.score })),
-      rankMinScores,
-      maxPlayers: args.def.maxPlayers,
-      gameType: gt,
-      sessionSeed,
-    });
-  }
-
-  await ctx.runMutation(internal.service.tournament.casualRunSettlementFill.seedSolitaireVirtualOpponents, {
+  await seedSolitaireVirtualOpponentsCore(ctx, {
     templateId: args.templateId,
     runTournamentId: args.runTournamentId,
     matchId: args.matchId,
     externalGameId: args.sessionExternalId,
     matchGameType: gt,
-    botScores: botFills.sort((a, b) => a.rank - b.rank).map((f) => f.score),
+    botFills,
+    updatedAt: args.updatedAt,
+    replaceAllVirtual: true,
   });
 
-  const allRows = await ctx.db
-    .query("casual_run_player_matches")
-    .withIndex("by_template_external", (q) =>
-      q.eq("templateId", args.templateId).eq("externalGameId", args.sessionExternalId)
-    )
-    .collect();
-
-  const entities = allRows
-    .filter((r) => r.score != null && Number.isFinite(r.score))
-    .map((r) => ({
-      uid: r.uid,
-      score: r.score as number,
-      isBot: isCasualSolitaireVirtualUid(r.uid),
-    }));
-
-  const rankMap = assignRanksWithMinScores({
-    entities,
+  await patchRanksForAsyncMatch(ctx, {
+    matchId: args.matchId,
+    sessionExternalId: args.sessionExternalId,
+    def: args.def,
     rankMinScores,
-    maxPlayers: args.def.maxPlayers,
+    updatedAt: args.updatedAt,
+    soloPlan,
+    botFills,
   });
 
-  for (const row of allRows) {
-    const rr = rankMap.get(row.uid);
-    if (rr != null) {
-      await ctx.db.patch(row._id, { rank: rr, updatedAt: args.updatedAt });
-    }
-  }
+  await ensureAsyncMatchRosterFull(ctx, {
+    def: args.def,
+    templateId: args.templateId,
+    matchId: args.matchId,
+    runTournamentId: args.runTournamentId,
+    sessionExternalId: args.sessionExternalId,
+    updatedAt: args.updatedAt,
+  });
 }
+

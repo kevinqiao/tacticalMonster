@@ -4,6 +4,8 @@ export type CasualAsyncTableLeaderboardRowUI = {
   score: number;
   displayLabel: string;
   isYou: boolean;
+  /** 系统对手（虚拟补位） */
+  isBot?: boolean;
 };
 
 export type CasualAsyncTableSummaryUI = {

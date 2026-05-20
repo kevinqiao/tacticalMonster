@@ -59,7 +59,6 @@ http.route({
       uid,
       matchGameId,
       score: Math.floor(score),
-      externalGameId: matchGameId,
       gameId: gameIdConvex,
     });
 

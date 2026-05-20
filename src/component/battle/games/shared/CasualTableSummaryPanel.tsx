@@ -23,17 +23,28 @@ export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }>
             {s.rows.map((row, i) => (
               <tr
                 key={`lb-${i}`}
-                className={row.isYou ? 'msc-lb-row--you' : undefined}
+                className={
+                  row.isYou ? 'msc-lb-row--you' : row.isBot ? 'msc-lb-row--bot' : undefined
+                }
               >
                 <td>{row.rank}</td>
-                <td>{row.displayLabel}</td>
+                <td>
+                  {row.displayLabel}
+                  {row.isBot ? (
+                    <span className="msc-lb-botTag" aria-label="系统对手">
+                      系统对手
+                    </span>
+                  ) : null}
+                </td>
                 <td>{row.score}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="msc-tableSummary__foot">分数越高名次越靠前（异步同桌含系统补位）。</p>
+      <p className="msc-tableSummary__foot">
+        分数越高名次越靠前。「补位」为系统对手自动补位，与真人同桌一并计名次。
+      </p>
     </div>
   );
 };

@@ -125,7 +125,6 @@ export async function tryCasualMatchmakingForTemplateCore(
   if (!def) return;
 
   const minH = Math.max(1, def.matchmakingMinHumans);
-  const maxP = Math.max(1, def.maxPlayers);
   /** 单次 mutation 内连续开桌上限：正常会在队列不足时 `return`，此项防止异常路径下的死循环 */
   const maxRounds = 64;
 
@@ -137,7 +136,11 @@ export async function tryCasualMatchmakingForTemplateCore(
     waiting.sort((a, b) => a.createdAt - b.createdAt);
     if (waiting.length < minH) return;
 
-    const batchSize = Math.min(waiting.length, maxP);
+    /**
+     * 每桌只拉 `matchmakingMinHumans` 名真人（A 场 = 1），其余席位结算时由 bot 补。
+     * 勿用 `maxPlayers` 凑一桌真人，否则会出现「同桌1 + 你」却无第 3 席 bot。
+     */
+    const batchSize = Math.min(waiting.length, minH);
     const now = Date.now();
 
     const claimedRows: (typeof waiting)[0][] = [];

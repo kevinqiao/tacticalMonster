@@ -226,6 +226,21 @@
   font-weight: 700;
 }
 
+.msc-lb-row--bot td {
+  color: #475569;
+}
+
+.msc-lb-botTag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  background: #e2e8f0;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
 .msc-pendingPeersNote {
   margin-top: 4px;
   padding: 10px 12px;

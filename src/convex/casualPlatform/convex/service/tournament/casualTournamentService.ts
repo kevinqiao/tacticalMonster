@@ -40,7 +40,9 @@ import {
   casualSolitaireVirtualOpponentCount,
   casualTableSummarySolo,
   computeSolitaireRankForSession,
+  ensureAsyncMatchRosterFull,
   fillSolitaireVirtualLeaderboardAndRerankHumans,
+  finalizeCasualAsyncTableSummaryForPlayer,
   isCasualSolitaireVirtualUid,
 } from "./casualRunSettlementFill";
 
@@ -975,21 +977,22 @@ export const submitCasualRunScoreCore = internalMutation({
 
     if (pm.status === "settled") {
       const defDedupe = getTournamentDefinition(pm.templateId);
-      const extDedupe =
-        typeof pm.externalGameId === "string" && pm.externalGameId.trim().length > 0
-          ? pm.externalGameId.trim()
-          : "";
-      let tableSummary: Awaited<ReturnType<typeof buildCasualAsyncTableSummary>> | undefined =
-        undefined;
-      if (defDedupe && extDedupe) {
-        const built = await buildCasualAsyncTableSummary(ctx, {
-          templateId: pm.templateId,
-          sessionExternalId: extDedupe,
-          uid,
-          maxPlayers: defDedupe.maxPlayers,
-        });
-        if (built) tableSummary = built;
+      if (!defDedupe) {
+        return { ok: true as const, deduped: true as const };
       }
+      const extDedupe =
+        typeof pm.externalGameId === "string" && pm.externalGameId.trim().startsWith("casual_sess:")
+          ? pm.externalGameId.trim()
+          : canonicalCasualRunSessionExternalId(String(pm.matchId));
+      const tableSummary = await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
+        def: defDedupe,
+        templateId: pm.templateId,
+        matchId: pm.matchId,
+        runTournamentId: pm.tournamentId,
+        sessionExternalId: extDedupe,
+        uid,
+        updatedAt: Date.now(),
+      });
       return {
         ok: true as const,
         deduped: true as const,
@@ -1141,6 +1144,7 @@ export const submitCasualRunScoreCore = internalMutation({
         sessionExternalId: canonicalSessionId,
         uid,
         maxPlayers: def.maxPlayers,
+        matchId: pm.matchId,
       });
       const tableSummary = tableBuilt ?? casualTableSummarySolo(def.maxPlayers, score);
 
@@ -1155,16 +1159,39 @@ export const submitCasualRunScoreCore = internalMutation({
     for (let i = 0; i < sortedHumans.length; i++) {
       await ctx.db.patch(sortedHumans[i]!._id, {
         status: "settled",
-        rank: i + 1,
         externalGameId: canonicalSessionId,
         updatedAt: now,
       });
     }
 
-    await ctx.db.patch(matchDoc._id, {
-      completed: true,
-      updatedAt: now,
-    });
+    const matchBeforeFill = await ctx.db.get(matchDoc._id);
+    if (canonicalSessionId && matchBeforeFill && !matchBeforeFill.completed) {
+      await fillSolitaireVirtualLeaderboardAndRerankHumans(ctx, {
+        def,
+        templateId: pm.templateId,
+        matchId: pm.matchId,
+        runTournamentId: pm.tournamentId,
+        sessionExternalId: canonicalSessionId,
+        humanCountPlanned,
+        humanRows: humanPms
+          .filter((h) => h.score != null)
+          .map((h) => ({ _id: h._id, uid: h.uid, score: h.score as number })),
+        updatedAt: now,
+      });
+      await ctx.db.patch(matchDoc._id, {
+        completed: true,
+        updatedAt: now,
+      });
+    } else if (canonicalSessionId) {
+      await ensureAsyncMatchRosterFull(ctx, {
+        def,
+        templateId: pm.templateId,
+        matchId: pm.matchId,
+        runTournamentId: pm.tournamentId,
+        sessionExternalId: canonicalSessionId,
+        updatedAt: now,
+      });
+    }
 
     await ctx.db.patch(runTid, {
       status: RUN_TOURNAMENT_COMPLETED,
@@ -1185,22 +1212,6 @@ export const submitCasualRunScoreCore = internalMutation({
           updatedAt: now,
         });
       }
-    }
-
-    if (canonicalSessionId) {
-      const maxScore = Math.max(...sortedHumans.map((h) => h.score ?? 0));
-      await fillSolitaireVirtualLeaderboardAndRerankHumans(ctx, {
-        def,
-        templateId: pm.templateId,
-        matchId: pm.matchId,
-        runTournamentId: pm.tournamentId,
-        sessionExternalId: canonicalSessionId,
-        humanCountPlanned,
-        humanRows: humanPms
-          .filter((h) => h.score != null)
-          .map((h) => ({ _id: h._id, uid: h.uid, score: h.score as number })),
-        updatedAt: now,
-      });
     }
 
     if (skipPeriodWallet && runRow?.instanceId) {
@@ -1233,17 +1244,18 @@ export const submitCasualRunScoreCore = internalMutation({
           spotlightSeasonBoardGain: 0,
         });
       }
-      let tableSummaryPeriodMulti: Awaited<ReturnType<typeof buildCasualAsyncTableSummary>> | undefined =
-        undefined;
-      if (canonicalSessionId.trim().length > 0) {
-        const built = await buildCasualAsyncTableSummary(ctx, {
-          templateId: pm.templateId,
-          sessionExternalId: canonicalSessionId,
-          uid,
-          maxPlayers: def.maxPlayers,
-        });
-        if (built) tableSummaryPeriodMulti = built;
-      }
+      const tableSummaryPeriodMulti =
+        canonicalSessionId.trim().length > 0
+          ? await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
+              def,
+              templateId: pm.templateId,
+              matchId: pm.matchId,
+              runTournamentId: pm.tournamentId,
+              sessionExternalId: canonicalSessionId,
+              uid,
+              updatedAt: now,
+            })
+          : null;
       return {
         ok: true as const,
         periodSettled: true as const,
@@ -1271,16 +1283,18 @@ export const submitCasualRunScoreCore = internalMutation({
       lastExtra = extra;
     }
 
-    let tableSummaryReturn: Awaited<ReturnType<typeof buildCasualAsyncTableSummary>> | undefined = undefined;
-    if (canonicalSessionId.trim().length > 0) {
-      const built = await buildCasualAsyncTableSummary(ctx, {
-        templateId: pm.templateId,
-        sessionExternalId: canonicalSessionId,
-        uid,
-        maxPlayers: def.maxPlayers,
-      });
-      if (built) tableSummaryReturn = built;
-    }
+    const tableSummaryReturn =
+      canonicalSessionId.trim().length > 0
+        ? await finalizeCasualAsyncTableSummaryForPlayer(ctx, {
+            def,
+            templateId: pm.templateId,
+            matchId: pm.matchId,
+            runTournamentId: pm.tournamentId,
+            sessionExternalId: canonicalSessionId,
+            uid,
+            updatedAt: now,
+          })
+        : null;
 
     return {
       ok: true as const,
