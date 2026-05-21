@@ -9,6 +9,8 @@ export interface CasualPlayMatchOverlayProps {
   /** 是否展示全屏遮罩 */
   open: boolean;
   phase: CasualPlayMatchOverlayPhase;
+  /** true = 等待其他玩家；false = 正在创建对局（不区分是否含 bot） */
+  waitingForPeer?: boolean;
   tournamentTitle?: string;
   leaving?: boolean;
   onLeave?: () => void;
@@ -20,6 +22,7 @@ export interface CasualPlayMatchOverlayProps {
 const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
   open,
   phase,
+  waitingForPeer = true,
   tournamentTitle,
   leaving = false,
   onLeave,
@@ -28,13 +31,16 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
     return null;
   }
 
-  const isWaiting = phase === "waiting";
-  const title = isWaiting ? "正在匹配中" : "正在创建对局";
-  const subtitle = isWaiting
-    ? tournamentTitle
-      ? `等待另一位玩家加入「${tournamentTitle}」`
-      : "等待另一位玩家加入，凑满人数后将自动开桌"
-    : "请稍候，对局即将开始…";
+  const isClaiming = phase === "claiming";
+  const showWaitingForPeer = waitingForPeer && phase === "waiting";
+
+  const title = isClaiming || !waitingForPeer ? "正在创建对局" : "正在匹配中";
+  const subtitle =
+    isClaiming || !waitingForPeer
+      ? "请稍候，对局即将开始…"
+      : tournamentTitle
+        ? `等待另一位玩家加入「${tournamentTitle}」`
+        : "等待另一位玩家加入，凑满人数后将自动开桌";
 
   return createPortal(
     <div
@@ -51,7 +57,7 @@ const CasualPlayMatchOverlay: React.FC<CasualPlayMatchOverlayProps> = ({
           {title}
         </h2>
         <p className="casual-play-match-overlay__sub">{subtitle}</p>
-        {isWaiting && onLeave ? (
+        {showWaitingForPeer && onLeave ? (
           <button
             type="button"
             className="casual-play-match-overlay__leave"

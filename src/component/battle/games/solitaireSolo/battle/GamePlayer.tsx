@@ -73,6 +73,9 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         postCasualSummaryOpen,
         postCasualTableSummary,
         postCasualWaitingForPeers,
+        postCasualCanReplay,
+        casualReplayBusy,
+        replayCasualRun,
         dismissPostCasualSummary,
     } = useActHandler();
     const { actionData } = useSoloDnDManager();
@@ -426,6 +429,9 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 title="同桌成绩"
                 summary={postCasualTableSummary}
                 waitingForPeers={postCasualWaitingForPeers}
+                replayAvailable={postCasualCanReplay}
+                replayBusy={casualReplayBusy}
+                onReplay={() => void replayCasualRun()}
                 onDismiss={dismissPostCasualSummary}
             />
         </div>

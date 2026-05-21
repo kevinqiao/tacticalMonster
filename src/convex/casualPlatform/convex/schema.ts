@@ -147,6 +147,8 @@ export default defineSchema({
     templateId: v.string(),
     gameType: v.string(),
     completed: v.boolean(),
+    /** 首个真人提交后虚拟对手已固定（freeze_once） */
+    botsSeeded: v.optional(v.boolean()),
     minPlayers: v.number(),
     maxPlayers: v.number(),
     /** 开局时真人数量（用于 Solitaire 虚拟对手数 = maxPlayers - humanPlayerCount） */
@@ -162,6 +164,12 @@ export default defineSchema({
     uid: v.string(),
     /** 配表 tournamentId */
     templateId: v.string(),
+    /** join 时规则引擎写入；process 唯一依据（旧行可缺省，由 resolveQueueEffectiveMinHumans 回退） */
+    effectiveMinHumans: v.optional(v.number()),
+    matchedRuleId: v.optional(v.string()),
+    /** 仅 effectiveMinHumans > 1 */
+    expiresAt: v.optional(v.number()),
+    skipEntryCharge: v.optional(v.boolean()),
     /** `claiming`：已被某次匹配事务预留，防止并发 join 对同一行双重扣费 */
     status: v.union(v.literal("waiting"), v.literal("claiming"), v.literal("matched")),
     matchedRunTournamentId: v.optional(v.id("casual_run_tournaments")),
@@ -169,6 +177,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_template_status", ["templateId", "status"])
+    .index("by_template_status_effective", ["templateId", "status", "effectiveMinHumans"])
     .index("by_uid", ["uid"])
     .index("by_uid_template_status", ["uid", "templateId", "status"]),
 
@@ -186,8 +195,14 @@ export default defineSchema({
     status: v.union(
       v.literal("open"),
       v.literal("finished"),
-      v.literal("settled")
+      v.literal("confirmed"),
+      v.literal("settled"),
+      v.literal("replaying")
     ),
+    /** 进入 `finished` 的时刻；再战重交后重置，用于再战窗口 */
+    finishedAt: v.optional(v.number()),
+    /** 再战次数；游戏服 `loadGame(resetCasualRun)` 可据此强制清档 */
+    replayEpoch: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -389,7 +404,7 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_uid", ["uid"]),
 
-  /** 再战令：消耗后 `joinTournament` 免 coins/gems 入场（seasonVouchers 场不可用） */
+  /** 再战令：消耗后 `startCasualRunReplay` 在同一 match/gameId 上重玩并重传分数（seasonVouchers 场不可用） */
   casual_replay_tokens: defineTable({
     uid: v.string(),
     createdAt: v.number(),

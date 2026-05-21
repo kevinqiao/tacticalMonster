@@ -66,6 +66,9 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         postCasualSummaryOpen,
         postCasualTableSummary,
         postCasualWaitingForPeers,
+        postCasualCanReplay,
+        casualReplayBusy,
+        replayCasualRun,
         dismissPostCasualSummary,
         interactionPhase,
     } = useBlockBlastGameManager();
@@ -378,6 +381,9 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 title="同桌成绩"
                 summary={postCasualTableSummary}
                 waitingForPeers={postCasualWaitingForPeers}
+                replayAvailable={postCasualCanReplay}
+                replayBusy={casualReplayBusy}
+                onReplay={() => void replayCasualRun()}
                 onDismiss={dismissPostCasualSummary}
             />
         </div>

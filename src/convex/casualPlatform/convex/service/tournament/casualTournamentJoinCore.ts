@@ -461,3 +461,62 @@ export async function computeJoinEntryWillCharge(
     entryKind,
   };
 }
+
+/** 本次 join 若将扣入场，校验玩家余额/赛季券是否足够（与 `applyCasualJoinEntryCharge` 一致） */
+export async function validateJoinEntryAffordable(
+  ctx: MutationCtx | QueryCtx,
+  uid: string,
+  preview: Extract<JoinEntryChargePreview, { ok: true }>,
+  opts?: { skipEntryCharge?: boolean }
+): Promise<JoinEntryChargePreview> {
+  if (opts?.skipEntryCharge || !preview.willChargeEntry) {
+    return preview;
+  }
+
+  if (preview.dueVouchers > 0) {
+    const activeSeason = await activeSeasonWindowForCtx(ctx);
+    if (!activeSeason) {
+      return { ok: false as const, error: "no_active_season" };
+    }
+    const pass = await ctx.db
+      .query("casual_pass_progress")
+      .withIndex("by_uid_season", (q) => q.eq("uid", uid).eq("seasonId", activeSeason.seasonId))
+      .unique();
+    const bal = pass?.seasonVouchers ?? 0;
+    if (bal < preview.dueVouchers) {
+      return { ok: false as const, error: "insufficient_vouchers" };
+    }
+  }
+
+  if (preview.dueCoins > 0 || preview.dueGems > 0) {
+    const player = await ctx.runQuery(internal.dao.casualPlayerDao.findByUid, { uid });
+    if (!player) {
+      return { ok: false as const, error: "no_player" };
+    }
+    if (preview.dueCoins > 0 && (player.coins ?? 0) < preview.dueCoins) {
+      return { ok: false as const, error: "insufficient_coins" };
+    }
+    if (preview.dueGems > 0 && (player.gems ?? 0) < preview.dueGems) {
+      return { ok: false as const, error: "insufficient_gems" };
+    }
+  }
+
+  return preview;
+}
+
+/**
+ * 入场预览 + 门槛校验（join / previewJoinEntryCharge 共用，与开桌扣费条件对齐）。
+ */
+export async function assertJoinEntryEligible(
+  ctx: MutationCtx | QueryCtx,
+  uid: string,
+  tournamentId: string,
+  now: number,
+  opts?: { skipEntryCharge?: boolean }
+): Promise<JoinEntryChargePreview> {
+  const preview = await computeJoinEntryWillCharge(ctx, uid, tournamentId, now);
+  if (!preview.ok) {
+    return preview;
+  }
+  return validateJoinEntryAffordable(ctx, uid, preview, opts);
+}

@@ -28,32 +28,51 @@ function casualTableSummaryFromParsed(v: unknown):
       maxPlayers: number;
       rows: Array<{
         rank: number;
-        score: number;
+        score?: number;
+        rowState?: "scored" | "playing";
         displayLabel: string;
         isYou: boolean;
+        isBot?: boolean;
       }>;
     }
   | undefined {
   if (!v || typeof v !== "object") return undefined;
   const o = v as Record<string, unknown>;
   if (typeof o.maxPlayers !== "number" || !Array.isArray(o.rows)) return undefined;
-  const rows: Array<{ rank: number; score: number; displayLabel: string; isYou: boolean }> = [];
+  const rows: Array<{
+    rank: number;
+    score?: number;
+    rowState?: "scored" | "playing";
+    displayLabel: string;
+    isYou: boolean;
+    isBot?: boolean;
+  }> = [];
   for (const item of o.rows) {
     if (!item || typeof item !== "object") return undefined;
     const r = item as Record<string, unknown>;
-    if (
-      typeof r.rank !== "number" ||
-      typeof r.score !== "number" ||
-      typeof r.displayLabel !== "string" ||
-      typeof r.isYou !== "boolean"
-    ) {
+    if (typeof r.rank !== "number" || typeof r.displayLabel !== "string" || typeof r.isYou !== "boolean") {
       return undefined;
     }
+    const rowState =
+      r.rowState === "playing" || r.rowState === "scored" ? r.rowState : undefined;
+    if (rowState === "playing") {
+      rows.push({
+        rank: r.rank,
+        rowState: "playing",
+        displayLabel: r.displayLabel,
+        isYou: r.isYou,
+        ...(r.isBot === true ? { isBot: true as const } : {}),
+      });
+      continue;
+    }
+    if (typeof r.score !== "number") return undefined;
     rows.push({
       rank: r.rank,
       score: r.score,
+      rowState: rowState ?? "scored",
       displayLabel: r.displayLabel,
       isYou: r.isYou,
+      ...(r.isBot === true ? { isBot: true as const } : {}),
     });
   }
   if (rows.length === 0) return undefined;
@@ -62,16 +81,23 @@ function casualTableSummaryFromParsed(v: unknown):
 
 /** 与 solitaireArena `proxy/controller:loadGame` 对齐：休闲 run 走 casual `/internal/find-match-by-game` + bridge secret */
 export const loadGame = action({
-  args: { gameId: v.string() },
-  handler: async (ctx, { gameId }): Promise<any> => {
+  args: {
+    gameId: v.string(),
+    resetCasualRun: v.optional(v.literal(true)),
+  },
+  handler: async (ctx, { gameId, resetCasualRun }): Promise<any> => {
     const res: { ok: boolean; game?: any; events?: any; error?: string } = { ok: false };
-    const existing = await ctx.runMutation(internal.service.gameManager.loadGameRowAfterHeal, {
-      gameId,
-    });
-    if (existing) {
-      res.ok = true;
-      res.game = existing;
-      return res;
+    if (resetCasualRun === true && gameId.startsWith("game_")) {
+      await ctx.runMutation(internal.service.gameManager.deleteCasualGameForReplay, { gameId });
+    } else {
+      const existing = await ctx.runMutation(internal.service.gameManager.loadGameRowAfterHeal, {
+        gameId,
+      });
+      if (existing) {
+        res.ok = true;
+        res.game = existing;
+        return res;
+      }
     }
 
     const createArgs: { seed?: string; gameId: string; gridSize?: number } = { gameId };
@@ -249,10 +275,67 @@ export const submitCasualPlatformRun = action({
 
     const tableSummary = casualTableSummaryFromParsed(parsed.tableSummary);
     const pendingOthers = parsed.pendingOthers === true;
+    const canReplay = parsed.canReplay === true;
     return {
       ok: true as const,
       ...(tableSummary ? { tableSummary } : {}),
       ...(pendingOthers ? { pendingOthers: true as const } : {}),
+      ...(canReplay ? { canReplay: true as const } : {}),
+    };
+  },
+});
+
+export const replayCasualRun = action({
+  args: { token: v.string(), gameId: v.string() },
+  handler: async (ctx, { token, gameId }) => {
+    const { origin: casualOrigin, secret: bridge } = resolveCasualBridgeEnv();
+
+    if (!gameId.startsWith("game_")) {
+      return { ok: false as const, error: "not_casual_run_game_id" };
+    }
+
+    let uid: string;
+    try {
+      const payload = jwt.verify(token, jwtAccessSecret());
+      if (!payload || typeof payload !== "object" || !("uid" in payload)) {
+        return { ok: false as const, error: "invalid_token" };
+      }
+      uid = String((payload as { uid: unknown }).uid);
+    } catch {
+      return { ok: false as const, error: "verify_failed" };
+    }
+
+    const url = `${casualOrigin}/internal/casual-replay-authorize`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Casual-Bridge-Secret": bridge,
+        },
+        body: JSON.stringify({ uid, matchGameId: gameId }),
+      });
+    } catch (e) {
+      console.error("[blockBlast] casual replay authorize failed", e);
+      return { ok: false as const, error: "casual_unreachable" };
+    }
+
+    let parsed: { ok?: boolean; error?: string; replayEpoch?: number } = {};
+    try {
+      const text = await res.text();
+      if (text) parsed = JSON.parse(text) as typeof parsed;
+    } catch {
+      parsed = {};
+    }
+
+    if (!res.ok || !parsed.ok) {
+      return { ok: false as const, error: parsed.error ?? `casual_${res.status}` };
+    }
+
+    return {
+      ok: true as const,
+      replayEpoch: parsed.replayEpoch,
     };
   },
 });

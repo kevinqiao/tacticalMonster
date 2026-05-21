@@ -28,6 +28,8 @@ interface ISoloGameContext {
     setInteractionPhase: (phase: GameInteractionPhase) => void;
     updateBoardDimension: (dimension: SoloBoardDimension) => void;
     loadGame: () => void;
+    /** 平台 authorize 后同 gameId 清档重开 */
+    reloadCasualRun: () => Promise<boolean>;
     casualTournamentId?: string;
     onGameSubmit?: () => void;
 }
@@ -42,6 +44,7 @@ const SoloGameContext = createContext<ISoloGameContext>({
     setInteractionPhase: () => { },
     updateBoardDimension: () => { },
     loadGame: () => { },
+    reloadCasualRun: async () => false,
     casualTournamentId: undefined,
     onGameSubmit: undefined,
 });
@@ -118,6 +121,32 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         onGameLoadComplete?.();
         setGameState(game);
     }, [convex, gameId, onGameLoadComplete]);
+
+    const reloadCasualRun = useCallback(async (): Promise<boolean> => {
+        if (!gameId || !gameId.startsWith("game_")) return false;
+        const res = await convex.action(api.proxy.controller.loadGame, {
+            gameId,
+            resetCasualRun: true,
+        });
+        if (!res.ok) {
+            console.error("[SoloGameProvider] reloadCasualRun failed", (res as { error?: string }).error);
+            return false;
+        }
+        const raw = res.game as SoloGameState & { actionStatus?: string };
+        const { actionStatus: _drop, ...rest } = raw;
+        const game = rest as SoloGameState;
+        const event = res.events?.find((e: { name?: string }) => e.name === "deal");
+        if (event) {
+            setDealEvent(event);
+            setInteractionPhase(GameInteractionPhase.animating);
+        } else {
+            setDealEvent(null);
+            setInteractionPhase(GameInteractionPhase.idle);
+        }
+        setGameState(game);
+        return true;
+    }, [convex, gameId]);
+
     useEffect(() => {
         loadGame();
     }, [loadGame]);
@@ -161,6 +190,7 @@ export const SoloGameProvider: React.FC<SoloGameProviderProps> = ({
         setInteractionPhase,
         updateBoardDimension,
         loadGame,
+        reloadCasualRun,
         casualTournamentId,
         onGameSubmit,
     };

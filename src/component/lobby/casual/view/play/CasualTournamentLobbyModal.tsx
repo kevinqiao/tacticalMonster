@@ -25,6 +25,8 @@ import {
   previewGemsCost,
   previewVoucherCost,
 } from "../shared/casualActivityUi";
+import { resolveJoinTournamentOutcome } from "../../service/casualJoinTournamentFlow";
+import { joinEntryErrorMessage } from "../shared/casualEconomyUi";
 import "./casualTournamentLobbyModal.css";
 
 interface TournamentRow {
@@ -162,6 +164,7 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
       if (!awaitingMatch) return;
       setAwaitingMatch(null);
       setJoiningId(null);
+      void casual.refreshCasualPlayer();
       openMatchedAssignment(hit, awaitingMatch.templateId);
     },
     onTimeout: () => {
@@ -218,31 +221,45 @@ const CasualTournamentLobbyModal: React.FC<ModalProp> = ({ visible, data, close 
     }
     setJoiningId(row.tournamentId);
     setAwaitingMatch(null);
+    setNote(null);
     try {
-      const r = await casual.joinTournament(row.tournamentId);
-      if (r?.ok && "queued" in r && r.queued) {
+      const pv = await casual.fetchJoinEntryChargePreview(row.tournamentId);
+      if (!pv || !pv.ok) {
+        setNote(
+          pv && !pv.ok
+            ? joinEntryErrorMessage(pv.error)
+            : "无法预览入场条件，请稍后重试。"
+        );
+        setJoiningId(null);
+        return;
+      }
+
+      const outcome = resolveJoinTournamentOutcome(
+        await casual.joinTournament(row.tournamentId)
+      );
+      if (outcome.kind === "queued") {
         setAwaitingMatch({ templateId: row.tournamentId, gameKind: targetGameKind });
         setJoiningId(null);
         close();
         return;
       }
-      if (r?.ok && "gameId" in r && r.gameId) {
-        openMatchedAssignment(
+      if (outcome.kind === "ready") {
+        setNote("已入场，正在进入对局...");
+        openAfterClose(
+          targetGameKind === "solitaire" ? "play_solitaire_solo" : "play_block_blast",
           {
-            templateId: row.tournamentId,
-            gameId: r.gameId,
-            matchId: r.matchId,
-            runTournamentId: r.runTournamentId,
-            createdAt: Date.now(),
-          },
-          row.tournamentId
+            casualTournamentId: outcome.templateId,
+            casualMatchGameId: outcome.gameId,
+          }
         );
+        void casual.refreshCasualPlayer();
         setJoiningId(null);
-      } else {
-        setNote(`加入失败：${(r as { error?: string })?.error ?? "未知错误"}`);
-        await casual.refreshCasualPlayer();
-        setJoiningId(null);
+        close();
+        return;
       }
+      setNote(outcome.error);
+      await casual.refreshCasualPlayer();
+      setJoiningId(null);
     } catch {
       setJoiningId(null);
       setAwaitingMatch(null);

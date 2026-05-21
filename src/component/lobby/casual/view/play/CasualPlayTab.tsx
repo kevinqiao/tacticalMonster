@@ -25,6 +25,8 @@ import {
 import { useCasualPlatform } from "../../service/useCasualPlatformManager";
 import { casualLadderTierLabel } from "./casualSeasonLadderLabels";
 import { useSyncedLatestOpenCasualAssignment } from "../../service/useSyncedLatestOpenCasualAssignment";
+import { resolveJoinTournamentOutcome } from "../../service/casualJoinTournamentFlow";
+import { joinEntryErrorMessage } from "../shared/casualEconomyUi";
 import CasualPageShell from "../shell/CasualPageShell";
 import CasualPlayMatchOverlay from "./CasualPlayMatchOverlay";
 import "./casualPlayTab.css";
@@ -234,21 +236,19 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
         tournamentId,
         withCostAck ? { dailySoloCostAck: true } : undefined
       );
-      if (!r?.ok) {
-        setSoloNote(`加入失败：${(r as { error?: string })?.error ?? "未知错误"}`);
+      const outcome = resolveJoinTournamentOutcome(r);
+      if (outcome.kind === "failed") {
+        setSoloNote(outcome.error);
         return "failed";
       }
-      if ("queued" in r && r.queued) {
+      if (outcome.kind === "queued") {
         setSoloNote("匹配中，正在为你创建对局…");
         setAwaitingSoloMatch({ templateId: tournamentId, gameKind: kind });
         return "queued";
       }
-      if ("gameId" in r && r.gameId) {
-        await casual.refreshCasualPlayer();
-        openSoloGame(kind, tournamentId, r.gameId);
-        return "ok";
-      }
-      return "failed";
+      await casual.refreshCasualPlayer();
+      openSoloGame(kind, outcome.templateId, outcome.gameId);
+      return "ok";
     },
     [casual.joinTournament, casual.refreshCasualPlayer, openSoloGame]
   );
@@ -282,7 +282,7 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
         if (!pv || !pv.ok) {
           setSoloNote(
             pv && !pv.ok
-              ? `无法加入：${pv.error === "period_unavailable" ? "当前周期桶不可用" : pv.error}`
+              ? joinEntryErrorMessage(pv.error)
               : "无法预览入场费用，请稍后重试。"
           );
           return;
@@ -461,9 +461,14 @@ const CasualPlayTab: React.FC<PageProp> = ({ visible }) => {
           <CasualPlayMatchOverlay
             open={visible !== 0 && !hasOpenRun && (queueWaiting || queueClaiming)}
             phase={queueClaiming ? "claiming" : "waiting"}
+            waitingForPeer={primaryQueueEntry?.waitingForPeer ?? false}
             tournamentTitle={primaryQueueTitle || undefined}
             leaving={leavingMatch}
-            onLeave={queueWaiting ? () => void handleLeaveMatchQueue() : undefined}
+            onLeave={
+              queueWaiting && primaryQueueEntry?.waitingForPeer
+                ? () => void handleLeaveMatchQueue()
+                : undefined
+            }
           />
 
           <section className="casual-play-hub__row" aria-labelledby="casual-play-hub-task-row">

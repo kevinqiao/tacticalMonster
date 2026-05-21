@@ -42,7 +42,10 @@ import type * as service_task_casualTaskService from "../service/task/casualTask
 import type * as service_tournament_casualBotDifficultyService from "../service/tournament/casualBotDifficultyService.js";
 import type * as service_tournament_casualInstanceService from "../service/tournament/casualInstanceService.js";
 import type * as service_tournament_casualMatchmaking from "../service/tournament/casualMatchmaking.js";
+import type * as service_tournament_casualPlayerMatchStatus from "../service/tournament/casualPlayerMatchStatus.js";
 import type * as service_tournament_casualReplayPassService from "../service/tournament/casualReplayPassService.js";
+import type * as service_tournament_casualRunIngestHelpers from "../service/tournament/casualRunIngestHelpers.js";
+import type * as service_tournament_casualRunReplay from "../service/tournament/casualRunReplay.js";
 import type * as service_tournament_casualRunSettlementFill from "../service/tournament/casualRunSettlementFill.js";
 import type * as service_tournament_casualTournamentActions from "../service/tournament/casualTournamentActions.js";
 import type * as service_tournament_casualTournamentJoinCore from "../service/tournament/casualTournamentJoinCore.js";
@@ -91,7 +94,10 @@ declare const fullApi: ApiFromModules<{
   "service/tournament/casualBotDifficultyService": typeof service_tournament_casualBotDifficultyService;
   "service/tournament/casualInstanceService": typeof service_tournament_casualInstanceService;
   "service/tournament/casualMatchmaking": typeof service_tournament_casualMatchmaking;
+  "service/tournament/casualPlayerMatchStatus": typeof service_tournament_casualPlayerMatchStatus;
   "service/tournament/casualReplayPassService": typeof service_tournament_casualReplayPassService;
+  "service/tournament/casualRunIngestHelpers": typeof service_tournament_casualRunIngestHelpers;
+  "service/tournament/casualRunReplay": typeof service_tournament_casualRunReplay;
   "service/tournament/casualRunSettlementFill": typeof service_tournament_casualRunSettlementFill;
   "service/tournament/casualTournamentActions": typeof service_tournament_casualTournamentActions;
   "service/tournament/casualTournamentJoinCore": typeof service_tournament_casualTournamentJoinCore;

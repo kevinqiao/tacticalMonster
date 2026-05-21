@@ -48,6 +48,18 @@ export const loadGameRowAfterHeal = internalMutation({
     },
 });
 
+/** 休闲再战：删除同 `gameId` 的局文档 */
+export const deleteCasualGameForReplay = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const rows = await collectBlockBlastGamesByGameId(ctx, gameId);
+        for (const row of rows) {
+            await ctx.db.delete(row._id);
+        }
+        return { ok: true as const, deleted: rows.length };
+    },
+});
+
 interface Shape {
     id: string;
     shape: number[][];

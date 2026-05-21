@@ -36,11 +36,6 @@ export interface CasualTournamentDefinition {
   instanceTimezone?: string;
   /** 单场容量上限（真人 + 机器人合计）；机器人数量 = maxPlayers - 本场真人开局数 */
   maxPlayers: number;
-  /**
-   * 匹配服开桌所需最少真人：测试阶段可设 1（队列里有一个真人就建局并补机器人至 maxPlayers）；
-   * 上线后可改为与 maxPlayers 相同或配合定时器凑满再开。
-   */
-  matchmakingMinHumans: number;
   entry: EntryCost;
   /** 与 TacticalMonster 锦标赛 `RewardConfig` 同构；休闲扩展见 `CasualPlatformRewardConfig` */
   rewards: CasualPlatformRewardConfig;
@@ -147,7 +142,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_a",
     status: "open",
     maxPlayers: 3,
-    matchmakingMinHumans: 1,
     entry: { kind: "coins", amount: 30 },
     rewards: {
       type: "by_rank",
@@ -164,7 +158,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
-    matchmakingMinHumans: 2,
     entry: { kind: "coins", amount: 40 },
     rewards: {
       type: "by_rank",
@@ -181,7 +174,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_c",
     status: "open",
     maxPlayers: 5,
-    matchmakingMinHumans: 1,
     entry: { kind: "gems", amount: 5 },
     rewards: {
       type: "by_rank",
@@ -198,7 +190,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_a",
     status: "open",
     maxPlayers: 3,
-    matchmakingMinHumans: 1,
     entry: { kind: "coins", amount: 30 },
     rewards: {
       type: "by_rank",
@@ -215,7 +206,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_b",
     status: "open",
     maxPlayers: 4,
-    matchmakingMinHumans: 2,
     entry: { kind: "coins", amount: 40 },
     rewards: {
       type: "by_rank",
@@ -232,7 +222,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "tournament_c",
     status: "open",
     maxPlayers: 5,
-    matchmakingMinHumans: 1,
     entry: { kind: "gems", amount: 5 },
     rewards: {
       type: "by_rank",
@@ -253,7 +242,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     entryBilling: "per_instance",
     instanceTimezone: "UTC",
     maxPlayers: 1,
-    matchmakingMinHumans: 1,
     entry: { kind: "none" },
     rewards: {
       type: "by_performance",
@@ -288,7 +276,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     entryBilling: "per_instance",
     instanceTimezone: "UTC",
     maxPlayers: 1,
-    matchmakingMinHumans: 1,
     entry: { kind: "none" },
     rewards: {
       type: "by_performance",
@@ -320,7 +307,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "season_challenge",
     status: "open",
     maxPlayers: 4,
-    matchmakingMinHumans: 1,
     entry: { kind: "seasonVouchers", amount: 2 },
     rewards: {
       type: "by_rank",
@@ -343,7 +329,6 @@ const TOURNAMENT_DEFS: CasualTournamentDefinition[] = [
     matchType: "season_challenge",
     status: "open",
     maxPlayers: 4,
-    matchmakingMinHumans: 1,
     entry: { kind: "seasonVouchers", amount: 2 },
     rewards: {
       type: "by_rank",

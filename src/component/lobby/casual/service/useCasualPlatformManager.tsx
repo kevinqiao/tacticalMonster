@@ -182,6 +182,8 @@ export interface CasualPlatformValue {
   matchQueueEntries: Array<{
     templateId: string;
     status: "waiting" | "claiming";
+    waitingForPeer: boolean;
+    expiresAt?: number;
     createdAt: number;
   }>;
   refreshCasualPlayer: () => Promise<void>;
@@ -192,22 +194,7 @@ export interface CasualPlatformValue {
   joinTournament: (
     tournamentId: string,
     opts?: { dailySoloCostAck?: true }
-  ) => Promise<
-    | {
-        ok: true;
-        runTournamentId: string;
-        matchId: string;
-        gameId: string;
-        templateId: string;
-        vouchersCharged?: number;
-        coinsCharged?: number;
-        gemsCharged?: number;
-        activityIds?: string[];
-      }
-    | { ok: true; queued: true; templateId: string }
-    | { ok: false; error?: string }
-    | null
-  >;
+  ) => Promise<import("./casualJoinTournamentFlow").CasualJoinTournamentMutationResult>;
   /** 与 join 一致的入场扣费预览（有消耗时 Play 先弹窗） */
   fetchJoinEntryChargePreview: (tournamentId: string) => Promise<
     | {
@@ -713,13 +700,7 @@ export function useCasualPlatform(): CasualPlatformValue {
           tournamentId,
           ...(opts?.dailySoloCostAck ? { dailySoloCostAck: true as const } : {}),
         });
-        if (
-          result &&
-          typeof result === "object" &&
-          "ok" in result &&
-          result.ok === true &&
-          !("queued" in result && (result as { queued?: boolean }).queued)
-        ) {
+        if (result?.ok === true && result.queued === false) {
           const m = result as {
             coinsCharged?: number;
             gemsCharged?: number;

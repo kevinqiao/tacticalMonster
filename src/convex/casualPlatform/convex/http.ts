@@ -82,6 +82,11 @@ http.route({
     if (r.periodSettled === true) {
       okBody.periodSettled = true;
     }
+    if (r.canReplay === true) {
+      okBody.canReplay = true;
+    } else if (r.canReplay === false) {
+      okBody.canReplay = false;
+    }
     return new Response(JSON.stringify(okBody), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -140,6 +145,79 @@ http.route({
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
+  }),
+});
+
+/**
+ * 游戏服再战授权：消耗再战令，本人 → `replaying`（保留 bot / 同桌）。
+ */
+http.route({
+  path: "/internal/casual-replay-authorize",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expected = casualGameBridgeSecret();
+    const headerSecret = request.headers.get("X-Casual-Bridge-Secret");
+    if (headerSecret !== expected) {
+      return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "bad_json" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (!body || typeof body !== "object") {
+      return new Response(JSON.stringify({ ok: false, error: "bad_body" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const b = body as Record<string, unknown>;
+    const uid = typeof b.uid === "string" ? b.uid : "";
+    const matchGameId = typeof b.matchGameId === "string" ? b.matchGameId : "";
+    if (!uid || !matchGameId) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_fields" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const mutationArgs: {
+      uid: string;
+      matchGameId: string;
+      replayTokenId?: import("./_generated/dataModel").Id<"casual_replay_tokens">;
+    } = { uid, matchGameId };
+    if (typeof b.replayTokenId === "string" && b.replayTokenId.length > 0) {
+      mutationArgs.replayTokenId =
+        b.replayTokenId as import("./_generated/dataModel").Id<"casual_replay_tokens">;
+    }
+
+    const result = await ctx.runMutation(
+      internal.service.tournament.casualRunReplay.authorizeCasualRunReplay,
+      mutationArgs
+    );
+
+    if (!result.ok) {
+      return new Response(JSON.stringify({ ok: false, error: result.error }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        gameId: result.gameId,
+        templateId: result.templateId,
+        matchId: result.matchId,
+        replayEpoch: result.replayEpoch,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   }),
 });
 

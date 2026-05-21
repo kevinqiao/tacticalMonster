@@ -95,7 +95,11 @@ interface IBlockBlastGameContext {
     postCasualSummaryOpen: boolean;
     postCasualTableSummary: CasualAsyncTableSummaryUI | null;
     postCasualWaitingForPeers: boolean;
+    postCasualCanReplay: boolean;
+    casualReplayBusy: boolean;
+    replayCasualRun: () => Promise<void>;
     dismissPostCasualSummary: () => void;
+    reloadCasualRun: () => Promise<boolean>;
     casualTournamentId?: string;
 }
 
@@ -125,7 +129,11 @@ const BlockBlastGameContext = createContext<IBlockBlastGameContext>({
     postCasualSummaryOpen: false,
     postCasualTableSummary: null,
     postCasualWaitingForPeers: false,
+    postCasualCanReplay: false,
+    casualReplayBusy: false,
+    replayCasualRun: async () => {},
     dismissPostCasualSummary: () => { },
+    reloadCasualRun: async () => false,
     casualTournamentId: undefined,
 });
 
@@ -178,6 +186,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         null
     );
     const [postCasualWaitingForPeers, setPostCasualWaitingForPeers] = useState(false);
+    const [postCasualCanReplay, setPostCasualCanReplay] = useState(false);
+    const [casualReplayBusy, setCasualReplayBusy] = useState(false);
 
     const casualRunSubmittedRef = useRef(false);
     const settleInFlightRef = useRef(false);
@@ -199,6 +209,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         setPostCasualSummaryOpen(false);
         setPostCasualTableSummary(null);
         setPostCasualWaitingForPeers(false);
+        setPostCasualCanReplay(false);
+        setCasualReplayBusy(false);
     }, [gameState?.gameId]);
 
     const resolveBlockBlastScoreReport = useCallback(
@@ -230,7 +242,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         async (
             gameId: string,
             fallbackScore: number,
-            settle: { tableSummary?: CasualAsyncTableSummaryUI | null; pendingOthers?: boolean }
+            settle: {
+                tableSummary?: CasualAsyncTableSummaryUI | null;
+                pendingOthers?: boolean;
+                canReplay?: boolean;
+            }
         ) => {
             if (gameStateRef.current?.reportElement) {
                 gsap.set(gameStateRef.current.reportElement, { autoAlpha: 0 });
@@ -239,10 +255,67 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             setPostCasualScoreReport(report);
             setPostCasualTableSummary(settle.tableSummary ?? null);
             setPostCasualWaitingForPeers(Boolean(settle.pendingOthers));
+            setPostCasualCanReplay(Boolean(settle.canReplay));
             setPostCasualScoreReportOpen(true);
         },
         [resolveBlockBlastScoreReport]
     );
+
+    const reloadCasualRun = useCallback(async (): Promise<boolean> => {
+        if (!gameId || !gameId.startsWith('game_')) return false;
+        const res = await convex.action(api.proxy.controller.loadGame, {
+            gameId,
+            resetCasualRun: true,
+        });
+        if (!res.ok) {
+            console.error('[BlockBlastGameProvider] reloadCasualRun failed', (res as { error?: string }).error);
+            return false;
+        }
+        if (res.game) {
+            const inferredSize = inferGridSizeFromGrid(res.game.grid);
+            const game: BlockBlastGameState = {
+                ...res.game,
+                gridSize: res.game.gridSize ?? inferredSize,
+                nextShapes: res.game.nextShapes ?? [],
+                reportElement: null,
+            };
+            setGameReport(null);
+            setGameState(game);
+            setInteractionPhase(GameInteractionPhase.idle);
+            terminalReportKeyRef.current = null;
+            return true;
+        }
+        return false;
+    }, [convex, gameId]);
+
+    const replayCasualRun = useCallback(async () => {
+        const gs = gameStateRef.current;
+        if (!gs || !user?.token || casualReplayBusy) return;
+        if (typeof gs.gameId !== 'string' || !gs.gameId.startsWith('game_')) return;
+        setCasualReplayBusy(true);
+        try {
+            const rr = (await convex.action(api.proxy.controller.replayCasualRun, {
+                token: user.token,
+                gameId: gs.gameId,
+            })) as { ok?: boolean; error?: string };
+            if (!rr?.ok) {
+                console.warn('[BlockBlast] replayCasualRun', rr?.error);
+                return;
+            }
+            casualRunSubmittedRef.current = false;
+            setPostCasualSummaryOpen(false);
+            setPostCasualTableSummary(null);
+            setPostCasualWaitingForPeers(false);
+            setPostCasualCanReplay(false);
+            setPostCasualScoreReportOpen(false);
+            setPostCasualScoreReport(null);
+            await reloadCasualRun();
+        } catch (e) {
+            console.error('[BlockBlast] replayCasualRun', e);
+        } finally {
+            setCasualReplayBusy(false);
+        }
+    }, [convex, user?.token, casualReplayBusy, reloadCasualRun]);
 
     const dismissPostCasualScoreReport = useCallback(() => {
         setPostCasualScoreReportOpen(false);
@@ -266,6 +339,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         setPostCasualSummaryOpen(false);
         setPostCasualTableSummary(null);
         setPostCasualWaitingForPeers(false);
+        setPostCasualCanReplay(false);
         onGameSubmit?.();
     }, [onGameSubmit]);
 
@@ -387,7 +461,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             scoreArg?: number,
             opts?: { deferHostNotify?: boolean }
         ): Promise<
-            | { ok: true; tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean }
+            | { ok: true; tableSummary?: CasualAsyncTableSummaryUI; pendingOthers?: boolean; canReplay?: boolean }
             | { ok: false }
         > => {
             const gs = gameStateRef.current;
@@ -410,6 +484,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         error?: string;
                         tableSummary?: CasualAsyncTableSummaryUI;
                         pendingOthers?: boolean;
+                        canReplay?: boolean;
                     };
                     if (!cr.ok) {
                         console.warn('[BlockBlast] submitCasualPlatformRun', cr.error);
@@ -423,6 +498,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
                         ok: true,
                         ...(cr.tableSummary ? { tableSummary: cr.tableSummary } : {}),
                         ...(cr.pendingOthers ? { pendingOthers: true } : {}),
+                        ...(cr.canReplay ? { canReplay: true } : {}),
                     };
                 }
                 let proxyOk = false;
@@ -472,6 +548,7 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             void beginCasualPostSettleFlow(gs.gameId, score, {
                 tableSummary: extras?.tableSummary ?? undefined,
                 pendingOthers: extras?.pendingOthers,
+                canReplay: extras?.canReplay,
             });
         },
         [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
@@ -511,6 +588,8 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
             }
             const out: ManualSettleConfirmExtras = {};
             if (settled.tableSummary) out.tableSummary = settled.tableSummary;
+            if (settled.pendingOthers) out.pendingOthers = true;
+            if (settled.canReplay) out.canReplay = true;
             return out;
         } catch (e) {
             console.error('[BlockBlast] confirmSettleAndExit', e);
@@ -633,7 +712,11 @@ export const BlockBlastGameProvider: React.FC<BlockBlastGameProviderProps> = ({
         postCasualSummaryOpen,
         postCasualTableSummary,
         postCasualWaitingForPeers,
+        postCasualCanReplay,
+        casualReplayBusy,
+        replayCasualRun,
         dismissPostCasualSummary,
+        reloadCasualRun,
         casualTournamentId,
     };
 

@@ -8,6 +8,61 @@ export const CASUAL_LOSS_STREAK_LOOKBACK_MAX = 10;
 /** 再战令：与第 1 名分差比例 ≤ 此值视为近失 */
 export const CASUAL_NEAR_MISS_GAP_RATIO = 0.1;
 
+/** 多人匹配队列：仅 effectiveMinHumans > 1 时生效（与前端 CASUAL_MATCH_OPEN_TIMEOUT_MS 对齐） */
+export const CASUAL_MATCH_QUEUE_TIMEOUT_MS = 90_000;
+
+/** 无规则命中时，按 matchType 的默认开桌所需真人数 */
+export const BASELINE_EFFECTIVE_MIN_HUMANS_BY_MATCH_TYPE: Record<
+  CasualTournamentDefinition["matchType"],
+  number
+> = {
+  tournament_a: 1,
+  tournament_b: 2,
+  tournament_c: 1,
+  season_challenge: 1,
+};
+
+export function getBaselineEffectiveMinHumans(
+  matchType: CasualTournamentDefinition["matchType"]
+): number {
+  return BASELINE_EFFECTIVE_MIN_HUMANS_BY_MATCH_TYPE[matchType] ?? 1;
+}
+
+export type MatchmakingRule = {
+  id: string;
+  priority: number;
+  condition: (ctx: BotStrategyPlayerContext) => boolean;
+  effectiveMinHumans: number;
+};
+
+export const MATCHMAKING_RULES: MatchmakingRule[] = [
+  {
+    id: "consecutive_loss_solo_table",
+    priority: 110,
+    condition: (ctx) => ctx.consecutiveLossStreak >= CASUAL_CONSECUTIVE_LOSS_THRESHOLD,
+    effectiveMinHumans: 1,
+  },
+  {
+    id: "returning_player_solo",
+    priority: 100,
+    condition: (ctx) => ctx.daysSinceLastMatch > 14,
+    effectiveMinHumans: 1,
+  },
+  {
+    id: "early_game_solo",
+    priority: 50,
+    condition: (ctx) =>
+      ctx.completedMultiplayerMatches <= 3 && ctx.seasonLadderPoints <= 20,
+    effectiveMinHumans: 1,
+  },
+  {
+    id: "tournament_b_multi_default",
+    priority: 10,
+    condition: (ctx) => ctx.matchType === "tournament_b",
+    effectiveMinHumans: 2,
+  },
+];
+
 export type CasualTableMode = "solo_bot" | "mixed_human";
 
 export type CasualGameIdForBot = "solitaire" | "block_blast";

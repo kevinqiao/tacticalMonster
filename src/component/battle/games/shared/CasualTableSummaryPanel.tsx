@@ -27,7 +27,7 @@ export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }>
                   row.isYou ? 'msc-lb-row--you' : row.isBot ? 'msc-lb-row--bot' : undefined
                 }
               >
-                <td>{row.rank}</td>
+                <td>{row.rowState === 'playing' ? '—' : row.rank}</td>
                 <td>
                   {row.displayLabel}
                   {row.isBot ? (
@@ -36,7 +36,7 @@ export const CasualTableSummaryPanel: React.FC<{ s: CasualAsyncTableSummaryUI }>
                     </span>
                   ) : null}
                 </td>
-                <td>{row.score}</td>
+                <td>{row.rowState === 'playing' ? 'Playing' : row.score}</td>
               </tr>
             ))}
           </tbody>

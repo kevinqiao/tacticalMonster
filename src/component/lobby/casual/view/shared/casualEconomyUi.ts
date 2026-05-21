@@ -41,6 +41,45 @@ export function passClaimErrorMessage(code: string | undefined): string {
   }
 }
 
+export function joinEntryErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case "unknown_tournament":
+      return "未知锦标赛";
+    case "period_unavailable":
+      return "当前周期不可用";
+    case "needs_cost_ack":
+      return "请先确认入场消耗";
+    case "no_player":
+      return "未找到玩家档案，请先完成登录同步";
+    case "no_active_season":
+      return "当前无激活赛季，赛季券不可用";
+    case "insufficient_coins":
+      return "金币不足，无法入场";
+    case "insufficient_gems":
+      return "钻石不足，无法入场";
+    case "insufficient_vouchers":
+      return "赛季券不足，无法入场";
+    case "replay_not_for_season_voucher":
+      return "赛季券专场不可使用再战令";
+    case "unknown_match_game":
+      return "未找到对局记录";
+    case "match_not_replayable":
+      return "当前对局不可再战";
+    case "replay_requires_solo_table":
+      return "仅单人桌（无其他真人同桌）可再战";
+    case "token_invalid":
+      return "再战令无效";
+    case "token_used":
+      return "再战令已使用";
+    case "forbidden":
+      return "无权操作该对局";
+    case "join_failed":
+      return "加入失败，请重试";
+    default:
+      return code ? `无法加入：${code}` : "无法加入";
+  }
+}
+
 export function shopErrorMessage(code: string | undefined): string {
   switch (code) {
     case "sku_unavailable":

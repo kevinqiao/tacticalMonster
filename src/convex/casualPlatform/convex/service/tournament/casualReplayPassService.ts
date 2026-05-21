@@ -1,11 +1,14 @@
 import { v } from "convex/values";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { query } from "../../_generated/server";
+import { mutation, query } from "../../_generated/server";
 import {
-  consumeReplayToken,
   countUnusedReplayTokens,
 } from "./casualBotDifficultyService";
+import {
+  startCasualRunReplayWithToken,
+  type StartCasualRunReplayResult,
+} from "./casualRunReplay";
 
 export const countUnusedReplayTokensForUid = query({
   args: { uid: v.string() },
@@ -27,9 +30,17 @@ export async function findOldestUnusedReplayTokenId(
   return unused[0]?._id ?? null;
 }
 
-export async function consumeReplayTokenForJoin(
-  ctx: MutationCtx,
-  args: { uid: string; tokenId: Id<"casual_replay_tokens">; tournamentId: string }
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  return consumeReplayToken(ctx, args);
-}
+/**
+ * 再战：不新建 match/gameId，不再次 join/扣入场费。
+ * 平台将 `casual_run_player_matches` 恢复为 `open`；客户端用同一 `gameId` 调游戏 `loadGame({ resetCasualRun: true })` 后重传分数。
+ */
+export const startCasualRunReplay = mutation({
+  args: {
+    uid: v.string(),
+    matchGameId: v.string(),
+    replayTokenId: v.id("casual_replay_tokens"),
+  },
+  handler: async (ctx, args): Promise<StartCasualRunReplayResult> => {
+    return await startCasualRunReplayWithToken(ctx, args);
+  },
+});

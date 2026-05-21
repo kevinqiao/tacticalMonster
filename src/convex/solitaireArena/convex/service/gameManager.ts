@@ -228,6 +228,21 @@ export const findGame = internalQuery({
         return game
     },
 });
+
+/** 休闲再战：同一 `gameId` 清档，由 `loadGame({ resetCasualRun: true })` 触发 */
+export const deleteCasualGameForReplay = internalMutation({
+    args: { gameId: v.string() },
+    handler: async (ctx, { gameId }) => {
+        const rows = await ctx.db
+            .query("game")
+            .withIndex("by_gameId", (q: any) => q.eq("gameId", gameId))
+            .collect();
+        for (const row of rows) {
+            await ctx.db.delete(row._id);
+        }
+        return { ok: true as const, deleted: rows.length };
+    },
+});
 export const findReport = query({
     args: { gameId: v.string() },
     handler: async (ctx, { gameId }) => {

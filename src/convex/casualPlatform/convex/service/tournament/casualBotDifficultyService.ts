@@ -8,8 +8,10 @@ import {
   CASUAL_CONSECUTIVE_LOSS_THRESHOLD,
   CASUAL_LOSS_STREAK_LOOKBACK_MAX,
   CASUAL_NEAR_MISS_GAP_RATIO,
+  getBaselineEffectiveMinHumans,
   getCasualRankMinScores,
   isCasualMultiplayerAsyncTemplate,
+  MATCHMAKING_RULES,
   type BotRankDistribution,
   type BotStrategyPlayerContext,
   type CasualGameIdForBot,
@@ -423,15 +425,20 @@ export function isNearMissTableSummary(
   return gap >= 0 && gap <= CASUAL_NEAR_MISS_GAP_RATIO;
 }
 
-/** 连续失败且非赛季券入场 → 应立即 solo 开桌 */
-export function shouldPreferSoloBotTable(
-  def: CasualTournamentDefinition,
-  consecutiveLossStreak: number
-): boolean {
-  if (consecutiveLossStreak < CASUAL_CONSECUTIVE_LOSS_THRESHOLD) return false;
-  if (def.entry.kind === "seasonVouchers") return false;
-  if (def.maxPlayers <= 1) return false;
-  return true;
+/** join 时按玩家画像 + matchType 基线决定开桌所需真人数 */
+export function evaluateEffectiveMatchmakingMinHumans(
+  ctx: BotStrategyPlayerContext,
+  def: CasualTournamentDefinition
+): { effectiveMinHumans: number; matchedRuleId: string | null } {
+  const cap = Math.max(1, def.maxPlayers);
+  const sorted = [...MATCHMAKING_RULES].sort((a, b) => b.priority - a.priority);
+  for (const rule of sorted) {
+    if (!rule.condition(ctx)) continue;
+    const effective = Math.min(cap, Math.max(1, rule.effectiveMinHumans));
+    return { effectiveMinHumans: effective, matchedRuleId: rule.id };
+  }
+  const baseline = Math.min(cap, getBaselineEffectiveMinHumans(def.matchType));
+  return { effectiveMinHumans: baseline, matchedRuleId: "baseline_match_type" };
 }
 
 export async function countUnusedReplayTokens(ctx: QueryCtx, uid: string): Promise<number> {

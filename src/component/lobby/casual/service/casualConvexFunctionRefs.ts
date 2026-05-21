@@ -21,6 +21,12 @@ export const casualTournamentFns = {
     "service/tournament/casualMatchmaking:leaveCasualMatchQueue"
   ),
   joinTournament: makeFunctionReference<"mutation">("service/tournament/casualTournamentService:joinTournament"),
+  startCasualRunReplay: makeFunctionReference<"mutation">(
+    "service/tournament/casualReplayPassService:startCasualRunReplay"
+  ),
+  countUnusedReplayTokensForUid: makeFunctionReference<"query">(
+    "service/tournament/casualReplayPassService:countUnusedReplayTokensForUid"
+  ),
   previewJoinEntryCharge: makeFunctionReference<"query">(
     "service/tournament/casualTournamentService:previewJoinEntryCharge"
   ),
