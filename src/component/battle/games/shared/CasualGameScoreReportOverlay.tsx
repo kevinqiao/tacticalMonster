@@ -9,27 +9,15 @@ export type CasualGameScoreReportOverlayProps = {
   onConfirm: () => void;
   title?: string;
   confirmLabel?: string;
-  replayAvailable?: boolean;
-  replayDisabled?: boolean;
-  replayDisabledHint?: string;
-  replayLabel?: string;
-  onReplay?: () => void;
-  replayBusy?: boolean;
 };
 
-/** 休闲场：结算后第一步，展示本局得分构成（非同桌总榜）。 */
+/** 休闲场：结算后第一步，展示本局得分构成（非同桌总榜；再战仅在同桌摘要页）。 */
 export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlayProps> = ({
   open,
   report,
   onConfirm,
   title = '本局得分',
   confirmLabel = '确定',
-  replayAvailable = false,
-  replayDisabled = false,
-  replayDisabledHint = '需要再战令（商店购买）',
-  replayLabel = '再战',
-  onReplay,
-  replayBusy = false,
 }) => {
   const titleId = useId();
   if (!open || !report) return null;
@@ -71,17 +59,6 @@ export const CasualGameScoreReportOverlay: React.FC<CasualGameScoreReportOverlay
             </li>
           </ul>
           <div className="ssc__actions">
-            {replayAvailable && onReplay ? (
-              <button
-                type="button"
-                className="ssc__btn ssc__btn--secondary"
-                disabled={replayBusy || replayDisabled}
-                title={replayDisabled ? replayDisabledHint : undefined}
-                onClick={onReplay}
-              >
-                {replayBusy ? '匹配中…' : replayDisabled ? `${replayLabel}（无令）` : replayLabel}
-              </button>
-            ) : null}
             <button type="button" className="ssc__btn ssc__btn--primary" onClick={onConfirm}>
               {confirmLabel}
             </button>

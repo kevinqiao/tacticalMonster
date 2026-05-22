@@ -19,6 +19,7 @@ import {
   resolvePlayerBotStrategyContext,
   sampleTargetRank,
 } from "./casualBotDifficultyService";
+import { isHumanSubmittedStatus } from "./casualPlayerMatchStatus";
 
 /** `uid` 前缀；本场虚拟对手，不参与全局异步榜 */
 /** Solitaire 异步场虚拟对手 uid 前缀（DB 存量数据依赖此字符串） */
@@ -105,7 +106,7 @@ export async function buildCasualAsyncTableSummary(
     maxPlayers: number;
     /** 优先按 match 拉全桌（真人 externalGameId 可能与 bot 的 casual_sess 不一致） */
     matchId?: string;
-    /** false：未全员 settled，其它真人一律 Playing */
+    /** false：未全员 settled；已交分真人仍展示分数/暂名，仅 open/replaying 等为 Playing */
     allHumansSettled?: boolean;
   }
 ): Promise<CasualAsyncTableSummary | null> {
@@ -135,13 +136,14 @@ export async function buildCasualAsyncTableSummary(
   if (!allHumansSettled && maxPlayers > 1) {
     const scored = rows
       .filter((r) => {
-        if (r.uid === uid) {
-          return r.score != null && Number.isFinite(r.score);
-        }
         if (isCasualAsyncVirtualOpponentUid(r.uid)) {
           return r.score != null && Number.isFinite(r.score);
         }
-        return false;
+        return (
+          isHumanSubmittedStatus(r.status) &&
+          r.score != null &&
+          Number.isFinite(r.score)
+        );
       })
       .map((r) => ({
         uid: r.uid,
@@ -156,11 +158,20 @@ export async function buildCasualAsyncTableSummary(
       return a.uid.localeCompare(b.uid);
     });
 
+    const scoredUidSet = new Set(scored.map((e) => e.uid));
+    let humanPeerIdx = 0;
     let botPeerIdx = 0;
     const outRows: CasualAsyncTableLeaderboardRow[] = scored.map((e) => {
       const isYou = e.uid === uid;
       const isBot = isCasualAsyncVirtualOpponentUid(e.uid);
-      const displayLabel = isYou ? "你" : `补位 ${++botPeerIdx}`;
+      let displayLabel: string;
+      if (isYou) {
+        displayLabel = "你";
+      } else if (isBot) {
+        displayLabel = `补位 ${++botPeerIdx}`;
+      } else {
+        displayLabel = `同桌 ${++humanPeerIdx}`;
+      }
       return {
         rank: e.rank < 999 ? e.rank : scored.indexOf(e) + 1,
         score: e.score,
@@ -171,11 +182,8 @@ export async function buildCasualAsyncTableSummary(
       };
     });
 
-    let humanPeerIdx = 0;
-    const otherHumans = rows.filter(
-      (r) => r.uid !== uid && !isCasualAsyncVirtualOpponentUid(r.uid)
-    );
-    for (const _h of otherHumans) {
+    for (const h of rows) {
+      if (scoredUidSet.has(h.uid) || isCasualAsyncVirtualOpponentUid(h.uid)) continue;
       outRows.push({
         rank: 0,
         rowState: "playing",

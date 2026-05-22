@@ -1250,6 +1250,9 @@ export const submitCasualRunScoreCore = internalMutation({
         replayOffered: partial.replayOffered,
         replayTokenCount: partial.replayTokenCount,
         canReplay: partial.canReplay,
+        ...(partial.replayWindowEndsAt != null
+          ? { replayWindowEndsAt: partial.replayWindowEndsAt }
+          : {}),
       };
     }
 
@@ -1320,6 +1323,9 @@ export const submitCasualRunScoreCore = internalMutation({
         replayOffered: partial.replayOffered,
         replayTokenCount: partial.replayTokenCount,
         canReplay: partial.canReplay,
+        ...(partial.replayWindowEndsAt != null
+          ? { replayWindowEndsAt: partial.replayWindowEndsAt }
+          : {}),
       };
     }
 

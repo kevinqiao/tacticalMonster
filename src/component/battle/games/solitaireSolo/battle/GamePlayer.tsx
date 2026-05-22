@@ -75,6 +75,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
         postCasualWaitingForPeers,
         postCasualCanReplay,
         postCasualReplayOffered,
+        postCasualReplayWindowEndsAt,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,
@@ -426,10 +427,6 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 open={postCasualScoreReportOpen}
                 report={postCasualScoreReport}
                 onConfirm={dismissPostCasualScoreReport}
-                replayAvailable={postCasualReplayOffered}
-                replayDisabled={postCasualReplayDisabled}
-                replayBusy={casualReplayBusy}
-                onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
             />
             <CasualPostSettleSummaryOverlay
                 open={postCasualSummaryOpen}
@@ -439,6 +436,7 @@ const SoloPlayer: React.FC<{ onGameLoadComplete?: () => void }> = ({ onGameLoadC
                 replayAvailable={postCasualReplayOffered}
                 replayDisabled={postCasualReplayDisabled}
                 replayBusy={casualReplayBusy}
+                replayWindowEndsAt={postCasualReplayWindowEndsAt}
                 onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
                 onDismiss={dismissPostCasualSummary}
             />

@@ -259,6 +259,7 @@ export const submitCasualPlatformRun = action({
       replayOffered?: boolean;
       replayTokenCount?: number;
       canReplay?: boolean;
+      replayWindowEndsAt?: number;
     } = {};
     try {
       const text = await res.text();
@@ -271,6 +272,7 @@ export const submitCasualPlatformRun = action({
           replayOffered?: boolean;
           replayTokenCount?: number;
           canReplay?: boolean;
+          replayWindowEndsAt?: number;
         };
       }
     } catch {
@@ -290,6 +292,8 @@ export const submitCasualPlatformRun = action({
     const replayTokenCount =
       typeof parsed.replayTokenCount === "number" ? parsed.replayTokenCount : undefined;
     const canReplay = parsed.canReplay === true;
+    const replayWindowEndsAt =
+      typeof parsed.replayWindowEndsAt === "number" ? parsed.replayWindowEndsAt : undefined;
     return {
       ok: true as const,
       ...(tableSummary ? { tableSummary } : {}),
@@ -297,6 +301,7 @@ export const submitCasualPlatformRun = action({
       ...(replayOffered ? { replayOffered: true as const } : {}),
       ...(replayTokenCount != null ? { replayTokenCount } : {}),
       ...(canReplay ? { canReplay: true as const } : {}),
+      ...(replayWindowEndsAt != null ? { replayWindowEndsAt } : {}),
     };
   },
 });

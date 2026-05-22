@@ -22,7 +22,8 @@ function normalizeSettleExtras(maybe: unknown): ManualSettleConfirmExtras | unde
   const hasReplay =
     m.replayOffered === true ||
     m.canReplay === true ||
-    typeof m.replayTokenCount === 'number';
+    typeof m.replayTokenCount === 'number' ||
+    typeof m.replayWindowEndsAt === 'number';
   const hasExtra = hasTable || m.pendingOthers === true || hasReplay;
   if (!hasExtra) return undefined;
   return {
@@ -31,6 +32,7 @@ function normalizeSettleExtras(maybe: unknown): ManualSettleConfirmExtras | unde
     ...(m.replayOffered ? { replayOffered: true } : {}),
     ...(m.replayTokenCount != null ? { replayTokenCount: m.replayTokenCount } : {}),
     ...(m.canReplay ? { canReplay: true } : {}),
+    ...(m.replayWindowEndsAt != null ? { replayWindowEndsAt: m.replayWindowEndsAt } : {}),
   };
 }
 

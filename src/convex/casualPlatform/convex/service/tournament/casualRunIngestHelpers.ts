@@ -18,6 +18,7 @@ import {
 import {
   allHumansSubmitted,
   canUseReplayForTemplate,
+  getReplayWindowEndsAt,
   isReplayableFinished,
   matchAllHumansSettled,
 } from "./casualPlayerMatchStatus";
@@ -39,6 +40,7 @@ export async function buildPartialIngestResponse(
   replayOffered: boolean;
   replayTokenCount: number;
   canReplay: boolean;
+  replayWindowEndsAt?: number;
 }> {
   const { def, pm, uid, canonicalSessionId, humanPms, now } = args;
   const freshPm = (await ctx.db.get(pm._id)) ?? pm;
@@ -90,7 +92,18 @@ export async function buildPartialIngestResponse(
     (!CASUAL_REPLAY_REQUIRE_NEAR_MISS ||
       (tableSummary ? isNearMissTableSummary(tableSummary) : true));
 
-  return { tableSummary, pendingOthers, replayOffered, replayTokenCount, canReplay };
+  const replayWindowEndsAt = replayOffered
+    ? getReplayWindowEndsAt(freshPm, pm.templateId, now)
+    : undefined;
+
+  return {
+    tableSummary,
+    pendingOthers,
+    replayOffered,
+    replayTokenCount,
+    canReplay,
+    ...(replayWindowEndsAt != null ? { replayWindowEndsAt } : {}),
+  };
 }
 
 export async function buildConfirmedDedupeResponse(

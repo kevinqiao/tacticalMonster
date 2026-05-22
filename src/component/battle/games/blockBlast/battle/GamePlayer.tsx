@@ -68,6 +68,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
         postCasualWaitingForPeers,
         postCasualCanReplay,
         postCasualReplayOffered,
+        postCasualReplayWindowEndsAt,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,
@@ -378,10 +379,6 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 open={postCasualScoreReportOpen}
                 report={postCasualScoreReport}
                 onConfirm={dismissPostCasualScoreReport}
-                replayAvailable={postCasualReplayOffered}
-                replayDisabled={postCasualReplayDisabled}
-                replayBusy={casualReplayBusy}
-                onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
             />
             <CasualPostSettleSummaryOverlay
                 open={postCasualSummaryOpen}
@@ -391,6 +388,7 @@ const BlockBlastPlayer: React.FC<{ gameId?: string }> = () => {
                 replayAvailable={postCasualReplayOffered}
                 replayDisabled={postCasualReplayDisabled}
                 replayBusy={casualReplayBusy}
+                replayWindowEndsAt={postCasualReplayWindowEndsAt}
                 onReplay={postCasualCanReplay ? () => void replayCasualRun() : undefined}
                 onDismiss={dismissPostCasualSummary}
             />

@@ -21,7 +21,6 @@ import {
 } from "../../types/SoloTypes";
 import { getCardCoord, syncCardStackZIndexFromGameState, tableauCardZIndex } from "../../Utils";
 import { useSoloGameManager } from "../GameManager";
-import { CasualGameScoreReportOverlay } from "../../../../shared/CasualGameScoreReportOverlay";
 import {
     buildSolitaireScoreReport,
     shouldOpenCasualTableSummaryAfterScoreReport,
@@ -40,6 +39,7 @@ type CasualRunSubmitOutcome =
           replayOffered?: boolean;
           replayTokenCount?: number;
           canReplay?: boolean;
+          replayWindowEndsAt?: number;
       }
     | { ok: false };
 
@@ -69,6 +69,9 @@ const useActHandler = () => {
     const [postCasualCanReplay, setPostCasualCanReplay] = useState(false);
     const [postCasualReplayOffered, setPostCasualReplayOffered] = useState(false);
     const [postCasualReplayTokenCount, setPostCasualReplayTokenCount] = useState(0);
+    const [postCasualReplayWindowEndsAt, setPostCasualReplayWindowEndsAt] = useState<number | undefined>(
+        undefined
+    );
     const [casualReplayBusy, setCasualReplayBusy] = useState(false);
     const casualRunSubmittedRef = useRef(false);
     const settleInFlightRef = useRef(false);
@@ -103,6 +106,7 @@ const useActHandler = () => {
         setPostCasualTableSummary(null);
         setPostCasualWaitingForPeers(false);
         setPostCasualCanReplay(false);
+        setPostCasualReplayWindowEndsAt(undefined);
         setCasualReplayBusy(false);
     }, [gameState?.gameId]);
 
@@ -138,6 +142,7 @@ const useActHandler = () => {
                 replayOffered?: boolean;
                 replayTokenCount?: number;
                 canReplay?: boolean;
+                replayWindowEndsAt?: number;
             }
         ) => {
             const report = await loadSolitaireScoreReport(gameId, fallbackScore);
@@ -150,6 +155,9 @@ const useActHandler = () => {
                 typeof settle.replayTokenCount === "number" ? settle.replayTokenCount : 0
             );
             setPostCasualCanReplay(Boolean(settle.canReplay));
+            setPostCasualReplayWindowEndsAt(
+                typeof settle.replayWindowEndsAt === "number" ? settle.replayWindowEndsAt : undefined
+            );
             if (import.meta.env.DEV) {
                 console.log("[Solitaire] post-settle replay", {
                     replayOffered: offered,
@@ -188,6 +196,7 @@ const useActHandler = () => {
                         replayOffered?: boolean;
                         replayTokenCount?: number;
                         canReplay?: boolean;
+                        replayWindowEndsAt?: number;
                     };
                     if (!cr.ok) {
                         console.warn("[Solitaire] submitCasualPlatformRun", cr.error);
@@ -204,6 +213,7 @@ const useActHandler = () => {
                         ...(cr.replayOffered ? { replayOffered: true } : {}),
                         ...(cr.replayTokenCount != null ? { replayTokenCount: cr.replayTokenCount } : {}),
                         ...(cr.canReplay ? { canReplay: true } : {}),
+                        ...(cr.replayWindowEndsAt != null ? { replayWindowEndsAt: cr.replayWindowEndsAt } : {}),
                     };
                 }
 
@@ -280,6 +290,7 @@ const useActHandler = () => {
             setPostCasualCanReplay(false);
             setPostCasualReplayOffered(false);
             setPostCasualReplayTokenCount(0);
+            setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualScoreReportOpen(false);
             setPostCasualScoreReport(null);
             onGameSubmit?.();
@@ -335,6 +346,7 @@ const useActHandler = () => {
             setPostCasualCanReplay(false);
             setPostCasualReplayOffered(false);
             setPostCasualReplayTokenCount(0);
+            setPostCasualReplayWindowEndsAt(undefined);
             setPostCasualScoreReportOpen(false);
             setPostCasualScoreReport(null);
             await reloadCasualRun();
@@ -369,6 +381,7 @@ const useActHandler = () => {
                 replayOffered: extras?.replayOffered,
                 replayTokenCount: extras?.replayTokenCount,
                 canReplay: extras?.canReplay,
+                replayWindowEndsAt: extras?.replayWindowEndsAt,
             });
         },
         [casualTournamentId, onGameSubmit, beginCasualPostSettleFlow]
@@ -406,6 +419,7 @@ const useActHandler = () => {
             if (settled.replayOffered) out.replayOffered = true;
             if (settled.replayTokenCount != null) out.replayTokenCount = settled.replayTokenCount;
             if (settled.canReplay) out.canReplay = true;
+            if (settled.replayWindowEndsAt != null) out.replayWindowEndsAt = settled.replayWindowEndsAt;
             return out;
         } catch (e) {
             console.error("[Solitaire] confirmSettleAndExit", e);
@@ -825,6 +839,7 @@ const useActHandler = () => {
         postCasualCanReplay,
         postCasualReplayOffered,
         postCasualReplayTokenCount,
+        postCasualReplayWindowEndsAt,
         casualReplayBusy,
         replayCasualRun,
         dismissPostCasualSummary,

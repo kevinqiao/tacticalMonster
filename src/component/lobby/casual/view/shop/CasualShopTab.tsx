@@ -400,7 +400,7 @@ const CasualShopTab: React.FC<PageProp> = ({ visible }) => {
               再战令
             </h2>
             <p className="casual-econ__sectionHint">
-              消耗再战令可在结算后 30 分钟内对同一局重玩并重传分数（异步场；赛季券场不可用）。
+              消耗再战令可在结算后 3 分钟内对同一局重玩并重传分数（异步场；赛季券场不可用）。
             </p>
             <div className="casual-shop__grid">
               {replayShopSkus.map((sku) => {

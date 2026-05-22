@@ -21,4 +21,6 @@ export type ManualSettleConfirmExtras = {
   replayOffered?: boolean;
   replayTokenCount?: number;
   canReplay?: boolean;
+  /** epoch ms；再战窗口结束时刻，供同桌摘要倒计时 */
+  replayWindowEndsAt?: number;
 };

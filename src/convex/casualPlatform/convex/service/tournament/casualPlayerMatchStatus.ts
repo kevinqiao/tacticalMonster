@@ -2,8 +2,8 @@ import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { getTournamentDefinition } from "../../data/casualTournamentConfigs";
 
-/** 默认再战窗口：30 分钟 */
-export const CASUAL_DEFAULT_REPLAY_WINDOW_MS = 30 * 60 * 1000;
+/** 默认再战窗口：3 分钟 */
+export const CASUAL_DEFAULT_REPLAY_WINDOW_MS = 3 * 60 * 1000;
 
 export function getReplayWindowMs(_templateId: string): number {
   return CASUAL_DEFAULT_REPLAY_WINDOW_MS;
@@ -22,6 +22,19 @@ export function isReplayableFinished(
   const at = pm.finishedAt;
   if (at == null || !Number.isFinite(at)) return true;
   return now < at + getReplayWindowMs(templateId);
+}
+
+/** `finished` 状态下再战窗口结束时刻（epoch ms）；供前端倒计时。 */
+export function getReplayWindowEndsAt(
+  pm: { status: string; finishedAt?: number },
+  templateId: string,
+  now: number
+): number | undefined {
+  if (pm.status !== "finished") return undefined;
+  const windowMs = getReplayWindowMs(templateId);
+  const at = pm.finishedAt;
+  if (at == null || !Number.isFinite(at)) return now + windowMs;
+  return at + windowMs;
 }
 
 export async function promoteFinishedToConfirmedIfExpired(

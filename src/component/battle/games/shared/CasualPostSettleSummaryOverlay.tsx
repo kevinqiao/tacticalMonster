@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 
 import type { CasualAsyncTableSummaryUI } from './casualAsyncTableSummaryUI';
 import { CasualTableSummaryPanel } from './CasualTableSummaryPanel';
+import { useReplayWindowCountdown } from './useReplayWindowCountdown';
 import './manualSettleConfirmOverlay.css';
 
 export type CasualPostSettleSummaryOverlayProps = {
@@ -14,7 +15,7 @@ export type CasualPostSettleSummaryOverlayProps = {
   waitingForPeers?: boolean;
   onDismiss: () => void;
   dismissLabel?: string;
-  /** 近失且持有再战令时展示 */
+  /** 模板允许再战且在窗口内时展示（可与 `onReplay` 分离以支持灰态） */
   replayAvailable?: boolean;
   /** 展示再战但不可点（如无再战令） */
   replayDisabled?: boolean;
@@ -22,6 +23,8 @@ export type CasualPostSettleSummaryOverlayProps = {
   replayLabel?: string;
   onReplay?: () => void;
   replayBusy?: boolean;
+  /** epoch ms，再战窗口结束时刻 */
+  replayWindowEndsAt?: number;
 };
 
 /**
@@ -41,8 +44,10 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
   replayLabel = '再战',
   onReplay,
   replayBusy = false,
+  replayWindowEndsAt,
 }) => {
   const titleId = useId();
+  const countdown = useReplayWindowCountdown(replayWindowEndsAt);
   const showTable = Boolean(summary?.rows?.length);
   const showPending = Boolean(waitingForPeers) && !showTable;
   const showSubmittedOnly = open && !showTable && !showPending;
@@ -57,6 +62,18 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
         : '本局成绩已成功提交。';
 
   const body = subtitle != null && subtitle.trim() ? subtitle.trim() : defaultSub;
+
+  const showReplayBtn = replayAvailable && countdown != null;
+  const replayBtnDisabled = replayBusy || replayDisabled || !onReplay;
+  let replayBtnText = replayLabel;
+  if (replayBusy) {
+    replayBtnText = '匹配中…';
+  } else if (replayDisabled) {
+    replayBtnText = `${replayLabel}（无令）`;
+  }
+  if (countdown) {
+    replayBtnText = `${replayBtnText} ${countdown}`;
+  }
 
   return (
     <div className="msc-overlay" role="presentation">
@@ -85,15 +102,15 @@ export const CasualPostSettleSummaryOverlay: React.FC<CasualPostSettleSummaryOve
             </p>
           ) : null}
           <div className="ssc__actions">
-            {replayAvailable && onReplay ? (
+            {showReplayBtn ? (
               <button
                 type="button"
                 className="ssc__btn ssc__btn--secondary"
-                disabled={replayBusy || replayDisabled}
+                disabled={replayBtnDisabled}
                 title={replayDisabled ? replayDisabledHint : undefined}
-                onClick={onReplay}
+                onClick={() => onReplay?.()}
               >
-                {replayBusy ? '匹配中…' : replayDisabled ? `${replayLabel}（无令）` : replayLabel}
+                {replayBtnText}
               </button>
             ) : null}
             <button type="button" className="ssc__btn ssc__btn--primary" onClick={onDismiss}>

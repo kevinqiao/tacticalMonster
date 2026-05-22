@@ -93,6 +93,9 @@ http.route({
     } else if (r.canReplay === false) {
       okBody.canReplay = false;
     }
+    if (typeof r.replayWindowEndsAt === "number") {
+      okBody.replayWindowEndsAt = r.replayWindowEndsAt;
+    }
     return new Response(JSON.stringify(okBody), {
       status: 200,
       headers: { "Content-Type": "application/json" },
